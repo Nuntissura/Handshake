@@ -1105,5 +1105,24 @@
     "a trimmed stack drops its switched-off instances from the RECORD only; the lfx2 block stays byte-exact in the document (write_psd(read) == input is asserted in scenario A of the first new test and in the second new test; scenarios B and C do not repeat it)"
    ]
   }
- }
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V15",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "reopened (CX-VAL-009: crate or dependency closure changed 507aa36..e698964, or dev-profile opt-level change for prism/interop-psd); units of interop-psd green in R27 (default, feature, ignored, doctest)",
+   "idempotency_key": "STUDIO-R27:SMB-INTEROP-PSD-BUDGET:e6989645e02c:PASS_V15",
+   "round": "STUDIO-R27",
+   "lane": "SMB-INTEROP-PSD-BUDGET",
+   "candidate": "e6989645e02ceb7a4bf082788126b56d6dca4991",
+   "tree": "a26c88154f31ecb8f5d8edd0054a49570ca6f028",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R27",
+   "started_at": "2026-10-14T22:06:44Z",
+   "completed_at": "2026-10-14T22:35:40Z"
+  }
+ ]
 }

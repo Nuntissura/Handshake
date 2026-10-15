@@ -1,51 +1,127 @@
 {
-  "crate": "hsk-studio-interop-raster",
-  "lane": "SMB-IO-RASTER-COMMON",
-  "status": "READY_FOR_VALIDATION",
-  "phase": "slices 1-3 + corpus test pushed; claim = every commit listed below (crate tree at ac71845)",
-  "commits": [
-    {"sha": "32817d9", "subject": "interop-raster (SMB-IO-RASTER-COMMON slice 1): PNG decode + deterministic PNG encode"},
-    {"sha": "e4f7ca6", "subject": "interop-raster (SMB-IO-RASTER-COMMON slice 2): JPEG decode via zune-jpeg behind an own marker walk"},
-    {"sha": "6e5fbfc", "subject": "interop-raster tests (SMB-IO-RASTER-COMMON slice 2): JPEG vs Pillow tolerance 3 with mean below 1 (measured 1/2/3; T.81 IDCT not bit-exact)"},
-    {"sha": "b3d9c19", "subject": "interop-raster (SMB-IO-RASTER-COMMON slice 3): clean-room baseline JPEG encoder (ITU-T T.81, decision J1)"},
-    {"sha": "ac71845", "subject": "interop-raster (SMB-IO-RASTER-COMMON): ignored corpus test over PngSuite + libjpeg-turbo test images against Pillow decodes"}
-  ],
-  "capabilities_done": [
-    "sniff PNG/JPEG/WebP (WebP refused webp_decoder_unavailable)",
-    "PNG decode: all IHDR colour types/depths, palette+tRNS+sub-byte expansion, 16-bit kept, Adam7, iCCP (unreadable -> icc_unreadable), gAMA/sRGB/cHRM recorded, APNG default image + loss png_animation_not_imported",
-    "PNG encode: Gray/GrayA/Rgb/Rgba 8/16-bit + iCCP, fixed filter, byte-deterministic",
-    "JPEG decode via zune-jpeg 0.5.15 (std only, scalar): baseline/extended/progressive, Gray/RGB/CMYK (Adobe inverted recorded), YCCK -> inverted CMYK, APP2 ICC reassembly by sequence, Exif orientation recorded",
-    "JPEG typed refusals: arithmetic_coding_unsupported, jpeg_lossless_unsupported, jpeg_hierarchical_unsupported, jpeg_precision_unsupported, jpeg_dnl_unsupported, jpeg_components_unsupported, scans_over_limit, icc_chunks_inconsistent, icc_chunk_count, icc_over_limit",
-    "own clean-room baseline JPEG encoder (ITU-T T.81): SOF0, Annex K tables, quality scaling, Gray/RGB, 4:4:4 + 4:2:0, ICC APP2 chunking, deterministic (pinned output hash)",
-    "V4-01 crate-wide #![deny(clippy::arithmetic_side_effects)] + #![forbid(unsafe_code)]; V4-02 dims_u32_max + aggregate_over_budget per decoder",
-    "RasterImage::planes_be(): per-channel big-endian planes in interop-psd Plane layout for RasterSource"
-  ],
-  "tests": {"argv": "cargo nextest run -p hsk-studio-interop-raster", "exit": 0, "sha": "ac71845", "passed": 9, "failed": 0},
-  "blockers": [],
-  "lock_wait_s": 0,
-  "bg_pids": [],
-  "next": "lead: harness import-raster route (spec in notes.harness_route; UI builder owns harness); steward: pin sha2 dev-dep (request line 2026-10-14) and resync Cargo.lock",
-  "updated_at": "2026-10-14T20:49:54Z",
-  "notes": {
-    "proof": "at ac71845: cargo clippy -p hsk-studio-interop-raster --tests exit 0 (no warnings in this crate); cargo nextest run -p hsk-studio-interop-raster 9 passed 1 skipped(ignored corpus); ignored corpus test run separately: 1 passed (cargo nextest run -p hsk-studio-interop-raster --test real_raster --run-ignored ignored-only)",
-    "tests_per_slice": {
-      "png (slice 1)": ["png_round_trip_keeps_samples_icc_and_is_deterministic", "png_from_foreign_encoder_palette_trns_and_adam7", "png_hostile_inputs_refuse_typed_without_panic (dims_u32_max, aggregate_over_budget, truncated, missing IEND, corrupt iCCP, mutation sweep)"],
-      "jpeg decode (slice 2)": ["jpeg_decode_matches_pillow_for_gray_420_progressive_cmyk_and_exif", "jpeg_icc_app2_chunks_reassembled_in_sequence_order", "jpeg_hostile_inputs_refuse_typed_without_panic (SOF 65535x65535, aggregate_over_budget, truncated, missing EOI, SOF3/5/9, 12-bit, scans, mutation sweep)"],
-      "jpeg encode (slice 3)": ["jpeg_encoder_tables_match_libjpeg_turbo_output", "jpeg_encoder_round_trip_psnr_icc_and_determinism", "jpeg_encoder_refuses_outside_its_envelope"],
-      "corpus (ignored, V4-03)": ["corpus_files_decode_as_pillow_or_refuse"]
-    },
-    "jpeg_decode_tolerance": "vs Pillow 12.2.0 / libjpeg-turbo 3.1.4.1 decode of the same bytes: max abs diff gray 1, 4:2:0 2, progressive 3 (brief said +/-2; progressive measured 3, so bound is 3 with mean < 1: means 0.031/0.286/0.297); CMYK 0. T.81 does not fix IDCT rounding.",
-    "encoder_quality": "61x47 hard test image, decode-back via zune-jpeg; ours vs libjpeg-turbo 3.1.4.1 (Pillow) same image: q95 444 36.95 dB/3675 B (lj 36.92/3706), q90 444 31.75/2628 (31.76/2657), q90 420 24.03/1575 (24.05/1594), q75 420 23.18/1078 (23.20/1095), q50 444 24.24/1170 (24.24/1186), gray q90 43.51/862 (43.51/869). Test bounds = libjpeg-turbo - 0.5 dB. DQT and DHT segments byte-equal to libjpeg-turbo output at q90 (Gray and 4:2:0). Pinned fnv1a64 of q95 444 output 0x4082b101de13c0a7.",
-    "encoder_clean_room": "written from ITU-T T.81 (A.3.3 FDCT, Annex C codes, F.1.2 Huffman/stuffing, Annex K tables), T.871 YCbCr, ICC.1 B.4 APP2; no IJG/jpeg-encoder source read; quality scaling formula = common IJG convention (formula only), verified by DQT byte equality with libjpeg-turbo.",
-    "fixtures": "tests/jpeg_fixtures/mod.rs: 5 JPEGs (344-675 B) written once by Pillow 12.2.0 (libjpeg-turbo 3.1.4.1) from synthetic gradients + Pillow's decode of each (oracle); generator script kept in session scratchpad only (smb-io-raster-common/gen_jpeg_fixtures.py), parameters in the file header.",
-    "corpus": "NEW dir Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/raster-common/ with provenance.json (180 files, sha256, licence, Pillow oracle per file): pngsuite/ = PngSuite-2017jul19 (176 PNG, licence 'permission to use, copy, modify and distribute for any purpose without fee', (c) Willem van Schaik; archive dl-pngsuite/PngSuite-2017jul19.tgz kept), libjpeg-turbo/ = testorig.jpg, testimgint.jpg, testimgari.jpg, testorig12.jpg from libjpeg-turbo tag 3.0.4 (repo-level IJG + BSD-3 licences, notices NOTICE-LICENSE.md/NOTICE-README.ijg; per-file licence UNVERIFIED). Read via the existing .config/oracle-corpus.toml search root; NO new config key needed (subdirectory raster-common only). Result: 162 PNG decode equal to Pillow (tbbn0g04 alpha: Pillow 12.2.0 ignores the 4-bit tRNS key; our alpha proven by the PNG spec rule in the test), 14 x-files refused, testorig/testimgint channel means within 0.3 of Pillow, testimgari arithmetic_coding_unsupported, testorig12 jpeg_precision_unsupported.",
-    "deps": "png =0.18.1 and zune-jpeg =0.5.15 [std] (approved, already in manifest/lock from steward scaffold). NEW dev-dep sha2 =0.10.9 [force-soft] (same as interop-tiff) - request line appended to dep-requests.jsonl before push. Cargo.lock left uncommitted (shared lock holds other lanes' changes).",
-    "ink_convention": "Colour::Cmyk samples are as decoded; JpegInfo.cmyk_inverted=true when APP14 Adobe is present (0 = full ink, same as PSD/RasterSource convention) -> pass planes unchanged; false -> harness inverts (255 - v) before RasterSource. YCCK is converted to inverted CMYK here (ycck_converted=true).",
-    "harness_route": "NOT implemented here (UI builder owns harness). Spec for crates/hsk-studio-harness (edge harness->interop-raster already in root allowed list): (1) Cargo.toml optional dep hsk-studio-interop-raster = { path = \"../hsk-studio-interop-raster\", version = \"=0.1.0\", default-features = false, optional = true } + feature import-raster = [\"import\", \"dep:hsk-studio-interop-psd\", \"dep:hsk-studio-prism\", \"dep:hsk-studio-interop-raster\"]; (2) src/import.rs: SourceFormat::{Png, Jpeg}; sniff branch BEFORE the TIFF branch using hsk_studio_interop_raster::sniff (WebP -> typed unsupported webp_decoder_unavailable); (3) new src/import/raster.rs modelled on import/tiff.rs:110-155: img = interop_raster::decode(bytes, &Limits::default(), cancel); colour_mode = Gray|GrayA -> ColorMode::Grayscale, Rgb|Rgba -> Rgb, Cmyk -> Cmyk; planes = img.planes_be()?; first img.colour.colour_channels() planes are colour, the last is alpha when img.colour.has_alpha(); CMYK with !jpeg.cmyk_inverted: invert bytes; wrap each as psd::Plane{width, height, depth: img.depth(), bytes}; RasterSource{format: img.format.label() (\"png\"|\"jpeg\"), name: \"Background\", width, height, depth: img.depth(), colour_mode, planes, alpha, icc: img.icc.clone()} -> psd::raster_proposal(.., Some(&mut converter), cancel) -> drop loss entries merged_image_oracle_unknown/image_data_missing as tiff does -> add LossEntry per img.losses (png_animation_not_imported, jpeg_exif_unreadable) and raster_orientation_not_applied when exif_orientation is Some(v) with v != 1 -> extra json {colour summary, raster:{format, width, height, colour, depth, source_bit_depth, icc_bytes, exif_orientation, png:{source_colour_type, source_bit_depth, interlaced, gamma, srgb_intent, chromaticities, animation_frames}, jpeg:{process, components, sampling, scans, adobe_transform, cmyk_inverted, ycck_converted}}} -> package_proposal(\"png\"|\"jpeg\", \"hsk-studio-interop-raster + hsk-studio-interop-psd\", bytes, proposal, extra). Tests (2): Rgba8 PNG (encode_png) imports to one raster layer whose package re-opens with ImportRole::Original bytes equal to the input; a JPEG with Exif orientation 6 (encode_jpeg output + spliced APP1 Exif, or copy EXIF6 from interop-raster tests/jpeg_fixtures) carries raster_orientation_not_applied in the receipt. Proof: cargo nextest run -p hsk-studio-harness --features import-raster.",
-    "v4_07": "DESCRIPTOR 'orientation recorded never applied' is proven by jpeg_decode_matches_pillow... (EXIF6 samples equal Pillow's unrotated decode, orientation Some(6)); 'bytes are a pure function of the request' by the two-encode equality and the pinned hash.",
-    "unverified": ["YCCK and CMYK-without-APP14 paths: no fixture", "libjpeg-turbo decode of OUR encoder output not run in tests (tables byte-equal + zune decode-back only)", "Adobe CMYK inversion convention from libjpeg/Pillow behaviour; no Adobe-written CMYK JPEG (D5 oracle session)"],
-    "retry_guard": "one hook block at 20:29Z on an identical nextest rerun after a test-tolerance failure: route (a) product fix committed (6e5fbfc), then rerun green. One block from a command whose first token was a variable assignment (PROC-CD-FIRST) - reissued with cd first; no gameplan steps added.",
-    "next_slices": "WebP decode (image-webp 0.2.4, brief slice 2), export route decision R-EXPORT, optional: JPEG encoder restart intervals / progressive, 4:2:2"
+ "crate": "hsk-studio-interop-raster",
+ "lane": "SMB-IO-RASTER-COMMON",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-3 + corpus test pushed; claim = every commit listed below (crate tree at ac71845)",
+ "commits": [
+  {
+   "sha": "32817d9",
+   "subject": "interop-raster (SMB-IO-RASTER-COMMON slice 1): PNG decode + deterministic PNG encode"
   },
-  "verdicts": [{"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": ["interop-raster real_raster corpus_files_decode_as_pillow_or_refuse (#[ignore]): not run, round config has no [ignored] interop-raster set"], "note": "32817d9..ac71845: interop-raster png_codec 3/3, jpeg_codec 3/3 (vs Pillow decodes, ICC reassembly, hostile incl. dims and aggregate_over_budget), jpeg_encoder 3/3 (libjpeg-turbo table match, PSNR/ICC/determinism, envelope refusals) pass. Diff read: real PNG codec, zune-jpeg behind own marker walk, clean-room T.81 FDCT + Huffman encoder; crate-wide deny(arithmetic_side_effects). Corpus oracle test not run (NOT_PROVEN)", "idempotency_key": "STUDIO-R26:SMB-IO-RASTER-COMMON:507aa36d6a58:PASS_V1", "round": "STUDIO-R26", "lane": "SMB-IO-RASTER-COMMON", "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae", "tree": "595bb180eada95cebf57b6cbca509292ac949252", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26", "started_at": "2026-10-14T21:21:54Z", "completed_at": "2026-10-14T21:51:04Z"}]
+  {
+   "sha": "e4f7ca6",
+   "subject": "interop-raster (SMB-IO-RASTER-COMMON slice 2): JPEG decode via zune-jpeg behind an own marker walk"
+  },
+  {
+   "sha": "6e5fbfc",
+   "subject": "interop-raster tests (SMB-IO-RASTER-COMMON slice 2): JPEG vs Pillow tolerance 3 with mean below 1 (measured 1/2/3; T.81 IDCT not bit-exact)"
+  },
+  {
+   "sha": "b3d9c19",
+   "subject": "interop-raster (SMB-IO-RASTER-COMMON slice 3): clean-room baseline JPEG encoder (ITU-T T.81, decision J1)"
+  },
+  {
+   "sha": "ac71845",
+   "subject": "interop-raster (SMB-IO-RASTER-COMMON): ignored corpus test over PngSuite + libjpeg-turbo test images against Pillow decodes"
+  }
+ ],
+ "capabilities_done": [
+  "sniff PNG/JPEG/WebP (WebP refused webp_decoder_unavailable)",
+  "PNG decode: all IHDR colour types/depths, palette+tRNS+sub-byte expansion, 16-bit kept, Adam7, iCCP (unreadable -> icc_unreadable), gAMA/sRGB/cHRM recorded, APNG default image + loss png_animation_not_imported",
+  "PNG encode: Gray/GrayA/Rgb/Rgba 8/16-bit + iCCP, fixed filter, byte-deterministic",
+  "JPEG decode via zune-jpeg 0.5.15 (std only, scalar): baseline/extended/progressive, Gray/RGB/CMYK (Adobe inverted recorded), YCCK -> inverted CMYK, APP2 ICC reassembly by sequence, Exif orientation recorded",
+  "JPEG typed refusals: arithmetic_coding_unsupported, jpeg_lossless_unsupported, jpeg_hierarchical_unsupported, jpeg_precision_unsupported, jpeg_dnl_unsupported, jpeg_components_unsupported, scans_over_limit, icc_chunks_inconsistent, icc_chunk_count, icc_over_limit",
+  "own clean-room baseline JPEG encoder (ITU-T T.81): SOF0, Annex K tables, quality scaling, Gray/RGB, 4:4:4 + 4:2:0, ICC APP2 chunking, deterministic (pinned output hash)",
+  "V4-01 crate-wide #![deny(clippy::arithmetic_side_effects)] + #![forbid(unsafe_code)]; V4-02 dims_u32_max + aggregate_over_budget per decoder",
+  "RasterImage::planes_be(): per-channel big-endian planes in interop-psd Plane layout for RasterSource"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-interop-raster",
+  "exit": 0,
+  "sha": "ac71845",
+  "passed": 9,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "lead: harness import-raster route (spec in notes.harness_route; UI builder owns harness); steward: pin sha2 dev-dep (request line 2026-10-14) and resync Cargo.lock",
+ "updated_at": "2026-10-14T20:49:54Z",
+ "notes": {
+  "proof": "at ac71845: cargo clippy -p hsk-studio-interop-raster --tests exit 0 (no warnings in this crate); cargo nextest run -p hsk-studio-interop-raster 9 passed 1 skipped(ignored corpus); ignored corpus test run separately: 1 passed (cargo nextest run -p hsk-studio-interop-raster --test real_raster --run-ignored ignored-only)",
+  "tests_per_slice": {
+   "png (slice 1)": [
+    "png_round_trip_keeps_samples_icc_and_is_deterministic",
+    "png_from_foreign_encoder_palette_trns_and_adam7",
+    "png_hostile_inputs_refuse_typed_without_panic (dims_u32_max, aggregate_over_budget, truncated, missing IEND, corrupt iCCP, mutation sweep)"
+   ],
+   "jpeg decode (slice 2)": [
+    "jpeg_decode_matches_pillow_for_gray_420_progressive_cmyk_and_exif",
+    "jpeg_icc_app2_chunks_reassembled_in_sequence_order",
+    "jpeg_hostile_inputs_refuse_typed_without_panic (SOF 65535x65535, aggregate_over_budget, truncated, missing EOI, SOF3/5/9, 12-bit, scans, mutation sweep)"
+   ],
+   "jpeg encode (slice 3)": [
+    "jpeg_encoder_tables_match_libjpeg_turbo_output",
+    "jpeg_encoder_round_trip_psnr_icc_and_determinism",
+    "jpeg_encoder_refuses_outside_its_envelope"
+   ],
+   "corpus (ignored, V4-03)": [
+    "corpus_files_decode_as_pillow_or_refuse"
+   ]
+  },
+  "jpeg_decode_tolerance": "vs Pillow 12.2.0 / libjpeg-turbo 3.1.4.1 decode of the same bytes: max abs diff gray 1, 4:2:0 2, progressive 3 (brief said +/-2; progressive measured 3, so bound is 3 with mean < 1: means 0.031/0.286/0.297); CMYK 0. T.81 does not fix IDCT rounding.",
+  "encoder_quality": "61x47 hard test image, decode-back via zune-jpeg; ours vs libjpeg-turbo 3.1.4.1 (Pillow) same image: q95 444 36.95 dB/3675 B (lj 36.92/3706), q90 444 31.75/2628 (31.76/2657), q90 420 24.03/1575 (24.05/1594), q75 420 23.18/1078 (23.20/1095), q50 444 24.24/1170 (24.24/1186), gray q90 43.51/862 (43.51/869). Test bounds = libjpeg-turbo - 0.5 dB. DQT and DHT segments byte-equal to libjpeg-turbo output at q90 (Gray and 4:2:0). Pinned fnv1a64 of q95 444 output 0x4082b101de13c0a7.",
+  "encoder_clean_room": "written from ITU-T T.81 (A.3.3 FDCT, Annex C codes, F.1.2 Huffman/stuffing, Annex K tables), T.871 YCbCr, ICC.1 B.4 APP2; no IJG/jpeg-encoder source read; quality scaling formula = common IJG convention (formula only), verified by DQT byte equality with libjpeg-turbo.",
+  "fixtures": "tests/jpeg_fixtures/mod.rs: 5 JPEGs (344-675 B) written once by Pillow 12.2.0 (libjpeg-turbo 3.1.4.1) from synthetic gradients + Pillow's decode of each (oracle); generator script kept in session scratchpad only (smb-io-raster-common/gen_jpeg_fixtures.py), parameters in the file header.",
+  "corpus": "NEW dir Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/raster-common/ with provenance.json (180 files, sha256, licence, Pillow oracle per file): pngsuite/ = PngSuite-2017jul19 (176 PNG, licence 'permission to use, copy, modify and distribute for any purpose without fee', (c) Willem van Schaik; archive dl-pngsuite/PngSuite-2017jul19.tgz kept), libjpeg-turbo/ = testorig.jpg, testimgint.jpg, testimgari.jpg, testorig12.jpg from libjpeg-turbo tag 3.0.4 (repo-level IJG + BSD-3 licences, notices NOTICE-LICENSE.md/NOTICE-README.ijg; per-file licence UNVERIFIED). Read via the existing .config/oracle-corpus.toml search root; NO new config key needed (subdirectory raster-common only). Result: 162 PNG decode equal to Pillow (tbbn0g04 alpha: Pillow 12.2.0 ignores the 4-bit tRNS key; our alpha proven by the PNG spec rule in the test), 14 x-files refused, testorig/testimgint channel means within 0.3 of Pillow, testimgari arithmetic_coding_unsupported, testorig12 jpeg_precision_unsupported.",
+  "deps": "png =0.18.1 and zune-jpeg =0.5.15 [std] (approved, already in manifest/lock from steward scaffold). NEW dev-dep sha2 =0.10.9 [force-soft] (same as interop-tiff) - request line appended to dep-requests.jsonl before push. Cargo.lock left uncommitted (shared lock holds other lanes' changes).",
+  "ink_convention": "Colour::Cmyk samples are as decoded; JpegInfo.cmyk_inverted=true when APP14 Adobe is present (0 = full ink, same as PSD/RasterSource convention) -> pass planes unchanged; false -> harness inverts (255 - v) before RasterSource. YCCK is converted to inverted CMYK here (ycck_converted=true).",
+  "harness_route": "NOT implemented here (UI builder owns harness). Spec for crates/hsk-studio-harness (edge harness->interop-raster already in root allowed list): (1) Cargo.toml optional dep hsk-studio-interop-raster = { path = \"../hsk-studio-interop-raster\", version = \"=0.1.0\", default-features = false, optional = true } + feature import-raster = [\"import\", \"dep:hsk-studio-interop-psd\", \"dep:hsk-studio-prism\", \"dep:hsk-studio-interop-raster\"]; (2) src/import.rs: SourceFormat::{Png, Jpeg}; sniff branch BEFORE the TIFF branch using hsk_studio_interop_raster::sniff (WebP -> typed unsupported webp_decoder_unavailable); (3) new src/import/raster.rs modelled on import/tiff.rs:110-155: img = interop_raster::decode(bytes, &Limits::default(), cancel); colour_mode = Gray|GrayA -> ColorMode::Grayscale, Rgb|Rgba -> Rgb, Cmyk -> Cmyk; planes = img.planes_be()?; first img.colour.colour_channels() planes are colour, the last is alpha when img.colour.has_alpha(); CMYK with !jpeg.cmyk_inverted: invert bytes; wrap each as psd::Plane{width, height, depth: img.depth(), bytes}; RasterSource{format: img.format.label() (\"png\"|\"jpeg\"), name: \"Background\", width, height, depth: img.depth(), colour_mode, planes, alpha, icc: img.icc.clone()} -> psd::raster_proposal(.., Some(&mut converter), cancel) -> drop loss entries merged_image_oracle_unknown/image_data_missing as tiff does -> add LossEntry per img.losses (png_animation_not_imported, jpeg_exif_unreadable) and raster_orientation_not_applied when exif_orientation is Some(v) with v != 1 -> extra json {colour summary, raster:{format, width, height, colour, depth, source_bit_depth, icc_bytes, exif_orientation, png:{source_colour_type, source_bit_depth, interlaced, gamma, srgb_intent, chromaticities, animation_frames}, jpeg:{process, components, sampling, scans, adobe_transform, cmyk_inverted, ycck_converted}}} -> package_proposal(\"png\"|\"jpeg\", \"hsk-studio-interop-raster + hsk-studio-interop-psd\", bytes, proposal, extra). Tests (2): Rgba8 PNG (encode_png) imports to one raster layer whose package re-opens with ImportRole::Original bytes equal to the input; a JPEG with Exif orientation 6 (encode_jpeg output + spliced APP1 Exif, or copy EXIF6 from interop-raster tests/jpeg_fixtures) carries raster_orientation_not_applied in the receipt. Proof: cargo nextest run -p hsk-studio-harness --features import-raster.",
+  "v4_07": "DESCRIPTOR 'orientation recorded never applied' is proven by jpeg_decode_matches_pillow... (EXIF6 samples equal Pillow's unrotated decode, orientation Some(6)); 'bytes are a pure function of the request' by the two-encode equality and the pinned hash.",
+  "unverified": [
+   "YCCK and CMYK-without-APP14 paths: no fixture",
+   "libjpeg-turbo decode of OUR encoder output not run in tests (tables byte-equal + zune decode-back only)",
+   "Adobe CMYK inversion convention from libjpeg/Pillow behaviour; no Adobe-written CMYK JPEG (D5 oracle session)"
+  ],
+  "retry_guard": "one hook block at 20:29Z on an identical nextest rerun after a test-tolerance failure: route (a) product fix committed (6e5fbfc), then rerun green. One block from a command whose first token was a variable assignment (PROC-CD-FIRST) - reissued with cd first; no gameplan steps added.",
+  "next_slices": "WebP decode (image-webp 0.2.4, brief slice 2), export route decision R-EXPORT, optional: JPEG encoder restart intervals / progressive, 4:2:2"
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-raster real_raster corpus_files_decode_as_pillow_or_refuse (#[ignore]): not run, round config has no [ignored] interop-raster set"
+   ],
+   "note": "32817d9..ac71845: interop-raster png_codec 3/3, jpeg_codec 3/3 (vs Pillow decodes, ICC reassembly, hostile incl. dims and aggregate_over_budget), jpeg_encoder 3/3 (libjpeg-turbo table match, PSNR/ICC/determinism, envelope refusals) pass. Diff read: real PNG codec, zune-jpeg behind own marker walk, clean-room T.81 FDCT + Huffman encoder; crate-wide deny(arithmetic_side_effects). Corpus oracle test not run (NOT_PROVEN)",
+   "idempotency_key": "STUDIO-R26:SMB-IO-RASTER-COMMON:507aa36d6a58:PASS_V1",
+   "round": "STUDIO-R26",
+   "lane": "SMB-IO-RASTER-COMMON",
+   "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
+   "tree": "595bb180eada95cebf57b6cbca509292ac949252",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
+   "started_at": "2026-10-14T21:21:54Z",
+   "completed_at": "2026-10-14T21:51:04Z"
+  },
+  {
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-raster 9; feature/ignored/doctest units green",
+   "idempotency_key": "STUDIO-R28:SMB-IO-RASTER-COMMON:dd63d21efb85:PASS_V2",
+   "round": "STUDIO-R28",
+   "lane": "SMB-IO-RASTER-COMMON",
+   "candidate": "dd63d21efb855ef539701fcd10f61a6bf5481e15",
+   "tree": "95d5239cfdde6e57e3a6934ca69453f3487b5ae4",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "started_at": "2026-10-14T22:55:24Z",
+   "completed_at": "2026-10-14T23:36:18Z"
+  }
+ ]
 }

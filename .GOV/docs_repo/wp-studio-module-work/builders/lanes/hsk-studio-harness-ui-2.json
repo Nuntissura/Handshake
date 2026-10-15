@@ -4,7 +4,10 @@
  "status": "READY_FOR_VALIDATION",
  "phase": "slice 3 pushed: viewer editing (bff3713); consumes SMB-UI-SUPPORT-APIS (6762593, 161683a, 5cda0ae) and SMB-RENDER-GPU-SHARED-DEVICE (9ea8594, 2bc4120); claim = bff3713",
  "commits": [
-  {"sha": "bff3713", "subject": "harness (SMB-HARNESS-UI-2 slice 3): viewer editing - opacity/blend, selections, brush, undo/redo, AccessKit"}
+  {
+   "sha": "bff3713",
+   "subject": "harness (SMB-HARNESS-UI-2 slice 3): viewer editing - opacity/blend, selections, brush, undo/redo, AccessKit"
+  }
  ],
  "capabilities_done": [
   "Run (harness.rs): set_opacity, set_blend_mode, set_tiles, stage_tile, render_assets, undo, redo, history; undo/redo history = chronicle inverses in wire form (Inverse::invocation with fresh command/correlation/actor), one op record per action (undo/redo/nothing_to_undo/nothing_to_redo), a new edit clears redo, undo/redo refresh verify expectations; whole numbers are emitted as JSON integers (chronicle types blend_mode as an integer); check_expectations compares numbers by value",
@@ -45,5 +48,29 @@
   "deps": "eframe accesskit feature (request line appended to dep-requests.jsonl); no new direct package; Cargo.lock uncommitted",
   "retry_guard": "route (a) once: viewer_edit blend-mode commit failed wrong_type (whole numbers sent as JSON floats); fixed in bff3713 before the rerun (HEAD changed); no gameplan step added",
   "v4": "V4-01 view module keeps deny(arithmetic_side_effects) (edit.rs uses checked/saturating integer arithmetic); V4-03 GPU parts follow tests/gpu-proof.toml; V4-09 commit -F; V4-12 scratch under scratchpad/smb-shared-ui/"
- }
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas"
+   ],
+   "note": "bff3713: viewer_edit select_paint_undo_redo_save_reopen_pixels, opacity_and_blend_mode_edits_with_undo_redo_survive_save, one_ui_frame_draws_the_tool_ids passed in harness+viewer and harness+desktop+viewer; harness default 7 + all harness feature units green. Diff read: real pigment selection/brush calls, chronicle-backed undo, pixel assertions after save+reopen. Text tool is a declared typed refusal (text_layer_unavailable), not claimed. Window not launched (CX-SAFE-002)",
+   "idempotency_key": "STUDIO-R28:SMB-HARNESS-UI-2:dd63d21efb85:PASS_V1",
+   "round": "STUDIO-R28",
+   "lane": "SMB-HARNESS-UI-2",
+   "candidate": "dd63d21efb855ef539701fcd10f61a6bf5481e15",
+   "tree": "95d5239cfdde6e57e3a6934ca69453f3487b5ae4",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "started_at": "2026-10-14T22:55:24Z",
+   "completed_at": "2026-10-14T23:36:18Z"
+  }
+ ]
 }

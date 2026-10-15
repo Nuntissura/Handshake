@@ -1,97 +1,116 @@
 {
-  "crate": "hsk-studio-package",
-  "lane": "SMB-ZIP-CONSOLIDATE",
-  "status": "PASS_V1",
-  "phase": "package owns the bounded non-canonical ZIP reader and the single CRC-32; interop-layout, interop-fig, interop-vector switched; duplicates deleted",
-  "commits": [
-    {
-      "sha": "d40526a",
-      "subject": "package: ZipDirectory/read_zip/ZipLimits/ZipReadError, inflate_exact, crc32_of"
-    },
-    {
-      "sha": "c3ca483",
-      "subject": "interop-layout: IDML read via package; local reader and CRC table removed"
-    },
-    {
-      "sha": "e7de0ae",
-      "subject": "interop-fig: .fig ZIP via package; local reader, CRC table, inflate_exact removed"
-    },
-    {
-      "sha": "6a15f6d",
-      "subject": "interop-vector: gzip uses package crc32_of; CRC table removed"
-    }
-  ],
-  "capabilities_done": [
-    "package/src/bounded_zip.rs (V4-01 deny): STORE+DEFLATE, central directory, optional ZIP64 (allow_zip64; consumers keep it refused), input/entries/entry/aggregate/ratio bounds, name rules (255 max), dup + casefold, local-vs-central cross-check, overlap, trailing DEFLATE bytes refused, CRC+size verified",
-    "package canonical STORE-only container untouched",
-    "removed duplicates: interop-layout/src/container.rs (reader+crc table), interop-fig/src/container.rs (reader+crc table+inflate_exact), interop-vector/src/gzip.rs (crc table), fig tests crc copy"
-  ],
-  "tests": {
-    "argv": "cargo nextest run -p hsk-studio-package --test bounded_zip; -p hsk-studio-interop-layout; -p hsk-studio-interop-fig; -p hsk-studio-interop-vector --test paint_stroke_svgz",
-    "exit": 0,
-    "sha": "6a15f6d",
-    "passed": 27,
-    "failed": 0
+ "crate": "hsk-studio-package",
+ "lane": "SMB-ZIP-CONSOLIDATE",
+ "status": "PASS_V1",
+ "phase": "package owns the bounded non-canonical ZIP reader and the single CRC-32; interop-layout, interop-fig, interop-vector switched; duplicates deleted",
+ "commits": [
+  {
+   "sha": "d40526a",
+   "subject": "package: ZipDirectory/read_zip/ZipLimits/ZipReadError, inflate_exact, crc32_of"
   },
-  "blockers": [],
-  "lock_wait_s": null,
-  "bg_pids": [],
-  "next": "validator; steward: Cargo.lock (package gains miniz_oxide dep; interop-layout/fig/vector gain package dep) left uncommitted; append dep-requests line for hsk-studio-package -> miniz_oxide 0.9.1 [with-alloc] (already pinned)",
-  "updated_at": "2026-10-14T15:41:22Z",
-  "notes": {
-    "tests_detail": "package bounded_zip 5, interop-layout 11, interop-fig 5, interop-vector paint_stroke_svgz 6 (existing hostile-input tests kept in consumers; they exercise the package reader)",
-    "retry_guard": "interop-fig nextest rerun after compile fix: route (a), commit e7de0ae changed HEAD",
-    "v4_06": "duplicate-fingerprint sweep: no remaining crc table / ZIP reader in the three consumers",
-    "verdicts": [
-      {
-        "round": "STUDIO-R24",
-        "lane": "SMB-ZIP-CONSOLIDATE",
-        "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
-        "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
-        "decision": "passed",
-        "verdict": "PASS_V1",
-        "failures": [],
-        "remediation": null,
-        "not_proven": [],
-        "status_after": "PASS_V1",
-        "round_ref": "validation/round-R24.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
-        "recorded_at": "2026-10-14T18:31:51Z"
-      },
-      {
-        "decision": "passed",
-        "verdict": "PASS_V2",
-        "failures": [],
-        "remediation": null,
-        "blocker": null,
-        "not_proven": [],
-        "note": "reopened (CX-VAL-009: crate or dependency closure changed f07f447..d48bc30); crate units green in R25",
-        "idempotency_key": "STUDIO-R25:SMB-ZIP-CONSOLIDATE:d48bc301bff0:PASS_V2",
-        "round": "STUDIO-R25",
-        "lane": "SMB-ZIP-CONSOLIDATE",
-        "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
-        "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
-        "started_at": "2026-10-14T20:12:28Z",
-        "completed_at": "2026-10-14T20:53:21Z"
-      },
-      {
-        "decision": "passed",
-        "verdict": "PASS_V3",
-        "failures": [],
-        "remediation": null,
-        "blocker": null,
-        "not_proven": [],
-        "note": "reopened (CX-VAL-009: crate or dependency closure changed d48bc30..507aa36); units of package green in R26 (all units incl. feature, ignored, doctest)",
-        "idempotency_key": "STUDIO-R26:SMB-ZIP-CONSOLIDATE:507aa36d6a58:PASS_V3",
-        "round": "STUDIO-R26",
-        "lane": "SMB-ZIP-CONSOLIDATE",
-        "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
-        "tree": "595bb180eada95cebf57b6cbca509292ac949252",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
-        "started_at": "2026-10-14T21:21:54Z",
-        "completed_at": "2026-10-14T21:51:04Z"
-      }
-    ]
+  {
+   "sha": "c3ca483",
+   "subject": "interop-layout: IDML read via package; local reader and CRC table removed"
+  },
+  {
+   "sha": "e7de0ae",
+   "subject": "interop-fig: .fig ZIP via package; local reader, CRC table, inflate_exact removed"
+  },
+  {
+   "sha": "6a15f6d",
+   "subject": "interop-vector: gzip uses package crc32_of; CRC table removed"
   }
+ ],
+ "capabilities_done": [
+  "package/src/bounded_zip.rs (V4-01 deny): STORE+DEFLATE, central directory, optional ZIP64 (allow_zip64; consumers keep it refused), input/entries/entry/aggregate/ratio bounds, name rules (255 max), dup + casefold, local-vs-central cross-check, overlap, trailing DEFLATE bytes refused, CRC+size verified",
+  "package canonical STORE-only container untouched",
+  "removed duplicates: interop-layout/src/container.rs (reader+crc table), interop-fig/src/container.rs (reader+crc table+inflate_exact), interop-vector/src/gzip.rs (crc table), fig tests crc copy"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-package --test bounded_zip; -p hsk-studio-interop-layout; -p hsk-studio-interop-fig; -p hsk-studio-interop-vector --test paint_stroke_svgz",
+  "exit": 0,
+  "sha": "6a15f6d",
+  "passed": 27,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": null,
+ "bg_pids": [],
+ "next": "validator; steward: Cargo.lock (package gains miniz_oxide dep; interop-layout/fig/vector gain package dep) left uncommitted; append dep-requests line for hsk-studio-package -> miniz_oxide 0.9.1 [with-alloc] (already pinned)",
+ "updated_at": "2026-10-14T15:41:22Z",
+ "notes": {
+  "tests_detail": "package bounded_zip 5, interop-layout 11, interop-fig 5, interop-vector paint_stroke_svgz 6 (existing hostile-input tests kept in consumers; they exercise the package reader)",
+  "retry_guard": "interop-fig nextest rerun after compile fix: route (a), commit e7de0ae changed HEAD",
+  "v4_06": "duplicate-fingerprint sweep: no remaining crc table / ZIP reader in the three consumers",
+  "verdicts": [
+   {
+    "round": "STUDIO-R24",
+    "lane": "SMB-ZIP-CONSOLIDATE",
+    "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+    "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "not_proven": [],
+    "status_after": "PASS_V1",
+    "round_ref": "validation/round-R24.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+    "recorded_at": "2026-10-14T18:31:51Z"
+   },
+   {
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [],
+    "note": "reopened (CX-VAL-009: crate or dependency closure changed f07f447..d48bc30); crate units green in R25",
+    "idempotency_key": "STUDIO-R25:SMB-ZIP-CONSOLIDATE:d48bc301bff0:PASS_V2",
+    "round": "STUDIO-R25",
+    "lane": "SMB-ZIP-CONSOLIDATE",
+    "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
+    "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
+    "started_at": "2026-10-14T20:12:28Z",
+    "completed_at": "2026-10-14T20:53:21Z"
+   },
+   {
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [],
+    "note": "reopened (CX-VAL-009: crate or dependency closure changed d48bc30..507aa36); units of package green in R26 (all units incl. feature, ignored, doctest)",
+    "idempotency_key": "STUDIO-R26:SMB-ZIP-CONSOLIDATE:507aa36d6a58:PASS_V3",
+    "round": "STUDIO-R26",
+    "lane": "SMB-ZIP-CONSOLIDATE",
+    "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
+    "tree": "595bb180eada95cebf57b6cbca509292ac949252",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
+    "started_at": "2026-10-14T21:21:54Z",
+    "completed_at": "2026-10-14T21:51:04Z"
+   }
+  ]
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default package 25; feature/ignored/doctest units green",
+   "idempotency_key": "STUDIO-R28:SMB-ZIP-CONSOLIDATE:dd63d21efb85:PASS_V4",
+   "round": "STUDIO-R28",
+   "lane": "SMB-ZIP-CONSOLIDATE",
+   "candidate": "dd63d21efb855ef539701fcd10f61a6bf5481e15",
+   "tree": "95d5239cfdde6e57e3a6934ca69453f3487b5ae4",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "started_at": "2026-10-14T22:55:24Z",
+   "completed_at": "2026-10-14T23:36:18Z"
+  }
+ ]
 }

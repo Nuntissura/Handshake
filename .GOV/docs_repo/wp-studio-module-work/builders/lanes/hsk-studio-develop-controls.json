@@ -1,0 +1,67 @@
+{
+ "crate": "hsk-studio-develop",
+ "lane": "SMB-DEVELOP-CONTROLS",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-4 pushed (Basic panel, HSL mixer + parametric regions, local masks, develop-to-output); Lightroom parity UNVERIFIED (D5)",
+ "commits": [
+  {"sha": "d16f10d290431db26cb9e624de282b5cdaead8b6", "subject": "develop (SMB-DEVELOP-CONTROLS slices 1+2): Basic panel, colour mixer, parametric regions"},
+  {"sha": "ccc4a7c4c155a06306386e961020282cd6572091", "subject": "develop (SMB-DEVELOP-CONTROLS slice 3): local adjustments with gradient and brush masks (includes two local wip commits 4c77018, 513a768 that only fix test geometry)"},
+  {"sha": "b4f0107a5f9bf7b8685a71e798c053e54971c54f", "subject": "develop (SMB-DEVELOP-CONTROLS slice 4): develop-to-output RGB buffer + ICC for export"}
+ ],
+ "capabilities_done": [
+  "adjust.rs: versioned Adjustments recipe parameter (ADJUST_VERSION 1.0) on DevelopRecipe.adjust, identity by default, all families validated even while disabled (invalid_adjustment / non_finite), authored values retained when a group is off",
+  "slice 1: incremental temperature/tint = Bradford adaptation in the working space (assumed illuminant = D50 displaced along the Kim Planckian locus by -t*100 mired and along the locus normal by tint*0.02 uv); contrast/highlights/shadows/whites/blacks = monotone PCHIP knots in the sRGB-encoded domain applied per channel (contrast K=0.6 polynomial S-curve); vibrance (low-saturation weighted, skin-hue protected) and saturation about the encoded luma; clarity = whole-frame local contrast (3-pass box blur radius 2% of the short side, midtone weighted) in develop_to_image only",
+  "slice 2: 8-band HSL mixer (red orange yellow green aqua blue purple magenta, smoothstep partition-of-unity weights, hue +-30 degrees, saturation, luminance) in HSV of the encoded value; parametric tone-curve regions (4 amounts + 3 split points, STU-RAW-112) as a second PCHIP",
+  "slice 3: local.rs Correction/Mask: linear gradient, radial gradient (angle, roundness, feather, flipped), brush (dab list rasterised at render resolution, flow, feather), add/subtract, inverted, mask value, correction amount gain, normalised +-1 local stack (STU-RAW-122) driving exposure, temperature, tint, contrast, highlights, shadows, whites, blacks, saturation, clarity through the same adjust.rs maths; row-band parallel, thread-invariant; brush rasterisation budget",
+  "slice 4: output.rs render_output / develop_to_output: 8/16-bit (big-endian) interleaved sRGB-TRC RGB + ICC bytes (header check, hash bound to recipe.output_profile.sha256), ClipReport for clamped values",
+  "stage C: the new per-pixel stages run only when active; the digest-pinned paths are untouched (tests/develop_digest.rs unchanged and green)",
+  "enables: enable_colour_adjustments / enable_detail / enable_mask_group_based_corrections / enable_tone_curve now execute; the tile API refuses clarity and local corrections as unsupported_contribution:clarity_whole_frame / mask_group_whole_frame"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-develop --no-fail-fast",
+  "exit": 0,
+  "sha": "b4f0107a5f9bf7b8685a71e798c053e54971c54f",
+  "passed": 55,
+  "failed": 0,
+  "ignored": 6,
+  "new_targets": {
+   "develop_adjust": "5/5 (tone controls monotone + directional + identity, white balance + Planck references, vibrance/saturation/mixer, clarity + corpus digest pin, identity/gating/hostile)",
+   "develop_local": "5/5 (linear gradient, radial, brush + resolution independence, mask algebra + local stack + corpus digest pin, hostile masks)",
+   "develop_output": "4/4 (sRGB hand values + clip counts, ICC header + hash binding, corpus export buffer digest pin, hostile)"
+  },
+  "check_clippy": "cargo clippy -p hsk-studio-develop -p hsk-studio-harness --tests: no develop or harness warning (only the 2 pre-existing too_many_arguments in hsk-studio-observe)"
+ },
+ "blockers": [],
+ "lock_wait_s": 70,
+ "bg_pids": [],
+ "next": [
+  "D5 oracle: Lightroom values for every mapping below (nothing here claims parity)",
+  "harness wiring (lead): call develop_to_output with the ICC bytes resolved for recipe.output_profile, then hand width/height/depth_bits/data/icc to the JPEG (8-bit) or PNG (8/16-bit, big-endian) encoder; surface DevelopRecipe.adjust sliders in the develop panel",
+  "absolute raw-form white balance (kelvin + tint, STU-RAW-110) from DngColor/CameraSolution is not done; only the incremental (non-raw) form is",
+  "point colours, grayscale mixer, colour grading, texture, dehaze, sharpening, noise reduction, range masks (colour/luminance/depth) and model-assisted masks are not implemented"
+ ],
+ "updated_at": "2026-10-14T22:41:33Z",
+ "notes": {
+  "spec_basis": {
+   "STU-RAW-110": "incremental temperature/tint are a relative offset, soft range -100..100; the raw kelvin form is NOT implemented",
+   "STU-RAW-111": "contrast/highlights/shadows/whites/blacks/vibrance/saturation/clarity, soft range -100..100, identity 0",
+   "STU-RAW-112": "parametric highlights/lights/darks/shadows plus three split points (defaults 25/50/75; only the shadow split default is derived in the spec)",
+   "STU-RAW-115": "eight fixed hue bands, hue/saturation/luminance, identity 0",
+   "STU-RAW-121": "correction/mask record (amount is a gain; mask value, inverted, blend 0/1; linear/radial/brush geometry; dab list re-rendered at the current resolution)",
+   "STU-RAW-122": "the local stack is on a normalised +-1 scale, converted not reinterpreted",
+   "STU-CON-045": "no folio path in develop; brush rasterised locally"
+  },
+  "unverified_choices_for_D5": [
+   "all numeric mappings: knot weights and amounts (A_BLACKS 0.12, A_SHADOWS 0.20, A_HIGHLIGHTS 0.20, A_WHITES 0.12, contrast K 0.6, parametric 0.15), temperature 100 mired and tint 0.02 uv at +-100, hue band centres, band hue span 30 degrees, vibrance skin protection, clarity radius 2% and gain 0.8",
+   "slider hard bounds are `unknown` in the spec; out-of-soft-range values are REFUSED (conservative), not clamped",
+   "mask_blend_mode 0 = add, 1 = subtract; `flipped` read as inversion; brush radius as a fraction of the shorter side; local exposure +-4 stops; radial midpoint validated but unused",
+   "luma weights default Rec.709 (Adjustments.luma); working RGB->XYZ default sRGB (Adjustments.working_to_xyz_d50): the caller must set both for a non-sRGB working space"
+  ],
+  "new_module_edges": "NONE (no new dependency, no new crate edge; sha2 and pigment Grid/Rect were already dependencies). Reuse of the pigment brush/selection planes for develop masks would need a new edge: lead decision, not taken.",
+  "dependencies": "none added; dep-requests.jsonl untouched",
+  "behaviour_changes": "DevelopRecipe gained the `adjust` field (struct-literal constructors elsewhere must add it; none exist outside the develop crate, DevelopRecipe::native sets the default); DevelopError gained InvalidAdjustment (invalid_adjustment) and InvalidMask (invalid_mask); enable_colour_adjustments, enable_detail and enable_mask_group_based_corrections no longer refuse (tests/develop_recipe.rs now uses enable_effects for the unsupported-group case)",
+  "v4_notes": "V4-01 deny(arithmetic_side_effects) not added to the new modules: they decode no untrusted bytes, but they do take hostile numbers; floats are finite-checked, usize products are checked (clarity, local::apply, render_output), brush work is budgeted before allocation; V4-02 aggregate bound = BRUSH_VISIT_BUDGET + MAX_DABS test; V4-03 corpus tests print NOT_PROVEN when the corpus is absent; V4-07 doc claims cite their tests in the test files named in capabilities_done",
+  "gameplan_route": "retry guard hit twice after a product (test geometry) failure; route (a): committed the fix locally (HEAD changed) and reran; no gameplan step added",
+  "harness_wiring": "see next[1]; the harness must supply the ICC bytes (develop does not resolve profiles) and the encoder"
+ }
+}

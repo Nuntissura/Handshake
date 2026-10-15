@@ -1,64 +1,87 @@
 {
-  "crate": "hsk-studio-reel",
-  "lane": "SMB-REEL-BFRAME-ORDER",
-  "status": "READY_FOR_VALIDATION",
-  "phase": "complete on 4653498 (one commit, base 07fee7f = origin head at commit time; reel-native head before was 9ff2844). Claim = 4653498 touching crates/hsk-studio-reel (src/video.rs, src/lib.rs DESCRIPTOR, tests/video_route.rs) and crates/hsk-studio-reel-native (src/host.rs, src/mf_host.rs, src/mf/worker.rs, src/lib.rs, src/wire.rs comment, tests/mf_worker.rs, 2 fixtures + framehash, provenance.json)",
-  "commits": [
-    {
-      "sha": "4653498",
-      "subject": "reel + reel-native (SMB-REEL-BFRAME-ORDER): presentation-order picture matching; H.264 B-frames decode exactly"
-    }
-  ],
-  "capabilities_done": [
-    "reel: VideoDecodeSession::reorders_output() (default false, so AV1 in-process/worker, VC-3 and ProRes keep decode-order matching unchanged). Matching rule when a session declares it: Forward finds the pending packet whose index equals the picture tag, removes only that entry, and drops the pending packets whose pts is BEFORE the picture's pts (presentation-order rule: the decoder has passed them, their pictures were dropped or carry no frame); packets decoded earlier but presented later (B-frame references, pre-roll P after the range) stay pending. Pictures reach the sink in presentation order. Partial receipts unchanged in rule: actual span = earliest pts .. latest pts+duration over delivered pictures, units = delivered",
-    "reel test pictures_released_in_presentation_order_are_matched_by_tag (tests/video_route.rs, fake decoder releasing in a given tag order, I P B clip): 8 rows - declared release 0,2,1 as it goes and held until finish (all 3 delivered in presentation order, receipt == packet receipt); control without the declaration (P lost, Partial, span 0..40); DropPicture 0/1/2 (Partial, spans of delivered pictures); range = B alone with I and P as pre-roll (complete, 20..40); release P before B (B passed over, Partial)",
-    "reel-native host: decode_order_only/last_tag guard removed; OpenPlan/WorkerSession carry reorders_output (MF true, AV1 false) reported through VideoDecodeSession::reorders_output; replay de-duplicates by the SET of delivered tags (kept only when replay is on, bounded by the segment's packets) instead of 'tag <= last delivered'",
-    "reel-native MF worker: waiting = HashSet of sent tags whose picture is owed; a picture may be any of them (presentation order); unknown or already-released time -> Unsupported mf-output-time-unknown; refusal mf-reorder-needs-packet-timing and pub const MF_REORDER_REFUSAL removed (wire table string kept, commented retired, indices unchanged)",
-    "fixtures (ffmpeg 8.1.1 gyan.dev, sha256 09948d4c...0f73, provenance.json): h264-main-bf3-128x72-24f.mp4 (Main, bf 3, b-pyramid none, edit list, ctts v0; sha256 ff85391b...94b6) and h264-high-bf3-pyramid-128x72-24f.mp4 (High, bf 3, b-pyramid normal, edit list, ctts v0; sha256 c4986d93...336d) + ffmpeg framehash oracles; existing h264-high-bf2 (ctts v1 negative offsets, no shift) now decodes",
-    "reel-native test h264_bframe_streams_decode_exact_in_presentation_order (replaces spike test h264_high_bf2_reorder_spike_and_policy): 3 B-frame streams x 24 frames byte-identical to ffmpeg per frame, PTS exactly n*frame in presentation order, each packet once (decode order differs from output order); random access 7 ranges per stream (starts on/inside B runs, second IDR, last frame) exact with exact actual spans; mid-GOP crash at packet 9 on the pyramid stream replays from IDR 0, 24/24 exact (crashed 1, replays 1, replay_failed 0); DXVA path exact on all 3 streams on this host (RTX 3090)"
-  ],
-  "tests": {
-    "argv": "studio-env.sh, shared tree: cargo clippy -p hsk-studio-reel -p hsk-studio-reel-native --features hsk-studio-reel-native/mf-worker,hsk-studio-reel-native/test-faults,hsk-studio-reel-native/av1-worker --tests (exit 0, no warning in reel/reel-native; 2 pre-existing too_many_arguments in hsk-studio-observe); cargo nextest run -p hsk-studio-reel --no-fail-fast (93/93); cargo nextest run -p hsk-studio-reel-native --features mf-worker,test-faults --no-fail-fast (13/13); cargo nextest run -p hsk-studio-reel-native --features av1-worker,test-faults --no-fail-fast (24/24)",
-    "exit": 0,
-    "sha": "4653498",
-    "passed": 130,
-    "failed": 0
-  },
-  "blockers": [],
-  "lock_wait_s": 0,
-  "bg_pids": [],
-  "next": "Validator round on 4653498: hsk-studio-reel default (and av1/prores feature sets unchanged by this lane except video.rs Forward), hsk-studio-reel-native [mf-worker,test-faults] on Windows with Media Foundation, [av1-worker,test-faults] (host.rs touched: re-include AV1 lanes, CX-VAL-009). Residual R1 below.",
-  "updated_at": "2026-10-14T20:08:00Z",
-  "notes": {
-    "spec_basis": "staged delta spec-enrichment/STUDIO-ENRICHMENT-20261014.json D24; START_LOG OPERATOR DECISIONS 2026-10-14; SMB-REEL-NATIVE-ENG-1 notes.spike_s1 (strategy A measured; unblock = reel presentation-order rule)",
-    "matching_rule": "reorders_output false: picture -> pending entry with index == tag; drain every entry up to and including it (unchanged). reorders_output true: remove that entry only; retain pending entries with pts >= picture pts. A picture whose entry is gone (already matched or passed over) is not delivered; the shortfall shows in units/complete/Partial span. Equal-pts entries are retained (bounded by the segment's packets).",
-    "accuracy_vs_ffmpeg": "EXACT, no tolerance: high-bf2, main-bf3, high-bf3-pyramid 24/24 each, software and DXVA; 21 random-access ranges exact; replay exact",
-    "fixture_generation_dir": "Handshake_Artifacts/WP-KERNEL-STUDIO/engine-video-oracle/smb-reel-bframe-order (copies committed under crates/hsk-studio-reel-native/tests/fixtures/h264)",
-    "residuals": [
-      "R1 replay retention resets at each sync packet: a crash exactly at an IDR packet loses pictures the dead decoder still held from the previous GOP (B-frame streams hold the last reference until bumped); they are reported (Partial / Incomplete), never silent. Not exercised; a fix would retain from the previous sync packet until every owed picture before the IDR was released"
-    ],
-    "v4": "V4-01: video.rs, host.rs, mf/worker.rs keep deny(clippy::arithmetic_side_effects) (no new arithmetic); V4-03 no silent green: DXVA branch prints NOT_PROVEN where unavailable (it ran here); V4-07 DESCRIPTOR claims cite the new tests (reel video_routing.picture_matching, reel-native features.mf); V4-09 commit via -F file",
-    "fmt": "rustfmt applied to reel tests/video_route.rs and src/video.rs; reel-native files carry pre-existing rustfmt diffs from earlier lanes (host.rs, ffi.rs, lib.rs, h264_config.rs in reel) not reformatted to keep the diff minimal",
-    "cargo_lock": "not changed by this lane; left uncommitted",
-    "retry_guard": "no gameplan hook block; no compile or test failure",
-    "verdicts": [
-      {
-        "decision": "passed",
-        "verdict": "PASS_V1",
-        "failures": [],
-        "remediation": null,
-        "blocker": null,
-        "not_proven": [],
-        "note": "4653498: reel video_route 17/17 incl. pictures_released_in_presentation_order_are_matched_by_tag (default/av1/prores); reel-native mf_worker h264_bframe_streams_decode_exact_in_presentation_order (main-bf3, high-bf3-pyramid vs ffmpeg framehash) + replay of a B-frame segment pass. Diff read: presentation-order rule (remove matched tag, drop only pts < picture pts) gated by reorders_output; decode-order sessions unchanged",
-        "idempotency_key": "STUDIO-R26:SMB-REEL-BFRAME-ORDER:507aa36d6a58:PASS_V1",
-        "round": "STUDIO-R26",
-        "lane": "SMB-REEL-BFRAME-ORDER",
-        "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
-        "tree": "595bb180eada95cebf57b6cbca509292ac949252",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
-        "started_at": "2026-10-14T21:21:54Z",
-        "completed_at": "2026-10-14T21:51:04Z"
-      }
-    ]
+ "crate": "hsk-studio-reel",
+ "lane": "SMB-REEL-BFRAME-ORDER",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "complete on 4653498 (one commit, base 07fee7f = origin head at commit time; reel-native head before was 9ff2844). Claim = 4653498 touching crates/hsk-studio-reel (src/video.rs, src/lib.rs DESCRIPTOR, tests/video_route.rs) and crates/hsk-studio-reel-native (src/host.rs, src/mf_host.rs, src/mf/worker.rs, src/lib.rs, src/wire.rs comment, tests/mf_worker.rs, 2 fixtures + framehash, provenance.json)",
+ "commits": [
+  {
+   "sha": "4653498",
+   "subject": "reel + reel-native (SMB-REEL-BFRAME-ORDER): presentation-order picture matching; H.264 B-frames decode exactly"
   }
+ ],
+ "capabilities_done": [
+  "reel: VideoDecodeSession::reorders_output() (default false, so AV1 in-process/worker, VC-3 and ProRes keep decode-order matching unchanged). Matching rule when a session declares it: Forward finds the pending packet whose index equals the picture tag, removes only that entry, and drops the pending packets whose pts is BEFORE the picture's pts (presentation-order rule: the decoder has passed them, their pictures were dropped or carry no frame); packets decoded earlier but presented later (B-frame references, pre-roll P after the range) stay pending. Pictures reach the sink in presentation order. Partial receipts unchanged in rule: actual span = earliest pts .. latest pts+duration over delivered pictures, units = delivered",
+  "reel test pictures_released_in_presentation_order_are_matched_by_tag (tests/video_route.rs, fake decoder releasing in a given tag order, I P B clip): 8 rows - declared release 0,2,1 as it goes and held until finish (all 3 delivered in presentation order, receipt == packet receipt); control without the declaration (P lost, Partial, span 0..40); DropPicture 0/1/2 (Partial, spans of delivered pictures); range = B alone with I and P as pre-roll (complete, 20..40); release P before B (B passed over, Partial)",
+  "reel-native host: decode_order_only/last_tag guard removed; OpenPlan/WorkerSession carry reorders_output (MF true, AV1 false) reported through VideoDecodeSession::reorders_output; replay de-duplicates by the SET of delivered tags (kept only when replay is on, bounded by the segment's packets) instead of 'tag <= last delivered'",
+  "reel-native MF worker: waiting = HashSet of sent tags whose picture is owed; a picture may be any of them (presentation order); unknown or already-released time -> Unsupported mf-output-time-unknown; refusal mf-reorder-needs-packet-timing and pub const MF_REORDER_REFUSAL removed (wire table string kept, commented retired, indices unchanged)",
+  "fixtures (ffmpeg 8.1.1 gyan.dev, sha256 09948d4c...0f73, provenance.json): h264-main-bf3-128x72-24f.mp4 (Main, bf 3, b-pyramid none, edit list, ctts v0; sha256 ff85391b...94b6) and h264-high-bf3-pyramid-128x72-24f.mp4 (High, bf 3, b-pyramid normal, edit list, ctts v0; sha256 c4986d93...336d) + ffmpeg framehash oracles; existing h264-high-bf2 (ctts v1 negative offsets, no shift) now decodes",
+  "reel-native test h264_bframe_streams_decode_exact_in_presentation_order (replaces spike test h264_high_bf2_reorder_spike_and_policy): 3 B-frame streams x 24 frames byte-identical to ffmpeg per frame, PTS exactly n*frame in presentation order, each packet once (decode order differs from output order); random access 7 ranges per stream (starts on/inside B runs, second IDR, last frame) exact with exact actual spans; mid-GOP crash at packet 9 on the pyramid stream replays from IDR 0, 24/24 exact (crashed 1, replays 1, replay_failed 0); DXVA path exact on all 3 streams on this host (RTX 3090)"
+ ],
+ "tests": {
+  "argv": "studio-env.sh, shared tree: cargo clippy -p hsk-studio-reel -p hsk-studio-reel-native --features hsk-studio-reel-native/mf-worker,hsk-studio-reel-native/test-faults,hsk-studio-reel-native/av1-worker --tests (exit 0, no warning in reel/reel-native; 2 pre-existing too_many_arguments in hsk-studio-observe); cargo nextest run -p hsk-studio-reel --no-fail-fast (93/93); cargo nextest run -p hsk-studio-reel-native --features mf-worker,test-faults --no-fail-fast (13/13); cargo nextest run -p hsk-studio-reel-native --features av1-worker,test-faults --no-fail-fast (24/24)",
+  "exit": 0,
+  "sha": "4653498",
+  "passed": 130,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Validator round on 4653498: hsk-studio-reel default (and av1/prores feature sets unchanged by this lane except video.rs Forward), hsk-studio-reel-native [mf-worker,test-faults] on Windows with Media Foundation, [av1-worker,test-faults] (host.rs touched: re-include AV1 lanes, CX-VAL-009). Residual R1 below.",
+ "updated_at": "2026-10-14T20:08:00Z",
+ "notes": {
+  "spec_basis": "staged delta spec-enrichment/STUDIO-ENRICHMENT-20261014.json D24; START_LOG OPERATOR DECISIONS 2026-10-14; SMB-REEL-NATIVE-ENG-1 notes.spike_s1 (strategy A measured; unblock = reel presentation-order rule)",
+  "matching_rule": "reorders_output false: picture -> pending entry with index == tag; drain every entry up to and including it (unchanged). reorders_output true: remove that entry only; retain pending entries with pts >= picture pts. A picture whose entry is gone (already matched or passed over) is not delivered; the shortfall shows in units/complete/Partial span. Equal-pts entries are retained (bounded by the segment's packets).",
+  "accuracy_vs_ffmpeg": "EXACT, no tolerance: high-bf2, main-bf3, high-bf3-pyramid 24/24 each, software and DXVA; 21 random-access ranges exact; replay exact",
+  "fixture_generation_dir": "Handshake_Artifacts/WP-KERNEL-STUDIO/engine-video-oracle/smb-reel-bframe-order (copies committed under crates/hsk-studio-reel-native/tests/fixtures/h264)",
+  "residuals": [
+   "R1 replay retention resets at each sync packet: a crash exactly at an IDR packet loses pictures the dead decoder still held from the previous GOP (B-frame streams hold the last reference until bumped); they are reported (Partial / Incomplete), never silent. Not exercised; a fix would retain from the previous sync packet until every owed picture before the IDR was released"
+  ],
+  "v4": "V4-01: video.rs, host.rs, mf/worker.rs keep deny(clippy::arithmetic_side_effects) (no new arithmetic); V4-03 no silent green: DXVA branch prints NOT_PROVEN where unavailable (it ran here); V4-07 DESCRIPTOR claims cite the new tests (reel video_routing.picture_matching, reel-native features.mf); V4-09 commit via -F file",
+  "fmt": "rustfmt applied to reel tests/video_route.rs and src/video.rs; reel-native files carry pre-existing rustfmt diffs from earlier lanes (host.rs, ffi.rs, lib.rs, h264_config.rs in reel) not reformatted to keep the diff minimal",
+  "cargo_lock": "not changed by this lane; left uncommitted",
+  "retry_guard": "no gameplan hook block; no compile or test failure",
+  "verdicts": [
+   {
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [],
+    "note": "4653498: reel video_route 17/17 incl. pictures_released_in_presentation_order_are_matched_by_tag (default/av1/prores); reel-native mf_worker h264_bframe_streams_decode_exact_in_presentation_order (main-bf3, high-bf3-pyramid vs ffmpeg framehash) + replay of a B-frame segment pass. Diff read: presentation-order rule (remove matched tag, drop only pts < picture pts) gated by reorders_output; decode-order sessions unchanged",
+    "idempotency_key": "STUDIO-R26:SMB-REEL-BFRAME-ORDER:507aa36d6a58:PASS_V1",
+    "round": "STUDIO-R26",
+    "lane": "SMB-REEL-BFRAME-ORDER",
+    "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
+    "tree": "595bb180eada95cebf57b6cbca509292ac949252",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
+    "started_at": "2026-10-14T21:21:54Z",
+    "completed_at": "2026-10-14T21:51:04Z"
+   }
+  ]
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (default): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+av1): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+prores): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default reel 93; feature/ignored/doctest units green",
+   "idempotency_key": "STUDIO-R28:SMB-REEL-BFRAME-ORDER:dd63d21efb85:PASS_V2",
+   "round": "STUDIO-R28",
+   "lane": "SMB-REEL-BFRAME-ORDER",
+   "candidate": "dd63d21efb855ef539701fcd10f61a6bf5481e15",
+   "tree": "95d5239cfdde6e57e3a6934ca69453f3487b5ae4",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "started_at": "2026-10-14T22:55:24Z",
+   "completed_at": "2026-10-14T23:36:18Z"
+  }
+ ]
 }

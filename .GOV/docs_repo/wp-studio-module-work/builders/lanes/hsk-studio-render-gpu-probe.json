@@ -1,84 +1,120 @@
 {
-  "crate": "hsk-studio-render-gpu",
-  "lane": "SMB-RENDER-GPU-PROBE",
-  "status": "PASS_V1",
-  "phase": "probe-capture",
-  "commits": [
-    {
-      "sha": "e659533692933930e9b9c9b9d4b3d4ad6ad9ee94",
-      "subject": "render-gpu probe: capture opt-out NOT_PROVEN line instead of printing it (gate_with)"
-    }
-  ],
-  "capabilities_done": [
-    "regression probe asserts the opt-out NOT_PROVEN line via captured emit (gate_with); gate() prints as before"
-  ],
-  "tests": {
-    "argv": "cargo nextest run -p hsk-studio-render-gpu --test gpu_plan no_adapter_is_not_a_green --no-capture",
-    "exit": 0,
-    "sha": "e659533692933930e9b9c9b9d4b3d4ad6ad9ee94",
-    "passed": 1,
-    "failed": 0
-  },
-  "blockers": [],
-  "lock_wait_s": 0,
-  "bg_pids": [],
-  "next": "validator round; no further builder work",
-  "updated_at": "2026-10-14T15:28:01Z",
-  "notes": {
-    "check": "cargo check -p hsk-studio-render-gpu --tests ok; clippy --tests ok for render-gpu (warnings only in hsk-studio-observe)",
-    "strict_gate": "unchanged: strict=true still Err(NOT_PROVEN: no adapter...) asserted in same test",
-    "output": "test run printed no NOT_PROVEN line",
-    "adapter": "probe uses forced no-adapter backend; no real adapter exercised",
-    "verdicts": [
-      {
-        "round": "STUDIO-R24",
-        "lane": "SMB-RENDER-GPU-PROBE",
-        "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
-        "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
-        "decision": "passed",
-        "verdict": "PASS_V1",
-        "failures": [],
-        "remediation": null,
-        "not_proven": [],
-        "status_after": "PASS_V1",
-        "round_ref": "validation/round-R24.json",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
-        "recorded_at": "2026-10-14T18:31:51Z"
-      },
-      {
-        "decision": "passed",
-        "verdict": "PASS_V2",
-        "failures": [],
-        "remediation": null,
-        "blocker": null,
-        "not_proven": [],
-        "note": "reopened (CX-VAL-009: crate or dependency closure changed f07f447..d48bc30); crate units green in R25",
-        "idempotency_key": "STUDIO-R25:SMB-RENDER-GPU-PROBE:d48bc301bff0:PASS_V2",
-        "round": "STUDIO-R25",
-        "lane": "SMB-RENDER-GPU-PROBE",
-        "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
-        "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
-        "started_at": "2026-10-14T20:12:28Z",
-        "completed_at": "2026-10-14T20:53:21Z"
-      },
-      {
-        "decision": "passed",
-        "verdict": "PASS_V3",
-        "failures": [],
-        "remediation": null,
-        "blocker": null,
-        "not_proven": [],
-        "note": "reopened (CX-VAL-009: crate or dependency closure changed d48bc30..507aa36); units of render-gpu green in R26 (all units incl. feature, ignored, doctest)",
-        "idempotency_key": "STUDIO-R26:SMB-RENDER-GPU-PROBE:507aa36d6a58:PASS_V3",
-        "round": "STUDIO-R26",
-        "lane": "SMB-RENDER-GPU-PROBE",
-        "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
-        "tree": "595bb180eada95cebf57b6cbca509292ac949252",
-        "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
-        "started_at": "2026-10-14T21:21:54Z",
-        "completed_at": "2026-10-14T21:51:04Z"
-      }
-    ]
+ "crate": "hsk-studio-render-gpu",
+ "lane": "SMB-RENDER-GPU-PROBE",
+ "status": "PASS_V1",
+ "phase": "probe-capture",
+ "commits": [
+  {
+   "sha": "e659533692933930e9b9c9b9d4b3d4ad6ad9ee94",
+   "subject": "render-gpu probe: capture opt-out NOT_PROVEN line instead of printing it (gate_with)"
   }
+ ],
+ "capabilities_done": [
+  "regression probe asserts the opt-out NOT_PROVEN line via captured emit (gate_with); gate() prints as before"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-render-gpu --test gpu_plan no_adapter_is_not_a_green --no-capture",
+  "exit": 0,
+  "sha": "e659533692933930e9b9c9b9d4b3d4ad6ad9ee94",
+  "passed": 1,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "validator round; no further builder work",
+ "updated_at": "2026-10-14T15:28:01Z",
+ "notes": {
+  "check": "cargo check -p hsk-studio-render-gpu --tests ok; clippy --tests ok for render-gpu (warnings only in hsk-studio-observe)",
+  "strict_gate": "unchanged: strict=true still Err(NOT_PROVEN: no adapter...) asserted in same test",
+  "output": "test run printed no NOT_PROVEN line",
+  "adapter": "probe uses forced no-adapter backend; no real adapter exercised",
+  "verdicts": [
+   {
+    "round": "STUDIO-R24",
+    "lane": "SMB-RENDER-GPU-PROBE",
+    "candidate": "f07f447f50c1350241133433743c04b63da1b92d",
+    "tree": "21147a2c4b4f8d23f21e634fc9541c0815df5e81",
+    "decision": "passed",
+    "verdict": "PASS_V1",
+    "failures": [],
+    "remediation": null,
+    "not_proven": [],
+    "status_after": "PASS_V1",
+    "round_ref": "validation/round-R24.json",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R24",
+    "recorded_at": "2026-10-14T18:31:51Z"
+   },
+   {
+    "decision": "passed",
+    "verdict": "PASS_V2",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [],
+    "note": "reopened (CX-VAL-009: crate or dependency closure changed f07f447..d48bc30); crate units green in R25",
+    "idempotency_key": "STUDIO-R25:SMB-RENDER-GPU-PROBE:d48bc301bff0:PASS_V2",
+    "round": "STUDIO-R25",
+    "lane": "SMB-RENDER-GPU-PROBE",
+    "candidate": "d48bc301bff07a25da20a6cf6b11d84b8fbf197f",
+    "tree": "0a55d878183b3ba377d42f6547d1ca50a20228b2",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R25",
+    "started_at": "2026-10-14T20:12:28Z",
+    "completed_at": "2026-10-14T20:53:21Z"
+   },
+   {
+    "decision": "passed",
+    "verdict": "PASS_V3",
+    "failures": [],
+    "remediation": null,
+    "blocker": null,
+    "not_proven": [],
+    "note": "reopened (CX-VAL-009: crate or dependency closure changed d48bc30..507aa36); units of render-gpu green in R26 (all units incl. feature, ignored, doctest)",
+    "idempotency_key": "STUDIO-R26:SMB-RENDER-GPU-PROBE:507aa36d6a58:PASS_V3",
+    "round": "STUDIO-R26",
+    "lane": "SMB-RENDER-GPU-PROBE",
+    "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
+    "tree": "595bb180eada95cebf57b6cbca509292ac949252",
+    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
+    "started_at": "2026-10-14T21:21:54Z",
+    "completed_at": "2026-10-14T21:51:04Z"
+   }
+  ]
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V4",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "reopened (CX-VAL-009: crate or dependency closure changed 507aa36..e698964, or dev-profile opt-level change for prism/interop-psd); units of render-gpu green in R27 (default, feature, ignored, doctest)",
+   "idempotency_key": "STUDIO-R27:SMB-RENDER-GPU-PROBE:e6989645e02c:PASS_V4",
+   "round": "STUDIO-R27",
+   "lane": "SMB-RENDER-GPU-PROBE",
+   "candidate": "e6989645e02ceb7a4bf082788126b56d6dca4991",
+   "tree": "a26c88154f31ecb8f5d8edd0054a49570ca6f028",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R27",
+   "started_at": "2026-10-14T22:06:44Z",
+   "completed_at": "2026-10-14T22:35:40Z"
+  },
+  {
+   "decision": "passed",
+   "verdict": "PASS_V5",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default render-gpu 32; feature/ignored/doctest units green",
+   "idempotency_key": "STUDIO-R28:SMB-RENDER-GPU-PROBE:dd63d21efb85:PASS_V5",
+   "round": "STUDIO-R28",
+   "lane": "SMB-RENDER-GPU-PROBE",
+   "candidate": "dd63d21efb855ef539701fcd10f61a6bf5481e15",
+   "tree": "95d5239cfdde6e57e3a6934ca69453f3487b5ae4",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "started_at": "2026-10-14T22:55:24Z",
+   "completed_at": "2026-10-14T23:36:18Z"
+  }
+ ]
 }

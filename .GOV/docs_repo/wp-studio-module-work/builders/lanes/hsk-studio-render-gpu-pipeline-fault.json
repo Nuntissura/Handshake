@@ -1,0 +1,42 @@
+{
+ "crate": "hsk-studio-render-gpu",
+ "lane": "SMB-RENDER-GPU-PIPELINE-FAULT",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 pushed (a2d17b0): every shader module, layout and compute pipeline is created under out-of-memory + internal + validation error scopes and a panic guard; failures are typed at acquire with label and backend message",
+ "commits": [
+  {"sha": "a2d17b0", "subject": "render-gpu (SMB-RENDER-GPU-PIPELINE-FAULT slice 1): typed pipeline creation failures"}
+ ],
+ "capabilities_done": [
+  "new src/pipeline.rs: guarded(device, label, stage, create) pushes ErrorFilter::OutOfMemory, Internal, Validation, runs the creation call under catch_unwind, pops all three (bounded 5 s each), returns PipelineFault {code, label, class, message}; codes shader_validation (module), pipeline_create (layout or pipeline, including the backend compiler), pipeline_panic, pipeline_scope_timeout; classes validation|internal|out_of_memory|panic|timeout|uncaptured; message = wgpu error text cut to FAULT_MESSAGE_MAX_BYTES (4096) on a char boundary",
+  "kernel.rs Kernel::new: every module/bind-group layout/pipeline layout/compute pipeline goes through guarded; the first failure stops the build; returns Result<Self, PipelineFault>",
+  "device.rs acquire_with: returns AcquireFailure {error, fault}; after the build a poll + loss latch check (DeviceLost{generation}) and an uncaptured-latch check (pipeline_create, class uncaptured), so the outcome is decided before any dispatch; from_external maps the fault to its GpuError",
+  "plan_sink.rs: Inner.pipeline_fault; GpuBackend::pipeline_fault() -> Option<PipelineFault> (set by acquire/reacquire failures and the probe, cleared by a successful reacquire); test-faults hook GpuBackend::probe_pipeline(wgsl, entry) builds one extra auto-layout pipeline on the live device (state unchanged; latch set -> Gpu(uncaptured_error))",
+  "plan_sink/shared.rs OutputPipeline::new: same guard (a host-owned device has no handler of ours, so the unscoped internal error would hit wgpu's default panic handler)",
+  "lib.rs: pub mod pipeline, re-export PipelineFault + FAULT_MESSAGE_MAX_BYTES, compile_fail snippet for probe_pipeline (V4-04), DESCRIPTOR pipeline_failure updated with test citations"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-render-gpu --features test-faults,shared-device --no-fail-fast -E 'binary(gpu_blur) | binary(gpu_filters) | binary(gpu_pipeline_fault) | binary(shared_device) | test(pipeline_failure_is_typed_and_fails_the_gpu_gate) | test(no_wgpu_types_in_public_api) | test(fault_hooks_exist_only_under_the_test_faults_feature)' ; cargo test --doc -p hsk-studio-render-gpu",
+  "exit": 0,
+  "sha": "a2d17b0",
+  "passed": 18,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "validator round on a2d17b0 (round-features render-gpu needs test-faults for tests/gpu_pipeline_fault.rs, already in the set per R27/R28 notes)",
+ "updated_at": "2026-10-14T23:59:47Z",
+ "notes": {
+  "spec_basis": "STU-ARC-002 (GPU code isolated, no wgpu type in the public API: PipelineFault is plain data, test probe_hook_is_gated_and_the_fault_is_plain_data + no_wgpu_types_in_public_api); no spec clause on shader/pipeline creation failure or device loss was found by grep in 14-studio-creative-suite.md: the codes and the decide-at-acquire rule are a Studio reading",
+  "diagnosis_verified": "wgpu-core 27.0.3 device/resource.rs:3595 maps hal::PipelineError::Linkage (wgpu-hal 27.0.4 dx12/shader_compilation.rs:266, FXC D3DCompile failure) to CreateComputePipelineError::Internal, webgpu_error_type Internal (pipeline.rs:264); wgpu 27.0.1 backend/wgpu_core.rs ErrorSinkRaw::handle_error_or_return_handler delivers to the innermost scope with the SAME filter, else the uncaptured handler, else default_error_handler (panic). The old Kernel::new pushed only ErrorFilter::Validation, so the FXC error latched the fault (acquire path) and became device_fault at the first dispatch, or panicked on a shared device (no handler). wgpu's own test helpers (wgpu-test fail/valid, trunk) use a Validation-only scope, which is why the pattern missed internal errors",
+  "tests_detail": "gpu_pipeline_fault (live adapter dx12:discrete:NVIDIA GeForce RTX 3090): fxc_rejected_kernel_is_a_typed_refusal_before_any_dispatch (with_shader_source of a naga-valid kernel FXC rejects with X3500 + X3511: failure() = Pipeline(pipeline_create), pipeline_fault label 'hsk-studio-render-gpu composite', class internal, message contains D3DCompile; execute_detailed = Pipeline(pipeline_create) with 0 sink calls; reacquire same failure and detail), probe_failure_leaves_the_device_usable (same device: naga-rejected probe = shader_validation class validation; 20000-byte identifier message cut to <= 4096; FXC-rejected probe = pipeline_create class internal; uncaptured latch clear; valid probe Ok; then a 12x10 solid plan renders on the same device and generation, pixels within 1e-6, more than one chunk), probe_hook_is_gated_and_the_fault_is_plain_data (no adapter needed). Regression green: gpu_blur 2/2, gpu_filters 3/3, shared_device 2/2, gpu_plan pipeline_failure_is_typed_and_fails_the_gpu_gate, no_wgpu_types_in_public_api, fault_hooks_exist_only_under_the_test_faults_feature, doctests 5/5 compile_fail. clippy -p render-gpu --features test-faults,shared-device --tests, default --tests, and -p render-gpu -p harness --features harness/desktop --tests: 0 render-gpu/harness warnings",
+  "gpu_proof": "tests/gpu-proof.toml (require_gpu = true): no adapter = FAIL with NOT_PROVEN: no adapter; a non-dx12 backend prints NOT_PROVEN for the FXC class/message assertions while the typed-refusal assertions still run (only DX12 proven on this host; Vulkan/Metal compiler rejections NOT_PROVEN)",
+  "counterfactual": "with the old Validation-only scope the FXC kernel's error goes to the uncaptured handler: with_shader_source would return a Ready backend (failure() None) and the first test fails at the failure() assertion (reasoned from the wgpu source above, not re-run)",
+  "gaps": "the backend message contains the machine path FXC derives from the cwd and label (privacy: detail is returned to the caller, never written to telemetry by this lane); SharedDevice::new returns only the GpuError code (no pipeline_fault accessor on the shared path); driver-side errors raised asynchronously after creation (e.g. at submit) still go through the uncaptured latch and device_fault; the FXC kernel only fails on DX12 FXC (DXC or other backends accept it)",
+  "outside_owned_paths": "plan_sink/shared.rs (SMB-RENDER-GPU-SHARED-DEVICE file): OutputPipeline::new now uses the guard, same behaviour on success; lib.rs DESCRIPTOR pipeline_failure entry and one compile_fail snippet. Waiver requested (GLOBAL-SCOPE-005)",
+  "unowned_dirty_files": "pigment content_aware.rs (another lane, briefly non-compiling during this lane), harness view/*.rs and Cargo.toml, chronicle, score, Cargo.lock: not touched",
+  "cargo_lock": "not touched",
+  "v4": "V4-01 deny(arithmetic_side_effects) on pipeline.rs, kernel.rs, device.rs; V4-02 fault message bounded (test with a 20000-byte identifier); V4-03 GPU tests gated per gpu-proof.toml with NOT_PROVEN lines; V4-04 probe_pipeline under test-faults (source-scan test + compile_fail doctest); V4-07 DESCRIPTOR claim cites tests; V4-09 commit -F",
+  "retry_guard": "no gameplan blocks; no shared gameplan step touched"
+ }
+}

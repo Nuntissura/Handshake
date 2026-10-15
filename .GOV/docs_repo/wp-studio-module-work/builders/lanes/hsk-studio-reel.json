@@ -1941,5 +1941,28 @@
    "route": "No gameplan block and no retry-guard hit; red proofs ran on a scratch copy with its own STUDIO_OWNER, never on the shared edit tree. The scratch tree sits under Handshake_Artifacts (D:) instead of the session scratchpad (C:) because of the Operator's no-C: rule for cargo builds; movable to the recycle bin when the lead agrees.",
    "at": "2026-10-11T11:51:24Z"
   }
- }
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V17",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (default): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+av1): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di",
+    "reel vc3_decode::vc3_decode_matches_external_oracle_within_tolerance (features:hsk-studio-reel+prores): dnxhr-hqx-264x120 10-bit agreement with ffmpeg (max delta 4); ffmpeg's CID 1271 weights di"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default reel 93; feature/ignored/doctest units green",
+   "idempotency_key": "STUDIO-R28:SMB-REEL:dd63d21efb85:PASS_V17",
+   "round": "STUDIO-R28",
+   "lane": "SMB-REEL",
+   "candidate": "dd63d21efb855ef539701fcd10f61a6bf5481e15",
+   "tree": "95d5239cfdde6e57e3a6934ca69453f3487b5ae4",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "started_at": "2026-10-14T22:55:24Z",
+   "completed_at": "2026-10-14T23:36:18Z"
+  }
+ ]
 }

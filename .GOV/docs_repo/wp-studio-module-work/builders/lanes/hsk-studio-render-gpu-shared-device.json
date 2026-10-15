@@ -4,8 +4,14 @@
  "status": "READY_FOR_VALIDATION",
  "phase": "slice 1 pushed: render-gpu shared-device module (9ea8594) + harness viewer on eframe's device (2bc4120); claim = 9ea8594, 2bc4120",
  "commits": [
-  {"sha": "9ea8594", "subject": "render-gpu (SMB-RENDER-GPU-SHARED-DEVICE slice 1): render a plan into a caller-owned wgpu device/queue/texture"},
-  {"sha": "2bc4120", "subject": "harness (SMB-RENDER-GPU-SHARED-DEVICE slice 1): viewer renders on eframe's wgpu device into the display texture"}
+  {
+   "sha": "9ea8594",
+   "subject": "render-gpu (SMB-RENDER-GPU-SHARED-DEVICE slice 1): render a plan into a caller-owned wgpu device/queue/texture"
+  },
+  {
+   "sha": "2bc4120",
+   "subject": "harness (SMB-RENDER-GPU-SHARED-DEVICE slice 1): viewer renders on eframe's wgpu device into the display texture"
+  }
  ],
  "capabilities_done": [
   "render-gpu feature shared-device (default off, so the default public API still names no wgpu type; test no_wgpu_types_in_public_api green): plan_sink::shared::SharedDevice::new(&wgpu::Device, &wgpu::Queue, wgpu::AdapterInfo, DeviceOptions) wraps the caller's device (clones of wgpu handles; GpuContext::from_external installs NO device-lost / uncaptured-error callback because the host owns them); render_to_texture(plan, Option<&PlanExtensions>, request, sources, cancel, &wgpu::Texture) runs the same admission/prepare/budgets/chunk passes and, per finished chunk, one compute pass encodes straight-alpha linear RGBA f32 into an Rgba8Unorm storage texture (sRGB IEC 61966-2-1, gamma-space premultiplied 8-bit = egui texture convention) at the chunk position: no staging copy, no map, no TileSink (GpuStats.bytes_read_back = 0); target refusals (format != Rgba8Unorm, not 2D, multisampled, no STORAGE_BINDING, smaller than the plan extent) = Backend(Sink(Rejected)) before any device work; backend() exposes the same device through the read-back TileSink path; re-exports SharedDevice, TARGET_FORMAT, SHARED_DESCRIPTOR",
@@ -40,5 +46,52 @@
   ],
   "v4": "V4-01 shared.rs deny(arithmetic_side_effects); V4-03 GPU tests follow tests/gpu-proof.toml (no adapter = NOT_PROVEN fail, never green); V4-09 commit -F; V4-12 scratch under scratchpad/smb-shared-ui/",
   "retry_guard": "no gameplan blocks"
- }
+ },
+ "verdicts": [
+  {
+   "decision": "inconclusive",
+   "verdict": null,
+   "failures": [],
+   "remediation": null,
+   "blocker": {
+    "kind": "round_config_gap",
+    "exact": "round-features.toml [crates] hsk-studio-render-gpu declares only [\"test-faults\"]; tests/shared_device.rs is #![cfg(feature = \"shared-device\")] (claimed target-refusal and texture-equality proofs), never built by the round",
+    "unblock": "steward adds hsk-studio-render-gpu [\"shared-device\"] (or [\"test-faults\",\"shared-device\"]) to .config/round-features.toml"
+   },
+   "not_proven": [
+    "render-gpu shared_device (feature shared-device): shared_device_renders_into_the_callers_texture_without_readback, shared_target_refusals_happen_before_device_work not built in R27"
+   ],
+   "note": "9ea8594 2bc4120: harness half proven: features desktop+viewer viewer_shared_display viewer_renders_on_the_host_device_into_the_display_texture passed on a live adapter (17.98 s; texture equals read-back frame +-1, same texture id after edit, export falls back to read-back); render-gpu default tests 31/31 incl. no_wgpu_types_in_public_api. The lane's named render-gpu shared-device proof did not run: inconclusive, status unchanged",
+   "idempotency_key": "STUDIO-R27:SMB-RENDER-GPU-SHARED-DEVICE:e6989645e02c:INCONCLUSIVE",
+   "round": "STUDIO-R27",
+   "lane": "SMB-RENDER-GPU-SHARED-DEVICE",
+   "candidate": "e6989645e02ceb7a4bf082788126b56d6dca4991",
+   "tree": "a26c88154f31ecb8f5d8edd0054a49570ca6f028",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R27",
+   "started_at": "2026-10-14T22:06:44Z",
+   "completed_at": "2026-10-14T22:35:40Z"
+  },
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas"
+   ],
+   "note": "9ea8594 2bc4120: R27 blocker closed (round-features shared-device set). features render-gpu+shared-device shared_device_renders_into_the_callers_texture_without_readback (23.6 s, live adapter) + shared_target_refusals_happen_before_device_work passed; no_wgpu_types_in_public_api passed; harness desktop+viewer viewer_shared_display passed. Diff read: real compute-pass texture write, refusals before device work, bytes_read_back 0 asserted",
+   "idempotency_key": "STUDIO-R28:SMB-RENDER-GPU-SHARED-DEVICE:dd63d21efb85:PASS_V1",
+   "round": "STUDIO-R28",
+   "lane": "SMB-RENDER-GPU-SHARED-DEVICE",
+   "candidate": "dd63d21efb855ef539701fcd10f61a6bf5481e15",
+   "tree": "95d5239cfdde6e57e3a6934ca69453f3487b5ae4",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "started_at": "2026-10-14T22:55:24Z",
+   "completed_at": "2026-10-14T23:36:18Z"
+  }
+ ]
 }

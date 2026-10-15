@@ -1,31 +1,82 @@
 {
-  "crate": "hsk-studio-interop-fig",
-  "lane": "SMB-INTEROP-FIG-FOLIO-KINDS",
-  "status": "READY_FOR_VALIDATION",
-  "phase": "pushed and green at f66c9f9 (feature commit beedf31)",
-  "commits": [
-    {"sha": "beedf31", "subject": "interop-fig (SMB-INTEROP-FIG-FOLIO-KINDS): blur, image paints, boolean groups and type style records"},
-    {"sha": "f66c9f9", "subject": "interop-fig (SMB-INTEROP-FIG-FOLIO-KINDS): pin basic-shapes geometry counts after boolean group outline"}
-  ],
-  "capabilities_done": [
-    "FOREGROUND_BLUR -> StudioEffectKind::Blur{layer}, BACKGROUND_BLUR -> Blur{below}; radius written unchanged (sigma vs 2*sigma UNVERIFIED, listed in NATIVE_NOT_PROVEN); no colour or contour; radius outside 0..=1000 stays a typed loss",
-    "IMAGE fills/strokes -> StudioImagePaint in vector_records.image_paints over ImportOriginal{entry_digest = sha256 of the original .fig, part images/<hash>, content_digest = part sha256}; a grey solid stand-in row carries the paint; scale mode FILL/FIT/CROP(STRETCH)/TILE; transform = inverse of the Figma image transform (identity when absent), scaling factor 1, rotation 0 (convention UNVERIFIED); FigDocument gained source_sha256 and image_parts to supply the digests",
-    "BOOLEAN_OPERATION -> StudioBooleanGroup on its group layer (UNION/INTERSECT/SUBTRACT/EXCLUDE, operands = child layers bottom first, fill_geometry_path_ids = the decoded result geometry as SVPT paths in canvas px)",
-    "text styles -> StudioTypeStyleRecords (character: family, style, size, solid fill; paragraph: line height percent/px, letter spacing percent/px, horizontal align); stories validate through TypeStyleResolver (no unresolved id) and check_story_style_scopes; hand-rolled FigTextStyle JSON and FigImagePaint records removed from the public API and the records entry (records entry now carries type_style_records and the folio vector_records)",
-    "real package save -> reopen (fig_folio_kinds::real_package_round_trip_of_folio_kinds, all 3 fixtures): document, vector records (masks, image paints, boolean groups), raster records, type styles and paths identical; reopened records validate against the reopened document; original entry byte-identical and the image part inside it hashes to the recorded content digest"
-  ],
-  "tests": {"argv": "cargo nextest run -p hsk-studio-interop-fig --test fig_folio_kinds --test fig_geometry --test fig_native --no-fail-fast", "exit": 0, "sha": "f66c9f9", "passed": 14, "failed": 0},
-  "blockers": [],
-  "lock_wait_s": 0,
-  "bg_pids": [],
-  "next": "none required; fig_nodes and fig_import not rerun (decoder untouched except FigDocument gained two fields set in document_from_tree)",
-  "updated_at": "2026-10-14T21:20:00Z",
-  "notes": {
-    "loss_counts_after": "removed on all three fixtures: native.effects.FOREGROUND_BLUR (1->0), native.fills.IMAGE (1->0), native.boolean_operation (1->0), native.text.run_styles/font/line_height/letter_spacing/align (0 since GEOMETRY lane). New residual text losses: native.text.align_vertical and native.text.auto_resize, one per TEXT node (no type style member). basic-shapes pins in fig_geometry updated: native.geometry 2->1, native.size 3->2, paths 12->13 (the boolean outline).",
-    "tests_detail": "tests/fig_folio_kinds.rs (new): real_blur_maps_to_folio_blur, real_image_fill_maps_to_import_original_part, real_boolean_operation_maps_to_group_with_cached_outline, real_text_styles_resolve_stys_ids, real_package_round_trip_of_folio_kinds. fig_native loss test now asserts the five typed losses are gone; fig_geometry pins updated.",
-    "unverified": "blur radius vs Gaussian sigma; Figma image transform direction and unit-square mapping (inverse written; no render comparison); stand-in row colour is a placeholder; boolean operand order (ascending child position = bottom to top)",
-    "gameplan_route": "one retry-guard block after a test failure (stale pin): route (a), committed the pin fix (new HEAD) and reran; no gameplan step added",
-    "deps": "no dependency change; Cargo.lock uncommitted"
+ "crate": "hsk-studio-interop-fig",
+ "lane": "SMB-INTEROP-FIG-FOLIO-KINDS",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed and green at f66c9f9 (feature commit beedf31)",
+ "commits": [
+  {
+   "sha": "beedf31",
+   "subject": "interop-fig (SMB-INTEROP-FIG-FOLIO-KINDS): blur, image paints, boolean groups and type style records"
   },
-  "verdicts": [{"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "beedf31, f66c9f9: interop-fig fig_folio_kinds 5/5 (blur, image fill as import_original part, boolean group with cached outline, STYS text styles, package round trip) pass. Diff read: real mapping into the new Folio kinds; blur radius/image transform conventions UNVERIFIED and listed in NATIVE_NOT_PROVEN", "idempotency_key": "STUDIO-R26:SMB-INTEROP-FIG-FOLIO-KINDS:507aa36d6a58:PASS_V1", "round": "STUDIO-R26", "lane": "SMB-INTEROP-FIG-FOLIO-KINDS", "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae", "tree": "595bb180eada95cebf57b6cbca509292ac949252", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26", "started_at": "2026-10-14T21:21:54Z", "completed_at": "2026-10-14T21:51:04Z"}]
+  {
+   "sha": "f66c9f9",
+   "subject": "interop-fig (SMB-INTEROP-FIG-FOLIO-KINDS): pin basic-shapes geometry counts after boolean group outline"
+  }
+ ],
+ "capabilities_done": [
+  "FOREGROUND_BLUR -> StudioEffectKind::Blur{layer}, BACKGROUND_BLUR -> Blur{below}; radius written unchanged (sigma vs 2*sigma UNVERIFIED, listed in NATIVE_NOT_PROVEN); no colour or contour; radius outside 0..=1000 stays a typed loss",
+  "IMAGE fills/strokes -> StudioImagePaint in vector_records.image_paints over ImportOriginal{entry_digest = sha256 of the original .fig, part images/<hash>, content_digest = part sha256}; a grey solid stand-in row carries the paint; scale mode FILL/FIT/CROP(STRETCH)/TILE; transform = inverse of the Figma image transform (identity when absent), scaling factor 1, rotation 0 (convention UNVERIFIED); FigDocument gained source_sha256 and image_parts to supply the digests",
+  "BOOLEAN_OPERATION -> StudioBooleanGroup on its group layer (UNION/INTERSECT/SUBTRACT/EXCLUDE, operands = child layers bottom first, fill_geometry_path_ids = the decoded result geometry as SVPT paths in canvas px)",
+  "text styles -> StudioTypeStyleRecords (character: family, style, size, solid fill; paragraph: line height percent/px, letter spacing percent/px, horizontal align); stories validate through TypeStyleResolver (no unresolved id) and check_story_style_scopes; hand-rolled FigTextStyle JSON and FigImagePaint records removed from the public API and the records entry (records entry now carries type_style_records and the folio vector_records)",
+  "real package save -> reopen (fig_folio_kinds::real_package_round_trip_of_folio_kinds, all 3 fixtures): document, vector records (masks, image paints, boolean groups), raster records, type styles and paths identical; reopened records validate against the reopened document; original entry byte-identical and the image part inside it hashes to the recorded content digest"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-interop-fig --test fig_folio_kinds --test fig_geometry --test fig_native --no-fail-fast",
+  "exit": 0,
+  "sha": "f66c9f9",
+  "passed": 14,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "none required; fig_nodes and fig_import not rerun (decoder untouched except FigDocument gained two fields set in document_from_tree)",
+ "updated_at": "2026-10-14T21:20:00Z",
+ "notes": {
+  "loss_counts_after": "removed on all three fixtures: native.effects.FOREGROUND_BLUR (1->0), native.fills.IMAGE (1->0), native.boolean_operation (1->0), native.text.run_styles/font/line_height/letter_spacing/align (0 since GEOMETRY lane). New residual text losses: native.text.align_vertical and native.text.auto_resize, one per TEXT node (no type style member). basic-shapes pins in fig_geometry updated: native.geometry 2->1, native.size 3->2, paths 12->13 (the boolean outline).",
+  "tests_detail": "tests/fig_folio_kinds.rs (new): real_blur_maps_to_folio_blur, real_image_fill_maps_to_import_original_part, real_boolean_operation_maps_to_group_with_cached_outline, real_text_styles_resolve_stys_ids, real_package_round_trip_of_folio_kinds. fig_native loss test now asserts the five typed losses are gone; fig_geometry pins updated.",
+  "unverified": "blur radius vs Gaussian sigma; Figma image transform direction and unit-square mapping (inverse written; no render comparison); stand-in row colour is a placeholder; boolean operand order (ascending child position = bottom to top)",
+  "gameplan_route": "one retry-guard block after a test failure (stale pin): route (a), committed the pin fix (new HEAD) and reran; no gameplan step added",
+  "deps": "no dependency change; Cargo.lock uncommitted"
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "beedf31, f66c9f9: interop-fig fig_folio_kinds 5/5 (blur, image fill as import_original part, boolean group with cached outline, STYS text styles, package round trip) pass. Diff read: real mapping into the new Folio kinds; blur radius/image transform conventions UNVERIFIED and listed in NATIVE_NOT_PROVEN",
+   "idempotency_key": "STUDIO-R26:SMB-INTEROP-FIG-FOLIO-KINDS:507aa36d6a58:PASS_V1",
+   "round": "STUDIO-R26",
+   "lane": "SMB-INTEROP-FIG-FOLIO-KINDS",
+   "candidate": "507aa36d6a588f82568f0d2867495b71ce5023ae",
+   "tree": "595bb180eada95cebf57b6cbca509292ac949252",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R26",
+   "started_at": "2026-10-14T21:21:54Z",
+   "completed_at": "2026-10-14T21:51:04Z"
+  },
+  {
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-basic-shapes.fig decoded=censu",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-components-autolayout.fig deco",
+    "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-prototype-pages.fig decoded=ce"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default interop-fig 29; feature/ignored/doctest units green",
+   "idempotency_key": "STUDIO-R28:SMB-INTEROP-FIG-FOLIO-KINDS:dd63d21efb85:PASS_V2",
+   "round": "STUDIO-R28",
+   "lane": "SMB-INTEROP-FIG-FOLIO-KINDS",
+   "candidate": "dd63d21efb855ef539701fcd10f61a6bf5481e15",
+   "tree": "95d5239cfdde6e57e3a6934ca69453f3487b5ae4",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "started_at": "2026-10-14T22:55:24Z",
+   "completed_at": "2026-10-14T23:36:18Z"
+  }
+ ]
 }

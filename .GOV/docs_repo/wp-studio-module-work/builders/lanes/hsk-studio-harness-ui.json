@@ -91,5 +91,48 @@
     "completed_at": "2026-10-14T21:51:04Z"
    }
   ]
- }
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "desktop window (feature desktop): not launched (Operator-attended, CX-SAFE-002)"
+   ],
+   "note": "c4c6d4d af69bcf 7ca6648: sweep re-shard (partition + shard-count tests pass in 6 units; 16/16 shards pass in ignored unit) + features viewer and desktop+viewer viewer_headless 3/3 each (import PSD -> render-cpu pixels within 1, layer hide via chronicle, save + independent reopen, GPU fallback, headless egui frame draws stable ids). Diff read: real import/composite/render flow; GPU render path itself proven only in SMB-RENDER-GPU-SHARED-DEVICE test",
+   "idempotency_key": "STUDIO-R27:SMB-HARNESS-UI:e6989645e02c:PASS_V1",
+   "round": "STUDIO-R27",
+   "lane": "SMB-HARNESS-UI",
+   "candidate": "e6989645e02ceb7a4bf082788126b56d6dca4991",
+   "tree": "a26c88154f31ecb8f5d8edd0054a49570ca6f028",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R27",
+   "started_at": "2026-10-14T22:06:44Z",
+   "completed_at": "2026-10-14T22:35:40Z"
+  },
+  {
+   "decision": "passed",
+   "verdict": "PASS_V2",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas",
+    "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reas"
+   ],
+   "note": "CX-VAL-009 reopen (accord changed e698964..dd63d21: closure = all 38 crates): crate units all build 0/run 0, 0 failed, 0 timed_out; default harness 7; feature/ignored/doctest units green",
+   "idempotency_key": "STUDIO-R28:SMB-HARNESS-UI:dd63d21efb85:PASS_V2",
+   "round": "STUDIO-R28",
+   "lane": "SMB-HARNESS-UI",
+   "candidate": "dd63d21efb855ef539701fcd10f61a6bf5481e15",
+   "tree": "95d5239cfdde6e57e3a6934ca69453f3487b5ae4",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "started_at": "2026-10-14T22:55:24Z",
+   "completed_at": "2026-10-14T23:36:18Z"
+  }
+ ]
 }

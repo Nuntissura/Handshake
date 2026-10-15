@@ -4,8 +4,14 @@
  "status": "READY_FOR_VALIDATION",
  "phase": "slices 1-4 pushed",
  "commits": [
-  {"sha": "32515b7", "subject": "layout slice 2: Liang hyphenation, embedded hyph-en-us patterns"},
-  {"sha": "64356ff", "subject": "layout slices 1,3,4: reflow_typeset (justification, hyphenation in both composers, alignment), Folio type style inheritance, parent pages model"}
+  {
+   "sha": "32515b7",
+   "subject": "layout slice 2: Liang hyphenation, embedded hyph-en-us patterns"
+  },
+  {
+   "sha": "64356ff",
+   "subject": "layout slices 1,3,4: reflow_typeset (justification, hyphenation in both composers, alignment), Folio type style inheritance, parent pages model"
+  }
  ],
  "capabilities_done": [
   "slice 1: Knuth-Plass total-fit and greedy first-fit composers already existed (SMB-LAYOUT-FOLIO-MIGRATE); new reflow_typeset(req, TypesetOptions) adds Alignment (Left/Center/Right/Justified), JustifyParams (word spacing min/desired/max 0.8/1/1.33, letter spacing range x reference space, residual reported, glyph scaling NOT implemented), Line.justification {word_scale, letter_gap_pt, residual_pt}; last line of a paragraph stays ragged; reflow() and ReflowRequest unchanged (interop-layout unaffected)",
@@ -15,7 +21,10 @@
  ],
  "tests": {
   "argv": "nextest run -p hsk-studio-layout -p hsk-studio-interop-layout --no-fail-fast",
-  "exit": 0, "sha": "64356ff", "passed": 33, "failed": 0,
+  "exit": 0,
+  "sha": "64356ff",
+  "passed": 33,
+  "failed": 0,
   "files": "tests/hyphenation.rs (6), tests/typeset.rs (10: hand-computed justification, hyphen break at 48/54 pt for both composers, ladder limit, style inheritance incl. cycles and 5000-deep chain, style-driven spacing/line height/alignment, parent pages), tests/threaded_reflow.rs (6 unchanged)"
  },
  "clippy": "clippy -p hsk-studio-layout -p hsk-studio-interop-layout --tests: no layout warnings",
@@ -31,5 +40,24 @@
   "DESCRIPTOR string not yet updated with reflow_typeset"
  ],
  "blockers": [],
- "updated_at": "2026-10-15T00:00:00Z"
+ "updated_at": "2026-10-15T00:00:00Z",
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "32515b7 64356ff: layout typeset 10 + hyphenation 6 passed (default 22), interop-layout 11. Diff read: real Liang patterns (hyph-en-us, licence recorded), justification, style inheritance, parent pages. FINDING (not a test failure): hyphenate.rs:159 min_before+min_after unchecked add; reflow_typeset validates floats only (typeset.rs:163)",
+   "idempotency_key": "STUDIO-R28:SMB-LAYOUT-TYPESET:dd63d21efb85:PASS_V1",
+   "round": "STUDIO-R28",
+   "lane": "SMB-LAYOUT-TYPESET",
+   "candidate": "dd63d21efb855ef539701fcd10f61a6bf5481e15",
+   "tree": "95d5239cfdde6e57e3a6934ca69453f3487b5ae4",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
+   "started_at": "2026-10-14T22:55:24Z",
+   "completed_at": "2026-10-14T23:36:18Z"
+  }
+ ]
 }

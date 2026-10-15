@@ -1,0 +1,26 @@
+{
+  "crate": "hsk-studio-folio",
+  "lane": "SMB-FOLIO-PARENT-PAGES",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed at 6e2ec80 (branch codex/handshake-studio-assets)",
+  "commits": [
+    {"sha": "6e2ec80", "subject": "folio (SMB-FOLIO-VECTOR-IMAGE-PORT, SMB-FOLIO-PARENT-PAGES): image-typed vector source port; hsk.studio.parent_page_records@1"}
+  ],
+  "capabilities_done": [
+    "new module parentpages.rs: StudioParentPageRecords (hsk.studio.parent_page_records@1, per document, non_exhaustive) of StudioParentPage (hsk.studio.parent_page@1: document-local parent_id, name, based_on, parent_page_items {item_id, layer_id SLYR}) and StudioPageParentBinding {page_id of a document page, applied_parent optional, override_list of StudioItemOverride replace{parent_item_id, replacement_layer_id} | suppress{parent_item_id}}",
+    "validate_parent_page_records: DanglingReference (layer, based_on, page, applied_parent, override of an item not on the applied parent chain, including items only a descendant holds), RenderCycle (based_on loops incl. self), DuplicateIdentity (parent, item, binding, double override of one item, a layer used twice), InvalidField (override without applied parent, document_id), BudgetExceeded and Canceled; ceilings 1024 parents, 10000 items/overrides, 10000 bindings (equal to layout limits)",
+    "wire: deny_unknown_fields, empty lists and absent applied_parent not encoded, byte-identical round trip; parent_page_records_schema() draft 2020-12; StudioDocument unchanged so existing documents stay byte-identical"
+  ],
+  "tests": {"argv": "cargo nextest run -p hsk-studio-folio --test vector_image_port_contract --test parent_pages_contract --test paint_blur_style_contract --no-fail-fast", "exit": 0, "sha": "6e2ec80", "passed": 9, "failed": 0},
+  "blockers": [],
+  "bg_pids": [],
+  "next": "layout adapter lane",
+  "updated_at": "2026-10-14T23:00:00Z",
+  "notes": {
+    "tests_detail": "tests/parent_pages_contract.rs: parent_pages_round_trip_and_resolve_inherited_items, cycle_dangling_and_override_refusals, hostile_wire_budget_and_cancel",
+    "layout_adapter": "map StudioParentPageRecords onto hsk_studio_layout::ParentSet: parents -> ParentPage{id=parent_id, name, based_on, items from parent_page_items (rect from the layer's frame data)}; bindings -> PageBinding{page_id, parent_id=applied_parent, overrides: replace -> ItemOverride::Replace{replacement ParentItem from replacement_layer_id}, suppress -> ItemOverride::Suppress}; PageBinding.local_items has no Folio record yet (declared gap).",
+    "accord": "no Accord id prefix needed: parent_id is a document-local key (like composition_id, page_id); nothing to report to the lead.",
+    "spec_basis": "STU-LAY-107/113 (page model; layout lists applied_parent/override_list/parent_page_items as Folio gaps); InDesign override equality UNVERIFIED (D5 oracle)",
+    "proof": "same cargo check / clippy run as SMB-FOLIO-VECTOR-IMAGE-PORT"
+  }
+}
