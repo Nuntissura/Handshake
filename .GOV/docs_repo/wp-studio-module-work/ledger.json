@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T04:06:20Z",
+ "updated_at": "2026-10-15T04:11:26Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5977,12 +5977,17 @@
   {
    "lane_id": "SMB-SCORE-EFFECTS-5",
    "crate": "hsk-studio-score",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-score-fx-20261015",
-   "commits": [],
+   "commits": [
+    "bae2967",
+    "d589e0c",
+    "970f091"
+   ],
    "verdicts": [],
-   "note": "clip speed via windowed-sinc resampling, time-stretch + pitch-shift (phase vocoder / WSOLA), click repair on noisy/dithered floors"
+   "note": "clip speed via windowed-sinc resampling, time-stretch + pitch-shift (phase vocoder / WSOLA), click repair on noisy/dithered floors",
+   "lane_file": "builders/lanes/hsk-studio-score-effects-5.json"
   },
   {
    "lane_id": "SMB-RAW-SAMPLES-OPERATOR",
@@ -5993,6 +5998,26 @@
    "commits": [],
    "verdicts": [],
    "note": "Operator morning item: approve (directly to a builder) CC0 raw.pixls.us downloads: a real uncompressed RAF and saturated samples for CR2/ARW/X-S10/LX7 whites; optionally install Adobe DNG Converter for exact CFA oracle"
+  },
+  {
+   "lane_id": "SMB-SCORE-SPECTRAL",
+   "crate": "hsk-studio-score",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-score-fx-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "Audition spectral frequency display data (STFT/reassigned), spectral selection + heal/attenuate, streaming time-stretch processor with transient preservation"
+  },
+  {
+   "lane_id": "SMB-AUDIO-CODECS",
+   "crate": "tbd-by-spec",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "AU/PR compressed audio: FLAC, Vorbis, Opus, MP3, AAC-LC decode (permissive sources only; symphonia is MPL = excluded), FLAC encode; container read via interop-media"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

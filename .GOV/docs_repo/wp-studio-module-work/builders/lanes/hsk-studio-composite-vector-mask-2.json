@@ -1,0 +1,18 @@
+{
+ "crate": "hsk-studio-composite",
+ "lane": "SMB-COMPOSITE-VECTOR-MASK-2",
+ "status": null,
+ "phase": "slices 1-2 pushed (391b9e1 folio, 27388e8 composite + pigment); renderer proofs waiting on the disk build lock (validator round)",
+ "commits": [
+  {"sha": "391b9e1", "subject": "folio (SMB-COMPOSITE-VECTOR-MASK-2 slice 1): StudioVectorMaskParameters sidecar (density, feather, linked, reveal_outside), skipped at defaults; earlier record sets byte-identical"},
+  {"sha": "27388e8", "subject": "composite + pigment (SMB-COMPOSITE-VECTOR-MASK-2 slice 2): mask density/feather/link/reveal_outside, caller-rendered raster/text/image sources, unlinked masks as composition mattes, pigment isolation rule for clipped/masked pass-through groups"}
+ ],
+ "capabilities_done": [],
+ "tests": {"argv": "", "exit": null, "sha": "", "passed": 0, "failed": 0},
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "renderer proofs (render-cpu/render-gpu tests/vector_mask_2.rs) on the scratch export",
+ "updated_at": "2026-10-15T04:06:19Z",
+ "notes": {}
+}

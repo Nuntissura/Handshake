@@ -2,40 +2,60 @@
  "crate": "hsk-studio-score",
  "lane": "SMB-SCORE-EFFECTS-5",
  "status": "READY_FOR_VALIDATION",
- "phase": "slice 1 (clip speed, band-limited windowed sinc) pushed bae2967; slice 2 (phase vocoder time-stretch / pitch-shift) next",
+ "phase": "slices 1-3 pushed (bae2967 clip speed, d589e0c time-stretch/pitch-shift, 970f091 click repair on noisy/dithered floors); READY covers score commits bae2967..970f091",
  "commits": [
   {
    "sha": "bae2967fb26bc22dfe9d25780cc65f41f6145bc8",
    "subject": "score (SMB-SCORE-EFFECTS-5 slice 1): clip speed by band-limited Kaiser-windowed sinc (100 dB design stopband)"
+  },
+  {
+   "sha": "d589e0cdefb10892964c6216f9175d90e9b3ed3f",
+   "subject": "score (SMB-SCORE-EFFECTS-5 slice 2): phase-vocoder time-stretch with identity phase locking; pitch-shift"
+  },
+  {
+   "sha": "970f091600307031da48d42c82cda34425c0d96d",
+   "subject": "score (SMB-SCORE-EFFECTS-5 slice 3): click repair on noisy and dithered floors"
   }
  ],
  "capabilities_done": [
-  "Clip speed (src/varispeed.rs): ClipSpeed rational numerator/denominator (1/16..16, terms <= 65536, reduced, reverse flag); render_at_speed evaluates the band-limited source at the exact rational position m*r (u128 integer part + remainder, no drift) with a Kaiser-windowed sinc (Z = 64 zero crossings, beta = 0.1102 (100 - 8.7) for a 100 dB design stopband, table 4096 points per zero crossing with linear interpolation); stated band: cutoff 0.95 min(1, 1/r) of the source Nyquist, transition 0.1 of the cutoff, passband to 0.9025 and stopband from 0.9976 of the output-limited Nyquist; handles outside the clip window used; output_frames = ceil(frames / r); speed 1 forward/reverse are exact copies; TrackSpec::from_source_at_speed builds a session clip. Measured: a tone that would alias at speed 2 at -149.2 dB, a 0.999-Nyquist tone at speed 1/2 at -99.4 dB (stopband edge), images beside the wanted tone at speed 1/2 at -119.2 dB, passband amplitude at 0.84 output Nyquist 2e-5 dB, positions within 4.3e-7 at 6 speeds incl. 16 reverse and 1/16"
+  "Clip speed (src/varispeed.rs): ClipSpeed rational numerator/denominator (1/16..16, terms <= 65536, reduced, reverse flag); render_at_speed evaluates the band-limited source at the exact rational position m*r (u128 integer part + remainder, no drift) with a Kaiser-windowed sinc (Z = 64 zero crossings, beta = 0.1102 (100 - 8.7) for a 100 dB design stopband, table 4096 points per zero crossing with linear interpolation); stated band: cutoff 0.95 min(1, 1/r) of the source Nyquist, transition 0.1 of the cutoff, passband to 0.9025 and stopband from 0.9976 of the output-limited Nyquist; handles outside the clip window used; output_frames = ceil(frames / r); speed 1 forward/reverse are exact copies; TrackSpec::from_source_at_speed builds a session clip. Measured: a tone that would alias at speed 2 at -149.2 dB, a 0.999-Nyquist tone at speed 1/2 at -99.4 dB (stopband edge), images beside the wanted tone at speed 1/2 at -119.2 dB, passband amplitude at 0.84 output Nyquist 2e-5 dB, positions within 4.3e-7 at 6 speeds incl. 16 reverse and 1/16",
+  "time_stretch (src/stretch.rs): offline phase vocoder, periodic Hann N ~43 ms (2048 at 44.1/48 kHz, 4096 at 96 kHz), synthesis hop N/4 (squared-window overlap sum 1.5), integer analysis centres round(k H_s / factor) so the output is exactly round(len * factor), factor 0.25..4; identity phase locking (Laroche and Dolson 1999: peaks larger than two neighbours each side, regions split at the lowest bin, psi_b = psi_p + phi_b - phi_p); plain vocoder selectable. Measured: a 440 Hz sine keeps 440.00000 Hz and amplitude 0.50000 at factors 0.5/0.8/1.5/2/3 and 44.1/48/96 kHz; on an 8-harmonic tone stretched 1.37 the residual beside the harmonics is -65.81 dB locked vs -45.79 dB plain",
+  "pitch_shift: semitones -24..24 = stretch by the rational pitch_ratio (one term 65536, < 0.23 cent) then band-limited render_at_speed, output exactly the input length; measured within 0.0011 Hz of 440 * ratio at +12/-7/+3.5/-24/+19 semitones, amplitude within 0.004 dB",
+  "ClickRepair floor edges: besides exact zeros, a detection where the RMS of the 256 samples after it is >= 20 dB above (onset) or below (offset) the 256 before it is an edge, not a click (CLICK_EDGE_LEVEL_WINDOW, CLICK_EDGE_RATIO_DB); a click leaves the level unchanged and is repaired. Measured on 16-bit TPDF dither and a -60 dB white floor: abrupt starts/stops/restarts bit-exact (4 edges, 0 repairs each); 7 clicks on the floor and in the music all repaired, SNR improvement 32.58 dB, worst floor-click error 2.9e-5 (dither) / 9.5e-4 (white)"
  ],
  "tests": {
-  "argv": "cargo nextest run -p hsk-studio-score --test varispeed --no-fail-fast",
+  "argv": "cargo nextest run -p hsk-studio-score --test stretch --test denoise (9/9 at d589e0c); --test restore_floor --test restore_edges --test restore (9/9 at 970f091)",
   "exit": 0,
-  "sha": "bae2967fb26bc22dfe9d25780cc65f41f6145bc8",
-  "passed": 3,
+  "sha": "970f091600307031da48d42c82cda34425c0d96d",
+  "passed": 18,
   "failed": 0
  },
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "slice 2: phase vocoder with identity phase locking (Laroche and Dolson 1999) for time-stretch; pitch-shift = stretch + band-limited resample; slice 3: click repair on noisy or dithered floors",
- "updated_at": "2026-10-15T03:55:14Z",
+ "next": "none in this dispatch; candidates: streaming (block) pitch-shift processor with latency, transient preservation in the vocoder, local-scale detection for clicks within 1000 samples of a level edge",
+ "updated_at": "2026-10-15T04:10:28Z",
  "notes": {
   "spec_basis": [
    "STU-VID-020: clips carry a speed (folio StudioClip.speed, reduced rational, sign = reverse; derived duration exact in ticks)",
    "STU-FX-134: native audio effect domain, deterministic"
   ],
-  "licence_clean_room": "Smith and Gossett ICASSP 1984 band-limited interpolation, Kaiser 1974 window and design formulas re-derived; no source read or copied",
+  "licence_clean_room": "Smith and Gossett ICASSP 1984 band-limited interpolation, Kaiser 1974 window and design formulas re-derived; no source read or copied; Dolson 1986 and Laroche-Dolson 1999 phase vocoder / identity phase locking re-derived; FFT reused from score denoise.rs (made pub(crate))",
   "asserted_bounds": "stopband asserted < -95 dB against the 100 dB design (measured -99.4 dB at the stopband edge, -149 dB deeper); passband < 2e-4 dB; positions < 2e-5",
   "new_tests": {
-   "varispeed": 3
+   "varispeed": 3,
+   "stretch": 4,
+   "restore_floor": 2
   },
   "parity": "Premiere/Audition speed and time-stretch quality parity UNVERIFIED (D5)",
   "dep_requests": "none",
-  "working_tree": "pre-existing stat-only modifications of other score src files left uncommitted; pathspec commits only; Cargo.lock not committed"
+  "working_tree": "pre-existing stat-only modifications of other score src files left uncommitted; pathspec commits only; Cargo.lock not committed",
+  "gaps": [
+   "time_stretch/pitch_shift are offline whole-clip functions (no block Processor; the session uses rendered clips)",
+   "no transient handling in the vocoder (smearing of sharp attacks not addressed)",
+   "floor-edge rule: a click within 256 samples before a genuine >= 20 dB level step is treated as part of the edge and left alone; clicks within about 1000 samples of an edge may see the music's detection scale",
+   "red proof for the floor-edge fix (old rule failing on dither) not run in the shared tree (V4-11)"
+  ],
+  "check_clippy": "cargo clippy -p hsk-studio-score -p hsk-studio-score-device -p hsk-studio-score-plugin --tests --examples at 970f091: no findings in score crates"
  }
 }
