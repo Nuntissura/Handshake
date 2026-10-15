@@ -1,0 +1,47 @@
+{
+ "round": 30,
+ "round_id": "STUDIO-R30",
+ "round_opened": false,
+ "status": "BLOCKED_INFRASTRUCTURE",
+ "rule_refs": ["CX-VAL-006", "CX-VAL-007", "CX-STATUS-001", "GLOBAL-CLOSURE-048"],
+ "candidate": "da4254c8ae72d5fa4bbf3489749aea1e1d012d81",
+ "tree": "891d8fa2b7b695a5b5b7345b97bbf27a3ba08638",
+ "candidate_note": "dispatch: freeze git rev-parse origin after fetch: da4254c at 00:50:59Z (edit HEAD == origin, uncommitted builder edits only). Superseded before any launch: candidate fails Cargo.lock sync",
+ "export": {
+  "file_count": 1191,
+  "manifest_sha256": "11e9bcffba4a98bffabd14d3110eed0fc398f3a8ac693044c02c0eb2b99cb4f6",
+  "git_blob_equal": true,
+  "refresh": "kernel tools/export-refresh.sh in place 62c0bf6 -> da4254c (33 added, 48 changed, 1110 unchanged, 0 deleted), blob_mismatch 0, 00:52:05Z..00:52:14Z"
+ },
+ "oracle_corpus_at_freeze": {
+  "at": "2026-10-15T00:51:58Z",
+  "file_count": 652,
+  "manifest_sha256": "5b0ec04bf6417b676f66c64f8d27034638d63a02b14d39864d2b015bcb2873df",
+  "note": "equal to the R29 union corpus manifest (no change since R29); second hash before the union not taken (no union ran)"
+ },
+ "started_at": "2026-10-15T00:50:59Z",
+ "completed_at": null,
+ "blocked_at": "2026-10-15T01:08:12Z",
+ "results_ref": null,
+ "running_record": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/RUNNING-R30.jsonl (freeze, freeze_superseded, blocked)",
+ "infrastructure_failure": {
+  "failure_kind": "infrastructure",
+  "failure_class": "cargo_lock_out_of_sync_at_candidate",
+  "check": "gameplan STUDIO-MODULE-ROUND GP-012: cargo +1.97.1 metadata --locked --offline on the da4254c export exit 101 ('cannot update the lock file ... because --locked was passed')",
+  "cause": "hsk-studio-interop-layout/Cargo.toml gained normal deps hsk-studio-press, nib, pigment, prism (e83e699, SMB-LAYOUT-PDF-EXPORT slice 2) and type (98abfd6, SMB-LAYOUT-PDF-EXPORT-2) after steward sync 9154f50; no lock-sync commit since. Tip 86222e1 (01:08Z) still unsynced; 3b665d1 (interop-fig) also changes a Cargo.toml",
+  "dep_requests": "builders/dep-requests.jsonl interop-layout -> press (00:08:36Z), nib, pigment (00:10:54Z) logged; steward_next_sync empty",
+  "effect": "the round entry script would refuse at step 0 (exit 75: candidate needs a steward sync commit); nothing launched; no lane status changed (CX-VAL-006)",
+  "unblock": "steward lock-sync commit on the origin tip (Cargo.lock for interop-layout and interop-fig manifest changes), then re-freeze origin after fetch and run canary + union"
+ },
+ "waited": "00:53:58Z..01:08:12Z polling origin for a Cargo.lock commit: none (builders pushed 7027040, a51ce3f, be2383a, 3b665d1, 86222e1 meanwhile)",
+ "lanes": [],
+ "verdict_counts": {},
+ "pre_read_for_resume": {
+  "adversarial_diff_reads_done": "a2d17b0 2e52586 8705d18 4bfc005 874e622 809a276 d111a1c 25d6cec 0451297 e83e699 4746028 8424d8a b9bb3e0 9832c68 7d2367a 5898a82 fb369b9 98abfd6 6e86820: stub-marker grep over added src lines clean (DESCRIPTOR text only); sampled implementations real (PatchMatch gain/bias + rotation/scale/mirror search, seam-carving scale, press export builder, interop-layout lowering, nib vector path, track mattes, render-cpu content-aware fill via pigment fill; render-gpu content-aware is a declared typed refusal, not claimed)",
+  "coverage_gap": "SMB-RENDER-GPU-SUBMIT-FAULT tests/gpu_submit_fault.rs shared_device_new_returns_the_fault_detail needs features test-faults AND shared-device; .config/round-features.toml render-gpu sets are [test-faults] and [shared-device] separately, so the round never compiles that test (NOT_PROVEN for the SharedDevice::new fault-detail claim unless the steward adds the combined set)",
+  "harness_ui_3": "lane claim now lists f6443de and cf18e93 (tip 9832c68) plus 63af66e; SMB-PRISM-ADMITTED-WORKING-PROFILE 6e86820 claimed in UI-3 notes",
+  "v4_13": "no lane among the R30 inputs has two FAIL verdicts"
+ },
+ "by": "wp_validator STUDIO-R30",
+ "recorded_at": "2026-10-15T01:08:30Z"
+}

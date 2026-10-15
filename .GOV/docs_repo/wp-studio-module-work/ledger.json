@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T00:50:38Z",
+ "updated_at": "2026-10-15T01:09:49Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -6639,5 +6639,18 @@
    "INCONCLUSIVE": 10
   },
   "by": "wp_validator STUDIO-R29"
+ },
+ "round_R30": {
+  "candidate": "da4254c",
+  "candidate_full": "da4254c8ae72d5fa4bbf3489749aea1e1d012d81",
+  "origin_at_fetch": "da4254c (fetch 00:50:59Z)",
+  "status": "BLOCKED_INFRASTRUCTURE",
+  "blocker": "Cargo.lock out of sync at candidate (GP-012 cargo metadata --locked exit 101): interop-layout deps press/nib/pigment/prism (e83e699) and type (98abfd6) after steward sync 9154f50; tip 86222e1 still unsynced (3b665d1 interop-fig manifest too). Entry script would refuse at step 0 (exit 75). Nothing launched",
+  "unblock": "steward lock-sync commit on origin tip, then re-freeze and run canary + union",
+  "round_ref": "validation/round-R30.json",
+  "verdicts": {},
+  "lane_status_changes": "none (CX-VAL-006)",
+  "by": "wp_validator STUDIO-R30",
+  "recorded_at": "2026-10-15T01:09:01Z"
  }
 }
