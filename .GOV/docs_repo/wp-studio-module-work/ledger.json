@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T10:30:11Z",
+ "updated_at": "2026-10-15T10:33:58Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7157,6 +7157,30 @@
    "commits": [],
    "verdicts": [],
    "note": "session/package loader for motion_records set; text-animator glyphs placed by type shaping; output module resize/crop/alpha; motion blur (shutter angle/phase, samples per frame) per spec; render once, encode many output modules"
+  },
+  {
+   "lane_id": "SMB-AUDITION-SESSION",
+   "crate": "hsk-studio-score",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "owner": null,
+   "commits": [
+    "c901059",
+    "7cc13aa",
+    "7361387"
+   ],
+   "verdicts": [],
+   "lane_file": "builders/lanes/hsk-studio-audition-session.json"
+  },
+  {
+   "lane_id": "SMB-AUDITION-SESSION-2",
+   "crate": "hsk-studio-score",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-audio-codecs-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "mix graph wired to pulse timeline sends + audio_out; preset keyframes applied; session save/reopen of mix graph; clip gain envelopes"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
