@@ -1,19 +1,59 @@
 {
  "crate": "hsk-studio-develop",
  "lane": "SMB-DEVELOP-LENS-PRESETS",
- "status": null,
- "phase": "slice 1 (lens corrections) committed locally as ffcbb30, push waiting on the disk build lock (validator round holds it); slice 2 (upright) tests queued",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1 (lens corrections) and 2 (Upright / geometry) pushed (claim = 8d531a1 + da93394); slice 3 (grain, post-crop vignette, calibration) next; Lightroom parity UNVERIFIED (D5)",
  "commits": [
-  {"sha": "ffcbb30", "subject": "develop (SMB-DEVELOP-LENS-PRESETS slice 1): lens corrections, lens profiles, whole-frame geometry stage (local, not pushed yet)"}
+  {"sha": "8d531a1", "subject": "develop (SMB-DEVELOP-LENS-PRESETS slice 1): lens corrections, lens profiles, whole-frame geometry stage"},
+  {"sha": "da93394", "subject": "develop (SMB-DEVELOP-LENS-PRESETS slice 2): Upright analysis (Hough lines, vanishing points, K R K^-1 candidates) (READY at this sha)"}
  ],
- "capabilities_done": [],
- "tests": {"argv": "cargo nextest run -p hsk-studio-develop --no-fail-fast --test develop_lens --test develop_recipe", "exit": 0, "sha": "ffcbb30 (pre-commit tree)", "passed": 10, "failed": 0},
+ "capabilities_done": [
+  "1 lens profiles (src/lens_profile.rs, STU-RAW-127): caller-supplied `hsk-lens-profile 1` text (documented in the module) carrying the sampled (focal, aperture value, distance) grid with perspective model (fx, fy, centre, k1..k3, p1, p2, scale), vignette a1..a3, the THREE lateral CA models ca_green / ca_red_green / ca_blue_green and residual mean / sd; f64; infinity sentinel >= 1e30; nested linear interpolation focal -> aperture -> 1/distance; sha256 digest + name carried in LensBinding (what the recipe stores); fisheye profiles refused at bind (unsupported_contribution:fisheye_lens_model)",
+  "1 optics (src/optics.rs, STU-RAW-117): lens_profile_enable / auto_lateral_chromatic_aberration (default on, identity without a profile), distortion and vignetting scales 0..200, manual distortion / vignette -100..100, purple / green defringe with the spec's 30/70 and 40/60 hue-window defaults; Studio lens model v1 maps corrected -> captured (no inversion)",
+  "1 geometry stage (src/geometry.rs): one whole-frame Catmull-Rom resample per channel (Pigment catmull_rom weights) composing lens map, perspective (Pigment Projective2 composition / inverse, PreparedTransform admission), crop straighten angle -45..45, flips and constrain_to_warp (bisection zoom); develop_to_image develops the uncropped stage-A frame, warps, crops, then runs stage C per pixel exactly as the tiles; tile API refuses lens_corrections_whole_frame / transform_whole_frame; crop orientation != 1 still unsupported_crop; apply_geometry public; DevelopReceipt.geometry report (outside pixels, zoom, transform, upright candidates, lens identity)",
+  "2 Upright (src/upright.rs, STU-RAW-118): orientation-gated Hough lines on encoded luma, vote-weighted least-squares vanishing points, K R K^-1 rotations from the 35 mm-equivalent focal (fallback 35) and analysis centre, six stored candidates off / auto / level / vertical / full / guided (guides <= 4), principal point fixed with unit area scale; stored candidates used verbatim, else analysed at develop time",
+  "2 manual transform: vertical / horizontal keystone, rotate -10..10, aspect, scale 50..150, offsets (mappings UNVERIFIED, documented in geometry.rs)",
+  "Adjustments 1.2 (optics, geometry); 1.0 / 1.1 recipes still read; new typed errors invalid_lens_profile, invalid_transform, invalid_lut, invalid_preset, model_unavailable(kind)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-develop --no-fail-fast --test develop_lens --test develop_upright --test develop_recipe",
+  "exit": 0,
+  "sha": "da93394 (rebased tree, rerun before push)",
+  "passed": 15,
+  "failed": 0,
+  "new_targets": {
+   "develop_lens": "5/5 (grid interpolation hand values, known barrel grid straightened to < 0.25 px, vignetting / manual vignette / lateral CA hand values, whole-frame only + identity + crop angle constrain + thread invariance, hostile profiles and values)",
+   "develop_upright": "5/5 (pitched / pitch+yaw+roll / rolled synthetic scenes rectified within 0.3-0.5 degrees, guided exact, manual transform hand values, develop stored-vs-analysed candidates + thread invariance + tile refusal, hostile geometry)"
+  },
+  "changed_tests": "develop_recipe.rs: crop.angle 1.0 is now unsupported_contribution:transform_whole_frame in the tile API (was unsupported_crop); orientation 6 asserts unsupported_crop",
+  "clippy": "cargo clippy -p hsk-studio-develop -p hsk-studio-interop-lrcat -p hsk-studio-harness --features hsk-studio-harness/viewer --tests: clean for develop, lrcat and harness at da93394"
+ },
  "blockers": [],
- "lock_wait_s": 0,
+ "lock_wait_s": 3600,
  "bg_pids": [],
- "next": "push slice 1 after rebase + focused rerun; slice 2 upright; slice 3 grain/calibration; slice 4 presets + .cube looks (prism lut); slice 5 AI mask refusal; harness panel slice",
- "updated_at": "2026-10-15T12:20:13Z",
+ "next": "slice 3 grain / post-crop vignette / calibration; slice 4 presets + .cube looks (prism lut.rs, additive); slice 5 model-mask typed refusal; harness panel slice (develop_more.rs)",
+ "updated_at": "2026-10-15T13:40:27Z",
  "notes": {
-  "worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-develop-lens-presets (branch lane/smb-develop-lens-presets from origin/codex/handshake-studio-assets), STUDIO_OWNER=smb-develop-lens-presets; an untracked .gameplan-active pointer at the worktree root points at the Studio gameplan (same as the shared tree and smb-package-completeness), no gameplan step added"
+  "spec_basis": {
+   "STU-RAW-105": "enable_lens_corrections / enable_transform / enable_effects / enable_calibration suppress a group without discarding its parameters",
+   "STU-RAW-106": "grain carries an explicit seed so the render is replayable",
+   "STU-RAW-117": "17 optics parameters: auto lateral CA and profile enable default on, distortion / vignetting scale 0..200 default 100, manual distortion / vignette -100..100, defringe purple / green amount 0..20 with hue windows 30/70 and 40/60",
+   "STU-RAW-118": "perspective vertical / horizontal -100..100, rotate -10..10, scale 50..150 default 100, aspect, offsets; auto_perspective_mode off/auto/level/vertical/full/guided; centre default 0.5; focal fallback 35; guide count 0..4; six stored candidate transforms (row-major 3x3); constrain_crop_to_warp",
+   "STU-RAW-119": "grain amount / size (default 25) / frequency / seed, post-crop vignette amount / midpoint / roundness / feather / highlight contrast / style, override_look_vignette",
+   "STU-RAW-120": "calibration shadow_tint and red / green / blue hue + saturation, soft -100..100, applied on top of the camera profile",
+   "STU-RAW-126": "creative profiles: look table + amount (observed 0.3..1.7, default 1) + capability flags; look tables content-addressed",
+   "STU-RAW-127": "lens profile is a sampled grid over focal, distance, aperture; perspective / fisheye / vignette / three CA models; f64; infinity sentinel; residuals surfaced",
+   "STU-RAW-128": "preset = named partial parameter set recording which parameters it sets + metadata + amount; snapshot = complete state",
+   "STU-RAW-014a / 123": "model-assisted sources (subject, sky, background, landscape_component, object, person, person_component) are an optional adapter that degrades to manual sources"
+  },
+  "licence_research": "Adobe .lcp: no published format specification and no redistribution terms found (web search 2026-10-15); no .lcp is read or bundled, callers convert profiles into the documented format. Lensfun: database CC-BY-SA 3.0 (share-alike, not bundled), code LGPL (excluded, never read). DNG WarpRectilinear / FixVignetteRadial are resembled, transcription UNVERIFIED.",
+  "unverified_choices_for_D5": [
+   "Studio lens model v1 conventions (focal in long-side units, scale factor placement, vignetting gain V^(-scale)), manual distortion k = -0.15 m/100 on q^2, manual vignette 2^(a q^2)",
+   "defringe hue mapping (purple 200 + 1.6 count, green 40 + 1.6 count degrees), edge threshold 0.08",
+   "Upright: Hough thresholds, auto rule (full / vertical when <= 20 degrees else level), level median within 15 degrees",
+   "manual transform scales (keystone 0.4, aspect 2^(a/200), offset 0.5 units)"
+  ],
+  "worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-develop-lens-presets (branch lane/smb-develop-lens-presets), STUDIO_OWNER=smb-develop-lens-presets; untracked .gameplan-active pointer at the worktree root points at the Studio gameplan (as in the shared tree), no gameplan step added",
+  "own_causes": "guided test first failed: guide endpoints outside 0..1 (the synthetic pitch moves points up) -> fixed the test geometry before commit; python edits wrote CRLF, git showed stat-dirty files blocking the rebase -> git checkout of the identical files"
  }
 }

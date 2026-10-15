@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T13:16:45Z",
+ "updated_at": "2026-10-15T13:53:31Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7519,12 +7519,15 @@
   {
    "lane_id": "SMB-AUDITION-UI",
    "crate": "hsk-studio-harness",
-   "phase": "queued",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": null,
-   "commits": [],
+   "commits": [
+    "1d4e8e5"
+   ],
    "verdicts": [],
-   "note": "viewer routing/mixer editor (tracks, buses, sends, faders, meters), keyframes on bus effects, seek exactness for effects with long tails (pre-roll)"
+   "note": "viewer routing/mixer editor (tracks, buses, sends, faders, meters), keyframes on bus effects, seek exactness for effects with long tails (pre-roll)",
+   "lane_file": "builders/lanes/hsk-studio-audition-ui.json"
   },
   {
    "lane_id": "SMB-LAYOUT-UI-2",
@@ -7565,6 +7568,16 @@
    "commits": [],
    "verdicts": [],
    "note": "folio resolver ports for fonts, audio, LUTs (so unresolved becomes typed loss or resolved); linked placed-source health check at open; catalog asset_id references per CKC ports"
+  },
+  {
+   "lane_id": "SMB-AUDITION-UI-2",
+   "crate": "hsk-studio-score",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-audio-codecs-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "exact backward seek via periodic processor-state checkpoints (bounded memory) instead of re-render from start; bus/master effect editing from the mixer panel"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
