@@ -1,15 +1,55 @@
 {
  "crate": "hsk-studio-prism (+ hooks in hsk-studio-pigment, hsk-studio-render-cpu, hsk-studio-render-gpu)",
  "lane": "SMB-PRISM-VIEW-TRANSFORM-2",
- "status": null,
- "phase": "slice 1 (prism: ACEScg input, Display P3 SDR and PQ HDR views, view selection with typed refusal, WGSL view) in progress",
- "commits": [],
- "capabilities_done": [],
- "tests": {"argv": "", "exit": null, "sha": null, "passed": 0, "failed": 0},
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-2 pushed: prism 75797c5 (+ test fixes c04a676, 171fdb5, a9303c5), hooks 013f770; pigment DESCRIPTOR text in 27388e8 (see notes.coordination)",
+ "commits": [
+  {"sha": "75797c5", "subject": "prism (SMB-PRISM-VIEW-TRANSFORM-2 slice 1): ACEScg input, Display P3 SDR and PQ HDR ACES views, view selection, WGSL form"},
+  {"sha": "c04a676", "subject": "prism (SMB-PRISM-VIEW-TRANSFORM-2 slice 1 test fix): HDR views may pass the peak by 1e-4 after the CAT (the CTL clamps at 0 only)"},
+  {"sha": "171fdb5", "subject": "prism (SMB-PRISM-VIEW-TRANSFORM-2 slice 1 test fix 2): HDR bound derived from the Rec.2020 CAT matrix row sums"},
+  {"sha": "a9303c5", "subject": "prism (SMB-PRISM-VIEW-TRANSFORM-2 slice 1 test fix 3): computed HDR bound is 1.0825"},
+  {"sha": "013f770", "subject": "pigment + render-cpu + render-gpu (SMB-PRISM-VIEW-TRANSFORM-2 slice 2): views from a scene input, WGSL view on the shared texture, DESCRIPTOR"}
+ ],
+ "capabilities_done": [
+  "(1) render-gpu shared-texture (egui) path runs the SDR views: prism VIEW_WGSL (binary32 RRT + SDR ODT) + view_gpu_params (117 f32, storage binding 4) inside the shared output pass before the sRGB encode; parity with prism + the shared encoding: 0 LSB on 108/108 channels for Rec.709 from linear sRGB, Rec.709 from ACEScg and Display P3 (stated tolerance +-1 per 8-bit channel); HDR views have no GPU form and are refused Unsupported display_view_transform before admission and device work",
+  "(2) ACEScg input: SceneInput LinearSrgb | AcesCg | Aces2065_1; ACESCG_TO_ACES2065_1 / ACES2065_1_TO_ACESCG = the published ACEScg specification matrices (TRA_2 / TRA_1, aces-docs docs/encodings/acescg.md, S-2014-004); ACESCG_TO_WORKING / WORKING_TO_ACESCG (AP1 <-> linear sRGB, Bradford); ViewTransformId::apply_from, ViewTransform{view,input}; pigment DisplayTransform::ViewFrom(ViewTransform) (digest view@input) and DisplayTransform::view(); render-cpu and render-gpu run any input",
+  "(3) views named by STU-COL-313 only: Aces1SdrVideoDisplayP3 (odt/displayp3/ODT.Academy.DisplayP3_dim.ctl, display_p3_display), Aces1HdrVideo{1000,2000,4000}Nits (outputTransform/rec2020/RRTODT.Academy.Rec2020_*nits_15nits_ST2084.ctl over ACESlib.OutputTransforms + ACESlib.SSTS incl. inv_ssts exposure shift, rec2100_pq_display at aces_view.peak_luminance 1000/2000/4000; output linear Rec.2020 in units of 100 cd/m2), DisplayEncoding Gamma22 (gamma22_rec709_display) and Pq (ST 2084); select_view(display, peak) -> (view, encoding) with typed ViewSelectError view_not_built (p3_d65_display, rec2100_hlg_display, PQ 500 or any other peak, SDR targets at peak != 100) and view_unknown_display (anything else)",
+  "(4) pigment render_plan DESCRIPTOR output_stage text: display None | Some(Clip | View | ViewFrom), DisplayView key display_view_transform class exact, inputs, SDR/HDR ranges, backends and proving tests"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-prism --test view_transform --test view_transform_2 ; cargo nextest run -p hsk-studio-render-cpu --test cpu_view_transform --test cpu_view_transform_2 ; cargo nextest run -p hsk-studio-render-gpu --features shared-device --test gpu_view_transform --no-capture ; regression: cargo nextest run -p hsk-studio-render-gpu --features shared-device,test-faults --test shared_device --test gpu_extended_envelope --test gpu_extended_range --test gpu_scene_display (6/6)",
+  "exit": 0,
+  "sha": "013f770",
+  "passed": 5,
+  "failed": 0
+ },
  "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "slice 1 prism; slice 2 pigment ViewFrom + DESCRIPTOR, render-cpu/gpu hooks, WGSL on the shared-texture path",
- "updated_at": "2026-10-15T02:48:45Z",
- "notes": {}
+ "next": "Validator: judge 013f770 (prism 75797c5..a9303c5, hooks 013f770; DESCRIPTOR text in 27388e8). Harness lane: the egui shared-texture viewer can now declare OutputStage{Extended, Some(DisplayTransform::View(Aces1SdrVideo))} or ViewFrom(.., AcesCg); select_view gives the view + encoding for a STU-COL-313 display target.",
+ "updated_at": "2026-10-15T03:40:12Z",
+ "notes": {
+  "spec_basis": {
+   "STU-COL-313": "display targets srgb_display, rec1886_rec709_display, gamma22_rec709_display, p3_d65_display, display_p3_display ('An SDR view rendered for the P3 D65 gamut'), rec2100_pq_display ('HDR views at more than one peak luminance, selected by aces_view.peak_luminance'), rec2100_hlg_display; 'Studio MUST support a shared view referenced from more than one display' -> one Rec.709 SDR view shared by three encodings",
+   "STU-COL-313 aces_view.peak_luminance": "soft 100..4000, observed views 100, 500, 1000, 2000, 4000 -> 1000/2000/4000 built (aces-dev has those RRTODTs), 500 typed view_not_built",
+   "STU-COL-311/312": "ACEScg is the scene_linear default working space, ACES2065-1 the interchange anchor -> SceneInput",
+   "STU-COL-161": "stage 6a display transform"
+  },
+  "sources": "aces-dev v1.3.1 CTL (ACES licence, attribution in crates/hsk-studio-prism/LICENSE-ACES.txt): odt/displayp3/ODT.Academy.DisplayP3_dim.ctl, outputTransform/rec2020/RRTODT.Academy.Rec2020_{1000,2000,4000}nits_15nits_ST2084.ctl, lib/ACESlib.OutputTransforms.ctl, lib/ACESlib.SSTS.ctl, lib/ACESlib.Utilities_Color.ctl (P3D65_PRI, REC2020_PRI, Y_2_ST2084); aces-docs docs/encodings/acescg.md (published matrices); OpenColorIO v2.3.2 BSD-3 tests/cpu/transforms/BuiltinTransform_tests.cpp (reference values only, no code copied)",
+  "not_built": "p3_d65_display: aces-dev v1.3.1 has P3D65 ODTs only as 48-nit cinema (ODT.Academy.P3D65_48nits) or 108-nit HDR cinema, no 100-nit video ODT, and the spec names no EOTF for that target -> which ACES transform the spec means is UNVERIFIED, refused view_not_built; rec2100_hlg_display (RRTODT Rec2020_1000nits_15nits_HLG exists, not built in this lane); PQ 500 nits (no CTL)",
+  "tests_detail": "NEW (3): prism tests/view_transform_2.rs extended_views_match_ocio_and_the_published_acescg_matrices (published TRA_1*TRA_2 identity 2.0e-10; ACEScg_to_ACES2065-1 OCIO 4.0e-8; ACES-AP1_to_LINEAR-REC709_BFD OCIO 4.6e-8; working round trip 7.4e-16; ACEScg input = AP0 input of the published matrix 0; Display P3 view vs OCIO SDR-VIDEO_1.0 XYZ 5.6e-7; HDR-VIDEO-1000/2000/4000nit-15nit-REC2020lim_1.1 XYZ 5.3e-7 / 6.7e-7 / 7.7e-7; DISPLAY CIE-XYZ-D65_to_REC.2100-PQ 3.1e-8; tolerances from that run), view_selection_refuses_unbuilt_targets_and_hdr_views_are_bounded (built targets resolve; p3_d65, hlg, PQ 500/100, sRGB at 1000 -> view_not_built; 5 non-target keys incl. case and whitespace decoys -> view_unknown_display; HDR: 0 -> 0, luminance non-decreasing over 1e-6..1e5, channels within [0, 1.0825*peak] where 1.0825 is the largest positive row sum of Rec.2020 -> D60->D65 CAT -> Rec.2020 computed in the test, f32::MAX saturates at >= 0.95 peak; every view x input: NaN/+-inf -> nonfinite_channel, extreme finite values bounded, odd buffer channel_range; Gamma22/Pq hostile and PQ(0) < 1e-6); render-cpu tests/cpu_view_transform_2.rs view_from_scene_inputs_and_new_views_match_prism_on_the_composite (ViewFrom ACEScg Rec.709, Display P3, HDR 1000 from ACEScg, HDR 4000 from AP0 at (chunk,threads) (1,1) (4,3) (64,2): to_bits equal to ViewTransform::apply of pigment's extended composite, distinct digests, ledger display_view_transform, HDR values above 1; View(id) == ViewFrom(id@linear_srgb) pixels with different digests; pigment DESCRIPTOR names display_view_transform and ViewFrom). UPDATED (1): render-gpu tests/gpu_view_transform.rs, shared-texture half now renders the 3 SDR view/input pairs (0 LSB, 108/108 exact) and refuses the HDR view before device work; read-back half unchanged (5.96e-8).",
+  "observations": "HDR views: the CTL limits to Rec.2020 in D60-adapted XYZ before the D60->D65 CAT (limit_to_primaries then CAT), so channels are not monotonic near the peak (R 9.764766 -> 9.764666 at 295 for 1000 nits), a saturated neutral lands near 97.7 % of the peak and a channel may pass the peak (10.0227 for ACEScg (-1e30,5,0.3)); OCIO's HDR built-ins have the same structure (ADAPTATION_NONE clamp then Bradford) and match to 7.7e-7",
+  "coordination": "Slice 1 and 2 files were clean except pigment render_plan.rs, which held SMB-COMPOSITE-VECTOR-MASK-2's uncommitted doc hunk. This lane's DESCRIPTOR edit was applied to the working file; that lane's pathspec commit 27388e8 then swept it into HEAD before this lane committed (verified: HEAD render_plan.rs contains 'ViewFrom(ViewTransform)' and 'display_view_transform'; the remaining working diff is that lane's text only). Slice 2 (013f770) is a pathspec commit of 9 files that held only this lane's changes; render_plan.rs was not committed by this lane. Retry guard hit 2x on the prism test (own test expectations); route (a): fixing commits c04a676, 171fdb5, a9303c5; no gameplan step added. One edit command was blocked whole by the hook, so 75797c5 carried the test before its first bound fix; c04a676, 171fdb5 and a9303c5 are the fixes (a9303c5 final).",
+  "gaps": [
+   "p3_d65_display and rec2100_hlg_display views not built (typed view_not_built)",
+   "HDR views have no GPU (WGSL) form; shared-texture output refuses them (the target is 8-bit SDR anyway)",
+   "WGSL parity proven on this host's adapter only (DX12); binary32 path, stated tolerance +-1 LSB",
+   "pigment: View(id) and ViewFrom(id@linear_srgb) are two digest spellings of the same pixels (documented, test-pinned)",
+   "Photoshop / Premiere ACES display behaviour UNVERIFIED (D5)"
+  ],
+  "files_touched": "prism: src/view_transform.rs (SceneInput, published ACEScg matrices, ViewTransform, new views, SSTS, inv_ssts, Y_2_ST2084, DisplayEncoding Gamma22/Pq, select_view, view_gpu_params, VIEW_WGSL, docs), src/lib.rs (exports), tests/view_transform_2.rs (new); pigment: src/render_plan/output.rs (ViewFrom, view(), serializer), src/render_plan/extensions.rs (DisplayView for View and ViewFrom), src/render_plan.rs DESCRIPTOR (landed via 27388e8); render-cpu: src/plan_sink.rs, src/plan_sink/display.rs, tests/cpu_view_transform_2.rs (new); render-gpu: src/plan_sink.rs (HDR-only texture refusal, host view), src/plan_sink/shared.rs (binding 4, view uniform flag, WGSL), tests/gpu_view_transform.rs (updated)",
+  "new_module_edges": "NONE; no new dependency; Cargo.lock untouched",
+  "clippy": "clippy -p hsk-studio-prism --tests; -p pigment -p render-cpu -p render-gpu --tests --features shared-device: 0 warnings in this lane's code (composite tests/support/mask_scenes.rs unused_mut belongs to another lane)",
+  "v4": "V4-01: view_transform.rs keeps deny(clippy::arithmetic_side_effects); shared.rs under its existing deny; V4-03: GPU halves fail NOT_PROVEN without an adapter (gpu-proof.toml); V4-07: DESCRIPTOR and VIEW_TRANSFORM_DESCRIPTOR claims cite the tests; V4-08 decoys for select_view keys (case, whitespace, other key kinds)"
+ }
 }

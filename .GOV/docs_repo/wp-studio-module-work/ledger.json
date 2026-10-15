@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T03:35:25Z",
+ "updated_at": "2026-10-15T03:41:50Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5845,12 +5845,19 @@
   {
    "lane_id": "SMB-PRISM-VIEW-TRANSFORM-2",
    "crate": "hsk-studio-prism",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-prism-view-20261015",
-   "commits": [],
+   "commits": [
+    "75797c5",
+    "c04a676",
+    "171fdb5",
+    "a9303c5",
+    "013f770"
+   ],
    "verdicts": [],
-   "note": "WGSL ACES view for egui shared texture; ACEScg AP1 input; spec-named P3/HDR PQ views; pigment DESCRIPTOR"
+   "note": "pigment DESCRIPTOR hunk for display_view_transform landed inside 27388e8 (SMB-COMPOSITE-VECTOR-MASK-2 commit) from the shared tree",
+   "lane_file": "builders/lanes/hsk-studio-prism-view-transform-2.json"
   },
   {
    "lane_id": "SMB-RENDER-GPU-EXTENDED-ENVELOPE",
@@ -5929,9 +5936,9 @@
   {
    "lane_id": "SMB-ILLUSTRATOR-PEN",
    "crate": "hsk-studio-harness",
-   "phase": "queued",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-illustrator-pen-20261015",
    "commits": [],
    "verdicts": [],
    "note": "AI-04/05: pen tool + direct selection / anchor & handle editing on canvas over nib path-editing primitives, shape tools, path booleans/offset via nib; undoable via chronicle"
