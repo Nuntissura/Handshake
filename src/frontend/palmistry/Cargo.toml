@@ -33,6 +33,7 @@ name = "palmistry"
 path = "src/main.rs"
 
 [dependencies]
+handshake-palmistry-lifecycle = { path = "../handshake_palmistry_lifecycle" }
 palmistry-control-protocol = { path = "../palmistry_control_protocol" }
 # MT171 bounded edge: private watcher signing identity; backend HMAC remains a distinct key.
 ed25519-dalek = "3.0.0"
