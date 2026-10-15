@@ -1,0 +1,41 @@
+{
+ "crate": "hsk-studio-render-cpu + hsk-studio-render-gpu",
+ "lane": "SMB-RENDER-CONTENT-AWARE",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 pushed (7d2367a): render-cpu declares and executes content_aware_fill through pigment content_aware::fill; render-gpu keeps the typed Unsupported refusal",
+ "commits": [
+  {"sha": "7d2367a", "subject": "render-cpu + render-gpu (SMB-RENDER-CONTENT-AWARE slice 1): content-aware fill envelope operator"}
+ ],
+ "capabilities_done": [
+  "render-cpu extension_exactness: ExtOperator::ContentAwareFill => pigment intrinsic class (approximate)",
+  "render-cpu extended.rs: LayerFx.content_aware, ExtPrep.content_aware table (256 resident bytes per op charged as a running aggregate; options re-validated as InvalidPlan(ContentAwareParameter) defence in depth)",
+  "render-cpu prepare: a filled layer reads a new PNode::Filled node of Prepared::extra (content bounds inside the plan extent); defence in depth ContentAwareCombination (effects, blur, filters, transform, adjustment, pass-through, clipped, clip base); content_aware_nested when the content holds another fill or a layer with effects, a blur or filters; hole mask source resolved and verified like a layer mask (declared format, hash, bounds, stride; UnresolvedSource / SourceMismatch kinds)",
+  "new plan_sink/content_aware.rs: before the first chunk, for each fill: content (input node without the layer mask, frame_content_raw over the bounds) as RgbaPlane, hole as CoveragePlane (u16 as is, u8 x 257, inverted 65535 - c), sampling None = Auto / Some(rect) = Rectangular, options as given -> pigment content_aware::fill; output plane stored in the Filled node; the normal compositor applies mask, Blend-If, mode, opacity * fill; pigment refusals keep pigment's codes, OutOfRange = InvalidPlan(ContentAwareParameter), budget = BudgetExceeded",
+  "render-cpu run(): fill planes charged after the chunk scratch and before allocation (stored outputs + largest transient set: content, group levels, feather scratch, hole); pigment's RetouchLimits.max_bytes = what remains, max_work = pigment default; receipt peak_working_bytes includes the fill charge; cancel checked before each fill",
+  "Eval::layer and frame_content_raw read Filled nodes; clip_base / clip_layer refuse them as plan_shape (unreachable: pigment and prepare refuse fills on clip roles)",
+  "render-gpu: no code change to declarations (extension_exactness already answers Unsupported); DESCRIPTOR content_aware_fill entry; render-cpu DESCRIPTOR content_aware_fill entry citing the tests"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-render-cpu --test cpu_content_aware ; cargo nextest run -p hsk-studio-render-gpu --test gpu_content_aware ; cargo nextest run -p hsk-studio-render-cpu -p hsk-studio-render-gpu --features hsk-studio-render-gpu/test-faults,hsk-studio-render-gpu/shared-device --no-fail-fast (106/107, composition_frames failed under the composite lane's WIP) ; rerun cargo nextest run -p hsk-studio-render-cpu -E 'binary(composition_frames)' (1/1) ; cargo test --doc -p hsk-studio-render-cpu -p hsk-studio-render-gpu (6/6)",
+  "exit": 0,
+  "sha": "7d2367a",
+  "passed": 4,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "validator round on 7d2367a",
+ "updated_at": "2026-10-15T00:49:04Z",
+ "notes": {
+  "spec_basis": "STU-RAS-143 (native on-device content-aware fill: sampling_area_mode auto|rectangular|custom, colour_adaptation, rotation_adaptation, scale, mirror) as carried by pigment ContentAwareFillOp (sampling auto|rectangular only in the plan operator); STU-RAS-030; class Approximate, Photoshop parity NOT_PROVEN (D5). The hole coverage conversion (u8 x 257) and evaluating the fill on the content inside the plan extent are render-cpu readings: no pigment conversion or rule exists (candidate for pigment ownership)",
+  "tests_detail": "render-cpu cpu_content_aware 3/3: fill_matches_pigment_for_every_chunking_and_thread_count (3 cases: 5x4 block hole auto sampling default colour adaptation; partial-coverage (128) hole, rectangular sampling, colour adaptation none, a layer mask applied after the fill, pigment threads 2; inverted hole, pigment threads 3; each over chunkings (1,1) (3,1) (5,4) (64,1) (4,8) (7,2): to_bits equal to composite_over of a direct pigment fill (threads 1) of the 20x16 tile; the plain layer differs), budgets_are_charged_before_any_sink_call (fill charge = 5120 content + 960 hole + 5120 stored + 256 op bytes; peak - 1 = BudgetExceeded from render-cpu, peak exactly = pigment BudgetExceeded{requested 1, limit 0}; max_hole_pixels 3 = content_aware_hole_too_large; 0 sink calls each), parameter_and_combination_refusals_are_typed (with filters / blur = ContentAwareCombination; patch_radius 0, em_iterations 65, threads 0, hole density 0.5, clip-to-base hole, empty sampling rect = ContentAwareParameter; Fitted floor = Unsupported content_aware_fill (approximate); fill inside a fill and a filter inside a fill = content_aware_nested; missing hole source = UnresolvedSource(77); sampling area inside the hole = content_aware_no_source; 0 sink calls each). render-gpu gpu_content_aware 1/1: gpu_content_aware_fill_is_refused_before_any_device_work (none backend and live dx12:discrete:NVIDIA GeForce RTX 3090: Unsupported content_aware_fill, 0 sink calls, 0 resident bytes; control: the plain plan on the none backend is Unavailable(no_adapter)). Full suites render-cpu + render-gpu (test-faults, shared-device): 106/107, the one failure (composition_frames) passed 1/1 on rerun (run_caveat); doctests 6/6. clippy -p render-cpu -p render-gpu --tests: 0 warnings in render-cpu/render-gpu sources (one warning in composite's shared test support, other lane)",
+  "run_caveat": "the first full-suite run had render-cpu composition_frames fail while the composite lane had uncommitted edits in crates/hsk-studio-composite/tests/support/composition_scenes.rs (shared by that test); a rerun minutes later (different nextest filter, the retry guard refused the identical command) passed 1/1 with every frame max |delta| 0 vs the oracle. No plan of that test uses the content-aware operator",
+  "gaps": "fill on the content inside the plan extent only (content beyond the extent is not sampled); cancel and deadline are not observed inside pigment's fill (between fills and chunks only); a filled layer's content cannot hold effects, blur, filters or another fill (content_aware_nested); pigment's custom sampling area and the hole conversion are not plan operators; render-gpu has no content-aware fill (typed refusal); BudgetExceeded from pigment reports requested = limit + 1 (pigment does not return its prediction)",
+  "outside_owned_paths": "none (render-cpu and render-gpu only; pigment untouched)",
+  "unowned_dirty_files": "composite tests/support/composition_scenes.rs (M) and tests/composition_static.rs (??) belong to the composite lane; not touched",
+  "cargo_lock": "not touched",
+  "v4": "V4-01 deny(arithmetic_side_effects) on content_aware.rs (checked index and size arithmetic); V4-02 every plane charged before allocation, pigment charges its pyramid against the remainder (test budgets_are_charged_before_any_sink_call); V4-03 the render-gpu test is hardware-independent and also runs on the live adapter; V4-07 DESCRIPTOR claims cite tests; V4-09 commit -F",
+  "retry_guard": "the gameplan retry guard refused an identical rerun of the failing suite; the rerun used a different filter; no gameplan step added"
+ }
+}

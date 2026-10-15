@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T00:49:42Z",
+ "updated_at": "2026-10-15T00:50:38Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -5363,12 +5363,15 @@
   {
    "lane_id": "SMB-RENDER-CONTENT-AWARE",
    "crate": "hsk-studio-render-cpu",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-gpu-fault-20261015",
-   "commits": [],
+   "commits": [
+    "7d2367a"
+   ],
    "verdicts": [],
-   "note": "render-cpu (then render-gpu) execute the content_aware_fill plan operator (pigment 25d6cec) by calling pigment content_aware::fill; refusal tests in both renderers until then; composite lowering of a content-aware layer edit"
+   "note": "gaps: source limited to plan extent; cancel not checked inside pigment fill; fill over effect/filter/fill content refused; u8 hole x257 conversion could move to pigment; render-gpu typed Unsupported",
+   "lane_file": "builders/lanes/hsk-studio-render-content-aware.json"
   },
   {
    "lane_id": "SMB-LAYOUT-PDF-EXPORT-2",
@@ -5393,9 +5396,9 @@
   {
    "lane_id": "SMB-RENDER-SCENE-DISPLAY",
    "crate": "hsk-studio-render-cpu",
-   "phase": "queued",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-render-display-20261015",
    "commits": [],
    "verdicts": [],
    "note": "render-cpu refuses displaying developed/raw scene-referred values >1; add an explicit display transform (clip vs tone-map declared in OutputTarget) so viewers show HDR develop output; export path already clamps and counts"
