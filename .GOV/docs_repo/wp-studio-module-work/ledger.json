@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T06:36:18Z",
+ "updated_at": "2026-10-15T06:37:55Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -6415,12 +6415,16 @@
   {
    "lane_id": "SMB-DEVELOP-CAMERA-COLOUR",
    "crate": "hsk-studio-develop",
-   "phase": "queued",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": null,
-   "commits": [],
+   "commits": [
+    "cca35dc",
+    "40579f5"
+   ],
    "verdicts": [],
-   "note": "CR3 (and other newly decoded vendors) import refuses missing_colour_data: camera colour matrices / forward matrices needed per model; permissive sources only (dcraw/rawspeed/LibRaw excluded), e.g. embedded maker-note matrices or DNG-SDK-licensed tables; else typed refusal stays"
+   "note": "52-model table fitted from rawtoaces-data (Apache-2.0); R6 CR3 imports (median dE76 1.44 vs preview neutrals); ORF single-illuminant route pending lead decision",
+   "lane_file": "builders/lanes/hsk-studio-develop-camera-colour.json"
   },
   {
    "lane_id": "SMB-ILLUSTRATOR-PEN-3",
@@ -6491,6 +6495,16 @@
    "commits": [],
    "verdicts": [],
    "note": "IDML import of tables/footnotes/sections/TOC/placed graphics/variables into longdoc records; IDML export (write) round trip; INDD stays typed refusal (proprietary binary)"
+  },
+  {
+   "lane_id": "SMB-DEVELOP-CAMERA-COLOUR-2",
+   "crate": "hsk-studio-develop",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-r31-findings-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "STU-COL-218: single-illuminant file matrices refused by default; explicit opt-in approximate_colour flag (recorded in develop receipt + loss note) enables them; two-illuminant interpolation by CCT for table models; extend table coverage for corpus bodies where permissive data exists"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

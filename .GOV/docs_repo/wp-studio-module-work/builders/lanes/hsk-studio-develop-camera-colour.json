@@ -1,8 +1,8 @@
 {
   "crate": "hsk-studio-develop",
   "lane": "SMB-DEVELOP-CAMERA-COLOUR",
-  "status": "IN_PROGRESS",
-  "phase": "slice 1 pushed (develop cca35dc, harness 40579f5); full harness ignored raw unit + viewer develop tests running before READY",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 1 pushed (develop cca35dc, harness 40579f5); develop default + ignored units, harness ignored import-psd+import-raw unit (19/19) and viewer develop tests (9/9) green at 40579f5's tree",
   "commits": [
     {"sha": "cca35dc", "subject": "develop (SMB-DEVELOP-CAMERA-COLOUR slice 1): camera colour for vendor raws"},
     {"sha": "40579f5", "subject": "harness (SMB-DEVELOP-CAMERA-COLOUR slice 1): CR3 imports through the colour route"}
@@ -19,7 +19,8 @@
     "sha": "40579f5",
     "passed": 19,
     "failed": 0,
-    "clippy": "clippy --all-targets -p hsk-studio-develop clean; -p hsk-studio-harness --features import-psd,import-raw clean (other crates' warnings only)",
+    "clippy": "clippy --all-targets -p hsk-studio-develop clean; -p hsk-studio-harness --features import-psd,import-raw and --features desktop clean (other crates' warnings only)",
+    "full_units": "harness --features import-psd,import-raw --run-ignored ignored-only: 19 passed; harness --features viewer viewer_develop, viewer_develop_2, viewer_develop_3: 9 passed; develop --run-ignored ignored-only: 12 passed + container_identity failing only on the two expected CR3/ORF rows, re-pinned in cca35dc to the observed values",
     "measurements": {
       "canon-eos-r6.cr3": "route spectral_table (Canon EOS R6, exact); preview 3408x2272 located r=0.986; 314 preview-neutral cells: white-balanced r/g 1.0026 b/g 1.0061 (tol 0.05); rendered CIE76 to neutral median 1.44 p90 3.40 (stated bound: median <= 3); 946 chromatic cells median |hue diff| 2.1 deg (bound 12); solved cct 4446 K",
       "olympus-c5060wz-12bit.orf": "route file_matrix; only a 160x120 thumbnail: NOT_PROVEN; measured r/g 0.995 b/g 1.059, neutral median 5.41, hue 15.1 deg",
@@ -32,7 +33,7 @@
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "READY after the full harness ignored raw unit and viewer develop tests pass",
+  "next": "validation; lead decisions: single-illuminant file_matrix route vs STU-COL-218, a larger-preview ORF sample for the file route oracle",
   "updated_at": "2026-10-15T09:10:00Z",
   "notes": {
     "owned_paths": ["crates/hsk-studio-develop/src/camera_colour.rs", "crates/hsk-studio-develop/src/camera_table.rs (generated)", "tools/camera-matrix-table.py", "crates/hsk-studio-develop/src/{dng,cr3,nef,raf,orf,rw2,arw,cr2,lib}.rs (colour wiring, DngRaw::site)", "crates/hsk-studio-develop/NOTICE", "crates/hsk-studio-develop/tests/{camera_colour,container_identity,real_raw_compressed}.rs", "crates/hsk-studio-harness/src/import.rs (RawPrepared.colour_route, receipt keys)", "crates/hsk-studio-harness/tests/import_psd.rs"],
