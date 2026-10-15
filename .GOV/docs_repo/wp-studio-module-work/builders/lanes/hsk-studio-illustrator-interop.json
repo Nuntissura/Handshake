@@ -1,0 +1,57 @@
+{
+  "crate": "hsk-studio-harness",
+  "crates": ["hsk-studio-nib", "hsk-studio-composite", "hsk-studio-folio", "hsk-studio-press", "hsk-studio-interop-vector", "hsk-studio-harness"],
+  "lane": "SMB-ILLUSTRATOR-INTEROP",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-8 pushed; READY on 164e468; harness .ai import/SVG export adapters inert until the harness -> interop-vector edge is approved",
+  "commits": [
+    {"sha": "b647408", "subject": "nib (SMB-ILLUSTRATOR-INTEROP slice 1): calligraphic and bristle brushes"},
+    {"sha": "c7b3d46", "subject": "nib tests (SMB-ILLUSTRATOR-INTEROP slice 1): bristle cap tip within the stroker chord tolerance"},
+    {"sha": "74433f5", "subject": "composite (SMB-ILLUSTRATOR-INTEROP slice 2): calligraphic and bristle brushes drawn; expand_vectors for export"},
+    {"sha": "fc85a57", "subject": "folio (SMB-ILLUSTRATOR-INTEROP slice 3): ICC profile records for swatch conversion"},
+    {"sha": "3a462a9", "subject": "folio tests (SMB-ILLUSTRATOR-INTEROP slice 3): working_space is skipped at false on the wire"},
+    {"sha": "0bdee12", "subject": "press (SMB-ILLUSTRATOR-INTEROP slice 4): read_vector_pages records what PDF pages draw"},
+    {"sha": "7af4ea8", "subject": "interop-vector (SMB-ILLUSTRATOR-INTEROP slice 5): .ai import through the PDF-compatible stream"},
+    {"sha": "bfa0118", "subject": "interop-vector (SMB-ILLUSTRATOR-INTEROP slice 5): .ai design and record budgets follow the SVG importer"},
+    {"sha": "deb1faa", "subject": "harness (SMB-ILLUSTRATOR-INTEROP slice 6): CMYK profile from Folio, PDF export of vector documents"},
+    {"sha": "606e7a9", "subject": "harness tests (SMB-ILLUSTRATOR-INTEROP slice 6): bristles are sub-pixel wide"},
+    {"sha": "bb4db15", "subject": "harness (SMB-ILLUSTRATOR-INTEROP slice 7): .ai import and SVG export adapters (inert until the edge lands)"},
+    {"sha": "82399a5", "subject": "harness (SMB-ILLUSTRATOR-INTEROP slice 7): silence the undeclared vector-interop cfg until the edge lands"},
+    {"sha": "aaef6f4", "subject": "harness tests (SMB-ILLUSTRATOR-INTEROP slice 7): the imported PDF page has no background"},
+    {"sha": "164e468", "subject": "interop-vector (SMB-ILLUSTRATOR-INTEROP slice 8): DESCRIPTOR names import_ai_with and its gaps"}
+  ],
+  "spec_owner": "interop-vector owns .ai and SVG import/export (STU-IO-186, DESCRIPTOR native_gap 'PDF decoding is a Press provider'); press owns PDF decoding (hayro-interpret through its Device trait); geometry in nib, records in folio, drawing in composite, editing surface in harness",
+  "capabilities_done": [
+    "(1) .ai import: press::read_vector_pages (hayro Device recording paths, fill/even-odd, strokes with cap/join/miter/dash, solid and axial/radial gradient paints with stops/matrix/extend, clip push/pop, transparency groups with opacity and blend, glyphs as outline paths; budgets 200000 items / 4M elements / 1000 pages; hostile size refused before decoding) -> interop-vector::import_ai_with(bytes, policy, &dyn PdfDrawingProvider, mint, cancel): pages become artboards left to right 20 pt apart (y flipped from the crop-box top), fills/strokes become vector layers with Folio PAINT styles (a stroke repeating the previous fill path joins its layer), groups become group layers with opacity and blend, clips become a hidden clip-source layer + StudioVectorClip + StudioMaskAttachment; private AI data is the typed loss ai_private_data_not_imported, native editability ai_native_editability_not_imported, text ai_text_as_outlines; harness Viewer::import_ai(source, dest, overwrite) (feature vector-interop) writes a package with the vector entry, layer graph, working space, receipt and the original bytes; fixture generated with Press PdfExport (Illustrator-saved fixture = attended D5 case AI-NS2 added to oracle-session/SESSION_PLAN.json)",
+    "(2) export: composite::vector::expand_vectors returns every vector layer as plain filled shapes with swatches resolved and brushes, envelopes and strokes expanded; harness Viewer::vector_pdf_bytes / export_vector_pdf (Press PdfExport, DeviceRGB fills, axial/radial shadings, layer opacity/blend as groups, atomic write, refuses overwrite) and Viewer::vector_svg / export_vector_svg (interop-vector export_svg_with_loss, feature vector-interop); losses are listed",
+    "(3) folio StudioIccProfile records (SCPF id, name, colour space, sha256 digest, working_space flag; one working space per model; swatch profile_ref must match the model) in StudioVectorRecords.icc_profiles, serde-default and byte-identical; harness Viewer::set_document_cmyk_profile(name, icc) admits the profile through Prism, stores the bytes in the vector entry (member icc, digest-checked on open, 8 MiB cap) and re-resolves CMYK swatches; VectorTool::cmyk_profile removed: the CMYK profile is the document's, not the caller's",
+    "(4) nib calligraphic_brush (nib polygon angle/roundness/size swept as the union of chord hulls) and bristle_brush (3+round(29*density/100) round-capped bristles, size in mm at 96/25.4 px/mm); composite draws both as one stroke-geometry row with the row paint (the former typed refusal is gone)"
+  ],
+  "tests": {
+    "new": 7,
+    "per_slice_max": 2,
+    "list": [
+      "nib tests/brush.rs calligraphic_and_bristle_brushes_sweep_the_spine",
+      "composite tests/vector_tools.rs expand_vectors_returns_the_drawn_shapes_for_export (+ the calligraphic case now asserts drawing instead of refusal)",
+      "folio icc_profile_records_pin_the_swatch_profiles",
+      "press tests/vector_read.rs (1)",
+      "interop-vector tests/ai_import.rs (1)",
+      "harness tests/viewer_illustrator_interop.rs the_cmyk_profile_comes_from_folio_and_nib_brushes_draw, vector_documents_export_as_pdf_with_everything_expanded",
+      "harness tests/viewer_ai_interop.rs ai_imports_as_editable_vectors_and_exports_as_svg (cfg vector-interop; passed locally at aaef6f4 with the requested manifest edit applied, not pushed)"
+    ],
+    "results": "interop-vector 24/24 PASS at 164e468; harness viewer_ai_interop 1/1 PASS (local manifest edit); clippy over nib, folio, composite, press, interop-vector, harness(viewer) --all-targets clean in lane files"
+  },
+  "gaps": [
+    "AI text arrives as outlines only (ai_text_as_outlines); no text-as-text import",
+    "AI layers / PDF optional content are flattened; private AI data (native layers, live effects, symbols, editable text) is a typed loss only",
+    "source colour spaces (CMYK, ICC-based, separation) are converted to sRGB by hayro in the reader; no CMYK passthrough on import",
+    "clips and masks are not written by the PDF or SVG export (reported as losses); raster and text layers are not exported",
+    "harness .ai import and SVG export are inert until the harness -> hsk-studio-interop-vector edge is approved (feature vector-interop, cfg-gated, manifest not pushed)",
+    "Illustrator parity UNVERIFIED (D5); AI private-data marker names UNVERIFIED until case AI-NS2"
+  ],
+  "notes": {
+    "lead_report": "NEW EDGE requested: hsk-studio-harness -> hsk-studio-interop-vector (=0.1.0, optional, feature vector-interop = [import-pdf, dep:hsk-studio-interop-vector], enabled by viewer), line in builders/dep-requests.jsonl. interop-vector owns .ai/SVG and its PDF provider port is meant for a host adapter; harness already has press. Acyclic (nothing depends on harness). Needs steward-sync --add-edge hsk-studio-harness=hsk-studio-interop-vector. Until then the adapters (src/view/vector/interop.rs) and tests/viewer_ai_interop.rs compile out; the test passed locally with the edge applied.",
+    "cargo_lock": "not committed",
+    "oracle_plan": "oracle-session/SESSION_PLAN.json: illustrator case AI-NS2 (Illustrator-saved .ai + SVG + PDF fixture), not scriptable, attended D5"
+  }
+}

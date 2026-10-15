@@ -1,0 +1,19 @@
+{
+ "crate": "hsk-studio-develop",
+ "lane": "SMB-DEVELOP-LENS-PRESETS",
+ "status": null,
+ "phase": "slice 1 (lens corrections) committed locally as ffcbb30, push waiting on the disk build lock (validator round holds it); slice 2 (upright) tests queued",
+ "commits": [
+  {"sha": "ffcbb30", "subject": "develop (SMB-DEVELOP-LENS-PRESETS slice 1): lens corrections, lens profiles, whole-frame geometry stage (local, not pushed yet)"}
+ ],
+ "capabilities_done": [],
+ "tests": {"argv": "cargo nextest run -p hsk-studio-develop --no-fail-fast --test develop_lens --test develop_recipe", "exit": 0, "sha": "ffcbb30 (pre-commit tree)", "passed": 10, "failed": 0},
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "push slice 1 after rebase + focused rerun; slice 2 upright; slice 3 grain/calibration; slice 4 presets + .cube looks (prism lut); slice 5 AI mask refusal; harness panel slice",
+ "updated_at": "2026-10-15T12:20:13Z",
+ "notes": {
+  "worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-develop-lens-presets (branch lane/smb-develop-lens-presets from origin/codex/handshake-studio-assets), STUDIO_OWNER=smb-develop-lens-presets; an untracked .gameplan-active pointer at the worktree root points at the Studio gameplan (same as the shared tree and smb-package-completeness), no gameplan step added"
+ }
+}
