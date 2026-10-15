@@ -44,13 +44,18 @@
 //!     identity versioning). Unique per `(character, seq)`.
 
 use chrono::{DateTime, Utc};
-use image::{ImageEncoder, Rgba, RgbaImage};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::time::Duration;
 use surrealdb::types::{RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
+
+pub use handshake_openpose_render::{
+    BODY_KEYPOINT_COUNT, FACE_KEYPOINT_COUNT, HAND_KEYPOINT_COUNT,
+    POSEKIT_OPENPOSE_EXPORT_HEIGHT, POSEKIT_OPENPOSE_EXPORT_WIDTH,
+};
+use handshake_openpose_render::{openpose_points, render_posekit_openpose_png};
 
 use crate::storage::artifacts::{
     artifact_root_dir, read_artifact_manifest, resolve_workspace_root, sha256_hex,
@@ -136,17 +141,9 @@ pub use pose_event_family::{
 pub const IDENTITY_CROP_ARTIFACT_MANIFEST_SCHEMA: &str =
     "hsk.atelier.identity_crop_artifact_manifest@1";
 
-/// OpenPose keypoint-array cardinalities (legacy source `rigToOpenposeJson`):
-/// body-18, face-70, hand-21. Each keypoint is an `(x, y, confidence)` triple,
-/// so flattened arrays have `count * 3` numbers.
-pub const BODY_KEYPOINT_COUNT: usize = 18;
-pub const FACE_KEYPOINT_COUNT: usize = 70;
-pub const HAND_KEYPOINT_COUNT: usize = 21;
 /// WP-CKC-posekit-overhaul: schema id stamped into every native Posekit OpenPose
 /// export (JSON payload, PNG manifest `hash_basis`, receipt).
 pub const POSEKIT_OPENPOSE_EXPORT_SCHEMA_ID: &str = "hsk.atelier.posekit.openpose_export@1";
-pub const POSEKIT_OPENPOSE_EXPORT_WIDTH: i32 = 768;
-pub const POSEKIT_OPENPOSE_EXPORT_HEIGHT: i32 = 768;
 
 /// Provider/status of the detector that produced a rig. Mirrors legacy source
 /// `detector.provider` / `detector.status` (e.g. `mediapipe.tasks-vision.pose`
@@ -1305,7 +1302,7 @@ fn generate_posekit_openpose_export_with_source_keypoints(
     validate_posekit_export_keypoints(&openpose_json, &marker_layers)?;
     let openpose_json_bytes = serde_json::to_vec(&openpose_json)
         .map_err(|err| AtelierError::Validation(err.to_string()))?;
-    let openpose_png_bytes = render_posekit_openpose_png(&openpose_json)?;
+    let openpose_png_bytes = render_posekit_openpose_png(&openpose_json).map_err(AtelierError::Validation)?;
     let openpose_json_sha256 = sha256_hex(&openpose_json_bytes);
     let openpose_png_sha256 = sha256_hex(&openpose_png_bytes);
     let content_hash = sha256_hex_joined(&[&openpose_json_bytes, &openpose_png_bytes]);
@@ -1947,7 +1944,7 @@ fn validate_posekit_export_keypoint_field(
     field: &str,
     expected_count: usize,
 ) -> AtelierResult<usize> {
-    let points = openpose_points(openpose_json, field, expected_count)?;
+    let points = openpose_points(openpose_json, field, expected_count).map_err(AtelierError::Validation)?;
     let mut visible = 0usize;
     for (x, y, confidence) in points {
         if !x.is_finite() || !y.is_finite() || !confidence.is_finite() {
@@ -2130,192 +2127,6 @@ fn flatten_posekit_keypoints(points: &[(f32, f32, f32)]) -> Vec<f32> {
 
 fn zero_keypoints(count: usize) -> Vec<f32> {
     vec![0.0; count * 3]
-}
-
-fn render_posekit_openpose_png(openpose_json: &serde_json::Value) -> AtelierResult<Vec<u8>> {
-    let mut image = RgbaImage::from_pixel(
-        POSEKIT_OPENPOSE_EXPORT_WIDTH as u32,
-        POSEKIT_OPENPOSE_EXPORT_HEIGHT as u32,
-        Rgba([0, 0, 0, 255]),
-    );
-    let cyan = Rgba([70, 220, 255, 255]);
-    let amber = Rgba([255, 190, 80, 255]);
-    let green = Rgba([120, 255, 150, 255]);
-
-    let body = openpose_points(openpose_json, "pose_keypoints_2d", BODY_KEYPOINT_COUNT)?;
-    let face = openpose_points(openpose_json, "face_keypoints_2d", FACE_KEYPOINT_COUNT)?;
-    let left_hand = openpose_points(openpose_json, "hand_left_keypoints_2d", HAND_KEYPOINT_COUNT)?;
-    let right_hand = openpose_points(
-        openpose_json,
-        "hand_right_keypoints_2d",
-        HAND_KEYPOINT_COUNT,
-    )?;
-
-    for (from, to) in [
-        (0, 1),
-        (1, 2),
-        (2, 3),
-        (3, 4),
-        (1, 5),
-        (5, 6),
-        (6, 7),
-        (1, 8),
-        (8, 9),
-        (9, 10),
-        (1, 11),
-        (11, 12),
-        (12, 13),
-        (0, 14),
-        (14, 16),
-        (0, 15),
-        (15, 17),
-    ] {
-        draw_openpose_segment_if_visible(&mut image, body[from], body[to], cyan);
-    }
-    for point in &body {
-        if visible_openpose_point(*point) {
-            draw_disc(&mut image, point.0, point.1, 4.0, amber);
-        }
-    }
-
-    for point in &face {
-        if visible_openpose_point(*point) {
-            draw_disc(&mut image, point.0, point.1, 3.0, amber);
-        }
-    }
-    draw_hand_keypoints(&mut image, &left_hand, green);
-    draw_hand_keypoints(&mut image, &right_hand, green);
-
-    encode_posekit_png(&image)
-}
-
-fn openpose_points(
-    openpose_json: &serde_json::Value,
-    field: &str,
-    expected_count: usize,
-) -> AtelierResult<Vec<(f32, f32, f32)>> {
-    let person = openpose_json
-        .get("people")
-        .and_then(|people| people.as_array())
-        .and_then(|people| people.first())
-        .ok_or_else(|| {
-            AtelierError::Validation("Posekit OpenPose JSON must contain people[0]".into())
-        })?;
-    let values = person
-        .get(field)
-        .and_then(|value| value.as_array())
-        .ok_or_else(|| {
-            AtelierError::Validation(format!("Posekit OpenPose JSON missing array {field}"))
-        })?;
-    if values.len() != expected_count * 3 {
-        return Err(AtelierError::Validation(format!(
-            "Posekit OpenPose JSON field {field} must have {} values",
-            expected_count * 3
-        )));
-    }
-    values
-        .chunks_exact(3)
-        .map(|chunk| {
-            let x = chunk[0].as_f64().ok_or_else(|| {
-                AtelierError::Validation(format!(
-                    "Posekit OpenPose JSON field {field} contains non-number x"
-                ))
-            })?;
-            let y = chunk[1].as_f64().ok_or_else(|| {
-                AtelierError::Validation(format!(
-                    "Posekit OpenPose JSON field {field} contains non-number y"
-                ))
-            })?;
-            let confidence = chunk[2].as_f64().ok_or_else(|| {
-                AtelierError::Validation(format!(
-                    "Posekit OpenPose JSON field {field} contains non-number confidence"
-                ))
-            })?;
-            Ok((x as f32, y as f32, confidence as f32))
-        })
-        .collect()
-}
-
-fn draw_hand_keypoints(image: &mut RgbaImage, points: &[(f32, f32, f32)], color: Rgba<u8>) {
-    for finger in 0..5 {
-        let base = 1 + finger * 4;
-        draw_openpose_segment_if_visible(image, points[0], points[base], color);
-        for offset in 0..3 {
-            draw_openpose_segment_if_visible(
-                image,
-                points[base + offset],
-                points[base + offset + 1],
-                color,
-            );
-        }
-    }
-    for point in points {
-        if visible_openpose_point(*point) {
-            draw_disc(image, point.0, point.1, 2.8, color);
-        }
-    }
-}
-
-fn draw_openpose_segment_if_visible(
-    image: &mut RgbaImage,
-    from: (f32, f32, f32),
-    to: (f32, f32, f32),
-    color: Rgba<u8>,
-) {
-    if visible_openpose_point(from) && visible_openpose_point(to) {
-        draw_line(image, from.0, from.1, to.0, to.1, color);
-    }
-}
-
-fn visible_openpose_point(point: (f32, f32, f32)) -> bool {
-    point.2 > 0.0 && point.0 > 0.0 && point.1 > 0.0
-}
-
-fn encode_posekit_png(image: &RgbaImage) -> AtelierResult<Vec<u8>> {
-    let mut png = Vec::new();
-    image::codecs::png::PngEncoder::new(&mut png)
-        .write_image(
-            image.as_raw(),
-            image.width(),
-            image.height(),
-            image::ExtendedColorType::Rgba8,
-        )
-        .map_err(|err| AtelierError::Validation(format!("Posekit PNG encode failed: {err}")))?;
-    Ok(png)
-}
-
-fn draw_line(image: &mut RgbaImage, x0: f32, y0: f32, x1: f32, y1: f32, color: Rgba<u8>) {
-    let dx = x1 - x0;
-    let dy = y1 - y0;
-    let steps = dx.abs().max(dy.abs()).ceil().max(1.0) as i32;
-    for step in 0..=steps {
-        let t = step as f32 / steps as f32;
-        draw_disc(image, x0 + dx * t, y0 + dy * t, 2.0, color);
-    }
-}
-
-fn draw_disc(image: &mut RgbaImage, cx: f32, cy: f32, radius: f32, color: Rgba<u8>) {
-    let min_x = (cx - radius).floor() as i32;
-    let max_x = (cx + radius).ceil() as i32;
-    let min_y = (cy - radius).floor() as i32;
-    let max_y = (cy + radius).ceil() as i32;
-    let r2 = radius * radius;
-    for y in min_y..=max_y {
-        for x in min_x..=max_x {
-            if x < 0
-                || y < 0
-                || x >= POSEKIT_OPENPOSE_EXPORT_WIDTH
-                || y >= POSEKIT_OPENPOSE_EXPORT_HEIGHT
-            {
-                continue;
-            }
-            let dx = x as f32 - cx;
-            let dy = y as f32 - cy;
-            if dx * dx + dy * dy <= r2 {
-                image.put_pixel(x as u32, y as u32, color);
-            }
-        }
-    }
 }
 
 /// sha256 over several buffers in order (the export `content_hash` binds the

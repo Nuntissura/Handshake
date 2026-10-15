@@ -1,0 +1,11 @@
+[workspace]
+
+[package]
+name = "handshake_openpose_render"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+serde_json = "1"
+image = { version = "0.25", default-features = false, features = ["png"] }
