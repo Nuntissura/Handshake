@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T12:44:11Z",
+ "updated_at": "2026-10-15T13:09:31Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7288,12 +7288,12 @@
   {
    "lane_id": "SMB-NEXTEST-GPU-GROUP",
    "crate": "steward",
-   "phase": "queued",
-   "status": null,
+   "phase": "done",
+   "status": "done",
    "owner": null,
    "commits": [],
    "verdicts": [],
-   "note": "F-R32-3: render-gpu tests 42-45 s alone vs 77-91 s in the union (parallel contention); add a nextest test group limiting concurrent render-gpu GPU tests in .config/nextest.toml after R33 (config change needs a fresh canary)"
+   "note": "4845773: nextest group render-gpu max-threads 8 (32 threads -> 25 timeouts; 8 -> 0, max 23.7 s)"
   },
   {
    "lane_id": "SMB-AE-3D",
