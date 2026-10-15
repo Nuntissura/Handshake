@@ -12,7 +12,7 @@
 //! relational fallback exists.
 
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
     routing::{get, post, put},
     Json, Router,
@@ -365,10 +365,24 @@ struct EventFamilyCount {
     count: i64,
 }
 
+#[derive(Debug, Deserialize)]
+struct OverviewQuery {
+    moodboard_document_id: Option<Uuid>,
+}
+
+#[derive(Debug, Serialize)]
+struct MoodboardSnapshotEventCount {
+    document_id: Uuid,
+    event_family: String,
+    count: i64,
+}
+
 #[derive(Debug, Serialize)]
 struct OverviewResponse {
     tables: Vec<TableCount>,
     event_families: Vec<EventFamilyCount>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    moodboard_snapshot_event_count: Option<MoodboardSnapshotEventCount>,
 }
 
 #[derive(SurrealValue)]
@@ -385,16 +399,53 @@ struct EventFamilyCountRow {
 async fn overview(
     State(state): State<AppState>,
     headers: HeaderMap,
+    Query(query): Query<OverviewQuery>,
 ) -> Result<Json<OverviewResponse>, (StatusCode, Json<ErrorResponse>)> {
     let account = atelier_account(&state, &headers, ResourceAction::Read).await?;
-    as_account(&state, &account, overview_as_account(&state)).await
+    if query.moodboard_document_id.is_some()
+        && header_str(&headers, HSK_HEADER_ACTOR_ID).is_some_and(|supplied| supplied != account.actor_id)
+    {
+        return Err(atelier_error(crate::atelier::AtelierError::Validation(
+            "actor_id must match authenticated session".to_owned(),
+        )));
+    }
+    as_account(&state, &account, overview_as_account(&state, query.moodboard_document_id)).await
 }
 
 /// Counts only the rows the account's record user can select (no cross-account count channel).
 async fn overview_as_account(
     state: &AppState,
+    moodboard_document_id: Option<Uuid>,
 ) -> Result<Json<OverviewResponse>, (StatusCode, Json<ErrorResponse>)> {
     let store = atelier_store(state);
+    let moodboard_snapshot_event_count = if let Some(document_id) = moodboard_document_id {
+        let document = store
+            .get_character_document(document_id)
+            .await
+            .map_err(atelier_error)?;
+        if document.doc_type != crate::atelier::documents::CharacterDocumentType::Moodboard {
+            return Err(atelier_error(crate::atelier::AtelierError::Validation(format!(
+                "document {document_id} is {}, expected moodboard",
+                document.doc_type.as_token()
+            ))));
+        }
+        let event_family = crate::atelier::moodboards::moodboard_event_family::MOODBOARD_SNAPSHOT_RECORDED;
+        let count = store
+            .count_events_for_aggregate(
+                event_family,
+                "atelier_character_document",
+                &document_id.to_string(),
+            )
+            .await
+            .map_err(atelier_error)?;
+        Some(MoodboardSnapshotEventCount {
+            document_id,
+            event_family: event_family.to_owned(),
+            count,
+        })
+    } else {
+        None
+    };
 
     let mut tables = Vec::with_capacity(OVERVIEW_TABLES.len());
     for name in OVERVIEW_TABLES {
@@ -436,6 +487,7 @@ async fn overview_as_account(
     Ok(Json(OverviewResponse {
         tables,
         event_families,
+        moodboard_snapshot_event_count,
     }))
 }
 

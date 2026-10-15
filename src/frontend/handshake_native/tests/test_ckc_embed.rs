@@ -3495,3 +3495,485 @@ fn fixture_request(
         )
         .expect("owned fixture request matches account origin")
 }
+
+#[cfg(feature = "integration")]
+struct Mt065LinkedDocuments {
+    story: serde_json::Value,
+    moodboard: serde_json::Value,
+    snapshot: serde_json::Value,
+    card: serde_json::Value,
+    beat: serde_json::Value,
+    raw_json: String,
+    first_moodboard_version_id: String,
+}
+
+#[cfg(feature = "integration")]
+fn mt065_text(value: &serde_json::Value, key: &str) -> String {
+    value[key]
+        .as_str()
+        .unwrap_or_else(|| panic!("missing {key}: {value}"))
+        .to_owned()
+}
+
+#[cfg(feature = "integration")]
+fn mt065_http_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .pool_max_idle_per_host(2)
+        .connect_timeout(std::time::Duration::from_secs(2))
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .expect("bounded MT-065 client")
+}
+
+#[cfg(feature = "integration")]
+async fn mt065_response_json(
+    response: reqwest::Response,
+    expected_status: reqwest::StatusCode,
+) -> serde_json::Value {
+    let status = response.status();
+    let body = response.text().await.expect("read MT-065 response");
+    assert_eq!(status, expected_status, "MT-065 response: {body}");
+    serde_json::from_str(&body).expect("MT-065 response JSON")
+}
+
+#[cfg(feature = "integration")]
+async fn mt065_post_response(
+    context: &handshake_native::local_account::AuthenticatedContext,
+    http: &reqwest::Client,
+    spec: handshake_native::backend_client::ActorRequestSpec,
+) -> reqwest::Response {
+    assert!(matches!(
+        spec.method,
+        handshake_native::backend_client::HttpMethod::Post
+    ));
+    let mut request = fixture_request(context, http.post(&spec.url));
+    for (name, value) in &spec.headers {
+        if name.eq_ignore_ascii_case("x-hsk-actor-id") {
+            assert_eq!(value, &context.principal_id, "authenticated mutation actor");
+        }
+        request = request.header(name.as_str(), value.as_str());
+    }
+    request
+        .header("x-hsk-actor-kind", "operator")
+        .header("x-hsk-kernel-task-run-id", "WP-CKC-MT-065")
+        .header("x-hsk-session-run-id", "MT-065-integration")
+        .json(&spec.body.expect("product POST request body"))
+        .send()
+        .await
+        .expect("authenticated MT-065 product POST")
+}
+
+#[cfg(feature = "integration")]
+async fn mt065_post(
+    context: &handshake_native::local_account::AuthenticatedContext,
+    http: &reqwest::Client,
+    spec: handshake_native::backend_client::ActorRequestSpec,
+    expected_status: reqwest::StatusCode,
+) -> serde_json::Value {
+    let response = mt065_post_response(context, http, spec).await;
+    mt065_response_json(response, expected_status).await
+}
+
+#[cfg(feature = "integration")]
+async fn mt065_get(
+    context: &handshake_native::local_account::AuthenticatedContext,
+    http: &reqwest::Client,
+    url: &str,
+) -> serde_json::Value {
+    let response = fixture_request(context, http.get(url))
+        .send()
+        .await
+        .expect("authenticated MT-065 canonical GET");
+    mt065_response_json(response, reqwest::StatusCode::OK).await
+}
+
+#[cfg(feature = "integration")]
+async fn mt065_snapshot_event_count(
+    context: &handshake_native::local_account::AuthenticatedContext,
+    http: &reqwest::Client,
+    base: &str,
+    document_id: &str,
+) -> i64 {
+    let overview = mt065_get(
+        context,
+        http,
+        &format!("{base}/atelier/overview?moodboard_document_id={document_id}"),
+    ).await;
+    let scoped = &overview["moodboard_snapshot_event_count"];
+    assert_eq!(scoped["document_id"], document_id);
+    assert_eq!(scoped["event_family"], "atelier.moodboard.snapshot_recorded");
+    let count = scoped["count"].as_i64().expect("document-scoped event count");
+    assert!(count >= 0, "event occurrence count is nonnegative");
+    count
+}
+
+#[cfg(feature = "integration")]
+async fn mt065_seed_linked_documents(
+    context: &handshake_native::local_account::AuthenticatedContext,
+    http: &reqwest::Client,
+    api: &handshake_native::backend_client::AtelierClient,
+    base: &str,
+) -> Mt065LinkedDocuments {
+    use sha2::Digest;
+
+    let created = reqwest::StatusCode::CREATED;
+    let character = mt065_post(
+        context,
+        http,
+        api.create_character_actor_request(
+            &format!("mt065-story-mood-{}", uuid::Uuid::new_v4()),
+            "MT-065 linked documents",
+            &context.principal_id,
+        ),
+        created,
+    )
+    .await;
+    let character_id = mt065_text(&character, "internal_id");
+    let tags = vec!["mt065".to_owned()];
+    let story = mt065_post(
+        context,
+        http,
+        api.create_character_document_actor_request(
+            &character_id,
+            "story",
+            "Linked story",
+            "Story text remains separate from sheet notes and the moodboard.",
+            &tags,
+            &context.principal_id,
+        ),
+        created,
+    )
+    .await;
+    let story_id = mt065_text(&story, "document_id");
+    let card = mt065_post(
+        context,
+        http,
+        api.add_story_card_actor_request(
+            &story_id,
+            "Continuity card",
+            "A reusable scene linked to this story.",
+            &tags,
+            &context.principal_id,
+        ),
+        created,
+    )
+    .await;
+    let beat = mt065_post(
+        context,
+        http,
+        api.add_story_beat_actor_request(
+            &story_id,
+            Some(&mt065_text(&card, "card_id")),
+            "Keep the linked character's visual continuity.",
+            &context.principal_id,
+        ),
+        created,
+    )
+    .await;
+    let moodboard = mt065_post(
+        context,
+        http,
+        api.create_character_document_actor_request(
+            &character_id,
+            "moodboard",
+            "Linked moodboard",
+            "The native snapshot is attached after the document receives its canonical ID.",
+            &tags,
+            &context.principal_id,
+        ),
+        created,
+    )
+    .await;
+    let moodboard_id = mt065_text(&moodboard, "document_id");
+    let first_moodboard_version_id = mt065_text(&moodboard, "current_version_id");
+    let raw_json = serde_json::to_string(&serde_json::json!({
+        "schema_id": "hsk.atelier.moodboard@1",
+        "schema_version": 1,
+        "moodboard_id": moodboard_id.clone(),
+        "name": "Linked moodboard",
+        "description": "Native CKC continuity board",
+        "canvas": {"width": 1600.0, "height": 1000.0, "background_color": "#101418"},
+        "layers": [{
+            "layer_id": uuid::Uuid::new_v4(), "name": "Reference layer", "order": 1,
+            "visible": true, "locked": false, "opacity": 1.0, "parent_layer_id": null
+        }],
+        "images": [], "text": [], "shapes": [], "connectors": [], "folders": [], "guides": [],
+        "flags": {"locked": false, "archived": false, "operator_reviewed": false},
+        "style": {
+            "dominant_colors": ["#101418"], "mood_keywords": ["continuity"],
+            "style_description": "native moodboard", "suggested_presets": []
+        },
+        "history": [{
+            "history_id": uuid::Uuid::new_v4(), "at": "2026-10-15T00:00:00Z",
+            "actor": context.principal_id.clone(), "operation": "created", "summary": "MT-065 linked snapshot"
+        }]
+    }))
+    .expect("native moodboard JSON");
+    let moodboard = mt065_post(
+        context,
+        http,
+        api.append_character_document_version_actor_request(
+            &moodboard_id,
+            "Linked moodboard",
+            &raw_json,
+            &tags,
+            Some(&first_moodboard_version_id),
+            &context.principal_id,
+        ),
+        created,
+    )
+    .await;
+    let events_before = mt065_snapshot_event_count(context, http, base, &moodboard_id).await;
+    let snapshot = mt065_post(
+        context,
+        http,
+        api.record_moodboard_snapshot_actor_request(
+            &moodboard_id,
+            &raw_json,
+            Some(&mt065_text(&moodboard, "current_version_id")),
+            &context.principal_id,
+        ),
+        created,
+    )
+    .await;
+    let events_after = mt065_snapshot_event_count(context, http, base, &moodboard_id).await;
+    assert_eq!(events_after, events_before + 1, "new snapshot event occurrence");
+    assert_eq!(snapshot["content_sha256"], hex::encode(sha2::Sha256::digest(raw_json.as_bytes())));
+    let story = mt065_get(
+        context, http, &format!("{base}/atelier/character-documents/{story_id}"),
+    ).await;
+    let moodboard = mt065_get(
+        context, http, &format!("{base}/atelier/character-documents/{moodboard_id}"),
+    ).await;
+    assert_eq!(story["character_ref"], format!("atelier://character/{character_id}"));
+    assert_eq!(moodboard["character_ref"], story["character_ref"]);
+    Mt065LinkedDocuments {
+        story,
+        moodboard,
+        snapshot,
+        card,
+        beat,
+        raw_json,
+        first_moodboard_version_id,
+    }
+}
+
+#[test]
+#[cfg(feature = "integration")]
+fn mt065_story_moodboard_link_refs_persist_across_authenticated_client_reconnect() {
+    use handshake_native::backend_client::{AtelierClient, AtelierCkcMoodboardSnapshotCell};
+    use sha2::{Digest, Sha256};
+    use std::sync::{Arc, Mutex};
+
+    let rt = tokio::runtime::Runtime::new().expect("MT-065 runtime");
+    let backend = backend_proof_support::require_live_backend();
+    let http = mt065_http_client();
+    let api = AtelierClient::new(backend.base.clone(), rt.handle().clone())
+        .with_authenticated_context(backend.account());
+    let seed = rt.block_on(mt065_seed_linked_documents(
+        &backend.account_context, &http, &api, &backend.base,
+    ));
+    drop(api);
+    drop(http);
+
+    let http = mt065_http_client();
+    let api = AtelierClient::new(backend.base.clone(), rt.handle().clone())
+        .with_authenticated_context(backend.account());
+    rt.block_on(async {
+        let story_id = mt065_text(&seed.story, "document_id");
+        let moodboard_id = mt065_text(&seed.moodboard, "document_id");
+        let story = mt065_get(
+            &backend.account_context, &http,
+            &format!("{}/atelier/character-documents/{story_id}", backend.base),
+        ).await;
+        let moodboard = mt065_get(
+            &backend.account_context, &http,
+            &format!("{}/atelier/character-documents/{moodboard_id}", backend.base),
+        ).await;
+        assert_eq!(story, seed.story, "fresh canonical story reread");
+        assert_eq!(moodboard, seed.moodboard, "fresh canonical moodboard document reread");
+        assert_eq!(story["document_ref"], format!("atelier://document/{story_id}"));
+        assert_eq!(moodboard["document_ref"], format!("atelier://document/{moodboard_id}"));
+        assert_eq!(story["doc_type"], "story");
+        assert_eq!(moodboard["doc_type"], "moodboard");
+        assert_eq!(story["current_version"]["body_raw_text"],
+            "Story text remains separate from sheet notes and the moodboard.");
+        assert_eq!(story["character_ref"], moodboard["character_ref"]);
+        assert_eq!(moodboard["current_version"]["body_raw_text"], seed.raw_json);
+
+        let cards = mt065_get(&backend.account_context, &http, &api.story_cards_request(&story_id).url).await;
+        let beats = mt065_get(&backend.account_context, &http, &api.story_beats_request(&story_id).url).await;
+        assert_eq!(cards, serde_json::json!([seed.card.clone()]));
+        assert_eq!(beats, serde_json::json!([seed.beat.clone()]));
+        assert_eq!(cards[0]["story_document_ref"], story["document_ref"]);
+        assert_eq!(beats[0]["story_document_ref"], story["document_ref"]);
+        assert_eq!(beats[0]["card_ref"], cards[0]["card_ref"]);
+
+        let latest = mt065_get(
+            &backend.account_context, &http, &api.latest_moodboard_snapshot_request(&moodboard_id).url,
+        ).await;
+        assert_eq!(latest, seed.snapshot, "fresh canonical latest snapshot reread");
+        assert_eq!(latest["document_ref"], moodboard["document_ref"]);
+        assert_eq!(latest["document_version_id"], moodboard["current_version_id"]);
+        assert_eq!(latest["raw_json_text"], seed.raw_json);
+        let expected_sha = hex::encode(Sha256::digest(seed.raw_json.as_bytes()));
+        assert_eq!(latest["content_sha256"], expected_sha);
+        let snapshot_id = mt065_text(&latest, "snapshot_id");
+        assert_eq!(latest["moodboard_ref"], format!("atelier://moodboard/{snapshot_id}"));
+
+        let events_before = mt065_snapshot_event_count(
+            &backend.account_context, &http, &backend.base, &moodboard_id,
+        ).await;
+        let repeated = mt065_post(
+            &backend.account_context, &http,
+            api.record_moodboard_snapshot_actor_request(
+                &moodboard_id, &seed.raw_json,
+                Some(&mt065_text(&moodboard, "current_version_id")),
+                &backend.account_context.principal_id,
+            ),
+            reqwest::StatusCode::CREATED,
+        ).await;
+        assert_eq!(repeated, latest, "exact version/content dedup returns the same snapshot");
+        assert_eq!(
+            mt065_snapshot_event_count(
+                &backend.account_context, &http, &backend.base, &moodboard_id,
+            ).await,
+            events_before,
+            "exact dedup adds no snapshot event occurrence"
+        );
+        let latest_after_repeat = mt065_get(
+            &backend.account_context, &http, &api.latest_moodboard_snapshot_request(&moodboard_id).url,
+        ).await;
+        assert_eq!(latest_after_repeat, latest, "dedup preserves canonical refs/version/raw JSON/hash");
+
+        let cell: AtelierCkcMoodboardSnapshotCell = Arc::new(Mutex::new(None));
+        api.fetch_ckc_latest_moodboard_snapshot(&moodboard_id, Arc::clone(&cell));
+        let mut delivered = None;
+        for _ in 0..50 {
+            delivered = cell.lock().expect("snapshot delivery lock").take();
+            if delivered.is_some() { break; }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+        let row = delivered.expect("fresh authenticated AtelierClient delivery")
+            .expect("fresh authenticated AtelierClient snapshot read");
+        assert_eq!(row.document_ref, mt065_text(&moodboard, "document_ref"));
+        assert_eq!(row.document_version_id, mt065_text(&moodboard, "current_version_id"));
+        assert_eq!(row.moodboard_ref, mt065_text(&latest, "moodboard_ref"));
+        assert_eq!(row.raw_json_text, seed.raw_json);
+        assert_eq!(row.content_sha256, expected_sha);
+    });
+}
+
+#[test]
+#[cfg(feature = "integration")]
+fn mt065_story_moodboard_rejections_preserve_refs_versions_and_hash() {
+    use handshake_native::backend_client::AtelierClient;
+
+    let rt = tokio::runtime::Runtime::new().expect("MT-065 rejection runtime");
+    let backend = backend_proof_support::require_live_backend();
+    rt.block_on(async {
+        let http = mt065_http_client();
+        let api = AtelierClient::new(backend.base.clone(), rt.handle().clone())
+            .with_authenticated_context(backend.account());
+        let seed = mt065_seed_linked_documents(
+            &backend.account_context, &http, &api, &backend.base,
+        ).await;
+        let story_id = mt065_text(&seed.story, "document_id");
+        let moodboard_id = mt065_text(&seed.moodboard, "document_id");
+        let first_story_version_id = mt065_text(&seed.story, "current_version_id");
+        let tags = vec!["mt065".to_owned()];
+        let story = mt065_post(
+            &backend.account_context, &http,
+            api.append_character_document_version_actor_request(
+                &story_id, "Linked story", "The accepted second story version.", &tags,
+                Some(&first_story_version_id), &backend.account_context.principal_id,
+            ),
+            reqwest::StatusCode::CREATED,
+        ).await;
+        let events_before_rejections = mt065_snapshot_event_count(
+            &backend.account_context, &http, &backend.base, &moodboard_id,
+        ).await;
+        let stale_story = mt065_post(
+            &backend.account_context, &http,
+            api.append_character_document_version_actor_request(
+                &story_id, "Rejected stale story", "This must not become the head.", &tags,
+                Some(&first_story_version_id), &backend.account_context.principal_id,
+            ),
+            reqwest::StatusCode::CONFLICT,
+        ).await;
+        assert_eq!(stale_story["error"], "stale_character_document_version");
+        assert_eq!(stale_story["document_ref"], story["document_ref"]);
+        assert_eq!(stale_story["current_head_version_id"], story["current_version_id"]);
+        assert_eq!(
+            mt065_snapshot_event_count(
+                &backend.account_context, &http, &backend.base, &moodboard_id,
+            ).await,
+            events_before_rejections,
+            "stale story rejection preserves linked moodboard event occurrences"
+        );
+        let stale_snapshot = mt065_post(
+            &backend.account_context, &http,
+            api.record_moodboard_snapshot_actor_request(
+                &moodboard_id, &seed.raw_json, Some(&seed.first_moodboard_version_id),
+                &backend.account_context.principal_id,
+            ),
+            reqwest::StatusCode::CONFLICT,
+        ).await;
+        assert_eq!(stale_snapshot["error"], "stale_moodboard_document_version");
+        assert_eq!(stale_snapshot["current_head_document_version_ref"], format!(
+            "atelier://document/{moodboard_id}/version/{}",
+            mt065_text(&seed.moodboard, "current_version_id")
+        ));
+        assert_eq!(
+            mt065_snapshot_event_count(
+                &backend.account_context, &http, &backend.base, &moodboard_id,
+            ).await,
+            events_before_rejections,
+            "stale snapshot rejection adds no moodboard snapshot event occurrence"
+        );
+        let wrong_snapshot = mt065_post_response(
+            &backend.account_context, &http,
+            api.record_moodboard_snapshot_actor_request(
+                &story_id, &seed.raw_json, None, &backend.account_context.principal_id,
+            ),
+        ).await;
+        assert_eq!(wrong_snapshot.status(), reqwest::StatusCode::BAD_REQUEST);
+        drop(wrong_snapshot);
+        let wrong_latest = fixture_request(
+            &backend.account_context, http.get(api.latest_moodboard_snapshot_request(&story_id).url),
+        ).send().await.expect("wrong-story latest request");
+        assert_eq!(wrong_latest.status(), reqwest::StatusCode::BAD_REQUEST);
+        drop(wrong_latest);
+        assert_eq!(
+            mt065_snapshot_event_count(
+                &backend.account_context, &http, &backend.base, &moodboard_id,
+            ).await,
+            events_before_rejections,
+            "wrong-story rejections preserve linked moodboard event occurrences"
+        );
+        drop(api);
+        drop(http);
+
+        let http = mt065_http_client();
+        let story_after = mt065_get(
+            &backend.account_context, &http,
+            &format!("{}/atelier/character-documents/{story_id}", backend.base),
+        ).await;
+        let moodboard_after = mt065_get(
+            &backend.account_context, &http,
+            &format!("{}/atelier/character-documents/{moodboard_id}", backend.base),
+        ).await;
+        let snapshot_after = mt065_get(
+            &backend.account_context, &http,
+            &format!("{}/atelier/character-documents/{moodboard_id}/moodboard/latest", backend.base),
+        ).await;
+        assert_eq!(story_after, story, "rejections preserve accepted story head and refs");
+        assert_eq!(moodboard_after, seed.moodboard, "rejections preserve moodboard head and refs");
+        assert_eq!(snapshot_after, seed.snapshot, "rejections preserve exact latest snapshot and hash");
+        let history = mt065_get(
+            &backend.account_context, &http,
+            &format!("{}/atelier/character-documents/{story_id}/versions", backend.base),
+        ).await;
+        assert_eq!(history.as_array().expect("story version list").len(), 2);
+    });
+}

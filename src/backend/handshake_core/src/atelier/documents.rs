@@ -744,15 +744,35 @@ impl AtelierStore {
                 .flatten()
                 .map(SurrealUuid::from),
         };
-        let written: AtelierResult<Option<AppendedVersionRow>> = self
-            .store()
-            .with_data_operation(move |ctx| {
-                Box::pin(async move { ctx.query_first(APPEND_VERSION_STATEMENT, bindings).await })
-            })
-            .await
-            .map_err(AtelierError::from);
-        let row = match written {
-            Ok(row) => row,
+        let written: AtelierResult<(CharacterDocument, CharacterDocumentVersion)> = self
+            .write_with_result_event(
+                APPEND_VERSION_STATEMENT,
+                bindings,
+                documents_event_family::CHARACTER_DOCUMENT_VERSION_APPENDED,
+                "atelier_character_document",
+                &document_id.to_string(),
+                move |row: Option<AppendedVersionRow>| {
+                    let row = row.ok_or_else(|| {
+                        AtelierError::Internal(
+                            "appending a character document version returned no row".to_owned(),
+                        )
+                    })?;
+                    let version: CharacterDocumentVersion = row.version.try_into()?;
+                    let document: CharacterDocument = row.document.try_into()?;
+                    let payload = serde_json::json!({
+                        "version_id": version.version_id,
+                        "version_seq": version.version_seq,
+                        "parent_version_id": version.parent_version_id,
+                        "title": title,
+                        "tag_count": tags.len(),
+                        "body_raw_text_ref": event_ref_for_text(&version.body_raw_text),
+                    });
+                    Ok(((document, version), payload))
+                },
+            )
+            .await;
+        let result = match written {
+            Ok(result) => result,
             Err(error) if error.to_string().contains(DOCUMENT_NOT_FOUND_THROW) => {
                 return Err(AtelierError::NotFound(format!(
                     "character document {document_id}"
@@ -770,27 +790,7 @@ impl AtelierStore {
             }
             Err(error) => return Err(error),
         };
-        let row = row.ok_or_else(|| {
-            AtelierError::Internal("appending a character document version returned no row".to_owned())
-        })?;
-        let version: CharacterDocumentVersion = row.version.try_into()?;
-        let document: CharacterDocument = row.document.try_into()?;
-
-        self.record_event(
-            documents_event_family::CHARACTER_DOCUMENT_VERSION_APPENDED,
-            "atelier_character_document",
-            &document_id.to_string(),
-            serde_json::json!({
-                "version_id": version.version_id,
-                "version_seq": version.version_seq,
-                "parent_version_id": version.parent_version_id,
-                "title": title,
-                "tag_count": tags.len(),
-                "body_raw_text_ref": event_ref_for_text(&version.body_raw_text),
-            }),
-        )
-        .await?;
-        Ok((document, version))
+        Ok(result)
     }
 
     pub async fn latest_character_document_version(

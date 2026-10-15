@@ -357,6 +357,14 @@ impl CanonicalArgusDriver {
         self.rpc(ARGUS_INSPECT_METHOD, serde_json::json!({}))["result"].clone()
     }
 
+    pub fn list_widgets(
+        &mut self,
+        harness: &mut egui_kittest::Harness<'_, HandshakeApp>,
+    ) -> serde_json::Value {
+        harness.state_mut().capture_mcp_snapshot_for_navigation();
+        self.rpc("list_widgets", serde_json::json!({}))["result"].clone()
+    }
+
     fn inspect_until_receipt_terminal(
         &mut self,
         harness: &mut egui_kittest::Harness<'_, HandshakeApp>,

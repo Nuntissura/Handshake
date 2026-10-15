@@ -1327,6 +1327,107 @@ impl AtelierStore {
         Ok(written)
     }
 
+    pub(crate) async fn write_with_result_event<R, T, D, F>(
+        &self,
+        statement: &'static str,
+        domain: D,
+        event_family: &str,
+        aggregate_type: &str,
+        aggregate_id: &str,
+        map_result: F,
+    ) -> AtelierResult<T>
+    where
+        R: surrealdb::types::SurrealValue + Send + 'static,
+        T: Send + 'static,
+        D: SurrealValue + Send + 'static,
+        F: FnOnce(Option<R>) -> AtelierResult<(T, serde_json::Value)> + Send + 'static,
+    {
+        let account_scoped = crate::storage::surreal::current_record_user_scope().is_some();
+        let authority =
+            crate::storage::surreal::event_ledger::capture_account_authority();
+        let actor = ATELIER_SESSION_ACTOR
+            .try_with(Clone::clone)
+            .unwrap_or_else(|_| KernelActor::System("atelier".to_string()));
+        let event_family = event_family.to_owned();
+        let aggregate_type = aggregate_type.to_owned();
+        let aggregate_id = aggregate_id.to_owned();
+        let store = self.clone();
+        let (result, prepared, recorded) = if account_scoped {
+            self.store
+                .with_authenticated_transaction::<_, AtelierError, _>(
+                    Uuid::now_v7(),
+                    move |ctx| Box::pin(async move {
+                    let authority_store = store.store.clone();
+                    crate::storage::surreal::event_ledger::with_captured_account_authority(
+                        &authority_store,
+                        authority,
+                        with_atelier_session_actor(actor, async {
+                            let written: Option<R> = ctx.query_first(statement, domain).await?;
+                            let (result, payload) = map_result(written)?;
+                            let prepared = store.prepare_event(
+                                &event_family,
+                                &aggregate_type,
+                                &aggregate_id,
+                                payload,
+                            )?;
+                            let recorded: Option<RecordedLedgerRow> = ctx
+                                .query_first(
+                                    RECORD_EVENT_STATEMENT,
+                                    prepared.bindings.clone().with_domain(NoDomain {}),
+                                )
+                                .await?;
+                            let recorded = recorded.ok_or_else(|| {
+                                AtelierError::EventLedger(
+                                    "kernel_event_ledger write returned no row for the atelier domain event"
+                                        .to_string(),
+                                )
+                            })?;
+                            Ok((result, prepared, recorded))
+                        }),
+                    )
+                    .await
+                    }),
+                )
+                .await?
+        } else {
+            self.store
+                .with_transaction::<_, AtelierError, _>(move |ctx| Box::pin(async move {
+                    let authority_store = store.store.clone();
+                    crate::storage::surreal::event_ledger::with_captured_account_authority(
+                        &authority_store,
+                        authority,
+                        with_atelier_session_actor(actor, async {
+                            let written: Option<R> = ctx.query_first(statement, domain).await?;
+                            let (result, payload) = map_result(written)?;
+                            let prepared = store.prepare_event(
+                                &event_family,
+                                &aggregate_type,
+                                &aggregate_id,
+                                payload,
+                            )?;
+                            let recorded: Option<RecordedLedgerRow> = ctx
+                                .query_first(
+                                    RECORD_EVENT_STATEMENT,
+                                    prepared.bindings.clone().with_domain(NoDomain {}),
+                                )
+                                .await?;
+                            let recorded = recorded.ok_or_else(|| {
+                                AtelierError::EventLedger(
+                                    "kernel_event_ledger write returned no row for the atelier domain event"
+                                        .to_string(),
+                                )
+                            })?;
+                            Ok((result, prepared, recorded))
+                        }),
+                    )
+                    .await
+                }))
+                .await?
+        };
+        self.finish_event(prepared, Some(recorded)).await?;
+        Ok(result)
+    }
+
     /// Build the kernel event and the bindings the write statement needs.
     ///
     /// Split out of the write so both entry points above produce identical

@@ -115,6 +115,7 @@ handshake_diff_merge = { path = "../handshake_diff_merge" }
 handshake_find_replace = { path = "../handshake_find_replace" }
 handshake_rename = { path = "../handshake_rename" }
 handshake_gutter = { path = "../handshake_gutter" }
+handshake_lsp_wire = { path = "../handshake_lsp_wire" }
 handshake_runtime_instance = { path = "../../backend/handshake_runtime_instance" }
 handshake_rich_document_model = { path = "../handshake_rich_document_model" }
 handshake_wikilink_semantics = { path = "../handshake_wikilink_semantics" }

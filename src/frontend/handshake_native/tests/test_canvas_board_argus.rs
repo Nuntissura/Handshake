@@ -1280,3 +1280,443 @@ fn mt026_mounted_canvas_empty_state_canonical_argus() {
     cleanup.assert_cleaned();
     assert_no_local_artifact_dir();
 }
+
+fn mt065_wait_for_node(
+    harness: &mut Harness<'_, HandshakeApp>,
+    argus: &mut CanonicalArgusDriver,
+    author_id: &str,
+    expected_text: &str,
+) -> serde_json::Value {
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        harness.run_steps(1);
+        let tree = argus.inspect(harness);
+        assert!(tree.is_object(), "canonical Inspect returns an object, not null or a list: {tree}");
+        if json_node_by_author_id(&tree, author_id)
+            .is_some_and(|node| node.to_string().contains(expected_text))
+        {
+            return tree;
+        }
+        assert!(Instant::now() < deadline, "CKC node {author_id} did not expose {expected_text:?}: {tree}");
+        std::thread::yield_now();
+    }
+}
+
+fn mt065_inspect_alias(
+    harness: &mut Harness<'_, HandshakeApp>,
+    argus: &mut CanonicalArgusDriver,
+    expected_author_id: &str,
+) -> serde_json::Value {
+    let inspect = argus.inspect(harness);
+    let alias = argus.list_widgets(harness);
+    for tree in [&inspect, &alias] {
+        assert!(tree.is_object(), "Inspect/list_widgets must return a non-null object: {tree}");
+        assert!(json_has_author_id(tree, expected_author_id), "fresh tree lost {expected_author_id}: {tree}");
+    }
+    let ids = |tree: &serde_json::Value| {
+        let mut found = Vec::new();
+        collect_author_ids(tree, &mut found);
+        found.into_iter().collect::<std::collections::BTreeSet<_>>()
+    };
+    // Both names read the same captured Inspect producer; this is alias compatibility, not independent state evidence.
+    assert_eq!(ids(&inspect), ids(&alias));
+    alias
+}
+#[test]
+fn mt065_mounted_ckc_moodboard_argus_inspect_steer_reobserve() {
+    use handshake_native::atelier_panel::*;
+    use handshake_native::mcp::SessionToken;
+    use handshake_native::module_switcher::ModuleId;
+    use sha2::Digest;
+
+    let live = interconnect_support::require_reachable_backend();
+    let unique = format!("mt065-mounted-{}", unique_suffix());
+    let workspace = live.create_workspace(&unique);
+    let workspace_id = workspace["id"].as_str().expect("workspace id").to_owned();
+    let mut cleanup = LiveWorkspaceCleanup {
+        backend: &live,
+        workspace_id: workspace_id.clone(),
+        cleaned: false,
+    };
+    let account = live.account().expect("genuine authenticated account");
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(1).enable_all().build().expect("runtime");
+    let http = reqwest::Client::builder().connect_timeout(Duration::from_secs(2))
+        .timeout(Duration::from_secs(30)).build().expect("bounded authenticated setup client");
+    let post_with_status = |path: &str, payload: &serde_json::Value, expected_status: reqwest::StatusCode| {
+        let request = http.post(format!("{}{path}", live.base))
+            .header("x-hsk-actor-id", &account.principal_id)
+            .header("x-hsk-actor-kind", "operator")
+            .header("x-hsk-kernel-task-run-id", "WP-CKC-MT-065")
+            .header("x-hsk-session-run-id", &unique)
+            .json(payload);
+        let request = account.authorize_builder(http.clone(), request)
+            .expect("setup request uses the genuine account origin/session/channel");
+        runtime.block_on(async {
+            let response = request.send().await.expect("authenticated fixture POST");
+            let status = response.status();
+            let body = response.text().await.expect("read fixture response");
+            assert_eq!(status, expected_status, "POST {path}: {body}");
+            serde_json::from_str::<serde_json::Value>(&body).expect("fixture response JSON")
+        })
+    };
+    let post = |path: &str, payload: &serde_json::Value| post_with_status(path, payload, reqwest::StatusCode::CREATED);
+    let get = |path: &str| {
+        let request = http.get(format!("{}{path}", live.base))
+            .header("x-hsk-actor-id", &account.principal_id);
+        let request = account.authorize_builder(http.clone(), request)
+            .expect("readback uses the genuine account origin/session/channel");
+        runtime.block_on(async {
+            let response = request.send().await.expect("authenticated fixture GET");
+            let status = response.status();
+            let body = response.text().await.expect("read fixture GET response");
+            assert_eq!(status, reqwest::StatusCode::OK, "GET {path}: {body}");
+            serde_json::from_str::<serde_json::Value>(&body).expect("readback response JSON")
+        })
+    };
+    let character = post("/atelier/characters", &serde_json::json!({
+        "public_id": unique, "display_name": "MT065 mounted linked character"
+    }));
+    let character_id = character["internal_id"].as_str().expect("character internal_id");
+    let sheet = post(&format!("/atelier/characters/{character_id}/sheet-versions"),
+        &serde_json::json!({"raw_text": "# MT065 mounted character\nNative linked sheet", "expected_parent_version_id": null, "tool": "mt065-native-proof"}));
+    let sheet_version_id = sheet["version_id"].as_str().expect("sheet version_id");
+    let album = post(&format!("/atelier/characters/{character_id}/media-albums"),
+        &serde_json::json!({"name": "MT065 real empty album", "notes": "mounted state traversal",
+            "sheet_version_id": sheet_version_id, "tags": []}));
+    let album_id = album["collection_id"].as_str().expect("album collection_id");
+    let populated_album = post(&format!("/atelier/characters/{character_id}/media-albums"),
+        &serde_json::json!({"name": "MT065 product PNG album", "notes": "real product-generated payloads",
+            "sheet_version_id": sheet_version_id, "tags": []}));
+    let populated_album_id = populated_album["collection_id"].as_str().expect("populated album id");
+    let source_ref = character["character_ref"].as_str().expect("real returned character ref");
+    let mut png_artifacts = Vec::new();
+    let mut asset_ids = Vec::new();
+    for (index, yaw) in [0.0, 30.0].into_iter().enumerate() {
+        let export = post_with_status("/atelier/posekit/openpose-export", &serde_json::json!({
+            "source_ref": source_ref, "rig_id": null, "yaw_deg": yaw, "pitch_deg": 0.0,
+            "zoom": 1.0, "include_face": true, "include_body": true, "include_hands": true,
+            "marker_edits": []
+        }), reqwest::StatusCode::OK);
+        let png = export["openpose_png_artifact"].clone();
+        assert_eq!(png["mime"], "image/png");
+        assert!(png["byte_len"].as_i64().is_some_and(|length| length > 0));
+        let imported = post("/atelier/image-import/clipboard", &serde_json::json!({
+            "idempotency_key": format!("{unique}-png-{index}"), "mime": png["mime"],
+            "content_hash": png["content_hash"], "byte_len": png["byte_len"],
+            "artifact_ref": png["artifact_ref"], "source_application": "mt065-native-proof"
+        }));
+        asset_ids.push(imported["asset_id"].as_str().expect("real materialized asset_id").to_owned());
+        png_artifacts.push(png);
+    }
+    assert_ne!(asset_ids[0], asset_ids[1], "two product views produce distinct real catalog assets");
+    let members = post_with_status(&format!("/atelier/media-albums/{populated_album_id}/items"),
+        &serde_json::json!({"asset_ids": asset_ids, "source_path_ref": null, "source_url_ref": null}),
+        reqwest::StatusCode::OK);
+    assert_eq!(members["collection_id"].as_str(), Some(populated_album_id));
+    let artifact_link = post(&format!("/atelier/sheet-versions/{sheet_version_id}/artifact-links"),
+        &serde_json::json!({"artifact_kind": "openpose_png", "artifact_ref": png_artifacts[0]["artifact_ref"],
+            "manifest_ref": png_artifacts[0]["manifest_ref"], "source_ref": source_ref,
+            "label": "MT065 genuine Posekit PNG", "reuse_role": "pose", "metadata": {}}));
+    let artifact_link_id = artifact_link["link_id"].as_str().expect("real sheet artifact link_id");
+    let document_path = format!("/atelier/characters/{character_id}/documents");
+    let story = post(&document_path, &serde_json::json!({
+        "doc_type": "story", "title": "MT065 linked story", "body_raw_text": "MT065 persisted story", "tags": []
+    }));
+    let story_id = story["document_id"].as_str().expect("story document_id");
+    let mood = post(&document_path, &serde_json::json!({
+        "doc_type": "moodboard", "title": "MT065 linked moodboard", "body_raw_text": "", "tags": []
+    }));
+    let mood_id = mood["document_id"].as_str().expect("mood document_id");
+    let raw = serde_json::json!({
+        "schema_id": "hsk.atelier.moodboard@1", "schema_version": 1,
+        "moodboard_id": mood_id, "name": "MT065 mounted mood", "description": "linked native projection",
+        "canvas": {"width": 1600.0, "height": 1000.0, "background_color": "#101418"},
+        "layers": [{"layer_id": uuid::Uuid::new_v4().to_string(), "name": "native", "order": 1,
+            "visible": true, "locked": false, "opacity": 1.0, "parent_layer_id": null}],
+        "images": [], "text": [], "shapes": [], "connectors": [], "folders": [], "guides": [],
+        "flags": {"locked": false, "archived": false, "operator_reviewed": false},
+        "style": {"dominant_colors": ["#101418"], "mood_keywords": [], "style_description": "native", "suggested_presets": []},
+        "history": [{"history_id": uuid::Uuid::new_v4().to_string(), "at": "2026-10-15T00:00:00Z",
+            "actor": account.principal_id, "operation": "created", "summary": "MT065 real mounted fixture"}]
+    }).to_string();
+    let snapshot = post(&format!("/atelier/character-documents/{mood_id}/moodboard/snapshots"),
+        &serde_json::json!({"raw_json_text": raw, "expected_document_version_id": mood["current_version_id"]}));
+    let snapshot_id = snapshot["snapshot_id"].as_str().expect("snapshot_id");
+
+    let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+        status: "ok".to_owned(), db_status: "ok".to_owned(), migration_version: Some(1),
+    }));
+    live.bind_app_account(&mut app);
+    app.set_backend_base_url_for_test(&live.base, runtime.handle().clone());
+    assert!(app.switch_project(&workspace_id));
+    assert!(app.set_module(ModuleId::Ckc));
+    let mut harness = Harness::builder().with_size(egui::vec2(1800.0, 1200.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    let mut argus = CanonicalArgusDriver::bind_in_current_app_data(harness.state(), &unique,
+        SessionToken::from_hex(interconnect_support::backend_proof_support::live_flight_recorder_session_token()));
+    let character_row = format!("atelier-ckc-character-{character_id}");
+    mt065_wait_for_node(&mut harness, &mut argus, &character_row, character_id);
+    argus.click_expect_applied_and_reinspect(&mut harness, &character_row);
+    let mut observed = std::collections::BTreeSet::new();
+    let mut record = |tree: &serde_json::Value| {
+        let mut ids = Vec::new();
+        collect_author_ids(tree, &mut ids);
+        observed.extend(ids);
+    };
+    record(&mt065_inspect_alias(&mut harness, &mut argus, &character_row));
+    let album_row = ckc_media_album_row_author_id(album_id);
+    mt065_wait_for_node(&mut harness, &mut argus, &album_row, "MT065 real empty album");
+    argus.click_expect_applied_and_reinspect(&mut harness, &album_row);
+    record(&mt065_inspect_alias(&mut harness, &mut argus, &album_row));
+    let populated_album_row = ckc_media_album_row_author_id(populated_album_id);
+    mt065_wait_for_node(&mut harness, &mut argus, &populated_album_row, "MT065 product PNG album");
+    argus.click_expect_applied_and_reinspect(&mut harness, &populated_album_row);
+    for asset_id in &asset_ids {
+        let media_row = ckc_media_row_author_id(populated_album_id, asset_id);
+        mt065_wait_for_node(&mut harness, &mut argus, &media_row, asset_id);
+        argus.click_expect_applied_and_reinspect(&mut harness, &media_row);
+        record(&mt065_wait_for_node(&mut harness, &mut argus, ATELIER_CKC_SELECTED_MEDIA_REF_AUTHOR_ID, asset_id));
+        record(&mt065_inspect_alias(&mut harness, &mut argus, ATELIER_CKC_MEDIA_VIEWER_AUTHOR_ID));
+    }
+    let artifact_row = ckc_sheet_artifact_row_author_id(artifact_link_id);
+    mt065_wait_for_node(&mut harness, &mut argus, &artifact_row, png_artifacts[0]["artifact_ref"].as_str().expect("seeded artifact ref"));
+    argus.click_expect_applied_and_reinspect(&mut harness, &artifact_row);
+    record(&mt065_inspect_alias(&mut harness, &mut argus, ATELIER_CKC_SHEET_ARTIFACT_REUSE_REF_AUTHOR_ID));
+    argus.click_expect_applied_and_reinspect(&mut harness, ATELIER_CKC_MODE_NOTES_AUTHOR_ID);
+    record(&mt065_inspect_alias(&mut harness, &mut argus, ATELIER_CKC_CHARACTER_NOTES_EDITOR_AUTHOR_ID));
+    argus.click_expect_applied_and_reinspect(&mut harness, ATELIER_CKC_MODE_SHEET_AUTHOR_ID);
+    record(&mt065_inspect_alias(&mut harness, &mut argus, ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID));
+    argus.click_expect_applied_and_reinspect(&mut harness, ATELIER_MODEL_OPS_REGION_AUTHOR_ID);
+    let actor = account.principal_id.clone();
+    argus.set_value_and_reinspect(&mut harness, ATELIER_MODEL_OPS_ACTOR_AUTHOR_ID, &actor);
+    argus.set_value_and_reinspect(&mut harness, ATELIER_MODEL_OPS_SESSION_AUTHOR_ID, &account.session_id);
+    // An authenticated actor without a coordination lease must not dispatch a sheet append.
+    let sheet_before_rejection = get(&format!("/atelier/sheet-versions/{sheet_version_id}"));
+    let history_path = format!("/atelier/characters/{character_id}/sheet-versions");
+    let history_before_rejection = get(&history_path);
+    let versions_before = history_before_rejection.as_array().expect("canonical version history array");
+    let head_before = versions_before.iter().max_by_key(|version| version["seq"].as_i64().expect("version sequence"))
+        .expect("seeded canonical sheet head")["version_id"].clone();
+    assert_eq!(head_before.as_str(), Some(sheet_version_id));
+    argus.click_expect_applied_and_reinspect(&mut harness, ATELIER_CKC_SHEET_SAVE_AUTHOR_ID);
+    record(&mt065_wait_for_node(&mut harness, &mut argus, ATELIER_CKC_ERROR_AUTHOR_ID, "claim an exclusive lease"));
+    assert_eq!(get(&format!("/atelier/sheet-versions/{sheet_version_id}")), sheet_before_rejection);
+    let history_after_rejection = get(&history_path);
+    let versions_after = history_after_rejection.as_array().expect("canonical version history remains an array");
+    let head_after = versions_after.iter().max_by_key(|version| version["seq"].as_i64().expect("version sequence"))
+        .expect("canonical sheet head remains present")["version_id"].clone();
+    assert_eq!(head_after, head_before, "lease rejection must not advance the canonical sheet head");
+    assert_eq!(history_after_rejection, history_before_rejection, "lease rejection must not append a sheet version");
+    argus.click_expect_applied_and_reinspect(&mut harness, ATELIER_CKC_EXPORT_JSON_AUTHOR_ID);
+    record(&mt065_wait_for_node(&mut harness, &mut argus, ATELIER_CKC_EXPORT_PREVIEW_AUTHOR_ID, "MT065 mounted character"));
+    record(&mt065_inspect_alias(&mut harness, &mut argus, ATELIER_CKC_EXPORT_PREVIEW_AUTHOR_ID));
+    argus.click_expect_applied_and_reinspect(&mut harness, ATELIER_CKC_MODE_STORY_AUTHOR_ID);
+    let tree = mt065_wait_for_node(&mut harness, &mut argus, ATELIER_CKC_STORY_DOC_REF_AUTHOR_ID, story_id);
+    record(&tree);
+    let story_snapshot = tree.clone();
+    argus.click_expect_applied_and_reinspect(&mut harness, &ckc_story_document_row_author_id(story_id));
+    argus.click_expect_applied_and_reinspect(&mut harness, ATELIER_CKC_MODE_MOODBOARD_AUTHOR_ID);
+    mt065_wait_for_node(&mut harness, &mut argus, ATELIER_CKC_MOODBOARD_DOC_REF_AUTHOR_ID, mood_id);
+    let rejected = argus.click_from_snapshot_expect_rpc_rejected(&mut harness,
+        ATELIER_CKC_STORY_SAVE_AUTHOR_ID, &story_snapshot, "no live widget with author_id");
+    assert_eq!(rejected["response"]["error"]["code"], -32000);
+    argus.click_expect_applied_and_reinspect(&mut harness, &ckc_moodboard_document_row_author_id(mood_id));
+    argus.click_expect_applied_and_reinspect(&mut harness, ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID);
+    let tree = mt065_wait_for_node(&mut harness, &mut argus, ATELIER_CKC_MOODBOARD_LATEST_REF_AUTHOR_ID, snapshot_id);
+    record(&tree);
+    record(&mt065_inspect_alias(&mut harness, &mut argus, ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID));
+    assert!(json_has_author_id(&tree, ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID));
+
+
+    argus.set_value_and_reinspect(&mut harness, ATELIER_MODEL_OPS_THREAD_AUTHOR_ID, &ckc_document_model_ops_thread_id(mood_id));
+    argus.click_expect_applied_and_reinspect(&mut harness, ATELIER_MODEL_OPS_CLAIM_AUTHOR_ID);
+    mt065_wait_for_node(&mut harness, &mut argus, ATELIER_MODEL_OPS_STATUS_AUTHOR_ID, "state=active");
+    let occurrence_count = || {
+        let overview = get(&format!("/atelier/overview?moodboard_document_id={mood_id}"));
+        let count = &overview["moodboard_snapshot_event_count"];
+        assert_eq!(count["document_id"].as_str(), Some(mood_id));
+        assert_eq!(count["event_family"], "atelier.moodboard.snapshot_recorded");
+        count["count"].as_u64().expect("authenticated document-scoped occurrence count")
+    };
+    let document_before_save = get(&format!("/atelier/character-documents/{mood_id}"));
+    let occurrences_before_save = occurrence_count();
+    argus.click_expect_applied_and_reinspect(&mut harness, ATELIER_CKC_MOODBOARD_SAVE_AUTHOR_ID);
+    mt065_wait_for_node(&mut harness, &mut argus, ATELIER_CKC_MOODBOARD_STATUS_AUTHOR_ID, "Saved CKC moodboard");
+    let persisted = get(&format!("/atelier/character-documents/{mood_id}/moodboard/latest"));
+    assert_eq!(persisted["document_id"].as_str(), Some(mood_id));
+    let saved_snapshot_id = persisted["snapshot_id"].as_str().expect("saved snapshot_id");
+    assert_eq!(persisted["document_ref"], format!("atelier://document/{mood_id}"));
+    assert_eq!(persisted["moodboard_ref"], format!("atelier://moodboard/{saved_snapshot_id}"));
+    let saved_raw = persisted["raw_json_text"].as_str().expect("snapshot raw JSON text");
+    assert_eq!(persisted["content_sha256"], format!("{:x}", sha2::Sha256::digest(saved_raw.as_bytes())));
+    let saved_json: serde_json::Value = serde_json::from_str(saved_raw).expect("persisted native JSON");
+    assert_eq!(saved_json, persisted["moodboard_json"]);
+    assert_eq!(saved_json["moodboard_id"].as_str(), Some(mood_id));
+    let saved_document = get(&format!("/atelier/character-documents/{mood_id}"));
+    assert_eq!(saved_document["character_internal_id"].as_str(), Some(character_id));
+    assert_eq!(saved_document["doc_type"], "moodboard");
+    assert_eq!(saved_document["document_ref"], persisted["document_ref"]);
+    assert_eq!(saved_document["current_version_id"], persisted["document_version_id"]);
+    assert_eq!(saved_document["current_version"]["body_raw_text"].as_str(), Some(saved_raw));
+    assert_ne!(saved_document["current_version_id"], document_before_save["current_version_id"],
+        "mounted Save must append a new document version even for unchanged canvas JSON");
+    assert_ne!(saved_snapshot_id, snapshot_id, "the new document version has its own snapshot");
+    let occurrences_after_save = occurrence_count();
+    // Occurrence only: this count does not prove atomicity, event payload/actor, or causal action binding.
+    assert_eq!(occurrences_after_save, occurrences_before_save.checked_add(1).expect("occurrence count increment"));
+    argus.click_expect_applied_and_reinspect(&mut harness, ATELIER_MODEL_OPS_RELEASE_AUTHOR_ID);
+
+    // Exercise the production same-app client rebinding path; do not replace the mounted panel.
+    harness.state_mut().set_backend_base_url_for_test(&live.base, runtime.handle().clone());
+    mt065_wait_for_node(&mut harness, &mut argus, &character_row, character_id);
+    argus.click_expect_applied_and_reinspect(&mut harness, &character_row);
+    argus.click_expect_applied_and_reinspect(&mut harness, ATELIER_CKC_MODE_STORY_AUTHOR_ID);
+    record(&mt065_wait_for_node(&mut harness, &mut argus, ATELIER_CKC_STORY_DOC_REF_AUTHOR_ID, story_id));
+    argus.click_expect_applied_and_reinspect(&mut harness, ATELIER_CKC_MODE_MOODBOARD_AUTHOR_ID);
+    argus.click_expect_applied_and_reinspect(&mut harness, ATELIER_CKC_MOODBOARD_OPEN_AUTHOR_ID);
+    let reopened = mt065_wait_for_node(&mut harness, &mut argus, ATELIER_CKC_MOODBOARD_LATEST_REF_AUTHOR_ID,
+        persisted["snapshot_id"].as_str().expect("persisted snapshot id"));
+    record(&reopened);
+    record(&mt065_inspect_alias(&mut harness, &mut argus, ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID));
+    assert!(json_has_author_id(&reopened, ATELIER_CKC_MOODBOARD_CANVAS_AUTHOR_ID));
+    drop(record);
+    let missing: Vec<_> = MT065_ORIGINAL_CKC_IDS.iter().filter(|id| !observed.contains(**id)).collect();
+    assert!(missing.is_empty(), "mounted state traversal did not expose every immutable original CKC ID: {missing:?}");
+    // BLOCKED: terminal typed action-receipt rejection,
+    // and stronger event atomicity/payload/actor/causal-action assertions need their named seams.
+    // This fixture's mounted Story/Mood assertions do not replace those original obligations.
+    argus.finish_require_no_indeterminate();
+    cleanup.assert_cleaned();
+    assert_no_local_artifact_dir();
+}
+
+const MT065_ORIGINAL_CKC_IDS: &[&str] = &[
+    "atelier-ckc-album-create",
+    "atelier-ckc-album-create-name",
+    "atelier-ckc-album-create-notes",
+    "atelier-ckc-album-create-tags",
+    "atelier-ckc-album-link-asset-ids",
+    "atelier-ckc-album-link-assets",
+    "atelier-ckc-album-link-edit-clear-source-path",
+    "atelier-ckc-album-link-edit-clear-source-url",
+    "atelier-ckc-album-link-edit-save",
+    "atelier-ckc-album-link-edit-source-path",
+    "atelier-ckc-album-link-edit-source-url",
+    "atelier-ckc-album-link-source-path",
+    "atelier-ckc-album-link-source-url",
+    "atelier-ckc-album-link-target",
+    "atelier-ckc-album-list-load-more",
+    "atelier-ckc-album-list-page-state",
+    "atelier-ckc-album-move-selected-down",
+    "atelier-ckc-album-move-selected-up",
+    "atelier-ckc-album-status",
+    "atelier-ckc-album-unlink-selected",
+    "atelier-ckc-book-layout",
+    "atelier-ckc-book-left-media",
+    "atelier-ckc-book-left-media-scroll",
+    "atelier-ckc-book-middle",
+    "atelier-ckc-book-middle-scroll",
+    "atelier-ckc-book-right-sheet",
+    "atelier-ckc-book-right-sheet-scroll",
+    "atelier-ckc-character-create",
+    "atelier-ckc-character-create-name",
+    "atelier-ckc-character-list",
+    "atelier-ckc-character-notes-apply",
+    "atelier-ckc-character-notes-editor",
+    "atelier-ckc-character-ref",
+    "atelier-ckc-error",
+    "atelier-ckc-export-json",
+    "atelier-ckc-export-preview",
+    "atelier-ckc-export-ref",
+    "atelier-ckc-export-safe-json",
+    "atelier-ckc-export-safe-txt",
+    "atelier-ckc-export-status",
+    "atelier-ckc-export-txt",
+    "atelier-ckc-field-suggestion-field",
+    "atelier-ckc-field-suggestions-list",
+    "atelier-ckc-field-suggestions-load",
+    "atelier-ckc-import-editor",
+    "atelier-ckc-import-sheet-version",
+    "atelier-ckc-linked-media-list",
+    "atelier-ckc-media-actor",
+    "atelier-ckc-media-backend-mode",
+    "atelier-ckc-media-image-status",
+    "atelier-ckc-media-notes-editor",
+    "atelier-ckc-media-save",
+    "atelier-ckc-media-tags-editor",
+    "atelier-ckc-media-viewer",
+    "atelier-ckc-mode-moodboard",
+    "atelier-ckc-mode-notes",
+    "atelier-ckc-mode-sheet",
+    "atelier-ckc-mode-story",
+    "atelier-ckc-moodboard",
+    "atelier-ckc-moodboard-backend-mode",
+    "atelier-ckc-moodboard-canvas",
+    "atelier-ckc-moodboard-doc-ref",
+    "atelier-ckc-moodboard-editor",
+    "atelier-ckc-moodboard-latest-ref",
+    "atelier-ckc-moodboard-open",
+    "atelier-ckc-moodboard-save",
+    "atelier-ckc-moodboard-status",
+    "atelier-ckc-safe-subset-load",
+    "atelier-ckc-search-filter-character",
+    "atelier-ckc-search-filter-collection",
+    "atelier-ckc-search-filter-media",
+    "atelier-ckc-search-filter-similarity",
+    "atelier-ckc-search-mode-combined",
+    "atelier-ckc-search-mode-fuzzy",
+    "atelier-ckc-search-mode-vector",
+    "atelier-ckc-search-query",
+    "atelier-ckc-search-results",
+    "atelier-ckc-search-run",
+    "atelier-ckc-search-status",
+    "atelier-ckc-search-tags",
+    "atelier-ckc-selected-album-attribution",
+    "atelier-ckc-selected-album-ref",
+    "atelier-ckc-selected-character",
+    "atelier-ckc-selected-folder-ref",
+    "atelier-ckc-selected-folder-ref-kind",
+    "atelier-ckc-selected-folder-ref-origin",
+    "atelier-ckc-selected-media-attribution",
+    "atelier-ckc-selected-media-occurrence",
+    "atelier-ckc-selected-media-ref",
+    "atelier-ckc-selected-media-status",
+    "atelier-ckc-selected-source-url-ref",
+    "atelier-ckc-selected-source-url-ref-kind",
+    "atelier-ckc-selected-source-url-ref-origin",
+    "atelier-ckc-sheet-artifact-actor",
+    "atelier-ckc-sheet-artifact-attach",
+    "atelier-ckc-sheet-artifact-attach-posekit",
+    "atelier-ckc-sheet-artifact-detach",
+    "atelier-ckc-sheet-artifact-kind",
+    "atelier-ckc-sheet-artifact-label",
+    "atelier-ckc-sheet-artifact-list",
+    "atelier-ckc-sheet-artifact-manifest",
+    "atelier-ckc-sheet-artifact-ref",
+    "atelier-ckc-sheet-artifact-reuse-ref",
+    "atelier-ckc-sheet-artifact-role",
+    "atelier-ckc-sheet-artifact-status",
+    "atelier-ckc-sheet-backend-mode",
+    "atelier-ckc-sheet-editor",
+    "atelier-ckc-sheet-save-version",
+    "atelier-ckc-sheet-status",
+    "atelier-ckc-sheet-version-ref",
+    "atelier-ckc-story-backend-mode",
+    "atelier-ckc-story-beat-editor",
+    "atelier-ckc-story-beat-save",
+    "atelier-ckc-story-card-body",
+    "atelier-ckc-story-card-list",
+    "atelier-ckc-story-card-save",
+    "atelier-ckc-story-card-title",
+    "atelier-ckc-story-doc-ref",
+    "atelier-ckc-story-editor",
+    "atelier-ckc-story-save",
+    "atelier-ckc-story-status",
+    "atelier-ckc-tag-note-editor",
+    "atelier-ckc-tag-note-save",
+    "atelier-ckc-tag-note-scope",
+    "atelier-ckc-tag-note-tag",
+    "atelier-ckc-template-load",
+    "atelier-ckc-template-status",
+    "atelier-ckc-typed-ref-kind",
+];

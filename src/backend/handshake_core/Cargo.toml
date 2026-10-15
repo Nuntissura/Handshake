@@ -179,6 +179,7 @@ handshake_swarm_routing_policy = { path = "../handshake_swarm_routing_policy" }
 handshake_openpose_render = { path = "../handshake_openpose_render" }
 handshake_ckc_search_metrics = { path = "../handshake_ckc_search_metrics" }
 handshake_ckc_sheet_template = { path = "../handshake_ckc_sheet_template" }
+handshake_ckc_moodboard = { path = "../handshake_ckc_moodboard" }
 handshake_model_lane_navigation = { path = "../handshake_model_lane_navigation" }
 handshake_document = { path = "../handshake_document" }
 handshake_storage_support = { path = "../handshake_storage_support" }
@@ -307,7 +308,7 @@ surrealdb = { version = "=3.2.0", default-features = false, features = ["kv-mem"
 rappct = { version = "0.13.3", default-features = false }
 wineventhook = "0.11.0"
 windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_Diagnostics_ToolHelp", "Win32_System_JobObjects", "Win32_System_LibraryLoader", "Win32_System_Pipes", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_Diagnostics_ToolHelp", "Win32_System_IO", "Win32_System_JobObjects", "Win32_System_LibraryLoader", "Win32_System_Pipes", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
 
 [features]
 default = ["runtime-full", "os-keychain", "local-inference-default"]

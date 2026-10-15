@@ -2415,6 +2415,147 @@ impl ModelLaneStore {
         self.record_prepared_launch(launch.to_records()?).await
     }
 
+    pub(crate) async fn record_authenticated_creation(
+        &self,
+        bootstrap: &crate::AccountBootstrapState,
+        authorization: crate::storage::surreal::resource_authority::AuthorizationRequest,
+        records: (
+            NewModelLaneRun,
+            NewModelLane,
+            NewModelLaneContextBundleArtifactBinding,
+            Vec<NewModelLaneMessage>,
+        ),
+    ) -> ModelLaneResult<(
+        ModelLaneRunRecord,
+        ModelLaneRecord,
+        ModelLaneContextBundleArtifactBindingRecord,
+        Vec<ModelLaneMessageRecord>,
+    )> {
+        use crate::storage::surreal::resource_authority::{
+            RecordUserScope, ResourceAction, ResourceAuthorityError, ResourceKind,
+        };
+        let denied = || ModelLaneError::AuthorityDenied("authenticated ModelLane creation denied".into());
+        if bootstrap.surreal.resource_access_lifecycle() != self.storage.resource_access_lifecycle() {
+            return Err(denied());
+        }
+        let scope = self.surreal_write_scope("authenticated ModelLane creation").map_err(|error| match error {
+            ModelLaneError::ScopeDenied(ScopeDenied::LifecycleAuthorityUnavailable) =>
+                ModelLaneError::Surreal(SurrealStorageError::ResourceAuthorityUnavailable),
+            ModelLaneError::ScopeDenied(_) | ModelLaneError::AuthorityDenied(_) => denied(),
+            error => error,
+        })?;
+        if authorization.resource_kind != ResourceKind::Workspace
+            || authorization.capability_id != "fs.write"
+            || authorization.action != ResourceAction::Create
+            || authorization.external_resource_id != scope.workspace_id
+            || authorization.session_token.trim().is_empty()
+            || authorization.channel_binding_hash.as_deref().map_or(true, |hash| hash.trim().is_empty())
+        {
+            return Err(denied());
+        }
+
+        let (run, lane, artifact, messages) = records;
+        validate_run(&run)?;
+        validate_lane(&lane)?;
+        validate_prepared_launch_pair(&run, &lane)?;
+        let lane_locus = validate_locus(lane.locus_binding.as_ref(), "lane")?;
+        require_equal("lane coordinator", &lane_locus.coordinator_session_id, "run coordinator", &run.coordinator_session_id)?;
+        validate_context_bundle_artifact_binding(&artifact)?;
+        for (field, actual, expected) in [
+            ("artifact.run_id", artifact.run_id.as_str(), run.run_id.as_str()),
+            ("artifact.trace_id", artifact.trace_id.as_str(), run.trace_id.as_str()),
+            ("artifact.event_ledger_stream_id", artifact.event_ledger_stream_id.as_str(), run.event_ledger_stream_id.as_str()),
+            ("artifact.owner_session", artifact.owner_session.as_str(), run.owner_session.as_str()),
+            ("artifact.work_packet_id", artifact.work_packet_id.as_str(), run.work_packet_id.as_deref().unwrap_or("")),
+            ("artifact.micro_task_id", artifact.micro_task_id.as_str(), run.micro_task_id.as_deref().unwrap_or("")),
+            ("artifact.task_board_id", artifact.task_board_id.as_str(), run.task_board_id.as_deref().unwrap_or("")),
+        ] {
+            require_equal(field, actual, "creation run", expected)?;
+        }
+        let mut message_ids = BTreeSet::new();
+        let mut message_keys = BTreeSet::new();
+        for message in &messages {
+            validate_message(message)?;
+            if !message_ids.insert(message.message_id.clone()) {
+                return Err(ModelLaneError::InvalidInput("creation messages contain duplicate message IDs".into()));
+            }
+            if !message_keys.insert(message.idempotency_key.clone()) {
+                return Err(ModelLaneError::InvalidInput("creation messages contain duplicate idempotency keys".into()));
+            }
+            let locus = validate_locus(message.locus_binding.as_ref(), "message")?;
+            require_equal("message locus session", &locus.session_id, "source lane session", &lane.session_id)?;
+            require_equal("message locus model session", &locus.model_session_id, "source lane model session", &lane.model_session_id)?;
+            for (field, actual, expected) in [
+                ("message.run_id", message.run_id.as_str(), run.run_id.as_str()),
+                ("message.trace_id", message.trace_id.as_str(), run.trace_id.as_str()),
+                ("message.from_lane_id", message.from_lane_id.as_str(), lane.lane_id.as_str()),
+                ("message.event_ledger_stream_id", message.event_ledger_stream_id.as_str(), run.event_ledger_stream_id.as_str()),
+                ("message.coordinator_session_id", message.coordinator_session_id.as_str(), run.coordinator_session_id.as_str()),
+                ("message.owner_session", message.owner_session.as_str(), run.owner_session.as_str()),
+                ("message.work_packet_id", message.work_packet_id.as_deref().unwrap_or(""), run.work_packet_id.as_deref().unwrap_or("")),
+                ("message.micro_task_id", message.micro_task_id.as_deref().unwrap_or(""), run.micro_task_id.as_deref().unwrap_or("")),
+                ("message.task_board_id", message.task_board_id.as_deref().unwrap_or(""), run.task_board_id.as_deref().unwrap_or("")),
+                ("message.payload_ref", message.payload_ref.as_str(), artifact.artifact_ref.as_str()),
+                ("message.payload_sha256", message.payload_sha256.as_str(), artifact.artifact_sha256.as_str()),
+            ] {
+                require_equal(field, actual, "creation batch", expected)?;
+            }
+            if let ModelLaneTarget::Lane(target) = &message.to_lane {
+                if !run.lane_ids.contains(target) {
+                    return Err(ModelLaneError::InvalidInput("creation message target is outside its run".into()));
+                }
+            }
+        }
+
+        let session_token = authorization.session_token.clone();
+        let channel_binding_hash = authorization.channel_binding_hash.clone();
+        let decision = bootstrap.surreal.authorize_protected_resource(authorization).await
+            .map_err(|error| match error {
+                ResourceAuthorityError::Storage(error) => ModelLaneError::Surreal(error),
+                ResourceAuthorityError::Denied { .. } | ResourceAuthorityError::InvalidInput(_) => denied(),
+                error @ ResourceAuthorityError::Entropy(_) => ModelLaneError::Surreal(error.into()),
+            })?;
+        if !bootstrap.capability_registry.profile_can(&decision.capability_profile_id, "fs.write")
+            .map_err(|_| denied())?
+            || decision.account_id != scope.owner_account_id
+            || decision.principal_id != scope.actor_principal_id
+            || decision.session_id != scope.authenticated_session_id
+            || decision.access_space_id != scope.access_space_id
+            || decision.resource_id.is_empty()
+            || decision.grant_id.is_empty()
+        {
+            return Err(denied());
+        }
+        let original = RecordUserScope {
+            grant_id: Some(decision.grant_id),
+            workspace_id: Some(scope.workspace_id.clone()),
+            session_token,
+            channel_binding_hash,
+            resource_id: decision.resource_id,
+            session_id: decision.session_id,
+            capability_id: "fs.write".into(),
+            action: ResourceAction::Create,
+        };
+        let subject = crate::storage::surreal::ModelLaneOperationSubject {
+            kind: ResourceKind::Workspace,
+            external_id: scope.workspace_id,
+        };
+        let creation = async move {
+            let run = self.record_run(run).await?;
+            let lane = self.record_lane(lane).await?;
+            let artifact = self.record_context_bundle_artifact_binding(artifact).await?;
+            let mut stored_messages = Vec::with_capacity(messages.len());
+            for message in messages {
+                stored_messages.push(self.record_message(message).await?);
+            }
+            Ok((run, lane, artifact, stored_messages))
+        };
+        crate::storage::surreal::with_model_lane_subject(
+            subject,
+            self.storage.with_record_user_scope(original, creation),
+        ).await
+    }
+
     pub async fn record_run(&self, input: NewModelLaneRun) -> ModelLaneResult<ModelLaneRunRecord> {
         if !matches!(crate::storage::surreal::current_record_user_scope().map(|scope| scope.action),
             Some(crate::storage::surreal::resource_authority::ResourceAction::Create)) {
