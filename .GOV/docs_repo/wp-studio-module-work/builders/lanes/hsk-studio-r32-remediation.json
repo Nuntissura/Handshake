@@ -1,0 +1,40 @@
+{
+  "crate": "hsk-studio-pigment",
+  "lane": "SMB-COMPOSITE-VECTOR-MASK-2 (R32 remediation)",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "remediation of R32 failure at eb569d5: plan_followups admission_readers_of_nodes_and_entries_are_classified (render_plan.rs:727 fn isolate_masked_pass_through unclassified); pushed f1fffe3",
+  "commits": [
+    {"sha": "0a9207a", "subject": "pigment tests (SMB-COMPOSITE-VECTOR-MASK-2, R32 remediation): classify isolate_masked_pass_through as a structure reader (Reads::Every)"},
+    {"sha": "f1fffe3", "subject": "pigment tests (R32 remediation): classify the selection-tool field reads the reader scan sees (Reads::Every)"}
+  ],
+  "capabilities_done": [
+    "R32 failure: READERS row (render_plan.rs, isolate_masked_pass_through, Reads::Every) in crates/hsk-studio-pigment/tests/plan_followups.rs, with the reason as a comment; the scan, its rules and every other row unchanged",
+    "selection-tool rows (select_tools.rs new, premul; select_tools/maxflow.rs add_edge, max_flow, source_side, Reads::Every): the first rerun after 0a9207a showed these five as the remaining problems; they arrived with SMB-PS-SELECT-LIQUIFY (66ddb19, not an ancestor of eb569d5) and are identical in the committed and working trees"
+  ],
+  "tests": {
+    "argv": "cd product workspace && source studio-env.sh && cargo nextest run -p hsk-studio-pigment --test plan_followups --test render_plan --test admit_parity --test plan_reachability --test plan_extensions --no-fail-fast; cargo clippy -p hsk-studio-pigment --all-targets",
+    "exit": 0,
+    "sha": "f1fffe3",
+    "passed": 35,
+    "failed": 0,
+    "clippy": "clean for hsk-studio-pigment; the only warnings were in the dependency hsk-studio-observe (lib.rs:919, :1019 too_many_arguments), not this lane",
+    "first_run": "at 0a9207a: 34/35; admission_readers_of_nodes_and_entries_are_classified no longer reported isolate_masked_pass_through but reported the five select_tools functions (plan_followups.rs:1196); fixed in f1fffe3, rerun 35/35 (retry guard: HEAD changed)"
+  },
+  "blockers": [],
+  "lock_wait_s": 389,
+  "bg_pids": [],
+  "next": "validation of plan_followups on a candidate containing f1fffe3",
+  "updated_at": "2026-10-15T07:33:41Z",
+  "notes": {
+    "cites_failure": "validation round R32, candidate eb569d5: hsk-studio-pigment::plan_followups admission_readers_of_nodes_and_entries_are_classified panicked at crates/hsk-studio-pigment/tests/plan_followups.rs:1186, 'render_plan.rs:727 fn isolate_masked_pass_through: reads plan nodes or envelope entries and is not classified'",
+    "classification_isolate_masked_pass_through": "Reads::Every (structure/lookup), not Reachable: the function is a caller-chosen plan rewrite (composite calls it on vector clips/masks), not an admission predicate and not named admit*. It looks up one group layer by index (self.nodes.get(group), g.layers.get(layer)) and counts the layers of every group that reference that layer's input, reachable or not; the count must cover unreachable groups too, because setting the inner group isolated changes it for every reference, so a reachable-only count would let the rewrite alter an unreachable reference silently. It reads no envelope entries and decides no capability: admission still runs on the rewritten plan through the reachable readers already in the table (validate, has_pass_through_mask), so no admission wiring is needed",
+    "classification_select_tools": "Reads::Every: select_tools::Composite holds &[ColourView] in a field named layers (Self { layers } in new, self.layers in premul) and maxflow's graph has a method nodes() returning its vertex count (add_edge, max_flow, source_side). None touches RenderPlan or PlanExtensions; the scan matches the field names by design (PLR-080) and these rows record that they are not plan readers",
+    "since_r31_check": "git log d9c59f8..origin -- crates/hsk-studio-pigment/src/render_plan.rs: 27388e8 (this lane) and 59b6900 (SMB-AE-KEY-TRACK-2). 59b6900 adds no new reader function in render_plan.rs (its .layers read at extensions.rs is inside validate, already classified Reachable and still containing its needles); after the rows above the scan reports zero problems over the whole of src/",
+    "out_of_scope_report": "f1fffe3 classifies functions owned by SMB-PS-SELECT-LIQUIFY (outside this lane and outside render_plan.rs); done only because plan_followups fails on origin without it. Touched: crates/hsk-studio-pigment/tests/plan_followups.rs only (READERS table, 5 rows + comment). Lead: waiver requested",
+    "shared_tree": "tests and clippy ran on the shared tree, which held other lanes' uncommitted pigment edits (liquify.rs, select_tools.rs, select_tools/refine.rs, transform_math.rs, tests/transform.rs, untracked magnetic.rs, refine_brush.rs; most since committed in 677c45f by SMB-PS-SELECT-LIQUIFY-2). The reader scan reads src/ from disk, so extra files could only add problems; the committed and working-tree reader sites of select_tools match function for function",
+    "shared_files": "plan_followups.rs had no other lane's edits; both commits are pathspec commits of that file only",
+    "push": "git push reported up to date: a later push by another lane (677c45f, 6fed566) already carried 0a9207a and f1fffe3 to origin/codex/handshake-studio-assets",
+    "test_not_weakened": "reader_scan/mod.rs and the problems() rules are unchanged; no row was removed or changed from Reachable to Every",
+    "cargo_lock": "left uncommitted"
+  }
+}

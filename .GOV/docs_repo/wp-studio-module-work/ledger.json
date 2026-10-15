@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T07:22:07Z",
+ "updated_at": "2026-10-15T07:34:42Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -6548,12 +6548,16 @@
   {
    "lane_id": "SMB-R32-REMEDIATION",
    "crate": "hsk-studio-pigment",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-r32-remediation-20261015",
-   "commits": [],
+   "commits": [
+    "0a9207a",
+    "f1fffe3"
+   ],
    "verdicts": [],
-   "note": "R32 union failure: plan_followups admission_readers classification misses isolate_masked_pass_through (render_plan.rs:727, SMB-COMPOSITE-VECTOR-MASK-2); fix classification without weakening the test"
+   "note": "isolate_masked_pass_through classified Reads::Every; f1fffe3 also classifies 5 SMB-PS-SELECT-LIQUIFY functions (struct fields named layers/nodes; no plan access) - scope waiver accepted",
+   "lane_file": "builders/lanes/hsk-studio-r32-remediation.json"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

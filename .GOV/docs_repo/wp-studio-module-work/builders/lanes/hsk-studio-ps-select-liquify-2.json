@@ -1,0 +1,36 @@
+{
+ "crate": "hsk-studio-pigment",
+ "lane": "SMB-PS-SELECT-LIQUIFY-2",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice A pushed on 677c45f (magnetic lasso, refinement brushes, turbulence, mesh clone); clippy -p hsk-studio-pigment --tests clean; select_liquify_2 5/5, regression select_refine + liquify + smart_filter 14/14",
+ "commits": [
+  {"sha": "677c45f", "subject": "pigment (SMB-PS-SELECT-LIQUIFY-2 slice A): magnetic lasso, refinement brushes, turbulence, mesh clone"}
+ ],
+ "capabilities_done": [
+  "slice A select_tools::magnetic: LiveWire (Mortensen-Barrett 1995 local cost 0.43 fZ + 0.43 fG + 0.14 fD, Sobel max-channel gradient, Laplacian zero crossings, 8-connected Dijkstra path, snap(width, contrast)), magnetic_lasso(trace, MagneticOptions{width, contrast, frequency, sample_merged, margin_px})",
+  "slice A select_tools::refine_brush: RefineState{selection, unknown/foreground/background/feather marks} + apply_brush(RefineBrush{samples, diameter, hardness, mode RefineEdge|AddToSelection|SubtractFromSelection|Matte|Foreground|Background|Feather, feather_px}) via the brush engine; render through refine::refine_with_marks(TrimapMarks)",
+  "slice A liquify: LiquifyTool::Turbulence{seed} (seeded smooth value noise, 0.05 size rate pressure w per dab, cells size/2), LiquifyTool::MeshClone{dx, dy} (D += min(1, rate pressure) w (D(v + offset) - D)); LiquifyTool is PartialEq (no longer Eq: f64 fields)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-pigment --test select_liquify_2 --no-fail-fast; regression --test select_refine --test liquify --test smart_filter",
+  "exit": 0,
+  "sha": "677c45f",
+  "passed": 19,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "slice B folio smart-filter stack record + pigment envelope entry + render-cpu execution + render-gpu (tolerance or typed refusal); slice C viewer buttons, gestures, sample-merged",
+ "updated_at": "2026-10-15T07:31:41Z",
+ "notes": {
+  "spec_basis": "STU-RAS-018 row 'Magnetic lasso | Edge-snapping selection with width, contrast, and frequency controls.'; STU-RAS-122 'brush set with the modes refine_edge, add_to_selection, subtract_from_selection, plus a matte/foreground/background mode set and a feather mode, each driven by the one brush engine of §6'; STU-RAS-140 row 'Liquify | Localized mesh push-forward, push-left, twirl, pinch, punch, turbulence, mesh-clone, and reconstruct brushes, with freeze/thaw masking.'",
+  "measured_bounds": "magnetic lasso IoU vs a 24 px square from a trace 3 px outside it 0.9366 (asserted >= 0.9); live wire between two points of a vertical edge stays on columns 31..=32; refine-edge brush closed-form row 8 max |alpha - truth| 0.0086 (asserted < 0.05); turbulence max displacement 3.2624 px for 4 stationary dabs (analytic bound 6.7882); mesh clone copies vertex displacements exactly",
+  "readings_unverified_d5": "magnetic lasso: max-channel Sobel gradient, channel-mean Laplacian, width = snap radius, contrast = percent of ROI max gradient, anchor every max(2, 200/frequency) px; refinement brush mode semantics (marks override order, feather-mode blend, colours not produced with feather marks); turbulence noise form and amplitude, mesh clone formula. All Studio readings, Photoshop UNVERIFIED (D5).",
+  "v4": "deny(clippy::arithmetic_side_effects) on magnetic, refine_brush (and the touched refine, liquify); live-wire maps admitted (205 B/px) before allocation; hostile test: NaN trace -> nonfinite, frequency 0 -> tool_out_of_range, < 3 samples -> invalid_input, work budget -> budget_exceeded, 1e12-pixel trace -> overflow before allocation; MeshClone NaN offset -> nonfinite; feather mode radius 0 -> tool_out_of_range",
+  "shared_file_hunks": "677c45f touched only lane-owned files (select_tools.rs, select_tools/**, liquify.rs, tests/select_liquify_2.rs); lib.rs untouched",
+  "new_edges": "none yet",
+  "cargo_lock": "not touched",
+  "parity": "Photoshop parity UNVERIFIED (D5); never claimed"
+ }
+}

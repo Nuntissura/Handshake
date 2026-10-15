@@ -15,6 +15,10 @@
   {
    "sha": "3f201ed",
    "subject": "reel (SMB-AUDIO-CODECS slice 3): MPEG audio Layers I-III decode (safe-Rust minimp3 port) + mpeg-audio provider"
+  },
+  {
+   "sha": "9d80e67",
+   "subject": "reel (SMB-AUDIO-CODECS slice 4): Studio-owned AAC-LC decoder (ISO/IEC 14496-3) + aac-adts provider"
   }
  ],
  "capabilities_done": [
@@ -29,20 +33,22 @@
   "third-party decoder calls behind catch_unwind (src/audio/packet.rs guarded): a panic is MEDIA_DECODER_FAULT decoder_crashed and poisons the decoder",
   "MPEG audio (src/audio/mp3.rs, mp3_dsp.rs, mp3_tables.rs): Studio-owned safe-Rust port of minimp3 (CC0-1.0, NOTICE): MPEG-1/2/2.5 Layers I, II, III, free format, bit reservoir (511 B), MS / intensity stereo, short and mixed blocks; bitstream arithmetic checked (deny arithmetic_side_effects), DSP stages over fixed buffers (allow, justified in the file header); corrupt gains bounded to finite output within MP3_OUTPUT_BOUND 8.0",
   "provider mpeg-audio (src/audio/mp3_stream.rs): ID3v2 tags skipped against max_probe_bytes, sync confirmed by successor headers, Xing/Info frame skipped, LAME gapless trim (delay + 529, padding) as libavformat does, header walk total when no Xing count, trailing tags end the stream; measured within 0.5 LSB (Layer III CBR stereo, MPEG-2 LSF mono VBR with short blocks) and 1.0 LSB (Layer II) of libavcodec, exact gapless lengths",
-  "provider.rs: one open_stream dispatcher (kind -> FrameSource) used by probe, decode_segment and decode_audio_file"
+  "provider.rs: one open_stream dispatcher (kind -> FrameSource) used by probe, decode_segment and decode_audio_file",
+  "AAC-LC (src/audio/aac_lc.rs, aac_dsp.rs, Studio-owned from ISO/IEC 14496-3): SCE/CPE/LFE for channel configurations 1-7, section data, Huffman scale factors (intensity positions, PNS energies) and spectra 1-11 with escapes, pulse, TNS after the stereo tools, M/S, intensity stereo (INTENSITY_HCB +1 / HCB2 -1, inverted by ms_used only for ms_mask_present 1), PNS (LCG noise, shared under M/S), IMDCT via DCT-IV / N/4 FFT (unit-tested against the defining sum), sine/KBD windows, ONLY_LONG / LONG_START / EIGHT_SHORT / LONG_STOP; HE-AAC signalling, 960 frames, PCE, CCE, explicit rates typed refusals; measured within 0.5/32768 of libavcodec on stereo (M/S + IS), mono (short windows) and 5.1",
+  "provider aac-adts (src/audio/aac.rs): ADTS headers bounded (13-bit frame length, single raw data block), AudioSpecificConfig built and checked before a decoder exists, header-walk total; esds parser for the ISO BMFF hook"
  ],
  "tests": {
-  "argv": "cargo nextest run -p hsk-studio-reel --test audio_mp3 --test audio_ogg --test audio_flac --lib -E 'binary(audio_mp3) | binary(audio_ogg) | binary(audio_flac) | test(/audio::/)'",
+  "argv": "cargo nextest run -p hsk-studio-reel --test audio_mp3 --test audio_ogg --test audio_flac --test audio_aac --lib -E 'binary(audio_mp3) | binary(audio_ogg) | binary(audio_flac) | binary(audio_aac) | test(/audio::/)'",
   "exit": 0,
-  "sha": "3f201ed",
-  "passed": 19,
+  "sha": "9d80e67 (working tree = commit content for all audio paths)",
+  "passed": 26,
   "failed": 0
  },
  "blockers": [],
  "lock_wait_s": 70,
  "bg_pids": [],
- "next": "Steward: pin lewton 0.10.2 (+ tinyvec 1.13.3) and opus-pure 0.2.2 (dep-requests 2026-10-15T05:45:33Z). Validator: judge 0a6119f..3f201ed (hsk-studio-reel default features; tests/audio_flac.rs 5, tests/audio_ogg.rs 4, tests/audio_mp3.rs 4, src/audio unit tests 6). Builder continues with AAC-LC, container hooks (MP4/MOV, Matroska), AIFF.",
- "updated_at": "2026-10-15T06:10:28Z",
+ "next": "Steward: pin lewton 0.10.2 (+ tinyvec 1.13.3) and opus-pure 0.2.2 (dep-requests 2026-10-15T05:45:33Z). Validator: judge 0a6119f..9d80e67 (hsk-studio-reel default features; tests/audio_flac.rs 5, audio_ogg.rs 4, audio_mp3.rs 4, audio_aac.rs 3, src/audio unit tests 10). Builder continues with container hooks (MP4/MOV, Matroska) and AIFF.",
+ "updated_at": "2026-10-15T07:19:14Z",
  "notes": {
   "spec_basis": [
    "STU-VID-050 (14-studio-creative-suite.md:24505): 'Import is a typed, enumerable capability surface, not a file-open dialog. Studio declares its importable media types explicitly, and an unsupported item produces a determinate MEDIA_IMPORT_UNSUPPORTED result naming the detected type'; importer rows include ImporterMP3 'MP3 Audio', ImporterAIFF, ImporterWave.",
