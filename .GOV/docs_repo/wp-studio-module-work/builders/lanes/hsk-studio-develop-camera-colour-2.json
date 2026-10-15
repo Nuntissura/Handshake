@@ -1,17 +1,40 @@
 {
   "crate": "hsk-studio-develop",
   "lane": "SMB-DEVELOP-CAMERA-COLOUR-2",
-  "status": "IN_PROGRESS",
-  "phase": "develop slice pushed (14590e8); harness opt-in staged, full units running",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "complete: (1) approximate_colour opt-in, (2) two-illuminant interpolation proved, (3) coverage research (no permissive data for the other corpus bodies: refusal kept)",
   "commits": [
-    {"sha": "14590e8", "subject": "develop (SMB-DEVELOP-CAMERA-COLOUR-2): single-illuminant colour is opt-in; two-illuminant interpolation tested"}
+    {"sha": "14590e8", "subject": "develop (SMB-DEVELOP-CAMERA-COLOUR-2): single-illuminant colour is opt-in; two-illuminant interpolation tested"},
+    {"sha": "b0236e3", "subject": "harness (SMB-DEVELOP-CAMERA-COLOUR-2): ImportSettings { approximate_colour } opt-in"}
   ],
-  "capabilities_done": [],
-  "tests": {},
+  "capabilities_done": [
+    "(1) develop: ColourRoute::single_illuminant() (the vendor file matrix); DngRaw.solve_colour, recipe and recipe_for_white refuse the new typed DevelopError::ApproximateColourNotAllowed (code approximate_colour_not_allowed, outcome Unsupported) unless DngRaw::allow_approximate_colour() was called; DngRaw.approximate_colour (false at decode); DngRaw::colour_loss() = Some(APPROXIMATE_COLOUR_LOSS = approximate_colour_single_illuminant) only when an opted-in approximate route is used. DNG files' own tags (one or two calibrations) are not gated (standard DNG)",
+    "(1) harness: ImportSettings { approximate_colour: bool } (Default false); import() unchanged strict, import_with(.., &settings), raw_prepare_with(..); raw receipt develop block records approximate_colour, colour_cct, illuminant_weight; opted-in approximation adds loss entry {path document/colour, kind transformed, code approximate_colour_single_illuminant}; the viewer develop panel keeps the strict raw_prepare",
+    "(2) STU-COL-218 interpolation for table models: color::solve already blends ColorMatrix and ForwardMatrix by the solved scene CCT (mired-linear between the two calibration illuminants, A 2856 K and D65 6504 K); now proved: unit test table_profiles_interpolate_between_their_two_illuminants_by_cct (R6: weight ~0 at the A white, ~1 at the D65 white (cct 6503), strictly inside and mired-linear between, camera matrix = weight blend of the two ForwardMatrices x WB diagonal to 1e-9); corpus: R6 as-shot solves cct 4446 K, weight 0.638 (asserted strictly between); harness CR3 import asserts 2856 < cct < 6504 and 0 < weight < 1 in the receipt",
+    "(3) coverage: refusal kept for Z6, X-S10, LX7, D70s, D1H, 350D, 7S, C5060WZ (table): no permissive spectral data exists for them (see notes.coverage_research)"
+  ],
+  "tests": {
+    "argv": "per-test runner: develop default suite (88: 87 + the interpolation test after its endpoint tolerance fix); develop camera_colour unit tests + tests/develop_camera_colour.rs (5); develop --run-ignored ignored-only (13/13 incl. camera_colour corpus oracle and container_identity with the ORF row back to recipe_err=ApproximateColourNotAllowed); harness --features import-psd,import-raw --run-ignored ignored-only (20/20 incl. single_illuminant_raw_colour_needs_the_approximate_colour_opt_in and cr3_imports_through_the_spectral_table_colour_route); harness --features viewer viewer_develop/_2/_3 (9/9)",
+    "exit": 0,
+    "sha": "b0236e3",
+    "passed": 42,
+    "failed": 0,
+    "clippy": "clippy --all-targets -p hsk-studio-develop -p hsk-studio-harness (import-psd, import-raw) and -p hsk-studio-harness --features desktop: no warnings in the touched crates",
+    "measurements": "R6: neutral median CIE76 1.44 (bound 3), WB r/g 1.0026 b/g 1.0061, hue 2.1 deg, cct 4446 K, weight 0.638. C5060WZ (opted in inside the oracle): weight 0 (one calibration), thumbnail-only oracle NOT_PROVEN (5.41)"
+  },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
-  "next": "harness ImportSettings { approximate_colour } commit after the ignored units pass",
-  "updated_at": "2026-10-15T10:05:00Z",
-  "notes": {}
+  "next": "validation",
+  "updated_at": "2026-10-15T10:35:00Z",
+  "notes": {
+    "owned_paths": ["crates/hsk-studio-develop/src/{camera_colour,dng,lib}.rs", "crates/hsk-studio-develop/tests/{develop_camera_colour,camera_colour,container_identity}.rs", "crates/hsk-studio-harness/src/import.rs", "crates/hsk-studio-harness/tests/import_psd.rs"],
+    "decision": "lead 2026-10-15 (START_LOG): STU-COL-218 two-illuminant default; single-illuminant file matrices refused by default, allowed only behind the explicit approximate_colour opt-in, recorded in the develop receipt and as a loss note",
+    "spec_basis": {
+      "STU-COL-218": "TWO illuminant-referenced 3x3 color_matrix entries ... REQUIRED. TWO calibration_illuminant declarations. REQUIRED. ... Evaluation order is fixed: colour matrix (interpolated between the two illuminants by the estimated scene white point), then forward matrix"
+    },
+    "receipt_location": "develop's own DevelopReceipt (pipeline) carries no colour provenance (the recipe is colour-agnostic); the opt-in is recorded in the host's develop receipt block (harness raw import receipt `develop`) from DngRaw.colour_route / colour_loss / CameraSolution, plus the loss entry",
+    "coverage_research": "checked 2026-10-15 (GitHub API / Zenodo API, licences read from the records): rawtoaces-data e9b8503 (Apache-2.0) and its upstream wetadigital/physlight (Apache-2.0) cover none of Z6, X-S10, LX7, D70s, D1H, 350D, 7S, C5060WZ (nearest: D70, Z f with alias Z 6_2, X-T3/X-T4, 400D as Digital Rebel XTi, 7SM2; no rawtoaces-data alias links them to the corpus bodies, so a same-sensor claim would be unverified); Jiang et al. 2013 camspec (Zenodo 3245883) is CC-BY-NC-SA-4.0 (excluded: non-commercial, share-alike); its GitHub mirror sobotka/camera-spectral-sensitivity has no licence; Zhao et al. 2009 (Zenodo 4297288, includes Nikon D70 and Canon 400D) and Solomatov & Akkaynak 2023 (Zenodo 8314702) have licence 'notspecified' (excluded); colour-datasets (BSD-3) only loads those records. Result: refusal kept (missing_colour_data)",
+    "unverified": "Olympus 0x1011 target space (sRGB) UNVERIFIED (thumbnail-only oracle); Adobe/Lightroom parity UNVERIFIED (D5)"
+  }
 }
