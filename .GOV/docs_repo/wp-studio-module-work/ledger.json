@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T21:31:17Z",
+ "updated_at": "2026-10-15T21:33:27Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7592,12 +7592,22 @@
   {
    "lane_id": "SMB-RAW-CLEANROOM",
    "crate": "hsk-studio-develop",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-raw-cleanroom-20261015",
+   "commits": [],
+   "verdicts": [],
+   "note": "Operator 2026-10-15: rewrite the LightCraft-derived compressed-RAW decoders clean-room (F-R32-5): implementer never reads LightCraft or the current decoder files; works only from public format documentation; old decoders replaced when the new ones pass the same corpus tests"
+  },
+  {
+   "lane_id": "SMB-D24A-CODEC-DEFAULTS",
+   "crate": "hsk-studio-reel",
    "phase": "queued",
    "status": null,
    "owner": null,
    "commits": [],
    "verdicts": [],
-   "note": "Operator 2026-10-15: rewrite the LightCraft-derived compressed-RAW decoders clean-room (F-R32-5): implementer never reads LightCraft or the current decoder files; works only from public format documentation; old decoders replaced when the new ones pass the same corpus tests"
+   "note": "implement D24-A: MP3 decode default-on; AAC default via Windows Media Foundation decoder in reel-native worker, own AAC decoder opt-in; H.264/HEVC encode via OS MFT behind default-off feature os-encode; typed refusals"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
