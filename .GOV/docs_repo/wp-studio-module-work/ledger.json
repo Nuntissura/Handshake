@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T02:01:35Z",
+ "updated_at": "2026-10-15T02:06:15Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -82,7 +82,7 @@
    "crate": "hsk-studio-develop",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-develop",
    "phase": "validation",
-   "status": "PASS_V14",
+   "status": "PASS_V15",
    "owner": "builder-develop",
    "brief": "builders/briefs/hsk-studio-develop.md",
    "commits": [
@@ -113,7 +113,8 @@
     "STUDIO-R26 PASS_V12 @507aa36",
     "STUDIO-R27 PASS_V13 @e698964",
     "STUDIO-R28 PASS_V14 @dd63d21 (NOT_PROVEN lines: 4, see round-R28.json)",
-    "STUDIO-R29 INCONCLUSIVE @62c0bf6 (status unchanged; infrastructure oracle_corpus_changed_between_canary_and_union: develop real_dng.rs:196 corpus file renamed out of band)"
+    "STUDIO-R29 INCONCLUSIVE @62c0bf6 (status unchanged; infrastructure oracle_corpus_changed_between_canary_and_union: develop real_dng.rs:196 corpus file renamed out of band)",
+    "STUDIO-R30 PASS_V15 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
    ],
    "lane_file": "builders/lanes/hsk-studio-develop.json",
    "candidate": "60b0e47",
@@ -131,7 +132,7 @@
     "ref": "validation/R7-prereview-a.json",
     "head": "0e48167"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V13): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V14): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-COMPONENTS",
@@ -326,7 +327,7 @@
    "crate": "hsk-studio-composite",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-composite",
    "phase": "done",
-   "status": "PASS_V14",
+   "status": "PASS_V15",
    "owner": "builder-composite",
    "brief": "builders/briefs/hsk-studio-composite.md",
    "commits": [
@@ -352,7 +353,8 @@
     "STUDIO-R26 PASS_V11 @507aa36",
     "STUDIO-R27 PASS_V12 @e698964",
     "STUDIO-R28 PASS_V13 @dd63d21",
-    "STUDIO-R29 PASS_V14 @62c0bf6"
+    "STUDIO-R29 PASS_V14 @62c0bf6",
+    "STUDIO-R30 PASS_V15 @e7a2b6c"
    ],
    "lane_file": "builders/lanes/hsk-studio-composite.json",
    "candidate": "99a03e6",
@@ -363,14 +365,14 @@
     "at": "2026-10-11T06:37:43Z",
     "ref": "validation/R6-review-a.json"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V12): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V14): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-RENDER-CPU",
    "crate": "hsk-studio-render-cpu",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-render-cpu",
    "phase": "done",
-   "status": "PASS_V14",
+   "status": "PASS_V15",
    "owner": "builder-render-cpu",
    "brief": "builders/briefs/hsk-studio-render-cpu.md",
    "commits": [
@@ -397,20 +399,21 @@
     "STUDIO-R26 PASS_V11 @507aa36",
     "STUDIO-R27 PASS_V12 @e698964",
     "STUDIO-R28 PASS_V13 @dd63d21",
-    "STUDIO-R29 PASS_V14 @62c0bf6"
+    "STUDIO-R29 PASS_V14 @62c0bf6",
+    "STUDIO-R30 PASS_V15 @e7a2b6c"
    ],
    "lane_file": "builders/lanes/hsk-studio-render-cpu.json",
    "note": "migrated to pigment RenderBackend + blend_math; 5 tests; Adobe parity NOT_PROVEN; VectorFill on nib OwnedPath; deterministic parallel chunks",
    "candidate": "9468d33",
    "review_findings_r3": "R3 findings remediated 9468d33 (regression tests fail on old code)",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V12): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V14): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-RENDER-GPU",
    "crate": "hsk-studio-render-gpu",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-render-gpu",
    "phase": "validation (D20 4th verdict at current render-gpu tree incl. a6ac630 2aeeeba ba3e47d cdd0644 e659533)",
-   "status": "PASS_V9",
+   "status": "PASS_V10",
    "owner": "builder-render-gpu",
    "brief": "builders/briefs/hsk-studio-render-gpu.md",
    "commits": [
@@ -431,7 +434,8 @@
     "STUDIO-R26 PASS_V6 @507aa36",
     "STUDIO-R27 PASS_V7 @e698964",
     "STUDIO-R28 PASS_V8 @dd63d21",
-    "STUDIO-R29 PASS_V9 @62c0bf6"
+    "STUDIO-R29 PASS_V9 @62c0bf6",
+    "STUDIO-R30 PASS_V10 @e7a2b6c"
    ],
    "lane_file": "builders/lanes/hsk-studio-render-gpu.json",
    "candidate": "459c5d9",
@@ -463,7 +467,7 @@
    ],
    "blocked_on": null,
    "fix_budget_exhausted_at": "2026-10-11T06:49:55Z",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V7): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V9): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-PACKAGE",
@@ -507,7 +511,7 @@
    "crate": "hsk-studio-interop-psd",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-psd",
    "phase": "validation",
-   "status": "PASS_V22",
+   "status": "PASS_V23",
    "owner": "builder-interop-psd",
    "brief": "builders/briefs/hsk-studio-interop-psd.md",
    "commits": [
@@ -542,14 +546,15 @@
     "STUDIO-R26 PASS_V19 @507aa36",
     "STUDIO-R27 PASS_V20 @e698964",
     "STUDIO-R28 PASS_V21 @dd63d21 (NOT_PROVEN lines: 1, see round-R28.json)",
-    "STUDIO-R29 PASS_V22 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)"
+    "STUDIO-R29 PASS_V22 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)",
+    "STUDIO-R30 PASS_V23 @e7a2b6c (NOT_PROVEN lines: 1, see round-R30.json)"
    ],
    "lane_file": "builders/lanes/hsk-studio-interop-psd.json",
    "candidate": "eb7080d",
    "note": "carried PLAUSIBLE items fixed (apply_edits atomic, untiled export samples kept, non-finite tile typed error, alpha clamp/non-finite typed losses, oversized luni typed loss, literal 28-row blend key table); 30 of 30 green",
    "review_findings": "R2-review-a findings fixed 1c80aef (regression tests)",
    "review_findings_r3": "R3 CONFIRMED fixed 213b30a (tile blob typed error; merged composite stale flag)",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V20): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V22): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-INTEROP-VECTOR",
@@ -596,7 +601,7 @@
    "crate": "hsk-studio-interop-fig",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-fig",
    "phase": "validation",
-   "status": "PASS_V8",
+   "status": "PASS_V9",
    "owner": "builder-interop-fig",
    "brief": "builders/briefs/hsk-studio-interop-fig.md",
    "commits": [
@@ -612,7 +617,8 @@
     "STUDIO-R25 PASS_V5 @d48bc30 NOT_PROVEN: interop-fig fig_import actual_fig_instance_variable_prototype_edit_reopen x3 fixtures: editable import NOT_PROVEN (fig editable rows)",
     "STUDIO-R26 PASS_V6 @507aa36 NOT_PROVEN: interop-fig fig_import actual_fig_instance_variable_prototype_edit_reopen x3 fixtures: editable import NOT_PROVEN (fig editable rows)",
     "STUDIO-R28 PASS_V7 @dd63d21 (NOT_PROVEN lines: 3, see round-R28.json)",
-    "STUDIO-R29 PASS_V8 @62c0bf6 (NOT_PROVEN lines: 3, see round-R29.json)"
+    "STUDIO-R29 PASS_V8 @62c0bf6 (NOT_PROVEN lines: 3, see round-R29.json)",
+    "STUDIO-R30 PASS_V9 @e7a2b6c (NOT_PROVEN lines: 3, see round-R30.json)"
    ],
    "candidate": "deea33c",
    "note": "follow-up: trailing compressed bytes after deflate/zstd typed refusal (inflate_exact over miniz_oxide; concatenated zstd frames refused to avoid partial census), duplicate field ids refused for all definition kinds incl structs; red on previous reader; 5 of 5 green",
@@ -621,14 +627,14 @@
     "at": "2026-10-11T06:23:08Z",
     "ref": "validation/R6-review-c.json CONFIRMED x2"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V6): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V8): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-INTEROP-LAYOUT",
    "crate": "hsk-studio-interop-layout",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-interop-layout",
    "phase": "validation",
-   "status": "PASS_V10",
+   "status": "PASS_V11",
    "owner": "builder-interop-layout",
    "brief": null,
    "commits": [
@@ -648,7 +654,8 @@
     "STUDIO-R25 PASS_V7 @d48bc30",
     "STUDIO-R26 PASS_V8 @507aa36",
     "STUDIO-R28 PASS_V9 @dd63d21",
-    "STUDIO-R29 PASS_V10 @62c0bf6"
+    "STUDIO-R29 PASS_V10 @62c0bf6",
+    "STUDIO-R30 PASS_V11 @e7a2b6c"
    ],
    "candidate": "f40d6a2",
    "note": "R5 remediation: ParaModel/RunModel share Arc props per source range (no per-Content clone) + Limits.max_model_bytes 256 MiB charged (BudgetExceeded model_bytes) also bounding export; PLAUSIBLE fixed: local vs central ZIP header cross-check now method/CRC/sizes/encryption; red-first 132,199 B per extra paragraph; 11 of 11 green",
@@ -657,7 +664,7 @@
     "at": "2026-10-11T05:31:12Z",
     "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V8): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V10): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-INTEROP-MEDIA",
@@ -733,7 +740,7 @@
    "crate": "hsk-studio-session",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-session",
    "phase": "validation",
-   "status": "PASS_V11",
+   "status": "PASS_V12",
    "owner": "builder-session",
    "brief": "builders/briefs/hsk-studio-session.md",
    "commits": [
@@ -758,20 +765,21 @@
     "STUDIO-R26 PASS_V8 @507aa36",
     "STUDIO-R27 PASS_V9 @e698964",
     "STUDIO-R28 PASS_V10 @dd63d21",
-    "STUDIO-R29 PASS_V11 @62c0bf6"
+    "STUDIO-R29 PASS_V11 @62c0bf6",
+    "STUDIO-R30 PASS_V12 @e7a2b6c"
    ],
    "lane_file": "builders/lanes/hsk-studio-session.json",
    "candidate": "82a97b4",
    "note": "receipt policy EvictAcknowledged default (pending/unacknowledged never evicted; full -> typed receipts_full), Diverged commits resolved only by operator discard/resync (resync re-looks authority, bounded bytes), exhaustive seed/mask matches + chronicle table equality test, crate-wide V4-01 (16 sites), aggregate check in set_previews, DESCRIPTOR claims qualified + cited; 19 green (5 new) red-proof on scratch copy; behaviour change: default evicts acknowledged receipts (RefuseWhenFull restores old)",
    "review_findings_r3": "R3 findings remediated 63c1f5d,943a0d2",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V9): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V11): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-HARNESS",
    "crate": "hsk-studio-harness",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-harness",
    "phase": "validation",
-   "status": "PASS_V9",
+   "status": "PASS_V10",
    "owner": "builder-controls (reused)",
    "brief": null,
    "commits": [
@@ -787,7 +795,8 @@
     "STUDIO-R26 PASS_V6 @507aa36",
     "STUDIO-R27 PASS_V7 @e698964",
     "STUDIO-R28 PASS_V8 @dd63d21 (NOT_PROVEN lines: 4, see round-R28.json)",
-    "STUDIO-R29 PASS_V9 @62c0bf6 (NOT_PROVEN lines: 4, see round-R29.json)"
+    "STUDIO-R29 PASS_V9 @62c0bf6 (NOT_PROVEN lines: 4, see round-R29.json)",
+    "STUDIO-R30 PASS_V10 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
    ],
    "lane_file": "builders/lanes/hsk-studio-harness.json",
    "candidate": "c41b067",
@@ -797,14 +806,14 @@
     "at": "2026-10-11T05:31:12Z",
     "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V7): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V9): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-KERNEL-BINDINGS",
    "crate": "hsk-studio-kernel-bindings",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-kernel-bindings",
    "phase": "validation",
-   "status": "PASS_V9",
+   "status": "PASS_V10",
    "owner": "builder-kernel-bindings",
    "brief": null,
    "commits": [
@@ -823,7 +832,8 @@
     "STUDIO-R26 PASS_V6 @507aa36",
     "STUDIO-R27 PASS_V7 @e698964",
     "STUDIO-R28 PASS_V8 @dd63d21",
-    "STUDIO-R29 PASS_V9 @62c0bf6"
+    "STUDIO-R29 PASS_V9 @62c0bf6",
+    "STUDIO-R30 PASS_V10 @e7a2b6c"
    ],
    "candidate": "111f4ed",
    "note": "R5: tickets bound to account+principal+resource (release by other owner refused), canonical wire via re-encode byte equality, PLAUSIBLE lease_epoch u64::MAX fencing fixed (stale_epoch / epoch_not_issued), V4-01 on wire/host/adapter; 10 green; no red proof (break-it edits denied by permission system); V4-04 fault hooks -> follow-up dispatched; V4-04 111f4ed: fault hooks only under cfg(any(test, feature=test-faults)), source-scan + 3 compile_fail doctests, 11 green default/feature",
@@ -832,14 +842,14 @@
     "at": "2026-10-11T05:31:12Z",
     "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V7): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V9): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-PRESS",
    "crate": "hsk-studio-press",
    "module_ref": ".GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json#crate_name=hsk-studio-press",
    "phase": "done (STUDIO-R28 PASS_V9 @dd63d21)",
-   "status": "PASS_V10",
+   "status": "PASS_V11",
    "owner": "builder-press",
    "brief": null,
    "commits": [
@@ -892,7 +902,8 @@
     "STUDIO-R21 PASS_V7 @2dde832",
     "STUDIO-R22 PASS_V8 @1da2453",
     "STUDIO-R28 PASS_V9 @dd63d21",
-    "STUDIO-R29 PASS_V10 @62c0bf6"
+    "STUDIO-R29 PASS_V10 @62c0bf6",
+    "STUDIO-R30 PASS_V11 @e7a2b6c"
    ],
    "candidate": "bfa1bbf",
    "note": "hardening 023c817 (V4-01 on filters/reader/syntax/writer, 107 sites; per-stage + aggregate decode budget, max_filters 8, depth clamp 256, ref chains 16 hops, /W /Size /Index /Length bounds), R6 c520095 (kept-text exemption only for page-tree-reachable contents/forms; hidden zlib behind raster filters; ASCII85 tail), V4-02 tests 007f8bc (red-proved on scratch copy; nesting overflowed stack on old code), redaction gaps a1c9747 (other name trees, Submit/ResetForm /Fields, attachments); 31 green; pre-review B N1-N7 fixed with sound-by-construction backstop (diagnostics/press-proof-soundness.md): every output byte scanned, raw matches excused only inside bytes a decoder read and confirmed, TrailingData/UnreadableContent NotProven, single content walker with q/Q/gs/Tf/Do + inherited resources, kept text = drawn only; PLR-040 codec-structure check; 38 green; red on 0e48167 copy (40 sub-cases proven -> not proven). Needs V4-13 pre-review before judging (2 FAILs).; R8 pre-review FIX_FIRST (excluded from R8, V4-19); remediation dispatched with lead decision fail-closed (START_LOG).; R8 pre-review remediation (fail-closed) e8b464b/a85b85f/49731a5: whole object table read (F1), joined TJ needles (F2/D2), UnreadableRemovedText NotProven (F3/D3), Type3/vertical -> RedactionClass Type3Text/VerticalText (F4/D4), drawn-reading exemption (P1), only /.notdef blank (D1), V4-06 211 sites (F5/D5); 6 new tests red on 607d47c; 57/57; residual: crate not rustfmt-clean (pre-existing).; R9 positive-determination rewrite cc3eaae: show_text::Walker single determination pass (font via Tf/gs/q-Q/form inheritance, writing mode from closed ISO 32000-2 Table 116 lists + embedded WMode/usecmap, Type3/geometry, reading); is_proven/region_cleared from the record; joined/spaced per-stream matching; normalisation (ESC..ESC, invisible chars, NFKC table Latin scope, Unicode 16); 13 new tests red on 49731a5; 73/73; V4-06 381. Residuals: any undetermined text blocks every redaction of that file; NFKC Latin scope only; clause refs via secondary sources.; R10 canonical rewrite 054037c/47f1588/b8ce934: src/canon.rs rebuilds every live content-role stream from the strict parse (exact operand counts, one escaped form, no comments; inline images -> image XObjects with /Length; unparseable stream -> refused, NotProven); proof requires canonical content (NotProven::NonCanonicalContent); F1-F7, D1, P1/P2/P4 fixed with tests; round-trip property test (3000 generated op lists); 12 new tests red on cc3eaae; 99/99; V4-06 639. Residual: verify_payload_absent on files the crate did not write is protected by strict parsing only.; R13 remediation 0668d35..7410f29: flattened pages explicit + detached from inheritance (/Pages nodes emptied after push-down, check walks /Parent chain); XFA stripped; /OCProperties in renderer copy; render_bounds.rs (tokenizer depth cap, colour-space/function cycle+depth, image bounds incl. abbreviations/codec headers/pixels/max_render_image_bytes 1 GiB/data-length) before hayro; renderer thread 256 MiB stack, panic -> RendererPanicked; painted sources reachable only from flattened pages removed (else NotProven::PaintedSourceKept); structure/widgets of flattened pages removed; DESCRIPTOR colour limitation + citations; 9 new tests red on d079292 (F4 aborts with stack overflow there); 128/128; V4-06 82",
@@ -935,7 +946,7 @@
      "recorded_at": "2026-10-12T01:12:47Z"
     }
    ],
-   "reopened": "STUDIO-R23 CX-VAL-009 @2694b52 (was PASS_V8): crate or dependency closure changed 1da2453..2694b52"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V10): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-WEB",
@@ -1517,7 +1528,7 @@
    "origin": "spec-reader-a report: no shared home for render-plan IR (no composite<->render edge)",
    "scope": "shared render-plan IR + backend port (candidate owner pigment), additive; migration of composite/render-cpu/render-gpu; plus single owner of per-pixel blend math + fidelity classes (composite 35-mode vs render-cpu 7-mode duplicate, CX-CAP-001)",
    "phase": "build",
-   "status": "PASS_V14",
+   "status": "PASS_V15",
    "owner": "architect-render-ir",
    "commits": [
     "4c3ac91",
@@ -1538,7 +1549,8 @@
     "STUDIO-R26 PASS_V11 @507aa36",
     "STUDIO-R27 PASS_V12 @e698964",
     "STUDIO-R28 PASS_V13 @dd63d21",
-    "STUDIO-R29 PASS_V14 @62c0bf6"
+    "STUDIO-R29 PASS_V14 @62c0bf6",
+    "STUDIO-R30 PASS_V15 @e7a2b6c"
    ],
    "candidate": "276e2a3",
    "note": "pigment owns render_plan IR + RenderBackend port + blend_math (35 modes, exactness); migrations dispatched to composite, render-cpu, interop-psd; render-gpu builds on it; clip-to-base route 4e533d5 (supports_clip_to_base default false)",
@@ -1554,7 +1566,7 @@
     "by": "architect-adjustments",
     "at": "2026-10-11T05:57:08Z"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V12): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V14): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-ROUND-ENTRYPOINT",
@@ -1810,7 +1822,7 @@
    "origin": "composite clip-to-base 26f835e / pigment 4e533d5",
    "scope": "render-cpu implements clip-to-base (override supports_clip_to_base), reference semantics + hand-derived tests",
    "phase": "done",
-   "status": "PASS_V14",
+   "status": "PASS_V15",
    "owner": "builder-render-cpu-clip",
    "commits": [
     "d470e2f",
@@ -1830,12 +1842,13 @@
     "STUDIO-R26 PASS_V11 @507aa36",
     "STUDIO-R27 PASS_V12 @e698964",
     "STUDIO-R28 PASS_V13 @dd63d21",
-    "STUDIO-R29 PASS_V14 @62c0bf6"
+    "STUDIO-R29 PASS_V14 @62c0bf6",
+    "STUDIO-R30 PASS_V15 @e7a2b6c"
    ],
    "candidate": "9819e52",
    "note": "clip-to-base per pigment docs; Approximate; 8 tests; pass-through group as clip base refused (lead accepted; Photoshop UNVERIFIED)",
    "review_findings_r3": "R3-review: PASS recommendation",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V12): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V14): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-MOTION-JS-WORKER",
@@ -1877,7 +1890,7 @@
    "origin": "render-cpu clip lane: composite may emit pass-through group as clip base",
    "scope": "composite lowering: pass-through group used as clip base -> typed Unavailable (consistent with render-cpu refusal) until Photoshop oracle defines semantics",
    "phase": "done",
-   "status": "PASS_V14",
+   "status": "PASS_V15",
    "owner": "builder-render-cpu-clip (reused)",
    "commits": [
     "5814f8d"
@@ -1896,11 +1909,12 @@
     "STUDIO-R26 PASS_V11 @507aa36",
     "STUDIO-R27 PASS_V12 @e698964",
     "STUDIO-R28 PASS_V13 @dd63d21",
-    "STUDIO-R29 PASS_V14 @62c0bf6"
+    "STUDIO-R29 PASS_V14 @62c0bf6",
+    "STUDIO-R30 PASS_V15 @e7a2b6c"
    ],
    "candidate": "5814f8d",
    "review_findings_r3": "validation/R3-review.json CONFIRMED -> remediation dispatched 2026-10-11T03:01:38Z",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V12): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V14): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-LAYOUT-FOLIO-MIGRATE",
@@ -1959,7 +1973,7 @@
    "origin": "prism ENG lanes landed",
    "scope": "CMYK/Lab/gray display via prism WideEngine; clamp recorded; original channels preserved",
    "phase": "validation",
-   "status": "PASS_V20",
+   "status": "PASS_V21",
    "owner": "fresh builder",
    "commits": [
     "213b30a",
@@ -1985,7 +1999,8 @@
     "STUDIO-R26 PASS_V17 @507aa36",
     "STUDIO-R27 PASS_V18 @e698964",
     "STUDIO-R28 PASS_V19 @dd63d21 (NOT_PROVEN lines: 1, see round-R28.json)",
-    "STUDIO-R29 PASS_V20 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)"
+    "STUDIO-R29 PASS_V20 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)",
+    "STUDIO-R30 PASS_V21 @e7a2b6c (NOT_PROVEN lines: 1, see round-R30.json)"
    ],
    "candidate": "6e7198a",
    "note": "R5 remediation: BPC routed to prism for every source kind (prism gray BPC fixed upstream); TRC(0) shortcut removed; same class on RGB: legacy path hard-coded relcol no BPC -> wide path, legacy-only converters record not_applied loss; regression red-first",
@@ -1994,7 +2009,7 @@
     "at": "2026-10-11T05:31:12Z",
     "ref": "validation/R5-review-{a,b,c}.json CONFIRMED"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V18): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V20): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-DEVELOP-WIDE",
@@ -2002,7 +2017,7 @@
    "origin": "prism ENG lanes landed",
    "scope": "output via WideEngine large chunks + demosaic speed tables, byte-identical output",
    "phase": "validation",
-   "status": "PASS_V11",
+   "status": "PASS_V12",
    "owner": "fresh builder",
    "commits": [
     "d40d553",
@@ -2022,7 +2037,8 @@
     "STUDIO-R26 PASS_V9 @507aa36",
     "STUDIO-R27 PASS_V10 @e698964",
     "STUDIO-R28 PASS_V11 @dd63d21 (NOT_PROVEN lines: 4, see round-R28.json)",
-    "STUDIO-R29 INCONCLUSIVE @62c0bf6 (status unchanged; infrastructure oracle_corpus_changed_between_canary_and_union: develop real_dng.rs:196 corpus file renamed out of band)"
+    "STUDIO-R29 INCONCLUSIVE @62c0bf6 (status unchanged; infrastructure oracle_corpus_changed_between_canary_and_union: develop real_dng.rs:196 corpus file renamed out of band)",
+    "STUDIO-R30 PASS_V12 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
    ],
    "candidate": "85fe452",
    "note": "STU-CON-044: PrismConverter now uses prism AdmittedWideEngine (caller ledger charged before any parse/plan/tile; one byte short refused, exact budget identical bytes); 2026-10-11T07:19:59Z prism d7027c3 implements 64-pixel chunking (lead provisional reading of STU-CON-044); develop convert.rs doc still says 64-px text unused -> fix in next develop slice",
@@ -2036,7 +2052,7 @@
     "at": "2026-10-11T06:37:43Z",
     "ref": "validation/R6-review-a.json"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V10): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V11): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-PACKAGE-STREAM-SAVE",
@@ -2310,7 +2326,7 @@
    "origin": "lead 2026-10-11: PSD display gap (composite unsupported effect/knockout/blend_if/mask density; interop-psd adjustment_layer_not_applied, layer_effects_not_rendered)",
    "scope": "adjustment layers + advanced blending: folio records (mask density/feather/invert, blend-if 8 values/channel STU-RAS-159, knockout 4-member enum STU-VEC-153, adjustment records first set, StudioEffectStack records STU-RAS-040/156-158); pigment IR nodes + adjust_math single owner + single-pixel oracle; briefs for composite/render-cpu/render-gpu/interop-psd/effects follow-ups",
    "phase": "validation",
-   "status": "PASS_V12",
+   "status": "PASS_V13",
    "owner": "architect-adjustments",
    "commits": [
     "bd480f9",
@@ -2332,7 +2348,8 @@
     "STUDIO-R26 PASS_V9 @507aa36",
     "STUDIO-R27 PASS_V10 @e698964",
     "STUDIO-R28 PASS_V11 @dd63d21",
-    "STUDIO-R29 PASS_V12 @62c0bf6"
+    "STUDIO-R29 PASS_V12 @62c0bf6",
+    "STUDIO-R30 PASS_V13 @e7a2b6c"
    ],
    "candidate": "2f705f1",
    "note": "owners: pigment adjust_math (adjustment maths + layer rule lerp(Cb,B(Cb,f(Cb)),k)), coverage_math (mask density/invert/feather, Blend-If weight), render_plan PlanExtensions envelope (backends opt in, refuse by default; knockout refused); folio StudioRasterRecords; develop Curve != Photoshop curves (decreasing preset). R5 pigment fix: pass-through fill<1 refused at admit for all backends; V4-06 sweep: mask density<1, Solid outside [0,1] refused. 59 tests (13 new). Approximate except invert; modern brightness/contrast refused (no documented formula). Spec gaps: shallow/deep knockout, Global Light sidecar, adjustment id prefix.",
@@ -2345,7 +2362,7 @@
     ],
     "note": "effects wave 1 and Blend-If clip refusals changed this lane's admission functions; claim covers dff7ef5 content"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V10): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V12): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-MOTION-JS-SANDBOX-2",
@@ -2408,7 +2425,7 @@
    "origin": "architect SMB-PIGMENT-ENG-2 (diagnostics/adjustments-advanced-blending.md)",
    "scope": "brief builders/briefs/lane-composite-adjustments.md",
    "phase": "validation",
-   "status": "PASS_V11",
+   "status": "PASS_V12",
    "owner": "rem-composite-adj",
    "commits": [
     "cdc2c0f",
@@ -2430,7 +2447,8 @@
     "STUDIO-R26 PASS_V8 @507aa36",
     "STUDIO-R27 PASS_V9 @e698964",
     "STUDIO-R28 PASS_V10 @dd63d21",
-    "STUDIO-R29 PASS_V11 @62c0bf6"
+    "STUDIO-R29 PASS_V11 @62c0bf6",
+    "STUDIO-R30 PASS_V12 @e7a2b6c"
    ],
    "note": "adjustments, mask params, Blend-If, knockout (refused), effects waves 1+2 lowered (cdc2c0f..b2cf5c6); R6 pass-through fill fix; real folio snapshot with adjustment layer lowered at its input_ordinal and checked vs pigment evaluate_stack; 22 of 22 green; Photoshop parity NOT_PROVEN",
    "candidate": "07f6abd",
@@ -2443,7 +2461,7 @@
     "summary": "record_envelope returns the whole-envelope validate error as CompositeError::Plan(PlanError::EffectLimit) (same as admission); knockout/refused adjustment cannot hide it; test plan_wide_effect_limit_is_refused_at_lowering_like_pigment_admission (64x64 ok, 65x64 refused) red on scratch 6d232da",
     "recorded_at": "2026-10-11T13:09:17Z"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V9): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V11): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-RENDER-CPU-ADJ",
@@ -2451,7 +2469,7 @@
    "origin": "architect SMB-PIGMENT-ENG-2 (diagnostics/adjustments-advanced-blending.md)",
    "scope": "brief builders/briefs/lane-render-cpu-adjustments.md",
    "phase": "validation",
-   "status": "PASS_V11",
+   "status": "PASS_V12",
    "owner": "builder-render-cpu-adj",
    "commits": [
     "5674e9c",
@@ -2468,11 +2486,12 @@
     "STUDIO-R26 PASS_V8 @507aa36",
     "STUDIO-R27 PASS_V9 @e698964",
     "STUDIO-R28 PASS_V10 @dd63d21",
-    "STUDIO-R29 PASS_V11 @62c0bf6"
+    "STUDIO-R29 PASS_V11 @62c0bf6",
+    "STUDIO-R30 PASS_V12 @e7a2b6c"
    ],
    "candidate": "7274827",
    "note": "exactness fix: extension_exactness returns pigment's declared class per op (Approximate except invert), Unsupported otherwise, equality tests; parity bit-identity stays a test fact; 21 of 21 green",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V9): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V11): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-RENDER-GPU-ADJ",
@@ -2480,7 +2499,7 @@
    "origin": "architect SMB-PIGMENT-ENG-2 (diagnostics/adjustments-advanced-blending.md)",
    "scope": "brief builders/briefs/lane-render-gpu-adjustments.md",
    "phase": "validation (D20 4th verdict at current render-gpu tree incl. a6ac630 2aeeeba ba3e47d cdd0644 e659533)",
-   "status": "PASS_V10",
+   "status": "PASS_V11",
    "owner": "builder-render-gpu-3",
    "commits": [
     "c5bd9be",
@@ -2496,7 +2515,8 @@
     "STUDIO-R26 PASS_V7 @507aa36",
     "STUDIO-R27 PASS_V8 @e698964",
     "STUDIO-R28 PASS_V9 @dd63d21",
-    "STUDIO-R29 PASS_V10 @62c0bf6"
+    "STUDIO-R29 PASS_V10 @62c0bf6",
+    "STUDIO-R30 PASS_V11 @e7a2b6c"
    ],
    "candidate": "a6ac630",
    "note": "Blend-If agreement: adjustment layer agrees with pigment evaluate_stack (6.3e-7 dx12 / 1.0e-6 vulkan); clip-base Blend-If undefined in pigment -> GPU refuses blend_if_clip_base (pigment semantics slice dispatched); effects waves 1+2 (6 kinds) in WGSL transcribed from pigment, parity 1.2e-7..2.4e-7 dx12+vulkan RTX 3090; budgets before dispatch; class never above pigment; 23 test-faults / 20 default green; 5 mutations red on scratch | 2026-10-14T15:20:10Z Operator D20: 4th verdict allowed at current render-gpu tree",
@@ -2506,7 +2526,7 @@
      "recorded_at": "2026-10-12T00:05:24Z"
     }
    ],
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V8): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V10): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-INTEROP-PSD-ADJ",
@@ -2514,7 +2534,7 @@
    "origin": "architect SMB-PIGMENT-ENG-2 (diagnostics/adjustments-advanced-blending.md)",
    "scope": "brief builders/briefs/lane-interop-psd-adjustments.md",
    "phase": "validation",
-   "status": "PASS_V19",
+   "status": "PASS_V20",
    "owner": "rem-psd (queued after R5 fix)",
    "commits": [
     "eb7080d",
@@ -2540,11 +2560,12 @@
     "STUDIO-R26 PASS_V16 @507aa36",
     "STUDIO-R27 PASS_V17 @e698964",
     "STUDIO-R28 PASS_V18 @dd63d21 (NOT_PROVEN lines: 1, see round-R28.json)",
-    "STUDIO-R29 PASS_V19 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)"
+    "STUDIO-R29 PASS_V19 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)",
+    "STUDIO-R30 PASS_V20 @e7a2b6c (NOT_PROVEN lines: 1, see round-R30.json)"
    ],
    "candidate": "2fa2202",
    "note": "R7 FAIL fix (2fa2202): descriptor numbers only via finite_number() (NaN/inf -> None); CgEd Brgh/Cntr + legacy brit checked finite and STU-RAS-151 soft range; out-of-range -> typed unsupported layer brightness_contrast_range, import continues; effects reads via finite_number(); adjacent fix: duplicate channel ids in blend ranges -> typed loss blend_ranges_duplicate_channel instead of whole-import failure; V4-06 37 sites; 39 green; both new tests red on dff7ef5 scratch copy",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V17): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V19): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-EFFECTS-WAVE-1",
@@ -2552,7 +2573,7 @@
    "origin": "architect SMB-PIGMENT-ENG-2 (diagnostics/adjustments-advanced-blending.md)",
    "scope": "brief builders/briefs/lane-effects-wave-1.md",
    "phase": "validation",
-   "status": "PASS_V11",
+   "status": "PASS_V12",
    "owner": "builder-effects-1",
    "commits": [
     "e007703"
@@ -2568,7 +2589,8 @@
     "STUDIO-R26 PASS_V8 @507aa36",
     "STUDIO-R27 PASS_V9 @e698964",
     "STUDIO-R28 PASS_V10 @dd63d21",
-    "STUDIO-R29 PASS_V11 @62c0bf6"
+    "STUDIO-R29 PASS_V11 @62c0bf6",
+    "STUDIO-R30 PASS_V12 @e7a2b6c"
    ],
    "candidate": "fe5fde0",
    "note": "pigment effect_math + LayerExtension.effects + ExtOperator::Effect: drop shadow (spread/blur/offset/knockout), colour overlay, stroke inside/outside/centre, all Approximate; reference render <=64x64; bounds size<=1000 px, distance<=30000 px, 64 effects/layer, 4096/envelope, budget before loops; refusals on adjustment/pass-through/clip layers; spread modelled as hard grow + blur (brief formula degenerate on binary alpha; lead accepts provisionally, D5 case 12); 30 green (6 new)",
@@ -2598,7 +2620,7 @@
     "summary": "ExtOperator::EffectsWithBlendIf is intrinsically Unsupported in pigment (refused at admission, key effects_with_blend_if); backends use pigment's key; interop-psd records a typed loss; composite ledger matches pigment validate",
     "recorded_at": "2026-10-11T11:56:26Z"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V9): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V11): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-EFFECTS-WAVE-2",
@@ -2606,7 +2628,7 @@
    "origin": "effects wave 1 follow-up",
    "scope": "inner shadow, outer glow, inner glow (colour source)",
    "phase": "validation",
-   "status": "PASS_V11",
+   "status": "PASS_V12",
    "owner": "builder-effects-1",
    "commits": [
     "d982b5c"
@@ -2622,11 +2644,12 @@
     "STUDIO-R26 PASS_V8 @507aa36",
     "STUDIO-R27 PASS_V9 @e698964",
     "STUDIO-R28 PASS_V10 @dd63d21",
-    "STUDIO-R29 PASS_V11 @62c0bf6"
+    "STUDIO-R29 PASS_V11 @62c0bf6",
+    "STUDIO-R30 PASS_V12 @e7a2b6c"
    ],
    "candidate": "d982b5c",
    "note": "inner shadow (choke), outer glow, inner glow (edge/center) colour source, Approximate, shared matte chain; typed refusals glow_gradient/range/jitter/technique_precise; additive (EffectError non_exhaustive); 33 green (3 new); dependents compile; D5 cases 15-17",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V9): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V11): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-FOLIO-ENG-6",
@@ -2680,7 +2703,7 @@
    "origin": "session builder 82a97b4: CX-CAP-001 duplicate addressability table",
    "scope": "chronicle exports PROPERTIES/addressable/seed_revisions/mask_property; session consumes it and deletes its copy",
    "phase": "validation",
-   "status": "PASS_V8",
+   "status": "PASS_V9",
    "owner": "builder-chronicle-table",
    "commits": [
     "b77518c"
@@ -2693,11 +2716,12 @@
     "STUDIO-R26 PASS_V5 @507aa36",
     "STUDIO-R27 PASS_V6 @e698964",
     "STUDIO-R28 PASS_V7 @dd63d21",
-    "STUDIO-R29 PASS_V8 @62c0bf6"
+    "STUDIO-R29 PASS_V8 @62c0bf6",
+    "STUDIO-R30 PASS_V9 @e7a2b6c"
    ],
    "candidate": "b77518c",
    "note": "chronicle 549e46d exports addressability table (prepare reads it; V4-01 crate-level) + session b77518c deletes its copy and consumes chronicle's (edge already allowed); 20 chronicle + 19 session green; red-proof 3 mutations on scratch copy",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V6): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V8): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-PIGMENT-WINDOW",
@@ -2705,7 +2729,7 @@
    "origin": "render-cpu 5674e9c request: windowed effect matte",
    "scope": "window_matte / render_layer_window over an AlphaSource accessor, bit-identical to reference, exact cost prediction before allocation",
    "phase": "validation",
-   "status": "PASS_V11",
+   "status": "PASS_V12",
    "owner": "builder-pigment-window",
    "commits": [
     "379a56f"
@@ -2721,11 +2745,12 @@
     "STUDIO-R26 PASS_V8 @507aa36",
     "STUDIO-R27 PASS_V9 @e698964",
     "STUDIO-R28 PASS_V10 @dd63d21",
-    "STUDIO-R29 PASS_V11 @62c0bf6"
+    "STUDIO-R29 PASS_V11 @62c0bf6",
+    "STUDIO-R30 PASS_V12 @e7a2b6c"
    ],
    "candidate": "379a56f",
    "note": "effect_math::window: window_matte / render_layer_window over AlphaSource accessor + window_cost/layer_window_cost/stack_support_px; to_bits identical to reference_matte/render_layer_reference across wave 1+2 kinds (14 variants), splits, straddling and padded domains, 6-effect stack, 4e9 px layers; exact peak-bytes prediction before reads/allocs (limit-1 refused); V4-01 + hostile sizes typed; 42 pigment green; a797b67 code, 379a56f test fix, f3e75bf comments",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V9): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V11): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-RENDER-CPU-WINDOW",
@@ -2733,7 +2758,7 @@
    "origin": "follow-up",
    "scope": "adopt pigment windowed matte; remove 24 px margin refusal",
    "phase": "validation",
-   "status": "PASS_V11",
+   "status": "PASS_V12",
    "owner": "builder-render-cpu-window",
    "commits": [
     "0f58c1c"
@@ -2749,11 +2774,12 @@
     "STUDIO-R26 PASS_V8 @507aa36",
     "STUDIO-R27 PASS_V9 @e698964",
     "STUDIO-R28 PASS_V10 @dd63d21",
-    "STUDIO-R29 PASS_V11 @62c0bf6"
+    "STUDIO-R29 PASS_V11 @62c0bf6",
+    "STUDIO-R30 PASS_V12 @e7a2b6c"
    ],
    "candidate": "0f58c1c",
    "note": "windowed effects (be1836b, 0f58c1c): 24 px margin refusal and per-tile recompute removed; one window per chunk via WindowGeometry::uncut + render_layer_window, FrameAlpha AlphaSource; layer_window_cost charged before first sink; work limit 1e9 typed refusal; f32-bit parity across 5 chunkings x 1-4 workers; 200 px blur (margin 305) identical to uncut oracle; Dissolve chunk-independent (plan coords, seed 0); 26 green",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V9): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V11): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-INTEROP-VECTOR-RECORDS",
@@ -2826,7 +2852,7 @@
    "origin": "render-cpu window slice",
    "scope": "wave-2 effects (inner shadow, outer/inner glow) via windowed API",
    "phase": "validation",
-   "status": "PASS_V11",
+   "status": "PASS_V12",
    "owner": "builder-render-cpu-window",
    "commits": [
     "8d46aa8"
@@ -2842,11 +2868,12 @@
     "STUDIO-R26 PASS_V8 @507aa36",
     "STUDIO-R27 PASS_V9 @e698964",
     "STUDIO-R28 PASS_V10 @dd63d21",
-    "STUDIO-R29 PASS_V11 @62c0bf6"
+    "STUDIO-R29 PASS_V11 @62c0bf6",
+    "STUDIO-R30 PASS_V12 @e7a2b6c"
    ],
    "candidate": "8d46aa8",
    "note": "wave-2 effects (inner shadow, outer/inner glow) through the windowed path, no kind-specific code; six-effect stack bit-identical across chunks 48/17/7/5 x 1-3 workers; 304 px margin identical to uncut oracle; exactness = pigment Approximate; refusals by feature key, 0 sink calls; 29 green via the per-test runner",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V9): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V11): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-PRISM-ENG-8",
@@ -2876,7 +2903,7 @@
    "origin": "prism R6 plausibles e26f623",
    "scope": "carry prism AbsoluteReport (media_white_rule, divergence) into psd receipts/losses; sweep other dropped receipt fields",
    "phase": "validation",
-   "status": "PASS_V19",
+   "status": "PASS_V20",
    "owner": "builder-psd-receipt",
    "commits": [
     "1a088a9"
@@ -2900,11 +2927,12 @@
     "STUDIO-R26 PASS_V16 @507aa36",
     "STUDIO-R27 PASS_V17 @e698964",
     "STUDIO-R28 PASS_V18 @dd63d21 (NOT_PROVEN lines: 1, see round-R28.json)",
-    "STUDIO-R29 PASS_V19 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)"
+    "STUDIO-R29 PASS_V19 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)",
+    "STUDIO-R30 PASS_V20 @e7a2b6c (NOT_PROVEN lines: 1, see round-R30.json)"
    ],
    "candidate": "1a088a9",
    "note": "prism absolute report carried to DisplayConversion.converter_absolute; divergence -> Transformed loss DIV-ABS-V2-DISPLAY-WTPT-001; BPC outcome + engine identity/options carried; absolute+BPC requested -> black_point_compensation_ignored_for_absolute_colorimetric; V4-06 22 receipt fields dispositioned; 37 of 37 green",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V17): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V19): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-DEVELOP-JOBS",
@@ -2912,7 +2940,7 @@
    "origin": "V4-15 split (pre-review A): feature commits judged separately from the 2-FAIL SMB-DEVELOP lane",
    "scope": "tile-parallel develop (f132843) + prism AdmittedWideJob adoption (78fd379)",
    "phase": "validation",
-   "status": "PASS_V11",
+   "status": "PASS_V12",
    "owner": "builder-develop-jobs",
    "commits": [
     "f132843",
@@ -2931,9 +2959,10 @@
     "STUDIO-R26 PASS_V9 @507aa36",
     "STUDIO-R27 PASS_V10 @e698964",
     "STUDIO-R28 PASS_V11 @dd63d21 (NOT_PROVEN lines: 4, see round-R28.json)",
-    "STUDIO-R29 INCONCLUSIVE @62c0bf6 (status unchanged; infrastructure oracle_corpus_changed_between_canary_and_union: develop real_dng.rs:196 corpus file renamed out of band)"
+    "STUDIO-R29 INCONCLUSIVE @62c0bf6 (status unchanged; infrastructure oracle_corpus_changed_between_canary_and_union: develop real_dng.rs:196 corpus file renamed out of band)",
+    "STUDIO-R30 PASS_V12 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
    ],
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V10): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V11): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-PIGMENT-BLENDIF-CLIP",
@@ -2941,7 +2970,7 @@
    "origin": "Blend-If clip-base disagreement between backends (render-gpu a6ac630)",
    "scope": "no public definition -> pigment refuses Blend-If on clip base / clipped layer for every backend (ClipRole, BlendIfClipBase, BlendIfClippedLayer); D5 cases 18-23",
    "phase": "validation",
-   "status": "PASS_V11",
+   "status": "PASS_V12",
    "candidate": "0d28c03",
    "owner": "builder-pigment-blendif-clip",
    "commits": [
@@ -2958,9 +2987,10 @@
     "STUDIO-R26 PASS_V8 @507aa36",
     "STUDIO-R27 PASS_V9 @e698964",
     "STUDIO-R28 PASS_V10 @dd63d21",
-    "STUDIO-R29 PASS_V11 @62c0bf6"
+    "STUDIO-R29 PASS_V11 @62c0bf6",
+    "STUDIO-R30 PASS_V12 @e7a2b6c"
    ],
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V9): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V11): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-BLENDIF-CLIP-ADOPT",
@@ -2968,7 +2998,7 @@
    "origin": "Blend-If clip-base disagreement between backends (render-gpu a6ac630)",
    "scope": "adopt pigment clip-role refusals; fix 2 render-gpu tests; composite ledger operators; clbl=0 refusal",
    "phase": "validation",
-   "status": "PASS_V12",
+   "status": "PASS_V13",
    "candidate": "1f99350",
    "owner": "builder-blendif-adopt",
    "commits": [
@@ -2986,10 +3016,11 @@
     "STUDIO-R26 PASS_V9 @507aa36",
     "STUDIO-R27 PASS_V10 @e698964",
     "STUDIO-R28 PASS_V11 @dd63d21",
-    "STUDIO-R29 PASS_V12 @62c0bf6"
+    "STUDIO-R29 PASS_V12 @62c0bf6",
+    "STUDIO-R30 PASS_V13 @e7a2b6c"
    ],
    "note": "adoption of pigment clip-role refusals: render-cpu b10475d (unreachable clip-base and clipped-layer Blend-If weights removed; refusal before any sink call; 30 green), render-gpu 2aeeeba (prepare uses pigment clip_role + ExtOperator keys; parity test moved to unclipped layer + refusal asserts; 21 default / 24 test-faults on GPU), composite 1f99350 (ledger reports BlendIfClipBase/BlendIfClippedLayer by role; clbl=0 refused only where it changes pixels, same code as interop-psd; 24 green); open: unreachable Blend-If plumbing in render-gpu clip-run shader passes (needs WGSL change + parity rerun)",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V10): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V12): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-INTEROP-PSD-CLIP-ROLES",
@@ -2997,7 +3028,7 @@
    "origin": "pigment 0d28c03 Blend-If clip refusals",
    "scope": "typed losses blend_if_clip_base / blend_if_clipped_layer / clbl=0 not modelled",
    "phase": "validation",
-   "status": "PASS_V19",
+   "status": "PASS_V20",
    "candidate": "29501d7",
    "owner": "builder-psd-receipt",
    "commits": [
@@ -3022,9 +3053,10 @@
     "STUDIO-R26 PASS_V16 @507aa36",
     "STUDIO-R27 PASS_V17 @e698964",
     "STUDIO-R28 PASS_V18 @dd63d21 (NOT_PROVEN lines: 1, see round-R28.json)",
-    "STUDIO-R29 PASS_V19 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)"
+    "STUDIO-R29 PASS_V19 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)",
+    "STUDIO-R30 PASS_V20 @e7a2b6c (NOT_PROVEN lines: 1, see round-R30.json)"
    ],
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V17): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V19): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-PIGMENT-PLANLIMITS",
@@ -3032,7 +3064,7 @@
    "origin": "plausible register lead decision 2026-10-11T10:18:58Z",
    "scope": "stub: admit with caller PlanLimits (PLR-005)",
    "phase": "validation",
-   "status": "PASS_V8",
+   "status": "PASS_V9",
    "owner": "builder-pigment-planlimits",
    "commits": [
     "5ed1ead",
@@ -3046,12 +3078,13 @@
     "STUDIO-R26 PASS_V5 @507aa36",
     "STUDIO-R27 PASS_V6 @e698964",
     "STUDIO-R28 PASS_V7 @dd63d21",
-    "STUDIO-R29 PASS_V8 @62c0bf6"
+    "STUDIO-R29 PASS_V8 @62c0bf6",
+    "STUDIO-R30 PASS_V9 @e7a2b6c"
    ],
    "lane_file": "builders/lanes/hsk-studio-pigment-planlimits.json",
    "candidate": "71be1aa",
    "note": "PLR-058: RenderPlan::validate structural checks on every node, operator collection reachable-only (unreachable unsupported operator admits via validate/admit/admit_extended; reachable refused same key); PLR-005: admit_with_limits / admit_extended_with_limits (&PlanLimits), PlanLimits::MAXIMUM (65536 nodes/layers, depth 64 = Default), within_maximum(), PlanLimitKind, PlanError::LimitAboveMaximum (typed, never clamped); DESCRIPTOR validate + plan_limits topics cite tests; 6 tests red on scratch 9ffe946 (+ mutants); pigment 69/69; dependants render-cpu/composite/develop/interop-psd 139 passed; render-gpu check clean; receipts: unreachable nodes no longer in ExactnessLedger",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V6): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V8): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-REFUSAL-KEYS",
@@ -3059,7 +3092,7 @@
    "origin": "plausible register lead decision 2026-10-11T10:18:58Z",
    "scope": "backend defence-in-depth refusals use pigment's exported keys/constants (PLR-006)",
    "phase": "validation",
-   "status": "PASS_V11",
+   "status": "PASS_V12",
    "owner": "builder-refusal-keys",
    "commits": [
     "b7064fc",
@@ -3077,7 +3110,8 @@
     "STUDIO-R26 PASS_V8 @507aa36",
     "STUDIO-R27 PASS_V9 @e698964",
     "STUDIO-R28 PASS_V10 @dd63d21",
-    "STUDIO-R29 PASS_V11 @62c0bf6"
+    "STUDIO-R29 PASS_V11 @62c0bf6",
+    "STUDIO-R30 PASS_V12 @e7a2b6c"
    ],
    "candidate": "ba3e47d",
    "note": "PLR-006: backend/composite defence-in-depth refusal literals replaced by pigment constants/enums (composite b7064fc, render-cpu 18607e5, render-gpu ba3e47d); real drift fixed (gpu reported pass-through fill under the opacity key; glow features fell into effect_parameter); per-crate test that backend refusal equals pigment admit for the same plan; V4-06 sites cpu 63 / gpu 41 / composite 64 classified; 78 green; defence-only key changes listed per lane",
@@ -3104,7 +3138,7 @@
     },
     "result": "65 = 63 + 2, 43 = 41 + 2"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V9): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V11): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-SCORE-GUARDS",
@@ -3177,7 +3211,7 @@
    "origin": "R7 review A: effects+Blend-If admitted then refused by backends; nested effects CPU/GPU disagreement",
    "scope": "pigment-owned Unsupported operator effects_with_blend_if + declarable operator effects_nested; consumers adopt after",
    "phase": "validation",
-   "status": "PASS_V10",
+   "status": "PASS_V11",
    "owner": "builder-pigment-fx-ops",
    "commits": [
     "d3ce607",
@@ -3193,11 +3227,12 @@
     "STUDIO-R26 PASS_V7 @507aa36",
     "STUDIO-R27 PASS_V8 @e698964",
     "STUDIO-R28 PASS_V9 @dd63d21",
-    "STUDIO-R29 PASS_V10 @62c0bf6"
+    "STUDIO-R29 PASS_V10 @62c0bf6",
+    "STUDIO-R30 PASS_V11 @e7a2b6c"
    ],
    "candidate": "fe5fde0",
    "note": "ExtOperator::EffectsWithBlendIf intrinsic Unsupported (no public definition; D5 24-27), ExtOperator::EffectsNested declarable (Approximate); 52 pigment green. CONSUMERS MUST ADOPT: render-gpu declare EffectsNested (else its nesting parity test fails at HEAD), render-cpu declare Unsupported explicitly, composite ledger keys, interop-psd typed loss for effects + non-identity blend ranges",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V8): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V10): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-PRESS-DIFFERENCES",
@@ -3205,7 +3240,7 @@
    "origin": "press 1c3fd8c residual",
    "scope": "/Differences + Type3 + encoding-less fonts decoded via AGL or opaque (NotProven)",
    "phase": "validation (R20 narrow pre-review SAFE at bfa1bbf; round R18 next)",
-   "status": "PASS_V11",
+   "status": "PASS_V12",
    "owner": "builder-press-differences",
    "commits": [
     "607d47c",
@@ -3246,7 +3281,8 @@
     "STUDIO-R26 PASS_V8 @507aa36",
     "STUDIO-R27 PASS_V9 @e698964",
     "STUDIO-R28 PASS_V10 @dd63d21",
-    "STUDIO-R29 PASS_V11 @62c0bf6"
+    "STUDIO-R29 PASS_V11 @62c0bf6",
+    "STUDIO-R30 PASS_V12 @e7a2b6c"
    ],
    "candidate": "bfa1bbf",
    "note": "simple fonts decoded via base encodings + /Differences + AGL (BSD-3, 4089 entries embedded with notice; PUA names left unmappable), ToUnicode completion, else OpaqueText NotProven; Type3 names from /Differences only; encoding reads charged; 51 green; 4 new tests red on 1c3fd8c; residual: Type3 /Widths /1000 in region selector (pre-review checks); R8 pre-review FIX_FIRST (excluded from R8, V4-19); remediation dispatched with lead decision fail-closed (START_LOG).; R8 pre-review remediation (fail-closed) e8b464b/a85b85f/49731a5: whole object table read (F1), joined TJ needles (F2/D2), UnreadableRemovedText NotProven (F3/D3), Type3/vertical -> RedactionClass Type3Text/VerticalText (F4/D4), drawn-reading exemption (P1), only /.notdef blank (D1), V4-06 211 sites (F5/D5); 6 new tests red on 607d47c; 57/57; residual: crate not rustfmt-clean (pre-existing).; R9 positive-determination rewrite cc3eaae: show_text::Walker single determination pass (font via Tf/gs/q-Q/form inheritance, writing mode from closed ISO 32000-2 Table 116 lists + embedded WMode/usecmap, Type3/geometry, reading); is_proven/region_cleared from the record; joined/spaced per-stream matching; normalisation (ESC..ESC, invisible chars, NFKC table Latin scope, Unicode 16); 13 new tests red on 49731a5; 73/73; V4-06 381. Residuals: any undetermined text blocks every redaction of that file; NFKC Latin scope only; clause refs via secondary sources.; R10 canonical rewrite 054037c/47f1588/b8ce934: src/canon.rs rebuilds every live content-role stream from the strict parse (exact operand counts, one escaped form, no comments; inline images -> image XObjects with /Length; unparseable stream -> refused, NotProven); proof requires canonical content (NotProven::NonCanonicalContent); F1-F7, D1, P1/P2/P4 fixed with tests; round-trip property test (3000 generated op lists); 12 new tests red on cc3eaae; 99/99; V4-06 639. Residual: verify_payload_absent on files the crate did not write is protected by strict parsing only.; R13 remediation 0668d35..7410f29: flattened pages explicit + detached from inheritance (/Pages nodes emptied after push-down, check walks /Parent chain); XFA stripped; /OCProperties in renderer copy; render_bounds.rs (tokenizer depth cap, colour-space/function cycle+depth, image bounds incl. abbreviations/codec headers/pixels/max_render_image_bytes 1 GiB/data-length) before hayro; renderer thread 256 MiB stack, panic -> RendererPanicked; painted sources reachable only from flattened pages removed (else NotProven::PaintedSourceKept); structure/widgets of flattened pages removed; DESCRIPTOR colour limitation + citations; 9 new tests red on d079292 (F4 aborts with stack overflow there); 128/128; V4-06 82",
@@ -3279,7 +3315,7 @@
      "recorded_at": "2026-10-12T01:12:47Z"
     }
    ],
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V9): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V11): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-RENDER-GPU-PROBE",
@@ -3287,7 +3323,7 @@
    "origin": "R7: SMB-RENDER-GPU's no-adapter regression probe prints NOT_PROVEN while testing the opt-out, so every round including render-gpu exits 73",
    "scope": "probe tests the opt-out path without emitting the round marker (capture/assert instead of print), keeping real NOT_PROVEN reporting unchanged",
    "phase": "validation",
-   "status": "PASS_V6",
+   "status": "PASS_V7",
    "owner": "builder-render-gpu-probe-20261014",
    "commits": [
     "e659533"
@@ -3298,10 +3334,11 @@
     "STUDIO-R26 PASS_V3 @507aa36",
     "STUDIO-R27 PASS_V4 @e698964",
     "STUDIO-R28 PASS_V5 @dd63d21",
-    "STUDIO-R29 PASS_V6 @62c0bf6"
+    "STUDIO-R29 PASS_V6 @62c0bf6",
+    "STUDIO-R30 PASS_V7 @e7a2b6c"
    ],
    "lane_file": "builders/lanes/hsk-studio-render-gpu-probe.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V4): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V6): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-PIGMENT-ADMIT-PARITY",
@@ -3309,7 +3346,7 @@
    "origin": "pigment FX-OPS (d3ce607) consumer impact + same-class open items",
    "scope": "sweep every backend refusal possible after admission; pigment declares/refuses so admission never accepts what backends refuse",
    "phase": "validation",
-   "status": "PASS_V10",
+   "status": "PASS_V11",
    "owner": "builder-pigment-admit-parity",
    "commits": [
     "b2f5f81"
@@ -3324,11 +3361,12 @@
     "STUDIO-R26 PASS_V7 @507aa36",
     "STUDIO-R27 PASS_V8 @e698964",
     "STUDIO-R28 PASS_V9 @dd63d21",
-    "STUDIO-R29 PASS_V10 @62c0bf6"
+    "STUDIO-R29 PASS_V10 @62c0bf6",
+    "STUDIO-R30 PASS_V11 @e7a2b6c"
    ],
    "candidate": "b2f5f81",
    "note": "sweep of 80 backend refusal sites: (a) 2 rules declarable/defined (alpha_premultiplied ExtOperator, leaf-root Normal class at admission), (b) 1 intrinsic refusal (mask_on_pass_through), 22 already admitted-refused, 13 runtime-only, 38 unreachable defence; admit_plan_rules runs last; no v1 enum change; 59 green; D5 cases 28-29",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V8): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V10): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-FX-OPS-ADOPT",
@@ -3336,7 +3374,7 @@
    "origin": "pigment FX-OPS (d3ce607) consumer impact + same-class open items",
    "scope": "adopt FX-OPS + ADMIT-PARITY keys in one pass (after ADMIT-PARITY lands); fixes render-gpu nesting test regression at HEAD",
    "phase": "validation",
-   "status": "PASS_V18",
+   "status": "PASS_V19",
    "owner": "builder-fx-ops-adopt",
    "commits": [
     "f6e5a49"
@@ -3359,11 +3397,12 @@
     "STUDIO-R26 PASS_V15 @507aa36",
     "STUDIO-R27 PASS_V16 @e698964",
     "STUDIO-R28 PASS_V17 @dd63d21 (NOT_PROVEN lines: 1, see round-R28.json)",
-    "STUDIO-R29 PASS_V18 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)"
+    "STUDIO-R29 PASS_V18 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)",
+    "STUDIO-R30 PASS_V19 @e7a2b6c (NOT_PROVEN lines: 1, see round-R30.json)"
    ],
    "candidate": "f6e5a49",
    "note": "adoption of pigment FX-OPS + admission parity: render-gpu cdd0644 (EffectsNested supported Approximate, AlphaPremultiplied Unsupported, pigment keys; nesting parity test green again on RTX; 24 default / 27 test-faults), render-cpu e8f5f98 (EffectsNested + AlphaPremultiplied Unsupported, pigment keys; 32), composite 7011298 (ledgers match pigment validate for EffectsWithBlendIf/EffectsNested; mask_on_pass_through Unavailable; 27), interop-psd f6e5a49 (typed losses effects_with_blend_if, mask_on_pass_through with pigment codes; 41); tests compare against pigment answers",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V16): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V18): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-PRESS-GEOMETRY",
@@ -3404,7 +3443,7 @@
    "origin": "R8-review-a CONFIRMED on SMB-PIGMENT-ADMIT-PARITY (validator: routed fixes, not product FAIL)",
    "scope": "pigment uses_premultiplied_alpha/has_pass_through_mask read reachable nodes only (exact backend parity); render-cpu names Mask(CoverageU8|CoverageU16Le) Exact explicitly, other formats Unsupported; MaskFormat added to the parity tripwire; reclassify render-cpu plan_sink.rs:623 site",
    "phase": "validation",
-   "status": "PASS_V9",
+   "status": "PASS_V10",
    "owner": "rem-composite-adj",
    "commits": [
     "a873234",
@@ -3420,12 +3459,13 @@
     "STUDIO-R26 PASS_V6 @507aa36",
     "STUDIO-R27 PASS_V7 @e698964",
     "STUDIO-R28 PASS_V8 @dd63d21",
-    "STUDIO-R29 PASS_V9 @62c0bf6"
+    "STUDIO-R29 PASS_V9 @62c0bf6",
+    "STUDIO-R30 PASS_V10 @e7a2b6c"
    ],
    "lane_file": "builders/lanes/hsk-studio-parity-followup.json",
    "candidate": "1c80811",
    "note": "reachable-only rule for every pigment admission predicate (uses_premultiplied_alpha, has_pass_through_mask, has_pass_through_fill, has_solid_outside_unit, has_mask_density) via one reachable_nodes helper; render-cpu Mask(CoverageU8|CoverageU16Le) Exact by name, other formats Unsupported; MaskFormat in tripwire; commits a873234 (pigment), 8ca30dd (render-cpu), 1c80811 (pigment extension); tests red on scratch (2 + 3 failures, E0004 tripwire); 220 passed across pigment/render-cpu/composite/render-gpu/interop-psd/develop; V4-06 pigment 5 FIXED 2 n/a; open: RenderPlan::validate collects operators from unreachable nodes (PLR-058)",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V7): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V9): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-INTEROP-PSD-BUDGET",
@@ -3433,7 +3473,7 @@
    "origin": "PLR-053 (R8-review-b)",
    "scope": "PSDs whose effect count exceeds folio's default node budget import with typed per-layer losses (or an input-sized budget within a documented hard cap), never whole-import raster_records_rejected",
    "phase": "validation (pre-review SAFE; crate frozen until R11)",
-   "status": "PASS_V17",
+   "status": "PASS_V18",
    "owner": "builder-psd-budget",
    "commits": [
     "a5eff01",
@@ -3458,7 +3498,8 @@
     "STUDIO-R26 PASS_V14 @507aa36",
     "STUDIO-R27 PASS_V15 @e698964",
     "STUDIO-R28 PASS_V16 @dd63d21 (NOT_PROVEN lines: 1, see round-R28.json)",
-    "STUDIO-R29 PASS_V17 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)"
+    "STUDIO-R29 PASS_V17 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)",
+    "STUDIO-R30 PASS_V18 @e7a2b6c (NOT_PROVEN lines: 1, see round-R30.json)"
    ],
    "candidate": "85532ad",
    "note": "R10 FAIL_V2 remediation 85532ad: EffectTally two independent sides (counted: 64/layer + 4096/document cut only stacks with counted instances; uncounted: 4096 cuts only stacks without counted instances), each a prefix of panel order; a visible stack with live instances is never refused for the uncounted cap (its switched-off instances past the cap are dropped with Transformed loss effects_unrendered_dropped_over_document_budget — lead accepts); reverse direction fixed too (hidden stacks no longer lost under the counted code); memory bound max_layers + 8192 kept; docs/DESCRIPTOR agree; 2 new tests + corrected test, 3/9 red on scratch 62d8983; 50/50; V4-06 79 = 79",
@@ -3477,7 +3518,7 @@
     "head": "85532ad",
     "at": "2026-10-11T16:02:32Z"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V15): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V17): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-REEL-NATIVE-FAULTS",
@@ -3622,7 +3663,7 @@
    "origin": "PLR-069/070/072-075",
    "scope": "envelope entries reachable-only (pigment + render-cpu), render-cpu caller PlanLimits, depth check for every plan shape, V4-06 regex reach, exact docs, linear clip-base search",
    "phase": "validation",
-   "status": "PASS_V7",
+   "status": "PASS_V8",
    "owner": "builder-pigment-followups",
    "lane_file": "builders/lanes/hsk-studio-pigment-followups.json",
    "commits": [
@@ -3636,11 +3677,12 @@
     "STUDIO-R26 PASS_V4 @507aa36",
     "STUDIO-R27 PASS_V5 @e698964",
     "STUDIO-R28 PASS_V6 @dd63d21",
-    "STUDIO-R29 PASS_V7 @62c0bf6"
+    "STUDIO-R29 PASS_V7 @62c0bf6",
+    "STUDIO-R30 PASS_V8 @e7a2b6c"
    ],
    "candidate": "b8b31c7",
    "note": "PLR-069: PlanExtensions::validate structure on every entry, operators/effect blend modes only from reachable groups; render-cpu ExtPrep::build reachable-only. PLR-070: Renderer::with_plan_limits/plan_limits; both execute paths use admit_with_limits/admit_extended_with_limits; above-maximum -> InvalidConfig. PLR-072: depth limit for every plan shape. PLR-073: regexes + 76 classified sites + source tripwire. PLR-074: docs/DESCRIPTOR exact with citation test. PLR-075: clip run validation linear (65536 layers 33 s -> 0.45 s). pigment 79 + render-cpu 37, dependants 106/106, render-gpu check + 24 tests green (untouched); red proofs + 11 mutants. Residuals: knockout/unsupported adjustment/effect features stay typed errors on unreachable entries (lead: keep, structural validity); render-gpu caller limits wait D20; effect budgets constants; composite effect_modes() all-entries (agree for root-lowered plans)",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V5): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V7): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-PIGMENT-NOTES",
@@ -3648,7 +3690,7 @@
    "origin": "plausible register",
    "scope": "PLR-079..081 (+ PLAN-R15-5 note)",
    "phase": "validation",
-   "status": "PASS_V6",
+   "status": "PASS_V7",
    "owner": "builder-pigment-notes",
    "lane_file": "builders/lanes/hsk-studio-pigment-notes.json",
    "commits": [
@@ -3662,11 +3704,12 @@
     "STUDIO-R26 PASS_V3 @507aa36",
     "STUDIO-R27 PASS_V4 @e698964",
     "STUDIO-R28 PASS_V5 @dd63d21",
-    "STUDIO-R29 PASS_V6 @62c0bf6"
+    "STUDIO-R29 PASS_V6 @62c0bf6",
+    "STUDIO-R30 PASS_V7 @e7a2b6c"
    ],
    "candidate": "8980d04",
    "note": "PLR-079: reachable-root hostile test pins the forward-input guard (old assertions unchanged); PLR-080: tripwire scans every src .rs, any receiver, const fn, struct patterns, stale rows; 13 mutated-source self-tests; PLR-081: three sentences rewritten, new render-cpu test invalid_plan_indexes_are_refused_before_the_reachable_sweep; PLAN-R15-5 corrected in lane file; tests/rustdoc only, no behaviour change; pigment+render-cpu 120/120, dependants 106/106; red on mutants",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V4): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V6): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-NOTES-BATCH-1",
@@ -3674,7 +3717,7 @@
    "origin": "plausible register",
    "scope": "PLR-076 (press), PLR-071 (web), PLR-078 (reel-native), PLR-064/065 (psd)",
    "phase": "validation (narrow pre-review of press 12c9317..bfa1bbf)",
-   "status": "PASS_V10",
+   "status": "PASS_V11",
    "owner": "builder-notes-batch-1",
    "lane_file": "builders/lanes/notes-batch-1.json",
    "commits": [
@@ -3705,7 +3748,8 @@
     "STUDIO-R26 PASS_V7 @507aa36",
     "STUDIO-R27 PASS_V8 @e698964",
     "STUDIO-R28 PASS_V9 @dd63d21 (NOT_PROVEN lines: 1, see round-R28.json)",
-    "STUDIO-R29 PASS_V10 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)"
+    "STUDIO-R29 PASS_V10 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)",
+    "STUDIO-R30 PASS_V11 @e7a2b6c (NOT_PROVEN lines: 1, see round-R30.json)"
    ],
    "candidate": "bfa1bbf",
    "note": "press 27a9a81 PLR-076: painted region source kept only via /AF, /Names or /Dests -> NotProven::PaintedSourceKept, DESCRIPTOR exact (131 tests); web 9088884 PLR-071: doc + citation fixed, cancellation test past the first iteration, wall-clock bound -> operation-count bound (138); reel-native ab273d3 PLR-078: docs/DESCRIPTOR match code, host-level tests for BATCH_END miscount, OPENED answering PACKET/FINISH, 65 FRAMEs, cut-short greeting (24 with av1-worker+test-faults); interop-psd 5606d16 PLR-064/065: over-counts documented with citations, helper nests groups, nested hidden groups test (53); 346 tests pass; red on origin (press, psd) or stated mutants (web W1-W5, reel-native N1-N4, psd P1-P4). Not done: config-OBU tag case, exact-64-FRAME acceptance test, press prune, psd group-own-lfx2 + zero-tile; R16 pre-review remediation f0be2ba (press: a surviving painted source is silent only when a kept page draws it — Do/sh/scn/gs/Tf targets, /AP /N /R /D, image /SMask /Mask, pattern /Shading, gs /SMask /G; every other reference reported PaintedSourceKept; reached/pruning unchanged; docs exact; 134/134; red on 5606d16 + mutants M1a-c, M2, M3) + fcda5f6 (psd doc rider: both caps apply); W-1 note count corrected; R17 pre-review remediation: certainty only from an executed draw of the right kind from the nearest resource entry (20510c5); appearance states only when /AS-selected and never for /F hidden/invisible/noview (51f3e72, a92310f); optional content never certain (annotation /OC, object /OC, Do/sh/scn/gs/Tf inside BDC /OC incl. escaped names, per-operator marked-content stack across streams) (35be374, d39bd28, bcc0688); press 141/141; mutants killed; MINIMAL DRAW SET c09196f/8edd93b/12c9317: silence only for an image stream without /OC drawn by Do directly in a kept page's own /Contents outside BDC /OC, resolved through nearest dictionary-only entries; certain flag and draw-kind machinery deleted; one silence site; reached/pruning byte-identical on 317 documents; 145/145; 18 mutants killed",
@@ -3715,14 +3759,14 @@
     "head": "bfa1bbf",
     "at": "2026-10-12T04:40:53Z"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V8): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V10): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-PRESS-DOCS",
    "crate": "hsk-studio-press",
    "origin": "PLR-083, PLR-084, PLR-076",
    "phase": "validation",
-   "status": "PASS_V9",
+   "status": "PASS_V10",
    "owner": "builder-press-docs",
    "candidate": "d868da0",
    "commits": [
@@ -3737,7 +3781,8 @@
     "STUDIO-R26 PASS_V6 @507aa36",
     "STUDIO-R27 PASS_V7 @e698964",
     "STUDIO-R28 PASS_V8 @dd63d21",
-    "STUDIO-R29 PASS_V9 @62c0bf6"
+    "STUDIO-R29 PASS_V9 @62c0bf6",
+    "STUDIO-R30 PASS_V10 @e7a2b6c"
    ],
    "note": "docs/tests only (+78 -8, 5 press files): PLR-083 wording + flatten_r13 BDC note, PLR-084 residual in DESCRIPTOR/docs + 2 tests, PLR-076 covered by existing test flatten_r13.rs:488; press 149/149",
    "r21_prereview": {
@@ -3746,7 +3791,7 @@
     "head": "fdc01f1",
     "at": "2026-10-12T05:49:17Z"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V7): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V9): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-REEL-PARTIAL-PTS",
@@ -3782,7 +3827,7 @@
    "crate": "hsk-studio-interop-psd",
    "origin": "PLR-063",
    "phase": "validation",
-   "status": "PASS_V10",
+   "status": "PASS_V11",
    "owner": "builder-psd-folio-ceiling",
    "candidate": "fdc01f1",
    "commits": [
@@ -3798,7 +3843,8 @@
     "STUDIO-R26 PASS_V7 @507aa36",
     "STUDIO-R27 PASS_V8 @e698964",
     "STUDIO-R28 PASS_V9 @dd63d21 (NOT_PROVEN lines: 1, see round-R28.json)",
-    "STUDIO-R29 PASS_V10 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)"
+    "STUDIO-R29 PASS_V10 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)",
+    "STUDIO-R30 PASS_V11 @e7a2b6c (NOT_PROVEN lines: 1, see round-R30.json)"
    ],
    "note": "PLR-063 fix ceb9d33 (+03d7ff8 fmt, fdc01f1 comments): per-stack ceiling classifies live/off once; live bounded by 64/layer; off over ceiling dropped with typed loss effects_unrendered_dropped_over_stack_ceiling; V4-06 49 sites (6 fixed); red 4 new on scratch; effects_budget 16/16, crate 57/57; residual: descriptor reader 512-entry cap per list refuses 1 live + 512 off",
    "r21_prereview": {
@@ -3807,7 +3853,7 @@
     "head": "fdc01f1",
     "at": "2026-10-12T05:49:17Z"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V8): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V10): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-REEL-PARTIAL-PTS-2",
@@ -3842,7 +3888,7 @@
    "crate": "hsk-studio-interop-psd",
    "origin": "PLR-089, PLR-090, PLR-086",
    "phase": "validation",
-   "status": "PASS_V9",
+   "status": "PASS_V10",
    "owner": "builder-psd-loss-detail",
    "candidate": "3930a7c",
    "commits": [
@@ -3857,7 +3903,8 @@
     "STUDIO-R26 PASS_V6 @507aa36",
     "STUDIO-R27 PASS_V7 @e698964",
     "STUDIO-R28 PASS_V8 @dd63d21 (NOT_PROVEN lines: 1, see round-R28.json)",
-    "STUDIO-R29 PASS_V9 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)"
+    "STUDIO-R29 PASS_V9 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)",
+    "STUDIO-R30 PASS_V10 @e7a2b6c (NOT_PROVEN lines: 1, see round-R30.json)"
    ],
    "note": "PLR-089: both Transformed dropped-instance losses carry (layer_id,dropped=count) in the path; left-out off instances add no notes (doc-budget cut fixed too); PLR-090 no change (early stop would change outcome; pinned by tests); PLR-086 DESCRIPTOR residual + 2 tests; V4-06 57 sites; red 7/20 on scratch; crate 61/61",
    "r22_prereview": {
@@ -3866,14 +3913,14 @@
     "head": "3930a7c",
     "at": "2026-10-12T06:56:40Z"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V7): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V9): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-PRESS-DOCS-2",
    "crate": "hsk-studio-press",
    "origin": "PLR-087",
    "phase": "validation",
-   "status": "PASS_V8",
+   "status": "PASS_V9",
    "owner": "builder-press-docs-2",
    "candidate": "0f87710",
    "commits": [
@@ -3887,7 +3934,8 @@
     "STUDIO-R26 PASS_V5 @507aa36",
     "STUDIO-R27 PASS_V6 @e698964",
     "STUDIO-R28 PASS_V7 @dd63d21",
-    "STUDIO-R29 PASS_V8 @62c0bf6"
+    "STUDIO-R29 PASS_V8 @62c0bf6",
+    "STUDIO-R30 PASS_V9 @e7a2b6c"
    ],
    "note": "docs/DESCRIPTOR/tests only: PLR-087 overview (annotations dropped incl. referenced, except own /Annots; structure elements stay with text removed); purge openings fixed (16 sites, 3 fixed); R20-O3 clause corrected (region_cleared = painted_sources_kept empty); no code token changed (cmp of DESCRIPTOR literal); press 151/151",
    "r22_prereview": {
@@ -3896,14 +3944,14 @@
     "head": "3930a7c",
     "at": "2026-10-12T06:56:40Z"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V6): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V8): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-PRESS-STRUCT-FAILCLOSED",
    "crate": "hsk-studio-press",
    "origin": "PLR-094, PLR-093, PLR-091",
    "phase": "validation",
-   "status": "PASS_V7",
+   "status": "PASS_V8",
    "owner": "builder-press-struct-failclosed",
    "candidate": "2dde832",
    "commits": [
@@ -3919,7 +3967,8 @@
     "STUDIO-R26 PASS_V4 @507aa36",
     "STUDIO-R27 PASS_V5 @e698964",
     "STUDIO-R28 PASS_V6 @dd63d21",
-    "STUDIO-R29 PASS_V7 @62c0bf6"
+    "STUDIO-R29 PASS_V7 @62c0bf6",
+    "STUDIO-R30 PASS_V8 @e7a2b6c"
    ],
    "note": "R23 FIX_FIRST -> STRUCTURE TREE = NOT PROVEN: residual +1 once when the saved document has a /StructTreeRoot (alias chain <=16 hops) or any /StructParents//StructParent; per-element walk removed; neutralization unchanged; claim narrowed (DESCRIPTOR/docs); 4 new tests (all R23 probes + controls + V4-08 rows); changed assertions listed; red 9/11; press 161/161; V4-06 152 hits classified; mutants m2-m4 not run (retry guard key drops -E filter)",
    "r23_prereview": {
@@ -3941,14 +3990,14 @@
     "head": "2dde832",
     "at": "2026-10-12T09:27:17Z"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V5): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V7): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-INTEROP-PSD-DESC-CAP",
    "crate": "hsk-studio-interop-psd",
    "origin": "PLR-095",
    "phase": "validation",
-   "status": "PASS_V8",
+   "status": "PASS_V9",
    "owner": "builder-psd-desc-cap",
    "candidate": "0c1be05",
    "commits": [
@@ -3962,7 +4011,8 @@
     "STUDIO-R26 PASS_V5 @507aa36",
     "STUDIO-R27 PASS_V6 @e698964",
     "STUDIO-R28 PASS_V7 @dd63d21 (NOT_PROVEN lines: 1, see round-R28.json)",
-    "STUDIO-R29 PASS_V8 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)"
+    "STUDIO-R29 PASS_V8 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)",
+    "STUDIO-R30 PASS_V9 @e7a2b6c (NOT_PROVEN lines: 1, see round-R30.json)"
    ],
    "note": "PLR-095: DESCRIPTOR states 8192-item cap with measured per-kind costs (required-only 3-16 items; all keys read 24-46; contour point 4) and which cap fires first (all-keys instances hit 8192 at 292-341 per descriptor before 1024/512); proposal.rs:527-528 says MAPPED; no behaviour change; crate 62/62; Photoshop-authored item counts UNVERIFIED",
    "r23_prereview": {
@@ -3971,7 +4021,7 @@
     "head": "54c60f9",
     "at": "2026-10-12T08:41:40Z"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V6): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V8): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-REEL-PTS-TESTS",
@@ -4005,7 +4055,7 @@
    "crate": "hsk-studio-press",
    "origin": "PLR-102, PLR-101",
    "phase": "validation",
-   "status": "PASS_V6",
+   "status": "PASS_V7",
    "owner": "builder-press-struct-orphans",
    "candidate": "1da2453",
    "commits": [
@@ -4019,7 +4069,8 @@
     "STUDIO-R26 PASS_V3 @507aa36",
     "STUDIO-R27 PASS_V4 @e698964",
     "STUDIO-R28 PASS_V5 @dd63d21",
-    "STUDIO-R29 PASS_V6 @62c0bf6"
+    "STUDIO-R29 PASS_V6 @62c0bf6",
+    "STUDIO-R30 PASS_V7 @e7a2b6c"
    ],
    "note": "claim 0cb7103+dce563e+1da2453: PLR-102 shape rule (/Type /StructElem|/StructTreeRoot, /S+/P+struct text key, /SE; names decoded, refs followed; kept object-stream members; unreadable counts) shares one +1 with tree/StructParents; PLR-101 rules only when a region is flattened; R24 J1/J2b/K1 reported; 3 new tests, 3 changed; 14 mutants killed in one batch; press 164/164; V4-06 201 hits classified",
    "r25_prereview": {
@@ -4028,14 +4079,14 @@
     "head": "1da2453",
     "at": "2026-10-12T10:50:53Z"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V4): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V6): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-INTEROP-PSD-DOCS",
    "crate": "hsk-studio-interop-psd",
    "origin": "PLR-096, PLR-099",
    "phase": "validation",
-   "status": "PASS_V7",
+   "status": "PASS_V8",
    "owner": "builder-psd-docs",
    "candidate": "c4c31cd",
    "commits": [
@@ -4048,7 +4099,8 @@
     "STUDIO-R26 PASS_V4 @507aa36",
     "STUDIO-R27 PASS_V5 @e698964",
     "STUDIO-R28 PASS_V6 @dd63d21 (NOT_PROVEN lines: 1, see round-R28.json)",
-    "STUDIO-R29 PASS_V7 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)"
+    "STUDIO-R29 PASS_V7 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)",
+    "STUDIO-R30 PASS_V8 @e7a2b6c (NOT_PROVEN lines: 1, see round-R30.json)"
    ],
    "note": "docs only: PLR-096 MAPPED switched-off wording (effects.rs, proposal.rs, DESCRIPTOR clause + needle); PLR-099 8192-item scoping in source docs; V4-06 section (A 27, B 39+3); no code token changed outside DESCRIPTOR literal + needle; crate 62/62; effects_budget.rs:464 assertion message left (code token)",
    "r25_prereview": {
@@ -4057,13 +4109,13 @@
     "head": "1da2453",
     "at": "2026-10-12T10:50:53Z"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V5): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V7): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-PRESS-PROPERTIES",
    "crate": "hsk-studio-press",
    "phase": "validation (R29 SAFE_TO_JUDGE)",
-   "status": "PASS_V5",
+   "status": "PASS_V6",
    "owner": "builder-press-20261014",
    "commits": [
     "9dd0fc7",
@@ -4080,17 +4132,18 @@
     "STUDIO-R26 PASS_V2 @507aa36",
     "STUDIO-R27 PASS_V3 @e698964",
     "STUDIO-R28 PASS_V4 @dd63d21",
-    "STUDIO-R29 PASS_V5 @62c0bf6"
+    "STUDIO-R29 PASS_V5 @62c0bf6",
+    "STUDIO-R30 PASS_V6 @e7a2b6c"
    ],
    "note": "PLR-104 exact /Properties purge or fail closed; folds PLR-105, PLR-107",
    "lane_file": "builders/lanes/hsk-studio-press-properties.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V3): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V5): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-PRESS-STRUCT-STRIP",
    "crate": "hsk-studio-press",
    "phase": "validation (R31 SAFE_TO_JUDGE)",
-   "status": "PASS_V3",
+   "status": "PASS_V4",
    "owner": "builder-press-20261014",
    "commits": [
     "ade85a0",
@@ -4103,11 +4156,12 @@
    "verdicts": [
     "STUDIO-R27 PASS_V1 @e698964",
     "STUDIO-R28 PASS_V2 @dd63d21",
-    "STUDIO-R29 PASS_V3 @62c0bf6"
+    "STUDIO-R29 PASS_V3 @62c0bf6",
+    "STUDIO-R30 PASS_V4 @e7a2b6c"
    ],
    "note": "D28: strip structure tree by default on redaction save, typed loss accessibility_tags_removed, opt-out keeps NotProven",
    "lane_file": "builders/lanes/hsk-studio-press-struct-strip.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V1): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V3): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-ZIP-CONSOLIDATE",
@@ -4167,7 +4221,7 @@
    "lane_id": "SMB-INTEROP-FIG-FORMAT",
    "crate": "hsk-studio-interop-fig",
    "phase": "validation",
-   "status": "PASS_V4",
+   "status": "PASS_V5",
    "owner": "builder-fig-20261014",
    "commits": [
     "8278915"
@@ -4176,11 +4230,12 @@
     "STUDIO-R25 PASS_V1 @d48bc30 NOT_PROVEN: interop-fig fig_import actual_fig_instance_variable_prototype_edit_reopen x3 fixtures: editable import NOT_PROVEN (fig editable rows)",
     "STUDIO-R26 PASS_V2 @507aa36 NOT_PROVEN: interop-fig fig_import actual_fig_instance_variable_prototype_edit_reopen x3 fixtures: editable import NOT_PROVEN (fig editable rows)",
     "STUDIO-R28 PASS_V3 @dd63d21 (NOT_PROVEN lines: 3, see round-R28.json)",
-    "STUDIO-R29 PASS_V4 @62c0bf6 (NOT_PROVEN lines: 3, see round-R29.json)"
+    "STUDIO-R29 PASS_V4 @62c0bf6 (NOT_PROVEN lines: 3, see round-R29.json)",
+    "STUDIO-R30 PASS_V5 @e7a2b6c (NOT_PROVEN lines: 3, see round-R30.json)"
    ],
    "note": "research/app-inspect-figma.md: classify fig-diff prelude (container.rs:42-79,344-346); fig-deck unconfirmed; census records Message.fileVersion (field 18); pin NodeChange field count test (616/1024 max_fields); version/chunk/compression still need real fixtures",
    "lane_file": "builders/lanes/hsk-studio-interop-fig-format.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V2): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V4): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-DEVELOP-RAW-VENDOR",
@@ -4191,9 +4246,10 @@
     "STUDIO-R26 PASS_V3 @507aa36 NOT_PROVEN: develop real_raw nef_d1h / arw_7s / cr2_350d cfa_samples_vs_independent_dng reason=no_approved_converter_run (decode ran, deterministic)",
     "STUDIO-R27 PASS_V4 @e698964",
     "STUDIO-R28 PASS_V5 @dd63d21 (NOT_PROVEN lines: 4, see round-R28.json)",
-    "STUDIO-R29 INCONCLUSIVE @62c0bf6 (status unchanged; infrastructure oracle_corpus_changed_between_canary_and_union: develop real_dng.rs:196 corpus file renamed out of band)"
+    "STUDIO-R29 INCONCLUSIVE @62c0bf6 (status unchanged; infrastructure oracle_corpus_changed_between_canary_and_union: develop real_dng.rs:196 corpus file renamed out of band)",
+    "STUDIO-R30 PASS_V6 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
    ],
-   "status": "PASS_V5",
+   "status": "PASS_V6",
    "phase": "validation (CR2 + uncompressed NEF); further vendors blocked on public docs",
    "owner": "builder-raw-20261014",
    "commits": [
@@ -4201,13 +4257,13 @@
     "241df1f"
    ],
    "lane_file": "builders/lanes/hsk-studio-develop-raw-vendor.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V4): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V5): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-DEVELOP-DNG-MLV",
    "crate": "hsk-studio-develop",
    "phase": "validation",
-   "status": "PASS_V5",
+   "status": "PASS_V6",
    "owner": null,
    "commits": [
     "7e5da46",
@@ -4219,11 +4275,12 @@
     "STUDIO-R26 PASS_V3 @507aa36 NOT_PROVEN: develop real_dng samsung-sm-g973u listed download is a JFIF rendering (expected typed refusal; 3 real DNGs decoded)",
     "STUDIO-R27 PASS_V4 @e698964",
     "STUDIO-R28 PASS_V5 @dd63d21 (NOT_PROVEN lines: 4, see round-R28.json)",
-    "STUDIO-R29 INCONCLUSIVE @62c0bf6 (status unchanged; infrastructure oracle_corpus_changed_between_canary_and_union: develop real_dng.rs:196 corpus file renamed out of band)"
+    "STUDIO-R29 INCONCLUSIVE @62c0bf6 (status unchanged; infrastructure oracle_corpus_changed_between_canary_and_union: develop real_dng.rs:196 corpus file renamed out of band)",
+    "STUDIO-R30 PASS_V6 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
    ],
    "note": "real_dng corpus: canon-eos-5d3-mlv-14bit-lossless.dng refused invalid_container (real_dng.rs:155): LJPEG strip 3840x409x1 for 1920x818 frame rejected at dng.rs:495; other two DNGs not reached",
    "lane_file": "builders/lanes/hsk-studio-develop-dng-mlv.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V4): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V5): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-INTEROP-TIFF",
@@ -4251,9 +4308,10 @@
     "STUDIO-R26 PASS_V2 @507aa36",
     "STUDIO-R27 PASS_V3 @e698964",
     "STUDIO-R28 PASS_V4 @dd63d21 (NOT_PROVEN lines: 4, see round-R28.json)",
-    "STUDIO-R29 PASS_V5 @62c0bf6 (NOT_PROVEN lines: 4, see round-R29.json)"
+    "STUDIO-R29 PASS_V5 @62c0bf6 (NOT_PROVEN lines: 4, see round-R29.json)",
+    "STUDIO-R30 PASS_V6 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
    ],
-   "status": "PASS_V5",
+   "status": "PASS_V6",
    "phase": "validation (remediation R24 fcd53b8)",
    "lane_file": "builders/lanes/hsk-studio-convert-native.json",
    "commits": [
@@ -4282,7 +4340,7 @@
     "exact": "round-features.toml [crates] hsk-studio-harness lacks [\"import-pdf\"]; psd_tools_sweep_shard_3 exceeds the 120 s per-test cap",
     "unblock": "steward adds harness [import-pdf] set; lane re-shards the sweep (tests/import_psd.rs:361 SHARDS=6) or diagnoses the slow file"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V3): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V5): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-DEVELOP-RAW-ARW",
@@ -4293,22 +4351,23 @@
     "STUDIO-R26 PASS_V3 @507aa36 NOT_PROVEN: develop real_raw nef_d1h / arw_7s / cr2_350d cfa_samples_vs_independent_dng reason=no_approved_converter_run (decode ran, deterministic)",
     "STUDIO-R27 PASS_V4 @e698964",
     "STUDIO-R28 PASS_V5 @dd63d21 (NOT_PROVEN lines: 4, see round-R28.json)",
-    "STUDIO-R29 INCONCLUSIVE @62c0bf6 (status unchanged; infrastructure oracle_corpus_changed_between_canary_and_union: develop real_dng.rs:196 corpus file renamed out of band)"
+    "STUDIO-R29 INCONCLUSIVE @62c0bf6 (status unchanged; infrastructure oracle_corpus_changed_between_canary_and_union: develop real_dng.rs:196 corpus file renamed out of band)",
+    "STUDIO-R30 PASS_V6 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
    ],
-   "status": "PASS_V5",
+   "status": "PASS_V6",
    "phase": "validation",
    "lane_file": "builders/lanes/hsk-studio-develop-raw-arw.json",
    "commits": [
     "be73666",
     "d62e840"
    ],
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V4): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V5): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-SESSION-IMPORT-ENTRIES",
    "crate": "hsk-studio-session",
    "phase": "validation",
-   "status": "PASS_V5",
+   "status": "PASS_V6",
    "owner": "builder-session-20261014",
    "commits": [
     "306f894"
@@ -4318,17 +4377,18 @@
     "STUDIO-R26 PASS_V2 @507aa36",
     "STUDIO-R27 PASS_V3 @e698964",
     "STUDIO-R28 PASS_V4 @dd63d21",
-    "STUDIO-R29 PASS_V5 @62c0bf6"
+    "STUDIO-R29 PASS_V5 @62c0bf6",
+    "STUDIO-R30 PASS_V6 @e7a2b6c"
    ],
    "note": "session reports package import entries as opaque loss notes; checkpoint re-read compares quarantined counts; teach session the import entries (SMB-CONVERT-NATIVE C2)",
    "lane_file": "builders/lanes/hsk-studio-session-import-entries.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V3): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V5): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-CONVERT-COLOUR",
    "crate": "hsk-studio-harness",
    "phase": "validation",
-   "status": "PASS_V5",
+   "status": "PASS_V6",
    "owner": "builder-convert-20261014",
    "commits": [
     "3a496bb"
@@ -4338,17 +4398,18 @@
     "STUDIO-R26 PASS_V2 @507aa36 NOT_PROVEN: colour oracle parity (LittleCMS/Photoshop) NOT_PROVEN (lane notes)",
     "STUDIO-R27 PASS_V3 @e698964",
     "STUDIO-R28 PASS_V4 @dd63d21 (NOT_PROVEN lines: 4, see round-R28.json)",
-    "STUDIO-R29 PASS_V5 @62c0bf6 (NOT_PROVEN lines: 4, see round-R29.json)"
+    "STUDIO-R29 PASS_V5 @62c0bf6 (NOT_PROVEN lines: 4, see round-R29.json)",
+    "STUDIO-R30 PASS_V6 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
    ],
    "note": "harness has no prism edge: embedded ICC preserved but not applied on import; add harness->prism edge and apply profiles in convert_to_native",
    "lane_file": "builders/lanes/hsk-studio-convert-colour.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V3): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V5): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-CONVERT-TIFF",
    "crate": "hsk-studio-harness",
    "phase": "validation",
-   "status": "PASS_V5",
+   "status": "PASS_V6",
    "owner": "builder-convert-20261014",
    "commits": [
     "8398c7a",
@@ -4359,22 +4420,25 @@
     "STUDIO-R26 PASS_V2 @507aa36 NOT_PROVEN: harness import_tiff photoshop_tiff_imports_its_layers_through_interop_psd: real-Photoshop layered TIFF parity NOT_PROVEN (no independent Photoshop oracle)",
     "STUDIO-R27 PASS_V3 @e698964",
     "STUDIO-R28 PASS_V4 @dd63d21 (NOT_PROVEN lines: 4, see round-R28.json)",
-    "STUDIO-R29 PASS_V5 @62c0bf6 (NOT_PROVEN lines: 4, see round-R29.json)"
+    "STUDIO-R29 PASS_V5 @62c0bf6 (NOT_PROVEN lines: 4, see round-R29.json)",
+    "STUDIO-R30 PASS_V6 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
    ],
    "note": "wire interop-tiff into harness import/convert (feature import-tiff) via interop-psd raster_proposal; layered TIFF 37724 via interop-psd layer parser",
    "lane_file": "builders/lanes/hsk-studio-convert-tiff.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V3): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V5): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-DNG-CORPUS-REPLACE",
    "crate": "oracle-corpus",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done (STUDIO-R30 PASS_V1 @e7a2b6c)",
+   "status": "PASS_V1",
    "owner": "builder-harness-dev-20261015",
    "commits": [
     "8424d8a"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R30 PASS_V1 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
+   ],
    "note": "oracle-corpus/dng/samsung-sm-g973u-16bit-uncompressed.dng is a JFIF JPEG preview; replace with a CC0 uncompressed 16-bit DNG from raw.pixls.us",
    "lane_file": "builders/lanes/oracle-corpus-dng-replace.json"
   },
@@ -4382,7 +4446,7 @@
    "lane_id": "SMB-DEVELOP-TIFF-CONSOLIDATE",
    "crate": "hsk-studio-develop",
    "phase": "validation",
-   "status": "PASS_V4",
+   "status": "PASS_V5",
    "owner": "builder-develop-tiff-20261014",
    "commits": [
     "a7048ef",
@@ -4393,11 +4457,12 @@
     "STUDIO-R26 PASS_V2 @507aa36 NOT_PROVEN: develop real_dng samsung-sm-g973u listed download is a JFIF rendering (expected typed refusal; 3 real DNGs decoded)",
     "STUDIO-R27 PASS_V3 @e698964",
     "STUDIO-R28 PASS_V4 @dd63d21 (NOT_PROVEN lines: 4, see round-R28.json)",
-    "STUDIO-R29 INCONCLUSIVE @62c0bf6 (status unchanged; infrastructure oracle_corpus_changed_between_canary_and_union: develop real_dng.rs:196 corpus file renamed out of band)"
+    "STUDIO-R29 INCONCLUSIVE @62c0bf6 (status unchanged; infrastructure oracle_corpus_changed_between_canary_and_union: develop real_dng.rs:196 corpus file renamed out of band)",
+    "STUDIO-R30 PASS_V5 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
    ],
    "note": "TIFF brief slice 3: develop consumes hsk-studio-interop-tiff (edge develop->interop-tiff), delete develop/src/tiff.rs; DNG output byte-identical on the corpus",
    "lane_file": "builders/lanes/hsk-studio-develop-tiff-consolidate.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V3): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V4): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-INTEROP-TIFF-CONTAINER-API",
@@ -4420,7 +4485,7 @@
    "lane_id": "SMB-INTEROP-FIG-NODES",
    "crate": "hsk-studio-interop-fig",
    "phase": "validation",
-   "status": "PASS_V4",
+   "status": "PASS_V5",
    "owner": "builder-fig-nodes-20261014",
    "commits": [
     "a55c345",
@@ -4430,17 +4495,18 @@
     "STUDIO-R25 PASS_V1 @d48bc30 NOT_PROVEN: interop-fig fig_import actual_fig_instance_variable_prototype_edit_reopen x3 fixtures: editable import NOT_PROVEN (fig editable rows)",
     "STUDIO-R26 PASS_V2 @507aa36 NOT_PROVEN: interop-fig fig_import actual_fig_instance_variable_prototype_edit_reopen x3 fixtures: editable import NOT_PROVEN (fig editable rows)",
     "STUDIO-R28 PASS_V3 @dd63d21 (NOT_PROVEN lines: 3, see round-R28.json)",
-    "STUDIO-R29 PASS_V4 @62c0bf6 (NOT_PROVEN lines: 3, see round-R29.json)"
+    "STUDIO-R29 PASS_V4 @62c0bf6 (NOT_PROVEN lines: 3, see round-R29.json)",
+    "STUDIO-R30 PASS_V5 @e7a2b6c (NOT_PROVEN lines: 3, see round-R30.json)"
    ],
    "note": "typed node-tree decode from real fixtures (parentIndex/guid tree, geometry blobs, fills/strokes/effects, text, SYMBOL/INSTANCE overrides, VARIABLE values, prototypeInteractions); container facts: fig-kiwi v106, schema DEFLATE, message zstd",
    "lane_file": "builders/lanes/hsk-studio-interop-fig-nodes.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V2): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V4): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-CONVERT-FOLLOWUPS",
    "crate": "hsk-studio-harness",
    "phase": "validation",
-   "status": "PASS_V5",
+   "status": "PASS_V6",
    "owner": "builder-convert-followups-20261014",
    "commits": [
     "e0c3473",
@@ -4454,17 +4520,18 @@
     "STUDIO-R26 PASS_V2 @507aa36 NOT_PROVEN: harness import_tiff photoshop_tiff_imports_its_layers_through_interop_psd (import-tiff, import-tiff+import-raw): real-Photoshop layered TIFF parity NOT_PROVEN (no independent Photoshop oracle; layers parsed from file bytes)",
     "STUDIO-R27 PASS_V3 @e698964",
     "STUDIO-R28 PASS_V4 @dd63d21 (NOT_PROVEN lines: 4, see round-R28.json)",
-    "STUDIO-R29 PASS_V5 @62c0bf6 (NOT_PROVEN lines: 4, see round-R29.json)"
+    "STUDIO-R29 PASS_V5 @62c0bf6 (NOT_PROVEN lines: 4, see round-R29.json)",
+    "STUDIO-R30 PASS_V6 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
    ],
    "note": "(1) prism exposes a working-profile constant (linear sRGB) and harness drops its private CC0 profile copy (CX-CAP-001); (2) harness detects DNG/TIFF-raw via interop-tiff Container (DNGVersion 50706, NewSubfileType) so raw never falls through to plain TIFF IFD0; (3) interop-psd public ImageSourceData/layer-record parser and harness imports layered Photoshop TIFF (37724) as layers",
    "lane_file": "builders/lanes/hsk-studio-convert-followups.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V3): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V5): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-INTEROP-FIG-NATIVE",
    "crate": "hsk-studio-interop-fig",
    "phase": "validation",
-   "status": "PASS_V4",
+   "status": "PASS_V5",
    "owner": "builder-fig-nodes-20261014",
    "commits": [
     "aab554e",
@@ -4476,17 +4543,18 @@
     "STUDIO-R25 PASS_V1 @d48bc30 NOT_PROVEN: interop-fig fig_import actual_fig_instance_variable_prototype_edit_reopen x3 fixtures: editable import NOT_PROVEN (fig editable rows)",
     "STUDIO-R26 PASS_V2 @507aa36 NOT_PROVEN: interop-fig fig_import actual_fig_instance_variable_prototype_edit_reopen x3 fixtures: editable import NOT_PROVEN (fig editable rows)",
     "STUDIO-R28 PASS_V3 @dd63d21 (NOT_PROVEN lines: 3, see round-R28.json)",
-    "STUDIO-R29 PASS_V4 @62c0bf6 (NOT_PROVEN lines: 3, see round-R29.json)"
+    "STUDIO-R29 PASS_V4 @62c0bf6 (NOT_PROVEN lines: 3, see round-R29.json)",
+    "STUDIO-R30 PASS_V5 @e7a2b6c (NOT_PROVEN lines: 3, see round-R30.json)"
    ],
    "note": "map decoded Figma node tree into folio StudioDocument (pages/artboards, layer graph, paints/strokes/paths, text stories, components/overrides, autolayout, reactions, variables), images byte-exact, unmapped fields -> loss receipts; edit/reopen round trip; harness import-fig route",
    "lane_file": "builders/lanes/hsk-studio-interop-fig-native.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V2): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V4): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-HARNESS-UI",
    "crate": "hsk-studio-harness",
    "phase": "validation",
-   "status": "PASS_V3",
+   "status": "PASS_V4",
    "owner": "builder-harness-ui-20261014",
    "commits": [
     "c4c6d4d",
@@ -4497,7 +4565,8 @@
     "STUDIO-R26 INCONCLUSIVE @507aa36 (status unchanged; blocker round-features.toml [crates] hsk-studio-harness declares no [\"viewer\"] set; tests/viewer_headless.rs is #![cfg(feature = \"viewer\")] (3 tests), never built by the round) NOT_PROVEN: harness viewer_headless (feature viewer): not built in R26; desktop window (feature desktop): not launched (Operator-attended)",
     "STUDIO-R27 PASS_V1 @e698964",
     "STUDIO-R28 PASS_V2 @dd63d21 (NOT_PROVEN lines: 4, see round-R28.json)",
-    "STUDIO-R29 PASS_V3 @62c0bf6 (NOT_PROVEN lines: 4, see round-R29.json)"
+    "STUDIO-R29 PASS_V3 @62c0bf6 (NOT_PROVEN lines: 4, see round-R29.json)",
+    "STUDIO-R30 PASS_V4 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
    ],
    "note": "Operator D11 2026-10-14: eframe 0.33.3 (wgpu backend) allowed for hsk-studio-harness ONLY; first visible desktop app: open file (convert flow), show composite render (render-gpu texture, wgpu 27.0.1 shared), layer panel via controls; plus re-shard psd_tools sweep shard_3 (120 s cap)",
    "lane_file": "builders/lanes/hsk-studio-harness-ui.json",
@@ -4506,7 +4575,7 @@
     "exact": "round-features.toml [crates] hsk-studio-harness declares no [\"viewer\"] set; tests/viewer_headless.rs is #![cfg(feature = \"viewer\")] (3 tests), never built by the round",
     "unblock": "steward adds a harness [\"viewer\"] set (headless; desktop window stays an Operator-attended check)"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V1): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V3): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-IO-RASTER-COMMON",
@@ -4551,7 +4620,7 @@
    "lane_id": "SMB-PIGMENT-SELECTION",
    "crate": "hsk-studio-pigment",
    "phase": "validation",
-   "status": "PASS_V5",
+   "status": "PASS_V6",
    "owner": "builder-pigment-20261014",
    "commits": [
     "7fe7a3a",
@@ -4563,17 +4632,18 @@
     "STUDIO-R26 PASS_V2 @507aa36",
     "STUDIO-R27 PASS_V3 @e698964",
     "STUDIO-R28 PASS_V4 @dd63d21",
-    "STUDIO-R29 PASS_V5 @62c0bf6"
+    "STUDIO-R29 PASS_V5 @62c0bf6",
+    "STUDIO-R30 PASS_V6 @e7a2b6c"
    ],
    "note": "brief lane-smb-pigment-selection.md",
    "lane_file": "builders/lanes/hsk-studio-pigment-selection.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V3): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V5): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-PIGMENT-BRUSH",
    "crate": "hsk-studio-pigment",
    "phase": "validation",
-   "status": "PASS_V4",
+   "status": "PASS_V5",
    "owner": "builder-pigment-20261014",
    "commits": [
     "9179368",
@@ -4583,24 +4653,27 @@
     "STUDIO-R26 PASS_V1 @507aa36",
     "STUDIO-R27 PASS_V2 @e698964",
     "STUDIO-R28 PASS_V3 @dd63d21",
-    "STUDIO-R29 PASS_V4 @62c0bf6"
+    "STUDIO-R29 PASS_V4 @62c0bf6",
+    "STUDIO-R30 PASS_V5 @e7a2b6c"
    ],
    "note": "brief lane-smb-pigment-brush.md; after SMB-PIGMENT-SELECTION (same crate)",
    "lane_file": "builders/lanes/hsk-studio-pigment-brush.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V2): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V4): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-LAYOUT-PDF-EXPORT",
    "crate": "hsk-studio-interop-layout",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done (STUDIO-R30 PASS_V1 @e7a2b6c)",
+   "status": "PASS_V1",
    "owner": "builder-layout-20261015b",
    "commits": [
     "0451297",
     "e83e699",
     "f97530d"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R30 PASS_V1 @e7a2b6c"
+   ],
    "note": "slice 1 press PdfExport 0451297; slice 2 interop-layout export_pdf e83e699 (+test-scanner fix f97530d)",
    "lane_file": "builders/lanes/hsk-studio-layout-pdf-export.json"
   },
@@ -4608,7 +4681,7 @@
    "lane_id": "SMB-COMPOSITE-TEMPORAL",
    "crate": "hsk-studio-composite",
    "phase": "validation",
-   "status": "PASS_V3",
+   "status": "PASS_V4",
    "owner": "builder-composite-temporal-20261014",
    "commits": [
     "cf0bc33",
@@ -4618,7 +4691,8 @@
     "STUDIO-R26 INCONCLUSIVE @507aa36 (status unchanged; blocker round-features.toml [crates] declares no hsk-studio-composite [\"motion\"] set; claimed capability T1 MotionTemporalSource (src/temporal/motion.rs) is proven only by the #[cfg(feature = \"motion\")] block in tests/temporal.rs:192) NOT_PROVEN: composite temporal::motion (feature motion) linear/hold opacity keys: not built (no composite motion unit)",
     "STUDIO-R27 PASS_V1 @e698964",
     "STUDIO-R28 PASS_V2 @dd63d21",
-    "STUDIO-R29 PASS_V3 @62c0bf6"
+    "STUDIO-R29 PASS_V3 @62c0bf6",
+    "STUDIO-R30 PASS_V4 @e7a2b6c"
    ],
    "note": "brief lane-smb-composite-temporal.md; lead T1: optional edge composite->motion behind feature motion approved | lead waiver 2026-10-14: tests/static_plan.rs edit is inside the composite crate (owned), accepted",
    "lane_file": "builders/lanes/hsk-studio-composite-temporal.json",
@@ -4627,13 +4701,13 @@
     "exact": "round-features.toml [crates] declares no hsk-studio-composite [\"motion\"] set; claimed capability T1 MotionTemporalSource (src/temporal/motion.rs) is proven only by the #[cfg(feature = \"motion\")] block in tests/temporal.rs:192",
     "unblock": "steward adds hsk-studio-composite = [[\"motion\"]] to .config/round-features.toml"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V1): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V3): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-INTEROP-FIG-GEOMETRY",
    "crate": "hsk-studio-interop-fig",
    "phase": "validation",
-   "status": "PASS_V3",
+   "status": "PASS_V4",
    "owner": "builder-fig-geometry-20261014",
    "commits": [
     "b24f18f",
@@ -4643,11 +4717,12 @@
    "verdicts": [
     "STUDIO-R26 PASS_V1 @507aa36",
     "STUDIO-R28 PASS_V2 @dd63d21 (NOT_PROVEN lines: 3, see round-R28.json)",
-    "STUDIO-R29 PASS_V3 @62c0bf6 (NOT_PROVEN lines: 3, see round-R29.json)"
+    "STUDIO-R29 PASS_V3 @62c0bf6 (NOT_PROVEN lines: 3, see round-R29.json)",
+    "STUDIO-R30 PASS_V4 @e7a2b6c (NOT_PROVEN lines: 3, see round-R30.json)"
    ],
    "note": "interop-fig -> nib edge (lead approved): write vector geometry/transforms/effects/image paints/masks into folio vector records; reduce native.* losses",
    "lane_file": "builders/lanes/hsk-studio-interop-fig-geometry.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V1): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V3): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-REEL-BFRAME-ORDER",
@@ -4670,7 +4745,7 @@
    "lane_id": "SMB-INTEROP-PSD-LE-LAYERS",
    "crate": "hsk-studio-interop-psd",
    "phase": "validation (harness tests/import_tiff.rs:109,314 must follow; routed to harness owner)",
-   "status": "PASS_V4",
+   "status": "PASS_V5",
    "owner": null,
    "commits": [
     "68cba91",
@@ -4680,17 +4755,18 @@
     "STUDIO-R26 PASS_V1 @507aa36 NOT_PROVEN: interop-psd image_source_le pillow_photoshop_cs_parity: no independent Photoshop oracle (layers parsed from file bytes only); harness import_tiff photoshop_tiff_imports_its_layers_through_interop_psd (import-tiff, import-tiff+import-raw): real-Photoshop layered TIFF parity NOT_PROVEN (no independent Photoshop oracle; layers parsed from file bytes)",
     "STUDIO-R27 PASS_V2 @e698964",
     "STUDIO-R28 PASS_V3 @dd63d21 (NOT_PROVEN lines: 1, see round-R28.json)",
-    "STUDIO-R29 PASS_V4 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)"
+    "STUDIO-R29 PASS_V4 @62c0bf6 (NOT_PROVEN lines: 1, see round-R29.json)",
+    "STUDIO-R30 PASS_V5 @e7a2b6c (NOT_PROVEN lines: 1, see round-R30.json)"
    ],
    "note": "little-endian MIB8 layer records in TIFF ImageSourceData (oracle-corpus/tiff-layered Pillow sample) refused; byte-order-aware readers",
    "lane_file": "builders/lanes/hsk-studio-interop-psd-le-layers.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V2): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V4): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-DEVELOP-CORPUS-PATH",
    "crate": "hsk-studio-develop",
    "phase": "validation",
-   "status": "PASS_V4",
+   "status": "PASS_V5",
    "owner": null,
    "commits": [
     "c946aa6"
@@ -4700,17 +4776,18 @@
     "STUDIO-R26 PASS_V2 @507aa36 NOT_PROVEN: develop real_dng samsung-sm-g973u listed download is a JFIF rendering (expected typed refusal; 3 real DNGs decoded)",
     "STUDIO-R27 PASS_V3 @e698964",
     "STUDIO-R28 PASS_V4 @dd63d21 (NOT_PROVEN lines: 4, see round-R28.json)",
-    "STUDIO-R29 INCONCLUSIVE @62c0bf6 (status unchanged; infrastructure oracle_corpus_changed_between_canary_and_union: develop real_dng.rs:196 corpus file renamed out of band)"
+    "STUDIO-R29 INCONCLUSIVE @62c0bf6 (status unchanged; infrastructure oracle_corpus_changed_between_canary_and_union: develop real_dng.rs:196 corpus file renamed out of band)",
+    "STUDIO-R30 PASS_V5 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
    ],
    "note": "real_dng.rs:196 hard-codes ../../../../Handshake_Artifacts instead of .config/oracle-corpus.toml; panics in every export",
    "lane_file": "builders/lanes/hsk-studio-develop-corpus-path.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V3): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V4): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-PIGMENT-TRANSFORM",
    "crate": "hsk-studio-pigment",
    "phase": "validation",
-   "status": "PASS_V4",
+   "status": "PASS_V5",
    "owner": "builder-pigment-transform-20261014",
    "commits": [
     "c4ab1ff",
@@ -4723,11 +4800,12 @@
     "STUDIO-R26 PASS_V1 @507aa36",
     "STUDIO-R27 PASS_V2 @e698964",
     "STUDIO-R28 PASS_V3 @dd63d21",
-    "STUDIO-R29 PASS_V4 @62c0bf6"
+    "STUDIO-R29 PASS_V4 @62c0bf6",
+    "STUDIO-R30 PASS_V5 @e7a2b6c"
    ],
    "note": "pigment Transform{affine 2x3, filter} plan operator + render-cpu (and render-gpu parity) implementation; composite then lowers position/scale/rotation/anchor/parenting; after SMB-PIGMENT-BRUSH (same crate)",
    "lane_file": "builders/lanes/hsk-studio-pigment-transform.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V2): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V4): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-FOLIO-COMPOSITION",
@@ -4749,7 +4827,7 @@
    "lane_id": "SMB-COMPOSITE-TEXT",
    "crate": "hsk-studio-composite",
    "phase": "validation",
-   "status": "PASS_V4",
+   "status": "PASS_V5",
    "owner": "builder-type-20261014",
    "commits": [
     "eddc6b1",
@@ -4762,11 +4840,12 @@
     "STUDIO-R26 PASS_V1 @507aa36",
     "STUDIO-R27 PASS_V2 @e698964",
     "STUDIO-R28 PASS_V3 @dd63d21",
-    "STUDIO-R29 PASS_V4 @62c0bf6"
+    "STUDIO-R29 PASS_V4 @62c0bf6",
+    "STUDIO-R30 PASS_V5 @e7a2b6c"
    ],
    "note": "composite lowers point/paragraph text layers to Solid + coverage_u8 mask from type GlyphCoverage; text renders in raster/vector/layout/motion",
    "lane_file": "builders/lanes/hsk-studio-composite-text.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V2): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V4): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-FOLIO-PAINT-BLUR-STYLE",
@@ -4792,7 +4871,7 @@
    "lane_id": "SMB-RENDER-GPU-SHARED-DEVICE",
    "crate": "hsk-studio-render-gpu",
    "phase": "done (STUDIO-R28 PASS_V1 @dd63d21)",
-   "status": "PASS_V2",
+   "status": "PASS_V3",
    "owner": null,
    "commits": [
     "9ea8594",
@@ -4801,7 +4880,8 @@
    "verdicts": [
     "STUDIO-R27 INCONCLUSIVE @e698964 (status unchanged; blocker round-features.toml [crates] hsk-studio-render-gpu declares only [\"test-faults\"]; tests/shared_device.rs is #![cfg(feature = \"shared-device\")] (claimed target-refusal and texture-equality proofs), never built by the round) NOT_PROVEN: render-gpu shared_device (feature shared-device): shared_device_renders_into_the_callers_texture_without_readback, shared_target_refusals_happen_before_device_work not built in R27",
     "STUDIO-R28 PASS_V1 @dd63d21 (NOT_PROVEN lines: 4, see round-R28.json)",
-    "STUDIO-R29 PASS_V2 @62c0bf6"
+    "STUDIO-R29 PASS_V2 @62c0bf6",
+    "STUDIO-R30 PASS_V3 @e7a2b6c"
    ],
    "note": "render into a caller-provided wgpu device/texture (egui-wgpu device) instead of readback+upload; wgpu 27.0.1 shared",
    "lane_file": "builders/lanes/hsk-studio-render-gpu-shared-device.json",
@@ -4809,13 +4889,14 @@
     "kind": "round_config_gap",
     "exact": "round-features.toml [crates] hsk-studio-render-gpu declares only [\"test-faults\"]; tests/shared_device.rs is #![cfg(feature = \"shared-device\")] (claimed target-refusal and texture-equality proofs), never built by the round",
     "unblock": "steward adds hsk-studio-render-gpu [\"shared-device\"] (or [\"test-faults\",\"shared-device\"]) to .config/round-features.toml"
-   }
+   },
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V2): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-UI-SUPPORT-APIS",
    "crate": "multi",
    "phase": "validation",
-   "status": "PASS_V3",
+   "status": "PASS_V4",
    "owner": null,
    "commits": [
     "6762593",
@@ -4825,33 +4906,36 @@
    "verdicts": [
     "STUDIO-R27 PASS_V1 @e698964",
     "STUDIO-R28 PASS_V2 @dd63d21 (NOT_PROVEN lines: 4, see round-R28.json)",
-    "STUDIO-R29 PASS_V3 @62c0bf6 (NOT_PROVEN lines: 4, see round-R29.json)"
+    "STUDIO-R29 PASS_V3 @62c0bf6 (NOT_PROVEN lines: 4, see round-R29.json)",
+    "STUDIO-R30 PASS_V4 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
    ],
    "note": "composite single root for multiple graph outputs; convert flow sets document blending space on import; chronicle opacity property; session exposes tile bytes for viewers (from SMB-HARNESS-UI missing APIs)",
    "lane_file": "builders/lanes/hsk-studio-ui-support-apis.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V1): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V3): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-HARNESS-UI-2",
    "crate": "hsk-studio-harness",
    "phase": "done (STUDIO-R28 PASS_V1 @dd63d21)",
-   "status": "PASS_V2",
+   "status": "PASS_V3",
    "owner": null,
    "commits": [
     "bff3713"
    ],
    "verdicts": [
     "STUDIO-R28 PASS_V1 @dd63d21 (NOT_PROVEN lines: 4, see round-R28.json)",
-    "STUDIO-R29 PASS_V2 @62c0bf6 (NOT_PROVEN lines: 4, see round-R29.json)"
+    "STUDIO-R29 PASS_V2 @62c0bf6 (NOT_PROVEN lines: 4, see round-R29.json)",
+    "STUDIO-R30 PASS_V3 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
    ],
    "note": "UI slice 2: editable opacity/blend, masks/effects rendering once supported, selection + brush tools on canvas, AccessKit on, text layers, export JPEG/PNG",
-   "lane_file": "builders/lanes/hsk-studio-harness-ui-2.json"
+   "lane_file": "builders/lanes/hsk-studio-harness-ui-2.json",
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V2): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-CONVERT-RASTER",
    "crate": "hsk-studio-harness",
    "phase": "validation",
-   "status": "PASS_V3",
+   "status": "PASS_V4",
    "owner": "builder-raster-20261014",
    "commits": [
     "bf5d703",
@@ -4861,7 +4945,8 @@
     "STUDIO-R26 INCONCLUSIVE @507aa36 (status unchanged; blocker round-features.toml [crates] hsk-studio-harness declares no [\"viewer\"] set; slice 2 export (tests/viewer_export.rs, #![cfg(feature = \"viewer\")]) never built) NOT_PROVEN: harness viewer_export (feature viewer): PNG/JPEG export + CLI export not built in R26",
     "STUDIO-R27 PASS_V1 @e698964",
     "STUDIO-R28 PASS_V2 @dd63d21 (NOT_PROVEN lines: 4, see round-R28.json)",
-    "STUDIO-R29 PASS_V3 @62c0bf6 (NOT_PROVEN lines: 4, see round-R29.json)"
+    "STUDIO-R29 PASS_V3 @62c0bf6 (NOT_PROVEN lines: 4, see round-R29.json)",
+    "STUDIO-R30 PASS_V4 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
    ],
    "note": "harness import-raster route (PNG/JPEG open + convert to native) per notes.harness_route; plus PNG/JPEG export of the composited document",
    "lane_file": "builders/lanes/hsk-studio-convert-raster.json",
@@ -4870,13 +4955,13 @@
     "exact": "round-features.toml [crates] hsk-studio-harness declares no [\"viewer\"] set; slice 2 export (tests/viewer_export.rs, #![cfg(feature = \"viewer\")]) never built",
     "unblock": "steward adds a harness [\"viewer\"] set"
    },
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V1): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V3): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-INTEROP-FIG-FOLIO-KINDS",
    "crate": "hsk-studio-interop-fig",
    "phase": "validation",
-   "status": "PASS_V3",
+   "status": "PASS_V4",
    "owner": "builder-fig-geometry-20261014",
    "commits": [
     "beedf31",
@@ -4885,17 +4970,18 @@
    "verdicts": [
     "STUDIO-R26 PASS_V1 @507aa36",
     "STUDIO-R28 PASS_V2 @dd63d21 (NOT_PROVEN lines: 3, see round-R28.json)",
-    "STUDIO-R29 PASS_V3 @62c0bf6 (NOT_PROVEN lines: 3, see round-R29.json)"
+    "STUDIO-R29 PASS_V3 @62c0bf6 (NOT_PROVEN lines: 3, see round-R29.json)",
+    "STUDIO-R30 PASS_V4 @e7a2b6c (NOT_PROVEN lines: 3, see round-R30.json)"
    ],
    "note": "map FOREGROUND/BACKGROUND_BLUR -> folio Blur, IMAGE fills -> StudioImagePaint, BOOLEAN_OPERATION -> StudioBooleanGroup, text styles -> StudioTypeStyleRecords; drop matching losses; real package round trip",
    "lane_file": "builders/lanes/hsk-studio-interop-fig-folio-kinds.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V1): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V3): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-COMPOSITE-NEW-KINDS",
    "crate": "hsk-studio-composite",
    "phase": "done (STUDIO-R28 PASS_V1 @dd63d21)",
-   "status": "PASS_V2",
+   "status": "PASS_V3",
    "owner": null,
    "commits": [
     "f1816ef",
@@ -4909,26 +4995,29 @@
    ],
    "verdicts": [
     "STUDIO-R28 PASS_V1 @dd63d21",
-    "STUDIO-R29 PASS_V2 @62c0bf6"
+    "STUDIO-R29 PASS_V2 @62c0bf6",
+    "STUDIO-R30 PASS_V3 @e7a2b6c"
    ],
    "note": "render folio Blur (layer + backdrop), lower image paints, evaluate boolean groups, image-typed text source -> Solid + coverage mask; after composite text/transform lanes",
-   "lane_file": "builders/lanes/hsk-studio-composite-new-kinds.json"
+   "lane_file": "builders/lanes/hsk-studio-composite-new-kinds.json",
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V2): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-HARNESS-SWEEP-PERF",
    "crate": "hsk-studio-harness",
    "phase": "done (STUDIO-R27 PASS_V1 @e698964: sweep 16/16 under default 120 s cap)",
-   "status": "PASS_V3",
+   "status": "PASS_V4",
    "owner": null,
    "commits": [],
    "verdicts": [
     "STUDIO-R27 PASS_V1 @e698964",
     "STUDIO-R28 PASS_V2 @dd63d21 (NOT_PROVEN lines: 4, see round-R28.json)",
-    "STUDIO-R29 PASS_V3 @62c0bf6 (NOT_PROVEN lines: 4, see round-R29.json)"
+    "STUDIO-R29 PASS_V3 @62c0bf6 (NOT_PROVEN lines: 4, see round-R29.json)",
+    "STUDIO-R30 PASS_V4 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
    ],
    "note": "R25: psd_tools_sweep_shard_3 TIMEOUT at 120 s (largest CMYK files); suspected Prism colour route from 3a496bb (UNVERIFIED): diagnose cost, fix or re-shard; never raise caps silently",
    "lane_file": "builders/lanes/hsk-studio-harness-sweep-perf.json",
-   "reopened": "STUDIO-R28 CX-VAL-009 @dd63d21 (was PASS_V1): crate or closure changed e698964..dd63d21"
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V3): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-ROUND-TIMEOUT-REPORT",
@@ -4944,21 +5033,23 @@
    "lane_id": "SMB-PRESS-PG-HARDEN",
    "crate": "hsk-studio-press",
    "phase": "done (STUDIO-R29 PASS_V1 @62c0bf6)",
-   "status": "PASS_V1",
+   "status": "PASS_V2",
    "owner": "builder-press-pg-20261015",
    "commits": [
     "aafcde7"
    ],
    "verdicts": [
-    "STUDIO-R29 PASS_V1 @62c0bf6"
+    "STUDIO-R29 PASS_V1 @62c0bf6",
+    "STUDIO-R30 PASS_V2 @e7a2b6c"
    ],
    "note": "R31-P1 PLAUSIBLE: element /Pg pointing at a non-page dict with text kept via private catalog key reads flattened; harden: follow /Pg too (real pages excluded by object number)",
-   "lane_file": "builders/lanes/hsk-studio-press-pg-harden.json"
+   "lane_file": "builders/lanes/hsk-studio-press-pg-harden.json",
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V1): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-PIGMENT-RETOUCH",
    "crate": "hsk-studio-pigment",
-   "status": "PASS_V1",
+   "status": "PASS_V2",
    "commits": [
     "9650626",
     "78ff77d",
@@ -4966,26 +5057,29 @@
     "edc1e0b"
    ],
    "verdicts": [
-    "STUDIO-R29 PASS_V1 @62c0bf6"
+    "STUDIO-R29 PASS_V1 @62c0bf6",
+    "STUDIO-R30 PASS_V2 @e7a2b6c"
    ],
    "note": "clone stamp, healing/spot healing, crop/canvas/trim, core filters (unsharp, high pass, median, noise)",
    "phase": "done (STUDIO-R29 PASS_V1 @62c0bf6)",
-   "lane_file": "builders/lanes/hsk-studio-pigment-retouch.json"
+   "lane_file": "builders/lanes/hsk-studio-pigment-retouch.json",
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V1): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-DEVELOP-CONTROLS",
    "crate": "hsk-studio-develop",
-   "status": "READY_FOR_VALIDATION",
+   "status": "PASS_V1",
    "commits": [
     "d16f10d",
     "ccc4a7c",
     "b4f0107"
    ],
    "verdicts": [
-    "STUDIO-R29 INCONCLUSIVE @62c0bf6 (status unchanged; infrastructure oracle_corpus_changed_between_canary_and_union: develop real_dng.rs:196 corpus file renamed out of band)"
+    "STUDIO-R29 INCONCLUSIVE @62c0bf6 (status unchanged; infrastructure oracle_corpus_changed_between_canary_and_union: develop real_dng.rs:196 corpus file renamed out of band)",
+    "STUDIO-R30 PASS_V1 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
    ],
    "note": "Basic panel controls, HSL/tone curve, local gradient/brush masks, develop-to-output for export",
-   "phase": "validation",
+   "phase": "done (STUDIO-R30 PASS_V1 @e7a2b6c)",
    "lane_file": "builders/lanes/hsk-studio-develop-controls.json"
   },
   {
@@ -5044,8 +5138,8 @@
   {
    "lane_id": "SMB-HARNESS-UI-3",
    "crate": "hsk-studio-harness",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done (STUDIO-R30 PASS_V1 @e7a2b6c)",
+   "status": "PASS_V1",
    "owner": "builder-ui3-20261015",
    "commits": [
     "63af66e",
@@ -5056,7 +5150,9 @@
     "cf18e93",
     "9832c68"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R30 PASS_V1 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
+   ],
    "note": "layer create/delete/duplicate/reorder (raster/text/vector) via chronicle; paint creating tiles; brush pixel mix through pigment masked_replace (parity); selection persisted in package; text tool via type + composite text; commit-authority tile path test; filters/retouch tools when pigment lanes land",
    "lane_file": "builders/lanes/hsk-studio-harness-ui-3.json"
   },
@@ -5080,8 +5176,8 @@
   {
    "lane_id": "SMB-COMPOSITE-COMPOSITION-ADAPTER",
    "crate": "hsk-studio-composite",
-   "phase": "done (STUDIO-R29 PASS_V1 @62c0bf6)",
-   "status": "PASS_V1",
+   "phase": "done (STUDIO-R30 PASS_V2 @e7a2b6c)",
+   "status": "PASS_V2",
    "owner": "builder-composite-comp-20261015",
    "commits": [
     "791f865",
@@ -5094,7 +5190,8 @@
     "1ddd686"
    ],
    "verdicts": [
-    "STUDIO-R29 PASS_V1 @62c0bf6"
+    "STUDIO-R29 PASS_V1 @62c0bf6",
+    "STUDIO-R30 PASS_V2 @e7a2b6c"
    ],
    "note": "TemporalSource adapter over folio StudioCompositionRecords (layer lookup, timing, streams -> motion Property), anchor/parent chain/source-time mapping/precomp recursion/track mattes via pigment Transform; after SMB-COMPOSITE-NEW-KINDS",
    "lane_file": "builders/lanes/hsk-studio-composite-composition-adapter.json"
@@ -5103,7 +5200,7 @@
    "lane_id": "SMB-INTEROP-FIG-LAYER-GRAPH",
    "crate": "hsk-studio-interop-fig",
    "phase": "done (STUDIO-R29 PASS_V1 @62c0bf6)",
-   "status": "PASS_V1",
+   "status": "PASS_V2",
    "owner": "builder-fig-graph-20261015",
    "commits": [
     "55606ee",
@@ -5114,10 +5211,12 @@
     "0c1ae4d"
    ],
    "verdicts": [
-    "STUDIO-R29 PASS_V1 @62c0bf6 (NOT_PROVEN lines: 3, see round-R29.json)"
+    "STUDIO-R29 PASS_V1 @62c0bf6 (NOT_PROVEN lines: 3, see round-R29.json)",
+    "STUDIO-R30 PASS_V2 @e7a2b6c (NOT_PROVEN lines: 3, see round-R30.json)"
    ],
    "note": "interop-fig writes an empty folio layer graph, so .fig documents cannot be composited; write graph sources/edges/outputs so imported Figma files render",
-   "lane_file": "builders/lanes/hsk-studio-interop-fig-layer-graph.json"
+   "lane_file": "builders/lanes/hsk-studio-interop-fig-layer-graph.json",
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V1): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-FOLIO-VECTOR-IMAGE-PORT",
@@ -5168,7 +5267,7 @@
    "lane_id": "SMB-RENDER-FILTERS",
    "crate": "hsk-studio-render-cpu",
    "phase": "done (STUDIO-R29 PASS_V1 @62c0bf6)",
-   "status": "PASS_V1",
+   "status": "PASS_V2",
    "owner": "builder-render-filters-20261015",
    "commits": [
     "9698de3",
@@ -5176,16 +5275,18 @@
     "5556fe9"
    ],
    "verdicts": [
-    "STUDIO-R29 PASS_V1 @62c0bf6"
+    "STUDIO-R29 PASS_V1 @62c0bf6",
+    "STUDIO-R30 PASS_V2 @e7a2b6c"
    ],
    "note": "execute pigment filter plan operators (gaussian, unsharp, high pass, median, seeded noise) in render-cpu (bit-identical to pigment reference) and render-gpu (within tolerance)",
-   "lane_file": "builders/lanes/hsk-studio-render-filters.json"
+   "lane_file": "builders/lanes/hsk-studio-render-filters.json",
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V1): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-PIGMENT-CONTENT-AWARE",
    "crate": "hsk-studio-pigment",
    "phase": "done (STUDIO-R29 PASS_V1 @62c0bf6)",
-   "status": "PASS_V1",
+   "status": "PASS_V2",
    "owner": null,
    "commits": [
     "5c2288e",
@@ -5194,16 +5295,18 @@
     "b7880bb"
    ],
    "verdicts": [
-    "STUDIO-R29 PASS_V1 @62c0bf6"
+    "STUDIO-R29 PASS_V1 @62c0bf6",
+    "STUDIO-R30 PASS_V2 @e7a2b6c"
    ],
    "note": "STU-RAS-143 MUST: native content-aware fill/move/patch (PatchMatch-style inpainting), deterministic, bounded",
-   "lane_file": "builders/lanes/hsk-studio-pigment-content-aware.json"
+   "lane_file": "builders/lanes/hsk-studio-pigment-content-aware.json",
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V1): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-DEVELOP-CONTROLS-2",
    "crate": "hsk-studio-develop",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done (STUDIO-R30 PASS_V1 @e7a2b6c)",
+   "status": "PASS_V1",
    "owner": "builder-develop-controls-20261015",
    "commits": [
     "6a636c2",
@@ -5212,7 +5315,8 @@
     "31642da"
    ],
    "verdicts": [
-    "STUDIO-R29 INCONCLUSIVE @62c0bf6 (status unchanged; infrastructure oracle_corpus_changed_between_canary_and_union: develop real_dng.rs:196 corpus file renamed out of band)"
+    "STUDIO-R29 INCONCLUSIVE @62c0bf6 (status unchanged; infrastructure oracle_corpus_changed_between_canary_and_union: develop real_dng.rs:196 corpus file renamed out of band)",
+    "STUDIO-R30 PASS_V1 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
    ],
    "note": "absolute kelvin WB (STU-RAW-110), point colour, grayscale mix, colour grading (3-way), texture, dehaze, sharpening, luminance/colour noise reduction, range masks (luminance/colour)",
    "lane_file": "builders/lanes/hsk-studio-develop-controls-2.json"
@@ -5220,27 +5324,31 @@
   {
    "lane_id": "SMB-HARNESS-DEVELOP-EXPORT",
    "crate": "hsk-studio-harness",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done (STUDIO-R30 PASS_V1 @e7a2b6c)",
+   "status": "PASS_V1",
    "owner": "builder-harness-dev-20261015",
    "commits": [
     "4746028"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R30 PASS_V1 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
+   ],
    "note": "harness: open raw -> develop recipe sliders -> develop_to_output -> JPEG/PNG export (CLI + viewer); after SMB-HARNESS-UI-3",
    "lane_file": "builders/lanes/hsk-studio-harness-develop-export.json"
   },
   {
    "lane_id": "SMB-COMPOSITE-VECTOR-IN-GROUP",
    "crate": "hsk-studio-composite",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done (STUDIO-R30 PASS_V1 @e7a2b6c)",
+   "status": "PASS_V1",
    "owner": "builder-composite-comp-20261015",
    "commits": [
     "c917333",
     "5898a82"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R30 PASS_V1 @e7a2b6c"
+   ],
    "note": "after SMB-COMPOSITE-COMPOSITION-ADAPTER: image-typed vector sources in groups (folio 6e2ec80) + lower strokes (nib::stroke::outline_stroke), exact coverage (nib::raster::rasterize), gradients/patterns (nib::raster::paint_coverage), live boolean outlines (nib::boolean); CPU/GPU parity",
    "lane_file": "builders/lanes/hsk-studio-composite-vector-in-group.json"
   },
@@ -5248,36 +5356,40 @@
    "lane_id": "SMB-LAYOUT-PARENT-ADAPTER",
    "crate": "hsk-studio-layout",
    "phase": "done (STUDIO-R29 PASS_V1 @62c0bf6)",
-   "status": "PASS_V1",
+   "status": "PASS_V2",
    "owner": null,
    "commits": [
     "3d02f56"
    ],
    "verdicts": [
-    "STUDIO-R29 PASS_V1 @62c0bf6"
+    "STUDIO-R29 PASS_V1 @62c0bf6",
+    "STUDIO-R30 PASS_V2 @e7a2b6c"
    ],
    "note": "map folio parent_page_records onto layout ParentSet; page-local items record gap",
-   "lane_file": "builders/lanes/hsk-studio-layout-parent-adapter.json"
+   "lane_file": "builders/lanes/hsk-studio-layout-parent-adapter.json",
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V1): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-INTEROP-FIG-INSTANCES-FRAMES",
    "crate": "hsk-studio-interop-fig",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done (STUDIO-R30 PASS_V1 @e7a2b6c)",
+   "status": "PASS_V1",
    "owner": "builder-fig-inst-20261015",
    "commits": [
     "3b665d1",
     "2bbeb48"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R30 PASS_V1 @e7a2b6c (NOT_PROVEN lines: 3, see round-R30.json)"
+   ],
    "note": "measured: prototype page 99.23-99.31% px within 8/255 vs Operator PNGs; basic-shapes mean 20.25/255 UNVERIFIED (strokes, gradient, image paint, Inter Bold, shadows not drawn)",
    "lane_file": "builders/lanes/hsk-studio-interop-fig-instances-frames.json"
   },
   {
    "lane_id": "SMB-PIGMENT-CONTENT-AWARE-2",
    "crate": "hsk-studio-pigment",
-   "phase": "done (STUDIO-R29 PASS_V1 @62c0bf6)",
-   "status": "PASS_V1",
+   "phase": "done (STUDIO-R30 PASS_V2 @e7a2b6c)",
+   "status": "PASS_V2",
    "owner": "builder-pigment-ca2-20261015",
    "commits": [
     "fcd627d",
@@ -5288,7 +5400,8 @@
     "809a276"
    ],
    "verdicts": [
-    "STUDIO-R29 PASS_V1 @62c0bf6"
+    "STUDIO-R29 PASS_V1 @62c0bf6",
+    "STUDIO-R30 PASS_V2 @e7a2b6c"
    ],
    "note": "STU-RAS-143 remainder: content-aware crop-expand, content-aware scale, inpaint; colour adaptation high/very_high; rotation/scale/mirror adaptation; wire retouch::content_aware_fill and crop content_aware_fill_on_expand to native fill (re-opens SMB-PIGMENT-RETOUCH per CX-VAL-009); photo-size perf proof",
    "lane_file": "builders/lanes/hsk-studio-pigment-content-aware-2.json"
@@ -5297,62 +5410,70 @@
    "lane_id": "SMB-LAYOUT-TYPESET-HARDEN",
    "crate": "hsk-studio-layout",
    "phase": "done (STUDIO-R29 PASS_V1 @62c0bf6)",
-   "status": "PASS_V1",
+   "status": "PASS_V2",
    "owner": "builder-layout-20261015b",
    "commits": [
     "54f8d69"
    ],
    "verdicts": [
-    "STUDIO-R29 PASS_V1 @62c0bf6"
+    "STUDIO-R29 PASS_V1 @62c0bf6",
+    "STUDIO-R30 PASS_V2 @e7a2b6c"
    ],
    "note": "R28 finding_not_failure: hyphenate.rs:159 unchecked min_before+min_after add; TypesetOptions::validate (typeset.rs:163) checks floats only; hostile integer limits panic on overflow in debug. Checked arithmetic + typed refusal + hostile test at usize::MAX",
-   "lane_file": "builders/lanes/hsk-studio-layout-typeset-harden.json"
+   "lane_file": "builders/lanes/hsk-studio-layout-typeset-harden.json",
+   "reopened": "STUDIO-R30 CX-VAL-009 @e7a2b6c (was PASS_V1): crate or closure changed 62c0bf6..e7a2b6c"
   },
   {
    "lane_id": "SMB-RENDER-GPU-PIPELINE-FAULT",
    "crate": "hsk-studio-render-gpu",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done (STUDIO-R30 PASS_V1 @e7a2b6c)",
+   "status": "PASS_V1",
    "owner": "builder-gpu-fault-20261015",
    "commits": [
     "a2d17b0"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R30 PASS_V1 @e7a2b6c"
+   ],
    "note": "wgpu panics at pipeline creation on shader compile failure (FXC dynamic component indexing) instead of a typed pipeline failure; surfaces as device_fault at first dispatch. Catch via push_error_scope/pop_error_scope + typed PipelineCreate refusal; test with a deliberately invalid WGSL kernel",
    "lane_file": "builders/lanes/hsk-studio-render-gpu-pipeline-fault.json"
   },
   {
    "lane_id": "SMB-PIGMENT-FILTER-DESCRIPTOR",
    "crate": "hsk-studio-pigment",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done (STUDIO-R30 PASS_V1 @e7a2b6c)",
+   "status": "PASS_V1",
    "owner": "builder-pigment-ca2-20261015",
    "commits": [
     "d111a1c",
     "25d6cec"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R30 PASS_V1 @e7a2b6c"
+   ],
    "note": "filter_math DESCRIPTOR says backends do not declare filters; stale since SMB-RENDER-FILTERS (render-cpu/gpu execute all five). Text-only fix, fold into the next pigment lane",
    "lane_file": "builders/lanes/hsk-studio-pigment-filter-descriptor.json"
   },
   {
    "lane_id": "SMB-RENDER-GPU-SUBMIT-FAULT",
    "crate": "hsk-studio-render-gpu",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done (STUDIO-R30 PASS_V1 @e7a2b6c)",
+   "status": "PASS_V1",
    "owner": null,
    "commits": [
     "2e52586"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R30 PASS_V1 @e7a2b6c"
+   ],
    "note": "known limits: device-wide wgpu error scopes may misattribute another thread's error on a shared device; post-panic device marked lost conservatively; Unix path redaction stops at first space; Vulkan/Metal NOT_PROVEN",
    "lane_file": "builders/lanes/hsk-studio-render-gpu-submit-fault.json"
   },
   {
    "lane_id": "SMB-COMPOSITE-COMPOSITION-2",
    "crate": "hsk-studio-composite",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done (STUDIO-R30 PASS_V1 @e7a2b6c)",
+   "status": "PASS_V1",
    "owner": "builder-composite-comp-20261015",
    "commits": [
     "0223776",
@@ -5361,7 +5482,9 @@
     "be2383a",
     "156689b"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R30 PASS_V1 @e7a2b6c"
+   ],
    "note": "composition layers: masks + effects (reuse lower_to_render_plan_extended per layer), vector/text/adjustment layers via prepared planes, collapse_transformations; precomps + mattes on the document-graph path; after SMB-COMPOSITE-VECTOR-IN-GROUP",
    "lane_file": "builders/lanes/hsk-studio-composite-composition-2.json"
   },
@@ -5378,13 +5501,15 @@
   {
    "lane_id": "SMB-RENDER-CONTENT-AWARE",
    "crate": "hsk-studio-render-cpu",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done (STUDIO-R30 PASS_V1 @e7a2b6c)",
+   "status": "PASS_V1",
    "owner": "builder-gpu-fault-20261015",
    "commits": [
     "7d2367a"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R30 PASS_V1 @e7a2b6c"
+   ],
    "note": "gaps: source limited to plan extent; cancel not checked inside pigment fill; fill over effect/filter/fill content refused; u8 hole x257 conversion could move to pigment; render-gpu typed Unsupported",
    "lane_file": "builders/lanes/hsk-studio-render-content-aware.json"
   },
@@ -5409,15 +5534,17 @@
   {
    "lane_id": "SMB-HARNESS-DEVELOP-2",
    "crate": "hsk-studio-harness",
-   "phase": "validation",
-   "status": "READY_FOR_VALIDATION",
+   "phase": "done (STUDIO-R30 PASS_V1 @e7a2b6c)",
+   "status": "PASS_V1",
    "owner": "builder-harness-dev-20261015",
    "commits": [
     "84c33c3",
     "505ed9e",
     "0052602"
    ],
-   "verdicts": [],
+   "verdicts": [
+    "STUDIO-R30 PASS_V1 @e7a2b6c (NOT_PROVEN lines: 4, see round-R30.json)"
+   ],
    "note": "develop recipe persisted as session typed entry token `develop` (lead decision, interim like selection); panel adds Kelvin/tint WB, colour grading, point colour, detail, local corrections with range masks (CONTROLS-2 types)",
    "lane_file": "builders/lanes/hsk-studio-harness-develop-2.json"
   },
@@ -5518,22 +5645,29 @@
   {
    "lane_id": "SMB-PRESS-PAINT-TRANSPARENCY",
    "crate": "hsk-studio-press",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-layout-20261015b",
-   "commits": [],
+   "commits": [
+    "8811e78"
+   ],
    "verdicts": [],
-   "note": "press paint device (paint.rs) skips soft-masked content and applies group alpha per shape; implement isolated/knockout transparency groups and soft masks (PDF 32000 11.4-11.6) so render_page proves soft masks and group overlaps"
+   "note": "side effect: redaction flatten now draws soft-masked content (re-opens SMB-PRESS lanes under CX-VAL-009)",
+   "lane_file": "builders/lanes/hsk-studio-press-paint-transparency.json"
   },
   {
    "lane_id": "SMB-LAYOUT-PDF-EXPORT-3",
    "crate": "hsk-studio-interop-layout",
-   "phase": "queued",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-layout-20261015b",
-   "commits": [],
+   "commits": [
+    "93b42a8",
+    "a4121eb"
+   ],
    "verdicts": [],
-   "note": "CFF/OpenType-CFF fonts, clipping masks, gradients (shading types 2/3), PDF/X-4 output-intent + conformance checks; after SMB-PRESS-PAINT-TRANSPARENCY"
+   "note": "check_pdfx4 rules written from memory of ISO 15930-7: UNVERIFIED until veraPDF",
+   "lane_file": "builders/lanes/hsk-studio-layout-pdf-export-3.json"
   },
   {
    "lane_id": "SMB-HARNESS-DEVELOP-4",
@@ -5604,6 +5738,16 @@
    "commits": [],
    "verdicts": [],
    "note": "extended mode for envelope entries (adjustments, effects, filters, content-aware) per STU-COL-120/161; remaining blend modes with documented extended formulas or typed refusal; GPU overflow -> typed refusal parity with CPU"
+  },
+  {
+   "lane_id": "SMB-LAYOUT-PDFX-VERAPDF",
+   "crate": "hsk-studio-interop-layout",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-layout-20261015b",
+   "commits": [],
+   "verdicts": [],
+   "note": "external PDF/X-4 + PDF/A validation with the veraPDF binary (run as a tool, source not read); fix failures; CFF subsetting; gradient reflect/repeat/stop opacity; clipping to text/raster bases"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
@@ -6833,16 +6977,26 @@
   "by": "wp_validator STUDIO-R29"
  },
  "round_R30": {
-  "candidate": "da4254c",
-  "candidate_full": "da4254c8ae72d5fa4bbf3489749aea1e1d012d81",
-  "origin_at_fetch": "da4254c (fetch 00:50:59Z)",
-  "status": "BLOCKED_INFRASTRUCTURE",
-  "blocker": "Cargo.lock out of sync at candidate (GP-012 cargo metadata --locked exit 101): interop-layout deps press/nib/pigment/prism (e83e699) and type (98abfd6) after steward sync 9154f50; tip 86222e1 still unsynced (3b665d1 interop-fig manifest too). Entry script would refuse at step 0 (exit 75). Nothing launched",
-  "unblock": "steward lock-sync commit on origin tip, then re-freeze and run canary + union",
+  "candidate": "e7a2b6c",
+  "candidate_full": "e7a2b6c5f8e2162f26de6e651aa2f195d04d14b2",
+  "origin_at_fetch": "8c6f959 (fetch 01:28:40Z); lead re-freeze at steward sync e7a2b6c; first freeze da4254c superseded (Cargo.lock out of sync, nothing launched)",
+  "opened_at": "2026-10-15T01:32:45Z",
+  "canary": "C42-e7a2b6c-r (steward) reused: sha/tree/manifest equal, exit 0, 96 units",
+  "status": "COMPLETE",
   "round_ref": "validation/round-R30.json",
-  "verdicts": {},
-  "lane_status_changes": "none (CX-VAL-006)",
-  "by": "wp_validator STUDIO-R30",
-  "recorded_at": "2026-10-15T01:09:01Z"
+  "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R30",
+  "union_exit": 73,
+  "inconclusive": [],
+  "fails": [],
+  "timeouts": [],
+  "deferred_r31": {
+   "SMB-LAYOUT-PDF-EXPORT-2": "claim dd110cf 79a60d9 after candidate",
+   "SMB-RENDER-SCENE-DISPLAY": "claim eeb61e1 0231a15 after candidate"
+  },
+  "completed_at": "2026-10-15T02:04:29Z",
+  "verdicts": {
+   "PASS": 105
+  },
+  "by": "wp_validator STUDIO-R30"
  }
 }

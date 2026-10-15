@@ -1,0 +1,46 @@
+{
+ "crate": "hsk-studio-press + hsk-studio-interop-layout",
+ "lane": "SMB-LAYOUT-PDF-EXPORT-3",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed; full press + interop-layout suites run once at READY",
+ "commits": [
+  {"sha": "93b42a8", "subject": "press + interop-layout (SMB-LAYOUT-PDF-EXPORT-3): CFF fonts, clipping, axial/radial shadings, PDF/X-4 identification"},
+  {"sha": "a4121eb", "subject": "interop-layout (SMB-LAYOUT-PDF-EXPORT-3): DESCRIPTOR lists clip, gradient, fonts, pdfx4"}
+ ],
+ "capabilities_done": [
+  "press embed_font: OpenType-CFF fonts (sfnt OTTO accepted; bounded cff.rs: header, Name/Top DICT/String/CharStrings INDEX, DICT operands, ROS, charset formats 0/1/2). CID-keyed CFF -> bare CFF as /FontFile3 /Subtype /CIDFontType0C in a CIDFontType0, codes = CIDs from the charset (glyph ids in, CIDs out), /W and /ToUnicode keyed by CID, CIDSystemInfo from ROS; name-keyed CFF -> whole OTF as /FontFile3 /Subtype /OpenType, codes = glyph ids; TrueType falls through to the subsetting path; embed_truetype keeps refusing CFF (font_cff_not_embedded)",
+  "press push_clip / pop_clip (q path W|W* n ... Q, depth cap 32, balanced at end_group and finish)",
+  "press fill_path_gradient: axial (type 2) and radial (type 3) shadings via q path W n cm /Sh sh Q; stops -> stitching function (type 3) of linear type-2 pieces, padded to 0 and 1; /Extend; DeviceRGB or a 3-component ICC profile; up to 1024 stops; typed refusals invalid_gradient / non_finite",
+  "press paint.rs evaluates axial and radial shadings per pixel (inverse matrix, axis projection / largest admissible circle parameter, /Extend, 1024-entry function table) so render_page proves them",
+  "press PDF/X-4 identification (ExportOptions.pdfx4 {created, modified, trapped}): requires a GtsPdfx output intent, version >= 1.6, PDF dates and a TrimBox on every page (typed pdfx_requirement refusals); Info /GTS_PDFXVersion PDF/X-4, /CreationDate, /ModDate, /Trapped; catalog /Metadata XMP (dc:title escaped, xmp dates, pdf:Trapped, pdfxid:GTS_PDFXVersion); receipt effective_pdfx_profile read back; conformance stays not_proven",
+  "press check_pdfx4(bytes) self-check, 11 rules read back through the strict reader: header_version_1_6, no_encryption, one_gts_pdfx_output_intent, dest_output_profile_icc, info_gts_pdfxversion, info_dates, info_trapped, xmp_metadata_pdfxid, trailer_id, page_trim_inside_bleed_inside_media, fonts_embedded",
+  "interop-layout: fonts through embed_font (CFF supported); clipping masks to vector bases (base = nearest unclipped layer painted before at the same level; other bases reported); gradient fill rows -> fill_path_gradient (linear -> axial; radial focal -> start circle, outer -> end circle; transform composed with the page mapping; ICC when stops share a resolved profile); losses for spread, interpolation, stop opacity, midpoints, stroke gradients; DESCRIPTOR clip / gradient / fonts / pdfx4 entries"
+ ],
+ "tests": {
+  "argv": "nextest run -p hsk-studio-press -p hsk-studio-interop-layout (full suites, once at READY)",
+  "exit": 0,
+  "sha": "a4121eb",
+  "passed": 213,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "CFF subsetting; clip bases that are text or raster (alpha soft masks); gradient spread reflect/repeat, midpoints and stop opacity (soft-masked shading); external PDF/X-4 validation (veraPDF) as the conformance oracle",
+ "updated_at": "2026-10-15T02:04:54Z",
+ "notes": {
+  "tests_detail": [
+   "press tests/export.rs cff_fonts_clipping_gradients_and_pdfx4: Noto Sans SC (CID-keyed CFF, ROS Adobe-Identity-0; fontTools 4.62.1: H gid 41 = CID 41, U+4E2D gid 8805 = CID 9544) -> content codes <0029> and (%H) (= 0x2548), ToUnicode <2548> <4E2D>, /Subtype /CIDFontType0C, render-back 0 font warnings and glyph ink for both; damaged CFF table -> font_unreadable, glyph past the font -> font_glyph_out_of_range; clip left half -> black / white; pop without push and an open clip at finish -> unbalanced_group; axial black->white 64 / 191 at x 25 / 75; three-stop red/green/blue green at the middle; radial white centre, 128 at r 25, black outside (extend); gradient refusals (no stops, decreasing, negative radius, singular matrix, NaN); PDF/X-4 export passes all 11 self-check rules, effective_pdfx_profile PDF/X-4, conformance not_proven, XMP title escaped; a plain export fails the identification rules; refusals gts_pdfx_output_intent, version_1_6, pdf_dates, page_trim_box",
+   "interop-layout tests/pdf_export.rs folio_clipping_gradient_and_pdfx4: Folio vector 11 clipped to base vector 12 with a black->white linear gradient (ICC-bound stops) written with PDF/X-4: self-check all passed; render-back t=0.9 -> 230, t=0.3 -> 77 inside the base, white where 11 lies outside the base, the base blue; no clip/gradient losses"
+  ],
+  "spec_basis": "ISO 32000-1 8.5.4 (clipping), 8.7.4.5.3/8.7.4.5.4 (axial/radial shadings), 7.10.3/7.10.4 (type 2/3 functions), 9.7.4.2 and 9.9 (CIDFontType0, FontFile3 CIDFontType0C/OpenType), 14.3.2 (XMP metadata); Adobe TN 5176 (CFF); ISO 15930-7 (PDF/X-4) rules as recalled: UNVERIFIED wording (D5)",
+  "unverified": [
+   "PDF/X-4 rule set is this crate's reading, not the standard's text; conformance not_proven until an external validator (veraPDF) passes it",
+   "viewers other than hayro-interpret for CIDFontType0C codes via charset",
+   "Folio radial focal circle -> PDF start circle mapping vs Illustrator/Figma rendering (D5)"
+  ],
+  "own_cause_log": "cff test asserted <2548> but the canonical writer emits printable two-byte codes as literals ((%H)); test fixed in 93b42a8 before the passing rerun",
+  "paint_rs_ownership": "paint.rs shading support added in this lane under the ownership granted for SMB-PRESS-PAINT-TRANSPARENCY",
+  "claim": "No PASS claimed; READY_FOR_VALIDATION on pushed commits 93b42a8, a4121eb"
+ }
+}

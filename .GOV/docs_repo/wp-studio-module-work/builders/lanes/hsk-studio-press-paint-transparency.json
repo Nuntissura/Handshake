@@ -1,0 +1,49 @@
+{
+ "crate": "hsk-studio-press",
+ "lane": "SMB-PRESS-PAINT-TRANSPARENCY",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed; full press + interop-layout suites run once at READY",
+ "commits": [
+  {"sha": "8811e78", "subject": "press (SMB-PRESS-PAINT-TRANSPARENCY): transparency groups and soft masks in the paint device"}
+ ],
+ "capabilities_done": [
+  "paint.rs transparency groups as offscreen layers (clean-room from ISO 32000-1 11.3-11.6): basic compositing formula 11.3.3 with shape and opacity kept apart; group alpha tracked apart from the backdrop; non-isolated groups start from the backdrop (enclosing layer or opaque page) and remove its contribution at the end with the 11.4.8 formula C = Cn + (Cn - C0) x (a0/agn - a0); knockout groups composite each element against the initial backdrop weighted by its shape (11.4.6.2, premultiplied); group result composited with group opacity, group soft mask, blend mode and the clip in force",
+  "soft masks (11.6.5): ExtGState masks (applied to later draws) and group masks rendered by interpreting the mask group into a dedicated layer over /BC (luminosity: 0.30 R + 0.59 G + 0.11 B) or transparent (alpha: group alpha), then /TR; cached per mask and bounds (16)",
+  "non-separable blend modes Hue, Saturation, Color, Luminosity (11.3.5.3 Lum / ClipColor / SetLum / Sat / SetSat) replace the old Normal approximation",
+  "hostile groups: nesting deeper than MAX_GROUP_DEPTH 32 and layers over the layer memory cap (min(4 canvases x 36 bytes, 512 MiB)) are refused BEFORE allocation (Dead layer, content not drawn, WorkBudget note, pops stay balanced); a soft mask that cannot be built leaves its content undrawn (SoftMask note)",
+  "render_page passes the document's transparency-group /I and /K flags to the device (hayro-interpret 0.7.0 reports groups without them; soft-mask groups excluded); differing flags in one file -> ISO defaults + note group_flags_mixed; RenderedPage.notes",
+  "export SoftMask gains alpha (/S /Alpha), backdrop (/BC gray), transfer_exponent (/TR type-2 function) + SoftMask::luminosity; typed refusals colour_out_of_range, value_out_of_range, non_finite"
+ ],
+ "tests": {
+  "argv": "nextest run -p hsk-studio-press -p hsk-studio-interop-layout (full suites, once at READY)",
+  "exit": 0,
+  "sha": "8811e78",
+  "passed": 211,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "lane SMB-LAYOUT-PDF-EXPORT-3",
+ "updated_at": "2026-10-15T01:43:23Z",
+ "notes": {
+  "spec_basis": "ISO 32000-1 11.3 (basic compositing, blend modes), 11.4 (transparency groups: isolated 11.4.7, knockout 11.4.6.2, group compositing 11.4.8), 11.6.5 (soft masks: luminosity/alpha, BC, TR); clean-room from the standard's formulas as recalled, no third-party compositor source read; exact formula wording UNVERIFIED against the published text (D5)",
+  "tests_detail": [
+   "press tests/export.rs paint_device_renders_groups_and_soft_masks (render_page pixel oracles, hand-computed): two overlapping opaque squares in a 50 percent group = 128 everywhere incl. the overlap (old device gave 64); Multiply cyan inside an isolated group over yellow = cyan, non-isolated = green; two half-alpha squares: knockout overlap 128, non-knockout 64, single 128; luminosity mask black backdrop (white image -> black shows left, page white right), /BC 1 with a black image (inverted), /TR x^2 on 50 percent gray -> 191, alpha mask (opaque image left -> left shows); mixed group flags -> note; refusals for the new mask parameters",
+   "press tests/export.rs transparency_through_extgstate_groups_and_soft_masks: the luminosity soft mask is now proven by pixels (left black, right white; no notes), replacing the earlier NOT_PROVEN line",
+   "press src/paint.rs deep_and_huge_groups_are_refused_before_allocation: 40 pushes -> layers 33..40 Dead with no allocation, content not drawn, pops balanced, WorkBudget; 2000x2000 canvas with 1000 layer bytes left -> Dead, nothing allocated, memory restored",
+   "press src/paint.rs non_separable_blend_modes: Luminosity / Color keep luminosity 0.5 and red's hue; Saturation(red, gray) = (0.3, 0.3, 0.3)",
+   "interop-layout tests/pdf_export.rs folio_appearance_becomes_transparency_groups: the Folio layer mask now renders (red-only pixel at 25 percent kept, blue-only pixel outside the mask removed; no notes)"
+  ],
+  "limits": [
+   "group flags are per document (the interpreter's Device API carries no /I /K); a file mixing flags renders with ISO defaults and says so",
+   "knockout uses coverage as shape; antialiased edges inside knockout groups are approximate",
+   "the redaction flatten now draws soft-masked content instead of leaving it absent (region pixels are still painted after drawing; flatten suites green)"
+  ],
+  "unverified": [
+   "Acrobat parity of group/soft-mask rendering (D5 oracle)",
+   "the luminosity weights 0.30/0.59/0.11 for DeviceGray conversion of RGB mask content"
+  ],
+  "claim": "No PASS claimed; READY_FOR_VALIDATION on pushed commit 8811e78"
+ }
+}
