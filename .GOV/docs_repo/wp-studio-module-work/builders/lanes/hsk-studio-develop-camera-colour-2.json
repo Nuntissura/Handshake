@@ -1,0 +1,17 @@
+{
+  "crate": "hsk-studio-develop",
+  "lane": "SMB-DEVELOP-CAMERA-COLOUR-2",
+  "status": "IN_PROGRESS",
+  "phase": "develop slice pushed (14590e8); harness opt-in staged, full units running",
+  "commits": [
+    {"sha": "14590e8", "subject": "develop (SMB-DEVELOP-CAMERA-COLOUR-2): single-illuminant colour is opt-in; two-illuminant interpolation tested"}
+  ],
+  "capabilities_done": [],
+  "tests": {},
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "harness ImportSettings { approximate_colour } commit after the ignored units pass",
+  "updated_at": "2026-10-15T10:05:00Z",
+  "notes": {}
+}
