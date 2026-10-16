@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-15T23:38:04Z",
+ "updated_at": "2026-10-16T00:03:57Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7668,12 +7668,14 @@
   {
    "lane_id": "SMB-PARITY-REFRESH-3",
    "crate": "(read-only)",
-   "phase": "build",
-   "status": null,
+   "phase": "done",
+   "status": "DONE",
    "owner": "parity-auditor-20261016",
-   "commits": [],
+   "commits": [
+    "4bba7c9c"
+   ],
    "verdicts": [],
-   "note": "parity matrix 20261016 incl. Affinity as 9th app"
+   "note": "research/parity-matrix-20261016.json: 8 apps 49.8->54.2%, Affinity 39.1% (80 rows), all 9 apps 50.2% over 308 rows; UI 14.3%; scorecard artifact v4 republished"
   },
   {
    "lane_id": "SMB-D5-ADOBE-ORACLE-RUN",
@@ -7684,6 +7686,96 @@
    "commits": [],
    "verdicts": [],
    "note": "lead-run D5 Adobe oracle session via COM/ExtendScript (Operator afk, app launch authorised)"
+  },
+  {
+   "lane_id": "SMB-AFFINITY-FORMAT-RESEARCH",
+   "crate": "(research)",
+   "phase": "build",
+   "status": null,
+   "owner": "affinity-format-researcher-20261016",
+   "commits": [],
+   "verdicts": [],
+   "note": "AF-02/06/07: feasibility + licence/provenance of native .af* read/write, DWG, EPS import; research note only"
+  },
+  {
+   "lane_id": "SMB-FIG-COLLAB",
+   "crate": "hsk-studio-fig*/folio",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "FG-16..18 multiplayer, version history, team libraries (local-first CRDT/op-log over folio; no cloud); FG-19 Dev Mode, FG-21 plugins API, FG-22 layout grids"
+  },
+  {
+   "lane_id": "SMB-AE-PARTICLES-AUDIO-PRESETS",
+   "crate": "hsk-studio-composite/motion",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "AE-21 particles, AE-24 comp audio, AE-23 animation presets"
+  },
+  {
+   "lane_id": "SMB-AE-ROTO-TIMEREMAP",
+   "crate": "hsk-studio-composite/motion",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "AE-18 roto brush/refine edge, AE-10 time remapping + frame blending"
+  },
+  {
+   "lane_id": "SMB-ID-PREPRESS",
+   "crate": "hsk-studio-layout/press",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "ID-24 swatches + separations preview, ID-28 EPUB export, ID-31 PDF place/import, ID-04 vertical justification, ID-22 grids, ID-30 data merge, ID-29 find/change engine"
+  },
+  {
+   "lane_id": "SMB-AI-TYPE-PATH-RECOLOR",
+   "crate": "hsk-studio-type/nib/vector",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "AI-28 type on a path, AI-30 recolour artwork, AI-31 separations, AI-14 gradient mesh"
+  },
+  {
+   "lane_id": "SMB-LR-LIBRARY-WRITE",
+   "crate": "hsk-studio-develop + CKC port",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "LR-27..31 library is read-only: ratings/flags/keywords/collections write through CKC typed ports; LR-15/16/18 effects, calibration"
+  },
+  {
+   "lane_id": "SMB-AU-WAVEFORM-EDITOR",
+   "crate": "hsk-studio-pulse/audio UI",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "AU-20 waveform/spectral editor UI, AU-17/18 device proof, AU-19 plugin host (VST3 licence check: VST3 SDK is MIT since 2025? verify)"
+  },
+  {
+   "lane_id": "SMB-PR-SOURCE-MONITOR",
+   "crate": "hsk-studio-pulse UI",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "PR-19 playback in desktop viewer + source monitor, PR-24 encode via D24-A os-encode"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
