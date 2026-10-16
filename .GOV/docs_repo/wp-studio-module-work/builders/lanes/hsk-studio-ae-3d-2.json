@@ -51,5 +51,8 @@
     ],
     "process_notes": "D: disk-lock waits of 10-25 min per cargo invocation (validator rounds); two of my check runs overlapped once (both wrote ct-owned.txt; lock serialised the builds); slice 1 was pushed after a rebase onto an additive folio change without a second retest (covered by later green runs)",
     "cargo_lock": "not committed (build-regenerated lock reverted before each rebase)"
-  }
+  },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": ["render-gpu gpu_extended_envelope::gpu_overflow_in_envelope_operations_and_on_the_shared_texture_is_typed (default): shared-texture overflow needs --features shared-device", "render-gpu gpu_extended_envelope::gpu_overflow_in_envelope_operations_and_on_the_shared_texture_is_typed (features:hsk-studio-render-gpu+test-faults): shared-texture overflow needs --features shared-device"], "note": "claim f693651 06b5671 9353b80 judged: 3D parent chains (2D and 3D parents, parented cameras/lights), masks and track mattes on 3D layers, auxiliary channels (Z, normals, object id, coverage) + EXR export, depth/ID mattes, depth fog. Slice 4 (immersive) ad7a8ff pushed 22:57Z after the freeze -> R35. After Effects parity UNVERIFIED (D5), not failed. units of composite/render-cpu/render-gpu: 11 crate units + default; non-zero: doctest:hsk-studio-render-cpu build 0 run 1; default composite 85, render-cpu 93, render-gpu 67", "idempotency_key": "STUDIO-R34:SMB-AE-3D-2:ca5e9c92fa6b:PASS_V1", "claim_scope": "slices 1-3 (f693651 06b5671 9353b80); slice 4 ad7a8ff after the candidate -> R35", "round": "STUDIO-R34", "lane": "SMB-AE-3D-2", "candidate": "ca5e9c92fa6be13b50428ea3be6571ccc1d1a511", "tree": "4afc6f85614b23faaffb0c941d9da11a7eb3259f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R34", "started_at": "2026-10-15T22:54:57Z", "completed_at": "2026-10-16T02:52:16Z"}
+ ]
 }
