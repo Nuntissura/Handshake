@@ -108,8 +108,11 @@
       pos.setTemporalEaseAtKey(2, [new KeyframeEase(0, 16.666666667)], [new KeyframeEase(0, 16.666666667)]);
       rows.push({ variant: "two_keys_default_spatial", ease_array_length_out_k1: pos.keyOutTemporalEase(1).length, ease_k1: [round(pos.keyOutTemporalEase(1)[0].speed), round(pos.keyOutTemporalEase(1)[0].influence)], out_spatial_tangent_k1: pos.keyOutSpatialTangent(1), in_spatial_tangent_k2: pos.keyInSpatialTangent(2), v: samp(0, 2) });
     } catch (e1) { logErr("AE-02", "default_spatial", e1); }
+    // Position is 3-D valued in AE 26.5 even on a 2-D layer: tangents need one entry per value component
+    // (2026-10-16 run: "Value array does not have 3 elements"). tan() pads with zeros to the value length.
+    function tan(x, y) { var n = pos.value.length, t = [x, y]; while (t.length < n) t.push(0); return t; }
     try {
-      pos.setSpatialTangentsAtKey(1, [0, 0], [120, 120]); pos.setSpatialTangentsAtKey(2, [-120, 60], [0, 0]);
+      pos.setSpatialTangentsAtKey(1, tan(0, 0), tan(120, 120)); pos.setSpatialTangentsAtKey(2, tan(-120, 60), tan(0, 0));
       rows.push({ variant: "two_keys_spatial_tangents_set", out_spatial_tangent_k1: pos.keyOutSpatialTangent(1), in_spatial_tangent_k2: pos.keyInSpatialTangent(2), v: samp(0, 2) });
     } catch (e2) { logErr("AE-02", "spatial_tangents", e2); }
     try {

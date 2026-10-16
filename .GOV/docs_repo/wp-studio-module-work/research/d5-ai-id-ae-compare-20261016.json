@@ -1,0 +1,2944 @@
+{
+ "schema": "hsk.studio.research.d5-compare@1",
+ "file_id": "D5-AI-ID-AE-COMPARE-20261016",
+ "lane": "SMB-D5-AI-ID-AE-COMPARE",
+ "updated_at": "2026-10-16T13:39:03Z",
+ "by": "KERNEL_BUILDER (Claude Opus 5.5)",
+ "question": "Do Studio's engines reproduce the D5 Adobe oracle outputs for Illustrator (AI-01..05), InDesign (ID-01..04) and After Effects (AE-01..03)?",
+ "oracle": "Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/{illustrator,indesign,aftereffects} (session 2026-10-16, kernel 6912ce50: Illustrator 30.8.2, InDesign 21.6, After Effects 26.5); every file read is pinned by SHA-256 in its test",
+ "verdict_rules": "MATCH within the stated tolerance; MISMATCH with deltas and diagnosis (a test fails on a MISMATCH not listed in its checked-in expected-mismatch file); NOT_SUPPORTED = no Studio engine for the case (measured delta reported); NOT_PROVEN = corpus file or variant absent. Never PASS: the round validator judges.",
+ "commits": [
+  {
+   "slice": 1,
+   "sha": "b822715",
+   "app": "after_effects"
+  },
+  {
+   "slice": 2,
+   "sha": "7910061",
+   "app": "illustrator"
+  },
+  {
+   "slice": 3,
+   "sha": "16d5c9e",
+   "app": "indesign"
+  }
+ ],
+ "tests": {
+  "after_effects": "crates/hsk-studio-motion/tests/d5_ae_oracle.rs (+ tests/d5_support/mod.rs, tests/d5_ae_expected_mismatch.txt)",
+  "illustrator": "crates/hsk-studio-render-cpu/tests/d5_ai_oracle.rs (+ tests/d5_support/mod.rs, tests/d5_ai_expected_mismatch.txt)",
+  "indesign": "crates/hsk-studio-interop-layout/tests/d5_id_oracle.rs (+ tests/d5_id_expected_mismatch.txt)"
+ },
+ "oracle_script_change": "oracle-session/hsk_oracle_aftereffects.jsx AE-02: setSpatialTangentsAtKey now gets tangents padded to the Position value length (3 on AE 26.5). After Effects was NOT rerun; the AE-02 two_keys_spatial_tangents_set variant stays NOT_PROVEN until the lead schedules a run.",
+ "apps": {
+  "after_effects": {
+   "engine": "hsk-studio-motion Property::sample / assistants",
+   "fixes": [
+    "keyframe.rs: chord handle of a linear side inside a mixed linear/bezier segment uses influence 1/6 (was 1/3). Oracle AE-01b LINEAR_BEZIER and BEZIER_LINEAR: max error 2.69 deg -> 6e-10 deg.",
+    "assistants.rs make_continuous: the incoming speed wins (was outgoing). Oracle AE-01b chain3_continuous: setTemporalContinuousAtKey reads back in 20 / out 20 for in 20 / out 60; samples match to 9e-10. One key only: 'incoming wins' vs 'smaller speed wins' not separable (UNVERIFIED beyond this case)."
+   ],
+   "findings": [
+    "valueAtTime(t) is evaluated at t quantised to 1/1024 frame (24 fps comp: 1/24576 s); without modelling it the residual is up to 0.012 deg",
+    "Studio's normalised (time, value) cubic with 64-step bisection reproduces all 324 AE-01 segments (speeds 0/+-100, influences 16.67..75 %, influence sums above 100 % included) to 3.4e-9 deg",
+    "AE auto-bezier derives speed (v[i+1]-v[i-1])/(t[i+1]-t[i-1]) with influence 16.67 %: identical to Studio auto_bezier",
+    "default spatial (straight path, one path-speed ease) matches per-component evaluation to 0.0037 px (AE arc-length table)",
+    "AE roves along its spatial auto-bezier path: key 2 at 1.37679 s vs Studio's straight-line 1.37047 s; positions differ up to 11.7 px"
+   ],
+   "counts": {
+    "MATCH": 337,
+    "MISMATCH": 0,
+    "NOT_SUPPORTED": 4,
+    "NOT_PROVEN": 1
+   },
+   "cases": {
+    "AE-01": {
+     "counts": {
+      "MATCH": 324,
+      "MISMATCH": 0,
+      "NOT_SUPPORTED": 0,
+      "NOT_PROVEN": 0
+     },
+     "variants": [
+      {
+       "variant": "seg0",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.951e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg1",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.951e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg2",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.222e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg3",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.222e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg4",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.187e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg5",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.187e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg6",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.480e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg7",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.480e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg8",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.311e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg9",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.311e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg10",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.743e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg11",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.743e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg12",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.868e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg13",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.282e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg14",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.261e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg15",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.869e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg16",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.884e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg17",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.405e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg18",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=4.947e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg19",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.023e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg20",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.885e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg21",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.060e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg22",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.789e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg23",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.620e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg24",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.282e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg25",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.868e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg26",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.869e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg27",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.261e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg28",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.405e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg29",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.884e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg30",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.023e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg31",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=4.947e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg32",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.060e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg33",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.885e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg34",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.620e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg35",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.789e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg36",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.161e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg37",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.161e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg38",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.549e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg39",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.549e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg40",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.259e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg41",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.259e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg42",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.169e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg43",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.169e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg44",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.221e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg45",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.221e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg46",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.122e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg47",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.122e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg48",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.882e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg49",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.464e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg50",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.136e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg51",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.225e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg52",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.585e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg53",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.386e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg54",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=2.970e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg55",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=2.650e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg56",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.311e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg57",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.108e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg58",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.734e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg59",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.700e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg60",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.464e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg61",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.882e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg62",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.225e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg63",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.136e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg64",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.386e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg65",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.585e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg66",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=2.650e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg67",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=2.970e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg68",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.108e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg69",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.311e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg70",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.700e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg71",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.734e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg72",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.498e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg73",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.498e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg74",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.485e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg75",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.485e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg76",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.951e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg77",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.951e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg78",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.431e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg79",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.431e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg80",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.054e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg81",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.054e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg82",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.568e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg83",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.568e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg84",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.522e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg85",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.354e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg86",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.589e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg87",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.160e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg88",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.176e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg89",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.837e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg90",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.361e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg91",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.804e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg92",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.590e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg93",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.062e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg94",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.396e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg95",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=9.793e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg96",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.354e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg97",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.522e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg98",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.160e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg99",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.589e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg100",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.837e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg101",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.176e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg102",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.804e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg103",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.361e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg104",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.062e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg105",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.590e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg106",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=9.793e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg107",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.396e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg108",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.729e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg109",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.962e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg110",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.731e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg111",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.844e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg112",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.029e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg113",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.777e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg114",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=4.981e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg115",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.598e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg116",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.894e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg117",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.195e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg118",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.220e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg119",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.457e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg120",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.726e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg121",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.244e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg122",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.213e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg123",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.195e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg124",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.448e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg125",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.927e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg126",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.474e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg127",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.370e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg128",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.706e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg129",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.095e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg130",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.049e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg131",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.133e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg132",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.938e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg133",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.910e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg134",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.097e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg135",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.344e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg136",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.851e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg137",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.152e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg138",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.350e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg139",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.372e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg140",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.032e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg141",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.986e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg142",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.677e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg143",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.126e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg144",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.796e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg145",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.830e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg146",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.029e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg147",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.019e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg148",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.080e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg149",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.588e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg150",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.849e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg151",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=2.133e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg152",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.782e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg153",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=9.123e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg154",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.330e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg155",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.477e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg156",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.512e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg157",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.292e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg158",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.673e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg159",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.713e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg160",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.264e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg161",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.573e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg162",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=3.045e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg163",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=2.878e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg164",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.687e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg165",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.042e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg166",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.304e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg167",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.919e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg168",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.635e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg169",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.917e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg170",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.527e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg171",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.462e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg172",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.224e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg173",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.734e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg174",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=2.982e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg175",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=3.400e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg176",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.036e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg177",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.978e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg178",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.254e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg179",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.633e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg180",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.677e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg181",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.067e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg182",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.924e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg183",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.245e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg184",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.078e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg185",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=9.618e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg186",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.474e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg187",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.831e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg188",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.875e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg189",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.194e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg190",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.958e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg191",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.326e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg192",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.260e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg193",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.020e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg194",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.765e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg195",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.632e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg196",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.760e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg197",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.136e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg198",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.134e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg199",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.967e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg200",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.622e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg201",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.501e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg202",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.263e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg203",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=9.104e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg204",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.470e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg205",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.040e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg206",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.806e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg207",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.756e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg208",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.694e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg209",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=9.355e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg210",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.825e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg211",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.541e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg212",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=9.855e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg213",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.094e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg214",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.557e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg215",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.104e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg216",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.962e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg217",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.729e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg218",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.844e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg219",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.731e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg220",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.777e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg221",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.029e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg222",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.598e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg223",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=4.981e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg224",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.195e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg225",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.894e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg226",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.457e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg227",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.220e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg228",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.910e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg229",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.938e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg230",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.344e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg231",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.097e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg232",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.152e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg233",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.851e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg234",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.372e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg235",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.350e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg236",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.986e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg237",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.032e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg238",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.126e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg239",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.677e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg240",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.244e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg241",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.726e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg242",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.195e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg243",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.213e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg244",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.927e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg245",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.448e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg246",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.370e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg247",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.474e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg248",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.095e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg249",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.706e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg250",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.133e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg251",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.049e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg252",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.830e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg253",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.796e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg254",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.019e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg255",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.029e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg256",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.588e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg257",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.080e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg258",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=2.133e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg259",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.849e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg260",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=9.123e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg261",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.782e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg262",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.477e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg263",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.330e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg264",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.917e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg265",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.635e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg266",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.462e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg267",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.527e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg268",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.734e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg269",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.224e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg270",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=3.400e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg271",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=2.982e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg272",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.978e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg273",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.036e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg274",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.633e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg275",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.254e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg276",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.292e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg277",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.512e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg278",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.713e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg279",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.673e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg280",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.573e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg281",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.264e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg282",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=2.878e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg283",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=3.045e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg284",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.042e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg285",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.687e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg286",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.919e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg287",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.304e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg288",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.067e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg289",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.677e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg290",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.245e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg291",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.924e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg292",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=9.618e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg293",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.078e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg294",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.831e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg295",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.474e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg296",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.194e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg297",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.875e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg298",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.326e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg299",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.958e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg300",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.040e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg301",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.470e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg302",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.756e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg303",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.806e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg304",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=9.355e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg305",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.694e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg306",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.541e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg307",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.825e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg308",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.094e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg309",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=9.855e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg310",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=8.104e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg311",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.557e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg312",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.020e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg313",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.260e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg314",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.632e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg315",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.765e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg316",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.136e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg317",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.760e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg318",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.967e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg319",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.134e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg320",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=1.501e-9 tol=1e-6"
+      },
+      {
+       "variant": "seg321",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.622e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg322",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=9.104e-10 tol=1e-6"
+      },
+      {
+       "variant": "seg323",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.263e-10 tol=1e-6"
+      }
+     ]
+    },
+    "AE-01b": {
+     "counts": {
+      "MATCH": 9,
+      "MISMATCH": 0,
+      "NOT_SUPPORTED": 0,
+      "NOT_PROVEN": 0
+     },
+     "variants": [
+      {
+       "variant": "LINEAR_LINEAR",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.261e-10"
+      },
+      {
+       "variant": "LINEAR_BEZIER",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.160e-10"
+      },
+      {
+       "variant": "BEZIER_LINEAR",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=6.144e-10"
+      },
+      {
+       "variant": "HOLD_LINEAR",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=0.000e0"
+      },
+      {
+       "variant": "HOLD_BEZIER",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=0.000e0"
+      },
+      {
+       "variant": "BEZIER_BEZIER",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.650e-10"
+      },
+      {
+       "variant": "chain3_plain",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=9.854e-10 ease_read_err=0.000e0 studio_ease=[20.0, 40.0, 60.0, 25.0]"
+      },
+      {
+       "variant": "chain3_auto_bezier",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=7.659e-10 ease_read_err=1.000e-9 studio_ease=[7.5, 16.666666665999998, 7.5, 16.666666665999998]"
+      },
+      {
+       "variant": "chain3_continuous",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=9.854e-10 ease_read_err=0.000e0 studio_ease=[20.0, 40.0, 20.0, 25.0]"
+      }
+     ]
+    },
+    "AE-02": {
+     "counts": {
+      "MATCH": 1,
+      "MISMATCH": 0,
+      "NOT_SUPPORTED": 1,
+      "NOT_PROVEN": 1
+     },
+     "variants": [
+      {
+       "variant": "two_keys_default_spatial",
+       "verdict": "MATCH",
+       "detail": "max_dist_px=4.473e-3 tol=0.01"
+      },
+      {
+       "variant": "two_keys_spatial_tangents_set",
+       "verdict": "NOT_PROVEN",
+       "detail": "variant absent from corpus (session script passed 2-element tangents to 3-D Position; script fixed, AE rerun pending)"
+      },
+      {
+       "variant": "three_keys_roving_middle",
+       "verdict": "NOT_SUPPORTED",
+       "detail": "spatial auto-bezier path absent (STU-MOT-036b); rove time studio=1.370470s ae=1.376790s delta=-0.0063s; max_dist_px=11.675"
+      }
+     ]
+    },
+    "AE-03": {
+     "counts": {
+      "MATCH": 3,
+      "MISMATCH": 0,
+      "NOT_SUPPORTED": 3,
+      "NOT_PROVEN": 0
+     },
+     "variants": [
+      {
+       "variant": "pre_expression[value*2]",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.261e-10"
+      },
+      {
+       "variant": "post_expression[value*2]",
+       "verdict": "NOT_SUPPORTED",
+       "detail": "no AE expression globals (value/time/linear) in the Studio profile; receipt disabled_by_error=unsupported; AE at t=1s gives 90.000000"
+      },
+      {
+       "variant": "pre_expression[value + time*10]",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.261e-10"
+      },
+      {
+       "variant": "post_expression[value + time*10]",
+       "verdict": "NOT_SUPPORTED",
+       "detail": "no AE expression globals (value/time/linear) in the Studio profile; receipt disabled_by_error=unsupported; AE at t=1s gives 55.000000"
+      },
+      {
+       "variant": "pre_expression[linear(time, 0, 2, 0, 180)]",
+       "verdict": "MATCH",
+       "detail": "max_abs_deg=5.261e-10"
+      },
+      {
+       "variant": "post_expression[linear(time, 0, 2, 0, 180)]",
+       "verdict": "NOT_SUPPORTED",
+       "detail": "no AE expression globals (value/time/linear) in the Studio profile; receipt disabled_by_error=unsupported; AE at t=1s gives 90.000000"
+      }
+     ]
+    }
+   }
+  },
+  "illustrator": {
+   "engine": "hsk-studio-nib stroke outline / rasterize / paint_coverage; hsk-studio-pigment composite_over / evaluate_stack / knockout_over",
+   "fixes": [],
+   "findings": [
+    "export pixel grid is anchored at the top of the artwork bounds (miter variants: 137 px, top = page y 136.154); bottom-aligned mapping misplaces every edge by 0.154 px",
+    "ARTOPTIMIZED = 4x4 point samples at sub-pixel centres, grey = round(255*(16-n)/16), plus an outward bias: 0.17 px on fills, 0.04 px on strokes (fitted on AI-02 fill_nonzero and AI-01 cap_round_join_round_miter1; the other 31 geometry variants are the independent check)",
+    "geometry through that sampler: dashes (3 patterns + offset + zero-length round dots), even-odd and non-zero fills and 14 cap/join/miter variants MATCH (max 32 grey, >= 99 % identical pixels, ink within 0.2 %); 9 butt-cap variants differ by up to 48 grey on the cap edge (Illustrator's butt cap ends ~0.1 px beyond the endpoint, Python fit) and 4 miter-limit-4/10 variants by up to 64 on the apex tip pixels (>= 99.58 % identical, ink within 0.18 %)",
+    "Studio's native exact-area raster vs Illustrator: ink 0.5 % (strokes) to 3.5 % (even-odd star) lighter, max 84 grey (no bias)",
+    "gradients: linear (50 %), radial, stop opacity over red MATCH within 1 level; midpoint 25/75 off by 40 levels: Illustrator's midpoint is a power curve (m > 0.5: t^(ln .5/ln m); m < 0.5: 1-(1-t)^(ln .5/ln(1-m)), fits 256/256 px to 1 level), nib skews piecewise linearly",
+    "16 blend modes x opacity 100/50 MATCH (32/32, max 2 levels) once the backdrop is the unquantised ramp (Illustrator blends above 8 bit: ColorBurn amplifies a backdrop step 12x)",
+    "isolation x knockout 4/4 MATCH with pigment evaluate_stack / knockout_over; Illustrator's knockout shape is the object coverage, object opacity is constant alpha (not shape)",
+    "antiAliasing None export: no aliased raster mode in nib (NOT_SUPPORTED; a 50 % coverage threshold agrees on 32655/32768 px)"
+   ],
+   "counts": {
+    "MATCH": 59,
+    "MISMATCH": 15,
+    "NOT_SUPPORTED": 1,
+    "NOT_PROVEN": 0
+   },
+   "cases": {
+    "AI-01": {
+     "counts": {
+      "MATCH": 14,
+      "MISMATCH": 13,
+      "NOT_SUPPORTED": 1,
+      "NOT_PROVEN": 0
+     },
+     "variants": [
+      {
+       "variant": "cap_butt_join_miter_miter1",
+       "verdict": "MISMATCH",
+       "detail": "sampled max_abs=48 exact=0.9965 ink_rel=-0.00012 mean_abs=0.071; native max_abs=64 exact=0.9678 ink_rel=-0.00566 mean_abs=0.330; size=256x128 top=128.000"
+      },
+      {
+       "variant": "cap_butt_join_miter_miter1_aa_none",
+       "verdict": "NOT_SUPPORTED",
+       "detail": "no aliased raster mode in nib; 50% threshold agrees on 32655/32768 px"
+      },
+      {
+       "variant": "cap_butt_join_miter_miter4",
+       "verdict": "MISMATCH",
+       "detail": "sampled max_abs=64 exact=0.9958 ink_rel=+0.00133 mean_abs=0.120; native max_abs=61 exact=0.9640 ink_rel=-0.00613 mean_abs=0.377; size=256x137 top=136.154"
+      },
+      {
+       "variant": "cap_butt_join_miter_miter10",
+       "verdict": "MISMATCH",
+       "detail": "sampled max_abs=64 exact=0.9958 ink_rel=+0.00133 mean_abs=0.120; native max_abs=61 exact=0.9640 ink_rel=-0.00613 mean_abs=0.377; size=256x137 top=136.154"
+      },
+      {
+       "variant": "cap_butt_join_round_miter1",
+       "verdict": "MISMATCH",
+       "detail": "sampled max_abs=48 exact=0.9966 ink_rel=-0.00005 mean_abs=0.067; native max_abs=64 exact=0.9672 ink_rel=-0.00575 mean_abs=0.316; size=256x128 top=128.000"
+      },
+      {
+       "variant": "cap_butt_join_round_miter4",
+       "verdict": "MISMATCH",
+       "detail": "sampled max_abs=48 exact=0.9966 ink_rel=-0.00005 mean_abs=0.067; native max_abs=64 exact=0.9672 ink_rel=-0.00575 mean_abs=0.316; size=256x128 top=128.000"
+      },
+      {
+       "variant": "cap_butt_join_round_miter10",
+       "verdict": "MISMATCH",
+       "detail": "sampled max_abs=48 exact=0.9966 ink_rel=-0.00005 mean_abs=0.067; native max_abs=64 exact=0.9672 ink_rel=-0.00575 mean_abs=0.316; size=256x128 top=128.000"
+      },
+      {
+       "variant": "cap_butt_join_bevel_miter1",
+       "verdict": "MISMATCH",
+       "detail": "sampled max_abs=48 exact=0.9965 ink_rel=-0.00012 mean_abs=0.071; native max_abs=64 exact=0.9678 ink_rel=-0.00566 mean_abs=0.330; size=256x128 top=128.000"
+      },
+      {
+       "variant": "cap_butt_join_bevel_miter4",
+       "verdict": "MISMATCH",
+       "detail": "sampled max_abs=48 exact=0.9965 ink_rel=-0.00012 mean_abs=0.071; native max_abs=64 exact=0.9678 ink_rel=-0.00566 mean_abs=0.330; size=256x128 top=128.000"
+      },
+      {
+       "variant": "cap_butt_join_bevel_miter10",
+       "verdict": "MISMATCH",
+       "detail": "sampled max_abs=48 exact=0.9965 ink_rel=-0.00012 mean_abs=0.071; native max_abs=64 exact=0.9678 ink_rel=-0.00566 mean_abs=0.330; size=256x128 top=128.000"
+      },
+      {
+       "variant": "cap_round_join_miter_miter1",
+       "verdict": "MATCH",
+       "detail": "sampled max_abs=32 exact=0.9971 ink_rel=+0.00037 mean_abs=0.047; native max_abs=39 exact=0.9673 ink_rel=-0.00515 mean_abs=0.310; size=256x128 top=128.000"
+      },
+      {
+       "variant": "cap_round_join_miter_miter4",
+       "verdict": "MISMATCH",
+       "detail": "sampled max_abs=64 exact=0.9965 ink_rel=+0.00172 mean_abs=0.100; native max_abs=28 exact=0.9636 ink_rel=-0.00566 mean_abs=0.361; size=256x137 top=136.154"
+      },
+      {
+       "variant": "cap_round_join_miter_miter10",
+       "verdict": "MISMATCH",
+       "detail": "sampled max_abs=64 exact=0.9965 ink_rel=+0.00172 mean_abs=0.100; native max_abs=28 exact=0.9636 ink_rel=-0.00566 mean_abs=0.361; size=256x137 top=136.154"
+      },
+      {
+       "variant": "cap_round_join_round_miter1",
+       "verdict": "MATCH",
+       "detail": "sampled max_abs=16 exact=0.9973 ink_rel=+0.00043 mean_abs=0.043; native max_abs=27 exact=0.9667 ink_rel=-0.00525 mean_abs=0.295; size=256x128 top=128.000"
+      },
+      {
+       "variant": "cap_round_join_round_miter4",
+       "verdict": "MATCH",
+       "detail": "sampled max_abs=16 exact=0.9973 ink_rel=+0.00043 mean_abs=0.043; native max_abs=27 exact=0.9667 ink_rel=-0.00525 mean_abs=0.295; size=256x128 top=128.000"
+      },
+      {
+       "variant": "cap_round_join_round_miter10",
+       "verdict": "MATCH",
+       "detail": "sampled max_abs=16 exact=0.9973 ink_rel=+0.00043 mean_abs=0.043; native max_abs=27 exact=0.9667 ink_rel=-0.00525 mean_abs=0.295; size=256x128 top=128.000"
+      },
+      {
+       "variant": "cap_round_join_bevel_miter1",
+       "verdict": "MATCH",
+       "detail": "sampled max_abs=32 exact=0.9971 ink_rel=+0.00037 mean_abs=0.047; native max_abs=39 exact=0.9673 ink_rel=-0.00515 mean_abs=0.310; size=256x128 top=128.000"
+      },
+      {
+       "variant": "cap_round_join_bevel_miter4",
+       "verdict": "MATCH",
+       "detail": "sampled max_abs=32 exact=0.9971 ink_rel=+0.00037 mean_abs=0.047; native max_abs=39 exact=0.9673 ink_rel=-0.00515 mean_abs=0.310; size=256x128 top=128.000"
+      },
+      {
+       "variant": "cap_round_join_bevel_miter10",
+       "verdict": "MATCH",
+       "detail": "sampled max_abs=32 exact=0.9971 ink_rel=+0.00037 mean_abs=0.047; native max_abs=39 exact=0.9673 ink_rel=-0.00515 mean_abs=0.310; size=256x128 top=128.000"
+      },
+      {
+       "variant": "cap_projecting_join_miter_miter1",
+       "verdict": "MATCH",
+       "detail": "sampled max_abs=32 exact=0.9974 ink_rel=+0.00042 mean_abs=0.042; native max_abs=39 exact=0.9667 ink_rel=-0.00518 mean_abs=0.314; size=256x128 top=128.000"
+      },
+      {
+       "variant": "cap_projecting_join_miter_miter4",
+       "verdict": "MISMATCH",
+       "detail": "sampled max_abs=64 exact=0.9965 ink_rel=+0.00176 mean_abs=0.098; native max_abs=25 exact=0.9630 ink_rel=-0.00565 mean_abs=0.361; size=256x137 top=136.154"
+      },
+      {
+       "variant": "cap_projecting_join_miter_miter10",
+       "verdict": "MISMATCH",
+       "detail": "sampled max_abs=64 exact=0.9965 ink_rel=+0.00176 mean_abs=0.098; native max_abs=25 exact=0.9630 ink_rel=-0.00565 mean_abs=0.361; size=256x137 top=136.154"
+      },
+      {
+       "variant": "cap_projecting_join_round_miter1",
+       "verdict": "MATCH",
+       "detail": "sampled max_abs=16 exact=0.9976 ink_rel=+0.00048 mean_abs=0.039; native max_abs=27 exact=0.9661 ink_rel=-0.00528 mean_abs=0.300; size=256x128 top=128.000"
+      },
+      {
+       "variant": "cap_projecting_join_round_miter4",
+       "verdict": "MATCH",
+       "detail": "sampled max_abs=16 exact=0.9976 ink_rel=+0.00048 mean_abs=0.039; native max_abs=27 exact=0.9661 ink_rel=-0.00528 mean_abs=0.300; size=256x128 top=128.000"
+      },
+      {
+       "variant": "cap_projecting_join_round_miter10",
+       "verdict": "MATCH",
+       "detail": "sampled max_abs=16 exact=0.9976 ink_rel=+0.00048 mean_abs=0.039; native max_abs=27 exact=0.9661 ink_rel=-0.00528 mean_abs=0.300; size=256x128 top=128.000"
+      },
+      {
+       "variant": "cap_projecting_join_bevel_miter1",
+       "verdict": "MATCH",
+       "detail": "sampled max_abs=32 exact=0.9974 ink_rel=+0.00042 mean_abs=0.042; native max_abs=39 exact=0.9667 ink_rel=-0.00518 mean_abs=0.314; size=256x128 top=128.000"
+      },
+      {
+       "variant": "cap_projecting_join_bevel_miter4",
+       "verdict": "MATCH",
+       "detail": "sampled max_abs=32 exact=0.9974 ink_rel=+0.00042 mean_abs=0.042; native max_abs=39 exact=0.9667 ink_rel=-0.00518 mean_abs=0.314; size=256x128 top=128.000"
+      },
+      {
+       "variant": "cap_projecting_join_bevel_miter10",
+       "verdict": "MATCH",
+       "detail": "sampled max_abs=32 exact=0.9974 ink_rel=+0.00042 mean_abs=0.042; native max_abs=39 exact=0.9667 ink_rel=-0.00518 mean_abs=0.314; size=256x128 top=128.000"
+      }
+     ]
+    },
+    "AI-02": {
+     "counts": {
+      "MATCH": 6,
+      "MISMATCH": 0,
+      "NOT_SUPPORTED": 0,
+      "NOT_PROVEN": 0
+     },
+     "variants": [
+      {
+       "variant": "dash_d12_6",
+       "verdict": "MATCH",
+       "detail": "sampled max_abs=0 exact=1.0000 ink_rel=+0.00000 mean_abs=0.000; native max_abs=0 exact=1.0000 ink_rel=+0.00000 mean_abs=0.000; size=256x64"
+      },
+      {
+       "variant": "dash_d12_6_off5",
+       "verdict": "MATCH",
+       "detail": "sampled max_abs=0 exact=1.0000 ink_rel=+0.00000 mean_abs=0.000; native max_abs=0 exact=1.0000 ink_rel=+0.00000 mean_abs=0.000; size=256x64"
+      },
+      {
+       "variant": "dash_d6_6_6_12",
+       "verdict": "MATCH",
+       "detail": "sampled max_abs=0 exact=1.0000 ink_rel=+0.00000 mean_abs=0.000; native max_abs=0 exact=1.0000 ink_rel=+0.00000 mean_abs=0.000; size=256x64"
+      },
+      {
+       "variant": "dash_d0_10_round",
+       "verdict": "MATCH",
+       "detail": "sampled max_abs=0 exact=1.0000 ink_rel=+0.00000 mean_abs=0.000; native max_abs=15 exact=0.9590 ink_rel=-0.01731 mean_abs=0.328; size=256x64"
+      },
+      {
+       "variant": "fill_evenodd",
+       "verdict": "MATCH",
+       "detail": "sampled max_abs=32 exact=0.9968 ink_rel=+0.00079 mean_abs=0.055; native max_abs=84 exact=0.9606 ink_rel=-0.03476 mean_abs=1.363; size=128x128"
+      },
+      {
+       "variant": "fill_nonzero",
+       "verdict": "MATCH",
+       "detail": "sampled max_abs=32 exact=0.9974 ink_rel=+0.00038 mean_abs=0.045; native max_abs=63 exact=0.9697 ink_rel=-0.01936 mean_abs=1.082; size=128x128"
+      }
+     ]
+    },
+    "AI-03": {
+     "counts": {
+      "MATCH": 3,
+      "MISMATCH": 2,
+      "NOT_SUPPORTED": 0,
+      "NOT_PROVEN": 0
+     },
+     "variants": [
+      {
+       "variant": "mid25",
+       "verdict": "MISMATCH",
+       "detail": "max_abs=40 mean_abs=20.816 worst_px=(140,0) studio=[178, 178, 178] ai=[218, 218, 218]"
+      },
+      {
+       "variant": "mid50",
+       "verdict": "MATCH",
+       "detail": "max_abs=0 mean_abs=0.000 worst_px=(0,0) studio=[0, 0, 0] ai=[0, 0, 0]"
+      },
+      {
+       "variant": "mid75",
+       "verdict": "MISMATCH",
+       "detail": "max_abs=40 mean_abs=20.816 worst_px=(91,0) studio=[61, 61, 61] ai=[21, 21, 21]"
+      },
+      {
+       "variant": "radial_black_white",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.354 worst_px=(60,0) studio=[253, 253, 253] ai=[254, 254, 254]"
+      },
+      {
+       "variant": "stop_opacity_50_over_red",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.083 worst_px=(192,0) studio=[192, 0, 63] ai=[192, 0, 64]"
+      }
+     ]
+    },
+    "AI-04": {
+     "counts": {
+      "MATCH": 32,
+      "MISMATCH": 0,
+      "NOT_SUPPORTED": 0,
+      "NOT_PROVEN": 0
+     },
+     "variants": [
+      {
+       "variant": "NORMAL_o100",
+       "verdict": "MATCH",
+       "detail": "max_abs=0 mean_abs=0.000 worst_px=(0,0) studio=[0, 0, 0] ai=[0, 0, 0]"
+      },
+      {
+       "variant": "MULTIPLY_o100",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.085 worst_px=(3,0) studio=[3, 1, 1] ai=[2, 1, 0]"
+      },
+      {
+       "variant": "SCREEN_o100",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.161 worst_px=(2,0) studio=[201, 82, 42] ai=[200, 81, 42]"
+      },
+      {
+       "variant": "OVERLAY_o100",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.699 worst_px=(0,0) studio=[1, 0, 0] ai=[0, 0, 0]"
+      },
+      {
+       "variant": "SOFTLIGHT_o100",
+       "verdict": "MATCH",
+       "detail": "max_abs=2 mean_abs=0.408 worst_px=(4,16) studio=[1, 8, 14] ai=[1, 7, 12]"
+      },
+      {
+       "variant": "HARDLIGHT_o100",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.489 worst_px=(1,0) studio=[146, 1, 0] ai=[146, 0, 0]"
+      },
+      {
+       "variant": "COLORDODGE_o100",
+       "verdict": "MATCH",
+       "detail": "max_abs=2 mean_abs=0.322 worst_px=(1,0) studio=[7, 2, 2] ai=[5, 1, 1]"
+      },
+      {
+       "variant": "COLORBURN_o100",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.233 worst_px=(55,0) studio=[0, 0, 0] ai=[1, 0, 0]"
+      },
+      {
+       "variant": "DARKEN_o100",
+       "verdict": "MATCH",
+       "detail": "max_abs=0 mean_abs=0.000 worst_px=(0,0) studio=[0, 0, 0] ai=[0, 0, 0]"
+      },
+      {
+       "variant": "LIGHTEN_o100",
+       "verdict": "MATCH",
+       "detail": "max_abs=0 mean_abs=0.000 worst_px=(0,0) studio=[0, 0, 0] ai=[0, 0, 0]"
+      },
+      {
+       "variant": "DIFFERENCE_o100",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.015 worst_px=(192,0) studio=[8, 112, 152] ai=[9, 112, 152]"
+      },
+      {
+       "variant": "EXCLUSION_o100",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.535 worst_px=(1,0) studio=[199, 81, 41] ai=[200, 81, 41]"
+      },
+      {
+       "variant": "HUE_o100",
+       "verdict": "MATCH",
+       "detail": "max_abs=0 mean_abs=0.000 worst_px=(0,0) studio=[0, 0, 0] ai=[0, 0, 0]"
+      },
+      {
+       "variant": "SATURATIONBLEND_o100",
+       "verdict": "MATCH",
+       "detail": "max_abs=0 mean_abs=0.000 worst_px=(0,0) studio=[0, 0, 0] ai=[0, 0, 0]"
+      },
+      {
+       "variant": "COLORBLEND_o100",
+       "verdict": "MATCH",
+       "detail": "max_abs=2 mean_abs=0.202 worst_px=(64,0) studio=[144, 36, 0] ai=[142, 36, 0]"
+      },
+      {
+       "variant": "LUMINOSITY_o100",
+       "verdict": "MATCH",
+       "detail": "max_abs=0 mean_abs=0.000 worst_px=(0,0) studio=[0, 0, 0] ai=[0, 0, 0]"
+      },
+      {
+       "variant": "NORMAL_o50",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.104 worst_px=(41,0) studio=[121, 61, 41] ai=[121, 61, 40]"
+      },
+      {
+       "variant": "MULTIPLY_o50",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.267 worst_px=(1,0) studio=[1, 1, 1] ai=[1, 0, 0]"
+      },
+      {
+       "variant": "SCREEN_o50",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.284 worst_px=(2,0) studio=[102, 42, 22] ai=[101, 42, 22]"
+      },
+      {
+       "variant": "OVERLAY_o50",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.438 worst_px=(0,0) studio=[1, 0, 0] ai=[0, 0, 0]"
+      },
+      {
+       "variant": "SOFTLIGHT_o50",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.282 worst_px=(1,0) studio=[3, 1, 1] ai=[3, 0, 0]"
+      },
+      {
+       "variant": "HARDLIGHT_o50",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.534 worst_px=(1,0) studio=[74, 1, 1] ai=[74, 0, 0]"
+      },
+      {
+       "variant": "COLORDODGE_o50",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.309 worst_px=(0,0) studio=[1, 1, 1] ai=[1, 0, 0]"
+      },
+      {
+       "variant": "COLORBURN_o50",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.291 worst_px=(1,0) studio=[1, 1, 1] ai=[0, 0, 0]"
+      },
+      {
+       "variant": "DARKEN_o50",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.060 worst_px=(41,0) studio=[41, 41, 41] ai=[41, 41, 40]"
+      },
+      {
+       "variant": "LIGHTEN_o50",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.044 worst_px=(129,0) studio=[164, 129, 129] ai=[165, 129, 129]"
+      },
+      {
+       "variant": "DIFFERENCE_o50",
+       "verdict": "MATCH",
+       "detail": "max_abs=0 mean_abs=0.000 worst_px=(0,0) studio=[0, 0, 0] ai=[0, 0, 0]"
+      },
+      {
+       "variant": "EXCLUSION_o50",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.246 worst_px=(1,0) studio=[100, 41, 21] ai=[101, 41, 21]"
+      },
+      {
+       "variant": "HUE_o50",
+       "verdict": "MATCH",
+       "detail": "max_abs=0 mean_abs=0.000 worst_px=(0,0) studio=[0, 0, 0] ai=[0, 0, 0]"
+      },
+      {
+       "variant": "SATURATIONBLEND_o50",
+       "verdict": "MATCH",
+       "detail": "max_abs=0 mean_abs=0.000 worst_px=(0,0) studio=[0, 0, 0] ai=[0, 0, 0]"
+      },
+      {
+       "variant": "COLORBLEND_o50",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.188 worst_px=(1,0) studio=[2, 1, 1] ai=[2, 1, 0]"
+      },
+      {
+       "variant": "LUMINOSITY_o50",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.109 worst_px=(27,0) studio=[69, 69, 69] ai=[70, 70, 70]"
+      }
+     ]
+    },
+    "AI-05": {
+     "counts": {
+      "MATCH": 4,
+      "MISMATCH": 0,
+      "NOT_SUPPORTED": 0,
+      "NOT_PROVEN": 0
+     },
+     "variants": [
+      {
+       "variant": "iso_off_ko_disabled",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.269 worst_px=(20,28) studio=[214, 129, 34] ai=[214, 128, 33]"
+      },
+      {
+       "variant": "iso_on_ko_disabled",
+       "verdict": "MATCH",
+       "detail": "max_abs=0 mean_abs=0.000 worst_px=(0,0) studio=[0, 0, 0] ai=[0, 0, 0]"
+      },
+      {
+       "variant": "iso_off_ko_enabled",
+       "verdict": "MATCH",
+       "detail": "max_abs=1 mean_abs=0.244 worst_px=(20,28) studio=[214, 129, 34] ai=[214, 128, 33]"
+      },
+      {
+       "variant": "iso_on_ko_enabled",
+       "verdict": "MATCH",
+       "detail": "max_abs=0 mean_abs=0.000 worst_px=(0,0) studio=[0, 0, 0] ai=[0, 0, 0]"
+      }
+     ]
+    }
+   }
+  },
+  "indesign": {
+   "engine": "hsk-studio-interop-layout import_idml (InDesign's own ID-03 IDML) + hsk-studio-type shaping (rustybuzz, the exact Arial InDesign used) + hsk-studio-layout reflow_typeset",
+   "fixes": [],
+   "findings": [
+    "glyph advances and kerning: every character x of every compared line agrees to 0.0000 pt except the 'ff' of 'differences' (InDesign f-f and f-e both 547 units, as if a 1094-unit pair split in half; Studio uses Arial GPOS f-f -37, f-e 0): 0.088 pt on that line",
+    "Single-line composer, ragged (left), no hyphenation: 10/10 widths identical line breaks",
+    "Single-line composer with hyphenation, left: 3/10 identical; the rest differ by hyphenation points (InDesign dictionary vs Liang patterns)",
+    "Paragraph composer: 4/40 identical (wide ragged frames); elsewhere Studio's TeX-model Knuth-Plass chooses different breaks and, when no break set meets tolerance 200, can put the unavoidable loose line first ('Ty-', 'Typographic' alone)",
+    "Justified variants: InDesign fits justified single-line-composer lines by shrinking spaces (ID-02 ws50: 44 chars on line 1 vs Studio 38) and always fills justified lines past the maximum word spacing; Studio keeps limits and reports residual_pt",
+    "hyphenateWordsLongerThan 5 behaves as 'at least 5 letters' (InDesign hyphenates 'ev-ery')",
+    "import_idml accepts all three InDesign-written IDML packages (48 typed loss entries each) and the imported story text equals the probe text byte for byte",
+    "ID-03 PDF exports are not compared (line data is compared through the JSON of the same documents)"
+   ],
+   "counts": {
+    "MATCH": 20,
+    "MISMATCH": 75,
+    "NOT_SUPPORTED": 4,
+    "NOT_PROVEN": 0
+   },
+   "cases": {
+    "ID-01": {
+     "counts": {
+      "MATCH": 17,
+      "MISMATCH": 63,
+      "NOT_SUPPORTED": 0,
+      "NOT_PROVEN": 0
+     },
+     "variants": [
+      {
+       "variant": "para_hyph_leftjust_w150",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=17 studio=18 first_break_diff=Some((1, Some(24), Some(2))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 0 chars overset=false oracle_starts=[0, 24, 49, 76, 103, 129, 158, 182, 208, 234, 260, 288, 317, 344, 371, 399, 426] studio_starts=[0, 2, 26, 54, 79, 109, 137, 161, 189, 215, 243, 268, 297, 323, 352, 382, 411, 438]"
+      },
+      {
+       "variant": "para_hyph_leftjust_w180",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=14 studio=14 first_break_diff=Some((5, Some(161), Some(164))) x_max_abs_pt=5.7313 ff_line_x_max_abs_pt=0.0000 over 129 chars overset=false oracle_starts=[0, 32, 64, 96, 129, 161, 194, 224, 257, 288, 323, 355, 390, 426] studio_starts=[0, 32, 64, 96, 129, 164, 180, 213, 247, 282, 317, 352, 384, 419]"
+      },
+      {
+       "variant": "para_hyph_leftjust_w210",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=12 studio=13 first_break_diff=Some((1, Some(38), Some(2))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 0 chars overset=false oracle_starts=[0, 38, 76, 113, 150, 189, 230, 266, 307, 344, 384, 426] studio_starts=[0, 2, 38, 76, 113, 150, 189, 230, 266, 307, 344, 384, 426]"
+      },
+      {
+       "variant": "para_hyph_leftjust_w240",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=11 studio=12 first_break_diff=Some((1, Some(40), Some(4))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 0 chars overset=false oracle_starts=[0, 40, 85, 129, 173, 215, 257, 302, 344, 390, 438] studio_starts=[0, 4, 49, 90, 137, 178, 221, 263, 311, 355, 399, 443]"
+      },
+      {
+       "variant": "para_hyph_leftjust_w270",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=9 studio=9 first_break_diff=None x_max_abs_pt=6.5490 ff_line_x_max_abs_pt=0.1289 over 450 chars overset=false oracle_starts=[0, 49, 99, 150, 200, 251, 302, 352, 402] studio_starts=[0, 49, 99, 150, 200, 251, 302, 352, 402]"
+      },
+      {
+       "variant": "para_hyph_leftjust_w300",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=8 studio=9 first_break_diff=Some((3, Some(164), Some(161))) x_max_abs_pt=0.8063 ff_line_x_max_abs_pt=0.0000 over 109 chars overset=false oracle_starts=[0, 54, 109, 164, 219, 277, 334, 390] studio_starts=[0, 54, 109, 161, 215, 271, 329, 384, 443]"
+      },
+      {
+       "variant": "para_hyph_leftjust_w330",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=8 studio=8 first_break_diff=Some((2, Some(119), Some(113))) x_max_abs_pt=0.0256 ff_line_x_max_abs_pt=0.1135 over 148 chars overset=false oracle_starts=[0, 58, 119, 180, 241, 302, 360, 426] studio_starts=[0, 58, 113, 173, 234, 297, 360, 426]"
+      },
+      {
+       "variant": "para_hyph_leftjust_w360",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=7 studio=7 first_break_diff=None x_max_abs_pt=12.1149 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 64, 129, 194, 260, 329, 396] studio_starts=[0, 64, 129, 194, 260, 329, 396]"
+      },
+      {
+       "variant": "para_hyph_leftjust_w390",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=7 studio=7 first_break_diff=Some((3, Some(213), Some(210))) x_max_abs_pt=1.4607 ff_line_x_max_abs_pt=0.1125 over 306 chars overset=false oracle_starts=[0, 70, 142, 213, 286, 355, 431] studio_starts=[0, 70, 142, 210, 286, 355, 431]"
+      },
+      {
+       "variant": "para_hyph_leftjust_w420",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=6 studio=6 first_break_diff=None x_max_abs_pt=3.4178 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 74, 150, 230, 307, 384] studio_starts=[0, 74, 150, 230, 307, 384]"
+      },
+      {
+       "variant": "para_hyph_left_w150",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=18 studio=18 first_break_diff=Some((1, Some(24), Some(2))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 0 chars overset=false oracle_starts=[0, 24, 49, 74, 99, 123, 150, 173, 200, 230, 255, 282, 307, 334, 360, 390, 415, 443] studio_starts=[0, 2, 26, 54, 79, 109, 137, 161, 189, 215, 243, 268, 297, 323, 352, 382, 411, 438]"
+      },
+      {
+       "variant": "para_hyph_left_w180",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=15 studio=14 first_break_diff=Some((5, Some(158), Some(164))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 129 chars overset=false oracle_starts=[0, 32, 64, 96, 129, 158, 189, 219, 251, 282, 311, 344, 375, 408, 443] studio_starts=[0, 32, 64, 96, 129, 164, 180, 213, 247, 282, 317, 352, 384, 419]"
+      },
+      {
+       "variant": "para_hyph_left_w210",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=13 studio=13 first_break_diff=Some((1, Some(32), Some(2))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 0 chars overset=false oracle_starts=[0, 32, 70, 103, 137, 173, 208, 247, 286, 323, 360, 399, 438] studio_starts=[0, 2, 38, 76, 113, 150, 189, 230, 266, 307, 344, 384, 426]"
+      },
+      {
+       "variant": "para_hyph_left_w240",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=11 studio=12 first_break_diff=Some((1, Some(38), Some(4))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 0 chars overset=false oracle_starts=[0, 38, 79, 123, 164, 205, 251, 292, 338, 382, 426] studio_starts=[0, 4, 49, 90, 137, 178, 221, 263, 311, 355, 399, 443]"
+      },
+      {
+       "variant": "para_hyph_left_w270",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=10 studio=9 first_break_diff=Some((3, Some(146), Some(150))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 99 chars overset=false oracle_starts=[0, 49, 99, 146, 194, 241, 288, 338, 390, 443] studio_starts=[0, 49, 99, 150, 200, 251, 302, 352, 402]"
+      },
+      {
+       "variant": "para_hyph_left_w300",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=9 studio=9 first_break_diff=Some((3, Some(164), Some(161))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 109 chars overset=false oracle_starts=[0, 54, 109, 164, 219, 277, 329, 382, 438] studio_starts=[0, 54, 109, 161, 215, 271, 329, 384, 443]"
+      },
+      {
+       "variant": "para_hyph_left_w330",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=8 studio=8 first_break_diff=Some((6, Some(355), Some(360))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 297 chars overset=false oracle_starts=[0, 58, 113, 173, 234, 297, 355, 419] studio_starts=[0, 58, 113, 173, 234, 297, 360, 426]"
+      },
+      {
+       "variant": "para_hyph_left_w360",
+       "verdict": "MATCH",
+       "detail": "lines ai=7 studio=7 first_break_diff=None x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 64, 129, 194, 260, 329, 396] studio_starts=[0, 64, 129, 194, 260, 329, 396]"
+      },
+      {
+       "variant": "para_hyph_left_w390",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=7 studio=7 first_break_diff=Some((3, Some(213), Some(210))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 306 chars overset=false oracle_starts=[0, 70, 142, 213, 286, 355, 431] studio_starts=[0, 70, 142, 210, 286, 355, 431]"
+      },
+      {
+       "variant": "para_hyph_left_w420",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=6 studio=6 first_break_diff=Some((3, Some(224), Some(230))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 150 chars overset=false oracle_starts=[0, 74, 150, 224, 302, 382] studio_starts=[0, 74, 150, 230, 307, 384]"
+      },
+      {
+       "variant": "para_nohyph_leftjust_w150",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=18 studio=18 first_break_diff=Some((2, Some(49), Some(52))) x_max_abs_pt=16.8178 ff_line_x_max_abs_pt=0.0000 over 162 chars overset=false oracle_starts=[0, 24, 49, 74, 99, 123, 150, 173, 200, 230, 255, 282, 311, 338, 364, 390, 419, 443] studio_starts=[0, 24, 52, 76, 103, 129, 158, 173, 200, 230, 255, 282, 311, 323, 352, 382, 411, 438]"
+      },
+      {
+       "variant": "para_nohyph_leftjust_w180",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=15 studio=16 first_break_diff=Some((6, Some(194), Some(173))) x_max_abs_pt=5.7313 ff_line_x_max_abs_pt=0.0000 over 164 chars overset=false oracle_starts=[0, 32, 64, 96, 129, 164, 194, 230, 255, 286, 317, 352, 382, 411, 443] studio_starts=[0, 32, 64, 96, 129, 164, 173, 205, 230, 251, 286, 297, 329, 360, 396, 431]"
+      },
+      {
+       "variant": "para_nohyph_leftjust_w210",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=13 studio=14 first_break_diff=Some((1, Some(32), Some(12))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 0 chars overset=false oracle_starts=[0, 32, 70, 109, 150, 189, 230, 255, 286, 323, 360, 396, 438] studio_starts=[0, 12, 52, 90, 129, 150, 189, 230, 251, 282, 323, 360, 390, 431]"
+      },
+      {
+       "variant": "para_nohyph_leftjust_w240",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=11 studio=11 first_break_diff=Some((1, Some(38), Some(32))) x_max_abs_pt=16.5685 ff_line_x_max_abs_pt=0.0947 over 374 chars overset=false oracle_starts=[0, 38, 76, 119, 164, 208, 255, 297, 344, 390, 438] studio_starts=[0, 32, 76, 119, 164, 208, 255, 297, 344, 390, 438]"
+      },
+      {
+       "variant": "para_nohyph_leftjust_w270",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=9 studio=10 first_break_diff=Some((6, Some(297), Some(302))) x_max_abs_pt=6.5490 ff_line_x_max_abs_pt=0.0000 over 251 chars overset=false oracle_starts=[0, 49, 99, 150, 200, 251, 297, 344, 396] studio_starts=[0, 49, 99, 150, 200, 251, 302, 338, 390, 443]"
+      },
+      {
+       "variant": "para_nohyph_leftjust_w300",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=9 studio=9 first_break_diff=Some((1, Some(49), Some(54))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 0 chars overset=false oracle_starts=[0, 49, 99, 150, 200, 255, 311, 364, 419] studio_starts=[0, 54, 109, 164, 173, 230, 286, 338, 396]"
+      },
+      {
+       "variant": "para_nohyph_leftjust_w330",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=8 studio=9 first_break_diff=Some((1, Some(54), Some(12))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 0 chars overset=false oracle_starts=[0, 54, 109, 164, 230, 286, 344, 408] studio_starts=[0, 12, 70, 129, 189, 251, 311, 371, 431]"
+      },
+      {
+       "variant": "para_nohyph_leftjust_w360",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=7 studio=7 first_break_diff=None x_max_abs_pt=26.7908 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 64, 123, 189, 255, 323, 390] studio_starts=[0, 64, 123, 189, 255, 323, 390]"
+      },
+      {
+       "variant": "para_nohyph_leftjust_w390",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=7 studio=7 first_break_diff=None x_max_abs_pt=21.0090 ff_line_x_max_abs_pt=0.3696 over 450 chars overset=false oracle_starts=[0, 70, 137, 208, 282, 352, 426] studio_starts=[0, 70, 137, 208, 282, 352, 426]"
+      },
+      {
+       "variant": "para_nohyph_leftjust_w420",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=6 studio=6 first_break_diff=Some((4, Some(311), Some(302))) x_max_abs_pt=3.4178 ff_line_x_max_abs_pt=0.0000 over 230 chars overset=false oracle_starts=[0, 74, 150, 230, 311, 390] studio_starts=[0, 74, 150, 230, 302, 382]"
+      },
+      {
+       "variant": "para_nohyph_left_w150",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=18 studio=18 first_break_diff=Some((2, Some(49), Some(52))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 136 chars overset=false oracle_starts=[0, 24, 49, 74, 99, 123, 150, 173, 200, 230, 255, 277, 302, 329, 352, 382, 408, 431] studio_starts=[0, 24, 52, 76, 103, 129, 158, 173, 200, 230, 255, 282, 311, 323, 352, 382, 411, 438]"
+      },
+      {
+       "variant": "para_nohyph_left_w180",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=16 studio=16 first_break_diff=Some((3, Some(90), Some(96))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 118 chars overset=false oracle_starts=[0, 32, 64, 90, 119, 150, 173, 200, 230, 255, 282, 311, 338, 364, 396, 431] studio_starts=[0, 32, 64, 96, 129, 164, 173, 205, 230, 251, 286, 297, 329, 360, 396, 431]"
+      },
+      {
+       "variant": "para_nohyph_left_w210",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=14 studio=14 first_break_diff=Some((1, Some(32), Some(12))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 56 chars overset=false oracle_starts=[0, 32, 64, 96, 129, 164, 194, 230, 255, 286, 323, 360, 396, 431] studio_starts=[0, 12, 52, 90, 129, 150, 189, 230, 251, 282, 323, 360, 390, 431]"
+      },
+      {
+       "variant": "para_nohyph_left_w240",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=11 studio=11 first_break_diff=Some((1, Some(38), Some(32))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 221 chars overset=false oracle_starts=[0, 38, 76, 119, 164, 208, 255, 297, 338, 382, 426] studio_starts=[0, 32, 76, 119, 164, 208, 255, 297, 344, 390, 438]"
+      },
+      {
+       "variant": "para_nohyph_left_w270",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=10 studio=10 first_break_diff=Some((2, Some(96), Some(99))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 49 chars overset=false oracle_starts=[0, 49, 96, 142, 189, 230, 277, 323, 371, 419] studio_starts=[0, 49, 99, 150, 200, 251, 302, 338, 390, 443]"
+      },
+      {
+       "variant": "para_nohyph_left_w300",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=9 studio=9 first_break_diff=Some((1, Some(49), Some(54))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 0 chars overset=false oracle_starts=[0, 49, 99, 150, 200, 255, 311, 364, 419] studio_starts=[0, 54, 109, 164, 173, 230, 286, 338, 396]"
+      },
+      {
+       "variant": "para_nohyph_left_w330",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=9 studio=9 first_break_diff=Some((1, Some(49), Some(12))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 139 chars overset=false oracle_starts=[0, 49, 99, 150, 200, 255, 311, 371, 431] studio_starts=[0, 12, 70, 129, 189, 251, 311, 371, 431]"
+      },
+      {
+       "variant": "para_nohyph_left_w360",
+       "verdict": "MATCH",
+       "detail": "lines ai=7 studio=7 first_break_diff=None x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 64, 123, 189, 255, 323, 390] studio_starts=[0, 64, 123, 189, 255, 323, 390]"
+      },
+      {
+       "variant": "para_nohyph_left_w390",
+       "verdict": "MATCH",
+       "detail": "lines ai=7 studio=7 first_break_diff=None x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 70, 137, 208, 282, 352, 426] studio_starts=[0, 70, 137, 208, 282, 352, 426]"
+      },
+      {
+       "variant": "para_nohyph_left_w420",
+       "verdict": "MATCH",
+       "detail": "lines ai=6 studio=6 first_break_diff=None x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 74, 150, 230, 302, 382] studio_starts=[0, 74, 150, 230, 302, 382]"
+      },
+      {
+       "variant": "single_hyph_leftjust_w150",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=18 studio=17 first_break_diff=Some((8, Some(210), Some(208))) x_max_abs_pt=16.1615 ff_line_x_max_abs_pt=0.0000 over 182 chars overset=false oracle_starts=[0, 24, 52, 76, 103, 129, 158, 182, 210, 237, 255, 282, 311, 338, 364, 390, 419, 443] studio_starts=[0, 24, 52, 76, 103, 129, 158, 182, 208, 234, 260, 288, 317, 344, 371, 399, 426]"
+      },
+      {
+       "variant": "single_hyph_leftjust_w180",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=14 studio=14 first_break_diff=Some((5, Some(164), Some(161))) x_max_abs_pt=11.9513 ff_line_x_max_abs_pt=0.0000 over 258 chars overset=false oracle_starts=[0, 32, 64, 96, 129, 164, 194, 224, 257, 288, 323, 355, 390, 426] studio_starts=[0, 32, 64, 96, 129, 161, 194, 224, 257, 288, 323, 352, 384, 415]"
+      },
+      {
+       "variant": "single_hyph_leftjust_w210",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=12 studio=13 first_break_diff=Some((1, Some(38), Some(32))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 0 chars overset=false oracle_starts=[0, 38, 76, 113, 150, 189, 230, 266, 307, 344, 384, 426] studio_starts=[0, 32, 70, 109, 146, 182, 221, 255, 292, 329, 366, 402, 443]"
+      },
+      {
+       "variant": "single_hyph_leftjust_w240",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=11 studio=11 first_break_diff=Some((1, Some(40), Some(38))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 0 chars overset=false oracle_starts=[0, 40, 85, 129, 173, 215, 260, 302, 344, 390, 438] studio_starts=[0, 38, 79, 123, 166, 210, 255, 297, 338, 382, 426]"
+      },
+      {
+       "variant": "single_hyph_leftjust_w270",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=9 studio=10 first_break_diff=Some((3, Some(150), Some(146))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 99 chars overset=false oracle_starts=[0, 49, 99, 150, 200, 251, 302, 352, 402] studio_starts=[0, 49, 99, 146, 194, 243, 292, 344, 390, 443]"
+      },
+      {
+       "variant": "single_hyph_leftjust_w300",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=8 studio=9 first_break_diff=Some((6, Some(334), Some(329))) x_max_abs_pt=0.8063 ff_line_x_max_abs_pt=0.0000 over 277 chars overset=false oracle_starts=[0, 54, 109, 164, 219, 277, 334, 390] studio_starts=[0, 54, 109, 164, 219, 277, 329, 384, 438]"
+      },
+      {
+       "variant": "single_hyph_leftjust_w330",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=8 studio=8 first_break_diff=Some((2, Some(119), Some(113))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 58 chars overset=false oracle_starts=[0, 58, 119, 180, 243, 302, 364, 426] studio_starts=[0, 58, 113, 173, 234, 297, 355, 419]"
+      },
+      {
+       "variant": "single_hyph_leftjust_w360",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=7 studio=7 first_break_diff=None x_max_abs_pt=12.1149 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 64, 129, 194, 260, 329, 396] studio_starts=[0, 64, 129, 194, 260, 329, 396]"
+      },
+      {
+       "variant": "single_hyph_leftjust_w390",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=7 studio=7 first_break_diff=None x_max_abs_pt=8.9423 ff_line_x_max_abs_pt=0.1125 over 450 chars overset=false oracle_starts=[0, 70, 142, 213, 286, 355, 431] studio_starts=[0, 70, 142, 213, 286, 355, 431]"
+      },
+      {
+       "variant": "single_hyph_leftjust_w420",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=6 studio=6 first_break_diff=None x_max_abs_pt=10.3332 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 76, 150, 230, 307, 384] studio_starts=[0, 76, 150, 230, 307, 384]"
+      },
+      {
+       "variant": "single_hyph_left_w150",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=18 studio=17 first_break_diff=Some((11, Some(286), Some(288))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 260 chars overset=false oracle_starts=[0, 24, 52, 76, 103, 129, 158, 182, 208, 234, 260, 286, 311, 338, 364, 390, 419, 443] studio_starts=[0, 24, 52, 76, 103, 129, 158, 182, 208, 234, 260, 288, 317, 344, 371, 399, 426]"
+      },
+      {
+       "variant": "single_hyph_left_w180",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=15 studio=14 first_break_diff=Some((5, Some(158), Some(161))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 129 chars overset=false oracle_starts=[0, 32, 64, 96, 129, 158, 189, 221, 255, 286, 317, 347, 382, 411, 443] studio_starts=[0, 32, 64, 96, 129, 161, 194, 224, 257, 288, 323, 352, 384, 415]"
+      },
+      {
+       "variant": "single_hyph_left_w210",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=13 studio=13 first_break_diff=Some((4, Some(142), Some(146))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 109 chars overset=false oracle_starts=[0, 32, 70, 109, 142, 175, 213, 251, 286, 323, 360, 396, 431] studio_starts=[0, 32, 70, 109, 146, 182, 221, 255, 292, 329, 366, 402, 443]"
+      },
+      {
+       "variant": "single_hyph_left_w240",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=11 studio=11 first_break_diff=Some((4, Some(164), Some(166))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 318 chars overset=false oracle_starts=[0, 38, 79, 123, 164, 208, 255, 297, 338, 382, 426] studio_starts=[0, 38, 79, 123, 166, 210, 255, 297, 338, 382, 426]"
+      },
+      {
+       "variant": "single_hyph_left_w270",
+       "verdict": "MATCH",
+       "detail": "lines ai=10 studio=10 first_break_diff=None x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 49, 99, 146, 194, 243, 292, 344, 390, 443] studio_starts=[0, 49, 99, 146, 194, 243, 292, 344, 390, 443]"
+      },
+      {
+       "variant": "single_hyph_left_w300",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=9 studio=9 first_break_diff=Some((7, Some(382), Some(384))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 341 chars overset=false oracle_starts=[0, 54, 109, 164, 219, 277, 329, 382, 438] studio_starts=[0, 54, 109, 164, 219, 277, 329, 384, 438]"
+      },
+      {
+       "variant": "single_hyph_left_w330",
+       "verdict": "MATCH",
+       "detail": "lines ai=8 studio=8 first_break_diff=None x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 58, 113, 173, 234, 297, 355, 419] studio_starts=[0, 58, 113, 173, 234, 297, 355, 419]"
+      },
+      {
+       "variant": "single_hyph_left_w360",
+       "verdict": "MATCH",
+       "detail": "lines ai=7 studio=7 first_break_diff=None x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 64, 129, 194, 260, 329, 396] studio_starts=[0, 64, 129, 194, 260, 329, 396]"
+      },
+      {
+       "variant": "single_hyph_left_w390",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=7 studio=7 first_break_diff=Some((3, Some(208), Some(213))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 142 chars overset=false oracle_starts=[0, 70, 142, 208, 282, 352, 426] studio_starts=[0, 70, 142, 213, 286, 355, 431]"
+      },
+      {
+       "variant": "single_hyph_left_w420",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=6 studio=6 first_break_diff=Some((5, Some(382), Some(384))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 307 chars overset=false oracle_starts=[0, 76, 150, 230, 307, 382] studio_starts=[0, 76, 150, 230, 307, 384]"
+      },
+      {
+       "variant": "single_nohyph_leftjust_w150",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=18 studio=18 first_break_diff=Some((12, Some(311), Some(302))) x_max_abs_pt=67.5189 ff_line_x_max_abs_pt=0.0000 over 282 chars overset=false oracle_starts=[0, 24, 52, 76, 103, 129, 158, 173, 200, 230, 255, 282, 311, 338, 364, 390, 419, 443] studio_starts=[0, 24, 52, 76, 103, 129, 158, 173, 200, 230, 255, 282, 302, 329, 352, 382, 408, 431]"
+      },
+      {
+       "variant": "single_nohyph_leftjust_w180",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=15 studio=16 first_break_diff=Some((5, Some(164), Some(158))) x_max_abs_pt=5.7313 ff_line_x_max_abs_pt=0.0000 over 129 chars overset=false oracle_starts=[0, 32, 64, 96, 129, 164, 194, 230, 255, 286, 317, 352, 382, 411, 443] studio_starts=[0, 32, 64, 96, 129, 158, 189, 208, 230, 255, 286, 317, 344, 371, 396, 431]"
+      },
+      {
+       "variant": "single_nohyph_leftjust_w210",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=14 studio=14 first_break_diff=Some((1, Some(38), Some(32))) x_max_abs_pt=106.5996 ff_line_x_max_abs_pt=0.0000 over 287 chars overset=false oracle_starts=[0, 38, 76, 109, 142, 173, 208, 230, 255, 286, 323, 360, 396, 438] studio_starts=[0, 32, 70, 109, 142, 173, 208, 230, 255, 286, 323, 360, 396, 431]"
+      },
+      {
+       "variant": "single_nohyph_leftjust_w240",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=11 studio=11 first_break_diff=Some((8, Some(344), Some(338))) x_max_abs_pt=33.4958 ff_line_x_max_abs_pt=0.0000 over 297 chars overset=false oracle_starts=[0, 38, 76, 119, 164, 208, 255, 297, 344, 390, 438] studio_starts=[0, 38, 76, 119, 164, 208, 255, 297, 338, 382, 426]"
+      },
+      {
+       "variant": "single_nohyph_leftjust_w270",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=9 studio=10 first_break_diff=Some((3, Some(150), Some(142))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 99 chars overset=false oracle_starts=[0, 49, 99, 150, 200, 251, 302, 352, 396] studio_starts=[0, 49, 99, 142, 189, 230, 277, 323, 371, 419]"
+      },
+      {
+       "variant": "single_nohyph_leftjust_w300",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=9 studio=9 first_break_diff=None x_max_abs_pt=59.7138 ff_line_x_max_abs_pt=14.3694 over 450 chars overset=false oracle_starts=[0, 54, 109, 164, 208, 255, 311, 364, 419] studio_starts=[0, 54, 109, 164, 208, 255, 311, 364, 419]"
+      },
+      {
+       "variant": "single_nohyph_leftjust_w330",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=8 studio=9 first_break_diff=Some((4, Some(230), Some(208))) x_max_abs_pt=30.8063 ff_line_x_max_abs_pt=0.0000 over 164 chars overset=false oracle_starts=[0, 54, 109, 164, 230, 286, 344, 408] studio_starts=[0, 54, 109, 164, 208, 255, 317, 371, 431]"
+      },
+      {
+       "variant": "single_nohyph_leftjust_w360",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=7 studio=7 first_break_diff=None x_max_abs_pt=35.6493 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 64, 129, 194, 255, 323, 390] studio_starts=[0, 64, 129, 194, 255, 323, 390]"
+      },
+      {
+       "variant": "single_nohyph_leftjust_w390",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=7 studio=7 first_break_diff=None x_max_abs_pt=27.0108 ff_line_x_max_abs_pt=0.3696 over 450 chars overset=false oracle_starts=[0, 70, 142, 208, 282, 352, 426] studio_starts=[0, 70, 142, 208, 282, 352, 426]"
+      },
+      {
+       "variant": "single_nohyph_leftjust_w420",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=6 studio=6 first_break_diff=Some((4, Some(311), Some(302))) x_max_abs_pt=10.3332 ff_line_x_max_abs_pt=0.0000 over 230 chars overset=false oracle_starts=[0, 76, 150, 230, 311, 390] studio_starts=[0, 76, 150, 230, 302, 382]"
+      },
+      {
+       "variant": "single_nohyph_left_w150",
+       "verdict": "MATCH",
+       "detail": "lines ai=18 studio=18 first_break_diff=None x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 24, 52, 76, 103, 129, 158, 173, 200, 230, 255, 282, 302, 329, 352, 382, 408, 431] studio_starts=[0, 24, 52, 76, 103, 129, 158, 173, 200, 230, 255, 282, 302, 329, 352, 382, 408, 431]"
+      },
+      {
+       "variant": "single_nohyph_left_w180",
+       "verdict": "MATCH",
+       "detail": "lines ai=16 studio=16 first_break_diff=None x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 32, 64, 96, 129, 158, 189, 208, 230, 255, 286, 317, 344, 371, 396, 431] studio_starts=[0, 32, 64, 96, 129, 158, 189, 208, 230, 255, 286, 317, 344, 371, 396, 431]"
+      },
+      {
+       "variant": "single_nohyph_left_w210",
+       "verdict": "MATCH",
+       "detail": "lines ai=14 studio=14 first_break_diff=None x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 32, 70, 109, 142, 173, 208, 230, 255, 286, 323, 360, 396, 431] studio_starts=[0, 32, 70, 109, 142, 173, 208, 230, 255, 286, 323, 360, 396, 431]"
+      },
+      {
+       "variant": "single_nohyph_left_w240",
+       "verdict": "MATCH",
+       "detail": "lines ai=11 studio=11 first_break_diff=None x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 38, 76, 119, 164, 208, 255, 297, 338, 382, 426] studio_starts=[0, 38, 76, 119, 164, 208, 255, 297, 338, 382, 426]"
+      },
+      {
+       "variant": "single_nohyph_left_w270",
+       "verdict": "MATCH",
+       "detail": "lines ai=10 studio=10 first_break_diff=None x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 49, 99, 142, 189, 230, 277, 323, 371, 419] studio_starts=[0, 49, 99, 142, 189, 230, 277, 323, 371, 419]"
+      },
+      {
+       "variant": "single_nohyph_left_w300",
+       "verdict": "MATCH",
+       "detail": "lines ai=9 studio=9 first_break_diff=None x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 54, 109, 164, 208, 255, 311, 364, 419] studio_starts=[0, 54, 109, 164, 208, 255, 311, 364, 419]"
+      },
+      {
+       "variant": "single_nohyph_left_w330",
+       "verdict": "MATCH",
+       "detail": "lines ai=9 studio=9 first_break_diff=None x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 54, 109, 164, 208, 255, 317, 371, 431] studio_starts=[0, 54, 109, 164, 208, 255, 317, 371, 431]"
+      },
+      {
+       "variant": "single_nohyph_left_w360",
+       "verdict": "MATCH",
+       "detail": "lines ai=7 studio=7 first_break_diff=None x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 64, 129, 194, 255, 323, 390] studio_starts=[0, 64, 129, 194, 255, 323, 390]"
+      },
+      {
+       "variant": "single_nohyph_left_w390",
+       "verdict": "MATCH",
+       "detail": "lines ai=7 studio=7 first_break_diff=None x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 70, 142, 208, 282, 352, 426] studio_starts=[0, 70, 142, 208, 282, 352, 426]"
+      },
+      {
+       "variant": "single_nohyph_left_w420",
+       "verdict": "MATCH",
+       "detail": "lines ai=6 studio=6 first_break_diff=None x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0879 over 450 chars overset=false oracle_starts=[0, 76, 150, 230, 302, 382] studio_starts=[0, 76, 150, 230, 302, 382]"
+      }
+     ]
+    },
+    "ID-02": {
+     "counts": {
+      "MATCH": 0,
+      "MISMATCH": 8,
+      "NOT_SUPPORTED": 4,
+      "NOT_PROVEN": 0
+     },
+     "variants": [
+      {
+       "variant": "para_ws100_100_100",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=11 studio=11 first_break_diff=Some((1, Some(38), Some(32))) x_max_abs_pt=24.5742 ff_line_x_max_abs_pt=0.0000 over 42 chars overset=false oracle_starts=[0, 38, 79, 119, 161, 205, 247, 288, 329, 366, 408] studio_starts=[0, 32, 76, 119, 164, 205, 251, 277, 323, 364, 408]"
+      },
+      {
+       "variant": "para_ws50_100_200",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=10 studio=10 first_break_diff=Some((4, Some(180), Some(178))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 273 chars overset=false oracle_starts=[0, 44, 90, 137, 180, 224, 268, 317, 360, 405] studio_starts=[0, 44, 90, 137, 178, 224, 268, 317, 360, 408]"
+      },
+      {
+       "variant": "para_ws80_100_133_ls-3_0_3",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=10 studio=12 first_break_diff=Some((1, Some(44), Some(4))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 0 chars overset=false oracle_starts=[0, 44, 90, 137, 180, 224, 268, 317, 360, 405] studio_starts=[0, 4, 49, 90, 137, 178, 221, 263, 311, 355, 399, 443]"
+      },
+      {
+       "variant": "para_ws80_100_133_gs95_100_105",
+       "verdict": "NOT_SUPPORTED",
+       "detail": "glyph scaling not implemented in layout (typeset.rs JustifyParams has no glyph scaling)"
+      },
+      {
+       "variant": "para_ws0_100_300",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=10 studio=11 first_break_diff=Some((2, Some(90), Some(82))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 44 chars overset=false oracle_starts=[0, 44, 90, 137, 180, 230, 271, 317, 360, 405] studio_starts=[0, 44, 82, 123, 164, 208, 255, 302, 344, 390, 438]"
+      },
+      {
+       "variant": "para_ws100_100_100_ls-5_0_5_gs90_100_110",
+       "verdict": "NOT_SUPPORTED",
+       "detail": "glyph scaling not implemented in layout (typeset.rs JustifyParams has no glyph scaling)"
+      },
+      {
+       "variant": "single_ws100_100_100",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=11 studio=11 first_break_diff=Some((1, Some(40), Some(38))) x_max_abs_pt=112.6055 ff_line_x_max_abs_pt=13.4473 over 327 chars overset=false oracle_starts=[0, 40, 82, 123, 166, 210, 255, 297, 338, 382, 426] studio_starts=[0, 38, 79, 123, 166, 210, 255, 297, 338, 382, 426]"
+      },
+      {
+       "variant": "single_ws50_100_200",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=10 studio=11 first_break_diff=Some((1, Some(44), Some(38))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 0 chars overset=false oracle_starts=[0, 44, 90, 137, 180, 224, 268, 317, 360, 408] studio_starts=[0, 38, 79, 123, 166, 210, 255, 297, 338, 382, 426]"
+      },
+      {
+       "variant": "single_ws80_100_133_ls-3_0_3",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=10 studio=11 first_break_diff=Some((1, Some(44), Some(38))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 0 chars overset=false oracle_starts=[0, 44, 90, 137, 180, 224, 268, 317, 360, 408] studio_starts=[0, 38, 79, 123, 166, 210, 255, 297, 338, 382, 426]"
+      },
+      {
+       "variant": "single_ws80_100_133_gs95_100_105",
+       "verdict": "NOT_SUPPORTED",
+       "detail": "glyph scaling not implemented in layout (typeset.rs JustifyParams has no glyph scaling)"
+      },
+      {
+       "variant": "single_ws0_100_300",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=10 studio=11 first_break_diff=Some((1, Some(44), Some(38))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 0 chars overset=false oracle_starts=[0, 44, 90, 137, 180, 230, 272, 317, 360, 408] studio_starts=[0, 38, 79, 123, 166, 210, 255, 297, 338, 382, 426]"
+      },
+      {
+       "variant": "single_ws100_100_100_ls-5_0_5_gs90_100_110",
+       "verdict": "NOT_SUPPORTED",
+       "detail": "glyph scaling not implemented in layout (typeset.rs JustifyParams has no glyph scaling)"
+      }
+     ]
+    },
+    "ID-03": {
+     "counts": {
+      "MATCH": 3,
+      "MISMATCH": 3,
+      "NOT_SUPPORTED": 0,
+      "NOT_PROVEN": 0
+     },
+     "variants": [
+      {
+       "variant": "para_hyph_w240",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=10 studio=12 first_break_diff=Some((1, Some(40), Some(4))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 0 chars overset=false oracle_starts=[0, 40, 85, 129, 173, 219, 263, 311, 355, 402] studio_starts=[0, 4, 49, 90, 137, 178, 221, 263, 311, 355, 399, 443]"
+      },
+      {
+       "variant": "para_hyph_w240.idml_import",
+       "verdict": "MATCH",
+       "detail": "import_idml accepted the InDesign package; 48 typed loss entries"
+      },
+      {
+       "variant": "single_hyph_w240",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=11 studio=11 first_break_diff=Some((1, Some(40), Some(38))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 0 chars overset=false oracle_starts=[0, 40, 85, 129, 173, 215, 260, 302, 344, 390, 438] studio_starts=[0, 38, 79, 123, 166, 210, 255, 297, 338, 382, 426]"
+      },
+      {
+       "variant": "single_hyph_w240.idml_import",
+       "verdict": "MATCH",
+       "detail": "import_idml accepted the InDesign package; 48 typed loss entries"
+      },
+      {
+       "variant": "para_nohyph_w240",
+       "verdict": "MISMATCH",
+       "detail": "lines ai=11 studio=11 first_break_diff=Some((1, Some(38), Some(32))) x_max_abs_pt=0.0000 ff_line_x_max_abs_pt=0.0000 over 88 chars overset=false oracle_starts=[0, 38, 76, 119, 164, 205, 251, 286, 329, 371, 411] studio_starts=[0, 32, 76, 119, 164, 208, 255, 297, 344, 390, 438]"
+      },
+      {
+       "variant": "para_nohyph_w240.idml_import",
+       "verdict": "MATCH",
+       "detail": "import_idml accepted the InDesign package; 48 typed loss entries"
+      }
+     ]
+    },
+    "ID-04": {
+     "counts": {
+      "MATCH": 0,
+      "MISMATCH": 1,
+      "NOT_SUPPORTED": 0,
+      "NOT_PROVEN": 0
+     },
+     "variants": [
+      {
+       "variant": "two_linked_small_frames",
+       "verdict": "MISMATCH",
+       "detail": "frame1 ai=[0, 32, 70, 103, 137, 173, 210, 247] studio=[0, 9, 44, 79, 113, 150, 186, 224]; frame2 ai=[286, 323, 360, 399, 438] studio=[260, 297, 334, 371, 411]; overset ai=false studio=None"
+      }
+     ]
+    }
+   }
+  }
+ },
+ "matrix_rows_evidenced": [
+  {
+   "app": "after_effects",
+   "row": "AE-04",
+   "evidence": "MATCH: AE-01 324/324 segments, AE-01b 9/9 (after the chord-handle and continuity fixes); Adobe numeric equivalence of temporal interpolation now evidenced"
+  },
+  {
+   "app": "after_effects",
+   "row": "AE-05",
+   "evidence": "PARTIAL evidence: auto-bezier and continuous assistants MATCH (AE-01b chains), straight spatial path MATCH (AE-02 default); roving and spatial tangents NOT_SUPPORTED"
+  },
+  {
+   "app": "after_effects",
+   "row": "AE-07",
+   "evidence": "NOT_SUPPORTED: AE expression globals absent (AE-03 post-expression); pre-expression values MATCH"
+  },
+  {
+   "app": "illustrator",
+   "row": "AI-03",
+   "evidence": "MATCH: even-odd and non-zero pentagram (geometry through the oracle sampler)"
+  },
+  {
+   "app": "illustrator",
+   "row": "AI-13",
+   "evidence": "weight/caps/joins/miter/dashes: 14/27 cap-join-miter variants and 4/4 dash variants MATCH; 13 sub-pixel cap/tip MISMATCH (FU-AI-3); aa_none NOT_SUPPORTED"
+  },
+  {
+   "app": "illustrator",
+   "row": "AI-14",
+   "evidence": "linear 50 % and radial MATCH; stop opacity MATCH; midpoint 25/75 MISMATCH (FU-AI-1)"
+  },
+  {
+   "app": "illustrator",
+   "row": "AI-11",
+   "evidence": "Studio exact-area coverage vs Illustrator 4x4-sampled ARTOPTIMIZED: geometry identical through the oracle sampler; native raster lighter by 0.5-3.5 % ink (FU-AI-2)"
+  },
+  {
+   "app": "illustrator",
+   "row": "AI-18",
+   "evidence": "MATCH: 16 blend modes x opacity 100/50 (32/32) within 2 levels; group isolation and knockout 4/4 (AI-05)"
+  },
+  {
+   "app": "indesign",
+   "row": "ID-06",
+   "evidence": "single-line composer ragged: 10/10 identical; paragraph composer 4/40 (FU-ID-1)"
+  },
+  {
+   "app": "indesign",
+   "row": "ID-07",
+   "evidence": "justified variants MISMATCH (FU-ID-2, FU-ID-3); glyph scaling NOT_SUPPORTED (FU-ID-5)"
+  },
+  {
+   "app": "indesign",
+   "row": "ID-08",
+   "evidence": "hyphenation 3/10 identical on single-line widths (FU-ID-4); 5-letter minimum semantics confirmed"
+  },
+  {
+   "app": "indesign",
+   "row": "ID-09/ID-10",
+   "evidence": "shaping and kerning: every glyph x identical (0.0000 pt) except Arial 'ff' (0.088 pt, FU-ID-6)"
+  },
+  {
+   "app": "indesign",
+   "row": "ID-05",
+   "evidence": "two-frame thread MISMATCH through the composer divergence (FU-ID-1); IDML import of InDesign-written packages accepted (interop)"
+  }
+ ],
+ "follow_ups": [
+  {
+   "id": "FU-AE-1",
+   "owner": "hsk-studio-motion (+ Folio spatial tangents, STU-MOT-036b)",
+   "proposal": "Spatial Bezier interpolation for multi-component spatial properties (tangents, auto/continuous spatial, path-speed ease over arc length) and roving along that path; evidence AE-02 three_keys_roving_middle (rove time 1.37047 s vs AE 1.37679 s, 11.7 px) and two_keys_spatial_tangents_set after the rerun"
+  },
+  {
+   "id": "FU-AE-2",
+   "owner": "hsk-studio-motion-js profile",
+   "proposal": "Bind After Effects expression globals (value, time, linear(), ...) in the Studio expression profile; evidence AE-03 three post-expression rows (value*2, value+time*10, linear(time,0,2,0,180)) now NOT_SUPPORTED"
+  },
+  {
+   "id": "FU-AE-3",
+   "owner": "lead (attended AE run)",
+   "proposal": "Rerun hsk_oracle_aftereffects.jsx (AE-02 fixed: 3-element tangents) and add a continuity case with in speed > out speed to separate 'incoming wins' from 'smaller wins'"
+  },
+  {
+   "id": "FU-AI-1",
+   "owner": "hsk-studio-nib raster.rs Ramp::at (+ press export midpoint exponent for m < 0.5)",
+   "proposal": "Gradient stop midpoint as Illustrator's power curve: m > 0.5 -> t^(ln 0.5 / ln m); m < 0.5 -> 1 - (1 - t)^(ln 0.5 / ln(1 - m)) (AI-03 mid25/mid75: all 256 px within 1 level; nib's piecewise-linear skew is 40 levels off). Re-pins render-cpu/render-gpu vector_nib GOLDEN digests (other lanes), so not done here; Photoshop's midpoint curve should be checked against the PS oracle before changing the shared ramp"
+  },
+  {
+   "id": "FU-AI-3",
+   "owner": "hsk-studio-nib stroke.rs (investigation)",
+   "proposal": "Butt caps: Illustrator ends them ~0.1 px beyond the endpoint; miter-limit apex tip pixels differ by up to 4 samples. Confirm with a dedicated oracle case (horizontal/vertical butt-capped lines at fractional ends, a single miter at known ratios) before changing nib geometry"
+  },
+  {
+   "id": "FU-AI-2",
+   "owner": "hsk-studio-nib raster (option)",
+   "proposal": "Optional Illustrator-compatible anti-aliasing (4x4 point samples, +0.17 px fill / +0.04 px stroke bias, 17 levels) for pixel-exact Illustrator parity; Studio's exact-area coverage is 0.5 % (strokes) to 3.5 % (even-odd star) lighter. Also no aliased raster mode (AI-01 aa_none NOT_SUPPORTED)"
+  },
+  {
+   "id": "FU-ID-1",
+   "owner": "hsk-studio-layout breaker.rs",
+   "proposal": "Paragraph composer parity: when the first Knuth-Plass pass fails, passes 2/3 cap badness at 10000 so the unavoidable loose line can land at the paragraph start ('Ty-', 'Typographic' alone); rank by uncapped badness or add an emergency-stretch pass, then study Adobe Paragraph Composer breaks (ID-01 para_* 36 MISMATCH, ID-04)"
+  },
+  {
+   "id": "FU-ID-2",
+   "owner": "hsk-studio-layout breaker.rs first_fit",
+   "proposal": "Single-line composer for justified text accepts a break when natural width minus space shrink fits (InDesign fits 44 chars on ID-02 ws50 line 1 vs Studio 38)"
+  },
+  {
+   "id": "FU-ID-3",
+   "owner": "hsk-studio-layout typeset.rs justify_metrics",
+   "proposal": "InDesign-compatible justification option: distribute the remainder into word spaces past the maximum instead of leaving residual_pt (InDesign justified lines always reach the measure)"
+  },
+  {
+   "id": "FU-ID-4",
+   "owner": "hsk-studio-layout hyphenate.rs",
+   "proposal": "Hyphenation points: InDesign's en-US dictionary differs from Liang hyph-utf8 on 7/10 hyphenated single-line widths; an exception list or dictionary option for InDesign parity"
+  },
+  {
+   "id": "FU-ID-5",
+   "owner": "hsk-studio-layout typeset / styles",
+   "proposal": "Glyph scaling (min/desired/max) and justify-all-lines (FULLY_JUSTIFIED) alignment; ID-02 4 NOT_SUPPORTED + last-line divergence"
+  },
+  {
+   "id": "FU-ID-6",
+   "owner": "hsk-studio-type",
+   "proposal": "InDesign positions the 'ff' pair of Arial as 547 + 547 units (Studio GPOS: 532 then f-e 569): check InDesign's ligature/kerning model on a second font before changing anything (0.088 pt)"
+  }
+ ],
+ "corpus_added": [
+  "oracle-corpus/host-fonts/arial.ttf (sha256 b3658ead..6476a, the host Arial InDesign used per its manifest) + provenance.json; new files only, never committed"
+ ],
+ "validation": "Focused runner over hsk-studio-render-cpu / hsk-studio-interop-layout / hsk-studio-motion test targets d5_ai_oracle, d5_id_oracle, d5_ae_oracle: 14/14 passed at 3d5fbda + lane commits (every MISMATCH row is listed with its reason in the crate's expected-mismatch file); lint (--tests) clean on the D5 files; pushed on 38d491b, whose newer commits are additive (gradient mesh, path text, recolor, interop-vector crate split) and change no function these tests call, so the run was reused (recorded in the lane file). Never PASS: the round validator judges."
+}
