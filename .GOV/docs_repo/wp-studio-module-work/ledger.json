@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-16T00:03:57Z",
+ "updated_at": "2026-10-16T00:10:48Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7690,12 +7690,14 @@
   {
    "lane_id": "SMB-AFFINITY-FORMAT-RESEARCH",
    "crate": "(research)",
-   "phase": "build",
-   "status": null,
+   "phase": "done",
+   "status": "DONE",
    "owner": "affinity-format-researcher-20261016",
-   "commits": [],
+   "commits": [
+    "67a141fd"
+   ],
    "verdicts": [],
-   "note": "AF-02/06/07: feasibility + licence/provenance of native .af* read/write, DWG, EPS import; research note only"
+   "note": "research/affinity-format-research-20261016.md"
   },
   {
    "lane_id": "SMB-FIG-COLLAB",
@@ -7776,6 +7778,36 @@
    "commits": [],
    "verdicts": [],
    "note": "PR-19 playback in desktop viewer + source monitor, PR-24 encode via D24-A os-encode"
+  },
+  {
+   "lane_id": "SMB-AFFINITY-INTEROP-1",
+   "crate": "hsk-studio-interop-* (new affinity module or crate per steward)",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "typed refusal naming PSD/PDF/SVG export route; clean-room KA container reader (header, #FT4 directory, zstd streams, CRC); thumbnail + resource extraction; MIT readers (afread, AFDesignLoad, afphoto crate) may be read with attribution; Inkscape afdesign ext GPL excluded; PhotoCraft no licence excluded; no native write"
+  },
+  {
+   "lane_id": "SMB-AFFINITY-ORACLE-OPERATOR",
+   "crate": "(oracle corpus)",
+   "phase": "decided",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "Operator-attended D5: create controlled .af files in installed Affinity v3 (no scripting API, no desktop computer-use tool) + verify v3 export list; feeds doc.dat black-box decode lane"
+  },
+  {
+   "lane_id": "SMB-DXF-EPS-IMPORT",
+   "crate": "hsk-studio-interop-vector",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "DXF via dxf crate (MIT; 0.6.2 released 2026-10-03 fails 2-week age rule until 2026-10-17: pin prior version or wait); DWG typed refusal dwg_unavailable -> DXF route; EPS: DSC + DOS-header preview first, then stet (Apache-2.0 OR MIT; 0.8.7 of 2026-10-15 too new: pin an older version) in isolated capped worker -> PDF -> import_ai_with; EPSF export from SVG path model; Ghostscript excluded"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
