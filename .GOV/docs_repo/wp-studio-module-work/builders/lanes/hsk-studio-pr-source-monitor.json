@@ -1,0 +1,70 @@
+{
+  "crate": "hsk-studio-harness + hsk-studio-render-gpu + hsk-studio-composite + hsk-studio-folio + hsk-studio-prism + hsk-studio-pigment (additive) + hsk-studio-reel",
+  "lane": "SMB-PR-SOURCE-MONITOR",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-4 pushed (c5ab9e5, 888cd2e, 237256f; origin tip 237256f); READY_FOR_VALIDATION covers slices 1, 2, 3, 4, the lead AAC worker registration (slice 1 commit) and the reel-native studio-aac passthrough (slice 4 commit)",
+  "commits": [
+    {
+      "sha": "c5ab9e5",
+      "subject": "harness (SMB-PR-SOURCE-MONITOR slice 1): source monitor, marks, insert/overwrite into the program; AAC through the OS decoder in the viewer"
+    },
+    {
+      "sha": "888cd2e",
+      "subject": "grade (SMB-PR-SOURCE-MONITOR slices 2-3): clip grade kernel on render-gpu; keyframed grade scalars, Lumetri sharpen and faded film"
+    },
+    {
+      "sha": "237256f",
+      "subject": "reel + harness (SMB-PR-SOURCE-MONITOR slice 4): caption streams in export (tx3g timed text, WebVTT sidecar); export presets with the D24-A OS-encode path"
+    }
+  ],
+  "capabilities_done": [
+    "slice 1 (PR-19): harness view/source_monitor.rs SourceMonitor (one source in isolation through the program monitor's scheduler and render path; frame-accurate scrub/step, play in-to-out, loop, J/K/L), in/out marks (typed in_after_out / out_before_in / outside_range), plan_source_edit -> pulse plan_assembly_edit (3-point, backtiming from a program in/out span, 4-point only with an explicit FourPointFit, minted SCLP ids, source patching to targeted video tracks) committed as one undoable Run::submit_sequence step; ProgramMonitor::replace_sequence / mark_at_playhead / clear_in_out / sequence; monitor keys (J K L, Shift+J/L, Space, Left/Right, Shift = 5, ',' insert, '.' overwrite, I/O marks); desktop panel ids source_monitor.*; feature media: Viewer::open_source_media decodes a file through reel (ReelFrameDecoder::layout)",
+    "lead addition (slice 1 commit): feature media-native Viewer::new registers reel-native WorkerMfAacProvider (register_os_audio_decoder / set_audio_decoder / audio_decoder); audio_import::import_audio_external decodes audio files through it, so the desktop viewer decodes AAC by default (D24-A)",
+    "slice 2: render-gpu grade.wgsl + plan_sink/grade.rs run composite SceneContent::Graded's grade on the GPU (pigment RenderBackend::execute_grade, default None, additive; prism GradeProgram validated against hostile sizes; pigment PreparedCurve::spline); composite graded_surface uses the kernel when the backend has one, typed failure otherwise (no silent host fallback); measured max |GPU - host grade| 8.9e-7 over four grade families (stated bound 1e-4, the keying-kernel precedent)",
+    "slice 3: folio StudioColorGrade basic.sharpen (-100..100), faded_film (0..150), keyframes (21 StudioGradeParam streams in clip-local ticks, bounds, one per param, vignette params only with a vignette), omitted at their defaults; composite samples them through motion at the clip tick; faded film in stage 3; sharpen = Pigment unsharp mask (+) / Gaussian (-) after the grade",
+    "slice 4: reel captions.rs (tx3g timed-text track via Muxer::write_text_track, millisecond-rounded boundaries, gap samples, WebVTT sidecar with escaping, typed caption-* refusals before the first frame), ExportQueue::submit_with_captions, ExportReceipt.captions, MuxReceipt.text_samples, text track re-indexed in verify; reel presets.rs (stable preset ids; H.264 / HEVC refused without the OS encoder, AV1 without av1-encode); harness export_captions / export_queue (feature os-encode registers WorkerMfEncoder) / preset_recipe / iso639_2; reel-native feature studio-aac passthrough (lead request)"
+  ],
+  "tests": {
+    "argv": "scratchpad smb-pr-source-monitor/verify3.sh r5 (worker build mf-worker,os-encode; clippy; focused run over harness, folio, composite, render-gpu, render-cpu, prism, pigment, reel with features hsk-studio-harness/os-encode,hsk-studio-composite/motion: viewer_source_monitor viewer_aac viewer_monitor clip_grade_keyframes_records clip_grade_keyframes clip_effect_stack composition_graded clip_grade_frames export_captions timeline_captions export_queue mux_roundtrip; then reel-native with mf-worker,test-faults,os-encode,studio-aac: mf_aac)",
+    "exit": 0,
+    "sha": "237256f",
+    "passed": 27,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 1564,
+  "bg_pids": [],
+  "next": "validator round on 237256f. Round features: harness [os-encode] (worker beside the target) for viewer_source_monitor, viewer_aac, timeline_captions; composite [motion]; render-gpu, folio, reel default; reel-native [mf-worker, test-faults, os-encode, studio-aac] (dep-requests line 2026-10-16T05:16:05Z). Follow-ups for a new lane id: ganged monitors and STU-VID-023 resolution / zoom / overlays / output channels, caption styling boxes and MOV gmhd, presets beyond Studio's six",
+  "updated_at": "2026-10-16T07:30:34Z",
+  "notes": {
+    "spec_basis": [
+      "STU-VID-023: 'Studio provides a SOURCE monitor showing a media item or a clip in isolation, and a PROGRAM monitor showing the sequence at the playhead. Both expose: transport (play, stop, step forward, step back, play in-to-out, loop), an in point and an out point'",
+      "STU-VID-024: 'An edit takes up to four points -- source in, source out, sequence in, sequence out -- and derives the missing one ... With four points where the durations disagree, Studio MUST offer an explicit fit choice'",
+      "Command table (module 14): cmd.clip.insert ',' ; cmd.clip.overlay '.' (Overwrite); cmd.transport.shuttle.left 'J', .right 'L', .stop 'K', .slow.left 'Shift+J', .slow.right 'Shift+L'; cmd.transport.step.back 'Left Arrow' (.five 'Shift+Left Arrow'); cmd.transport.toggleplay 'Space'",
+      "STU-COL-220 row 'sharpen' hard -100..100; STU-COL-221 row 'faded_film' hard 0..150 soft_max 100; STU-COL-105 'Faded Film accepts 0 to 150 but presents up to 100'",
+      "STU-VID-037: 'Caption tracks participate in export ([STU-VID-061], facet captions)'; STU-VID-085 GAP caption formats; STU-VID-063 'Export recipes are portable data with stable identity'"
+    ],
+    "unverified_D5": "Premiere parity UNVERIFIED throughout (source monitor mark defaults, backtiming, target selection, I/O keys; Lumetri sharpen and faded film readings; keyframed Lumetri parameter set)",
+    "lead_addition": "Lead message (2026-10-16): register reel-native WorkerMfAacProvider in the viewer / harness media-native path with a test that plays an AAC corpus track; done in slice 1 commit (view/mod.rs Viewer::new, audio_import.rs import_audio_external, tests/viewer_aac.rs)",
+    "round1": "04:16Z: worker build ok; clippy: 1 error in source_monitor.rs (arithmetic on step back, fixed); tests 10 passed, 3 failed: viewer_aac (case of the refusal code in the assertion), source_monitor hostile assertion (u64::MAX/F is under MAX_SOURCE_FRAMES; now a 60 fps extent), composition_graded (grade pipeline_create on the device; fault detail now recorded; WGSL rewritten without dynamically indexed vector writes, the FXC X3500 pattern, UNVERIFIED as the cause until round 2)",
+    "tests_new": [
+      "harness viewer_source_monitor (3), viewer_aac (1)",
+      "render-gpu composition_graded (2)",
+      "folio clip_grade_keyframes_records (1), composite clip_grade_keyframes (1)",
+      "reel export_captions (3), harness timeline_captions (2)"
+    ],
+    "regressions_run": "viewer_monitor, clip_effect_stack, render-cpu clip_grade_frames, reel export_queue, mux_roundtrip (ffmpeg read-back), reel-native mf_aac: all green",
+    "not_proven": "none in r5: viewer_aac decoded through the MF AAC worker, the timeline_captions H.264 preset encoded through the OS encoder worker (verified re-index), composition_graded ran on the adapter",
+    "rounds": "r1 04:16Z 10/13 (3 fixed: assertion case, hostile extent, WGSL pipeline_create); r2 6/6 after WGSL rewrite without dynamically indexed vector writes; r3 TrackKind import ambiguity in a test fixed; r4 and post-rebase r5 27/27",
+    "shared_files": "harness view/mod.rs, monitor.rs, media.rs, audio_import.rs, timeline_export.rs; pigment adjust_math.rs (PreparedCurve::spline) and render_plan.rs (execute_grade default method + GradeSurface), additive; prism grade.rs (GradeProgram, additive); composite composition.rs (graded_surface kernel hook); reel mux.rs / export.rs / lib.rs (additive); render-gpu plan_sink.rs (mod line + execute_grade); reel-native Cargo.toml (feature line); own lane worktree, no other lane's hunks; Cargo.lock untouched",
+    "new_module_edges": "NONE (harness -> reel-native is an existing edge; harness feature os-encode and reel-native feature studio-aac are feature lines); no crates.io dependency",
+    "dep_requests": "round-features line 2026-10-16T05:16:05Z: hsk-studio-reel-native [mf-worker, test-faults, os-encode, studio-aac] (lead request)",
+    "gaps": [
+      "source monitor: no ganged transport, no STU-VID-023 resolution / zoom / safe-margin / output-channel selection, no source audio; the viewer's source monitor decodes with reel in process (no MF H.264 route for it yet)",
+      "GPU grade: stated bound 1e-4 (measured 8.9e-7); a hard key edge (soft 0) can differ at texels within binary32 of the edge",
+      "Lumetri sharpen / faded film readings and the keyframed parameter set UNVERIFIED (D5)",
+      "captions: plain text only (no styl / placement boxes), MOV uses nmhd (QuickTime gmhd UNVERIFIED), reel carries its own small WebVTT writer beside interop-media write_vtt (no harness -> interop-media edge), BCP 47 -> ISO 639-2/T is a 29-entry Studio table",
+      "presets: Studio's six, not the 704 captured STU-VID-063 recipe identities"
+    ]
+  }
+}

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-16T07:30:01Z",
+ "updated_at": "2026-10-16T07:31:27Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8025,10 +8025,10 @@
   },
   {
    "lane_id": "SMB-AE-PARTICLES-AUDIO-PRESETS",
-   "crate": "hsk-studio-composite/motion",
-   "phase": "queued",
+   "crate": "composite/motion",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-ae-particles-20261016",
    "commits": [],
    "verdicts": [],
    "note": "AE-21 particles, AE-24 comp audio, AE-23 animation presets"
@@ -8084,23 +8084,28 @@
   },
   {
    "lane_id": "SMB-AU-WAVEFORM-EDITOR",
-   "crate": "hsk-studio-pulse/audio UI",
-   "phase": "queued",
+   "crate": "score + harness",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-au-waveform-20261016",
    "commits": [],
    "verdicts": [],
    "note": "AU-20 waveform/spectral editor UI, AU-17/18 device proof, AU-19 plugin host (VST3 licence check: VST3 SDK is MIT since 2025? verify)"
   },
   {
    "lane_id": "SMB-PR-SOURCE-MONITOR",
-   "crate": "pulse/harness UI + render-gpu + reel",
-   "phase": "build",
-   "status": null,
+   "crate": "harness + render-gpu + prism + reel + reel-native",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-pr-monitor-20261016",
-   "commits": [],
+   "commits": [
+    "c5ab9e5",
+    "888cd2e",
+    "237256f"
+   ],
    "verdicts": [],
-   "note": "PR-19 source/program monitors + playback in desktop viewer; graded-clip GPU parity; keyframed grade params; Lumetri sharpen/faded film; caption streams (mov_text/WebVTT) in export; PR-24 encode via D24-A os-encode"
+   "note": "source monitor + 3/4-point edits, AAC default in viewer, GPU graded clips (<=8.9e-7), keyframed grades, sharpen/faded film, captions in export (tx3g + WebVTT sidecar), 6 presets incl. os-encode H.264/HEVC. Round-features request reel-native [mf-worker,test-faults,os-encode,studio-aac] + harness [os-encode] for steward (R36). Gaps: ganged monitors/zoom/output channels, source audio, styled captions, 6 of 704 presets, duplicate small WebVTT writer in reel vs interop-media",
+   "lane_file": "builders/lanes/hsk-studio-pr-source-monitor.json"
   },
   {
    "lane_id": "SMB-AFFINITY-INTEROP-1",
