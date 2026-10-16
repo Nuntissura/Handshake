@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-16T03:32:33Z",
+ "updated_at": "2026-10-16T03:40:30Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7925,13 +7925,16 @@
   },
   {
    "lane_id": "SMB-PREMIERE-COLOR-TITLES",
-   "crate": "hsk-studio-pulse",
-   "phase": "build",
-   "status": null,
+   "crate": "folio + prism + composite + interop-media",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-premiere-ct-20261016",
-   "commits": [],
+   "commits": [
+    "e48b8f5"
+   ],
    "verdicts": [],
-   "note": "PR gaps: Lumetri-style colour (basic, creative LUT, curves, colour wheels, HSL secondary, vignette) per clip reusing develop/prism; clip effect stack with keyframes; titles/graphics (text + shapes via type/nib/composite, Essential Graphics style templates); captions (SRT/VTT import/export, burn-in)"
+   "note": "gaps: render-gpu parity for graded clips; harness/monitor wiring; keyframed grade params; Lumetri HDR/faded film/sharpen; caption streams in export",
+   "lane_file": "builders/lanes/hsk-studio-premiere-color-titles.json"
   },
   {
    "lane_id": "SMB-PS-ADJUST-STYLES-3",
@@ -8067,13 +8070,13 @@
   },
   {
    "lane_id": "SMB-PR-SOURCE-MONITOR",
-   "crate": "hsk-studio-pulse UI",
-   "phase": "queued",
+   "crate": "pulse/harness UI + render-gpu + reel",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-pr-monitor-20261016",
    "commits": [],
    "verdicts": [],
-   "note": "PR-19 playback in desktop viewer + source monitor, PR-24 encode via D24-A os-encode"
+   "note": "PR-19 source/program monitors + playback in desktop viewer; graded-clip GPU parity; keyframed grade params; Lumetri sharpen/faded film; caption streams (mov_text/WebVTT) in export; PR-24 encode via D24-A os-encode"
   },
   {
    "lane_id": "SMB-AFFINITY-INTEROP-1",

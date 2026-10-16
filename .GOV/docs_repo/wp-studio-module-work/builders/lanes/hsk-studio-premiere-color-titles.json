@@ -1,0 +1,48 @@
+{
+  "crate": "hsk-studio-composite",
+  "lane": "SMB-PREMIERE-COLOR-TITLES",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-4 pushed in one commit e48b8f5 (all four slices share folio/composite clip_finishing.rs, so they were verified and pushed together); READY_FOR_VALIDATION covers slices 1, 2, 3 and 4",
+  "commits": [
+    {"sha": "e48b8f5", "subject": "SMB-PREMIERE-COLOR-TITLES slices 1-4: clip colour grade, clip effect stack, graphic templates, captions"}
+  ],
+  "capabilities_done": [
+    "slice 1 (clip colour, Lumetri-style): folio hsk.studio.clip_finishing@1 record set beside the document (StudioDocument/StudioClip unchanged); effect color_grade = STU-COL-160 stage blocks: input LUT and creative look (STU-COL-158 content-digest refs, look_intensity 0..200), basic (STU-COL-220 hard bounds), RGB + five cross-channel curves (STU-COL-225/226), STU-COL-222 wheels (overall/shadow/mid/highlight offset, gamma, gain, contrast, pivot, saturations, splits), secondaries (STU-COL-227 HSL key with soft edges + own temperature/tint -300..300, contrast, saturation), vignette (STU-COL-228); prism grade.rs owns the STU-COL-222/227/228 maths; .cube reuses SMB-DEVELOP-LENS-PRESETS prism CubeLut/parse_cube (tetrahedral), plus an additive CubeLut::write_cube (STU-COL-159 export); composite ClipGrade orders the stages and reuses Pigment PreparedCurve, Curves, Vibrance and rgb_to_hsl/hsl_to_rgb; rendered per texel at the frame through SceneContent::Graded (exactness clip_colour_grade Approximate)",
+    "slice 2 (clip effect stack, STU-VID-020/STU-FX-002): entries transform (anchor/position/scale/rotation), opacity, crop, gaussian_blur and pigment_filter (Pigment smart-filter kinds, liquify refused) with StudioKeyedValue streams in clip-local ticks (composition keyframe rules); composite evaluate_effect_stack samples them through motion (keyed_property + Property::sample), apply_effects wraps grade/crop stages and Pigment smart filters over the clip frame and composes transform/opacity onto the layer matrix/opacity; crop = exact box coverage (clip_crop Exact)",
+    "slice 3 (titles/graphics, STU-VID-070/070a/070b/070c): StudioMotionTemplate (composition id, ordered exposed controls of the five types source_text/group/colour/checkbox/numeric_slider, required fonts/effects/renderer) and StudioGraphicInstance (clip whose source_ref is Primitive hsk.studio.motion_template@1); folio enforces the HARD source-text font permissions and can_animate; composite instantiate_template patches composition streams and AE shape fill records at a clip tick (text resolved for the caller's shaping) and renders through CompositionTemporalSource; check_template_requirements returns TEMPLATE_REQUIREMENT_UNMET naming missing fonts/effects/renderer",
+    "slice 4 (captions, STU-VID-037; STU-VID-085 gap): folio StudioCaptionTrack per document caption track (language, one active track per sequence, segments with text/timing/style, constraints -> display warnings, segments_at); interop-media captions.rs SubRip + WebVTT import/export (exact 254016000 ticks per ms, tokenised tags/entities, NOTE/STYLE/REGION skipped, whole-cue b/i/u/font, an8 / line: / align: placement); composite caption_burn_in lays caller-shaped glyphs out by ink extent (bottom/top, left/centre/right) through the animated-text path"
+  ],
+  "tests": {"argv": "cargo nextest run -p hsk-studio-prism -p hsk-studio-folio -p hsk-studio-composite -p hsk-studio-interop-media -p hsk-studio-render-cpu --features hsk-studio-composite/motion --test clip_grade --test clip_finishing_records --test clip_effect_stack --test clip_graphics --test clip_captions --test captions --test clip_grade_frames --no-fail-fast", "exit": 0, "sha": "e48b8f5", "passed": 12, "failed": 0},
+  "blockers": [],
+  "lock_wait_s": 9000,
+  "bg_pids": [],
+  "next": "validator round on e48b8f5 (units: prism, folio, interop-media default; composite --features motion; render-cpu tests/clip_grade_frames.rs). Follow-ups for a new lane id: render-gpu parity for SceneContent::Graded (CPU per-texel stage today), harness/monitor wiring (pulse frame_layers -> evaluate_effect_stack -> apply_effects), keyframed grade parameters, Lumetri HDR/faded film/sharpen/secondary denoise+blur, SRT/VTT export of caption tracks into reel's muxer (caption streams)",
+  "updated_at": "2026-10-16T03:39:18Z",
+  "notes": {
+    "spec_basis": [
+      "STU-COL-158: 'A LUT is a first-class colour resource ... domain_min and domain_max are REQUIRED and MUST NOT default to 0-1 silently'",
+      "STU-COL-159: 'Studio MUST import at minimum the text cube format ... Studio MUST export the text cube format.'",
+      "STU-COL-160: 'they apply in exactly this order and the order is not configurable' (input LUT, primary, creative look, look adjustments, curves, wheels, secondaries, vignette, output)",
+      "STU-COL-220 basic block hard bounds (temperature/tint/contrast/highlights/shadows/whites/blacks -150..150, exposure -7..7, saturation 0..300, vibrance -100..100)",
+      "STU-COL-222: 'TempGain.r = pow(2, gain.r + (Temperature + Magenta * 0.5)) ... Contrast' = pow(2, Contrast) ... gamma'.c = pow(3, gamma_band.c + gamma.c)'; 'Band results compose by adding the band offset to the overall offset'",
+      "STU-COL-227: 'The KEY carries ... per-axis hue, saturation and luminance ranges with soft edges' and the secondary temperature/tint hard -300/300 'are DIFFERENT parameters'",
+      "STU-COL-228 vignette amount -5..5, midpoint 0..100, roundness -100..100, feather 0..100",
+      "STU-VID-020: effect_stack 'Includes the clip's intrinsic transform and opacity, which are ordinary keyframable properties'; STU-FX-002 ordered StudioLiveFilter entries with filter_kind, typed payload, enabled",
+      "STU-VID-070: 'A motion-graphics template is a parameterised composition placed as a clip'; 070a source_text permissions 'Studio MUST honour that as a hard permission, not a UI hint'; 070b can_animate; 070c 'TEMPLATE_REQUIREMENT_UNMET ... a missing font is never silently substituted'",
+      "STU-VID-037: 'Captions are a track kind, not an overlay effect ... multiple caption tracks coexist for multiple languages; one is active at a time ... a validation-warning display state'; STU-VID-085 GAP caption formats"
+    ],
+    "unverified_D5": "Premiere/Lumetri parity UNVERIFIED throughout: slider mappings (temperature/tint /200 log2, contrast /150, tone knots, saturation), wheel application (v = gain' c + offset', out = v^(1/gamma')), band weights (quadratic Bernstein at the default splits), key ramp shape, vignette geometry, hue-curve scales, crop edge treatment, geometric effects applied after pixel effects regardless of stack position, template checkbox read as opacity 0, caption layout and SRT/VTT style subset; filter_kind keys are snake_case Studio effect names (no canonical key verified)",
+    "lut_reuse": "SMB-DEVELOP-LENS-PRESETS slice 4 (05de3bc) landed prism lut.rs while this lane was building; on rebase this lane dropped its own lut.rs and uses CubeLut/parse_cube (tetrahedral; that lane's tests prove parsing and hostile bounds); the only prism lut.rs change is the additive CubeLut::write_cube",
+    "own_causes": "first build waited ~2 h behind validator rounds R34+ on D:; the STUDIO_BUILD_DISK=ssd attempt held the C: lock 30 min inside the SSD size guard (du -sk C:/HandshakeBuild/WP-KERNEL-STUDIO, several concurrent du processes from other lanes) with no cargo started, so the lane stopped its own task and built on D: once the D: lock was free (infrastructure note for the steward: the du guard is slow inside the lock); clippy + all tests ran under ONE studio_disk_lock_run hold (scratchpad verify.sh); test fixes before push: CancellationToken::new -> default, clip_graphics asserts the 45-degree linear part only (pivot is composite's anchor convention)",
+    "shared_files": "composite src/composition.rs: rebase conflict with SMB-AE-3D-3 SceneContent::Accumulated resolved keeping both variants; pigment adjust_math.rs only the two pub lines; prism lib.rs one 'pub mod grade;' line; no other lane's hunks committed; Cargo.lock untouched",
+    "owned_paths": [
+      "crates/hsk-studio-prism/src/grade.rs + lib.rs mod line, src/lut.rs (additive write_cube only), tests/clip_grade.rs",
+      "crates/hsk-studio-folio/src/clip_finishing.rs + lib.rs mod lines, tests/clip_finishing_records.rs",
+      "crates/hsk-studio-pigment/src/adjust_math.rs (rgb_to_hsl / hsl_to_rgb pub(crate) -> pub, additive)",
+      "crates/hsk-studio-composite/src/clip_finishing.rs, composition.rs (SceneContent::Graded variant + graded_surface), lib.rs mod line, tests/clip_effect_stack.rs, clip_graphics.rs, clip_captions.rs",
+      "crates/hsk-studio-interop-media/src/captions.rs + lib.rs mod line, tests/captions.rs",
+      "crates/hsk-studio-render-cpu/tests/clip_grade_frames.rs (B1 renderer proof file, new)"
+    ],
+    "new_module_edges": "NONE (composite->folio/prism/pigment/nib/motion, interop-media->folio and render-cpu dev->composite already exist); no crates.io dependency; dep-requests.jsonl untouched"
+  }
+}
