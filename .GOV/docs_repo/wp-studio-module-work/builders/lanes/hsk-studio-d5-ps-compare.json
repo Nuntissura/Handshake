@@ -1,0 +1,41 @@
+{
+ "crate": "hsk-studio-harness (tests/d5_ps_compare*), hsk-studio-pigment, hsk-studio-interop-psd, hsk-studio-render-gpu (WGSL mirrors)",
+ "lane": "SMB-D5-PS-COMPARE",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 pushed (3d5fbda): D5 Photoshop oracle comparison suite (5 test functions, all 588 manifest entries) + 6 oracle-evidenced fixes; summary research/d5-photoshop-compare-20261016.json",
+ "commits": [
+  {"sha": "3d5fbda", "subject": "SMB-D5-PS-COMPARE slice 1: Photoshop D5 oracle comparison suite + oracle-evidenced maths fixes", "slice": "1", "status": "READY_FOR_VALIDATION"}
+ ],
+ "capabilities_done": [
+  "harness tests/d5_ps_compare.rs (feature viewer): 5 data-driven tests (blend grids, adjustment layers, layer structure, layer effects, colour) over the 588 manifest entries; every corpus file sha256-pinned; per-variant verdict line + CARGO_TARGET_TMPDIR json; MISMATCH/NOT_SUPPORTED fail unless expectations.json records them; absent corpus = NOT_PROVEN",
+  "FIX-CLIPCOLOR-NAN pigment blend_math clip_color (+ WGSL hsk_clip_color)",
+  "FIX-VIVID-ENDPOINTS pigment vivid_light (+ WGSL)",
+  "FIX-HARDMIX-TIE pigment hard_mix (+ WGSL)",
+  "FIX-THRESHOLD-ROUNDING pigment Threshold (+ WGSL threshold_apply)",
+  "FIX-BC-LEGACY-PIVOT pigment legacy brightness/contrast pivot 127/255 (+ WGSL bc_ch, pigment adjust_coverage hand values)",
+  "FIX-LAB16-AB-OFFSET interop-psd 16-bit Lab a/b = raw/256 - 128 (+ precision_color_export hand values)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run --no-fail-fast -p hsk-studio-harness -p hsk-studio-pigment -p hsk-studio-interop-psd -p hsk-studio-render-gpu --features hsk-studio-harness/viewer --test d5_ps_compare --test adjust_coverage --test blend_math --test precision_color_export --test gpu_plan --test gpu_adjust_styles_2",
+  "exit": 0,
+  "sha": "3d5fbda (confirmation run at the pushed tip, completed before 12:22Z: 54/54 passed, verdict totals unchanged)",
+  "passed": 54,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 18000,
+ "bg_pids": [],
+ "next": "follow-up lanes proposed in research/d5-photoshop-compare-20261016.json (FP-EFFECT-KERNEL first: tent kernel reproduces Photoshop glows/shadows within 0.5 code)",
+ "updated_at": "2026-10-16T12:36:00Z",
+ "notes": {
+  "verdicts": "588 entries: MATCH 196, MISMATCH 301 (all diagnosed in expectations.json), NOT_SUPPORTED 84, ORACLE_INVALID 6 (feather and knockout keys not applied by the script), ORACLE_ABSENT 1",
+  "before_after": "pre-fix suite run (run3, 04:2xZ): blend grids 86 MATCH / 22 MISMATCH, adjustments 41/12; post-fix: 98/10 and 45/8; PS-L02 MATCH after the Lab16 fix (pre-fix tint of up to 2 sRGB codes computed in scratch, not run through the suite)",
+  "clippy": "clippy -p harness(viewer) pigment interop-psd render-gpu --tests: exit 0; the one new warning in my code (needless_range_loop in support.rs compare) is allowed with a reason",
+  "shared_tests_touched": "pigment tests/adjust_coverage.rs (legacy B/C hand values) and interop-psd tests/precision_color_export.rs (Lab16 raw encoding): both re-pinned to the oracle-measured behaviour, cited in comments",
+  "worktree": "wt-studio-lanes/smb-d5-ps-compare (branch lane/smb-d5-ps-compare); STUDIO_OWNER=smb-d5-ps-compare, D: target only (lead 2026-10-16)",
+  "oracle": "Photoshop 27.11.0 D5 run 2026-10-16, <corpus root>/adobe-session/photoshop; pins in tests/d5_ps_compare/corpus_sha256.txt; no corpus file added or renamed",
+  "host_crate_choice": "hsk-studio-harness under feature viewer: the only crate whose existing edges reach interop-tiff (the Studio TIFF reader), pigment, render-cpu, prism and the convert flow; no manifest or dependency change, no new edge, no dep-requests line",
+  "gameplan_pointer": "added the ignored .gameplan-active pointer (copied from wt-studio-lanes/smb-ae-3d-3) at the lane worktree root; without it the hook resolved the kernel WP-KERNEL-012 gameplan",
+  "process": "builder test filters were never changed to dodge the retry guard; no shared gameplan steps added; one background run of mine was stopped (wrong --features form) before it acquired the lock"
+ }
+}
