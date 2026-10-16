@@ -1,16 +1,25 @@
 {
  "crate": "hsk-studio-develop",
  "lane": "SMB-RAW-CLEANROOM",
- "status": null,
- "phase": "started: clean-room rewrite of the compressed vendor RAW decoders (ORF, RW2, NEF, RAF, CR3), one vendor per slice; worktree wt-studio-lanes/smb-raw-cleanroom (branch lane/smb-raw-cleanroom)",
- "commits": [],
- "capabilities_done": [],
- "tests": {"argv": "", "exit": null, "sha": "", "passed": 0, "failed": 0},
- "blockers": [],
- "lock_wait_s": 0,
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 ORF READY at d486897 (clean-room src/raw_cr/orf.rs routed, old src/orf.rs git-deleted); slice 2 RW2 written but not matching the pinned LX7 digest (blocker); NEF, RAF, CR3 stopped: public descriptions insufficient for bit-identity (notes.checked_and_insufficient)",
+ "commits": [
+  {"sha": "d486897", "subject": "develop (SMB-RAW-CLEANROOM slice 1): clean-room Olympus ORF two-field decoder; old src/orf.rs removed"}
+ ],
+ "capabilities_done": [
+  "slice 1 ORF (src/raw_cr/orf.rs + shared helpers src/raw_cr/mod.rs): IIRO/IIRS/MMOR read through a magic-patched TIFF copy; two-field 12-bit layout (strip total exactly w*h*1.5, exactly one strip-table gap at the end of the even-row field, odd field's trailing stored row must be present), MSB-first 12-bit pairs; Exif CFAPattern (2x2 only, SHORTs in either byte order); old-style OLYMP maker note: 0x1012 black when its four values agree and ValidBits 0x102C is 12, 0x1017/0x1018 as-shot neutral, 0x1011 file matrix (SHORT read as two's complement); white = levels::measured_white; unapplied orf_black/white/active_area names as before; compression != 1 unsupported_compression, other layouts decoder_unavailable:orf; deny(clippy::arithmetic_side_effects); every layout check before the frame allocation (V4-02)",
+  "bit-identity on the corpus: C5060WZ samples sha256 1e6a220b...ab37 (pinned), white 4080, black 0, unapplied [orf_active_area_unread], route file_matrix, neutral [256/437, 1, 256/411] - all unchanged (tests below); an independent numpy prototype also reproduces the digest"
+ ],
+ "tests": {"argv": "cargo nextest run -p hsk-studio-develop --run-ignored all --no-fail-fast -E 'test(orf_two_field_layout_decodes_and_hostile_variants_are_typed) | test(single_illuminant_file_matrix_is_refused_by_default_and_developed_on_opt_in) | test(container_magic_routing_names_the_family) | test(orf_two_field_c5060wz_decodes_and_matches_the_embedded_preview) | test(as_shot_white_balance_and_colour_routes_render_preview_neutrals_neutral_olympus_c5060wz)'", "exit": 0, "sha": "3e7148e (= d486897 tree for develop; d486897 only rebased over steward Cargo and develop_presets test commits)", "passed": 5, "failed": 0, "extra": "pre-rebase run also passed real_raw_levels vendor_levels_agree_with_sample_statistics (ORF unapplied [orf_active_area_unread]); clippy -p hsk-studio-develop -p hsk-studio-harness --tests: no warnings in my files (one develop_presets warning belongs to SMB-DEVELOP-LENS-PRESETS, fixed upstream in 2dfa3d5)"},
+ "blockers": [
+  {"error": "NOTICE: the LightCraft attribution line(s) for the old ORF decoder should be removed, but the clean-room rules forbid this lane from opening develop's NOTICE; the lead or steward must edit it (ORF no longer derives from LightCraft; levels.rs plateau_white/site_means used by the new decoder remain LightCraft-adapted)", "file_line": "crates/hsk-studio-develop/NOTICE", "attempts": 0},
+  {"error": "D: disk build lock: run-round studio-round / steward-export rounds held the lock repeatedly; builder waits 58 min (first clippy) and 7200 s (gave up, exit 75)", "file_line": "Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock", "attempts": 2},
+  {"error": "RW2 STOPPED (not switched; old src/rw2.rs still routed). Clean-room format 4 (from tests/develop_rw2.rs + chunk rotation; scale 3 always absolute, chosen from the LX7 data's neighbour consistency) matches every field of the old output (levels, neutral, unapplied, model) and every sample except 26 pixels in 2 of 173,536 blocks (output-plane comparison, parity test). Both blocks have an odd seed whose high byte is 0 (12-bit seed 1 or 2): the old output gives that pixel 0 and different values for the first even and odd codes of the block. MISSING public description: the format-4 rule for a seed with high byte 0 (the 'deferred seed for mapped-out pixels'): what the 4 low seed bits mean, how the first even and odd codes after it are decoded, and what the mapped-out pixel outputs. Disclosure: in the two differing blocks the old OUTPUT suggests the first odd value is (low nibble << 8) | code; this was observed from output only, NOT implemented, and needs a public source or an Operator ruling before use. Also missing for parity with the old capability set: raw formats 2, 6, 7, 14-bit packed, 16-bit words (no public layout found, no corpus sample). WIP preserved untracked in the worktree and copied to Handshake_Artifacts/WP-KERNEL-STUDIO/smb-raw-cleanroom/wip-rw2/ (rw2.rs, parity.rs).", "file_line": "crates/hsk-studio-develop/src/raw_cr/rw2.rs format4 (untracked)", "attempts": 6}
+ ],
+ "lock_wait_s": 13500,
  "bg_pids": [],
- "next": "slice 1 ORF two-field layout in crates/hsk-studio-develop/src/raw_cr/orf.rs",
- "updated_at": "2026-10-15T21:36:20Z",
+ "next": "lead/Operator: (1) edit develop NOTICE for ORF (this lane may not read it); (2) RW2: supply a public source for the format-4 zero-high-byte seed rule or rule on using the output-observed rule; (3) NEF/RAF/CR3: public descriptions insufficient (notes.checked_and_insufficient) - options: an independent black-box table/codec recovery from CC0 samples (new research lane), or keep the LightCraft-derived decoders",
+ "updated_at": "2026-10-16T07:31:55Z",
  "notes": {
   "operator_basis": "START_LOG Operator decisions 2026-10-15 (5): rewrite the compressed-RAW decoders clean-room now",
   "clean_room_rules": "not read: LightCraft source, develop src/{nef,nefc,cr3,crx,crx_wavelet,raf,rafc,orf,rw2}.rs, develop NOTICE, any GPL/LGPL/MPL raw code (dcraw, LibRaw, rawspeed, rawler, lclevy canon_cr3, darktable, RawTherapee). Read: develop lib.rs exports, dng.rs (DngRaw/VendorFrame), tiffep.rs, levels.rs, camera_colour.rs and the tests.",

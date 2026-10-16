@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-16T07:31:27Z",
+ "updated_at": "2026-10-16T07:33:21Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7918,12 +7918,15 @@
   {
    "lane_id": "SMB-RAW-CLEANROOM",
    "crate": "hsk-studio-develop",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-raw-cleanroom-20261015",
-   "commits": [],
+   "commits": [
+    "d486897"
+   ],
    "verdicts": [],
-   "note": "Operator 2026-10-15: rewrite the LightCraft-derived compressed-RAW decoders clean-room (F-R32-5): implementer never reads LightCraft or the current decoder files; works only from public format documentation; old decoders replaced when the new ones pass the same corpus tests"
+   "note": "ORF clean-room (bit-identical on C5060WZ) READY; RW2/NEF/RAF/CR3 stopped: public docs insufficient for bit-identity. NOTICE update (drop ORF LightCraft attribution) routed to steward",
+   "lane_file": "builders/lanes/hsk-studio-raw-cleanroom.json"
   },
   {
    "lane_id": "SMB-D24A-CODEC-DEFAULTS",
@@ -8220,6 +8223,16 @@
    "commits": [],
    "verdicts": [],
    "note": "candidate = origin tip after 2dfa3d5"
+  },
+  {
+   "lane_id": "SMB-RAW-CLEANROOM-2",
+   "crate": "hsk-studio-develop",
+   "phase": "build",
+   "status": null,
+   "owner": "builder-raw-cleanroom-2-20261016",
+   "commits": [],
+   "verdicts": [],
+   "note": "black-box oracle method: Adobe DNG Converter uncompressed-DNG outputs as the reference; RW2, NEF, RAF, CR3 (incl. formats the old decoder handles); old LightCraft-derived decoders stay routed until each replacement reaches parity"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
