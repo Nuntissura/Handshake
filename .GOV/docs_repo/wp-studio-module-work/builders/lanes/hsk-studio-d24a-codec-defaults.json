@@ -1,17 +1,57 @@
 {
   "crate": "hsk-studio-reel + hsk-studio-reel-native",
   "lane": "SMB-D24A-CODEC-DEFAULTS",
-  "status": null,
-  "phase": "slices 1-3 written in lane worktree wt-studio-lanes/smb-d24a-codec-defaults (branch lane/smb-d24a-codec-defaults); waiting on the disk build lock (round C48 run-round holds it) for the first focused run",
-  "commits": [],
-  "capabilities_done": [],
-  "tests": {"argv": null, "exit": null, "sha": null, "passed": 0, "failed": 0},
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1 (MP3 default), 2 (AAC via OS decoder, Studio AAC opt-in) and 3 (os-encode H.264/HEVC) pushed as 18c85ac..c91f791 (head c91f791). Slices share files (registry.rs, wire.rs, host.rs, ffi.rs), so the commits are split by crate, not by slice; claim = 18c85ac..c91f791 for all three slices.",
+  "commits": [
+    {"sha": "18c85ac", "subject": "reel (slices 1-3, D24-A): MP3 in Registry::standard(); AAC via ExternalAudioDecoder (Studio AAC behind studio-aac); OS-encoder port for H.264/HEVC export (+ harness feature studio-aac, tests/audio_import.rs pin)"},
+    {"sha": "e21c70f", "subject": "reel-native (slices 2-3, D24-A): OS AAC decoder worker mode (WorkerMfAacProvider); os-encode: OS H.264/HEVC encoder MFT worker (WorkerMfEncoder)"},
+    {"sha": "85ceeb3", "subject": "reel: OS-encode frame-size check before the worker only; in-process encoders keep their judged refusal order"},
+    {"sha": "bc351cf", "subject": "reel-native: encoder output time maps to the nearest owed frame; decode-back test prints the sample table"},
+    {"sha": "c91f791", "subject": "reel-native: learn the encoder's output-time offset from the first key unit"}
+  ],
+  "capabilities_done": [
+    "slice 1: reel Registry::standard() = wav-pcm, y4m, isobmff, matroska, mpeg-audio (last, so container sniffing comes first); register_audio_codecs / with_audio_codecs / with_audio register only ids not held yet (no duplicate refusal for mpeg-audio, a caller's own provider is kept). Judged pins updated with a D24-A note: reel tests/foundation_contract.rs registry_is_enumerable_instance_owned_and_reports (5 providers), harness tests/audio_import.rs opening_mp3_flac_and_opus_lands_in_a_score_mix_of_the_decoded_file (mpeg-audio now in standard()); mxf/provider.rs doc and DESCRIPTOR updated",
+    "slice 2 reel: audio::external port (AudioCodec::AacLc, AudioStreamSpec, AudioDecodeSession, ExternalAudioDecoder, aac_os_descriptor, ids mf-aac); Registry::with_audio_decoder / set_audio_decoder / audio_decoder_identity; VideoRoute::audio + with_audio_decoder (the route of every decode); decode_audio_file_with. AAC (ADTS, mp4a, A_AAC, legacy A_AAC/MPEG*/LC) decoder choice: registered external decoder, else Studio AAC-LC decoder with NEW default-off feature studio-aac, else MEDIA_CODEC_UNAVAILABLE aac-lc; probe never starts a decoder. External output checked in reel (Checked): whole frames of the declared channels, claimed == appended, <= 2048 frames per call, total <= 1024 x access units, finite within 8.0, else MEDIA_DECODER_FAULT decoder_protocol with nothing kept; PacketDecoder::flush drains a decoder at end of stream",
+    "slice 2 reel-native: WorkerMfAacProvider (feature mf) = reel ExternalAudioDecoder over reel-native-mf-worker --aac: OS Microsoft AAC Audio Decoder MFT {32D186A7-218F-4C75-8876-DD77273A8999} (first synchronous software AAC decoder MFT), raw access units in (HEAACWAVEINFO user data + ASC), float PCM out, reordered from the WAVE channel mask to the AAC element order (C L R Ls Rs LFE for 5.1); admission before any spawn (1-8 ch, 7350-96000 Hz, config 1-7, ASC 2-64 bytes); wire AUDIO kind (tag, channels, rate, f32) checked by the pool (declared channels and rate, sent tag, <= 64 per batch) else counted worker_protocol; generic pool exchange_any + RawSession shared with the encoder",
+    "slice 3 reel: os_encode module: ExternalVideoEncoder / VideoEncodeSession / OsEncodeSpec / EncodedUnit / OsVideoSettings (bitrate, H264Profile); ExportQueue::with_video_encoder; VideoCodecChoice::H264 / Hevc (output-module formats); refusals before the first frame and before any worker: no encoder (MEDIA_CODEC_UNAVAILABLE h264/hevc), non-8-bit-4:2:0 (os-encode-pixel-format), odd or zero sides (os-encode-dimensions), bitrate outside 1..=400 Mbit/s, frame rate not a u32 rational; Annex B -> 4-byte length samples with SPS/PPS(/VPS) and AUDs moved to avcC / hvcC built from the first key unit (build_avcc incl. High-profile extension; build_hvcc from SPS profile_tier_level, chroma, bit depths), parameter-set change refused; unit presenting a not-yet-sent frame or a non-key first unit = decoder_protocol; mux VideoEntry::Hevc (hvc1 + hvcC, parse_hvcc) and avc1 for OS output",
+    "slice 3 reel-native: WorkerMfEncoder (NEW default-off feature os-encode = mf, no new dependency) over reel-native-mf-worker --encode=h264|hevc: first synchronous software encoder MFT, output type first then NV12 input (I420 -> NV12 in pure nv12.rs), frame-rate / bitrate / profile / progressive / square pixels; coded units tagged with the frame they present: output-time offset learned from the first key unit (the Microsoft H.264 Encoder MFT stamps B-frame output one frame late, measured), then exact, then nearest within one frame; HEVC where no encoder: MEDIA_CODEC_UNAVAILABLE hevc (HELLO version unavailable|no-sync-software-hevc-encoder-mft|hw=n|async=n). Host presence: H264 Encoder MFT {6CA50344-051A-4DED-9779-A43305165E35} and HEVCVideoExtensionEncoder (Microsoft.HEVCVideoExtension 2.5.48.0 installed, packaged MFT, CLSID reported as zero GUID) both PRESENT on this host"
+  ],
+  "tests": {
+    "argv": "lane worktree, D: target, STUDIO_OWNER=smb-d24a-codec-defaults: cargo clippy -p hsk-studio-reel --tests and -p hsk-studio-reel-native --features mf-worker,test-faults,os-encode,hsk-studio-reel/studio-aac --tests (no findings in lane files; only hsk-studio-observe too_many_arguments, not this lane); cargo nextest run -p hsk-studio-reel --test d24a_defaults --test foundation_contract --test audio_containers --test export_queue --test audio_mp3 --lib -E 'not test(ffmpeg_reads)' (50/50); -p hsk-studio-reel --features studio-aac --test audio_aac --test audio_containers --test d24a_defaults (8/8); -p hsk-studio-harness --features media --test audio_import (5/5) and --features studio-aac (5/5); -p hsk-studio-reel-native --features mf-worker,test-faults,os-encode,hsk-studio-reel/studio-aac --test mf_aac --test mf_encode --test mf_worker --lib (18/18). After the rebase onto d44b0a9: reel d24a_defaults/foundation_contract/export_queue/audio_containers 13/13, harness media audio_import 5/5, reel-native mf_aac + mf_encode 4/4",
+    "exit": 0,
+    "sha": "c91f791",
+    "passed": 99,
+    "failed": 0
+  },
   "blockers": [],
-  "lock_wait_s": 0,
+  "lock_wait_s": 9000,
   "bg_pids": [],
-  "next": "Run focused tests when the disk lock frees, commit + push per slice.",
-  "updated_at": "2026-10-15T22:07:44Z",
+  "next": "Validator: judge 18c85ac..c91f791 with round units reel default and [studio-aac], harness [media] and [studio-aac], reel-native [mf-worker,test-faults] plus [mf-worker,test-faults,os-encode,hsk-studio-reel/studio-aac] (Windows with Media Foundation). Steward: round-features requests filed in builders/dep-requests.jsonl (kind round-features, lane SMB-D24A-CODEC-DEFAULTS). Lead: see notes.lead_report.",
+  "updated_at": "2026-10-16T04:05:19Z",
   "notes": {
+    "lead_report": "NEW features (no new crates.io dependency, no new manifest edge): reel studio-aac (default off), reel-native os-encode (= mf, default off), harness studio-aac (= media + hsk-studio-reel/studio-aac). Three round-features lines appended to builders/dep-requests.jsonl. Changed public API: VideoRoute gained pub field `audio` (all struct literals are inside reel); VideoCodecChoice gained H264/Hevc; mux::VideoEntry gained Hevc; PacketDecoder gained default flush. Harness wiring of WorkerMfAacProvider into its media-native viewer (so the desktop viewer decodes AAC by default) is NOT done: follow-up for the harness owner.",
+    "measurements": {
+      "aac_mf_vs_studio": "max |MF - Studio| per sample: stereo 44.1 kHz 5.2e-8 (0.0017 LSB, SNR 137.8 dB, 14336 frames), mono 48 kHz 8.9e-8 (0.0029 LSB, 137.8 dB, 16384 frames), 5.1 48 kHz 6.0e-8 (0.0020 LSB, 138.2 dB, 6144 frames); asserted bound MAX_DIFF 4/32768 (tests/mf_aac.rs); frame counts equal Studio's decoder (no trimming by either)",
+      "h264_os_encode": "320x192, 30 frames, 25 fps, 4 Mbit/s High: MS encoder emits B-frames (IPBPB.. in decode order, one-frame output-time offset); decode-back through the OS H.264 decoder: 30/30 frames, pts n x 10160640000, luma PSNR min 43.61 dB mean 47.75 dB; asserted bound MIN_PSNR_DB 30 (tests/mf_encode.rs)",
+      "hevc_os_encode": "HEVCVideoExtensionEncoder present; 30-frame export Complete, verified by reel re-index, hvcC present; output times exact (offset 0); decode-back NOT_PROVEN (no HEVC decoder in reel-native)"
+    },
+    "spec_basis": [
+      "STU-VID-051 as enriched by D23: codec adapters are declared adapters with descriptor (decoder id, version, licence, certification), runtime enumeration and typed MEDIA_CODEC_UNAVAILABLE when absent (aac_os_descriptor, mf-aac / mf-h264-encode / mf-hevc-encode identities from HELLO)",
+      "STU-VID-062: unsupported encode combinations refused before encoding starts (os-encode refusals before the first frame and before any worker)",
+      "STU-VID-064: export queue items with per-item receipts naming encoder id/version"
+    ],
+    "own_causes": [
+      "export.rs: first version checked frame bytes before the in-process encoders, which changed the judged refusal order of export_queue hostile_export_jobs_refused_before_any_frame (vc3-encode-dimensions); fixed in 85ceeb3 (check before the worker for OS encode only)",
+      "Microsoft H264 Encoder MFT output sample times are one frame later than the input when it emits B-frames (sample table printed by the test): exact-time match failed (mf-encode-time-unknown), then nearest match shifted every frame by one; fixed in c91f791 (offset learned from the first key unit)",
+      "a session interruption killed two queued background runs; a run started with STUDIO_BUILD_DISK=ssd was stopped on the lead's instruction (C: target over cap) and re-run on D:"
+    ],
+    "not_proven": [
+      "HEVC decode-back (no HEVC decoder in reel-native)",
+      "AAC MF-vs-Studio comparison in a round unit without hsk-studio-reel/studio-aac prints NOT_PROVEN",
+      "non-16-aligned encode sizes (only 320x192 tested); Microsoft encoder limits 4096x2304 not exercised",
+      "AAC channel configuration 7 (8 channels) passed through without reordering (layout differs between decoders)"
+    ],
     "decision": "Operator decision D24-A (START_LOG 2026-10-15 lines 505-506, ledger): MP3/MP2/MP1 decode on by default; AAC decode on by default through the OS decoder (Media Foundation AAC decoder in the isolated reel-native worker); Studio AAC-LC decoder opt-in behind a default-off feature; H.264/HEVC encode only through the OS encoder MFT in the worker behind new default-off feature os-encode, typed refusal where no OS encoder exists."
   }
 }

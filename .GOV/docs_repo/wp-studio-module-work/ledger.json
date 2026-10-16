@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-16T03:40:30Z",
+ "updated_at": "2026-10-16T04:06:48Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7915,13 +7915,16 @@
   },
   {
    "lane_id": "SMB-D24A-CODEC-DEFAULTS",
-   "crate": "hsk-studio-reel",
-   "phase": "build",
-   "status": null,
+   "crate": "hsk-studio-reel + reel-native + harness",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-d24a-20261015",
-   "commits": [],
+   "commits": [
+    "c91f791"
+   ],
    "verdicts": [],
-   "note": "implement D24-A: MP3 decode default-on; AAC default via Windows Media Foundation decoder in reel-native worker, own AAC decoder opt-in; H.264/HEVC encode via OS MFT behind default-off feature os-encode; typed refusals"
+   "note": "pushed 18c85ac..c91f791; MP3 default; AAC via OS MF decoder default (Studio AAC behind studio-aac); H.264/HEVC export via os-encode (default off). Needs steward round-features for studio-aac/os-encode before R35. Gaps: harness viewer does not register AAC worker (routed to SMB-PR-SOURCE-MONITOR); HEVC decode-back NOT_PROVEN; only 320x192 encode tested; AAC chan config 7 not reordered",
+   "lane_file": "builders/lanes/hsk-studio-d24a-codec-defaults.json"
   },
   {
    "lane_id": "SMB-PREMIERE-COLOR-TITLES",
