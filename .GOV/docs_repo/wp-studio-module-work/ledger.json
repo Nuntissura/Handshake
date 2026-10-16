@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-16T04:06:48Z",
+ "updated_at": "2026-10-16T04:18:40Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7801,20 +7801,21 @@
   {
    "lane_id": "SMB-PS-ADJUST-STYLES-2",
    "crate": "hsk-studio-pigment+render-gpu+composite+interop-psd",
-   "phase": "done (STUDIO-R34 PASS_V1 @ca5e9c9)",
-   "status": "PASS_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": null,
    "commits": [
     "d2c52d5",
     "51a7164",
     "1df20b8",
     "1dae132",
-    "1538ffb"
+    "1538ffb",
+    "ad94a03"
    ],
    "verdicts": [
     "STUDIO-R34 PASS_V1 @ca5e9c9 (NOT_PROVEN lines: 3, see round-R34.json)"
    ],
-   "note": "GPU shaders for the 12 new adjustments and new styles; pattern overlay; chisel/stroke emboss/soften; deep knockout + root/pass-through placements; smart filters over placed instances; PSD import SoLd/PlLd, grdm, clrL",
+   "note": "slices 1-5 PASS_V1 (R34); slice 6 pattern overlay ad94a03 READY. Lock waits 23649 s",
    "lane_file": "builders/lanes/hsk-studio-ps-adjust-styles-2.json"
   },
   {
@@ -7941,13 +7942,13 @@
   },
   {
    "lane_id": "SMB-PS-ADJUST-STYLES-3",
-   "crate": "hsk-studio-pigment+render-gpu+composite",
-   "phase": "queued",
+   "crate": "hsk-studio-pigment+render-gpu+composite+interop-psd",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-ps-styles-3-20261016",
    "commits": [],
    "verdicts": [],
-   "note": "gaps from -2: GPU knockout and GPU smart-filter masks typed refusals; enabled smart-filter masks on placed instances refused; pattern overlay (slice 6) pending"
+   "note": "GPU knockout + GPU smart-filter masks; enabled smart-filter masks on placed instances; PSD pattern overlay import (Patt resources -> pattern_tile); PlLd-without-SoLd recovery"
   },
   {
    "lane_id": "SMB-AE-3D-3",

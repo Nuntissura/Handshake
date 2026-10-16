@@ -2,13 +2,14 @@
  "crate": "hsk-studio-render-gpu",
  "lane": "SMB-PS-ADJUST-STYLES-2",
  "status": "READY_FOR_VALIDATION",
- "phase": "slices 1-5 pushed to codex/handshake-studio-assets (d2c52d5..1538ffb), each READY_FOR_VALIDATION; pattern overlay (goal 2 remainder) in progress as slice 6",
+ "phase": "slices 1-5 (d2c52d5..1538ffb) validated PASS_V1 in STUDIO-R34; slice 6 pattern overlay pushed as ad94a03 (READY_FOR_VALIDATION); all five dispatch goals implemented",
  "commits": [
   {"sha": "d2c52d5", "slice": "2a pigment+composite: bevel chisel hard/soft, soften, stroke emboss", "status": "READY_FOR_VALIDATION"},
   {"sha": "51a7164", "slice": "1+2b render-gpu: WGSL for legacy brightness/contrast + 12 second-set adjustments; satin, bevel & emboss (all styles/techniques), gradient overlay", "status": "READY_FOR_VALIDATION"},
   {"sha": "1df20b8", "slice": "3 pigment+render-cpu: deep, root and pass-through knockout", "status": "READY_FOR_VALIDATION"},
   {"sha": "1dae132", "slice": "4 composite: smart filters over placed smart-object instances", "status": "READY_FOR_VALIDATION"},
-  {"sha": "1538ffb", "slice": "5 interop-psd: grdm, clrL, SoLd/SoLE (+lnk2/lnk3/lnkD/lnkE) -> placed_sources/placed_asset; PlLd alone typed loss", "status": "READY_FOR_VALIDATION"}
+  {"sha": "1538ffb", "slice": "5 interop-psd: grdm, clrL, SoLd/SoLE (+lnk2/lnk3/lnkD/lnkE) -> placed_sources/placed_asset; PlLd alone typed loss", "status": "READY_FOR_VALIDATION"},
+  {"sha": "ad94a03", "slice": "6 pigment+folio+render-cpu/gpu+composite: pattern overlay (PatternOverlayOp over a plan tile source; folio PatternOverlay.pattern_tile optional, additive; composite resolve_patterns or pattern_overlay_unresolved)", "status": "READY_FOR_VALIDATION"}
  ],
  "capabilities_done": [
   "render-gpu WGSL bodies for every AdjustmentKind (legacy brightness_contrast, vibrance, colour_balance, photo_filter, black_and_white, channel_mixer, selective_colour, gradient_map, colour_lookup, shadows_highlights, tone_compression, match_colour, replace_colour); modern brightness_contrast stays pigment's typed refusal; parity vs pigment within 5e-6/1e-5/2e-5 (gpu_adjust_styles_2::gpu_second_set_adjustments_match_pigment_within_tolerance), 65-cube LUT + BudgetExceeded (gpu_colour_lookup_65_cube_and_table_budget)",
@@ -16,20 +17,22 @@
   "pigment bevel chisel hard/soft, soften, stroke emboss (bevel_techniques: chisel_hard_hand_values, soften/stroke emboss bit-identical recomputation, windows bit-identical, hostile budgets)",
   "knockout: shallow at root (transparent base) and in pass-through groups (running result before the group), deep (document base + clearing enclosing backdrops by the accumulated shape) under a plain ancestry (pigment knockout_placements; render-cpu cpu_knockout_2)",
   "smart filters on placed instances: SceneContent::Filtered runs the stack in source space before the instance transform (composite placed_smart_filters; render-cpu cpu_placed_filters vs SmartFilterStack::render, tol 1e-6)",
-  "PSD import: grdm v1/v3 -> gradient_map, clrL -> colour_lookup (unset = identity cube; CUBE text tokenized, V4-08), SoLd/SoLE -> placed records with affine from Trnf, identity warpCustom accepted; descriptor ObAr/UnFl bounded (adjustment_records_3, placed_records on psd-tools corpus gradient-map/color-lookup/smartobject-layer/placedLayer)"
+  "PSD import: grdm v1/v3 -> gradient_map, clrL -> colour_lookup (unset = identity cube; CUBE text tokenized, V4-08), SoLd/SoLE -> placed records with affine from Trnf, identity warpCustom accepted; descriptor ObAr/UnFl bounded (adjustment_records_3, placed_records on psd-tools corpus gradient-map/color-lookup/smartobject-layer/placedLayer)",
+  "pattern overlay (slice 6): pigment hand values for tiling/link/phase/scale + matte and typed refusals (pattern_overlay::tiling_hand_values_and_matte), windowed evaluation bit-identical to the reference (windows_are_bit_identical_to_the_reference); render-cpu bit-identical to pigment for chunk 13/4/3 and 1-2 threads, source verified + charged before any sink call incl. 4096x4096 hostile size (cpu_pattern_overlay); render-gpu within 2e-5 of pigment (measured 5.96e-8), unresolved key = UnresolvedSource with no sink call (gpu_pattern_overlay); composite registers the record's resolved tile as a plan source, unresolved = pattern_overlay_unresolved (pattern_overlay_lowering)"
  ],
  "tests": {
-  "argv": "cargo nextest run --no-fail-fast -p hsk-studio-pigment -p hsk-studio-render-gpu -p hsk-studio-render-cpu -p hsk-studio-composite -p hsk-studio-interop-psd --test layer_style_records --test placed_assets --test placed_smart_filters --test render_plan_lowering --test adjustment_records --test adjustment_records_2 --test adjustment_records_3 --test placed_records --test bevel_techniques --test knockout --test knockout_placements --test layer_styles --test plan_extensions --test plan_followups --test cpu_extended --test cpu_knockout --test cpu_knockout_2 --test cpu_layer_styles --test cpu_placed_filters --test gpu_adjust_styles_2 --test gpu_layer_styles_2 --test gpu_plan",
+  "argv": "cargo nextest run --no-fail-fast -p hsk-studio-pigment -p hsk-studio-render-gpu -p hsk-studio-render-cpu -p hsk-studio-composite --test pattern_overlay --test cpu_pattern_overlay --test gpu_pattern_overlay --test pattern_overlay_lowering --test layer_style_records --test render_plan_lowering --test effects_wave2 --test layer_styles --test cpu_effects --test cpu_effects_fx2 --test cpu_layer_styles --test gpu_plan --test gpu_layer_styles_2 --test-threads 2",
   "exit": 0,
-  "sha": "1538ffb (run on the pre-final-rebase tree; the two later upstream rebases touched only hsk-studio-score/pulse/harness, not dependencies of these crates)",
-  "passed": 105,
-  "failed": 0
+  "sha": "ad94a03 (run on the tree rebased onto c91f791's parent d44b0a9; the final rebase over c91f791 touched only hsk-studio-reel/reel-native/harness, not dependencies of these crates)",
+  "passed": 67,
+  "failed": 0,
+  "slices_1_5": {"sha": "1538ffb", "passed": 105, "failed": 0, "verdict": "PASS_V1 STUDIO-R34"}
  },
  "blockers": [],
- "lock_wait_s": 2872,
+ "lock_wait_s": 23649,
  "bg_pids": [],
- "next": "slice 6 pattern overlay (pigment PatternOverlayOp + folio pattern_tile + composite resolve_patterns + render-cpu/gpu), then lane update",
- "updated_at": "2026-10-15T13:56:50Z",
+ "next": "validation of ad94a03 (slice 6)",
+ "updated_at": "2026-10-16T04:17:06Z",
  "notes": {
   "worktree": "wt-studio-lanes/smb-ps-adjust-styles-2, branch lane/smb-ps-adjust-styles-2, STUDIO_OWNER=smb-ps-adjust-styles-2",
   "parity": "Photoshop parity UNVERIFIED (D5); never claimed",
@@ -37,7 +40,9 @@
   "readings_unverified_d5": "GPU bodies transcribe pigment (parity with pigment, not Photoshop). Chisel = capped signed edge distance (soft blurs by size/4); soften = blur of the part matte; stroke emboss = field of shape union stroke, region = stroke matte; knockout placements as in 'capabilities_done'; smart filters on placed instances run in source space before the instance transform (Photoshop evaluates on the transformed object: documented difference); grdm smoothness/perceptual interpolation read as linear (noted); clrL selected-table keys (lookupType, LUTFormat, LUT3DFileData) have no corpus sample; external SoLE links recorded health missing (no file read); warpCustom accepted only when the mesh is an even grid over bounds (all four placedLayer.psd meshes)",
   "own_failures_fixed": "first full run 86/105: (1) every GPU pipeline Pipeline(pipeline_create): DX12 FXC refused dynamically indexed writes in kernel.wgsl (black_and_white rank array, selective_colour vector component) -> rewritten with select/vector accumulation, same per-channel operation order; (2) knockout_union k+s-ks rounded at k=1 -> k+s(1-k); (3) plan_followups reader classification for PlanExtensions::plain_ancestry added; (4) placedLayer.psd descriptor used ObAr/UnFl -> decoded with bounds, identity warpCustom accepted",
   "adjacent_test_updates": "gpu_plan.rs (refused-adjustment/effect pins now empty, legacy BC Unavailable(no_adapter)), layer_styles.rs (chisel/stroke emboss/soften now Ok), layer_style_records.rs (chisel lowers), knockout.rs + cpu_extended.rs (deep Approximate), plan_extensions.rs + plan_followups.rs (deep+adjustment examples), cpu_knockout.rs (3 refusals removed), render_plan_lowering.rs (root shallow knockout admitted)",
-  "gaps": "GPU knockout and GPU smart-filter masks remain typed refusals; enabled smart-filter masks on placed instances refused (placed_smart_filter_mask); legacy PlLd without SoLd is a typed loss; pattern overlay pending (slice 6)",
+  "gaps": "GPU knockout and GPU smart-filter masks remain typed refusals; enabled smart-filter masks on placed instances refused (placed_smart_filter_mask); legacy PlLd without SoLd is a typed loss; PSD patt/pattern-overlay import is not mapped (interop-psd still reports effect_fill_reference_unavailable; folio pattern_tile is filled by hosts that resolve the pattern)",
+  "slice_6_notes": "pattern overlay reading: nearest pattern pixel at pixel centres, origin = layer top-left when linked else document origin, phase shifts, scale = STU-RAS-157 percent / 100 (pigment admits 0.01..10, folio record keeps scale > 0); Photoshop resampling and phase convention UNVERIFIED (D5). Adjacent pins: effects_wave2 EffectKind::ALL now 10 kinds; composite layer_style_records/render_plan_lowering pattern refusal re-pinned from layer_effects_not_rendered to pattern_overlay_unresolved. gpu_pattern_overlay timed out once (120s) when run beside gpu_plan with default test threads (GPU contention); isolated 19.5s, and passes in the 67-test run with --test-threads 2. 5 tests in the slice (two pigment/render-cpu checks run as helpers from their slice test).",
+  "build_disk": "D: only; one SSD attempt (STUDIO_BUILD_DISK=ssd) held the C: lock without output and was stopped by this lane, lock released by its stale-lock rule; lead then withdrew the SSD opt-in (C: target over cap)",
   "pre_existing_clippy_outside_own_hunks": "hsk-studio-observe too_many_arguments (fails -D warnings), hsk-studio-type unneeded cfg, pigment tests/layer_styles.rs:145 manual_is_multiple_of, composite tests/support/composition_scenes.rs large_enum_variant; none in this lane's hunks",
   "first_push_deadline": "missed: D: disk-build-lock queue behind validator rounds (lock_wait_s)",
   "module_edges": "none new"
