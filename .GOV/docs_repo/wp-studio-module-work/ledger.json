@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-16T02:52:16Z",
+ "updated_at": "2026-10-16T02:58:50Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7882,13 +7882,16 @@
   },
   {
    "lane_id": "SMB-AUDITION-UI-2",
-   "crate": "hsk-studio-score",
-   "phase": "build",
-   "status": null,
+   "crate": "hsk-studio-score + harness",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-audio-codecs-20261015",
-   "commits": [],
+   "commits": [
+    "1bc8395",
+    "57ce0d0"
+   ],
    "verdicts": [],
-   "note": "exact backward seek via periodic processor-state checkpoints (bounded memory) instead of re-render from start; bus/master effect editing from the mixer panel"
+   "note": "seek checkpoints (1 s, 64 MiB; bit-equal to continuous play) for gain/EQ/dynamics/limiter/reverb, other effects fall back to exact re-render; mixer bus/master effect add/remove/reorder/enable/params with undo. Gap: checkpoints for remaining effect kinds"
   },
   {
    "lane_id": "SMB-CRATE-SEAM-SPLITS",
