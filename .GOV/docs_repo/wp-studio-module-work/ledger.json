@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-16T13:40:54Z",
+ "updated_at": "2026-10-16T13:53:17Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8072,13 +8072,19 @@
   },
   {
    "lane_id": "SMB-AI-TYPE-PATH-RECOLOR",
-   "crate": "hsk-studio-type/nib/vector",
-   "phase": "queued",
-   "status": null,
+   "crate": "type + prism + nib + render-cpu + folio + harness",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": null,
-   "commits": [],
+   "commits": [
+    "395d080",
+    "3e835f5",
+    "88a1410",
+    "54865f6"
+   ],
    "verdicts": [],
-   "note": "AI-28 type on a path, AI-30 recolour artwork, AI-31 separations, AI-14 gradient mesh"
+   "note": "type on a path (5 effects), recolour artwork (13 harmonies), gradient mesh (Coons/tensor), vector separations via press. Gaps -> SMB-AI-MESH-2",
+   "lane_file": "builders/lanes/hsk-studio-ai-type-path-recolor.json"
   },
   {
    "lane_id": "SMB-LR-LIBRARY-WRITE",
@@ -8304,6 +8310,16 @@
    "commits": [],
    "verdicts": [],
    "note": "nib gradient midpoint power curve (re-pin render goldens), butt-cap/miter tip sub-pixel; AE spatial-path roving, expression globals value/time/linear"
+  },
+  {
+   "lane_id": "SMB-AI-MESH-2",
+   "crate": "render-gpu + press + interop-vector-svg + harness",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "GPU triangle pipeline for meshes; mesh in view/PDF (shading types 6/7)/SVG export; live editable path-text layer; CMYK/Lab/spot global swatch recolour; separations of gradients + transparency; per-object overprint attribute in folio"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
