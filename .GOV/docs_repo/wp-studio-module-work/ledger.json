@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-16T04:28:34Z",
+ "updated_at": "2026-10-16T04:34:50Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7835,13 +7835,19 @@
   },
   {
    "lane_id": "SMB-LAYOUT-UI-2",
-   "crate": "hsk-studio-layout (UI)",
-   "phase": "build",
-   "status": null,
+   "crate": "hsk-studio-harness (layout UI) + layout",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-layout-ui-2-20261016",
-   "commits": [],
+   "commits": [
+    "20fb3f4",
+    "44619ca",
+    "53e528f",
+    "f067ab5",
+    "895f0b7"
+   ],
    "verdicts": [],
-   "note": "InDesign UI: pages/parent pages panel, threading + story editor, styles panels, tables + find/change, preflight panel",
+   "note": "pages/parents, threads+story editor, style panels + layout find engine, tables + find/change, preflight panel (9 rules). Gaps: panel edits not persisted via session/chronicle; nested/line styles; find glyph/object/translit/colour modes (to SMB-ID-PREPRESS); cell/table styles; preflight link/colour/ink/font/image rules + stored profiles; style name rules enforced in harness not folio. Remote backup branch origin/lane/smb-layout-ui-2-backup left for Operator to delete",
    "lane_file": "builders/lanes/hsk-studio-layout-ui-2.json"
   },
   {
