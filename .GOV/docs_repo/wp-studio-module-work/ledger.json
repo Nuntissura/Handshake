@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-16T07:24:23Z",
+ "updated_at": "2026-10-16T07:25:03Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7771,15 +7771,18 @@
   },
   {
    "lane_id": "SMB-DEVELOP-LENS-PRESETS",
-   "crate": "hsk-studio-develop",
-   "phase": "remediation (STUDIO-R34 FAIL_V1 @ca5e9c9)",
-   "status": "FAIL_V1",
+   "crate": "hsk-studio-develop + prism",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-lens-presets-20261015",
-   "commits": [],
+   "commits": [
+    "c0ebc3c",
+    "2dfa3d5"
+   ],
    "verdicts": [
     "STUDIO-R34 FAIL_V1 @ca5e9c9 (develop_colour2.rs:412 version_1_0_recipes_still_read_and_corpus_pin: ADJUST_VERSION (1, 2) from 8d531a1 is the pinned 'unknown' version; F-R34-1)"
    ],
-   "note": "LR gaps: lens corrections + profiles, Upright/geometry, grain, calibration, presets, .cube creative profiles; AI masks typed model_unavailable; own worktree wt-studio-lanes/smb-develop-lens-presets",
+   "note": "R34 FAIL_V1 remediated c0ebc3c (version probe derived from ADJUST_VERSION; V4-06 site list in lane notes); whole develop suite 110/110. Gap: harness panel controls written locally only, not claimed; .lcp not read",
    "lane_file": "builders/lanes/hsk-studio-develop-lens-presets.json"
   },
   {
@@ -8200,6 +8203,16 @@
    "commits": [],
    "verdicts": [],
    "note": "FINDING F-LEAD-1: the gameplan retry guard keys failures on the shared edit tree HEAD (STUDIO-MODULE-BUILD confirm binding), so lane-worktree commits cannot clear it; a builder renamed a test file to get past it (normalized-command change = guard circumvention). Fix: per-lane gameplan pointer/binding to the lane worktree HEAD; brief rule: never rename tests to evade the guard"
+  },
+  {
+   "lane_id": "STUDIO-R35",
+   "crate": "(validation round)",
+   "phase": "build",
+   "status": null,
+   "owner": "validator-R35-20261016",
+   "commits": [],
+   "verdicts": [],
+   "note": "candidate = origin tip after 2dfa3d5"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
