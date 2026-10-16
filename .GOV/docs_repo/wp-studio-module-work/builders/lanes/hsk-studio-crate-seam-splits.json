@@ -1,0 +1,77 @@
+{
+  "crate": "hsk-studio-press (-> hsk-studio-press-read, hsk-studio-press-write)",
+  "lane": "SMB-CRATE-SEAM-SPLITS",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slice 1 (press) pushed as 46d8e4d (steward sync pending: registry pins, APPROVED/probe, Cargo.lock for hsk-studio-press-read/-write; lead decision START_LOG 2026-10-16, gov_kernel 7513e8e9). Slice 2 (reel, harness): seams analysed and proposed below; not implemented yet because the in-flight lanes SMB-D24A-CODEC-DEFAULTS (reel export.rs, mux.rs, lib.rs, new os_encode.rs) and SMB-PR-SOURCE-MONITOR / SMB-LAYOUT-UI-2 (harness view/, layout_ui) edit exactly those files",
+  "worktree": "Handshake Worktrees/wt-studio-lanes/smb-crate-seam-splits (branch lane/smb-crate-seam-splits, base 493526c), STUDIO_OWNER=smb-crate-seam-splits, D: target",
+  "commits": [
+    {
+      "sha": "46d8e4d",
+      "subject": "press (SMB-CRATE-SEAM-SPLITS slice 1): split into hsk-studio-press-read and hsk-studio-press-write",
+      "pushed": true,
+      "note": "2254290 rebased onto d44b0a9 (SMB-ID-PREPRESS slice 2 added press inks.rs + separations.rs: moved with the write half, they use the read half's Vector* types under the same crate:: names; re-exported by the facade) and then onto 3e034df (no incoming commit touched press or Cargo.toml)"
+    }
+  ],
+  "slice2_proposal": {
+    "method": "same as slice 1: crate::<module> use graph per top-level module (scratch modgraph.py), a set no other module references is a pure-move sink; facade re-exports only the crate's own halves",
+    "reel": {
+      "graph": "audio <-> isobmff/matroska (container hooks), video <-> vc3/prores/isobmff, model -> video: the decode side is one strongly connected block (audio 375K, vc3 283K incl. 225K tables, isobmff 119K, mxf 98K, matroska 58K, ...); mxf alone depends only on error+model but model -> video pulls everything in",
+      "seam": "export.rs + mux.rs + av1_encode.rs (about 84K of 1.33 MB, plus os_encode.rs once SMB-D24A-CODEC-DEFAULTS lands): only export and av1_encode reference them, nothing on the decode side does",
+      "crates": "hsk-studio-reel-write (export, mux, av1_encode; feature av1-encode and the optional rav1e dep move with it) depending on hsk-studio-reel-read (everything else, features av1/prores, rav1d, libc, lewton, opus-pure); hsk-studio-reel = item-by-item re-export (pub mod export / mux paths kept via pub use ... as export/mux), features forwarded",
+      "seam_items": "export uses vc3::encode (Vc3Encoder etc.), isobmff, identity, model, error from the read half: those become #[doc(hidden)] pub; vc3/encode.rs stays in the read half (it uses vc3's private entropy/header/tables via super::)",
+      "gain": "small (about 6 % of source); main benefit is that rav1e (76-package closure) and the encode paths rebuild only in the write half",
+      "wait_for": "SMB-D24A-CODEC-DEFAULTS push (touches export.rs, mux.rs, lib.rs, adds os_encode.rs)"
+    },
+    "harness": {
+      "graph": "view 829K -> harness, import, panel; cli -> harness, import, manual, view; import -> default_actor; manual -> harness, panel; layout_ui 38K -> none; nothing but cli references view",
+      "seam": "view (79 % of harness source) is a pure-move sink below cli",
+      "crates": "hsk-studio-harness-core (harness, import, panel, manual, layout_ui, default_actor; import-* and layout-ui features) <- hsk-studio-harness-view (view; viewer/media/media-native/audio-device/audio-batch/vector-interop/desktop features and their engine deps) <- hsk-studio-harness (cli, the studio-harness binary, lib re-exports incl. pub use ... as view; features forwarded to the two halves)",
+      "risk": "feature plumbing: every harness feature has to be forwarded and each view cfg(feature) must name the view crate's own feature; harness integration tests stay in the facade unchanged",
+      "wait_for": "SMB-PR-SOURCE-MONITOR (uncommitted view/mod.rs, view/monitor.rs, new view/source_monitor.rs) and SMB-LAYOUT-UI-2 (layout_ui.rs + new layout_ui/)"
+    }
+  },
+  "spec_basis": {
+    "STU-ARC-010": "module catalog names one root hsk-studio-press; every root must have a declared semantic owner. The two new crates are not catalog roots: both are owned by STUDIO-MODULE-PRESS (sub-crates of the press root), like the non-catalog hsk-studio-worker, interop-tiff and interop-raster already in the workspace. Lead/spec decision needed on whether STU-ARC-010 gets a note naming press-owned sub-crates",
+    "STU-ARC-018": "all-engine facades must not become parallel owners. hsk-studio-press re-exports only press's own two halves, item by item (no glob), and remains the single press owner; not a multi-engine facade",
+    "STU-PDF-001/002": "redaction (read half) and prepress export (write half) both stay 'Press' behind the hsk-studio-press public face",
+    "CX-CAP-001": "one active owner per capability: unchanged, every capability stays in press"
+  },
+  "proposal_cut": {
+    "seam": "export (export.rs + export/cff, pdfx, render, sfnt, subset, tests, verdict; 0.21 MB) vs everything else (1.24 MB). Measured from the module use graph: no non-export module references export, so write -> read is acyclic. A finer core/redaction cut is not a pure move: error.rs uses flatten::FlattenCause and flatten uses redaction, so a syntax/reader/writer core crate would need code moved between modules",
+    "hsk-studio-press-read": "canon cmap content determination encoding encoding_data error filters flatten flatten_purge font norm norm_data paint pdf_edit raster reader redaction render_bounds sanitized_save show_text std14_data syntax text_codec text_fields vector_read vector_source writer; deps accord, hayro-interpret, kurbo, miniz_oxide, sha2 (same pins)",
+    "hsk-studio-press-write": "export + export/*; deps accord, press-read, hayro-interpret, kurbo, miniz_oxide, sha2 (same pins)",
+    "hsk-studio-press": "public face: the same 75 read-side and 51 export names re-exported item by item, plus outcome_for, report, DESCRIPTOR (unchanged); deps accord, observe, press-read, press-write; dev-deps hayro-interpret, miniz_oxide (its integration tests use them); integration tests, fixtures and the press-consumer example stay here",
+    "lopsided": "the read half keeps about 85 % of the source; the export half is the only clean pure-move seam today"
+  },
+  "capabilities_done": [
+    "pure move (git renames, contents unchanged) of 28 modules to crates/hsk-studio-press-read/src and export.rs + export/ to crates/hsk-studio-press-write/src",
+    "seam: the 11 read modules export uses (canon, cmap, content, error, filters, flatten, paint, pdf_edit, reader, syntax, writer) are #[doc(hidden)] pub mod; pub(crate) -> pub on the items it calls (text_string, write_ops, Op, Entry, check_cancel, write_object, write_document, decode_stream, Painter + Painter::new, Cmap + lookup, parse_to_unicode) and #[doc(hidden)] pub on PdfDoc::resolve/dict_of/catalog/inherited/rect_of",
+    "PdfDoc fields stay private: three #[doc(hidden)] read-only accessors seam_objects/seam_trailer/seam_pages replace the field reads in export/pdfx.rs, export/render.rs and export/tests.rs (the only code edits in moved files)",
+    "include paths: canon.rs fixture_strings -> ../../hsk-studio-press/tests/pdf_delivery.rs; export/verdict.rs -> ../../../hsk-studio-press/tests/fixtures/verapdf/...",
+    "encoding_data.rs: header says GENERATED (AGL 2.0 + Annex D base encodings, BSD-3 notice); left whole as instructed, as are std14_data.rs and norm_data.rs (also generated)",
+    "root Cargo.toml: members + declared-members add both crates; dependencies.allowed: press += press-read, press-write; press-read = [accord]; press-write = [accord, press-read]"
+  ],
+  "tests": {
+    "argv": "cargo clippy -p hsk-studio-press-read -p hsk-studio-press-write -p hsk-studio-press --all-targets; cargo nextest run -p hsk-studio-press-read -p hsk-studio-press-write -p hsk-studio-press --no-fail-fast; cargo clippy -p hsk-studio-interop-fig -p hsk-studio-interop-layout -p hsk-studio-harness --features hsk-studio-harness/import-pdf,hsk-studio-harness/vector-interop --all-targets",
+    "exit": 0,
+    "sha": "46d8e4d (tests ran on the tree rebased onto d44b0a9; the later rebase onto 3e034df touched no press file or Cargo.toml, no re-test per lead rule)",
+    "passed": 211,
+    "failed": 0,
+    "baseline": "206 at 493526c; 211 after d44b0a9 added 5 (id_prepress_separations + unit tests); 211/211 passed (3 LEAK markers in flatten_r13, not failures)",
+    "clippy": "clean for the three press crates and the press consumers interop-fig, interop-layout, harness (import-pdf, vector-interop); only hsk-studio-type / hsk-studio-observe warnings (not this lane)"
+  },
+  "blockers": [
+    "slice 1: none (steward sync pending after push 46d8e4d)",
+    "slice 2: implementation waits for SMB-D24A-CODEC-DEFAULTS (reel) and SMB-PR-SOURCE-MONITOR + SMB-LAYOUT-UI-2 (harness) to push; lead approval of the four proposed crates"
+  ],
+  "bg_pids": [],
+  "next": "steward: registry/probe/lock sync for press-read/-write. lead: approve slice 2 crates (hsk-studio-reel-read/-write, hsk-studio-harness-core/-view) and confirm waiting for the three in-flight lanes; then implement, report, push",
+  "updated_at": "2026-10-16T04:28:05Z",
+  "notes": {
+    "api": "hsk-studio-press public names unchanged (same lists, explicit). New public surface exists only in the new crates: #[doc(hidden)] seam modules/items in press-read, and three #[doc(hidden)] PdfDoc accessors (read-only; reachable through hsk-studio-press::PdfDoc but hidden from docs)",
+    "lead_instruction_conflict": "the brief said report BEFORE pushing a manifest that adds crates; a later lead message said push once green. Held the push because the probe gate would reject the new crates until the steward sync lands (verified in tools/workspace-probe.rs: registry_direct_policy_missing, APPROVED table generated by the steward)",
+    "ssd": "one clippy started with STUDIO_BUILD_DISK=ssd was stopped on the lead's instruction; all results above are from the D: target",
+    "gameplan_pointer": "untracked .gameplan-active at the lane worktree root -> Studio gameplan (as other lane worktrees); no gameplan steps added",
+    "cargo_lock": "left uncommitted (the new crates change it; steward syncs it)"
+  }
+}
