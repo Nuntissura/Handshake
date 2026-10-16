@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-16T13:53:17Z",
+ "updated_at": "2026-10-16T14:37:23Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8103,13 +8103,19 @@
   },
   {
    "lane_id": "SMB-AU-WAVEFORM-EDITOR",
-   "crate": "score + harness",
-   "phase": "build",
-   "status": null,
+   "crate": "score + harness + session",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-au-waveform-20261016",
-   "commits": [],
+   "commits": [
+    "04bb6ed",
+    "37c3a58",
+    "130d2dd",
+    "af11aa4"
+   ],
    "verdicts": [],
-   "note": "AU-20 waveform/spectral editor UI, AU-17/18 device proof, AU-19 plugin host (VST3 licence check: VST3 SDK is MIT since 2025? verify)"
+   "note": "sample editor + edit list undo, spectral display (5 windows, LRU tiles), marquee/lasso spectral attenuate/remove/heal (identity recon <=1e-6), effects on selection; session DOCUMENT_ENTRY_TOKENS + waveform_edit. Plugin-on-selection slice pending (edge approved). No STU-AUD clauses exist: spec gap noted",
+   "lane_file": "builders/lanes/hsk-studio-au-waveform-editor.json"
   },
   {
    "lane_id": "SMB-PR-SOURCE-MONITOR",
