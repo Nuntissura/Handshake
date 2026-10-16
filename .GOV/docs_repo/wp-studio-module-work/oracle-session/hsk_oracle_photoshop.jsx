@@ -96,7 +96,9 @@
   }
   function rgbc(r, g, b) { return O("#RGBC", { "#Rd  ": r, "#Grn ": g, "#Bl  ": b }); }
   function bmEnum(code) { return E("#BlnM", code); }   // "#Nrml","#Mltp","#Scrn"
-  var PCT = "#Prc", PX = "#Pxl", ANG = "#Ang";
+  // unit charIDs are "#Prc", "#Pxl", "#Ang" themselves, so they need the "#" marker in front (fixed 2026-10-16:
+  // the single-# form passed 3-char codes to charIDToTypeID -> "Illegal Argument" in every unit-bearing descriptor)
+  var PCT = "##Prc", PX = "##Pxl", ANG = "##Ang";
   function fx(kind, o) { var e = { "#enab": true, "#Md  ": bmEnum("#Nrml"), "#Clr ": rgbc(0, 0, 0), "#Opct": U(PCT, 100) }; for (var k in o) if (o.hasOwnProperty(k)) e[k] = o[k]; var r = {}; r[kind] = O(kind, e); return r; }
   function setEffects(list) {   // list: array of objects from fx(); merged into one Lefx
     var all = { "#Scl ": U(PCT, 100) };
@@ -121,7 +123,8 @@
   var saved = { dialogs: app.displayDialogs, ruler: app.preferences.rulerUnits, colorSettings: null };
   try { saved.colorSettings = String(app.colorSettings); } catch (e0) { saved.colorSettings = null; }
   manifest.state.colorSettings_before = saved.colorSettings;
-  manifest.state.blend_gamma_readable = "UNVERIFIED: no DOM property for 'Blend RGB Colors Using Gamma'; only the preset NAME is read/restored";
+  manifest.state.fixture_provenance = rtxt(OUT + "/inputs/FIXTURE_PROVENANCE.json");
+  manifest.state.blend_gamma_readable ="UNVERIFIED: no DOM property for 'Blend RGB Colors Using Gamma'; only the preset NAME is read/restored";
 
   if (app.documents.length > 0) {   // never touch the Operator's open documents
     logErr("PRE", "open-documents", "Close all Photoshop documents, then run again.");
@@ -153,8 +156,21 @@
     var o = new TiffSaveOptions(); o.layers = false; o.transparency = true; o.embedColorProfile = true; o.imageCompression = TIFFEncoding.NONE; o.byteOrder = ByteOrder.IBM;
     doc.saveAs(new File(OUT + "/inputs/" + name + ".tif"), o, true);
   }
+  // Fast path: when inputs/<name>.tif already exists (an earlier run, or oracle-session/gen_ps_fixtures.py,
+  // which writes the same pixel definitions bit-exactly), open it instead of drawing it with one-pixel fills
+  // (7473 fills for all six fixtures, about 0.5 s each). The source used is recorded in manifest.state.
   function mkFixture(name, w, h, drawFn, mode, bits) {
-    var d = newDoc("fx_" + name, w, h, bits, mode); drawFn(d, d.artLayers[0]); saveInput(d, name); fixtures[name] = d; return d;
+    var src = new File(OUT + "/inputs/" + name + ".tif"), d;
+    if (!manifest.state.fixture_source) manifest.state.fixture_source = {};
+    if (src.exists) {
+      d = app.open(src);
+      if (d.width.as("px") !== w || d.height.as("px") !== h) throw new Error("existing input " + name + ".tif has wrong size");
+      manifest.state.fixture_source[name] = "opened existing inputs/" + name + ".tif (see inputs/FIXTURE_PROVENANCE.json)";
+    } else {
+      d = newDoc("fx_" + name, w, h, bits, mode); drawFn(d, d.artLayers[0]); saveInput(d, name);
+      manifest.state.fixture_source[name] = "drawn in script and saved to inputs/" + name + ".tif";
+    }
+    fixtures[name] = d; return d;
   }
   // F_GRAY_RAMP_256x64: pixel (x,y) = (x,x,x), x=0..255
   function drawRamp(d, l) { for (var x = 0; x < 256; x++) fillRect(d, l, x, 0, 1, H, col(x, x, x)); }
@@ -197,7 +213,9 @@
     var l = (container || doc).artLayers.add(); if (name) l.name = name; fillRect(doc, l, x === undefined ? 0 : x, y === undefined ? 0 : y, w || doc.width.as("px"), h || doc.height.as("px"), col(r, g, b)); return l;
   }
   function group(doc, name, mode) { var g = doc.layerSets.add(); g.name = name; g.blendMode = mode || BlendMode.PASSTHROUGH; return g; }
-  function pasteInGroup(fixName, doc, g, name) { var ph = g.artLayers.add(); doc.activeLayer = ph; var l = pasteFix(fixName, doc, ph, name); ph.remove(); return l; }
+  // PS 27.11 pastes INTO an empty active pixel layer (paste() returns the placeholder itself, same id), so the
+  // placeholder is removed only when paste created a separate layer (observed 2026-10-16: "Object is invalid").
+  function pasteInGroup(fixName, doc, g, name) { var ph = g.artLayers.add(); doc.activeLayer = ph; var phId = ph.id; var l = pasteFix(fixName, doc, ph, name); if (l.id !== phId) ph.remove(); return l; }
   function shapeLayer(doc, kind, container) {   // 128x128 canvas: square 32..96, circle r=32, soft = square with 4 px feather
     var l = (container || doc).artLayers.add(); l.name = "shape_" + kind;
     if (kind === "square") fillRect(doc, l, 32, 32, 64, 64, white);
@@ -377,11 +395,15 @@
 
   // layer Blend-If (UNVERIFIED keys). side: "this" (Src*) or "under" (Dst*); chan: "#Gry ","#Rd  "; split sliders black(lo,hi) white(lo,hi)
   function blendIf(side, chan, bk, wh) {
+    // Keys measured on PS 27.11 (2026-10-16): SrcB black-low, Srcl black-high, Srcm white-low, SrcW white-high;
+    // the accepted Dst set is DstB, Dstl, Dstt, DstW (Dstt = white-low by analogy, not measured). The earlier
+    // Srcb/Srcw/Dstb/Dstw keys failed with "Could not complete the command because of a program error".
     var p = side === "this" ? "Src" : "Dst", o = { "#Chnl": RF(refChan(chan)) };
-    o["#" + p + "b"] = I(bk[0]); o["#" + p + "l"] = I(bk[1]); o["#" + p + "w"] = I(wh[0]); o["#" + p + "W"] = I(wh[1]);
+    function wlo(s) { return s === "Src" ? "m" : "t"; }
+    o["#" + p + "B"] = I(bk[0]); o["#" + p + "l"] = I(bk[1]); o["#" + p + wlo(p)] = I(wh[0]); o["#" + p + "W"] = I(wh[1]);
     // the opposite side stays at identity
     var q = side === "this" ? "Dst" : "Src";
-    o["#" + q + "b"] = I(0); o["#" + q + "l"] = I(0); o["#" + q + "w"] = I(255); o["#" + q + "W"] = I(255);
+    o["#" + q + "B"] = I(0); o["#" + q + "l"] = I(0); o["#" + q + wlo(q)] = I(255); o["#" + q + "W"] = I(255);
     return O("#Blnd", o);
   }
   function setBlendIf(list) { setLayer({ "#Blnd": L(list) }); }
