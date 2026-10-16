@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-16T12:23:06Z",
+ "updated_at": "2026-10-16T12:24:04Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8028,13 +8028,18 @@
   },
   {
    "lane_id": "SMB-AE-PARTICLES-AUDIO-PRESETS",
-   "crate": "composite/motion",
-   "phase": "build",
-   "status": null,
+   "crate": "composite + pulse + motion + folio",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-ae-particles-20261016",
-   "commits": [],
+   "commits": [
+    "b7fb9a1",
+    "28be4cf",
+    "6ed1dd9"
+   ],
    "verdicts": [],
-   "note": "AE-21 particles, AE-24 comp audio, AE-23 animation presets"
+   "note": "particle world (seeded, random-access frames), comp audio via score + amplitude keyframes, Studio-native presets (.ffx typed refusal). Gaps: folio record + per-frame comp hook for particle layers; 13 of 14 STU-CMP-075 sim types; comp audio from folio records; bezier level keys; preset apply not adding effect to stack; GPU not run",
+   "lane_file": "builders/lanes/hsk-studio-ae-particles-audio-presets.json"
   },
   {
    "lane_id": "SMB-AE-ROTO-TIMEREMAP",
@@ -8077,13 +8082,18 @@
   },
   {
    "lane_id": "SMB-LR-LIBRARY-WRITE",
-   "crate": "hsk-studio-develop + kernel-bindings CKC port",
-   "phase": "build",
-   "status": null,
+   "crate": "kernel-bindings + interop-lrcat + develop",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-lr-library-20261016",
-   "commits": [],
+   "commits": [
+    "35bc4d7",
+    "89bec3a",
+    "75d7242"
+   ],
    "verdicts": [],
-   "note": "LR-27..31 library is read-only: ratings/flags/keywords/collections write through CKC typed ports; LR-15/16/18 effects, calibration"
+   "note": "CKC port v3 library writes with revision checks; XMP sidecar codec (109 crs: keys, byte-preserving); virtual copies, history, snapshots, sync settings. Gaps: CKC host adapter for v3 methods; develop DESCRIPTOR; parity UNVERIFIED",
+   "lane_file": "builders/lanes/hsk-studio-lr-library-write.json"
   },
   {
    "lane_id": "SMB-AU-WAVEFORM-EDITOR",
@@ -8257,6 +8267,16 @@
    "commits": [],
    "verdicts": [],
    "note": "re-script PS feather/knockout settings (6 ORACLE_INVALID), visible PS-C17 inner glow, gamma pass after Operator creates HSK-gamma-1.0; lead-run headless session"
+  },
+  {
+   "lane_id": "SMB-AE-PARTICLES-2",
+   "crate": "composite + folio + render-gpu",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "folio particle layer record + per-frame comp hook; more STU-CMP-075 simulation types; GPU parity; comp audio from folio records; bezier level keys; preset apply into effect stack"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

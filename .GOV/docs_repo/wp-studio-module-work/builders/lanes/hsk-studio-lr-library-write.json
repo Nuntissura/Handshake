@@ -1,0 +1,103 @@
+{
+ "crate": "hsk-studio-kernel-bindings, hsk-studio-interop-lrcat, hsk-studio-develop",
+ "lane": "SMB-LR-LIBRARY-WRITE",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1 (35bc4d7), 2 (89bec3a), 3 (75d7242) READY; goal 4 (LR-15 effects, LR-16 calibration) already landed by SMB-DEVELOP-LENS-PRESETS (effects.rs, preset.rs) - nothing duplicated, crs: interop for them added in slice 2. Lightroom Classic parity UNVERIFIED (D5)",
+ "commits": [
+  {
+   "sha": "35bc4d7",
+   "subject": "kernel-bindings (SMB-LR-LIBRARY-WRITE slice 1): library write ports, smart-rule preview"
+  },
+  {
+   "sha": "89bec3a",
+   "subject": "interop-lrcat (SMB-LR-LIBRARY-WRITE slice 2): XMP sidecar read/write, crs: develop settings"
+  },
+  {
+   "sha": "75d7242",
+   "subject": "develop (SMB-LR-LIBRARY-WRITE slice 3): develop records, copy/paste/sync settings, batch apply"
+  }
+ ],
+ "capabilities_done": [
+  "port v3 (src/ckc.rs): MetadataChange::SetKeywords (whole keyword set, <= max_keywords_per_asset, repeats refused ckc_keyword_repeated); CollectionSummary/ListedKind + list_collections; SidecarBytes + XmpSidecarBytesWrite (sidecar-revision CAS) + read_xmp_sidecar/write_xmp_sidecar_bytes; all three are default trait methods returning Unavailable so existing hosts compile; COMMAND_IDS + PROPOSED_CKC_ADDITIONS extended; CKC_PORT_VERSION 3",
+  "library edits (src/ckc_library.rs): LibraryEdit SetRating/StepRating(clamp 0..5)/SetFlag/ToggleFlag/SetLabel/ToggleLabel/Add|Remove|SetKeywords resolved against FRESH port reads into absolute changes (keywords folded into one SetKeywords; no-op assets send nothing); Selection Assets|Rule (rule resolved over every asset.search page, non-advancing cursor refused, max_selection, repeats refused); all-or-nothing batches of max_batch with read revisions; StaleRevision -> re-read -> per-asset RevisionConflict{expected,current}; ConflictPolicy::RebaseOnce re-resolves the intent once under a new key; accepted batch receipts returned in Conflict/Port errors (no silent partial); set_collection_membership in max_members chunks",
+  "smart-rule preview (src/ckc_rules.rs): RuleContext over catalog.collection.list results; Kleene evaluation (missing facts Unknown, missing label a known absence); Collections Eq/Ne UUID = membership (manual from AssetMetadata.collections, set = children, smart = recursive rule); name operators match manual collections and the sets above them only (no name cycles); UUID cycles refused ckc_smart_collection_cycle (evaluation and static check_acyclic before SetRule); max_reference_depth, max_eval_steps (memoised per record), max_collections, repeated ids refused; preview keeps Unknown records separate",
+  "CKC test double: SetKeywords, list_collections, sidecar bytes store with revision CAS (test-only; cfg(test) or ckc-test-double feature, gating unchanged)",
+  "XMP sidecar (interop-lrcat src/xmp_sidecar.rs): span tokenizer (namespaces by URI, references validated eagerly, comments/PI/CDATA, DOCTYPE refused, depth/node/keyword/text/input bounds, repeated attributes and repeated properties refused); read_sidecar maps 109 numeric crs: keys (77 CRS_KEYS + 32 mixer/gray band keys) plus GrainSeed, PostCropVignetteStyle, HasCrop, 15 CRS_FLAGS incl. Enable* switches) onto a develop recipe with typed losses (out of range, not number, not boolean, shape, style 3, WB preset), groups with authored non-default values enabled when no explicit switch, absolute WB reported not applied; xmp:Rating (-1 rejected)/Label/dc:subject/lr:hierarchicalSubject; write_sidecar edits only managed spans whose formatted value changes, inserts absent non-default keys at the first rdf:Description tag end (namespace declared when no prefix in scope, existing prefix reused), list properties replaced whole, removals drop the span; unknown bytes verbatim, unchanged write byte-identical, result re-parsed; read_sidecar_via_port / write_sidecar_via_port over the port v3 sidecar CAS (no command when bytes unchanged)",
+  "develop records (src/records.rs): DevelopRecord (master or virtual copy of an asset; revision CAS -> RecordError::Conflict{expected,current}; bounded history with cursor, undo/redo, go_to_step, redo branch discarded by the next edit, trimmed_steps counter; unique named snapshots take/apply/delete), create_virtual_copy (copy of a copy points at the master), set_copy_as_master over the whole family (incomplete family refused); SettingsGroup (18 groups) + copy_groups / SettingsClipboard: bit-exact copies, image-specific state kept (lens binding, stored Upright candidates, crop orientation), absolute WB -> loss white_balance_needs_target_raw, lens profile without target binding -> loss, Upright guides -> loss, shared group switches follow the source only when all sharing groups are copied; batch_apply over the canonical selection (Paste/sync, Preset with amount, Reset groups to caller defaults), all targets checked and computed before any change"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-develop -p hsk-studio-interop-lrcat -p hsk-studio-kernel-bindings -E 'binary(develop_records) | binary(xmp_sidecar) | test(ckc_library_tests)' --no-fail-fast",
+  "exit": 0,
+  "sha": "8005f32",
+  "passed": 12,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "validator round; D5 oracle for crs: names/formats and group semantics; host adapter for port v3 (list_collections, sidecar bytes) in the integration target; develop DESCRIPTOR line for records",
+ "updated_at": "2026-10-16T12:22:49Z",
+ "notes": {
+  "slice_1_tests": [
+   "src/ckc_library_tests.rs library_edits_resolve_against_fresh_reads_with_receipts_and_conflicts",
+   "smart_rules_evaluate_three_valued_over_port_records",
+   "smart_collection_references_cycles_and_budgets_are_bounded",
+   "hostile_keyword_sets_and_selections_are_refused_before_any_command"
+  ],
+  "spec_basis": [
+   "STU-ASSET-004: Studio MUST NOT implement ... a second metadata, keyword, rating, label or flag store; a second collection or smart-collection mechanism over assets",
+   "STU-ASSET-010: Studio MUST reach CKC through typed commands (asset.search, asset.get, ...), never through direct filesystem access or a private index",
+   "STU-ASSET-017: the projection reads and writes CKC authority records through the commands of STU-ASSET-010 ... and holds no catalog state of its own",
+   "STU-ASSET-019: Studio's asset projection inherits, and MUST NOT re-implement ... hierarchical keyword tagging, 0-to-5 star rating, colour labels, pick/reject/unflagged flags, manual collections, rule-based smart collections ... EXIF/IPTC/XMP metadata read and write ... virtual copies. Where a Studio workflow needs one of these, it calls it",
+   "STU-ASSET-022: a model lane has exactly the same asset access ... the same KernelActor attribution",
+   "STU-ASSET-023: Mutating the CKC asset record itself (retag, rate, move, delete) uses the expected-revision precondition of STU-SDB-004 at asset granularity",
+   "STU-RAW-017: Multi-image apply ... MUST operate on the canonical selection set, not on the visible or loaded subset (applied to library edit selections too)"
+  ],
+  "spec_tension": "STU-ASSET-004 forbids a second smart-collection mechanism; the dispatch asks for rule evaluation in Studio over port-provided records. Resolution taken: ckc_rules is a stateless preview/validation helper (no membership store, no index, nothing persisted; CKC executes asset.search and owns smart collections). The lead may narrow it to check_acyclic only if it is judged a mechanism.",
+  "ownership": "no catalog store: all reads/writes go through CkcCatalogPort; the double stays feature/test-only; no new dependency or edge",
+  "unverified": [
+   "Lightroom Classic rule semantics (text operators, collection criteria by name, Kleene treatment of missing metadata)",
+   "rating step clamping and pick toggle behaviour",
+   "CKC command ids and v3 additions (PROPOSED)",
+   "Camera Raw crs: key names, number formats (+0.50, +12), boolean forms and Enable* names",
+   "1:1 slider scale Camera Raw -> develop",
+   "PostCropVignetteStyle 1/2 mapping",
+   "ColorGrade/SplitToning key split",
+   "virtual copy/snapshot/sync group semantics vs Lightroom Classic (D5)"
+  ],
+  "parity_rows": {
+   "LR-28": "edit path exists through the port (rating/flag/label incl. step/toggle, batch over the canonical selection)",
+   "LR-29": "keyword add/remove/replace through the port; XMP in slice 2",
+   "LR-30": "membership add/remove, smart rule preview + cycle check",
+   "LR-31": "filter preview over port records; search execution stays CKC"
+  },
+  "slice_2_tests": [
+   "tests/xmp_sidecar.rs sidecar_roundtrip_of_crs_and_library_fields",
+   "edits_touch_only_managed_spans_and_keep_unknown_bytes",
+   "hostile_sidecars_are_refused_typed",
+   "sidecar_writes_go_through_the_ckc_port_with_revision_cas"
+  ],
+  "slice_2_spec_basis": [
+   "14.12 (StudioRawDevelop): 'there is no XMP sidecar authority ... bounded explicit XMP interchange read/write through CKC is permitted as external transport, never live settings authority'",
+   "STU-ASSET-010: no direct filesystem access (sidecar bytes travel through CkcCatalogPort read_xmp_sidecar / write_xmp_sidecar_bytes)",
+   "STU-IO-187: 'Safely retained unknown records preserve verbatim bytes' (applied to unknown XMP properties)"
+  ],
+  "slice_2_owner_note": "the sidecar codec lives in interop-lrcat (edges develop + kernel-bindings already approved); it is not part of the .lrcat decoding surface (PUBLIC_ENTRYPOINTS unchanged), DESCRIPTOR has an xmp_sidecar section; the lrcat 'decode_xmp_packet read only' text updated. Lead may prefer a separate crate later (new crate = steward).",
+  "slice_3_tests": [
+   "tests/develop_records.rs copy_paste_and_sync_settings_per_group",
+   "virtual_copies_snapshots_and_history",
+   "batch_apply_is_all_or_nothing_over_the_selection",
+   "hostile_record_inputs_are_bounded"
+  ],
+  "slice_3_spec_basis": [
+   "STU-RAW-128: 'A snapshot is a complete named develop state, reapplicable and deletable, and is distinct from a preset'",
+   "STU-RAW-017: 'Multi-image apply - copying develop settings from one raw to a selection of others, paste-settings, previous-settings and preset apply across a filmstrip selection - MUST operate on the canonical selection set'",
+   "STU-RAW-013: snapshots (named develop-state versions reapplicable later)",
+   "STU-ASSET-019: virtual copies are a CKC catalog capability (records here are develop state only; the catalog entry stays CKC's)",
+   "module 14 menu: Copy Develop Settings, Paste Develop Settings, Sync Develop Settings..., Snapshots"
+  ],
+  "test_proof_note": "slice 3 focused tests (12/12) ran on 8005f32 (base 2b7aa47); pushed 75d7242 is the same lane diff rebased over 3d5fbda whose upstream deltas (pigment adjust_math/blend_math, folio motion_preset) are not on the code paths of these tests (no pixel work); the validator round re-runs them. Own causes: first develop_records run failed on a spurious lens_profile loss (default lens_profile_enable with no source binding) - fixed before push",
+  "descriptor_gap": "develop DESCRIPTOR (one shared JSON line) not extended for records to avoid cross-lane conflicts with in-flight develop lanes; module docs + this lane file describe it; lead may schedule the DESCRIPTOR line",
+  "build": "all builds on D: (STUDIO_BUILD_DISK unset); Cargo.lock never committed (cargo-regenerated copies stashed twice before rebases: stash messages 'SAFETY: lane cargo-generated Cargo.lock ...')"
+ }
+}
