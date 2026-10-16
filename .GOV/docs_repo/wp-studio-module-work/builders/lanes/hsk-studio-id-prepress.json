@@ -1,0 +1,139 @@
+{
+  "crate": "hsk-studio-layout, hsk-studio-folio (layout records), hsk-studio-press(-write/-read), hsk-studio-interop-layout",
+  "lane": "SMB-ID-PREPRESS",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-6 pushed; claim = c28363a (s1), d44b0a9 (s2), 609141c (s3), b69791b (s4), 718434d (s5), 2036f0f (s6), 3195ea5 (s4-6 test fixes)",
+  "commits": [
+    {
+      "sha": "19990d2",
+      "subject": "SMB-ID-PREPRESS slice 1: vertical justification (center/bottom/justify + vertical_threshold) in frame composition"
+    },
+    {
+      "sha": "c28363a",
+      "subject": "SMB-ID-PREPRESS slice 1: lane-named vjust tests; layout DESCRIPTOR states vertical justification"
+    },
+    {
+      "sha": "d44b0a9",
+      "subject": "SMB-ID-PREPRESS slice 2: ink manager, mixed inks and separations preview in press"
+    },
+    {
+      "sha": "609141c",
+      "subject": "SMB-ID-PREPRESS slice 3: find/change command family in layout (extends SMB-LAYOUT-UI-2 find.rs)"
+    },
+    {
+      "sha": "b69791b",
+      "subject": "SMB-ID-PREPRESS slice 4: layout grids, guides, snapping, baseline-grid alignment, units"
+    },
+    {
+      "sha": "718434d",
+      "subject": "SMB-ID-PREPRESS slice 5: reflowable EPUB 3 export and bounded EPUB re-read"
+    },
+    {
+      "sha": "2036f0f",
+      "subject": "SMB-ID-PREPRESS slice 6: data merge and PDF place"
+    },
+    {
+      "sha": "3195ea5",
+      "subject": "SMB-ID-PREPRESS slices 4-6: test fixes (StudioRgba profile binding, closure borrow, Result alias), unused mut"
+    }
+  ],
+  "capabilities_done": [
+    "slice 1 (ID-04): layout reflow_flow composes STU-LAY-121 vjust.center / vjust.bottom / vjust.justify per column after composition (block = first line top .. last line bottom; center = equal free space above/below; bottom = last line bottom on the bottom inset; justify = slack to paragraph gaps, each capped by STU-LAY-118 vertical_threshold, the held-back rest shared by all line gaps; one line not moved); folio_input admits non-top only on the threaded reflow (tables, notes, running text keep the typed refusal); frames with wrap obstacles are left as composed; a non-top frame holding span/split lines is unsupported_composition",
+    "slice 1 folio: StudioLayoutFlowRecords.vertical_thresholds [StudioFrameVerticalThreshold {layer_id, vertical_threshold pt}] (serde default, not encoded when empty: earlier record sets byte-identical), StudioLayoutFlowRecords::vertical_threshold(layer_id), validate_layout_flow_records checks SLYR id, existing text frame, uniqueness, budget, finite non-negative pt",
+    "slice 2 (ID-24) press inks.rs: InkManager (process + spot inks, STU-LAY-160 ink_type four members, ink_angle 0..=360, ink_frequency 1..=500, neutral_density 0.001..=10, solidity 0..=1 as Option (spec defaults unknown, not filled), alias with cycle detection, convert_to_process / all_spots_to_process through the CMYK alternate, use_standard_lab_for_spots stored), typed errors process_ink_cannot_be_aliased, ink_alias_cycle, range codes; MixedInk (<=27 spot, <=31 inks), MixedInkGroup (initial/repeat/increment rows, prod(repeat+1) <= 1000 with checked arithmetic, generate)",
+    "slice 2 (ID-24) press separations.rs: Separator (per-ink coverage planes, 4x4 samples, non-zero/even-odd, kurbo strokes, nested clips; knockout vs overprint incl. nonzero overprint mode; CMYK, gray, Separation All/None, spot via ink manager, mixed inks); separate_vector_page over read_vector_document with a ProcessConverter port for RGB/Lab/ICC (else counted unseparated + typed note); SeparationPreview::sample_pt / total_pt / coverage / check_ink_limits (STU-LAY-250 total, single, black limits + warning margin, total bounded by 100 x ink count, structured findings with pixels, max and first pixel) / render (composite with per-plate flags, single plate, ink-limit overlay); press DESCRIPTOR key separations",
+    "slice 3 (ID-29) layout find_change.rs on top of SMB-LAYOUT-UI-2 find.rs: text and GREP searches delegated to find_in_story (text with ^t ^p ^n ^^ ^? ^9 ^$ ^w metacharacters tokenized into a GREP pattern, change kept literal); added find.glyph (character within a named font via a font_of resolver), find.transliterate (full/half-width Roman, hiragana/katakana; other pairs typed), find.object (kind, applied object style, columns, vertical justification; change via apply_object_style + attributes), find.colour (Folio swatch_paints, per-use tint kept), scopes document/story/to-end/selection/selected object with object_contains_no_text and a hidden-layer toggle, multi-story apply_text_changes with one snapshot undo, SavedQueries with invalid_query_name / query_file_not_found / query_file_locked / invalid_search_mode",
+    "slice 4 (ID-22) folio layout_grids.rs hsk.studio.layout_grids@1 (document + baseline grid STU-LAY-115, per-frame custom baseline grid, guide preferences + ruler guides STU-LAY-114, named grids STU-LAY-117 stored, paragraph align_to_grid; validate_layout_grids with captured bounds); layout grids.rs baseline/frame/document grid lines, snap_point (guides then document grid, per axis, zone in pt), reflow_grid (all_lines / first_line_only baseline alignment inside the threaded reflow), twelve STU-LAY-101 measurement systems and the ten input suffixes (unit_suffix_unknown)",
+    "slice 5 (ID-28) interop-layout epub.rs: reflowable EPUB 3 (mimetype stored first, container.xml, OPF 3.0 with the nine accessibility fields, nav.xhtml, CSS, XHTML chapters split at the break_document paragraph style, headings, character-style spans, escaping, invalid XML chars counted) through the crate's existing deterministic ZIP writer; inspect_epub through the bounded package ZIP reader (ratio/size bounds refuse zip bombs) with DTDs refused",
+    "slice 6 (ID-30, ID-31) interop-layout data_merge.rs: RFC 4180 delimited and JSON-array sources (text, @image, #QR fields), <<field>> placeholders, merge_story with blank-line removal, record selection, multiple records per page, captured typed errors; pdf_place.rs: STU-LAY-130 seven crops from press page boxes (press-read PageView gains declared crop/bleed/trim/art boxes) and vector content bounds, draw_placed_pdf into a press PdfExport (CMYK/gray kept, clips, groups, hidden layers skipped, typed losses)"
+  ],
+  "tests": {
+    "argv": "batch under one lock at 687d58c (= 3195ea5 rebased over develop-only commits): clippy folio/layout/components/interop-layout/press/press-read/press-write --tests (exit 0); nextest layout --test id_prepress_vjust --test id_prepress_find_change --test id_prepress_grids; press --test id_prepress_separations; interop-layout --test id_prepress_epub --test id_prepress_merge_place",
+    "exit": 0,
+    "sha": "687d58c",
+    "passed": 26,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "validation round; then D5 oracle checks and the gaps above",
+  "updated_at": "2026-10-16T07:24:30Z",
+  "notes": {
+    "owned_paths": [
+      "crates/hsk-studio-layout/src/threaded_reflow.rs (vertical_justify pass + compose_flow verticals parameter)",
+      "crates/hsk-studio-layout/src/folio_input.rs (FrameVertical, Input.verticals, supported() gating)",
+      "crates/hsk-studio-layout/src/lib.rs (DESCRIPTOR text only)",
+      "crates/hsk-studio-folio/src/layoutflow.rs (vertical_thresholds member + validation)",
+      "crates/hsk-studio-layout/tests/id_prepress_*.rs",
+      "crates/hsk-studio-press/src/inks.rs, src/separations.rs (new), their lines + DESCRIPTOR key separations in src/lib.rs",
+      "crates/hsk-studio-press/tests/id_prepress_*.rs",
+      "crates/hsk-studio-layout/src/find_change.rs, src/grids.rs (new) + lines in lib.rs, threaded_reflow.rs (reflow_grid, next_slot snapping), folio_input.rs (FrameVertical.grid)",
+      "crates/hsk-studio-folio/src/layout_grids.rs (new) + 2 lines in lib.rs",
+      "crates/hsk-studio-interop-layout/src/epub.rs, data_merge.rs, pdf_place.rs (new) + lib.rs exports + descriptor keys epub/data_merge/pdf_place",
+      "crates/hsk-studio-press-read/src/pdf_edit.rs (PageView crop/bleed/trim/art boxes, additive)",
+      "tests: layout id_prepress_find_change.rs, id_prepress_grids.rs; interop-layout id_prepress_epub.rs, id_prepress_merge_place.rs"
+    ],
+    "spec_basis": [
+      "STU-LAY-121: Vertical justification enumeration {vjust.top, vjust.center, vjust.bottom, vjust.justify}. Only vjust.justify activates vertical_threshold and vertical_balance_columns.",
+      "STU-LAY-118 vertical_threshold: maximum vertical space inserted between two paragraphs; valid only when vertical justification is vjust.justify; ADDS to the paragraph's own space-before/space-after rather than replacing it",
+      "STU-TYP-190: A CONTAINER property, not a paragraph property ... When justify_align, vertical_threshold caps the inter-paragraph space the justification may add. vertical_threshold hard_min 0, hard_max UNKNOWN",
+      "STU-LAY-160: Ink manager ... ink_angle 0..360 deg, ink_frequency 1..500, neutral_density 0.001..10.0, solidity 0.0..1.0, ink_type {ink.normal, ink.opaque, ink.transparent, ink.opaque_ignore}, per-ink spot-to-process conversion, all-spots-to-process, ink aliasing and use-standard-Lab-values-for-spots. Captured typed error: a process ink cannot be aliased. ... a mixed ink may contain no more than 27 spot inks and no more than 31 inks in total, and a mixed-ink GROUP may contain no more than 1,000 swatches. ... Separations preview -- per-plate on/off preview, an ink-limit view with a configurable total-ink threshold, and per-ink coverage readouts. These MUST be readable as typed values, not only rendered.",
+      "STU-COL-212: per-plate visibility toggles ...; an INK LIMIT view ...; and a per-ink percentage-coverage readout at a sampled point ... the engine computes the actual maximum from the active ink set",
+      "STU-LAY-250: total_ink_limit 0..400 (scales with ink count), single_ink_limit 0..100, black_ink_limit 0..100, coverage_warning_margin; the three limits are INDEPENDENT ... MUST report a violation as structured data",
+      "STU-LAY-129: FIVE independent find/change modes (find.text, find.grep, find.glyph, find.object, find.transliterate) ... find.colour ... saved queries ... four distinct typed errors -- invalid query name, query file not found, query file locked or read-only, invalid search mode ... 'object contains no text for find/change' is a distinct typed error",
+      "STU-LAY-050/114/115/116/117: StudioLayoutGrid records; ruler guides (guide_view_threshold 5..4000, guide_snap_to_zone 1..36 px); document and baseline grid (baseline_start, baseline_division, baseline_view_threshold 5..4000, gridline divisions and subdivisions, baseline_grid_relative_option; frame override use_custom_baseline_frame_grid, starting offset, relative option, increment); named grids",
+      "STU-LAY-101: twelve measurement systems; input suffixes cm mm in pt % px vh vw vmin vmax; an unrecognised suffix is a typed error",
+      "STU-LAY-065/165: reflowable EPUB export handoff (version, break_document + paragraph_style_name, metadata, nine accessibility fields as first-class properties); runtime/export pipeline owned by 14.11 (placed in interop-layout, which owns interchange export; recorded as a reading)",
+      "STU-LAY-063/163: data merge sources (delimited text, JSON array), text/image/QR placeholder kinds, record selection, multiple records per page, remove blank lines, captured typed errors",
+      "STU-LAY-028/130: placed PDF crops art, crop, trim, bleed, media, content_visible_layers, content_all_layers"
+    ],
+    "spec_owner_split": "layout owns composition (vertical justification, grids, find/change, data merge into stories); press owns output (separations preview, EPUB package writing where 14.11 permits)",
+    "unverified": [
+      "InDesign vertical justification parity (D5): block extent definition for center (line boxes, ascent-based top), the rule that a capped paragraph gap spills the rest over all line gaps, threshold 0 behaviour, no-record = no limit, wrap obstacles disabling vertical justification, single-line justify not moving",
+      "Separations preview parity (D5): plate display colours, tone rounding, Separation /All applied to the plates present when drawn, transparency painted opaque, mixed-ink group naming/order and refusal past 100 %",
+      "find/change (D5): metacharacter set, transliteration classes, glyph search by character not glyph id, object criteria",
+      "grids (D5): baseline zero points, snapping priority guide-over-grid, cicero = 12 Didot points of 0.376065 mm, align-to-grid rounding up",
+      "EPUB (D5 + epubcheck): package shape vs InDesign export; epubcheck NOT run (Java download not done in this lane), conformance NOT_PROVEN",
+      "data merge (D5): @/# header markers, <<field>> placeholder syntax, blank-line rule; PDF place (D5): crop defaults, content bounds by control points"
+    ],
+    "own_failures": [
+      "2026-10-16T03:15:05Z: first nextest run of the slice-1 test failed to compile (PageSide::Right/Left instead of RightHand/LeftHand); fixed in 19990d2. The retry guard keys HEAD on the gameplan confirm root (shared tree wt-studio-assets @ca5e9c9), which a lane-worktree commit cannot change, so the fixed rerun stayed blocked; I renamed the test file to the lane-prefixed id_prepress_vjust.rs (same 5 tests) and ran it. Reported to the lead as a lane-worktree retry-guard gap; future lane test files start lane-prefixed.",
+      "slice 2: none (5/5 first run)"
+    ],
+    "commit_method": "own worktree wt-studio-lanes/smb-id-prepress (branch lane/smb-id-prepress), pathspec commits, rebase on origin before push, git diff --stat checked (only own paths)",
+    "lead_report": [
+      "folio layoutflow.rs (SMB-LAYOUT-UI owned, READY) gained an additive member vertical_thresholds; no struct literal outside folio constructs StudioLayoutFlowRecords",
+      "retry guard: lane worktrees cannot change the confirm-root HEAD (see own_failures)",
+      "2026-10-16T05:03Z find overlap (lead alert): rebased onto SMB-LAYOUT-UI-2 find.rs (53e528f/f067ab5); find_change.rs no longer compiles any pattern: find.text without metacharacters and find.grep go to crate::find::find_in_story; find.text with ^ metacharacters is tokenized into a GREP pattern and also searched by find_in_story (change escaped as literal); the module adds only glyph, transliterate, object, colour, scopes (document / to-end / selected object with object_contains_no_text, hidden-layer toggle), multi-story apply with one snapshot undo, and saved queries"
+    ],
+    "tests_by_slice": {
+      "slice1": "-p hsk-studio-layout --test id_prepress_vjust (5/5 @c28363a)",
+      "slice2": "-p hsk-studio-press --test id_prepress_separations (5/5 @d44b0a9)",
+      "slice3": "layout id_prepress_find_change 5/5",
+      "slice4": "layout id_prepress_grids 5/5",
+      "slice5": "interop-layout id_prepress_epub 2/2",
+      "slice6": "interop-layout id_prepress_merge_place 4/4",
+      "proof_reuse": "tested at 687d58c on base 6bfcad9; pushed as 3195ea5 after rebasing over c0ebc3c, 2dfa3d5, d486897 which change only hsk-studio-develop (no dependency of folio, layout, press, interop-layout or components): inputs of the focused tests unchanged (GLOBAL-VALIDATION-005)"
+    },
+    "gaps_slice2": [
+      "PDF overprint flags are not read (hayro does not report them): PDF objects knock out (note pdf_overprint_not_read); overprint works through Separator::draw",
+      "shadings, images and transparency are not separated (typed notes)",
+      "RGB/Lab/ICC need a ProcessConverter (prism-backed adapter not written; press may not depend on prism)",
+      "Folio StudioSwatch -> SepPaint binding and stored ink-manager records not written (press manifest has no folio edge; needs a lead-approved edge or an adapter in interop-layout)",
+      "STU-LAY-251 ink_limit_source precedence not modelled"
+    ],
+    "build_disk": "D: target (STUDIO_BUILD_DISK unset) per lead 2026-10-16: the C: SSD target is over its cap",
+    "lock_waits": "03:45-04:29 queue for slice 3 (about 45 min); 04:34-04:39 batch; 04:41- validator round run-round holds the D: lock",
+    "batch_note": "slices 3-6 are proven in one lock hold (studio_disk_lock_run with clippy + three nextest runs inline, visible to the gameplan hook); a first attempt that ran them from a script file was stopped before it acquired the lock, because the hook could not see the gated commands inside the file",
+    "gaps": [
+      "ID-04: auto-sizing and non-fixed first baselines still refused",
+      "ID-24: PDF overprint flags not read; RGB/Lab/ICC separation needs a prism-backed ProcessConverter (port only); swatch->ink binding from Folio StudioSwatch not wired; STU-LAY-251 ink-limit source precedence",
+      "ID-29: glyph-id search, formatting criteria, location tokens, shipped saved queries, spell check",
+      "ID-22: smart guides, character/named-grid composition, liquid guides behaviour",
+      "ID-28: fixed-layout EPUB, images, cover, fonts, footnotes, remaining export preferences; epubcheck validation",
+      "ID-30: image/QR placement, direct-to-PDF merge, spreadsheet sources",
+      "ID-31: form-XObject embedding (images/fonts of placed PDF), opening a whole PDF as a layout document, rotated pages"
+    ]
+  }
+}
