@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-16T12:24:04Z",
+ "updated_at": "2026-10-16T12:38:57Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8122,13 +8122,14 @@
   },
   {
    "lane_id": "SMB-AFFINITY-INTEROP-1",
-   "crate": "hsk-studio-interop-* (new affinity module or crate per steward)",
-   "phase": "queued",
+   "crate": "hsk-studio-interop-affinity (new)",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-affinity-interop-20261016",
    "commits": [],
    "verdicts": [],
-   "note": "typed refusal naming PSD/PDF/SVG export route; clean-room KA container reader (header, #FT4 directory, zstd streams, CRC); thumbnail + resource extraction; MIT readers (afread, AFDesignLoad, afphoto crate) may be read with attribution; Inkscape afdesign ext GPL excluded; PhotoCraft no licence excluded; no native write"
+   "note": "typed refusal naming PSD/PDF/SVG export route; clean-room KA container reader (header, #FT4 directory, zstd streams, CRC); thumbnail + resource extraction; MIT readers (afread, AFDesignLoad, afphoto crate) may be read with attribution; Inkscape afdesign ext GPL excluded; PhotoCraft no licence excluded; no native write",
+   "lane_file": "builders/lanes/hsk-studio-affinity-interop-1.json"
   },
   {
    "lane_id": "SMB-AFFINITY-ORACLE-OPERATOR",
