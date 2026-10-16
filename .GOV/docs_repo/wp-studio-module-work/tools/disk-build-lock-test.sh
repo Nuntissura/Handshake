@@ -226,8 +226,10 @@ rm -f "$REC"
 for _ in $(seq 1 60); do [ -s "$REC" ] && break; sleep 0.5; done
 [ $rc -eq 0 ] && [ -n "$(ts C4 end)" ] && grep -q "size unknown" "$S/C4.err" && [ -s "$REC" ] \
   && ok "T15f missing record: build allowed, record measured ($(cat "$REC"))" || bad "T15f rc=$rc $(cat "$S/C4.err")"
-# T15g record goes over cap while a lane waits in the queue: refused 77 once the lock is held, nothing run.
-rm -f "$REC"
+# T15g record goes over cap while a lane waits in the queue: refused 77 once the lock is held, nothing run. Starts
+# from a fresh under-cap record (a missing one would start a detached measure that can land after the over-cap write).
+for _ in $(seq 1 60); do [ -d "$REC.measuring" ] || break; sleep 0.5; done
+echo "1 $(date +%s)" >"$REC"
 bash -c 'source "$1"; dbl_acquire "$2" builder holder "hold" t15g || exit 9; sleep 4; dbl_release' _ "$KLIB" "$SSD/.disk-build-lock" 2>/dev/null &
 hp=$!; sleep 1
 (t15env STUDIO_OWNER=$LANE STUDIO_BUILD_DISK=ssd && FAKE_TAG=C5 FAKE_SLEEP=0 cargo build) 2>"$S/C5.err" &
@@ -235,5 +237,25 @@ cp5=$!; sleep 2; echo "$((150 * 1048576)) $(date +%s)" >"$REC"
 wait $cp5; rc=$?; wait $hp
 [ $rc -eq 77 ] && [ -z "$(ts C5 start)" ] && grep -q "> cap 140 GiB" "$S/C5.err" && [ ! -d "$SSD/.disk-build-lock/held" ] \
   && ok "T15g over cap during the queue wait: refused 77 after acquiring, nothing run, lock released" || bad "T15g rc=$rc $(cat "$S/C5.err")"
+
+# T16 release under an open reader (Windows: an open handle on R/held/owner makes the directory rename fail; T9
+# RELEASE_FAILED 2026-10-16T02:47Z, the cycler then waited on its own token). (a) a reader holding the owner file for
+# 3 s: release retries and succeeds after it closes, no RELEASE_FAILED; (b) release window 1 s and a 4 s reader:
+# RELEASE_FAILED, then the same process's next acquire renames its own leftover (RELEASE_RECOVERED) and gets the lock.
+L16="$S/lock16"; rm -rf "$L16"
+bash -c 'source "$1"; dbl_acquire "$2" builder t16a "t16a" t16 || exit 9
+  (exec 7<"$2/held/owner"; sleep 3) & sleep 0.5; t0=$(date +%s); dbl_release; echo "released $(( $(date +%s) - t0 ))"; [ ! -d "$2/held" ]' \
+  _ "$KLIB" "$L16" >"$S/T16a.out" 2>"$S/T16a.err"; rc=$?
+[ $rc -eq 0 ] && ! grep -q RELEASE_FAILED "$S/T16a.err" "$L16/events.log" 2>/dev/null \
+  && ok "T16a open reader for 3 s: release retried, done ($(cat "$S/T16a.out") s), no RELEASE_FAILED" || bad "T16a rc=$rc $(cat "$S/T16a.out" "$S/T16a.err")"
+bash -c 'source "$1"; dbl_acquire "$2" builder t16b "t16b" t16 || exit 9; first=$DBL_TOKEN
+  (exec 7<"$2/held/owner"; sleep 4) & sleep 0.5; STUDIO_DISK_BUILD_LOCK_RELEASE_S=1 dbl_release
+  [ "$DBL_UNRELEASED" = "$first" ] || exit 8
+  t0=$(date +%s); STUDIO_DISK_BUILD_LOCK_TIMEOUT_S=30 dbl_acquire "$2" builder t16b "t16b again" t16 || exit 7
+  echo "reacquired $(( $(date +%s) - t0 ))"; [ -z "$DBL_UNRELEASED" ] || exit 6; dbl_release; [ ! -d "$2/held" ]' \
+  _ "$KLIB" "$L16" >"$S/T16b.out" 2>"$S/T16b.err"; rc=$?
+[ $rc -eq 0 ] && grep -q RELEASE_FAILED "$L16/events.log" && grep -q RELEASE_RECOVERED "$L16/events.log" \
+  && ok "T16b release failed under a 4 s reader; same process recovered its own leftover and $(cat "$S/T16b.out") s" \
+  || bad "T16b rc=$rc $(cat "$S/T16b.out" "$S/T16b.err" "$L16/events.log" 2>/dev/null)"
 echo "RESULT fails=$fails"
 [ $fails -eq 0 ]
