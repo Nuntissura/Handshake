@@ -1,0 +1,31 @@
+{
+  "crate": "hsk-studio-motion (AE), hsk-studio-render-cpu tests over nib + pigment (AI), hsk-studio-interop-layout tests over layout + type (ID)",
+  "lane": "SMB-D5-AI-ID-AE-COMPARE",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-3 pushed (b822715, 7910061, 16d5c9e); summary research/d5-ai-id-ae-compare-20261016.json on gov_kernel 6fb8edfd",
+  "commits": [
+    {"sha": "b822715", "subject": "SMB-D5-AI-ID-AE-COMPARE slice 1: After Effects valueAtTime oracle comparison; motion chord handle 1/6, continuity keeps incoming speed"},
+    {"sha": "7910061", "subject": "SMB-D5-AI-ID-AE-COMPARE slice 2: Illustrator oracle comparison (AI-01..05) through nib + pigment"},
+    {"sha": "16d5c9e", "subject": "SMB-D5-AI-ID-AE-COMPARE slice 3: InDesign composer oracle comparison (ID-01..04) through IDML import, Type and layout"}
+  ],
+  "capabilities_done": [
+    "slice 1 AE (motion tests/d5_ae_oracle.rs): 337 MATCH, 4 NOT_SUPPORTED (roving spatial path, 3 AE expression globals), 1 NOT_PROVEN (AE-02 tangents variant absent); fixes keyframe.rs chord influence 1/6, assistants.rs make_continuous incoming speed wins",
+    "slice 2 AI (render-cpu tests/d5_ai_oracle.rs): 59 MATCH (dashes, fill rules, 14 cap/join/miter, 32 blend modes, 4 isolation/knockout, 3 gradients), 15 MISMATCH listed (2 midpoint curve FU-AI-1, 13 sub-pixel cap/tip FU-AI-3), 1 NOT_SUPPORTED (aliased export)",
+    "slice 3 ID (interop-layout tests/d5_id_oracle.rs): 20 MATCH (single-line ragged 10/10, 7 other, 3 IDML imports), 75 MISMATCH listed by class (KP composer, single-line justification, hyphenation, full justify, thread), 4 NOT_SUPPORTED (glyph scaling)"
+  ],
+  "tests": {"argv": "nextest -p hsk-studio-render-cpu -p hsk-studio-interop-layout -p hsk-studio-motion --test d5_ai_oracle --test d5_id_oracle --test d5_ae_oracle --no-fail-fast --no-capture", "exit": 0, "sha": "3d5fbda + lane commits (pushed rebased on 38d491b as 16d5c9e)", "passed": 14, "failed": 0},
+  "blockers": [],
+  "lock_wait_s": 18000,
+  "bg_pids": [],
+  "next": "lead: AE rerun for AE-02 (script fixed); follow-ups FU-AE-1..3, FU-AI-1..3, FU-ID-1..6 in the research JSON",
+  "updated_at": "2026-10-16T13:42:00Z",
+  "notes": {
+    "worktree": "wt-studio-lanes/smb-d5-ai-id-ae-compare (branch lane/smb-d5-ai-id-ae-compare); gameplan pointer .gameplan-active at the worktree root like the other lane trees",
+    "build_disk": "D: only (lead 2026-10-16)",
+    "corpus_added": "oracle-corpus/host-fonts/arial.ttf + provenance.json (new files only)",
+    "ae_script": "oracle-session/hsk_oracle_aftereffects.jsx AE-02 tangents padded to the Position value length; committed 6fb8edfd; After Effects NOT rerun",
+    "push_proof": "slice 1: rerun after rebase onto 46d8e4d, pushed on 895f0b7 (layout/harness only). slices 2-3: 14/14 at 3d5fbda + lane commits; pushed on 38d491b whose 3 newer commits are additive (nib/render-cpu mesh, type path_text, prism recolor, interop-vector split; lib.rs adds mod lines only), so the run was reused",
+    "cargo_lock": "cargo-regenerated Cargo.lock stashed before each rebase (SAFETY stashes), never committed",
+    "deadline": "pushes delayed by D: lock queues and validator rounds (R35 canary/union held the lock ~4 h)"
+  }
+}
