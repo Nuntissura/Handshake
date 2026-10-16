@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-16T02:58:50Z",
+ "updated_at": "2026-10-16T03:05:19Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7945,13 +7945,18 @@
   },
   {
    "lane_id": "SMB-AE-3D-3",
-   "crate": "hsk-studio-composite",
-   "phase": "build",
-   "status": null,
+   "crate": "hsk-studio-composite + render-cpu/gpu",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-ae-3d-3-20261016",
-   "commits": [],
+   "commits": [
+    "7bfe109",
+    "dc4b5bf",
+    "1042418",
+    "18f3ab4"
+   ],
    "verdicts": [],
-   "note": "gaps from AE-3D-2: corner pin and clipping on 3D layers refused; aux channels not anti-aliased; Cryptomatte not built",
+   "note": "gaps: motion blur only 3D planes+camera (lights/materials not sampled); no CryptoAsset/sidecar manifest; upper-case channel names UNVERIFIED",
    "lane_file": "builders/lanes/hsk-studio-ae-3d-3.json"
   },
   {
@@ -8021,9 +8026,9 @@
   {
    "lane_id": "SMB-ID-PREPRESS",
    "crate": "hsk-studio-layout/press",
-   "phase": "queued",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-id-prepress-20261016",
    "commits": [],
    "verdicts": [],
    "note": "ID-24 swatches + separations preview, ID-28 EPUB export, ID-31 PDF place/import, ID-04 vertical justification, ID-22 grids, ID-30 data merge, ID-29 find/change engine"
@@ -8040,10 +8045,10 @@
   },
   {
    "lane_id": "SMB-LR-LIBRARY-WRITE",
-   "crate": "hsk-studio-develop + CKC port",
-   "phase": "queued",
+   "crate": "hsk-studio-develop + kernel-bindings CKC port",
+   "phase": "build",
    "status": null,
-   "owner": null,
+   "owner": "builder-lr-library-20261016",
    "commits": [],
    "verdicts": [],
    "note": "LR-27..31 library is read-only: ratings/flags/keywords/collections write through CKC typed ports; LR-15/16/18 effects, calibration"
