@@ -1,0 +1,10 @@
+[package]
+name = "handshake_member_enrollment"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+uuid = { version = "=1.24.1", default-features = false }
