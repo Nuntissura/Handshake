@@ -124,6 +124,7 @@ handshake_text_mechanics = { path = "../handshake_text_mechanics" }
 handshake_asset_resolver = { path = "../handshake_asset_resolver" }
 handshake_embed_views = { path = "../handshake_embed_views" }
 handshake_internal_diagnostics = { path = "../handshake_internal_diagnostics" }
+handshake_swarm_lane_diagnostics = { git = "https://github.com/Nuntissura/assets.git", rev = "2813dc1768ddd2a4e1843abded1a228f22eeba8e" }
 palmistry-control-protocol = { path = "../palmistry_control_protocol" }
 handshake-layout-snapshot = { path = "../layout_snapshot" }
 handshake-workspace-activation = { path = "workspace_activation" }
