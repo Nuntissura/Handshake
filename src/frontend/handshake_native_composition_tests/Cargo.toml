@@ -1,0 +1,18 @@
+[package]
+name = "handshake_native_composition_tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+handshake-native = { path = "../handshake_native" }
+egui_kittest = { version = "0.33", features = ["wgpu", "eframe"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["rt", "macros", "sync", "time"] }
+
+[dev-dependencies]
+handshake_core = { path = "../../backend/handshake_core", default-features = false, features = ["runtime-full", "test-utils", "surreal-test-support"] }

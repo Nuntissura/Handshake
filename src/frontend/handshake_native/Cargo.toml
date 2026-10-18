@@ -398,7 +398,6 @@ windows-sys = { version = "0.61", features = [
 [dev-dependencies]
 
 tempfile = "3"
-handshake_core = { path = "../../backend/handshake_core", default-features = false, features = ["runtime-full", "test-utils"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 # WP-KERNEL-012 MT-082 ADDS the `eframe` feature so the AC-002-4 live-consumer test can drive the REAL
 # production `HandshakeApp::new(cc)` via `Harness::builder().build_eframe(..)` (it needs a real

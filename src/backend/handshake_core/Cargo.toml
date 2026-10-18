@@ -202,6 +202,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "sy
 # no `sync` cargo feature (the sync module is unconditional), so none is listed.
 tokio-util = "0.7"
 tower-http = { version = "0.6", features = ["cors"] }
+tower = { version = "0.5", features = ["util"], optional = true }
 surrealdb = { version = "=3.2.0", default-features = false, features = ["kv-rocksdb"] }
 uuid = { version = "1", features = ["v4", "v7", "fast-rng", "serde"] }
 chrono = { version = "0.4", features = ["serde", "clock"] }
@@ -333,7 +334,7 @@ app-runtime = ["runtime-full", "duckdb-flight-recorder"]
 duckdb-flight-recorder = ["dep:duckdb"]
 tokenization = ["dep:tiktoken-rs", "dep:tokenizers"]
 test-utils = []  # Exposes test helper utilities for integration tests
-surreal-test-support = ["duckdb-flight-recorder", "handshake_document/surreal-test-support", "handshake_document_surreal/surreal-test-support", "handshake_storage_support/surreal-test-support"]
+surreal-test-support = ["duckdb-flight-recorder", "handshake_document/surreal-test-support", "handshake_document_surreal/surreal-test-support", "handshake_storage_support/surreal-test-support", "dep:tower", "dep:tempfile"]
 wsl2-integration = []
 docker-integration = []
 win-native-integration = []
