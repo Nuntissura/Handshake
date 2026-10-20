@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-20T22:11:29Z",
+ "updated_at": "2026-10-20T23:02:35Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8759,11 +8759,12 @@
    "lane_id": "SMB-CRATE-SEAM-SPLITS-2",
    "crate": "interop-fig, web",
    "phase": "build",
-   "status": null,
+   "status": "BLOCKED",
    "owner": "builder-seam-2-20261020",
    "commits": [],
    "verdicts": [],
-   "lane_file": "builders/lanes/hsk-studio-crate-seam-splits-2.json"
+   "lane_file": "builders/lanes/hsk-studio-crate-seam-splits-2.json",
+   "note": "INCIDENT 2026-10-21: lane deleted origin/codex/handshake-studio-assets (push chained after ';' with empty sha after a failed rebase). Restore target 8bb6f64 pending Operator approval. Local commits fef312e (fig split, 179/180; the 1 failure fig_paints_2 bold_text_renders_with_the_inter_bold_fixture also fails at unsplit 6585ff0) and 67a7496 (web split, untested). Fresh agent finishes after restore."
   },
   {
    "lane_id": "STUDIO-R36",
