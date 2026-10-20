@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-16T14:37:23Z",
+ "updated_at": "2026-10-20T14:03:50Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -7956,13 +7956,21 @@
   },
   {
    "lane_id": "SMB-PS-ADJUST-STYLES-3",
-   "crate": "hsk-studio-pigment+render-gpu+composite+interop-psd",
-   "phase": "build",
-   "status": null,
+   "crate": "pigment + render-gpu + composite + interop-psd",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-ps-styles-3-20261016",
-   "commits": [],
+   "commits": [
+    "5514c50",
+    "f588e45",
+    "e303149",
+    "a548d49",
+    "e55a1a5",
+    "15d55b5"
+   ],
    "verdicts": [],
-   "note": "GPU knockout + GPU smart-filter masks; enabled smart-filter masks on placed instances; PSD pattern overlay import (Patt resources -> pattern_tile); PlLd-without-SoLd recovery"
+   "note": "GPU knockout, smart-filter masks (GPU + placed instances), PSD Patt/Pat2/Pat3 pattern tiles, PlLd-without-SoLd recovery. Gaps: PtFl pattern-fill layers, stroke pattern fills, JPEG/PDF PlLd size, transformed precomp masks",
+   "lane_file": "builders/lanes/hsk-studio-ps-adjust-styles-3.json"
   },
   {
    "lane_id": "SMB-AE-3D-3",

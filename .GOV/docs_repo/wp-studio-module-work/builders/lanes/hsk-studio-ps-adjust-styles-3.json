@@ -1,0 +1,43 @@
+{
+ "crate": "hsk-studio-render-gpu",
+ "lane": "SMB-PS-ADJUST-STYLES-3",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-4 pushed (5514c50..e303149) and READY_FOR_VALIDATION; one bundled clippy + 25 focused tests green at 0c0948b (same commits before a rebase over 4 commits outside these crates and their dependencies)",
+ "commits": [
+  {"sha": "5514c50", "subject": "render-gpu (SMB-PS-ADJUST-STYLES-3 slice 1): GPU knockout, deep, root and pass-through", "status": "READY_FOR_VALIDATION"},
+  {"sha": "f588e45", "subject": "render-gpu + composite (SMB-PS-ADJUST-STYLES-3 slice 2): smart-filter masks on GPU and on placed instances", "status": "READY_FOR_VALIDATION"},
+  {"sha": "e303149", "subject": "composite (SMB-PS-ADJUST-STYLES-3 slice 2): clip-effect filtered content carries no masks", "status": "READY_FOR_VALIDATION"},
+  {"sha": "a548d49", "subject": "interop-psd (SMB-PS-ADJUST-STYLES-3 slice 3): PSD Patt/Pat2/Pat3 patterns into pattern_tile", "status": "READY_FOR_VALIDATION"},
+  {"sha": "e55a1a5", "subject": "interop-psd tests (SMB-PS-ADJUST-STYLES-3 slice 3): corpus pattern test pins the three overlays", "status": "READY_FOR_VALIDATION"},
+  {"sha": "15d55b5", "subject": "interop-psd (SMB-PS-ADJUST-STYLES-3 slice 4): legacy PlLd without SoLd recovered", "status": "READY_FOR_VALIDATION"}
+ ],
+ "capabilities_done": [
+  "slice 1 GPU knockout: every placement pigment admits (shallow in isolated groups, at the root, in pass-through groups via a device snapshot of the running result; deep through plain ancestries with per-level f32 shape planes, knockout_clear of every enclosing backdrop) as kernel_knockout.wgsl passes transcribing pigment knockout_math; buffers charged before creation; extension_exactness Approximate; render-cpu hand values within 2e-6 and pigment knockout_math compositions (masked, partial opacity/fill, screen/multiply/overlay) within 2e-6 (gpu_knockout); an out-of-unit sample in an extended plan is render-cpu's sample_range_outside_unit refusal",
+  "slice 2 smart-filter masks: render-gpu decodes entry and stack masks like render-cpu (u8*257, inverted, zero outside, checked and charged) and mixes through filter.wgsl filter_mix_masked with pigment's binary64 weight rounded once, within 2e-5 of SmartFilterStack::render (gpu_smart_filter_masks); smart_filter_mask refusal removed (an unresolved source is UnresolvedSource); composite: enabled masks over placed instances become FilteredMask (scene mask id + instance transform), resampled into the source surface (nearest document pixel to each centre) before the stack, on CPU (cpu_placed_filter_masks, 1e-6) and GPU (2e-5); empty mask placed_smart_filter_mask_empty; unresolved/forged/colliding masks typed",
+  "slice 3 PSD patterns: Patt/Pat2/Pat3 (version 1, virtual memory array list v3, raw and PackBits arrays, RGB/gray/indexed at 8/16 bits, last array as alpha) decode to linear light; IdMint::pattern_id mints the primitive, PatternTileBlob + Folio TileRef carry the pixels, patternFill maps to PatternOverlay (pattern, scale, phase, Algn link, pattern_tile) so imported overlays render (pigment reference check on layer_effects.psd); stroke.psd, pattern-fill.psd(RLE), multichannel (typed pattern_mode_unmapped); hostile size, length, channel count, RLE, depth, budget and rect typed",
+  "slice 4 legacy PlLd: plcL v3 read alone; size from the warp bounds (equals Sz on corpus files) else embedded PNG IHDR / PSD header; SoLd warp and parallelogram rules; Photoshop-written PlLd of smartobject-layer.psd and placedLayer.psd recover the same records with SoLd removed; unknown size reports placed_layer_legacy_size_unknown_external / _format or placed_source_missing; truncated, version, non-finite, non-affine typed"
+ ],
+ "tests": {
+  "argv": "studio_disk_lock_run: cargo clippy --tests -p hsk-studio-render-gpu -p hsk-studio-interop-psd -p hsk-studio-composite -p hsk-studio-render-cpu; cargo nextest run --no-fail-fast --test-threads 2 (same packages) -E 'binary(gpu_knockout) | binary(gpu_smart_filter_masks) | binary(gpu_smart_filter) | test(ext_refusals_and_capabilities_run_without_adapter) | binary(pattern_overlay_import) | binary(placed_legacy) | binary(placed_records) | binary(adjustment_records) | binary(placed_smart_filters) | binary(cpu_placed_filters) | binary(cpu_placed_filter_masks) | binary(pattern_overlay_lowering) | binary(clip_grade_keyframes)'",
+  "exit": 0,
+  "sha": "0c0948b (pre-rebase twin of e303149; the final rebase crossed 4 commits touching harness/score/session only)",
+  "passed": 25,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 31000,
+ "bg_pids": [],
+ "next": "validation of 5514c50..e303149",
+ "updated_at": "2026-10-20T14:02:45Z",
+ "notes": {
+  "worktree": "wt-studio-lanes/smb-ps-adjust-styles-3, branch lane/smb-ps-adjust-styles-3, STUDIO_OWNER=smb-ps-adjust-styles-3; all builds on D: (the SSD opt-in arrived after the green run; rebase touched no lane crate or dependency, so no re-run per build-strategy rule 3)",
+  "spec_basis": "STU-RAS-041 ('Studio MUST provide advanced/conditional blending on every layer as canonical StudioLayer fields: Blend-If ranges, knockout, ...'); STU-CMP-010a ('Layers composite from the BOTTOM of the stack upward; the accumulated backdrop at step 8 is everything below the layer'); STU-RAS-037 ('StudioLiveFilter is the single canonical live-filter primitive: a re-editable, maskable filter hosted on a live_filter-kind layer or applied to a placed_asset container ... per-filter masking'); STU-FX-004 ('A StudioLiveFilter entry MAY host its own StudioMask ... the single deduped realization of smart-filter masks'); STU-CMP-010 steps 3 (effects) before 5 (transform); STU-RAS-040 and STU-RAS-157 row pattern_overlay ('pattern, scale, phase_x, phase_y, link_with_layer'); STU-RAS-012 ('placed_asset layer MUST support both embedded mode ... and linked mode'); STU-RAS-013 (shared-source instances); STU-IO-006 row 1 (.psd: 'Layers, groups, masks, adjustment/live-filter layers, linked/embedded objects, blend modes preserved; unrepresentable features baked with receipt')",
+  "parity": "Photoshop parity UNVERIFIED: knockout covered by D5 case PS-C11 (none/shallow/deep) through SMB-D5-PS-COMPARE, not duplicated here; no D5 case covers pattern overlays, smart-filter masks on placed objects or PlLd; Algn as 'Link with Layer', phase sign, nearest pattern sampling and source-space mask resampling are Studio readings",
+  "own_failures_fixed": "(1) corpus pattern test asserted no effect_fill_reference_unavailable, but layer_effects.psd also holds gradient overlays: pinned the 3 Ptrn overlays and 9 Ptrn-less slots instead (e55a1a5); (2) upstream clip_finishing added a FilteredContent constructor during the lane: masks: Vec::new() (e303149); (3) unused CovPlane::bytes removed; clippy type_complexity / clone_on_copy in lane tests fixed",
+  "adjacent_test_updates": "gpu_plan.rs knockout pins (Approximate, admitted -> no_adapter), gpu_smart_filter.rs mask refusals (-> UnresolvedSource), composite placed_smart_filters.rs (masks accepted, empty mask code), render-cpu cpu_placed_filters.rs (masks field)",
+  "api_additions": "composite FilteredContent.masks + FilteredMask, PLACED_SMART_FILTER_MASK_EMPTY; interop-psd IdMint::pattern_id (default None), ImportProposal.pattern_tiles + PatternTileBlob, MAX_PATTERNS / MAX_PATTERN_SIDE",
+  "gaps": "PtFl pattern fill layers and stroke pattern fills still unmapped; JPEG/PDF embedded sources give no PlLd size; masks on placed layers inside transformed precomps map by the instance transform only; knockout in extended-range plans uses the unit form (as render-cpu)",
+  "module_edges": "none new; no new dependencies",
+  "first_push_deadline": "missed: D: disk-build-lock waits behind validation rounds R35 and later (total ~8.6 h queued)"
+ }
+}
