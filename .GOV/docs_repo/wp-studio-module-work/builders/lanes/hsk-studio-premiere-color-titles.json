@@ -44,5 +44,8 @@
       "crates/hsk-studio-render-cpu/tests/clip_grade_frames.rs (B1 renderer proof file, new)"
     ],
     "new_module_edges": "NONE (composite->folio/prism/pigment/nib/motion, interop-media->folio and render-cpu dev->composite already exist); no crates.io dependency; dep-requests.jsonl untouched"
-  }
+  },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "claim e48b8f5: folio clip_finishing record set (Lumetri-style colour_grade stages, clip effect stack, motion templates/graphic instances, caption tracks), prism grade.rs, composite evaluate_effect_stack + graded surface, interop-media SubRip/WebVTT import/export. Later in-candidate edits by SMB-PR-SOURCE-MONITOR (888cd2e: keyframes, sharpen, faded film, GPU grade) are additive; judged at the candidate. Premiere parity UNVERIFIED (D5), not failed. units of composite/folio/interop-media/pigment/prism/render-cpu: 8 crate units + default; all build 0 / run 0; default composite 86, folio 86, interop-media 8, pigment 202, prism 164, render-cpu 100", "idempotency_key": "STUDIO-R35:SMB-PREMIERE-COLOR-TITLES:237256f8792c:PASS_V1", "round": "STUDIO-R35", "lane": "SMB-PREMIERE-COLOR-TITLES", "candidate": "237256f8792c708b96464030d4b40f3a93e8f0e0", "tree": "f699823b8e0d0530a5f9a96df354b8b7aac8294f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R35", "started_at": "2026-10-16T07:31:56Z", "completed_at": "2026-10-20T14:11:50Z"}
+ ]
 }

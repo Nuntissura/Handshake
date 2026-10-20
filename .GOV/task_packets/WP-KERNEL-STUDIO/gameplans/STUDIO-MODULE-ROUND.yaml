@@ -11,7 +11,7 @@ precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; cor
 scope: batch
 assignment: STUDIO-MODULE-ROUND
 parent: null
-generation: 10
+generation: 12
 confirm_binding:
   repo: ../wt-studio-assets
 expensive_actions: []
@@ -30,4 +30,5 @@ steps:
 - {id: GP-012, role: any, at: before_round, do: verify Cargo.lock in sync at candidate export (cargo metadata --locked --offline) == exit 0, check: {type: cmd, argv: [cargo, +1.97.1, metadata, --locked, --offline, --format-version, '1', --manifest-path, ../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/src/handshake-studio-assets/Cargo.toml], expect_exit: 0, timeout_seconds: 15}, source: 'infra: R2 canary @87c1cd95 build_exit 102; Cargo.lock unsynced after layout deps (87c1cd9)', state: active}
 - {id: GP-013, role: any, at: before_round, do: confirm test entrypoint + config unchanged since last green round OR canary exit 0 on candidate SHA (cite results dir), check: {type: confirm}, source: 'infra: R4 review required entrypoint change (fd24723); steward canary C5-1d404f8 exit 0 44 units', state: active}
 - {id: GP-014, role: any, at: before_round, do: 'require results + target dirs absolute under studio-round (owner dir), never relative', check: {type: confirm}, source: 'infra: R6 launch refused exit 2 (relative ../../../results resolved outside owner dir)', state: active}
-- {id: GP-015, role: any, at: before_round, do: verify R34 candidate ca5e9c92fa6b ancestor of origin(branch); fetch first, check: {type: cmd, argv: [git, -C, ../wt-studio-assets, merge-base, --is-ancestor, ca5e9c92fa6be13b50428ea3be6571ccc1d1a511, refs/remotes/origin/codex/handshake-studio-assets], expect_exit: 0, timeout_seconds: 15}, source: 'infra: R34 lanes push from own worktrees; edit tree lags origin, GP-001 unsatisfiable (lead 2026-10-15 topology)', state: active}
+- {id: GP-015, role: any, at: before_round, do: verify R34 candidate ca5e9c92fa6b ancestor of origin(branch); fetch first, check: {type: cmd, argv: [git, -C, ../wt-studio-assets, merge-base, --is-ancestor, ca5e9c92fa6be13b50428ea3be6571ccc1d1a511, refs/remotes/origin/codex/handshake-studio-assets], expect_exit: 0, timeout_seconds: 15}, source: 'infra: R34 lanes push from own worktrees; edit tree lags origin, GP-001 unsatisfiable (lead 2026-10-15 topology)', state: retired}
+- {id: GP-016, role: any, at: before_round, do: verify R35 candidate 237256f8792c ancestor of origin(branch); fetch first, check: {type: cmd, argv: [git, -C, ../wt-studio-assets, merge-base, --is-ancestor, 237256f8792c708b96464030d4b40f3a93e8f0e0, refs/remotes/origin/codex/handshake-studio-assets], expect_exit: 0, timeout_seconds: 15}, source: 'infra: F-R34-7 GP-015 pinned R34 sha; identity-file check refused (cmd checks spawn no process; refs only at init)', state: active}

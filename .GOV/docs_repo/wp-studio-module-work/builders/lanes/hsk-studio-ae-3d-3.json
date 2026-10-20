@@ -58,5 +58,8 @@
       "AA depth is the dominant object's mean depth (not a deep/min-depth channel)"
     ],
     "cargo_lock": "left uncommitted"
-  }
+  },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": ["render-gpu gpu_extended_envelope::gpu_overflow_in_envelope_operations_and_on_the_shared_texture_is_typed (default): shared-texture overflow needs --features shared-device", "render-gpu gpu_extended_envelope::gpu_overflow_in_envelope_operations_and_on_the_shared_texture_is_typed (features:hsk-studio-render-gpu+test-faults): shared-texture overflow needs --features shared-device"], "note": "claim 7bfe109 dc4b5bf 1042418 18f3ab4: corner pin / clipping / collapsed 3D precomps on 3D layers (former composition_3d_layer_option refusals for pin and clipping replaced by renders + typed degenerate-pin refusal: behaviour-driven re-pin of three_d_adapter), anti-aliased aux channels (ranking pixel filter), Cryptomatte (Psyop spec v1.2.0, MurmurHash3 written from the public algorithm; GPU coverage assertion kept and extended), 3D motion blur across the shutter (planes + camera; lights/materials not sampled, declared). Cryptomatte channel-name case UNVERIFIED. After Effects parity UNVERIFIED (D5), not failed. units of composite/render-cpu/render-gpu: 11 crate units + default; all build 0 / run 0; default composite 86, render-cpu 100, render-gpu 74", "idempotency_key": "STUDIO-R35:SMB-AE-3D-3:237256f8792c:PASS_V1", "round": "STUDIO-R35", "lane": "SMB-AE-3D-3", "candidate": "237256f8792c708b96464030d4b40f3a93e8f0e0", "tree": "f699823b8e0d0530a5f9a96df354b8b7aac8294f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R35", "started_at": "2026-10-16T07:31:56Z", "completed_at": "2026-10-20T14:11:50Z"}
+ ]
 }

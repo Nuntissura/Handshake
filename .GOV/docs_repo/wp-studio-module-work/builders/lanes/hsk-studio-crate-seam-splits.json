@@ -125,5 +125,8 @@
         "notes": "not recommended: already feature-gated (mf), so a split saves little build work; worker binaries make it fiddly"
       }
     ]
-  }
+  },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "claim 46d8e4d: pure move of press into hsk-studio-press-read / hsk-studio-press-write (26 R100 + 13 R095-R099 renames: pub(crate) -> #[doc(hidden)] pub seam items and three read-only PdfDoc accessors; export tests read doc.seam_pages() instead of the private field; no assertion changed); hsk-studio-press re-exports item by item (public API unchanged). Lead-approved crates and edges; steward sync 6bfcad9 pins/probe/lock. Slice 2 (reel) withdrawn, harness split deferred: not claimed. units of press/press-read/press-write: 3 crate units + default; all build 0 / run 0; default press 159, press-read 44, press-write 8", "idempotency_key": "STUDIO-R35:SMB-CRATE-SEAM-SPLITS:237256f8792c:PASS_V1", "claim_scope": "slice 1 (46d8e4d); slice 2 not claimed", "round": "STUDIO-R35", "lane": "SMB-CRATE-SEAM-SPLITS", "candidate": "237256f8792c708b96464030d4b40f3a93e8f0e0", "tree": "f699823b8e0d0530a5f9a96df354b8b7aac8294f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R35", "started_at": "2026-10-16T07:31:56Z", "completed_at": "2026-10-20T14:11:50Z"}
+ ]
 }
