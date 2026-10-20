@@ -6418,6 +6418,7 @@ pub struct HandshakeApp {
     /// MT-102 Visual Debugger: transient status for the last Settings -> Diagnostics worksurface dump.
     /// This is not persisted and owns no diagnostic authority; it only makes the button result visible.
     worksurface_inspector_last_dump: Option<String>,
+    worksurface_inspector_pending: Option<std::sync::mpsc::Receiver<std::io::Result<crate::visual_debugger::SnapshotWriteReceipt>>>,
     /// A pending theme flip to apply at the START of the next frame, BEFORE any panel renders (red-team
     /// R4/MC4): applying egui `Visuals` mid-frame would leave already-rendered widgets on the old theme
     /// for one frame. The settings ComboBox / the menu toggle set this; `ui()` applies it at the top.
@@ -8452,6 +8453,7 @@ impl HandshakeApp {
             preference_in_flight_write: None,
             preference_retry_write: None,
             worksurface_inspector_last_dump: None,
+            worksurface_inspector_pending: None,
             pending_theme_change: None,
             about_open: false,
             reset_layout_pending: false,
@@ -13518,6 +13520,7 @@ impl HandshakeApp {
             preference_in_flight_write: None,
             preference_retry_write: None,
             worksurface_inspector_last_dump: None,
+            worksurface_inspector_pending: None,
             pending_theme_change: None,
             about_open: false,
             reset_layout_pending: false,
@@ -13706,6 +13709,18 @@ impl HandshakeApp {
         let artifact_root =
             crate::visual_debugger::validate_external_artifact_root(artifact_root.as_ref())?;
         let capture_id = crate::visual_debugger::WorksurfaceInspector::new_capture_id();
+        let screenshot = Self::capture_worksurface_screenshot_to(&artifact_root, &capture_id, None);
+        let snapshot = self.compose_worksurface_snapshot(capture_id, screenshot);
+        let receipt = Self::write_worksurface_snapshot(&snapshot, &artifact_root)?;
+        self.publish_worksurface_receipt(&receipt);
+        Ok(receipt)
+    }
+
+    fn compose_worksurface_snapshot(
+        &mut self,
+        capture_id: String,
+        screenshot: crate::visual_debugger::ScreenshotEvidence,
+    ) -> crate::visual_debugger::WorksurfaceSnapshot {
         self.refresh_mcp_snapshot();
 
         let widget_tree = match self.mcp_snapshot.lock() {
@@ -13728,16 +13743,20 @@ impl HandshakeApp {
                 .collect::<std::collections::BTreeMap<_, _>>()
         };
 
-        let snapshot = crate::visual_debugger::WorksurfaceInspector::capture(
-            capture_id.clone(),
+        crate::visual_debugger::WorksurfaceInspector::capture(
+            capture_id,
             self.capture_layout_snapshot(),
             pane_accesskit_ids,
             widget_tree,
-            Self::capture_worksurface_screenshot_to(&artifact_root, &capture_id),
-        );
+            screenshot,
+        )
+    }
 
-        let receipt =
-            crate::visual_debugger::WorksurfaceInspector::write_json(&snapshot, &artifact_root)?;
+    fn write_worksurface_snapshot(
+        snapshot: &crate::visual_debugger::WorksurfaceSnapshot,
+        artifact_root: &std::path::Path,
+    ) -> std::io::Result<crate::visual_debugger::SnapshotWriteReceipt> {
+        let receipt = crate::visual_debugger::WorksurfaceInspector::write_json(snapshot, artifact_root)?;
         crate::diagnostics::record_with(
             handshake_diag_ring::DiagEventCode::Other,
             handshake_diag_ring::DiagPhase::End,
@@ -13750,6 +13769,10 @@ impl HandshakeApp {
             snapshot.internal_diagnostics.timestamp_nanos,
         );
 
+        Ok(receipt)
+    }
+
+    fn publish_worksurface_receipt(&mut self, receipt: &crate::visual_debugger::SnapshotWriteReceipt) {
         self.worksurface_inspector_last_dump = Some(format!(
             "Wrote worksurface snapshot: {} ({} bytes)",
             receipt
@@ -13759,14 +13782,56 @@ impl HandshakeApp {
                 .unwrap_or("worksurface-snapshot.json"),
             receipt.bytes
         ));
-        Ok(receipt)
+    }
+
+    fn queue_worksurface_snapshot(&mut self) -> std::io::Result<()> {
+        if self.worksurface_inspector_pending.is_some() { return Ok(()); }
+        let root = crate::visual_debugger::validate_external_artifact_root(
+            &crate::visual_debugger::default_artifact_root(),
+        )?;
+        let window = self.mcp_window_registry().get(crate::mcp::MAIN_WINDOW_ID)
+            .map_err(std::io::Error::other)?;
+        let capture_id = crate::visual_debugger::WorksurfaceInspector::new_capture_id();
+        let mut snapshot = self.compose_worksurface_snapshot(capture_id.clone(),
+            crate::visual_debugger::ScreenshotEvidence::Deferred {
+                marker: "live_frame_pending".to_owned(), reason: "Waiting for renderer".to_owned(),
+            });
+        let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+        let repaint = self.frame_ctx.clone();
+        std::thread::Builder::new().name("worksurface-capture".to_owned()).spawn(move || {
+            snapshot.screenshot = Self::capture_worksurface_screenshot_to(&root, &capture_id, Some(&window));
+            let result = Self::write_worksurface_snapshot(&snapshot, &root);
+            let _ = sender.try_send(result);
+            if let Some(ctx) = repaint { ctx.request_repaint(); }
+        })?;
+        self.worksurface_inspector_pending = Some(receiver);
+        self.worksurface_inspector_last_dump = Some("Capturing worksurface snapshot…".to_owned());
+        Ok(())
+    }
+
+    fn poll_worksurface_snapshot(&mut self) {
+        let Some(receiver) = &self.worksurface_inspector_pending else { return; };
+        let result = match receiver.try_recv() {
+            Ok(result) => result,
+            Err(std::sync::mpsc::TryRecvError::Empty) => return,
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => Err(std::io::Error::other("capture worker disconnected")),
+        };
+        self.worksurface_inspector_pending = None;
+        match result {
+            Ok(receipt) => self.publish_worksurface_receipt(&receipt),
+            Err(error) => self.worksurface_inspector_last_dump = Some(format!("Worksurface snapshot failed: {error}")),
+        }
     }
 
     fn capture_worksurface_screenshot_to(
         artifact_root: &std::path::Path,
         capture_id: &str,
+        window: Option<&crate::mcp::argus::RegisteredWindow>,
     ) -> crate::visual_debugger::ScreenshotEvidence {
-        let screenshot = match crate::mcp::screenshot::capture_handshake_window() {
+        let screenshot = match window.map_or_else(
+            crate::mcp::screenshot::capture_handshake_window,
+            crate::mcp::screenshot::capture_registered_window,
+        ) {
             Ok(screenshot) => screenshot,
             Err(err) => {
                 return crate::visual_debugger::ScreenshotEvidence::deferred_from_mcp_error(err);
@@ -23170,8 +23235,7 @@ impl HandshakeApp {
                 true
             }
             O::WorksurfaceInspectorDumpRequested => {
-                let root = crate::visual_debugger::default_artifact_root();
-                match self.capture_worksurface_snapshot_to(root) {
+                match self.queue_worksurface_snapshot() {
                     Ok(_) => true,
                     Err(err) => {
                         self.worksurface_inspector_last_dump =
@@ -41631,6 +41695,11 @@ impl eframe::App for HandshakeApp {
         // MT-081 ring header (no record-buffer lock, no `format!`, no heap alloc — RISK-004-3). It is a
         // silent no-op when no ring writer is installed (headless/test shell — AC-004-5).
         self.bump_heartbeat();
+        let windows = self.mcp_windows.lock().unwrap_or_else(|p| p.into_inner()).clone();
+        crate::mcp::screenshot::update_live_frame_capture(
+            &windows, crate::mcp::MAIN_WINDOW_ID, ctx,
+        );
+        self.poll_worksurface_snapshot();
         if let Some(handle) = self.palmistry.as_mut() {
             crate::diagnostics::drain_palmistry_child_watch_commands(handle);
         }

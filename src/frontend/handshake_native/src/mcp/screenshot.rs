@@ -2,16 +2,10 @@
 //! matches the React `VisualCaptureResult` (`{png_base64, width, height, captured_at_utc}`), so agent
 //! code is portable between the old webview capture and the native shell.
 //!
-//! ## Two capture sources: live OS-window (production) and offscreen render (headless proof)
-//!
-//! The contract asks the production `screenshot` tool to grab the live OS window focus-safely. egui
-//! 0.33 does NOT expose a programmatic frame read-back from inside the running `eframe` app (the wgpu
-//! surface is presented to the OS, not handed to the app), so the production capture path uses an OS
-//! window grab. The native shell ships a focus-safe bounded Win32 `WM_PRINT`/`BitBlt` adapter
-//! ([`capture_window_by_title_and_pid`]) — it NEVER calls `SetForegroundWindow`/`BringWindowToTop` and
-//! never changes Z-order (HBR-QUIET). That OS path needs a real on-screen window and a windowing
-//! environment, so it is GENUINELY UNDRIVEABLE from this headless `cargo test` host and is disclosed as
-//! such in the handoff; it is wired into the live app and exercised by the running binary.
+//! Production capture requests the registered live viewport's next rendered frame through egui's
+//! `ViewportCommand::Screenshot` and receives its correlated `Event::Screenshot`. This reads the
+//! actual GPU surface without focusing, raising, or replaying the window. GDI window capture remains
+//! a legacy adapter; it cannot reliably read the client pixels of a presented wgpu surface.
 //!
 //! The headless proof path uses `egui_kittest`'s wgpu renderer (`Harness::render()`), which renders the
 //! SAME frame to an offscreen texture and reads it back as an `image::RgbaImage` — focus-safe BY
@@ -82,32 +76,118 @@ pub fn screenshot_from_png(png_bytes: &[u8], width: u32, height: u32) -> Screens
 /// The window title the production capture matches (the live shell sets this title in `main.rs`).
 pub const HANDSHAKE_WINDOW_TITLE: &str = "Handshake";
 
-/// Capture the live Handshake OS window into a [`ScreenshotResult`], focus-safely.
-///
-/// PRODUCTION path (the contract's live OS-window grab). Matches the window whose title is
-/// [`HANDSHAKE_WINDOW_TITLE`] AND whose owning process id is THIS process (red-team: window-title
-/// ambiguity — a multi-window dev session never captures another process's window). Uses bounded
-/// `SendMessageTimeoutW(WM_PRINT)` over an off-screen memory DC; it NEVER calls
-/// `SetForegroundWindow`/`BringWindowToTop` and never changes Z-order (HBR-QUIET).
-///
-/// On non-Windows builds, or when no matching window is found / GDI fails, returns a typed
-/// [`ScreenshotError`] (never panics) so the tool layer replies with a well-formed JSON-RPC error.
-///
-/// This OS path needs a real on-screen window + windowing environment, so it is GENUINELY UNDRIVEABLE
-/// from a headless `cargo test` host — the over-the-wire transport test uses the offscreen-render
-/// closure instead (focus-safe by construction). Disclosed in the MT-027 handoff.
+/// Capture the registered main window's next actual renderer frame from a blocking worker.
+/// A missing renderer, closed window, concurrent capture, or timeout returns a typed error.
+/// No cached, headless, or GDI image replaces a missing live frame.
 pub fn capture_handshake_window() -> Result<ScreenshotResult, ScreenshotError> {
-    #[cfg(target_os = "windows")]
-    {
-        windows_capture::capture_window_by_title_and_pid(HANDSHAKE_WINDOW_TITLE, std::process::id())
+    capture_live_frame(super::argus::MAIN_WINDOW_ID, None)
+}
+
+#[derive(Clone)]
+struct LiveFrameWindow {
+    window: super::argus::RegisteredWindow,
+    context: egui::Context,
+    ui_thread: std::thread::ThreadId,
+}
+
+#[derive(Debug)]
+struct FrameCaptureToken(u64);
+
+struct PendingFrame {
+    window: super::argus::RegisteredWindow,
+    reply: std::sync::mpsc::SyncSender<std::sync::Arc<egui::ColorImage>>,
+}
+
+#[derive(Default)]
+struct LiveFrames {
+    windows: std::collections::HashMap<String, LiveFrameWindow>,
+    pending: std::collections::HashMap<u64, PendingFrame>,
+}
+
+static LIVE_FRAMES: std::sync::OnceLock<std::sync::Mutex<LiveFrames>> = std::sync::OnceLock::new();
+static NEXT_FRAME_CAPTURE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
+struct PendingFrameGuard(u64);
+
+impl Drop for PendingFrameGuard {
+    fn drop(&mut self) {
+        LIVE_FRAMES.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner())
+            .pending.remove(&self.0);
     }
-    #[cfg(not(target_os = "windows"))]
-    {
-        Err(ScreenshotError(
-            "live OS-window capture is implemented for Windows; use the offscreen-render path on this OS"
-                .to_owned(),
-        ))
+}
+
+/// Called only from real viewport frames, never from the isolated snapshot renderer.
+pub(crate) fn update_live_frame_capture(
+    windows: &super::argus::WindowSnapshotRegistry,
+    window_id: &str,
+    ctx: &egui::Context,
+) {
+    let Ok(window) = windows.get(window_id) else { return; };
+    if window.descriptor.viewport_id != ctx.viewport_id()
+        || !window.live.load(std::sync::atomic::Ordering::Acquire) { return; }
+    let mut frames = LIVE_FRAMES.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner());
+    frames.windows.retain(|_, entry| entry.window.live.load(std::sync::atomic::Ordering::Acquire));
+    frames.windows.insert(window_id.to_owned(), LiveFrameWindow {
+        window, context: ctx.clone(), ui_thread: std::thread::current().id(),
+    });
+    ctx.input(|input| {
+        for event in &input.events {
+            let egui::Event::Screenshot { viewport_id, user_data, image } = event else { continue; };
+            let Some(token) = user_data.data.as_ref().and_then(|data| data.downcast_ref::<FrameCaptureToken>()) else { continue; };
+            let Some(pending) = frames.pending.get(&token.0) else { continue; };
+            if pending.window.descriptor.viewport_id == *viewport_id
+                && pending.window.live.load(std::sync::atomic::Ordering::Acquire) {
+                let _ = pending.reply.try_send(image.clone());
+            }
+        }
+    });
+}
+
+fn capture_live_frame(
+    window_id: &str,
+    expected: Option<&super::argus::RegisteredWindow>,
+) -> Result<ScreenshotResult, ScreenshotError> {
+    let token = NEXT_FRAME_CAPTURE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let (reply, receiver) = std::sync::mpsc::sync_channel(1);
+    let entry = {
+        let mut frames = LIVE_FRAMES.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner());
+        let entry = frames.windows.get(window_id).cloned()
+            .ok_or_else(|| ScreenshotError("Argus window has no registered live renderer".to_owned()))?;
+        if !entry.window.live.load(std::sync::atomic::Ordering::Acquire)
+            || expected.is_some_and(|window| window.epoch != entry.window.epoch
+                || window.descriptor.viewport_id != entry.window.descriptor.viewport_id
+                || window.descriptor.title != entry.window.descriptor.title
+                || !std::sync::Arc::ptr_eq(&window.live, &entry.window.live)) {
+            return Err(ScreenshotError("Argus capture window identity is stale".to_owned()));
+        }
+        if entry.ui_thread == std::thread::current().id() {
+            return Err(ScreenshotError("live frame capture must be requested off the UI thread".to_owned()));
+        }
+        if frames.pending.values().any(|pending| pending.window.descriptor.window_id == window_id) {
+            return Err(ScreenshotError("a live frame capture is already in progress for this window".to_owned()));
+        }
+        frames.pending.insert(token, PendingFrame { window: entry.window.clone(), reply });
+        entry
+    };
+    let _pending = PendingFrameGuard(token);
+    entry.context.send_viewport_cmd_to(entry.window.descriptor.viewport_id,
+        egui::ViewportCommand::Screenshot(egui::UserData::new(FrameCaptureToken(token))));
+    // Only the MCP blocking worker waits; the UI thread merely delivers the renderer's event.
+    let result = receiver.recv_timeout(std::time::Duration::from_millis(1500));
+    let image = result.map_err(|error| ScreenshotError(format!("live renderer frame unavailable: {error}")))?;
+    if !entry.window.live.load(std::sync::atomic::Ordering::Acquire) {
+        return Err(ScreenshotError("Argus capture window closed during capture".to_owned()));
     }
+    let width = u32::try_from(image.size[0]).map_err(|_| ScreenshotError("frame width overflow".to_owned()))?;
+    let height = u32::try_from(image.size[1]).map_err(|_| ScreenshotError("frame height overflow".to_owned()))?;
+    if width == 0 || height == 0 { return Err(ScreenshotError("renderer returned an empty frame".to_owned())); }
+    let rgba: Vec<u8> = image.pixels.iter().flat_map(|pixel| pixel.to_array()).collect();
+    let mut png = Vec::new();
+    use image::ImageEncoder;
+    image::codecs::png::PngEncoder::new(&mut png)
+        .write_image(&rgba, width, height, image::ExtendedColorType::Rgba8)
+        .map_err(|error| ScreenshotError(format!("PNG encode failed: {error}")))?;
+    Ok(screenshot_from_png(&png, width, height))
 }
 
 #[derive(Clone)]
@@ -123,6 +203,13 @@ struct RegisteredHandle {
 static WINDOW_HANDLES: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<String, RegisteredHandle>>> = std::sync::OnceLock::new();
 
 pub(crate) fn clear_registered_window_handle(window: &super::argus::RegisteredWindow) {
+    let mut frames = LIVE_FRAMES.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner());
+    if frames.windows.get(&window.descriptor.window_id).is_some_and(|entry|
+        entry.window.epoch == window.epoch && std::sync::Arc::ptr_eq(&entry.window.live, &window.live)) {
+        frames.windows.remove(&window.descriptor.window_id);
+    }
+    frames.pending.retain(|_, pending| !std::sync::Arc::ptr_eq(&pending.window.live, &window.live));
+    drop(frames);
     let mut handles = WINDOW_HANDLES.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner());
     if handles.get(&window.descriptor.window_id).is_some_and(|handle|
         handle.epoch == window.epoch && handle.viewport == window.descriptor.viewport_id
@@ -169,6 +256,7 @@ pub(crate) fn record_viewport_window_handle(
         || window.descriptor.title != title || !window.live.load(std::sync::atomic::Ordering::Acquire) {
         return None;
     }
+    update_live_frame_capture(windows, window_id, ctx);
     let (left, top, right, bottom) = outer_rect_px?;
     if right <= left || bottom <= top { return None; }
     #[cfg(target_os = "windows")]
@@ -187,25 +275,7 @@ pub(crate) fn record_viewport_window_handle(
 }
 
 pub(crate) fn capture_registered_window(window: &super::argus::RegisteredWindow) -> Result<ScreenshotResult, ScreenshotError> {
-    let stored = WINDOW_HANDLES.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner())
-        .get(&window.descriptor.window_id).cloned();
-    let Some(stored) = stored else { return Err(ScreenshotError("Argus window has no recorded live OS handle".to_owned())); };
-    if stored.title != window.descriptor.title || stored.epoch != window.epoch
-        || stored.viewport != window.descriptor.viewport_id
-        || !std::sync::Arc::ptr_eq(&stored.live, &window.live)
-        || !stored.live.load(std::sync::atomic::Ordering::Acquire) {
-        return Err(ScreenshotError("Argus capture window identity is stale".to_owned()));
-    }
-    #[cfg(target_os = "windows")]
-    {
-        let result = windows_capture::capture_registered_handle(stored.handle, &stored.title, std::process::id(), stored.outer_rect_px);
-        if !stored.live.load(std::sync::atomic::Ordering::Acquire) {
-            return Err(ScreenshotError("Argus capture window closed during capture".to_owned()));
-        }
-        result
-    }
-    #[cfg(not(target_os = "windows"))]
-    { let _ = stored.handle; Err(ScreenshotError("Live registered-window capture is Windows-only".to_owned())) }
+    capture_live_frame(&window.descriptor.window_id, Some(window))
 }
 
 /// Win32 GDI window capture (focus-safe `PrintWindow`). Windows-only; gated behind `cfg(windows)` so
