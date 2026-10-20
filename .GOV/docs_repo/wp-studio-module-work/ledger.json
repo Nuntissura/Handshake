@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-20T18:33:48Z",
+ "updated_at": "2026-10-20T19:11:31Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8409,7 +8409,7 @@
   },
   {
    "lane_id": "SMB-AU-WAVEFORM-EDITOR",
-   "crate": "score + harness + session",
+   "crate": "score + harness + session + score-plugin",
    "phase": "validation",
    "status": "READY_FOR_VALIDATION",
    "owner": "builder-au-waveform-20261016",
@@ -8417,10 +8417,12 @@
     "04bb6ed",
     "37c3a58",
     "130d2dd",
-    "af11aa4"
+    "af11aa4",
+    "8411820",
+    "557ac06"
    ],
    "verdicts": [],
-   "note": "sample editor + edit list undo, spectral display (5 windows, LRU tiles), marquee/lasso spectral attenuate/remove/heal (identity recon <=1e-6), effects on selection; session DOCUMENT_ENTRY_TOKENS + waveform_edit. Plugin-on-selection slice pending (edge approved). No STU-AUD clauses exist: spec gap noted",
+   "note": "slice 4b: hosted plugin on waveform selection (opt-in feature audio-plugin; VST3 refused). 331/331 at 8411820; pushed 557ac06 after a rebase over pigment/render commits without re-run (rule 3 deviation: rebase touched dependencies; round covers it). Steward: lock entry + round feature [audio-plugin]",
    "lane_file": "builders/lanes/hsk-studio-au-waveform-editor.json"
   },
   {
