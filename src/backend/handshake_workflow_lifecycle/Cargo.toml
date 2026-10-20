@@ -1,0 +1,11 @@
+[package]
+name = "handshake_workflow_lifecycle"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+tokio = { version = "1", features = ["rt", "sync", "time"] }
+futures-util = "0.3"
