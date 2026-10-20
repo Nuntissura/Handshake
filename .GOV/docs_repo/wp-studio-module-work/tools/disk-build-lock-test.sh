@@ -6,7 +6,8 @@
 # T9 200 acquire/release cycles under 20 owner-file readers: 0 overlaps, 0 failed releases; T10 version fence both
 # ways; T11 pid reuse (start time differs) is dead, same start is alive; T12 round priority + one builder per gap;
 # T13 cargo test refused, --doc allowed; T14 one OVER_MAX_HOLD event per holder, holder not broken; T15 SSD opt-in
-# (STUDIO_BUILD_DISK=ssd: lane target inside the granted C: target, SSD lock, owner attribution, 140 GiB cap guard).
+# (STUDIO_BUILD_DISK=ssd: lane target inside the granted C: target, SSD lock, owner attribution, 140 GiB cap guard);
+# T16 release under open readers; T17 bundled lane check (tools/lane-check.sh).
 # Usage: disk-build-lock-test.sh [SCRATCH_DIR]   (DBL_TEST_ENV / DBL_TEST_KLIB: staged copies)   Exit 0 = all PASS.
 set -u
 TOOLS=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -19,6 +20,8 @@ case "$S" in *steward/dbl-test*) rm -rf "$S" ;; *) echo "scratch must end in ste
 mkdir -p "$S/bin"
 cat >"$S/bin/cargo" <<'EOF'
 #!/usr/bin/env bash
+case "${1:-}" in locate-project|metadata) [ -n "${FAKE_REAL_CARGO:-}" ] && exec "$FAKE_REAL_CARGO" "$@" ;; esac
+[ -n "${FAKE_ARGS_LOG:-}" ] && echo "$* | token=${STUDIO_DISK_BUILD_LOCK_TOKEN:-none} | target=${CARGO_TARGET_DIR:-}" >>"$FAKE_ARGS_LOG"
 echo "${FAKE_TAG:-?} start $(date +%s%3N)" >>"$FAKE_LOG"
 sleep "${FAKE_SLEEP:-3}"
 echo "${FAKE_TAG:-?} end $(date +%s%3N)" >>"$FAKE_LOG"
@@ -257,5 +260,30 @@ bash -c 'source "$1"; dbl_acquire "$2" builder t16b "t16b" t16 || exit 9; first=
 [ $rc -eq 0 ] && grep -q RELEASE_FAILED "$L16/events.log" && grep -q RELEASE_RECOVERED "$L16/events.log" \
   && ok "T16b release failed under a 4 s reader; same process recovered its own leftover and $(cat "$S/T16b.out") s" \
   || bad "T16b rc=$rc $(cat "$S/T16b.out" "$S/T16b.err" "$L16/events.log" 2>/dev/null)"
+
+# T17 bundled lane check (tools/lane-check.sh): (a) one lock hold (same token) runs clippy over the tested crate, then
+# its direct dependent, then the test run with ONE -E filter built from --tests, on the SSD lane target; (b) a tail
+# that is not the literal `cargo nextest run` is refused (2) before any cargo build call.
+mkdir -p "$S/wsl/a/src" "$S/wsl/b/src"; : >"$S/wsl/a/src/lib.rs"; : >"$S/wsl/b/src/lib.rs"
+printf '[workspace]\nmembers = ["a", "b"]\nresolver = "2"\n' >"$S/wsl/Cargo.toml"
+printf '[package]\nname = "dbl-a"\nversion = "0.1.0"\nedition = "2021"\n' >"$S/wsl/a/Cargo.toml"
+printf '[package]\nname = "dbl-b"\nversion = "0.1.0"\nedition = "2021"\n\n[dependencies]\ndbl-a = { path = "../a" }\n' >"$S/wsl/b/Cargo.toml"
+REALCARGO=$(PATH="$REAL" type -P cargo); LANE2=studio-team-dev/steward/dbl-test/lane2
+echo "1 $(date +%s)" >"$REC"; : >"$S/T17.args"
+(cd "$S/wsl" && unset STUDIO_DISK_BUILD_LOCK_DIR _STUDIO_ENV_LOCK_DERIVED STUDIO_DISK_BUILD_LOCK_TOKEN \
+  && STUDIO_SSD_ROOT="$SSD" FAKE_REAL_CARGO="$REALCARGO" FAKE_ARGS_LOG="$S/T17.args" FAKE_SLEEP=0 \
+  bash "$TOOLS/lane-check.sh" --owner "$LANE2" --tests alpha,beta -- cargo nextest run -p dbl-a) >"$S/T17.out" 2>&1; rc=$?
+toks=$(sed -n 's/.*| token=\([^ ]*\) |.*/\1/p' "$S/T17.args" | sort -u)
+if [ $rc -eq 0 ] && [ "$(wc -l <"$S/T17.args")" -eq 3 ] && [ "$(echo "$toks" | wc -l)" -eq 1 ] && [ "$toks" != none ] \
+  && sed -n 1p "$S/T17.args" | grep -q '^clippy -p dbl-a --tests ' && sed -n 2p "$S/T17.args" | grep -q '^clippy -p dbl-b --tests ' \
+  && sed -n 3p "$S/T17.args" | grep -q 'nextest run .*-p dbl-a -E test(alpha) | test(beta) | token' \
+  && grep -q "target=$SSD/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/$LANE2" "$S/T17.args"; then
+  ok "T17a lane-check: clippy dbl-a, clippy dependent dbl-b, one-filter test run, one lock hold, SSD lane target"
+else bad "T17a rc=$rc $(cat "$S/T17.args" "$S/T17.out")"; fi
+: >"$S/T17.args"
+(cd "$S/wsl" && STUDIO_SSD_ROOT="$SSD" FAKE_REAL_CARGO="$REALCARGO" FAKE_ARGS_LOG="$S/T17.args" \
+  bash "$TOOLS/lane-check.sh" --owner "$LANE2" -- cargo build -p dbl-a) >"$S/T17b.out" 2>&1; rc=$?
+[ $rc -eq 2 ] && [ ! -s "$S/T17.args" ] && grep -q "literal test command" "$S/T17b.out" \
+  && ok "T17b lane-check refuses a tail other than 'cargo nextest run' (2), nothing run" || bad "T17b rc=$rc $(cat "$S/T17b.out")"
 echo "RESULT fails=$fails"
 [ $fails -eq 0 ]
