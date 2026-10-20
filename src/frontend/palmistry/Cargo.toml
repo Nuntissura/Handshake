@@ -33,7 +33,7 @@ name = "palmistry"
 path = "src/main.rs"
 
 [dependencies]
-handshake-palmistry-lifecycle = { path = "../handshake_palmistry_lifecycle" }
+handshake-palmistry-lifecycle = { git = "https://github.com/Nuntissura/assets.git", rev = "80a5016cdd72250157c33cb546b73c89497283bd", package = "handshake-palmistry-lifecycle" }
 palmistry-control-protocol = { path = "../palmistry_control_protocol" }
 # MT171 bounded edge: private watcher signing identity; backend HMAC remains a distinct key.
 ed25519-dalek = "3.0.0"
