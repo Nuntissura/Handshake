@@ -1,0 +1,61 @@
+{
+ "crate": "hsk-studio-nib (raster midpoint, stroke butt cap), hsk-studio-motion (spatial tangents, roving), hsk-studio-motion-js (AE expression globals), hsk-studio-render-cpu (d5_ai_oracle, vector_nib golden)",
+ "lane": "SMB-AI-AE-ORACLE-FOLLOWUPS",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-4 pushed (3a876c5..3602062 on codex/handshake-studio-assets); one bundled post-rebase run green",
+ "commits": [
+  {
+   "sha": "3a876c5",
+   "subject": "nib slice 1: Illustrator gradient stop midpoint power curve"
+  },
+  {
+   "sha": "87707e1",
+   "subject": "render-cpu slice 1: re-pin vector_nib/vector_mask frame digests for the midpoint curve"
+  },
+  {
+   "sha": "fb9882c",
+   "subject": "nib slice 2: Illustrator butt-cap extension option; AI-01 re-diagnosis"
+  },
+  {
+   "sha": "5a3186a",
+   "subject": "motion slice 3: spatial Bezier tangents, arc-length timing and roving"
+  },
+  {
+   "sha": "3602062",
+   "subject": "motion-js slice 4: After Effects expression globals value, time, linear()"
+  }
+ ],
+ "capabilities_done": [
+  "nib raster midpoint_curve (Illustrator power curve, det_ln/det_exp IEEE-exact): AI-03 mid25/mid75 MISMATCH -> MATCH",
+  "nib StrokeOptions::butt_cap_extension + ILLUSTRATOR_BUTT_CAP_EXTENSION 0.01 x width (opt-in): AI-01 7 butt variants MISMATCH -> MATCH",
+  "motion Property::with_spatial_tangents/set_spatial_tangents/spatial_tangents, spatial_auto_bezier, rove by spatial arc length: AE-02 three_keys_roving_middle NOT_SUPPORTED -> MISMATCH (expected-listed, 0.011 px vs TOL_PX 0.01; rove time within one AE key-grid step, was 6.3 ms early)",
+  "motion-js AE_GLOBALS_PRELUDE (value, time, linear) for JavaScript engines with span mapping: AE-03 post-expression 3/3 MATCH in new tests/d5_ae_expressions.rs (motion suite rows stay NOT_SUPPORTED: pure Motion has no engine)"
+ ],
+ "tests": {
+  "argv": "one lock hold (D:): clippy -p nib render-cpu composite interop-vector-core interop-vector-svg interop-fig interop-layout motion motion-js (+quickjs) --tests; nextest -p nib render-cpu motion motion-js (+quickjs) --test vector_raster vector_stroke d5_ai_oracle vector_nib vector_mask d5_ae_oracle graph_assistants d5_ae_expressions quickjs_contract",
+  "exit": 0,
+  "sha": "128d8d8 (same inputs as pushed 3602062: the last rebase over d51b0c9 touched only develop, harness, interop-affinity and a workspace member line)",
+  "passed": 39,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": null,
+ "bg_pids": [],
+ "next": "independent validation; lead: AE rerun (FU-AE-3) to prove two_keys_spatial_tangents_set; sampler model FU-AI-2 for the 6 AI-01 137-px miter variants",
+ "updated_at": "2026-10-20T15:25:14Z",
+ "notes": {
+  "worktree": "wt-studio-lanes/smb-ai-ae-oracle-followups (branch lane/smb-ai-ae-oracle-followups from origin/codex/handshake-studio-assets 16d5c9e); STUDIO_OWNER=smb-ai-ae-oracle-followups, D: target (STUDIO_BUILD_DISK unset); lane-gameplan.sh OK (bound HEAD 16d5c9e)",
+  "evidence": "research/d5-ai-id-ae-compare-20261016.json; oracle corpus adobe-session/{illustrator,aftereffects}; scratch numpy models in the session scratchpad (ai01.py reproduces the Rust AI-01 verdicts exactly, e.g. cap_butt_join_miter_miter1 max 48 exact 0.9965 ink -0.00012)",
+  "slice1_midpoint": "oracle fit verified independently: power curve u^(ln .5/ln m) (m>=.5), 1-(1-u)^(ln .5/ln(1-m)) (m<.5) puts all 256 px of mid25/mid75 within 1 level; single-form u^(ln.5/ln m) at m=.25 is 30 levels off; piecewise-linear 40. Implemented with IEEE-exact det_ln/det_exp (no platform ln/pow, STU-VEC-179)",
+  "slice2_butt_cap": "projecting and round caps match at exactly half the width (local model 234/234 px exact); butt caps need +0.13..0.15 px at 14 pt (two-corner fit: both corners extend equally, so not a rotation); 8 pt AI-02 butt dash ends bound the extension below 0.085 px -> constant 0.14 refuted, 0.01 x width fits both. Opt-in StrokeOptions::butt_cap_extension (default 0 keeps SVG/PDF butt caps and every golden); d5 test uses ILLUSTRATOR_BUTT_CAP_EXTENSION",
+  "slice2_miter_finding": "the 6 remaining AI-01 MISMATCHes (miter4/10 x butt/round/projecting, 137-px exports) are NOT the miter tip: nib's apex 136.154 is the exact miter; the max-64 pixels are row 109 x 199..230, the triangle base's inner edge (y=27) lying 0.029 px from a sample row where the oracle sampler's isotropic 0.04 px stroke bias counts a sample Illustrator leaves empty; a global grid offset fixes the triangle but breaks the zig-zag (sampler grid fit over offsets +-0.04 x bias 0..0.04: (0,0,0.04) best). Sampler model (FU-AI-2), not nib geometry",
+  "slice3_spatial": "AE-02 three_keys_roving_middle fit: interior tangent (P3-P1)/6, zero end tangents, arc-length roving: rove time 1.376821 s vs AE 1.376790 s (0.75 of AE's 1/24576 s key grid); path shape normal offset <= 0.0005 px; along-path max 0.011 px (AE arc-length jitter; 0.0045 px even on its straight path); scale 0.160..0.171 and other tangent rules worse",
+  "slice4_expressions": "motion-js has QuickJS (feature quickjs, worker process). value/time/linear bound by a one-line trusted prelude before the validated user source; spans moved back one line. Oracle model with AE-quantised time matches all 3x101 post values to 1e-9 (python check); Rust proof pending",
+  "clippy": "CLIPPY_EXIT 0, no finding in any changed file (pre-existing warnings in hsk-studio-type/observe/render-cpu tests only)",
+  "build_disk": "lead asked for STUDIO_BUILD_DISK=ssd; studio-env refused 77 on the stale record C:/HandshakeBuild/WP-KERNEL-STUDIO/.studio-ssd-size (191 GiB at 2026-10-16T03:27Z); the background re-measure ended without writing a record. Ran on the D: lane target instead. Steward: record stale or tree not cleaned",
+  "repins": "render-cpu tests/vector_nib.rs GOLDEN b6bf11c7.. -> bed62f96.., GOLDEN_CLIPPED b7179c37.. -> cd06d6dc..; tests/vector_mask.rs GOLDENS (vector, vector_inverted, alpha, luminance_inverted_region) -> cd06d6dc.., 32003f5a.., bfb5e372.., 1bc5ead3..; cause: vector_scenes gradient fill uses midpoint 25 %, the value AI-03 mid25 covers; every pixel still equals the nib-paint oracle (max delta 3e-8), VECTOR mask = GOLDEN_CLIPPED holds. render-gpu vector_nib/vector_mask compare to the same oracle with a tolerance (no pin), not run (GPU)",
+  "counts": "Illustrator suite MATCH 59 -> 68 (AI-01 14 -> 21, AI-03 3 -> 5), MISMATCH 15 -> 6; AE motion suite MATCH 337 unchanged, NOT_SUPPORTED 4 -> 3 (roving now expected MISMATCH); motion-js AE-03 3 MATCH",
+  "edges": "no new crate dependency; motion-js tests/d5_ae_expressions.rs #[path]-includes render-cpu tests/d5_support/mod.rs (test-support include, no Cargo edge)",
+  "unverified": "midpoints other than 25/50/75 and Photoshop's midpoint; butt extension at widths other than 8/14 pt and zero-length butt dashes; spatial auto-bezier beyond 3 keys; AE globals on arrays, static properties, tMin > tMax"
+ }
+}

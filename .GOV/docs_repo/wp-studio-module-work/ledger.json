@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-20T15:21:08Z",
+ "updated_at": "2026-10-20T15:25:42Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8623,13 +8623,20 @@
   },
   {
    "lane_id": "SMB-AI-AE-ORACLE-FOLLOWUPS",
-   "crate": "nib + render-cpu/gpu + motion",
-   "phase": "queued",
-   "status": null,
+   "crate": "nib + render-cpu + motion + motion-js",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": null,
-   "commits": [],
+   "commits": [
+    "3a876c5",
+    "87707e1",
+    "fb9882c",
+    "5a3186a",
+    "3602062"
+   ],
    "verdicts": [],
-   "note": "nib gradient midpoint power curve (re-pin render goldens), butt-cap/miter tip sub-pixel; AE spatial-path roving, expression globals value/time/linear"
+   "note": "Illustrator MATCH 59->68 (midpoint power curve, butt-cap extension); AE roving within one AE step, spatial Bezier/auto-bezier, expression value/time/linear (motion-js). Gaps: 6 AI miter cases need test sampling-model fix; AE-02 rerun; 0.011 px arc jitter",
+   "lane_file": "builders/lanes/hsk-studio-ai-ae-oracle-followups.json"
   },
   {
    "lane_id": "SMB-AI-MESH-2",
