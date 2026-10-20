@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-20T19:11:31Z",
+ "updated_at": "2026-10-20T19:39:18Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8036,19 +8036,21 @@
   },
   {
    "lane_id": "SMB-DEVELOP-LENS-PRESETS",
-   "crate": "hsk-studio-develop + prism",
-   "phase": "done (STUDIO-R35 PASS_V2 @237256f)",
-   "status": "PASS_V2",
+   "crate": "hsk-studio-develop + prism + harness",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-lens-presets-20261015",
    "commits": [
     "c0ebc3c",
-    "2dfa3d5"
+    "2dfa3d5",
+    "b0025d2",
+    "658aef4"
    ],
    "verdicts": [
     "STUDIO-R34 FAIL_V1 @ca5e9c9 (develop_colour2.rs:412 version_1_0_recipes_still_read_and_corpus_pin: ADJUST_VERSION (1, 2) from 8d531a1 is the pinned 'unknown' version; F-R34-1)",
     "STUDIO-R35 PASS_V2 @237256f (NOT_PROVEN lines: 32, see round-R35.json)"
    ],
-   "note": "R34 FAIL_V1 remediated c0ebc3c (version probe derived from ADJUST_VERSION; V4-06 site list in lane notes); whole develop suite 110/110. Gap: harness panel controls written locally only, not claimed; .lcp not read",
+   "note": "slice 6: harness develop panel controls (lens/transform/Upright, grain/vignette, calibration, looks, presets, masks refused model_unavailable); harness viewer suite 125/125",
    "lane_file": "builders/lanes/hsk-studio-develop-lens-presets.json"
   },
   {
