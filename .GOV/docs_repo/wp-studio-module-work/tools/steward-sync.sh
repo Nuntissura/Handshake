@@ -187,6 +187,15 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
   inputs_re="^$SUB/(Cargo\.toml|Cargo\.lock|rust-toolchain\.toml|crates/[^/]+/Cargo\.toml|tools/|\.config/)"
   NEW="" PARENT=""
   for attempt in 1 2 3 4 5 6 7 8; do
+    # Lanes push from their own worktrees, so origin moves while the probe waits for the disk lock (3 of 3 syncs on
+    # 2026-10-16..20 failed the push). Fast-forward the shared branch to the origin tip first (two-tree read-tree
+    # refuses if a local edit touches an incoming file); the input check below then decides re-parent vs redo.
+    git fetch -q origin "$BR" && TIP=$(git rev-parse FETCH_HEAD) && LOC=$(git rev-parse "refs/heads/$BR")
+    if [ -n "${TIP:-}" ] && [ "$TIP" != "$LOC" ] && git merge-base --is-ancestor "$LOC" "$TIP"; then
+      git -c core.fscache=false read-tree -m -u "$LOC" "$TIP" && git update-ref "refs/heads/$BR" "$TIP" "$LOC" \
+        || { echo "shared tree could not fast-forward $LOC -> origin $TIP (local edit on an incoming file?); redo"; exit 3; }
+      echo "fast-forwarded shared tree ${LOC:0:7} -> origin ${TIP:0:7}"
+    fi
     PARENT=$(git rev-parse "refs/heads/$BR")
     if [ "$PARENT" != "$BASE" ]; then
       git merge-base --is-ancestor "$BASE" "$PARENT" || { echo "tip $PARENT does not descend from $BASE; redo"; exit 3; }

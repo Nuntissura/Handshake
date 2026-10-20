@@ -8,9 +8,10 @@ import glob, json, os, pathlib, re, sys, tarfile, tomllib
 OK = {"MIT", "Apache-2.0", "0BSD", "BSD-2-Clause", "BSD-3-Clause", "Zlib", "Unlicense", "Unicode-3.0",
       "Unicode-DFS-2016", "ISC", "BSL-1.0", "MIT-0", "CC0-1.0", "Apache-2.0 WITH LLVM-exception"}
 # Explicit per-package allowances, limited to owners (lead decision 2026-10-14, steward 08f28d0 finding): egui's
-# bundled default fonts are permitted only in the UI crates.
+# bundled default fonts are permitted only in the UI crates (harness-view: the UI half of the harness after the
+# SMB-CRATE-SEAM-SPLITS 3b split, 12e2d46).
 PACKAGE_ALLOW = {
-    "epaint_default_fonts": {"owners": {"hsk-studio-controls", "hsk-studio-harness"},
+    "epaint_default_fonts": {"owners": {"hsk-studio-controls", "hsk-studio-harness", "hsk-studio-harness-view"},
                              "terms": {"OFL-1.1", "Ubuntu-font-1.0"}},
 }
 

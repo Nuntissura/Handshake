@@ -285,5 +285,34 @@ else bad "T17a rc=$rc $(cat "$S/T17.args" "$S/T17.out")"; fi
   bash "$TOOLS/lane-check.sh" --owner "$LANE2" -- cargo build -p dbl-a) >"$S/T17b.out" 2>&1; rc=$?
 [ $rc -eq 2 ] && [ ! -s "$S/T17.args" ] && grep -q "literal test command" "$S/T17b.out" \
   && ok "T17b lane-check refuses a tail other than 'cargo nextest run' (2), nothing run" || bad "T17b rc=$rc $(cat "$S/T17b.out")"
+
+# T18 GPU test lock (dbl_gpu_run; SMB-STEWARD-GPU-CONTENTION): (a) render-gpu test runs from two different disk locks
+# (the two build slots) never overlap, a non-GPU test run on another disk overlaps freely; (b) a round queued after a
+# builder gets the GPU lock first; (c) inside the GPU hold a wrapped cargo call re-enters its disk lock (no wait).
+GPUL="$S/gpu-lock"; rm -rf "$GPUL" "$S/diskC" "$S/diskD" "$S/diskE"; : >"$FAKE_LOG"
+t18() { (unset _STUDIO_ENV_LOCK_DERIVED STUDIO_DISK_BUILD_LOCK_TOKEN; export STUDIO_DISK_BUILD_LOCK_DIR="$S/$1" STUDIO_GPU_TEST_LOCK_DIR="$GPUL"; shift
+  cd "$S/ws1" && PATH="$REAL" && source "$ENV" && export PATH="$S/bin:$REAL" && "$@"); }
+(t18 diskC env FAKE_TAG=GA FAKE_SLEEP=3 bash -c 'cargo nextest run -p hsk-studio-render-gpu') 2>"$S/GA.err" &
+ga=$!; sleep 1.5
+(t18 diskD env FAKE_TAG=GB FAKE_SLEEP=1 bash -c 'cargo nextest run -p hsk-studio-render-gpu') 2>"$S/GB.err" &
+gb=$!
+(t18 diskE env FAKE_TAG=GC FAKE_SLEEP=1 bash -c 'cargo nextest run -p hsk-studio-pigment') 2>"$S/GC.err" &
+gc=$!
+wait $ga $gb $gc
+[ -n "$(ts GB start)" ] && [ "$(ts GB start)" -ge "$(ts GA end)" ] && [ -n "$(ts GC start)" ] && [ "$(ts GC start)" -lt "$(ts GA end)" ] \
+  && ok "T18a GPU runs from two disks serialized (GB $(( $(ts GB start) - $(ts GA end) )) ms after GA), non-GPU run overlapped" \
+  || bad "T18a GA $(ts GA start)-$(ts GA end) GB $(ts GB start) GC $(ts GC start) $(cat "$S/GA.err" "$S/GB.err" "$S/GC.err")"
+: >"$FAKE_LOG"
+bash -c 'source "$1"; dbl_gpu_run "$2" builder holder "hold" bash -c "echo \"H start \$(date +%s%3N)\" >>\"$3\"; sleep 3; echo \"H end \$(date +%s%3N)\" >>\"$3\""' _ "$KLIB" "$GPUL" "$FAKE_LOG" 2>/dev/null &
+gh=$!; sleep 1
+(t18 diskE env FAKE_TAG=GQ FAKE_SLEEP=1 bash -c 'cargo nextest run -p hsk-studio-render-gpu') 2>"$S/GQ.err" &
+gq=$!; sleep 1
+bash -c 'source "$1"; dbl_gpu_run "$2" round round-test "round gpu" bash -c "echo \"GR start \$(date +%s%3N)\" >>\"$3\"; sleep 1; echo \"GR end \$(date +%s%3N)\" >>\"$3\""' _ "$KLIB" "$GPUL" "$FAKE_LOG" 2>"$S/GR.err" &
+gr=$!
+wait $gh $gq $gr
+order=$(for t in H GR GQ; do echo "$(ts $t start) $t"; done | sort -n | awk '{printf "%s ", $2}')
+[ "$order" = "H GR GQ " ] && ok "T18b round queued after a builder took the GPU lock first: $order" || bad "T18b order $order $(cat "$S/GQ.err" "$S/GR.err")"
+grep -q "waiting" "$S/GA.err" "$S/GC.err" 2>/dev/null && bad "T18c a GPU-locked run waited on its own disk lock" \
+  || ok "T18c wrapped runs inside the GPU hold re-entered their disk lock (no self-wait)"
 echo "RESULT fails=$fails"
 [ $fails -eq 0 ]

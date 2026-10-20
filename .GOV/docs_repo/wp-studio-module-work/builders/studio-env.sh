@@ -128,6 +128,9 @@ studio_ssd_cap_check() {   # [held]: re-check after a queue wait (record read on
   [ -n "$kib" ] || [ "${1:-}" = held ] || echo "studio-env: SSD tree size unknown (no record yet); measuring in the background, build allowed" >&2
   return 0
 }
+# Machine-wide GPU test lock root (one for both build slots; run-round derives the same <disk lock dir>/../.gpu-test-lock
+# from the D: lock). An explicit caller value wins.
+export STUDIO_GPU_TEST_LOCK_DIR="${STUDIO_GPU_TEST_LOCK_DIR:-${_studio_art}/.gpu-test-lock}"
 studio_disk_lock_run() {
   local label=$1 child=""
   shift
@@ -188,6 +191,20 @@ cargo() {
       esac ;;
     nextest)
       studio_nextest_args "$@"
+      # GPU test lock (tools/disk-build-lock.sh dbl_gpu_run): a test run that selects render-gpu (or the workspace)
+      # also holds the machine-wide GPU test lock inside the disk lock (order disk -> GPU), so the two build slots'
+      # GPU tests never overlap; rounds queue first. STUDIO_GPU_TEST_LOCK=0 skips it (diagnosis only).
+      case " $* " in
+        *" nextest run "*|*" nextest r "*)
+          case " $* " in
+            *" --workspace "*|*" hsk-studio-render-gpu "*|*"=hsk-studio-render-gpu "*)
+              if [ "${STUDIO_GPU_TEST_LOCK:-1}" != 0 ]; then
+                studio_disk_lock_run "cargo $*" dbl_gpu_run "$STUDIO_GPU_TEST_LOCK_DIR" builder "${STUDIO_OWNER:-studio-team-dev}" \
+                  "gpu tests: cargo $* (cwd $PWD)" command cargo "${STUDIO_NX_ARGS[@]}"
+                return $?
+              fi ;;
+          esac ;;
+      esac
       studio_disk_lock_run "cargo $*" command cargo "${STUDIO_NX_ARGS[@]}" ;;
     build|b|check|c|clippy|run|r|bench|doc|d|rustc|rustdoc|fix|install|miri|tarpaulin|llvm-cov)
       studio_disk_lock_run "cargo $*" command cargo "$@" ;;
