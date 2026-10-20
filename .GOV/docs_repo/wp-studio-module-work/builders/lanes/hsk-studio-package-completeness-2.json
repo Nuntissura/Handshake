@@ -1,18 +1,31 @@
 {
  "crate": "hsk-studio-package",
  "lane": "SMB-PACKAGE-COMPLETENESS-2",
- "status": "IN_PROGRESS",
- "phase": "slice 1 committed in lane worktree (folio ports + catalog asset_id + linked health check); final tests waiting on the D: disk lock behind validation round C48",
- "commits": [],
- "capabilities_done": [],
- "tests": {"argv": null, "exit": null, "sha": null, "passed": null, "failed": null},
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slice 1 pushed (608dbce): resolver ports, linked placed-source health check, CKC catalog asset_id; bundled whole-suite run green",
+ "commits": [
+  {"sha": "608dbce", "subject": "folio + package + session (SMB-PACKAGE-COMPLETENESS-2 slice 1): font, audio, LUT and placed-link resolver ports; linked placed sources health-checked at open; CKC catalog asset_id on media clips and placed sources"}
+ ],
+ "capabilities_done": [
+  "(1) Folio Resolver ports with Absent defaults: font(family, style), audio(audio_id), lut(lut, Option<content_digest>) (adjustment LUT references and clip-finishing StudioLutRef), placed_link(uri, content_digest); TypeStyleResolver forwards them; package externals resolve fonts (type styles, template control font_family / locked_font, motion template required_fonts), composition audio and LUTs through them, so they are resolved or typed losses (UnavailableExternal), never 'unresolved'",
+  "(2) linked placed sources: package LinkedFileResolver answers placed_link from the file next to the opened document (relative uri only, traversal / absolute / drive / backslash / NUL refused as unauthorized, canonical path must stay inside the document directory, sha256 in 1 MiB chunks bounded by max_bytes: resolved / modified / missing / unsupported); sessions opened from a path use it at open (loss notes) and in Session::externals",
+  "(3) optional CKC catalog asset_id on ClipSource::Media and StudioPlacedSource (serde default, not encoded when absent, earlier documents byte-identical); Folio is_catalog_asset_id = the kernel-bindings AssetId UUID grammar (test catalog_asset_id_contract compares both over a corpus incl. every single-byte mutation of a valid id); ExternalRef.asset_id carries it for relink by catalog record; every ClipSource::Media construction in the workspace gained asset_id: None (patterns ..), interop-psd placed-source construction asset_id: None",
+  "schema guard extended: book and clip_finishing schemas added; it caught clip-finishing StudioLutRef (now colour_lookup with hash, embeddable under Granted/All), book chapters (new kind book_chapter: chapter SDOC id + file_path, Resolver::primitive(hsk.studio.document@1, id)) and template fonts (required_fonts, locked_font, control font_family); mask_tiles digest guard extended with motion, layout-flow, book and clip-finishing schemas and StudioLutRef"
+ ],
+ "tests": {"argv": "tools/lane-check.sh --owner smb-package-completeness --disk d (SSD refused 77 at 189 GiB) -- cargo nextest run -p hsk-studio-folio -p hsk-studio-package -p hsk-studio-session -p hsk-studio-pulse -p hsk-studio-harness -p hsk-studio-interop-media -p hsk-studio-interop-psd -p hsk-studio-kernel-bindings --features hsk-studio-harness/media --no-fail-fast: clippy over these crates and their direct dependents, then the WHOLE test suites of every changed crate, one lock hold; also classified during rebases: layout_grids schema added, StudioGridAlignment.story_id and vector path-text / gradient-mesh properties internal", "exit": 0, "sha": "c5a3d5c (rebased to 608dbce over a workspace-metadata-only Cargo.toml change; no re-run per build strategy 3)", "passed": 433, "failed": 0},
  "blockers": [],
- "lock_wait_s": null,
+ "lock_wait_s": 9000,
  "bg_pids": [],
- "next": "push slice 1",
- "updated_at": "2026-10-16T00:30:00Z",
+ "next": "validator round on 608dbce",
+ "updated_at": "2026-10-20T16:40:00Z",
  "notes": {
+  "spec_basis": "STU-ASSET-005 link record (asset_id = PRIM-Asset handle), STU-ASSET-006 an embedded placement still carries asset_id, STU-ASSET-007 closed link states, STU-ASSET-008 LUTs, fonts and media are artifact-tier bytes, STU-ASSET-010 no direct filesystem access from Studio commands (the linked-file check is a host-side resolver decorator, not a package read), STU-LAY-132 link status missing / out_of_date, STU-COL-158 LUT content_hash, STU-VID-070c template font requirements",
   "housekeeping": "stale shared-tree copies of this builder's paths stashed reversibly in wt-studio-assets: stash c3365f7 'SAFETY: smb-package stale shared-tree edits 2026-10-15' (package lib/references/stream/write, session session.rs and the source.rs load_parts hunk only; the other lane's source.rs import_ref hunk was lifted out first with git apply -R and re-applied after, so it stays in the working tree and is not in the stash); not dropped",
+  "cross_crate": "the ClipSource::Media field forced mechanical edits (asset_id: None or ..) in pulse, harness, interop-media, folio, session and package files of other lanes; constructions only, no behaviour change; reported here for the lead",
+  "build_disk": "bundled run on D: (lane-check SSD attempt refused 77 at 189 GiB > cap, then --disk d with STUDIO_DISK_BUILD_LOCK_TIMEOUT_S=14400); one earlier SSD folio check before the lead's stop",
+  "schema_guard_gap": "the guard's schema list is maintained by hand: a new Folio *_schema() function must be added to tests/externals.rs and tests/mask_tiles.rs (Folio types outside every schema, e.g. motion_preset, are not checked)",
+  "transient": "one D: run failed with rustc exit 1 and no diagnostic while compiling folio; the same tree then checked clean, treated as transient (no gameplan step)",
+  "gaps": "Folio's own validators do not yet call the new ports (only the package does); book chapters resolve by document id through the primitive port, the chapter file_path is not hash-checked (Folio records no chapter digest)",
   "cargo_lock": "not touched"
  }
 }

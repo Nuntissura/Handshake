@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-20T15:49:59Z",
+ "updated_at": "2026-10-20T16:27:42Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8157,13 +8157,16 @@
   },
   {
    "lane_id": "SMB-PACKAGE-COMPLETENESS-2",
-   "crate": "hsk-studio-folio",
-   "phase": "build",
-   "status": null,
+   "crate": "folio + package + kernel-bindings + 5 consumers",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-package-20261015",
-   "commits": [],
+   "commits": [
+    "608dbce"
+   ],
    "verdicts": [],
-   "note": "folio resolver ports for fonts, audio, LUTs (so unresolved becomes typed loss or resolved); linked placed-source health check at open; catalog asset_id references per CKC ports"
+   "note": "resolver ports (fonts/audio/LUT/linked placed) with typed losses; linked-source health check with path-escape refusal; optional catalog asset_id; schema guard extended (book, clip-finishing, layout-grid). 433/433 over 8 crates. Gaps: folio validators not yet calling ports; chapter hash checks; schema list hand-maintained",
+   "lane_file": "builders/lanes/hsk-studio-package-completeness-2.json"
   },
   {
    "lane_id": "SMB-AUDITION-UI-2",
