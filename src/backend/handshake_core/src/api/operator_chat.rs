@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     routing::{get, post},
     Json, Router,
 };
@@ -54,6 +54,8 @@ type ApiError = (StatusCode, Json<Value>);
 #[derive(Clone)]
 pub struct OperatorChatState {
     launch_service: Option<Arc<OperatorChatLaunchService>>,
+    #[cfg(feature = "runtime-full")]
+    account_bootstrap: Option<crate::AccountBootstrapState>,
     catalog: Option<Arc<ModelCatalog>>,
     cloud_registry: Arc<dyn ProviderAccessRegistry>,
     cli_auth_probe: Arc<dyn CliBridgeAuthStatusProbe>,
@@ -84,6 +86,8 @@ impl OperatorChatState {
     ) -> Self {
         Self {
             launch_service: Some(launch_service),
+            #[cfg(feature = "runtime-full")]
+            account_bootstrap: None,
             catalog: catalog.into(),
             cloud_registry,
             cli_auth_probe,
@@ -100,6 +104,8 @@ impl OperatorChatState {
     pub fn production() -> Self {
         Self {
             launch_service: None,
+            #[cfg(feature = "runtime-full")]
+            account_bootstrap: None,
             catalog: None,
             cloud_registry: Arc::new(InMemoryAccessRegistry::new()),
             cli_auth_probe: Arc::new(UnavailableOperatorChatCliAuthProbe),
@@ -107,6 +113,12 @@ impl OperatorChatState {
             recorder: Arc::new(NoopOperatorChatRecorder),
             session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
         }
+    }
+
+    #[cfg(feature = "runtime-full")]
+    pub fn with_account_bootstrap(mut self, bootstrap: crate::AccountBootstrapState) -> Self {
+        self.account_bootstrap = Some(bootstrap);
+        self
     }
 
     pub fn with_launch_service(mut self, service: Arc<OperatorChatLaunchService>) -> Self {
@@ -230,6 +242,10 @@ pub fn scoped_routes(state: OperatorChatState) -> Router {
         .route("/operator-chat/selection", post(scoped_record_selection))
         .route("/operator-chat/launch", post(scoped_launch_session))
         .route(
+            "/operator-chat/validator-designation",
+            post(scoped_designate_validator_runner),
+        )
+        .route(
             "/operator-chat/cloud/single-run/grant-launch",
             post(scoped_launch_single_run_cloud_consent),
         )
@@ -310,10 +326,11 @@ async fn scoped_recover_routing_lifecycle(
 async fn scoped_complete_routing_authority(
     state: State<OperatorChatState>,
     scope: RequestAccountScope,
+    headers: HeaderMap,
     request: Json<OperatorChatRoutingAuthorityRequest>,
 ) -> Result<Json<Value>, ApiError> {
     require_operator_chat_exact_scope(&state, scope.exact())?;
-    complete_routing_authority(state, request).await
+    complete_routing_authority(state, headers, request).await
 }
 
 async fn scoped_cancel_routing_lifecycle(
@@ -392,10 +409,76 @@ async fn scoped_record_selection(
 async fn scoped_launch_session(
     state: State<OperatorChatState>,
     scope: RequestAccountScope,
+    headers: HeaderMap,
     request: Json<OperatorChatLaunchRequest>,
 ) -> Result<Json<Value>, ApiError> {
     require_operator_chat_exact_scope(&state, scope.exact())?;
-    launch_session_for_scope(state, request, Some(scope.exact())).await
+    #[cfg(feature = "runtime-full")]
+    {
+        let bootstrap = state.account_bootstrap.clone().ok_or_else(|| {
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({"error": "role_authority_authentication_unavailable"})),
+            )
+        })?;
+        let session = crate::api::authority::authenticated_session_credentials_bootstrap(
+            &bootstrap, &headers,
+        ).await?;
+        let authentication = crate::storage::surreal::resource_authority::RoleAuthorityAuthInput::new(
+            session.session_token, session.channel_binding_hash,
+        );
+        launch_session_for_scope(
+            state, request, Some(scope.exact()), Some((bootstrap, authentication)),
+        ).await
+    }
+    #[cfg(not(feature = "runtime-full"))]
+    {
+        let _ = (headers, request);
+        Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error": "role_authority_authentication_unavailable"})),
+        ))
+    }
+}
+
+async fn scoped_designate_validator_runner(
+    State(state): State<OperatorChatState>,
+    scope: RequestAccountScope,
+    headers: HeaderMap,
+    Json(request): Json<crate::swarm_orchestration::model_lane::WorkspaceValidatorRunnerDesignationRequest>,
+) -> Result<Json<Value>, ApiError> {
+    require_operator_chat_exact_scope(&state, scope.exact())?;
+    #[cfg(feature = "runtime-full")]
+    {
+        let bootstrap = state.account_bootstrap.as_ref().ok_or_else(|| {
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({"error": "role_authority_authentication_unavailable"})),
+            )
+        })?;
+        let session = crate::api::authority::authenticated_session_credentials_bootstrap(
+            bootstrap, &headers,
+        ).await?;
+        let authentication = crate::storage::surreal::resource_authority::RoleAuthorityAuthInput::new(
+            session.session_token, session.channel_binding_hash,
+        );
+        let designation = routing_service(&state)?
+            .designate_authenticated_validator(
+                bootstrap, authentication, request,
+            ).await.map_err(launch_api_error)?;
+        serde_json::to_value(designation).map(Json).map_err(|_| (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "validator_designation_projection_unavailable"})),
+        ))
+    }
+    #[cfg(not(feature = "runtime-full"))]
+    {
+        let _ = (headers, request);
+        Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error": "role_authority_authentication_unavailable"})),
+        ))
+    }
 }
 
 async fn scoped_launch_single_run_cloud_consent(
@@ -578,15 +661,42 @@ async fn recover_routing_lifecycle(
 
 async fn complete_routing_authority(
     State(state): State<OperatorChatState>,
+    headers: HeaderMap,
     Json(request): Json<OperatorChatRoutingAuthorityRequest>,
 ) -> Result<Json<Value>, ApiError> {
-    let batch = routing_service(&state)?
-        .complete_routing_authority(request)
-        .await
-        .map_err(launch_api_error)?;
-    Ok(Json(
-        serde_json::to_value(batch).unwrap_or_else(|_| json!({})),
-    ))
+    #[cfg(feature = "runtime-full")]
+    {
+        let bootstrap = state.account_bootstrap.as_ref().ok_or_else(|| {
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({"error": "role_authority_authentication_unavailable"})),
+            )
+        })?;
+        let session = crate::api::authority::authenticated_session_credentials_bootstrap(
+            bootstrap,
+            &headers,
+        )
+        .await?;
+        let authentication = crate::storage::surreal::resource_authority::RoleAuthorityAuthInput::new(
+            session.session_token,
+            session.channel_binding_hash,
+        );
+        let batch = routing_service(&state)?
+            .complete_routing_authority(bootstrap, authentication, request)
+            .await
+            .map_err(launch_api_error)?;
+        Ok(Json(
+            serde_json::to_value(batch).unwrap_or_else(|_| json!({})),
+        ))
+    }
+    #[cfg(not(feature = "runtime-full"))]
+    {
+        let _ = (state, headers, request);
+        Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error": "role_authority_authentication_unavailable"})),
+        ))
+    }
 }
 
 async fn cancel_routing_lifecycle(
@@ -893,13 +1003,22 @@ async fn launch_session(
     State(state): State<OperatorChatState>,
     Json(request): Json<OperatorChatLaunchRequest>,
 ) -> Result<Json<Value>, ApiError> {
-    launch_session_for_scope(State(state), Json(request), None).await
+    launch_session_for_scope(
+        State(state), Json(request), None,
+        #[cfg(feature = "runtime-full")]
+        None,
+    ).await
 }
 
 async fn launch_session_for_scope(
     State(state): State<OperatorChatState>,
     Json(request): Json<OperatorChatLaunchRequest>,
     request_scope: Option<&ExactResourceScopeAttribution>,
+    #[cfg(feature = "runtime-full")]
+    authentication: Option<(
+        crate::AccountBootstrapState,
+        crate::storage::surreal::resource_authority::RoleAuthorityAuthInput,
+    )>,
 ) -> Result<Json<Value>, ApiError> {
     let Some(service) = state.launch_service.clone() else {
         return Err((
@@ -930,11 +1049,24 @@ async fn launch_session_for_scope(
         })?;
     let selection =
         request.into_governed_selection(lineage.owner_session_id, lineage.parent_session_id);
+    #[cfg(feature = "runtime-full")]
+    let launched = match (request_scope, authentication) {
+        (Some(scope), Some((bootstrap, authentication))) => service
+            .launch_authenticated_scoped(&selection, scope, &bootstrap, authentication)
+            .await,
+        (Some(scope), None) => service.launch_scoped(&selection, scope).await,
+        (None, None) => service.launch(&selection).await,
+        (None, Some(_)) => return Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({"error": "resource_scope_unavailable"})),
+        )),
+    };
+    #[cfg(not(feature = "runtime-full"))]
     let launched = match request_scope {
         Some(scope) => service.launch_scoped(&selection, scope).await,
         None => service.launch(&selection).await,
-    }
-    .map_err(launch_api_error)?;
+    };
+    let launched = launched.map_err(launch_api_error)?;
     Ok(Json(
         serde_json::to_value(launched).unwrap_or_else(|_| json!({})),
     ))
@@ -1173,5 +1305,141 @@ mod client_safety_tests {
         assert_eq!(status, StatusCode::BAD_REQUEST);
         assert_eq!(body, json!({"error": "bad_request"}));
         assert!(!body.to_string().contains(canary));
+    }
+}
+
+#[cfg(feature = "runtime-full")]
+pub use paired_preparation::{
+    prepare_operator_chat_operation, OperatorChatPreparationState, PreparedOperatorChatOperation,
+};
+
+#[cfg(feature = "runtime-full")]
+mod paired_preparation {
+    use std::any::Any;
+    use std::future::Future;
+    use std::panic::AssertUnwindSafe;
+    use std::pin::Pin;
+    use std::sync::Arc;
+
+    use axum::http::HeaderMap;
+    use futures::FutureExt;
+    use tokio::time::{timeout_at, Instant};
+
+    use crate::api::jobs::CreateJobRequest;
+    use crate::jobs::{JobAdmission, JobAdmissionError};
+    use crate::swarm_orchestration::operator_chat::{
+        OperatorChatAdmissionSlot, OwnedOperatorChatOperation,
+    };
+    use crate::AppState;
+
+    type OriginalFuture = Pin<Box<dyn Future<Output = Result<JobAdmission, JobAdmissionError>> + Send + 'static>>;
+
+    enum PreparationSlot {
+        Pending(OriginalFuture),
+        Prepared(JobAdmission),
+        ReturnedError(JobAdmissionError),
+        PanickedUnknown {
+            original_future: OriginalFuture,
+            payload: Box<dyn Any + Send>,
+        },
+    }
+
+    pub enum OperatorChatPreparationState<'a> {
+        Pending,
+        Prepared,
+        ReturnedError(&'a JobAdmissionError),
+        PanickedUnknown,
+    }
+
+    impl PreparationSlot {
+        fn view(&self) -> OperatorChatPreparationState<'_> {
+            match self {
+                Self::Pending(_) => OperatorChatPreparationState::Pending,
+                Self::Prepared(_) => OperatorChatPreparationState::Prepared,
+                Self::ReturnedError(error) => OperatorChatPreparationState::ReturnedError(error),
+                Self::PanickedUnknown { original_future, payload } => {
+                    // Retain both original owners without exposing or polling the poisoned future.
+                    let _ = (original_future, payload);
+                    OperatorChatPreparationState::PanickedUnknown
+                }
+            }
+        }
+    }
+
+    /// Owns preparation only. Registry retention is not an owner/parent-entry lease or ActiveHold.
+    #[must_use = "retain the original preparation owner on pending, error or panic"]
+    pub struct PreparedOperatorChatOperation {
+        state: Arc<AppState>,
+        original_deadline: Instant,
+        // The options are taken only during synchronous ownership transfer, never across await.
+        first: Option<PreparationSlot>,
+        second: Option<PreparationSlot>,
+    }
+
+    /// Capture exactly the two requests consumed by the paired-initial service, without a POST.
+    pub fn prepare_operator_chat_operation(
+        state: Arc<AppState>,
+        headers: HeaderMap,
+        first: CreateJobRequest,
+        second: CreateJobRequest,
+        original_deadline: Instant,
+    ) -> PreparedOperatorChatOperation {
+        let first = Box::pin(crate::api::jobs::prepare_job_admission(state.clone(), headers.clone(), first));
+        let second = Box::pin(crate::api::jobs::prepare_job_admission(state.clone(), headers, second));
+        PreparedOperatorChatOperation {
+            state, original_deadline,
+            first: Some(PreparationSlot::Pending(first)),
+            second: Some(PreparationSlot::Pending(second)),
+        }
+    }
+
+    impl PreparedOperatorChatOperation {
+        /// A cancelled or expired borrowed wait leaves the same future in this owner.
+        pub async fn prepare(&mut self) {
+            poll_original(&mut self.first, self.original_deadline).await;
+            if matches!(self.first.as_ref(), Some(PreparationSlot::Prepared(_))) {
+                poll_original(&mut self.second, self.original_deadline).await;
+            }
+        }
+
+        pub fn preparation(&self, slot: OperatorChatAdmissionSlot) -> OperatorChatPreparationState<'_> {
+            match slot {
+                OperatorChatAdmissionSlot::First => self.first.as_ref(),
+                OperatorChatAdmissionSlot::Second => self.second.as_ref(),
+            }.expect("original preparation slot is retained outside synchronous transfer").view()
+        }
+
+        pub fn into_operation(mut self) -> Result<OwnedOperatorChatOperation, Self> {
+            if !matches!(self.first.as_ref(), Some(PreparationSlot::Prepared(_)))
+                || !matches!(self.second.as_ref(), Some(PreparationSlot::Prepared(_))) {
+                return Err(self);
+            }
+            let (Some(PreparationSlot::Prepared(first)), Some(PreparationSlot::Prepared(second))) =
+                (self.first.take(), self.second.take()) else {
+                    unreachable!("both private slots were checked before synchronous transfer")
+                };
+            Ok(OwnedOperatorChatOperation::begin(first, second, self.state, self.original_deadline))
+        }
+    }
+
+    async fn poll_original(slot: &mut Option<PreparationSlot>, original_deadline: Instant) {
+        let outcome = match slot.as_mut() {
+            Some(PreparationSlot::Pending(original_future)) => {
+                timeout_at(original_deadline, AssertUnwindSafe(original_future.as_mut()).catch_unwind()).await
+            }
+            _ => return,
+        };
+        match outcome {
+            Err(_) => {} // The borrowed timeout wrapper drops; the original future remains owned.
+            Ok(Ok(Ok(admission))) => *slot = Some(PreparationSlot::Prepared(admission)),
+            Ok(Ok(Err(error))) => *slot = Some(PreparationSlot::ReturnedError(error)),
+            Ok(Err(payload)) => {
+                let Some(PreparationSlot::Pending(original_future)) = slot.take() else {
+                    unreachable!("only the original pending future is polled")
+                };
+                // This preserves custody, not resources already unwound inside the supplier.
+                *slot = Some(PreparationSlot::PanickedUnknown { original_future, payload });
+            }
+        }
     }
 }

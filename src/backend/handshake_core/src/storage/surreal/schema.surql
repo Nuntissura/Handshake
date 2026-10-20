@@ -103,38 +103,38 @@ DEFINE EVENT OVERWRITE mt109_workspace_reconciliation_queue ON TABLE workspaces
         CREATE $queue SET resource_kind = 'reconciliation_queue', external_resource_id = 'mt109-protected-reconciliation:' + $external, owner_account_id = $service_principal.account_id, created_by_principal_id = $service_principal.id, created_in_session_id = NONE, access_space_id = $service_space.id, creator_grant_id = $grant, parent_resource_id = $service_root.id, schema_version = 1, lifecycle_state = 'active', policy_version = math::max([$service_principal.policy_version, $service_space.policy_version, $service_root.policy_version]), classification = 'restricted', storage_locator_hash = crypto::sha256('reconciliation_queue:' + $external), created_at = time::now(), updated_at = time::now() RETURN NONE;
         CREATE $grant SET account_id = $service_principal.account_id, principal_id = $service_principal.id, access_space_id = $service_space.id, resource_id = $queue, actions = ['reconcile'], capability_ids = ['fr.ingest.native_editor','memory.commit'], delegation_chain = [record::id($service_principal.id)], status = 'active', grant_version = 1, policy_version = $queue.policy_version, expires_at = NONE, revoked_at = NONE, created_at = time::now(), updated_at = time::now() RETURN NONE;
     };
-DEFINE TABLE OVERWRITE documents SCHEMAFULL PERMISSIONS NONE;
-DEFINE FIELD OVERWRITE workspace_id ON TABLE documents TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
-DEFINE FIELD OVERWRITE title ON TABLE documents TYPE string;
-DEFINE FIELD OVERWRITE last_job_id ON TABLE documents TYPE option<string>;
-DEFINE FIELD OVERWRITE last_workflow_id ON TABLE documents TYPE option<string>;
-DEFINE FIELD OVERWRITE last_actor_id ON TABLE documents TYPE option<string>;
-DEFINE FIELD OVERWRITE edit_event_id ON TABLE documents TYPE string DEFAULT '00000000-0000-0000-0000-000000000000';
-DEFINE FIELD OVERWRITE last_actor_kind ON TABLE documents TYPE string DEFAULT 'SYSTEM';
-DEFINE FIELD OVERWRITE created_at ON TABLE documents TYPE datetime DEFAULT time::now();
-DEFINE FIELD OVERWRITE updated_at ON TABLE documents TYPE datetime DEFAULT time::now();
+DEFINE TABLE OVERWRITE documents SCHEMAFULL PERMISSIONS FOR select WHERE fn::wp012_model_lane_navigation_memory_document_metadata_access($this) FOR create, update, delete NONE;
+DEFINE FIELD OVERWRITE workspace_id ON TABLE documents TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE PERMISSIONS FOR select WHERE fn::wp012_model_lane_navigation_memory_document_metadata_access($this);
+DEFINE FIELD OVERWRITE title ON TABLE documents TYPE string PERMISSIONS FOR select NONE;
+DEFINE FIELD OVERWRITE last_job_id ON TABLE documents TYPE option<string> PERMISSIONS FOR select NONE;
+DEFINE FIELD OVERWRITE last_workflow_id ON TABLE documents TYPE option<string> PERMISSIONS FOR select NONE;
+DEFINE FIELD OVERWRITE last_actor_id ON TABLE documents TYPE option<string> PERMISSIONS FOR select NONE;
+DEFINE FIELD OVERWRITE edit_event_id ON TABLE documents TYPE string DEFAULT '00000000-0000-0000-0000-000000000000' PERMISSIONS FOR select NONE;
+DEFINE FIELD OVERWRITE last_actor_kind ON TABLE documents TYPE string DEFAULT 'SYSTEM' PERMISSIONS FOR select NONE;
+DEFINE FIELD OVERWRITE created_at ON TABLE documents TYPE datetime DEFAULT time::now() PERMISSIONS FOR select NONE;
+DEFINE FIELD OVERWRITE updated_at ON TABLE documents TYPE datetime DEFAULT time::now() PERMISSIONS FOR select NONE;
 DEFINE EVENT OVERWRITE enforce_actor_job_consistency ON TABLE documents
     WHEN ($event = 'CREATE' OR $event = 'UPDATE')
       AND $after.last_actor_kind = 'AI' AND $after.last_job_id = NONE
     THEN { THROW 'documents.last_job_id is required when last_actor_kind is AI'; };
 
-DEFINE TABLE OVERWRITE blocks SCHEMAFULL PERMISSIONS NONE;
-DEFINE FIELD OVERWRITE document_id ON TABLE blocks TYPE record<documents> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
-DEFINE FIELD OVERWRITE kind ON TABLE blocks TYPE string;
-DEFINE FIELD OVERWRITE sequence ON TABLE blocks TYPE int;
-DEFINE FIELD OVERWRITE raw_content ON TABLE blocks TYPE string;
-DEFINE FIELD OVERWRITE display_content ON TABLE blocks TYPE string;
-DEFINE FIELD OVERWRITE derived_content ON TABLE blocks TYPE object FLEXIBLE DEFAULT {};
-DEFINE FIELD OVERWRITE derived_content.* ON TABLE blocks TYPE any;
-DEFINE FIELD OVERWRITE last_job_id ON TABLE blocks TYPE option<string>;
-DEFINE FIELD OVERWRITE last_workflow_id ON TABLE blocks TYPE option<string>;
-DEFINE FIELD OVERWRITE last_actor_id ON TABLE blocks TYPE option<string>;
-DEFINE FIELD OVERWRITE edit_event_id ON TABLE blocks TYPE string DEFAULT '00000000-0000-0000-0000-000000000000';
-DEFINE FIELD OVERWRITE last_actor_kind ON TABLE blocks TYPE string DEFAULT 'SYSTEM';
-DEFINE FIELD OVERWRITE sensitivity ON TABLE blocks TYPE option<string>;
-DEFINE FIELD OVERWRITE exportable ON TABLE blocks TYPE option<bool> DEFAULT true;
-DEFINE FIELD OVERWRITE created_at ON TABLE blocks TYPE datetime DEFAULT time::now();
-DEFINE FIELD OVERWRITE updated_at ON TABLE blocks TYPE datetime DEFAULT time::now();
+DEFINE TABLE OVERWRITE blocks SCHEMAFULL PERMISSIONS FOR select WHERE fn::wp012_model_lane_navigation_memory_block_metadata_access($this) FOR create, update, delete NONE;
+DEFINE FIELD OVERWRITE document_id ON TABLE blocks TYPE record<documents> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE PERMISSIONS FOR select WHERE fn::wp012_model_lane_navigation_memory_block_metadata_access($this);
+DEFINE FIELD OVERWRITE kind ON TABLE blocks TYPE string PERMISSIONS FOR select NONE;
+DEFINE FIELD OVERWRITE sequence ON TABLE blocks TYPE int PERMISSIONS FOR select NONE;
+DEFINE FIELD OVERWRITE raw_content ON TABLE blocks TYPE string PERMISSIONS FOR select NONE;
+DEFINE FIELD OVERWRITE display_content ON TABLE blocks TYPE string PERMISSIONS FOR select NONE;
+DEFINE FIELD OVERWRITE derived_content ON TABLE blocks TYPE object FLEXIBLE DEFAULT {} PERMISSIONS FOR select NONE;
+DEFINE FIELD OVERWRITE derived_content.* ON TABLE blocks TYPE any PERMISSIONS FOR select NONE;
+DEFINE FIELD OVERWRITE last_job_id ON TABLE blocks TYPE option<string> PERMISSIONS FOR select NONE;
+DEFINE FIELD OVERWRITE last_workflow_id ON TABLE blocks TYPE option<string> PERMISSIONS FOR select NONE;
+DEFINE FIELD OVERWRITE last_actor_id ON TABLE blocks TYPE option<string> PERMISSIONS FOR select NONE;
+DEFINE FIELD OVERWRITE edit_event_id ON TABLE blocks TYPE string DEFAULT '00000000-0000-0000-0000-000000000000' PERMISSIONS FOR select NONE;
+DEFINE FIELD OVERWRITE last_actor_kind ON TABLE blocks TYPE string DEFAULT 'SYSTEM' PERMISSIONS FOR select NONE;
+DEFINE FIELD OVERWRITE sensitivity ON TABLE blocks TYPE option<string> PERMISSIONS FOR select NONE;
+DEFINE FIELD OVERWRITE exportable ON TABLE blocks TYPE option<bool> DEFAULT true PERMISSIONS FOR select NONE;
+DEFINE FIELD OVERWRITE created_at ON TABLE blocks TYPE datetime DEFAULT time::now() PERMISSIONS FOR select WHERE fn::wp012_model_lane_navigation_memory_block_metadata_access($this);
+DEFINE FIELD OVERWRITE updated_at ON TABLE blocks TYPE datetime DEFAULT time::now() PERMISSIONS FOR select WHERE fn::wp012_model_lane_navigation_memory_block_metadata_access($this);
 DEFINE EVENT OVERWRITE enforce_actor_job_consistency ON TABLE blocks
     WHEN ($event = 'CREATE' OR $event = 'UPDATE')
       AND $after.last_actor_kind = 'AI' AND $after.last_job_id = NONE
@@ -914,8 +914,8 @@ DEFINE SEQUENCE IF NOT EXISTS kernel_event_sequence BATCH 1 START 1;
 
 -- MT109_AUTHORITY_BEGIN
 DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
-    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids) AND (aggregate_type != 'argus_action' OR (aggregate_id = payload.action_id AND correlation_id = payload.action_id AND kernel_task_run_id = 'argus:' + payload.connection_id AND session_run_id = 'argus:' + payload.connection_id AND idempotency_key = 'argus-action-receipt:' + payload.diagnostics_session_id + ':' + payload.action_id AND authority_action = 'create' AND authority_resource_id.resource_kind = 'flight_recorder' AND owner_account_id = payload.owner_account_id AND actor_principal_id = payload.actor_principal_id AND authenticated_session_id = payload.authenticated_session_id AND access_space_id = payload.access_space_id AND workspace_id = payload.workspace_id AND authenticated_session_id = record::id(authority_session_id) AND owner_account_id = record::id(authority_session_id.account_id) AND actor_principal_id = record::id(authority_session_id.principal_id) AND access_space_id = record::id(authority_session_id.access_space_id) AND actor_kind IN ['operator', 'toolgate'] AND actor_kind = authority_session_id.principal_id.actor_kind AND actor_id = authority_session_id.principal_id.actor_id))) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_model_lane_receipt($this, false)
-                FOR create WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids) AND (aggregate_type != 'argus_action' OR (aggregate_id = payload.action_id AND correlation_id = payload.action_id AND kernel_task_run_id = 'argus:' + payload.connection_id AND session_run_id = 'argus:' + payload.connection_id AND idempotency_key = 'argus-action-receipt:' + payload.diagnostics_session_id + ':' + payload.action_id AND authority_action = 'create' AND authority_resource_id.resource_kind = 'flight_recorder' AND owner_account_id = payload.owner_account_id AND actor_principal_id = payload.actor_principal_id AND authenticated_session_id = payload.authenticated_session_id AND access_space_id = payload.access_space_id AND workspace_id = payload.workspace_id AND authenticated_session_id = record::id(authority_session_id) AND owner_account_id = record::id(authority_session_id.account_id) AND actor_principal_id = record::id(authority_session_id.principal_id) AND access_space_id = record::id(authority_session_id.access_space_id) AND authority_session_id = $auth.id AND owner_account_id = record::id($auth.account_id) AND actor_principal_id = record::id($auth.principal_id) AND authenticated_session_id = record::id($auth.id) AND access_space_id = record::id($auth.access_space_id) AND actor_kind IN ['operator', 'toolgate'] AND actor_kind = authority_session_id.principal_id.actor_kind AND actor_id = authority_session_id.principal_id.actor_id))) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::wp012_model_lane_receipt($this, true)
+    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids) AND (aggregate_type != 'argus_action' OR (aggregate_id = payload.action_id AND correlation_id = payload.action_id AND kernel_task_run_id = 'argus:' + payload.connection_id AND session_run_id = 'argus:' + payload.connection_id AND idempotency_key = 'argus-action-receipt:' + payload.diagnostics_session_id + ':' + payload.action_id AND authority_action = 'create' AND authority_resource_id.resource_kind = 'flight_recorder' AND owner_account_id = payload.owner_account_id AND actor_principal_id = payload.actor_principal_id AND authenticated_session_id = payload.authenticated_session_id AND access_space_id = payload.access_space_id AND workspace_id = payload.workspace_id AND authenticated_session_id = record::id(authority_session_id) AND owner_account_id = record::id(authority_session_id.account_id) AND actor_principal_id = record::id(authority_session_id.principal_id) AND access_space_id = record::id(authority_session_id.access_space_id) AND actor_kind IN ['operator', 'toolgate'] AND actor_kind = authority_session_id.principal_id.actor_kind AND actor_id = authority_session_id.principal_id.actor_id))) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_model_lane_receipt($this, false) OR fn::wp012_palmistry_watcher_receipt($this, false) OR fn::wp012_palmistry_watcher_read_receipt($this)
+                FOR create WHERE ((fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids) AND (aggregate_type != 'argus_action' OR (aggregate_id = payload.action_id AND correlation_id = payload.action_id AND kernel_task_run_id = 'argus:' + payload.connection_id AND session_run_id = 'argus:' + payload.connection_id AND idempotency_key = 'argus-action-receipt:' + payload.diagnostics_session_id + ':' + payload.action_id AND authority_action = 'create' AND authority_resource_id.resource_kind = 'flight_recorder' AND owner_account_id = payload.owner_account_id AND actor_principal_id = payload.actor_principal_id AND authenticated_session_id = payload.authenticated_session_id AND access_space_id = payload.access_space_id AND workspace_id = payload.workspace_id AND authenticated_session_id = record::id(authority_session_id) AND owner_account_id = record::id(authority_session_id.account_id) AND actor_principal_id = record::id(authority_session_id.principal_id) AND access_space_id = record::id(authority_session_id.access_space_id) AND authority_session_id = $auth.id AND owner_account_id = record::id($auth.account_id) AND actor_principal_id = record::id($auth.principal_id) AND authenticated_session_id = record::id($auth.id) AND access_space_id = record::id($auth.access_space_id) AND actor_kind IN ['operator', 'toolgate'] AND actor_kind = authority_session_id.principal_id.actor_kind AND actor_id = authority_session_id.principal_id.actor_id))) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::wp012_model_lane_receipt($this, true) OR fn::wp012_palmistry_watcher_receipt($this, true)) AND ((event_type != 'PALMISTRY_WATCHER_ADOPTED' AND aggregate_type != 'palmistry_watcher_adoption' AND !string::starts_with(event_id, 'evt-palmistry-adopt-')) OR fn::wp012_palmistry_admission_row($this, 'receipt'))
                 FOR update, delete NONE;
 -- MT109_AUTHORITY_END
 DEFINE FIELD OVERWRITE event_id ON TABLE kernel_event_ledger TYPE string ASSERT $value = record::id($this.id);
@@ -1140,7 +1140,7 @@ DEFINE INDEX OVERWRITE idx_kernel_crdt_snapshots_latest ON TABLE kernel_crdt_sna
 DEFINE INDEX OVERWRITE idx_kernel_crdt_snapshots_state_vector ON TABLE kernel_crdt_snapshots FIELDS state_vector;
 
 -- 0021_kernel_process_lifecycle
-DEFINE TABLE OVERWRITE kernel_process_lifecycle SCHEMAFULL PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE kernel_process_lifecycle SCHEMAFULL PERMISSIONS FOR select WHERE fn::wp012_palmistry_watcher_start($this, false) FOR create WHERE fn::wp012_palmistry_watcher_start($this, true) FOR update, delete NONE;
 DEFINE FIELD OVERWRITE process_uuid ON TABLE kernel_process_lifecycle TYPE uuid;
 DEFINE FIELD OVERWRITE process_id ON TABLE kernel_process_lifecycle TYPE uuid VALUE $this.process_uuid;
 DEFINE FIELD OVERWRITE os_pid ON TABLE kernel_process_lifecycle TYPE option<int> ASSERT $value = NONE OR $value >= 0;
@@ -5435,16 +5435,44 @@ DEFINE INDEX OVERWRITE idx_atelier_intake_item_loom_projection_workspace ON TABL
 -- bootstrap targets an empty database. The workspace foreign keys the same
 -- migration installs are retained.
 -- MT109_AUTHORITY_BEGIN
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_membership($pack: object) {
+    IF !type::is_array($pack.items) OR !array::all(array::map($pack.items, |$item| { type::is_object($item) AND type::is_array($item.source_refs); })) {
+        THROW 'ModelLane navigation MemoryPack source membership is malformed';
+    };
+    LET $sources = array::flatten(array::map($pack.items, |$item| { $item.source_refs; }));
+    IF !array::all(array::map($sources, |$source| { type::is_object($source); })) {
+        THROW 'ModelLane navigation MemoryPack source reference is malformed';
+    };
+    RETURN $sources;
+};
+
+
 DEFINE TABLE OVERWRITE fems_memory_packs SCHEMAFULL
     PERMISSIONS FOR select WHERE fn::mt109_has_grant('memory_pack', record::id(workspace_id), 'read', 'memory.read')
+                    OR fn::wp012_model_lane_navigation_memory_metadata_access($this)
                 FOR create, update WHERE fn::mt109_has_grant('memory_pack', record::id(workspace_id), 'create', 'memory.commit')
                 FOR delete NONE;
 -- MT109_AUTHORITY_END
 DEFINE FIELD OVERWRITE pack_id ON TABLE fems_memory_packs TYPE string ASSERT $value = record::id($this.id);
 DEFINE FIELD OVERWRITE workspace_id ON TABLE fems_memory_packs TYPE record<workspaces> ASSERT record::exists($value) REFERENCE ON DELETE CASCADE;
 DEFINE FIELD OVERWRITE scope_key ON TABLE fems_memory_packs TYPE string DEFAULT '';
-DEFINE FIELD OVERWRITE pack ON TABLE fems_memory_packs TYPE object FLEXIBLE;
-DEFINE FIELD OVERWRITE pack.* ON TABLE fems_memory_packs TYPE any;
+DEFINE FIELD OVERWRITE pack ON TABLE fems_memory_packs TYPE object FLEXIBLE
+    PERMISSIONS FOR select WHERE $wp012_original_purpose != 'navigation_read' OR fn::wp012_model_lane_navigation_memory_raw_access($this, { owner_account_id: record::id($auth.account_id), actor_principal_id: record::id($auth.principal_id), authenticated_session_id: record::id($auth.id), access_space_id: record::id($auth.access_space_id), workspace_id: $wp012_original_workspace }, $navigation_selection);
+DEFINE FIELD OVERWRITE pack.* ON TABLE fems_memory_packs TYPE any
+    PERMISSIONS FOR select WHERE $wp012_original_purpose != 'navigation_read' OR fn::wp012_model_lane_navigation_memory_raw_access($this, { owner_account_id: record::id($auth.account_id), actor_principal_id: record::id($auth.principal_id), authenticated_session_id: record::id($auth.id), access_space_id: record::id($auth.access_space_id), workspace_id: $wp012_original_workspace }, $navigation_selection);
+DEFINE FIELD OVERWRITE navigation_memory_pack_id ON TABLE fems_memory_packs TYPE string
+    VALUE $this.pack.pack_id ASSERT $value = $this.pack_id AND $value = record::id($this.id)
+    PERMISSIONS FOR select WHERE fn::wp012_model_lane_navigation_memory_metadata_access($this);
+DEFINE FIELD OVERWRITE navigation_memory_pack_hash ON TABLE fems_memory_packs TYPE string
+    VALUE $this.pack.memory_pack_hash ASSERT string::len($value) = 64 AND $value = $this.pack.memory_pack_hash
+    PERMISSIONS FOR select WHERE fn::wp012_model_lane_navigation_memory_metadata_access($this);
+DEFINE FIELD OVERWRITE navigation_memory_source_membership ON TABLE fems_memory_packs TYPE array<object> FLEXIBLE
+    VALUE fn::wp012_model_lane_navigation_memory_membership($this.pack)
+    ASSERT $value = fn::wp012_model_lane_navigation_memory_membership($this.pack)
+    PERMISSIONS FOR select WHERE fn::wp012_model_lane_navigation_memory_metadata_access($this);
+UPDATE fems_memory_packs SET navigation_memory_pack_id = pack.pack_id,
+    navigation_memory_pack_hash = pack.memory_pack_hash,
+    navigation_memory_source_membership = fn::wp012_model_lane_navigation_memory_membership(pack);
 DEFINE FIELD OVERWRITE generated_at ON TABLE fems_memory_packs TYPE datetime;
 DEFINE FIELD OVERWRITE created_at ON TABLE fems_memory_packs TYPE datetime DEFAULT time::now();
 DEFINE INDEX OVERWRITE pk_fems_memory_packs ON TABLE fems_memory_packs FIELDS pack_id UNIQUE;
@@ -5857,7 +5885,7 @@ DEFINE INDEX OVERWRITE access_spaces_key_unique ON TABLE access_spaces FIELDS sp
 DEFINE INDEX OVERWRITE access_spaces_account_idx ON TABLE access_spaces FIELDS account_id;
 
 DEFINE TABLE OVERWRITE authenticated_sessions TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE id = $auth.id FOR create NONE FOR update WHERE fn::mt109_live_session() AND id = $auth.id FOR delete NONE;
+  PERMISSIONS FOR select WHERE id = $auth.id AND fn::mt109_session_lineage_live(id) FOR create NONE FOR update WHERE fn::mt109_live_session() AND id = $auth.id FOR delete NONE;
 
 DEFINE FIELD OVERWRITE account_id ON TABLE authenticated_sessions TYPE record<local_accounts>;
 
@@ -5874,6 +5902,14 @@ DEFINE FIELD OVERWRITE authentication_strength ON TABLE authenticated_sessions T
 DEFINE FIELD OVERWRITE delegated_capabilities ON TABLE authenticated_sessions TYPE array<string>;
 
 DEFINE FIELD OVERWRITE delegation_chain ON TABLE authenticated_sessions TYPE array<string>;
+
+DEFINE FIELD OVERWRITE parent_session_id ON TABLE authenticated_sessions TYPE option<record<authenticated_sessions>> PERMISSIONS FOR select, create FULL FOR update NONE;
+DEFINE FIELD OVERWRITE ancestor_session_ids ON TABLE authenticated_sessions TYPE array<record<authenticated_sessions>> DEFAULT [] PERMISSIONS FOR select, create FULL FOR update NONE;
+DEFINE FIELD OVERWRITE delegation_grant_edges ON TABLE authenticated_sessions TYPE array<object> DEFAULT [] PERMISSIONS FOR select, create FULL FOR update NONE;
+DEFINE FIELD OVERWRITE delegation_grant_edges.* ON TABLE authenticated_sessions TYPE object ASSERT array::sort(object::keys($value)) = ['child_grant_id', 'parent_grant_id'] PERMISSIONS FOR select, create FULL FOR update NONE;
+DEFINE FIELD OVERWRITE delegation_grant_edges.*.child_grant_id ON TABLE authenticated_sessions TYPE record<resource_grants> PERMISSIONS FOR select, create FULL FOR update NONE;
+DEFINE FIELD OVERWRITE delegation_grant_edges.*.parent_grant_id ON TABLE authenticated_sessions TYPE record<resource_grants> PERMISSIONS FOR select, create FULL FOR update NONE;
+
 
 DEFINE FIELD OVERWRITE account_revocation_epoch ON TABLE authenticated_sessions TYPE int;
 
@@ -5916,19 +5952,19 @@ DEFINE INDEX OVERWRITE session_exchange_credentials_token_unique ON TABLE sessio
 DEFINE INDEX OVERWRITE session_exchange_credentials_principal_idx ON TABLE session_exchange_credentials FIELDS principal_id, access_space_id;
 
 DEFINE TABLE OVERWRITE protected_resources TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE
+  PERMISSIONS FOR select WHERE (
     lifecycle_state = 'active'
     AND owner_account_id = $auth.account_id
     AND access_space_id = $auth.access_space_id
     AND owner_account_id.status = 'enabled'
     AND created_by_principal_id.status = 'enabled'
     AND access_space_id.status = 'active'
-    AND fn::mt166_resource_select_grant(id),
-  FOR create WHERE fn::mt120_resource_create($this) FOR update WHERE fn::mt109_live_session() AND owner_account_id = $auth.account_id AND access_space_id = $auth.access_space_id AND (fn::mt109_has_grant(resource_kind, external_resource_id, 'create', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'update', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'delete', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'read', 'fs.read') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'read', 'fr.read') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'create', 'memory.propose') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'update', 'memory.propose') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'delete', 'memory.propose')) FOR delete NONE;
+    AND fn::mt166_resource_select_grant(id)) OR fn::wp012_artifact_resource_create($this),
+  FOR create WHERE fn::mt120_resource_create($this) OR fn::wp012_artifact_resource_create($this) FOR update WHERE fn::mt109_live_session() AND owner_account_id = $auth.account_id AND access_space_id = $auth.access_space_id AND (fn::mt109_has_grant(resource_kind, external_resource_id, 'create', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'update', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'delete', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'read', 'fs.read') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'read', 'fr.read') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'create', 'memory.propose') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'update', 'memory.propose') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'delete', 'memory.propose')) FOR delete NONE;
 
 DEFINE FIELD OVERWRITE resource_kind ON TABLE protected_resources TYPE string ASSERT string::len($value) > 0;
 
-DEFINE FIELD OVERWRITE external_resource_id ON TABLE protected_resources TYPE string ASSERT string::len($value) > 0 PERMISSIONS FOR select NONE FOR create WHERE fn::mt120_resource_create($this) FOR update NONE;
+DEFINE FIELD OVERWRITE external_resource_id ON TABLE protected_resources TYPE string ASSERT string::len($value) > 0 PERMISSIONS FOR select WHERE fn::wp012_artifact_resource_create($this) OR fn::wp012_artifact_resource_read($this) FOR create WHERE fn::mt120_resource_create($this) OR fn::wp012_artifact_resource_create($this) FOR update NONE;
 
 DEFINE FIELD OVERWRITE owner_account_id ON TABLE protected_resources TYPE record<local_accounts>;
 
@@ -5948,7 +5984,7 @@ DEFINE FIELD OVERWRITE policy_version ON TABLE protected_resources TYPE int ASSE
 
 DEFINE FIELD OVERWRITE classification ON TABLE protected_resources TYPE string ASSERT string::len($value) > 0;
 
-DEFINE FIELD OVERWRITE storage_locator_hash ON TABLE protected_resources TYPE string ASSERT string::len($value) = 64 PERMISSIONS FOR select NONE FOR create WHERE fn::mt120_resource_create($this) FOR update NONE;
+DEFINE FIELD OVERWRITE storage_locator_hash ON TABLE protected_resources TYPE string ASSERT string::len($value) = 64 PERMISSIONS FOR select WHERE fn::wp012_artifact_resource_create($this) OR fn::wp012_artifact_resource_read($this) FOR create WHERE fn::mt120_resource_create($this) OR fn::wp012_artifact_resource_create($this) FOR update NONE;
 
 DEFINE FIELD OVERWRITE created_at ON TABLE protected_resources TYPE datetime;
 
@@ -5962,6 +5998,7 @@ DEFINE INDEX OVERWRITE protected_resources_parent_idx ON TABLE protected_resourc
 DEFINE TABLE OVERWRITE resource_grants TYPE NORMAL SCHEMAFULL
   PERMISSIONS FOR select WHERE
     status = 'active'
+    AND fn::mt109_live_session()
     AND account_id = $auth.account_id
     AND principal_id = $auth.principal_id
     AND access_space_id = $auth.access_space_id,
@@ -6059,6 +6096,9 @@ THEN {
         OR $before.authentication_strength != $after.authentication_strength
         OR $before.delegated_capabilities != $after.delegated_capabilities
         OR $before.delegation_chain != $after.delegation_chain
+        OR $before.parent_session_id != $after.parent_session_id
+        OR ($before.ancestor_session_ids ?? []) != ($after.ancestor_session_ids ?? [])
+        OR ($before.delegation_grant_edges ?? []) != ($after.delegation_grant_edges ?? [])
         OR $before.account_revocation_epoch != $after.account_revocation_epoch
         OR $before.principal_revocation_epoch != $after.principal_revocation_epoch
         OR $before.space_revocation_epoch != $after.space_revocation_epoch
@@ -6172,21 +6212,100 @@ DEFINE ACCESS IF NOT EXISTS authenticated_session ON DATABASE TYPE RECORD
 -- re-check the live session, account, Principal, AccessSpace, exact ResourceGrant,
 -- delegated capability, and revocation/policy epochs at the table boundary.
 
+DEFINE FUNCTION OVERWRITE fn::mt109_session_row_live($session: record<authenticated_sessions>) {
+    RETURN $session != NONE AND record::exists($session)
+        AND $session.revoked_at = NONE
+        AND $session.expires_at > time::now()
+        AND $session.account_id.status = 'enabled'
+        AND $session.principal_id.status = 'enabled'
+        AND $session.access_space_id.status = 'active'
+        AND $session.principal_id.account_id = $session.account_id
+        AND $session.access_space_id.account_id = $session.account_id
+        AND $session.account_id.revocation_epoch = $session.account_revocation_epoch
+        AND $session.principal_id.revocation_epoch = $session.principal_revocation_epoch
+        AND $session.access_space_id.revocation_epoch = $session.space_revocation_epoch
+        AND $session.account_id.policy_version <= $session.policy_version
+        AND $session.principal_id.policy_version <= $session.policy_version
+        AND $session.access_space_id.policy_version <= $session.policy_version;
+};
+
+DEFINE FUNCTION OVERWRITE fn::mt109_session_lineage_live($session: record<authenticated_sessions>) {
+    IF !fn::mt109_session_row_live($session) { RETURN false; };
+    LET $path = $session.ancestor_session_ids ?? [];
+    IF $session.authentication_strength != 'local_delegated_opaque' {
+        RETURN $session.parent_session_id = NONE AND array::len($path) = 0
+            AND array::len($session.delegation_grant_edges ?? []) = 0;
+    };
+    IF array::len($path) = 0 OR $path CONTAINS $session
+        OR array::len(array::distinct($path)) != array::len($path) { RETURN false; };
+    LET $nodes = array::append($path, $session);
+    FOR $node IN $nodes {
+        IF !fn::mt109_session_row_live($node) OR $node.account_id != $session.account_id
+            OR $node.access_space_id != $session.access_space_id { RETURN false; };
+        LET $ancestors = $node.ancestor_session_ids ?? [];
+        LET $depth = array::len($ancestors);
+        IF $nodes[$depth] != $node OR $ancestors != array::slice($path, 0, $depth) { RETURN false; };
+        IF $depth = 0 {
+            IF $node.authentication_strength = 'local_delegated_opaque' OR $node.parent_session_id != NONE
+                OR array::len($node.delegation_grant_edges ?? []) != 0 { RETURN false; };
+        } ELSE {
+            LET $parent = $ancestors[$depth - 1];
+            IF $node.authentication_strength != 'local_delegated_opaque' OR $node.parent_session_id != $parent
+                OR $node.delegation_chain != array::append($parent.delegation_chain, $node.principal_id.principal_key)
+                OR $node.expires_at > $parent.expires_at OR $node.issued_at < $parent.issued_at
+                OR !array::all(array::map($node.delegated_capabilities, |$cap| {
+                    ($parent.delegated_capabilities CONTAINS '*' OR $parent.delegated_capabilities CONTAINS $cap)
+                    AND ($parent.principal_id.delegated_capabilities CONTAINS '*' OR $parent.principal_id.delegated_capabilities CONTAINS $cap)
+                    AND ($node.principal_id.delegated_capabilities CONTAINS '*' OR $node.principal_id.delegated_capabilities CONTAINS $cap)
+                })) { RETURN false; };
+            LET $edges = $node.delegation_grant_edges ?? [];
+            LET $child_ids = array::map($edges, |$edge| $edge.child_grant_id);
+            IF array::len($edges) = 0 OR array::len(array::distinct($child_ids)) != array::len($edges) { RETURN false; };
+            LET $grants = SELECT VALUE id FROM resource_grants
+                WHERE account_id = $node.account_id AND principal_id = $node.principal_id
+                  AND access_space_id = $node.access_space_id AND delegation_chain = $node.delegation_chain
+                  AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now());
+            IF array::sort($grants) != array::sort($child_ids) { RETURN false; };
+            FOR $edge IN $edges {
+                LET $child_grant = $edge.child_grant_id;
+                LET $parent_grant = $edge.parent_grant_id;
+                IF !record::exists($child_grant) OR !record::exists($parent_grant)
+                    OR $child_grant.account_id != $node.account_id OR $child_grant.principal_id != $node.principal_id
+                    OR $child_grant.access_space_id != $node.access_space_id OR $child_grant.delegation_chain != $node.delegation_chain
+                    OR $parent_grant.account_id != $parent.account_id OR $parent_grant.principal_id != $parent.principal_id
+                    OR $parent_grant.access_space_id != $parent.access_space_id OR $parent_grant.delegation_chain != $parent.delegation_chain
+                    OR $child_grant.resource_id != $parent_grant.resource_id
+                    OR $child_grant.resource_id.lifecycle_state != 'active'
+                    OR $child_grant.resource_id.owner_account_id != $node.account_id
+                    OR $child_grant.resource_id.access_space_id != $node.access_space_id
+                    OR $child_grant.resource_id.created_by_principal_id.status != 'enabled'
+                    OR $child_grant.status != 'active' OR $parent_grant.status != 'active'
+                    OR $child_grant.revoked_at != NONE OR $parent_grant.revoked_at != NONE
+                    OR ($child_grant.expires_at != NONE AND $child_grant.expires_at <= time::now())
+                    OR ($parent_grant.expires_at != NONE AND $parent_grant.expires_at <= time::now())
+                    OR ($parent_grant.expires_at != NONE AND ($child_grant.expires_at = NONE OR $child_grant.expires_at > $parent_grant.expires_at))
+                    OR $child_grant.policy_version < $child_grant.resource_id.policy_version
+                    OR $child_grant.policy_version > $node.policy_version
+                    OR $parent_grant.policy_version < $parent_grant.resource_id.policy_version
+                    OR $parent_grant.policy_version > $parent.policy_version
+                    OR !array::all(array::map($child_grant.actions, |$action| $parent_grant.actions CONTAINS $action))
+                    OR !array::all(array::map($child_grant.capability_ids, |$cap| {
+                        ($parent_grant.capability_ids CONTAINS '*' OR $parent_grant.capability_ids CONTAINS $cap)
+                        AND ($node.delegated_capabilities CONTAINS '*' OR $node.delegated_capabilities CONTAINS $cap)
+                    })) { RETURN false; };
+            };
+        };
+    };
+    RETURN true;
+};
+
+DEFINE FUNCTION OVERWRITE fn::mt109_session_live($session: record<authenticated_sessions>) {
+    RETURN fn::mt109_session_lineage_live($session);
+};
+
 DEFINE FUNCTION OVERWRITE fn::mt109_live_session() {
-    RETURN $auth != NONE
-        AND $auth.revoked_at = NONE
-        AND $auth.expires_at > time::now()
-        AND $auth.account_id.status = 'enabled'
-        AND $auth.principal_id.status = 'enabled'
-        AND $auth.access_space_id.status = 'active'
-        AND $auth.principal_id.account_id = $auth.account_id
-        AND $auth.access_space_id.account_id = $auth.account_id
-        AND $auth.account_id.revocation_epoch = $auth.account_revocation_epoch
-        AND $auth.principal_id.revocation_epoch = $auth.principal_revocation_epoch
-        AND $auth.access_space_id.revocation_epoch = $auth.space_revocation_epoch
-        AND $auth.account_id.policy_version <= $auth.policy_version
-        AND $auth.principal_id.policy_version <= $auth.policy_version
-        AND $auth.access_space_id.policy_version <= $auth.policy_version;
+    IF $auth = NONE { RETURN false; };
+    RETURN fn::mt109_session_live($auth.id);
 };
 
 DEFINE FUNCTION OVERWRITE fn::mt109_has_grant($kind: string, $external: string, $action: string, $capability: string) {
@@ -6674,6 +6793,175 @@ DEFINE FUNCTION OVERWRITE fn::mt166_resource_select_grant($resource: record<prot
           AND revoked_at = NONE
           AND (expires_at = NONE OR expires_at > $now)];
     RETURN array::len($grants) > 0;
+};
+
+
+DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_grant($resource: option<record<protected_resources>>, $parent: option<record<protected_resources>>, $grant: option<record<resource_grants>>, $session: option<record<authenticated_sessions>>) {
+    IF !fn::mt109_live_session() OR $session != $auth.id { RETURN false; };
+    IF $auth.principal_id.capability_profile_id != 'Operator' { RETURN false; };
+    IF !($auth.delegated_capabilities CONTAINS 'diagnostics.watcher.adopt_existing') OR !($auth.principal_id.delegated_capabilities CONTAINS 'diagnostics.watcher.adopt_existing') { RETURN false; };
+    IF $resource = NONE OR $parent = NONE OR $grant = NONE { RETURN false; };
+    IF $resource.resource_kind != 'palmistry_watcher' OR $resource.lifecycle_state != 'active' OR $resource.owner_account_id != $auth.account_id OR $resource.access_space_id != $auth.access_space_id OR $resource.created_by_principal_id != $auth.principal_id { RETURN false; };
+    IF $resource.parent_resource_id != $parent OR $parent.resource_kind != 'workspace' OR $parent.lifecycle_state != 'active' OR $parent.owner_account_id != $auth.account_id OR $parent.access_space_id != $auth.access_space_id OR $parent.created_by_principal_id.status != 'enabled' { RETURN false; };
+    LET $exact = SELECT VALUE id FROM resource_grants WHERE id = $grant AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND resource_id = $resource AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND actions CONTAINS 'reconcile' AND capability_ids CONTAINS 'diagnostics.watcher.adopt_existing' AND delegation_chain = $auth.delegation_chain AND policy_version <= $auth.policy_version AND policy_version >= $resource.policy_version AND policy_version >= $parent.policy_version;
+    RETURN array::len($exact) = 1;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_record($row: object) {
+    IF $row.owner_account_id != <string>record::id($auth.account_id) OR $row.actor_principal_id != <string>record::id($auth.principal_id) OR $row.authenticated_session_id != <string>record::id($auth.id) OR $row.access_space_id != <string>record::id($auth.access_space_id) { RETURN false; };
+    LET $parents = SELECT VALUE id FROM protected_resources WHERE id = $row.authority_parent_resource_id AND resource_kind = 'workspace' AND external_resource_id = $row.workspace_id AND lifecycle_state = 'active' AND owner_account_id = $auth.account_id AND access_space_id = $auth.access_space_id LIMIT 2;
+    IF array::len($parents) != 1 { RETURN false; };
+    IF $row.authority_capability_id != 'diagnostics.watcher.adopt_existing' OR $row.authority_action != 'reconcile' { RETURN false; };
+    RETURN fn::wp012_palmistry_watcher_grant($row.authority_resource_id, $row.authority_parent_resource_id, $row.authority_grant_id, $row.authority_session_id);
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_custodian($row: object) {
+    IF $row.owner_account_id != <string>record::id($auth.account_id) OR $row.actor_principal_id != <string>record::id($auth.principal_id) OR $row.access_space_id != <string>record::id($auth.access_space_id) { RETURN false; };
+    LET $parents = SELECT VALUE id FROM protected_resources WHERE id = $row.authority_parent_resource_id AND resource_kind = 'workspace' AND external_resource_id = $row.workspace_id AND lifecycle_state = 'active' AND owner_account_id = $auth.account_id AND access_space_id = $auth.access_space_id LIMIT 2;
+    IF array::len($parents) != 1 { RETURN false; };
+    LET $grants = SELECT VALUE id FROM resource_grants WHERE resource_id = $row.authority_resource_id AND principal_id = $auth.principal_id AND account_id = $auth.account_id AND access_space_id = $auth.access_space_id AND fn::wp012_palmistry_watcher_grant($row.authority_resource_id, $row.authority_parent_resource_id, id, $auth.id);
+    RETURN array::len($grants) > 0;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_read_grant($resource: option<record<protected_resources>>, $parent: option<record<protected_resources>>, $grant: option<record<resource_grants>>, $session: option<record<authenticated_sessions>>) {
+    IF !fn::mt109_live_session() OR $session != $auth.id { RETURN false; };
+    IF $auth.principal_id.capability_profile_id != 'Operator' { RETURN false; };
+    IF !($auth.delegated_capabilities CONTAINS 'diagnostics.watcher.adopt_existing') OR !($auth.principal_id.delegated_capabilities CONTAINS 'diagnostics.watcher.adopt_existing') { RETURN false; };
+    IF $resource = NONE OR $parent = NONE OR $grant = NONE { RETURN false; };
+    IF $resource.resource_kind != 'palmistry_watcher' OR $resource.lifecycle_state != 'active' OR $resource.owner_account_id != $auth.account_id OR $resource.access_space_id != $auth.access_space_id OR $resource.created_by_principal_id != $auth.principal_id { RETURN false; };
+    IF $resource.parent_resource_id != $parent OR $parent.resource_kind != 'workspace' OR $parent.lifecycle_state != 'active' OR $parent.owner_account_id != $auth.account_id OR $parent.access_space_id != $auth.access_space_id OR $parent.created_by_principal_id.status != 'enabled' { RETURN false; };
+    LET $exact = SELECT VALUE id FROM resource_grants WHERE id = $grant AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND resource_id = $resource AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND actions CONTAINS 'read' AND capability_ids CONTAINS 'diagnostics.watcher.adopt_existing' AND delegation_chain = $auth.delegation_chain AND policy_version <= $auth.policy_version AND policy_version >= $resource.policy_version AND policy_version >= $parent.policy_version;
+    RETURN array::len($exact) = 1;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_read_custodian($row: object) {
+    IF $row.owner_account_id != <string>record::id($auth.account_id) OR $row.actor_principal_id != <string>record::id($auth.principal_id) OR $row.access_space_id != <string>record::id($auth.access_space_id) { RETURN false; };
+    LET $parents = SELECT VALUE id FROM protected_resources WHERE id = $row.authority_parent_resource_id AND resource_kind = 'workspace' AND external_resource_id = $row.workspace_id AND lifecycle_state = 'active' AND owner_account_id = $auth.account_id AND access_space_id = $auth.access_space_id LIMIT 2;
+    IF array::len($parents) != 1 { RETURN false; };
+    LET $grants = SELECT VALUE id FROM resource_grants WHERE resource_id = $row.authority_resource_id AND principal_id = $auth.principal_id AND account_id = $auth.account_id AND access_space_id = $auth.access_space_id AND fn::wp012_palmistry_watcher_read_grant($row.authority_resource_id, $row.authority_parent_resource_id, id, $auth.id);
+    RETURN array::len($grants) > 0;
+};
+
+
+DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_read_verifier($row: object) {
+    IF $row.owner_account_id != <string>record::id($auth.account_id)
+        OR $row.actor_principal_id != <string>record::id($auth.principal_id)
+        OR $row.access_space_id != <string>record::id($auth.access_space_id) { RETURN false; };
+    LET $resources = SELECT VALUE id FROM protected_resources
+        WHERE resource_kind = 'palmistry_watcher' AND external_resource_id = <string>$row.process_uuid
+          AND lifecycle_state = 'active' AND owner_account_id = $auth.account_id
+          AND access_space_id = $auth.access_space_id AND created_by_principal_id = $auth.principal_id
+          AND parent_resource_id.resource_kind = 'workspace' AND parent_resource_id.lifecycle_state = 'active'
+          AND parent_resource_id.external_resource_id = $row.workspace_id
+          AND parent_resource_id.owner_account_id = $auth.account_id
+          AND parent_resource_id.access_space_id = $auth.access_space_id;
+    LET $grants = SELECT VALUE id FROM resource_grants
+        WHERE resource_id IN $resources
+          AND fn::wp012_palmistry_watcher_read_grant(resource_id, resource_id.parent_resource_id, id, $auth.id)
+        LIMIT 1;
+    RETURN array::len($grants) > 0;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_read_receipt($row: object) {
+    RETURN (string::starts_with(<string>record::id($row.id), 'evt-palmistry-adopt-')
+        OR ($row.source_component = 'palmistry'
+            AND ($row.event_type = 'PALMISTRY_WATCHER_ADOPTED' OR $row.aggregate_type = 'palmistry_watcher_adoption'
+                OR string::starts_with($row.event_id, 'evt-palmistry-adopt-'))))
+        AND fn::wp012_palmistry_watcher_read_custodian($row);
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_record_read($row: object) {
+    RETURN fn::wp012_palmistry_watcher_custodian($row) AND $row.authority_capability_id = 'diagnostics.watcher.adopt_existing' AND $row.authority_action = 'reconcile' AND $row.authenticated_session_id = <string>record::id($row.authority_session_id) AND $row.owner_account_id = <string>record::id($row.authority_session_id.account_id) AND $row.actor_principal_id = <string>record::id($row.authority_session_id.principal_id) AND $row.access_space_id = <string>record::id($row.authority_session_id.access_space_id);
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_verifier($row: object) {
+    LET $custodians = SELECT VALUE id FROM palmistry_watcher_custodian WHERE process_uuid = $row.process_uuid AND diagnostic_session_id = $row.session_id AND launch_nonce = $row.launch_nonce AND parent_pid = $row.parent_pid AND watcher_pid = $row.watcher_pid AND watcher_creation_time_100ns = $row.watcher_creation_time_100ns AND executable_sha256 = $row.executable_sha256 AND verifying_key_hex = $row.verifying_key_hex AND verifier_record_id = record::id($row.id) AND owner_account_id = $row.owner_account_id AND actor_principal_id = $row.actor_principal_id AND authenticated_session_id = $row.authenticated_session_id AND access_space_id = $row.access_space_id AND workspace_id = $row.workspace_id LIMIT 2;
+    RETURN array::len($custodians) = 1;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_optional($actual: any, $expected: any) {
+    RETURN IF $expected = NONE OR $expected = NULL { $actual = NONE } ELSE { <string>$actual = <string>$expected };
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_start_matches($row: object, $original: object) {
+    LET $metadata = object::from_entries(array::filter(object::entries($row.metadata), |$entry| { !($entry[0] IN ['palmistry_original_start_hash', 'palmistry_original_start', 'palmistry_adoption_authority']) }));
+    RETURN $row.process_uuid = type::uuid($original.process_uuid) AND $row.os_pid = $original.os_pid AND $row.parent_session_id = $original.parent_session_id AND $row.sandbox_adapter_id = $original.sandbox_adapter_id AND $row.started_at = type::datetime($original.started_at) AND $row.engine_kind = $original.engine_kind AND $row.owner_role = $original.owner_role AND $original.runtime_owner != NONE AND $original.runtime_owner != NULL AND ($row.metadata.runtime_owner = $original.runtime_owner OR $row.metadata.palmistry_original_start.runtime_owner = $original.runtime_owner) AND $row.sandbox_capabilities_snapshot = $original.sandbox_capabilities_snapshot AND string::trim($original.work_profile_id) != '' AND fn::wp012_palmistry_watcher_optional($row.parent_process_id, $original.parent_process_id) AND fn::wp012_palmistry_watcher_optional($row.sandbox_internal_id, $original.sandbox_internal_id) AND fn::wp012_palmistry_watcher_optional($row.model_artifact_sha256, $original.model_artifact_sha256) AND fn::wp012_palmistry_watcher_optional($row.work_profile_id, $original.work_profile_id) AND fn::wp012_palmistry_watcher_optional($row.owner_wp, $original.owner_wp) AND fn::wp012_palmistry_watcher_optional($row.role_id, $original.role_id) AND fn::wp012_palmistry_watcher_optional($row.wp_id, $original.wp_id) AND fn::wp012_palmistry_watcher_optional($row.mt_id, $original.mt_id) AND ($row.metadata = $original.metadata_jsonb OR ($row.metadata.palmistry_original_start = $original AND $metadata = $original.metadata_jsonb));
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_start($row: object, $write: bool) {
+    IF $row.sandbox_adapter_id != 'palmistry-watcher' { RETURN false; };
+    LET $custodians = SELECT VALUE id FROM palmistry_watcher_custodian WHERE process_uuid = $row.process_uuid AND original_started_at = $row.started_at AND watcher_pid = $row.os_pid AND <string>diagnostic_session_id = $row.parent_session_id LIMIT 2;
+    IF array::len($custodians) != 1 { RETURN false; };
+    RETURN fn::wp012_palmistry_watcher_start_matches($row, $custodians[0].original_start) AND (!$write OR (fn::wp012_palmistry_watcher_record($row.metadata.palmistry_adoption_authority) AND fn::wp012_palmistry_admission_row($row, 'start')));
+};
+
+
+DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_admission_manifest($purpose: string) {
+    LET $permits = SELECT * FROM palmistry_watcher_operation_permit
+        WHERE purpose = $purpose AND state = 'consuming' AND fn::wp012_palmistry_admission_actual_identity($this) LIMIT 2;
+    RETURN IF array::len($permits) = 1 { $permits[0] } ELSE { NONE };
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_admission_row($row: object, $kind: string) {
+    LET $permit = fn::wp012_palmistry_admission_manifest('adopt');
+    IF $permit = NONE { RETURN false; };
+    LET $manifest = $permit.manifest;
+    LET $attribution = IF $kind = 'start' { $row.metadata.palmistry_adoption_authority } ELSE { $row };
+    IF $kind != 'verifier' AND ($attribution.authority_resource_id != $permit.authority_resource_id
+        OR $attribution.authority_parent_resource_id != $permit.authority_parent_resource_id
+        OR $attribution.authority_grant_id != $permit.authority_grant_id OR $attribution.authority_session_id != $permit.authority_session_id
+        OR $attribution.owner_account_id != $permit.owner_account_id OR $attribution.actor_principal_id != $permit.actor_principal_id
+        OR $attribution.authenticated_session_id != $permit.authenticated_session_id
+        OR $attribution.access_space_id != $permit.access_space_id OR $attribution.workspace_id != $permit.workspace_id) { RETURN false; };
+    LET $native = $manifest.verifier;
+    IF $kind = 'receipt' {
+        RETURN record::id($row.id) = $manifest.ledger_record_id AND $row.event_id = $manifest.ledger_record_id
+            AND $row.event_version = '1' AND $row.event_type = 'PALMISTRY_WATCHER_ADOPTED'
+            AND $row.kernel_task_run_id = $manifest.operation_id AND $row.session_run_id = $native.session_id
+            AND $row.aggregate_type = 'palmistry_watcher_adoption' AND $row.aggregate_id = $native.process_uuid
+            AND $row.idempotency_key = 'palmistry-adopt:' + $manifest.operation_id
+            AND $row.source_component = 'palmistry' AND $row.payload_hash = $manifest.input_hash
+            AND $row.payload = $manifest.event_payload AND $row.wsids = [$manifest.workspace_id]
+            AND fn::wp012_palmistry_watcher_record($row);
+    };
+    IF $kind = 'verifier' {
+        RETURN $row.process_uuid = type::uuid($native.process_uuid) AND $row.session_id = type::uuid($native.session_id)
+            AND $row.launch_nonce = type::uuid($native.launch_nonce) AND $row.parent_pid = $native.parent_pid
+            AND $row.watcher_pid = $native.watcher_pid AND $row.watcher_creation_time_100ns = $native.watcher_creation_time_100ns
+            AND $row.executable_sha256 = $native.executable_sha256 AND $row.verifying_key_hex = $native.verifying_key_hex
+            AND $row.retired_at = NONE AND $row.storage_authority = 'embedded_surrealdb'
+            AND $row.event_ledger_event_id = type::record('kernel_event_ledger', $manifest.ledger_record_id)
+            AND fn::wp012_palmistry_watcher_verifier($row);
+    };
+    IF $kind = 'start' {
+        RETURN record::id($row.id) = $manifest.start_record_id
+            AND fn::wp012_palmistry_watcher_start_matches($row, $manifest.original_start)
+            AND $row.stopped_at = NONE
+            AND $row.metadata.palmistry_original_start_hash = $manifest.original_start_hash
+            AND $row.metadata.palmistry_original_start = $manifest.original_start
+            AND fn::wp012_palmistry_watcher_record($row.metadata.palmistry_adoption_authority);
+    };
+    IF $kind = 'adoption' {
+        LET $starts = SELECT VALUE id FROM kernel_process_lifecycle WHERE process_uuid = type::uuid($native.process_uuid)
+            AND stopped_at = NONE AND fn::wp012_palmistry_watcher_start_matches($this, $manifest.original_start) LIMIT 2;
+        RETURN array::len($starts) = 1 AND $row.start_record_id = record::id($starts[0])
+            AND record::id($row.id) = $manifest.adoption_record_id AND $row.operation_id = type::uuid($manifest.operation_id)
+            AND $row.process_uuid = type::uuid($native.process_uuid) AND $row.diagnostic_session_id = type::uuid($native.session_id)
+            AND $row.launch_nonce = type::uuid($native.launch_nonce)
+            AND $row.original_started_at = type::datetime($manifest.original_start.started_at)
+            AND $row.original_custodian = type::record('palmistry_watcher_custodian', $manifest.custodian_registration_id)
+            AND $row.event_ledger_event_id = type::record('kernel_event_ledger', $manifest.ledger_record_id)
+            AND $row.input_hash = $manifest.input_hash AND fn::wp012_palmistry_watcher_record($row);
+    };
+    RETURN false;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_receipt($row: object, $write: bool) {
+    LET $custodians = SELECT VALUE id FROM palmistry_watcher_custodian WHERE id = type::record('palmistry_watcher_custodian', $row.payload.custodian_registration_id) AND process_uuid = type::uuid($row.payload.process_uuid) AND authority_resource_id = $row.authority_resource_id AND authority_parent_resource_id = $row.authority_parent_resource_id AND workspace_id = $row.workspace_id LIMIT 2;
+    RETURN array::len($custodians) = 1 AND $row.actor_kind = $row.authority_session_id.principal_id.actor_kind AND $row.actor_id = $row.authority_session_id.principal_id.actor_id AND $row.event_id = 'evt-palmistry-adopt-' + $row.payload.operation_id AND record::id($row.id) = $row.event_id AND $row.source_component = 'palmistry' AND $row.event_type = 'PALMISTRY_WATCHER_ADOPTED' AND $row.aggregate_type = 'palmistry_watcher_adoption' AND $row.aggregate_id = $row.payload.process_uuid AND $row.idempotency_key = 'palmistry-adopt:' + $row.payload.operation_id AND $row.wsids = [$row.workspace_id] AND (IF $write { fn::wp012_palmistry_watcher_record($row) AND fn::wp012_palmistry_admission_row($row, 'receipt') } ELSE { fn::wp012_palmistry_watcher_record_read($row) });
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_adoption($row: object, $write: bool) {
+    RETURN (IF $write { fn::wp012_palmistry_watcher_record($row) AND fn::wp012_palmistry_admission_row($row, 'adoption') } ELSE { fn::wp012_palmistry_watcher_record_read($row) }) AND record::id($row.id) = 'palmistry-adopt-' + <string>$row.operation_id AND $row.original_custodian.process_uuid = $row.process_uuid AND $row.original_custodian.diagnostic_session_id = $row.diagnostic_session_id AND $row.original_custodian.launch_nonce = $row.launch_nonce AND $row.original_custodian.original_started_at = $row.original_started_at AND $row.original_custodian.owner_account_id = $row.owner_account_id AND $row.original_custodian.actor_principal_id = $row.actor_principal_id AND $row.original_custodian.access_space_id = $row.access_space_id AND $row.original_custodian.workspace_id = $row.workspace_id AND $row.original_custodian.authority_resource_id = $row.authority_resource_id AND $row.original_custodian.authority_parent_resource_id = $row.authority_parent_resource_id AND record::id($row.verifier) = $row.original_custodian.verifier_record_id AND $row.verifier.process_uuid = $row.process_uuid AND $row.event_ledger_event_id.payload.operation_id = <string>$row.operation_id AND $row.event_ledger_event_id.payload_hash = $row.input_hash;
 };
 
 DEFINE FUNCTION OVERWRITE fn::mt109_ledger_access($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>) {
@@ -8395,3 +8683,107 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_receipt($row: object, $write: boo
         AND type::is_string($record.event_ledger_stream_id) AND string::trim($record.event_ledger_stream_id) != ''
         AND $record.event_ledger_stream_id = $row.session_run_id;
 };
+
+DEFINE FIELD OVERWRITE authority_parent_resource_id ON TABLE kernel_event_ledger TYPE option<record<protected_resources>> PERMISSIONS FULL;
+
+DEFINE FUNCTION OVERWRITE fn::wp012_artifact_workspace_create($parent: record<protected_resources>) {
+    LET $wp012_navigation_memory_metadata_only = true;
+    IF !fn::mt109_live_session() OR $parent.resource_kind != 'workspace' OR $parent.lifecycle_state != 'active'
+        OR $parent.owner_account_id != $auth.account_id OR $parent.access_space_id != $auth.access_space_id
+        OR $parent.created_by_principal_id.status != 'enabled'
+        OR !($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS 'fs.write')
+        OR !($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS 'fs.write') { RETURN false; };
+    LET $grants = SELECT VALUE id FROM resource_grants WHERE resource_id = $parent
+        AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id
+        AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now())
+        AND delegation_chain = $auth.delegation_chain AND actions CONTAINS 'create' AND capability_ids CONTAINS 'fs.write'
+        AND policy_version >= $parent.policy_version AND policy_version <= $auth.policy_version;
+    RETURN array::len($grants) > 0;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_artifact_resource_create($row: object) {
+    LET $wp012_navigation_memory_metadata_only = true;
+    RETURN fn::mt109_live_session() AND $row.resource_kind = 'artifact' AND $row.created_in_session_id = $auth.id
+        AND $row.owner_account_id = $auth.account_id AND $row.created_by_principal_id = $auth.principal_id
+        AND $row.access_space_id = $auth.access_space_id AND $row.lifecycle_state = 'active'
+        AND $row.classification IN ['low', 'medium', 'high'] AND $row.schema_version = 1
+        AND $row.policy_version >= 1 AND $row.policy_version <= $auth.policy_version
+        AND string::len($row.storage_locator_hash) = 64 AND <string>type::uuid($row.external_resource_id) = $row.external_resource_id
+        AND $row.creator_grant_id = NONE
+        AND fn::wp012_artifact_workspace_create($row.parent_resource_id);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_artifact_resource_read($row: object) {
+    LET $wp012_navigation_memory_metadata_only = true;
+    IF !fn::mt109_live_session() OR $row.resource_kind != 'artifact' OR $row.lifecycle_state != 'active'
+        OR $row.owner_account_id != $auth.account_id OR $row.access_space_id != $auth.access_space_id
+        OR $row.created_by_principal_id.status != 'enabled'
+        OR $row.parent_resource_id.resource_kind != 'workspace' OR $row.parent_resource_id.lifecycle_state != 'active'
+        OR $row.parent_resource_id.owner_account_id != $auth.account_id OR $row.parent_resource_id.access_space_id != $auth.access_space_id
+        OR $row.parent_resource_id.created_by_principal_id.status != 'enabled'
+        OR !($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS 'artifact.read')
+        OR !($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS 'artifact.read') { RETURN false; };
+    LET $grants = SELECT VALUE id FROM resource_grants WHERE resource_id = $row.id
+        AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id
+        AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now())
+        AND delegation_chain = $auth.delegation_chain AND actions CONTAINS 'read' AND capability_ids CONTAINS 'artifact.read'
+        AND policy_version >= $row.policy_version AND policy_version >= $row.parent_resource_id.policy_version
+        AND policy_version <= $auth.policy_version;
+    RETURN array::len($grants) > 0;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_artifact_publication_association($row: object) {
+    LET $wp012_navigation_memory_metadata_only = true;
+    IF !fn::mt109_live_session() OR $row.registration_version != 1
+        OR $row.id != type::record('artifact_publication', $row.artifact_id) { RETURN false; };
+    LET $parents = SELECT VALUE id FROM protected_resources
+        WHERE id = type::record('protected_resources', $row.workspace_resource_id) AND resource_kind = 'workspace'
+        AND external_resource_id = $row.workspace_external_id AND lifecycle_state = 'active'
+        AND owner_account_id = $auth.account_id AND access_space_id = $auth.access_space_id
+        AND created_by_principal_id.status = 'enabled' LIMIT 2;
+    IF array::len($parents) != 1 { RETURN false; };
+    LET $artifacts = SELECT VALUE id FROM protected_resources
+        WHERE id = type::record('protected_resources', $row.artifact_resource_id) AND resource_kind = 'artifact'
+        AND external_resource_id = $row.artifact_id AND parent_resource_id = $parents[0] AND lifecycle_state = 'active'
+        AND owner_account_id = $auth.account_id AND access_space_id = $auth.access_space_id
+        AND created_by_principal_id.status = 'enabled' LIMIT 2;
+    RETURN array::len($artifacts) = 1;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_artifact_publication_create($row: object) {
+    LET $wp012_navigation_memory_metadata_only = true;
+    IF !fn::wp012_artifact_publication_association($row) { RETURN false; };
+    LET $resources = SELECT * FROM protected_resources WHERE id = type::record('protected_resources', $row.artifact_resource_id) LIMIT 2;
+    RETURN array::len($resources) = 1 AND fn::wp012_artifact_resource_create($resources[0]);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_artifact_publication_read($row: object) {
+    LET $wp012_navigation_memory_metadata_only = true;
+    IF !fn::wp012_artifact_publication_association($row) { RETURN false; };
+    LET $resources = SELECT * FROM protected_resources WHERE id = type::record('protected_resources', $row.artifact_resource_id) LIMIT 2;
+    RETURN array::len($resources) = 1 AND fn::wp012_artifact_resource_read($resources[0]);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_artifact_publication_full_read($row: object) {
+    LET $wp012_navigation_memory_metadata_only = true;
+    IF $wp012_original_purpose = 'navigation_read' {
+        RETURN fn::wp012_model_lane_navigation_memory_artifact_metadata_access($row)
+            AND fn::mt109_has_grant('memory_pack', $row.workspace_external_id, 'read', 'memory.read')
+            AND fn::wp012_artifact_publication_read($row);
+    };
+    RETURN fn::wp012_artifact_publication_create($row) OR fn::wp012_artifact_publication_read($row);
+};
+
+DEFINE TABLE OVERWRITE artifact_publication SCHEMAFULL
+    PERMISSIONS FOR select WHERE IF $wp012_original_purpose = 'navigation_read' {
+        fn::wp012_model_lane_navigation_memory_artifact_metadata_access($this)
+    } ELSE { fn::wp012_artifact_publication_create($this) OR fn::wp012_artifact_publication_read($this) }
+    FOR create WHERE fn::wp012_artifact_publication_create($this) FOR update, delete NONE;
+DEFINE FIELD OVERWRITE artifact_id ON TABLE artifact_publication TYPE string
+    ASSERT $this.id = type::record('artifact_publication', $value) AND <string>type::uuid($value) = $value;
+DEFINE FIELD OVERWRITE artifact_resource_id ON TABLE artifact_publication TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE workspace_external_id ON TABLE artifact_publication TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE workspace_resource_id ON TABLE artifact_publication TYPE string ASSERT string::trim($value) != '';
+DEFINE FIELD OVERWRITE manifest_json ON TABLE artifact_publication TYPE string
+    ASSERT encoding::json::decode($value).artifact_id = $this.artifact_id
+        AND encoding::json::decode($value).classification = type::record('protected_resources', $this.artifact_resource_id).classification
+    PERMISSIONS FOR select WHERE fn::wp012_artifact_publication_full_read($this);
+DEFINE FIELD OVERWRITE manifest_sha256 ON TABLE artifact_publication TYPE string
+    ASSERT string::len($value) = 64 AND $value = crypto::sha256($this.manifest_json);
+DEFINE FIELD OVERWRITE producer_operation_id ON TABLE artifact_publication TYPE string ASSERT <string>type::uuid($value) = $value;
+DEFINE FIELD OVERWRITE registration_version ON TABLE artifact_publication TYPE int ASSERT $value = 1;
+DEFINE INDEX OVERWRITE artifact_publication_artifact_unique ON TABLE artifact_publication FIELDS artifact_id UNIQUE;

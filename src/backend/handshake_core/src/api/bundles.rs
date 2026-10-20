@@ -358,7 +358,7 @@ async fn export_bundle(
         let _ = state_clone
             .surreal
             .clone()
-            .with_record_user_scope(record_user_scope, start_workflow_for_job(&state_clone, job))
+            .with_record_user_scope(record_user_scope, start_workflow_for_job(&state_clone, job, None))
             .await;
     });
 

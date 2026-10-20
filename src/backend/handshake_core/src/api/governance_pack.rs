@@ -49,7 +49,7 @@ async fn export_governance_pack(
     let export_job_id = job.job_id.to_string();
     let state_clone = state.clone();
     tokio::spawn(async move {
-        let _ = start_workflow_for_job(&state_clone, job).await;
+        let _ = start_workflow_for_job(&state_clone, job, None).await;
     });
 
     Ok((

@@ -1,8 +1,8 @@
 use crate::{
-    jobs::{create_job, JobError},
+    jobs::{create_job, create_job_from_input, JobError},
     models::{AiJob, ErrorResponse, JobKind, WorkflowRun},
-    storage::{EntityRef, JobState},
-    workflows::{record_cloud_escalation_consent_v0_4, start_workflow_for_job, WorkflowError},
+    storage::{AccessMode, EntityRef, JobMetrics, JobState, NewAiJob, SafetyMode},
+    workflows::{record_cloud_escalation_consent_v0_4, WorkflowError},
     AppState,
 };
 use axum::{
@@ -252,6 +252,33 @@ fn job_workspace(job: &AiJob) -> Option<String> {
     workspaces.next().is_none().then_some(workspace)
 }
 
+async fn job_artifact_publication_authority(
+    state: &AppState,
+    headers: &HeaderMap,
+    workspace_id: &str,
+) -> Result<
+    std::sync::Arc<crate::storage::surreal::resource_authority::WorkspaceArtifactPublicationAuthorization>,
+    JobRouteError,
+> {
+    let session = crate::api::authority::authenticated_session_credentials(state, headers)
+        .await
+        .map_err(|_| job_denied())?;
+    let operation_id = uuid::Uuid::now_v7();
+    state
+        .surreal
+        .capture_workspace_artifact_publication_authorization(
+            operation_id,
+            &state.capability_registry,
+            crate::storage::surreal::resource_authority::RoleAuthorityAuthInput::new(
+                session.session_token,
+                session.channel_binding_hash,
+            ),
+            workspace_id,
+        )
+        .await
+        .map_err(|_| job_denied())
+}
+
 #[derive(Deserialize)]
 pub struct CloudEscalationConsentRequest {
     pub request_id: String,
@@ -294,6 +321,80 @@ pub fn routes(state: AppState) -> Router {
         .with_state(state)
 }
 
+async fn prepare_job_input(
+    state: &AppState,
+    payload: &CreateJobRequest,
+    workspace_id: String,
+    job_kind: JobKind,
+    capability_profile_id: String,
+) -> Result<NewAiJob, JobRouteError> {
+    let mut entity_refs = vec![EntityRef {
+        entity_id: workspace_id.clone(),
+        entity_kind: "workspace".to_string(),
+    }];
+    if let Some(doc_id) = payload.doc_id.as_deref() {
+        let doc = state
+            .storage
+            .get_document(doc_id)
+            .await
+            .map_err(|_| job_denied())?;
+        if doc.workspace_id != workspace_id {
+            return Err(job_denied());
+        }
+        entity_refs.push(EntityRef {
+            entity_id: doc.id,
+            entity_kind: "document".to_string(),
+        });
+    }
+    Ok(NewAiJob {
+        trace_id: uuid::Uuid::now_v7(),
+        job_kind,
+        protocol_id: payload.protocol_id.clone(),
+        profile_id: "default".to_string(),
+        capability_profile_id,
+        access_mode: AccessMode::AnalysisOnly,
+        safety_mode: SafetyMode::Normal,
+        entity_refs,
+        planned_operations: Vec::new(),
+        status_reason: "queued".to_string(),
+        metrics: JobMetrics::zero(),
+        job_inputs: payload.job_inputs.clone().or_else(|| {
+            payload.doc_id.as_ref().map(|id| json!({ "doc_id": id }))
+        }),
+    })
+}
+
+pub async fn prepare_job_admission(
+    state: std::sync::Arc<AppState>,
+    headers: HeaderMap,
+    payload: CreateJobRequest,
+) -> Result<crate::jobs::JobAdmission, crate::jobs::JobAdmissionError> {
+    use crate::jobs::JobAdmissionError;
+    let job_kind = parse_job_kind_request(&payload.job_kind, &payload.protocol_id)
+        .map_err(|_| JobAdmissionError::InvalidCommand("invalid job kind or protocol"))?;
+    let session = crate::api::authority::authenticated_session_credentials(&state, &headers)
+        .await.map_err(|_| JobAdmissionError::Denied)?;
+    let (workspace_id, scope) = job_workspace_authority(
+        &state, &headers, request_workspace(&payload),
+        crate::storage::surreal::resource_authority::ResourceAction::Create,
+    ).await.map_err(|_| JobAdmissionError::Denied)?;
+    let profile_kind = if matches!(job_kind, JobKind::ModelRun) {
+        JobKind::WorkflowRun
+    } else {
+        job_kind.clone()
+    };
+    let profile_id = state.capability_registry
+        .profile_for_job_request(profile_kind.as_str(), &payload.protocol_id)
+        .map_err(|_| JobAdmissionError::InvalidCommand("capability profile unavailable"))?.id.clone();
+    let input = state.surreal.with_record_user_scope(
+        scope, prepare_job_input(&state, &payload, workspace_id, job_kind, profile_id),
+    ).await.map_err(|error| match error {
+        JobRouteError::Denied => JobAdmissionError::Denied,
+        JobRouteError::Message(_) => JobAdmissionError::InvalidCommand("invalid job input"),
+    })?;
+    crate::jobs::prepare_job_admission(state, session, input).await
+}
+
 /// This is the API handler. It receives a request, calls the jobs and
 /// workflows modules, and returns a response.
 ///
@@ -329,53 +430,66 @@ async fn create_new_job(
         .profile_for_job_request(capability_job_kind.as_str(), payload.protocol_id.as_str())
         .map_err(|e| JobRouteError::Message(e.to_string()))?;
 
-    let job_inputs = payload
-        .job_inputs
-        .clone()
-        .or_else(|| payload.doc_id.as_ref().map(|id| json!({ "doc_id": id })));
-
     let workflow_run = state
         .surreal
         .with_record_user_scope(record_user_scope, async {
-            let mut entity_refs = vec![EntityRef {
-                entity_id: workspace_id.clone(),
-                entity_kind: "workspace".to_string(),
-            }];
-            if let Some(doc_id) = payload.doc_id.as_deref() {
-                // Resolved as the record user; a document the account cannot read, or one of
-                // another workspace, is the constant denial.
-                let doc = state
-                    .storage
-                    .get_document(doc_id)
-                    .await
-                    .map_err(|_| job_denied())?;
-                if doc.workspace_id != workspace_id {
+            let memory_workspace_id = workspace_id.clone();
+            let input = prepare_job_input(
+                &state,
+                &payload,
+                workspace_id,
+                job_kind,
+                capability_profile_id.id.clone(),
+            )
+            .await?;
+            let memory_pack_authority = if crate::workflows::fems_memory_pack_persistence_required(
+                &input.job_kind, &input.protocol_id, input.job_inputs.as_ref(), None,
+            )
+                .map_err(|error| JobRouteError::Message(error.to_string()))?
+            {
+                use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+                let original = crate::api::authority::authorize_request(
+                    &state, &headers, "fs.write", ResourceKind::Workspace,
+                    &memory_workspace_id, ResourceAction::Create,
+                ).await.map_err(|_| job_denied())?;
+                let child = crate::api::authority::authorize_request(
+                    &state, &headers, "memory.commit", ResourceKind::MemoryPack,
+                    &memory_workspace_id, ResourceAction::Create,
+                ).await.map_err(|_| job_denied())?;
+                if child.account_id != original.account_id || child.principal_id != original.principal_id
+                    || child.session_id != original.session_id || child.access_space_id != original.access_space_id
+                    || child.record_user_scope.session_token != original.record_user_scope.session_token
+                    || child.record_user_scope.channel_binding_hash != original.record_user_scope.channel_binding_hash
+                    || child.delegation_chain != original.delegation_chain
+                {
                     return Err(job_denied());
                 }
-                entity_refs.push(EntityRef {
-                    entity_id: doc.id,
-                    entity_kind: "document".to_string(),
-                });
-            }
-            let job = create_job(
-                &state,
-                job_kind,
-                &payload.protocol_id,
-                // Server-enforced capability profile to prevent client-side escalation.
-                capability_profile_id.id.as_str(),
-                job_inputs,
-                entity_refs,
-            )
-            .await
-            .map_err(|error| match error {
-                JobError::Storage(crate::storage::StorageError::Guard(
-                    "HSK-403-PROTECTED-RESOURCE",
-                )) => job_denied(),
-                other => JobRouteError::Message(other.to_string()),
-            })?;
-            start_workflow_for_job(&state, job)
+                Some(crate::workflows::WorkflowMemoryPackAuthority::from_authorized(child))
+            } else {
+                None
+            };
+            let artifact_authority = if matches!(&input.job_kind, JobKind::SpecRouter) {
+                Some(job_artifact_publication_authority(&state, &headers, &memory_workspace_id).await?)
+            } else {
+                None
+            };
+            let job = create_job_from_input(&state, input)
                 .await
-                .map_err(|e| JobRouteError::Message(e.to_string()))
+                .map_err(|error| match error {
+                    JobError::Storage(crate::storage::StorageError::Guard(
+                        "HSK-403-PROTECTED-RESOURCE",
+                    )) => job_denied(),
+                    other => JobRouteError::Message(other.to_string()),
+                })?;
+            let run = match artifact_authority {
+                Some(authority) => {
+                    crate::workflows::start_workflow_for_job_with_artifact_authority(
+                        &state, job, memory_pack_authority, authority,
+                    ).await
+                }
+                None => crate::workflows::start_workflow_for_job(&state, job, memory_pack_authority).await,
+            };
+            run.map_err(|e| JobRouteError::Message(e.to_string()))
         })
         .await?;
 
@@ -400,7 +514,7 @@ async fn resume_job(
     let job = visible_job(&state, &headers, &id)
         .await
         .map_err(IntoResponse::into_response)?;
-    let (_, record_user_scope) = job_workspace_authority(
+    let (workspace_id, record_user_scope) = job_workspace_authority(
         &state,
         &headers,
         job_workspace(&job),
@@ -422,9 +536,48 @@ async fn resume_job(
         }
     }
 
+    let memory_pack_authority = if crate::workflows::fems_memory_pack_persistence_required(
+        &job.job_kind, &job.protocol_id, job.job_inputs.as_ref(), job.job_outputs.as_ref(),
+    )
+        .map_err(|error| workflow_error(error).into_response())?
+    {
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+        let original = crate::api::authority::authorize_request(
+            &state, &headers, "fs.write", ResourceKind::Workspace, &workspace_id, ResourceAction::Update,
+        ).await.map_err(IntoResponse::into_response)?;
+        let child = crate::api::authority::authorize_request(
+            &state, &headers, "memory.commit", ResourceKind::MemoryPack, &workspace_id, ResourceAction::Create,
+        ).await.map_err(IntoResponse::into_response)?;
+        if child.account_id != original.account_id || child.principal_id != original.principal_id
+            || child.session_id != original.session_id || child.access_space_id != original.access_space_id
+            || child.record_user_scope.session_token != original.record_user_scope.session_token
+            || child.record_user_scope.channel_binding_hash != original.record_user_scope.channel_binding_hash
+            || child.delegation_chain != original.delegation_chain
+        {
+            return Err(job_denied().into_response());
+        }
+        Some(crate::workflows::WorkflowMemoryPackAuthority::from_authorized(child))
+    } else {
+        None
+    };
+    let artifact_authority = if matches!(&job.job_kind, JobKind::SpecRouter) {
+        Some(job_artifact_publication_authority(&state, &headers, &workspace_id)
+            .await.map_err(IntoResponse::into_response)?)
+    } else {
+        None
+    };
     let workflow_run = state
         .surreal
-        .with_record_user_scope(record_user_scope, start_workflow_for_job(&state, job))
+        .with_record_user_scope(record_user_scope, async {
+            match artifact_authority {
+                Some(authority) => {
+                    crate::workflows::start_workflow_for_job_with_artifact_authority(
+                        &state, job, memory_pack_authority, authority,
+                    ).await
+                }
+                None => crate::workflows::start_workflow_for_job(&state, job, memory_pack_authority).await,
+            }
+        })
         .await
         .map_err(|error| workflow_error(error).into_response())?;
     Ok(Json(workflow_run))

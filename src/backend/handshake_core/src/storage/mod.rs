@@ -521,908 +521,7 @@ impl RetentionPolicy {
 /// - 2.3.10.6 Artifact manifests + on-disk layout (normative)
 /// - 2.3.10.7 Bundles + canonical hashing (normative)
 /// - 2.3.11.2 Materialize rules (atomic + traversal-safe + no bypass)
-pub mod artifacts {
-    use std::fs;
-    use std::io::{self, Write};
-    use std::path::{Component, Path, PathBuf};
-
-    use chrono::{DateTime, Utc};
-    use serde::{Deserialize, Serialize};
-    use sha2::{Digest, Sha256};
-    use thiserror::Error;
-    use uuid::Uuid;
-
-    use crate::ace::ArtifactHandle;
-
-    use super::EntityRef;
-
-    const HANDSHAKE_DIR: &str = ".handshake";
-    const ARTIFACTS_DIR: &str = "artifacts";
-    pub(crate) const ARTIFACT_MANIFEST_FILENAME: &str = "artifact.json";
-
-    #[derive(Debug, Error)]
-    pub enum ArtifactError {
-        #[error("workspace root resolve failed: {0}")]
-        WorkspaceRootResolve(String),
-        #[error("invalid relative path: {path}")]
-        InvalidRelPath { path: String },
-        #[error("path traversal blocked: {path}")]
-        PathTraversalBlocked { path: String },
-        #[error("write blocked: target escapes root: {path}")]
-        RootEscape { path: String },
-        #[error(
-            "missing retention_ttl_days for high-sensitivity artifact: artifact_id={artifact_id} kind={kind:?}"
-        )]
-        MissingRetentionTtlDays {
-            artifact_id: Uuid,
-            kind: ArtifactPayloadKind,
-        },
-        #[error("invalid sha256 hex: {field}")]
-        InvalidSha256Hex { field: String },
-        #[error("content hash mismatch")]
-        ContentHashMismatch,
-        #[error("payload exceeds the ingest size limit: limit={limit_bytes} observed>={observed_bytes}")]
-        SizeLimitExceeded { limit_bytes: u64, observed_bytes: u64 },
-        #[error("payload stream failed: {0}")]
-        Stream(String),
-        #[error("io error: {0}")]
-        Io(#[from] io::Error),
-        #[error("serialization error: {0}")]
-        Serialization(#[from] serde_json::Error),
-    }
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-    pub enum ArtifactLayer {
-        #[serde(rename = "L1")]
-        L1,
-        #[serde(rename = "L2")]
-        L2,
-        #[serde(rename = "L3")]
-        L3,
-        #[serde(rename = "L4")]
-        L4,
-    }
-
-    impl ArtifactLayer {
-        pub fn as_str(&self) -> &'static str {
-            match self {
-                ArtifactLayer::L1 => "L1",
-                ArtifactLayer::L2 => "L2",
-                ArtifactLayer::L3 => "L3",
-                ArtifactLayer::L4 => "L4",
-            }
-        }
-    }
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-    #[serde(rename_all = "snake_case")]
-    pub enum ArtifactPayloadKind {
-        File,
-        ToolOutput,
-        Transcript,
-        DatasetSlice,
-        PromptPayload,
-        Report,
-        Bundle,
-    }
-
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-    #[serde(rename_all = "snake_case")]
-    pub enum ArtifactClassification {
-        Low,
-        Medium,
-        High,
-    }
-
-    /// Spec 2.3.10.6 minimum schema (+ optional hash_basis fields for deterministic validation).
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct ArtifactManifest {
-        pub artifact_id: Uuid,
-        pub layer: ArtifactLayer,
-        pub kind: ArtifactPayloadKind,
-        pub mime: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub filename_hint: Option<String>,
-        pub created_at: DateTime<Utc>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub created_by_job_id: Option<Uuid>,
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        pub source_entity_refs: Vec<EntityRef>,
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        pub source_artifact_refs: Vec<ArtifactHandle>,
-        pub content_hash: String,
-        pub size_bytes: u64,
-        pub classification: ArtifactClassification,
-        pub exportable: bool,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub retention_ttl_days: Option<u32>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub pinned: Option<bool>,
-        /// Optional but recommended for directory artifacts to enable deterministic content_hash
-        /// validation (hash basis and explicit excludes).
-        #[serde(skip_serializing_if = "Option::is_none")]
-        pub hash_basis: Option<String>,
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
-        pub hash_exclude_paths: Vec<String>,
-    }
-
-    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-    pub struct BundleIndexEntry {
-        pub path: String,
-        pub content_hash: String,
-        pub size_bytes: u64,
-    }
-
-    #[derive(Debug, Clone)]
-    pub struct ArtifactWriteEntry {
-        pub rel_path: String,
-        pub bytes: Vec<u8>,
-    }
-
-    /// Environment override for the workspace root the ArtifactStore lives under.
-    pub const HANDSHAKE_WORKSPACE_ROOT_ENV: &str = "HANDSHAKE_WORKSPACE_ROOT";
-
-    /// Resolve the workspace root at RUNTIME, never from a path baked into the binary.
-    ///
-    /// Order: (1) `HANDSHAKE_WORKSPACE_ROOT`; (2) the nearest ancestor of the current working
-    /// directory that already contains a `.handshake/` workspace directory; (3) the nearest
-    /// ancestor that is a git checkout root (`.git` file or directory), which is what development
-    /// and test processes run inside; (4) a hard error naming the two ways to fix it.
-    ///
-    /// The previous fallback embedded `CARGO_MANIFEST_DIR` at compile time, so a binary carried the
-    /// build host's drive and worktree with it: run from another worktree it opened THAT worktree's
-    /// artifact store, and moved to another disk it pointed at a path that did not exist. Both
-    /// break the disk-agnostic rule [CX-109B]; a runtime-discovered root cannot.
-    pub fn resolve_workspace_root() -> Result<PathBuf, ArtifactError> {
-        if let Ok(value) = std::env::var(HANDSHAKE_WORKSPACE_ROOT_ENV) {
-            let trimmed = value.trim();
-            if !trimmed.is_empty() {
-                return Ok(PathBuf::from(trimmed));
-            }
-        }
-        let cwd = std::env::current_dir().map_err(|err| {
-            ArtifactError::WorkspaceRootResolve(format!(
-                "{HANDSHAKE_WORKSPACE_ROOT_ENV} is unset and the current directory is unreadable: {err}"
-            ))
-        })?;
-        if let Some(root) = discover_workspace_root_from(&cwd) {
-            return Ok(root);
-        }
-        Err(ArtifactError::WorkspaceRootResolve(format!(
-            "{HANDSHAKE_WORKSPACE_ROOT_ENV} is unset and no ancestor of {} contains a `.handshake/` \
-             workspace directory or a git checkout root; set {HANDSHAKE_WORKSPACE_ROOT_ENV} to the \
-             workspace that owns `.handshake/artifacts`",
-            cwd.display()
-        )))
-    }
-
-    /// Runtime workspace-root discovery used by [`resolve_workspace_root`]: the nearest ancestor of
-    /// `start` (inclusive) holding a `.handshake/` directory wins; failing that, the nearest ancestor
-    /// that is a git checkout root. Pure function over the filesystem, no environment reads.
-    pub fn discover_workspace_root_from(start: &Path) -> Option<PathBuf> {
-        let mut cursor: Option<&Path> = Some(start);
-        while let Some(dir) = cursor {
-            if dir.join(HANDSHAKE_DIR).is_dir() {
-                return Some(dir.to_path_buf());
-            }
-            cursor = dir.parent();
-        }
-        let mut cursor: Option<&Path> = Some(start);
-        while let Some(dir) = cursor {
-            if dir.join(".git").exists() {
-                return Some(dir.to_path_buf());
-            }
-            cursor = dir.parent();
-        }
-        None
-    }
-
-    pub fn artifact_store_root(workspace_root: &Path) -> PathBuf {
-        workspace_root.join(HANDSHAKE_DIR).join(ARTIFACTS_DIR)
-    }
-
-    pub fn artifact_root_dir(
-        workspace_root: &Path,
-        layer: ArtifactLayer,
-        artifact_id: Uuid,
-    ) -> PathBuf {
-        artifact_store_root(workspace_root)
-            .join(layer.as_str())
-            .join(artifact_id.to_string())
-    }
-
-    pub fn artifact_root_rel(layer: ArtifactLayer, artifact_id: Uuid) -> String {
-        format!(
-            "{}/{}/{}/{}",
-            HANDSHAKE_DIR,
-            ARTIFACTS_DIR,
-            layer.as_str(),
-            artifact_id
-        )
-    }
-
-    /// Canonical sha256 -> bare lowercase hex. This is THE crate-level helper; the ~40 private
-    /// copies across the crate are being folded onto it (see `normalize_sha256_hex_ref` for the
-    /// three ref spellings in use).
-    pub fn sha256_hex(bytes: &[u8]) -> String {
-        let mut h = Sha256::new();
-        h.update(bytes);
-        hex::encode(h.finalize())
-    }
-
-    /// The three content-hash spellings the tree has accumulated. `Bare` is canonical for storage
-    /// columns and manifests; the two prefixed forms are accepted on input and emitted only where a
-    /// consumer contract demands them (`artifact://sha256/<hex>` is the Flight Recorder / memory
-    /// artifact-ref contract; `sha256-<hex>` appears in ETags and legacy aggregate ids;
-    /// `sha256:<hex>` is the Atelier row spelling).
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub enum Sha256RefFormat {
-        Bare,
-        ColonPrefixed,
-        DashPrefixed,
-        ArtifactUrl,
-    }
-
-    /// Accept any of the known spellings and return the bare lowercase 64-hex digest plus the
-    /// format it arrived in; `None` when the digest is not 64 hex characters.
-    pub fn normalize_sha256_hex_ref(value: &str) -> Option<(String, Sha256RefFormat)> {
-        let trimmed = value.trim();
-        let (hex_part, format) = if let Some(rest) = trimmed.strip_prefix("artifact://sha256/") {
-            (rest, Sha256RefFormat::ArtifactUrl)
-        } else if let Some(rest) = trimmed.strip_prefix("sha256:") {
-            (rest, Sha256RefFormat::ColonPrefixed)
-        } else if let Some(rest) = trimmed.strip_prefix("sha256-") {
-            (rest, Sha256RefFormat::DashPrefixed)
-        } else {
-            (trimmed, Sha256RefFormat::Bare)
-        };
-        if hex_part.len() != 64 || !hex_part.bytes().all(|b| b.is_ascii_hexdigit()) {
-            return None;
-        }
-        Some((hex_part.to_ascii_lowercase(), format))
-    }
-
-    /// Render a bare digest in one of the known spellings.
-    pub fn format_sha256_ref(bare_hex: &str, format: Sha256RefFormat) -> String {
-        match format {
-            Sha256RefFormat::Bare => bare_hex.to_ascii_lowercase(),
-            Sha256RefFormat::ColonPrefixed => format!("sha256:{}", bare_hex.to_ascii_lowercase()),
-            Sha256RefFormat::DashPrefixed => format!("sha256-{}", bare_hex.to_ascii_lowercase()),
-            Sha256RefFormat::ArtifactUrl => {
-                format!("artifact://sha256/{}", bare_hex.to_ascii_lowercase())
-            }
-        }
-    }
-
-    /// True when two content hashes in any known spelling name the same digest.
-    pub fn sha256_refs_match(left: &str, right: &str) -> bool {
-        match (normalize_sha256_hex_ref(left), normalize_sha256_hex_ref(right)) {
-            (Some((l, _)), Some((r, _))) => l == r,
-            _ => false,
-        }
-    }
-
-    fn normalize_rel_path(input: &str) -> String {
-        input
-            .replace('\\', "/")
-            .trim_start_matches("./")
-            .trim_start_matches('/')
-            .to_string()
-    }
-
-    fn ensure_safe_rel_path(rel_path: &str) -> Result<(), ArtifactError> {
-        let path = Path::new(rel_path);
-        if path.is_absolute() {
-            return Err(ArtifactError::PathTraversalBlocked {
-                path: rel_path.to_string(),
-            });
-        }
-        for component in path.components() {
-            match component {
-                Component::ParentDir | Component::Prefix(_) | Component::RootDir => {
-                    return Err(ArtifactError::PathTraversalBlocked {
-                        path: rel_path.to_string(),
-                    });
-                }
-                _ => {}
-            }
-        }
-        Ok(())
-    }
-
-    fn ensure_root_escape_blocked(root: &Path, target_path: &Path) -> Result<(), ArtifactError> {
-        let root = fs::canonicalize(root)?;
-        let parent = target_path
-            .parent()
-            .ok_or_else(|| ArtifactError::InvalidRelPath {
-                path: target_path.to_string_lossy().to_string(),
-            })?;
-        fs::create_dir_all(parent)?;
-        let parent_canon = fs::canonicalize(parent)?;
-        if !parent_canon.starts_with(&root) {
-            return Err(ArtifactError::RootEscape {
-                path: target_path.to_string_lossy().to_string(),
-            });
-        }
-        Ok(())
-    }
-
-    /// Atomic file write (temp + fsync + publication) with best-effort parent dir fsync.
-    /// Write-once publication uses a hard link so a concurrent winner is never replaced.
-    pub fn write_file_atomic(
-        root: &Path,
-        target_path: &Path,
-        bytes: &[u8],
-        overwrite: bool,
-    ) -> Result<(), ArtifactError> {
-        ensure_root_escape_blocked(root, target_path)?;
-
-        let parent = target_path
-            .parent()
-            .ok_or_else(|| ArtifactError::InvalidRelPath {
-                path: target_path.to_string_lossy().to_string(),
-            })?;
-        let parent_canon = fs::canonicalize(parent)?;
-
-        let tmp_name = format!(".hsk_tmp_{}", Uuid::now_v7());
-        let tmp_path = parent_canon.join(tmp_name);
-        let mut tmp_file = fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&tmp_path)?;
-        tmp_file.write_all(bytes)?;
-        tmp_file.sync_all()?;
-        drop(tmp_file);
-
-        if overwrite && target_path.exists() {
-            if target_path.is_dir() {
-                let _ = fs::remove_file(&tmp_path);
-                return Err(ArtifactError::Io(io::Error::new(
-                    io::ErrorKind::AlreadyExists,
-                    "target path exists and is a directory",
-                )));
-            }
-            fs::remove_file(target_path)?;
-        }
-
-        let publication = if overwrite {
-            fs::rename(&tmp_path, target_path)
-        } else {
-            fs::hard_link(&tmp_path, target_path)
-        };
-        if let Err(err) = publication {
-            let _ = fs::remove_file(&tmp_path);
-            return Err(ArtifactError::Io(err));
-        }
-        if !overwrite {
-            let _ = fs::remove_file(&tmp_path);
-        }
-
-        if let Ok(dir_handle) = fs::File::open(&parent_canon) {
-            let _ = dir_handle.sync_all();
-        }
-        Ok(())
-    }
-
-    /// Deterministic, canonical BundleIndex (sorted paths + per-item content_hash + size_bytes).
-    pub fn canonical_bundle_index(mut entries: Vec<BundleIndexEntry>) -> Vec<BundleIndexEntry> {
-        entries.sort_by(|a, b| a.path.cmp(&b.path));
-        entries
-    }
-
-    pub fn bundle_index_json(entries: &[BundleIndexEntry]) -> Result<Vec<u8>, ArtifactError> {
-        let mut normalized: Vec<BundleIndexEntry> = Vec::with_capacity(entries.len());
-        for entry in entries {
-            if entry.path.trim().is_empty() {
-                return Err(ArtifactError::InvalidRelPath {
-                    path: entry.path.clone(),
-                });
-            }
-            let rel = normalize_rel_path(&entry.path);
-            ensure_safe_rel_path(&rel)?;
-            if rel.contains(':') {
-                return Err(ArtifactError::PathTraversalBlocked { path: rel });
-            }
-            normalized.push(BundleIndexEntry {
-                path: rel,
-                content_hash: entry.content_hash.clone(),
-                size_bytes: entry.size_bytes,
-            });
-        }
-        let normalized = canonical_bundle_index(normalized);
-        Ok(serde_json::to_vec(&normalized)?)
-    }
-
-    pub fn bundle_index_content_hash(bundle_index_json: &[u8]) -> String {
-        sha256_hex(bundle_index_json)
-    }
-
-    pub fn compute_entries_index(
-        entries: &[ArtifactWriteEntry],
-        exclude_paths: &[String],
-    ) -> Result<(Vec<BundleIndexEntry>, u64), ArtifactError> {
-        let mut index: Vec<BundleIndexEntry> = Vec::new();
-        let mut total_size: u64 = 0;
-
-        for entry in entries {
-            let rel = normalize_rel_path(&entry.rel_path);
-            if rel.trim().is_empty() {
-                return Err(ArtifactError::InvalidRelPath { path: rel });
-            }
-            ensure_safe_rel_path(&rel)?;
-            if rel.contains(':') {
-                return Err(ArtifactError::PathTraversalBlocked { path: rel });
-            }
-
-            total_size = total_size.saturating_add(entry.bytes.len() as u64);
-            if exclude_paths.iter().any(|p| normalize_rel_path(p) == rel) {
-                continue;
-            }
-            let content_hash = sha256_hex(&entry.bytes);
-            index.push(BundleIndexEntry {
-                path: rel,
-                content_hash,
-                size_bytes: entry.bytes.len() as u64,
-            });
-        }
-
-        Ok((canonical_bundle_index(index), total_size))
-    }
-
-    /// LocalFile materialize: writes a set of files into `export_root` (directory), enforcing
-    /// traversal-safe relative paths and atomic per-file writes.
-    pub fn materialize_local_dir(
-        export_root: &Path,
-        entries: &[ArtifactWriteEntry],
-        overwrite: bool,
-    ) -> Result<Vec<String>, ArtifactError> {
-        if !export_root.is_absolute() {
-            return Err(ArtifactError::InvalidRelPath {
-                path: export_root.to_string_lossy().to_string(),
-            });
-        }
-        fs::create_dir_all(export_root)?;
-        if !export_root.is_dir() {
-            return Err(ArtifactError::Io(io::Error::new(
-                io::ErrorKind::NotADirectory,
-                "export_root is not a directory",
-            )));
-        }
-        let export_root_canon = fs::canonicalize(export_root)?;
-
-        let mut materialized_paths: Vec<String> = Vec::with_capacity(entries.len());
-        for entry in entries {
-            let rel = normalize_rel_path(&entry.rel_path);
-            ensure_safe_rel_path(&rel)?;
-            if rel.contains(':') {
-                return Err(ArtifactError::PathTraversalBlocked { path: rel });
-            }
-
-            let target_path = export_root_canon.join(Path::new(&rel));
-            write_file_atomic(&export_root_canon, &target_path, &entry.bytes, overwrite)?;
-            materialized_paths.push(rel);
-        }
-
-        materialized_paths.sort();
-        Ok(materialized_paths)
-    }
-
-    pub fn write_artifact_manifest_atomic(
-        artifact_root: &Path,
-        manifest: &ArtifactManifest,
-    ) -> Result<(), ArtifactError> {
-        let manifest_path = artifact_root.join(ARTIFACT_MANIFEST_FILENAME);
-        let bytes = serde_json::to_vec_pretty(manifest)?;
-        write_file_atomic(artifact_root, &manifest_path, &bytes, false)
-    }
-
-    pub fn write_file_artifact(
-        workspace_root: &Path,
-        manifest: &ArtifactManifest,
-        payload_bytes: &[u8],
-    ) -> Result<(), ArtifactError> {
-        if matches!(manifest.kind, ArtifactPayloadKind::PromptPayload)
-            || matches!(manifest.classification, ArtifactClassification::High)
-        {
-            if manifest.retention_ttl_days.is_none() {
-                return Err(ArtifactError::MissingRetentionTtlDays {
-                    artifact_id: manifest.artifact_id,
-                    kind: manifest.kind,
-                });
-            }
-        }
-
-        let artifact_root = artifact_root_dir(workspace_root, manifest.layer, manifest.artifact_id);
-        fs::create_dir_all(&artifact_root)?;
-
-        // Validate hash fields match payload.
-        if manifest.content_hash != sha256_hex(payload_bytes) {
-            return Err(ArtifactError::ContentHashMismatch);
-        }
-        if manifest.size_bytes != payload_bytes.len() as u64 {
-            return Err(ArtifactError::ContentHashMismatch);
-        }
-
-        let payload_path = artifact_root.join("payload");
-        write_file_atomic(&artifact_root, &payload_path, payload_bytes, false)?;
-        write_artifact_manifest_atomic(&artifact_root, manifest)?;
-        Ok(())
-    }
-
-    /// Inputs for a streaming single-file artifact write whose content hash and size are NOT known
-    /// up front (an HTTP upload, a video file, a render being produced). Everything the manifest
-    /// needs except `content_hash` / `size_bytes` / `created_at`, plus the ingest ceiling.
-    #[derive(Debug, Clone)]
-    pub struct StreamingFileArtifactSpec {
-        pub artifact_id: Uuid,
-        pub layer: ArtifactLayer,
-        pub mime: String,
-        pub filename_hint: Option<String>,
-        pub created_by_job_id: Option<Uuid>,
-        pub source_entity_refs: Vec<EntityRef>,
-        pub source_artifact_refs: Vec<ArtifactHandle>,
-        pub classification: ArtifactClassification,
-        pub exportable: bool,
-        pub retention_ttl_days: Option<u32>,
-        pub pinned: Option<bool>,
-        /// Hard ceiling in bytes. The write aborts and attempts temporary-file cleanup when the
-        /// stream would exceed it; there is no unbounded-ingest path on this store.
-        pub max_bytes: u64,
-    }
-
-    /// Streaming, size-capped counterpart of [`write_file_artifact`]: bytes are hashed and counted
-    /// as they arrive and written to a temp file inside the artifact root, so peak memory is one
-    /// chunk, not the payload. The manifest is written only after the payload is fsynced and
-    /// published. Cancellation or a crash can leave temporary files or a payload without a
-    /// manifest; cleanup is best effort and L1 has no automatic reclamation. The same
-    /// write-once, hash-addressed contract as the buffered writer holds: an existing `payload` is
-    /// never overwritten, and the returned manifest's `content_hash` is the sha256 of exactly the
-    /// bytes on disk. This is the ingest primitive the Studio placed-asset binding needs for video
-    /// and other bulk binary ([STU-ASSET-008]).
-    ///
-    /// On [`ArtifactError::SizeLimitExceeded`] this stops reading at the ceiling. An HTTP caller
-    /// should pass `&mut stream` (a `&mut S` is itself a `Stream` when `S: Stream + Unpin`) so it
-    /// keeps the body and can drain a bounded remainder before answering 413 — a server that stops
-    /// reading and responds immediately makes the peer observe a connection reset instead of the
-    /// status.
-    pub async fn write_file_artifact_streaming<S, B, E>(
-        workspace_root: &Path,
-        spec: StreamingFileArtifactSpec,
-        mut stream: S,
-    ) -> Result<ArtifactManifest, ArtifactError>
-    where
-        S: futures_util::Stream<Item = Result<B, E>> + Unpin,
-        B: AsRef<[u8]>,
-        E: std::fmt::Display,
-    {
-        use tokio::io::AsyncWriteExt;
-
-        if matches!(spec.classification, ArtifactClassification::High)
-            && spec.retention_ttl_days.is_none()
-        {
-            return Err(ArtifactError::MissingRetentionTtlDays {
-                artifact_id: spec.artifact_id,
-                kind: ArtifactPayloadKind::File,
-            });
-        }
-        if spec.max_bytes == 0 {
-            return Err(ArtifactError::SizeLimitExceeded {
-                limit_bytes: 0,
-                observed_bytes: 0,
-            });
-        }
-
-        let artifact_root = artifact_root_dir(workspace_root, spec.layer, spec.artifact_id);
-        fs::create_dir_all(&artifact_root)?;
-        let artifact_root_canon = fs::canonicalize(&artifact_root)?;
-        let payload_path = artifact_root_canon.join("payload");
-        if payload_path.exists() {
-            return Err(ArtifactError::Io(io::Error::new(
-                io::ErrorKind::AlreadyExists,
-                "artifact payload already exists (write-once store)",
-            )));
-        }
-        ensure_root_escape_blocked(&artifact_root_canon, &payload_path)?;
-
-        let tmp_path = artifact_root_canon.join(format!(".hsk_tmp_{}", Uuid::now_v7()));
-        let mut tmp_file = tokio::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&tmp_path)
-            .await?;
-
-        let mut hasher = Sha256::new();
-        let mut observed: u64 = 0;
-        let outcome: Result<(), ArtifactError> = async {
-            while let Some(chunk) = futures_util::StreamExt::next(&mut stream).await {
-                let chunk = chunk.map_err(|err| ArtifactError::Stream(err.to_string()))?;
-                let bytes = chunk.as_ref();
-                let next = observed.saturating_add(bytes.len() as u64);
-                if next > spec.max_bytes {
-                    return Err(ArtifactError::SizeLimitExceeded {
-                        limit_bytes: spec.max_bytes,
-                        observed_bytes: next,
-                    });
-                }
-                hasher.update(bytes);
-                tmp_file.write_all(bytes).await?;
-                observed = next;
-            }
-            if observed == 0 {
-                return Err(ArtifactError::Io(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "empty payload stream",
-                )));
-            }
-            tmp_file.sync_all().await?;
-            Ok(())
-        }
-        .await;
-        drop(tmp_file);
-        if let Err(err) = outcome {
-            let _ = fs::remove_file(&tmp_path);
-            let _ = fs::remove_dir(&artifact_root_canon);
-            return Err(err);
-        }
-
-        // The preflight exists check can become stale while reading the stream.
-        // Linking publishes only if the destination is still absent.
-        if let Err(err) = fs::hard_link(&tmp_path, &payload_path) {
-            let _ = fs::remove_file(&tmp_path);
-            let _ = fs::remove_dir(&artifact_root_canon);
-            return Err(ArtifactError::Io(err));
-        }
-        let _ = fs::remove_file(&tmp_path);
-        if let Ok(dir_handle) = fs::File::open(&artifact_root_canon) {
-            let _ = dir_handle.sync_all();
-        }
-
-        let manifest = ArtifactManifest {
-            artifact_id: spec.artifact_id,
-            layer: spec.layer,
-            kind: ArtifactPayloadKind::File,
-            mime: spec.mime,
-            filename_hint: spec.filename_hint,
-            created_at: Utc::now(),
-            created_by_job_id: spec.created_by_job_id,
-            source_entity_refs: spec.source_entity_refs,
-            source_artifact_refs: spec.source_artifact_refs,
-            content_hash: hex::encode(hasher.finalize()),
-            size_bytes: observed,
-            classification: spec.classification,
-            exportable: spec.exportable,
-            retention_ttl_days: spec.retention_ttl_days,
-            pinned: spec.pinned,
-            hash_basis: None,
-            hash_exclude_paths: Vec::new(),
-        };
-        if let Err(err) = write_artifact_manifest_atomic(&artifact_root_canon, &manifest) {
-            // Publication succeeded for this writer; a losing writer returns above
-            // and must never remove another writer's published payload.
-            let _ = fs::remove_file(&payload_path);
-            let _ = fs::remove_dir(&artifact_root_canon);
-            return Err(err);
-        }
-        Ok(manifest)
-    }
-
-    /// Remove one artifact (payload + manifest + its directory). This is the compensating action a
-    /// caller takes when the catalog write that should have referenced a freshly written artifact
-    /// fails or dedups to an existing row. It attempts to remove the unreferenced payload;
-    /// cleanup errors propagate to the caller. Refuses anything outside the artifact store root.
-    pub fn remove_file_artifact(
-        workspace_root: &Path,
-        layer: ArtifactLayer,
-        artifact_id: Uuid,
-    ) -> Result<(), ArtifactError> {
-        let store_root = fs::canonicalize(artifact_store_root(workspace_root))?;
-        let artifact_root = artifact_root_dir(workspace_root, layer, artifact_id);
-        if !artifact_root.exists() {
-            return Ok(());
-        }
-        let artifact_root_canon = fs::canonicalize(&artifact_root)?;
-        if !artifact_root_canon.starts_with(&store_root) {
-            return Err(ArtifactError::RootEscape {
-                path: artifact_root_canon.to_string_lossy().to_string(),
-            });
-        }
-        fs::remove_dir_all(&artifact_root_canon)?;
-        Ok(())
-    }
-
-    pub fn write_dir_artifact(
-        workspace_root: &Path,
-        manifest: &ArtifactManifest,
-        entries: &[ArtifactWriteEntry],
-    ) -> Result<(), ArtifactError> {
-        if matches!(manifest.kind, ArtifactPayloadKind::PromptPayload)
-            || matches!(manifest.classification, ArtifactClassification::High)
-        {
-            if manifest.retention_ttl_days.is_none() {
-                return Err(ArtifactError::MissingRetentionTtlDays {
-                    artifact_id: manifest.artifact_id,
-                    kind: manifest.kind,
-                });
-            }
-        }
-
-        let artifact_root = artifact_root_dir(workspace_root, manifest.layer, manifest.artifact_id);
-        let payload_root = artifact_root.join("payload");
-        fs::create_dir_all(&payload_root)?;
-
-        // Validate hash fields match entries (structural hashing).
-        let (index, total_size) = compute_entries_index(entries, &manifest.hash_exclude_paths)?;
-        let index_json = bundle_index_json(&index)?;
-        let computed = bundle_index_content_hash(&index_json);
-        if manifest.content_hash != computed || manifest.size_bytes != total_size {
-            return Err(ArtifactError::ContentHashMismatch);
-        }
-
-        // Deterministic write order: lexicographic by normalized rel_path.
-        let mut write_entries: Vec<ArtifactWriteEntry> = entries.to_vec();
-        write_entries
-            .sort_by(|a, b| normalize_rel_path(&a.rel_path).cmp(&normalize_rel_path(&b.rel_path)));
-
-        for entry in &write_entries {
-            let rel = normalize_rel_path(&entry.rel_path);
-            ensure_safe_rel_path(&rel)?;
-            let target_path = payload_root.join(Path::new(&rel));
-            write_file_atomic(&payload_root, &target_path, &entry.bytes, false)?;
-        }
-
-        write_artifact_manifest_atomic(&artifact_root, manifest)?;
-        Ok(())
-    }
-
-    pub fn read_artifact_manifest(
-        workspace_root: &Path,
-        layer: ArtifactLayer,
-        artifact_id: Uuid,
-    ) -> Result<ArtifactManifest, ArtifactError> {
-        let artifact_root = artifact_root_dir(workspace_root, layer, artifact_id);
-        let manifest_path = artifact_root.join(ARTIFACT_MANIFEST_FILENAME);
-        let raw = fs::read_to_string(&manifest_path)?;
-        let manifest: ArtifactManifest = serde_json::from_str(&raw)?;
-        Ok(manifest)
-    }
-
-    /// Read the raw payload bytes of a single-file artifact, fail-closed on a missing payload or a
-    /// content-hash / size mismatch against the manifest. This is the byte-fetch READ counterpart to
-    /// [`write_file_artifact`]: it reuses the same manifest-vs-payload validation as
-    /// [`validate_artifact_content_hash`] (file case) but returns the verified bytes so a runtime
-    /// surface (the Posekit source-image viewport, the Studio placed-asset resolver, the CKC asset
-    /// viewport) can display the REAL stored payload. Directory (bundle) artifacts are rejected
-    /// here — this reader serves the single `payload` file case only; callers needing bundle bytes
-    /// must enumerate the payload directory themselves. Never returns a fabricated or partial body:
-    /// any hash/size drift is a hard [`ArtifactError::ContentHashMismatch`].
-    ///
-    /// Ported from `feat/WP-CKC-posekit-overhaul` (MT-043) onto the SurrealDB tree; the function is
-    /// storage-agnostic and identical in contract to the reference implementation.
-    pub fn read_file_artifact(
-        workspace_root: &Path,
-        layer: ArtifactLayer,
-        artifact_id: Uuid,
-    ) -> Result<Vec<u8>, ArtifactError> {
-        let manifest = read_artifact_manifest(workspace_root, layer, artifact_id)?;
-        read_file_artifact_with_manifest(workspace_root, &manifest)
-    }
-
-    /// Same contract as [`read_file_artifact`] for a caller that already holds the manifest and must
-    /// not pay a second manifest read (the media byte route cross-checks the manifest against the
-    /// catalog row before deciding whether to touch the payload at all).
-    pub fn read_file_artifact_with_manifest(
-        workspace_root: &Path,
-        manifest: &ArtifactManifest,
-    ) -> Result<Vec<u8>, ArtifactError> {
-        let artifact_root = artifact_root_dir(workspace_root, manifest.layer, manifest.artifact_id);
-        let payload_path = artifact_root.join("payload");
-        let meta = fs::metadata(&payload_path)?;
-        if !meta.is_file() {
-            // A directory (bundle) or other resolved non-file payload is not byte-servable.
-            // Metadata follows symlinks; the resolved file still requires size and hash checks.
-            return Err(ArtifactError::InvalidRelPath {
-                path: payload_path.to_string_lossy().to_string(),
-            });
-        }
-        if meta.len() != manifest.size_bytes {
-            // Cheap pre-check: refuse before reading a payload whose on-disk size already disagrees
-            // with the manifest (a torn write or truncated copy). The full hash check below still
-            // runs for the equal-size case.
-            return Err(ArtifactError::ContentHashMismatch);
-        }
-
-        let bytes = fs::read(&payload_path)?;
-        if sha256_hex(&bytes) != manifest.content_hash || bytes.len() as u64 != manifest.size_bytes {
-            return Err(ArtifactError::ContentHashMismatch);
-        }
-        Ok(bytes)
-    }
-
-    pub fn validate_artifact_content_hash(
-        workspace_root: &Path,
-        layer: ArtifactLayer,
-        artifact_id: Uuid,
-    ) -> Result<(), ArtifactError> {
-        let manifest = read_artifact_manifest(workspace_root, layer, artifact_id)?;
-        let artifact_root = artifact_root_dir(workspace_root, layer, artifact_id);
-
-        let payload_path = artifact_root.join("payload");
-        let meta = fs::metadata(&payload_path)?;
-        if meta.is_file() {
-            let bytes = fs::read(payload_path)?;
-            if sha256_hex(&bytes) != manifest.content_hash
-                || bytes.len() as u64 != manifest.size_bytes
-            {
-                return Err(ArtifactError::ContentHashMismatch);
-            }
-            return Ok(());
-        }
-
-        if !meta.is_dir() {
-            return Err(ArtifactError::InvalidRelPath {
-                path: payload_path.to_string_lossy().to_string(),
-            });
-        }
-
-        let payload_root = payload_path;
-        let mut entries: Vec<ArtifactWriteEntry> = Vec::new();
-        collect_dir_entries(&payload_root, &payload_root, &mut entries)?;
-        let (index, total_size) = compute_entries_index(&entries, &manifest.hash_exclude_paths)?;
-        let index_json = bundle_index_json(&index)?;
-        let computed = bundle_index_content_hash(&index_json);
-        if computed != manifest.content_hash || total_size != manifest.size_bytes {
-            return Err(ArtifactError::ContentHashMismatch);
-        }
-        Ok(())
-    }
-
-    fn collect_dir_entries(
-        root: &Path,
-        dir: &Path,
-        out: &mut Vec<ArtifactWriteEntry>,
-    ) -> Result<(), ArtifactError> {
-        for entry in fs::read_dir(dir)? {
-            let entry = entry?;
-            let ty = entry.file_type()?;
-            if ty.is_symlink() {
-                return Err(ArtifactError::InvalidRelPath {
-                    path: entry.path().to_string_lossy().to_string(),
-                });
-            }
-            let path = entry.path();
-            if ty.is_dir() {
-                collect_dir_entries(root, &path, out)?;
-                continue;
-            }
-            if !ty.is_file() {
-                continue;
-            }
-            let rel = path
-                .strip_prefix(root)
-                .map_err(|_| ArtifactError::InvalidRelPath {
-                    path: path.to_string_lossy().to_string(),
-                })?;
-            let rel = normalize_rel_path(&rel.to_string_lossy());
-            let bytes = fs::read(&path)?;
-            out.push(ArtifactWriteEntry {
-                rel_path: rel,
-                bytes,
-            });
-        }
-        Ok(())
-    }
-
-    pub fn normalize_materialized_path(path: &str) -> Result<String, ArtifactError> {
-        let rel = normalize_rel_path(path);
-        if rel.is_empty() || rel.contains(':') || rel.starts_with('/') {
-            return Err(ArtifactError::InvalidRelPath { path: rel });
-        }
-        if rel.split('/').any(|c| c == "..") {
-            return Err(ArtifactError::PathTraversalBlocked { path: rel });
-        }
-        Ok(rel)
-    }
-}
+pub mod artifacts;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EntityRef {
@@ -1993,6 +1092,247 @@ pub struct NewAiJob {
     pub status_reason: String,
     pub metrics: JobMetrics,
     pub job_inputs: Option<Value>,
+}
+
+#[derive(Debug, Error)]
+pub enum JobAdmissionError {
+    #[error("job admission storage failure")]
+    Storage(#[from] StorageError),
+    #[error("job admission creation basis is invalid")]
+    Basis(#[from] handshake_job_admission::CreationCodecError),
+    #[error("job admission startup recovery gate failed")]
+    StartupRecovery(#[from] crate::workflows::StartupRecoveryError),
+    #[error("HSK-403-PROTECTED-RESOURCE")]
+    Denied,
+    #[error("invalid job admission command: {0}")]
+    InvalidCommand(&'static str),
+    #[error("job creation conflicts with the original immutable command")]
+    Conflict,
+    #[error("job creation integrity failure: {0}")]
+    Integrity(&'static str),
+    #[error("job admission outcome is unknown: {0}")]
+    Unknown(&'static str),
+    #[error("job admission already has an initial submission")]
+    AlreadySubmitted,
+}
+
+impl From<surreal::SurrealStorageError> for JobAdmissionError {
+    fn from(error: surreal::SurrealStorageError) -> Self {
+        Self::Storage(StorageError::from(error))
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct JobCreationCommand {
+    checked: handshake_job_admission::CheckedJobCreation,
+    input: NewAiJob,
+}
+
+impl JobCreationCommand {
+    pub(crate) fn from_checked(
+        checked: handshake_job_admission::CheckedJobCreation,
+    ) -> Result<Self, JobAdmissionError> {
+        use handshake_job_admission::CreationOperationType;
+        let descriptor = checked.descriptor();
+        let job_kind = descriptor.job_kind.parse::<JobKind>()?;
+        validate_job_contract(&job_kind, &descriptor.profile_id, &descriptor.protocol_id)?;
+        let input = NewAiJob {
+            trace_id: checked.identity().initial_trace_id(),
+            job_kind,
+            protocol_id: descriptor.protocol_id.clone(),
+            profile_id: descriptor.profile_id.clone(),
+            capability_profile_id: descriptor.capability_profile_id.clone(),
+            access_mode: AccessMode::try_from(descriptor.access_mode.as_str())?,
+            safety_mode: SafetyMode::try_from(descriptor.safety_mode.as_str())?,
+            entity_refs: descriptor.entity_refs.iter().map(|entity| EntityRef {
+                entity_id: entity.entity_id.clone(),
+                entity_kind: entity.entity_kind.clone(),
+            }).collect(),
+            planned_operations: descriptor.planned_operations.iter().map(|operation| PlannedOperation {
+                op_type: match operation.op_type {
+                    CreationOperationType::Read => OperationType::Read,
+                    CreationOperationType::Write => OperationType::Write,
+                    CreationOperationType::Plan => OperationType::Plan,
+                    CreationOperationType::Execute => OperationType::Execute,
+                },
+                target: EntityRef {
+                    entity_id: operation.target.entity_id.clone(),
+                    entity_kind: operation.target.entity_kind.clone(),
+                },
+                description: operation.description.clone(),
+            }).collect(),
+            status_reason: "queued".to_owned(),
+            metrics: JobMetrics::zero(),
+            job_inputs: descriptor.job_inputs.clone(),
+        };
+        Ok(Self { checked, input })
+    }
+
+    pub(crate) fn checked(&self) -> &handshake_job_admission::CheckedJobCreation { &self.checked }
+    pub(crate) fn input(&self) -> &NewAiJob { &self.input }
+}
+
+pub(crate) struct CanonicalJobCreation {
+    job: AiJob,
+    creation: handshake_job_admission::CheckedJobCreation,
+    reserved_workflow: Option<WorkflowRun>,
+}
+
+impl CanonicalJobCreation {
+    pub(crate) fn from_verified_rows(
+        job: AiJob,
+        creation: handshake_job_admission::CheckedJobCreation,
+        reserved_workflow: Option<WorkflowRun>,
+    ) -> StorageResult<Self> {
+        let identity = creation.identity();
+        if job.job_id != identity.job_id() {
+            return Err(StorageError::Validation("job creation identity mismatch"));
+        }
+        match (identity.reserved_workflow_run_id(), reserved_workflow.as_ref()) {
+            (None, None) => {}
+            (Some(expected), Some(workflow))
+                if workflow.id == expected && workflow.job_id == identity.job_id() => {}
+            _ => return Err(StorageError::Validation("job creation reserved workflow mismatch")),
+        }
+        Ok(Self { job, creation, reserved_workflow })
+    }
+
+    pub(crate) fn job(&self) -> &AiJob { &self.job }
+    pub(crate) fn creation(&self) -> &handshake_job_admission::CheckedJobCreation { &self.creation }
+    pub(crate) fn reserved_workflow(&self) -> Option<&WorkflowRun> { self.reserved_workflow.as_ref() }
+}
+
+pub(crate) enum JobCreateCommitOutcome {
+    Created(CanonicalJobCreation),
+    AlreadyCreated(CanonicalJobCreation),
+}
+
+pub(crate) enum JobCreationObservation {
+    Observed(CanonicalJobCreation),
+    Unknown,
+}
+
+pub(crate) type JobInitialWriter = tokio::task::JoinHandle<Result<JobCreateCommitOutcome, JobAdmissionError>>;
+pub(crate) type JobInitialWriterResult = Result<Result<JobCreateCommitOutcome, JobAdmissionError>, tokio::task::JoinError>;
+
+struct RejectedJobInitialWriter {
+    reason: handshake_job_admission::SubmissionStateError,
+    writer: JobInitialWriter,
+    outcome: Option<JobInitialWriterResult>,
+}
+
+pub(crate) struct JobInitialObservation<'a> {
+    pub primary: Option<&'a JobInitialWriterResult>,
+    pub rejected: Option<JobRejectedObservation<'a>>,
+}
+
+pub(crate) enum JobRejectedObservation<'a> {
+    Pending { reason: handshake_job_admission::SubmissionStateError },
+    Observed {
+        reason: handshake_job_admission::SubmissionStateError,
+        outcome: &'a JobInitialWriterResult,
+    },
+}
+
+pub(crate) enum JobSubmissionSettlement<'a> {
+    NotSubmitted,
+    Pending,
+    Observed(JobInitialObservation<'a>),
+}
+
+#[must_use = "the original caller retains this admission until its actual owners settle"]
+pub struct JobAdmission {
+    command: JobCreationCommand,
+    operation_id: Uuid,
+    cancellation: std::sync::Arc<surreal::ContextOperationCancellation>,
+    retention: surreal::resource_authority::JobAdmissionTransactionRetention,
+    initial: handshake_job_admission::JobCreationState<JobInitialWriter, JobInitialWriterResult>,
+    rejected_initial: Option<RejectedJobInitialWriter>,
+}
+
+impl JobAdmission {
+    pub(crate) fn from_captured_authority(
+        operation_id: Uuid,
+        cancellation: std::sync::Arc<surreal::ContextOperationCancellation>,
+        command: JobCreationCommand,
+        retention: surreal::resource_authority::JobAdmissionTransactionRetention,
+    ) -> Result<Self, JobAdmissionError> {
+        use surreal::resource_authority::ResourceAuthorityError;
+        retention.validate_creation(operation_id, command.checked()).map_err(|error| match error {
+            ResourceAuthorityError::Storage(error) => JobAdmissionError::Storage(error.into()),
+            ResourceAuthorityError::Denied { .. }
+            | ResourceAuthorityError::InvalidInput(_)
+            | ResourceAuthorityError::Entropy(_) => JobAdmissionError::Denied,
+        })?;
+        let initial = handshake_job_admission::JobCreationState::new(command.checked().clone());
+        Ok(Self { command, operation_id, cancellation, retention, initial, rejected_initial: None })
+    }
+
+    pub fn job_id(&self) -> Uuid { self.command.checked().identity().job_id() }
+    pub(crate) fn command(&self) -> &JobCreationCommand { &self.command }
+    pub(crate) fn operation_id(&self) -> Uuid { self.operation_id }
+    pub(crate) fn cancellation(&self) -> &std::sync::Arc<surreal::ContextOperationCancellation> { &self.cancellation }
+    pub(crate) fn retention(&self) -> &surreal::resource_authority::JobAdmissionTransactionRetention { &self.retention }
+
+    pub(crate) fn can_submit(&self) -> bool {
+        self.rejected_initial.is_none()
+            && matches!(self.initial.view(), handshake_job_admission::JobCreationView::Prepared { .. })
+    }
+
+    pub(crate) fn install_initial(&mut self, writer: JobInitialWriter) -> Result<(), JobAdmissionError> {
+        match self.initial.attach_writer(writer) {
+            Ok(()) => Ok(()),
+            Err(rejected) => {
+                let (reason, writer) = rejected.into_parts();
+                self.rejected_initial = Some(RejectedJobInitialWriter { reason, writer, outcome: None });
+                Err(JobAdmissionError::Unknown("initial_writer_install_rejected"))
+            }
+        }
+    }
+
+    pub(crate) fn initial_result(&self) -> JobInitialObservation<'_> {
+        JobInitialObservation {
+            primary: self.initial.outcome(),
+            rejected: self.rejected_initial.as_ref().map(|rejected| match &rejected.outcome {
+                Some(outcome) => JobRejectedObservation::Observed { reason: rejected.reason, outcome },
+                None => JobRejectedObservation::Pending { reason: rejected.reason },
+            }),
+        }
+    }
+
+    pub(crate) async fn settle<'a>(
+        &'a mut self,
+        original_deadline: tokio::time::Instant,
+    ) -> JobSubmissionSettlement<'a> {
+        use std::{future::Future, pin::Pin, task::Poll};
+        if self.can_submit() {
+            return JobSubmissionSettlement::NotSubmitted;
+        }
+        let completed = {
+            let observe = std::future::poll_fn(|context| {
+                let primary_done = matches!(self.initial.view(), handshake_job_admission::JobCreationView::Prepared { .. })
+                    || self.initial.poll_writer(context).is_ready();
+                let rejected_done = match &mut self.rejected_initial {
+                    Some(rejected) => {
+                        if rejected.outcome.is_none() {
+                            if let Poll::Ready(outcome) = Pin::new(&mut rejected.writer).poll(context) {
+                                rejected.outcome = Some(outcome);
+                            }
+                        }
+                        rejected.outcome.is_some()
+                    }
+                    None => true,
+                };
+                if primary_done && rejected_done { Poll::Ready(()) } else { Poll::Pending }
+            });
+            tokio::time::timeout_at(original_deadline, observe).await.is_ok()
+        };
+        if completed {
+            JobSubmissionSettlement::Observed(self.initial_result())
+        } else {
+            JobSubmissionSettlement::Pending
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

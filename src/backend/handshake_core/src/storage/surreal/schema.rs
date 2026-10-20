@@ -1977,6 +1977,15 @@ fn authority_nonce_stage_correction_statements() -> String {
         statements.push('\n');
     }
     statements.push_str(AUTHORITY_NONCE_EVENT_STATEMENTS);
+    let mut spans = BTreeMap::new();
+    schema_statements_enclosing(
+        "DEFINE EVENT OVERWRITE mt109_authenticated_session_authorization_touch ON TABLE authenticated_sessions",
+        &mut spans,
+    );
+    for (start, end) in spans {
+        statements.push_str(&SCHEMA[start..end]);
+        statements.push('\n');
+    }
     statements
 }
 

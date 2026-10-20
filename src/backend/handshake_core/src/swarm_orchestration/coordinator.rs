@@ -240,6 +240,7 @@ impl ClaimLease {
 /// One entry in the session registry. Holds everything needed to drive,
 /// observe, cancel, and ledger-stop a live session.
 pub struct SessionHandle {
+    validator_producer: Option<Arc<ValidatorProducerKey>>,
     pub instance_id: ModelInstanceId,
     /// Monotonic registry incarnation. A stale generation future may retain the
     /// same stable ModelInstanceId after recovery respawns it, so terminal
@@ -307,6 +308,105 @@ impl SessionHandle {
     /// The VM/sandbox worktree this session runs inside (per-worktree recovery).
     pub fn worktree_id(&self) -> Option<&str> {
         self.worktree_id.as_deref()
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum RoutingAuthorityCompletionError {
+    #[error(transparent)]
+    ModelLane(#[from] super::model_lane::ModelLaneError),
+    #[error(transparent)]
+    Swarm(#[from] SwarmError),
+}
+
+#[derive(Clone)]
+pub(crate) struct RegisteredValidatorInstance {
+    owner: std::sync::Weak<Inner>,
+    instance_id: ModelInstanceId,
+    spawn_generation: u64,
+    model_id: ModelId,
+    parent_session_id: String,
+}
+
+impl RegisteredValidatorInstance {
+    pub(crate) fn instance_id(&self) -> &ModelInstanceId { &self.instance_id }
+    pub(crate) fn spawn_generation(&self) -> u64 { self.spawn_generation }
+    pub(crate) fn model_id(&self) -> &ModelId { &self.model_id }
+    pub(crate) fn parent_session_id(&self) -> &str { &self.parent_session_id }
+}
+
+pub(crate) struct ValidatorProducerKey {
+    registration_ref: String,
+    registered: RegisteredValidatorInstance,
+    authorization: Arc<crate::storage::surreal::resource_authority::AuthenticatedValidatorLaunchSeal>,
+}
+
+impl ValidatorProducerKey {
+    pub(crate) fn registration_ref(&self) -> &str { &self.registration_ref }
+    pub(crate) fn instance_id(&self) -> &ModelInstanceId { self.registered.instance_id() }
+    pub(crate) fn spawn_generation(&self) -> u64 { self.registered.spawn_generation() }
+    pub(crate) fn registered_principal(&self) -> &super::resource_scope::ActorPrincipalId { self.authorization.principal_id() }
+    pub(crate) fn account_id(&self) -> &str { self.authorization.account_id() }
+    pub(crate) fn authenticated_session_id(&self) -> &str { self.authorization.authenticated_session_id() }
+    pub(crate) fn exact_scope(&self) -> &super::resource_scope::ExactResourceScopeAttribution { self.authorization.exact_scope() }
+    pub(crate) fn delegating_scope(&self) -> &super::resource_scope::ExactResourceScopeAttribution { self.authorization.delegating_scope() }
+    pub(crate) async fn revalidate(&self, storage: &crate::storage::surreal::SurrealStorage)
+        -> Result<(), crate::storage::surreal::resource_authority::ResourceAuthorityError>
+    { self.authorization.revalidate(storage).await }
+}
+pub(crate) struct RegisteredValidatorTerminalWitness {
+    producer_registration_ref: Option<String>,
+    owner: std::sync::Weak<Inner>,
+    instance_id: ModelInstanceId,
+    spawn_generation: u64,
+    model_id: ModelId,
+    trace_id: Uuid,
+    run_id: String,
+    session_id: String,
+    generated_tokens: u64,
+}
+
+impl RegisteredValidatorTerminalWitness {
+    pub(crate) fn instance_id(&self) -> &ModelInstanceId { &self.instance_id }
+    pub(crate) fn spawn_generation(&self) -> u64 { self.spawn_generation }
+    pub(crate) fn model_id(&self) -> &ModelId { &self.model_id }
+    pub(crate) fn trace_id(&self) -> Uuid { self.trace_id }
+    pub(crate) fn run_id(&self) -> &str { &self.run_id }
+    pub(crate) fn session_id(&self) -> &str { &self.session_id }
+    pub(crate) fn generated_tokens(&self) -> u64 { self.generated_tokens }
+}
+
+pub(crate) struct RegisteredValidatorReviewOutput {
+    output: String,
+    terminal: RegisteredValidatorTerminalWitness,
+}
+
+impl RegisteredValidatorReviewOutput {
+    pub(crate) fn output(&self) -> &str { &self.output }
+    pub(crate) fn terminal(&self) -> &RegisteredValidatorTerminalWitness { &self.terminal }
+}
+
+struct ValidatorInvocationCapture {
+    producer_registration_ref: Option<String>,
+    max_output_bytes: usize,
+    output: String,
+    terminal: Option<RegisteredValidatorTerminalWitness>,
+}
+
+pub(crate) struct RegisteredValidatorInvocationObservation {
+    trace_id: Uuid,
+    capture: Arc<Mutex<ValidatorInvocationCapture>>,
+}
+
+impl RegisteredValidatorInvocationObservation {
+    pub(crate) fn trace_id(&self) -> Uuid { self.trace_id }
+    pub(crate) fn take_output(&mut self) -> SwarmResult<RegisteredValidatorReviewOutput> {
+        let mut capture = self.capture.lock().expect("validator capture poisoned");
+        let terminal = capture.terminal.take().ok_or_else(|| SwarmError::LedgerFailed(format!(
+            "validator invocation {} has no observed completed terminal; retain its operation for settlement",
+            self.trace_id,
+        )))?;
+        Ok(RegisteredValidatorReviewOutput { output: std::mem::take(&mut capture.output), terminal })
     }
 }
 
@@ -506,6 +606,7 @@ impl Drop for ReaperHandle {
 
 struct ManagedGenerationFinalizer {
     coordinator: Arc<SwarmCoordinator>,
+    validator_capture: Option<Arc<Mutex<ValidatorInvocationCapture>>>,
     instance_id: ModelInstanceId,
     spawn_generation: u64,
     finalized: bool,
@@ -577,6 +678,7 @@ impl ManagedGenerationDisposition {
 
 struct ManagedGenerationInvocation {
     trace_id: Uuid,
+    model_id: ModelId,
     run_id: String,
     session_id: String,
     generated_tokens: u64,
@@ -613,6 +715,39 @@ impl ManagedGenerationFinalizer {
             .record_managed_generation_token(self.instance_id, self.spawn_generation);
     }
 
+    fn capture_validator_token(&self, text: &str) -> bool {
+        let Some(capture) = self.validator_capture.as_ref() else { return true; };
+        let mut capture = capture.lock().expect("validator capture poisoned");
+        if capture.output.len().checked_add(text.len()).is_none_or(|length| length > capture.max_output_bytes) {
+            return false;
+        }
+        capture.output.push_str(text);
+        true
+    }
+
+    fn capture_validator_terminal(&self) {
+        let Some(capture) = self.validator_capture.as_ref() else { return; };
+        let generations = self.coordinator.inner.managed_generations.lock()
+            .expect("managed generations poisoned");
+        let Some(invocation) = generations.get(&(self.instance_id, self.spawn_generation)) else { return; };
+        if !invocation.terminal_emitted || !invocation.disposition.as_ref()
+            .is_some_and(|disposition| matches!(disposition.outcome, ManagedGenerationOutcome::Completed)) {
+            return;
+        }
+        let mut capture = capture.lock().expect("validator capture poisoned");
+        capture.terminal = Some(RegisteredValidatorTerminalWitness {
+            producer_registration_ref: capture.producer_registration_ref.clone(),
+            owner: Arc::downgrade(&self.coordinator.inner),
+            instance_id: self.instance_id,
+            spawn_generation: self.spawn_generation,
+            model_id: invocation.model_id,
+            trace_id: invocation.trace_id,
+            run_id: invocation.run_id.clone(),
+            session_id: invocation.session_id.clone(),
+            generated_tokens: invocation.generated_tokens,
+        });
+    }
+
     async fn finish_ready(&mut self) -> Result<(), String> {
         if self.finalized {
             return Ok(());
@@ -634,6 +769,7 @@ impl ManagedGenerationFinalizer {
             }
             return Err(reason);
         }
+        self.capture_validator_terminal();
         self.release_terminal_authority();
         if state == Some(ModelSessionState::Generating) {
             let _ = self.coordinator.transition_generation(
@@ -1166,6 +1302,53 @@ impl SwarmCoordinator {
 
     pub fn model_lane_store(&self) -> Option<ModelLaneStore> {
         self.inner.model_lane_store.clone()
+    }
+
+    pub(crate) fn registered_validator_instance(
+        &self,
+        instance_id: ModelInstanceId,
+    ) -> SwarmResult<RegisteredValidatorInstance> {
+        let registry = self.inner.registry.lock().expect("registry poisoned");
+        let handle = registry.get(&instance_id)
+            .ok_or(SwarmError::UnknownInstance(instance_id))?;
+        if !matches!(handle.state, ModelSessionState::Ready | ModelSessionState::Generating)
+            || handle.lease.is_expired(Utc::now())
+            || handle.cleanup.is_some()
+        {
+            return Err(SwarmError::LedgerFailed(format!(
+                "validator producer {instance_id} has no current live registry incarnation"
+            )));
+        }
+        Ok(RegisteredValidatorInstance {
+            owner: Arc::downgrade(&self.inner),
+            instance_id: handle.instance_id,
+            spawn_generation: handle.spawn_generation,
+            model_id: handle.model_id,
+            parent_session_id: handle.parent_session_id.clone(),
+        })
+    }
+
+    pub(crate) fn registered_validator_instance_by_ref(&self, selector: &str) -> SwarmResult<RegisteredValidatorInstance> {
+        let instance = {
+            let registry = self.inner.registry.lock().expect("registry poisoned");
+            registry.keys().find(|instance| instance.to_string() == selector).copied()
+        }.ok_or_else(|| SwarmError::LedgerFailed("selected runtime is unavailable".into()))?;
+        self.registered_validator_instance(instance)
+    }
+
+    pub(crate) fn current_validator_producer(&self, registered: &RegisteredValidatorInstance)
+        -> SwarmResult<Option<Arc<ValidatorProducerKey>>>
+    {
+        if !std::sync::Weak::ptr_eq(&registered.owner, &Arc::downgrade(&self.inner)) {
+            return Err(SwarmError::LedgerFailed("runtime registration owner differs".into()));
+        }
+        let registry = self.inner.registry.lock().expect("registry poisoned");
+        let handle = registry.get(registered.instance_id()).ok_or(SwarmError::UnknownInstance(*registered.instance_id()))?;
+        if handle.spawn_generation != registered.spawn_generation
+            || !matches!(handle.state, ModelSessionState::Ready | ModelSessionState::Generating)
+            || handle.lease.is_expired(Utc::now()) || handle.cleanup.is_some()
+        { return Err(SwarmError::LedgerFailed("runtime registration is stale".into())); }
+        Ok(handle.validator_producer.clone())
     }
 
     pub async fn launch_no_os_model_lane(
@@ -1865,6 +2048,7 @@ impl SwarmCoordinator {
                 }
             }
             let handle = SessionHandle {
+                validator_producer: None,
                 instance_id,
                 spawn_generation: self.inner.checkout_lease_generation.fetch_add(1, Ordering::SeqCst) + 1,
                 routing_attempt: request.routing_attempt.clone(),
@@ -3348,7 +3532,7 @@ impl SwarmCoordinator {
         instance_id: ModelInstanceId,
         request: GenerateRequest,
     ) -> SwarmResult<TokenStream> {
-        self.generate_session_raw_with_context(instance_id, None, request, None)
+        self.generate_session_raw_with_context(instance_id, None, request, None, false)
     }
 
     fn generate_session_raw_with_context(
@@ -3357,6 +3541,7 @@ impl SwarmCoordinator {
         expected_spawn_generation: Option<u64>,
         mut request: GenerateRequest,
         invocation_context: Option<LlmInvocationContext>,
+        requires_current_validator: bool,
     ) -> SwarmResult<TokenStream> {
         let remaining = self.remaining();
         if remaining.tokens_remaining == Some(0) {
@@ -3390,6 +3575,12 @@ impl SwarmCoordinator {
                     "stale routing generation cannot start replacement session {instance_id}"
                 )));
             }
+            if requires_current_validator && (expected_spawn_generation.is_none()
+                || handle.lease.is_expired(Utc::now()) || handle.cleanup.is_some()) {
+                return Err(SwarmError::LedgerFailed(format!(
+                    "validator producer {instance_id} lost its current live registry admission"
+                )));
+            }
             if handle.state != ModelSessionState::Ready {
                 return Err(SwarmError::LedgerFailed(format!(
                     "session {instance_id} must be Ready before generation; got {:?}",
@@ -3413,6 +3604,7 @@ impl SwarmCoordinator {
                     Entry::Vacant(entry) => {
                         entry.insert(ManagedGenerationInvocation {
                             trace_id: context.trace_id,
+                            model_id: handle.model_id,
                             run_id: context.run_id.clone(),
                             session_id: context.session_id.clone(),
                             generated_tokens: 0,
@@ -3640,6 +3832,144 @@ impl SwarmCoordinator {
         run_id: String,
         session_id: String,
     ) -> SwarmResult<TokenStream> {
+        self.generate_session_managed_generation_observed(
+            instance_id, spawn_generation, request, run_id, session_id, None,
+        ).map(|(stream, _)| stream)
+    }
+
+    pub(crate) async fn register_authenticated_validator_producer(
+        &self,
+        authorization: crate::storage::surreal::resource_authority::AuthenticatedValidatorLaunchSeal,
+    ) -> SwarmResult<Arc<ValidatorProducerKey>> {
+        let denied = || SwarmError::LedgerFailed("authenticated validator launch binding differs from live registry".into());
+        let store = self.inner.model_lane_store.as_ref().ok_or_else(denied)?;
+        if store.access().exact_read_scope() != Some(authorization.delegating_scope()) {
+            return Err(denied());
+        }
+        authorization.revalidate(store.surreal_storage()).await.map_err(|_| denied())?;
+        let registered = authorization.registered_instance();
+        if !std::sync::Weak::ptr_eq(&registered.owner, &Arc::downgrade(&self.inner)) {
+            return Err(denied());
+        }
+        let mut registry = self.inner.registry.lock().expect("registry poisoned");
+        let handle = registry.get_mut(registered.instance_id()).ok_or_else(denied)?;
+        if handle.spawn_generation != registered.spawn_generation || handle.model_id != registered.model_id
+            || handle.instance_id != authorization.instance_id()
+            || handle.parent_session_id != authorization.parent_session_id()
+            || !matches!(handle.state, ModelSessionState::Ready | ModelSessionState::Generating)
+            || handle.lease.is_expired(Utc::now()) || handle.cleanup.is_some()
+            || *authorization.expires_at() <= Utc::now()
+        { return Err(denied()); }
+        if let Some(existing) = &handle.validator_producer {
+            if existing.registered_principal() != authorization.principal_id()
+                || existing.account_id() != authorization.account_id()
+                || existing.authenticated_session_id() != authorization.authenticated_session_id()
+                || existing.exact_scope() != authorization.exact_scope()
+            { return Err(denied()); }
+            return Ok(existing.clone());
+        }
+        let producer = Arc::new(ValidatorProducerKey {
+            registration_ref: Uuid::now_v7().to_string(), registered: registered.clone(),
+            authorization: Arc::new(authorization),
+        });
+        handle.lease.expires_at = handle.lease.expires_at.min(*producer.authorization.expires_at());
+        handle.validator_producer = Some(producer.clone());
+        Ok(producer)
+    }
+
+    pub(crate) fn with_current_validator_producer<T>(
+        &self,
+        producer: &Arc<ValidatorProducerKey>,
+        terminal: Option<&RegisteredValidatorTerminalWitness>,
+        publish: impl FnOnce() -> SwarmResult<T>,
+    ) -> SwarmResult<T> {
+        let denied = || SwarmError::LedgerFailed("validator producer is no longer registered and current".into());
+        if !std::sync::Weak::ptr_eq(&producer.registered.owner, &Arc::downgrade(&self.inner)) {
+            return Err(denied());
+        }
+        let registry = self.inner.registry.lock().expect("registry poisoned");
+        let handle = registry.get(producer.instance_id()).ok_or_else(denied)?;
+        if handle.spawn_generation != producer.spawn_generation()
+            || handle.model_id != producer.registered.model_id
+            || handle.validator_producer.as_ref().is_none_or(|current| !Arc::ptr_eq(current, producer))
+            || !matches!(handle.state, ModelSessionState::Ready | ModelSessionState::Generating)
+            || handle.lease.is_expired(Utc::now()) || handle.cleanup.is_some()
+            || *producer.authorization.expires_at() <= Utc::now()
+        { return Err(denied()); }
+        if let Some(terminal) = terminal {
+            if !std::sync::Weak::ptr_eq(&terminal.owner, &producer.registered.owner)
+                || terminal.instance_id != *producer.instance_id()
+                || terminal.spawn_generation != producer.spawn_generation()
+                || terminal.model_id != producer.registered.model_id
+                || terminal.producer_registration_ref.as_deref() != Some(producer.registration_ref())
+                || terminal.session_id != handle.parent_session_id
+            { return Err(denied()); }
+        }
+        publish()
+    }
+    pub(crate) fn with_current_validator_terminal<T>(
+        &self,
+        terminal: &RegisteredValidatorTerminalWitness,
+        publish: impl FnOnce() -> SwarmResult<T>,
+    ) -> SwarmResult<T> {
+        if !std::sync::Weak::ptr_eq(&terminal.owner, &Arc::downgrade(&self.inner)) {
+            return Err(SwarmError::LedgerFailed("validator terminal belongs to another registry".into()));
+        }
+        let registry = self.inner.registry.lock().expect("registry poisoned");
+        let handle = registry.get(&terminal.instance_id)
+            .ok_or(SwarmError::UnknownInstance(terminal.instance_id))?;
+        if handle.spawn_generation != terminal.spawn_generation || handle.model_id != terminal.model_id
+            || !matches!(handle.state, ModelSessionState::Ready | ModelSessionState::Generating)
+            || handle.lease.is_expired(Utc::now()) || handle.cleanup.is_some()
+        {
+            return Err(SwarmError::LedgerFailed("validator terminal registry incarnation is no longer current".into()));
+        }
+        publish()
+    }
+    pub(crate) fn run_registered_validator_review(
+        &self,
+        registered: &RegisteredValidatorInstance,
+        request: GenerateRequest,
+        run_id: String,
+        session_id: String,
+        max_output_bytes: usize,
+    ) -> SwarmResult<(TokenStream, RegisteredValidatorInvocationObservation)> {
+        if run_id.trim().is_empty() || session_id.trim().is_empty() || max_output_bytes == 0 {
+            return Err(SwarmError::LedgerFailed("validator invocation requires run, session and output bound".into()));
+        }
+        if !std::sync::Weak::ptr_eq(&registered.owner, &Arc::downgrade(&self.inner)) {
+            return Err(SwarmError::LedgerFailed("validator registration belongs to another registry".into()));
+        }
+        let current = self.registered_validator_instance(*registered.instance_id())?;
+        if current.spawn_generation != registered.spawn_generation || current.model_id != registered.model_id {
+            return Err(SwarmError::LedgerFailed("validator runtime incarnation changed before invocation".into()));
+        }
+        let producer_registration_ref = {
+            let registry = self.inner.registry.lock().expect("registry poisoned");
+            registry.get(registered.instance_id())
+                .filter(|handle| handle.spawn_generation == registered.spawn_generation)
+                .and_then(|handle| handle.validator_producer.as_ref())
+                .map(|producer| producer.registration_ref().to_owned())
+        };
+        let capture = Arc::new(Mutex::new(ValidatorInvocationCapture {
+            producer_registration_ref,
+            max_output_bytes, output: String::new(), terminal: None,
+        }));
+        let (stream, trace_id) = self.generate_session_managed_generation_observed(
+            registered.instance_id, registered.spawn_generation, request, run_id, session_id, Some(capture.clone()),
+        )?;
+        Ok((stream, RegisteredValidatorInvocationObservation { trace_id, capture }))
+    }
+
+    fn generate_session_managed_generation_observed(
+        &self,
+        instance_id: ModelInstanceId,
+        spawn_generation: u64,
+        request: GenerateRequest,
+        run_id: String,
+        session_id: String,
+        validator_capture: Option<Arc<Mutex<ValidatorInvocationCapture>>>,
+    ) -> SwarmResult<(TokenStream, Uuid)> {
         use futures::StreamExt as _;
 
         let trace_id = Uuid::now_v7();
@@ -3653,9 +3983,11 @@ impl SwarmCoordinator {
                 session_id: session_id.clone(),
                 evidence_owner: LlmInvocationEvidenceOwner::Coordinator,
             }),
+            validator_capture.is_some(),
         )?;
         let finalizer = ManagedGenerationFinalizer {
             coordinator: Arc::new(self.clone()),
+            validator_capture,
             instance_id,
             spawn_generation,
             finalized: false,
@@ -3663,7 +3995,7 @@ impl SwarmCoordinator {
         let invocation_deadline =
             tokio::time::Instant::now() + self.inner.config.provider_invocation_timeout;
         let idle_timeout = self.inner.config.provider_idle_timeout;
-        Ok(Box::pin(futures::stream::unfold(
+        let stream: TokenStream = Box::pin(futures::stream::unfold(
             (stream, finalizer, invocation_deadline, false),
             move |(mut stream, mut finalizer, invocation_deadline, terminated)| async move {
                 if terminated {
@@ -3695,7 +4027,30 @@ impl SwarmCoordinator {
                         ))
                     }
                     Ok(Some(Ok(token))) => {
+                        if finalizer.validator_capture.is_some() && matches!(token.finish_reason,
+                            Some(crate::model_runtime::FinishReason::Cancelled
+                                | crate::model_runtime::FinishReason::Error
+                                | crate::model_runtime::FinishReason::Length)) {
+                            finalizer.record_token();
+                            let _ = finalizer.capture_validator_token(&token.text);
+                            let reason = format!("validator generation has no complete response: {:?}", token.finish_reason);
+                            let terminal_result = if token.finish_reason == Some(crate::model_runtime::FinishReason::Cancelled) {
+                                finalizer.finish_cancelled(reason.clone()).await
+                            } else {
+                                finalizer.finish_failure(reason.clone()).await
+                            };
+                            let detail = terminal_result.err().unwrap_or(reason);
+                            return Some((Err(crate::model_runtime::ModelRuntimeError::GenerateError(detail)),
+                                (stream, finalizer, invocation_deadline, true)));
+                        }
                         finalizer.record_token();
+                        if !finalizer.capture_validator_token(&token.text) {
+                            let reason = "validator model output exceeded the admitted byte bound".to_string();
+                            let terminal_result = finalizer.finish_cancelled(reason.clone()).await;
+                            let detail = terminal_result.err().unwrap_or(reason);
+                            return Some((Err(crate::model_runtime::ModelRuntimeError::GenerateError(detail)),
+                                (stream, finalizer, invocation_deadline, true)));
+                        }
                         Some((Ok(token), (stream, finalizer, invocation_deadline, false)))
                     }
                     Ok(Some(Err(error))) => {
@@ -3731,7 +4086,8 @@ impl SwarmCoordinator {
                     },
                 }
             },
-        )))
+        ));
+        Ok((stream, trace_id))
     }
 
     pub async fn score_session(
@@ -5218,161 +5574,30 @@ impl SwarmCoordinator {
         }
     }
 
-    pub async fn complete_authority_and_resume_routing_lifecycle(
+    pub(crate) async fn complete_authority_and_resume_routing_lifecycle(
         &self,
+        permit: crate::storage::surreal::resource_authority::RoleAuthorityConsumptionPermit,
         execution_id: &str,
         stage_id: &str,
         message_id: &str,
         launches: Vec<super::routing_execution::ModelLaneRoutingStageLaunch>,
-    ) -> SwarmResult<super::routing_execution::ModelLaneRoutingDispatchBatch> {
-        self.complete_authority_routing_stage(execution_id, stage_id, message_id)
-            .await?;
+    ) -> Result<super::routing_execution::ModelLaneRoutingDispatchBatch, RoutingAuthorityCompletionError> {
+        self.complete_authority_routing_stage(permit, execution_id, stage_id, message_id).await?;
         self.drive_routing_lifecycle(execution_id, launches).await
+            .map_err(RoutingAuthorityCompletionError::Swarm)
     }
 
-    pub async fn complete_authority_routing_stage(
+    pub(crate) async fn complete_authority_routing_stage(
         &self,
+        permit: crate::storage::surreal::resource_authority::RoleAuthorityConsumptionPermit,
         execution_id: &str,
         stage_id: &str,
         message_id: &str,
-    ) -> SwarmResult<super::routing_execution::ModelLaneRoutingExecutionState> {
-        use super::routing::ModelLaneRoutingDispatchTarget;
-        let execution_store = self.inner.routing_execution_store.as_ref().ok_or_else(|| {
-            SwarmError::LedgerFailed(
-                "production routing requires a scoped ModelLane routing executor".into(),
-            )
-        })?;
-        let model_lane_store = self.inner.model_lane_store.as_ref().ok_or_else(|| {
-            SwarmError::LedgerFailed("authority completion requires ModelLaneStore".into())
-        })?;
-        let execution = execution_store
-            .snapshot(execution_id)
-            .await
-            .map_err(|err| SwarmError::LedgerFailed(format!("routing snapshot failed: {err}")))?
-            .ok_or_else(|| {
-                SwarmError::LedgerFailed(format!("unknown routing execution {execution_id}"))
-            })?;
-        let stage = execution
-            .stages
-            .get(stage_id)
-            .ok_or_else(|| SwarmError::LedgerFailed(format!("unknown routing stage {stage_id}")))?;
-        let projection = model_lane_store
-            .routing_source_replay(&execution.run_id)
-            .await
-            .map_err(|err| {
-                SwarmError::LedgerFailed(format!("authority message lookup failed: {err}"))
-            })?;
-        let message = projection
-            .messages
-            .iter()
-            .find(|message| message.message_id == message_id)
-            .ok_or_else(|| {
-                SwarmError::LedgerFailed(format!("ModelLaneMessage {message_id} missing"))
-            })?;
-        if stage.lane_id.as_deref() != Some(message.from_lane_id.as_str()) {
-            return Err(SwarmError::LedgerFailed(format!(
-                "authority message {message_id} is not from stage lane"
-            )));
-        }
-        let authority_request_ref =
-            stage
-                .authority_request_message_ref
-                .as_deref()
-                .ok_or_else(|| {
-                    SwarmError::LedgerFailed(format!(
-                        "authority stage {stage_id} has no causal request message"
-                    ))
-                })?;
-        if message.run_id != execution.run_id
-            || message.trace_id != execution.trace_id
-            || message.coordinator_session_id != execution.coordinator_session_id
-            || message.work_packet_id.as_deref() != Some(execution.work_packet_id.as_str())
-            || message
-                .routing
-                .as_ref()
-                .and_then(|routing| routing.ack_for.as_deref())
-                != Some(authority_request_ref)
-            || message
-                .diagnostic_payload
-                .get("execution_id")
-                .and_then(serde_json::Value::as_str)
-                != Some(execution_id)
-            || message
-                .diagnostic_payload
-                .get("stage_id")
-                .and_then(serde_json::Value::as_str)
-                != Some(stage_id)
-        {
-            return Err(SwarmError::LedgerFailed(format!(
-                "authority message {message_id} is not causally bound to execution/run/trace/predecessor/request"
-            )));
-        }
-        let authority_ref = stage.authority_ref.as_deref().ok_or_else(|| {
-            SwarmError::LedgerFailed(format!("authority stage {stage_id} has no authority ref"))
-        })?;
-        let valid_authority = match stage.dispatch_target {
-            ModelLaneRoutingDispatchTarget::Validator => {
-                message.authority == super::model_lane::ModelLaneAuthority::ValidatorVerdict
-                    && message.validator_verdict_ref.as_deref() == Some(authority_ref)
-            }
-            ModelLaneRoutingDispatchTarget::Operator => {
-                message.authority == super::model_lane::ModelLaneAuthority::OperatorDecision
-                    && message.operator_decision_ref.as_deref() == Some(authority_ref)
-            }
-            _ => false,
-        };
-        if !valid_authority {
-            return Err(SwarmError::LedgerFailed(format!(
-                "ModelLaneMessage {message_id} does not satisfy stage authority"
-            )));
-        }
-        let artifact = model_lane_store
-            .routing_artifact_by_ref(&execution.run_id, &message.payload_ref)
-            .await
-            .map_err(|err| SwarmError::LedgerFailed(format!("authority artifact lookup failed: {err}")))?
-            .ok_or_else(|| {
-                SwarmError::LedgerFailed(format!(
-                    "authority message {message_id} has no durable payload binding"
-                ))
-            })?;
-        let payload = artifact.payload_json.clone();
-        let hash = super::routing_execution::canonical_sha256(&payload)
-            .map_err(SwarmError::LedgerFailed)?;
-        if hash != message.payload_sha256 || artifact.artifact_sha256 != message.payload_sha256 {
-            return Err(SwarmError::LedgerFailed(format!(
-                "authority message {message_id} payload hash does not match its durable artifact binding"
-            )));
-        }
-        let claim = super::routing_execution::ModelLaneRoutingStageClaim {
-            execution_id: execution_id.to_string(),
-            stage_id: stage_id.to_string(),
-            attempt: stage.attempt,
-            fencing_token: stage.fencing_token.clone().ok_or_else(|| {
-                SwarmError::LedgerFailed(format!("authority stage {stage_id} has no fencing token"))
-            })?,
-            lease_owner: stage.lease_owner.clone().ok_or_else(|| {
-                SwarmError::LedgerFailed(format!("authority stage {stage_id} has no lease owner"))
-            })?,
-            lease_expires_at_unix_ms: stage.lease_expires_at_unix_ms.ok_or_else(|| {
-                SwarmError::LedgerFailed(format!("authority stage {stage_id} has no lease expiry"))
-            })?,
-            dispatch_target: stage.dispatch_target,
-            expected_run_id: stage.expected_run_id.clone(),
-            expected_lane_id: stage.expected_lane_id.clone(),
-            expected_model_id: stage.expected_model_id.clone(),
-            expected_provider: stage.expected_provider,
-        };
-        execution_store
-            .complete_authority_stage(
-                &claim,
-                authority_ref,
-                message.payload_ref.clone(),
-                message.message_id.clone(),
-                hash,
-                payload,
-            )
-            .await
-            .map_err(|err| SwarmError::LedgerFailed(format!("authority completion failed: {err}")))
+    ) -> super::model_lane::ModelLaneResult<super::routing_execution::ModelLaneRoutingExecutionState> {
+        let execution_store = self.inner.routing_execution_store.as_ref().ok_or_else(||
+            super::model_lane::ModelLaneError::AuthorityDenied(
+                "authority completion requires a scoped routing executor".into()))?;
+        execution_store.complete_authority_stage(permit, execution_id, stage_id, message_id).await
     }
 
     pub async fn recover_routing_execution(
@@ -5706,6 +5931,7 @@ impl SwarmCoordinator {
                 });
             }
             let handle = SessionHandle {
+                validator_producer: None,
                 instance_id,
                 spawn_generation,
                 routing_attempt: request.routing_attempt.clone(),
@@ -6722,6 +6948,17 @@ impl SwarmCoordinator {
         // after BOTH stable-ID terminal outbox rows have committed; otherwise a
         // crash or closed bridge between this receipt and event emission would
         // make restart reconciliation permanently skip missing telemetry.
+        let producer = {
+            let registry = self.inner.registry.lock().expect("registry poisoned");
+            registry.get(&instance_id)
+                .filter(|handle| handle.spawn_generation == spawn_generation)
+                .and_then(|handle| handle.validator_producer.clone())
+        };
+        if let Some(producer) = producer {
+            producer.authorization.revoke().await.map_err(|_| {
+                SwarmError::LedgerFailed("delegated runtime session revocation remains pending".into())
+            })?;
+        }
         self.record_cleanup_receipt(instance_id, "completed", terminal, reason, exit_code, None)
             .await?;
 

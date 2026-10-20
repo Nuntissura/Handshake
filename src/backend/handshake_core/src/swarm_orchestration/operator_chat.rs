@@ -61,13 +61,326 @@ use super::model_lane::{
     NewModelLaneContextBundleArtifactBinding, NewModelLaneDiagnosticTierStatus,
     NewModelLaneMessage, RuntimeBinding,
 };
-use super::resource_scope::{AccountBoundAuthority, ExactResourceScopeAttribution};
+use super::resource_scope::{AccountBoundAuthority, ActorPrincipalId, ExactResourceScopeAttribution};
 use super::routing::ModelLaneRoutingAuthority;
 use super::routing_execution::{
     ModelLaneRoutingDispatchBatch, ModelLaneRoutingExecutionContext,
     ModelLaneRoutingExecutionState, ModelLaneRoutingStageLaunch,
 };
 use super::SwarmCoordinator;
+
+#[cfg(feature = "runtime-full")]
+pub use paired_initial::{
+    OperatorChatAdmissionSlot, OperatorChatInitialSettlement, OperatorChatInitialState,
+    OperatorChatObservationError, OperatorChatRejectedWriter, OperatorChatSubmission,
+    OperatorChatWriterResult, OwnedOperatorChatOperation,
+};
+
+#[cfg(feature = "runtime-full")]
+pub(crate) use paired_initial::{OperatorChatEngineOwnerInstallReason, OperatorChatEngineOwnerInstallRejected, OperatorChatInitialOwnersRef};
+
+#[cfg(feature = "runtime-full")]
+mod paired_initial {
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+    use std::sync::Arc;
+
+    use futures::FutureExt;
+    use tokio::time::Instant;
+    use uuid::Uuid;
+
+    use crate::jobs::{JobAdmission, JobAdmissionError};
+    use crate::storage::{
+        JobCreateCommitOutcome, JobInitialObservation, JobInitialWriterResult, JobRejectedObservation,
+        JobSubmissionSettlement,
+    };
+    use crate::workflows::{OwnedOperatorChatEngineOwner, SessionRegistry};
+    use crate::AppState;
+
+    pub enum OperatorChatAdmissionSlot { First, Second }
+
+    pub enum OperatorChatSubmission<'a> {
+        WriterInstalled,
+        ReturnedError(&'a JobAdmissionError),
+        PanickedUnknown,
+    }
+
+    #[derive(Clone, Copy)]
+    pub enum OperatorChatInitialState { NotSubmitted, Pending, Observed }
+
+    pub enum OperatorChatObservationError { PanickedUnknown }
+
+    pub enum OperatorChatWriterResult<'a> {
+        WriteReturnedCreated,
+        WriteReturnedAlreadyCreated,
+        AdmissionError(&'a JobAdmissionError),
+        JoinError(&'a tokio::task::JoinError),
+    }
+
+    pub enum OperatorChatRejectedWriter<'a> {
+        Pending { reason: handshake_job_admission::SubmissionStateError },
+        Observed {
+            reason: handshake_job_admission::SubmissionStateError,
+            outcome: OperatorChatWriterResult<'a>,
+        },
+    }
+
+    #[derive(Clone, Copy)]
+    pub(crate) enum OperatorChatEngineOwnerInstallReason {
+        AlreadyInstalled,
+        OwnerMismatch,
+        PanickedUnknown,
+    }
+
+    #[must_use = "retain this incoming owner and the original operation on rejection"]
+    pub(crate) struct OperatorChatEngineOwnerInstallRejected {
+        _incoming: OwnedOperatorChatEngineOwner,
+        reason: OperatorChatEngineOwnerInstallReason,
+    }
+
+    impl OperatorChatEngineOwnerInstallRejected {
+        pub(crate) fn reason(&self) -> OperatorChatEngineOwnerInstallReason {
+            self.reason
+        }
+    }
+
+    enum Submission {
+        Returned(Result<(), JobAdmissionError>),
+        PanickedUnknown,
+    }
+
+    impl Submission {
+        fn view(&self) -> OperatorChatSubmission<'_> {
+            match self {
+                Self::Returned(Ok(())) => OperatorChatSubmission::WriterInstalled,
+                Self::Returned(Err(error)) => OperatorChatSubmission::ReturnedError(error),
+                Self::PanickedUnknown => OperatorChatSubmission::PanickedUnknown,
+            }
+        }
+    }
+
+    struct InitialOwners {
+        first: JobAdmission,
+        second: JobAdmission,
+        state: Arc<AppState>,
+        _registry: Arc<SessionRegistry>,
+        original_deadline: Instant,
+    }
+
+    pub(crate) struct OperatorChatInitialOwnersRef<'a> {
+        state: &'a Arc<AppState>,
+        registry: &'a Arc<SessionRegistry>,
+        first: &'a JobAdmission,
+        second: &'a JobAdmission,
+        original_deadline: Instant,
+    }
+
+    impl OperatorChatInitialOwnersRef<'_> {
+        pub(crate) fn state(&self) -> &Arc<AppState> { self.state }
+        pub(crate) fn registry(&self) -> &Arc<SessionRegistry> { self.registry }
+        pub(crate) fn first_admission(&self) -> &JobAdmission { self.first }
+        pub(crate) fn second_admission(&self) -> &JobAdmission { self.second }
+        pub(crate) fn original_deadline(&self) -> Instant { self.original_deadline }
+    }
+
+    #[must_use = "retain the original operation while either initial writer is unsettled"]
+    pub struct OwnedOperatorChatOperation {
+        owners: InitialOwners,
+        workflow_engine_owner: Option<OwnedOperatorChatEngineOwner>,
+        first_submission: Submission,
+        second_submission: Submission,
+        first_observation_panicked: bool,
+        second_observation_panicked: bool,
+    }
+
+    impl OwnedOperatorChatOperation {
+        pub fn begin(
+            first: JobAdmission,
+            second: JobAdmission,
+            state: Arc<AppState>,
+            original_deadline: Instant,
+        ) -> Self {
+            let registry = state.session_registry.clone();
+            let mut owners = InitialOwners {
+                first, second, state, _registry: registry, original_deadline,
+            };
+            let first_submission = match catch_unwind(AssertUnwindSafe(|| {
+                owners.first.submit(owners.state.clone())
+            })) {
+                Ok(result) => Submission::Returned(result),
+                Err(_) => Submission::PanickedUnknown,
+            };
+            let second_submission = match catch_unwind(AssertUnwindSafe(|| {
+                owners.second.submit(owners.state.clone())
+            })) {
+                Ok(result) => Submission::Returned(result),
+                Err(_) => Submission::PanickedUnknown,
+            };
+            Self {
+                owners, first_submission, second_submission,
+                workflow_engine_owner: None,
+                first_observation_panicked: false,
+                second_observation_panicked: false,
+            }
+        }
+
+        pub(crate) fn initial_owners(&self) -> OperatorChatInitialOwnersRef<'_> {
+            OperatorChatInitialOwnersRef {
+                state: &self.owners.state,
+                registry: &self.owners._registry,
+                first: &self.owners.first,
+                second: &self.owners.second,
+                original_deadline: self.owners.original_deadline,
+            }
+        }
+
+        pub(crate) fn install_workflow_engine_owner(
+            &mut self,
+            incoming: OwnedOperatorChatEngineOwner,
+        ) -> Result<(), OperatorChatEngineOwnerInstallRejected> {
+            if self.workflow_engine_owner.is_some() {
+                return Err(OperatorChatEngineOwnerInstallRejected {
+                    _incoming: incoming,
+                    reason: OperatorChatEngineOwnerInstallReason::AlreadyInstalled,
+                });
+            }
+            let verification = catch_unwind(AssertUnwindSafe(|| {
+                incoming.matches_initial_owners(
+                    &self.owners.state,
+                    &self.owners._registry,
+                    &self.owners.first,
+                    &self.owners.second,
+                    self.owners.original_deadline,
+                )
+            }));
+            let reason = match verification {
+                Ok(true) => {
+                    self.workflow_engine_owner = Some(incoming);
+                    return Ok(());
+                }
+                Ok(false) => OperatorChatEngineOwnerInstallReason::OwnerMismatch,
+                Err(_) => OperatorChatEngineOwnerInstallReason::PanickedUnknown,
+            };
+            Err(OperatorChatEngineOwnerInstallRejected { _incoming: incoming, reason })
+        }
+
+        pub(crate) fn workflow_engine_owner_mut(&mut self) -> Option<&mut OwnedOperatorChatEngineOwner> {
+            self.workflow_engine_owner.as_mut()
+        }
+
+        pub fn submission(&self, slot: OperatorChatAdmissionSlot) -> OperatorChatSubmission<'_> {
+            match slot {
+                OperatorChatAdmissionSlot::First => self.first_submission.view(),
+                OperatorChatAdmissionSlot::Second => self.second_submission.view(),
+            }
+        }
+
+        pub fn job_id(&self, slot: OperatorChatAdmissionSlot) -> Uuid {
+            match slot {
+                OperatorChatAdmissionSlot::First => self.owners.first.job_id(),
+                OperatorChatAdmissionSlot::Second => self.owners.second.job_id(),
+            }
+        }
+
+        pub async fn settle_initial<'a>(&'a mut self) -> OperatorChatInitialSettlement<'a> {
+            let first_state = match AssertUnwindSafe(self.owners.first.settle(self.owners.original_deadline))
+                .catch_unwind().await {
+                Ok(JobSubmissionSettlement::NotSubmitted) => OperatorChatInitialState::NotSubmitted,
+                Ok(JobSubmissionSettlement::Pending) => OperatorChatInitialState::Pending,
+                Ok(JobSubmissionSettlement::Observed(_)) => OperatorChatInitialState::Observed,
+                Err(_) => {
+                    self.first_observation_panicked = true;
+                    OperatorChatInitialState::Pending
+                }
+            };
+            let second_state = match AssertUnwindSafe(self.owners.second.settle(self.owners.original_deadline))
+                .catch_unwind().await {
+                Ok(JobSubmissionSettlement::NotSubmitted) => OperatorChatInitialState::NotSubmitted,
+                Ok(JobSubmissionSettlement::Pending) => OperatorChatInitialState::Pending,
+                Ok(JobSubmissionSettlement::Observed(_)) => OperatorChatInitialState::Observed,
+                Err(_) => {
+                    self.second_observation_panicked = true;
+                    OperatorChatInitialState::Pending
+                }
+            };
+            OperatorChatInitialSettlement {
+                first_state, second_state,
+                first: self.owners.first.initial_result(),
+                second: self.owners.second.initial_result(),
+                first_submission: &self.first_submission,
+                second_submission: &self.second_submission,
+                first_observation_panicked: self.first_observation_panicked,
+                second_observation_panicked: self.second_observation_panicked,
+            }
+        }
+    }
+
+    pub struct OperatorChatInitialSettlement<'a> {
+        first_state: OperatorChatInitialState,
+        second_state: OperatorChatInitialState,
+        first: JobInitialObservation<'a>,
+        second: JobInitialObservation<'a>,
+        first_submission: &'a Submission,
+        second_submission: &'a Submission,
+        first_observation_panicked: bool,
+        second_observation_panicked: bool,
+    }
+
+    impl OperatorChatInitialSettlement<'_> {
+        fn observation(&self, slot: OperatorChatAdmissionSlot) -> &JobInitialObservation<'_> {
+            match slot {
+                OperatorChatAdmissionSlot::First => &self.first,
+                OperatorChatAdmissionSlot::Second => &self.second,
+            }
+        }
+
+        pub fn state(&self, slot: OperatorChatAdmissionSlot) -> OperatorChatInitialState {
+            match slot {
+                OperatorChatAdmissionSlot::First => self.first_state,
+                OperatorChatAdmissionSlot::Second => self.second_state,
+            }
+        }
+
+        pub fn submission(&self, slot: OperatorChatAdmissionSlot) -> OperatorChatSubmission<'_> {
+            match slot {
+                OperatorChatAdmissionSlot::First => self.first_submission.view(),
+                OperatorChatAdmissionSlot::Second => self.second_submission.view(),
+            }
+        }
+
+        pub fn observation_error(&self, slot: OperatorChatAdmissionSlot) -> Option<OperatorChatObservationError> {
+            let panicked = match slot {
+                OperatorChatAdmissionSlot::First => self.first_observation_panicked,
+                OperatorChatAdmissionSlot::Second => self.second_observation_panicked,
+            };
+            panicked.then_some(OperatorChatObservationError::PanickedUnknown)
+        }
+
+        pub fn primary(&self, slot: OperatorChatAdmissionSlot) -> Option<OperatorChatWriterResult<'_>> {
+            self.observation(slot).primary.map(writer_result)
+        }
+
+        pub fn rejected(&self, slot: OperatorChatAdmissionSlot) -> Option<OperatorChatRejectedWriter<'_>> {
+            let observation = self.observation(slot);
+            observation.rejected.as_ref().map(|rejected| match rejected {
+                JobRejectedObservation::Pending { reason } => OperatorChatRejectedWriter::Pending { reason: *reason },
+                JobRejectedObservation::Observed { reason, outcome } => OperatorChatRejectedWriter::Observed {
+                    reason: *reason, outcome: writer_result(outcome),
+                },
+            })
+        }
+    }
+
+    fn writer_result(result: &JobInitialWriterResult) -> OperatorChatWriterResult<'_> {
+        match result {
+            Ok(Ok(JobCreateCommitOutcome::Created(_))) => OperatorChatWriterResult::WriteReturnedCreated,
+            Ok(Ok(JobCreateCommitOutcome::AlreadyCreated(_))) => OperatorChatWriterResult::WriteReturnedAlreadyCreated,
+            Ok(Err(error)) => OperatorChatWriterResult::AdmissionError(error),
+            Err(error) => OperatorChatWriterResult::JoinError(error),
+        }
+    }
+}
+
+pub(crate) use super::coordinator::ValidatorProducerKey;
 
 /// Stable surface id carried on every operator-chat capture message so
 /// diagnostic/projection tooling can filter this work-surface without prose.
@@ -1746,7 +2059,14 @@ impl OperatorChatLaunchService {
             OperatorChatError::Invalid("operator-chat routing requires a ModelLaneStore".into())
         })?;
         let replay = store.replay_run(&request.context.run_id).await?;
-        let run = replay.run;
+        self.routing_launches_from_canonical_run(request, &replay.run)
+    }
+
+    fn routing_launches_from_canonical_run(
+        &self,
+        request: &OperatorChatRoutingLifecycleRequest,
+        run: &ModelLaneRunRecord,
+    ) -> Result<Vec<ModelLaneRoutingStageLaunch>, OperatorChatError> {
         if run.trace_id != request.context.trace_id
             || run.run_span_id != request.context.run_span_id
             || run.coordinator_session_id != request.context.coordinator_session_id
@@ -1893,8 +2213,11 @@ impl OperatorChatLaunchService {
             .map_err(OperatorChatError::from)
     }
 
-    pub async fn complete_routing_authority(
+    #[cfg(feature = "runtime-full")]
+    pub(crate) async fn complete_routing_authority(
         &self,
+        bootstrap: &crate::AccountBootstrapState,
+        authentication: crate::storage::surreal::resource_authority::RoleAuthorityAuthInput,
         request: OperatorChatRoutingAuthorityRequest,
     ) -> Result<ModelLaneRoutingDispatchBatch, OperatorChatError> {
         if request.execution_id != request.routing_request.execution_id {
@@ -1902,16 +2225,50 @@ impl OperatorChatLaunchService {
                 "authority execution_id differs from routing request; no mutation performed".into(),
             ));
         }
-        let launches = self.routing_launches(&request.routing_request).await?;
+        let store = self.coordinator.model_lane_store().ok_or_else(|| {
+            OperatorChatError::Invalid(
+                "authority completion requires a scoped ModelLaneStore".into(),
+            )
+        })?;
+        let storage = &bootstrap.surreal;
+        let capture = storage
+            .capture_routing_authority_transaction(
+                bootstrap,
+                authentication,
+                store,
+                &request.execution_id,
+                &request.stage_id,
+                &request.message_id,
+            )
+            .await?;
+        let read = storage.read_owned_routing_authority_capture(capture).await?;
+        let finalization = storage.finalize_operator_routing_authority_capture(read).await?;
+        let prepared = storage.prepare_owned_routing_authority_capture(finalization)?;
+        let launches = match self.routing_launches_from_canonical_run(
+            &request.routing_request,
+            prepared.run(),
+        ) {
+            Ok(launches) => launches,
+            Err(error) => {
+                prepared.cancel().map_err(ModelLaneError::from)?;
+                return Err(error);
+            }
+        };
         self.coordinator
             .complete_authority_and_resume_routing_lifecycle(
+                prepared.into_permit(),
                 &request.execution_id,
                 &request.stage_id,
                 &request.message_id,
                 launches,
             )
             .await
-            .map_err(OperatorChatError::from)
+            .map_err(|error| match error {
+                super::coordinator::RoutingAuthorityCompletionError::ModelLane(error) =>
+                    OperatorChatError::ModelLane(error),
+                super::coordinator::RoutingAuthorityCompletionError::Swarm(error) =>
+                    OperatorChatError::Swarm(error),
+            })
     }
 
     pub async fn cancel_routing_lifecycle(
@@ -2281,6 +2638,86 @@ impl OperatorChatLaunchService {
         request_scope: &ExactResourceScopeAttribution,
     ) -> Result<OperatorChatLaunched, OperatorChatError> {
         self.launch_for_scope(selection, Some(request_scope)).await
+    }
+
+    #[cfg(feature = "runtime-full")]
+    pub(crate) async fn launch_authenticated_scoped(
+        &self,
+        selection: &OperatorChatSelection,
+        request_scope: &ExactResourceScopeAttribution,
+        bootstrap: &crate::AccountBootstrapState,
+        authentication: crate::storage::surreal::resource_authority::RoleAuthorityAuthInput,
+    ) -> Result<OperatorChatLaunched, OperatorChatError> {
+        let denied = || OperatorChatError::Invalid("authenticated scoped launch authority unavailable".into());
+        let store = self.coordinator.model_lane_store().ok_or_else(denied)?;
+        let lifecycle = bootstrap.surreal.resource_access_lifecycle();
+        if store.surreal_storage().resource_access_lifecycle() != lifecycle
+            || store.access().lifecycle_authority() != Some(&lifecycle)
+            || store.access().exact_read_scope() != Some(request_scope)
+        { return Err(denied()); }
+        store.access().authorize_exact_request(request_scope).map_err(|_| denied())?;
+        bootstrap.surreal.authorize_validator_delegation_parent(
+            &bootstrap.capability_registry, authentication, request_scope,
+        ).await.map_err(|_| denied())?;
+        self.launch_for_scope(selection, Some(request_scope)).await
+    }
+
+    #[cfg(feature = "runtime-full")]
+    pub(crate) async fn designate_authenticated_validator(
+        &self,
+        bootstrap: &crate::AccountBootstrapState,
+        authentication: crate::storage::surreal::resource_authority::RoleAuthorityAuthInput,
+        mut request: super::model_lane::WorkspaceValidatorRunnerDesignationRequest,
+    ) -> Result<super::model_lane::WorkspaceValidatorRunnerDesignationRecord, OperatorChatError> {
+        use super::model_lane::WorkspaceOwnerActionCommand;
+        let denied = || OperatorChatError::Invalid("explicit validator designation authority unavailable".into());
+        let store = self.coordinator.model_lane_store().ok_or_else(denied)?;
+        let storage = &bootstrap.surreal;
+        if store.surreal_storage().resource_access_lifecycle() != storage.resource_access_lifecycle()
+            || store.access().exact_read_scope() != Some(&request.scope)
+            || store.access().lifecycle_authority() != Some(&storage.resource_access_lifecycle())
+        { return Err(denied()); }
+        store.access().authorize_exact_request(&request.scope).map_err(|_| denied())?;
+        let authorization = authentication.workspace_creation_request(request.scope.workspace_id.as_str());
+        storage.capture_workspace_owner_action(
+            bootstrap, authentication.clone(), authorization.clone(),
+            WorkspaceOwnerActionCommand::IssueRunnerDesignation(request.clone()),
+        ).await.map_err(|_| denied())?;
+        let registered = self.coordinator.registered_validator_instance_by_ref(&request.runner.producer_instance_ref)?;
+        if registered.parent_session_id() != request.run.coordinator_session_id {
+            return Err(denied());
+        }
+        let producer = if let Some(producer) = self.coordinator.current_validator_producer(&registered)? {
+            if producer.delegating_scope() != &request.scope { return Err(denied()); }
+            producer.revalidate(storage).await.map_err(|_| denied())?;
+            producer
+        } else {
+            let parent = storage.authorize_validator_delegation_parent(
+                &bootstrap.capability_registry, authentication, &request.scope,
+            ).await.map_err(|_| denied())?;
+            let seal = storage.issue_authenticated_validator_launch(
+                &bootstrap.capability_registry, parent, &registered,
+            ).await.map_err(|_| denied())?;
+            let session_id = seal.authenticated_session_id().to_owned();
+            match self.coordinator.register_authenticated_validator_producer(seal).await {
+                Ok(producer) => producer,
+                Err(error) => {
+                    storage.revoke_session(&session_id).await.map_err(|_| denied())?;
+                    return Err(error.into());
+                }
+            }
+        };
+        request.runner = super::model_lane::ValidatorRunnerRegistrationBinding {
+            producer_registration_ref: producer.registration_ref().to_owned(),
+            producer_instance_ref: producer.instance_id().to_string(),
+            producer_spawn_generation: producer.spawn_generation(),
+            producer_registered_principal: producer.registered_principal().clone(),
+        };
+        self.coordinator.with_current_validator_producer(&producer, None, || Ok(()))?;
+        let result = store.designate_validator_runner(bootstrap, authorization, request).await?;
+        producer.revalidate(storage).await.map_err(|_| denied())?;
+        self.coordinator.with_current_validator_producer(&producer, None, || Ok(()))?;
+        Ok(result)
     }
 
     async fn launch_for_scope(

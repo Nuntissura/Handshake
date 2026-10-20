@@ -1,6 +1,6 @@
 use axum::{
     extract::{ConnectInfo, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::post,
     Json, Router,
@@ -25,6 +25,9 @@ use std::{
     time::{Duration, Instant},
 };
 use uuid::Uuid;
+use crate::storage::surreal::resource_authority::{
+    PalmistryWatcherAdmissionAuthorization, PalmistryWatcherAdoptionAuthority,
+};
 use zeroize::{Zeroize, Zeroizing};
 
 use crate::{
@@ -40,7 +43,12 @@ use crate::{
     sandbox::palmistry_watcher::{
         PalmistrySpawnSpec, PalmistryWatcherAdapter, SpawnedPalmistry, PALMISTRY_WATCHER_ADAPTER_ID,
     },
-    storage::surreal::{SurrealPalmistryStore, SurrealPalmistryVerifier, SurrealStorage},
+    storage::surreal::{
+        prepare_watcher_admission, PalmistryWatcherAdoptionInput,
+        PalmistryWatcherPreparedAdmission, SurrealPalmistryStore, SurrealPalmistryVerifier,
+        SurrealStorage, WatcherAdmissionBudget, WatcherAdmissionDeadline,
+        WatcherAdmissionInspection, WatcherAdmissionPurpose,
+    },
     swarm_orchestration::model_lane::{
         ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState, ModelLaneStore,
         NewModelLaneDiagnosticTierStatus,
@@ -62,6 +70,10 @@ pub struct PalmistryLaunchRequest {
     pub mode: PalmistryLaunchMode,
     #[serde(default)]
     pub adopt_existing: Option<AdoptExistingWatcher>,
+    #[serde(default)]
+    pub adoption_operation_id: Option<Uuid>,
+    #[serde(default)]
+    pub adoption_intent: Option<AdoptionIntent>,
     pub session_id: Uuid,
     pub launch_nonce: Uuid,
     pub parent_pid: u32,
@@ -83,6 +95,13 @@ pub enum PalmistryLaunchMode {
     #[default]
     Legacy,
     AdoptExisting,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum AdoptionIntent {
+    Begin,
+    Read,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -316,6 +335,247 @@ pub struct PalmistryLaunchState {
     /// Exact five-field scope every reclaim issued by this launcher runs under.
     reclaim_scope: crate::process_ledger::ReclaimResourceScope,
     active: Arc<Mutex<HashMap<Uuid, LaunchSlot>>>,
+    adoption_operations: Arc<Mutex<HashMap<Uuid, Arc<OwnedWatcherAdoption>>>>,
+    adoption_begin_locks: Arc<Mutex<HashMap<Uuid, Arc<tokio::sync::Mutex<()>>>>>,
+}
+
+// The state owner, not the HTTP future, retains the one operation and its actual task result.
+struct OwnedWatcherAdoption {
+    request: PalmistryLaunchRequest,
+    authority: Arc<crate::storage::surreal::resource_authority::PalmistryWatcherAdoptionAuthority>,
+    authentication: AdoptionCallerAuthentication,
+    preparation: Mutex<AdoptionPreparation>,
+    observed: Mutex<Option<Arc<CurrentWatcherOsObservation>>>,
+    recheck: Mutex<Option<Arc<dyn Fn() -> Result<(), String> + Send + Sync + 'static>>>,
+    task: Mutex<Option<tokio::task::JoinHandle<()>>>,
+    original_monotonic: Instant,
+    original_utc: chrono::DateTime<chrono::Utc>,
+    budget: Mutex<Option<WatcherAdmissionBudget>>,
+    binding: Mutex<Option<Arc<NativeWatcherOwnerBinding>>>,
+    deadline: Mutex<Option<WatcherAdmissionDeadline>>,
+    issuance: Mutex<NativeWitnessIssuance>,
+    prepared: Mutex<Option<Arc<PalmistryWatcherPreparedAdmission>>>,
+    verified_evidence: Mutex<Option<Arc<VerifiedWatcherChallenge>>>,
+    outcome: Mutex<Option<Arc<crate::storage::surreal::PalmistryWatcherAdoptionResult>>>,
+    publication: Mutex<Option<(PalmistryLaunchReceipt, SessionSigningSecret)>>,
+    readback: Mutex<Option<WatcherAdmissionInspection>>,
+}
+
+enum AdoptionPreparation {
+    Running,
+    Unknown,
+    Verified {
+        _observed: Arc<CurrentWatcherOsObservation>,
+        _recheck: Arc<dyn Fn() -> Result<(), String> + Send + Sync + 'static>,
+        _evidence: Arc<VerifiedWatcherChallenge>,
+    },
+    Failed(String),
+}
+
+struct AdoptionPreparationGuard {
+    owner: Arc<OwnedWatcherAdoption>,
+}
+
+impl Drop for AdoptionPreparationGuard {
+    fn drop(&mut self) {
+        let result_missing = self.owner.outcome.lock().unwrap_or_else(|e| e.into_inner()).is_none();
+        let mut preparation = self.owner.preparation.lock().unwrap_or_else(|e| e.into_inner());
+        if result_missing && matches!(&*preparation, AdoptionPreparation::Running | AdoptionPreparation::Verified { .. }) {
+            *preparation = AdoptionPreparation::Unknown;
+        }
+    }
+}
+
+struct NativeWatcherOwnerBinding {
+    operation_id: Uuid,
+    request: PalmistryLaunchRequest,
+    authority: Arc<PalmistryWatcherAdoptionAuthority>,
+    authorization: Arc<PalmistryWatcherAdmissionAuthorization>,
+    monotonic: Instant,
+    expires_at: chrono::DateTime<chrono::Utc>,
+}
+
+enum NativeWitnessIssuance {
+    Unissued,
+    Issued,
+}
+
+/// Opaque native proof custody. It is moved once into prepared admission, never serialized.
+pub(crate) struct NativeWatcherAdoptionWitness {
+    binding: Arc<NativeWatcherOwnerBinding>,
+    observed: Arc<CurrentWatcherOsObservation>,
+    recheck: Arc<dyn Fn() -> Result<(), String> + Send + Sync + 'static>,
+    evidence: Arc<VerifiedWatcherChallenge>,
+}
+
+#[derive(Debug)]
+pub(crate) struct NativeWitnessError;
+
+impl fmt::Display for NativeWitnessError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("native watcher admission binding unavailable")
+    }
+}
+impl std::error::Error for NativeWitnessError {}
+
+impl NativeWatcherAdoptionWitness {
+    pub(crate) fn recheck_native_continuity(&self) -> Result<(), NativeWitnessError> {
+        if Instant::now() >= self.binding.monotonic
+            || chrono::Utc::now() >= self.binding.expires_at
+        {
+            return Err(NativeWitnessError);
+        }
+        self.validate_native_material()
+    }
+
+    pub(crate) fn validate_admission_binding(
+        &self,
+        authority: &Arc<PalmistryWatcherAdoptionAuthority>,
+        input: &PalmistryWatcherAdoptionInput,
+        original_deadline: Instant,
+    ) -> Result<(), NativeWitnessError> {
+        if !Arc::ptr_eq(authority, &self.binding.authority)
+            || self.binding.operation_id != authority.operation_id()
+            || original_deadline != self.binding.monotonic
+            || Instant::now() >= original_deadline
+            || chrono::Utc::now() >= self.binding.expires_at
+        {
+            return Err(NativeWitnessError);
+        }
+        self.binding.authorization.validate_binding(authority, &self.binding.expires_at)
+            .map_err(|_| NativeWitnessError)?;
+        let request = &self.binding.request;
+        let adopt = validate_adopt_existing_shape(request).map_err(|_| NativeWitnessError)?;
+        let parent_birth = i64::try_from(self.observed.parent_creation_time_100ns)
+            .map_err(|_| NativeWitnessError)?;
+        let watcher_birth = i64::try_from(self.observed.creation_time_100ns)
+            .map_err(|_| NativeWitnessError)?;
+        if self.observed.process_uuid != adopt.process_uuid
+            || self.observed.watcher_pid != adopt.watcher_pid
+            || self.observed.creation_time_100ns != adopt.os_creation_time_100ns
+            || self.observed.parent_creation_time_100ns != adopt.parent_os_creation_time_100ns
+            || input.verifier.session_id != request.session_id
+            || input.verifier.launch_nonce != request.launch_nonce
+            || input.verifier.process_uuid != adopt.process_uuid
+            || input.verifier.parent_pid != i64::from(request.parent_pid)
+            || input.verifier.watcher_pid != i64::from(adopt.watcher_pid)
+            || input.verifier.watcher_creation_time_100ns != watcher_birth
+            || input.parent_creation_time_100ns != parent_birth
+            || input.verifier.executable_sha256 != self.observed.executable_sha256
+            || self.observed.executable_sha256 != adopt.watcher_executable_sha256
+            || decode_hex_array::<32>(&input.verifier.verifying_key_hex)
+                .map_err(|_| NativeWitnessError)? != self.evidence.expected_verifier
+            || input.signed_native_evidence != self.evidence.canonical_evidence(request)
+                .map_err(|_| NativeWitnessError)?
+        {
+            return Err(NativeWitnessError);
+        }
+        self.recheck_native_continuity()
+    }
+
+    fn validate_native_material(&self) -> Result<(), NativeWitnessError> {
+        let request = &self.binding.request;
+        let adopt = validate_adopt_existing_shape(request).map_err(|_| NativeWitnessError)?;
+        if decode_hex_array::<32>(&adopt.expected_public_verifier).map_err(|_| NativeWitnessError)?
+            != self.evidence.expected_verifier
+        {
+            return Err(NativeWitnessError);
+        }
+        let identity = current_watcher_identity(request).map_err(|_| NativeWitnessError)?;
+        let mut challenge_wire = serde_json::to_vec(
+            &CurrentWatcherChallenge::ProvenanceChallengeV1 {
+                identity: identity.clone(),
+                challenge: self.evidence.fresh_challenge,
+                transport_public_key: self.evidence.transport_public_key,
+            },
+        ).map_err(|_| NativeWitnessError)?;
+        challenge_wire.push(b'\n');
+        if self.evidence.challenge_wire != challenge_wire
+            || self.evidence.signed_payload != current_watcher_challenge_bytes(
+                &identity, self.evidence.fresh_challenge, self.evidence.transport_public_key,
+            ).map_err(|_| NativeWitnessError)?
+            || decode_hex_array::<32>(&request.transport_public_key).map_err(|_| NativeWitnessError)?
+                != self.evidence.transport_public_key
+        {
+            return Err(NativeWitnessError);
+        }
+        verify_current_watcher_ready(
+            &self.evidence.reply, &identity, self.evidence.expected_verifier,
+            self.evidence.fresh_challenge, self.evidence.transport_public_key,
+        ).map_err(|_| NativeWitnessError)?;
+        (self.recheck)().map_err(|_| NativeWitnessError)?;
+        Ok(())
+    }
+}
+
+fn issue_native_watcher_adoption_witness(
+    owner: &Arc<OwnedWatcherAdoption>,
+    authorization: &Arc<PalmistryWatcherAdmissionAuthorization>,
+    deadline: &WatcherAdmissionDeadline,
+) -> Result<NativeWatcherAdoptionWitness, NativeWitnessError> {
+    let binding = owner.binding.lock().unwrap_or_else(|e| e.into_inner())
+        .as_ref().cloned().ok_or(NativeWitnessError)?;
+    if !Arc::ptr_eq(authorization, &binding.authorization)
+        || !Arc::ptr_eq(&owner.authority, &binding.authority)
+        || !same_launch_identity(&owner.request, &binding.request)
+        || deadline.monotonic() != binding.monotonic
+        || deadline.expires_at() != &binding.expires_at
+        || Instant::now() >= binding.monotonic
+        || chrono::Utc::now() >= binding.expires_at
+    {
+        return Err(NativeWitnessError);
+    }
+    let evidence = match &*owner.preparation.lock().unwrap_or_else(|e| e.into_inner()) {
+        AdoptionPreparation::Verified { _evidence, .. } => Arc::clone(_evidence),
+        _ => return Err(NativeWitnessError),
+    };
+    let observed = owner.observed.lock().unwrap_or_else(|e| e.into_inner())
+        .as_ref().cloned().ok_or(NativeWitnessError)?;
+    let recheck = owner.recheck.lock().unwrap_or_else(|e| e.into_inner())
+        .as_ref().cloned().ok_or(NativeWitnessError)?;
+    let witness = NativeWatcherAdoptionWitness { binding, observed, recheck, evidence };
+    witness.recheck_native_continuity()?;
+    authorization.validate_binding(&owner.authority, deadline.expires_at())
+        .map_err(|_| NativeWitnessError)?;
+    let mut issuance = owner.issuance.lock().unwrap_or_else(|e| e.into_inner());
+    match &*issuance {
+        NativeWitnessIssuance::Unissued => *issuance = NativeWitnessIssuance::Issued,
+        NativeWitnessIssuance::Issued => return Err(NativeWitnessError),
+    }
+    Ok(witness)
+}
+
+struct VerifiedWatcherChallenge {
+    challenge_wire: Vec<u8>,
+    reply: Vec<u8>,
+    signed_payload: Vec<u8>,
+    fresh_challenge: [u8; 32],
+    expected_verifier: [u8; 32],
+    transport_public_key: [u8; 32],
+}
+
+impl VerifiedWatcherChallenge {
+    fn canonical_evidence(&self, request: &PalmistryLaunchRequest) -> Result<serde_json::Value, PalmistryLaunchError> {
+        let adopt = validate_adopt_existing_shape(request)?;
+        Ok(json!({
+            "schema_id": "handshake.palmistry.watcher-adoption-native-evidence",
+            "schema_version": 1,
+            "challenge_wire_hex": hex::encode(&self.challenge_wire),
+            "reply_json_bytes_hex": hex::encode(&self.reply),
+            "signed_payload_hex": hex::encode(&self.signed_payload),
+            "fresh_challenge_hex": hex::encode(self.fresh_challenge),
+            "expected_verifier_hex": hex::encode(self.expected_verifier),
+            "transport_public_key_hex": hex::encode(self.transport_public_key),
+            "original_readiness": {
+                "challenge": adopt.original_challenge,
+                "signature": adopt.original_signature,
+            },
+            "observed_os": {
+                "watcher_creation_time_100ns": adopt.os_creation_time_100ns.to_string(),
+                "parent_creation_time_100ns": adopt.parent_os_creation_time_100ns.to_string(),
+            },
+        }))
+    }
 }
 
 #[derive(Clone)]
@@ -442,6 +702,8 @@ impl PalmistryLaunchState {
             reclaim,
             reclaim_scope,
             active: Arc::new(Mutex::new(HashMap::new())),
+            adoption_operations: Arc::new(Mutex::new(HashMap::new())),
+            adoption_begin_locks: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -644,23 +906,370 @@ impl IntoResponse for PalmistryLaunchError {
     }
 }
 
+struct AdoptionCallerAuthentication {
+    token: String,
+    channel: String,
+    account: String,
+    principal: String,
+    session: String,
+    space: String,
+}
+impl AdoptionCallerAuthentication {
+    fn input(&self) -> crate::storage::surreal::resource_authority::RoleAuthorityAuthInput {
+        crate::storage::surreal::resource_authority::RoleAuthorityAuthInput::new(
+            self.token.clone(), self.channel.clone(),
+        )
+    }
+}
+async fn adoption_credentials(
+    state: &PalmistryLaunchState, headers: &HeaderMap,
+) -> Result<AdoptionCallerAuthentication, PalmistryLaunchError> {
+    let channel = crate::api::stage::capture_channel_binding(headers)
+        .map_err(|_| PalmistryLaunchError::receipt_authentication_required())?;
+    let token = headers.get("x-hsk-session-token").and_then(|value| value.to_str().ok())
+        .filter(|value| value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit()))
+        .ok_or_else(PalmistryLaunchError::receipt_authentication_required)?;
+    let context = state.receipt_storage.authenticate_local_session(token, &channel.binding_hash)
+        .await.map_err(|_| PalmistryLaunchError::receipt_authentication_required())?;
+    Ok(AdoptionCallerAuthentication {
+        token: token.to_owned(), channel: channel.binding_hash,
+        account: context.identity.account_id, principal: context.identity.principal_id,
+        session: context.session_id, space: context.identity.access_space_id,
+    })
+}
+fn adoption_receipt_json(
+    receipt: &crate::storage::surreal::PalmistryWatcherAdoptionReceipt,
+) -> serde_json::Value {
+    json!({
+        "operation_id": receipt.operation_id, "process_uuid": receipt.process_uuid,
+        "diagnostic_session_id": receipt.diagnostic_session_id,
+        "original_started_at": receipt.original_started_at,
+        "custodian_registration_id": receipt.custodian_registration_id,
+        "verifier_record_id": receipt.verifier_record_id, "start_record_id": receipt.start_record_id,
+        "event_ledger_event_id": receipt.event_ledger_event_id, "input_hash": receipt.input_hash,
+    })
+}
+fn adoption_outcome_receipt(
+    result: &crate::storage::surreal::PalmistryWatcherAdoptionResult,
+) -> Option<&crate::storage::surreal::PalmistryWatcherAdoptionReceipt> {
+    use crate::storage::surreal::PalmistryWatcherAdoptionResult;
+    match result {
+        PalmistryWatcherAdoptionResult::Applied(receipt)
+        | PalmistryWatcherAdoptionResult::AlreadyApplied(receipt) => Some(receipt),
+        PalmistryWatcherAdoptionResult::Uncertain { canonical_receipt, .. } => canonical_receipt.as_ref(),
+    }
+}
+fn owned_adoption_response(owner: &OwnedWatcherAdoption) -> Result<Response, PalmistryLaunchError> {
+    use crate::storage::surreal::PalmistryWatcherAdoptionResult;
+    let outcome = owner.outcome.lock().unwrap_or_else(|e| e.into_inner());
+    let publication = owner.publication.lock().unwrap_or_else(|e| e.into_inner());
+    let status = outcome.as_ref().and_then(|result| match &**result {
+        PalmistryWatcherAdoptionResult::Applied(_) => Some("APPLIED"),
+        PalmistryWatcherAdoptionResult::AlreadyApplied(_) => Some("ALREADY_APPLIED"),
+        PalmistryWatcherAdoptionResult::Uncertain { .. } => None,
+    });
+    let canonical = outcome.as_ref().and_then(|result| adoption_outcome_receipt(result));
+    if let (Some(status), Some((receipt, secret)), Some(canonical)) = (status, publication.as_ref(), canonical) {
+        if Some(canonical.operation_id) != owner.request.adoption_operation_id
+            || canonical.process_uuid != receipt.process_uuid
+            || canonical.diagnostic_session_id != owner.request.session_id
+        {
+            return Err(PalmistryLaunchError::unavailable("admission response binding unavailable"));
+        }
+        let sealed = launch_response(receipt.clone(), secret, &owner.request)?.0;
+        return Ok((StatusCode::OK, Json(json!({
+            "adoption_operation_id": canonical.operation_id,
+            "process_uuid": receipt.process_uuid, "adoption_status": status, "receipt": sealed,
+            "canonical_receipt": adoption_receipt_json(canonical),
+        }))).into_response());
+    }
+    let mut response = uncertain_adoption_value(&owner.request);
+    if let Some(canonical) = canonical {
+        response["canonical_receipt"] = adoption_receipt_json(canonical);
+    } else {
+        let readback = owner.readback.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(WatcherAdmissionInspection::ExistingReadOnly(result)) = readback.as_ref() {
+            if let Some(canonical) = adoption_outcome_receipt(result) {
+                response["canonical_receipt"] = adoption_receipt_json(canonical);
+            }
+        }
+    }
+    Ok((StatusCode::ACCEPTED, Json(response)).into_response())
+}
+fn uncertain_adoption_value(request: &PalmistryLaunchRequest) -> serde_json::Value {
+    json!({
+        "adoption_operation_id": request.adoption_operation_id,
+        "process_uuid": request.adopt_existing.as_ref().map(|adopt| adopt.process_uuid),
+        "adoption_status": "UNCERTAIN", "receipt": null, "canonical_receipt": null,
+        "diagnostic": "original operation not positively settled; original custody retained",
+    })
+}
+fn uncertain_adoption_response(request: &PalmistryLaunchRequest) -> Response {
+    (StatusCode::ACCEPTED, Json(uncertain_adoption_value(request))).into_response()
+}
+async fn read_owned_watcher_adoption(
+    state: &PalmistryLaunchState, request: &PalmistryLaunchRequest,
+    authentication: &AdoptionCallerAuthentication, owner: Arc<OwnedWatcherAdoption>,
+) -> Result<Response, PalmistryLaunchError> {
+    if !same_launch_identity(&owner.request, request) {
+        return Err(PalmistryLaunchError::receipt_permission_denied());
+    }
+    let registry = state.receipt_capability_registry.as_ref()
+        .ok_or_else(PalmistryLaunchError::receipt_permission_denied)?;
+    let read_authorization = state.receipt_storage.authorize_current_watcher_admission_read(
+        &owner.authority, registry, authentication.input(),
+    ).await.map_err(|_| PalmistryLaunchError::receipt_permission_denied())?;
+    let inspection = state.receipt_storage.inspect_watcher_admission_read(
+        &read_authorization, request.adoption_operation_id.expect("validated operation"),
+        WatcherAdmissionPurpose::Adopt,
+    ).await.map_err(|_| PalmistryLaunchError::receipt_permission_denied())?;
+    *owner.readback.lock().unwrap_or_else(|e| e.into_inner()) = Some(inspection);
+    owned_adoption_response(&owner)
+}
+async fn prepare_owned_watcher_adoption(
+    state: &PalmistryLaunchState, headers: &HeaderMap, request: PalmistryLaunchRequest,
+) -> Result<Response, PalmistryLaunchError> {
+    let watcher_id = validate_adopt_existing_shape(&request)?.process_uuid;
+    let operation_id = request.adoption_operation_id.filter(|id| !id.is_nil())
+        .ok_or_else(|| PalmistryLaunchError::bad_request("ADOPT_EXISTING requires a nonnil adoption_operation_id"))?;
+    let intent = request.adoption_intent
+        .ok_or_else(|| PalmistryLaunchError::bad_request("ADOPT_EXISTING requires adoption_intent"))?;
+    let authentication = adoption_credentials(state, headers).await?;
+    let existing = state.adoption_operations.lock().unwrap_or_else(|e| e.into_inner())
+        .get(&operation_id).cloned();
+    if let Some(owner) = existing {
+        return read_owned_watcher_adoption(state, &request, &authentication, owner).await;
+    }
+    let begin_lock = if intent == AdoptionIntent::Begin {
+        let mut locks = state.adoption_begin_locks.lock().unwrap_or_else(|e| e.into_inner());
+        Some(Arc::clone(locks.entry(operation_id)
+            .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))))
+    } else { None };
+    let _begin_guard = match begin_lock.as_ref() {
+        Some(lock) => Some(lock.lock().await),
+        None => None,
+    };
+    let existing = state.adoption_operations.lock().unwrap_or_else(|e| e.into_inner())
+        .get(&operation_id).cloned();
+    if let Some(owner) = existing {
+        return read_owned_watcher_adoption(state, &request, &authentication, owner).await;
+    }
+    let registry = state.receipt_capability_registry.as_ref()
+        .ok_or_else(PalmistryLaunchError::receipt_permission_denied)?;
+    let parent = state.receipt_storage.canonical_watcher_workspace_parent(watcher_id)
+        .await.map_err(|_| PalmistryLaunchError::receipt_permission_denied())?
+        .ok_or_else(PalmistryLaunchError::receipt_permission_denied)?;
+    let authority = state.receipt_storage.capture_palmistry_watcher_adoption_authority(
+        operation_id, registry, authentication.input(), watcher_id, parent,
+    ).await.map_err(|_| PalmistryLaunchError::receipt_permission_denied())?;
+    if intent == AdoptionIntent::Read {
+        let inspection = state.receipt_storage.inspect_watcher_admission(
+            &authority, operation_id, WatcherAdmissionPurpose::Adopt,
+        ).await.map_err(|_| PalmistryLaunchError::receipt_permission_denied())?;
+        let mut response = uncertain_adoption_value(&request);
+        if let WatcherAdmissionInspection::ExistingReadOnly(result) = inspection {
+            if let Some(receipt) = adoption_outcome_receipt(&result) {
+                response["canonical_receipt"] = adoption_receipt_json(receipt);
+            }
+        }
+        return Ok((StatusCode::ACCEPTED, Json(response)).into_response());
+    }
+    let budget = state.receipt_storage.watcher_admission_operation_budget()
+        .map_err(|_| PalmistryLaunchError::unavailable("native admission configuration unavailable"))?;
+    let original_monotonic = Instant::now();
+    let original_utc = chrono::Utc::now();
+    let owner = Arc::new(OwnedWatcherAdoption {
+        request, authority, authentication,
+        preparation: Mutex::new(AdoptionPreparation::Running),
+        observed: Mutex::new(None), recheck: Mutex::new(None), task: Mutex::new(None),
+        original_monotonic, original_utc, budget: Mutex::new(Some(budget)),
+        binding: Mutex::new(None), deadline: Mutex::new(None),
+        issuance: Mutex::new(NativeWitnessIssuance::Unissued),
+        prepared: Mutex::new(None), verified_evidence: Mutex::new(None),
+        outcome: Mutex::new(None), publication: Mutex::new(None), readback: Mutex::new(None),
+    });
+    state.adoption_operations.lock().unwrap_or_else(|e| e.into_inner())
+        .insert(operation_id, Arc::clone(&owner));
+    let worker_owner = Arc::clone(&owner);
+    let worker_state = state.clone();
+    let task = tokio::spawn(async move {
+        let _preparation_guard = AdoptionPreparationGuard { owner: Arc::clone(&worker_owner) };
+        if run_owned_watcher_admission(&worker_state, &worker_owner).await.is_err() {
+            let issued = matches!(
+                &*worker_owner.issuance.lock().unwrap_or_else(|e| e.into_inner()),
+                NativeWitnessIssuance::Issued,
+            );
+            let prepared = worker_owner.prepared.lock().unwrap_or_else(|e| e.into_inner()).is_some();
+            let mut preparation = worker_owner.preparation.lock().unwrap_or_else(|e| e.into_inner());
+            if issued || prepared || matches!(&*preparation, AdoptionPreparation::Unknown) {
+                *preparation = AdoptionPreparation::Unknown;
+            } else {
+                *preparation = AdoptionPreparation::Failed("native admission unavailable".to_owned());
+            }
+        }
+    });
+    *owner.task.lock().unwrap_or_else(|e| e.into_inner()) = Some(task);
+    owned_adoption_response(&owner)
+}
+
+async fn run_owned_watcher_admission(
+    state: &PalmistryLaunchState, owner: &Arc<OwnedWatcherAdoption>,
+) -> Result<(), PalmistryLaunchError> {
+    let operation_id = owner.request.adoption_operation_id.expect("validated BEGIN operation");
+    let inspection = state.receipt_storage.inspect_watcher_admission(
+        &owner.authority, operation_id, WatcherAdmissionPurpose::Adopt,
+    ).await.map_err(|_| PalmistryLaunchError::unavailable("canonical admission inspection unavailable"))?;
+    if !matches!(&inspection, WatcherAdmissionInspection::NoPriorRelevantAdmission) {
+        *owner.readback.lock().unwrap_or_else(|e| e.into_inner()) = Some(inspection);
+        *owner.preparation.lock().unwrap_or_else(|e| e.into_inner()) = AdoptionPreparation::Unknown;
+        return Ok(());
+    }
+    let budget = owner.budget.lock().unwrap_or_else(|e| e.into_inner()).take()
+        .ok_or_else(|| PalmistryLaunchError::unavailable("original admission budget already consumed"))?;
+    let limit = budget.limit.min(Duration::from_secs(300));
+    if limit.is_zero() || owner.original_monotonic.checked_add(limit).is_none() {
+        return Err(PalmistryLaunchError::unavailable("invalid original admission budget"));
+    }
+    let requested_expires_at = owner.original_utc.checked_add_signed(
+        chrono::Duration::from_std(limit)
+            .map_err(|_| PalmistryLaunchError::unavailable("admission deadline overflow"))?,
+    ).ok_or_else(|| PalmistryLaunchError::unavailable("admission deadline overflow"))?
+        .min(budget.credential_not_after);
+    let authorization = state.receipt_storage.seal_palmistry_watcher_admission_authorization(
+        &owner.authority, requested_expires_at,
+    ).await.map_err(|_| PalmistryLaunchError::unavailable("admission authorization unavailable"))?;
+    let deadline = WatcherAdmissionDeadline::capture_for_original_owner(
+        &authorization, owner.original_monotonic, owner.original_utc, budget,
+    ).map_err(|_| PalmistryLaunchError::unavailable("original admission deadline unavailable"))?;
+    let binding = Arc::new(NativeWatcherOwnerBinding {
+        operation_id, request: owner.request.clone(), authority: Arc::clone(&owner.authority),
+        authorization: Arc::clone(&authorization), monotonic: deadline.monotonic(),
+        expires_at: *deadline.expires_at(),
+    });
+    *owner.binding.lock().unwrap_or_else(|e| e.into_inner()) = Some(Arc::clone(&binding));
+    *owner.deadline.lock().unwrap_or_else(|e| e.into_inner()) = Some(deadline);
+    let observed = Arc::new(observe_current_watcher_os_identity(&owner.request)?);
+    *owner.observed.lock().unwrap_or_else(|e| e.into_inner()) = Some(Arc::clone(&observed));
+    let lease = NativeRuntimeLeaseObservation::from_request(&owner.request)?;
+    let recheck: Arc<dyn Fn() -> Result<(), String> + Send + Sync + 'static> = {
+        let observed = Arc::clone(&observed);
+        let binding = Arc::clone(&binding);
+        Arc::new(move || {
+            if Instant::now() >= binding.monotonic || chrono::Utc::now() >= binding.expires_at {
+                return Err("original admission deadline elapsed".to_owned());
+            }
+            observed.recheck_after_challenge().map_err(|e| e.to_string())?;
+            lease.recheck(&observed).map_err(|e| e.to_string())
+        })
+    };
+    *owner.recheck.lock().unwrap_or_else(|e| e.into_inner()) = Some(Arc::clone(&recheck));
+    recheck().map_err(PalmistryLaunchError::unavailable)?;
+    let evidence = Arc::new(challenge_current_owned_watcher(&owner.request, binding.monotonic).await?);
+    *owner.verified_evidence.lock().unwrap_or_else(|e| e.into_inner()) = Some(Arc::clone(&evidence));
+    recheck().map_err(PalmistryLaunchError::unavailable)?;
+    *owner.preparation.lock().unwrap_or_else(|e| e.into_inner()) = AdoptionPreparation::Verified {
+        _observed: Arc::clone(&observed), _recheck: Arc::clone(&recheck), _evidence: Arc::clone(&evidence),
+    };
+    authorization.revalidate(&state.receipt_storage).await
+        .map_err(|_| PalmistryLaunchError::unavailable("admission authorization unavailable"))?;
+    let adopt = validate_adopt_existing_shape(&owner.request)?;
+    let verifier = SurrealPalmistryVerifier {
+        session_id: owner.request.session_id, launch_nonce: owner.request.launch_nonce,
+        parent_pid: i64::from(owner.request.parent_pid), watcher_pid: i64::from(observed.watcher_pid),
+        watcher_creation_time_100ns: i64::try_from(observed.creation_time_100ns)
+            .map_err(|_| PalmistryLaunchError::unavailable("watcher generation range"))?,
+        process_uuid: observed.process_uuid,
+        executable_sha256: adopt.watcher_executable_sha256.clone(),
+        verifying_key_hex: hex::encode(evidence.expected_verifier),
+    };
+    let input = state.palmistry_store.resolve_canonical_watcher_adoption_input(
+        &owner.authority, None, verifier,
+        i64::try_from(observed.parent_creation_time_100ns)
+            .map_err(|_| PalmistryLaunchError::unavailable("parent generation range"))?,
+        evidence.canonical_evidence(&owner.request)?,
+    ).await.map_err(|_| PalmistryLaunchError::unavailable("canonical original watcher provenance unavailable"))?
+        .ok_or_else(|| PalmistryLaunchError::unavailable("canonical original watcher provenance unavailable"))?;
+    let deadline = owner.deadline.lock().unwrap_or_else(|e| e.into_inner()).take()
+        .ok_or_else(|| PalmistryLaunchError::unavailable("original admission deadline already consumed"))?;
+    let witness = issue_native_watcher_adoption_witness(owner, &authorization, &deadline)
+        .map_err(|_| PalmistryLaunchError::unavailable("native admission witness unavailable"))?;
+    witness.validate_admission_binding(&owner.authority, &input, deadline.monotonic())
+        .map_err(|_| PalmistryLaunchError::unavailable("native admission binding unavailable"))?;
+    let prepared = prepare_watcher_admission(authorization, input, witness, deadline)
+        .map_err(|_| PalmistryLaunchError::unavailable("native admission preparation unavailable"))?;
+    *owner.prepared.lock().unwrap_or_else(|e| e.into_inner()) = Some(Arc::clone(&prepared));
+    publish_owned_watcher_admission(state, owner, prepared, observed, recheck, evidence).await
+}
+async fn publish_owned_watcher_admission(
+    state: &PalmistryLaunchState,
+    owner: &Arc<OwnedWatcherAdoption>,
+    prepared: Arc<PalmistryWatcherPreparedAdmission>,
+    observed: Arc<CurrentWatcherOsObservation>,
+    recheck: Arc<dyn Fn() -> Result<(), String> + Send + Sync + 'static>,
+    evidence: Arc<VerifiedWatcherChallenge>,
+) -> Result<(), PalmistryLaunchError> {
+    let publish_owner = Arc::clone(owner);
+    let active = Arc::clone(&state.active);
+    let result = state.palmistry_store.adopt_existing_watcher(
+        &owner.authority, prepared, Arc::clone(&recheck), move |verifier| {
+            recheck()?;
+            if verifier.process_uuid != observed.process_uuid
+                || verifier.session_id != publish_owner.request.session_id
+                || verifier.launch_nonce != publish_owner.request.launch_nonce
+                || verifier.parent_pid != i64::from(publish_owner.request.parent_pid)
+                || verifier.watcher_pid != i64::from(observed.watcher_pid)
+                || u64::try_from(verifier.watcher_creation_time_100ns).ok() != Some(observed.creation_time_100ns)
+            {
+                return Err("native publication identity mismatch".to_owned());
+            }
+            let watcher_key = decode_hex_array::<32>(&verifier.verifying_key_hex)
+                .map_err(|_| "native publication verifier unavailable".to_owned())?;
+            if watcher_key != evidence.expected_verifier {
+                return Err("native publication verifier mismatch".to_owned());
+            }
+            let mut active = active.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some(LaunchSlot::Active { request, .. }) = active.get(&publish_owner.request.session_id) {
+                if !same_launch_identity(request, &publish_owner.request) {
+                    return Err("diagnostics session already active for another identity".to_owned());
+                }
+            }
+            let receipt = PalmistryLaunchReceipt {
+                session_id: verifier.session_id, process_uuid: verifier.process_uuid,
+                os_pid: observed.watcher_pid, sandbox_adapter_id: PALMISTRY_WATCHER_ADAPTER_ID,
+                ledger_start_durable: true, os_creation_time_100ns: observed.creation_time_100ns,
+            };
+            let signing_secret = SessionSigningSecret::generate();
+            active.insert(verifier.session_id, LaunchSlot::Active {
+                request: publish_owner.request.clone(), receipt: receipt.clone(),
+                signing_secret: signing_secret.clone(), watcher_verifying_key: watcher_key,
+                diagnostic_envelopes: std::collections::VecDeque::new(),
+                lifecycle_ownership: WatcherLifecycleOwnership::DetachedReattached,
+            });
+            *publish_owner.publication.lock().unwrap_or_else(|e| e.into_inner()) = Some((receipt, signing_secret));
+            Ok(())
+        },
+    ).await.map_err(|_| PalmistryLaunchError::unavailable("native admission outcome unavailable"))?;
+    if matches!(&result, crate::storage::surreal::PalmistryWatcherAdoptionResult::Uncertain { .. }) {
+        *owner.preparation.lock().unwrap_or_else(|e| e.into_inner()) = AdoptionPreparation::Unknown;
+    }
+    *owner.outcome.lock().unwrap_or_else(|e| e.into_inner()) = Some(Arc::new(result));
+    Ok(())
+}
+
 async fn launch(
     State(state): State<PalmistryLaunchState>,
     ConnectInfo(peer_addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
     Json(request): Json<PalmistryLaunchRequest>,
-) -> Result<Json<PalmistryLaunchResponse>, PalmistryLaunchError> {
+) -> Result<Response, PalmistryLaunchError> {
     validate_request(&request)?;
     authenticate_native_launch(peer_addr, &request)?;
     if request.mode == PalmistryLaunchMode::AdoptExisting {
-        let observed = observe_current_watcher_os_identity(&request)?;
-        verify_native_runtime_lease(&request, &observed)?;
-        challenge_current_owned_watcher(&request).await?;
-        observed.recheck_after_challenge()?;
-        verify_native_runtime_lease(&request, &observed)?;
-        // Wire/ring validation is not the missing independent OS/challenge/START/verifier predecessor.
-        // Never enter legacy reattach-or-SPAWN for an existing native-owned watcher.
-        return Err(PalmistryLaunchError::unavailable(
-            "existing watcher adoption awaits independent current-child proof and canonical START/verifier binding",
+        return prepare_owned_watcher_adoption(&state, &headers, request).await;
+    }
+    if request.adoption_operation_id.is_some() || request.adoption_intent.is_some() {
+        return Err(PalmistryLaunchError::bad_request(
+            "legacy launch does not accept adoption operation fields",
         ));
     }
     {
@@ -674,6 +1283,7 @@ async fn launch(
                     ..
                 } if same_launch_identity(existing_request, &request) => {
                     launch_response(receipt.clone(), signing_secret, &request)
+                        .map(IntoResponse::into_response)
                 }
                 LaunchSlot::Launching(existing_request)
                     if same_launch_identity(existing_request, &request) =>
@@ -713,12 +1323,13 @@ async fn launch(
         ))
     })?;
     let (receipt, signing_secret) = launch_result?;
-    launch_response(receipt, &signing_secret, &request)
+    launch_response(receipt, &signing_secret, &request).map(IntoResponse::into_response)
 }
 
 fn same_launch_identity(left: &PalmistryLaunchRequest, right: &PalmistryLaunchRequest) -> bool {
     left.mode == right.mode
         && left.adopt_existing == right.adopt_existing
+        && left.adoption_operation_id == right.adoption_operation_id
         && (left.mode == PalmistryLaunchMode::Legacy
             || left.transport_public_key == right.transport_public_key)
         && left.session_id == right.session_id
@@ -2132,12 +2743,62 @@ fn validate_current_watcher_os_facts(
     Ok(())
 }
 
+struct NativeRuntimeLeaseObservation {
+    parent_pid: u32,
+    parent_creation_time_100ns: u64,
+    host_scope_id: String,
+    address: IpAddr,
+    port: u16,
+}
+
+impl NativeRuntimeLeaseObservation {
+    fn from_request(request: &PalmistryLaunchRequest) -> Result<Self, PalmistryLaunchError> {
+        let adopt = validate_adopt_existing_shape(request)?;
+        Ok(Self {
+            parent_pid: request.parent_pid,
+            parent_creation_time_100ns: adopt.parent_os_creation_time_100ns,
+            host_scope_id: adopt.runtime_host_scope_id.clone(),
+            address: adopt.runtime_lease_address,
+            port: adopt.runtime_lease_port,
+        })
+    }
+
+    #[cfg(target_os = "windows")]
+    fn recheck(&self, observed: &CurrentWatcherOsObservation) -> Result<(), PalmistryLaunchError> {
+        let host_scope = crate::process_ledger::resolve_embedded_runtime_host_scope()
+            .map_err(|error| PalmistryLaunchError::unavailable(error.to_string()))?;
+        if self.host_scope_id != host_scope
+            || observed.parent_creation_time_100ns != self.parent_creation_time_100ns
+            || read_live_process_generation(&observed.parent)? != self.parent_creation_time_100ns
+            || udp_lease_owner_pid(self.address, self.port)? != self.parent_pid
+        {
+            return Err(PalmistryLaunchError::bad_request(
+                "native runtime lease does not match the authenticated parent generation",
+            ));
+        }
+        if read_live_process_generation(&observed.parent)? != self.parent_creation_time_100ns {
+            return Err(PalmistryLaunchError::bad_request(
+                "native parent generation changed during runtime lease observation",
+            ));
+        }
+        Ok(())
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    fn recheck(&self, _observed: &CurrentWatcherOsObservation) -> Result<(), PalmistryLaunchError> {
+        Err(PalmistryLaunchError::unavailable(
+            "native runtime lease ownership requires supported Windows observation",
+        ))
+    }
+}
+
 /// Read-only observed generation/image/parent guard. Never owns Child, terminate rights or a reaper.
 struct CurrentWatcherOsObservation {
     process_uuid: Uuid,
     watcher_pid: u32,
     creation_time_100ns: u64,
     parent_creation_time_100ns: u64,
+    executable_sha256: String,
     #[cfg(target_os = "windows")]
     process: std::os::windows::io::OwnedHandle,
     #[cfg(target_os = "windows")]
@@ -2203,41 +2864,11 @@ impl CurrentWatcherOsObservation {
     }
 }
 
-#[cfg(target_os = "windows")]
 fn verify_native_runtime_lease(
     request: &PalmistryLaunchRequest,
     observed: &CurrentWatcherOsObservation,
 ) -> Result<(), PalmistryLaunchError> {
-    let adopt = validate_adopt_existing_shape(request)?;
-    let host_scope = crate::process_ledger::resolve_embedded_runtime_host_scope()
-        .map_err(|error| PalmistryLaunchError::unavailable(error.to_string()))?;
-    let descriptor = adopt.runtime_descriptor();
-    if descriptor.host_scope_id != host_scope
-        || observed.parent_creation_time_100ns != adopt.parent_os_creation_time_100ns
-        || read_live_process_generation(&observed.parent)? != adopt.parent_os_creation_time_100ns
-        || udp_lease_owner_pid(descriptor.loopback_address, descriptor.loopback_port)?
-            != request.parent_pid
-    {
-        return Err(PalmistryLaunchError::bad_request(
-            "native runtime lease does not match the authenticated parent generation",
-        ));
-    }
-    if read_live_process_generation(&observed.parent)? != adopt.parent_os_creation_time_100ns {
-        return Err(PalmistryLaunchError::bad_request(
-            "native parent generation changed during runtime lease observation",
-        ));
-    }
-    Ok(())
-}
-
-#[cfg(not(target_os = "windows"))]
-fn verify_native_runtime_lease(
-    _request: &PalmistryLaunchRequest,
-    _observed: &CurrentWatcherOsObservation,
-) -> Result<(), PalmistryLaunchError> {
-    Err(PalmistryLaunchError::unavailable(
-        "native runtime lease ownership requires supported Windows observation",
-    ))
+    NativeRuntimeLeaseObservation::from_request(request)?.recheck(observed)
 }
 
 #[cfg(target_os = "windows")]
@@ -2435,7 +3066,7 @@ fn observe_current_watcher_os_identity(
             creation_time_100ns: creation,
             parent_creation_time_100ns: parent_creation,
             executable: actual,
-            executable_sha256: actual_sha,
+            executable_sha256: actual_sha.clone(),
         },
         &configured,
         &claimed,
@@ -2445,6 +3076,7 @@ fn observe_current_watcher_os_identity(
         watcher_pid: adopt.watcher_pid,
         creation_time_100ns: creation,
         parent_creation_time_100ns: parent_creation,
+        executable_sha256: actual_sha,
         process,
         parent,
         _pinned_executable: pinned_executable,
@@ -2560,20 +3192,11 @@ fn verify_current_watcher_ready(
         })
 }
 
-async fn challenge_current_owned_watcher(
+fn current_watcher_identity(
     request: &PalmistryLaunchRequest,
-) -> Result<(), PalmistryLaunchError> {
-    use interprocess::local_socket::traits::Stream as _;
-    use std::io::{Read, Write};
-    let deadline = Instant::now() + READY_TIMEOUT;
+) -> Result<CurrentWatcherIdentity, PalmistryLaunchError> {
     let adopt = validate_adopt_existing_shape(request)?;
-    // Hold this ACTUAL v2 map through the exchange. Layout+nonce remain shape, not scope/session auth.
-    let _ring = handshake_diag_ring::ring::DiagRingReaderV2::open(
-        &request.ring,
-        *request.launch_nonce.as_bytes(),
-    )
-    .map_err(|error| PalmistryLaunchError::bad_request_io("current-challenge-v2-ring", error))?;
-    let identity = CurrentWatcherIdentity {
+    Ok(CurrentWatcherIdentity {
         protocol_version: 1,
         session_id: request.session_id,
         process_instance_id: adopt.process_uuid,
@@ -2589,7 +3212,24 @@ async fn challenge_current_owned_watcher(
         runtime_lease_address: adopt.runtime_lease_address,
         runtime_lease_port: adopt.runtime_lease_port,
         parent_os_creation_time_100ns: adopt.parent_os_creation_time_100ns,
-    };
+    })
+}
+
+async fn challenge_current_owned_watcher(
+    request: &PalmistryLaunchRequest,
+    original_deadline: Instant,
+) -> Result<VerifiedWatcherChallenge, PalmistryLaunchError> {
+    use interprocess::local_socket::traits::Stream as _;
+    use std::io::{Read, Write};
+    let deadline = (Instant::now() + READY_TIMEOUT).min(original_deadline);
+    let adopt = validate_adopt_existing_shape(request)?;
+    // Hold this ACTUAL v2 map through the exchange. Layout+nonce remain shape, not scope/session auth.
+    let _ring = handshake_diag_ring::ring::DiagRingReaderV2::open(
+        &request.ring,
+        *request.launch_nonce.as_bytes(),
+    )
+    .map_err(|error| PalmistryLaunchError::bad_request_io("current-challenge-v2-ring", error))?;
+    let identity = current_watcher_identity(request)?;
     let expected_verifier = decode_hex_array::<32>(&adopt.expected_public_verifier)
         .map_err(|_| PalmistryLaunchError::bad_request("invalid admitted watcher verifier"))?;
     let transport = decode_hex_array::<32>(&request.transport_public_key)
@@ -2745,7 +3385,15 @@ async fn challenge_current_owned_watcher(
             }
         }
     }
-    verify_current_watcher_ready(&reply, &identity, expected_verifier, challenge, transport)
+    verify_current_watcher_ready(&reply, &identity, expected_verifier, challenge, transport)?;
+    Ok(VerifiedWatcherChallenge {
+        signed_payload: current_watcher_challenge_bytes(&identity, challenge, transport)?,
+        challenge_wire: bytes,
+        reply,
+        fresh_challenge: challenge,
+        expected_verifier,
+        transport_public_key: transport,
+    })
 }
 
 fn validate_adopt_existing_request(
@@ -3570,6 +4218,8 @@ mod tests {
         let root = std::env::temp_dir().join("palmistry-api-validation");
         let request = PalmistryLaunchRequest {
             mode: PalmistryLaunchMode::Legacy,
+            adoption_operation_id: None,
+            adoption_intent: None,
             adopt_existing: None,
             session_id,
             launch_nonce: Uuid::now_v7(),
@@ -3591,6 +4241,8 @@ mod tests {
         let root = PathBuf::from("C:/diagnostics");
         let request = PalmistryLaunchRequest {
             mode: PalmistryLaunchMode::Legacy,
+            adoption_operation_id: None,
+            adoption_intent: None,
             adopt_existing: None,
             session_id,
             launch_nonce: Uuid::now_v7(),
@@ -3625,6 +4277,8 @@ mod tests {
         let client_secret = [3_u8; 32];
         let request = PalmistryLaunchRequest {
             mode: PalmistryLaunchMode::Legacy,
+            adoption_operation_id: None,
+            adoption_intent: None,
             adopt_existing: None,
             session_id,
             launch_nonce,
@@ -3754,6 +4408,8 @@ mod tests {
         let root = PathBuf::from("C:/diagnostics");
         let request = PalmistryLaunchRequest {
             mode: PalmistryLaunchMode::Legacy,
+            adoption_operation_id: None,
+            adoption_intent: None,
             adopt_existing: None,
             session_id,
             launch_nonce,
@@ -3817,6 +4473,8 @@ mod tests {
         let root = PathBuf::from("C:/diagnostics");
         let request = PalmistryLaunchRequest {
             mode: PalmistryLaunchMode::Legacy,
+            adoption_operation_id: None,
+            adoption_intent: None,
             adopt_existing: None,
             session_id,
             launch_nonce,
@@ -3874,6 +4532,8 @@ mod tests {
         let process_uuid = Uuid::now_v7();
         let request = PalmistryLaunchRequest {
             mode: PalmistryLaunchMode::Legacy,
+            adoption_operation_id: None,
+            adoption_intent: None,
             adopt_existing: None,
             session_id,
             launch_nonce,
@@ -3966,6 +4626,8 @@ mod adoption_wire_tests {
         let root = std::env::current_dir().unwrap();
         PalmistryLaunchRequest {
             mode: PalmistryLaunchMode::AdoptExisting,
+            adoption_operation_id: None,
+            adoption_intent: None,
             adopt_existing: Some(AdoptExistingWatcher {
                 process_uuid: Uuid::from_u128(3),
                 watcher_pid: 43,

@@ -25,54 +25,43 @@ pub const CORE_DATA_SOURCE_EVIDENCE_MATRIX_ID: &str = "wp-kernel-005.core-data.s
 pub const POSE_COMFY_SOURCE_EVIDENCE_MATRIX_ID: &str = "wp-kernel-005.pose-comfy.source-evidence@1";
 pub const POSE_MEDIA_ANCHOR_VERIFICATION_MATRIX_ID: &str =
     "wp-kernel-005.pose-media.anchor-verification@1";
-pub const CKC_FOLDER_REF_KIND: &str = "folder";
-pub const CKC_SOURCE_URL_REF_KIND: &str = "source_url";
+pub use handshake_ckc_provenance::{
+    CkcSourceRefKind, CkcSourceRefReadout, CKC_FOLDER_REF_KIND, CKC_SOURCE_URL_REF_KIND,
+};
 
-/// The two CKC source-provenance ref kinds a media album membership or a media
-/// asset can carry (WP-CKC-posekit-overhaul MT-035). `Folder` is a portable
-/// folder/source-path ref; `SourceUrl` is an http(s)/source-url:// ref.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum CkcSourceRefKind {
-    Folder,
-    SourceUrl,
-}
-
-impl CkcSourceRefKind {
-    pub fn ref_kind(self) -> &'static str {
-        match self {
-            CkcSourceRefKind::Folder => CKC_FOLDER_REF_KIND,
-            CkcSourceRefKind::SourceUrl => CKC_SOURCE_URL_REF_KIND,
+fn ckc_source_ref_error(
+    error: handshake_ckc_provenance::CkcSourceRefError<AtelierError>,
+) -> AtelierError {
+    match error {
+        handshake_ckc_provenance::CkcSourceRefError::Validation(message) => {
+            AtelierError::Validation(message)
         }
+        handshake_ckc_provenance::CkcSourceRefError::RuntimeRef(error) => error,
     }
-}
-
-/// A validated source ref together with its stable `ref_kind` token, the
-/// shape the CKC media surfaces return to the frontend.
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-pub struct CkcSourceRefReadout {
-    pub ref_kind: &'static str,
-    pub value: String,
 }
 
 pub fn ckc_source_ref_readout(
     kind: CkcSourceRefKind,
     value: &str,
 ) -> AtelierResult<CkcSourceRefReadout> {
-    validate_ckc_source_ref(kind, "source_ref", value)?;
-    Ok(CkcSourceRefReadout {
-        ref_kind: kind.ref_kind(),
-        value: value.to_owned(),
-    })
+    handshake_ckc_provenance::ckc_source_ref_readout(
+        kind,
+        value,
+        &mut reject_legacy_runtime_ref,
+    )
+    .map_err(ckc_source_ref_error)
 }
 
 pub fn optional_ckc_source_ref_readout(
     kind: CkcSourceRefKind,
     value: Option<&str>,
 ) -> AtelierResult<Option<CkcSourceRefReadout>> {
-    value
-        .map(|value| ckc_source_ref_readout(kind, value))
-        .transpose()
+    handshake_ckc_provenance::optional_ckc_source_ref_readout(
+        kind,
+        value,
+        &mut reject_legacy_runtime_ref,
+    )
+    .map_err(ckc_source_ref_error)
 }
 
 pub fn normalize_optional_ckc_source_ref(
@@ -80,13 +69,13 @@ pub fn normalize_optional_ckc_source_ref(
     field: &str,
     value: &Option<String>,
 ) -> AtelierResult<Option<String>> {
-    match value.as_deref() {
-        None => Ok(None),
-        Some(raw) => {
-            validate_ckc_source_ref(kind, field, raw)?;
-            Ok(Some(raw.to_owned()))
-        }
-    }
+    handshake_ckc_provenance::normalize_optional_ckc_source_ref(
+        kind,
+        field,
+        value,
+        &mut reject_legacy_runtime_ref,
+    )
+    .map_err(ckc_source_ref_error)
 }
 
 /// Read-side redaction: a stored ref that no longer passes
@@ -98,7 +87,12 @@ pub fn portable_optional_ckc_source_ref(
     field: &str,
     value: Option<String>,
 ) -> Option<String> {
-    value.filter(|raw| validate_ckc_source_ref(kind, field, raw).is_ok())
+    handshake_ckc_provenance::portable_optional_ckc_source_ref(
+        kind,
+        field,
+        value,
+        &mut reject_legacy_runtime_ref,
+    )
 }
 
 pub fn validate_ckc_source_ref(
@@ -106,53 +100,13 @@ pub fn validate_ckc_source_ref(
     field: &str,
     value: &str,
 ) -> AtelierResult<()> {
-    let trimmed = value.trim();
-    if trimmed.is_empty() || trimmed != value {
-        return Err(AtelierError::Validation(format!(
-            "{field} must not be empty or padded"
-        )));
-    }
-    reject_legacy_runtime_ref(field, value)?;
-    let lower = value.to_ascii_lowercase();
-    if lower.contains(":///") {
-        return Err(AtelierError::Validation(format!(
-            "{field} must include a portable ref authority before its path"
-        )));
-    }
-    match kind {
-        CkcSourceRefKind::Folder => {
-            if lower.starts_with("http://")
-                || lower.starts_with("https://")
-                || lower.starts_with("source-url://")
-            {
-                return Err(AtelierError::Validation(format!(
-                    "{field} must be a folder/source-path ref, not a source URL ref"
-                )));
-            }
-            if lower.starts_with("atelier://folder/")
-                || lower.starts_with("source://")
-                || lower.starts_with("dataset://")
-                || lower.starts_with("artifact://")
-                || lower.starts_with("manifest://")
-            {
-                return Ok(());
-            }
-            Err(AtelierError::Validation(format!(
-                "{field} must use atelier://folder/, source://, dataset://, artifact://, or manifest://"
-            )))
-        }
-        CkcSourceRefKind::SourceUrl => {
-            if lower.starts_with("http://")
-                || lower.starts_with("https://")
-                || lower.starts_with("source-url://")
-            {
-                return Ok(());
-            }
-            Err(AtelierError::Validation(format!(
-                "{field} must be an http(s) or source-url:// ref"
-            )))
-        }
-    }
+    handshake_ckc_provenance::validate_ckc_source_ref(
+        kind,
+        field,
+        value,
+        &mut reject_legacy_runtime_ref,
+    )
+    .map_err(ckc_source_ref_error)
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]

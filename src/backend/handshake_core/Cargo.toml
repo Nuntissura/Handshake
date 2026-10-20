@@ -181,9 +181,12 @@ handshake_ckc_search_metrics = { path = "../handshake_ckc_search_metrics" }
 handshake_ckc_sheet_template = { path = "../handshake_ckc_sheet_template" }
 handshake_ckc_moodboard = { path = "../handshake_ckc_moodboard" }
 handshake_ckc_sheet_parser = { path = "../handshake_ckc_sheet_parser" }
-handshake_model_lane_navigation = { path = "../handshake_model_lane_navigation" }
+handshake_ckc_provenance = { git = "https://github.com/Nuntissura/assets.git", rev = "578f2c6ccdb2a35bab1edaf43b75eca732dc7a78" }
+handshake_role_authority = { path = "../handshake_role_authority" }
+handshake_model_lane_navigation = { git = "https://github.com/Nuntissura/assets.git", rev = "00cb5f5b5ad18094699d65638ff2e2016cbe9f29" }
 handshake_document = { path = "../handshake_document" }
 handshake_storage_support = { path = "../handshake_storage_support" }
+handshake_job_admission = { path = "../handshake_job_admission" }
 # MT171 exact shared reader edge: explicit existing-watcher v2 validation; no native runtime owner.
 handshake-diag-ring = { path = "../../frontend/handshake_native/diag_ring" }
 # MT171 bounded current-owned watcher control exchange; no second process owner.
@@ -310,7 +313,7 @@ surrealdb = { version = "=3.2.0", default-features = false, features = ["kv-mem"
 rappct = { version = "0.13.3", default-features = false }
 wineventhook = "0.11.0"
 windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_Diagnostics_ToolHelp", "Win32_System_IO", "Win32_System_JobObjects", "Win32_System_LibraryLoader", "Win32_System_Pipes", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_Diagnostics_ToolHelp", "Win32_System_IO", "Win32_System_JobObjects", "Win32_System_LibraryLoader", "Win32_System_Pipes", "Win32_System_Threading", "Win32_System_WindowsProgramming", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_WindowsAndMessaging", "Wdk_Foundation", "Wdk_Storage_FileSystem"] }
 
 [features]
 default = ["runtime-full", "os-keychain", "local-inference-default"]

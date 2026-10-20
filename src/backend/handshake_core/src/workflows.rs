@@ -85,6 +85,7 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+use surrealdb::types::SurrealValue;
 use std::{
     collections::BTreeMap,
     collections::HashMap,
@@ -120,6 +121,8 @@ mod spec_router;
 pub enum WorkflowError {
     #[error("Storage error: {0}")]
     Storage(#[from] StorageError),
+    #[error("Surreal storage error: {0}")]
+    SurrealStorage(#[from] crate::storage::surreal::SurrealStorageError),
     #[error("LLM error: {0}")]
     Llm(#[from] LlmError),
     #[error("Terminal error: {0}")]
@@ -132,6 +135,37 @@ pub enum WorkflowError {
     SecurityViolation(#[from] AceError),
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
+    #[error("Resource authority error: {0}")]
+    ResourceAuthority(#[from] crate::storage::surreal::resource_authority::ResourceAuthorityError),
+    #[error(transparent)]
+    ArtifactPublicationUnresolved(ArtifactPublicationUnresolved),
+}
+
+pub struct ArtifactPublicationUnresolved {
+    source: Box<WorkflowError>,
+    authority: Arc<crate::storage::surreal::resource_authority::WorkspaceArtifactPublicationAuthorization>,
+    _observation: crate::storage::surreal::AuthenticatedTransactionContextObservation,
+}
+
+impl std::fmt::Debug for ArtifactPublicationUnresolved {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ArtifactPublicationUnresolved")
+            .field("operation_id", &self.authority.operation_id())
+            .field("source", &self.source)
+            .finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Display for ArtifactPublicationUnresolved {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "artifact publication unresolved: {}", self.source)
+    }
+}
+
+impl std::error::Error for ArtifactPublicationUnresolved {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(self.source.as_ref())
+    }
 }
 
 #[derive(Error, Debug)]
@@ -511,6 +545,69 @@ pub struct MultiModelSession {
 pub struct SessionRegistry {
     inner: Arc<RwLock<SessionRegistryInner>>,
     dispatch_lock: Arc<TokioMutex<()>>,
+}
+
+struct OperatorChatAdmissionOwner {
+    operation_id: Uuid,
+    job_id: Uuid,
+    cancellation: Arc<crate::storage::surreal::ContextOperationCancellation>,
+    _retention: crate::storage::surreal::resource_authority::JobAdmissionTransactionRetention,
+}
+
+impl OperatorChatAdmissionOwner {
+    fn capture(admission: &crate::jobs::JobAdmission) -> Self {
+        Self {
+            operation_id: admission.operation_id(),
+            job_id: admission.job_id(),
+            cancellation: admission.cancellation().clone(),
+            _retention: admission.retention().clone(),
+        }
+    }
+
+    fn matches(&self, admission: &crate::jobs::JobAdmission) -> bool {
+        self.operation_id == admission.operation_id()
+            && self.job_id == admission.job_id()
+            && Arc::ptr_eq(&self.cancellation, admission.cancellation())
+    }
+}
+
+#[must_use = "retain the original engine owner while its operation is unsettled"]
+pub(crate) struct OwnedOperatorChatEngineOwner {
+    state: Arc<AppState>,
+    registry: Arc<SessionRegistry>,
+    first: OperatorChatAdmissionOwner,
+    second: OperatorChatAdmissionOwner,
+    original_deadline: Instant,
+}
+
+impl OwnedOperatorChatEngineOwner {
+    pub(crate) fn from_initial_owners(
+        owners: crate::swarm_orchestration::operator_chat::OperatorChatInitialOwnersRef<'_>,
+    ) -> Self {
+        Self {
+            state: owners.state().clone(),
+            registry: owners.registry().clone(),
+            first: OperatorChatAdmissionOwner::capture(owners.first_admission()),
+            second: OperatorChatAdmissionOwner::capture(owners.second_admission()),
+            original_deadline: owners.original_deadline(),
+        }
+    }
+
+    pub(crate) fn matches_initial_owners(
+        &self,
+        state: &Arc<AppState>,
+        registry: &Arc<SessionRegistry>,
+        first: &crate::jobs::JobAdmission,
+        second: &crate::jobs::JobAdmission,
+        original_deadline: Instant,
+    ) -> bool {
+        Arc::ptr_eq(&self.state, state)
+            && Arc::ptr_eq(&self.registry, registry)
+            && Arc::ptr_eq(&state.session_registry, registry)
+            && self.first.matches(first)
+            && self.second.matches(second)
+            && self.original_deadline == original_deadline
+    }
 }
 
 #[derive(Debug)]
@@ -7180,7 +7277,7 @@ async fn resolve_job_session_id(
 /// Per ┬º2.6.6.7.11.0, security violations trigger immediate job poisoning
 /// to prevent any further processing of potentially compromised content.
 #[allow(clippy::too_many_arguments)] // Explicit args keep FR payload + state transitions clear
-pub async fn handle_security_violation(
+async fn record_security_violation(
     state: &AppState,
     job: &AiJob,
     workflow_run: &WorkflowRun,
@@ -7190,7 +7287,8 @@ pub async fn handle_security_violation(
     trace_id: Uuid,
     offset: Option<usize>,
     context: Option<String>,
-) -> Result<(), WorkflowError> {
+    poisoned: bool,
+) -> &'static str {
     let violation_type_str = match violation_type {
         SecurityViolationType::PromptInjection => "prompt_injection",
         SecurityViolationType::CloudLeakage => "cloud_leakage",
@@ -7213,8 +7311,8 @@ pub async fn handle_security_violation(
         guard_name: guard_name.to_string(),
         offset,
         context: context.clone(),
-        action_taken: "poisoned".to_string(),
-        job_state_transition: Some("poisoned".to_string()),
+        action_taken: if poisoned { "poisoned" } else { "blocked" }.to_string(),
+        job_state_transition: poisoned.then(|| "poisoned".to_string()),
     };
 
     record_event_safely(
@@ -7239,8 +7337,26 @@ pub async fn handle_security_violation(
         guard = %guard_name,
         offset = ?offset,
         context = ?context,
-        "Security violation detected - poisoning job"
+        "{}", if poisoned { "Security violation detected - poisoning job" } else { "Security violation detected - publication unresolved" }
     );
+
+    violation_type_str
+}
+
+pub async fn handle_security_violation(
+    state: &AppState,
+    job: &AiJob,
+    workflow_run: &WorkflowRun,
+    violation: &AceError,
+    violation_type: SecurityViolationType,
+    guard_name: &str,
+    trace_id: Uuid,
+    offset: Option<usize>,
+    context: Option<String>,
+) -> Result<(), WorkflowError> {
+    let violation_type_str = record_security_violation(
+        state, job, workflow_run, violation, violation_type, guard_name, trace_id, offset, context, true,
+    ).await;
 
     // 2. Terminate all workflow nodes atomically
     let nodes = state
@@ -8563,7 +8679,7 @@ async fn dispatch_model_run_job(state: &AppState, job: AiJob) -> Result<(), Work
     let node_exec_id = node_exec.id;
     tokio::spawn(async move {
         if let Err(err) =
-            run_and_finalize_workflow_job(state_for_run, job, workflow_run, node_exec, trace_id)
+            run_and_finalize_workflow_job(state_for_run, job, workflow_run, node_exec, trace_id, None, None)
                 .await
         {
             mark_workflow_job_failed_if_non_terminal(
@@ -9707,12 +9823,45 @@ fn start_workflow_for_job_boxed<'a>(
     state: &'a AppState,
     job: AiJob,
 ) -> Pin<Box<dyn Future<Output = Result<WorkflowRun, WorkflowError>> + Send + 'a>> {
-    Box::pin(start_workflow_for_job(state, job))
+    let authority = WORKFLOW_MEMORY_PACK_AUTHORITY.try_with(Clone::clone).ok().flatten();
+    Box::pin(start_workflow_for_job(state, job, authority))
+}
+
+#[derive(Clone)]
+pub struct WorkflowMemoryPackAuthority(crate::api::authority::AuthorizedResourceContext);
+
+impl WorkflowMemoryPackAuthority {
+    pub(crate) fn from_authorized(authority: crate::api::authority::AuthorizedResourceContext) -> Self {
+        Self(authority)
+    }
+}
+
+tokio::task_local! {
+    static WORKFLOW_MEMORY_PACK_AUTHORITY: Option<WorkflowMemoryPackAuthority>;
 }
 
 pub async fn start_workflow_for_job(
     state: &AppState,
     job: AiJob,
+    memory_pack_authority: Option<WorkflowMemoryPackAuthority>,
+) -> Result<WorkflowRun, WorkflowError> {
+    start_workflow_for_job_inner(state, job, memory_pack_authority, None).await
+}
+
+pub async fn start_workflow_for_job_with_artifact_authority(
+    state: &AppState,
+    job: AiJob,
+    memory_pack_authority: Option<WorkflowMemoryPackAuthority>,
+    artifact_authority: Arc<crate::storage::surreal::resource_authority::WorkspaceArtifactPublicationAuthorization>,
+) -> Result<WorkflowRun, WorkflowError> {
+    start_workflow_for_job_inner(state, job, memory_pack_authority, Some(artifact_authority)).await
+}
+
+async fn start_workflow_for_job_inner(
+    state: &AppState,
+    job: AiJob,
+    memory_pack_authority: Option<WorkflowMemoryPackAuthority>,
+    artifact_authority: Option<Arc<crate::storage::surreal::resource_authority::WorkspaceArtifactPublicationAuthorization>>,
 ) -> Result<WorkflowRun, WorkflowError> {
     let trace_id = derive_trace_id(&job, None);
 
@@ -9847,18 +9996,24 @@ pub async fn start_workflow_for_job(
                         workflow_run_clone,
                         node_exec_clone,
                         trace_id,
+                        memory_pack_authority,
+                        artifact_authority,
                     )
                     .await
                     {
-                        mark_workflow_job_failed_if_non_terminal(
-                            &state_for_failure,
-                            job_id,
-                            workflow_run_id,
-                            node_exec_id,
-                            trace_id,
-                            err.to_string(),
-                        )
-                        .await;
+                        if matches!(&err, WorkflowError::ArtifactPublicationUnresolved(_)) {
+                            tracing::error!(job_id = %job_id, error = ?err, "artifact publication remains unresolved");
+                        } else {
+                            mark_workflow_job_failed_if_non_terminal(
+                                &state_for_failure,
+                                job_id,
+                                workflow_run_id,
+                                node_exec_id,
+                                trace_id,
+                                err.to_string(),
+                            )
+                            .await;
+                        }
                     }
                 },
             )
@@ -9868,7 +10023,7 @@ pub async fn start_workflow_for_job(
         return Ok(workflow_run);
     }
 
-    run_and_finalize_workflow_job(state.clone(), job, workflow_run, node_exec, trace_id).await
+    run_and_finalize_workflow_job(state.clone(), job, workflow_run, node_exec, trace_id, memory_pack_authority, artifact_authority).await
 }
 
 fn is_terminal_job_state(state: &JobState) -> bool {
@@ -10003,8 +10158,38 @@ async fn run_and_finalize_workflow_job(
     workflow_run: WorkflowRun,
     node_exec: crate::storage::WorkflowNodeExecution,
     trace_id: Uuid,
+    memory_pack_authority: Option<WorkflowMemoryPackAuthority>,
+    artifact_authority: Option<Arc<crate::storage::surreal::resource_authority::WorkspaceArtifactPublicationAuthorization>>,
 ) -> Result<WorkflowRun, WorkflowError> {
-    let result = run_job(&state, &job, workflow_run.id, trace_id).await;
+    let storage = state.surreal.clone();
+    let retained_authority = artifact_authority.clone();
+    let result = run_and_finalize_workflow_job_inner(
+        state, job, workflow_run, node_exec, trace_id, memory_pack_authority, artifact_authority,
+    ).await;
+    match (result, retained_authority) {
+        (Err(source), Some(authority)) => {
+            let observation = storage.workspace_artifact_publication_observation(&authority);
+            Err(WorkflowError::ArtifactPublicationUnresolved(ArtifactPublicationUnresolved {
+                source: Box::new(source), authority, _observation: observation,
+            }))
+        }
+        (result, _) => result,
+    }
+}
+
+async fn run_and_finalize_workflow_job_inner(
+    state: AppState,
+    job: AiJob,
+    workflow_run: WorkflowRun,
+    node_exec: crate::storage::WorkflowNodeExecution,
+    trace_id: Uuid,
+    memory_pack_authority: Option<WorkflowMemoryPackAuthority>,
+    artifact_authority: Option<Arc<crate::storage::surreal::resource_authority::WorkspaceArtifactPublicationAuthorization>>,
+) -> Result<WorkflowRun, WorkflowError> {
+    let result = WORKFLOW_MEMORY_PACK_AUTHORITY.scope(
+        memory_pack_authority.clone(),
+        run_job(&state, &job, workflow_run.id, trace_id, memory_pack_authority, artifact_authority.clone()),
+    ).await;
 
     let (final_status, error_message, status_reason, output_payload, captured_error) = match result
     {
@@ -10023,20 +10208,28 @@ async fn run_and_finalize_workflow_job(
                 } => (Some(*offset), Some(context.clone())),
                 _ => (None, None),
             };
-            handle_security_violation(
-                &state,
-                &job,
-                &workflow_run,
-                &ace_err,
-                violation_type,
-                "PromptInjectionGuard",
-                trace_id,
-                offset,
-                context,
-            )
-            .await?;
+            if artifact_authority.is_some() {
+                record_security_violation(
+                    &state, &job, &workflow_run, &ace_err, violation_type,
+                    "PromptInjectionGuard", trace_id, offset, context, false,
+                ).await;
+            } else {
+                handle_security_violation(
+                    &state,
+                    &job,
+                    &workflow_run,
+                    &ace_err,
+                    violation_type,
+                    "PromptInjectionGuard",
+                    trace_id,
+                    offset,
+                    context,
+                )
+                .await?;
+            }
             return Err(WorkflowError::SecurityViolation(ace_err));
         }
+        Err(error) if artifact_authority.is_some() => return Err(error),
         Err(e) => {
             let msg = e.to_string();
             (
@@ -10522,6 +10715,8 @@ async fn run_job(
     job: &AiJob,
     workflow_run_id: Uuid,
     trace_id: Uuid,
+    memory_pack_authority: Option<WorkflowMemoryPackAuthority>,
+    artifact_authority: Option<Arc<crate::storage::surreal::resource_authority::WorkspaceArtifactPublicationAuthorization>>,
 ) -> Result<RunJobOutcome, WorkflowError> {
     if let Some(inputs) = job.job_inputs.as_ref() {
         if inputs
@@ -11037,7 +11232,7 @@ async fn run_job(
             });
         }
     } else if matches!(job.job_kind, JobKind::SpecRouter) {
-        return run_spec_router_job(state, job, workflow_run_id, trace_id).await;
+        return run_spec_router_job(state, job, workflow_run_id, trace_id, artifact_authority).await;
     } else if matches!(job.job_kind, JobKind::TerminalExec) {
         let payload = execute_terminal_job(state, job, trace_id).await?;
         state
@@ -11250,7 +11445,7 @@ async fn run_job(
         }
 
         if is_fems_protocol(&job.protocol_id) {
-            return run_fems_memory_job(state, job, workflow_run_id, trace_id).await;
+            return run_fems_memory_job(state, job, workflow_run_id, trace_id, memory_pack_authority).await;
         }
 
         if job.protocol_id == CALENDAR_SYNC_PROTOCOL_ID {
@@ -20337,8 +20532,8 @@ fn spec_router_required_gates(
     }
 }
 
-fn write_bytes_artifact(
-    workspace_root: &Path,
+async fn write_bytes_artifact(
+    publication: &crate::storage::surreal::resource_authority::WorkspaceArtifactPublicationPermit<'_>,
     artifact_id: Uuid,
     layer: crate::storage::artifacts::ArtifactLayer,
     kind: crate::storage::artifacts::ArtifactPayloadKind,
@@ -20374,8 +20569,10 @@ fn write_bytes_artifact(
         hash_exclude_paths: Vec::new(),
     };
 
-    crate::storage::artifacts::write_file_artifact(workspace_root, &manifest, &payload_bytes)
+    let persisted = publication.persist_file_artifact_owned(&manifest, &payload_bytes)
         .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let _registered = publication.register_persisted_artifact(&persisted).await?;
+    let manifest = persisted.manifest().clone();
 
     let handle = ArtifactHandle::new(
         artifact_id,
@@ -20387,11 +20584,57 @@ fn write_bytes_artifact(
     Ok((manifest, handle))
 }
 
+#[derive(Default)]
+struct SpecRouterDeferredEffects {
+    inference_event: Option<FlightRecorderEvent>,
+    locus_create_wp: Option<locus::LocusCreateWpParams>,
+}
+
 async fn run_spec_router_job(
     state: &AppState,
     job: &AiJob,
     workflow_run_id: Uuid,
     trace_id: Uuid,
+    artifact_authority: Option<Arc<crate::storage::surreal::resource_authority::WorkspaceArtifactPublicationAuthorization>>,
+) -> Result<RunJobOutcome, WorkflowError> {
+    let authority = artifact_authority.ok_or_else(||
+        WorkflowError::Terminal("spec_router requires authenticated artifact publication authority".to_string()))?;
+    let operation_state = state.clone();
+    let operation_job = job.clone();
+    let (outcome, deferred) = state.surreal.with_workspace_artifact_publication(
+        &authority,
+        move |publication| Box::pin(async move {
+            let mut deferred = SpecRouterDeferredEffects::default();
+            let outcome = run_spec_router_job_in_publication(
+                &operation_state,
+                &operation_job,
+                workflow_run_id,
+                trace_id,
+                &publication,
+                &mut deferred,
+            ).await?;
+            Ok::<_, WorkflowError>((outcome, deferred))
+        }),
+    ).await?;
+    if let Some(event) = deferred.inference_event {
+        record_event_safely(state, event).await;
+    }
+    if let Some(params) = deferred.locus_create_wp {
+        submit_locus_create_wp(state, job, params).await?;
+    }
+    if let Some(output) = outcome.output.as_ref() {
+        state.storage.set_job_outputs(&job.job_id.to_string(), Some(output.clone())).await?;
+    }
+    Ok(outcome)
+}
+
+async fn run_spec_router_job_in_publication(
+    state: &AppState,
+    job: &AiJob,
+    workflow_run_id: Uuid,
+    trace_id: Uuid,
+    publication: &crate::storage::surreal::resource_authority::WorkspaceArtifactPublicationPermit<'_>,
+    deferred: &mut SpecRouterDeferredEffects,
 ) -> Result<RunJobOutcome, WorkflowError> {
     let raw_inputs = match job.job_inputs.as_ref() {
         Some(inputs) => inputs.clone(),
@@ -20418,6 +20661,18 @@ async fn run_spec_router_job(
             }
         };
 
+    let mut job_workspaces = job.entity_refs.iter()
+        .filter(|entity| entity.entity_kind == "workspace")
+        .map(|entity| entity.entity_id.as_str());
+    let job_workspace = job_workspaces.next().ok_or_else(||
+        WorkflowError::Terminal("spec_router requires one canonical job workspace".to_string()))?;
+    if job_workspaces.next().is_some()
+        || job_workspace != profile.workspace_id.to_string()
+        || publication.workspace_parent().external_resource_id.as_str() != job_workspace
+    {
+        return Err(WorkflowError::Terminal("artifact publication workspace mismatch".to_string()));
+    }
+
     let governance_mode = profile
         .mode_override
         .unwrap_or(crate::role_mailbox::GovernanceMode::GovStandard);
@@ -20437,8 +20692,7 @@ async fn run_spec_router_job(
         .filter(|v| !v.trim().is_empty())
         .unwrap_or_else(|| "spec_router_pack@1".to_string());
 
-    let workspace_root = crate::storage::artifacts::resolve_workspace_root()
-        .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    let workspace_root = publication.managed_root();
 
     let loaded_pack =
         match spec_router::spec_prompt_pack::load_spec_prompt_pack(&workspace_root, &pack_id) {
@@ -20555,7 +20809,7 @@ async fn run_spec_router_job(
         .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     let cap_bytes = crate::llm::canonical_json_bytes_nfc(&cap_value);
     let (cap_manifest, cap_handle) = write_bytes_artifact(
-        &workspace_root,
+        publication,
         Uuid::now_v7(),
         crate::storage::artifacts::ArtifactLayer::L3,
         crate::storage::artifacts::ArtifactPayloadKind::File,
@@ -20568,7 +20822,7 @@ async fn run_spec_router_job(
         Some(job.job_id),
         Vec::new(),
         vec![profile.prompt_ref.clone()],
-    )?;
+    ).await?;
 
     // Deterministic SpecPromptCompiler compilation
     let tokenization = crate::tokenization::TokenizationRouter::new(
@@ -20640,7 +20894,7 @@ async fn run_spec_router_job(
 
     // Local-only prompt payload artifact (sensitive)
     let (_prompt_payload_manifest, prompt_payload_handle) = write_bytes_artifact(
-        &workspace_root,
+        publication,
         Uuid::now_v7(),
         crate::storage::artifacts::ArtifactLayer::L3,
         crate::storage::artifacts::ArtifactPayloadKind::PromptPayload,
@@ -20653,7 +20907,7 @@ async fn run_spec_router_job(
         Some(job.job_id),
         Vec::new(),
         vec![profile.prompt_ref.clone(), cap_handle.clone()],
-    )?;
+    ).await?;
 
     // ContextSnapshot artifact (minimal but includes SpecPromptCompiler provenance)
     let scope_inputs_hash = sha256_hex(&crate::llm::canonical_json_bytes_nfc(
@@ -20709,7 +20963,7 @@ async fn run_spec_router_job(
         .map_err(|e| WorkflowError::Terminal(e.to_string()))?;
     let cs_bytes = crate::llm::canonical_json_bytes_nfc(&cs_value);
     let (_cs_manifest, cs_handle) = write_bytes_artifact(
-        &workspace_root,
+        publication,
         context_snapshot_id,
         crate::storage::artifacts::ArtifactLayer::L3,
         crate::storage::artifacts::ArtifactPayloadKind::File,
@@ -20726,7 +20980,7 @@ async fn run_spec_router_job(
             cap_handle.clone(),
             prompt_payload_handle.clone(),
         ],
-    )?;
+    ).await?;
 
     // Call the LLM with deterministic prompt text
     let req = CompletionRequest::new(trace_id, full_prompt_text, model_id.clone());
@@ -20750,9 +21004,7 @@ async fn run_spec_router_job(
     let spec_prompt_pack_sha256 = loaded_pack.pack_sha256.clone();
 
     // Record required provenance in Flight Recorder (Master Spec §2.6.8.5.2)
-    record_event_safely(
-        state,
-        FlightRecorderEvent::new(
+    deferred.inference_event = Some(FlightRecorderEvent::new(
             FlightRecorderEventType::LlmInference,
             FlightRecorderActor::Agent,
             trace_id,
@@ -20787,9 +21039,7 @@ async fn run_spec_router_job(
         )
         .with_job_id(job.job_id.to_string())
         .with_workflow_id(workflow_run_id.to_string())
-        .with_model_id(model_id.clone()),
-    )
-    .await;
+        .with_model_id(model_id.clone()));
 
     // Emit SpecIntent + SpecRouterDecision artifacts with locked provenance fields.
     let spec_intent = json!({
@@ -20851,7 +21101,7 @@ async fn run_spec_router_job(
 
     let spec_intent_bytes = crate::llm::canonical_json_bytes_nfc(&spec_intent);
     let (_intent_manifest, intent_handle) = write_bytes_artifact(
-        &workspace_root,
+        publication,
         Uuid::now_v7(),
         crate::storage::artifacts::ArtifactLayer::L3,
         crate::storage::artifacts::ArtifactPayloadKind::File,
@@ -20868,11 +21118,11 @@ async fn run_spec_router_job(
             cs_handle.clone(),
             context_snapshot.capability_snapshot_ref.clone(),
         ],
-    )?;
+    ).await?;
 
     let decision_bytes = crate::llm::canonical_json_bytes_nfc(&decision);
     let (_decision_manifest, decision_handle) = write_bytes_artifact(
-        &workspace_root,
+        publication,
         Uuid::now_v7(),
         crate::storage::artifacts::ArtifactLayer::L3,
         crate::storage::artifacts::ArtifactPayloadKind::File,
@@ -20889,10 +21139,10 @@ async fn run_spec_router_job(
             cs_handle.clone(),
             context_snapshot.capability_snapshot_ref.clone(),
         ],
-    )?;
+    ).await?;
 
     let (_spec_manifest, spec_handle) = write_bytes_artifact(
-        &workspace_root,
+        publication,
         Uuid::now_v7(),
         crate::storage::artifacts::ArtifactLayer::L3,
         crate::storage::artifacts::ArtifactPayloadKind::Report,
@@ -20905,11 +21155,9 @@ async fn run_spec_router_job(
         Some(job.job_id),
         Vec::new(),
         vec![intent_handle.clone(), decision_handle.clone()],
-    )?;
+    ).await?;
 
-    if let Some(params) = build_spec_router_locus_create_wp_params(&raw_inputs, governance_mode)? {
-        submit_locus_create_wp(state, job, params).await?;
-    }
+    deferred.locus_create_wp = build_spec_router_locus_create_wp_params(&raw_inputs, governance_mode)?;
 
     let output = json!({
         "schema_version": "hsk.spec_router.job_output@v1",
@@ -20930,11 +21178,6 @@ async fn run_spec_router_job(
         },
         "truncation": context_snapshot.truncation,
     });
-
-    state
-        .storage
-        .set_job_outputs(&job.job_id.to_string(), Some(output.clone()))
-        .await?;
 
     Ok(RunJobOutcome {
         state: JobState::Completed,
@@ -21536,6 +21779,28 @@ fn is_fems_commit_protocol(protocol_id: &str) -> bool {
     )
 }
 
+pub(crate) fn fems_memory_pack_persistence_required(
+    job_kind: &JobKind,
+    protocol_id: &str,
+    job_inputs: Option<&Value>,
+    job_outputs: Option<&Value>,
+) -> Result<bool, WorkflowError> {
+    if !matches!(job_kind, JobKind::WorkflowRun) || !is_fems_protocol(protocol_id)
+        || protocol_id == FEMS_PROTOCOL_MEMORY_HYGIENE_V0_1
+    {
+        return Ok(false);
+    }
+    let inputs = parse_inputs(job_inputs);
+    let Ok(requested) = parse_memory_policy(&inputs) else {
+        return Ok(false);
+    };
+    let policy = parse_memory_policy_from_output_value(job_outputs).unwrap_or(requested);
+    if policy == MemoryPolicy::Ephemeral {
+        return Ok(false);
+    }
+    Ok(validate_fems_items(parse_fems_items(&inputs)).is_ok_and(|items| !items.is_empty()))
+}
+
 fn parse_memory_policy_value(raw: &str) -> Result<MemoryPolicy, WorkflowError> {
     match raw.trim().to_ascii_uppercase().as_str() {
         "EPHEMERAL" => Ok(MemoryPolicy::Ephemeral),
@@ -21556,7 +21821,11 @@ fn parse_memory_policy(inputs: &Value) -> Result<MemoryPolicy, WorkflowError> {
 }
 
 fn parse_memory_policy_from_outputs(job: &AiJob) -> Option<MemoryPolicy> {
-    let outputs = job.job_outputs.as_ref()?;
+    parse_memory_policy_from_output_value(job.job_outputs.as_ref())
+}
+
+fn parse_memory_policy_from_output_value(outputs: Option<&Value>) -> Option<MemoryPolicy> {
+    let outputs = outputs?;
     let raw = outputs.get("memory_policy")?.as_str()?;
     parse_memory_policy_value(raw).ok()
 }
@@ -22196,11 +22465,112 @@ async fn run_fems_hygiene_job(
     })
 }
 
+#[derive(surrealdb::types::SurrealValue)]
+struct WorkflowMemorySourceBindings {
+    document: String,
+    workspace: String,
+}
+
+#[derive(surrealdb::types::SurrealValue)]
+struct WorkflowMemorySourceAccess {
+    allowed: bool,
+}
+
+async fn check_workflow_memory_sources(
+    state: &AppState,
+    workspace_id: &str,
+    pack: &MemoryPack,
+) -> Result<(), WorkflowError> {
+    for item in &pack.items {
+        for source in &item.source_refs {
+            if source.kind != FemsSourceRefKind::DocBlock {
+                continue;
+            }
+            let bindings = WorkflowMemorySourceBindings {
+                document: source.id.clone(), workspace: workspace_id.to_owned(),
+            };
+            let access = state.surreal.with_data_operation(move |database| Box::pin(async move {
+                database.query_first::<WorkflowMemorySourceAccess, _>(
+                    "RETURN { allowed: record::exists(type::record('knowledge_rich_documents', $document)) AND type::record('knowledge_rich_documents', $document).workspace_id = $workspace AND fn::mt120_document_access($document, $workspace, 'read', 'fs.read') };",
+                    bindings,
+                ).await
+            })).await.map_err(StorageError::from)?;
+            if !access.is_some_and(|access| access.allowed) {
+                return Err(WorkflowError::Terminal("HSK-403-PROTECTED-RESOURCE".into()));
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn persist_workflow_memory_pack(
+    state: &AppState,
+    job: &AiJob,
+    pack: &MemoryPack,
+    authority: WorkflowMemoryPackAuthority,
+) -> Result<crate::storage::fems_memory::PersistedMemoryPackRef, WorkflowError> {
+    use crate::storage::surreal::resource_authority::{AuthorizationRequest, ResourceAction, ResourceKind};
+    let authority = authority.0;
+    let denied = || WorkflowError::Terminal("HSK-403-PROTECTED-RESOURCE".into());
+    let original = crate::storage::surreal::current_record_user_scope().ok_or_else(denied)?;
+    let child = &authority.record_user_scope;
+    let workspace_id = original.workspace_id.as_deref().ok_or_else(denied)?;
+    let workspaces: Vec<_> = job.entity_refs.iter()
+        .filter(|reference| reference.entity_kind == "workspace").collect();
+    if workspaces.len() != 1 || workspaces[0].entity_id != workspace_id
+        || child.workspace_id.as_deref() != Some(workspace_id)
+        || child.session_id != original.session_id || child.session_token != original.session_token
+        || child.channel_binding_hash != original.channel_binding_hash
+        || authority.session_id != original.session_id
+        || child.capability_id != "memory.commit" || authority.capability_id != "memory.commit"
+        || child.action != ResourceAction::Create || child.grant_id.is_none()
+        || child.resource_id != authority.resource_id
+    {
+        return Err(denied());
+    }
+    let request = AuthorizationRequest {
+        session_token: child.session_token.clone(),
+        channel_binding_hash: child.channel_binding_hash.clone(),
+        capability_id: "memory.commit".to_owned(),
+        resource_kind: ResourceKind::MemoryPack,
+        external_resource_id: workspace_id.to_owned(),
+        action: ResourceAction::Create,
+    };
+    let before = state.surreal.authorize_protected_resource(request.clone()).await.map_err(|_| denied())?;
+    if before.account_id != authority.account_id || before.principal_id != authority.principal_id
+        || before.session_id != authority.session_id || before.access_space_id != authority.access_space_id
+        || before.resource_id != authority.resource_id || Some(&before.grant_id) != child.grant_id.as_ref()
+        || before.delegation_chain != authority.delegation_chain
+    {
+        return Err(denied());
+    }
+    let workspace_id = workspace_id.to_owned();
+    state.surreal.with_record_user_scope(authority.record_user_scope, async {
+        check_workflow_memory_sources(state, &workspace_id, pack).await?;
+        let persisted = crate::storage::fems_memory::upsert_memory_pack(
+            &state.surreal, &workspace_id, "", pack,
+        ).await?;
+        check_workflow_memory_sources(state, &workspace_id, pack).await?;
+        let after = state.surreal.authorize_protected_resource(request).await.map_err(|_| denied())?;
+        if before.account_id != after.account_id || before.principal_id != after.principal_id
+            || before.session_id != after.session_id || before.access_space_id != after.access_space_id
+            || before.resource_id != after.resource_id || before.grant_id != after.grant_id
+            || before.policy_version != after.policy_version || before.delegation_chain != after.delegation_chain
+            || persisted.workspace_id() != workspace_id || persisted.pack_id() != pack.pack_id
+            || persisted.memory_pack_hash() != pack.memory_pack_hash
+        {
+            return Err(denied());
+        }
+        Ok(persisted)
+    }).await
+}
+
 async fn run_fems_memory_job(
     state: &AppState,
     job: &AiJob,
     workflow_run_id: Uuid,
     trace_id: Uuid,
+    memory_pack_authority: Option<WorkflowMemoryPackAuthority>,
 ) -> Result<RunJobOutcome, WorkflowError> {
     let inputs = parse_inputs(job.job_inputs.as_ref());
     if job.protocol_id == FEMS_PROTOCOL_MEMORY_HYGIENE_V0_1 {
@@ -22268,6 +22638,14 @@ async fn run_fems_memory_job(
         provider_is_cloud,
         cloud_consent,
     )?;
+    let persisted_memory_pack = if let Some(built) = built_memory_pack.as_ref() {
+        Some(persist_workflow_memory_pack(
+            state, job, &built.pack,
+            memory_pack_authority.ok_or_else(|| WorkflowError::Terminal("HSK-403-PROTECTED-RESOURCE".into()))?,
+        ).await?)
+    } else {
+        None
+    };
     if let Some(built) = built_memory_pack.as_ref() {
         let pack = &built.pack;
         let pack_artifact_ref = format!("artifact://sha256/{}", pack.memory_pack_hash);
@@ -22298,13 +22676,10 @@ async fn run_fems_memory_job(
     }
 
     let memory_pack = built_memory_pack.map(|built| built.pack);
-    let memory_pack_hash = memory_pack
-        .as_ref()
-        .map(|pack| pack.memory_pack_hash.clone());
-    let memory_state_ref = memory_pack
-        .as_ref()
-        .zip(memory_pack_hash.as_ref())
-        .map(|(pack, hash)| format!("{}:{hash}", pack.pack_id));
+    let memory_pack_hash = persisted_memory_pack.as_ref()
+        .map(|persisted| persisted.memory_pack_hash().to_owned());
+    let memory_state_ref = persisted_memory_pack.as_ref()
+        .map(|persisted| format!("{}:{}", persisted.pack_id(), persisted.memory_pack_hash()));
     let memory_session = json!({
         "memory_policy_requested": requested_policy.as_str(),
         "memory_policy_effective": policy.as_str(),
@@ -29600,7 +29975,7 @@ mod tests {
             .await?;
         let job_id = job.job_id;
 
-        let result = start_workflow_for_job(&state, job).await;
+        let result = start_workflow_for_job(&state, job, None).await;
         assert!(result.is_err(), "expected capability error");
 
         let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
@@ -29632,7 +30007,7 @@ mod tests {
             .await?;
         let job_id = job.job_id;
 
-        let result = start_workflow_for_job(&state, job).await;
+        let result = start_workflow_for_job(&state, job, None).await;
         assert!(result.is_err(), "expected capability error");
 
         let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
@@ -29671,7 +30046,7 @@ mod tests {
             .await?;
         let job_id = job.job_id;
 
-        let result = start_workflow_for_job(&state, job).await;
+        let result = start_workflow_for_job(&state, job, None).await;
         assert!(result.is_ok(), "terminal job failed: {:?}", result.err());
 
         let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
@@ -29713,7 +30088,7 @@ mod tests {
             })
             .await?;
 
-        let workflow_run = start_workflow_for_job(&state, job).await?;
+        let workflow_run = start_workflow_for_job(&state, job, None).await?;
         let nodes = state
             .storage
             .list_workflow_node_executions(workflow_run.id)
@@ -29734,7 +30109,7 @@ mod tests {
         let job = create_debug_bundle_job(&state, json!({ "kind": "workflow_run" })).await?;
         let job_id = job.job_id;
 
-        let result = start_workflow_for_job(&state, job).await;
+        let result = start_workflow_for_job(&state, job, None).await;
         assert!(
             result.is_err(),
             "expected workflow_run scope to require workflow_run_id"
@@ -29770,7 +30145,7 @@ mod tests {
         .await?;
         let job_id = job.job_id;
 
-        let result = start_workflow_for_job(&state, job).await;
+        let result = start_workflow_for_job(&state, job, None).await;
         assert!(
             result.is_err(),
             "expected workflow_node_execution scope to require workflow_run_id"
@@ -29806,7 +30181,7 @@ mod tests {
         .await?;
         let job_id = job.job_id;
 
-        let result = start_workflow_for_job(&state, job).await;
+        let result = start_workflow_for_job(&state, job, None).await;
         assert!(
             result.is_err(),
             "expected workflow_node_execution scope to require workflow_node_execution_id"
@@ -29850,7 +30225,7 @@ mod tests {
             })
             .await?;
 
-        let result = start_workflow_for_job(&state, job.clone()).await;
+        let result = start_workflow_for_job(&state, job.clone(), None).await;
         assert!(result.is_err(), "expected poisoning trap to trigger");
 
         let updated_job = state.storage.get_ai_job(&job.job_id.to_string()).await?;
@@ -30196,7 +30571,7 @@ mod tests {
         let job_id = job.job_id;
 
         // Run workflow - should fail with budget exceeded
-        let result = start_workflow_for_job(&state, job).await;
+        let result = start_workflow_for_job(&state, job, None).await;
         assert!(result.is_err(), "expected budget exceeded error");
 
         let err_str = format!("{:?}", result.unwrap_err());
@@ -30361,14 +30736,116 @@ mod tests {
     }
 
     #[cfg(feature = "duckdb-flight-recorder")]
+    struct WorkflowMemoryFixture {
+        workspace_id: String,
+        original_scope: crate::storage::surreal::resource_authority::RecordUserScope,
+        pack_authority: WorkflowMemoryPackAuthority,
+        previous_binding: Option<std::ffi::OsString>,
+        _binding_dir: tempfile::TempDir,
+        _binding_lock: std::sync::MutexGuard<'static, ()>,
+    }
+
+    #[cfg(feature = "duckdb-flight-recorder")]
+    impl Drop for WorkflowMemoryFixture {
+        fn drop(&mut self) {
+            if let Some(previous) = self.previous_binding.take() {
+                std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", previous);
+            } else {
+                std::env::remove_var("HANDSHAKE_STAGE_BINDING_FILE");
+            }
+        }
+    }
+
+    #[cfg(feature = "duckdb-flight-recorder")]
+    async fn workflow_memory_fixture(
+        state: &AppState,
+    ) -> Result<WorkflowMemoryFixture, Box<dyn std::error::Error>> {
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceGrantSpec, ResourceKind};
+        let binding_lock = crate::api::stage::NATIVE_BINDING_ENV_LOCK.lock()
+            .map_err(|_| std::io::Error::other("native binding test lock poisoned"))?;
+        let binding_dir = tempfile::tempdir()?;
+        let binding_token = format!("{}{}", Uuid::now_v7().simple(), Uuid::now_v7().simple());
+        let binding_path = binding_dir.path().join("workflow-memory-native-binding.json");
+        std::fs::write(&binding_path, serde_json::to_vec(
+            &crate::api::stage::current_process_native_binding(&binding_token),
+        )?)?;
+        let previous_binding = std::env::var_os("HANDSHAKE_STAGE_BINDING_FILE");
+        std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", &binding_path);
+        struct PendingBinding(Option<std::ffi::OsString>);
+        impl Drop for PendingBinding {
+            fn drop(&mut self) {
+                if let Some(previous) = self.0.take() {
+                    std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", previous);
+                } else {
+                    std::env::remove_var("HANDSHAKE_STAGE_BINDING_FILE");
+                }
+            }
+        }
+        let pending_binding = PendingBinding(previous_binding.clone());
+        let workspace = state.storage.create_workspace(
+            &crate::storage::WriteContext::human(Some("workflow-memory-fixture".to_owned())),
+            crate::storage::NewWorkspace { name: format!("workflow-memory-{}", Uuid::now_v7()) },
+        ).await?;
+        let suffix = Uuid::now_v7().to_string();
+        let capabilities = ["fs.read", "fs.write", "memory.read", "memory.commit"]
+            .map(str::to_owned).to_vec();
+        let principal = state.surreal.provision_principal(
+            &format!("workflow-memory-account-{suffix}"),
+            &format!("workflow-memory-principal-{suffix}"),
+            "human_account", "workflow-memory-fixture", "Operator", &capabilities,
+            &format!("workflow-memory-space-{suffix}"), None, std::time::Duration::from_secs(300),
+        ).await?;
+        for kind in [ResourceKind::Workspace, ResourceKind::MemoryPack] {
+            let resource = state.surreal.register_protected_resource(
+                &principal.identity, kind, &workspace.id, None, "account_private",
+            ).await?;
+            state.surreal.grant_resource(
+                &principal.identity.account_id, &principal.identity.access_space_id,
+                ResourceGrantSpec {
+                    principal_id: principal.identity.principal_id.clone(),
+                    resource_id: resource.resource_id,
+                    actions: vec![ResourceAction::Read, ResourceAction::Create, ResourceAction::Update],
+                    capability_ids: capabilities.clone(), expires_at: None, delegation_chain: Vec::new(),
+                },
+            ).await?;
+        }
+        let credential = state.surreal.provision_session_credential(
+            &principal.identity, std::time::Duration::from_secs(300),
+        ).await?;
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert("x-hsk-channel-binding-token", binding_token.parse()?);
+        let channel = crate::api::stage::capture_channel_binding(&headers)
+            .map_err(|_| std::io::Error::other("workflow native binding rejected"))?;
+        let session = state.surreal.exchange_session_credential(
+            &principal.identity.account_id, &principal.identity.principal_id,
+            &principal.identity.access_space_id, &credential.token, &channel.binding_hash,
+            std::time::Duration::from_secs(300),
+        ).await?;
+        headers.insert("x-hsk-session-token", session.token.parse()?);
+        let original = crate::api::authority::authorize_request(
+            state, &headers, "fs.write", ResourceKind::Workspace, &workspace.id, ResourceAction::Create,
+        ).await.map_err(|(status, body)| std::io::Error::other(format!("workflow workspace authority: {status} {}", body.0)))?;
+        let child = crate::api::authority::authorize_request(
+            state, &headers, "memory.commit", ResourceKind::MemoryPack, &workspace.id, ResourceAction::Create,
+        ).await.map_err(|(status, body)| std::io::Error::other(format!("workflow pack authority: {status} {}", body.0)))?;
+        drop(pending_binding);
+        std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", &binding_path);
+        Ok(WorkflowMemoryFixture {
+            workspace_id: workspace.id, original_scope: original.record_user_scope,
+            pack_authority: WorkflowMemoryPackAuthority::from_authorized(child),
+            previous_binding, _binding_dir: binding_dir, _binding_lock: binding_lock,
+        })
+    }
+
+    #[cfg(feature = "duckdb-flight-recorder")]
     #[tokio::test]
     async fn fems_extract_emits_proposal_without_commit_and_without_raw_fr_content(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let (state, _store) = setup_state().await?;
+        let fixture = workflow_memory_fixture(&state).await?;
 
-        let job = state
-            .storage
-            .create_ai_job(crate::storage::NewAiJob {
+        let job = state.surreal.with_record_user_scope(
+            fixture.original_scope.clone(), state.storage.create_ai_job(crate::storage::NewAiJob {
                 trace_id: Uuid::now_v7(),
                 job_kind: JobKind::WorkflowRun,
                 protocol_id: FEMS_PROTOCOL_MEMORY_EXTRACT_V0_1.to_string(),
@@ -30376,7 +30853,9 @@ mod tests {
                 capability_profile_id: "Analyst".to_string(),
                 access_mode: AccessMode::AnalysisOnly,
                 safety_mode: SafetyMode::Normal,
-                entity_refs: Vec::new(),
+                entity_refs: vec![crate::storage::EntityRef {
+                    entity_kind: "workspace".to_owned(), entity_id: fixture.workspace_id.clone(),
+                }],
                 planned_operations: Vec::new(),
                 status_reason: "queued".to_string(),
                 metrics: JobMetrics::zero(),
@@ -30393,10 +30872,13 @@ mod tests {
                         "requires_review": true
                     }]
                 })),
-            })
-            .await?;
+            })).await?;
 
-        let _ = start_workflow_for_job(&state, job.clone()).await?;
+        let _ = state.surreal.with_record_user_scope(
+            fixture.original_scope.clone(), start_workflow_for_job(
+                &state, job.clone(), Some(fixture.pack_authority.clone()),
+            ),
+        ).await?;
         let updated_job = state.storage.get_ai_job(&job.job_id.to_string()).await?;
         assert!(
             matches!(updated_job.state, JobState::Completed),
@@ -30465,9 +30947,9 @@ mod tests {
             capability_registry: Arc::new(CapabilityRegistry::new()),
             session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
         };
-        let job = state
-            .storage
-            .create_ai_job(crate::storage::NewAiJob {
+        let fixture = workflow_memory_fixture(&state).await?;
+        let job = state.surreal.with_record_user_scope(
+            fixture.original_scope.clone(), state.storage.create_ai_job(crate::storage::NewAiJob {
                 trace_id: Uuid::now_v7(),
                 job_kind: JobKind::WorkflowRun,
                 protocol_id: FEMS_PROTOCOL_MEMORY_FORGET_V0_1.to_owned(),
@@ -30475,7 +30957,9 @@ mod tests {
                 capability_profile_id: "Operator".to_owned(),
                 access_mode: AccessMode::ApplyScoped,
                 safety_mode: SafetyMode::Normal,
-                entity_refs: Vec::new(),
+                entity_refs: vec![crate::storage::EntityRef {
+                    entity_kind: "workspace".to_owned(), entity_id: fixture.workspace_id.clone(),
+                }],
                 planned_operations: Vec::new(),
                 status_reason: "queued".to_owned(),
                 metrics: JobMetrics::zero(),
@@ -30508,11 +30992,14 @@ mod tests {
                         }
                     ]
                 })),
-            })
-            .await?;
+            })).await?;
         let workflow_run_id = Uuid::now_v7();
         let trace_id = Uuid::now_v7();
-        let outcome = run_fems_memory_job(&state, &job, workflow_run_id, trace_id).await?;
+        let outcome = state.surreal.with_record_user_scope(
+            fixture.original_scope.clone(), run_fems_memory_job(
+                &state, &job, workflow_run_id, trace_id, Some(fixture.pack_authority.clone()),
+            ),
+        ).await?;
         assert_eq!(outcome.state, JobState::Completed);
         let reloaded = state.storage.get_ai_job(&job.job_id.to_string()).await?;
         let outputs = reloaded

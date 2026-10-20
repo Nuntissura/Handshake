@@ -3537,7 +3537,7 @@ async fn enqueue_loom_preview_job(
         }
         other => internal_error(other),
     })?;
-    let _ = crate::workflows::start_workflow_for_job(state, job).await;
+    let _ = crate::workflows::start_workflow_for_job(state, job, None).await;
     Ok(())
 }
 

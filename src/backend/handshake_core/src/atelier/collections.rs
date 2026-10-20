@@ -106,6 +106,22 @@ pub struct CollectionMemberPage {
     pub total_count: i64,
 }
 
+/// Seek results retain a canonical informational count; only the sentinel
+/// determines continuation of this read.
+#[derive(Clone, Debug)]
+pub struct CollectionSeekPage {
+    pub collections: Vec<Collection>,
+    pub total_count: i64,
+    pub has_more: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct CollectionMemberSeekPage {
+    pub members: Vec<CollectionMemberDetail>,
+    pub total_count: i64,
+    pub has_more: bool,
+}
+
 /// Durable receipt written when a membership is unlinked from a collection.
 /// The asset row itself is preserved; only the membership goes away, and this
 /// receipt keeps the prior order / link refs / attribution auditable.
@@ -362,6 +378,11 @@ fn surreal_transaction_retry_delay(seed: Uuid, failed_attempt: usize) -> Duratio
 /// Translate the statement-level sentinels (and an exhausted retry budget) of
 /// an album mutation into the typed error the HTTP layer maps to 404 / 409.
 fn map_album_mutation_error(error: AtelierError, collection_id: Uuid, asset_id: Option<Uuid>) -> AtelierError {
+    if matches!(&error, AtelierError::Database(
+        crate::storage::surreal::SurrealStorageError::AlbumMutationUnknown { .. }
+    )) {
+        return error;
+    }
     let text = error.to_string();
     if text.contains(THROW_ALBUM_MEMBER_MISSING) {
         return AtelierError::NotFound(match asset_id {
@@ -495,6 +516,17 @@ fn validate_collection_reorder(items: &[CollectionItemReorder]) -> AtelierResult
         }
     }
     Ok(asset_ids)
+}
+
+fn seek_page_limits(limit: i64) -> AtelierResult<(i64, usize)> {
+    if limit < 1 {
+        return Err(AtelierError::Validation("limit must be >= 1".to_owned()));
+    }
+    let probe = limit.checked_add(1)
+        .ok_or_else(|| AtelierError::Validation("seek limit overflow".to_owned()))?;
+    let page = usize::try_from(limit)
+        .map_err(|_| AtelierError::Validation("seek limit is too large".to_owned()))?;
+    Ok((probe, page))
 }
 
 fn collection_record(collection_id: Uuid) -> RecordId {
@@ -1072,6 +1104,21 @@ struct CollectionMemberPageBindings {
 }
 
 #[derive(SurrealValue)]
+struct CharacterCollectionSeekBindings {
+    character_ref: RecordId,
+    after_created: Option<Datetime>,
+    after_collection_id: Option<SurrealUuid>,
+    limit: i64,
+}
+
+#[derive(SurrealValue)]
+struct CollectionMemberSeekBindings {
+    collection_ref: RecordId,
+    after_asset_id: Option<SurrealUuid>,
+    limit: i64,
+}
+
+#[derive(SurrealValue)]
 struct AssetRefsBinding {
     asset_refs: Vec<RecordId>,
 }
@@ -1339,6 +1386,23 @@ const LIST_COLLECTION_MEMBER_PAGE_STATEMENT: &str = concat!(
     collection_member_detail_select!(),
     " FROM atelier_collection_item WHERE collection_id = $collection_ref \
       ORDER BY sort_order ASC, member_asset_id ASC LIMIT $limit START $offset;"
+);
+
+const LIST_CHARACTER_COLLECTIONS_SEEK_STATEMENT: &str = concat!(
+    "SELECT ",
+    collection_select!(),
+    " FROM atelier_collection WHERE character_internal_id = $character_ref \
+      AND ($after_created = NONE OR created_at_utc < $after_created \
+           OR (created_at_utc = $after_created AND collection_id > $after_collection_id)) \
+      ORDER BY created_at_utc DESC, collection_id ASC LIMIT $limit;"
+);
+
+const LIST_COLLECTION_MEMBER_SEEK_STATEMENT: &str = concat!(
+    "SELECT ",
+    collection_member_detail_select!(),
+    " FROM atelier_collection_item WHERE collection_id = $collection_ref \
+      AND ($after_asset_id = NONE OR record::id(asset_id) > $after_asset_id) \
+      ORDER BY member_asset_id ASC LIMIT $limit;"
 );
 
 const LIST_COLLECTION_MEMBER_ASSET_IDS_STATEMENT: &str =
@@ -1870,6 +1934,61 @@ impl AtelierStore {
         })
     }
 
+    pub async fn list_character_collections_seek_page(
+        &self,
+        character_internal_id: Uuid,
+        after: Option<(DateTime<Utc>, Uuid)>,
+        limit: i64,
+    ) -> AtelierResult<CollectionSeekPage> {
+        let (probe_limit, page_limit) = seek_page_limits(limit)?;
+        let character_ref = RecordId::new("atelier_character", SurrealUuid::from(character_internal_id));
+        let count_bindings = CharacterRefBinding { character_ref: character_ref.clone() };
+        let total_count: Option<i64> = self.store().with_data_operation(move |ctx| {
+            Box::pin(async move { ctx.query_first(COUNT_CHARACTER_COLLECTIONS_STATEMENT, count_bindings).await })
+        }).await?;
+        let (after_created, after_collection_id) = match after {
+            Some((created, collection_id)) => (Some(Datetime::from(created)), Some(SurrealUuid::from(collection_id))),
+            None => (None, None),
+        };
+        let bindings = CharacterCollectionSeekBindings { character_ref, after_created, after_collection_id, limit: probe_limit };
+        let mut rows: Vec<CollectionRow> = self.store().with_data_operation(move |ctx| {
+            Box::pin(async move { ctx.query_values(LIST_CHARACTER_COLLECTIONS_SEEK_STATEMENT, bindings).await })
+        }).await?;
+        let has_more = rows.len() > page_limit;
+        rows.truncate(page_limit);
+        Ok(CollectionSeekPage {
+            collections: rows.into_iter().map(Collection::from).collect(),
+            total_count: total_count.unwrap_or(0).max(0),
+            has_more,
+        })
+    }
+
+    /// Identity traversal deliberately ignores mutable manual sort_order.
+    pub async fn list_collection_member_seek_page(
+        &self,
+        collection_id: Uuid,
+        after_asset_id: Option<Uuid>,
+        limit: i64,
+    ) -> AtelierResult<CollectionMemberSeekPage> {
+        let (probe_limit, page_limit) = seek_page_limits(limit)?;
+        let total_count = self.count_collection_members(collection_id).await?;
+        let bindings = CollectionMemberSeekBindings {
+            collection_ref: collection_record(collection_id),
+            after_asset_id: after_asset_id.map(SurrealUuid::from),
+            limit: probe_limit,
+        };
+        let mut rows: Vec<CollectionMemberDetailRow> = self.store().with_data_operation(move |ctx| {
+            Box::pin(async move { ctx.query_values(LIST_COLLECTION_MEMBER_SEEK_STATEMENT, bindings).await })
+        }).await?;
+        let has_more = rows.len() > page_limit;
+        rows.truncate(page_limit);
+        Ok(CollectionMemberSeekPage {
+            members: rows.into_iter().map(CollectionMemberDetail::from).collect(),
+            total_count,
+            has_more,
+        })
+    }
+
     /// Canonical member count of a collection (the number the API reports,
     /// never the size of a rendered page).
     pub async fn count_collection_members(&self, collection_id: Uuid) -> AtelierResult<i64> {
@@ -2287,6 +2406,112 @@ impl AtelierStore {
         })
     }
 
+    /// Account membership writes use the controller's protected transaction through
+    /// ledger verification and required mirroring. Only the controller commits it.
+    async fn write_album_membership_with_event<R, D>(
+        &self,
+        statement: &'static str,
+        domain: D,
+        event_family: &str,
+        aggregate_type: &str,
+        aggregate_id: &str,
+        payload: serde_json::Value,
+    ) -> AtelierResult<Option<R>>
+    where
+        R: SurrealValue + Send + 'static,
+        D: SurrealValue + Send + 'static,
+    {
+        if crate::storage::surreal::current_record_user_scope().is_none() {
+            return self
+                .write_with_event(statement, domain, event_family, aggregate_type, aggregate_id, payload)
+                .await;
+        }
+        // Capture the original task's actor and receipt authority before spawning.
+        let prepared = self.prepare_event(event_family, aggregate_type, aggregate_id, payload)?;
+        #[cfg(feature = "test-utils")]
+        let ledger_collision = crate::storage::surreal::take_album_mutation_ledger_collision();
+        let store = self.clone();
+        let operation = crate::storage::surreal::AlbumMutationOperationReference {
+            operation_id: Uuid::now_v7(),
+            event_id: prepared.bindings.kernel_event_id.clone(),
+            idempotency_key: prepared.bindings.idempotency_key.clone(),
+        };
+        let result = self.store()
+            .with_album_membership_transaction::<Option<R>, AtelierError, _>(
+                operation.clone(),
+                move |ctx| Box::pin(async move {
+                    #[cfg(feature = "test-utils")]
+                    let prepared = if let Some(existing_event_id) = ledger_collision {
+                        #[derive(SurrealValue)]
+                        struct ExistingAlbumLedgerBinding {
+                            ledger_ref: RecordId,
+                        }
+                        let ledger_ref = RecordId::new("kernel_event_ledger", existing_event_id);
+                        let existing: Option<super::RecordedLedgerRow> = ctx.query_first(
+                            "SELECT event_id, event_sequence FROM $ledger_ref LIMIT 1;",
+                            ExistingAlbumLedgerBinding { ledger_ref: ledger_ref.clone() },
+                        ).await?;
+                        if existing.is_none() {
+                            return Err(AtelierError::Validation(
+                                "album ledger collision requires an existing authorized canonical event".to_owned(),
+                            ));
+                        }
+                        let mut prepared = prepared;
+                        prepared.bindings.ledger_id = ledger_ref;
+                        prepared
+                    } else {
+                        prepared
+                    };
+                    let bindings = prepared.bindings.clone().with_domain(domain).into_value();
+                    let written: Option<R> = ctx.query_first(statement, bindings).await?;
+                    if written.is_none() {
+                        return Err(AtelierError::Internal(
+                            "album membership mutation returned no result".to_owned(),
+                        ));
+                    }
+                    let recorded: Option<super::RecordedLedgerRow> = ctx
+                        .query_first(
+                            "SELECT event_id, event_sequence FROM kernel_event_ledger \
+                             WHERE idempotency_key = $idempotency_key LIMIT 1;",
+                            super::IdempotencyKeyBinding {
+                                idempotency_key: prepared.bindings.idempotency_key.clone(),
+                            },
+                        )
+                        .await?;
+                    store.finish_event(prepared, recorded).await?;
+                    Ok(written)
+                }),
+            )
+            .await;
+        use crate::storage::surreal::SurrealStorageError;
+        match result {
+            Err(AtelierError::Database(source @ (
+                SurrealStorageError::TransactionSettlementPending { .. }
+                | SurrealStorageError::TransactionCommit(_)
+                | SurrealStorageError::TransactionCancel(_)
+                | SurrealStorageError::TransactionWorker(_)
+            ))) => Err(AtelierError::Database(SurrealStorageError::AlbumMutationUnknown {
+                operation,
+                source: Box::new(source),
+            })),
+            result => {
+                #[cfg(feature = "test-utils")]
+                if crate::storage::surreal::album_mutation_proof_active() {
+                    return result;
+                }
+                if let Ok(observation) = self.store().observe_album_membership_transaction(&operation) {
+                    if !matches!(observation.settlement,
+                        crate::storage::surreal::AlbumMutationSettlement::Pending
+                        | crate::storage::surreal::AlbumMutationSettlement::Unobserved)
+                    {
+                        self.store().acknowledge_album_membership_transaction(&operation)?;
+                    }
+                }
+                result
+            }
+        }
+    }
+
     /// Retry an album mutation whose statement lost an optimistic transaction
     /// race (two writers on one album, MT-056 F5/F9). Every other error, and an
     /// exhausted budget, is returned to the caller unchanged.
@@ -2353,7 +2578,7 @@ impl AtelierStore {
         });
         let row: Option<CollectionItemUnlinkReceiptRow> = self
             .run_album_mutation_with_retry(collection_id, || {
-                self.write_with_event(
+                self.write_album_membership_with_event(
                     UNLINK_ALBUM_ITEM_STATEMENT,
                     bindings.clone(),
                     collections_event_family::MEDIA_ALBUM_ITEM_UNLINKED,
@@ -2444,7 +2669,7 @@ impl AtelierStore {
         });
         let updated: Option<i64> = self
             .run_album_mutation_with_retry(collection_id, || {
-                self.write_with_event(
+                self.write_album_membership_with_event(
                     UPDATE_ALBUM_ITEM_LINK_REFS_STATEMENT,
                     bindings.clone(),
                     collections_event_family::MEDIA_ALBUM_ITEM_LINK_REFS_UPDATED,
@@ -2524,7 +2749,7 @@ impl AtelierStore {
         });
         let changed: Option<i64> = self
             .run_album_mutation_with_retry(collection_id, || {
-                self.write_with_event(
+                self.write_album_membership_with_event(
                     REORDER_ALBUM_ITEMS_STATEMENT,
                     bindings.clone(),
                     collections_event_family::MEDIA_ALBUM_ITEMS_REORDERED,

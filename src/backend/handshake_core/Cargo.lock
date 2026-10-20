@@ -3228,6 +3228,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "handshake-account-activation"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "uuid",
+]
+
+[[package]]
 name = "handshake-diag-ring"
 version = "0.1.0"
 dependencies = [
@@ -3235,6 +3244,71 @@ dependencies = [
  "memmap2",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "handshake_capability_registry_document"
+version = "0.1.0"
+dependencies = [
+ "jsonschema",
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+]
+
+[[package]]
+name = "handshake_ckc_moodboard"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "jsonschema",
+ "serde",
+ "serde_json",
+ "uuid",
+]
+
+[[package]]
+name = "handshake_ckc_provenance"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=578f2c6ccdb2a35bab1edaf43b75eca732dc7a78#578f2c6ccdb2a35bab1edaf43b75eca732dc7a78"
+dependencies = [
+ "serde",
+ "uuid",
+]
+
+[[package]]
+name = "handshake_ckc_search_metrics"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "serde_json",
+]
+
+[[package]]
+name = "handshake_ckc_sheet_parser"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "sha2 0.10.9",
+]
+
+[[package]]
+name = "handshake_ckc_sheet_template"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "handshake_contact_sheet"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
 ]
 
 [[package]]
@@ -3266,9 +3340,30 @@ dependencies = [
  "getrandom 0.2.16",
  "globset",
  "half",
+ "handshake-account-activation",
  "handshake-diag-ring",
+ "handshake_capability_registry_document",
+ "handshake_ckc_moodboard",
+ "handshake_ckc_provenance",
+ "handshake_ckc_search_metrics",
+ "handshake_ckc_sheet_parser",
+ "handshake_ckc_sheet_template",
+ "handshake_contact_sheet",
  "handshake_document",
+ "handshake_document_surreal",
+ "handshake_job_admission",
+ "handshake_model_lane_navigation",
+ "handshake_model_lane_routing",
+ "handshake_openpose_render",
+ "handshake_prompt_feedback",
+ "handshake_resource_scope",
+ "handshake_role_authority",
+ "handshake_runtime_instance",
  "handshake_storage_support",
+ "handshake_swarm_breaker",
+ "handshake_swarm_event_ids",
+ "handshake_swarm_routing_policy",
+ "handshake_swarm_schedule",
  "hex",
  "hmac",
  "icalendar",
@@ -3336,11 +3431,102 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
- "surrealdb-types",
  "thiserror 2.0.20",
  "tokio",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "handshake_document_surreal"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "handshake_document",
+ "handshake_storage_support",
+ "serde_json",
+ "surrealdb-types",
+ "tracing",
+]
+
+[[package]]
+name = "handshake_job_admission"
+version = "0.1.0"
+dependencies = [
+ "handshake_resource_scope",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.20",
+ "uuid",
+]
+
+[[package]]
+name = "handshake_model_lane_navigation"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=00cb5f5b5ad18094699d65638ff2e2016cbe9f29#00cb5f5b5ad18094699d65638ff2e2016cbe9f29"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "handshake_model_lane_routing"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "thiserror 2.0.20",
+]
+
+[[package]]
+name = "handshake_openpose_render"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "serde_json",
+]
+
+[[package]]
+name = "handshake_prompt_feedback"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+]
+
+[[package]]
+name = "handshake_resource_scope"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "uuid",
+]
+
+[[package]]
+name = "handshake_role_authority"
+version = "0.1.0"
+dependencies = [
+ "handshake_resource_scope",
+ "handshake_storage_support",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.20",
+]
+
+[[package]]
+name = "handshake_runtime_instance"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "uuid",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3355,6 +3541,34 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+]
+
+[[package]]
+name = "handshake_swarm_breaker"
+version = "0.1.0"
+dependencies = [
+ "sha2 0.10.9",
+]
+
+[[package]]
+name = "handshake_swarm_event_ids"
+version = "0.1.0"
+
+[[package]]
+name = "handshake_swarm_routing_policy"
+version = "0.1.0"
+dependencies = [
+ "handshake_model_lane_routing",
+ "handshake_swarm_breaker",
+]
+
+[[package]]
+name = "handshake_swarm_schedule"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "icalendar",
+ "tokio-cron-scheduler",
 ]
 
 [[package]]

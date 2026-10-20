@@ -10,6 +10,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use super::ids::SpawnRequest;
 use super::model_lane::{
     ModelLanePromotionDecisionRecord, ModelLanePromotionOutcome, ModelLaneRunRecord,
+    ModelLaneMessageRecord, ModelLaneContextBundleArtifactBindingRecord, ModelLaneError, ModelLaneResult,
 };
 use super::routing::{
     ModelLaneRoutingAuthority, ModelLaneRoutingDispatchTarget, ModelLaneRoutingGraph,
@@ -28,6 +29,13 @@ const ROUTING_OUTBOX_SCHEMA_ID: &str = "hsk.model_lane_routing_outbox@4";
 const SOURCE_COMPONENT: &str = "model_lane_routing_executor";
 const DEFAULT_LEASE_MS: u64 = 30_000;
 const MAX_STAGE_ATTEMPTS: u32 = 3;
+pub(crate) struct RoutingAuthorityCompletionProjection {
+    pub(crate) expected_revision: u64,
+    pub(crate) claim: ModelLaneRoutingStageClaim,
+    pub(crate) next_execution: ModelLaneRoutingExecutionState,
+    pub(crate) changed_attempt: ModelLaneRoutingStageState,
+    pub(crate) events: Vec<NewKernelEvent>,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -622,6 +630,17 @@ impl ModelLaneRoutingExecutionStore {
         x: &ModelLaneRoutingExecutionState,
         c: &ModelLaneRoutingStageClaim,
         s: ModelLaneRoutingStageStateKind,
+        i: Option<String>, l: Option<String>, r: Option<String>, ins: Vec<String>,
+        o: Option<String>, m: Option<String>, h: Option<String>, p: Option<Value>, d: Option<String>,
+    ) -> Result<(ModelLaneRoutingExecutionState, ModelLaneRoutingStageState), String> {
+        Self::transition_with_lease(x, c, s, i, l, r, ins, o, m, h, p, d, Some(self.lease_ms))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn transition_with_lease(
+        x: &ModelLaneRoutingExecutionState,
+        c: &ModelLaneRoutingStageClaim,
+        s: ModelLaneRoutingStageStateKind,
         i: Option<String>,
         l: Option<String>,
         r: Option<String>,
@@ -631,6 +650,7 @@ impl ModelLaneRoutingExecutionStore {
         h: Option<String>,
         p: Option<Value>,
         d: Option<String>,
+        lease_ms: Option<u64>,
     ) -> Result<(ModelLaneRoutingExecutionState, ModelLaneRoutingStageState), String> {
         claim(x, c)?;
         let old = x.stages[&c.stage_id].clone();
@@ -672,7 +692,9 @@ impl ModelLaneRoutingExecutionStore {
             output_payload: p,
             lease_owner: active.then(|| c.lease_owner.clone()),
             fencing_token: active.then(|| c.fencing_token.clone()),
-            lease_expires_at_unix_ms: active.then(|| now + self.lease_ms),
+            lease_expires_at_unix_ms: if active {
+                Some(now + lease_ms.ok_or("active routing transition requires its configured lease")?)
+            } else { None },
             detail: d,
             updated_at_unix_ms: now,
             ..old
@@ -885,6 +907,7 @@ impl ModelLaneRoutingExecutionStore {
         };
         let output_payload = json!({
             "schema_id": "hsk.model_lane_routing_output@1",
+            "artifact_version": "1",
             "execution_id": execution_id,
             "run_id": snapshot.run_id,
             "trace_id": snapshot.trace_id,
@@ -1124,58 +1147,108 @@ impl ModelLaneRoutingExecutionStore {
 
     pub(crate) async fn complete_authority_stage(
         &self,
-        claim: &ModelLaneRoutingStageClaim,
-        authority_ref: &str,
-        output_ref: String,
-        output_message_ref: String,
-        output_sha256: String,
-        output_payload: Value,
-    ) -> Result<ModelLaneRoutingExecutionState, String> {
-        let execution_id = claim.execution_id.as_str();
-        let stage_id = claim.stage_id.as_str();
-        let snapshot = self
-            .snapshot(execution_id)
-            .await?
-            .ok_or_else(|| format!("unknown routing execution {execution_id}"))?;
-        let stage = snapshot
-            .stages
-            .get(stage_id)
-            .ok_or_else(|| format!("unknown routing stage {stage_id}"))?;
+        permit: crate::storage::surreal::resource_authority::RoleAuthorityConsumptionPermit,
+        execution_id: &str,
+        stage_id: &str,
+        message_id: &str,
+    ) -> ModelLaneResult<ModelLaneRoutingExecutionState> {
+        self.model_lane_store.complete_routing_authority_atomic(
+            permit, execution_id.to_owned(), stage_id.to_owned(), message_id.to_owned(),
+        ).await
+    }
+
+    pub(crate) fn project_authority_completion(
+        execution: &ModelLaneRoutingExecutionState,
+        stage_id: &str,
+        message_id: &str,
+        message: &ModelLaneMessageRecord,
+        artifact: &ModelLaneContextBundleArtifactBindingRecord,
+    ) -> ModelLaneResult<RoutingAuthorityCompletionProjection> {
+        let stage = execution.stages.get(stage_id).ok_or_else(||
+            ModelLaneError::InvalidInput(format!("unknown routing stage {stage_id}")))?;
         if stage.state != ModelLaneRoutingStageStateKind::AwaitingAuthority {
-            return Err(format!("stage {stage_id} is not awaiting authority"));
+            return Err(ModelLaneError::InvalidInput(format!("stage {stage_id} is not awaiting authority")));
         }
-        if stage.authority_ref.as_deref() != Some(authority_ref) {
-            return Err(format!("authority ref does not match stage {stage_id}"));
+        let authority_request_ref = stage.authority_request_message_ref.as_deref().ok_or_else(||
+            ModelLaneError::AuthorityDenied("authority stage has no causal request message".into()))?;
+        if message.message_id != message_id
+            || stage.lane_id.as_deref() != Some(message.from_lane_id.as_str())
+            || message.run_id != execution.run_id
+            || message.trace_id != execution.trace_id
+            || message.coordinator_session_id != execution.coordinator_session_id
+            || message.work_packet_id.as_deref() != Some(execution.work_packet_id.as_str())
+            || message.micro_task_id != execution.micro_task_id
+            || message.task_board_id.as_deref() != Some(execution.task_board_id.as_str())
+            || message.owner_session != execution.owner_session
+            || message.routing.as_ref().and_then(|routing| routing.ack_for.as_deref()) != Some(authority_request_ref)
+            || message.diagnostic_payload.get("execution_id").and_then(Value::as_str) != Some(execution.execution_id.as_str())
+            || message.diagnostic_payload.get("stage_id").and_then(Value::as_str) != Some(stage_id)
+        {
+            return Err(ModelLaneError::AuthorityDenied(
+                "authority message is not bound to its stage, run, owner, task and causal request".into()));
         }
-        if canonical_sha256(&output_payload)? != output_sha256 {
-            return Err(format!(
-                "authority output hash mismatch for stage {stage_id}"
-            ));
+        let authority_ref = stage.authority_ref.as_deref().ok_or_else(||
+            ModelLaneError::AuthorityDenied("authority stage has no authority reference".into()))?;
+        let valid_authority = match stage.dispatch_target {
+            ModelLaneRoutingDispatchTarget::Validator =>
+                message.authority == super::model_lane::ModelLaneAuthority::ValidatorVerdict
+                    && message.validator_verdict_ref.as_deref() == Some(authority_ref),
+            ModelLaneRoutingDispatchTarget::Operator =>
+                message.authority == super::model_lane::ModelLaneAuthority::OperatorDecision
+                    && message.operator_decision_ref.as_deref() == Some(authority_ref),
+            _ => false,
+        };
+        if !valid_authority {
+            return Err(ModelLaneError::AuthorityDenied("message does not satisfy stage authority".into()));
         }
-        self.record_stage_result(
-            claim,
-            ModelLaneRoutingStageStateKind::Succeeded,
-            stage.instance_id.clone(),
-            stage.lane_id.clone(),
-            stage.authority_request_message_ref.clone(),
-            stage.input_refs.clone(),
-            Some(output_ref.clone()),
-            Some(output_message_ref.clone()),
-            Some(output_sha256.clone()),
+        let payload = artifact.payload_json.clone();
+        let hash = canonical_sha256(&payload).map_err(ModelLaneError::IntegrityViolation)?;
+        if artifact.run_id != execution.run_id
+            || artifact.trace_id != execution.trace_id
+            || artifact.artifact_ref != message.payload_ref
+            || hash != message.payload_sha256
+            || artifact.artifact_sha256 != hash
+            || artifact.content_hash != hash
+        {
+            return Err(ModelLaneError::IntegrityViolation("authority payload differs from its canonical artifact binding".into()));
+        }
+        let claim = ModelLaneRoutingStageClaim {
+            execution_id: execution.execution_id.clone(),
+            stage_id: stage_id.to_owned(),
+            attempt: stage.attempt,
+            fencing_token: stage.fencing_token.clone().ok_or_else(||
+                ModelLaneError::AuthorityDenied("authority stage has no fencing token".into()))?,
+            lease_owner: stage.lease_owner.clone().ok_or_else(||
+                ModelLaneError::AuthorityDenied("authority stage has no lease owner".into()))?,
+            lease_expires_at_unix_ms: stage.lease_expires_at_unix_ms.ok_or_else(||
+                ModelLaneError::AuthorityDenied("authority stage has no lease expiry".into()))?,
+            dispatch_target: stage.dispatch_target,
+            expected_run_id: stage.expected_run_id.clone(),
+            expected_lane_id: stage.expected_lane_id.clone(),
+            expected_model_id: stage.expected_model_id.clone(),
+            expected_provider: stage.expected_provider,
+        };
+        let (next_execution, changed_attempt) = Self::transition_with_lease(
+            execution, &claim, ModelLaneRoutingStageStateKind::Succeeded,
+            stage.instance_id.clone(), stage.lane_id.clone(),
+            stage.authority_request_message_ref.clone(), stage.input_refs.clone(),
+            Some(message.payload_ref.clone()), Some(message.message_id.clone()), Some(hash.clone()),
             Some(json!({
                 "schema_id": "hsk.model_lane_routing_output_pointer@1",
-                "artifact_ref": output_ref,
-                "message_ref": output_message_ref,
-                "artifact_sha256": output_sha256,
+                "artifact_ref": message.payload_ref,
+                "message_ref": message.message_id,
+                "artifact_sha256": hash,
                 "typed_output": {
                     "schema_id": "hsk.model_lane_routing_authority_response_metadata@1",
-                    "verdict": output_payload.pointer("/diagnostic_payload/verdict")
-                        .or_else(|| output_payload.get("verdict")),
+                    "verdict": payload.pointer("/diagnostic_payload/verdict").or_else(|| payload.get("verdict")),
                 },
-            })),
-            None,
-        )
-        .await
+            })), None, None,
+        ).map_err(ModelLaneError::InvalidInput)?;
+        let events = events(&next_execution, &changed_attempt, "acked", "transition")
+            .map_err(ModelLaneError::InvalidInput)?;
+        Ok(RoutingAuthorityCompletionProjection {
+            expected_revision: execution.revision, claim, next_execution, changed_attempt, events,
+        })
     }
 
     pub(crate) async fn recover_expired_claims(&self, id: &str) -> Result<Vec<String>, String> {

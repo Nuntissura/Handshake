@@ -1815,6 +1815,12 @@ fn map_artifact_error(err: ArtifactError) -> BundleExportError {
         ArtifactError::ContentHashMismatch => {
             BundleExportError::Validation("content hash mismatch".to_string())
         }
+        ArtifactError::ManifestBindingMismatch => {
+            BundleExportError::Validation("persisted artifact manifest binding mismatch".to_string())
+        }
+        ArtifactError::PublicationCustody(message) => {
+            BundleExportError::ExportFailed(format!("artifact publication custody unavailable: {message}"))
+        }
         ArtifactError::InvalidSha256Hex { field } => {
             BundleExportError::Validation(format!("invalid sha256 hex: {field}"))
         }

@@ -10,6 +10,15 @@ const MD_COOKIE_IMPORT_PROTOCOL_ID_V0: &str = "hsk.media_downloader.cookie_impor
 
 /// Canonical capability identifiers from Master Spec §11.1 (Capabilities & Consent Model).
 const CANONICAL_CAPABILITY_IDS: &[&str] = &[
+    // NEW selected eligibility, not a preexisting Spec capability. Intended
+    // AccountAdministration bindings: Create/identity_enrollment,
+    // Update/identity_enrollment_revocation, Update/member_profile_assignment.
+    // This registry does not enforce those bindings; each operation requires
+    // its own current explicit resource grant and fixed authority checks.
+    "account.identity.enroll",
+    "account.identity.enrollment.revoke",
+    "account.identity.member_profile.assign",
+    "artifact.read",
     "model_lane.navigation.read",
     "model_lane.recovery.execute",
     "calendar.sync.read",
@@ -44,6 +53,7 @@ const CANONICAL_CAPABILITY_IDS: &[&str] = &[
     "fr.ingest.runtime_chat",
     "fr.ingest.native_editor",
     "diagnostics.read",
+    "diagnostics.watcher.adopt_existing",
     "jobs.read",
     "stage.jobs.enqueue",
     "memory.read",
@@ -222,6 +232,7 @@ impl CapabilityRegistry {
             CapabilityProfile {
                 id: "Operator".to_string(),
                 allowed: vec![
+                    "diagnostics.watcher.adopt_existing".to_string(),
                     "model_lane.navigation.read".to_string(),
                     "model_lane.recovery.execute".to_string(),
                     "fs.read".to_string(),
@@ -239,6 +250,31 @@ impl CapabilityRegistry {
                     "fr.read".to_string(),
                     "fr.ingest.runtime_chat".to_string(),
                     "fr.ingest.native_editor".to_string(),
+                ],
+            },
+        );
+
+        // Fixed eligibility only; assigning either profile requires the separately
+        // authorized NEW enrollment/first-Owner ceremony. Existing profiles stay unchanged.
+        profiles.insert(
+            "MemberEnrollment".to_string(),
+            CapabilityProfile {
+                id: "MemberEnrollment".to_string(),
+                allowed: vec![
+                    "model_lane.navigation.read".to_string(),
+                    "fs.write".to_string(),
+                    "diagnostics.read".to_string(),
+                ],
+            },
+        );
+        profiles.insert(
+            "MemberEnrollmentAdministrator".to_string(),
+            CapabilityProfile {
+                id: "MemberEnrollmentAdministrator".to_string(),
+                allowed: vec![
+                    "account.identity.enroll".to_string(),
+                    "account.identity.enrollment.revoke".to_string(),
+                    "account.identity.member_profile.assign".to_string(),
                 ],
             },
         );
@@ -743,6 +779,21 @@ mod tests {
     #[test]
     fn test_profile_resolution() {
         let registry = CapabilityRegistry::new();
+
+        let watcher_adoption = "diagnostics.watcher.adopt_existing";
+        assert!(registry.is_valid(watcher_adoption));
+        assert!(registry.profile_can("Operator", watcher_adoption).unwrap());
+        for profile_id in registry.profiles.keys().filter(|id| id.as_str() != "Operator") {
+            assert!(!registry.profile_can(profile_id, watcher_adoption).unwrap(), "{profile_id}");
+        }
+        assert!(registry.can_perform(watcher_adoption, &[watcher_adoption.to_string()]));
+        for broader_capability in ["proc.exec", "diagnostics.read"] {
+            assert!(!registry.can_perform(watcher_adoption, &[broader_capability.to_string()]));
+        }
+        assert!(matches!(
+            registry.enforce_can_perform("diagnostics.watcher.adopt_unknown", &[watcher_adoption.to_string()]),
+            Err(RegistryError::UnknownCapability(_))
+        ));
 
         // Analyst has fs.read
         assert!(matches!(

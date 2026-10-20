@@ -2301,12 +2301,83 @@ pub async fn ensure_fems_memory_schema(storage: &SurrealStorage) -> StorageResul
         .map_err(|error| StorageError::Migration(error.to_string()))
 }
 
+#[derive(Debug, Clone)]
+pub struct PersistedMemoryPackRef {
+    workspace_id: String,
+    pack_id: String,
+    memory_pack_hash: String,
+}
+
+impl PersistedMemoryPackRef {
+    pub(crate) fn workspace_id(&self) -> &str {
+        &self.workspace_id
+    }
+
+    pub(crate) fn pack_id(&self) -> &str {
+        &self.pack_id
+    }
+
+    pub(crate) fn memory_pack_hash(&self) -> &str {
+        &self.memory_pack_hash
+    }
+}
+
+pub(crate) fn verify_persisted_memory_pack(
+    pack: &Value,
+    record_pack_id: &str,
+    record_workspace_id: &str,
+    expected_workspace_id: &str,
+    expected_pack_id: &str,
+    expected_memory_pack_hash: &str,
+) -> StorageResult<MemoryPack> {
+    if record_workspace_id != expected_workspace_id
+        || record_pack_id != expected_pack_id
+        || pack.get("pack_id").and_then(Value::as_str) != Some(expected_pack_id)
+        || pack.get("memory_pack_hash").and_then(Value::as_str)
+            != Some(expected_memory_pack_hash)
+    {
+        return Err(StorageError::Conflict(
+            "memory pack identity does not match its immutable binding",
+        ));
+    }
+    let mut hash_input = pack.clone();
+    hash_input
+        .as_object_mut()
+        .ok_or(StorageError::Validation("memory pack must be an object"))?
+        .insert("memory_pack_hash".to_owned(), Value::Null);
+    let actual_hash = crate::llm::sha256_hex(
+        crate::llm::canonical_json_bytes_nfc(&hash_input).as_slice(),
+    );
+    if actual_hash != expected_memory_pack_hash {
+        return Err(StorageError::Conflict(
+            "memory pack original hash does not match its immutable binding",
+        ));
+    }
+    let decoded: MemoryPack = serde_json::from_value(pack.clone())?;
+    if crate::llm::canonical_json_bytes_nfc(&serde_json::to_value(&decoded)?)
+        != crate::llm::canonical_json_bytes_nfc(pack)
+    {
+        return Err(StorageError::Conflict(
+            "memory pack typed value differs from immutable original",
+        ));
+    }
+    Ok(decoded)
+}
+
 pub async fn upsert_memory_pack(
     target: &impl FemsMutationTarget,
     workspace_id: &str,
     scope_key: &str,
     pack: &MemoryPack,
-) -> StorageResult<()> {
+) -> StorageResult<PersistedMemoryPackRef> {
+    verify_persisted_memory_pack(
+        &serde_json::to_value(pack)?,
+        &pack.pack_id,
+        workspace_id,
+        workspace_id,
+        &pack.pack_id,
+        &pack.memory_pack_hash,
+    )?;
     let database = target.fems_database();
     ensure_fems_memory_schema(database.storage()).await?;
     let generated_at = DateTime::parse_from_rfc3339(&pack.generated_at)
@@ -2314,7 +2385,7 @@ pub async fn upsert_memory_pack(
         .map_err(|_| StorageError::Validation("memory pack generated_at is invalid"))?;
     let keys = vec![LockKey::record(PACKS_TABLE, pack.pack_id.clone())];
     let replay_key = format!("fems-pack-upsert:{}", pack.pack_id);
-    database
+    let row = database
         .guarded_mutation(keys, Replay::idempotent(replay_key), None, || {
             upsert_memory_pack_attempt(
                 database.storage(),
@@ -2324,7 +2395,26 @@ pub async fn upsert_memory_pack(
                 generated_at,
             )
         })
-        .await
+        .await?;
+    let persisted_workspace_id = record_key(row.workspace_id, "memory pack workspace")?;
+    if row.scope_key != scope_key {
+        return Err(StorageError::Conflict(
+            "memory pack scope does not match its immutable binding",
+        ));
+    }
+    let persisted = verify_persisted_memory_pack(
+        &row.pack,
+        &row.pack_id,
+        &persisted_workspace_id,
+        workspace_id,
+        &pack.pack_id,
+        &pack.memory_pack_hash,
+    )?;
+    Ok(PersistedMemoryPackRef {
+        workspace_id: persisted_workspace_id,
+        pack_id: persisted.pack_id,
+        memory_pack_hash: persisted.memory_pack_hash,
+    })
 }
 
 /// One attempt of the pack upsert (see `upsert_memory_pack`): the immutable
@@ -2336,11 +2426,11 @@ async fn upsert_memory_pack_attempt(
     scope_key: &str,
     pack: &MemoryPack,
     generated_at: DateTime<Utc>,
-) -> StorageResult<()> {
+) -> StorageResult<PackRow> {
     let record_id = pack.pack_id.clone();
     let pack_value = serde_json::to_value(pack)?;
     if let Some(existing) = select_pack(storage, workspace_id, &record_id).await? {
-        if record_key(existing.workspace_id, "memory pack workspace")? != workspace_id
+        if record_key(existing.workspace_id.clone(), "memory pack workspace")? != workspace_id
             || existing.scope_key != scope_key
             || existing.pack != pack_value
         {
@@ -2348,7 +2438,7 @@ async fn upsert_memory_pack_attempt(
                 "memory pack id is bound to different immutable content",
             ));
         }
-        return Ok(());
+        return Ok(existing);
     }
     let now = Datetime::from(Utc::now());
     let content = PackContent {
@@ -2362,8 +2452,8 @@ async fn upsert_memory_pack_attempt(
     let created: Option<PackRow> =
         anchored_create_if_absent(storage, PACKS_TABLE, &pack.pack_id, workspace_id, content)
             .await?;
-    if created.is_some() {
-        Ok(())
+    if let Some(created) = created {
+        Ok(created)
     } else {
         Err(StorageError::Conflict(
             "memory pack id was concurrently bound to different content",

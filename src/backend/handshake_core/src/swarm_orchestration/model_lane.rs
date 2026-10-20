@@ -77,6 +77,17 @@ const MAX_CONTEXT_BUNDLE_LOOM_REFS: usize = 64;
 const MAX_CONTEXT_BUNDLE_MEMORY_PACK_REFS: usize = 16;
 static CLOUD_EVENT_SEQUENCE: AtomicI64 = AtomicI64::new(0);
 
+macro_rules! promotion_query {
+    ($transaction:expr, $provider:expr, $ordinary:ident, $provided:ident $(, $argument:expr)* $(,)?) => {
+        async {
+            match $transaction {
+                Some(transaction) => $provider.$provided(transaction $(, $argument)*).await,
+                None => $provider.$ordinary($($argument),*).await,
+            }
+        }
+    };
+}
+
 #[derive(Debug, Error)]
 pub enum ModelLaneError {
     #[error("invalid model lane input: {0}")]
@@ -105,6 +116,286 @@ pub enum ModelLaneError {
 }
 
 pub type ModelLaneResult<T> = Result<T, ModelLaneError>;
+
+impl From<crate::storage::surreal::resource_authority::ResourceAuthorityError> for ModelLaneError {
+    fn from(error: crate::storage::surreal::resource_authority::ResourceAuthorityError) -> Self {
+        use crate::storage::surreal::resource_authority::ResourceAuthorityError;
+        match error {
+            ResourceAuthorityError::Storage(error) => Self::Surreal(error),
+            ResourceAuthorityError::Denied { .. } => Self::AuthorityDenied("resource authority denied".into()),
+            ResourceAuthorityError::InvalidInput(message) => Self::InvalidInput(message.into()),
+            error @ ResourceAuthorityError::Entropy(_) => Self::Surreal(error.into()),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArtifactOperatorApprovalRequest {
+    pub operation_id: Uuid,
+    pub approval: handshake_role_authority::domain::ApproveOperatorArtifact,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ValidatorRunnerRegistrationBinding {
+    pub producer_registration_ref: String,
+    pub producer_instance_ref: String,
+    pub producer_spawn_generation: u64,
+    pub producer_registered_principal: ActorPrincipalId,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorkspaceValidatorRunnerDesignationRequest {
+    pub operation_id: Uuid,
+    pub action: handshake_role_authority::domain::ActionKey,
+    pub scope: ExactResourceScopeAttribution,
+    pub run: handshake_role_authority::domain::RunBinding,
+    pub subject: handshake_role_authority::domain::ArtifactSubject,
+    pub expected: handshake_role_authority::domain::ExpectedBase,
+    pub retention: handshake_role_authority::domain::RetentionBinding,
+    pub runner: ValidatorRunnerRegistrationBinding,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct ArtifactOperatorApprovalRecord {
+    receipt: handshake_role_authority::domain::RoleReceipt,
+}
+
+impl ArtifactOperatorApprovalRecord {
+    pub fn receipt(&self) -> &handshake_role_authority::domain::RoleReceipt { &self.receipt }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct WorkspaceValidatorRunnerDesignationRecord {
+    request: WorkspaceValidatorRunnerDesignationRequest,
+    event: handshake_role_authority::domain::CanonicalEventKey,
+    content_hash: handshake_role_authority::domain::ContentSha256,
+}
+
+impl WorkspaceValidatorRunnerDesignationRecord {
+    pub fn request(&self) -> &WorkspaceValidatorRunnerDesignationRequest { &self.request }
+    pub fn event(&self) -> &handshake_role_authority::domain::CanonicalEventKey { &self.event }
+    pub fn content_hash(&self) -> &handshake_role_authority::domain::ContentSha256 { &self.content_hash }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum WorkspaceOwnerActionCommand {
+    IssueArtifactApproval(ArtifactOperatorApprovalRequest),
+    IssueRunnerDesignation(WorkspaceValidatorRunnerDesignationRequest),
+}
+
+impl WorkspaceOwnerActionCommand {
+    pub(crate) fn operation_id(&self) -> Uuid {
+        match self {
+            Self::IssueArtifactApproval(request) => request.operation_id,
+            Self::IssueRunnerDesignation(request) => request.operation_id,
+        }
+    }
+
+    pub(crate) fn claimed_scope(&self) -> &ExactResourceScopeAttribution {
+        match self {
+            Self::IssueArtifactApproval(request) => &request.approval.scope,
+            Self::IssueRunnerDesignation(request) => &request.scope,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum WorkspaceOwnerActionResult {
+    ArtifactApproval(handshake_role_authority::domain::RoleReceipt),
+    RunnerDesignation {
+        request: WorkspaceValidatorRunnerDesignationRequest,
+        event: handshake_role_authority::domain::CanonicalEventKey,
+        content_hash: handshake_role_authority::domain::ContentSha256,
+    },
+}
+
+#[derive(Clone, Debug)]
+pub struct RoleEvidenceConsumeSelector {
+    pub evidence_ref: handshake_role_authority::domain::RoleEvidenceRef,
+    pub expectation: handshake_role_authority::domain::ResolutionExpectation,
+    pub designation_ref: Option<handshake_role_authority::domain::DesignationRef>,
+    pub producer: Option<ValidatorRunnerRegistrationBinding>,
+}
+
+#[derive(Clone, Debug)]
+pub struct FinalPromotionAuthoritySelectors {
+    pub operator: RoleEvidenceConsumeSelector,
+    pub validator: RoleEvidenceConsumeSelector,
+}
+
+fn validate_final_promotion_authority_selectors(
+    selectors: &FinalPromotionAuthoritySelectors,
+    input: &NewModelLanePromotionDecision,
+) -> ModelLaneResult<()> {
+    use handshake_role_authority::domain::{Purpose, Role};
+    let operator = &selectors.operator.expectation;
+    let validator = &selectors.validator.expectation;
+    if operator.role != Role::Operator || validator.role != Role::Validator
+        || operator.purpose != Purpose::PriorSelection || validator.purpose != Purpose::PriorSelection
+        || operator.run != validator.run || operator.subject != validator.subject
+        || operator.expected != validator.expected
+        || input.run_id != operator.run.run_id || input.trace_id != operator.run.trace_id
+        || input.coordinator_session_id != operator.run.coordinator_session_id
+        || input.owner_session != operator.run.owner_session
+        || input.work_packet_id.as_deref() != Some(operator.run.work_packet_id.as_str())
+        || input.micro_task_id.as_deref() != Some(operator.run.micro_task_id.as_str())
+        || input.task_board_id.as_deref() != Some(operator.run.task_board_id.as_str())
+        || selectors.validator.designation_ref.is_none() || selectors.validator.producer.is_none()
+    {
+        return Err(ModelLaneError::AuthorityDenied("final promotion does not bind both canonical role expectations".into()));
+    }
+    Ok(())
+}
+
+fn final_promotion_positive_binding_matches(
+    selectors: &FinalPromotionAuthoritySelectors,
+    input: &NewModelLanePromotionDecision,
+) -> bool {
+    let expected = &selectors.operator.expectation;
+    input.operator_authority_ref.as_deref() == Some(selectors.operator.evidence_ref.as_str())
+        && input.validator_authority_ref.as_deref() == Some(selectors.validator.evidence_ref.as_str())
+        && input.promoted_artifact_ref.as_deref() == Some(expected.subject.artifact_ref.as_str())
+        && input.promoted_artifact_sha256.as_deref() == Some(expected.subject.sha256.to_hex().as_str())
+        && input.promoted_artifact_version.as_deref() == Some(expected.subject.version.as_str())
+        && input.expected_event_ledger_aggregate_id == expected.expected.aggregate_id
+        && u64::try_from(input.expected_event_ledger_version).ok() == Some(expected.expected.aggregate_version)
+        && input.schema_id == expected.expected.schema_id
+        && input.base_snapshot_ref == expected.expected.base_ref.as_deref().unwrap_or("not-applicable")
+        && input.state_vector == expected.expected.base_vector_ref.as_deref().unwrap_or("not-applicable")
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum RoutingStageAcknowledgementIntent {
+    Operator(handshake_role_authority::domain::AcknowledgeOperatorStage),
+    Validator(handshake_role_authority::domain::AcknowledgeValidatorStage),
+}
+
+impl RoutingStageAcknowledgementIntent {
+    pub(crate) fn claimed_scope(&self) -> &ExactResourceScopeAttribution {
+        match self {
+            Self::Operator(intent) => &intent.scope,
+            Self::Validator(intent) => &intent.scope,
+        }
+    }
+
+    pub(crate) fn stage(&self) -> &handshake_role_authority::domain::StageAckKey {
+        match self {
+            Self::Operator(intent) => &intent.stage,
+            Self::Validator(intent) => &intent.stage,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum RoleConsumptionCommand {
+    ReviewInvocation { operation_id: Uuid, selector: RoleEvidenceConsumeSelector },
+    AcknowledgeRoutingStage {
+        operation_id: Uuid,
+        selector: RoleEvidenceConsumeSelector,
+        execution_id: String,
+        stage_id: String,
+        message_id: String,
+        acknowledgement: RoutingStageAcknowledgementIntent,
+    },
+    RecordReviewCompletion {
+        operation_id: Uuid,
+        selector: RoleEvidenceConsumeSelector,
+        verdict: handshake_role_authority::domain::RecordValidatorVerdict,
+    },
+    ResolvePromotion {
+        operation_id: Uuid,
+        selectors: FinalPromotionAuthoritySelectors,
+        input: NewModelLanePromotionDecision,
+    },
+}
+
+impl RoleConsumptionCommand {
+    pub(crate) fn operation_id(&self) -> Uuid {
+        match self {
+            Self::ReviewInvocation { operation_id, .. }
+            | Self::AcknowledgeRoutingStage { operation_id, .. }
+            | Self::RecordReviewCompletion { operation_id, .. }
+            | Self::ResolvePromotion { operation_id, .. } => *operation_id,
+        }
+    }
+
+    pub(crate) fn evidence_selectors(&self) -> Vec<&RoleEvidenceConsumeSelector> {
+        match self {
+            Self::ReviewInvocation { selector, .. }
+            | Self::AcknowledgeRoutingStage { selector, .. }
+            | Self::RecordReviewCompletion { selector, .. } => vec![selector],
+            Self::ResolvePromotion { selectors, .. } => vec![&selectors.operator, &selectors.validator],
+        }
+    }
+}
+
+pub(crate) enum RoleConsumptionResult {
+    ReviewInvocation(handshake_role_authority::domain::RoleReceipt),
+    ReviewCompletion(handshake_role_authority::domain::RoleReceipt),
+    Promotion(ModelLanePromotionDecisionRecord),
+    RoutingStageAcknowledgement(super::routing_execution::ModelLaneRoutingExecutionState),
+}
+
+// Owned comparison data only; successful publication requires a fresh guarded reread.
+pub(crate) struct RoutingAuthorityCommitReadback {
+    operation_id: Uuid,
+    current_scope: ExactResourceScopeAttribution,
+    scope: SurrealModelLaneScope,
+    execution: SurrealModelLaneRoutingExecutionRow,
+    attempts: Vec<crate::storage::surreal::SurrealModelLaneRoutingAttemptRow>,
+    outbox: Vec<SurrealModelLaneRoutingOutboxRow>,
+}
+
+pub(crate) struct RoutingAuthorityCaptureInputs {
+    execution: super::routing_execution::ModelLaneRoutingExecutionState,
+    run: ModelLaneRunRecord,
+    stage_id: String,
+    request: ModelLaneMessageRecord,
+    response: ModelLaneMessageRecord,
+    artifact: ModelLaneContextBundleArtifactBindingRecord,
+}
+
+impl RoutingAuthorityCaptureInputs {
+    pub(crate) fn execution(&self) -> &super::routing_execution::ModelLaneRoutingExecutionState { &self.execution }
+    pub(crate) fn run(&self) -> &ModelLaneRunRecord { &self.run }
+    pub(crate) fn request(&self) -> &ModelLaneMessageRecord { &self.request }
+    pub(crate) fn response(&self) -> &ModelLaneMessageRecord { &self.response }
+    pub(crate) fn artifact(&self) -> &ModelLaneContextBundleArtifactBindingRecord { &self.artifact }
+
+    pub(crate) fn stage_ack_key(&self) -> ModelLaneResult<handshake_role_authority::domain::StageAckKey> {
+        let stage = self.execution.stages.get(&self.stage_id)
+            .ok_or_else(|| ModelLaneError::IntegrityViolation("canonical capture stage is unavailable".into()))?;
+        let reference = stage.authority_ref.as_deref()
+            .ok_or_else(|| ModelLaneError::AuthorityDenied("canonical stage has no prior authority reference".into()))?;
+        let prior_receipt_ref = handshake_role_authority::domain::RoleEvidenceRef::parse(reference)
+            .map_err(|error| ModelLaneError::InvalidInput(error.to_string()))?;
+        Ok(handshake_role_authority::domain::StageAckKey {
+            execution_id: self.execution.execution_id.clone(), stage_id: self.stage_id.clone(),
+            lane_id: self.response.from_lane_id.clone(),
+            authority_request_message_ref: self.request.message_id.clone(), prior_receipt_ref,
+            selecting_decision_id: Some(self.execution.selecting_decision_id.clone()),
+        })
+    }
+
+    pub(crate) fn expected_base(&self) -> handshake_role_authority::domain::ExpectedBase {
+        handshake_role_authority::domain::ExpectedBase {
+            aggregate_id: self.execution.execution_id.clone(), aggregate_version: self.execution.revision,
+            base_ref: None, base_vector_ref: None, schema_id: self.execution.schema_id.clone(),
+        }
+    }
+
+    pub(crate) fn subject(&self) -> ModelLaneResult<handshake_role_authority::domain::ArtifactSubject> {
+        let version = self.artifact.payload_json.get("artifact_version").and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| ModelLaneError::IntegrityViolation("canonical authority artifact has no version".into()))?;
+        Ok(handshake_role_authority::domain::ArtifactSubject {
+            artifact_ref: self.artifact.artifact_ref.clone(), manifest_ref: self.artifact.artifact_manifest_ref.clone(),
+            version: version.to_owned(),
+            sha256: handshake_role_authority::domain::ContentSha256::from_hex(&self.artifact.artifact_sha256)
+                .map_err(|error| ModelLaneError::IntegrityViolation(error.to_string()))?,
+        })
+    }
+}
 
 impl From<ModelLaneNavigationError> for ModelLaneError {
     fn from(error: ModelLaneNavigationError) -> Self {
@@ -553,6 +844,18 @@ impl ModelLaneStore {
             .map_err(Into::into)
     }
 
+    async fn promotion_provider(
+        &self,
+        transaction: Option<&crate::storage::surreal::SurrealTransactionContext<'_>>,
+    ) -> ModelLaneResult<&SurrealModelLaneStore> {
+        if transaction.is_some() {
+            self.provider.get().ok_or_else(|| ModelLaneError::IntegrityViolation(
+                "provided-transaction promotion requires the configured provider to be initialized".into()))
+        } else {
+            self.provider().await
+        }
+    }
+
     async fn cloud_authority(&self) -> ModelLaneResult<&CloudModelLaneStore> {
         let state = self.cloud_authority.schema_state().await?.ok_or_else(||
             ModelLaneError::AuthorityDenied("cloud schema metadata was not administratively prepared".into()))?;
@@ -582,19 +885,24 @@ impl ModelLaneStore {
         &self,
         execution_id: &str,
     ) -> ModelLaneResult<Option<super::routing_execution::ModelLaneRoutingExecutionState>> {
+        self.routing_execution_snapshot_with_transaction(execution_id, None).await
+    }
+
+    async fn routing_execution_snapshot_with_transaction(
+        &self,
+        execution_id: &str,
+        transaction: Option<&crate::storage::surreal::SurrealTransactionContext<'_>>,
+    ) -> ModelLaneResult<Option<super::routing_execution::ModelLaneRoutingExecutionState>> {
         let scope = self.surreal_read_scope("routing execution snapshot")?;
-        let provider = self.provider().await?;
-        let Some(row) = provider
-            .routing_execution_snapshot(execution_id, &scope)
+        let provider = self.promotion_provider(transaction).await?;
+        let Some(row) = promotion_query!(transaction, provider, routing_execution_snapshot, routing_execution_snapshot_in_transaction, execution_id, &scope)
             .await?
         else {
             return Ok(None);
         };
-        let attempts = provider
-            .routing_attempts_for_execution(execution_id, &scope)
+        let attempts = promotion_query!(transaction, provider, routing_attempts_for_execution, routing_attempts_for_execution_in_transaction, execution_id, &scope)
             .await?;
-        let outbox = provider
-            .routing_outbox_for_execution(execution_id, &scope)
+        let outbox = promotion_query!(transaction, provider, routing_outbox_for_execution, routing_outbox_for_execution_in_transaction, execution_id, &scope)
             .await?;
         routing_execution_from_surreal(row, attempts, &outbox).map(Some)
     }
@@ -832,6 +1140,33 @@ impl ModelLaneStore {
         Option<ModelLaneMessageRecord>,
         Option<ModelLaneContextBundleArtifactBindingRecord>,
     )> {
+        let (execution, message, binding, _) = self.commit_routing_atomic_with_transaction(
+            expected_revision, expected_claim, next_execution, changed_attempt, outbox_status,
+            message, binding, events, None).await?;
+        Ok((execution, message, binding))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn commit_routing_atomic_with_transaction(
+        &self,
+        expected_revision: u64,
+        expected_claim: Option<&super::routing_execution::ModelLaneRoutingStageClaim>,
+        next_execution: super::routing_execution::ModelLaneRoutingExecutionState,
+        changed_attempt: super::routing_execution::ModelLaneRoutingStageState,
+        outbox_status: &str,
+        message: Option<NewModelLaneMessage>,
+        binding: Option<NewModelLaneContextBundleArtifactBinding>,
+        events: Vec<NewKernelEvent>,
+        transaction: Option<&crate::storage::surreal::SurrealTransactionContext<'_>>,
+    ) -> ModelLaneResult<(
+        super::routing_execution::ModelLaneRoutingExecutionState,
+        Option<ModelLaneMessageRecord>,
+        Option<ModelLaneContextBundleArtifactBindingRecord>,
+        SurrealModelLaneRoutingExecutionRow,
+    )> {
+        if transaction.is_some() && (message.is_some() || binding.is_some()) {
+            return Err(ModelLaneError::InvalidInput("provided authority completion only commits existing canonical authority".into()));
+        }
         let expected_revision = i64::try_from(expected_revision).map_err(|_| {
             ModelLaneError::InvalidInput("routing revision exceeds durable integer range".into())
         })?;
@@ -851,9 +1186,8 @@ impl ModelLaneStore {
         if let (Some(message), Some(binding)) = (message.as_ref(), binding.as_ref()) {
             validate_message_payload_binding_pair(message, binding)?;
         }
-        let provider = self.provider().await?;
-        let existing_outbox = provider
-            .routing_outbox_for_execution(&next_execution.execution_id, &scope)
+        let provider = self.promotion_provider(transaction).await?;
+        let existing_outbox = promotion_query!(transaction, provider, routing_outbox_for_execution, routing_outbox_for_execution_in_transaction, &next_execution.execution_id, &scope)
             .await?;
         let command_id = format!(
             "routing-command:{}:{}:{}",
@@ -963,9 +1297,9 @@ impl ModelLaneStore {
             binding: binding_write,
             message_guard,
         };
-        provider.commit_routing_atomic(commit, &scope).await?;
+        let committed = promotion_query!(transaction, provider, commit_routing_atomic, commit_routing_atomic_in_transaction, commit, &scope).await?;
         let execution = self
-            .routing_execution_snapshot(&next_execution.execution_id)
+            .routing_execution_snapshot_with_transaction(&next_execution.execution_id, transaction)
             .await?
             .ok_or_else(|| {
                 ModelLaneError::IntegrityViolation(
@@ -1011,7 +1345,7 @@ impl ModelLaneStore {
         } else {
             None
         };
-        Ok((execution, stored_message, stored_binding))
+        Ok((execution, stored_message, stored_binding, committed))
     }
 
     fn surreal_write_scope(&self, operation: &str) -> ModelLaneResult<SurrealModelLaneScope> {
@@ -1899,14 +2233,23 @@ impl ModelLaneStore {
         &self, provider: &SurrealModelLaneStore, proposal: &SurrealModelLaneCrdtProposalRecord,
         update: &SurrealModelLaneCrdtUpdate, scope: &SurrealModelLaneScope,
     ) -> ModelLaneResult<Value> {
+        self.canonical_proposal_realization_with_transaction(provider, proposal, update, scope, None).await
+    }
+
+    async fn canonical_proposal_realization_with_transaction(
+        &self, provider: &SurrealModelLaneStore, proposal: &SurrealModelLaneCrdtProposalRecord,
+        update: &SurrealModelLaneCrdtUpdate, scope: &SurrealModelLaneScope,
+        transaction: Option<&crate::storage::surreal::SurrealTransactionContext<'_>>,
+    ) -> ModelLaneResult<Value> {
         if !matches!(proposal.review_state.as_str(), "approved" | "promoted") || proposal.decided_event_id.is_none() {
             return Err(crdt_authority_denied("proposal application requires canonical approval"));
         }
-        let (approval_sequence, update_sequence, persisted_evidence) = provider.crdt_proposal_application_links(proposal, update, scope).await?;
-        let snapshot = provider.crdt_proposal_base_snapshot(
+        let (approval_sequence, update_sequence, persisted_evidence) = promotion_query!(transaction, provider,
+            crdt_proposal_application_links, crdt_proposal_application_links_in_transaction, proposal, update, scope).await?;
+        let snapshot = promotion_query!(transaction, provider, crdt_proposal_base_snapshot, crdt_proposal_base_snapshot_in_transaction,
             &proposal.document_id, &proposal.crdt_document_id, proposal.base_update_seq, scope,
         ).await?;
-        let base_rows = provider.crdt_update_chain(
+        let base_rows = promotion_query!(transaction, provider, crdt_update_chain, crdt_update_chain_in_transaction,
             &proposal.document_id, &proposal.crdt_document_id, 0,
             proposal.base_update_seq, scope,
         ).await?;
@@ -1915,7 +2258,7 @@ impl ModelLaneStore {
             return Err(crdt_authority_denied("proposal canonical base sequence/vector is unavailable"));
         }
         validate_surreal_crdt_update_row(&base_rows[0], scope)?;
-        let seen: BTreeSet<String> = provider.crdt_seen_update_ids(
+        let seen: BTreeSet<String> = promotion_query!(transaction, provider, crdt_seen_update_ids, crdt_seen_update_ids_in_transaction,
             &proposal.document_id, &proposal.crdt_document_id, proposal.base_update_seq, scope,
         ).await?.into_iter().collect();
         let evidence = derive_crdt_proposal_application_evidence(
@@ -2413,6 +2756,299 @@ impl ModelLaneStore {
         launch: DexterityNormalizedLaunch,
     ) -> ModelLaneResult<(ModelLaneRunRecord, ModelLaneRecord)> {
         self.record_prepared_launch(launch.to_records()?).await
+    }
+
+    pub async fn approve_artifact(
+        &self,
+        bootstrap: &crate::AccountBootstrapState,
+        authorization: crate::storage::surreal::resource_authority::AuthorizationRequest,
+        request: ArtifactOperatorApprovalRequest,
+    ) -> ModelLaneResult<ArtifactOperatorApprovalRecord> {
+        match self.execute_owner_action(bootstrap, authorization,
+            WorkspaceOwnerActionCommand::IssueArtifactApproval(request)).await? {
+            WorkspaceOwnerActionResult::ArtifactApproval(receipt) => Ok(ArtifactOperatorApprovalRecord { receipt }),
+            _ => Err(ModelLaneError::IntegrityViolation("Owner action returned a different command result".into())),
+        }
+    }
+
+    pub async fn designate_validator_runner(
+        &self,
+        bootstrap: &crate::AccountBootstrapState,
+        authorization: crate::storage::surreal::resource_authority::AuthorizationRequest,
+        request: WorkspaceValidatorRunnerDesignationRequest,
+    ) -> ModelLaneResult<WorkspaceValidatorRunnerDesignationRecord> {
+        match self.execute_owner_action(bootstrap, authorization,
+            WorkspaceOwnerActionCommand::IssueRunnerDesignation(request)).await? {
+            WorkspaceOwnerActionResult::RunnerDesignation { request, event, content_hash } =>
+                Ok(WorkspaceValidatorRunnerDesignationRecord { request, event, content_hash }),
+            _ => Err(ModelLaneError::IntegrityViolation("Owner action returned a different command result".into())),
+        }
+    }
+
+    async fn execute_owner_action(
+        &self,
+        bootstrap: &crate::AccountBootstrapState,
+        authorization: crate::storage::surreal::resource_authority::AuthorizationRequest,
+        command: WorkspaceOwnerActionCommand,
+    ) -> ModelLaneResult<WorkspaceOwnerActionResult> {
+        use crate::storage::surreal::resource_authority::{RoleAuthorityAuthInput, ResourceAuthorityError};
+        if bootstrap.surreal.resource_access_lifecycle() != self.storage.resource_access_lifecycle() {
+            return Err(ModelLaneError::AuthorityDenied("Owner action storage association differs".into()));
+        }
+        self.surreal_write_scope("explicit workspace Owner action")?;
+        if self.access.exact_read_scope() != Some(command.claimed_scope()) {
+            return Err(ModelLaneError::AuthorityDenied("Owner action scope differs from configured store".into()));
+        }
+        let channel = authorization.channel_binding_hash.clone()
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| ModelLaneError::AuthorityDenied("Owner action requires its authenticated channel".into()))?;
+        let credentials = RoleAuthorityAuthInput::new(authorization.session_token.clone(), channel);
+        let map_error = |error| match error {
+            ResourceAuthorityError::Storage(error) => ModelLaneError::Surreal(error),
+            ResourceAuthorityError::Denied { .. } => ModelLaneError::AuthorityDenied("workspace Owner action denied".into()),
+            ResourceAuthorityError::InvalidInput(message) => ModelLaneError::InvalidInput(message.into()),
+            error @ ResourceAuthorityError::Entropy(_) => ModelLaneError::Surreal(error.into()),
+        };
+        let permit = bootstrap.surreal.capture_workspace_owner_action(
+            bootstrap, credentials, authorization, command).await.map_err(map_error)?;
+        self.storage.execute_workspace_owner_action(permit).await.map_err(map_error)
+    }
+
+    async fn execute_role_consumption(
+        &self,
+        bootstrap: &crate::AccountBootstrapState,
+        authorization: crate::storage::surreal::resource_authority::AuthorizationRequest,
+        command: RoleConsumptionCommand,
+    ) -> ModelLaneResult<RoleConsumptionResult> {
+        use crate::storage::surreal::resource_authority::{RoleAuthorityAuthInput, ResourceAuthorityError};
+        if bootstrap.surreal.resource_access_lifecycle() != self.storage.resource_access_lifecycle() {
+            return Err(ModelLaneError::AuthorityDenied("role consumption storage association differs".into()));
+        }
+        let current_scope = self.access.exact_read_scope().ok_or_else(||
+            ModelLaneError::AuthorityDenied("role consumption requires complete configured scope".into()))?;
+        let channel = authorization.channel_binding_hash.clone()
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| ModelLaneError::AuthorityDenied("role consumption requires its authenticated channel".into()))?;
+        let credentials = RoleAuthorityAuthInput::new(authorization.session_token.clone(), channel);
+        let map_error = |error| match error {
+            ResourceAuthorityError::Storage(error) => ModelLaneError::Surreal(error),
+            ResourceAuthorityError::Denied { .. } => ModelLaneError::AuthorityDenied("role consumption denied".into()),
+            ResourceAuthorityError::InvalidInput(message) => ModelLaneError::InvalidInput(message.into()),
+            error @ ResourceAuthorityError::Entropy(_) => ModelLaneError::Surreal(error.into()),
+        };
+        let permit = bootstrap.surreal.capture_role_authority_consumption(
+            bootstrap, credentials, authorization, command).await.map_err(map_error)?;
+        if permit.current_scope() != current_scope {
+            return Err(ModelLaneError::AuthorityDenied("role consumer differs from configured store".into()));
+        }
+        self.provider().await?;
+        self.storage.execute_role_consumption(permit, self.clone()).await
+    }
+
+    pub(crate) async fn complete_routing_authority_atomic(
+        &self,
+        permit: crate::storage::surreal::resource_authority::RoleAuthorityConsumptionPermit,
+        execution_id: String,
+        stage_id: String,
+        message_id: String,
+    ) -> ModelLaneResult<super::routing_execution::ModelLaneRoutingExecutionState> {
+        if !permit.matches_routing_stage(&execution_id, &stage_id, &message_id)
+            || self.access.exact_read_scope() != Some(permit.current_scope())
+        {
+            return Err(ModelLaneError::AuthorityDenied("routing acknowledgement differs from its captured command or consumer".into()));
+        }
+        self.surreal_write_scope("current routing authority completion")?;
+        self.provider().await?;
+        let result = self.storage.execute_role_consumption(permit, self.clone()).await?;
+        match result {
+            RoleConsumptionResult::RoutingStageAcknowledgement(execution)
+                if execution.execution_id == execution_id => Ok(execution),
+            _ => Err(ModelLaneError::IntegrityViolation("routing acknowledgement returned a different execution or command result".into())),
+        }
+    }
+
+    pub(crate) async fn read_routing_authority_capture_inputs_in_transaction(
+        &self,
+        provider: &SurrealModelLaneStore,
+        transaction: &crate::storage::surreal::SurrealTransactionContext<'_>,
+        seal: &crate::storage::surreal::resource_authority::RoutingAuthorityCaptureReadSeal<'_>,
+        execution_id: &str,
+        stage_id: &str,
+        response_message_id: &str,
+    ) -> ModelLaneResult<RoutingAuthorityCaptureInputs> {
+        if !seal.matches_transaction(transaction) || self.access.exact_read_scope() != Some(seal.current_scope()) {
+            return Err(ModelLaneError::AuthorityDenied("routing capture transaction or authenticated consumer differs".into()));
+        }
+        let scope = self.surreal_write_scope("authenticated routing authority capture")?;
+        let row = provider.routing_execution_snapshot_in_transaction(transaction, execution_id, &scope).await?
+            .ok_or_else(|| ModelLaneError::NotFound("canonical routing capture execution".into()))?;
+        let attempts = provider.routing_attempts_for_execution_in_transaction(transaction, execution_id, &scope).await?;
+        let outbox = provider.routing_outbox_for_execution_in_transaction(transaction, execution_id, &scope).await?;
+        let execution = routing_execution_from_surreal(row, attempts, &outbox)?;
+        let run = provider.get_in_transaction(transaction, SurrealRecordKind::Run, &execution.run_id, &scope).await?
+            .ok_or_else(|| ModelLaneError::NotFound("canonical routing capture run".into()))?;
+        provider.validate_event_link_in_transaction(transaction, SurrealRecordKind::Run, &run, &scope).await?;
+        let run = surreal_run_record(run)?;
+        if run.run_id != execution.run_id || run.trace_id != execution.trace_id
+            || run.coordinator_session_id != execution.coordinator_session_id
+            || run.owner_session != execution.owner_session
+            || run.work_packet_id.as_deref() != Some(execution.work_packet_id.as_str())
+            || run.micro_task_id != execution.micro_task_id
+            || run.task_board_id.as_deref() != Some(execution.task_board_id.as_str())
+        {
+            return Err(ModelLaneError::AuthorityDenied("canonical routing capture run differs from its execution".into()));
+        }
+        let stage = execution.stages.get(stage_id)
+            .ok_or_else(|| ModelLaneError::NotFound("canonical routing capture stage".into()))?;
+        if stage.state != super::routing_execution::ModelLaneRoutingStageStateKind::AwaitingAuthority {
+            return Err(ModelLaneError::AuthorityDenied("routing capture stage is not awaiting authority".into()));
+        }
+        let request_id = stage.authority_request_message_ref.as_deref()
+            .ok_or_else(|| ModelLaneError::AuthorityDenied("routing capture stage has no causal request".into()))?;
+        if request_id == response_message_id {
+            return Err(ModelLaneError::AuthorityDenied("routing response cannot alias its causal request".into()));
+        }
+        let request = provider.get_in_transaction(transaction, SurrealRecordKind::Message, request_id, &scope).await?
+            .ok_or_else(|| ModelLaneError::NotFound("canonical routing authority request".into()))?;
+        provider.validate_event_link_in_transaction(transaction, SurrealRecordKind::Message, &request, &scope).await?;
+        let request = surreal_message_record(request)?;
+        let response = provider.get_in_transaction(transaction, SurrealRecordKind::Message, response_message_id, &scope).await?
+            .ok_or_else(|| ModelLaneError::NotFound("canonical routing authority response".into()))?;
+        provider.validate_event_link_in_transaction(transaction, SurrealRecordKind::Message, &response, &scope).await?;
+        let response = surreal_message_record(response)?;
+        if request.run_id != execution.run_id || request.trace_id != execution.trace_id
+            || response.run_id != execution.run_id || response.trace_id != execution.trace_id
+            || response.coordinator_session_id != execution.coordinator_session_id
+            || response.owner_session != execution.owner_session
+            || response.work_packet_id.as_deref() != Some(execution.work_packet_id.as_str())
+            || response.micro_task_id != execution.micro_task_id
+            || response.task_board_id.as_deref() != Some(execution.task_board_id.as_str())
+            || stage.lane_id.as_deref() != Some(response.from_lane_id.as_str())
+            || response.routing.as_ref().and_then(|routing| routing.ack_for.as_deref()) != Some(request_id)
+        {
+            return Err(ModelLaneError::AuthorityDenied("canonical routing response differs from its causal stage or run".into()));
+        }
+        let mut artifacts = provider.find_by_term_in_transaction(transaction, SurrealRecordKind::ContextArtifact,
+            &format!("artifact_ref={}", response.payload_ref), &scope).await?;
+        if artifacts.len() != 1 {
+            return Err(ModelLaneError::IntegrityViolation("routing capture artifact must resolve exactly once".into()));
+        }
+        let artifact = artifacts.pop().expect("one canonical routing capture artifact");
+        provider.validate_event_link_in_transaction(transaction, SurrealRecordKind::ContextArtifact, &artifact, &scope).await?;
+        let artifact = surreal_context_bundle_artifact_record(artifact)?;
+        validate_context_bundle_artifact_binding(&artifact.inner)?;
+        if artifact.run_id != execution.run_id || artifact.trace_id != execution.trace_id
+            || artifact.artifact_ref != response.payload_ref
+            || artifact.artifact_sha256 != response.payload_sha256 || artifact.content_hash != response.payload_sha256
+        {
+            return Err(ModelLaneError::IntegrityViolation("routing capture artifact differs from its canonical response".into()));
+        }
+        Ok(RoutingAuthorityCaptureInputs { execution, run, stage_id: stage_id.to_owned(), request, response, artifact })
+    }
+
+    pub(crate) async fn complete_routing_authority_in_transaction(
+        &self,
+        transaction: &crate::storage::surreal::SurrealTransactionContext<'_>,
+        seal: &crate::storage::surreal::resource_authority::CurrentConsumerSeal<'_>,
+        prior: &crate::storage::surreal::TxCheckedRoleEvidence<'_>,
+        acknowledgement: &crate::storage::surreal::TxCheckedRoleEvidence<'_>,
+    ) -> ModelLaneResult<RoutingAuthorityCommitReadback> {
+        use handshake_role_authority::domain::{Purpose, Role};
+        let RoleConsumptionCommand::AcknowledgeRoutingStage {
+            selector, execution_id, stage_id, message_id, acknowledgement: intent, ..
+        } = seal.command() else {
+            return Err(ModelLaneError::AuthorityDenied("routing completion requires its captured acknowledgement".into()));
+        };
+        if !seal.matches_transaction(transaction)
+            || self.access.exact_read_scope() != Some(seal.current_scope())
+            || prior.consumer_scope() != seal.current_scope()
+            || acknowledgement.consumer_scope() != seal.current_scope()
+            || intent.claimed_scope() != seal.current_scope()
+        {
+            return Err(ModelLaneError::AuthorityDenied("routing acknowledgement transaction or current consumer differs".into()));
+        }
+        prior.require_matches(transaction, seal.operation_id(), selector)?;
+        acknowledgement.require_stage_ack(transaction, seal.operation_id(), selector, intent)?;
+        let scope = self.surreal_write_scope("protected routing authority completion")?;
+        let provider = self.promotion_provider(Some(transaction)).await?;
+        let execution = self.routing_execution_snapshot_with_transaction(execution_id, Some(transaction)).await?
+            .ok_or_else(|| ModelLaneError::NotFound("canonical routing execution".into()))?;
+        let stored_message = provider.get_in_transaction(transaction, SurrealRecordKind::Message, message_id, &scope).await?
+            .ok_or_else(|| ModelLaneError::NotFound("canonical routing authority message".into()))?;
+        provider.validate_event_link_in_transaction(transaction, SurrealRecordKind::Message, &stored_message, &scope).await?;
+        let message = surreal_message_record(stored_message)?;
+        self.validate_surreal_stored_crdt_binding_with_transaction(&message, &scope, Some(transaction)).await?;
+        let mut artifacts = provider.find_by_term_in_transaction(transaction, SurrealRecordKind::ContextArtifact,
+            &format!("artifact_ref={}", message.payload_ref), &scope).await?;
+        if artifacts.len() != 1 {
+            return Err(ModelLaneError::IntegrityViolation("routing authority artifact must resolve exactly once".into()));
+        }
+        let artifact = artifacts.pop().expect("one canonical routing authority artifact");
+        provider.validate_event_link_in_transaction(transaction, SurrealRecordKind::ContextArtifact, &artifact, &scope).await?;
+        let artifact = surreal_context_bundle_artifact_record(artifact)?;
+        let body = &acknowledgement.receipt().body;
+        let Purpose::StageAcknowledgement(stage_ack) = &body.purpose else {
+            return Err(ModelLaneError::AuthorityDenied("routing authority evidence is not a stage acknowledgement".into()));
+        };
+        let stage = execution.stages.get(stage_id)
+            .ok_or_else(|| ModelLaneError::NotFound("canonical routing authority stage".into()))?;
+        let role_matches = match message.authority {
+            ModelLaneAuthority::OperatorDecision => body.role == Role::Operator,
+            ModelLaneAuthority::ValidatorVerdict => body.role == Role::Validator,
+            _ => false,
+        };
+        if !role_matches || stage_ack.execution_id != *execution_id || stage_ack.stage_id != *stage_id
+            || stage_ack.lane_id != message.from_lane_id
+            || stage.authority_request_message_ref.as_deref() != Some(stage_ack.authority_request_message_ref.as_str())
+            || stage.authority_ref.as_deref() != Some(stage_ack.prior_receipt_ref.as_str())
+            || body.run.run_id != execution.run_id || body.run.trace_id != execution.trace_id
+            || body.run.coordinator_session_id != execution.coordinator_session_id
+            || body.run.owner_session != execution.owner_session
+            || body.run.work_packet_id != execution.work_packet_id
+            || execution.micro_task_id.as_deref() != Some(body.run.micro_task_id.as_str())
+            || body.run.task_board_id != execution.task_board_id
+            || body.expected.aggregate_id != execution.execution_id
+            || body.expected.aggregate_version != execution.revision
+            || body.expected.schema_id != execution.schema_id
+            || body.expected.base_ref.is_some() || body.expected.base_vector_ref.is_some()
+            || body.subject.artifact_ref != artifact.artifact_ref
+            || body.subject.manifest_ref != artifact.artifact_manifest_ref
+            || body.subject.sha256.to_hex() != artifact.artifact_sha256
+            || artifact.payload_json.get("artifact_version").and_then(Value::as_str)
+                .filter(|version| !version.is_empty()) != Some(body.subject.version.as_str())
+        {
+            return Err(ModelLaneError::AuthorityDenied("routing acknowledgement evidence differs from its canonical stage, run or subject".into()));
+        }
+        let projection = super::routing_execution::ModelLaneRoutingExecutionStore::project_authority_completion(
+            &execution, stage_id, message_id, &message, &artifact)?;
+        let (_, _, _, committed) = self.commit_routing_atomic_with_transaction(
+            projection.expected_revision, Some(&projection.claim), projection.next_execution,
+            projection.changed_attempt, "acked", None, None, projection.events, Some(transaction)).await?;
+        let attempts = provider.routing_attempts_for_execution_in_transaction(transaction, execution_id, &scope).await?;
+        let outbox = provider.routing_outbox_for_execution_in_transaction(transaction, execution_id, &scope).await?;
+        Ok(RoutingAuthorityCommitReadback {
+            operation_id: seal.operation_id(), current_scope: seal.current_scope().clone(),
+            scope, execution: committed, attempts, outbox,
+        })
+    }
+
+    pub(crate) async fn readback_routing_authority_commit(
+        &self,
+        publication: &crate::storage::surreal::resource_authority::RolePublicationGuard<'_>,
+        expected: &RoutingAuthorityCommitReadback,
+    ) -> ModelLaneResult<super::routing_execution::ModelLaneRoutingExecutionState> {
+        if publication.operation_id() != expected.operation_id
+            || publication.current_scope() != &expected.current_scope
+            || self.access.exact_read_scope() != Some(&expected.current_scope)
+        {
+            return Err(ModelLaneError::AuthorityDenied("routing readback differs from its protected current consumer".into()));
+        }
+        let provider = self.provider.get().ok_or_else(|| ModelLaneError::IntegrityViolation(
+            "routing readback requires its initialized configured provider".into()))?;
+        let (execution, attempts, outbox) = provider.readback_routing_commit(
+            publication, expected.operation_id, &expected.scope, &expected.execution,
+            &expected.attempts, &expected.outbox).await?;
+        routing_execution_from_surreal(execution, attempts, &outbox)
     }
 
     pub(crate) async fn record_authenticated_creation(
@@ -3282,6 +3918,13 @@ impl ModelLaneStore {
     async fn validate_surreal_stored_crdt_binding(
         &self, message: &ModelLaneMessageRecord, scope: &SurrealModelLaneScope,
     ) -> ModelLaneResult<()> {
+        self.validate_surreal_stored_crdt_binding_with_transaction(message, scope, None).await
+    }
+
+    async fn validate_surreal_stored_crdt_binding_with_transaction(
+        &self, message: &ModelLaneMessageRecord, scope: &SurrealModelLaneScope,
+        transaction: Option<&crate::storage::surreal::SurrealTransactionContext<'_>>,
+    ) -> ModelLaneResult<()> {
         use crate::storage::surreal::{NavigationMessageInput, NavigationLaneInput};
         let input = NavigationMessageInput {
             source_kind: "message".into(), message_id: message.message_id.clone(), source_event_id: None, source_event_seq: None, run_id: message.run_id.clone(),
@@ -3291,14 +3934,14 @@ impl ModelLaneStore {
             crdt_stale_base_ref: message.crdt_stale_base_ref.clone(), binding: message.crdt_authority_binding.clone(),
         };
         if !model_lane_message_has_crdt_authority(&message.inner) && input.binding.is_none() { return Ok(()); }
-        let provider = self.provider().await?;
-        let lane = provider.get(SurrealRecordKind::Lane, &message.from_lane_id, scope).await?
+        let provider = self.promotion_provider(transaction).await?;
+        let lane = promotion_query!(transaction, provider, get, get_in_transaction, SurrealRecordKind::Lane, &message.from_lane_id, scope).await?
             .ok_or_else(|| crdt_authority_denied("stored CRDT source lane is unavailable"))
             .and_then(surreal_lane_record)?;
         let lane = NavigationLaneInput { source_kind: "lane".into(), lane_id: lane.lane_id.clone(),
             run_id: lane.run_id.clone(), session_id: lane.session_id.clone(), model_session_id: lane.model_session_id.clone(),
             trace_id: lane.trace_id.clone(), kind: lane.kind.as_str().into() };
-        self.validate_stored_crdt_inputs(&input, &lane, scope).await
+        self.validate_stored_crdt_inputs_with_transaction(&input, &lane, scope, transaction).await
     }
 
     // Both ordinary canonical records and the restricted NavigationRead acquisition
@@ -3306,6 +3949,14 @@ impl ModelLaneStore {
     async fn validate_stored_crdt_inputs(
         &self, message: &crate::storage::surreal::NavigationMessageInput,
         lane: &crate::storage::surreal::NavigationLaneInput, scope: &SurrealModelLaneScope,
+    ) -> ModelLaneResult<()> {
+        self.validate_stored_crdt_inputs_with_transaction(message, lane, scope, None).await
+    }
+
+    async fn validate_stored_crdt_inputs_with_transaction(
+        &self, message: &crate::storage::surreal::NavigationMessageInput,
+        lane: &crate::storage::surreal::NavigationLaneInput, scope: &SurrealModelLaneScope,
+        transaction: Option<&crate::storage::surreal::SurrealTransactionContext<'_>>,
     ) -> ModelLaneResult<()> {
         let has_crdt = message.crdt_update_ref.is_some() || message.crdt_base_snapshot_ref.is_some()
             || message.crdt_state_vector.is_some() || message.crdt_proposal_ref.is_some() || message.crdt_stale_base_ref.is_some();
@@ -3321,14 +3972,12 @@ impl ModelLaneStore {
             || message.crdt_proposal_ref != binding.crdt_proposal_ref || message.crdt_stale_base_ref.is_some() {
             return Err(crdt_authority_denied("stored CRDT source metadata differs from its canonical binding"));
         }
-        let provider = self.provider().await?;
-        let update = provider
-            .crdt_update_by_ref(&binding.update_bytes_ref, scope)
+        let provider = self.promotion_provider(transaction).await?;
+        let update = promotion_query!(transaction, provider, crdt_update_by_ref, crdt_update_by_ref_in_transaction, &binding.update_bytes_ref, scope)
             .await?
             .ok_or_else(|| crdt_authority_denied("stored CRDT update authority is unavailable"))?;
         validate_surreal_crdt_update_row(&update, scope)?;
-        let snapshot = provider
-            .crdt_snapshot_by_ref(&binding.base_snapshot_ref, scope)
+        let snapshot = promotion_query!(transaction, provider, crdt_snapshot_by_ref, crdt_snapshot_by_ref_in_transaction, &binding.base_snapshot_ref, scope)
             .await?
             .ok_or_else(|| {
                 crdt_authority_denied("stored CRDT snapshot authority is unavailable")
@@ -3364,7 +4013,7 @@ impl ModelLaneStore {
                 message.message_id
             )));
         }
-        let chain = provider.crdt_update_chain(&update.document_id, &update.crdt_document_id,
+        let chain = promotion_query!(transaction, provider, crdt_update_chain, crdt_update_chain_in_transaction, &update.document_id, &update.crdt_document_id,
             snapshot.covered_update_seq, update.update_seq, scope).await?;
         let count = update.update_seq.checked_sub(snapshot.covered_update_seq)
             .and_then(|value| usize::try_from(value).ok())
@@ -3372,7 +4021,7 @@ impl ModelLaneStore {
         if snapshot.covered_update_seq >= update.update_seq || chain.len() != count {
             return Err(crdt_authority_denied("stored CRDT replay chain is not contiguous"));
         }
-        let seen = provider.crdt_seen_update_ids(&update.document_id, &update.crdt_document_id,
+        let seen = promotion_query!(transaction, provider, crdt_seen_update_ids, crdt_seen_update_ids_in_transaction, &update.document_id, &update.crdt_document_id,
             snapshot.covered_update_seq, scope).await?.into_iter().collect();
         let materialized = materialize_canonical_crdt_records(&snapshot, &chain, &update, scope, seen, None)?;
         let vector = base64::engine::general_purpose::STANDARD
@@ -3382,8 +4031,7 @@ impl ModelLaneStore {
             || dexterity_sha256_hex(&projection) != binding.materialized_projection_hash {
             return Err(crdt_authority_denied("stored CRDT binding differs from fresh canonical Yjs realization"));
         }
-        let lease = provider
-            .crdt_lease_history(
+        let lease = promotion_query!(transaction, provider, crdt_lease_history, crdt_lease_history_in_transaction,
                 &binding.lease_id,
                 &binding.document_id,
                 &binding.crdt_document_id,
@@ -3396,11 +4044,10 @@ impl ModelLaneStore {
             let proposal_id = proposal_ref
                 .strip_prefix("crdt-proposal://")
                 .ok_or_else(|| crdt_authority_denied("stored CRDT proposal ref is malformed"))?;
-            let proposal = provider
-                .crdt_proposal_record(proposal_id, scope)
+            let proposal = promotion_query!(transaction, provider, crdt_proposal_record, crdt_proposal_record_in_transaction, proposal_id, scope)
                 .await?
                 .ok_or_else(|| crdt_authority_denied("stored CRDT proposal is unavailable"))?;
-            self.canonical_proposal_realization(provider, &proposal, &update, scope).await?;
+            self.canonical_proposal_realization_with_transaction(provider, &proposal, &update, scope, transaction).await?;
             if proposal.owner_account_id != scope.owner_account_id
                 || proposal.actor_principal_id != scope.actor_principal_id
                 || proposal.authenticated_session_id != scope.authenticated_session_id
@@ -3721,9 +4368,10 @@ impl ModelLaneStore {
         scope: &SurrealModelLaneScope,
         exact_scope: &ExactResourceScopeAttribution,
         mut input: NewModelLanePromotionDecision,
+        transaction: Option<&crate::storage::surreal::SurrealTransactionContext<'_>>,
+        subject: &handshake_role_authority::domain::ArtifactSubject,
     ) -> ModelLaneResult<ModelLanePromotionDecisionRecord> {
-        provider
-            .get(SurrealRecordKind::Run, &input.run_id, scope)
+        promotion_query!(transaction, provider, get, get_in_transaction, SurrealRecordKind::Run, &input.run_id, scope)
             .await?
             .ok_or_else(|| ModelLaneError::NotFound("PromotionGate run authority".into()))
             .and_then(surreal_run_record)?;
@@ -3753,8 +4401,7 @@ impl ModelLaneStore {
         let mut denial_reason = None;
         for reference in &canonical_input_refs {
             let message_id = message_id_from_ref("input_refs[]", reference)?;
-            let record = match provider
-                .get(SurrealRecordKind::Message, &message_id, scope)
+            let record = match promotion_query!(transaction, provider, get, get_in_transaction, SurrealRecordKind::Message, &message_id, scope)
                 .await?
             {
                 // Promotion may only admit an input whose durable row is linked to its
@@ -3764,8 +4411,7 @@ impl ModelLaneStore {
                 // EventLedger atomicity requirement exists to prevent. Fail closed, as replay
                 // does, rather than degrading to an input-ref mismatch.
                 Some(stored) => {
-                    provider
-                        .validate_event_link(SurrealRecordKind::Message, &stored, scope)
+                    promotion_query!(transaction, provider, validate_event_link, validate_event_link_in_transaction, SurrealRecordKind::Message, &stored, scope)
                         .await?;
                     Some(surreal_message_record(stored)?)
                 }
@@ -3779,7 +4425,7 @@ impl ModelLaneStore {
                             ModelLaneAuthority::Advisory | ModelLaneAuthority::PromotionCandidate
                         ) =>
                 {
-                    self.validate_surreal_stored_crdt_binding(&record, scope)
+                    self.validate_surreal_stored_crdt_binding_with_transaction(&record, scope, transaction)
                         .await?;
                     records_by_ref.insert(reference.clone(), record);
                 }
@@ -3848,7 +4494,7 @@ impl ModelLaneStore {
             == "model_lane_message"
             && expected_record.is_some();
         let artifact_matches = self
-            .promotion_artifact_binding_matches_surreal(provider, scope, &input)
+            .promotion_artifact_binding_matches_surreal(provider, scope, &input, transaction, subject)
             .await?;
         let denial_reason = if let Some(reason) = denial_reason {
             Some(reason)
@@ -3869,7 +4515,7 @@ impl ModelLaneStore {
             Some(ModelLanePromotionDenialReason::StaleStateVector)
         } else if input.direct_authority_mutation_attempt_ref.is_some() {
             Some(ModelLanePromotionDenialReason::DirectAuthorityMutation)
-        } else if input.validator_authority_ref.is_none() && input.operator_authority_ref.is_none()
+        } else if input.validator_authority_ref.is_none() || input.operator_authority_ref.is_none()
         {
             Some(ModelLanePromotionDenialReason::MissingPromotionAuthority)
         } else if missing_promoted_artifact_binding(&input) || !artifact_matches {
@@ -3920,6 +4566,8 @@ impl ModelLaneStore {
         provider: &SurrealModelLaneStore,
         scope: &SurrealModelLaneScope,
         input: &NewModelLanePromotionDecision,
+        transaction: Option<&crate::storage::surreal::SurrealTransactionContext<'_>>,
+        subject: &handshake_role_authority::domain::ArtifactSubject,
     ) -> ModelLaneResult<bool> {
         let (Some(artifact_ref), Some(artifact_sha256), Some(artifact_version)) = (
             input.promoted_artifact_ref.as_deref(),
@@ -3928,8 +4576,7 @@ impl ModelLaneStore {
         ) else {
             return Ok(false);
         };
-        let rows = provider
-            .find_by_term(
+        let rows = promotion_query!(transaction, provider, find_by_term, find_by_term_in_transaction,
                 SurrealRecordKind::ContextArtifact,
                 &format!("artifact_ref={artifact_ref}"),
                 scope,
@@ -3938,10 +4585,13 @@ impl ModelLaneStore {
         if rows.len() != 1 || rows[0].run_id != input.run_id {
             return Ok(false);
         }
+        promotion_query!(transaction, provider, validate_event_link, validate_event_link_in_transaction,
+            SurrealRecordKind::ContextArtifact, &rows[0], scope).await?;
         let binding: NewModelLaneContextBundleArtifactBinding =
             serde_json::from_str(&rows[0].record_json)?;
         validate_context_bundle_artifact_binding(&binding)?;
-        Ok(binding.artifact_sha256 == artifact_sha256
+        Ok(binding.artifact_manifest_ref == subject.manifest_ref
+            && binding.artifact_sha256 == artifact_sha256
             && binding.content_hash == artifact_sha256
             && binding
                 .payload_json
@@ -3952,8 +4602,83 @@ impl ModelLaneStore {
 
     pub async fn record_promotion_decision(
         &self,
+        bootstrap: &crate::AccountBootstrapState,
+        authorization: crate::storage::surreal::resource_authority::AuthorizationRequest,
+        operation_id: Uuid,
+        selectors: FinalPromotionAuthoritySelectors,
         input: NewModelLanePromotionDecision,
     ) -> ModelLaneResult<ModelLanePromotionDecisionRecord> {
+        validate_final_promotion_authority_selectors(&selectors, &input)?;
+        match self.execute_role_consumption(bootstrap, authorization,
+            RoleConsumptionCommand::ResolvePromotion { operation_id, selectors, input }).await? {
+            RoleConsumptionResult::Promotion(record) => Ok(record),
+            _ => Err(ModelLaneError::IntegrityViolation("final promotion returned a different command result".into())),
+        }
+    }
+
+    pub(crate) async fn record_promotion_decision_in_transaction(
+        &self,
+        transaction: &crate::storage::surreal::SurrealTransactionContext<'_>,
+        seal: &crate::storage::surreal::resource_authority::CurrentConsumerSeal<'_>,
+        operator: &crate::storage::surreal::TxCheckedRoleEvidence<'_>,
+        validator: &crate::storage::surreal::TxCheckedRoleEvidence<'_>,
+        input: NewModelLanePromotionDecision,
+    ) -> ModelLaneResult<ModelLanePromotionDecisionRecord> {
+        let RoleConsumptionCommand::ResolvePromotion { selectors, input: captured, .. } = seal.command() else {
+            return Err(ModelLaneError::AuthorityDenied("final promotion requires its captured final command".into()));
+        };
+        if !seal.matches_transaction(transaction) || captured != &input
+            || self.access.exact_read_scope() != Some(seal.current_scope())
+            || operator.consumer_scope() != seal.current_scope()
+            || validator.consumer_scope() != seal.current_scope()
+        {
+            return Err(ModelLaneError::AuthorityDenied("final promotion transaction or current consumer differs".into()));
+        }
+        validate_final_promotion_authority_selectors(selectors, &input)?;
+        operator.require_matches(transaction, seal.operation_id(), &selectors.operator)?;
+        validator.require_matches(transaction, seal.operation_id(), &selectors.validator)?;
+        operator.require_promotion_input(&input)?;
+        validator.require_promotion_input(&input)?;
+        self.record_promotion_decision_in_authorized_transaction(input, transaction, selectors).await
+    }
+
+    pub(crate) async fn readback_promotion_decision(
+        &self,
+        publication: &crate::storage::surreal::resource_authority::RolePublicationGuard<'_>,
+        operation_id: Uuid,
+        expected: &ModelLanePromotionDecisionRecord,
+    ) -> ModelLaneResult<ModelLanePromotionDecisionRecord> {
+        publication.require_unexpired()?;
+        let exact = self.access.exact_read_scope().ok_or_else(||
+            ModelLaneError::AuthorityDenied("final promotion readback requires complete configured scope".into()))?;
+        if publication.operation_id() != operation_id || publication.current_scope() != exact {
+            return Err(ModelLaneError::AuthorityDenied("final promotion readback differs from its protected command or current consumer".into()));
+        }
+        let scope = self.surreal_read_scope("protected final promotion readback")?;
+        let provider = self.provider.get().ok_or_else(|| ModelLaneError::IntegrityViolation(
+            "final promotion readback requires its initialized configured provider".into()))?;
+        let before = provider.get(SurrealRecordKind::PromotionDecision, &expected.decision_id, &scope).await?
+            .ok_or_else(|| ModelLaneError::IntegrityViolation("canonical committed promotion decision is unavailable".into()))?;
+        provider.validate_event_link(SurrealRecordKind::PromotionDecision, &before, &scope).await?;
+        let observed = surreal_promotion_record(before)?;
+        validate_surreal_promotion_record_authority(&observed, exact)?;
+        let after = provider.get(SurrealRecordKind::PromotionDecision, &expected.decision_id, &scope).await?
+            .ok_or_else(|| ModelLaneError::IntegrityViolation("canonical committed promotion decision disappeared during readback".into()))?;
+        let after = surreal_promotion_record(after)?;
+        if &observed != expected || observed != after {
+            return Err(ModelLaneError::IntegrityViolation("canonical promotion readback differs from the actual committed result".into()));
+        }
+        publication.require_unexpired()?;
+        Ok(observed)
+    }
+
+    async fn record_promotion_decision_in_authorized_transaction(
+        &self,
+        input: NewModelLanePromotionDecision,
+        transaction: &crate::storage::surreal::SurrealTransactionContext<'_>,
+        selectors: &FinalPromotionAuthoritySelectors,
+    ) -> ModelLaneResult<ModelLanePromotionDecisionRecord> {
+        let transaction = Some(transaction);
         let scope = self.surreal_write_scope("PromotionGate decision write")?;
         let exact_scope = self.access.exact_read_scope().ok_or_else(|| {
             ModelLaneError::AuthorityDenied(
@@ -3974,13 +4699,15 @@ impl ModelLaneStore {
             }),
         );
         validate_promotion_decision(&input)?;
-        let provider = self.provider().await?;
+        let provider = self.promotion_provider(transaction).await?;
         let prepared = self
-            .prepare_promotion_decision_surreal(provider, &scope, exact_scope, input)
+            .prepare_promotion_decision_surreal(provider, &scope, exact_scope, input, transaction,
+                &selectors.operator.expectation.subject)
             .await?;
+        let positive_bindings_match = prepared.outcome != ModelLanePromotionOutcome::Approved
+            || final_promotion_positive_binding_matches(selectors, &prepared.inner);
         let idempotency_term = format!("idempotency_key={}", prepared.idempotency_key);
-        let existing = provider
-            .find_by_term(
+        let existing = promotion_query!(transaction, provider, find_by_term, find_by_term_in_transaction,
                 SurrealRecordKind::PromotionDecision,
                 &idempotency_term,
                 &scope,
@@ -3996,6 +4723,9 @@ impl ModelLaneStore {
             let existing = surreal_promotion_record(existing)?;
             validate_surreal_promotion_record_authority(&existing, exact_scope)?;
             if existing.canonical_decision_hash == prepared.canonical_decision_hash {
+                if !positive_bindings_match {
+                    return Err(ModelLaneError::AuthorityDenied("approved final promotion differs from its canonical role bindings".into()));
+                }
                 return Ok(existing);
             }
             return Err(ModelLaneError::IdempotencyConflict(format!(
@@ -4003,8 +4733,7 @@ impl ModelLaneStore {
                 prepared.idempotency_key, existing.canonical_decision_hash
             )));
         }
-        if let Some(existing) = provider
-            .get(
+        if let Some(existing) = promotion_query!(transaction, provider, get, get_in_transaction,
                 SurrealRecordKind::PromotionDecision,
                 &prepared.decision_id,
                 &scope,
@@ -4014,6 +4743,9 @@ impl ModelLaneStore {
             let existing = surreal_promotion_record(existing)?;
             validate_surreal_promotion_record_authority(&existing, exact_scope)?;
             if existing.canonical_decision_hash == prepared.canonical_decision_hash {
+                if !positive_bindings_match {
+                    return Err(ModelLaneError::AuthorityDenied("approved final promotion differs from its canonical role bindings".into()));
+                }
                 return Ok(existing);
             }
             return Err(ModelLaneError::IdempotencyConflict(format!(
@@ -4021,15 +4753,18 @@ impl ModelLaneStore {
                 prepared.decision_id, existing.idempotency_key
             )));
         }
+        if !positive_bindings_match {
+            return Err(ModelLaneError::AuthorityDenied("approved final promotion differs from its canonical role bindings".into()));
+        }
         let event_payload_json =
             scoped_surreal_event_payload("hsk.model_lane_promotion_decision@1", &prepared, &scope)?;
-        let stored = provider
-            .put_immutable(
+        let record_json = serde_json::to_string(&prepared)?;
+        let stored = promotion_query!(transaction, provider, put_immutable, put_immutable_in_transaction,
                 SurrealRecordKind::PromotionDecision,
                 &prepared.decision_id,
                 &prepared.run_id,
                 &prepared.idempotency_key,
-                serde_json::to_string(&prepared)?,
+                record_json,
                 promotion_search_terms(&prepared),
                 event_payload_json,
                 &scope,
@@ -4941,6 +5676,96 @@ impl ModelLaneStore {
         surreal_lane_record(stored)
     }
 
+    pub(crate) async fn original_run_create_canonical_set(
+        &self,
+        expected: &NewModelLaneRun,
+    ) -> ModelLaneResult<ModelLaneRunCanonicalSet> {
+        crate::storage::surreal::with_model_lane_operation(
+            crate::storage::surreal::ContextCoordinationPurpose::SourceRead,
+            async {
+                require_token("run_id", &expected.run_id)?;
+                let scope = self.surreal_read_scope("observe original ModelLane RunCreate canonical set")?;
+                let provider = self.provider().await?;
+                let (scope_records, ordered_ledger) = provider
+                    .original_run_create_canonical_records(&scope)
+                    .await?
+                    .into_parts();
+                let mut result = ModelLaneRunCanonicalSet {
+                    run: None,
+                    other_runs: Vec::new(),
+                    lanes: Vec::new(),
+                    messages: Vec::new(),
+                    checkpoints: Vec::new(),
+                    recovery_events: Vec::new(),
+                    leases: Vec::new(),
+                    ordered_ledger: ordered_ledger.into_iter().map(|event| ModelLaneRunCanonicalLedgerEntry {
+                        event_id: event.event_id,
+                        event_seq: event.event_seq,
+                        event_stream_version: event.event_stream_version,
+                        transaction_seq: event.transaction_seq,
+                        aggregate_id: event.aggregate_id,
+                        run_id: event.run_id,
+                        session_run_id: event.session_run_id,
+                        kernel_task_run_id: event.kernel_task_run_id,
+                        payload_hash: event.payload_hash,
+                        event_payload_json: event.event_payload_json,
+                    }).collect(),
+                    scope_records,
+                };
+                for (kind, stored) in &result.scope_records {
+                    let target = stored.run_id == expected.run_id;
+                    if target {
+                        provider.validate_event_link(kind.clone(), stored, &scope).await?;
+                    }
+                    match kind {
+                        SurrealRecordKind::Run => {
+                            let run = surreal_run_record(stored.clone())?;
+                            if run.run_id != stored.run_id || run.run_id != stored.aggregate_id {
+                                return Err(ModelLaneError::IntegrityViolation(
+                                    "canonical RunCreate run envelope differs from decoded identity".into(),
+                                ));
+                            }
+                            if run.run_id == expected.run_id {
+                                if run.inner != *expected {
+                                    return Err(ModelLaneError::IntegrityViolation(
+                                        "canonical RunCreate record differs from expected input".into(),
+                                    ));
+                                }
+                                if result.run.replace(run).is_some() {
+                                    return Err(ModelLaneError::IntegrityViolation(
+                                        "canonical RunCreate run identity is ambiguous".into(),
+                                    ));
+                                }
+                            } else {
+                                result.other_runs.push(run);
+                            }
+                        }
+                        SurrealRecordKind::Lane => result.lanes.push(surreal_lane_record(stored.clone())?),
+                        SurrealRecordKind::Message => {
+                            let message = surreal_message_record(stored.clone())?;
+                            if target {
+                                self.validate_surreal_stored_message_authority(&message, &scope).await?;
+                            }
+                            result.messages.push(message);
+                        }
+                        SurrealRecordKind::RecoveryCheckpoint => {
+                            result.checkpoints.push(surreal_recovery_checkpoint_record(stored.clone())?);
+                        }
+                        SurrealRecordKind::RecoveryEvent => {
+                            result.recovery_events.push(surreal_recovery_event_record(stored.clone())?);
+                        }
+                        SurrealRecordKind::Lease => result.leases.push(surreal_lease_record(stored.clone())?),
+                        _ => return Err(ModelLaneError::IntegrityViolation(
+                            "canonical RunCreate set contains an unexpected source family".into(),
+                        )),
+                    }
+                }
+                self.surreal_read_scope("finish original ModelLane RunCreate canonical set observation")?;
+                Ok(result)
+            },
+        ).await
+    }
+
     /// Replay one run. This is the widest ModelLane read funnel — transcript,
     /// diagnostics, palmistry, and all eight navigation routes reach durable
     /// rows through here — so it is the primary HBR-PRIV-002 chokepoint.
@@ -5471,8 +6296,26 @@ impl ModelLaneStore {
         let scope = self.surreal_read_scope("navigate ModelLane")?;
         let provider = self.provider().await?.clone();
         let store = self.clone(); let route_id = route_id.to_owned(); let selected = selector.clone();
-        provider.with_navigation_read_transaction(scope.clone(), selector, move || async move {
-            store.navigation_selected_source(&route_id, &selected, &scope).await
+        provider.with_navigation_read_transaction(scope.clone(), selector, move |memory_packs| async move {
+            let mut verified_memory_packs = BTreeMap::new();
+            for witness in memory_packs {
+                let pack = witness.memory_pack();
+                if witness.run_id().trim().is_empty() || witness.source_event_id().trim().is_empty()
+                    || witness.source_event_seq() < 1
+                    || pack.pack_id != witness.memory_pack_ref()
+                    || pack.memory_pack_hash != witness.memory_pack_hash()
+                    || validate_run_memory_pack(witness.memory_pack_ref(), witness.memory_pack_hash()).is_err()
+                {
+                    return Err(crdt_authority_denied("navigation memory pack witness identity is invalid"));
+                }
+                let key = (witness.run_id().to_owned(), witness.source_event_id().to_owned(), witness.source_event_seq());
+                if verified_memory_packs.insert(key, ModelLaneNavigationMemoryPack {
+                    reference: pack.pack_id.clone(), hash: pack.memory_pack_hash.clone(),
+                }).is_some() {
+                    return Err(crdt_authority_denied("navigation memory pack source receipt is ambiguous"));
+                }
+            }
+            store.navigation_selected_source(&route_id, &selected, &scope, verified_memory_packs).await
         }).await
     }
     async fn validate_navigation_message_input(&self, input: &crate::storage::surreal::NavigationMessageInput,
@@ -5494,12 +6337,45 @@ impl ModelLaneStore {
         }
         Ok(())
     }
-    async fn navigation_selected_source(&self, route_id: &str, selector: &crate::storage::surreal::NavigationReadSelector, scope: &SurrealModelLaneScope) -> ModelLaneResult<ModelLaneNavigationProjection> {
+    async fn navigation_selected_source(&self, route_id: &str, selector: &crate::storage::surreal::NavigationReadSelector, scope: &SurrealModelLaneScope,
+        mut memory_packs: BTreeMap<(String, String, i64), ModelLaneNavigationMemoryPack>) -> ModelLaneResult<ModelLaneNavigationProjection> {
         let provider = self.provider().await?;
         let mut rows = Vec::new();
         for kind in MODEL_LANE_NAVIGATION_RECORD_KINDS {
             rows.extend(provider.navigation_scalar_rows(scope, *kind, selector.run_id.as_deref()).await?);
         }
+        let mut micro_task_ids = BTreeMap::new();
+        let mut authorized_run_memory_packs = BTreeMap::new();
+        let mut validated_rows = Vec::with_capacity(rows.len());
+        for row in rows {
+            if row.record_kind == "run" {
+                let Some(input) = provider.navigation_run_input(scope, &row).await? else {
+                    continue;
+                };
+                if input.run_id != row.run_id || row.aggregate_id != row.run_id {
+                    return Err(crdt_authority_denied("navigation memory pack run input differs from canonical identity"));
+                }
+                let key = (input.run_id, input.source_event_id, input.source_event_seq);
+                if let Some(memory_pack) = memory_packs.remove(&key) {
+                    if memory_pack.reference == input.memory_pack_ref && memory_pack.hash == input.memory_pack_hash {
+                        authorized_run_memory_packs.insert(key, memory_pack);
+                    }
+                }
+            }
+            if row.record_kind == "mt_runtime_status" {
+                let Some(input) = provider.navigation_mt_runtime_input(scope, &row).await? else {
+                    continue;
+                };
+                if require_token("micro_task_id", &input.micro_task_id).is_err() {
+                    continue;
+                }
+                micro_task_ids.insert(
+                    (row.record_kind.clone(), row.aggregate_id.clone()), input.micro_task_id,
+                );
+            }
+            validated_rows.push(row);
+        }
+        let mut rows = validated_rows;
         let mut document_witnesses = BTreeSet::new();
         let mut omitted_messages = BTreeSet::new();
         for row in rows.iter().filter(|row| row.record_kind == "message") {
@@ -5524,6 +6400,7 @@ impl ModelLaneStore {
             }
         }
         let mut omitted_children = BTreeSet::new();
+        let mut artifact_aliases = BTreeMap::new();
         for row in rows.iter().filter(|row| matches!(row.record_kind.as_str(), "context_handoff" | "context_artifact")) {
             let Some(context) = provider.navigation_context_inputs(scope, row).await? else {
                 omitted_children.insert((row.record_kind.clone(), row.aggregate_id.clone())); continue;
@@ -5551,6 +6428,36 @@ impl ModelLaneStore {
                     Err(ModelLaneError::AuthorityDenied(_)) => { unresolved = true; break; },
                     Err(error) => return Err(error),
                 }
+            }
+            if !unresolved && row.record_kind == "context_artifact" {
+                let valid = context.artifact.as_ref().is_some_and(|artifact| {
+                    let Ok(payload) = serde_json::from_str::<Value>(&artifact.payload_json) else {
+                        return false;
+                    };
+                    if validate_context_artifact_content(
+                        &artifact.artifact_ref, &artifact.artifact_sha256, &artifact.content_hash,
+                        &artifact.artifact_manifest_ref, &artifact.artifact_payload_ref, &payload,
+                    ).is_err() || (selector.lookup_kind == "artifact_ref" && ![
+                        artifact.artifact_ref.as_str(), artifact.artifact_binding_id.as_str(),
+                        artifact.artifact_manifest_ref.as_str(), artifact.artifact_payload_ref.as_str(),
+                        artifact.artifact_sha256.as_str(), artifact.content_hash.as_str(),
+                    ].contains(&selector.lookup_ref.as_str())) {
+                        return false;
+                    }
+                    artifact_aliases.insert(
+                        (row.record_kind.clone(), row.aggregate_id.clone()),
+                        ModelLaneNavigationArtifactAliases {
+                            artifact_ref: artifact.artifact_ref.clone(),
+                            artifact_binding_id: artifact.artifact_binding_id.clone(),
+                            artifact_manifest_ref: artifact.artifact_manifest_ref.clone(),
+                            artifact_payload_ref: artifact.artifact_payload_ref.clone(),
+                            artifact_sha256: artifact.artifact_sha256.clone(),
+                            content_hash: artifact.content_hash.clone(),
+                        },
+                    );
+                    true
+                });
+                unresolved = !valid;
             }
             if unresolved { omitted_children.insert((row.record_kind.clone(), row.aggregate_id.clone())); }
             else if document_matched { document_witnesses.insert((row.record_kind.clone(), row.aggregate_id.clone())); }
@@ -5590,9 +6497,17 @@ impl ModelLaneStore {
                     error_code = if row.record_kind == "lane" { input.failstate_code } else { input.error_code };
                 }
             }
+            let memory_pack = if row.record_kind == "run" {
+                authorized_run_memory_packs.remove(&(row.run_id.clone(), receipt.event_id.clone(), receipt.event_seq))
+            } else { None };
             let scalar = ModelLaneNavigationScalar { aggregate_id: row.aggregate_id.clone(), run_id: row.run_id.clone(),
                 event_ledger_event_id: receipt.event_id, event_ledger_seq: receipt.event_seq, ordering_seq: row.ordering_seq };
-            sources.push((row.record_kind, scalar, error_code));
+            let key = (row.record_kind.clone(), row.aggregate_id.clone());
+            let mut source = ModelLaneNavigationSource::from((row.record_kind, scalar, error_code));
+            source.memory_pack = memory_pack;
+            source.artifact_aliases = artifact_aliases.remove(&key);
+            source.micro_task_id = micro_task_ids.remove(&key);
+            sources.push(source);
         }
         assemble_navigation_projection(
             route_id, &selector.lookup_kind, &selector.lookup_ref, selector.span_id.as_deref(),
@@ -6203,7 +7118,52 @@ impl ModelLaneStore {
         run_id: &str,
         now: DateTime<Utc>,
     ) -> ModelLaneResult<ModelLaneRecoveredRun> {
-        let scope = self.surreal_read_scope("recover ModelLane run after restart")?;
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+        let scope = self.surreal_write_scope("recover ModelLane run after restart")?;
+        let original = crate::storage::surreal::current_record_user_scope()
+            .ok_or_else(|| ModelLaneError::AuthorityDenied(
+                "recovery execution requires original authenticated Workspace/Update authority".into(),
+            ))?;
+        if original.action != ResourceAction::Update
+            || original.capability_id != "model_lane.recovery.execute"
+            || original.workspace_id.as_deref() != Some(scope.workspace_id.as_str())
+            || original.session_id != scope.authenticated_session_id
+        {
+            return Err(ModelLaneError::AuthorityDenied(
+                "recovery execution requires exact original Workspace/Update model_lane.recovery.execute authority".into(),
+            ));
+        }
+        let subject = crate::storage::surreal::ModelLaneOperationSubject {
+            kind: ResourceKind::Workspace,
+            external_id: scope.workspace_id.clone(),
+        };
+        if crate::storage::surreal::current_model_lane_subject().is_some_and(|current| {
+            current.kind != subject.kind || current.external_id != subject.external_id
+        }) {
+            return Err(ModelLaneError::AuthorityDenied(
+                "recovery execution subject differs from its original workspace".into(),
+            ));
+        }
+        let provider = self.provider().await?.clone();
+        let store = self.clone();
+        let run_id = run_id.to_owned();
+        crate::storage::surreal::with_model_lane_subject(subject,
+            provider.with_context_bundle_transaction(
+                crate::storage::surreal::ContextCoordinationPurpose::RecoveryExecute,
+                run_id.clone(), Vec::new(), scope,
+                move || async move {
+                    store.recover_run_after_restart_in_transaction(&run_id, now).await
+                },
+            ),
+        ).await
+    }
+
+    async fn recover_run_after_restart_in_transaction(
+        &self,
+        run_id: &str,
+        now: DateTime<Utc>,
+    ) -> ModelLaneResult<ModelLaneRecoveredRun> {
+        let scope = self.surreal_write_scope("recover ModelLane run after restart")?;
         let provider = self.provider().await?;
         let run_row = provider
             .get(SurrealRecordKind::Run, run_id, &scope)
@@ -11661,8 +12621,9 @@ pub struct ModelLaneDiagnosticsMtStatus {
 }
 
 pub use handshake_model_lane_navigation::{
-    ModelLaneNavigationLane, ModelLaneNavigationLookup, ModelLaneNavigationMessage,
-    ModelLaneNavigationProjection, ModelLaneNavigationRun, ModelLaneNavigationScalar,
+    ModelLaneNavigationArtifactAliases, ModelLaneNavigationLane, ModelLaneNavigationLookup,
+    ModelLaneNavigationMemoryPack, ModelLaneNavigationMessage, ModelLaneNavigationProjection,
+    ModelLaneNavigationRun, ModelLaneNavigationScalar, ModelLaneNavigationSource,
 };
 
 fn navigation_selector(kind: &str, value: &str) -> crate::storage::surreal::NavigationReadSelector {
@@ -12208,6 +13169,31 @@ pub struct ModelLaneReplay {
     pub run: ModelLaneRunRecord,
     pub lanes: Vec<ModelLaneRecord>,
     pub messages: Vec<ModelLaneMessageRecord>,
+}
+
+pub(crate) struct ModelLaneRunCanonicalSet {
+    pub(crate) run: Option<ModelLaneRunRecord>,
+    pub(crate) other_runs: Vec<ModelLaneRunRecord>,
+    pub(crate) lanes: Vec<ModelLaneRecord>,
+    pub(crate) messages: Vec<ModelLaneMessageRecord>,
+    pub(crate) checkpoints: Vec<ModelLaneRecoveryCheckpointRecord>,
+    pub(crate) recovery_events: Vec<ModelLaneRecoveryEventRecord>,
+    pub(crate) leases: Vec<ModelLaneLeaseRecord>,
+    pub(crate) ordered_ledger: Vec<ModelLaneRunCanonicalLedgerEntry>,
+    pub(crate) scope_records: Vec<(SurrealRecordKind, SurrealModelLaneRecord)>,
+}
+
+pub(crate) struct ModelLaneRunCanonicalLedgerEntry {
+    pub(crate) event_id: String,
+    pub(crate) event_seq: i64,
+    pub(crate) event_stream_version: i64,
+    pub(crate) transaction_seq: i64,
+    pub(crate) aggregate_id: String,
+    pub(crate) run_id: String,
+    pub(crate) session_run_id: String,
+    pub(crate) kernel_task_run_id: String,
+    pub(crate) payload_hash: String,
+    pub(crate) event_payload_json: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -14676,6 +15662,12 @@ fn promotion_canonical_hash_basis(
     })
 }
 
+fn validate_run_memory_pack(memory_pack_ref: &str, memory_pack_hash: &str) -> ModelLaneResult<()> {
+    require_token("memory_pack_ref", memory_pack_ref)?;
+    validate_sha256("memory_pack_hash", memory_pack_hash)?;
+    Ok(())
+}
+
 fn validate_run(input: &NewModelLaneRun) -> ModelLaneResult<()> {
     require_token("run_id", &input.run_id)?;
     require_token("trace_id", &input.trace_id)?;
@@ -14690,8 +15682,7 @@ fn validate_run(input: &NewModelLaneRun) -> ModelLaneResult<()> {
     let work_packet_id = require_optional_token("work_packet_id", input.work_packet_id.as_deref())?;
     let micro_task_id = require_optional_token("micro_task_id", input.micro_task_id.as_deref())?;
     let task_board_id = require_optional_token("task_board_id", input.task_board_id.as_deref())?;
-    require_token("memory_pack_ref", &input.memory_pack_ref)?;
-    validate_sha256("memory_pack_hash", &input.memory_pack_hash)?;
+    validate_run_memory_pack(&input.memory_pack_ref, &input.memory_pack_hash)?;
     require_token("determinism_mode", &input.determinism_mode)?;
     require_token("budget_summary_ref", &input.budget_summary_ref)?;
     require_token("procedural_review_status", &input.procedural_review_status)?;
@@ -14980,36 +15971,51 @@ fn validate_promotion_decision(input: &NewModelLanePromotionDecision) -> ModelLa
     Ok(())
 }
 
+fn validate_context_artifact_content(
+    artifact_ref: &str,
+    artifact_sha256: &str,
+    content_hash: &str,
+    artifact_manifest_ref: &str,
+    artifact_payload_ref: &str,
+    payload_json: &Value,
+) -> ModelLaneResult<()> {
+    require_token("artifact_ref", artifact_ref)?;
+    validate_sha256("artifact_sha256", artifact_sha256)?;
+    validate_sha256("content_hash", content_hash)?;
+    require_equal(
+        "artifact_sha256",
+        artifact_sha256,
+        "content_hash",
+        content_hash,
+    )?;
+    require_token("artifact_manifest_ref", artifact_manifest_ref)?;
+    require_token("artifact_payload_ref", artifact_payload_ref)?;
+    require_equal(
+        "artifact_ref",
+        artifact_ref,
+        "artifact_payload_ref",
+        artifact_payload_ref,
+    )?;
+    let payload_hash = dexterity_sha256_hex(canonical_json_bytes(payload_json));
+    require_equal(
+        "payload_json sha256",
+        &payload_hash,
+        "content_hash",
+        content_hash,
+    )?;
+    Ok(())
+}
+
 fn validate_context_bundle_artifact_binding(
     input: &NewModelLaneContextBundleArtifactBinding,
 ) -> ModelLaneResult<()> {
     require_token("artifact_binding_id", &input.artifact_binding_id)?;
     require_token("run_id", &input.run_id)?;
     require_token("trace_id", &input.trace_id)?;
-    require_token("artifact_ref", &input.artifact_ref)?;
-    validate_sha256("artifact_sha256", &input.artifact_sha256)?;
-    validate_sha256("content_hash", &input.content_hash)?;
-    require_equal(
-        "artifact_sha256",
-        &input.artifact_sha256,
-        "content_hash",
-        &input.content_hash,
-    )?;
     require_token("artifact_kind", &input.artifact_kind)?;
-    require_token("artifact_manifest_ref", &input.artifact_manifest_ref)?;
-    require_token("artifact_payload_ref", &input.artifact_payload_ref)?;
-    require_equal(
-        "artifact_ref",
-        &input.artifact_ref,
-        "artifact_payload_ref",
-        &input.artifact_payload_ref,
-    )?;
-    let payload_hash = dexterity_sha256_hex(canonical_json_bytes(&input.payload_json));
-    require_equal(
-        "payload_json sha256",
-        &payload_hash,
-        "content_hash",
-        &input.content_hash,
+    validate_context_artifact_content(
+        &input.artifact_ref, &input.artifact_sha256, &input.content_hash,
+        &input.artifact_manifest_ref, &input.artifact_payload_ref, &input.payload_json,
     )?;
     require_token("event_ledger_stream_id", &input.event_ledger_stream_id)?;
     require_token("work_packet_id", &input.work_packet_id)?;

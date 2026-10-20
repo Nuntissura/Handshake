@@ -119,12 +119,14 @@ struct ReorderMediaAlbumItemsRequest {
 
 #[derive(Debug, Deserialize)]
 struct MediaAlbumItemsQuery {
+    cursor: Option<String>,
     offset: Option<i64>,
     limit: Option<i64>,
 }
 
 #[derive(Debug, Deserialize)]
 struct MediaAlbumListQuery {
+    cursor: Option<String>,
     offset: Option<i64>,
     limit: Option<i64>,
     member_limit: Option<i64>,
@@ -132,6 +134,10 @@ struct MediaAlbumListQuery {
 
 #[derive(Debug, Serialize)]
 struct AddMediaAlbumItemsResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    next_cursor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    traversal_order: Option<&'static str>,
     collection_id: Uuid,
     collection_ref: String,
     requested: usize,
@@ -145,6 +151,10 @@ struct AddMediaAlbumItemsResponse {
 
 #[derive(Debug, Serialize)]
 struct MediaAlbumItemsMutationResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    next_cursor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    traversal_order: Option<&'static str>,
     collection_id: Uuid,
     collection_ref: String,
     mutation: &'static str,
@@ -169,6 +179,10 @@ struct MediaAlbumItemsMutationResponse {
 
 #[derive(Debug, Serialize)]
 struct MediaAlbumItemsPageResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    next_cursor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    traversal_order: Option<&'static str>,
     collection_id: Uuid,
     collection_ref: String,
     offset: i64,
@@ -180,6 +194,10 @@ struct MediaAlbumItemsPageResponse {
 
 #[derive(Debug, Serialize)]
 struct MediaAlbumListPageResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    next_cursor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    traversal_order: Option<&'static str>,
     character_internal_id: Uuid,
     character_ref: String,
     offset: i64,
@@ -192,6 +210,10 @@ struct MediaAlbumListPageResponse {
 
 #[derive(Debug, Serialize)]
 struct MediaAlbumResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    next_cursor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    traversal_order: Option<&'static str>,
     collection_id: Uuid,
     collection_ref: String,
     name: String,
@@ -331,6 +353,124 @@ fn normalize_media_album_list_query(
     Ok((offset, limit, member_limit.min(LIST_CAP)))
 }
 
+struct MemberSeekQuery {
+    limit: i64,
+    after: Option<Uuid>,
+}
+
+struct AlbumSeekQuery {
+    limit: i64,
+    member_limit: i64,
+    after: Option<(DateTime<Utc>, Uuid)>,
+}
+
+fn invalid_media_cursor() -> ApiError {
+    atelier_error(AtelierError::Validation("invalid media album cursor".to_owned()))
+}
+
+fn checked_cursor_limit(value: i64) -> Result<i64, ApiError> {
+    if !(1..=LIST_CAP).contains(&value) || value.checked_add(1).is_none() {
+        return Err(invalid_media_cursor());
+    }
+    Ok(value)
+}
+
+fn cursor_limit_field(raw: &str) -> Result<i64, ApiError> {
+    let value = raw.parse::<i64>().map_err(|_| invalid_media_cursor())?;
+    if value.to_string() != raw { return Err(invalid_media_cursor()); }
+    checked_cursor_limit(value)
+}
+
+fn cursor_uuid_field(raw: &str) -> Result<Uuid, ApiError> {
+    let value = Uuid::parse_str(raw).map_err(|_| invalid_media_cursor())?;
+    if value.to_string() != raw { return Err(invalid_media_cursor()); }
+    Ok(value)
+}
+
+fn require_bound_cursor_limit(supplied: Option<i64>, bound: i64) -> Result<(), ApiError> {
+    if supplied.is_some_and(|value| value != bound) { return Err(invalid_media_cursor()); }
+    Ok(())
+}
+
+fn normalize_member_seek_query(query: &MediaAlbumItemsQuery, collection_id: Uuid) -> Result<MemberSeekQuery, ApiError> {
+    if query.offset.is_some() { return Err(invalid_media_cursor()); }
+    let raw = query.cursor.as_deref().ok_or_else(invalid_media_cursor)?;
+    if raw == "start" {
+        return Ok(MemberSeekQuery { limit: checked_cursor_limit(query.limit.unwrap_or(LIST_CAP))?, after: None });
+    }
+    if raw.len() > 256 { return Err(invalid_media_cursor()); }
+    let parts: Vec<&str> = raw.split(':').collect();
+    if parts.len() != 5 || parts[0] != "v1" || parts[1] != "m"
+        || cursor_uuid_field(parts[2])? != collection_id {
+        return Err(invalid_media_cursor());
+    }
+    let limit = cursor_limit_field(parts[3])?;
+    require_bound_cursor_limit(query.limit, limit)?;
+    Ok(MemberSeekQuery { limit, after: Some(cursor_uuid_field(parts[4])?) })
+}
+
+fn media_cursor_hex(bytes: &[u8]) -> String {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut output = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        output.push(DIGITS[(byte >> 4) as usize] as char);
+        output.push(DIGITS[(byte & 15) as usize] as char);
+    }
+    output
+}
+
+fn cursor_created_field(raw: &str) -> Result<DateTime<Utc>, ApiError> {
+    if raw.is_empty() || raw.len() > 128 || raw.len() % 2 != 0 { return Err(invalid_media_cursor()); }
+    fn digit(byte: u8) -> Option<u8> {
+        match byte { b'0'..=b'9' => Some(byte - b'0'), b'a'..=b'f' => Some(byte - b'a' + 10), _ => None }
+    }
+    let mut bytes = Vec::with_capacity(raw.len() / 2);
+    for pair in raw.as_bytes().chunks_exact(2) {
+        let high = digit(pair[0]).ok_or_else(invalid_media_cursor)?;
+        let low = digit(pair[1]).ok_or_else(invalid_media_cursor)?;
+        bytes.push((high << 4) | low);
+    }
+    let text = std::str::from_utf8(&bytes).map_err(|_| invalid_media_cursor())?;
+    let created = DateTime::parse_from_rfc3339(text).map_err(|_| invalid_media_cursor())?.with_timezone(&Utc);
+    if created.to_rfc3339_opts(chrono::SecondsFormat::Nanos, true) != text { return Err(invalid_media_cursor()); }
+    Ok(created)
+}
+
+fn normalize_album_seek_query(query: &MediaAlbumListQuery, character_id: Uuid) -> Result<AlbumSeekQuery, ApiError> {
+    if query.offset.is_some() { return Err(invalid_media_cursor()); }
+    let raw = query.cursor.as_deref().ok_or_else(invalid_media_cursor)?;
+    if raw == "start" {
+        return Ok(AlbumSeekQuery {
+            limit: checked_cursor_limit(query.limit.unwrap_or(ALBUM_LIST_DEFAULT_LIMIT))?,
+            member_limit: checked_cursor_limit(query.member_limit.unwrap_or(ALBUM_MEMBER_PREVIEW_DEFAULT_LIMIT))?,
+            after: None,
+        });
+    }
+    if raw.len() > 512 { return Err(invalid_media_cursor()); }
+    let parts: Vec<&str> = raw.split(':').collect();
+    if parts.len() != 7 || parts[0] != "v1" || parts[1] != "a"
+        || cursor_uuid_field(parts[2])? != character_id {
+        return Err(invalid_media_cursor());
+    }
+    let limit = cursor_limit_field(parts[3])?;
+    let member_limit = cursor_limit_field(parts[4])?;
+    require_bound_cursor_limit(query.limit, limit)?;
+    require_bound_cursor_limit(query.member_limit, member_limit)?;
+    Ok(AlbumSeekQuery {
+        limit, member_limit,
+        after: Some((cursor_created_field(parts[5])?, cursor_uuid_field(parts[6])?)),
+    })
+}
+
+fn member_seek_cursor(collection_id: Uuid, limit: i64, asset_id: Uuid) -> String {
+    format!("v1:m:{collection_id}:{limit}:{asset_id}")
+}
+
+fn album_seek_cursor(character_id: Uuid, limit: i64, member_limit: i64, collection: &Collection) -> String {
+    let timestamp = collection.created_at_utc.to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
+    format!("v1:a:{character_id}:{limit}:{member_limit}:{}:{}", media_cursor_hex(timestamp.as_bytes()), collection.collection_id)
+}
+
 /// A forbidden machine-local ref is a caller error on this surface (400), not a
 /// storage-backend failure.
 fn validate_optional_ckc_source_ref_for_api(
@@ -356,6 +496,56 @@ fn media_store_error(err: AtelierError) -> ApiError {
     match err {
         AtelierError::ForbiddenStorage(message) => atelier_error(AtelierError::Validation(message)),
         other => atelier_error(other),
+    }
+}
+
+enum AlbumMutationApiError {
+    Standard(ApiError),
+    Unknown {
+        operation: crate::storage::surreal::AlbumMutationOperationReference,
+    },
+}
+
+impl From<ApiError> for AlbumMutationApiError {
+    fn from(error: ApiError) -> Self {
+        Self::Standard(error)
+    }
+}
+
+impl axum::response::IntoResponse for AlbumMutationApiError {
+    fn into_response(self) -> axum::response::Response {
+        use axum::response::IntoResponse;
+        match self {
+            Self::Standard(error) => error.into_response(),
+            Self::Unknown { operation } => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(serde_json::json!({
+                    "error": "album_mutation_outcome_unknown",
+                    "operation": operation,
+                })),
+            ).into_response(),
+        }
+    }
+}
+
+fn album_mutation_error(err: AtelierError) -> AlbumMutationApiError {
+    use crate::storage::surreal::SurrealStorageError;
+    match err {
+        AtelierError::Database(SurrealStorageError::AlbumMutationUnknown { operation, source }) => {
+            tracing::warn!(operation_id = %operation.operation_id, error = %source,
+                "album membership outcome requires authenticated settlement observation");
+            AlbumMutationApiError::Unknown { operation }
+        }
+        AtelierError::Database(
+            SurrealStorageError::TransactionSettlementPending { .. }
+            | SurrealStorageError::TransactionCommit(_)
+            | SurrealStorageError::TransactionCancel(_)
+            | SurrealStorageError::TransactionWorker(_),
+        ) => AlbumMutationApiError::Standard((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(ErrorResponse { error: "album_mutation_outcome_unknown" }),
+        )),
+        other => AlbumMutationApiError::Standard(media_store_error(other)),
     }
 }
 
@@ -717,6 +907,65 @@ async fn media_album_members_page_response(
     Ok((members, page.total_count.max(0) as usize, members_next_offset))
 }
 
+async fn media_album_members_seek_response(
+    store: &AtelierStore,
+    collection_id: Uuid,
+    query: MemberSeekQuery,
+) -> Result<MediaAlbumItemsPageResponse, ApiError> {
+    let page = store.list_collection_member_seek_page(collection_id, query.after, query.limit)
+        .await.map_err(atelier_error)?;
+    let next_cursor = if page.has_more {
+        page.members.last().map(|member| member_seek_cursor(collection_id, query.limit, member.asset_id))
+    } else { None };
+    let asset_ids: Vec<Uuid> = page.members.iter().map(|member| member.asset_id).collect();
+    let enrichment: HashMap<Uuid, MediaAlbumMemberEnrichment> = store.media_album_member_enrichment(&asset_ids)
+        .await.map_err(atelier_error)?.into_iter().map(|row| (row.asset_id, row)).collect();
+    let mut members = Vec::with_capacity(page.members.len());
+    for member in page.members {
+        let asset_id = member.asset_id;
+        members.push(media_album_member_response(member, enrichment.get(&asset_id))?);
+    }
+    Ok(MediaAlbumItemsPageResponse {
+        collection_id,
+        collection_ref: collection_ref(collection_id),
+        offset: 0,
+        limit: query.limit,
+        member_count: page.total_count.max(0) as usize,
+        members_next_offset: None,
+        next_cursor,
+        traversal_order: Some("asset_id_asc"),
+        members,
+    })
+}
+
+async fn character_media_albums_seek_response(
+    store: &AtelierStore,
+    character_id: Uuid,
+    query: AlbumSeekQuery,
+) -> Result<MediaAlbumListPageResponse, ApiError> {
+    let page = store.list_character_collections_seek_page(character_id, query.after, query.limit)
+        .await.map_err(atelier_error)?;
+    let next_cursor = if page.has_more {
+        page.collections.last().map(|collection| album_seek_cursor(character_id, query.limit, query.member_limit, collection))
+    } else { None };
+    let mut albums = Vec::with_capacity(page.collections.len());
+    for collection in page.collections {
+        albums.push(media_album_response(store, collection, query.member_limit).await?);
+    }
+    Ok(MediaAlbumListPageResponse {
+        character_internal_id: character_id,
+        character_ref: character_ref(character_id),
+        offset: 0,
+        limit: query.limit,
+        member_limit: query.member_limit,
+        album_count: page.total_count.max(0) as usize,
+        albums_next_offset: None,
+        next_cursor,
+        traversal_order: Some("created_at_desc_collection_id_asc"),
+        albums,
+    })
+}
+
 async fn media_album_response(
     store: &AtelierStore,
     collection: Collection,
@@ -731,6 +980,8 @@ async fn media_album_response(
     let (members, member_count, members_next_offset) =
         media_album_members_page_response(store, collection.collection_id, 0, member_limit).await?;
     Ok(MediaAlbumResponse {
+            next_cursor: None,
+            traversal_order: None,
         collection_id: collection.collection_id,
         collection_ref: collection_ref(collection.collection_id),
         name: collection.name,
@@ -770,6 +1021,8 @@ async fn media_album_items_mutation_response(
     let (members, member_count, members_next_offset) =
         media_album_members_page_response(store, collection_id, 0, LIST_CAP).await?;
     Ok(MediaAlbumItemsMutationResponse {
+            next_cursor: None,
+            traversal_order: None,
         collection_id,
         collection_ref: collection_ref(collection_id),
         mutation,
@@ -814,6 +1067,10 @@ async fn list_character_media_albums(
             .get_character_by_internal_id(character_internal_id)
             .await
             .map_err(atelier_error)?;
+        if query.cursor.is_some() {
+            let seek = normalize_album_seek_query(&query, character_internal_id)?;
+            return Ok(Json(character_media_albums_seek_response(&store, character_internal_id, seek).await?));
+        }
         let (offset, limit, member_limit) = normalize_media_album_list_query(query)?;
         let page = store
             .list_character_collections_page(character_internal_id, offset, limit)
@@ -830,6 +1087,8 @@ async fn list_character_media_albums(
             albums.push(media_album_response(&store, collection, member_limit).await?);
         }
         Ok(Json(MediaAlbumListPageResponse {
+            next_cursor: None,
+            traversal_order: None,
             character_internal_id,
             character_ref: character_ref(character_internal_id),
             offset,
@@ -899,10 +1158,16 @@ async fn list_media_album_items(
     as_account(&state, &account, async {
         let store = atelier_store(&state);
         require_ckc_media_album(&store, collection_id).await?;
+        if query.cursor.is_some() {
+            let seek = normalize_member_seek_query(&query, collection_id)?;
+            return Ok(Json(media_album_members_seek_response(&store, collection_id, seek).await?));
+        }
         let (offset, limit) = normalize_media_album_items_page_query(query)?;
         let (members, member_count, members_next_offset) =
             media_album_members_page_response(&store, collection_id, offset, limit).await?;
         Ok(Json(MediaAlbumItemsPageResponse {
+            next_cursor: None,
+            traversal_order: None,
             collection_id,
             collection_ref: collection_ref(collection_id),
             offset,
@@ -961,6 +1226,8 @@ async fn add_media_album_items(
             "add CKC media album items"
         );
         Ok(Json(AddMediaAlbumItemsResponse {
+            next_cursor: None,
+            traversal_order: None,
             collection_id,
             collection_ref: collection_ref(collection_id),
             requested,
@@ -979,7 +1246,7 @@ async fn unlink_media_album_item(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path((collection_id, asset_id)): Path<(Uuid, Uuid)>,
-) -> Result<Json<MediaAlbumItemsMutationResponse>, ApiError> {
+) -> Result<Json<MediaAlbumItemsMutationResponse>, AlbumMutationApiError> {
     let account = atelier_account(&state, &headers, ResourceAction::Delete).await?;
     as_account(&state, &account, async {
         let actor = account.actor_id.clone();
@@ -988,7 +1255,7 @@ async fn unlink_media_album_item(
         let receipt = store
             .unlink_media_album_item(collection_id, asset_id, &actor)
             .await
-            .map_err(media_store_error)?;
+            .map_err(album_mutation_error)?;
         let response = media_album_items_mutation_response(
             &store,
             collection_id,
@@ -1024,7 +1291,7 @@ async fn update_media_album_item_link(
     headers: HeaderMap,
     Path((collection_id, asset_id)): Path<(Uuid, Uuid)>,
     Json(payload): Json<UpdateMediaAlbumItemLinkRequest>,
-) -> Result<Json<MediaAlbumItemsMutationResponse>, ApiError> {
+) -> Result<Json<MediaAlbumItemsMutationResponse>, AlbumMutationApiError> {
     let account = atelier_account(&state, &headers, ResourceAction::Update).await?;
     as_account(&state, &account, async {
         let actor = account.actor_id.clone();
@@ -1034,7 +1301,7 @@ async fn update_media_album_item_link(
         let updated = store
             .update_media_album_item_link_refs(collection_id, asset_id, &update, &actor)
             .await
-            .map_err(media_store_error)?;
+            .map_err(album_mutation_error)?;
         let response = media_album_items_mutation_response(
             &store,
             collection_id,
@@ -1070,7 +1337,7 @@ async fn reorder_media_album_items(
     headers: HeaderMap,
     Path(collection_id): Path<Uuid>,
     Json(payload): Json<ReorderMediaAlbumItemsRequest>,
-) -> Result<Json<MediaAlbumItemsMutationResponse>, ApiError> {
+) -> Result<Json<MediaAlbumItemsMutationResponse>, AlbumMutationApiError> {
     let account = atelier_account(&state, &headers, ResourceAction::Update).await?;
     as_account(&state, &account, async {
         let actor = account.actor_id.clone();
@@ -1080,7 +1347,7 @@ async fn reorder_media_album_items(
         let changed = store
             .reorder_media_album_items(collection_id, &items, &actor)
             .await
-            .map_err(media_store_error)?;
+            .map_err(album_mutation_error)?;
         let response = media_album_items_mutation_response(
             &store,
             collection_id,

@@ -1,9 +1,10 @@
 use surrealdb::types::{Datetime, RecordId, RecordIdKey, SurrealValue};
 
-use super::SurrealStorage;
+use super::{SurrealStorage, SurrealTransactionContext};
 use crate::storage::{
-    validate_job_contract, AccessMode, AiJob, AiJobListFilter, JobKind, JobMetrics, JobState,
-    NewAiJob, PruneReport, SafetyMode, StorageError, StorageResult,
+    validate_job_contract, AccessMode, AiJob, AiJobListFilter, CanonicalJobCreation,
+    JobCreateCommitOutcome, JobCreationCommand, JobCreationObservation, JobKind, JobMetrics,
+    JobState, NewAiJob, PruneReport, SafetyMode, StorageError, StorageResult, WorkflowRun,
 };
 
 const AI_JOBS: &str = "ai_jobs";
@@ -101,6 +102,189 @@ struct EligibleRow {
 #[derive(SurrealValue)]
 struct CountRow {
     count: i64,
+}
+
+#[derive(SurrealValue)]
+struct AdmittedCreateBindings {
+    job: CreateBindings,
+    creation_basis_json: String,
+    creation_basis_sha256: String,
+}
+
+#[derive(SurrealValue)]
+struct ReservedWorkflowRow {
+    id: RecordId,
+    job_id: RecordId,
+    status: String,
+    last_heartbeat: Datetime,
+    created_at: Datetime,
+    updated_at: Datetime,
+}
+
+pub(crate) async fn create_in_transaction(
+    transaction: &SurrealTransactionContext<'_>,
+    command: &JobCreationCommand,
+    retention: &super::resource_authority::JobAdmissionTransactionRetention,
+) -> StorageResult<JobCreateCommitOutcome> {
+    use super::resource_authority::ResourceAuthorityError;
+    retention.validate_creation(retention.operation_id(), command.checked()).map_err(|error| match error {
+        ResourceAuthorityError::Storage(error) => StorageError::from(error),
+        _ => StorageError::Guard("HSK-403-PROTECTED-RESOURCE"),
+    })?;
+    let identity = command.checked().identity();
+    let record = RecordId::new(AI_JOBS, identity.job_id().to_string());
+    let existing: Option<AiJobRow> = transaction.query_first(
+        "SELECT * FROM $record;", IdBinding { record: record.clone() },
+    ).await.map_err(StorageError::from)?;
+    if let Some(row) = existing {
+        return match read_visible_creation(transaction, row, command.checked()).await? {
+            JobCreationObservation::Observed(creation) => Ok(JobCreateCommitOutcome::AlreadyCreated(creation)),
+            JobCreationObservation::Unknown => Err(StorageError::Guard("HSK-JOB-CREATION-UNKNOWN")),
+        };
+    }
+
+    // This is the original fixed CREATE command, not proof of absence from a read.
+    // CREATE must reject an existing inaccessible ID; it never overwrites or allocates a retry ID.
+    let input = command.input();
+    let now = Datetime::from(chrono::Utc::now());
+    let reserved = identity.reserved_workflow_run_id();
+    let bindings = AdmittedCreateBindings {
+        job: CreateBindings {
+            record: record.clone(),
+            trace_id: identity.initial_trace_id().to_string(),
+            workflow_run_id: reserved.map(|id| id.to_string()),
+            workflow_record: reserved.map(|id| RecordId::new("workflow_runs", id.to_string())),
+            job_kind: input.job_kind.as_str().to_owned(),
+            status: JobState::Queued.as_str().to_owned(),
+            status_reason: input.status_reason.clone(),
+            protocol_id: input.protocol_id.clone(),
+            profile_id: input.profile_id.clone(),
+            capability_profile_id: input.capability_profile_id.clone(),
+            access_mode: input.access_mode.as_str().to_owned(),
+            safety_mode: input.safety_mode.as_str().to_owned(),
+            entity_refs: serde_json::to_value(&input.entity_refs)?,
+            planned_operations: serde_json::to_value(&input.planned_operations)?,
+            metrics: serde_json::to_value(&input.metrics)?,
+            job_inputs: input.job_inputs.clone(),
+            now,
+        },
+        creation_basis_json: std::str::from_utf8(command.checked().canonical_bytes())
+            .map_err(|_| StorageError::Validation("HSK-JOB-CREATION-INTEGRITY"))?.to_owned(),
+        creation_basis_sha256: command.checked().sha256_hex().to_owned(),
+    };
+    let rows: Vec<AiJobRow> = transaction.query_values_at(
+        "CREATE $job.record SET trace_id = $job.trace_id, workflow_run_id = $job.workflow_run_id, \
+           job_kind = $job.job_kind, status = $job.status, status_reason = $job.status_reason, \
+           protocol_id = $job.protocol_id, profile_id = $job.profile_id, \
+           capability_profile_id = $job.capability_profile_id, access_mode = $job.access_mode, \
+           safety_mode = $job.safety_mode, entity_refs = $job.entity_refs, \
+           planned_operations = $job.planned_operations, metrics = $job.metrics, \
+           job_inputs = $job.job_inputs, created_at = $job.now, updated_at = $job.now, \
+           creation_basis_json = $creation_basis_json, creation_basis_sha256 = $creation_basis_sha256; \
+         IF $job.workflow_record != NONE { \
+           CREATE $job.workflow_record SET job_id = $job.record, status = $job.status, \
+             last_heartbeat = $job.now, created_at = $job.now, updated_at = $job.now; \
+         }; \
+         SELECT * FROM $job.record;",
+        bindings, 2,
+    ).await.map_err(StorageError::from)?;
+    let mut rows = rows.into_iter();
+    let row = rows.next().ok_or(StorageError::Guard("HSK-JOB-CREATION-UNKNOWN"))?;
+    if rows.next().is_some() {
+        return Err(StorageError::Validation("HSK-JOB-CREATION-INTEGRITY"));
+    }
+    match read_visible_creation(transaction, row, command.checked()).await? {
+        JobCreationObservation::Observed(creation) => Ok(JobCreateCommitOutcome::Created(creation)),
+        JobCreationObservation::Unknown => Err(StorageError::Guard("HSK-JOB-CREATION-UNKNOWN")),
+    }
+}
+
+pub(crate) async fn read_creation_in_transaction(
+    transaction: &SurrealTransactionContext<'_>,
+    expected: &handshake_job_admission::CheckedJobCreation,
+) -> StorageResult<JobCreationObservation> {
+    let row: Option<AiJobRow> = transaction.query_first(
+        "SELECT * FROM $record;",
+        IdBinding { record: RecordId::new(AI_JOBS, expected.identity().job_id().to_string()) },
+    ).await.map_err(StorageError::from)?;
+    match row {
+        Some(row) => read_visible_creation(transaction, row, expected).await,
+        None => Ok(JobCreationObservation::Unknown),
+    }
+}
+
+async fn read_visible_creation(
+    transaction: &SurrealTransactionContext<'_>,
+    row: AiJobRow,
+    expected: &handshake_job_admission::CheckedJobCreation,
+) -> StorageResult<JobCreationObservation> {
+    use surrealdb::types::Value;
+    let identity = expected.identity();
+    let record = RecordId::new(AI_JOBS, identity.job_id().to_string());
+    if row.id != record {
+        return Err(StorageError::Validation("HSK-JOB-CREATION-INTEGRITY"));
+    }
+    // A raw SDK pair preserves NONE versus NULL and invalid field types.
+    let basis: Option<Vec<Value>> = transaction.query_first(
+        "SELECT VALUE [creation_basis_json, creation_basis_sha256] FROM $record;",
+        IdBinding { record },
+    ).await.map_err(StorageError::from)?;
+    let Some(basis) = basis else { return Ok(JobCreationObservation::Unknown); };
+    let (json, hash) = match basis.as_slice() {
+        [Value::None, Value::None] => {
+            return Err(StorageError::Validation("HSK-JOB-CREATION-LEGACY-UNVERIFIABLE"));
+        }
+        [Value::String(json), Value::String(hash)] => (json.as_str(), hash.as_str()),
+        _ => return Err(StorageError::Validation("HSK-JOB-CREATION-INTEGRITY")),
+    };
+    if hash.len() != 64 || !hash.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)) {
+        return Err(StorageError::Validation("HSK-JOB-CREATION-INTEGRITY"));
+    }
+    let creation = handshake_job_admission::CheckedJobCreation::decode_persisted(json, hash)
+        .map_err(|_| StorageError::Validation("HSK-JOB-CREATION-INTEGRITY"))?;
+    if creation.canonical_bytes() != expected.canonical_bytes() || creation.sha256_hex() != expected.sha256_hex() {
+        return Err(StorageError::Validation("HSK-JOB-CREATION-CONFLICT"));
+    }
+    let original = JobCreationCommand::from_checked(creation.clone())
+        .map_err(|_| StorageError::Validation("HSK-JOB-CREATION-INTEGRITY"))?;
+    let input = original.input();
+    if row.job_kind != input.job_kind.as_str()
+        || row.protocol_id != input.protocol_id
+        || row.profile_id != input.profile_id
+        || row.capability_profile_id != input.capability_profile_id
+        || row.access_mode != input.access_mode.as_str()
+        || row.safety_mode != input.safety_mode.as_str()
+        || row.entity_refs != serde_json::to_value(&input.entity_refs)?
+        || row.planned_operations != serde_json::to_value(&input.planned_operations)?
+        || serde_json::to_value(&row.job_inputs)? != serde_json::to_value(&input.job_inputs)?
+    {
+        return Err(StorageError::Validation("HSK-JOB-CREATION-INTEGRITY"));
+    }
+    let reserved_workflow = match creation.identity().reserved_workflow_run_id() {
+        Some(id) => {
+            let workflow: Option<ReservedWorkflowRow> = transaction.query_first(
+                "SELECT * FROM $record;",
+                IdBinding { record: RecordId::new("workflow_runs", id.to_string()) },
+            ).await.map_err(StorageError::from)?;
+            let Some(workflow) = workflow else { return Ok(JobCreationObservation::Unknown); };
+            if workflow.id != RecordId::new("workflow_runs", id.to_string())
+                || workflow.job_id != RecordId::new(AI_JOBS, creation.identity().job_id().to_string())
+            {
+                return Err(StorageError::Validation("HSK-JOB-CREATION-INTEGRITY"));
+            }
+            Some(WorkflowRun {
+                id,
+                job_id: creation.identity().job_id(),
+                status: JobState::try_from(workflow.status.as_str())?,
+                last_heartbeat: workflow.last_heartbeat.into_inner(),
+                created_at: workflow.created_at.into_inner(),
+                updated_at: workflow.updated_at.into_inner(),
+            })
+        }
+        None => None,
+    };
+    CanonicalJobCreation::from_verified_rows(map_job(row)?, creation, reserved_workflow)
+        .map(JobCreationObservation::Observed)
 }
 
 pub(crate) async fn get(storage: &SurrealStorage, job_id: &str) -> StorageResult<AiJob> {

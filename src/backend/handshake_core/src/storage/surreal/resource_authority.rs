@@ -12,13 +12,18 @@ use uuid::Uuid;
 
 use super::{SurrealStorage, SurrealStorageError};
 
+mod artifact_publications;
+mod validator_sessions;
+pub(crate) use validator_sessions::ValidatorDelegationParent;
+pub(crate) use artifact_publications::RegisteredArtifactWitness;
+
 // One owning canonical grant predicate shared by public authorization and the
 // private publication fence; the latter uses a canonical located resource ID.
 // Resource table permission already enforces its creator; ordinary queries never
 // re-read the hidden external locator through mt109_has_grant.
 macro_rules! canonical_grant_query {
     ($projection:literal, $extra:literal, $limit:literal) => {
-        concat!($projection, " FROM (SELECT * FROM resource_grants WHERE account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND resource_id = $resource) WHERE status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id AND resource_id.access_space_id = $auth.access_space_id AND actions CONTAINS $action AND capability_ids CONTAINS $capability AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS $capability) AND delegation_chain = $auth.delegation_chain AND ($kind != 'reconciliation_queue' OR (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler'))", $extra, " LIMIT ", $limit, ";")
+        concat!($projection, " FROM (SELECT * FROM resource_grants WHERE account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND resource_id = $resource) WHERE status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id AND resource_id.access_space_id = $auth.access_space_id AND actions CONTAINS $action AND capability_ids CONTAINS $capability AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS $capability) AND delegation_chain = $auth.delegation_chain AND ($kind != 'artifact' OR (resource_id.resource_kind = 'artifact' AND resource_id.parent_resource_id != NONE AND resource_id.parent_resource_id.resource_kind = 'workspace' AND resource_id.parent_resource_id.lifecycle_state = 'active' AND resource_id.parent_resource_id.owner_account_id = $auth.account_id AND resource_id.parent_resource_id.access_space_id = $auth.access_space_id AND resource_id.parent_resource_id.policy_version <= policy_version AND resource_id.policy_version <= policy_version AND policy_version <= $auth.policy_version)) AND ($kind != 'reconciliation_queue' OR (principal_id.principal_kind = 'service_identity' AND principal_id.capability_profile_id = 'MT109Reconciler'))", $extra, " LIMIT ", $limit, ";")
     };
 }
 
@@ -46,6 +51,13 @@ struct RegistryPublicationAuthority {
     grant_expires_at: Option<Datetime>,
     session_expires_at: Datetime,
 }
+
+#[derive(SurrealValue)]
+struct OwnerEligibilityBindings {
+    session_record: RecordId,
+}
+
+const OWNER_ELIGIBILITY: &str = "SELECT VALUE id FROM authenticated_sessions WHERE id = $session_record AND id = $auth.id AND fn::mt120_workspace_create(id) LIMIT 1;";
 
 // Navigation captures remain separate from registry write authority.
 #[derive(Clone, Debug, Eq, PartialEq, SurrealValue)]
@@ -254,7 +266,7 @@ struct RegistryPublicationBindings {
 
 const REGISTRY_PUBLICATION_AUTHORITY: &str = canonical_grant_query!(
     "SELECT id AS grant_id, resource_id, account_id, principal_id, principal_id.actor_kind AS actor_kind, principal_id.actor_id AS actor_id, $auth.id AS session_id, access_space_id, grant_version, [policy_version, resource_id.policy_version, account_id.policy_version, principal_id.policy_version, access_space_id.policy_version, $auth.id.policy_version] AS policy_versions, [account_id.revocation_epoch, principal_id.revocation_epoch, access_space_id.revocation_epoch, $auth.id.account_revocation_epoch, $auth.id.principal_revocation_epoch, $auth.id.space_revocation_epoch] AS revocation_epochs, actions, capability_ids, delegation_chain, $auth.id.delegated_capabilities AS session_capabilities, principal_id.delegated_capabilities AS principal_capabilities, principal_id.capability_profile_id AS capability_profile_id, [status, resource_id.lifecycle_state, account_id.status, principal_id.status, access_space_id.status] AS statuses, resource_id.resource_kind AS resource_kind, expires_at AS grant_expires_at, $auth.id.expires_at AS session_expires_at",
-    " AND id = $original_grant AND fn::mt109_live_session() AND resource_id != NONE AND resource_id.resource_kind = $kind AND resource_id.policy_version <= policy_version AND policy_version <= $auth.policy_version AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS $capability) AND $auth.id.revoked_at = NONE AND $auth.id.expires_at > time::now()",
+    " AND id = $original_grant AND resource_id != NONE AND resource_id.resource_kind = $kind AND resource_id.policy_version <= policy_version AND policy_version <= $auth.policy_version AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS $capability) AND $auth.id.revoked_at = NONE AND $auth.id.expires_at > time::now()",
     "2"
 );
 
@@ -272,6 +284,613 @@ struct ProducerSourceFactsCapture {
     lifecycle: crate::swarm_orchestration::resource_scope::ResourceAccessLifecycleRegistry,
     sources: Vec<ProducerSourceFacts>,
     fence: std::sync::Arc<tokio::sync::OwnedRwLockReadGuard<()>>,
+}
+
+const PALMISTRY_WATCHER_ADOPT_CAPABILITY: &str = "diagnostics.watcher.adopt_existing";
+
+/// Current adoption authority only. Original watcher custody is verified by its registration owner.
+pub struct PalmistryWatcherAdoptionAuthority {
+    capture: ProducerSourceFactsCapture,
+    watcher_id: Uuid,
+    parent: CanonicalResourceLocator,
+    exact: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    namespace: String,
+    database: String,
+}
+
+#[derive(SurrealValue)]
+struct NavigationArtifactResourceBindings {
+    artifact: RecordId,
+    workspace: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct NavigationArtifactResourceRow {
+    id: RecordId,
+    resource_kind: String,
+    external_resource_id: String,
+    owner_account_id: RecordId,
+    access_space_id: RecordId,
+    parent_resource_id: Option<RecordId>,
+    lifecycle_state: String,
+    policy_version: i64,
+    classification: String,
+}
+
+pub(crate) struct NavigationArtifactReadPermit<'tx> {
+    transaction: &'tx super::SurrealTransactionContext<'tx>,
+    original_bindings: super::model_lane::NavigationReadBindings,
+    exact_scope: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    selection: serde_json::Value,
+    source: serde_json::Value,
+    snapshot: serde_json::Value,
+    managed_root: std::path::PathBuf,
+}
+
+pub(crate) struct NavigationArtifactRegistration {
+    manifest: crate::storage::artifacts::ArtifactManifest,
+    snapshot: serde_json::Value,
+    managed_root: std::path::PathBuf,
+}
+
+impl NavigationArtifactRegistration {
+    pub(crate) fn manifest(&self) -> &crate::storage::artifacts::ArtifactManifest { &self.manifest }
+    pub(crate) fn snapshot(&self) -> &serde_json::Value { &self.snapshot }
+    pub(crate) fn managed_root(&self) -> &std::path::Path { &self.managed_root }
+    pub(crate) fn same_registration(&self, other: &Self) -> bool {
+        self.snapshot == other.snapshot && self.managed_root == other.managed_root
+    }
+}
+
+fn navigation_artifact_scope(
+    exact: &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+) -> serde_json::Value {
+    serde_json::json!({
+        "owner_account_id": exact.owner_account_id.as_uuid().to_string(),
+        "actor_principal_id": exact.actor_principal_id.as_uuid().to_string(),
+        "authenticated_session_id": exact.authenticated_session_id.as_uuid().to_string(),
+        "access_space_id": exact.access_space_id.as_uuid().to_string(),
+        "workspace_id": exact.workspace_id.as_str(),
+    })
+}
+
+fn navigation_artifact_root() -> Result<std::path::PathBuf, ResourceAuthorityError> {
+    let root = crate::storage::artifacts::resolve_workspace_root()
+        .map_err(|_| ResourceAuthorityError::InvalidInput("artifact managed root unavailable"))?
+        .canonicalize().map_err(|_| ResourceAuthorityError::InvalidInput("artifact managed root unavailable"))?;
+    if !root.is_absolute() {
+        return Err(ResourceAuthorityError::InvalidInput("artifact managed root is not absolute"));
+    }
+    Ok(root)
+}
+
+fn navigation_artifact_source_member(
+    metadata: &serde_json::Value, source: &serde_json::Value,
+) -> Result<bool, ResourceAuthorityError> {
+    if metadata.is_null() { return Ok(false); }
+    if let Some(rows) = metadata.as_array() {
+        let mut member = false;
+        for row in rows { member |= navigation_artifact_source_member(row, source)?; }
+        return Ok(member);
+    }
+    let Some(membership) = metadata.get("source_membership") else {
+        return Err(ResourceAuthorityError::InvalidInput("artifact source membership metadata malformed"));
+    };
+    let membership = membership.as_array()
+        .ok_or(ResourceAuthorityError::InvalidInput("artifact source membership is not an array"))?;
+    Ok(membership.iter().any(|candidate| candidate == source))
+}
+
+async fn navigation_artifact_snapshot(
+    transaction: &super::SurrealTransactionContext<'_>,
+    original_bindings: &super::model_lane::NavigationReadBindings,
+    exact: &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    selection: &serde_json::Value, source: &serde_json::Value,
+) -> Result<Option<(crate::storage::artifacts::ArtifactManifest, serde_json::Value)>, ResourceAuthorityError> {
+    use artifact_publications::{ArtifactPublicationLocator, ArtifactPublicationRow};
+    if source.get("kind").and_then(serde_json::Value::as_str) != Some("artifact") { return Ok(None); }
+    let Some(source_id) = source.get("id").and_then(serde_json::Value::as_str) else { return Ok(None); };
+    let Some(source_hash) = source.get("hash").and_then(serde_json::Value::as_str) else { return Ok(None); };
+    let original_selection = original_bindings.artifact_selection_value()
+        .map_err(|_| ResourceAuthorityError::InvalidInput("artifact original selection serialization failed"))?;
+    if !original_bindings.artifact_scope_matches(exact) || original_selection != *selection {
+        return Err(ResourceAuthorityError::InvalidInput("artifact original navigation binding differs"));
+    }
+    let scope = navigation_artifact_scope(exact);
+    let membership: Vec<serde_json::Value> = transaction.query_values_at(
+        "RETURN [fn::wp012_model_lane_navigation_memory_metadata({ owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }, $navigation_selection)];",
+        original_bindings.clone(), 0,
+    ).await?;
+    let [memory] = membership.as_slice() else {
+        return Err(ResourceAuthorityError::InvalidInput("artifact source membership result malformed"));
+    };
+    if !navigation_artifact_source_member(memory, source)? { return Ok(None); }
+    let metadata: Vec<ArtifactPublicationLocator> = transaction.query_values_at(
+        "RETURN fn::wp012_model_lane_navigation_memory_artifact_metadata({ owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }, $navigation_selection);",
+        original_bindings.clone(), 0,
+    ).await?;
+    let matches: Vec<_> = metadata.iter().filter(|row| row.artifact_id == source_id).collect();
+    let expected = match matches.as_slice() {
+        [] => return Ok(None),
+        [row] => *row,
+        _ => return Err(ResourceAuthorityError::InvalidInput("artifact publication metadata is not canonical")),
+    };
+    if expected.registration_version != 1 || expected.workspace_external_id != exact.workspace_id.as_str() {
+        return Err(ResourceAuthorityError::InvalidInput("artifact publication metadata scope differs"));
+    }
+    let publications: Vec<ArtifactPublicationRow> = transaction.query_values_at(
+        "RETURN fn::wp012_model_lane_navigation_memory_artifact_publications({ owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }, $navigation_selection);",
+        original_bindings.clone(), 0,
+    ).await?;
+    let matches: Vec<_> = publications.iter().filter(|row| row.artifact_id == source_id).collect();
+    let gated = match matches.as_slice() {
+        [] => return Ok(None),
+        [row] => *row,
+        _ => return Err(ResourceAuthorityError::InvalidInput("artifact publication read is not canonical")),
+    };
+    let manifest = gated.validated_manifest()?;
+    if manifest.artifact_id.to_string() != source_id || manifest.content_hash != source_hash {
+        return Err(ResourceAuthorityError::InvalidInput("artifact source manifest identity differs"));
+    }
+    let resources: Vec<NavigationArtifactResourceRow> = transaction.query_values_at(
+        "SELECT id, resource_kind, external_resource_id, owner_account_id, access_space_id, parent_resource_id, lifecycle_state, policy_version, classification FROM protected_resources WHERE id IN [$artifact, $workspace] LIMIT 3;",
+        NavigationArtifactResourceBindings {
+            artifact: RecordId::new("protected_resources", expected.artifact_resource_id.clone()),
+            workspace: RecordId::new("protected_resources", expected.workspace_resource_id.clone()),
+        }, 0,
+    ).await?;
+    if resources.is_empty() { return Ok(None); }
+    let artifact_rows: Vec<_> = resources.iter().filter(|row| row.resource_kind == "artifact").collect();
+    let workspace_rows: Vec<_> = resources.iter().filter(|row| row.resource_kind == "workspace").collect();
+    let (artifact, workspace) = match (artifact_rows.as_slice(), workspace_rows.as_slice()) {
+        ([artifact], [workspace]) if resources.len() == 2 => (*artifact, *workspace),
+        _ => return Ok(None),
+    };
+    let account = RecordId::new("local_accounts", exact.owner_account_id.as_uuid().to_string());
+    let space = RecordId::new("access_spaces", exact.access_space_id.as_uuid().to_string());
+    if record_key(artifact.id.clone())? != expected.artifact_resource_id
+        || record_key(workspace.id.clone())? != expected.workspace_resource_id
+        || artifact.external_resource_id != source_id || workspace.external_resource_id != exact.workspace_id.as_str()
+        || artifact.parent_resource_id.as_ref() != Some(&workspace.id)
+        || artifact.owner_account_id != account || workspace.owner_account_id != account
+        || artifact.access_space_id != space || workspace.access_space_id != space
+        || artifact.lifecycle_state != "active" || workspace.lifecycle_state != "active"
+        || artifact.policy_version < 1 || workspace.policy_version < 1
+    {
+        return Err(ResourceAuthorityError::InvalidInput("artifact canonical resource parent differs"));
+    }
+    let classification = serde_json::to_value(manifest.classification)
+        .map_err(|_| ResourceAuthorityError::InvalidInput("artifact classification serialization failed"))?;
+    if classification.as_str() != Some(artifact.classification.as_str()) {
+        return Err(ResourceAuthorityError::InvalidInput("artifact canonical classification differs"));
+    }
+    let locator = |row: &NavigationArtifactResourceRow| CanonicalResourceLocator {
+        id: row.id.clone(), external_resource_id: row.external_resource_id.clone(),
+        owner_account_id: row.owner_account_id.clone(), access_space_id: row.access_space_id.clone(),
+        parent_resource_id: row.parent_resource_id.clone(), lifecycle_state: row.lifecycle_state.clone(), policy_version: row.policy_version,
+    };
+    let canonical = artifact_publications::read_artifact_publication(
+        transaction, &locator(artifact), &locator(workspace), expected,
+    ).await?;
+    let Some(canonical) = canonical else { return Ok(None); };
+    if &canonical != gated {
+        return Err(ResourceAuthorityError::InvalidInput("artifact gated publication changed"));
+    }
+    let raw_manifest: serde_json::Value = serde_json::from_str(&canonical.manifest_json)
+        .map_err(|_| ResourceAuthorityError::InvalidInput("artifact manifest JSON malformed"))?;
+    let full_manifest = serde_json::to_value(&manifest)
+        .map_err(|_| ResourceAuthorityError::InvalidInput("artifact manifest serialization failed"))?;
+    if raw_manifest != full_manifest {
+        return Err(ResourceAuthorityError::InvalidInput("artifact full manifest representation differs"));
+    }
+    let publication = serde_json::to_value(&canonical)
+        .map_err(|_| ResourceAuthorityError::InvalidInput("artifact publication serialization failed"))?;
+    let snapshot = serde_json::json!({
+        "scope": scope, "selection": selection, "source": source, "publication": publication,
+        "artifact": {"resource_id":expected.artifact_resource_id,"external_resource_id":artifact.external_resource_id,
+            "owner_account_id":exact.owner_account_id.as_uuid().to_string(),"access_space_id":exact.access_space_id.as_uuid().to_string(),
+            "parent_resource_id":expected.workspace_resource_id,"lifecycle_state":artifact.lifecycle_state,
+            "policy_version":artifact.policy_version,"classification":artifact.classification},
+        "workspace": {"resource_id":expected.workspace_resource_id,"external_resource_id":workspace.external_resource_id,
+            "owner_account_id":exact.owner_account_id.as_uuid().to_string(),"access_space_id":exact.access_space_id.as_uuid().to_string(),
+            "lifecycle_state":workspace.lifecycle_state,"policy_version":workspace.policy_version,
+            "classification":workspace.classification},
+    });
+    Ok(Some((manifest, snapshot)))
+}
+
+pub(crate) async fn authorize_navigation_artifact_read<'tx>(
+    transaction: &'tx super::SurrealTransactionContext<'tx>,
+    original_bindings: &super::model_lane::NavigationReadBindings,
+    exact_scope: &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    selection: &serde_json::Value, source: &crate::ace::FemsSourceRef,
+) -> Result<Option<NavigationArtifactReadPermit<'tx>>, ResourceAuthorityError> {
+    let source = serde_json::to_value(source)
+        .map_err(|_| ResourceAuthorityError::InvalidInput("artifact source serialization failed"))?;
+    let Some((_manifest, snapshot)) = navigation_artifact_snapshot(transaction, original_bindings, exact_scope, selection, &source).await? else {
+        return Ok(None);
+    };
+    let managed_root = navigation_artifact_root()?;
+    Ok(Some(NavigationArtifactReadPermit {
+        transaction, original_bindings: original_bindings.clone(), exact_scope: exact_scope.clone(), selection: selection.clone(), source, snapshot, managed_root,
+    }))
+}
+
+pub(crate) async fn read_navigation_artifact(
+    transaction: &super::SurrealTransactionContext<'_>, permit: &NavigationArtifactReadPermit<'_>,
+) -> Result<Option<NavigationArtifactRegistration>, ResourceAuthorityError> {
+    if !std::ptr::eq(transaction, permit.transaction) {
+        return Err(ResourceAuthorityError::InvalidInput("artifact read transaction differs"));
+    }
+    let Some((manifest, snapshot)) = navigation_artifact_snapshot(
+        transaction, &permit.original_bindings, &permit.exact_scope, &permit.selection, &permit.source,
+    ).await? else { return Ok(None); };
+    if snapshot != permit.snapshot || navigation_artifact_root()? != permit.managed_root {
+        return Err(ResourceAuthorityError::InvalidInput("artifact read registration changed"));
+    }
+    let persisted = crate::storage::artifacts::read_persisted_file_artifact(
+        &permit.managed_root, manifest.layer.clone(), manifest.artifact_id,
+    ).map_err(|_| ResourceAuthorityError::InvalidInput("artifact managed payload validation failed"))?;
+    let expected = serde_json::to_value(&manifest)
+        .map_err(|_| ResourceAuthorityError::InvalidInput("artifact manifest serialization failed"))?;
+    let actual = serde_json::to_value(persisted.manifest())
+        .map_err(|_| ResourceAuthorityError::InvalidInput("artifact manifest serialization failed"))?;
+    if actual != expected {
+        return Err(ResourceAuthorityError::InvalidInput("artifact managed manifest differs"));
+    }
+    let Some((_manifest, after)) = navigation_artifact_snapshot(
+        transaction, &permit.original_bindings, &permit.exact_scope, &permit.selection, &permit.source,
+    ).await? else { return Ok(None); };
+    if after != snapshot || navigation_artifact_root()? != permit.managed_root {
+        return Err(ResourceAuthorityError::InvalidInput("artifact read registration changed"));
+    }
+    Ok(Some(NavigationArtifactRegistration { manifest, snapshot, managed_root: permit.managed_root.clone() }))
+}
+
+#[derive(SurrealValue)]
+struct ArtifactResourceRegistrationBindings {
+    resource: RecordId,
+    external: String,
+    account: RecordId,
+    principal: RecordId,
+    session: RecordId,
+    space: RecordId,
+    parent: RecordId,
+    classification: String,
+    locator_hash: String,
+    now: Datetime,
+}
+
+#[derive(Clone, Eq, PartialEq, SurrealValue)]
+struct ArtifactRegisteredResourceRow {
+    id: RecordId,
+    external_resource_id: String,
+    owner_account_id: RecordId,
+    access_space_id: RecordId,
+    parent_resource_id: Option<RecordId>,
+    lifecycle_state: String,
+    policy_version: i64,
+    created_by_principal_id: RecordId,
+    created_in_session_id: RecordId,
+    classification: String,
+    schema_version: i64,
+    storage_locator_hash: String,
+}
+
+enum ArtifactPublicationFilesystemCheck<'a> {
+    Live,
+    Closed {
+        terminal: &'a super::ArtifactPublicationCanonicalTerminalForOwner,
+        closure: &'a crate::storage::artifacts::ArtifactPublicationOwnedClosure,
+    },
+}
+
+#[derive(Clone, Eq, PartialEq)]
+struct ExpectedWorkspaceArtifactPublication {
+    resource: ArtifactRegisteredResourceRow,
+    publication: artifact_publications::ArtifactPublicationRow,
+}
+
+#[derive(SurrealValue)]
+struct ArtifactResourceRecheckBindings {
+    resource: RecordId,
+}
+
+pub(crate) struct WorkspaceArtifactPublicationAuthorization {
+    resources: std::sync::Arc<crate::storage::artifacts::ArtifactPublicationResources>,
+    expected_publications: std::sync::Mutex<Vec<ExpectedWorkspaceArtifactPublication>>,
+    operation_context: std::sync::Arc<super::WorkspaceArtifactPublicationOperationContext>,
+    managed_root: std::path::PathBuf,
+    capture: ProducerSourceFactsCapture,
+    workspace: CanonicalResourceLocator,
+    exact: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    namespace: String,
+    database: String,
+}
+
+pub(crate) struct WorkspaceArtifactPublicationPermit<'tx> {
+    authorization: &'tx WorkspaceArtifactPublicationAuthorization,
+    transaction: &'tx super::SurrealTransactionContext<'tx>,
+}
+
+impl WorkspaceArtifactPublicationAuthorization {
+    pub(crate) fn publication_resources(&self) -> &std::sync::Arc<crate::storage::artifacts::ArtifactPublicationResources> {
+        &self.resources
+    }
+
+    pub(crate) fn managed_root(&self) -> &std::path::Path { &self.managed_root }
+
+    fn require_current_managed_root(&self) -> Result<(), ResourceAuthorityError> {
+        let current = crate::storage::artifacts::resolve_workspace_root()
+            .map_err(|_| ResourceAuthorityError::InvalidInput("artifact managed root unavailable"))?
+            .canonicalize().map_err(|_| ResourceAuthorityError::InvalidInput("artifact managed root unavailable"))?;
+        if current != self.managed_root {
+            return Err(ResourceAuthorityError::InvalidInput("artifact managed root changed"));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn operation_id(&self) -> Uuid { self.capture.operation_id }
+    pub(crate) fn exact_scope(&self) -> &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution { &self.exact }
+    pub(crate) fn workspace_parent(&self) -> &CanonicalResourceLocator { &self.workspace }
+
+    fn record_user_scope(&self) -> RecordUserScope {
+        let source = &self.capture.sources[0];
+        RecordUserScope {
+            grant_id: Some(source.decision.grant_id.clone()), workspace_id: Some(self.workspace.external_resource_id.clone()),
+            session_token: self.capture.credentials.session_token.clone(),
+            channel_binding_hash: Some(self.capture.credentials.channel_binding_hash.clone()),
+            resource_id: source.decision.resource_id.clone(), session_id: source.decision.session_id.clone(),
+            capability_id: source.request.capability_id.clone(), action: source.request.action,
+        }
+    }
+}
+
+impl<'tx> WorkspaceArtifactPublicationPermit<'tx> {
+    pub(crate) fn persist_file_artifact_owned(
+        &self, manifest: &crate::storage::artifacts::ArtifactManifest, payload: &[u8],
+    ) -> Result<crate::storage::artifacts::PersistedFileArtifact, crate::storage::artifacts::ArtifactError> {
+        self.authorization.resources.persist_file_artifact_owned(manifest, payload)
+    }
+
+    pub(crate) async fn register_persisted_artifact(
+        &self, persisted: &crate::storage::artifacts::PersistedFileArtifact,
+    ) -> Result<RegisteredArtifactWitness, ResourceAuthorityError> {
+        let manifest = persisted.manifest();
+        self.authorization.require_current_managed_root()?;
+        let disk = self.authorization.resources.read_persisted_file_artifact_owned(
+            manifest.layer.clone(), manifest.artifact_id,
+        ).map_err(|_| ResourceAuthorityError::InvalidInput("artifact managed payload validation failed"))?;
+        let expected_manifest = serde_json::to_value(manifest)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("artifact manifest serialization failed"))?;
+        let actual_manifest = serde_json::to_value(disk.manifest())
+            .map_err(|_| ResourceAuthorityError::InvalidInput("artifact manifest serialization failed"))?;
+        if actual_manifest != expected_manifest {
+            return Err(ResourceAuthorityError::InvalidInput("artifact managed manifest differs"));
+        }
+        self.authorization.require_current_managed_root()?;
+        if manifest.artifact_id.is_nil() {
+            return Err(ResourceAuthorityError::InvalidInput("publication artifact UUID is required"));
+        }
+        let external = manifest.artifact_id.to_string();
+        let classification = serde_json::to_value(manifest.classification)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("artifact classification serialization failed"))?
+            .as_str().ok_or(ResourceAuthorityError::InvalidInput("artifact classification is not a string"))?.to_owned();
+        let facts = &self.authorization.capture.sources[0].authority;
+        let locator_hash = sha256_hex(format!("artifact:{external}").as_bytes());
+        let rows: Vec<ArtifactRegisteredResourceRow> = self.transaction.query_values_at(
+            "IF array::len(SELECT id FROM protected_resources WHERE resource_kind = 'artifact' AND external_resource_id = $external LIMIT 2) = 0 { CREATE $resource SET resource_kind = 'artifact', external_resource_id = $external, owner_account_id = $account, created_by_principal_id = $principal, created_in_session_id = $session, access_space_id = $space, parent_resource_id = $parent, schema_version = 1, lifecycle_state = 'active', policy_version = 1, classification = $classification, storage_locator_hash = $locator_hash, created_at = $now, updated_at = $now; }; SELECT id, external_resource_id, owner_account_id, access_space_id, parent_resource_id, lifecycle_state, policy_version, created_by_principal_id, created_in_session_id, classification, schema_version, storage_locator_hash FROM protected_resources WHERE resource_kind = 'artifact' AND external_resource_id = $external LIMIT 2;",
+            ArtifactResourceRegistrationBindings {
+                resource: RecordId::new("protected_resources", Uuid::now_v7().to_string()), external: external.clone(),
+                account: facts.account_id.clone(), principal: facts.principal_id.clone(), session: facts.session_id.clone(),
+                space: facts.access_space_id.clone(), parent: self.authorization.workspace.id.clone(),
+                classification: classification.clone(), locator_hash: locator_hash.clone(), now: Datetime::from(Utc::now()),
+            }, 1,
+        ).await?;
+        let [row] = rows.as_slice() else {
+            return Err(ResourceAuthorityError::InvalidInput("artifact resource is not canonical"));
+        };
+        if row.external_resource_id != external || row.owner_account_id != facts.account_id
+            || row.access_space_id != facts.access_space_id || row.parent_resource_id.as_ref() != Some(&self.authorization.workspace.id)
+            || row.lifecycle_state != "active" || row.policy_version != 1
+            || row.created_by_principal_id != facts.principal_id || row.created_in_session_id != facts.session_id
+            || row.classification != classification || row.schema_version != 1 || row.storage_locator_hash != locator_hash
+        {
+            return Err(ResourceAuthorityError::InvalidInput("artifact resource metadata differs"));
+        }
+        let canonical = CanonicalResourceLocator {
+            id: row.id.clone(), external_resource_id: row.external_resource_id.clone(),
+            owner_account_id: row.owner_account_id.clone(), access_space_id: row.access_space_id.clone(),
+            parent_resource_id: row.parent_resource_id.clone(), lifecycle_state: row.lifecycle_state.clone(), policy_version: row.policy_version,
+        };
+        let witness = artifact_publications::register_artifact_publication(self, &canonical, persisted).await?;
+        let expected = artifact_publications::ArtifactPublicationLocator {
+            artifact_id: external,
+            artifact_resource_id: record_key(canonical.id.clone())?,
+            workspace_external_id: self.authorization.workspace.external_resource_id.clone(),
+            workspace_resource_id: record_key(self.authorization.workspace.id.clone())?,
+            manifest_sha256: sha256_hex(serde_json::to_string(manifest)
+                .map_err(|_| ResourceAuthorityError::InvalidInput("artifact manifest serialization failed"))?.as_bytes()),
+            producer_operation_id: self.operation_id().to_string(), registration_version: 1,
+        };
+        let publication = artifact_publications::read_artifact_publication(
+            self.transaction, &canonical, &self.authorization.workspace, &expected,
+        ).await?.ok_or(ResourceAuthorityError::InvalidInput("artifact registered publication unavailable"))?;
+        let validated = publication.validated_manifest()?;
+        if serde_json::to_value(&validated)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("artifact manifest serialization failed"))? != expected_manifest
+        {
+            return Err(ResourceAuthorityError::InvalidInput("artifact registered manifest differs"));
+        }
+        let facts = ExpectedWorkspaceArtifactPublication { resource: row.clone(), publication };
+        let mut expected = self.authorization.expected_publications.lock()
+            .map_err(|_| ResourceAuthorityError::InvalidInput("artifact expected publications unavailable"))?;
+        if let Some(prior) = expected.iter().find(|prior| prior.publication.artifact_id == facts.publication.artifact_id) {
+            if prior != &facts {
+                return Err(ResourceAuthorityError::InvalidInput("artifact expected publication conflicts"));
+            }
+        } else {
+            expected.push(facts);
+        }
+        Ok(witness)
+    }
+
+
+    pub(crate) fn managed_root(&self) -> &std::path::Path { self.authorization.managed_root() }
+    pub(crate) fn operation_id(&self) -> Uuid { self.authorization.operation_id() }
+    pub(crate) fn exact_scope(&self) -> &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution { self.authorization.exact_scope() }
+    pub(crate) fn workspace_parent(&self) -> &CanonicalResourceLocator { self.authorization.workspace_parent() }
+    pub(crate) fn transaction(&self) -> &super::SurrealTransactionContext<'tx> { self.transaction }
+    pub(crate) fn matches_transaction(&self, transaction: &super::SurrealTransactionContext<'_>) -> bool {
+        std::ptr::eq(self.transaction, transaction)
+    }
+}
+
+pub(crate) struct PalmistryWatcherAdmissionReadAuthorization {
+    retained: std::sync::Arc<PalmistryWatcherAdoptionAuthority>,
+    incoming: RoleAuthorityAuthInput,
+    registry: crate::capabilities::CapabilityRegistry,
+    source: ProducerSourceFacts,
+    parent: CanonicalResourceLocator,
+}
+
+impl PalmistryWatcherAdmissionReadAuthorization {
+    pub(crate) fn authority(&self) -> &std::sync::Arc<PalmistryWatcherAdoptionAuthority> { &self.retained }
+    pub(crate) fn operation_id(&self) -> Uuid { self.retained.operation_id() }
+    pub(crate) fn exact_scope(&self) -> &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution {
+        self.retained.exact_scope()
+    }
+}
+
+pub(crate) struct PalmistryWatcherAdmissionAuthorization {
+    authority: std::sync::Arc<PalmistryWatcherAdoptionAuthority>,
+    expires_at: chrono::DateTime<Utc>,
+}
+
+impl PalmistryWatcherAdmissionAuthorization {
+    pub(crate) fn authority(&self) -> &std::sync::Arc<PalmistryWatcherAdoptionAuthority> { &self.authority }
+    pub(crate) fn operation_id(&self) -> Uuid { self.authority.operation_id() }
+    pub(crate) fn exact_scope(&self) -> &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution {
+        self.authority.exact_scope()
+    }
+    pub(crate) fn resource_id(&self) -> &RecordId { &self.authority.capture.sources[0].authority.resource_id }
+    pub(crate) fn grant_id(&self) -> &RecordId { &self.authority.capture.sources[0].authority.grant_id }
+    pub(crate) fn grant_version(&self) -> i64 { self.authority.capture.sources[0].authority.grant_version }
+    pub(crate) fn policy_versions(&self) -> &[i64] { &self.authority.capture.sources[0].authority.policy_versions }
+    pub(crate) fn revocation_epochs(&self) -> &[i64] { &self.authority.capture.sources[0].authority.revocation_epochs }
+    pub(crate) fn delegation_chain(&self) -> &[String] { &self.authority.capture.sources[0].authority.delegation_chain }
+    pub(crate) fn expires_at(&self) -> &chrono::DateTime<Utc> { &self.expires_at }
+
+    pub(crate) fn validate_binding(
+        &self, authority: &std::sync::Arc<PalmistryWatcherAdoptionAuthority>, expires_at: &chrono::DateTime<Utc>,
+    ) -> Result<(), ResourceAuthorityError> {
+        if !std::sync::Arc::ptr_eq(&self.authority, authority)
+            || *expires_at > self.expires_at || *expires_at <= Utc::now()
+        {
+            return Err(ResourceAuthorityError::InvalidInput("watcher admission authorization binding differs"));
+        }
+        Ok(())
+    }
+
+    pub(crate) async fn revalidate(&self, storage: &SurrealStorage) -> Result<(), ResourceAuthorityError> {
+        storage.revalidate_palmistry_watcher_adoption_authority(&self.authority).await?;
+        self.validate_binding(&self.authority, &self.expires_at)
+    }
+}
+
+#[derive(SurrealValue)]
+struct PalmistryWatcherParentBindings {
+    resource: RecordId,
+    parent: RecordId,
+    account: RecordId,
+    space: RecordId,
+    policy: i64,
+}
+
+impl PalmistryWatcherAdoptionAuthority {
+    pub(crate) fn operation_id(&self) -> Uuid { self.capture.operation_id }
+    pub(crate) fn watcher_id(&self) -> Uuid { self.watcher_id }
+    pub(crate) fn exact_scope(&self) -> &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution {
+        &self.exact
+    }
+    pub(crate) fn workspace_parent(&self) -> &CanonicalResourceLocator { &self.parent }
+
+    pub(crate) fn record_user_scope(&self) -> RecordUserScope {
+        let source = &self.capture.sources[0];
+        RecordUserScope {
+            grant_id: Some(source.decision.grant_id.clone()),
+            workspace_id: Some(self.parent.external_resource_id.clone()),
+            session_token: self.capture.credentials.session_token.clone(),
+            channel_binding_hash: Some(self.capture.credentials.channel_binding_hash.clone()),
+            resource_id: source.decision.resource_id.clone(),
+            session_id: source.decision.session_id.clone(),
+            capability_id: source.request.capability_id.clone(),
+            action: source.request.action,
+        }
+    }
+
+    fn require_current_binding(&self, storage: &SurrealStorage) -> Result<(), ResourceAuthorityError> {
+        let source = &self.capture.sources[0];
+        let denied = || ResourceAuthorityError::Denied { decision_id: source.decision.decision_id.clone() };
+        let grant_policy = source.authority.policy_versions.first().ok_or_else(denied)?;
+        if self.capture.lifecycle != storage.resource_access_lifecycle()
+            || self.namespace != storage.config().namespace() || self.database != storage.config().database()
+            || self.capture.operation_id.is_nil() || self.watcher_id.is_nil()
+            || source.request.resource_kind != ResourceKind::PalmistryWatcher
+            || source.request.external_resource_id != self.watcher_id.to_string()
+            || source.request.action != ResourceAction::Reconcile
+            || source.request.capability_id != PALMISTRY_WATCHER_ADOPT_CAPABILITY
+            || source.authority.capability_profile_id != "Operator"
+            || !self.capture.registry.profile_can("Operator", PALMISTRY_WATCHER_ADOPT_CAPABILITY).unwrap_or(false)
+            || !source.authority.capability_ids.iter().any(|capability| capability == PALMISTRY_WATCHER_ADOPT_CAPABILITY)
+            || self.parent.owner_account_id != source.authority.account_id
+            || self.parent.access_space_id != source.authority.access_space_id
+            || self.parent.lifecycle_state != "active" || self.parent.policy_version > *grant_policy
+        {
+            return Err(denied());
+        }
+        Ok(())
+    }
+
+    pub(crate) async fn revalidate_in_transaction(
+        &self, storage: &SurrealStorage, transaction: &super::SurrealTransactionContext<'_>,
+    ) -> Result<(), ResourceAuthorityError> {
+        self.require_current_binding(storage)?;
+        let _fence = self.capture.fence.clone();
+        let source = &self.capture.sources[0];
+        let denied = || ResourceAuthorityError::Denied { decision_id: source.decision.decision_id.clone() };
+        let current = super::current_record_user_scope().ok_or_else(denied)?;
+        let original = self.record_user_scope();
+        if current.session_token != original.session_token || current.channel_binding_hash != original.channel_binding_hash
+            || current.session_id != original.session_id || current.workspace_id != original.workspace_id
+            || current.resource_id != original.resource_id || current.grant_id != original.grant_id
+            || current.capability_id != original.capability_id || current.action != original.action
+        {
+            return Err(denied());
+        }
+        let rows: Vec<RegistryPublicationAuthority> = transaction.query_values_at(
+            REGISTRY_PUBLICATION_AUTHORITY,
+            RegistryPublicationBindings {
+                resource: source.authority.resource_id.clone(), original_grant: source.authority.grant_id.clone(),
+                kind: source.authority.resource_kind.clone(), action: source.request.action.as_str().to_owned(),
+                capability: source.request.capability_id.clone(),
+            }, 0,
+        ).await?;
+        if rows.as_slice() != std::slice::from_ref(&source.authority) { return Err(denied()); }
+        let parents: Vec<RecordId> = transaction.query_values_at(
+            "SELECT VALUE parent_resource_id FROM protected_resources WHERE id = $resource AND resource_kind = 'palmistry_watcher' AND lifecycle_state = 'active' AND parent_resource_id = $parent AND parent_resource_id.resource_kind = 'workspace' AND parent_resource_id.lifecycle_state = 'active' AND parent_resource_id.owner_account_id = $account AND parent_resource_id.access_space_id = $space AND parent_resource_id.policy_version = $policy LIMIT 2;",
+            PalmistryWatcherParentBindings {
+                resource: source.authority.resource_id.clone(), parent: self.parent.id.clone(),
+                account: source.authority.account_id.clone(), space: source.authority.access_space_id.clone(),
+                policy: self.parent.policy_version,
+            }, 0,
+        ).await?;
+        if parents.as_slice() != std::slice::from_ref(&self.parent.id) { return Err(denied()); }
+        CanonicalNavigationPublicationAuthority {
+            grant_expires_at: source.authority.grant_expires_at.clone(),
+            session_expires_at: source.authority.session_expires_at.clone(),
+        }.require_unexpired()
+    }
 }
 
 #[derive(Debug, Error)]
@@ -292,7 +911,477 @@ struct ProducerRunFailure {
     origin: ProducerRunFailureOrigin,
 }
 
+struct ProducerRunCompletion {
+    operation_id: Uuid,
+    result: Result<crate::swarm_orchestration::model_lane::ModelLaneRunRecord, ProducerRunFailure>,
+    finalization: Option<super::OriginalRunCreateFinalizationProof>,
+    owner: std::sync::Arc<dyn std::any::Any + Send + Sync>,
+}
+
 impl SurrealStorage {
+    pub(crate) async fn capture_workspace_artifact_publication_authorization(
+        &self, operation_id: Uuid, registry: &crate::capabilities::CapabilityRegistry,
+        credentials: RoleAuthorityAuthInput, workspace_id: &str,
+    ) -> Result<std::sync::Arc<WorkspaceArtifactPublicationAuthorization>, ResourceAuthorityError> {
+        use crate::swarm_orchestration::resource_scope::{AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef,
+            ExactResourceScopeAttribution, OwnerAccountId, WorkspaceScopeRef};
+        let request = AuthorizationRequest {
+            session_token: credentials.session_token.clone(), channel_binding_hash: Some(credentials.channel_binding_hash.clone()),
+            capability_id: "fs.write".to_owned(), resource_kind: ResourceKind::Workspace,
+            external_resource_id: workspace_id.to_owned(), action: ResourceAction::Create,
+        };
+        let capture = self.capture_producer_source_facts(operation_id, registry, credentials, vec![request]).await?;
+        let workspace = self.canonical_resource_locator(ResourceKind::Workspace, workspace_id).await?
+            .ok_or(ResourceAuthorityError::InvalidInput("publication Workspace unavailable"))?;
+        let source = &capture.sources[0];
+        if workspace.id != source.authority.resource_id || workspace.owner_account_id != source.authority.account_id
+            || workspace.access_space_id != source.authority.access_space_id || workspace.lifecycle_state != "active"
+        {
+            return Err(ResourceAuthorityError::InvalidInput("publication Workspace authority differs"));
+        }
+        let parse = |value: &str| Uuid::parse_str(value)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("invalid publication authority UUID"));
+        let exact = ExactResourceScopeAttribution {
+            owner_account_id: OwnerAccountId::from_uuid(parse(&source.decision.account_id)?),
+            actor_principal_id: ActorPrincipalId::from_uuid(parse(&source.decision.principal_id)?),
+            authenticated_session_id: AuthenticatedSessionRef::from_uuid(parse(&source.decision.session_id)?),
+            access_space_id: AccessSpaceRef::from_uuid(parse(&source.decision.access_space_id)?),
+            workspace_id: WorkspaceScopeRef::new(workspace_id.to_owned())
+                .map_err(|_| ResourceAuthorityError::InvalidInput("invalid publication Workspace"))?,
+        };
+        let mut authorization_expires_at = source.authority.session_expires_at.clone().into_inner();
+        if let Some(grant_expiry) = &source.authority.grant_expires_at {
+            authorization_expires_at = authorization_expires_at.min(grant_expiry.clone().into_inner());
+        }
+        let operation_context = self.capture_workspace_artifact_publication_operation_context(
+            operation_id, RecordUserScope {
+                grant_id: Some(source.decision.grant_id.clone()), workspace_id: Some(workspace.external_resource_id.clone()),
+                session_token: capture.credentials.session_token.clone(),
+                channel_binding_hash: Some(capture.credentials.channel_binding_hash.clone()),
+                resource_id: source.decision.resource_id.clone(), session_id: source.decision.session_id.clone(),
+                capability_id: source.request.capability_id.clone(), action: source.request.action,
+            }, authorization_expires_at,
+        )?;
+        let managed_root = crate::storage::artifacts::resolve_workspace_root()
+            .map_err(|_| ResourceAuthorityError::InvalidInput("artifact managed root unavailable"))?
+            .canonicalize().map_err(|_| ResourceAuthorityError::InvalidInput("artifact managed root unavailable"))?;
+        if !managed_root.is_absolute() {
+            return Err(ResourceAuthorityError::InvalidInput("artifact managed root is not absolute"));
+        }
+        let resources = std::sync::Arc::new(crate::storage::artifacts::ArtifactPublicationResources::new(
+            operation_id, managed_root.clone(),
+        ));
+        let authority = std::sync::Arc::new(WorkspaceArtifactPublicationAuthorization {
+            capture, workspace, exact, managed_root, operation_context, resources,
+            expected_publications: std::sync::Mutex::new(Vec::new()), namespace: self.config().namespace().to_owned(), database: self.config().database().to_owned(),
+        });
+        self.revalidate_workspace_artifact_publication_authorization(&authority).await?;
+        Ok(authority)
+    }
+
+    pub(crate) async fn revalidate_workspace_artifact_publication_authorization(
+        &self, authority: &WorkspaceArtifactPublicationAuthorization,
+    ) -> Result<(), ResourceAuthorityError> {
+        authority.require_current_managed_root()?;
+        if authority.namespace != self.config().namespace() || authority.database != self.config().database() {
+            return Err(ResourceAuthorityError::InvalidInput("publication backend differs"));
+        }
+        self.revalidate_producer_source_facts(&authority.capture).await?;
+        let source = &authority.capture.sources[0];
+        if source.request.resource_kind != ResourceKind::Workspace || source.request.action != ResourceAction::Create
+            || source.request.capability_id != "fs.write"
+            || self.canonical_resource_locator(ResourceKind::Workspace, &authority.workspace.external_resource_id).await?.as_ref()
+                != Some(&authority.workspace)
+        {
+            return Err(ResourceAuthorityError::InvalidInput("publication Workspace changed"));
+        }
+        Ok(())
+    }
+
+    async fn revalidate_workspace_artifact_publication_in_transaction(
+        &self, authority: &WorkspaceArtifactPublicationAuthorization, transaction: &super::SurrealTransactionContext<'_>,
+    ) -> Result<(), ResourceAuthorityError> {
+        authority.require_current_managed_root()?;
+        if authority.capture.lifecycle != self.resource_access_lifecycle()
+            || authority.namespace != self.config().namespace() || authority.database != self.config().database()
+        {
+            return Err(ResourceAuthorityError::InvalidInput("publication transaction backend differs"));
+        }
+        let current = super::current_record_user_scope()
+            .ok_or(ResourceAuthorityError::InvalidInput("publication signed scope unavailable"))?;
+        let original = authority.record_user_scope();
+        if current.session_token != original.session_token || current.channel_binding_hash != original.channel_binding_hash
+            || current.session_id != original.session_id || current.workspace_id != original.workspace_id
+            || current.resource_id != original.resource_id || current.grant_id != original.grant_id
+            || current.capability_id != original.capability_id || current.action != original.action
+        {
+            return Err(ResourceAuthorityError::InvalidInput("publication transaction scope differs"));
+        }
+        let source = &authority.capture.sources[0];
+        let rows: Vec<RegistryPublicationAuthority> = transaction.query_values_at(
+            REGISTRY_PUBLICATION_AUTHORITY, RegistryPublicationBindings {
+                resource: source.authority.resource_id.clone(), original_grant: source.authority.grant_id.clone(),
+                kind: ResourceKind::Workspace.as_str().to_owned(), action: ResourceAction::Create.as_str().to_owned(),
+                capability: "fs.write".to_owned(),
+            }, 0,
+        ).await?;
+        if rows.as_slice() != std::slice::from_ref(&source.authority) {
+            return Err(ResourceAuthorityError::InvalidInput("publication transaction authority changed"));
+        }
+        CanonicalNavigationPublicationAuthority {
+            grant_expires_at: source.authority.grant_expires_at.clone(), session_expires_at: source.authority.session_expires_at.clone(),
+        }.require_unexpired()
+    }
+
+    fn require_workspace_artifact_publication_reconciliation_read(
+        &self, authority: &WorkspaceArtifactPublicationAuthorization,
+        read: &super::WorkspaceArtifactPublicationReconciliationRead,
+    ) -> Result<(), ResourceAuthorityError> {
+        let facts = &authority.capture.sources[0].authority;
+        let mut authority_expires_at = facts.session_expires_at.clone().into_inner();
+        if let Some(grant_expiry) = &facts.grant_expires_at {
+            authority_expires_at = authority_expires_at.min(grant_expiry.clone().into_inner());
+        }
+        if !read.matches_original(&authority.operation_context)
+            || read.authority_expires_at() != authority_expires_at
+            || std::time::Instant::now() >= read.deadline()
+        {
+            return Err(ResourceAuthorityError::InvalidInput("artifact reconciliation read binding expired or differs"));
+        }
+        Ok(())
+    }
+
+    async fn with_workspace_artifact_publication_reconciliation_read<T, F>(
+        &self, authority: &std::sync::Arc<WorkspaceArtifactPublicationAuthorization>,
+        transaction: &super::SurrealTransactionContext<'_>,
+        read: &super::WorkspaceArtifactPublicationReconciliationRead, operation: F,
+    ) -> Result<T, ResourceAuthorityError>
+    where
+        F: std::future::Future<Output = Result<T, ResourceAuthorityError>>,
+    {
+        self.require_workspace_artifact_publication_reconciliation_read(authority, read)?;
+        tokio::time::timeout_at(tokio::time::Instant::from_std(read.deadline()), async {
+            self.revalidate_workspace_artifact_publication_in_transaction(authority, transaction).await?;
+            let result = operation.await?;
+            self.revalidate_workspace_artifact_publication_in_transaction(authority, transaction).await?;
+            self.require_workspace_artifact_publication_reconciliation_read(authority, read)?;
+            Ok(result)
+        }).await.map_err(|_| ResourceAuthorityError::InvalidInput("artifact reconciliation read deadline elapsed"))?
+    }
+
+    pub(crate) async fn recheck_workspace_artifact_publication_authority_in_transaction(
+        &self, authority: &std::sync::Arc<WorkspaceArtifactPublicationAuthorization>,
+        transaction: &super::SurrealTransactionContext<'_>,
+        read: &super::WorkspaceArtifactPublicationReconciliationRead,
+    ) -> Result<(), ResourceAuthorityError> {
+        self.with_workspace_artifact_publication_reconciliation_read(
+            authority, transaction, read, std::future::ready(Ok(())),
+        ).await
+    }
+
+    pub(crate) async fn recheck_workspace_artifact_publication_in_transaction(
+        &self, authority: &std::sync::Arc<WorkspaceArtifactPublicationAuthorization>,
+        transaction: &super::SurrealTransactionContext<'_>,
+        read: &super::WorkspaceArtifactPublicationReconciliationRead,
+    ) -> Result<(), ResourceAuthorityError> {
+        self.with_workspace_artifact_publication_reconciliation_read(
+            authority, transaction, read, self.recheck_workspace_artifact_publication_state_in_transaction(
+                authority, transaction, ArtifactPublicationFilesystemCheck::Live,
+            ),
+        ).await
+    }
+
+    pub(crate) async fn recheck_workspace_artifact_publication_after_owned_closure_in_transaction(
+        &self, authority: &std::sync::Arc<WorkspaceArtifactPublicationAuthorization>,
+        transaction: &super::SurrealTransactionContext<'_>,
+        terminal: &super::ArtifactPublicationCanonicalTerminalForOwner,
+        closure: &crate::storage::artifacts::ArtifactPublicationOwnedClosure,
+        read: &super::WorkspaceArtifactPublicationReconciliationRead,
+    ) -> Result<(), ResourceAuthorityError> {
+        self.with_workspace_artifact_publication_reconciliation_read(
+            authority, transaction, read, self.recheck_workspace_artifact_publication_state_in_transaction(
+                authority, transaction, ArtifactPublicationFilesystemCheck::Closed { terminal, closure },
+            ),
+        ).await
+    }
+
+    async fn recheck_workspace_artifact_publication_state_in_transaction(
+        &self, authority: &std::sync::Arc<WorkspaceArtifactPublicationAuthorization>,
+        transaction: &super::SurrealTransactionContext<'_>, filesystem: ArtifactPublicationFilesystemCheck<'_>,
+    ) -> Result<(), ResourceAuthorityError> {
+        if let ArtifactPublicationFilesystemCheck::Closed { terminal, closure } = &filesystem {
+            if !terminal.matches_resources(authority.publication_resources())
+                || terminal.operation_id() != authority.operation_id()
+                || !matches!(terminal.decision(), &super::ArtifactPublicationCanonicalDecision::Commit)
+                || !closure.matches_terminal(terminal)
+            {
+                return Err(ResourceAuthorityError::InvalidInput("artifact owned closure binding differs"));
+            }
+        }
+        let expected = authority.expected_publications.lock()
+            .map_err(|_| ResourceAuthorityError::InvalidInput("artifact expected publications unavailable"))?.clone();
+        if expected.is_empty() {
+            return Err(ResourceAuthorityError::InvalidInput("artifact expected publications incomplete"));
+        }
+        for expected in expected {
+            let resources: Vec<ArtifactRegisteredResourceRow> = transaction.query_values_at(
+                "SELECT id, external_resource_id, owner_account_id, access_space_id, parent_resource_id, lifecycle_state, policy_version, created_by_principal_id, created_in_session_id, classification, schema_version, storage_locator_hash FROM protected_resources WHERE id = $resource AND resource_kind = 'artifact' LIMIT 2;",
+                ArtifactResourceRecheckBindings { resource: expected.resource.id.clone() }, 0,
+            ).await?;
+            if resources.as_slice() != std::slice::from_ref(&expected.resource) {
+                return Err(ResourceAuthorityError::InvalidInput("artifact canonical resource changed"));
+            }
+            let canonical = CanonicalResourceLocator {
+                id: expected.resource.id.clone(), external_resource_id: expected.resource.external_resource_id.clone(),
+                owner_account_id: expected.resource.owner_account_id.clone(), access_space_id: expected.resource.access_space_id.clone(),
+                parent_resource_id: expected.resource.parent_resource_id.clone(), lifecycle_state: expected.resource.lifecycle_state.clone(),
+                policy_version: expected.resource.policy_version,
+            };
+            let locator = artifact_publications::ArtifactPublicationLocator {
+                artifact_id: expected.publication.artifact_id.clone(), artifact_resource_id: expected.publication.artifact_resource_id.clone(),
+                workspace_external_id: expected.publication.workspace_external_id.clone(), workspace_resource_id: expected.publication.workspace_resource_id.clone(),
+                manifest_sha256: expected.publication.manifest_sha256.clone(), producer_operation_id: expected.publication.producer_operation_id.clone(),
+                registration_version: expected.publication.registration_version,
+            };
+            let current = artifact_publications::read_artifact_publication(
+                transaction, &canonical, &authority.workspace, &locator,
+            ).await?.ok_or(ResourceAuthorityError::InvalidInput("artifact canonical publication unavailable"))?;
+            if current != expected.publication {
+                return Err(ResourceAuthorityError::InvalidInput("artifact canonical publication changed"));
+            }
+            let manifest = current.validated_manifest()?;
+            if matches!(&filesystem, ArtifactPublicationFilesystemCheck::Live) {
+                let disk = authority.resources.read_persisted_file_artifact_owned(manifest.layer.clone(), manifest.artifact_id)
+                    .map_err(|_| ResourceAuthorityError::InvalidInput("artifact managed payload validation failed"))?;
+                let expected_manifest = serde_json::to_value(&manifest)
+                    .map_err(|_| ResourceAuthorityError::InvalidInput("artifact manifest serialization failed"))?;
+                let actual_manifest = serde_json::to_value(disk.manifest())
+                    .map_err(|_| ResourceAuthorityError::InvalidInput("artifact manifest serialization failed"))?;
+                if actual_manifest != expected_manifest {
+                    return Err(ResourceAuthorityError::InvalidInput("artifact managed manifest differs"));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn workspace_artifact_publication_observation(
+        &self, authority: &WorkspaceArtifactPublicationAuthorization,
+    ) -> super::AuthenticatedTransactionContextObservation {
+        self.authenticated_transaction_context_observation(&authority.operation_context)
+    }
+
+    pub(crate) async fn with_workspace_artifact_publication<T, E, F>(
+        &self, authority: &std::sync::Arc<WorkspaceArtifactPublicationAuthorization>, operation: F,
+    ) -> Result<T, E>
+    where
+        T: Send + 'static,
+        E: From<SurrealStorageError> + From<ResourceAuthorityError> + Send + 'static,
+        F: for<'tx> FnOnce(WorkspaceArtifactPublicationPermit<'tx>) -> super::SurrealTransactionOperation<'tx, T, E> + Send + 'static,
+    {
+        self.revalidate_workspace_artifact_publication_authorization(authority).await?;
+        let worker_storage = self.clone();
+        let worker_authority = authority.clone();
+        let retention: std::sync::Arc<dyn std::any::Any + Send + Sync> = authority.clone();
+        self.with_authenticated_transaction_context(
+            authority.operation_context.clone(), retention, std::sync::Arc::clone(authority.publication_resources()),
+            move |transaction| Box::pin(async move {
+                worker_storage.revalidate_workspace_artifact_publication_in_transaction(&worker_authority, &transaction).await?;
+                let result = operation(WorkspaceArtifactPublicationPermit { authorization: &worker_authority, transaction: &transaction }).await?;
+                worker_storage.revalidate_workspace_artifact_publication_in_transaction(&worker_authority, &transaction).await?;
+                Ok::<_, E>((result, worker_authority))
+            }),
+        ).await.map(|(result, _authority)| result)
+    }
+
+    async fn current_watcher_admission_read_facts(
+        &self, retained: &std::sync::Arc<PalmistryWatcherAdoptionAuthority>,
+        registry: &crate::capabilities::CapabilityRegistry, incoming: &RoleAuthorityAuthInput,
+    ) -> Result<(ProducerSourceFacts, CanonicalResourceLocator), ResourceAuthorityError> {
+        retained.require_current_binding(self)?;
+        let original = &retained.capture.sources[0].decision;
+        let denied = || ResourceAuthorityError::Denied { decision_id: original.decision_id.clone() };
+        if incoming.channel_binding_hash != retained.capture.credentials.channel_binding_hash {
+            return Err(denied());
+        }
+        let session = self.authenticate_local_session(&incoming.session_token, &incoming.channel_binding_hash).await?;
+        if session.session_id != original.session_id
+            || session.identity.account_id != original.account_id
+            || session.identity.principal_id != original.principal_id
+            || session.identity.access_space_id != original.access_space_id
+            || session.actor_id != retained.capture.session.actor_id
+            || session.actor_kind != retained.capture.session.actor_kind
+            || session.principal_kind != retained.capture.session.principal_kind
+        {
+            return Err(denied());
+        }
+        let request = AuthorizationRequest {
+            session_token: incoming.session_token.clone(),
+            channel_binding_hash: Some(incoming.channel_binding_hash.clone()),
+            capability_id: PALMISTRY_WATCHER_ADOPT_CAPABILITY.to_owned(),
+            resource_kind: ResourceKind::PalmistryWatcher,
+            external_resource_id: retained.watcher_id.to_string(),
+            action: ResourceAction::Read,
+        };
+        let source = self.read_producer_source_facts(request, &session, registry).await?;
+        let parent = self.canonical_watcher_workspace_parent(retained.watcher_id).await?.ok_or_else(denied)?;
+        if source.authority.capability_profile_id != "Operator"
+            || !registry.profile_can("Operator", PALMISTRY_WATCHER_ADOPT_CAPABILITY).unwrap_or(false)
+            || !source.authority.capability_ids.iter().any(|id| id == PALMISTRY_WATCHER_ADOPT_CAPABILITY)
+            || source.decision.session_id != original.session_id
+            || source.decision.account_id != original.account_id
+            || source.decision.principal_id != original.principal_id
+            || source.decision.access_space_id != original.access_space_id
+            || source.decision.resource_id != original.resource_id
+            || parent.id != retained.parent.id
+            || parent.external_resource_id != retained.exact.workspace_id.as_str()
+            || parent.owner_account_id != source.authority.account_id
+            || parent.access_space_id != source.authority.access_space_id
+            || parent.lifecycle_state != "active"
+            || source.authority.policy_versions.first().is_none_or(|policy| parent.policy_version > *policy)
+        {
+            return Err(denied());
+        }
+        Ok((source, parent))
+    }
+
+    pub(crate) async fn authorize_current_watcher_admission_read(
+        &self, retained: &std::sync::Arc<PalmistryWatcherAdoptionAuthority>,
+        registry: &crate::capabilities::CapabilityRegistry, incoming: RoleAuthorityAuthInput,
+    ) -> Result<std::sync::Arc<PalmistryWatcherAdmissionReadAuthorization>, ResourceAuthorityError> {
+        let (source, parent) = self.current_watcher_admission_read_facts(retained, registry, &incoming).await?;
+        Ok(std::sync::Arc::new(PalmistryWatcherAdmissionReadAuthorization {
+            retained: retained.clone(), incoming, registry: registry.clone(), source, parent,
+        }))
+    }
+
+    pub(crate) async fn authorize_retained_watcher_admission_read(
+        &self, retained: &std::sync::Arc<PalmistryWatcherAdoptionAuthority>,
+    ) -> Result<std::sync::Arc<PalmistryWatcherAdmissionReadAuthorization>, ResourceAuthorityError> {
+        self.authorize_current_watcher_admission_read(
+            retained, &retained.capture.registry, retained.capture.credentials.clone(),
+        ).await
+    }
+
+    pub(crate) async fn revalidate_watcher_admission_read_authorization(
+        &self, read: &PalmistryWatcherAdmissionReadAuthorization,
+    ) -> Result<(), ResourceAuthorityError> {
+        let (source, parent) = self.current_watcher_admission_read_facts(&read.retained, &read.registry, &read.incoming).await?;
+        if source.authority != read.source.authority || parent != read.parent {
+            return Err(ResourceAuthorityError::InvalidInput("watcher admission current read authority changed"));
+        }
+        Ok(())
+    }
+
+    pub(crate) async fn with_current_watcher_admission_read<T, E, F>(
+        &self, read: &std::sync::Arc<PalmistryWatcherAdmissionReadAuthorization>, operation: F,
+    ) -> Result<T, E>
+    where
+        E: From<ResourceAuthorityError>,
+        F: std::future::Future<Output = Result<T, E>>,
+    {
+        self.revalidate_watcher_admission_read_authorization(read).await?;
+        let scope = RecordUserScope {
+            grant_id: Some(read.source.decision.grant_id.clone()),
+            workspace_id: Some(read.parent.external_resource_id.clone()),
+            session_token: read.incoming.session_token.clone(),
+            channel_binding_hash: Some(read.incoming.channel_binding_hash.clone()),
+            resource_id: read.source.decision.resource_id.clone(),
+            session_id: read.source.decision.session_id.clone(),
+            capability_id: read.source.request.capability_id.clone(), action: read.source.request.action,
+        };
+        let result = self.with_record_user_scope(scope, operation).await?;
+        self.revalidate_watcher_admission_read_authorization(read).await?;
+        Ok(result)
+    }
+
+    pub(crate) async fn seal_palmistry_watcher_admission_authorization(
+        &self, authority: &std::sync::Arc<PalmistryWatcherAdoptionAuthority>,
+        requested_expires_at: chrono::DateTime<Utc>,
+    ) -> Result<std::sync::Arc<PalmistryWatcherAdmissionAuthorization>, ResourceAuthorityError> {
+        self.revalidate_palmistry_watcher_adoption_authority(authority).await?;
+        let facts = &authority.capture.sources[0].authority;
+        let mut expires_at = requested_expires_at.min(facts.session_expires_at.clone().into_inner());
+        if let Some(grant_expiry) = &facts.grant_expires_at {
+            expires_at = expires_at.min(grant_expiry.clone().into_inner());
+        }
+        let authorization = std::sync::Arc::new(PalmistryWatcherAdmissionAuthorization {
+            authority: authority.clone(), expires_at,
+        });
+        authorization.validate_binding(authority, &authorization.expires_at)?;
+        Ok(authorization)
+    }
+
+    pub(crate) async fn capture_palmistry_watcher_adoption_authority(
+        &self, operation_id: Uuid, registry: &crate::capabilities::CapabilityRegistry,
+        credentials: RoleAuthorityAuthInput, watcher_id: Uuid, canonical_workspace_parent: CanonicalResourceLocator,
+    ) -> Result<std::sync::Arc<PalmistryWatcherAdoptionAuthority>, ResourceAuthorityError> {
+        use crate::swarm_orchestration::resource_scope::{AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef,
+            ExactResourceScopeAttribution, OwnerAccountId, WorkspaceScopeRef};
+        if watcher_id.is_nil() { return Err(ResourceAuthorityError::InvalidInput("watcher UUID is required")); }
+        let request = AuthorizationRequest {
+            session_token: credentials.session_token.clone(), channel_binding_hash: Some(credentials.channel_binding_hash.clone()),
+            capability_id: PALMISTRY_WATCHER_ADOPT_CAPABILITY.to_owned(), resource_kind: ResourceKind::PalmistryWatcher,
+            external_resource_id: watcher_id.to_string(), action: ResourceAction::Reconcile,
+        };
+        let capture = self.capture_producer_source_facts(operation_id, registry, credentials, vec![request]).await?;
+        let parent = self.canonical_watcher_workspace_parent(watcher_id).await?
+            .ok_or(ResourceAuthorityError::InvalidInput("canonical watcher Workspace parent unavailable"))?;
+        if parent != canonical_workspace_parent {
+            return Err(ResourceAuthorityError::InvalidInput("watcher Workspace parent differs"));
+        }
+        let decision = &capture.sources[0].decision;
+        let parse = |value: &str| Uuid::parse_str(value)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("invalid canonical watcher authority UUID"));
+        let exact = ExactResourceScopeAttribution {
+            owner_account_id: OwnerAccountId::from_uuid(parse(&decision.account_id)?),
+            actor_principal_id: ActorPrincipalId::from_uuid(parse(&decision.principal_id)?),
+            authenticated_session_id: AuthenticatedSessionRef::from_uuid(parse(&decision.session_id)?),
+            access_space_id: AccessSpaceRef::from_uuid(parse(&decision.access_space_id)?),
+            workspace_id: WorkspaceScopeRef::new(parent.external_resource_id.clone())
+                .map_err(|_| ResourceAuthorityError::InvalidInput("invalid watcher Workspace parent"))?,
+        };
+        let authority = std::sync::Arc::new(PalmistryWatcherAdoptionAuthority {
+            capture, watcher_id, parent, exact,
+            namespace: self.config().namespace().to_owned(), database: self.config().database().to_owned(),
+        });
+        self.revalidate_palmistry_watcher_adoption_authority(&authority).await?;
+        Ok(authority)
+    }
+
+    pub(crate) async fn with_palmistry_watcher_adoption_readback<T, U, E, F, P>(
+        &self, authority: &std::sync::Arc<PalmistryWatcherAdoptionAuthority>, read: F, publish: P,
+    ) -> Result<U, E>
+    where
+        E: From<ResourceAuthorityError>,
+        F: std::future::Future<Output = Result<T, E>>,
+        P: FnOnce(T) -> Result<U, E>,
+    {
+        authority.require_current_binding(self)?;
+        self.revalidate_palmistry_watcher_adoption_authority(authority).await?;
+        let observed = self.with_record_user_scope(authority.record_user_scope(), read).await?;
+        self.revalidate_palmistry_watcher_adoption_authority(authority).await?;
+        let source = &authority.capture.sources[0];
+        CanonicalNavigationPublicationAuthority {
+            grant_expires_at: source.authority.grant_expires_at.clone(),
+            session_expires_at: source.authority.session_expires_at.clone(),
+        }.require_unexpired()?;
+        publish(observed)
+    }
+
+    pub(crate) async fn revalidate_palmistry_watcher_adoption_authority(
+        &self, authority: &PalmistryWatcherAdoptionAuthority,
+    ) -> Result<(), ResourceAuthorityError> {
+        authority.require_current_binding(self)?;
+        self.revalidate_producer_source_facts(&authority.capture).await?;
+        let parent = self.canonical_watcher_workspace_parent(authority.watcher_id).await?
+            .ok_or(ResourceAuthorityError::InvalidInput("watcher Workspace parent unavailable"))?;
+        if parent != authority.parent {
+            return Err(ResourceAuthorityError::InvalidInput("watcher Workspace parent changed"));
+        }
+        Ok(())
+    }
+
     async fn capture_producer_source_facts(
         &self,
         operation_id: Uuid,
@@ -445,21 +1534,26 @@ impl SurrealStorage {
         source_index: usize,
         store: crate::swarm_orchestration::model_lane::ModelLaneStore,
         input: crate::swarm_orchestration::model_lane::NewModelLaneRun,
-    ) -> Result<crate::swarm_orchestration::model_lane::ModelLaneRunRecord, ProducerRunFailure> {
+    ) -> ProducerRunCompletion {
         let operation_id = capture.operation_id;
-        let (scope, subject) = self.producer_source_run_authority(
+        let owner: std::sync::Arc<dyn std::any::Any + Send + Sync> = capture.clone();
+        let (scope, subject) = match self.producer_source_run_authority(
             capture, source_index, &store, ResourceAction::Create,
-        ).await.map_err(|error| ProducerRunFailure {
-            original_operation_id: operation_id,
-            origin: ProducerRunFailureOrigin::Preflight(error),
-        })?;
+        ).await {
+            Ok(authority) => authority,
+            Err(error) => return ProducerRunCompletion {
+                operation_id, result: Err(ProducerRunFailure {
+                    original_operation_id: operation_id, origin: ProducerRunFailureOrigin::Preflight(error),
+                }), finalization: None, owner,
+            },
+        };
         // The original fixture owner keeps its Arc through unresolved settlement.
         // The worker clone keeps the same fence while its callback is running.
         let capture = std::sync::Arc::clone(capture);
         let worker_storage = self.clone();
-        super::with_model_lane_subject(subject, self.with_record_user_scope(
+        let outcome = super::with_model_lane_subject(subject, self.with_record_user_scope(
             scope,
-            self.with_authenticated_transaction(operation_id, move |transaction| Box::pin(async move {
+            self.with_original_runcreate_transaction(operation_id, owner.clone(), move |transaction| Box::pin(async move {
                 let _transaction = transaction;
                 worker_storage.revalidate_producer_source_facts(&capture).await
                     .map_err(|error| ProducerRunFailureOrigin::OriginalCallback(error.into()))?;
@@ -469,10 +1563,44 @@ impl SurrealStorage {
                     .map_err(|error| ProducerRunFailureOrigin::OriginalCallback(error.into()))?;
                 Ok::<_, ProducerRunFailureOrigin>((run, capture))
             })),
-        )).await.map(|(run, _capture)| run).map_err(|origin| ProducerRunFailure {
-            original_operation_id: operation_id,
-            origin,
-        })
+        )).await;
+        let (result, finalization) = outcome.into_parts();
+        ProducerRunCompletion {
+            operation_id, owner, finalization,
+            result: result.map(|(run, _capture)| run).map_err(|origin| ProducerRunFailure {
+                original_operation_id: operation_id, origin,
+            }),
+        }
+    }
+
+    fn acknowledge_producer_run_completion(
+        &self, capture: &std::sync::Arc<ProducerSourceFactsCapture>, completion: &mut ProducerRunCompletion,
+    ) -> Result<bool, SurrealStorageError> {
+        let Some(owner) = completion.owner.as_ref().downcast_ref::<ProducerSourceFactsCapture>() else {
+            return Ok(false);
+        };
+        if completion.operation_id != capture.operation_id || !std::ptr::eq(owner, capture.as_ref())
+            || completion.result.as_ref().err().is_some_and(|failure| failure.original_operation_id != capture.operation_id)
+        {
+            return Ok(false);
+        }
+        let expected = if completion.result.is_ok() {
+            super::OriginalRunCreateFinalization::Commit
+        } else {
+            super::OriginalRunCreateFinalization::Rollback
+        };
+        let Some(proof) = completion.finalization.as_ref() else { return Ok(false); };
+        if proof.finalization() != expected || !proof.matches_original(self, capture.operation_id, &completion.owner) {
+            return Ok(false);
+        }
+        let Some(proof) = completion.finalization.take() else { return Ok(false); };
+        match self.acknowledge_original_runcreate_finalization(proof, &completion.owner) {
+            Ok(()) => Ok(true),
+            Err((error, proof)) => {
+                completion.finalization = Some(proof);
+                Err(error)
+            }
+        }
     }
 
     async fn replay_producer_source_run(
@@ -480,16 +1608,16 @@ impl SurrealStorage {
         capture: &std::sync::Arc<ProducerSourceFactsCapture>,
         source_index: usize,
         store: &crate::swarm_orchestration::model_lane::ModelLaneStore,
-        run_id: &str,
-    ) -> crate::swarm_orchestration::model_lane::ModelLaneResult<crate::swarm_orchestration::model_lane::ModelLaneReplay> {
+        expected: &crate::swarm_orchestration::model_lane::NewModelLaneRun,
+    ) -> crate::swarm_orchestration::model_lane::ModelLaneResult<crate::swarm_orchestration::model_lane::ModelLaneRunCanonicalSet> {
         let (scope, subject) = self.producer_source_run_authority(
             capture, source_index, store, ResourceAction::Read,
         ).await?;
-        let replay = super::with_model_lane_subject(subject,
-            self.with_record_user_scope(scope, store.replay_run(run_id)),
+        let canonical = super::with_model_lane_subject(subject,
+            self.with_record_user_scope(scope, store.original_run_create_canonical_set(expected)),
         ).await?;
         self.revalidate_producer_source_facts(capture).await?;
-        Ok(replay)
+        Ok(canonical)
     }
 
     async fn revalidate_producer_source_facts(
@@ -969,6 +2097,7 @@ fn job_admission_authority_storage_error(error: ResourceAuthorityError) -> crate
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct RoleAuthorityAuthInput {
     session_token: String,
     channel_binding_hash: String,
@@ -1106,6 +2235,12 @@ impl OwnedRoleTransaction {
 
 enum OperatorConsumptionReadback {
     Review(super::model_lane::RoleEvidenceReadback),
+    Completion(super::model_lane::RoleEvidenceReadback),
+    Promotion {
+        operator: super::model_lane::RoleEvidenceReadback,
+        validator: super::model_lane::RoleEvidenceReadback,
+        decision: crate::swarm_orchestration::model_lane::ModelLanePromotionDecisionRecord,
+    },
     Routing {
         prior: super::model_lane::RoleEvidenceReadback,
         acknowledgement: super::model_lane::RoleEvidenceReadback,
@@ -1470,21 +2605,14 @@ impl CurrentConsumerSeal<'_> {
 }
 
 impl SurrealStorage {
-    async fn execute_operator_role_consumption(
+    pub(crate) async fn execute_role_consumption(
         &self,
         permit: RoleAuthorityConsumptionPermit,
         store: crate::swarm_orchestration::model_lane::ModelLaneStore,
     ) -> crate::swarm_orchestration::model_lane::ModelLaneResult<crate::swarm_orchestration::model_lane::RoleConsumptionResult> {
         use crate::swarm_orchestration::model_lane::{ModelLaneError, RoleConsumptionCommand,
             RoleConsumptionResult, RoutingStageAcknowledgementIntent};
-        let is_operator_operation = match permit.capture.command() {
-            RoleConsumptionCommand::ReviewInvocation { selector, .. } =>
-                selector.expectation.role == handshake_role_authority::domain::Role::Operator,
-            RoleConsumptionCommand::AcknowledgeRoutingStage { acknowledgement, .. } =>
-                matches!(acknowledgement, RoutingStageAcknowledgementIntent::Operator(_)),
-            _ => false,
-        };
-        if !is_operator_operation || store.access().exact_read_scope() != Some(permit.current_scope())
+        if store.access().exact_read_scope() != Some(permit.current_scope())
             || store.surreal_storage().resource_access_lifecycle() != self.resource_access_lifecycle()
         {
             return Err(ModelLaneError::AuthorityDenied("Operator consumption differs from its captured command or configured owner".into()));
@@ -1509,7 +2637,7 @@ impl SurrealStorage {
                         ModelLaneError::IntegrityViolation("Operator consumer command is unavailable".into()))?;
                     let readback = match command {
                         RoleConsumptionCommand::ReviewInvocation { selector, .. } => {
-                            let checked = worker_provider.resolve_operator_role_evidence(
+                            let checked = worker_provider.resolve_role_evidence(
                                 &transaction, &seal, selector,
                             ).await?;
                             OperatorConsumptionReadback::Review(checked.into_readback())
@@ -1530,7 +2658,35 @@ impl SurrealStorage {
                                 prior: prior.into_readback(), acknowledgement: acknowledgement.into_readback(), routing,
                             }
                         },
-                        _ => return Err(ModelLaneError::IntegrityViolation("Operator consumer command changed after capture".into())),
+                        RoleConsumptionCommand::AcknowledgeRoutingStage {
+                            selector, acknowledgement: RoutingStageAcknowledgementIntent::Validator(intent), ..
+                        } => {
+                            let prior = worker_provider.resolve_role_evidence(&transaction, &seal, selector).await?;
+                            let acknowledgement = worker_provider.put_validator_stage_ack(
+                                &transaction, &seal, &prior, intent,
+                            ).await?;
+                            let routing = worker_store.complete_routing_authority_in_transaction(
+                                &transaction, &seal, &prior, &acknowledgement,
+                            ).await?;
+                            OperatorConsumptionReadback::Routing {
+                                prior: prior.into_readback(), acknowledgement: acknowledgement.into_readback(), routing,
+                            }
+                        },
+                        RoleConsumptionCommand::RecordReviewCompletion { selector, verdict, .. } => {
+                            let prior = worker_provider.resolve_role_evidence(&transaction, &seal, selector).await?;
+                            let completed = worker_provider.put_validator_verdict(&transaction, &seal, &prior, verdict).await?;
+                            OperatorConsumptionReadback::Completion(completed.into_readback())
+                        },
+                        RoleConsumptionCommand::ResolvePromotion { selectors, input, .. } => {
+                            let operator = worker_provider.resolve_role_evidence(&transaction, &seal, &selectors.operator).await?;
+                            let validator = worker_provider.resolve_role_evidence(&transaction, &seal, &selectors.validator).await?;
+                            let decision = worker_store.record_promotion_decision_in_transaction(
+                                &transaction, &seal, &operator, &validator, input.clone(),
+                            ).await?;
+                            OperatorConsumptionReadback::Promotion {
+                                operator: operator.into_readback(), validator: validator.into_readback(), decision,
+                            }
+                        },
                     };
                     owner.auth().revalidate_in_transaction(&transaction, registry).await?;
                     Ok::<_, ModelLaneError>(readback)
@@ -1546,6 +2702,16 @@ impl SurrealStorage {
                 OperatorConsumptionReadback::Review(expected) => {
                     let published = provider.readback_role_evidence(&guard, expected).await?;
                     Ok::<_, ModelLaneError>(RoleConsumptionResult::ReviewInvocation(published.receipt().clone()))
+                },
+                OperatorConsumptionReadback::Completion(expected) => {
+                    let published = provider.readback_role_evidence(&guard, expected).await?;
+                    Ok(RoleConsumptionResult::ReviewCompletion(published.receipt().clone()))
+                },
+                OperatorConsumptionReadback::Promotion { operator, validator, decision } => {
+                    provider.readback_role_evidence(&guard, operator).await?;
+                    provider.readback_role_evidence(&guard, validator).await?;
+                    let decision = store.readback_promotion_decision(&guard, operation_id, decision).await?;
+                    Ok(RoleConsumptionResult::Promotion(decision))
                 },
                 OperatorConsumptionReadback::Routing { prior, acknowledgement, routing } => {
                     provider.readback_role_evidence(&guard, prior).await?;
@@ -1704,6 +2870,53 @@ impl SurrealStorage {
         Ok(RoutingAuthorityCaptureTransaction { storage: self.clone(), retention, store, provider })
     }
 
+    pub(crate) async fn execute_workspace_owner_action(
+        &self,
+        permit: WorkspaceOwnerActionPermit,
+    ) -> Result<crate::swarm_orchestration::model_lane::WorkspaceOwnerActionResult, ResourceAuthorityError> {
+        if matches!(&permit.command, crate::swarm_orchestration::model_lane::WorkspaceOwnerActionCommand::IssueArtifactApproval(_)) {
+            return self.execute_operator_approval(permit).await;
+        }
+        let scope = permit.auth.record_user_scope();
+        let retention = RoleAuthorityTransactionRetention {
+            owner: std::sync::Arc::new(OwnedRoleTransaction::Owner(permit)),
+            fence: std::sync::Arc::new(self.authority_publication_read().await?),
+        };
+        let operation_id = retention.operation_id();
+        let provider = super::model_lane::SurrealModelLaneStore::initialize(self.clone()).await?;
+        let worker_retention = retention.clone();
+        let worker_provider = provider.clone();
+        let readback = self.with_record_user_scope(scope,
+            self.with_owned_role_authenticated_transaction(
+                operation_id, super::ContextOperationCancellation::new(), retention.clone(),
+                move |transaction| Box::pin(async move {
+                    let OwnedRoleTransaction::Owner(permit) = worker_retention.owner.as_ref() else {
+                        return Err(ResourceAuthorityError::InvalidInput("designation requires Owner issuance"));
+                    };
+                    permit.auth.revalidate_in_transaction(&transaction, &permit.registry).await?;
+                    let seal = OwnerIssuanceSeal { permit, transaction: &transaction };
+                    let readback = worker_provider.put_runner_designation(&transaction, &seal).await?;
+                    permit.auth.revalidate_in_transaction(&transaction, &permit.registry).await?;
+                    Ok::<_, ResourceAuthorityError>(readback)
+                }),
+            ),
+        ).await?;
+        let OwnedRoleTransaction::Owner(permit) = retention.owner.as_ref() else {
+            return Err(ResourceAuthorityError::InvalidInput("designation publication requires Owner issuance"));
+        };
+        permit.auth.revalidate_for_publication(self, &permit.registry).await?;
+        let guard = RolePublicationGuard { owner: &retention.owner, _fence: &retention.fence };
+        let result = self.with_record_user_scope(
+            permit.auth.record_user_scope(), provider.readback_runner_designation(&guard, &readback),
+        ).await?;
+        permit.auth.revalidate_for_publication(self, &permit.registry).await?;
+        guard.require_unexpired()?;
+        self.complete_role_publication(RoleAuthorityPublicationCompletion {
+            operation_id, owner: retention.owner.clone(),
+        })?;
+        Ok(result)
+    }
+
     async fn execute_operator_approval(
         &self,
         permit: WorkspaceOwnerActionPermit,
@@ -1793,9 +3006,11 @@ impl SurrealStorage {
         {
             return Err(ResourceAuthorityError::InvalidInput("invalid workspace Owner issuance request"));
         }
-        let auth = capture_owned_canonical_role_auth(
+        let mut auth = capture_owned_canonical_role_auth(
             self, &bootstrap.capability_registry, credentials, request,
         ).await?;
+        auth.requires_workspace_owner = true;
+        auth.revalidate_for_publication(self, &bootstrap.capability_registry).await?;
         let locator = self.canonical_resource_locator(ResourceKind::Workspace, &auth.workspace_id)
             .await?.ok_or_else(|| ResourceAuthorityError::Denied {
                 decision_id: auth.decision.decision_id.clone(),
@@ -1858,9 +3073,50 @@ impl RoleAuthorityAuthInput {
     pub(crate) fn new(session_token: String, channel_binding_hash: String) -> Self {
         Self { session_token, channel_binding_hash }
     }
+
+    pub(crate) fn workspace_creation_request(&self, workspace_id: &str) -> AuthorizationRequest {
+        AuthorizationRequest {
+            session_token: self.session_token.clone(), channel_binding_hash: Some(self.channel_binding_hash.clone()),
+            capability_id: "fs.write".into(), resource_kind: ResourceKind::Workspace,
+            external_resource_id: workspace_id.to_owned(), action: ResourceAction::Create,
+        }
+    }
 }
 
 // Authentication facts alone do not establish Workspace Owner eligibility.
+pub(crate) struct AuthenticatedValidatorLaunchSeal {
+    auth: OwnedCanonicalAuthSnapshot,
+    registry: crate::capabilities::CapabilityRegistry,
+    storage: SurrealStorage,
+    instance: crate::swarm_orchestration::coordinator::RegisteredValidatorInstance,
+    parent_session_id: String,
+    delegating_scope: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    expires_at: chrono::DateTime<Utc>,
+}
+
+impl AuthenticatedValidatorLaunchSeal {
+    pub(crate) fn account_id(&self) -> &str { &self.auth.session.identity.account_id }
+    pub(crate) fn principal_id(&self) -> &crate::swarm_orchestration::resource_scope::ActorPrincipalId {
+        &self.auth.exact.actor_principal_id
+    }
+    pub(crate) fn authenticated_session_id(&self) -> &str { &self.auth.session.session_id }
+    pub(crate) fn exact_scope(&self) -> &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution { &self.auth.exact }
+    pub(crate) fn expires_at(&self) -> &chrono::DateTime<Utc> { &self.expires_at }
+    pub(crate) fn instance_id(&self) -> crate::swarm_orchestration::ModelInstanceId { self.instance.instance_id().clone() }
+    pub(crate) fn registered_instance(&self) -> &crate::swarm_orchestration::coordinator::RegisteredValidatorInstance { &self.instance }
+    pub(crate) fn parent_session_id(&self) -> &str { &self.parent_session_id }
+    pub(crate) fn delegating_scope(&self) -> &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution { &self.delegating_scope }
+    pub(crate) async fn revoke(&self) -> Result<(), ResourceAuthorityError> {
+        self.storage.revoke_session(self.authenticated_session_id()).await
+    }
+    pub(crate) async fn revalidate(&self, storage: &SurrealStorage) -> Result<(), ResourceAuthorityError> {
+        if self.storage.resource_access_lifecycle() != storage.resource_access_lifecycle() {
+            return Err(ResourceAuthorityError::InvalidInput("validator launch storage owner differs"));
+        }
+        self.auth.revalidate_for_publication(storage, &self.registry).await
+    }
+}
+
 struct OwnedCanonicalAuthSnapshot {
     credentials: RoleAuthorityAuthInput,
     session: super::local_accounts::LocalSessionContext,
@@ -1870,6 +3126,7 @@ struct OwnedCanonicalAuthSnapshot {
     capability_id: String,
     action: ResourceAction,
     exact: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    requires_workspace_owner: bool,
 }
 
 impl OwnedCanonicalAuthSnapshot {
@@ -1898,6 +3155,15 @@ impl OwnedCanonicalAuthSnapshot {
         ).await?;
         if rows.as_slice() != std::slice::from_ref(&self.authority) {
             return Err(denied());
+        }
+        if self.requires_workspace_owner {
+            let bindings = OwnerEligibilityBindings { session_record: self.authority.session_id.clone() };
+            let eligible: Vec<RecordId> = storage.with_record_user_scope(
+                self.record_user_scope(), storage.with_data_operation(move |database| {
+                    Box::pin(async move { database.query_values(OWNER_ELIGIBILITY, bindings).await })
+                }),
+            ).await?;
+            if eligible.as_slice() != std::slice::from_ref(&self.authority.session_id) { return Err(denied()); }
         }
         self.require_unexpired()
     }
@@ -1959,6 +3225,12 @@ impl OwnedCanonicalAuthSnapshot {
         ).await?;
         if rows.as_slice() != std::slice::from_ref(&self.authority) {
             return Err(denied());
+        }
+        if self.requires_workspace_owner {
+            let eligible: Vec<RecordId> = transaction.query_values_at(
+                OWNER_ELIGIBILITY, OwnerEligibilityBindings { session_record: self.authority.session_id.clone() }, 0,
+            ).await?;
+            if eligible.as_slice() != std::slice::from_ref(&self.authority.session_id) { return Err(denied()); }
         }
         // The external locator is captured by the privileged lookup. Record
         // users cannot select it; the original record and grant bind this check.
@@ -2072,6 +3344,7 @@ async fn capture_owned_canonical_role_auth(
         capability_id: capability,
         action,
         exact,
+        requires_workspace_owner: false,
     };
     snapshot.require_unexpired()?;
     Ok(snapshot)
@@ -2112,6 +3385,8 @@ pub enum ResourceKind {
     KnowledgeCodeFile,
     LoomBlock,
     FlightRecorder,
+    PalmistryWatcher,
+    Artifact,
     MemoryPack,
     MemoryProposal,
     MemoryCommitReport,
@@ -2129,6 +3404,8 @@ impl ResourceKind {
             Self::KnowledgeCodeFile => "knowledge_code_file",
             Self::LoomBlock => "loom_block",
             Self::FlightRecorder => "flight_recorder",
+            Self::PalmistryWatcher => "palmistry_watcher",
+            Self::Artifact => "artifact",
             Self::MemoryPack => "memory_pack",
             Self::MemoryProposal => "memory_proposal",
             Self::MemoryCommitReport => "memory_commit_report",
@@ -2337,12 +3614,15 @@ struct SessionIssueRow {
     delegated_capabilities: Vec<String>,
 }
 
-#[derive(SurrealValue)]
+#[derive(Eq, PartialEq, SurrealValue)]
 pub(crate) struct CanonicalResourceLocator {
     pub id: RecordId,
     pub external_resource_id: String,
     pub owner_account_id: RecordId,
     pub access_space_id: RecordId,
+    pub parent_resource_id: Option<RecordId>,
+    pub lifecycle_state: String,
+    pub policy_version: i64,
 }
 
 #[derive(SurrealValue)]
@@ -3196,7 +4476,7 @@ impl SurrealStorage {
             let authority = client.clone();
             authority.use_ns(namespace).use_db(database).await?;
             let mut response = handshake_storage_support::diagnostics::observe_result("authority_resource_query", authority.query(
-                "SELECT id, external_resource_id, owner_account_id, access_space_id FROM protected_resources WHERE resource_kind = $kind AND external_resource_id = $external LIMIT 2;",
+                "SELECT id, external_resource_id, owner_account_id, access_space_id, parent_resource_id, lifecycle_state, policy_version FROM protected_resources WHERE resource_kind = $kind AND external_resource_id = $external LIMIT 2;",
             ).bind(("kind", kind)).bind(("external", external))).await?.check()?;
             let rows: Vec<CanonicalResourceLocator> = response.take(0)?;
             Ok(rows)
@@ -3206,6 +4486,48 @@ impl SurrealStorage {
             1 => Ok(rows.into_iter().next()),
             _ => Err(SurrealStorageError::from(surrealdb::Error::internal("protected resource lookup was not canonical".to_owned())).into()),
         }
+    }
+
+    /// Identity metadata only; adoption must recheck the parent and grant in its guarded transaction.
+    pub(crate) async fn canonical_watcher_workspace_parent(
+        &self, watcher_id: Uuid,
+    ) -> Result<Option<CanonicalResourceLocator>, ResourceAuthorityError> {
+        let Some(watcher) = self.canonical_resource_locator(
+            ResourceKind::PalmistryWatcher, &watcher_id.to_string(),
+        ).await? else { return Ok(None); };
+        if watcher.lifecycle_state != "active" { return Ok(None); }
+        let Some(parent_id) = watcher.parent_resource_id else { return Ok(None); };
+        let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
+        let account = watcher.owner_account_id;
+        let space = watcher.access_space_id;
+        let expected_parent = parent_id.clone();
+        let rows = self.with_lease(move |client| Box::pin(async move {
+            let authority = client.clone();
+            authority.use_ns(namespace).use_db(database).await?;
+            let mut response = handshake_storage_support::diagnostics::observe_result("authority_resource_query", authority.query(
+                "SELECT id, external_resource_id, owner_account_id, access_space_id, parent_resource_id, lifecycle_state, policy_version FROM protected_resources WHERE id = $parent AND resource_kind = 'workspace' AND lifecycle_state = 'active' AND owner_account_id = $account AND access_space_id = $space LIMIT 2;",
+            ).bind(("parent", parent_id)).bind(("account", account)).bind(("space", space))).await?.check()?;
+            let rows: Vec<CanonicalResourceLocator> = response.take(0)?;
+            Ok(rows)
+        })).await?;
+        let parent = match rows.len() {
+            0 => return Ok(None),
+            1 => rows.into_iter().next().ok_or(ResourceAuthorityError::InvalidInput("watcher parent unavailable"))?,
+            _ => return Err(ResourceAuthorityError::InvalidInput("watcher parent is not canonical")),
+        };
+        let Some(canonical) = self.canonical_resource_locator(
+            ResourceKind::Workspace, &parent.external_resource_id,
+        ).await? else { return Ok(None); };
+        if canonical.id != expected_parent || canonical.id != parent.id
+            || canonical.owner_account_id != parent.owner_account_id
+            || canonical.access_space_id != parent.access_space_id
+            || canonical.lifecycle_state != "active"
+            || canonical.policy_version != parent.policy_version
+        {
+            return Err(ResourceAuthorityError::InvalidInput("watcher workspace parent changed"));
+        }
+        Ok(Some(canonical))
     }
 
     async fn with_activation_transaction<T, F>(
@@ -3612,6 +4934,9 @@ impl SurrealStorage {
         if request.session_token.is_empty()
             || request.capability_id.is_empty()
             || request.external_resource_id.is_empty()
+            || ((request.resource_kind == ResourceKind::Artifact || request.capability_id == "artifact.read")
+                && (request.resource_kind != ResourceKind::Artifact
+                    || request.action != ResourceAction::Read || request.capability_id != "artifact.read"))
         {
             handshake_storage_support::diagnostics::observe_result(
                 "authority_audit",

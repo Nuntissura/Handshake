@@ -17,6 +17,7 @@ use sha2::Digest;
 use surrealdb::{
     engine::local::{Db, RocksDb},
     opt::{auth::Record as RecordSignin, Config as EngineConfig},
+    types::SurrealValue,
     Surreal,
 };
 use thiserror::Error;
@@ -108,6 +109,7 @@ pub use loom_search::{
 pub use model_lane::{ContextCompletionTestControl, ContextCoordinationBusy, ContextCoordinationTestHolder, ContextAdmissionTestControl, ContextAdmissionTestObservation, observe_context_coordination_busy_for_test};
 pub(crate) use model_lane::{
     bootstrap_model_lane_schema, ContextCoordinationPurpose, ModelLaneRecordKind, ModelLaneScope,
+    TxCheckedRoleEvidence,
     NavigationReadSelector, NavigationMessageInput, NavigationLaneInput,
     SurrealModelLaneNavigationRow, SurrealModelLaneNavigationReceipt, SurrealCrdtLeaseClaimOutcome,
     SurrealCrdtUpdateAppendOutcome, SurrealModelLaneCrdtEventWrite, SurrealModelLaneCrdtGuard,
@@ -125,6 +127,13 @@ pub use model_registry::{bootstrap_model_registry_schema, SurrealModelRegistrySt
 pub use palmistry::{
     bootstrap_palmistry_schema, SurrealPalmistryError, SurrealPalmistryStore,
     SurrealPalmistryVerifier,
+};
+pub(crate) use palmistry::{
+    PalmistryWatcherAdoptionInput, PalmistryWatcherAdoptionReceipt, PalmistryWatcherAdoptionResult,
+    PalmistryWatcherOsRecheck,
+    PalmistryWatcherAdmissionManifest, PalmistryWatcherPreparedAdmission,
+    PalmistryWatcherAdmissionIdentity, PalmistryWatcherInstalledPermit,
+    WatcherAdmissionDeadline, WatcherAdmissionPurpose, prepare_watcher_admission,
 };
 pub use process_ledger::{
     ProcessOwnershipInspection, SurrealModelLaneStaleSessionSource, SurrealProcessLedgerStore,
@@ -156,7 +165,10 @@ pub async fn bootstrap_production_schemas(
     schema::bounded_bootstrap(schema::BOOTSTRAP_WATCHDOG, async {
         let _composition_guard = COMPOSITION_MUTEX.lock().await;
         let report = schema::bootstrap_schema(storage).await?;
-        if schema::is_production_report(&report) { return Ok(report); }
+        if schema::is_production_report(&report) {
+            initialize_watcher_admission_verifier(storage).await;
+            return Ok(report);
+        }
         schema::begin_production_schema(storage).await?;
         install_production_module_schemas(storage).await?;
         schema::finish_production_schema(storage, report.outcome).await
@@ -171,6 +183,7 @@ async fn install_production_module_schemas(storage: &SurrealStorage) -> Result<(
     cloud_model_lane::bootstrap_cloud_model_lane_schema(storage).await?;
     process_ledger::bootstrap_process_ledger_schema(storage).await?;
     palmistry::install_palmistry_schema(storage).await?;
+    initialize_watcher_admission_verifier(storage).await;
     swarm_outbox::install_swarm_outbox_schema(storage).await?;
     user_manual_knowledge::bootstrap_user_manual_knowledge_schema(storage).await?;
     workspace_settings::install_workspace_settings_schema(storage).await?;
@@ -294,6 +307,468 @@ pub const DEFAULT_ENGINE_TRANSACTION_TIMEOUT: Duration = Duration::from_secs(60)
 
 pub(crate) type SurrealClient = Surreal<Db>;
 
+pub(crate) struct WorkspaceArtifactPublicationOperationContext {
+    original_operation_id: uuid::Uuid,
+    storage: std::sync::Weak<SurrealStorageInner>,
+    namespace: String,
+    database: String,
+    scope: resource_authority::RecordUserScope,
+    original_monotonic: Instant,
+    original_utc: chrono::DateTime<chrono::Utc>,
+    deadline: Instant,
+    expires_at: chrono::DateTime<chrono::Utc>,
+    authority_expires_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl WorkspaceArtifactPublicationOperationContext {
+    pub(crate) fn operation_id(&self) -> uuid::Uuid { self.original_operation_id }
+    pub(crate) fn deadline(&self) -> Instant { self.deadline }
+    pub(crate) fn expires_at(&self) -> &chrono::DateTime<chrono::Utc> { &self.expires_at }
+}
+
+/// RAM observation of the worker's database transaction only.
+/// This does not certify filesystem/publication outcome or release custody.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum AuthenticatedTransactionContextObservation {
+    Uncertain,
+    CommitObserved,
+    CancelObserved,
+    CallbackPanicObserved,
+}
+
+pub(crate) struct WorkspaceArtifactPublicationReconciliationRead {
+    original: Arc<WorkspaceArtifactPublicationOperationContext>,
+    deadline: Instant,
+    client: Option<Arc<SurrealClient>>,
+    authority_expires_at: chrono::DateTime<chrono::Utc>,
+}
+
+impl WorkspaceArtifactPublicationReconciliationRead {
+    pub(crate) fn deadline(&self) -> Instant { self.deadline }
+    pub(crate) fn authority_expires_at(&self) -> chrono::DateTime<chrono::Utc> { self.authority_expires_at }
+    pub(crate) fn matches_original(&self, original: &Arc<WorkspaceArtifactPublicationOperationContext>) -> bool {
+        Arc::ptr_eq(&self.original, original) && self.authority_expires_at == original.authority_expires_at
+    }
+}
+#[derive(Clone, Copy)]
+enum WorkspaceArtifactEngineFinalization {
+    Commit,
+    Rollback,
+}
+
+pub(crate) enum ArtifactPublicationCanonicalDecision {
+    Commit,
+    Abort,
+}
+
+pub(crate) struct ArtifactPublicationCanonicalTerminalForOwner {
+    original: Arc<WorkspaceArtifactPublicationOperationContext>,
+    resources: Arc<crate::storage::artifacts::ArtifactPublicationResources>,
+    decision: ArtifactPublicationCanonicalDecision,
+}
+
+impl ArtifactPublicationCanonicalTerminalForOwner {
+    pub(crate) fn operation_id(&self) -> uuid::Uuid { self.original.operation_id() }
+    pub(crate) fn decision(&self) -> &ArtifactPublicationCanonicalDecision { &self.decision }
+    pub(crate) fn matches_resources(
+        &self, resources: &Arc<crate::storage::artifacts::ArtifactPublicationResources>,
+    ) -> bool { Arc::ptr_eq(&self.resources, resources) }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum OriginalRunCreateFinalization {
+    Commit,
+    Rollback,
+}
+
+struct OriginalRunCreateBinding {
+    operation_id: uuid::Uuid,
+    storage: std::sync::Weak<SurrealStorageInner>,
+    owner: Arc<dyn std::any::Any + Send + Sync>,
+    _scope: resource_authority::RecordUserScope,
+    _deadline: Instant,
+}
+
+struct OriginalRunCreateBeginWitness {
+    binding: Arc<OriginalRunCreateBinding>,
+}
+
+fn retain_original_runcreate_error<E: Send + 'static>(
+    retention: Option<&Arc<StdMutex<OriginalRunCreateRetention>>>, error: &mut Option<E>,
+) {
+    if let Some(retention) = retention {
+        let mut state = retention.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if state.error.is_none() {
+            state.error = error.take().map(|error| Box::new(error) as Box<dyn std::any::Any + Send>);
+        }
+    }
+}
+
+fn seal_original_runcreate_finalization(
+    retention: Option<&Arc<StdMutex<OriginalRunCreateRetention>>>,
+    witness: &mut Option<OriginalRunCreateBeginWitness>,
+    finalization: OriginalRunCreateFinalization,
+) -> Result<(), SurrealStorageError> {
+    if let Some(retention) = retention {
+        let witness = witness.take().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let mut state = retention.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let operation_id = witness.binding.operation_id;
+        if state.finalized.is_some() || state.proof.is_some()
+            || !state.binding.as_ref().is_some_and(|binding| Arc::ptr_eq(binding, &witness.binding))
+        {
+            return Err(SurrealStorageError::TransactionRetentionMismatch { operation_id });
+        }
+        state.finalized = Some(finalization);
+        state.proof = Some(OriginalRunCreateFinalizationProof { binding: witness.binding, finalization });
+    }
+    Ok(())
+}
+
+pub(crate) struct OriginalRunCreateFinalizationProof {
+    binding: Arc<OriginalRunCreateBinding>,
+    finalization: OriginalRunCreateFinalization,
+}
+
+impl OriginalRunCreateFinalizationProof {
+    pub(crate) fn finalization(&self) -> OriginalRunCreateFinalization { self.finalization }
+    pub(crate) fn matches_original(
+        &self, storage: &SurrealStorage, operation_id: uuid::Uuid,
+        owner: &Arc<dyn std::any::Any + Send + Sync>,
+    ) -> bool {
+        self.binding.operation_id == operation_id && Arc::ptr_eq(&self.binding.owner, owner)
+            && self.binding.storage.upgrade().is_some_and(|inner| Arc::ptr_eq(&inner, &storage.inner))
+    }
+}
+
+pub(crate) struct OriginalRunCreateOutcome<T, E> {
+    result: Result<T, E>,
+    proof: Option<OriginalRunCreateFinalizationProof>,
+}
+
+impl<T, E> OriginalRunCreateOutcome<T, E> {
+    pub(crate) fn into_parts(self) -> (Result<T, E>, Option<OriginalRunCreateFinalizationProof>) {
+        (self.result, self.proof)
+    }
+}
+
+struct OriginalRunCreateRetention {
+    owner: Arc<dyn std::any::Any + Send + Sync>,
+    binding: Option<Arc<OriginalRunCreateBinding>>,
+    proof: Option<OriginalRunCreateFinalizationProof>,
+    finalized: Option<OriginalRunCreateFinalization>,
+    value: Option<Box<dyn std::any::Any + Send>>,
+    error: Option<Box<dyn std::any::Any + Send>>,
+    finished: bool,
+}
+struct WatcherAdmissionCredentials {
+    secret_hex: String,
+    key_version: String,
+    not_after: chrono::DateTime<chrono::Utc>,
+}
+
+fn load_watcher_admission_credentials_from_environment()
+    -> Result<WatcherAdmissionCredentials, SurrealPalmistryError>
+{
+    let invalid = || SurrealPalmistryError::PermissionDenied;
+    let secret_hex = env::var("HANDSHAKE_WATCHER_ADMISSION_INSTALLER_SECRET_HEX")
+        .map_err(|_| invalid())?;
+    if secret_hex.len() != 64 || !secret_hex.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(invalid().into());
+    }
+    let key_version = env::var("HANDSHAKE_WATCHER_ADMISSION_INSTALLER_KEY_VERSION")
+        .map_err(|_| invalid())?;
+    if key_version.is_empty() || !key_version.bytes().all(|byte|
+        byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
+    {
+        return Err(invalid().into());
+    }
+    let not_after = chrono::DateTime::parse_from_rfc3339(
+        &env::var("HANDSHAKE_WATCHER_ADMISSION_INSTALLER_NOT_AFTER")
+            .map_err(|_| invalid())?)
+        .map_err(|_| invalid())?;
+    if not_after.offset().local_minus_utc() != 0 {
+        return Err(invalid().into());
+    }
+    let not_after = not_after.with_timezone(&chrono::Utc);
+    if not_after <= chrono::Utc::now() { return Err(invalid().into()); }
+    Ok(WatcherAdmissionCredentials {
+        secret_hex: secret_hex.to_ascii_lowercase(), key_version, not_after,
+    })
+}
+
+impl WatcherAdmissionCredentials {
+    fn verifier(&self, access: &str) -> String {
+        let mut digest = sha2::Sha256::new();
+        digest.update(b"handshake-watcher-admission-v1|");
+        digest.update(access.as_bytes());
+        digest.update(b"|");
+        digest.update(self.key_version.as_bytes());
+        digest.update(b"|");
+        digest.update(self.secret_hex.as_bytes());
+        hex::encode(digest.finalize())
+    }
+}
+
+
+
+enum WatcherAdmissionBootstrapFailure {
+    Lease,
+    Query,
+    Response,
+}
+
+#[derive(surrealdb::types::SurrealValue)]
+struct WatcherAdmissionVerifierConfiguration {
+    key_version: String,
+    admission_verifier: String,
+    installer_verifier: String,
+    not_after: chrono::DateTime<chrono::Utc>,
+}
+
+const WATCHER_ADMISSION_VERIFIER_BOOTSTRAP_SQL: &str = r#"
+BEGIN TRANSACTION;
+LET $existing = (SELECT * FROM palmistry_watcher_admission_config WHERE key_version = $key_version);
+IF array::len($existing) = 0 {
+    CREATE palmistry_watcher_admission_config CONTENT {
+        key_version: $key_version, admission_verifier: $admission_verifier,
+        installer_verifier: $installer_verifier, not_after: $not_after, revoked_at: NONE
+    };
+} ELSE IF array::len($existing) != 1
+    OR $existing[0].admission_verifier != $admission_verifier
+    OR $existing[0].installer_verifier != $installer_verifier
+    OR $existing[0].not_after != $not_after
+    OR $existing[0].revoked_at != NONE {
+    THROW 'watcher admission configuration conflict';
+};
+COMMIT TRANSACTION;
+"#;
+
+async fn initialize_watcher_admission_verifier(storage: &SurrealStorage) {
+    if let Some(credentials) = &storage.inner.watcher_admission_credentials {
+        let configuration = WatcherAdmissionVerifierConfiguration {
+            key_version: credentials.key_version.clone(),
+            admission_verifier: credentials.verifier("palmistry_watcher_admission"),
+            installer_verifier: credentials.verifier("palmistry_watcher_permit_installer"),
+            not_after: credentials.not_after,
+        };
+        let configured = bootstrap_watcher_admission_verifier(storage, configuration).await.is_ok();
+        storage.inner.watcher_admission_configured.store(configured, Ordering::Release);
+    }
+}
+
+async fn bootstrap_watcher_admission_verifier(
+    storage: &SurrealStorage,
+    configuration: WatcherAdmissionVerifierConfiguration,
+) -> Result<(), SurrealStorageError> {
+    *storage.inner.watcher_admission_bootstrap_failure.lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(WatcherAdmissionBootstrapFailure::Lease);
+    let private_storage = storage.clone();
+    let result = storage.with_admin_operation(move |admin| Box::pin(async move {
+        *private_storage.inner.watcher_admission_bootstrap_failure.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(WatcherAdmissionBootstrapFailure::Query);
+        let response = admin.client.query(WATCHER_ADMISSION_VERIFIER_BOOTSTRAP_SQL)
+            .bind(surrealdb::types::SurrealValue::into_value(configuration))
+            .await.map_err(|_| SurrealStorageError::InvalidModelLaneRecord {
+                reason: "watcher admission configuration unavailable",
+            })?;
+        *private_storage.inner.watcher_admission_bootstrap_failure.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(WatcherAdmissionBootstrapFailure::Response);
+        response.check().map_err(|_| SurrealStorageError::InvalidModelLaneRecord {
+            reason: "watcher admission configuration unavailable",
+        })?;
+        Ok(())
+    })).await;
+    if result.is_ok() {
+        *storage.inner.watcher_admission_bootstrap_failure.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
+    }
+    result
+}
+
+pub(crate) struct WatcherAdmissionBudget {
+    pub(crate) limit: Duration,
+    pub(crate) credential_not_after: chrono::DateTime<chrono::Utc>,
+}
+
+pub(crate) enum WatcherAdmissionInspection {
+    NoPriorRelevantAdmission,
+    ExistingReadOnly(PalmistryWatcherAdoptionResult),
+}
+
+
+#[derive(surrealdb::types::SurrealValue)]
+struct WatcherAdmissionSigninScope {
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+}
+
+#[derive(surrealdb::types::SurrealValue)]
+struct WatcherAdmissionSigninParams {
+    scope: WatcherAdmissionSigninScope,
+    resource: surrealdb::types::RecordId,
+    parent: surrealdb::types::RecordId,
+    grant: surrealdb::types::RecordId,
+    token_hash: String,
+    channel_binding_hash: String,
+    key_version: String,
+    installer_secret_hex: String,
+}
+
+fn watcher_admission_signin_params(
+    prepared: &PalmistryWatcherPreparedAdmission,
+    original: &resource_authority::RecordUserScope,
+    credentials: &WatcherAdmissionCredentials,
+) -> Result<WatcherAdmissionSigninParams, SurrealStorageError> {
+    let captured = prepared.authorization().authority().record_user_scope();
+    if original.session_token != captured.session_token
+        || original.channel_binding_hash != captured.channel_binding_hash
+        || original.session_id != captured.session_id
+        || original.grant_id != captured.grant_id
+        || original.resource_id != captured.resource_id
+        || original.workspace_id != captured.workspace_id
+        || original.capability_id != captured.capability_id
+    {
+        return Err(watcher_admission_controller_error());
+    }
+    let scope = prepared.authorization().exact_scope();
+    Ok(WatcherAdmissionSigninParams {
+        scope: WatcherAdmissionSigninScope {
+            owner_account_id: scope.owner_account_id.as_uuid().to_string(),
+            actor_principal_id: scope.actor_principal_id.as_uuid().to_string(),
+            authenticated_session_id: scope.authenticated_session_id.as_uuid().to_string(),
+            access_space_id: scope.access_space_id.as_uuid().to_string(),
+            workspace_id: scope.workspace_id.as_str().to_owned(),
+        },
+        resource: prepared.authorization().resource_id().clone(),
+        parent: prepared.authorization().authority().workspace_parent().id.clone(),
+        grant: prepared.authorization().grant_id().clone(),
+        token_hash: hex::encode(sha2::Sha256::digest(original.session_token.as_bytes())),
+        channel_binding_hash: original.channel_binding_hash.clone()
+            .ok_or_else(watcher_admission_controller_error)?,
+        key_version: credentials.key_version.clone(),
+        installer_secret_hex: credentials.secret_hex.clone(),
+    })
+}
+
+fn watcher_admission_controller_error() -> SurrealStorageError {
+    SurrealStorageError::InvalidModelLaneRecord {
+        reason: "watcher admission controller unavailable",
+    }
+}
+
+struct WatcherAdmissionController {
+    prepared: Arc<PalmistryWatcherPreparedAdmission>,
+    state: Mutex<WatcherAdmissionControllerState>,
+}
+
+struct WatcherAdmissionControllerState {
+    phase: WatcherAdmissionControllerPhase,
+    stage: WatcherAdmissionStage,
+    installer_client: Option<SurrealClient>,
+    identity: Option<PalmistryWatcherAdmissionIdentity>,
+    installed_permit: Option<PalmistryWatcherInstalledPermit>,
+    callback_receipts: Option<Vec<PalmistryWatcherAdoptionReceipt>>,
+    actual_outcome: Option<WatcherAdmissionActualOutcome>,
+    reconciliation: Option<WatcherAdmissionReconciliation>,
+}
+
+
+impl WatcherAdmissionController {
+    fn new(prepared: Arc<PalmistryWatcherPreparedAdmission>)
+        -> Result<Arc<Self>, SurrealPalmistryError>
+    {
+        prepared.validate_binding()?;
+        let operation_id = prepared.operation_id();
+        if operation_id != prepared.authorization().operation_id()
+            || operation_id != prepared.manifest().operation_id()
+            || prepared.deadline().monotonic() <= Instant::now()
+            || prepared.deadline().expires_at() > prepared.authorization().expires_at()
+        {
+            return Err(SurrealPalmistryError::PermissionDenied);
+        }
+        Ok(Arc::new(Self {
+            prepared,
+            state: Mutex::new(WatcherAdmissionControllerState {
+                phase: WatcherAdmissionControllerPhase::Prepared,
+                stage: WatcherAdmissionStage::Prepared,
+                installer_client: None,
+                identity: None,
+                installed_permit: None,
+                callback_receipts: None,
+                actual_outcome: None,
+                reconciliation: None,
+            }),
+        }))
+    }
+
+    async fn observe_settlement(&self, observed: ActualSettlement) {
+        let mut state = self.state.lock().await;
+        let outcome = match observed {
+            ActualSettlement::CommitObserved => match state.callback_receipts.take() {
+                Some(receipts) => WatcherAdmissionActualOutcome::Committed(receipts),
+                None => WatcherAdmissionActualOutcome::Uncertain,
+            },
+            ActualSettlement::CancelNoEffectObserved => WatcherAdmissionActualOutcome::CancelNoEffectObserved,
+            ActualSettlement::CallbackPanicRollbackObserved => WatcherAdmissionActualOutcome::CallbackPanicRollbackObserved,
+            _ => WatcherAdmissionActualOutcome::Uncertain,
+        };
+        state.phase = if matches!(&outcome, WatcherAdmissionActualOutcome::Uncertain) {
+            WatcherAdmissionControllerPhase::Uncertain
+        } else { WatcherAdmissionControllerPhase::Settled };
+        state.actual_outcome = Some(outcome);
+    }
+
+    async fn begin_issuance(&self) -> Result<(), SurrealPalmistryError> {
+        self.prepared.validate_binding()?;
+        let mut state = self.state.lock().await;
+        if !matches!(state.phase, WatcherAdmissionControllerPhase::Prepared)
+            || self.prepared.deadline().monotonic() <= Instant::now()
+        {
+            return Err(SurrealPalmistryError::PermissionDenied);
+        }
+        state.phase = WatcherAdmissionControllerPhase::Issuing;
+        Ok(())
+    }
+}
+
+enum WatcherAdmissionStage {
+    Prepared,
+    OrdinaryAuthentication,
+    AdmissionAuthentication,
+    ProtectedIdentity,
+    InstallerAuthentication,
+    PermitInstall,
+    PermitRead,
+    TransactionBegin,
+    FixedTransaction,
+    ReconciliationRead,
+}
+
+enum WatcherAdmissionReconciliation {
+    PermitConfirmed,
+    Uncertain,
+}
+
+enum WatcherAdmissionActualOutcome {
+    Committed(Vec<PalmistryWatcherAdoptionReceipt>),
+    CancelNoEffectObserved,
+    CallbackPanicRollbackObserved,
+    Uncertain,
+}
+
+enum WatcherAdmissionControllerPhase {
+    Prepared,
+    Issuing,
+    Installed,
+    Running,
+    Settled,
+    Uncertain,
+}
+
+
 const LIFECYCLE_OPEN: u8 = 0;
 const LIFECYCLE_CLOSING: u8 = 1;
 const LIFECYCLE_CLOSED: u8 = 2;
@@ -323,6 +798,14 @@ pub enum SurrealStorageError {
     ResourceAuthorityUnavailable,
     #[error("protected transaction {operation_id} has an unresolved settlement; retry is forbidden")]
     TransactionSettlementPending { operation_id: uuid::Uuid },
+
+    #[error("album membership operation {operation:?} has an unresolved outcome: {source}")]
+    AlbumMutationUnknown {
+        operation: AlbumMutationOperationReference,
+        source: Box<SurrealStorageError>,
+    },
+    #[error("protected transaction {operation_id} retention does not match its publication completion")]
+    TransactionRetentionMismatch { operation_id: uuid::Uuid },
     #[error("embedded transaction caller was cancelled")]
     TransactionCancelled,
     #[error("embedded transaction callback panicked")]
@@ -714,6 +1197,12 @@ struct ProtectedTransaction {
 
 #[derive(Clone)]
 enum TransactionInvocation {
+    WatcherAdmission {
+        scope: resource_authority::RecordUserScope,
+        deadline: Instant,
+        operation_id: uuid::Uuid,
+        admission: Arc<WatcherAdmissionController>,
+    },
     Existing,
     Authenticated {
         scope: resource_authority::RecordUserScope,
@@ -1455,7 +1944,75 @@ struct ActivationTransactionRetention {
     _fence: Arc<OwnedRwLockReadGuard<()>>,
 }
 
+enum AuthenticatedTransactionRetention {
+    OriginalRunCreate(Arc<StdMutex<OriginalRunCreateRetention>>),
+    WorkspaceArtifactPublication {
+        original: Arc<WorkspaceArtifactPublicationOperationContext>,
+        owner: Arc<dyn std::any::Any + Send + Sync>,
+        resources: Arc<crate::storage::artifacts::ArtifactPublicationResources>,
+        completed_result: Option<Box<dyn std::any::Any + Send>>,
+        completed_error: Option<Box<dyn std::any::Any + Send>>,
+        worker_finished: bool,
+        callback_succeeded: bool,
+        canonical_terminal: Option<Arc<ArtifactPublicationCanonicalTerminalForOwner>>,
+        owned_closure: Option<Arc<crate::storage::artifacts::ArtifactPublicationOwnedClosure>>,
+        owned_finalization: Option<WorkspaceArtifactEngineFinalization>,
+        reconciliation_read: Option<Arc<WorkspaceArtifactPublicationReconciliationRead>>,
+        canonical_read_client: Option<Arc<SurrealClient>>,
+        settlement: ActualSettlement,
+    },
+    AlbumMembership(AlbumMembershipTransactionRetention),
+    Activation(ActivationTransactionRetention),
+    JobAdmission {
+        retention: resource_authority::JobAdmissionTransactionRetention,
+        phase: JobAdmissionTransactionPhase,
+        readback: Option<Arc<resource_authority::JobAdmissionReadbackTransaction>>,
+    },
+    Role {
+        retention: resource_authority::RoleAuthorityTransactionRetention,
+        phase: RoleTransactionPhase,
+    },
+}
+
+enum RoleTransactionPhase {
+    CaptureReadPending,
+    CaptureReadObserved,
+    PreEnginePrepared,
+    EnginePending,
+    CommitObservedPublicationPending,
+}
+
+enum JobAdmissionTransactionPhase {
+    EnginePending,
+    CommitObservedReadbackPending,
+    ReadbackReadPending,
+    ReadbackObserved,
+}
+
+#[derive(Clone, Copy)]
+enum ActualSettlement {
+    WorkspaceArtifactCanonicalReadRollbackObserved,
+    Unobserved,
+    CommitObserved,
+    CancelNoEffectObserved,
+    CallbackPanicRollbackObserved,
+    CaptureReadRollbackObserved,
+    JobReadbackRollbackObserved,
+}
+
+#[derive(Clone)]
+enum TransactionSettlementMode {
+    WorkspaceArtifactCanonicalRead(Arc<SurrealClient>),
+    Mutation,
+    RoutingCapture(resource_authority::RoleAuthorityTransactionRetention),
+    JobReadback(Arc<resource_authority::JobAdmissionReadbackTransaction>),
+}
+
 struct SurrealStorageInner {
+    watcher_admission_credentials: Option<Arc<WatcherAdmissionCredentials>>,
+    watcher_admission_configured: AtomicBool,
+    watcher_admission_bootstrap_failure: StdMutex<Option<WatcherAdmissionBootstrapFailure>>,
+    watcher_admissions: StdMutex<BTreeMap<uuid::Uuid, Arc<WatcherAdmissionController>>>,
     resource_access_lifecycle: crate::swarm_orchestration::resource_scope::ResourceAccessLifecycleRegistry,
     config: SurrealStorageConfig,
     client: RwLock<Option<SurrealClient>>,
@@ -1469,7 +2026,7 @@ struct SurrealStorageInner {
     authority_publication_gate: Arc<RwLock<()>>,
     pending_authority_mutations: StdMutex<BTreeMap<uuid::Uuid, OwnedRwLockWriteGuard<()>>>,
     authority_pending_changed: watch::Sender<Option<uuid::Uuid>>,
-    transaction_settlements: StdMutex<BTreeMap<uuid::Uuid, Option<ActivationTransactionRetention>>>,
+    transaction_settlements: StdMutex<BTreeMap<uuid::Uuid, Option<AuthenticatedTransactionRetention>>>,
     pending_context_guards: StdMutex<BTreeMap<uuid::Uuid, Vec<model_lane::ContextCoordinationGuard>>>,
     pending_context_acquisitions: StdMutex<BTreeMap<uuid::Uuid, model_lane::PendingContextAcquisition>>,
     /// Leases held right now and the high-water mark since the last reset:
@@ -1534,6 +2091,294 @@ impl SurrealStorageInner {
 }
 
 impl SurrealStorage {
+    fn capture_workspace_artifact_publication_operation_context(
+        &self,
+        operation_id: uuid::Uuid,
+        scope: resource_authority::RecordUserScope,
+        authorization_expires_at: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Arc<WorkspaceArtifactPublicationOperationContext>, SurrealStorageError> {
+        let original_monotonic = Instant::now();
+        let original_utc = chrono::Utc::now();
+        let budget = self.effective_statement_timeout();
+        let invalid = || SurrealStorageError::InvalidModelLaneRecord {
+            reason: "workspace artifact publication context unavailable",
+        };
+        let remaining = authorization_expires_at.signed_duration_since(original_utc)
+            .to_std().map_err(|_| invalid())?;
+        let limit = budget.min(remaining);
+        if limit.is_zero() { return Err(invalid()); }
+        let deadline = original_monotonic.checked_add(limit).ok_or_else(invalid)?;
+        let delta = chrono::Duration::from_std(limit).map_err(|_| invalid())?;
+        let expires_at = original_utc.checked_add_signed(delta).ok_or_else(invalid)?;
+        Ok(Arc::new(WorkspaceArtifactPublicationOperationContext {
+            original_operation_id: operation_id,
+            storage: Arc::downgrade(&self.inner),
+            namespace: self.config().namespace().to_owned(),
+            database: self.config().database().to_owned(),
+            scope, original_monotonic, original_utc,
+            deadline, expires_at, authority_expires_at: authorization_expires_at,
+        }))
+    }
+
+    pub(crate) fn workspace_artifact_publication_operation_budget(&self) -> Duration {
+        self.effective_statement_timeout()
+    }
+
+    pub(crate) async fn inspect_watcher_admission_read(
+        &self,
+        read: &Arc<resource_authority::PalmistryWatcherAdmissionReadAuthorization>,
+        operation_id: uuid::Uuid,
+        purpose: WatcherAdmissionPurpose,
+    ) -> Result<WatcherAdmissionInspection, SurrealPalmistryError> {
+        let authority = read.authority();
+        let store = SurrealPalmistryStore::new_exact(self.clone(), read.exact_scope().clone());
+        let inspection = self.with_current_watcher_admission_read(read,
+            store.inspect_canonical_watcher_admission_read(authority, operation_id, purpose),
+        ).await?;
+        self.retain_watcher_admission_uncertainty(authority, operation_id, purpose, inspection)
+    }
+
+    pub(crate) async fn inspect_watcher_admission(
+        &self,
+        authority: &Arc<resource_authority::PalmistryWatcherAdoptionAuthority>,
+        operation_id: uuid::Uuid,
+        purpose: WatcherAdmissionPurpose,
+    ) -> Result<WatcherAdmissionInspection, SurrealPalmistryError> {
+        let read = self.authorize_retained_watcher_admission_read(authority).await?;
+        self.inspect_watcher_admission_read(&read, operation_id, purpose).await
+    }
+
+    fn retain_watcher_admission_uncertainty(
+        &self,
+        authority: &Arc<resource_authority::PalmistryWatcherAdoptionAuthority>,
+        operation_id: uuid::Uuid,
+        purpose: WatcherAdmissionPurpose,
+        inspection: WatcherAdmissionInspection,
+    ) -> Result<WatcherAdmissionInspection, SurrealPalmistryError> {
+        if operation_id.is_nil() || operation_id != authority.operation_id() {
+            return Err(SurrealPalmistryError::PermissionDenied);
+        }
+        let registry = self.inner.watcher_admissions.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let Some(controller) = registry.get(&operation_id) else { return Ok(inspection); };
+        let retained = controller.prepared.authorization().authority();
+        if retained.exact_scope() != authority.exact_scope()
+            || retained.watcher_id() != authority.watcher_id()
+            || controller.prepared.manifest().purpose() != purpose
+        {
+            return Err(SurrealPalmistryError::PermissionDenied);
+        }
+        Ok(match inspection {
+            WatcherAdmissionInspection::NoPriorRelevantAdmission =>
+                WatcherAdmissionInspection::ExistingReadOnly(PalmistryWatcherAdoptionResult::Uncertain {
+                    operation_id, canonical_receipt: None,
+                    diagnostic: "same-operation admission controller exists; canonical receipt unavailable".into(),
+                }),
+            existing => existing,
+        })
+    }
+    pub(crate) async fn execute_watcher_admission(
+        &self, prepared: Arc<PalmistryWatcherPreparedAdmission>,
+    ) -> Result<Vec<PalmistryWatcherAdoptionReceipt>, SurrealPalmistryError> {
+        prepared.validate_binding()?;
+        if !self.inner.watcher_admission_configured.load(Ordering::Acquire)
+            || self.inner.watcher_admission_credentials.as_ref()
+                .is_none_or(|credentials| credentials.not_after < *prepared.deadline().expires_at())
+        { return Err(SurrealPalmistryError::PermissionDenied); }
+        prepared.authorization().revalidate(self).await
+            .map_err(|_| SurrealPalmistryError::PermissionDenied)?;
+        let (admission, is_new) = self.watcher_admission_controller(prepared.clone())?;
+        if !is_new {
+            return self.reconcile_existing_watcher_admission(admission).await;
+        }
+        admission.begin_issuance().await?;
+        self.watcher_admission_transaction(admission).await
+    }
+
+    async fn reconcile_existing_watcher_admission(
+        &self, admission: Arc<WatcherAdmissionController>,
+    ) -> Result<Vec<PalmistryWatcherAdoptionReceipt>, SurrealPalmistryError> {
+        let (installer, bindings) = {
+            let mut state = admission.state.lock().await;
+            state.reconciliation = Some(WatcherAdmissionReconciliation::Uncertain);
+            state.stage = WatcherAdmissionStage::ReconciliationRead;
+            let credentials = self.inner.watcher_admission_credentials.as_ref()
+                .ok_or(SurrealPalmistryError::CorruptAuthority)?;
+            let installer = state.installer_client.as_ref()
+                .ok_or(SurrealPalmistryError::CorruptAuthority)?.clone();
+            let identity = state.identity.as_ref().ok_or(SurrealPalmistryError::CorruptAuthority)?;
+            let bindings = admission.prepared.permit_install_bindings(identity, &credentials.key_version)?;
+            (installer, bindings)
+        };
+        let response = installer.query(palmistry::WATCHER_PERMIT_READ_SQL)
+            .bind(surrealdb::types::SurrealValue::into_value(bindings)).await
+            .map_err(|_| SurrealPalmistryError::CorruptAuthority)?;
+        let permits = decode_query_values::<PalmistryWatcherInstalledPermit>(response, 0)
+            .map_err(|_| SurrealPalmistryError::CorruptAuthority)?;
+        if permits.len() != 1 { return Err(SurrealPalmistryError::CorruptAuthority); }
+        permits[0].validate(&admission.prepared)?;
+        admission.state.lock().await.reconciliation = Some(WatcherAdmissionReconciliation::PermitConfirmed);
+        // A worker commit does not certify publication. The owning leaf reconciles
+        // this untagged outcome without entering its publication callback again.
+        Err(SurrealPalmistryError::CorruptAuthority)
+    }
+
+    async fn watcher_admission_transaction(
+        &self, admission: Arc<WatcherAdmissionController>,
+    ) -> Result<Vec<PalmistryWatcherAdoptionReceipt>, SurrealPalmistryError> {
+        let prepared = admission.prepared.clone();
+        let operation_id = prepared.operation_id();
+        let invocation = TransactionInvocation::WatcherAdmission {
+            scope: prepared.authorization().authority().record_user_scope(),
+            deadline: prepared.deadline().monotonic(), operation_id,
+            admission: admission.clone(),
+        };
+        let storage = self.clone();
+        self.transaction_worker(invocation, None, None, TransactionSettlementMode::Mutation,
+            move |tx| Box::pin(async move {
+                let permit = {
+                    let mut state = admission.state.lock().await;
+                    if !matches!(state.phase, WatcherAdmissionControllerPhase::Installed) {
+                        return Err(SurrealPalmistryError::CorruptAuthority);
+                    }
+                    let permit = state.installed_permit.clone()
+                        .ok_or(SurrealPalmistryError::CorruptAuthority)?;
+                    state.phase = WatcherAdmissionControllerPhase::Running;
+                    state.stage = WatcherAdmissionStage::FixedTransaction;
+                    permit
+                };
+                match palmistry::execute_prepared_watcher_admission_transaction(
+                    &storage, tx, prepared, permit).await
+                {
+                    Ok(receipts) => {
+                        admission.state.lock().await.callback_receipts = Some(receipts.clone());
+                        Ok(receipts)
+                    }
+                    Err(error) => Err(SurrealPalmistryError::OriginalCallback {
+                        operation_id, error: Box::new(error),
+                    }),
+                }
+            })).await
+    }
+
+    async fn install_watcher_admission(
+        &self, original: &SurrealClient, installer: SurrealClient,
+        scope: &resource_authority::RecordUserScope,
+        admission: &Arc<WatcherAdmissionController>,
+    ) -> Result<(), SurrealStorageError> {
+        let prepared = &admission.prepared;
+        prepared.validate_binding().map_err(|_| watcher_admission_controller_error())?;
+        let credentials = self.inner.watcher_admission_credentials.as_ref()
+            .ok_or_else(watcher_admission_controller_error)?;
+        if !self.inner.watcher_admission_configured.load(Ordering::Acquire)
+            || credentials.not_after < *prepared.deadline().expires_at()
+            || Instant::now() >= prepared.deadline().monotonic()
+        { return Err(watcher_admission_controller_error()); }
+        {
+            let mut state = admission.state.lock().await;
+            if !matches!(state.phase, WatcherAdmissionControllerPhase::Issuing) {
+                return Err(watcher_admission_controller_error());
+            }
+            state.installer_client = Some(installer.clone());
+        }
+        admission.state.lock().await.stage = WatcherAdmissionStage::AdmissionAuthentication;
+        original.signin(RecordSignin {
+            namespace: self.config().namespace().to_owned(),
+            database: self.config().database().to_owned(),
+            access: "palmistry_watcher_admission".to_owned(),
+            params: watcher_admission_signin_params(prepared, scope, credentials)?,
+        }).await.map_err(|_| watcher_admission_controller_error())?;
+        admission.state.lock().await.stage = WatcherAdmissionStage::ProtectedIdentity;
+        let response = original.query(palmistry::WATCHER_ADMISSION_IDENTITY_SQL)
+            .await.map_err(|_| watcher_admission_controller_error())?;
+        let identities = decode_query_values::<PalmistryWatcherAdmissionIdentity>(response, 0)
+            .map_err(|_| watcher_admission_controller_error())?;
+        if identities.len() != 1 { return Err(watcher_admission_controller_error()); }
+        let identity = identities.into_iter().next().ok_or_else(watcher_admission_controller_error)?;
+        identity.validate(prepared).map_err(|_| watcher_admission_controller_error())?;
+        let install_bindings = prepared.permit_install_bindings(&identity, &credentials.key_version)
+            .map_err(|_| watcher_admission_controller_error())?;
+        let read_bindings = prepared.permit_install_bindings(&identity, &credentials.key_version)
+            .map_err(|_| watcher_admission_controller_error())?;
+        admission.state.lock().await.identity = Some(identity);
+        admission.state.lock().await.stage = WatcherAdmissionStage::InstallerAuthentication;
+        installer.signin(RecordSignin {
+            namespace: self.config().namespace().to_owned(),
+            database: self.config().database().to_owned(),
+            access: "palmistry_watcher_permit_installer".to_owned(),
+            params: watcher_admission_signin_params(prepared, scope, credentials)?,
+        }).await.map_err(|_| watcher_admission_controller_error())?;
+        admission.state.lock().await.stage = WatcherAdmissionStage::PermitInstall;
+        let response = installer.query(palmistry::WATCHER_PERMIT_INSTALL_SQL)
+            .bind(surrealdb::types::SurrealValue::into_value(install_bindings))
+            .await.map_err(|_| watcher_admission_controller_error())?;
+        let installed = decode_query_values::<PalmistryWatcherInstalledPermit>(response, 1)
+            .map_err(|_| watcher_admission_controller_error())?;
+        if installed.len() != 1 { return Err(watcher_admission_controller_error()); }
+        installed[0].validate(prepared).map_err(|_| watcher_admission_controller_error())?;
+        admission.state.lock().await.stage = WatcherAdmissionStage::PermitRead;
+        let response = installer.query(palmistry::WATCHER_PERMIT_READ_SQL)
+            .bind(surrealdb::types::SurrealValue::into_value(read_bindings))
+            .await.map_err(|_| watcher_admission_controller_error())?;
+        let permits = decode_query_values::<PalmistryWatcherInstalledPermit>(response, 0)
+            .map_err(|_| watcher_admission_controller_error())?;
+        if permits.len() != 1 { return Err(watcher_admission_controller_error()); }
+        let permit = permits.into_iter().next().ok_or_else(watcher_admission_controller_error)?;
+        permit.validate(prepared).map_err(|_| watcher_admission_controller_error())?;
+        if Instant::now() >= prepared.deadline().monotonic() {
+            return Err(watcher_admission_controller_error());
+        }
+        let mut state = admission.state.lock().await;
+        if !matches!(state.phase, WatcherAdmissionControllerPhase::Issuing) {
+            return Err(watcher_admission_controller_error());
+        }
+        state.installed_permit = Some(permit);
+        state.phase = WatcherAdmissionControllerPhase::Installed;
+        Ok(())
+    }
+
+    fn watcher_admission_controller(&self, prepared: Arc<PalmistryWatcherPreparedAdmission>)
+        -> Result<(Arc<WatcherAdmissionController>, bool), SurrealPalmistryError>
+    {
+        prepared.validate_binding()?;
+        let mut registry = self.inner.watcher_admissions.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        match registry.entry(prepared.operation_id()) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                let controller = WatcherAdmissionController::new(prepared)?;
+                entry.insert(controller.clone());
+                Ok((controller, true))
+            }
+            std::collections::btree_map::Entry::Occupied(entry) => {
+                let controller = entry.get();
+                if controller.prepared.manifest().hash() != prepared.manifest().hash()
+                    || controller.prepared.deadline().monotonic() != prepared.deadline().monotonic()
+                    || controller.prepared.deadline().expires_at() != prepared.deadline().expires_at()
+                    || !Arc::ptr_eq(controller.prepared.authorization(), prepared.authorization())
+                {
+                    return Err(SurrealPalmistryError::PermissionDenied);
+                }
+                Ok((controller.clone(), false))
+            }
+        }
+    }
+
+    pub(crate) fn watcher_admission_operation_budget(&self)
+        -> Result<WatcherAdmissionBudget, SurrealPalmistryError>
+    {
+        let unavailable = || SurrealPalmistryError::PermissionDenied;
+        let credentials = self.inner.watcher_admission_credentials.as_ref()
+            .ok_or_else(unavailable)?;
+        let limit = self.effective_statement_timeout().min(Duration::from_secs(300));
+        if !self.inner.watcher_admission_configured.load(Ordering::Acquire)
+            || limit.is_zero() || credentials.not_after <= chrono::Utc::now() {
+            return Err(unavailable().into());
+        }
+        Ok(WatcherAdmissionBudget {
+            limit, credential_not_after: credentials.not_after,
+        })
+    }
+
     pub(crate) async fn with_record_user_scope<T>(
         &self,
         scope: resource_authority::RecordUserScope,
@@ -1642,6 +2487,10 @@ impl SurrealStorage {
     fn from_open_client(config: SurrealStorageConfig, guard: Arc<dyn StorageGuard>, client: SurrealClient) -> Self {
         Self {
             inner: Arc::new(SurrealStorageInner {
+                watcher_admission_credentials: load_watcher_admission_credentials_from_environment().ok().map(Arc::new),
+                watcher_admissions: StdMutex::new(BTreeMap::new()),
+                watcher_admission_configured: AtomicBool::new(false),
+                watcher_admission_bootstrap_failure: StdMutex::new(None),
                 resource_access_lifecycle: crate::swarm_orchestration::resource_scope::ResourceAccessLifecycleRegistry::new(),
                 config,
                 client: RwLock::new(Some(client)),
@@ -1890,7 +2739,8 @@ impl SurrealStorage {
         F: for<'a> FnOnce(SurrealTransactionContext<'a>) -> SurrealTransactionOperation<'a, T, E>
             + Send + 'static,
     {
-        self.transaction_worker(TransactionInvocation::Existing, None, None, operation).await
+        self.transaction_worker(TransactionInvocation::Existing, None, None,
+            TransactionSettlementMode::Mutation, operation).await
     }
 
     pub(crate) async fn with_owned_activation_transaction<T, E, F>(
@@ -1907,18 +2757,493 @@ impl SurrealStorage {
             + Send + 'static,
     {
         let operation_id = owner.operation_id();
-        self.reserve_transaction_settlement(operation_id, Some(ActivationTransactionRetention {
+        self.reserve_transaction_settlement(operation_id, Some(AuthenticatedTransactionRetention::Activation(ActivationTransactionRetention {
             _authority: owner,
             _fence: fence,
-        })).map_err(E::from)?;
+        }))).map_err(E::from)?;
         self.transaction_worker(
             TransactionInvocation::Existing,
             Some(operation_id),
             Some(cancellation),
+            TransactionSettlementMode::Mutation,
             operation,
         ).await
     }
 
+
+    pub(crate) async fn with_album_membership_transaction<T, E, F>(
+        &self,
+        operation: AlbumMutationOperationReference,
+        callback: F,
+    ) -> Result<T, E>
+    where
+        T: Send + 'static,
+        E: From<SurrealStorageError> + Send + 'static,
+        F: for<'a> FnOnce(SurrealTransactionContext<'a>) -> SurrealTransactionOperation<'a, T, E>
+            + Send + 'static,
+    {
+        let authority = current_record_user_scope()
+            .ok_or_else(|| E::from(SurrealStorageError::TransactionAuthorityRequired))?;
+        let operation_id = operation.operation_id;
+        let retention = AlbumMembershipTransactionRetention {
+            operation,
+            authority,
+            settlement: AlbumMutationSettlement::Pending,
+            #[cfg(feature = "test-utils")]
+            proof: ALBUM_MUTATION_PROOF_CONTROL.try_with(Clone::clone).ok(),
+        };
+        self.authenticated_transaction(
+            operation_id,
+            None,
+            Some(AuthenticatedTransactionRetention::AlbumMembership(retention)),
+            callback,
+        ).await
+    }
+
+    pub fn observe_album_membership_transaction(
+        &self,
+        operation: &AlbumMutationOperationReference,
+    ) -> Result<AlbumMutationObservation, SurrealStorageError> {
+        let authority = current_record_user_scope()
+            .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let settlements = self.inner.transaction_settlements.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        match settlements.get(&operation.operation_id) {
+            Some(Some(AuthenticatedTransactionRetention::AlbumMembership(retained)))
+                if retained.operation == *operation && retained.matches_authority(&authority) => {
+                Ok(AlbumMutationObservation {
+                    operation: retained.operation.clone(),
+                    settlement: retained.settlement,
+                })
+            }
+            _ => Err(SurrealStorageError::TransactionAuthorityRequired),
+        }
+    }
+
+    pub fn acknowledge_album_membership_transaction(
+        &self,
+        operation: &AlbumMutationOperationReference,
+    ) -> Result<bool, SurrealStorageError> {
+        let authority = current_record_user_scope()
+            .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let mut settlements = self.inner.transaction_settlements.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let terminal = match settlements.get(&operation.operation_id) {
+            Some(Some(AuthenticatedTransactionRetention::AlbumMembership(retained)))
+                if retained.operation == *operation && retained.matches_authority(&authority) => {
+                !matches!(retained.settlement,
+                    AlbumMutationSettlement::Pending | AlbumMutationSettlement::Unobserved)
+            }
+            _ => return Err(SurrealStorageError::TransactionAuthorityRequired),
+        };
+        if terminal {
+            settlements.remove(&operation.operation_id);
+        }
+        Ok(terminal)
+    }
+
+    pub(crate) fn authenticated_transaction_context_observation(
+        &self,
+        original: &Arc<WorkspaceArtifactPublicationOperationContext>,
+    ) -> AuthenticatedTransactionContextObservation {
+        use AuthenticatedTransactionContextObservation as Observation;
+        let Some(bound_storage) = original.storage.upgrade() else {
+            return Observation::Uncertain;
+        };
+        if !Arc::ptr_eq(&bound_storage, &self.inner)
+            || original.namespace != self.config().namespace()
+            || original.database != self.config().database()
+        {
+            return Observation::Uncertain;
+        }
+        let settlements = self.inner.transaction_settlements.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        match settlements.get(&original.operation_id()) {
+            Some(Some(AuthenticatedTransactionRetention::WorkspaceArtifactPublication {
+                original: retained, settlement, ..
+            })) if Arc::ptr_eq(retained, original) => match settlement {
+                ActualSettlement::CommitObserved => Observation::CommitObserved,
+                ActualSettlement::CancelNoEffectObserved => Observation::CancelObserved,
+                ActualSettlement::CallbackPanicRollbackObserved => Observation::CallbackPanicObserved,
+                _ => Observation::Uncertain,
+            },
+            _ => Observation::Uncertain,
+        }
+    }
+
+    fn retain_workspace_artifact_error<E: Send + 'static>(
+        &self, operation_id: Option<uuid::Uuid>, error: &mut Option<E>,
+    ) {
+        let Some(operation_id) = operation_id else { return; };
+        let mut settlements = self.inner.transaction_settlements.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(Some(AuthenticatedTransactionRetention::WorkspaceArtifactPublication {
+            completed_error, ..
+        })) = settlements.get_mut(&operation_id) {
+            if completed_error.is_none() { *completed_error = error.take().map(|error| Box::new(error) as Box<dyn std::any::Any + Send>); }
+        }
+    }
+    fn record_workspace_artifact_owned_finalization(
+        &self, operation_id: Option<uuid::Uuid>, finalization: WorkspaceArtifactEngineFinalization,
+    ) {
+        let Some(operation_id) = operation_id else { return; };
+        let mut settlements = self.inner.transaction_settlements.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(Some(AuthenticatedTransactionRetention::WorkspaceArtifactPublication {
+            owned_finalization, ..
+        })) = settlements.get_mut(&operation_id) {
+            if owned_finalization.is_none() { *owned_finalization = Some(finalization); }
+        }
+    }
+
+    async fn recheck_workspace_artifact_publication_owner(
+        &self, original: &Arc<WorkspaceArtifactPublicationOperationContext>,
+        authority: Arc<resource_authority::WorkspaceArtifactPublicationAuthorization>,
+        full_association: bool,
+        read: Arc<WorkspaceArtifactPublicationReconciliationRead>,
+    ) -> Result<(), SurrealStorageError> {
+        let operation_id = original.operation_id();
+        let storage = self.clone();
+        self.transaction_worker(
+            TransactionInvocation::Authenticated {
+                scope: original.scope.clone(), deadline: read.deadline(), operation_id,
+            }, None, None, TransactionSettlementMode::WorkspaceArtifactCanonicalRead(read.client.clone().ok_or(SurrealStorageError::TransactionSettlementPending { operation_id })?),
+            move |transaction| Box::pin(async move {
+                if full_association {
+                    storage.recheck_workspace_artifact_publication_in_transaction(&authority, &transaction, &read).await
+                } else {
+                    storage.recheck_workspace_artifact_publication_authority_in_transaction(&authority, &transaction, &read).await
+                }
+            }),
+        ).await.map_err(|_: resource_authority::ResourceAuthorityError|
+            SurrealStorageError::TransactionSettlementPending { operation_id })
+    }
+
+    async fn recheck_closed_workspace_artifact_publication_owner(
+        &self, original: &Arc<WorkspaceArtifactPublicationOperationContext>,
+        authority: Arc<resource_authority::WorkspaceArtifactPublicationAuthorization>,
+        terminal: Arc<ArtifactPublicationCanonicalTerminalForOwner>,
+        closure: Arc<crate::storage::artifacts::ArtifactPublicationOwnedClosure>,
+        read: Arc<WorkspaceArtifactPublicationReconciliationRead>,
+    ) -> Result<(), SurrealStorageError> {
+        let operation_id = original.operation_id();
+        let storage = self.clone();
+        self.transaction_worker(
+            TransactionInvocation::Authenticated {
+                scope: original.scope.clone(), deadline: read.deadline(), operation_id,
+            }, None, None, TransactionSettlementMode::WorkspaceArtifactCanonicalRead(read.client.clone().ok_or(SurrealStorageError::TransactionSettlementPending { operation_id })?),
+            move |transaction| Box::pin(async move {
+                storage.recheck_workspace_artifact_publication_after_owned_closure_in_transaction(
+                    &authority, &transaction, &terminal, &closure, &read,
+                ).await
+            }),
+        ).await.map_err(|_: resource_authority::ResourceAuthorityError|
+            SurrealStorageError::TransactionSettlementPending { operation_id })
+    }
+    pub(crate) async fn reconcile_workspace_artifact_publication<T, E>(
+        &self,
+        original: Arc<WorkspaceArtifactPublicationOperationContext>,
+        retention: Arc<dyn std::any::Any + Send + Sync>,
+        resources: Arc<crate::storage::artifacts::ArtifactPublicationResources>,
+    ) -> Result<T, E>
+    where T: Send + 'static, E: From<SurrealStorageError> + Send + 'static {
+        let operation_id = original.operation_id();
+        let pending = || SurrealStorageError::TransactionSettlementPending { operation_id };
+        let (finalization, cached_terminal, cached_closure, read) = {
+            let mut settlements = self.inner.transaction_settlements.lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let Some(Some(AuthenticatedTransactionRetention::WorkspaceArtifactPublication {
+                original: retained, owner, resources: held, worker_finished: true,
+                owned_finalization: Some(finalization), callback_succeeded,
+                canonical_terminal, owned_closure, reconciliation_read, canonical_read_client, ..
+            })) = settlements.get_mut(&operation_id) else { return Err(E::from(pending())); };
+            if !Arc::ptr_eq(retained, &original) || !Arc::ptr_eq(owner, &retention)
+                || !Arc::ptr_eq(held, &resources) || reconciliation_read.is_some()
+                || (matches!(finalization, WorkspaceArtifactEngineFinalization::Commit) && !*callback_succeeded) {
+                return Err(E::from(pending()));
+            }
+            let remaining = original.authority_expires_at.signed_duration_since(chrono::Utc::now())
+                .to_std().unwrap_or(Duration::ZERO).min(Duration::from_millis(5000));
+            let now = Instant::now();
+            let deadline = now.checked_add(remaining).unwrap_or(now);
+            let read = Arc::new(WorkspaceArtifactPublicationReconciliationRead {
+                original: original.clone(), deadline, client: canonical_read_client.clone(), authority_expires_at: original.authority_expires_at,
+            });
+            *reconciliation_read = Some(read.clone());
+            if remaining.is_zero() || read.client.is_none() { return Err(E::from(pending())); }
+            (*finalization, canonical_terminal.clone(), owned_closure.clone(), read)
+        };
+        let authority = retention.downcast::<resource_authority::WorkspaceArtifactPublicationAuthorization>()
+            .map_err(|_| E::from(pending()))?;
+        if let (Some(terminal), Some(closure)) = (cached_terminal, cached_closure) {
+            if !Arc::ptr_eq(&terminal.original, &original) || !terminal.matches_resources(&resources)
+                || !closure.matches_terminal(&terminal) { return Err(E::from(pending())); }
+            if matches!(terminal.decision(), ArtifactPublicationCanonicalDecision::Commit) {
+                self.recheck_closed_workspace_artifact_publication_owner(
+                    &original, authority, terminal.clone(), closure.clone(), read.clone(),
+                ).await.map_err(E::from)?;
+            } else {
+                self.recheck_workspace_artifact_publication_owner(&original, authority, false, read.clone()).await.map_err(E::from)?;
+            }
+            return if matches!(terminal.decision(), ArtifactPublicationCanonicalDecision::Commit) {
+                self.finish_workspace_artifact_publication(&original, &terminal, &closure, &read).map_err(E::from)
+            } else {
+                Err(self.finish_aborted_workspace_artifact_publication::<E>(&original, &terminal, &closure, &read).map_err(E::from)?)
+            };
+        }
+        self.recheck_workspace_artifact_publication_owner(&original, authority.clone(),
+            matches!(finalization, WorkspaceArtifactEngineFinalization::Commit), read.clone()).await.map_err(E::from)?;
+        let terminal = {
+            let mut settlements = self.inner.transaction_settlements.lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let Some(Some(AuthenticatedTransactionRetention::WorkspaceArtifactPublication {
+                original: retained, resources: held, canonical_terminal, ..
+            })) = settlements.get_mut(&operation_id) else { return Err(E::from(pending())); };
+            if !Arc::ptr_eq(retained, &original) || !Arc::ptr_eq(held, &resources) {
+                return Err(E::from(pending()));
+            }
+            canonical_terminal.get_or_insert_with(|| Arc::new(ArtifactPublicationCanonicalTerminalForOwner {
+                original: original.clone(), resources: resources.clone(),
+                decision: match finalization {
+                    WorkspaceArtifactEngineFinalization::Commit => ArtifactPublicationCanonicalDecision::Commit,
+                    WorkspaceArtifactEngineFinalization::Rollback => ArtifactPublicationCanonicalDecision::Abort,
+                },
+            })).clone()
+        };
+        let closure = {
+            let settlements = self.inner.transaction_settlements.lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            match settlements.get(&operation_id) {
+                Some(Some(AuthenticatedTransactionRetention::WorkspaceArtifactPublication { owned_closure, .. })) => owned_closure.clone(),
+                _ => return Err(E::from(pending())),
+            }
+        };
+        let closure = match closure {
+            Some(closure) => closure,
+            None => {
+                {
+                    let settlements = self.inner.transaction_settlements.lock()
+                        .unwrap_or_else(|poisoned| poisoned.into_inner());
+                    if read.deadline() <= Instant::now() || read.authority_expires_at() <= chrono::Utc::now()
+                        || !matches!(settlements.get(&operation_id),
+                            Some(Some(AuthenticatedTransactionRetention::WorkspaceArtifactPublication {
+                                original: held, reconciliation_read: Some(held_read), ..
+                            })) if Arc::ptr_eq(held, &original) && Arc::ptr_eq(held_read, &read)) {
+                        return Err(E::from(pending()));
+                    }
+                }
+                let closure = Arc::new(resources.close_after_canonical_terminal(&terminal).map_err(|_| E::from(pending()))?);
+                let mut settlements = self.inner.transaction_settlements.lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                let Some(Some(AuthenticatedTransactionRetention::WorkspaceArtifactPublication {
+                    original: retained, resources: held, owned_closure, ..
+                })) = settlements.get_mut(&operation_id) else { return Err(E::from(pending())); };
+                if !Arc::ptr_eq(retained, &original) || !Arc::ptr_eq(held, &resources) { return Err(E::from(pending())); }
+                owned_closure.get_or_insert_with(|| closure.clone()).clone()
+            }
+        };
+        self.recheck_workspace_artifact_publication_owner(&original, authority, false, read.clone()).await.map_err(E::from)?;
+        if matches!(terminal.decision(), ArtifactPublicationCanonicalDecision::Commit) {
+            self.finish_workspace_artifact_publication(&original, &terminal, &closure, &read).map_err(E::from)
+        } else {
+            Err(self.finish_aborted_workspace_artifact_publication::<E>(&original, &terminal, &closure, &read).map_err(E::from)?)
+        }
+    }
+
+    fn finish_aborted_workspace_artifact_publication<E: Send + 'static>(
+        &self, original: &Arc<WorkspaceArtifactPublicationOperationContext>,
+        terminal: &ArtifactPublicationCanonicalTerminalForOwner,
+        closure: &crate::storage::artifacts::ArtifactPublicationOwnedClosure,
+        read: &Arc<WorkspaceArtifactPublicationReconciliationRead>,
+    ) -> Result<E, SurrealStorageError> {
+        let operation_id = original.operation_id();
+        let pending = || SurrealStorageError::TransactionSettlementPending { operation_id };
+        if read.deadline() <= Instant::now() || read.authority_expires_at() <= chrono::Utc::now()
+            || !read.matches_original(original) { return Err(pending()); }
+        if !Arc::ptr_eq(original, &terminal.original) || !closure.matches_terminal(terminal)
+            || !matches!(terminal.decision(), ArtifactPublicationCanonicalDecision::Abort) {
+            return Err(pending());
+        }
+        let mut settlements = self.inner.transaction_settlements.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let Some(Some(AuthenticatedTransactionRetention::WorkspaceArtifactPublication {
+            original: held, resources, completed_error, worker_finished: true, reconciliation_read: Some(held_read), ..
+        })) = settlements.get_mut(&operation_id) else { return Err(pending()); };
+        if !Arc::ptr_eq(held_read, read) || !Arc::ptr_eq(held, original) || !terminal.matches_resources(resources)
+            || !completed_error.as_ref().is_some_and(|value| value.is::<E>()) { return Err(pending()); }
+        if read.deadline() <= Instant::now() || read.authority_expires_at() <= chrono::Utc::now() {
+            return Err(pending());
+        }
+        let error = completed_error.take().ok_or_else(pending)?;
+        let error = match error.downcast::<E>() {
+            Ok(error) => error,
+            Err(error) => { *completed_error = Some(error); return Err(pending()); }
+        };
+        settlements.remove(&operation_id);
+        Ok(*error)
+    }
+    fn finish_workspace_artifact_publication<T: Send + 'static>(
+        &self,
+        original: &Arc<WorkspaceArtifactPublicationOperationContext>,
+        terminal: &ArtifactPublicationCanonicalTerminalForOwner,
+        closure: &crate::storage::artifacts::ArtifactPublicationOwnedClosure,
+        read: &Arc<WorkspaceArtifactPublicationReconciliationRead>,
+    ) -> Result<T, SurrealStorageError> {
+        let operation_id = original.operation_id();
+        let pending = || SurrealStorageError::TransactionSettlementPending { operation_id };
+        if read.deadline() <= Instant::now() || read.authority_expires_at() <= chrono::Utc::now()
+            || !read.matches_original(original) { return Err(pending()); }
+        let storage = original.storage.upgrade().ok_or_else(pending)?;
+        if !Arc::ptr_eq(&storage, &self.inner)
+            || !Arc::ptr_eq(original, &terminal.original)
+            || original.namespace != self.config().namespace()
+            || original.database != self.config().database()
+            || !matches!(terminal.decision(), ArtifactPublicationCanonicalDecision::Commit)
+            || !closure.matches_terminal(terminal)
+        {
+            return Err(pending());
+        }
+        let mut settlements = self.inner.transaction_settlements.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let Some(Some(AuthenticatedTransactionRetention::WorkspaceArtifactPublication {
+            original: retained, resources, completed_result, worker_finished, reconciliation_read: Some(held_read), ..
+        })) = settlements.get_mut(&operation_id) else { return Err(pending()); };
+        if !Arc::ptr_eq(held_read, read) || !*worker_finished || !Arc::ptr_eq(retained, original)
+            || !terminal.matches_resources(resources)
+            || !completed_result.as_ref().is_some_and(|value| value.is::<T>())
+        {
+            return Err(pending());
+        }
+        if read.deadline() <= Instant::now() || read.authority_expires_at() <= chrono::Utc::now() {
+            return Err(pending());
+        }
+        let value = completed_result.take().ok_or_else(pending)?;
+        let value = match value.downcast::<T>() {
+            Ok(value) => value,
+            Err(value) => {
+                *completed_result = Some(value);
+                return Err(pending());
+            }
+        };
+        settlements.remove(&operation_id);
+        Ok(*value)
+    }
+    pub(crate) async fn with_authenticated_transaction_context<T, E, F>(
+        &self,
+        original: Arc<WorkspaceArtifactPublicationOperationContext>,
+        retention: Arc<dyn std::any::Any + Send + Sync>,
+        resources: Arc<crate::storage::artifacts::ArtifactPublicationResources>,
+        operation: F,
+    ) -> Result<T, E>
+    where
+        T: Send + 'static,
+        E: From<SurrealStorageError> + Send + 'static,
+        F: for<'a> FnOnce(SurrealTransactionContext<'a>) -> SurrealTransactionOperation<'a, T, E>
+            + Send + 'static,
+    {
+        let invalid = || E::from(SurrealStorageError::InvalidModelLaneRecord {
+            reason: "workspace artifact publication context unavailable",
+        });
+        let bound_storage = original.storage.upgrade().ok_or_else(invalid)?;
+        if !Arc::ptr_eq(&bound_storage, &self.inner)
+            || original.namespace != self.config().namespace()
+            || original.database != self.config().database()
+            || original.deadline <= Instant::now()
+            || original.expires_at <= chrono::Utc::now()
+        {
+            return Err(invalid());
+        }
+        let operation_id = original.operation_id();
+        let scope = original.scope.clone();
+        let deadline = original.deadline;
+        self.reserve_transaction_settlement(operation_id, Some(
+            AuthenticatedTransactionRetention::WorkspaceArtifactPublication {
+                original: original.clone(), owner: retention.clone(), resources: resources.clone(), completed_result: None, completed_error: None, worker_finished: false, callback_succeeded: false, canonical_terminal: None, owned_closure: None, owned_finalization: None, reconciliation_read: None, canonical_read_client: None, settlement: ActualSettlement::Unobserved,
+            },
+        )).map_err(E::from)?;
+        let _result = self.transaction_worker(TransactionInvocation::Authenticated {
+            scope, deadline, operation_id,
+        }, Some(operation_id), None, TransactionSettlementMode::Mutation, operation).await;
+        if let Err(error) = _result {
+            let retain_error = {
+                let settlements = self.inner.transaction_settlements.lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                !matches!(settlements.get(&operation_id),
+                    Some(Some(AuthenticatedTransactionRetention::WorkspaceArtifactPublication {
+                        worker_finished: true, callback_succeeded: true,
+                        owned_finalization: Some(WorkspaceArtifactEngineFinalization::Commit), ..
+                    })))
+            };
+            if retain_error {
+                let mut error = Some(error);
+                self.retain_workspace_artifact_error(Some(operation_id), &mut error);
+            }
+        }
+        match self.reconcile_workspace_artifact_publication(original, retention, resources).await {
+            Ok(value) => Ok(value),
+            Err(error) => Err(error),
+        }
+    }
+
+    pub(crate) async fn with_original_runcreate_transaction<T, E, F>(
+        &self, operation_id: uuid::Uuid, retention: Arc<dyn std::any::Any + Send + Sync>, operation: F,
+    ) -> OriginalRunCreateOutcome<T, E>
+    where T: Send + 'static, E: From<SurrealStorageError> + Send + 'static,
+        F: for<'a> FnOnce(SurrealTransactionContext<'a>) -> SurrealTransactionOperation<'a, T, E> + Send + 'static,
+    {
+        let retained = Arc::new(StdMutex::new(OriginalRunCreateRetention {
+            owner: retention, binding: None, proof: None, finalized: None,
+            value: None, error: None, finished: false,
+        }));
+        let result = self.authenticated_transaction(operation_id, None,
+            Some(AuthenticatedTransactionRetention::OriginalRunCreate(retained.clone())), operation).await;
+        let mut state = retained.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if state.finished && state.finalized == Some(OriginalRunCreateFinalization::Commit)
+            && state.value.as_ref().is_some_and(|value| value.is::<T>()) {
+            if let Some(value) = state.value.take() {
+                match value.downcast::<T>() {
+                    Ok(value) => return OriginalRunCreateOutcome { result: Ok(*value), proof: state.proof.take() },
+                    Err(value) => state.value = Some(value),
+                }
+            }
+        }
+        if state.error.as_ref().is_some_and(|error| error.is::<E>()) {
+            if let Some(error) = state.error.take() {
+                match error.downcast::<E>() {
+                    Ok(error) => {
+                        let proof = if state.finished && state.finalized == Some(OriginalRunCreateFinalization::Rollback) {
+                            state.proof.take()
+                        } else { None };
+                        return OriginalRunCreateOutcome { result: Err(*error), proof };
+                    }
+                    Err(error) => state.error = Some(error),
+                }
+            }
+        }
+        OriginalRunCreateOutcome { result, proof: None }
+    }
+
+    pub(crate) fn acknowledge_original_runcreate_finalization(
+        &self, proof: OriginalRunCreateFinalizationProof,
+        owner: &Arc<dyn std::any::Any + Send + Sync>,
+    ) -> Result<(), (SurrealStorageError, OriginalRunCreateFinalizationProof)> {
+        let operation_id = proof.binding.operation_id;
+        if !proof.matches_original(self, operation_id, owner) {
+            return Err((SurrealStorageError::TransactionRetentionMismatch { operation_id }, proof));
+        }
+        let mut settlements = self.inner.transaction_settlements.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let Some(Some(AuthenticatedTransactionRetention::OriginalRunCreate(retained))) = settlements.get(&operation_id)
+            else { return Err((SurrealStorageError::TransactionRetentionMismatch { operation_id }, proof)); };
+        let state = retained.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if !state.finished || state.finalized != Some(proof.finalization)
+            || !state.binding.as_ref().is_some_and(|binding| Arc::ptr_eq(binding, &proof.binding)) {
+            return Err((SurrealStorageError::TransactionRetentionMismatch { operation_id }, proof));
+        }
+        drop(state);
+        settlements.remove(&operation_id);
+        Ok(())
+    }
     pub(crate) async fn with_authenticated_transaction<T, E, F>(
         &self, operation_id: uuid::Uuid, operation: F,
     ) -> Result<T, E>
@@ -1928,7 +3253,7 @@ impl SurrealStorage {
         F: for<'a> FnOnce(SurrealTransactionContext<'a>) -> SurrealTransactionOperation<'a, T, E>
             + Send + 'static,
     {
-        self.authenticated_transaction(operation_id, None, operation).await
+        self.authenticated_transaction(operation_id, None, None, operation).await
     }
 
     pub(crate) async fn with_owned_authenticated_transaction<T, E, F>(
@@ -1937,11 +3262,235 @@ impl SurrealStorage {
     where T: Send + 'static, E: From<SurrealStorageError> + Send + 'static,
         F: for<'a> FnOnce(SurrealTransactionContext<'a>) -> SurrealTransactionOperation<'a, T, E> + Send + 'static,
     {
-        self.authenticated_transaction(operation_id, Some(cancellation), operation).await
+        self.authenticated_transaction(operation_id, Some(cancellation), None, operation).await
+    }
+
+    pub(crate) async fn with_owned_authenticated_job_transaction<T, E, F>(
+        &self,
+        operation_id: uuid::Uuid,
+        cancellation: Arc<ContextOperationCancellation>,
+        retention: resource_authority::JobAdmissionTransactionRetention,
+        operation: F,
+    ) -> Result<T, E>
+    where
+        T: Send + 'static,
+        E: From<SurrealStorageError> + Send + 'static,
+        F: for<'a> FnOnce(SurrealTransactionContext<'a>) -> SurrealTransactionOperation<'a, T, E>
+            + Send + 'static,
+    {
+        if retention.operation_id() != operation_id {
+            return Err(E::from(SurrealStorageError::TransactionRetentionMismatch { operation_id }));
+        }
+        self.authenticated_transaction(operation_id, Some(cancellation), Some(
+            AuthenticatedTransactionRetention::JobAdmission {
+                retention,
+                phase: JobAdmissionTransactionPhase::EnginePending,
+                readback: None,
+            },
+        ), operation).await
+    }
+
+    pub(crate) async fn read_owned_job_admission(
+        &self,
+        read: resource_authority::JobAdmissionReadbackTransaction,
+    ) -> Result<resource_authority::JobAdmissionReadbackResult, crate::storage::JobAdmissionError> {
+        let operation_id = read.operation_id();
+        if !read.belongs_to(self) {
+            return Err(SurrealStorageError::TransactionRetentionMismatch { operation_id }.into());
+        }
+        let budget = self.effective_statement_timeout();
+        let read = Arc::new(read);
+        {
+            let mut settlements = self.inner.transaction_settlements.lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            match settlements.get_mut(&operation_id) {
+                Some(Some(AuthenticatedTransactionRetention::JobAdmission { retention, phase, readback }))
+                    if retention.matches_retention(read.retention()) => {
+                    if !matches!(phase, JobAdmissionTransactionPhase::CommitObservedReadbackPending)
+                        || readback.is_some()
+                    {
+                        return Err(SurrealStorageError::TransactionSettlementPending { operation_id }.into());
+                    }
+                    *readback = Some(read.clone());
+                    *phase = JobAdmissionTransactionPhase::ReadbackReadPending;
+                }
+                _ => return Err(SurrealStorageError::TransactionRetentionMismatch { operation_id }.into()),
+            }
+        }
+        if budget.is_zero() {
+            return Err(SurrealStorageError::StatementBudgetExhausted { budget_ms: 0 }.into());
+        }
+        let worker_read = read.clone();
+        let observed = self.transaction_worker(
+            TransactionInvocation::Authenticated {
+                scope: read.scope(), deadline: Instant::now() + budget, operation_id,
+            },
+            Some(operation_id), None, TransactionSettlementMode::JobReadback(read.clone()),
+            move |transaction| Box::pin(async move { worker_read.execute(&transaction).await }),
+        ).await?;
+        read.finalize(self, observed).await
+    }
+
+    pub(crate) fn confirm_job_admission_readback(
+        &self,
+        completion: resource_authority::JobAdmissionReadbackToken,
+    ) -> Result<(), SurrealStorageError> {
+        let operation_id = completion.operation_id();
+        let mut settlements = self.inner.transaction_settlements.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        match settlements.get(&operation_id) {
+            Some(Some(AuthenticatedTransactionRetention::JobAdmission { retention, phase, readback: Some(read) }))
+                if retention.matches_readback(&completion) && read.matches_readback(&completion) => {
+                if !matches!(phase, JobAdmissionTransactionPhase::ReadbackObserved) {
+                    return Err(SurrealStorageError::TransactionSettlementPending { operation_id });
+                }
+                if !read.belongs_to(self) {
+                    return Err(SurrealStorageError::TransactionRetentionMismatch { operation_id });
+                }
+            }
+            _ => return Err(SurrealStorageError::TransactionRetentionMismatch { operation_id }),
+        }
+        completion.require_unexpired()?;
+        settlements.remove(&operation_id);
+        Ok(())
+    }
+
+    pub(crate) async fn with_owned_role_authenticated_transaction<T, E, F>(
+        &self,
+        operation_id: uuid::Uuid,
+        cancellation: Arc<ContextOperationCancellation>,
+        retention: resource_authority::RoleAuthorityTransactionRetention,
+        operation: F,
+    ) -> Result<T, E>
+    where
+        T: Send + 'static,
+        E: From<SurrealStorageError> + Send + 'static,
+        F: for<'a> FnOnce(SurrealTransactionContext<'a>) -> SurrealTransactionOperation<'a, T, E>
+            + Send + 'static,
+    {
+        if retention.operation_id() != operation_id {
+            return Err(E::from(SurrealStorageError::TransactionRetentionMismatch { operation_id }));
+        }
+        self.authenticated_transaction(operation_id, Some(cancellation), Some(
+            AuthenticatedTransactionRetention::Role {
+                retention,
+                phase: RoleTransactionPhase::EnginePending,
+            },
+        ), operation).await
+    }
+
+    pub(crate) fn reserve_role_preparation(
+        &self,
+        retention: resource_authority::RoleAuthorityTransactionRetention,
+    ) -> Result<(), SurrealStorageError> {
+        self.reserve_transaction_settlement(retention.operation_id(), Some(
+            AuthenticatedTransactionRetention::Role {
+                retention,
+                phase: RoleTransactionPhase::PreEnginePrepared,
+            },
+        ))
+    }
+
+    pub(crate) async fn read_owned_routing_authority_capture(
+        &self,
+        capture: resource_authority::RoutingAuthorityCaptureTransaction,
+    ) -> crate::swarm_orchestration::model_lane::ModelLaneResult<resource_authority::RoutingAuthorityCaptureRead> {
+        let operation_id = capture.operation_id();
+        if !capture.belongs_to(self) {
+            return Err(SurrealStorageError::TransactionRetentionMismatch { operation_id }.into());
+        }
+        let retention = capture.retention().clone();
+        self.reserve_transaction_settlement(operation_id, Some(
+            AuthenticatedTransactionRetention::Role {
+                retention: retention.clone(),
+                phase: RoleTransactionPhase::CaptureReadPending,
+            },
+        ))?;
+        let scope = capture.record_user_scope();
+        let budget = self.effective_statement_timeout();
+        if budget.is_zero() {
+            return Err(SurrealStorageError::StatementBudgetExhausted { budget_ms: 0 }.into());
+        }
+        let (capture, payload) = self.transaction_worker(
+            TransactionInvocation::Authenticated {
+                scope, deadline: Instant::now() + budget, operation_id,
+            },
+            Some(operation_id), Some(ContextOperationCancellation::new()),
+            TransactionSettlementMode::RoutingCapture(retention),
+            move |transaction| Box::pin(async move {
+                let payload = capture.execute(&transaction).await?;
+                Ok::<_, crate::swarm_orchestration::model_lane::ModelLaneError>((capture, payload))
+            }),
+        ).await?;
+        capture.into_observed_read(payload)
+    }
+
+    pub(crate) fn prepare_owned_routing_authority_capture(
+        &self,
+        finalization: resource_authority::RoutingAuthorityCaptureFinalization,
+    ) -> crate::swarm_orchestration::model_lane::ModelLaneResult<resource_authority::PreparedRoutingAuthorityConsumption> {
+        let expected = finalization.retention().clone();
+        let operation_id = expected.operation_id();
+        if !finalization.belongs_to(self) {
+            return Err(SurrealStorageError::TransactionRetentionMismatch { operation_id }.into());
+        }
+        let mut settlements = self.inner.transaction_settlements.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        match settlements.get_mut(&operation_id) {
+            Some(Some(AuthenticatedTransactionRetention::Role { retention, phase }))
+                if matches!(phase, RoleTransactionPhase::CaptureReadObserved)
+                    && retention.matches_retention(&expected) => {
+                let prepared = finalization.finalize_into_prepared()?;
+                *phase = RoleTransactionPhase::PreEnginePrepared;
+                Ok(prepared)
+            }
+            _ => Err(SurrealStorageError::TransactionRetentionMismatch { operation_id }.into()),
+        }
+    }
+
+    pub(crate) fn cancel_role_preparation(
+        &self,
+        cancellation: resource_authority::RoleAuthorityPreparationCancellation,
+    ) -> Result<(), SurrealStorageError> {
+        let operation_id = cancellation.operation_id();
+        let mut settlements = self.inner.transaction_settlements.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        match settlements.get(&operation_id) {
+            Some(Some(AuthenticatedTransactionRetention::Role {
+                retention, phase: RoleTransactionPhase::PreEnginePrepared,
+            })) if retention.matches_cancellation(&cancellation) => {}
+            _ => return Err(SurrealStorageError::TransactionRetentionMismatch { operation_id }),
+        }
+        settlements.remove(&operation_id);
+        Ok(())
+    }
+
+    pub(crate) fn complete_role_publication(
+        &self,
+        completion: resource_authority::RoleAuthorityPublicationCompletion,
+    ) -> Result<(), SurrealStorageError> {
+        let operation_id = completion.operation_id();
+        let mut settlements = self.inner.transaction_settlements.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        match settlements.get(&operation_id) {
+            Some(Some(AuthenticatedTransactionRetention::Role { retention, phase }))
+                if retention.matches_completion(&completion) => {
+                if !matches!(phase, RoleTransactionPhase::CommitObservedPublicationPending) {
+                    return Err(SurrealStorageError::TransactionSettlementPending { operation_id });
+                }
+            }
+            _ => return Err(SurrealStorageError::TransactionRetentionMismatch { operation_id }),
+        }
+        settlements.remove(&operation_id);
+        Ok(())
     }
 
     async fn authenticated_transaction<T, E, F>(
-        &self, operation_id: uuid::Uuid, cancellation: Option<Arc<ContextOperationCancellation>>, operation: F,
+        &self,
+        operation_id: uuid::Uuid,
+        cancellation: Option<Arc<ContextOperationCancellation>>,
+        retention: Option<AuthenticatedTransactionRetention>,
+        operation: F,
     ) -> Result<T, E>
     where T: Send + 'static, E: From<SurrealStorageError> + Send + 'static,
         F: for<'a> FnOnce(SurrealTransactionContext<'a>) -> SurrealTransactionOperation<'a, T, E> + Send + 'static,
@@ -1952,10 +3501,10 @@ impl SurrealStorage {
         if budget.is_zero() {
             return Err(E::from(SurrealStorageError::StatementBudgetExhausted { budget_ms: 0 }));
         }
-        self.reserve_transaction_settlement(operation_id, None).map_err(E::from)?;
+        self.reserve_transaction_settlement(operation_id, retention).map_err(E::from)?;
         self.transaction_worker(TransactionInvocation::Authenticated {
             scope, deadline: Instant::now() + budget, operation_id,
-        }, Some(operation_id), cancellation, operation).await
+        }, Some(operation_id), cancellation, TransactionSettlementMode::Mutation, operation).await
     }
 
     pub(crate) fn context_reconciliation_pending(&self, operation_id: uuid::Uuid) -> bool {
@@ -1979,7 +3528,7 @@ impl SurrealStorage {
     fn reserve_transaction_settlement(
         &self,
         operation_id: uuid::Uuid,
-        retention: Option<ActivationTransactionRetention>,
+        retention: Option<AuthenticatedTransactionRetention>,
     ) -> Result<(), SurrealStorageError> {
         let mut settlements = self.inner.transaction_settlements.lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -1988,8 +3537,19 @@ impl SurrealStorage {
                 entry.insert(retention);
                 Ok(())
             }
-            std::collections::btree_map::Entry::Occupied(_) => {
-                Err(SurrealStorageError::TransactionSettlementPending { operation_id })
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                match (entry.get_mut(), retention) {
+                    (Some(AuthenticatedTransactionRetention::Role { retention: prepared, phase }),
+                        Some(AuthenticatedTransactionRetention::Role {
+                            retention: incoming, phase: RoleTransactionPhase::EnginePending,
+                        })) if matches!(phase, RoleTransactionPhase::PreEnginePrepared)
+                            && prepared.operation_id() == operation_id
+                            && prepared.matches_retention(&incoming) => {
+                        *phase = RoleTransactionPhase::EnginePending;
+                        Ok(())
+                    }
+                    _ => Err(SurrealStorageError::TransactionSettlementPending { operation_id }),
+                }
             }
         }
     }
@@ -2000,7 +3560,9 @@ impl SurrealStorage {
     }
 
     async fn transaction_worker<T, E, F>(
-        &self, invocation: TransactionInvocation, settlement_id: Option<uuid::Uuid>, owned_cancellation: Option<Arc<ContextOperationCancellation>>, operation: F,
+        &self, invocation: TransactionInvocation, settlement_id: Option<uuid::Uuid>,
+        owned_cancellation: Option<Arc<ContextOperationCancellation>>,
+        settlement_mode: TransactionSettlementMode, operation: F,
     ) -> Result<T, E>
     where
         T: Send + 'static,
@@ -2010,24 +3572,129 @@ impl SurrealStorage {
     {
         use futures::FutureExt;
 
+        if let TransactionSettlementMode::RoutingCapture(expected) = &settlement_mode {
+            let operation_id = expected.operation_id();
+            if !matches!(&invocation,
+                TransactionInvocation::Authenticated { operation_id: invoked, .. }
+                    if *invoked == operation_id)
+                || settlement_id != Some(operation_id)
+            {
+                return Err(E::from(SurrealStorageError::TransactionRetentionMismatch { operation_id }));
+            }
+            let settlements = self.inner.transaction_settlements.lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            if !matches!(settlements.get(&operation_id),
+                Some(Some(AuthenticatedTransactionRetention::Role { retention, phase }))
+                    if matches!(phase, RoleTransactionPhase::CaptureReadPending)
+                        && retention.matches_retention(expected))
+            {
+                return Err(E::from(SurrealStorageError::TransactionRetentionMismatch { operation_id }));
+            }
+        }
+
+        if let TransactionSettlementMode::JobReadback(expected) = &settlement_mode {
+            let operation_id = expected.operation_id();
+            if !expected.belongs_to(self) || !matches!(&invocation,
+                TransactionInvocation::Authenticated { operation_id: invoked, .. }
+                    if *invoked == operation_id)
+                || settlement_id != Some(operation_id)
+            {
+                return Err(E::from(SurrealStorageError::TransactionRetentionMismatch { operation_id }));
+            }
+            let settlements = self.inner.transaction_settlements.lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            if !matches!(settlements.get(&operation_id),
+                Some(Some(AuthenticatedTransactionRetention::JobAdmission { retention, phase, readback: Some(read) }))
+                    if matches!(phase, JobAdmissionTransactionPhase::ReadbackReadPending)
+                        && retention.matches_retention(expected.retention())
+                        && Arc::ptr_eq(read, expected))
+            {
+                return Err(E::from(SurrealStorageError::TransactionRetentionMismatch { operation_id }));
+            }
+        }
+
+        let runcreate_retention = if let Some(operation_id) = settlement_id {
+            let settlements = self.inner.transaction_settlements.lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            match settlements.get(&operation_id) {
+                Some(Some(AuthenticatedTransactionRetention::OriginalRunCreate(retention))) => Some(retention.clone()),
+                _ => None,
+            }
+        } else { None };
+        if let Some(retention) = &runcreate_retention {
+            let TransactionInvocation::Authenticated { scope, deadline, operation_id } = &invocation else {
+                return Err(E::from(SurrealStorageError::TransactionAuthorityRequired));
+            };
+            if settlement_id != Some(*operation_id) || !matches!(&settlement_mode, TransactionSettlementMode::Mutation) {
+                return Err(E::from(SurrealStorageError::TransactionRetentionMismatch { operation_id: *operation_id }));
+            }
+            let mut state = retention.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            if state.binding.is_some() {
+                return Err(E::from(SurrealStorageError::TransactionRetentionMismatch { operation_id: *operation_id }));
+            }
+            let owner = state.owner.clone();
+            state.binding = Some(Arc::new(OriginalRunCreateBinding {
+                operation_id: *operation_id, storage: Arc::downgrade(&self.inner),
+                owner, _scope: scope.clone(), _deadline: *deadline,
+            }));
+        }
+        let read_window = if matches!(&settlement_mode, TransactionSettlementMode::WorkspaceArtifactCanonicalRead(_)) {
+            match &invocation {
+                TransactionInvocation::Authenticated { deadline, operation_id, .. } => Some((*deadline, *operation_id)),
+                _ => return Err(E::from(SurrealStorageError::TransactionAuthorityRequired)),
+            }
+        } else { None };
         let storage = self.clone();
         let worker_invocation = invocation.clone();
+        let worker_settlement_mode = settlement_mode.clone();
+        let worker_admission = match &invocation {
+            TransactionInvocation::WatcherAdmission { admission, .. } => Some(admission.clone()),
+            _ => None,
+        };
         let operation_purpose = MODEL_LANE_OPERATION_PURPOSE.try_with(|purpose| *purpose).ok();
         let operation_subject = MODEL_LANE_OPERATION_SUBJECT.try_with(Clone::clone).ok();
+        let operation_fences = MODEL_LANE_FENCES.try_with(Clone::clone).ok();
+        let operation_guards = MODEL_LANE_CURRENT_GUARDS.try_with(Arc::clone).ok();
         let (cancel_sender, mut cancelled) = oneshot::channel::<()>();
         let owned_settlement = owned_cancellation.is_some();
+
+        #[cfg(feature = "test-utils")]
+        let album_proof = settlement_id.and_then(|operation_id| {
+            let settlements = self.inner.transaction_settlements.lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            match settlements.get(&operation_id) {
+                Some(Some(AuthenticatedTransactionRetention::AlbumMembership(retained))) =>
+                    retained.proof.clone().map(|proof| (retained.operation.clone(), proof)),
+                _ => None,
+            }
+        });
         let authority_mutation = AUTHORITY_MUTATION_SUBMITTED.try_with(Clone::clone).ok();
         let worker_operation = async move {
             let transaction_storage = storage.clone();
+            let transaction_runcreate_retention = runcreate_retention.clone();
             let result = storage
                 .with_lease(move |client| {
                     Box::pin(async move {
+                        if read_window.is_some_and(|(deadline, _)| Instant::now() >= deadline) {
+                            return Err(SurrealStorageError::TransactionCancelled);
+                        }
                         // Begin must complete even if the caller disappears before the
                         // SDK has returned the transaction identifier needed to cancel.
-                        let scoped = (*client).clone();
-                        if let TransactionInvocation::Authenticated { scope, .. } = &worker_invocation {
+                        let scoped = match &worker_settlement_mode {
+                            TransactionSettlementMode::WorkspaceArtifactCanonicalRead(snapshot) => snapshot.as_ref().clone(),
+                            _ => (*client).clone(),
+                        };
+                        if !matches!(&worker_settlement_mode, TransactionSettlementMode::WorkspaceArtifactCanonicalRead(_)) {
+                        if let TransactionInvocation::Authenticated { scope, .. }
+                            | TransactionInvocation::WatcherAdmission { scope, .. } = &worker_invocation {
+                            if let TransactionInvocation::WatcherAdmission { admission, .. } = &worker_invocation {
+                                admission.state.lock().await.stage = WatcherAdmissionStage::OrdinaryAuthentication;
+                            }
                             observe_result("transaction_namespace",
                                 scoped.use_ns(transaction_storage.config().namespace()).use_db(transaction_storage.config().database())).await?;
+                        if read_window.is_some_and(|(deadline, _)| Instant::now() >= deadline) {
+                            return Err(SurrealStorageError::TransactionCancelled);
+                        }
                             observe_result("transaction_signin", scoped.signin(RecordSignin {
                                 namespace: transaction_storage.config().namespace().to_owned(),
                                 database: transaction_storage.config().database().to_owned(),
@@ -2038,11 +3705,42 @@ impl SurrealStorage {
                                 },
                             })).await?;
                         }
+                        if read_window.is_some_and(|(deadline, _)| Instant::now() >= deadline) {
+                            return Err(SurrealStorageError::TransactionCancelled);
+                        }
+                        }
                         let callback_client = scoped.clone();
+                        if let Some(operation_id) = settlement_id {
+                            let mut settlements = transaction_storage.inner.transaction_settlements.lock()
+                                .unwrap_or_else(|poisoned| poisoned.into_inner());
+                            if let Some(Some(AuthenticatedTransactionRetention::WorkspaceArtifactPublication {
+                                canonical_read_client, ..
+                            })) = settlements.get_mut(&operation_id) {
+                                if canonical_read_client.is_some() {
+                                    return Err(SurrealStorageError::TransactionRetentionMismatch { operation_id });
+                                }
+                                *canonical_read_client = Some(Arc::new(callback_client.clone()));
+                            }
+                        }
+                        if let TransactionInvocation::WatcherAdmission { scope, admission, .. } = &worker_invocation {
+                            let installer = scoped.clone();
+                            transaction_storage.install_watcher_admission(&scoped, installer, scope, admission).await?;
+                            admission.state.lock().await.stage = WatcherAdmissionStage::TransactionBegin;
+                        }
+                        if read_window.is_some_and(|(deadline, _)| Instant::now() >= deadline) {
+                            return Err(SurrealStorageError::TransactionCancelled);
+                        }
                         let transaction = Arc::new(observe_result("transaction_begin", scoped.begin()).await?);
+                        // The witness follows this SDK transaction through its borrowed
+                        // callback and sole first finalizer, without another transaction Arc.
+                        let mut runcreate_begin = transaction_runcreate_retention.as_ref().map(|retention| {
+                            let state = retention.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+                            OriginalRunCreateBeginWitness { binding: state.binding.as_ref().expect("bound original RunCreate").clone() }
+                        });
                         let callback_deadline = match &worker_invocation {
                             TransactionInvocation::Existing => None,
-                            TransactionInvocation::Authenticated { deadline, .. } => Some(*deadline),
+                            TransactionInvocation::Authenticated { deadline, .. }
+                            | TransactionInvocation::WatcherAdmission { deadline, .. } => Some(*deadline),
                         };
                         let outcome = {
                             let context = SurrealTransactionContext {
@@ -2053,29 +3751,44 @@ impl SurrealStorage {
                             let callback =
                                 std::panic::AssertUnwindSafe(
                                     async move {
-                                        match &worker_invocation {
-                                            TransactionInvocation::Existing => operation(context).await,
-                                            TransactionInvocation::Authenticated { scope, deadline, .. } => {
-                                                let protected = ProtectedTransaction {
-                                                    transaction: callback_transaction, client: callback_client,
-                                                    storage: callback_storage, authority: scope.clone(),
-                                                };
-                                                let callback = PROTECTED_TRANSACTION.scope(protected,
-                                                    RECORD_USER_SCOPE.scope(scope.clone(), OPERATION_DEADLINE.scope(*deadline,
-                                                        operation(context))));
-                                                let scoped_callback = async move {
-                                                    if let Some(subject) = operation_subject {
-                                                        MODEL_LANE_OPERATION_SUBJECT.scope(subject, callback).await
+                                        let callback = async move {
+                                            match &worker_invocation {
+                                                TransactionInvocation::Existing => operation(context).await,
+                                                TransactionInvocation::Authenticated { scope, deadline, .. }
+                                                | TransactionInvocation::WatcherAdmission { scope, deadline, .. } => {
+                                                    let protected = ProtectedTransaction {
+                                                        transaction: callback_transaction, client: callback_client,
+                                                        storage: callback_storage, authority: scope.clone(),
+                                                    };
+                                                    let callback = PROTECTED_TRANSACTION.scope(protected,
+                                                        RECORD_USER_SCOPE.scope(scope.clone(), OPERATION_DEADLINE.scope(*deadline,
+                                                            async move { operation(context).await })));
+                                                    let scoped_callback = async move {
+                                                        if let Some(subject) = operation_subject {
+                                                            MODEL_LANE_OPERATION_SUBJECT.scope(subject, callback).await
+                                                        } else {
+                                                            callback.await
+                                                        }
+                                                    };
+                                                    if let Some(purpose) = operation_purpose {
+                                                        MODEL_LANE_OPERATION_PURPOSE.scope(purpose, scoped_callback).await
                                                     } else {
-                                                        callback.await
+                                                        scoped_callback.await
                                                     }
-                                                };
-                                                if let Some(purpose) = operation_purpose {
-                                                    MODEL_LANE_OPERATION_PURPOSE.scope(purpose, scoped_callback).await
-                                                } else {
-                                                    scoped_callback.await
                                                 }
                                             }
+                                        };
+                                        let guarded_callback = async move {
+                                            if let Some(guards) = operation_guards {
+                                                MODEL_LANE_CURRENT_GUARDS.scope(guards, callback).await
+                                            } else {
+                                                callback.await
+                                            }
+                                        };
+                                        if let Some(fences) = operation_fences {
+                                            MODEL_LANE_FENCES.scope(fences, guarded_callback).await
+                                        } else {
+                                            guarded_callback.await
                                         }
                                     },
                                 )
@@ -2112,22 +3825,72 @@ impl SurrealStorage {
                                 }
                             }
                         };
+                        #[cfg(feature = "test-utils")]
+                        if let (Some((operation, proof)), Some(deadline)) = (&album_proof, callback_deadline) {
+                            let statement_timeout = transaction_storage.config().statement_timeout();
+                            let pending_deadline = deadline + statement_timeout;
+                            let release_deadline = pending_deadline.checked_add(statement_timeout)
+                                .unwrap_or(pending_deadline);
+                            proof.pause(operation.clone(),
+                                release_deadline.saturating_duration_since(Instant::now())).await;
+                        }
                         let budget_expired = callback_deadline.is_some_and(|deadline| Instant::now() >= deadline);
                         match outcome {
                             Some(Ok(Ok(value))) => {
+                                let mut value = Some(value);
+                                if let Some(retention) = &transaction_runcreate_retention {
+                                    let mut state = retention.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+                                    if state.value.is_some() {
+                                        return Err(SurrealStorageError::TransactionRetentionMismatch {
+                                            operation_id: settlement_id.expect("original RunCreate operation"),
+                                        });
+                                    }
+                                    state.value = value.take().map(|value| Box::new(value) as Box<dyn std::any::Any + Send>);
+                                }
+                                if let Some(operation_id) = settlement_id {
+                                    let mut settlements = transaction_storage.inner.transaction_settlements.lock()
+                                        .unwrap_or_else(|poisoned| poisoned.into_inner());
+                                    if let Some(Some(AuthenticatedTransactionRetention::WorkspaceArtifactPublication {
+                                        completed_result, callback_succeeded, ..
+                                    })) = settlements.get_mut(&operation_id) {
+                                        if completed_result.is_some() {
+                                            return Err(SurrealStorageError::TransactionRetentionMismatch { operation_id });
+                                        }
+                                        *callback_succeeded = true;
+                                        *completed_result = value.take().map(|value| Box::new(value) as Box<dyn std::any::Any + Send>);
+                                    }
+                                }
                                 if !matches!(
                                     cancelled.try_recv(),
                                     Err(oneshot::error::TryRecvError::Empty)
                                 ) || budget_expired || owned_cancellation.as_ref().is_some_and(|state| state.is_cancelled()) {
+                                    let mut retained_error = Some(E::from(SurrealStorageError::TransactionCancelled));
+                                    transaction_storage.retain_workspace_artifact_error(settlement_id, &mut retained_error);
+                                    retain_original_runcreate_error(transaction_runcreate_retention.as_ref(), &mut retained_error);
                                     authority_mutation_submitted();
                                     transaction
                                         .cancel()
                                         .await
                                         .map_err(SurrealStorageError::TransactionCancel)?;
+                                    transaction_storage.record_workspace_artifact_owned_finalization(settlement_id, WorkspaceArtifactEngineFinalization::Rollback);
+                                    seal_original_runcreate_finalization(transaction_runcreate_retention.as_ref(), &mut runcreate_begin, OriginalRunCreateFinalization::Rollback)?;
                                     authority_mutation_settled();
-                                    return Ok(Err(E::from(
-                                        SurrealStorageError::TransactionCancelled,
-                                    )));
+                                    return Ok((Err(retained_error.unwrap_or_else(|| E::from(SurrealStorageError::TransactionSettlementPending { operation_id: settlement_id.expect("retained publication operation") }))), ActualSettlement::CancelNoEffectObserved));
+                                }
+                                if let TransactionSettlementMode::WorkspaceArtifactCanonicalRead(_) = &worker_settlement_mode {
+                                    transaction.cancel().await.map_err(SurrealStorageError::TransactionCancel)?;
+                                    return Ok((value.ok_or_else(|| E::from(SurrealStorageError::TransactionAuthorityRequired)),
+                                        ActualSettlement::WorkspaceArtifactCanonicalReadRollbackObserved));
+                                }
+                                if let TransactionSettlementMode::JobReadback(_) = &worker_settlement_mode {
+                                    transaction.cancel().await
+                                        .map_err(SurrealStorageError::TransactionCancel)?;
+                                    return Ok((value.ok_or_else(|| E::from(SurrealStorageError::TransactionSettlementPending { operation_id: settlement_id.expect("retained publication operation") })), ActualSettlement::JobReadbackRollbackObserved));
+                                }
+                                if let TransactionSettlementMode::RoutingCapture(_) = &worker_settlement_mode {
+                                    transaction.cancel().await
+                                        .map_err(SurrealStorageError::TransactionCancel)?;
+                                    return Ok((value.ok_or_else(|| E::from(SurrealStorageError::TransactionSettlementPending { operation_id: settlement_id.expect("retained publication operation") })), ActualSettlement::CaptureReadRollbackObserved));
                                 }
                                 // Once commit begins, await its outcome; an attached
                                 // external mirror cannot be undone or replayed safely.
@@ -2136,76 +3899,217 @@ impl SurrealStorage {
                                     .commit()
                                     .await
                                     .map_err(SurrealStorageError::TransactionCommit)?;
-                                Ok(Ok(value))
+                                transaction_storage.record_workspace_artifact_owned_finalization(settlement_id, WorkspaceArtifactEngineFinalization::Commit);
+                                seal_original_runcreate_finalization(transaction_runcreate_retention.as_ref(), &mut runcreate_begin, OriginalRunCreateFinalization::Commit)?;
+                                Ok((value.ok_or_else(|| E::from(SurrealStorageError::TransactionSettlementPending { operation_id: settlement_id.expect("retained publication operation") })), ActualSettlement::CommitObserved))
                             }
                             Some(Ok(Err(error))) => {
+                                let mut error = Some(error);
+                                transaction_storage.retain_workspace_artifact_error(settlement_id, &mut error);
+                                retain_original_runcreate_error(transaction_runcreate_retention.as_ref(), &mut error);
                                 authority_mutation_submitted();
                                 transaction
                                     .cancel()
                                     .await
                                     .map_err(SurrealStorageError::TransactionCancel)?;
+                                    transaction_storage.record_workspace_artifact_owned_finalization(settlement_id, WorkspaceArtifactEngineFinalization::Rollback);
+                                    seal_original_runcreate_finalization(transaction_runcreate_retention.as_ref(), &mut runcreate_begin, OriginalRunCreateFinalization::Rollback)?;
                                 authority_mutation_settled();
-                                Ok(Err(error))
+                                Ok((Err(error.unwrap_or_else(|| E::from(SurrealStorageError::TransactionSettlementPending { operation_id: settlement_id.expect("retained publication operation") }))), ActualSettlement::CancelNoEffectObserved))
                             }
                             Some(Err(_)) => {
+                                let mut error = Some(E::from(SurrealStorageError::TransactionCallbackPanicked));
+                                transaction_storage.retain_workspace_artifact_error(settlement_id, &mut error);
+                                retain_original_runcreate_error(transaction_runcreate_retention.as_ref(), &mut error);
                                 authority_mutation_submitted();
                                 transaction
                                     .cancel()
                                     .await
                                     .map_err(SurrealStorageError::TransactionCancel)?;
+                                    transaction_storage.record_workspace_artifact_owned_finalization(settlement_id, WorkspaceArtifactEngineFinalization::Rollback);
+                                    seal_original_runcreate_finalization(transaction_runcreate_retention.as_ref(), &mut runcreate_begin, OriginalRunCreateFinalization::Rollback)?;
                                 authority_mutation_settled();
-                                Ok(Err(E::from(
-                                    SurrealStorageError::TransactionCallbackPanicked,
-                                )))
+                                Ok((Err(error.unwrap_or_else(|| E::from(SurrealStorageError::TransactionSettlementPending { operation_id: settlement_id.expect("retained publication operation") }))), ActualSettlement::CallbackPanicRollbackObserved))
                             }
                             None => {
-                                authority_mutation_submitted();
-                                transaction
-                                    .cancel()
-                                    .await
-                                    .map_err(SurrealStorageError::TransactionCancel)?;
-                                authority_mutation_settled();
-                                let error = if budget_expired {
+                                let mut retained_error = Some(E::from(if budget_expired {
                                     SurrealStorageError::StatementTimeout {
                                         waited_ms: transaction_storage.config().statement_timeout().as_millis(),
                                     }
-                                } else { SurrealStorageError::TransactionCancelled };
-                                Ok(Err(E::from(error)))
+                                } else { SurrealStorageError::TransactionCancelled }));
+                                transaction_storage.retain_workspace_artifact_error(settlement_id, &mut retained_error);
+                                retain_original_runcreate_error(transaction_runcreate_retention.as_ref(), &mut retained_error);
+                                authority_mutation_submitted();
+                                transaction
+                                    .cancel()
+                                    .await
+                                    .map_err(SurrealStorageError::TransactionCancel)?;
+                                    transaction_storage.record_workspace_artifact_owned_finalization(settlement_id, WorkspaceArtifactEngineFinalization::Rollback);
+                                    seal_original_runcreate_finalization(transaction_runcreate_retention.as_ref(), &mut runcreate_begin, OriginalRunCreateFinalization::Rollback)?;
+                                authority_mutation_settled();
+                                Ok((Err(retained_error.unwrap_or_else(|| E::from(SurrealStorageError::TransactionSettlementPending { operation_id: settlement_id.expect("retained publication operation") }))), ActualSettlement::CancelNoEffectObserved))
                             }
                         }
                     })
                 })
                 .await;
+            if let Some(admission) = &worker_admission {
+                let observed = result.as_ref().map_or(ActualSettlement::Unobserved, |(_, observed)| *observed);
+                admission.observe_settlement(observed).await;
+            }
             if let Err(error) = &result {
                 tracing::error!(error = %error, "embedded transaction controller failed");
             }
             if let Some(operation_id) = settlement_id {
-                // A failed commit/cancel observation cannot certify that the engine
-                // will never publish. Keep the operation unavailable for reuse.
-                if result.is_ok() {
-                    storage.inner.transaction_settlements.lock()
-                        .unwrap_or_else(|poisoned| poisoned.into_inner()).remove(&operation_id);
+                let observed = result.as_ref().map_or(ActualSettlement::Unobserved, |(_, observed)| *observed);
+                let mut settlements = storage.inner.transaction_settlements.lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                if let TransactionSettlementMode::JobReadback(expected) = &settlement_mode {
+                    if matches!(observed, ActualSettlement::JobReadbackRollbackObserved) {
+                        match settlements.get_mut(&operation_id) {
+                            Some(Some(AuthenticatedTransactionRetention::JobAdmission { retention, phase, readback: Some(read) }))
+                                if matches!(phase, JobAdmissionTransactionPhase::ReadbackReadPending)
+                                    && retention.matches_retention(expected.retention())
+                                    && Arc::ptr_eq(read, expected) => {
+                                *phase = JobAdmissionTransactionPhase::ReadbackObserved;
+                            }
+                            _ => return Err(E::from(SurrealStorageError::TransactionRetentionMismatch { operation_id })),
+                        }
+                    }
+                    return result.map_err(E::from)?.0;
+                }
+                if let TransactionSettlementMode::RoutingCapture(expected) = &settlement_mode {
+                    if matches!(observed, ActualSettlement::CaptureReadRollbackObserved) {
+                        match settlements.get_mut(&operation_id) {
+                            Some(Some(AuthenticatedTransactionRetention::Role { retention, phase }))
+                                if matches!(phase, RoleTransactionPhase::CaptureReadPending)
+                                    && expected.operation_id() == operation_id
+                                    && retention.matches_retention(expected) => {
+                                *phase = RoleTransactionPhase::CaptureReadObserved;
+                            }
+                            _ => return Err(E::from(SurrealStorageError::TransactionRetentionMismatch { operation_id })),
+                        }
+                    }
+                    return result.map_err(E::from)?.0;
+                }
+                let remove = match settlements.get_mut(&operation_id) {
+                    Some(Some(AuthenticatedTransactionRetention::WorkspaceArtifactPublication {
+                        settlement, worker_finished, ..
+                    })) => {
+                        *settlement = observed;
+                        *worker_finished = true;
+                        false
+                    }
+
+                    Some(Some(AuthenticatedTransactionRetention::AlbumMembership(retained))) => {
+                        retained.settlement = observed.into();
+                        #[cfg(feature = "test-utils")]
+                        if let Some(proof) = &retained.proof {
+                            proof.observe(retained.settlement);
+                        }
+                        false
+                    }
+                    Some(Some(AuthenticatedTransactionRetention::JobAdmission { phase, .. })) => match observed {
+                        ActualSettlement::CommitObserved => {
+                            *phase = JobAdmissionTransactionPhase::CommitObservedReadbackPending;
+                            false
+                        }
+                        ActualSettlement::CancelNoEffectObserved =>
+                            matches!(phase, JobAdmissionTransactionPhase::EnginePending),
+                        ActualSettlement::Unobserved
+                        | ActualSettlement::CallbackPanicRollbackObserved
+                        | ActualSettlement::JobReadbackRollbackObserved
+                        | ActualSettlement::CaptureReadRollbackObserved
+                        | ActualSettlement::WorkspaceArtifactCanonicalReadRollbackObserved => false,
+                    },
+                    Some(Some(AuthenticatedTransactionRetention::Role { retention, phase })) => match observed {
+                        ActualSettlement::CommitObserved => {
+                            *phase = RoleTransactionPhase::CommitObservedPublicationPending;
+                            false
+                        }
+                        ActualSettlement::CancelNoEffectObserved
+                        | ActualSettlement::CallbackPanicRollbackObserved => !retention.retains_capture_on_failure(),
+                        ActualSettlement::Unobserved => false,
+                        ActualSettlement::CaptureReadRollbackObserved
+                        | ActualSettlement::JobReadbackRollbackObserved
+                        | ActualSettlement::WorkspaceArtifactCanonicalReadRollbackObserved => false,
+                    },
+                    Some(Some(AuthenticatedTransactionRetention::OriginalRunCreate(_))) => false,
+                    // Preserve the existing Activation and unretained settlement behavior.
+                    Some(_) => result.is_ok(),
+                    None => false,
+                };
+                if remove {
+                    settlements.remove(&operation_id);
                     tracing::info!(%operation_id, "authenticated transaction settlement observed");
                 } else {
-                    tracing::error!(%operation_id, "authenticated transaction settlement requires canonical resolution");
+                    tracing::error!(%operation_id, "authenticated transaction retains custody pending canonical resolution or publication");
                 }
             }
-            result.map_err(E::from)?
+            let final_result = result.map_err(E::from).and_then(|(value, _)| value);
+            if let Some(retention) = &runcreate_retention {
+                let mut state = retention.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+                state.finished = true;
+                if let Err(error) = final_result {
+                    if state.error.is_none()
+                        && !(state.finalized == Some(OriginalRunCreateFinalization::Commit) && state.value.is_some())
+                    {
+                        state.error = Some(Box::new(error));
+                    }
+                }
+                return Err(E::from(SurrealStorageError::TransactionSettlementPending {
+                    operation_id: settlement_id.expect("original RunCreate operation"),
+                }));
+            }
+            if let Some(operation_id) = settlement_id {
+                let mut settlements = storage.inner.transaction_settlements.lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                if let Some(Some(AuthenticatedTransactionRetention::WorkspaceArtifactPublication {
+                    completed_error, owned_finalization, callback_succeeded, ..
+                })) = settlements.get_mut(&operation_id) {
+                    if !(matches!(owned_finalization, Some(WorkspaceArtifactEngineFinalization::Commit)) && *callback_succeeded) {
+                        if let Err(error) = final_result {
+                            if completed_error.is_none() { *completed_error = Some(Box::new(error)); }
+                        }
+                    }
+                    return Err(E::from(SurrealStorageError::TransactionSettlementPending { operation_id }));
+                }
+            }
+            final_result
         };
         let mut worker = tokio::spawn(async move {
-            if let Some(marker) = authority_mutation {
-                AUTHORITY_MUTATION_SUBMITTED.scope(marker, worker_operation).await
+            let execution = async move {
+                if let Some(marker) = authority_mutation {
+                    AUTHORITY_MUTATION_SUBMITTED.scope(marker, worker_operation).await
+                } else {
+                    worker_operation.await
+                }
+            };
+            if let Some((deadline, _)) = read_window {
+                OPERATION_DEADLINE.scope(deadline, execution).await
             } else {
-                worker_operation.await
+                execution.await
             }
         });
-        if owned_settlement {
+        if let Some((deadline, operation_id)) = read_window {
+            match tokio::time::timeout_at(deadline.into(), &mut worker).await {
+                Ok(result) => {
+                    drop(cancel_sender);
+                    result.map_err(|error| E::from(SurrealStorageError::TransactionWorker(error.to_string())))?
+                }
+                Err(_) => {
+                    drop(cancel_sender);
+                    Err(E::from(SurrealStorageError::TransactionSettlementPending { operation_id }))
+                }
+            }
+        } else if owned_settlement {
             // The completion supervisor retains the worker, transaction lease and
             // final guards until the actual engine outcome is observed.
             let result = worker.await.map_err(|error| E::from(SurrealStorageError::TransactionWorker(error.to_string())))?;
             drop(cancel_sender);
             result
-        } else if let TransactionInvocation::Authenticated { deadline, operation_id, .. } = invocation {
+        } else if let TransactionInvocation::Authenticated { deadline, operation_id, .. }
+            | TransactionInvocation::WatcherAdmission { deadline, operation_id, .. } = invocation {
             match tokio::time::timeout_at((deadline + self.config().statement_timeout()).into(), &mut worker).await {
                 Ok(result) => {
                     drop(cancel_sender);
@@ -2855,5 +4759,158 @@ mod windows_path_tests {
             .expect_err("terminal shutdown failure must remain observable")
             .to_string();
         assert_eq!(repeated_error, first_error);
+    }
+}
+
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct AlbumMutationOperationReference {
+    pub operation_id: uuid::Uuid,
+    pub event_id: String,
+    pub idempotency_key: String,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+pub enum AlbumMutationSettlement {
+    Pending,
+    Unobserved,
+    CommitObserved,
+    CancelNoEffectObserved,
+    CallbackPanicRollbackObserved,
+    CaptureReadRollbackObserved,
+    JobReadbackRollbackObserved,
+}
+
+impl From<ActualSettlement> for AlbumMutationSettlement {
+    fn from(settlement: ActualSettlement) -> Self {
+        match settlement {
+            ActualSettlement::Unobserved
+            | ActualSettlement::WorkspaceArtifactCanonicalReadRollbackObserved => Self::Unobserved,
+            ActualSettlement::CommitObserved => Self::CommitObserved,
+            ActualSettlement::CancelNoEffectObserved => Self::CancelNoEffectObserved,
+            ActualSettlement::CallbackPanicRollbackObserved => Self::CallbackPanicRollbackObserved,
+            ActualSettlement::CaptureReadRollbackObserved => Self::CaptureReadRollbackObserved,
+            ActualSettlement::JobReadbackRollbackObserved => Self::JobReadbackRollbackObserved,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct AlbumMutationObservation {
+    pub operation: AlbumMutationOperationReference,
+    pub settlement: AlbumMutationSettlement,
+}
+
+#[derive(Clone)]
+struct AlbumMembershipTransactionRetention {
+    operation: AlbumMutationOperationReference,
+    authority: resource_authority::RecordUserScope,
+    settlement: AlbumMutationSettlement,
+    #[cfg(feature = "test-utils")]
+    proof: Option<Arc<AlbumMutationProofControl>>,
+}
+
+impl AlbumMembershipTransactionRetention {
+    fn matches_authority(&self, authority: &resource_authority::RecordUserScope) -> bool {
+        self.authority.resource_id == authority.resource_id
+            && self.authority.grant_id == authority.grant_id
+            && self.authority.session_id == authority.session_id
+            && self.authority.workspace_id == authority.workspace_id
+            && self.authority.capability_id == authority.capability_id
+            && self.authority.action == authority.action
+            && self.authority.channel_binding_hash == authority.channel_binding_hash
+            && self.authority.session_token == authority.session_token
+    }
+}
+
+#[cfg(feature = "test-utils")]
+tokio::task_local! {
+    static ALBUM_MUTATION_PROOF_CONTROL: Arc<AlbumMutationProofControl>;
+}
+
+#[cfg(feature = "test-utils")]
+pub(crate) fn take_album_mutation_ledger_collision() -> Option<String> {
+    ALBUM_MUTATION_PROOF_CONTROL.try_with(|proof| {
+        proof.ledger_collision.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).take()
+    }).ok().flatten()
+}
+
+#[cfg(feature = "test-utils")]
+pub(crate) fn album_mutation_proof_active() -> bool {
+    ALBUM_MUTATION_PROOF_CONTROL.try_with(|_| ()).is_ok()
+}
+
+#[cfg(feature = "test-utils")]
+pub async fn with_album_mutation_proof_control<T>(
+    control: Arc<AlbumMutationProofControl>,
+    operation: impl std::future::Future<Output = T>,
+) -> T {
+    ALBUM_MUTATION_PROOF_CONTROL.scope(control, operation).await
+}
+
+#[cfg(feature = "test-utils")]
+pub struct AlbumMutationProofControl {
+    ledger_collision: StdMutex<Option<String>>,
+    operation: StdMutex<Option<AlbumMutationOperationReference>>,
+    settlement: StdMutex<Option<AlbumMutationSettlement>>,
+    entered: tokio::sync::Notify,
+    settled: tokio::sync::Notify,
+    release: tokio::sync::Semaphore,
+}
+
+#[cfg(feature = "test-utils")]
+impl AlbumMutationProofControl {
+    pub fn new() -> Self {
+        Self {
+            ledger_collision: StdMutex::new(None),
+            operation: StdMutex::new(None),
+            settlement: StdMutex::new(None),
+            entered: tokio::sync::Notify::new(),
+            settled: tokio::sync::Notify::new(),
+            release: tokio::sync::Semaphore::new(0),
+        }
+    }
+
+    pub fn collide_next_ledger_create_with(&self, existing_event_id: String) {
+        *self.ledger_collision.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(existing_event_id);
+    }
+
+    async fn pause(&self, operation: AlbumMutationOperationReference, maximum_wait: Duration) {
+        *self.operation.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(operation);
+        self.entered.notify_one();
+        if let Ok(Ok(permit)) = tokio::time::timeout(maximum_wait, self.release.acquire()).await {
+            permit.forget();
+        }
+    }
+
+    fn observe(&self, settlement: AlbumMutationSettlement) {
+        *self.settlement.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(settlement);
+        self.settled.notify_one();
+    }
+
+    pub async fn wait_for_entry(&self) -> AlbumMutationOperationReference {
+        loop {
+            let notified = self.entered.notified();
+            if let Some(operation) = self.operation.lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()).clone() {
+                return operation;
+            }
+            notified.await;
+        }
+    }
+
+    pub fn release(&self) {
+        self.release.add_permits(1);
+    }
+
+    pub async fn wait_for_settlement(&self) -> AlbumMutationSettlement {
+        loop {
+            let notified = self.settled.notified();
+            if let Some(settlement) = *self.settlement.lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()) {
+                return settlement;
+            }
+            notified.await;
+        }
     }
 }

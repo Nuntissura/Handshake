@@ -15,8 +15,10 @@ DEFINE FIELD IF NOT EXISTS schema_version ON model_lane_schema_state TYPE string
 DEFINE FIELD IF NOT EXISTS schema_revision ON model_lane_schema_state TYPE int;\
 DEFINE FIELD IF NOT EXISTS apply_state ON model_lane_schema_state TYPE string;";
 const SCHEMA_STATE_ID: &str = "model_lane_schema_state:primary";
-const SCHEMA_VERSION: &str = "mt003-model-lane-authority-v8";
-const SCHEMA_REVISION: i64 = 8;
+const SCHEMA_VERSION: &str = "mt003-model-lane-authority-v9";
+const SCHEMA_REVISION: i64 = 9;
+const RUN_MEMORY_PREVIOUS_SCHEMA_VERSION: &str = "mt003-model-lane-authority-v8";
+const RUN_MEMORY_PREVIOUS_SCHEMA_REVISION: i64 = 8;
 const NAVIGATION_PREVIOUS_SCHEMA_VERSION: &str = "mt003-model-lane-authority-v7";
 const NAVIGATION_PREVIOUS_SCHEMA_REVISION: i64 = 7;
 const PREVIOUS_SCHEMA_VERSION: &str = "mt003-model-lane-authority-v6";
@@ -269,7 +271,7 @@ IF array::len($existing) = 1 {
             RETURN [];
         } ELSE {
             LET $order_counter = UPSERT type::record('model_lane_recovery_order', $order_record_id) CONTENT { run_id: $run_id, next_value: $expected_replay_order_seq, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
-            LET $ledger = CREATE type::record('kernel_event_ledger', $event_id) CONTENT { event_id: $event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $run_id, session_run_id: IF $event_ledger_stream_id = NONE { $run_id } ELSE { $event_ledger_stream_id }, aggregate_type: 'recovery_event', aggregate_id: $aggregate_id, idempotency_key: $event_id, event_type: 'MODEL_LANE_RECOVERY_EVENT_RECORDED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: NONE, correlation_id: NONE, payload_hash: $event_payload_hash, source_component: 'model_lane', payload: { record_kind: 'recovery_event', run_id: $run_id, event_stream_version: 1, source_event_seq: IF $has_source_event { $source_event_seq } ELSE { NONE }, replay_order_seq: $expected_replay_order_seq, event_payload_json: $event_payload_json }, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
+            LET $ledger = CREATE type::record('kernel_event_ledger', $event_id) CONTENT { event_id: $event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $run_id, session_run_id: IF $event_ledger_stream_id = NONE { $run_id } ELSE { $event_ledger_stream_id }, aggregate_type: 'recovery_event', aggregate_id: $aggregate_id, idempotency_key: $event_id, event_type: 'MODEL_LANE_RECOVERY_EVENT_RECORDED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: NONE, correlation_id: NONE, payload_hash: $event_payload_hash, source_component: 'model_lane', payload: { record_kind: 'recovery_event', run_id: $run_id, event_stream_version: 1, source_event_seq: IF $has_source_event { $source_event_seq } ELSE { NONE }, replay_order_seq: $expected_replay_order_seq, event_payload_json: $event_payload_json }, authority_resource_id: type::record('protected_resources', $wp012_original_resource), authority_grant_id: type::record('resource_grants', $wp012_original_grant), authority_session_id: $auth.id, authority_capability_id: $wp012_original_capability, authority_action: $wp012_original_action, wsids: [$workspace_id], owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
             LET $seq = $ledger[0].event_sequence;
             RETURN CREATE type::record('model_lane_authority', $record_id) CONTENT { record_kind: 'recovery_event', aggregate_id: $aggregate_id, run_id: $run_id, idempotency_key: $idempotency_key, record_json: $record_json, search_terms: $search_terms, event_id: $event_id, event_ledger_event_id: type::record('kernel_event_ledger', $event_id), event_seq: $seq, event_stream_version: 1, transaction_seq: $seq, ordering_seq: $expected_replay_order_seq, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }
         }
@@ -475,6 +477,8 @@ pub(crate) enum ModelLaneRecordKind {
     CloudProjectionPlan,
     CloudConsentReceipt,
     CloudConsentDenial,
+    RoleEvidence,
+    ValidatorDesignation,
 }
 
 impl ModelLaneRecordKind {
@@ -497,6 +501,8 @@ impl ModelLaneRecordKind {
             Self::CloudProjectionPlan => "cloud_projection_plan",
             Self::CloudConsentReceipt => "cloud_consent_receipt",
             Self::CloudConsentDenial => "cloud_consent_denial",
+            Self::RoleEvidence => "role_evidence",
+            Self::ValidatorDesignation => "validator_designation",
         }
     }
 }
@@ -661,6 +667,188 @@ pub(crate) struct SurrealModelLaneScopedAuthorityReceipt {
     pub authenticated_session_id: String,
     pub access_space_id: String,
     pub workspace_id: String,
+}
+
+
+#[derive(Debug, SurrealValue)]
+struct RoleEvidenceLookupBindings {
+    event_id: String,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+}
+
+#[derive(SurrealValue)]
+struct RoutingPriorLookupBindings {
+    event_id: String,
+    owner_account_id: String,
+    workspace_id: String,
+}
+
+#[derive(SurrealValue)]
+struct CanonicalRoleEvidenceRow {
+    record_id: String,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+    aggregate_id: String,
+    run_id: String,
+    idempotency_key: String,
+    record_json: String,
+    event_id: String,
+    event_seq: i64,
+    event_stream_version: i64,
+    transaction_seq: i64,
+    ledger_event_seq: i64,
+    ledger_event_id: String,
+    ledger_event_stream_version: i64,
+    ledger_stream_id: String,
+    payload_json: String,
+    payload_hash: String,
+    causation_id: Option<String>,
+    correlation_id: Option<String>,
+    issuance_operation_id: String,
+}
+
+
+#[derive(SurrealValue)]
+struct RoleEvidenceInsertBindings {
+    record_id: String,
+    event_id: String,
+    event_sequence: i64,
+    operation_id: String,
+    aggregate_id: String,
+    run_id: String,
+    stream_id: String,
+    idempotency_key: String,
+    record_json: String,
+    payload_hash: String,
+    causation_id: String,
+    correlation_id: String,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+}
+
+pub(crate) struct RunnerDesignationReadback {
+    operation_id: uuid::Uuid,
+    scope: ModelLaneScope,
+    request: crate::swarm_orchestration::model_lane::WorkspaceValidatorRunnerDesignationRequest,
+    record: SurrealModelLaneRecord,
+}
+
+pub(crate) struct PendingOwnerRoleEvidence {
+    readback: RoleEvidenceReadback,
+    verified: handshake_role_authority::domain::PureVerifiedRoleEvidence,
+}
+
+impl PendingOwnerRoleEvidence {
+    pub(crate) fn receipt(&self) -> &handshake_role_authority::domain::RoleReceipt { &self.readback.receipt }
+    pub(crate) fn into_readback(self) -> RoleEvidenceReadback { self.readback }
+}
+
+pub(crate) struct TxCheckedRoleEvidence<'tx> {
+    transaction: &'tx super::SurrealTransactionContext<'tx>,
+    operation_id: uuid::Uuid,
+    current_consumer: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    selector: crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector,
+    verified: handshake_role_authority::domain::PureVerifiedRoleEvidence,
+    issuance_operation_id: uuid::Uuid,
+    command: crate::swarm_orchestration::model_lane::RoleConsumptionCommand,
+}
+
+impl TxCheckedRoleEvidence<'_> {
+    pub(crate) fn operation_id(&self) -> uuid::Uuid { self.operation_id }
+    pub(crate) fn receipt(&self) -> &handshake_role_authority::domain::RoleReceipt { self.verified.receipt() }
+    pub(crate) fn issuer_scope(&self) -> &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution {
+        &self.verified.receipt().body.scope
+    }
+    pub(crate) fn consumer_scope(&self) -> &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution {
+        &self.current_consumer
+    }
+    pub(crate) fn require_matches(
+        &self, transaction: &super::SurrealTransactionContext<'_>, operation_id: uuid::Uuid,
+        selector: &crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector,
+    ) -> Result<(), SurrealStorageError> {
+        if !std::ptr::eq(self.transaction, transaction) || self.operation_id != operation_id
+            || !role_selectors_match(&self.selector, selector) {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn require_stage_ack(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        operation_id: uuid::Uuid,
+        prior_selector: &crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector,
+        acknowledgement: &crate::swarm_orchestration::model_lane::RoutingStageAcknowledgementIntent,
+    ) -> Result<(), SurrealStorageError> {
+        self.require_matches(transaction, operation_id, &self.selector)?;
+        if !stage_ack_command_matches(&self.command, operation_id, prior_selector, acknowledgement)
+            || &self.current_consumer != acknowledgement.claimed_scope()
+            || self.verified.reference() == &prior_selector.evidence_ref {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let expected = match acknowledgement {
+            crate::swarm_orchestration::model_lane::RoutingStageAcknowledgementIntent::Operator(intent) =>
+                handshake_role_authority::canonical::prepare_operator_ack(intent),
+            crate::swarm_orchestration::model_lane::RoutingStageAcknowledgementIntent::Validator(intent) =>
+                handshake_role_authority::canonical::prepare_validator_ack(intent),
+        }.map_err(|_| SurrealStorageError::InvalidModelLaneRecord {
+            reason: "captured routing acknowledgement integrity is invalid",
+        })?;
+        if &self.verified.receipt().body != expected.body()
+            || acknowledgement.stage().prior_receipt_ref != prior_selector.evidence_ref {
+            return Err(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "new routing acknowledgement differs from its captured command or prior receipt",
+            });
+        }
+        Ok(())
+    }
+
+    pub(crate) fn require_promotion_input(
+        &self, input: &crate::swarm_orchestration::model_lane::NewModelLanePromotionDecision,
+    ) -> Result<(), SurrealStorageError> {
+        match &self.command {
+            crate::swarm_orchestration::model_lane::RoleConsumptionCommand::ResolvePromotion { input: bound, .. }
+                if bound == input => Ok(()),
+            _ => Err(SurrealStorageError::TransactionAuthorityRequired),
+        }
+    }
+
+    // This is a readback obligation, not an authorization witness.
+    pub(crate) fn into_readback(self) -> RoleEvidenceReadback {
+        RoleEvidenceReadback {
+            operation_id: self.operation_id, current_consumer: self.current_consumer,
+            selector: self.selector, receipt: self.verified.receipt().clone(),
+            issuance_operation_id: self.issuance_operation_id,
+        }
+    }
+}
+
+pub(crate) struct RoleEvidenceReadback {
+    operation_id: uuid::Uuid,
+    current_consumer: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    selector: crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector,
+    receipt: handshake_role_authority::domain::RoleReceipt,
+    issuance_operation_id: uuid::Uuid,
+}
+
+pub(crate) struct PublishedRoleEvidence {
+    operation_id: uuid::Uuid,
+    receipt: handshake_role_authority::domain::RoleReceipt,
+}
+
+impl PublishedRoleEvidence {
+    pub(crate) fn operation_id(&self) -> uuid::Uuid { self.operation_id }
+    pub(crate) fn receipt(&self) -> &handshake_role_authority::domain::RoleReceipt { &self.receipt }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -991,9 +1179,27 @@ pub(crate) struct SurrealModelLaneStore {
     completion_test_control: ContextCompletionTestControl,
 }
 
+#[cfg(test)]
+pub(crate) struct ContextGuardObservation {
+    guards: std::sync::Arc<std::sync::Mutex<Vec<ContextCoordinationGuard>>>,
+    storage: SurrealStorage,
+}
+
+#[cfg(test)]
+impl ContextGuardObservation {
+    pub(crate) fn same_guards_and_owner(&self, other: &Self) -> bool {
+        std::sync::Arc::ptr_eq(&self.guards, &other.guards)
+            && std::sync::Arc::ptr_eq(&self.storage.inner, &other.storage.inner)
+    }
+
+    pub(crate) fn belongs_to(&self, provider: &SurrealModelLaneStore) -> bool {
+        std::sync::Arc::ptr_eq(&self.storage.inner, &provider.storage.inner)
+    }
+}
+
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub(crate) enum ContextCoordinationPurpose {
-    Consume, SourceRead, NavigationRead, DiagnosticRecord, RecoveryCheckpointRecord, ArtifactBinding, Handoff, GuardedMessage, RunCreate, LaneCreate, CrdtUpdate, CrdtSnapshot,
+    Consume, SourceRead, NavigationRead, RecoveryExecute, DiagnosticRecord, RecoveryCheckpointRecord, ArtifactBinding, Handoff, GuardedMessage, RunCreate, LaneCreate, CrdtUpdate, CrdtSnapshot,
     DocumentClaim, WorkspaceClaim, SourceRootClaim, IndexRunClaim, LeaseRenew, LeaseRelease, LeaseExpiry,
     ProposalRecord, ProposalDecide, ProposalApply,
     CloudProjectionPlan, CloudConsentReceipt, CloudRun, CloudLane, CloudConsentDenial,
@@ -1003,6 +1209,7 @@ impl ContextCoordinationPurpose {
     pub(super) fn as_str(self) -> &'static str {
         match self {
             Self::Consume => "consume", Self::SourceRead => "source_read", Self::NavigationRead => "navigation_read", Self::ArtifactBinding => "artifact_binding",
+            Self::RecoveryExecute => "recovery_execute",
             Self::DiagnosticRecord => "diagnostic_record", Self::RecoveryCheckpointRecord => "recovery_checkpoint_record",
             Self::Handoff => "handoff", Self::GuardedMessage => "guarded_message",
             Self::RunCreate => "run_create", Self::LaneCreate => "lane_create",
@@ -1030,6 +1237,7 @@ impl ContextCoordinationPurpose {
                 | Self::GuardedMessage | Self::RunCreate | Self::LaneCreate | Self::DiagnosticRecord | Self::RecoveryCheckpointRecord
                 | Self::CloudProjectionPlan | Self::CloudConsentReceipt | Self::CloudRun | Self::CloudLane | Self::CloudConsentDenial =>
                 kind == ResourceKind::Workspace && action == ResourceAction::Create,
+            Self::RecoveryExecute => kind == ResourceKind::Workspace && action == ResourceAction::Update,
             Self::SourceRootClaim => false,
         }
     }
@@ -1242,7 +1450,11 @@ impl ContextCoordinationGuard {
         if current.resource_id != self.authority.resource_id || current.grant_id != self.authority.grant_id
             || current.session_id != self.authority.session_id || current.capability_id != self.authority.capability_id
             || current.action != self.authority.action || current.channel_binding_hash != self.authority.channel_binding_hash
-            || current.session_token != self.authority.session_token {
+            || current.session_token != self.authority.session_token
+            || (self.purpose == ContextCoordinationPurpose::RecoveryExecute
+                && (self.subject.kind != super::resource_authority::ResourceKind::Workspace
+                    || current.action != super::resource_authority::ResourceAction::Update
+                    || current.capability_id != "model_lane.recovery.execute")) {
             return Err(SurrealStorageError::TransactionAuthorityRequired);
         }
         Ok(())
@@ -1695,7 +1907,7 @@ struct NavigationGrantSnapshot {
     resource_lifecycle_state: String,
 }
 
-#[derive(Clone, Debug, SurrealValue)]
+#[derive(Clone, Debug, serde::Serialize, SurrealValue)]
 pub(crate) struct NavigationReadSelector {
     pub lookup_kind: String,
     pub lookup_ref: String,
@@ -1737,13 +1949,30 @@ tokio::task_local! {
 }
 
 #[derive(Clone, SurrealValue)]
-struct NavigationReadBindings {
+pub(crate) struct NavigationReadBindings {
     navigation_selection: NavigationReadSelector,
     owner_account_id: String,
     actor_principal_id: String,
     authenticated_session_id: String,
     access_space_id: String,
     workspace_id: String,
+}
+
+impl NavigationReadBindings {
+    pub(crate) fn artifact_selection_value(&self) -> Result<Value, serde_json::Error> {
+        serde_json::to_value(&self.navigation_selection)
+    }
+
+    pub(crate) fn artifact_scope_matches(
+        &self,
+        exact: &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    ) -> bool {
+        self.owner_account_id == exact.owner_account_id.to_string()
+            && self.actor_principal_id == exact.actor_principal_id.to_string()
+            && self.authenticated_session_id == exact.authenticated_session_id.to_string()
+            && self.access_space_id == exact.access_space_id.to_string()
+            && self.workspace_id == exact.workspace_id.as_str()
+    }
 }
 
 #[derive(Clone, SurrealValue)]
@@ -1804,6 +2033,8 @@ struct NavigationDependencyReceipt {
 
 const NAVIGATION_RECEIPT_SNAPSHOT: &str = "SELECT event_id, event_sequence, event_version, aggregate_type, aggregate_id, event_type, source_component FROM kernel_event_ledger WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id ORDER BY event_id ASC;";
 const NAVIGATION_INPUT_SNAPSHOT: &str = "SELECT navigation_source_input AS input FROM model_lane_authority WHERE navigation_source_input != NONE AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id ORDER BY event_id ASC;";
+const NAVIGATION_MEMORY_DOCUMENT_LINK_SNAPSHOT: &str = "RETURN fn::wp012_model_lane_navigation_memory_document_links({ owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }, $navigation_selection);";
+const NAVIGATION_MEMORY_PACK_SNAPSHOT: &str = "RETURN fn::wp012_model_lane_navigation_memory_packs({ owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }, $navigation_selection);";
 const NAVIGATION_SOURCE_SNAPSHOT: &str = "SELECT record_kind, aggregate_id, run_id, event_id, event_seq, ordering_seq FROM model_lane_authority WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id ORDER BY event_id ASC;";
 
 #[derive(PartialEq, Eq, SurrealValue)]
@@ -2045,6 +2276,211 @@ struct NavigationSourceInputRow {
 
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
+pub(crate) struct NavigationRunInput {
+    pub(crate) source_kind: String,
+    pub(crate) kind: String,
+    pub(crate) run_id: String,
+    pub(crate) source_event_id: String,
+    pub(crate) source_event_seq: i64,
+    pub(crate) memory_pack_ref: String,
+    pub(crate) memory_pack_hash: String,
+}
+
+#[derive(PartialEq, SurrealValue)]
+struct NavigationMemoryPackRow {
+    run_id: String,
+    source_event_id: String,
+    source_event_seq: i64,
+    memory_pack_ref: String,
+    memory_pack_hash: String,
+    record_pack_id: String,
+    record_workspace_id: String,
+    source_membership: Value,
+    pack: Option<Value>,
+}
+
+#[derive(PartialEq, Eq, SurrealValue)]
+struct NavigationMemoryPackDocumentLink {
+    source_id: String,
+    block_key: String,
+    document_key: String,
+    created_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
+}
+
+#[derive(Clone)]
+pub(crate) struct NavigationMemoryPackInput {
+    run_id: String,
+    source_event_id: String,
+    source_event_seq: i64,
+    memory_pack_ref: String,
+    memory_pack_hash: String,
+    memory_pack: crate::ace::MemoryPack,
+}
+
+impl NavigationMemoryPackInput {
+    pub(crate) fn run_id(&self) -> &str { &self.run_id }
+    pub(crate) fn source_event_id(&self) -> &str { &self.source_event_id }
+    pub(crate) fn source_event_seq(&self) -> i64 { self.source_event_seq }
+    pub(crate) fn memory_pack_ref(&self) -> &str { &self.memory_pack_ref }
+    pub(crate) fn memory_pack_hash(&self) -> &str { &self.memory_pack_hash }
+    pub(crate) fn memory_pack(&self) -> &crate::ace::MemoryPack { &self.memory_pack }
+}
+
+#[derive(Clone, SurrealValue)]
+struct NavigationMemoryAuthorizationBindings {
+    navigation_selection: NavigationReadSelector,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+    document_id: String,
+}
+
+#[derive(SurrealValue)]
+struct NavigationMemoryAuthorizationRow {
+    allowed: bool,
+}
+
+async fn navigation_memory_pack_authorized(
+    transaction: &super::SurrealTransactionContext<'_>,
+    bindings: &NavigationReadBindings,
+    input: &NavigationMemoryPackInput,
+    document_links: &[NavigationMemoryPackDocumentLink],
+) -> Result<bool, SurrealStorageError> {
+    let mut authority = NavigationMemoryAuthorizationBindings {
+        navigation_selection: bindings.navigation_selection.clone(),
+        owner_account_id: bindings.owner_account_id.clone(),
+        actor_principal_id: bindings.actor_principal_id.clone(),
+        authenticated_session_id: bindings.authenticated_session_id.clone(),
+        access_space_id: bindings.access_space_id.clone(),
+        workspace_id: bindings.workspace_id.clone(), document_id: String::new(),
+    };
+    let own = transaction.query_first::<NavigationMemoryAuthorizationRow, _>(
+        "RETURN { allowed: fn::mt109_has_grant('memory_pack', $workspace_id, 'read', 'memory.read') };",
+        authority.clone(),
+    ).await?;
+    if !own.is_some_and(|row| row.allowed) { return Ok(false); }
+    let mut documents = BTreeSet::new();
+    for source in input.memory_pack.items.iter().flat_map(|item| item.source_refs.iter()) {
+        if source.kind == crate::ace::FemsSourceRefKind::Artifact { continue; }
+        if source.kind != crate::ace::FemsSourceRefKind::DocBlock { return Ok(false); }
+        let mut matches = document_links.iter().filter(|link| link.source_id == source.id);
+        let Some(link) = matches.next() else { return Ok(false); };
+        if matches.next().is_some() || link.block_key.is_empty() || link.document_key.is_empty()
+            || link.updated_at < link.created_at {
+            return Ok(false);
+        }
+        documents.insert(link.document_key.clone());
+    }
+    for document in documents {
+        authority.document_id = document;
+        let child = transaction.query_first::<NavigationMemoryAuthorizationRow, _>(
+            "RETURN { allowed: fn::wp012_model_lane_navigation_document_read({ owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }, $document_id) };",
+            authority.clone(),
+        ).await?;
+        if !child.is_some_and(|row| row.allowed) { return Ok(false); }
+    }
+    Ok(true)
+}
+
+async fn navigation_memory_artifact_registrations<'tx>(
+    transaction: &'tx super::SurrealTransactionContext<'tx>,
+    original_bindings: &NavigationReadBindings,
+    exact_scope: Option<&crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution>,
+    selection: &Value,
+    input: &NavigationMemoryPackInput,
+) -> Result<Option<Vec<super::resource_authority::NavigationArtifactRegistration>>, SurrealStorageError> {
+    let mut registrations = Vec::new();
+    for source in input.memory_pack.items.iter().flat_map(|item| item.source_refs.iter()) {
+        if source.kind != crate::ace::FemsSourceRefKind::Artifact { continue; }
+        let Some(exact_scope) = exact_scope else { return Ok(None); };
+        let Some(permit) = super::resource_authority::authorize_navigation_artifact_read(
+            transaction, original_bindings, exact_scope, selection, source,
+        ).await.map_err(|_| SurrealStorageError::InvalidModelLaneRecord {
+            reason: "navigation artifact authorization failed",
+        })? else { return Ok(None); };
+        let Some(registration) = super::resource_authority::read_navigation_artifact(
+            transaction, &permit,
+        ).await.map_err(|_| SurrealStorageError::InvalidModelLaneRecord {
+            reason: "navigation artifact canonical read failed",
+        })? else { return Ok(None); };
+        if registration.manifest().artifact_id.to_string() != source.id
+            || source.hash.as_deref() != Some(registration.manifest().content_hash.as_str()) {
+            return Err(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "navigation artifact source integrity mismatch",
+            });
+        }
+        registrations.push(registration);
+    }
+    Ok(Some(registrations))
+}
+
+fn navigation_memory_pack_inputs(
+    workspace_id: &str,
+    sources: &[SurrealModelLaneNavigationRow],
+    inputs: &[NavigationSourceInputRow],
+    packs: &[NavigationMemoryPackRow],
+) -> Result<Vec<NavigationMemoryPackInput>, SurrealStorageError> {
+    let mut runs = Vec::new();
+    for input in inputs {
+        if input.input.get("source_kind").and_then(Value::as_str) == Some("run") {
+            let Ok(run) = serde_json::from_value::<NavigationRunInput>(input.input.clone()) else { continue; };
+            if run.kind != "run" { continue; }
+            runs.push(run);
+        }
+    }
+    let mut witnessed = BTreeSet::new();
+    let mut verified: Vec<NavigationMemoryPackInput> = Vec::new();
+    for row in packs {
+        let Some(raw) = row.pack.as_ref() else { continue; };
+        let matching_runs: Vec<_> = runs.iter().filter(|run|
+            run.run_id == row.run_id && run.source_event_id == row.source_event_id
+                && run.source_event_seq == row.source_event_seq
+                && run.memory_pack_ref == row.memory_pack_ref
+                && run.memory_pack_hash == row.memory_pack_hash
+        ).collect();
+        if matching_runs.len() != 1 || sources.iter().filter(|source|
+            source.record_kind == "run" && source.run_id == row.run_id && source.aggregate_id == row.run_id
+                && source.event_id == row.source_event_id && source.event_seq == row.source_event_seq
+        ).count() != 1 || row.record_pack_id != row.memory_pack_ref {
+            continue;
+        }
+        let pack = match crate::storage::fems_memory::verify_persisted_memory_pack(
+            raw, &row.record_pack_id, &row.record_workspace_id, workspace_id,
+            &row.memory_pack_ref, &row.memory_pack_hash,
+        ) {
+            Ok(pack) => pack,
+            Err(_) => continue,
+        };
+        if pack.items.iter().any(|item| item.source_refs.is_empty()
+            || item.source_refs.iter().any(|source| !matches!(source.kind,
+                crate::ace::FemsSourceRefKind::DocBlock | crate::ace::FemsSourceRefKind::Artifact))) {
+            continue;
+        }
+        let membership = serde_json::to_value(pack.items.iter()
+            .flat_map(|item| item.source_refs.iter()).collect::<Vec<_>>())
+            .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "navigation memory source membership encoding failed" })?;
+        if membership != row.source_membership {
+            continue;
+        }
+        if !witnessed.insert((row.run_id.clone(), row.source_event_id.clone(), row.source_event_seq)) {
+            verified.retain(|input| input.run_id != row.run_id || input.source_event_id != row.source_event_id
+                || input.source_event_seq != row.source_event_seq);
+            continue;
+        }
+        verified.push(NavigationMemoryPackInput {
+            run_id: row.run_id.clone(), source_event_id: row.source_event_id.clone(),
+            source_event_seq: row.source_event_seq, memory_pack_ref: row.memory_pack_ref.clone(),
+            memory_pack_hash: row.memory_pack_hash.clone(), memory_pack: pack,
+        });
+    }
+    Ok(verified)
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct NavigationMessageInput {
     pub(crate) source_kind: String,
     pub(crate) message_id: String,
@@ -2070,7 +2506,24 @@ pub(crate) struct NavigationContextInputs {
     pub(crate) run_id: String,
     pub(crate) kind: String,
     pub(crate) inputs: Vec<NavigationContextSource>,
+    pub(crate) artifact: Option<NavigationArtifactInput>,
 }
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct NavigationArtifactInput {
+    pub(crate) source_kind: String,
+    pub(crate) run_id: String,
+    pub(crate) artifact_binding_id: String,
+    pub(crate) source_event_id: String,
+    pub(crate) source_event_seq: i64,
+    pub(crate) artifact_ref: String,
+    pub(crate) artifact_manifest_ref: String,
+    pub(crate) artifact_payload_ref: String,
+    pub(crate) artifact_sha256: String,
+    pub(crate) content_hash: String,
+    pub(crate) payload_json: String,
+}
+
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct NavigationContextSource {
@@ -2098,6 +2551,18 @@ pub(crate) struct NavigationLaneInput {
     pub(crate) model_session_id: String,
     pub(crate) trace_id: String,
     pub(crate) kind: String,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct NavigationMtRuntimeInput {
+    pub(crate) source_kind: String,
+    pub(crate) kind: String,
+    pub(crate) mt_status_id: String,
+    pub(crate) run_id: String,
+    pub(crate) source_event_id: String,
+    pub(crate) source_event_seq: i64,
+    pub(crate) micro_task_id: String,
 }
 
 #[derive(serde::Deserialize)]
@@ -2241,7 +2706,7 @@ struct CrdtUpdateIdRow {
     update_id: String,
 }
 
-#[derive(Debug, SurrealValue)]
+#[derive(Clone, Debug, SurrealValue)]
 struct StoredRow {
     aggregate_id: String,
     run_id: String,
@@ -2306,17 +2771,49 @@ struct EventLinkBindings {
 }
 
 #[derive(Debug, SurrealValue)]
-struct StoredEventLink {
+pub(crate) struct StoredEventLink {
+    pub(crate) event_id: String,
+    pub(crate) event_seq: i64,
+    pub(crate) event_stream_version: i64,
+    pub(crate) transaction_seq: i64,
+    pub(crate) aggregate_id: String,
+    pub(crate) run_id: String,
+    pub(crate) session_run_id: String,
+    pub(crate) kernel_task_run_id: String,
+    pub(crate) payload_hash: String,
+    pub(crate) event_payload_json: String,
+}
+
+#[derive(SurrealValue)]
+struct CanonicalScopeRecord {
+    record_kind: String,
+    aggregate_id: String,
+    run_id: String,
+    idempotency_key: String,
+    record_json: String,
     event_id: String,
     event_seq: i64,
     event_stream_version: i64,
     transaction_seq: i64,
-    aggregate_id: String,
-    run_id: String,
-    session_run_id: String,
-    kernel_task_run_id: String,
-    payload_hash: String,
-    event_payload_json: String,
+}
+
+#[derive(SurrealValue)]
+struct CanonicalScopeQueryResult {
+    scope_records: Vec<CanonicalScopeRecord>,
+    ordered_ledger: Vec<StoredEventLink>,
+}
+
+pub(crate) struct SurrealModelLaneCanonicalSet {
+    scope_records: Vec<(ModelLaneRecordKind, SurrealModelLaneRecord)>,
+    ordered_ledger: Vec<StoredEventLink>,
+}
+
+impl SurrealModelLaneCanonicalSet {
+    pub(crate) fn into_parts(self) -> (
+        Vec<(ModelLaneRecordKind, SurrealModelLaneRecord)>, Vec<StoredEventLink>,
+    ) {
+        (self.scope_records, self.ordered_ledger)
+    }
 }
 
 #[derive(Debug, SurrealValue)]
@@ -2503,7 +3000,9 @@ pub(crate) async fn bootstrap_model_lane_schema(
                         false
                     }
                     Some(state)
-                        if ((state.schema_version == NAVIGATION_PREVIOUS_SCHEMA_VERSION
+                        if ((state.schema_version == RUN_MEMORY_PREVIOUS_SCHEMA_VERSION
+                            && state.schema_revision == RUN_MEMORY_PREVIOUS_SCHEMA_REVISION)
+                            || (state.schema_version == NAVIGATION_PREVIOUS_SCHEMA_VERSION
                             && state.schema_revision == NAVIGATION_PREVIOUS_SCHEMA_REVISION)
                             || (state.schema_version == PREVIOUS_SCHEMA_VERSION
                             && state.schema_revision == PREVIOUS_SCHEMA_REVISION)
@@ -2546,6 +3045,16 @@ pub(crate) async fn bootstrap_model_lane_schema(
 }
 
 impl SurrealModelLaneStore {
+    #[cfg(test)]
+    pub(crate) fn observe_current_context_guards(&self) -> Option<ContextGuardObservation> {
+        super::MODEL_LANE_CURRENT_GUARDS
+            .try_with(|guards| ContextGuardObservation {
+                guards: std::sync::Arc::clone(guards),
+                storage: self.storage.clone(),
+            })
+            .ok()
+    }
+
     pub(crate) async fn initialize(storage: SurrealStorage) -> Result<Self, SurrealStorageError> {
         // Schema and canonical registry preparation belong to administrative bootstrap, not an authenticated business access.
         Ok(Self { storage, #[cfg(feature = "test-utils")] admission_test_control: ContextAdmissionTestControl::default(),
@@ -2561,22 +3070,33 @@ impl SurrealModelLaneStore {
         execution_id: &str,
         scope: &ModelLaneScope,
     ) -> Result<Option<SurrealModelLaneRoutingExecutionRow>, SurrealStorageError> {
+        self.routing_execution_snapshot_with_query(&ModelLaneQuery::Storage(&self.storage), execution_id, scope).await
+    }
+
+    pub(crate) async fn routing_execution_snapshot_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        execution_id: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Option<SurrealModelLaneRoutingExecutionRow>, SurrealStorageError> {
+        self.routing_execution_snapshot_with_query(&ModelLaneQuery::Transaction(transaction), execution_id, scope).await
+    }
+
+    async fn routing_execution_snapshot_with_query(
+        &self,
+        query: &ModelLaneQuery<'_, '_>,
+        execution_id: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Option<SurrealModelLaneRoutingExecutionRow>, SurrealStorageError> {
         validate_scope(scope)?;
         validate_identity(execution_id, execution_id)?;
-        let rows = self
-            .storage
-            .with_data_operation(|database| {
-                let bindings = routing_identity_bindings(execution_id, scope);
-                Box::pin(async move {
-                    database
+        let bindings = routing_identity_bindings(execution_id, scope);
+        let rows = query
                         .query_values::<SurrealModelLaneRoutingExecutionRow, _>(
                             "SELECT execution_id, run_id, revision, context_hash, record_json, record::id(event_ledger_event_id) AS event_ledger_event_id, event_ledger_seq FROM model_lane_routing_execution WHERE execution_id = $aggregate_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND event_ledger_event_id.owner_account_id = $owner_account_id AND event_ledger_event_id.actor_principal_id = $actor_principal_id AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id AND event_ledger_event_id.access_space_id = $access_space_id AND event_ledger_event_id.workspace_id = $workspace_id AND event_ledger_event_id.aggregate_type = 'model_lane_routing_execution' AND event_ledger_event_id.aggregate_id = $aggregate_id AND event_ledger_seq = event_ledger_event_id.event_sequence LIMIT 2;",
                             bindings,
                         )
-                        .await
-                })
-            })
-            .await?;
+                        .await?;
         single_routing_row(rows, "routing execution identity is ambiguous")
     }
 
@@ -2607,21 +3127,33 @@ impl SurrealModelLaneStore {
         execution_id: &str,
         scope: &ModelLaneScope,
     ) -> Result<Vec<SurrealModelLaneRoutingAttemptRow>, SurrealStorageError> {
+        self.routing_attempts_for_execution_with_query(&ModelLaneQuery::Storage(&self.storage), execution_id, scope).await
+    }
+
+    pub(crate) async fn routing_attempts_for_execution_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        execution_id: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Vec<SurrealModelLaneRoutingAttemptRow>, SurrealStorageError> {
+        self.routing_attempts_for_execution_with_query(&ModelLaneQuery::Transaction(transaction), execution_id, scope).await
+    }
+
+    async fn routing_attempts_for_execution_with_query(
+        &self,
+        query: &ModelLaneQuery<'_, '_>,
+        execution_id: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Vec<SurrealModelLaneRoutingAttemptRow>, SurrealStorageError> {
         validate_scope(scope)?;
         validate_identity(execution_id, execution_id)?;
         let bindings = routing_identity_bindings(execution_id, scope);
-        self.storage
-            .with_data_operation(|database| {
-                Box::pin(async move {
-                    database
+        query
                         .query_values::<SurrealModelLaneRoutingAttemptRow, _>(
                             "SELECT attempt_id, execution_id, run_id, stage_id, attempt, state, lease_owner, fencing_token, lease_expires_at_unix_ms, record_json, record::id(event_ledger_event_id) AS event_ledger_event_id, event_ledger_seq FROM model_lane_routing_stage_attempt WHERE execution_id = $aggregate_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND event_ledger_event_id.owner_account_id = $owner_account_id AND event_ledger_event_id.actor_principal_id = $actor_principal_id AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id AND event_ledger_event_id.access_space_id = $access_space_id AND event_ledger_event_id.workspace_id = $workspace_id AND event_ledger_event_id.aggregate_type = 'model_lane_routing_stage_attempt' AND event_ledger_event_id.aggregate_id = attempt_id AND event_ledger_seq = event_ledger_event_id.event_sequence ORDER BY stage_id ASC, attempt ASC LIMIT 4097;",
                             bindings,
                         )
                         .await
-                })
-            })
-            .await
     }
 
     pub(crate) async fn routing_outbox_for_execution(
@@ -2629,21 +3161,33 @@ impl SurrealModelLaneStore {
         execution_id: &str,
         scope: &ModelLaneScope,
     ) -> Result<Vec<SurrealModelLaneRoutingOutboxRow>, SurrealStorageError> {
+        self.routing_outbox_for_execution_with_query(&ModelLaneQuery::Storage(&self.storage), execution_id, scope).await
+    }
+
+    pub(crate) async fn routing_outbox_for_execution_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        execution_id: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Vec<SurrealModelLaneRoutingOutboxRow>, SurrealStorageError> {
+        self.routing_outbox_for_execution_with_query(&ModelLaneQuery::Transaction(transaction), execution_id, scope).await
+    }
+
+    async fn routing_outbox_for_execution_with_query(
+        &self,
+        query: &ModelLaneQuery<'_, '_>,
+        execution_id: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Vec<SurrealModelLaneRoutingOutboxRow>, SurrealStorageError> {
         validate_scope(scope)?;
         validate_identity(execution_id, execution_id)?;
         let bindings = routing_identity_bindings(execution_id, scope);
-        self.storage
-            .with_data_operation(|database| {
-                Box::pin(async move {
-                    database
+        query
                         .query_values::<SurrealModelLaneRoutingOutboxRow, _>(
                             "SELECT command_id, execution_id, run_id, stage_id, attempt, status, lease_owner, fencing_token, lease_expires_at_unix_ms, record::id(event_ledger_event_id) AS event_ledger_event_id, event_ledger_seq, created_at_unix_ms, updated_at_unix_ms FROM model_lane_routing_outbox WHERE execution_id = $aggregate_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND event_ledger_event_id.owner_account_id = $owner_account_id AND event_ledger_event_id.actor_principal_id = $actor_principal_id AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id AND event_ledger_event_id.access_space_id = $access_space_id AND event_ledger_event_id.workspace_id = $workspace_id AND event_ledger_event_id.aggregate_type = 'model_lane_routing_outbox' AND event_ledger_event_id.aggregate_id = command_id AND event_ledger_seq = event_ledger_event_id.event_sequence ORDER BY stage_id ASC, attempt ASC LIMIT 4097;",
                             bindings,
                         )
                         .await
-                })
-            })
-            .await
     }
 
     pub(crate) async fn commit_routing_atomic(
@@ -2651,27 +3195,88 @@ impl SurrealModelLaneStore {
         commit: SurrealModelLaneRoutingCommit,
         scope: &ModelLaneScope,
     ) -> Result<SurrealModelLaneRoutingExecutionRow, SurrealStorageError> {
+        self.commit_routing_atomic_with_query(&ModelLaneQuery::Storage(&self.storage), commit, scope).await
+    }
+
+    pub(crate) async fn commit_routing_atomic_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        commit: SurrealModelLaneRoutingCommit,
+        scope: &ModelLaneScope,
+    ) -> Result<SurrealModelLaneRoutingExecutionRow, SurrealStorageError> {
+        self.commit_routing_atomic_with_query(&ModelLaneQuery::Transaction(transaction), commit, scope).await
+    }
+
+    async fn commit_routing_atomic_with_query(
+        &self,
+        query: &ModelLaneQuery<'_, '_>,
+        commit: SurrealModelLaneRoutingCommit,
+        scope: &ModelLaneScope,
+    ) -> Result<SurrealModelLaneRoutingExecutionRow, SurrealStorageError> {
         validate_routing_commit(&commit, scope)?;
         let bindings = routing_commit_bindings(commit, scope)?;
-        let rows = self
-            .storage
-            .with_data_operation(|database| {
-                Box::pin(async move {
-                    database
+        let rows = query
                         .query_values_at::<SurrealModelLaneRoutingExecutionRow, _>(
                             ROUTING_COMMIT_QUERY,
                             bindings,
                             11,
                         )
-                        .await
-                })
-            })
-            .await?;
+                        .await?;
         single_routing_row(rows, "atomic routing commit returned ambiguous authority")?.ok_or(
             SurrealStorageError::InvalidModelLaneRecord {
                 reason: "atomic routing commit returned no execution authority",
             },
         )
+    }
+
+
+    // Account retains the publication fence and installs the original authenticated scope.
+    // Expected rows are captured after the actual CAS, never constructed from the request.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn readback_routing_commit(
+        &self,
+        publication: &super::resource_authority::RolePublicationGuard<'_>,
+        operation_id: uuid::Uuid,
+        issuer: &ModelLaneScope,
+        expected_execution: &SurrealModelLaneRoutingExecutionRow,
+        expected_attempts: &[SurrealModelLaneRoutingAttemptRow],
+        expected_outbox: &[SurrealModelLaneRoutingOutboxRow],
+    ) -> Result<(
+        SurrealModelLaneRoutingExecutionRow,
+        Vec<SurrealModelLaneRoutingAttemptRow>,
+        Vec<SurrealModelLaneRoutingOutboxRow>,
+    ), SurrealStorageError> {
+        validate_scope(issuer)?;
+        publication.require_unexpired().map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        if publication.operation_id() != operation_id
+            || publication.current_scope().owner_account_id.to_string() != issuer.owner_account_id
+            || publication.current_scope().workspace_id.as_str() != issuer.workspace_id {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let before = self.routing_execution_snapshot(&expected_execution.execution_id, issuer).await?
+            .ok_or(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "independent routing readback is missing the committed execution",
+            })?;
+        let attempts = self.routing_attempts_for_execution(&expected_execution.execution_id, issuer).await?;
+        let outbox = self.routing_outbox_for_execution(&expected_execution.execution_id, issuer).await?;
+        // LIMIT 4097 is an overflow sentinel, not evidence of a complete child set.
+        if attempts.len() >= 4097 || outbox.len() >= 4097 {
+            return Err(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "independent routing readback reached the attempt/outbox query limit",
+            });
+        }
+        let after = self.routing_execution_snapshot(&expected_execution.execution_id, issuer).await?
+            .ok_or(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "independent routing readback lost the committed execution",
+            })?;
+        if &before != expected_execution || after != before
+            || attempts.as_slice() != expected_attempts || outbox.as_slice() != expected_outbox {
+            return Err(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "independent routing mutation readback differs from the actual CAS result",
+            });
+        }
+        publication.require_unexpired().map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        Ok((after, attempts, outbox))
     }
 
     #[cfg(feature = "surreal-test-support")]
@@ -3512,7 +4117,8 @@ impl SurrealModelLaneStore {
             let storage = provider.storage.clone();
             let work = async move {
                 let mut guards = Vec::new();
-                for (kind, id, run) in domains {
+                let mut domains = std::collections::VecDeque::from(domains);
+                while let Some((kind, id, run)) = domains.pop_front() {
                     if cancellation.is_cancelled() {
                         provider.release_owned_guards(supervisor_id, guards).await;
                         return Err(E::from(SurrealStorageError::TransactionCancelled));
@@ -3528,6 +4134,43 @@ impl SurrealModelLaneStore {
                                 provider.release_owned_guards(supervisor_id, guards).await;
                             }
                             return Err(E::from(error));
+                        }
+                    }
+                    if purpose == ContextCoordinationPurpose::RecoveryExecute && kind == "run" {
+                        let current = std::sync::Arc::new(std::sync::Mutex::new(guards.clone()));
+                        let discovered = super::MODEL_LANE_CURRENT_GUARDS.scope(current, async {
+                            let run = provider.get(ModelLaneRecordKind::Run, &id, &scope).await?
+                                .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+                            let body: serde_json::Value = serde_json::from_str(&run.record_json)
+                                .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "recovery run envelope is malformed" })?;
+                            let declared = body.get("lane_ids").and_then(serde_json::Value::as_array)
+                                .ok_or(SurrealStorageError::InvalidModelLaneRecord { reason: "recovery run lane identities are missing" })?;
+                            for lane in declared {
+                                lane.as_str().filter(|lane| !lane.trim().is_empty())
+                                    .ok_or(SurrealStorageError::InvalidModelLaneRecord { reason: "recovery run lane identity is malformed" })?;
+                            }
+                            // Declared lanes may never have been created; only canonical rows own lane fences.
+                            let mut lanes = std::collections::BTreeSet::new();
+                            for lane in provider.list_run(ModelLaneRecordKind::Lane, &id, &scope).await? {
+                                lanes.insert(lane.aggregate_id);
+                            }
+                            Ok::<_, SurrealStorageError>(lanes)
+                        }).await;
+                        match discovered {
+                            Ok(mut lanes) => {
+                                lanes.extend(domains.iter().filter(|(kind, _, _)| *kind == "lane")
+                                    .map(|(_, lane, _)| lane.clone()));
+                                domains.retain(|(kind, _, _)| *kind != "lane");
+                                domains.extend(lanes.into_iter().map(|lane| ("lane", lane, Some(id.clone()))));
+                            }
+                            Err(error) => {
+                                if matches!(error, SurrealStorageError::TransactionSettlementPending { .. }) {
+                                    provider.storage.retain_context_reconciliation(supervisor_id, guards);
+                                } else {
+                                    provider.release_owned_guards(supervisor_id, guards).await;
+                                }
+                                return Err(E::from(error));
+                            }
                         }
                     }
                 }
@@ -3599,7 +4242,7 @@ impl SurrealModelLaneStore {
                 current.push(guard.fence_in_transaction(&transaction).await.map_err(E::from)?);
             }
             let current = std::sync::Arc::new(std::sync::Mutex::new(current));
-            let value = super::MODEL_LANE_CURRENT_GUARDS.scope(current.clone(), operation()).await?;
+            let value = super::MODEL_LANE_CURRENT_GUARDS.scope(current.clone(), async move { operation().await }).await?;
             let current = current.lock().map_err(|_| E::from(SurrealStorageError::InvalidModelLaneRecord { reason: "coordination guard state poisoned" }))?.clone();
             // Final engine authorization/token checks share the transaction
             // that read the canonical dependencies and publishes the result.
@@ -3638,7 +4281,7 @@ impl SurrealModelLaneStore {
         &self, scope: ModelLaneScope, selector: NavigationReadSelector, operation: F,
     ) -> Result<T, E>
     where T: Send + 'static, E: From<SurrealStorageError> + Send + 'static,
-        F: FnOnce() -> Fut + Send + 'static,
+        F: FnOnce(Vec<NavigationMemoryPackInput>) -> Fut + Send + 'static,
         Fut: std::future::Future<Output = Result<T, E>> + Send + 'static,
     {
         use super::resource_authority::{ResourceAction, ResourceKind};
@@ -3709,7 +4352,32 @@ impl SurrealModelLaneStore {
                 let before_inputs = transaction.query_values_at::<NavigationSourceInputRow, _>(
                     NAVIGATION_INPUT_SNAPSHOT, bindings.clone(), 0,
                 ).await.map_err(E::from)?;
-                let value = NAVIGATION_READ_SELECTOR.scope(selector, operation()).await?;
+                let before_packs = transaction.query_values_at::<NavigationMemoryPackRow, _>(
+                    NAVIGATION_MEMORY_PACK_SNAPSHOT, bindings.clone(), 0,
+                ).await.map_err(E::from)?;
+                let before_document_links = transaction.query_values_at::<NavigationMemoryPackDocumentLink, _>(
+                    NAVIGATION_MEMORY_DOCUMENT_LINK_SNAPSHOT, bindings.clone(), 0,
+                ).await.map_err(E::from)?;
+                let candidates = navigation_memory_pack_inputs(
+                    &bindings.workspace_id, &before_sources, &before_inputs, &before_packs,
+                ).map_err(E::from)?;
+                let selection = bindings.artifact_selection_value()
+                    .map_err(|_| E::from(SurrealStorageError::InvalidModelLaneRecord {
+                        reason: "navigation artifact selection encoding failed",
+                    }))?;
+                let mut memory_packs = Vec::with_capacity(candidates.len());
+                let mut consulted_memory_packs = Vec::with_capacity(candidates.len());
+                for input in candidates {
+                    if navigation_memory_pack_authorized(&transaction, &bindings, &input, &before_document_links).await.map_err(E::from)? {
+                        if let Some(registrations) = navigation_memory_artifact_registrations(
+                            &transaction, &bindings, association.as_ref().map(|value| &value.exact), &selection, &input,
+                        ).await.map_err(E::from)? {
+                            consulted_memory_packs.push((input.clone(), registrations));
+                            memory_packs.push(input);
+                        }
+                    }
+                }
+                let value = NAVIGATION_READ_SELECTOR.scope(selector, operation(memory_packs)).await?;
                 let after = transaction.query_first::<NavigationAuthoritySnapshot, _>(
                     NAVIGATION_AUTHORITY_SNAPSHOT, bindings.clone(),
                 ).await.map_err(E::from)?.ok_or_else(|| E::from(SurrealStorageError::TransactionAuthorityRequired))?;
@@ -3723,12 +4391,33 @@ impl SurrealModelLaneStore {
                     NAVIGATION_INPUT_SNAPSHOT, bindings.clone(), 0,
                 ).await.map_err(E::from)?;
                 let after_receipts = transaction.query_values_at::<NavigationDependencyReceipt, _>(
-                    NAVIGATION_RECEIPT_SNAPSHOT, bindings, 0,
+                    NAVIGATION_RECEIPT_SNAPSHOT, bindings.clone(), 0,
+                ).await.map_err(E::from)?;
+                let after_packs = transaction.query_values_at::<NavigationMemoryPackRow, _>(
+                    NAVIGATION_MEMORY_PACK_SNAPSHOT, bindings.clone(), 0,
+                ).await.map_err(E::from)?;
+                let after_document_links = transaction.query_values_at::<NavigationMemoryPackDocumentLink, _>(
+                    NAVIGATION_MEMORY_DOCUMENT_LINK_SNAPSHOT, bindings.clone(), 0,
                 ).await.map_err(E::from)?;
                 if before != after || before_grants != after_grants
                     || before_sources != after_sources || before_receipts != after_receipts
-                    || before_inputs != after_inputs {
+                    || before_inputs != after_inputs || before_packs != after_packs
+                    || before_document_links != after_document_links {
                     return Err(E::from(SurrealStorageError::TransactionAuthorityRequired));
+                }
+                for (input, before_registrations) in &consulted_memory_packs {
+                    if !navigation_memory_pack_authorized(&transaction, &bindings, input, &after_document_links).await.map_err(E::from)? {
+                        return Err(E::from(SurrealStorageError::TransactionAuthorityRequired));
+                    }
+                    let after_registrations = navigation_memory_artifact_registrations(
+                        &transaction, &bindings, association.as_ref().map(|value| &value.exact), &selection, input,
+                    ).await.map_err(E::from)?
+                        .ok_or_else(|| E::from(SurrealStorageError::TransactionAuthorityRequired))?;
+                    if before_registrations.len() != after_registrations.len()
+                        || before_registrations.iter().zip(&after_registrations)
+                            .any(|(before, after)| !before.same_registration(after)) {
+                        return Err(E::from(SurrealStorageError::TransactionAuthorityRequired));
+                    }
                 }
                 if let Some(association) = &association {
                     match lifecycle.authorize_association(association) {
@@ -3790,6 +4479,21 @@ impl SurrealModelLaneStore {
         }).transpose()
     }
 
+    pub(crate) async fn navigation_run_input(
+        &self, scope: &ModelLaneScope, row: &SurrealModelLaneNavigationRow,
+    ) -> Result<Option<NavigationRunInput>, SurrealStorageError> {
+        if row.record_kind != "run" {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "navigation run input requires run kind" });
+        }
+        let input: Option<NavigationRunInput> = self.navigation_source_input(scope, row).await?;
+        if input.as_ref().is_some_and(|input| input.source_kind != "run" || input.kind != "run"
+            || input.run_id != row.run_id || input.run_id != row.aggregate_id
+            || input.source_event_id != row.event_id || input.source_event_seq != row.event_seq) {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "navigation run input differs from canonical source identity" });
+        }
+        Ok(input)
+    }
+
     pub(crate) async fn navigation_message_input(
         &self, scope: &ModelLaneScope, row: &SurrealModelLaneNavigationRow,
     ) -> Result<Option<NavigationMessageInput>, SurrealStorageError> {
@@ -3803,7 +4507,21 @@ impl SurrealModelLaneStore {
         if !matches!(row.record_kind.as_str(), "context_handoff" | "context_artifact") {
             return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "navigation context source kind differs" });
         }
-        self.navigation_source_input(scope, row).await
+        let input: Option<NavigationContextInputs> = self.navigation_source_input(scope, row).await?;
+        if let Some(context) = input.as_ref() {
+            if context.source_kind != "context_sources" || context.run_id != row.run_id || context.kind != row.record_kind {
+                return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "navigation context input differs from canonical source identity" });
+            }
+            if row.record_kind == "context_handoff" && context.artifact.is_some() {
+                return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "navigation handoff cannot supply an artifact row witness" });
+            }
+            if context.artifact.as_ref().is_some_and(|artifact| artifact.source_kind != "context_artifact"
+                || artifact.run_id != row.run_id || artifact.artifact_binding_id != row.aggregate_id
+                || artifact.source_event_id != row.event_id || artifact.source_event_seq != row.event_seq) {
+                return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "navigation artifact input differs from canonical source identity" });
+            }
+        }
+        Ok(input)
     }
 
     pub(crate) async fn navigation_lane_input(
@@ -3819,6 +4537,21 @@ impl SurrealModelLaneStore {
                 reason: "navigation lane input has invalid canonical types",
             })
         }).transpose()
+    }
+
+    pub(crate) async fn navigation_mt_runtime_input(
+        &self, scope: &ModelLaneScope, row: &SurrealModelLaneNavigationRow,
+    ) -> Result<Option<NavigationMtRuntimeInput>, SurrealStorageError> {
+        if row.record_kind != "mt_runtime_status" {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "navigation runtime input requires runtime status kind" });
+        }
+        let input: Option<NavigationMtRuntimeInput> = self.navigation_source_input(scope, row).await?;
+        if input.as_ref().is_some_and(|input| input.source_kind != "mt_runtime_status" || input.kind != "mt_runtime_status"
+            || input.run_id != row.run_id || input.mt_status_id != row.aggregate_id
+            || input.source_event_id != row.event_id || input.source_event_seq != row.event_seq) {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "navigation runtime input differs from canonical source identity" });
+        }
+        Ok(input)
     }
 
     pub(crate) async fn navigation_error_input(
@@ -3935,7 +4668,10 @@ impl SurrealModelLaneStore {
                     external_id: scope.workspace_id.clone(),
                 }))
             .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
-        if !purpose.accepts_original(subject.kind, authority.action)
+        if (purpose == ContextCoordinationPurpose::RecoveryExecute
+                && (authority.capability_id != "model_lane.recovery.execute"
+                    || subject.external_id != scope.workspace_id))
+            || !purpose.accepts_original(subject.kind, authority.action)
             || subject.external_id.trim().is_empty()
             || authority.workspace_id.as_deref() != Some(scope.workspace_id.as_str())
             || authority.session_id != scope.authenticated_session_id {
@@ -4034,6 +4770,38 @@ impl SurrealModelLaneStore {
         event_payload_json: String,
         scope: &ModelLaneScope,
     ) -> Result<SurrealModelLaneRecord, SurrealStorageError> {
+        self.put_immutable_with_query(&ModelLaneQuery::Storage(&self.storage), kind, aggregate_id, run_id, idempotency_key, record_json, search_terms, event_payload_json, scope).await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn put_immutable_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        kind: ModelLaneRecordKind,
+        aggregate_id: &str,
+        run_id: &str,
+        idempotency_key: &str,
+        record_json: String,
+        search_terms: Vec<String>,
+        event_payload_json: String,
+        scope: &ModelLaneScope,
+    ) -> Result<SurrealModelLaneRecord, SurrealStorageError> {
+        self.put_immutable_with_query(&ModelLaneQuery::Transaction(transaction), kind, aggregate_id, run_id, idempotency_key, record_json, search_terms, event_payload_json, scope).await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn put_immutable_with_query(
+        &self,
+        query: &ModelLaneQuery<'_, '_>,
+        kind: ModelLaneRecordKind,
+        aggregate_id: &str,
+        run_id: &str,
+        idempotency_key: &str,
+        record_json: String,
+        search_terms: Vec<String>,
+        event_payload_json: String,
+        scope: &ModelLaneScope,
+    ) -> Result<SurrealModelLaneRecord, SurrealStorageError> {
         validate_scope(scope)?;
         validate_identity(aggregate_id, idempotency_key)?;
         let expected_record_json = record_json.clone();
@@ -4056,8 +4824,7 @@ impl SurrealModelLaneStore {
             access_space_id: scope.access_space_id.clone(),
             workspace_id: scope.workspace_id.clone(),
         };
-        let rows = self.storage.with_data_operation(|database| Box::pin(async move {
-            database.query_values_at::<StoredRow, _>(
+        let rows = query.query_values_at::<StoredRow, _>(
                 "BEGIN TRANSACTION;\
                  LET $existing = (SELECT aggregate_id, run_id, idempotency_key, record_json, event_id, event_seq, event_stream_version, transaction_seq FROM type::record('model_lane_authority', $record_id) WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id);\
                  IF array::len($existing) > 0 { RETURN $existing; } ELSE {\
@@ -4068,8 +4835,7 @@ impl SurrealModelLaneStore {
                  COMMIT TRANSACTION;",
                 bindings,
                 2,
-            ).await
-        })).await?;
+            ).await?;
         let row: SurrealModelLaneRecord = rows.into_iter().next().map(Into::into).ok_or(
             SurrealStorageError::InvalidModelLaneRecord {
                 reason: "model-lane authority write returned no row",
@@ -4754,6 +5520,670 @@ impl SurrealModelLaneStore {
         ).await
     }
 
+    // The caller owns current authorization and the transaction; issuer attribution stays intact.
+
+
+    pub(crate) async fn put_operator_approval(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        issuer: &super::resource_authority::OwnerIssuanceSeal<'_>,
+    ) -> Result<PendingOwnerRoleEvidence, SurrealStorageError> {
+        use handshake_role_authority::canonical;
+        let request = match issuer.command() {
+            crate::swarm_orchestration::model_lane::WorkspaceOwnerActionCommand::IssueArtifactApproval(request)
+                if issuer.matches_transaction(transaction) && issuer.current_scope() == &request.approval.scope => request,
+            _ => return Err(SurrealStorageError::TransactionAuthorityRequired),
+        };
+        let prepared = canonical::prepare_operator(&request.approval)
+            .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "Operator approval command integrity is invalid" })?;
+        self.put_prepared_operator_evidence_in_transaction(
+            transaction, issuer.operation_id(), issuer.current_scope(), &prepared,
+        ).await
+    }
+
+    async fn put_prepared_operator_evidence_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        operation_id: uuid::Uuid,
+        current_scope: &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+        prepared: &handshake_role_authority::domain::PurePreparedRoleIntent,
+    ) -> Result<PendingOwnerRoleEvidence, SurrealStorageError> {
+        use handshake_role_authority::{canonical, domain};
+        let body = prepared.body();
+        if &body.scope != current_scope {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let scope = ModelLaneScope {
+            owner_account_id: body.scope.owner_account_id.to_string(),
+            actor_principal_id: body.scope.actor_principal_id.to_string(),
+            authenticated_session_id: body.scope.authenticated_session_id.to_string(),
+            access_space_id: body.scope.access_space_id.to_string(),
+            workspace_id: body.scope.workspace_id.as_str().to_owned(),
+        };
+        let mut existing = self.find_by_term_in_transaction(
+            transaction, ModelLaneRecordKind::RoleEvidence,
+            &format!("idempotency_key={}", body.action.idempotency_key), &scope,
+        ).await?;
+        if existing.len() > 1 {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "Operator idempotency key resolves to ambiguous authority" });
+        }
+        if existing.is_empty() && self.get_in_transaction(
+            transaction, ModelLaneRecordKind::RoleEvidence, &body.action.action_id, &scope,
+        ).await?.is_some() {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "Operator immutable action changed its idempotency key" });
+        }
+        let event = if let Some(existing) = existing.pop() {
+            let receipt = serde_json::from_str::<domain::RoleReceipt>(&existing.record_json)
+                .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "existing Operator receipt is malformed" })?;
+            handshake_role_authority::resolution::compare_retry(&receipt, prepared)
+                .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "Operator full-command immutable retry conflicts" })?;
+            receipt.event
+        } else {
+            let sequences = transaction.query_values_at::<i64, _>(
+                "RETURN sequence::nextval('kernel_event_sequence');", (), 0,
+            ).await?;
+            let sequence = match sequences.as_slice() {
+                [sequence] if *sequence > 0 => *sequence,
+                _ => return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "canonical role event sequence allocation is ambiguous" }),
+            };
+            domain::CanonicalEventKey {
+                event_id: format!("evt-model-lane-{}", uuid::Uuid::now_v7()),
+                stream_id: format!("role-authority:{}", body.run.run_id),
+                event_seq: sequence as u64, transaction_seq: sequence as u64,
+            }
+        };
+        let receipt = domain::RoleReceipt {
+            body: body.clone(),
+            content_hash: canonical::body_content_hash(body)
+                .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "Operator approval body cannot be hashed" })?,
+            event,
+        };
+        let selector = crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector {
+            evidence_ref: domain::RoleEvidenceRef::parse(&format!("eventledger://role-authority/{}", receipt.event.event_id))
+                .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "Operator approval event reference is malformed" })?,
+            expectation: domain::ResolutionExpectation {
+                receipt_scope: body.scope.clone(), role: body.role.clone(), run: body.run.clone(),
+                subject: body.subject.clone(), purpose: body.purpose.clone(), expected: body.expected.clone(),
+            },
+            designation_ref: None, producer: None,
+        };
+        let record_json = String::from_utf8(canonical::canonical_receipt_bytes(&receipt)
+            .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "Operator approval receipt cannot be canonicalized" })?)
+            .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "Operator approval receipt is not UTF-8" })?;
+        let bindings = RoleEvidenceInsertBindings {
+            record_id: stable_record_id(ModelLaneRecordKind::RoleEvidence.as_str(), &body.action.idempotency_key, &scope),
+            event_id: receipt.event.event_id.clone(),
+            event_sequence: i64::try_from(receipt.event.event_seq)
+                .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "Operator event sequence exceeds canonical storage range" })?,
+            operation_id: operation_id.to_string(), aggregate_id: body.action.action_id.clone(),
+            run_id: body.run.run_id.clone(), stream_id: receipt.event.stream_id.clone(),
+            idempotency_key: body.action.idempotency_key.clone(),
+            payload_hash: sha256_hex(record_json.as_bytes()), record_json,
+            causation_id: match &body.purpose {
+                domain::Purpose::PriorSelection => body.action.request_id.clone(),
+                domain::Purpose::StageAcknowledgement(stage) => stage.authority_request_message_ref.clone(),
+            }, correlation_id: body.run.trace_id.clone(),
+            owner_account_id: scope.owner_account_id, actor_principal_id: scope.actor_principal_id,
+            authenticated_session_id: scope.authenticated_session_id, access_space_id: scope.access_space_id,
+            workspace_id: scope.workspace_id,
+        };
+        let rows = transaction.query_values_at::<StoredRow, _>(
+            "LET $existing = SELECT aggregate_id, run_id, idempotency_key, record_json, event_id, event_seq, event_stream_version, transaction_seq FROM type::record('model_lane_authority', $record_id) WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id; IF array::len($existing) = 1 { RETURN $existing; } ELSE { IF array::len($existing) != 0 { THROW 'role authority identity is ambiguous'; }; LET $ledger = CREATE type::record('kernel_event_ledger', $event_id) CONTENT { event_id: $event_id, event_sequence: $event_sequence, event_version: 'kernel_event_v1', kernel_task_run_id: $run_id, session_run_id: $stream_id, aggregate_type: 'role_evidence', aggregate_id: $aggregate_id, idempotency_key: $event_id, event_type: 'MODEL_LANE_AUTHORITY_RECORDED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: $causation_id, correlation_id: $correlation_id, payload_hash: $payload_hash, source_component: 'model_lane', payload: { record_kind: 'role_evidence', run_id: $run_id, event_stream_version: 1, event_payload_json: $record_json, issuance_operation_id: $operation_id }, authority_resource_id: type::record('protected_resources', $wp012_original_resource), authority_grant_id: type::record('resource_grants', $wp012_original_grant), authority_session_id: $auth.id, authority_capability_id: $wp012_original_capability, authority_action: $wp012_original_action, wsids: [$workspace_id], owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }; IF array::len($ledger) != 1 OR $ledger[0].event_sequence != $event_sequence { THROW 'role event allocation differs'; }; RETURN CREATE type::record('model_lane_authority', $record_id) CONTENT { record_kind: 'role_evidence', aggregate_id: $aggregate_id, run_id: $run_id, idempotency_key: $idempotency_key, record_json: $record_json, search_terms: [string::concat('idempotency_key=', $idempotency_key)], event_id: $event_id, event_ledger_event_id: type::record('kernel_event_ledger', $event_id), event_seq: $event_sequence, event_stream_version: 1, transaction_seq: $event_sequence, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }; };",
+            bindings, 1,
+        ).await?;
+        if rows.len() != 1 {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "Operator issuance returned missing or ambiguous authority" });
+        }
+        let (verified, issuance_operation_id) = self.read_role_evidence_with_query(
+            &ModelLaneQuery::Transaction(transaction), &selector,
+        ).await?;
+        handshake_role_authority::resolution::compare_retry(verified.receipt(), prepared)
+            .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "Operator full-command immutable retry conflicts" })?;
+        if issuance_operation_id != operation_id {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "Operator retry changed the original issuance operation" });
+        }
+        Ok(PendingOwnerRoleEvidence { readback: RoleEvidenceReadback {
+            operation_id: operation_id, current_consumer: current_scope.clone(),
+            selector, receipt: verified.receipt().clone(), issuance_operation_id,
+        }, verified })
+    }
+
+    pub(crate) async fn put_operator_stage_ack<'tx>(
+        &self,
+        transaction: &'tx super::SurrealTransactionContext<'tx>,
+        consumer: &super::resource_authority::CurrentConsumerSeal<'tx>,
+        prior: &TxCheckedRoleEvidence<'tx>,
+        acknowledgement: &handshake_role_authority::domain::AcknowledgeOperatorStage,
+    ) -> Result<TxCheckedRoleEvidence<'tx>, SurrealStorageError> {
+        use handshake_role_authority::{canonical, domain};
+        let intent = crate::swarm_orchestration::model_lane::RoutingStageAcknowledgementIntent::Operator(
+            acknowledgement.clone(),
+        );
+        let prior_selector = match consumer.command() {
+            crate::swarm_orchestration::model_lane::RoleConsumptionCommand::AcknowledgeRoutingStage {
+                selector, ..
+            } => selector,
+            _ => return Err(SurrealStorageError::TransactionAuthorityRequired),
+        };
+        if !consumer.matches_transaction(transaction)
+            || !stage_ack_command_matches(consumer.command(), consumer.operation_id(), prior_selector, &intent)
+            || consumer.current_scope() != &acknowledgement.scope
+            || prior.consumer_scope() != consumer.current_scope()
+            || !stage_ack_command_matches(&prior.command, consumer.operation_id(), prior_selector, &intent) {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        prior.require_matches(transaction, consumer.operation_id(), prior_selector)?;
+        let previous = &prior.receipt().body;
+        if previous.role != domain::Role::Operator || previous.purpose != domain::Purpose::PriorSelection
+            || prior.verified.reference() != &acknowledgement.approval
+            || acknowledgement.stage.prior_receipt_ref != acknowledgement.approval
+            || previous.subject != acknowledgement.subject || previous.run != acknowledgement.run
+            || previous.scope.owner_account_id != acknowledgement.scope.owner_account_id
+            || previous.scope.workspace_id != acknowledgement.scope.workspace_id
+            || previous.expected.aggregate_id != acknowledgement.expected.aggregate_id
+            || previous.expected.base_ref != acknowledgement.expected.base_ref
+            || previous.expected.base_vector_ref != acknowledgement.expected.base_vector_ref
+            || previous.expected.schema_id != acknowledgement.expected.schema_id {
+            return Err(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "Operator stage acknowledgement does not bind its actual prior approval",
+            });
+        }
+        let prepared = canonical::prepare_operator_ack(acknowledgement)
+            .map_err(|_| SurrealStorageError::InvalidModelLaneRecord {
+                reason: "Operator stage acknowledgement command integrity is invalid",
+            })?;
+        let pending = self.put_prepared_operator_evidence_in_transaction(
+            transaction, consumer.operation_id(), consumer.current_scope(), &prepared,
+        ).await?;
+        let PendingOwnerRoleEvidence { readback, verified } = pending;
+        let checked = TxCheckedRoleEvidence {
+            transaction, operation_id: readback.operation_id, current_consumer: readback.current_consumer,
+            selector: readback.selector, verified, issuance_operation_id: readback.issuance_operation_id,
+            command: consumer.command().clone(),
+        };
+        checked.require_stage_ack(transaction, consumer.operation_id(), prior_selector, &intent)?;
+        Ok(checked)
+    }
+
+
+    pub(crate) async fn resolve_operator_role_evidence<'tx>(
+        &self,
+        transaction: &'tx super::SurrealTransactionContext<'tx>,
+        consumer: &super::resource_authority::CurrentConsumerSeal<'tx>,
+        selector: &crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector,
+    ) -> Result<TxCheckedRoleEvidence<'tx>, SurrealStorageError> {
+        if !consumer.matches_transaction(transaction)
+            || !consumer.command().evidence_selectors().into_iter().any(|expected| role_selectors_match(expected, selector))
+            || selector.expectation.role != handshake_role_authority::domain::Role::Operator
+            || selector.designation_ref.is_some() || selector.producer.is_some()
+            || selector.expectation.receipt_scope.owner_account_id != consumer.current_scope().owner_account_id
+            || selector.expectation.receipt_scope.workspace_id != consumer.current_scope().workspace_id {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let (verified, issuance_operation_id) = self.read_role_evidence_with_query(
+            &ModelLaneQuery::Transaction(transaction), selector,
+        ).await?;
+        Ok(TxCheckedRoleEvidence {
+            transaction, operation_id: consumer.operation_id(),
+            current_consumer: consumer.current_scope().clone(), selector: selector.clone(), verified, issuance_operation_id,
+            command: consumer.command().clone(),
+        })
+    }
+
+    pub(crate) async fn put_runner_designation(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        issuer: &super::resource_authority::OwnerIssuanceSeal<'_>,
+    ) -> Result<RunnerDesignationReadback, SurrealStorageError> {
+        let crate::swarm_orchestration::model_lane::WorkspaceOwnerActionCommand::IssueRunnerDesignation(request) = issuer.command() else {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        };
+        if !issuer.matches_transaction(transaction) || issuer.current_scope() != &request.scope
+            || issuer.operation_id() != request.operation_id
+            || request.runner.producer_registration_ref.trim().is_empty()
+            || request.runner.producer_instance_ref.trim().is_empty()
+            || request.runner.producer_spawn_generation == 0 {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        // Reuse the role contract's validation for the shared action/run/artifact/base fields.
+        handshake_role_authority::canonical::prepare_operator(&handshake_role_authority::domain::ApproveOperatorArtifact {
+            action: request.action.clone(), scope: request.scope.clone(), run: request.run.clone(),
+            subject: request.subject.clone(), expected: request.expected.clone(), retention: request.retention.clone(),
+        }).map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "invalid Owner designation binding" })?;
+        let scope = role_storage_scope(&request.scope);
+        let record_json = serde_json::to_string(&serde_json::json!({
+            "request": request, "event_ledger_stream_id": request.run.run_id,
+        })).map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "designation cannot be encoded" })?;
+        let existing = self.find_by_term_in_transaction(transaction, ModelLaneRecordKind::ValidatorDesignation,
+            &format!("idempotency_key={}", request.action.idempotency_key), &scope).await?;
+        if existing.len() > 1 || existing.iter().any(|record| record.aggregate_id != request.action.action_id || record.record_json != record_json) {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "designation immutable retry conflicts" });
+        }
+        let bindings = WriteBindings {
+            event_ledger_stream_id: Some(request.run.run_id.clone()),
+            record_id: stable_record_id(ModelLaneRecordKind::ValidatorDesignation.as_str(), &request.action.action_id, &scope),
+            event_id: format!("evt-model-lane-{}", uuid::Uuid::now_v7()),
+            record_kind: ModelLaneRecordKind::ValidatorDesignation.as_str().to_owned(),
+            aggregate_id: request.action.action_id.clone(), run_id: request.run.run_id.clone(),
+            idempotency_key: request.action.idempotency_key.clone(), record_json: record_json.clone(),
+            search_terms: vec![format!("idempotency_key={}", request.action.idempotency_key)],
+            event_payload_json: record_json.clone(), event_payload_hash: sha256_hex(record_json.as_bytes()),
+            owner_account_id: scope.owner_account_id.clone(), actor_principal_id: scope.actor_principal_id.clone(),
+            authenticated_session_id: scope.authenticated_session_id.clone(), access_space_id: scope.access_space_id.clone(),
+            workspace_id: scope.workspace_id.clone(),
+        };
+        let rows = transaction.query_values_at::<StoredRow, _>(DESIGNATION_INSERT_QUERY, bindings, 1).await?;
+        let [row] = rows.as_slice() else {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "designation insert is missing or ambiguous" });
+        };
+        let record: SurrealModelLaneRecord = row.clone().into();
+        if record.record_json != record_json || record.aggregate_id != request.action.action_id
+            || record.idempotency_key != request.action.idempotency_key || record.run_id != request.run.run_id {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "designation immutable identity conflicts" });
+        }
+        self.validate_event_link_in_transaction(transaction, ModelLaneRecordKind::ValidatorDesignation, &record, &scope).await?;
+        Ok(RunnerDesignationReadback { operation_id: issuer.operation_id(), scope, request: request.clone(), record })
+    }
+
+    pub(crate) async fn readback_runner_designation(
+        &self,
+        publication: &super::resource_authority::RolePublicationGuard<'_>,
+        expected: &RunnerDesignationReadback,
+    ) -> Result<crate::swarm_orchestration::model_lane::WorkspaceOwnerActionResult, SurrealStorageError> {
+        publication.require_unexpired().map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        if publication.operation_id() != expected.operation_id || publication.current_scope() != &expected.request.scope {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let record = self.get(ModelLaneRecordKind::ValidatorDesignation, &expected.record.aggregate_id, &expected.scope).await?
+            .ok_or(SurrealStorageError::InvalidModelLaneRecord { reason: "canonical designation disappeared" })?;
+        if record != expected.record {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "designation publication differs from commit" });
+        }
+        self.validate_event_link(ModelLaneRecordKind::ValidatorDesignation, &record, &expected.scope).await?;
+        publication.require_unexpired().map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        Ok(crate::swarm_orchestration::model_lane::WorkspaceOwnerActionResult::RunnerDesignation {
+            request: expected.request.clone(), content_hash: handshake_role_authority::domain::ContentSha256::from_hex(&sha256_hex(record.record_json.as_bytes()))
+                .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "designation hash is invalid" })?,
+            event: handshake_role_authority::domain::CanonicalEventKey {
+                event_id: record.event_id, stream_id: expected.request.run.run_id.clone(),
+                event_seq: u64::try_from(record.event_seq).map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "designation sequence is invalid" })?,
+                transaction_seq: u64::try_from(record.transaction_seq).map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "designation transaction sequence is invalid" })?,
+            },
+        })
+    }
+
+    async fn validate_validator_designation(
+        &self,
+        query: &ModelLaneQuery<'_, '_>,
+        selector: &crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector,
+        body: &handshake_role_authority::domain::RoleEvidenceBody,
+    ) -> Result<(), SurrealStorageError> {
+        let designation = selector.designation_ref.as_ref().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let producer = selector.producer.as_ref().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let execution = body.validator_execution.as_ref().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        if body.designation.as_ref() != Some(designation) || execution.runner_principal != producer.producer_registered_principal {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let event_id = designation.as_str().strip_prefix("eventledger://validator-designation/")
+            .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let scope = &selector.expectation.receipt_scope;
+        let rows = query.query_values::<StoredRow, _>(
+            "SELECT aggregate_id, run_id, idempotency_key, record_json, event_id, event_seq, event_stream_version, transaction_seq FROM model_lane_authority WHERE record_kind = 'validator_designation' AND event_id = $event_id AND event_ledger_event_id = type::record('kernel_event_ledger', $event_id) AND owner_account_id = $owner_account_id AND workspace_id = $workspace_id LIMIT 2;",
+            RoutingPriorLookupBindings { event_id: event_id.to_owned(), owner_account_id: scope.owner_account_id.to_string(), workspace_id: scope.workspace_id.as_str().to_owned() },
+        ).await?;
+        let [row] = rows.as_slice() else { return Err(SurrealStorageError::TransactionAuthorityRequired); };
+        let value: Value = serde_json::from_str(&row.record_json).map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "canonical designation is malformed" })?;
+        let request: crate::swarm_orchestration::model_lane::WorkspaceValidatorRunnerDesignationRequest = serde_json::from_value(value.get("request").cloned().ok_or(SurrealStorageError::TransactionAuthorityRequired)?)
+            .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "canonical designation request is malformed" })?;
+        let expected_matches = match &body.purpose {
+            handshake_role_authority::domain::Purpose::PriorSelection => request.expected == body.expected,
+            handshake_role_authority::domain::Purpose::StageAcknowledgement(_) =>
+                request.expected.aggregate_id == body.expected.aggregate_id
+                    && request.expected.base_ref == body.expected.base_ref
+                    && request.expected.base_vector_ref == body.expected.base_vector_ref
+                    && request.expected.schema_id == body.expected.schema_id,
+        };
+        if request.runner != *producer || request.run != body.run || request.subject != body.subject
+            || !expected_matches || request.scope.owner_account_id != scope.owner_account_id
+            || request.scope.workspace_id != scope.workspace_id || row.aggregate_id != request.action.action_id
+            || row.idempotency_key != request.action.idempotency_key || row.run_id != request.run.run_id {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let record: SurrealModelLaneRecord = row.clone().into();
+        match query {
+            ModelLaneQuery::Transaction(transaction) => self.validate_event_link_in_transaction(transaction, ModelLaneRecordKind::ValidatorDesignation, &record, &role_storage_scope(&request.scope)).await?,
+            ModelLaneQuery::Storage(_) => self.validate_event_link(ModelLaneRecordKind::ValidatorDesignation, &record, &role_storage_scope(&request.scope)).await?,
+        }
+        Ok(())
+    }
+
+    pub(crate) async fn put_validator_verdict<'tx>(
+        &self,
+        transaction: &'tx super::SurrealTransactionContext<'tx>,
+        consumer: &super::resource_authority::CurrentConsumerSeal<'tx>,
+        prior: &TxCheckedRoleEvidence<'tx>,
+        verdict: &handshake_role_authority::domain::RecordValidatorVerdict,
+    ) -> Result<TxCheckedRoleEvidence<'tx>, SurrealStorageError> {
+        let crate::swarm_orchestration::model_lane::RoleConsumptionCommand::RecordReviewCompletion {
+            selector, verdict: captured, ..
+        } = consumer.command() else { return Err(SurrealStorageError::TransactionAuthorityRequired); };
+        prior.require_matches(transaction, consumer.operation_id(), selector)?;
+        if !consumer.matches_transaction(transaction) || captured != verdict || consumer.current_scope() != &verdict.scope
+            || prior.receipt().body.run != verdict.run || prior.receipt().body.subject != verdict.subject
+            || prior.receipt().body.expected != verdict.expected
+            || selector.designation_ref.as_ref() != Some(&verdict.designation_ref) {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let prepared = handshake_role_authority::canonical::prepare_validator_verdict_declared(verdict)
+            .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "Validator verdict declaration is invalid" })?;
+        self.put_validator_prepared(transaction, consumer, selector, &prepared).await
+    }
+
+    pub(crate) async fn put_validator_stage_ack<'tx>(
+        &self,
+        transaction: &'tx super::SurrealTransactionContext<'tx>,
+        consumer: &super::resource_authority::CurrentConsumerSeal<'tx>,
+        prior: &TxCheckedRoleEvidence<'tx>,
+        acknowledgement: &handshake_role_authority::domain::AcknowledgeValidatorStage,
+    ) -> Result<TxCheckedRoleEvidence<'tx>, SurrealStorageError> {
+        let intent = crate::swarm_orchestration::model_lane::RoutingStageAcknowledgementIntent::Validator(acknowledgement.clone());
+        let crate::swarm_orchestration::model_lane::RoleConsumptionCommand::AcknowledgeRoutingStage { selector, .. } = consumer.command() else {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        };
+        prior.require_matches(transaction, consumer.operation_id(), selector)?;
+        let previous = &prior.receipt().body;
+        if !consumer.matches_transaction(transaction)
+            || !stage_ack_command_matches(consumer.command(), consumer.operation_id(), selector, &intent)
+            || consumer.current_scope() != &acknowledgement.scope
+            || previous.role != handshake_role_authority::domain::Role::Validator
+            || previous.purpose != handshake_role_authority::domain::Purpose::PriorSelection
+            || prior.verified.reference() != &acknowledgement.verdict
+            || previous.designation.as_ref() != Some(&acknowledgement.designation_ref)
+            || previous.validator_execution.as_ref() != Some(&acknowledgement.execution)
+            || previous.subject != acknowledgement.subject || previous.run != acknowledgement.run
+            || previous.expected.aggregate_id != acknowledgement.expected.aggregate_id
+            || previous.expected.base_ref != acknowledgement.expected.base_ref
+            || previous.expected.base_vector_ref != acknowledgement.expected.base_vector_ref
+            || previous.expected.schema_id != acknowledgement.expected.schema_id {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let prepared = handshake_role_authority::canonical::prepare_validator_ack(acknowledgement)
+            .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "Validator acknowledgement declaration is invalid" })?;
+        let checked = self.put_validator_prepared(transaction, consumer, selector, &prepared).await?;
+        checked.require_stage_ack(transaction, consumer.operation_id(), selector, &intent)?;
+        Ok(checked)
+    }
+
+    async fn put_validator_prepared<'tx>(
+        &self,
+        transaction: &'tx super::SurrealTransactionContext<'tx>,
+        consumer: &super::resource_authority::CurrentConsumerSeal<'tx>,
+        prior_selector: &crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector,
+        prepared: &handshake_role_authority::domain::PurePreparedRoleIntent,
+    ) -> Result<TxCheckedRoleEvidence<'tx>, SurrealStorageError> {
+        let mut selector = crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector {
+            evidence_ref: prior_selector.evidence_ref.clone(),
+            expectation: handshake_role_authority::domain::ResolutionExpectation {
+                receipt_scope: prepared.body().scope.clone(), role: prepared.body().role.clone(),
+                run: prepared.body().run.clone(), subject: prepared.body().subject.clone(),
+                purpose: prepared.body().purpose.clone(), expected: prepared.body().expected.clone(),
+            },
+            designation_ref: prepared.body().designation.clone(), producer: prior_selector.producer.clone(),
+        };
+        // The canonical Owner designation must bind the actual runner before recording any verdict.
+        self.validate_validator_designation(&ModelLaneQuery::Transaction(transaction), &selector, prepared.body()).await?;
+        let PendingOwnerRoleEvidence { mut readback, verified } = self.put_prepared_operator_evidence_in_transaction(
+            transaction, consumer.operation_id(), consumer.current_scope(), prepared,
+        ).await?;
+        selector.evidence_ref = readback.selector.evidence_ref;
+        readback.selector = selector;
+        Ok(TxCheckedRoleEvidence {
+            transaction, operation_id: readback.operation_id, current_consumer: readback.current_consumer,
+            selector: readback.selector, verified, issuance_operation_id: readback.issuance_operation_id,
+            command: consumer.command().clone(),
+        })
+    }
+
+    pub(crate) async fn resolve_role_evidence<'tx>(
+        &self,
+        transaction: &'tx super::SurrealTransactionContext<'tx>,
+        consumer: &super::resource_authority::CurrentConsumerSeal<'tx>,
+        selector: &crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector,
+    ) -> Result<TxCheckedRoleEvidence<'tx>, SurrealStorageError> {
+        use handshake_role_authority::domain::Role;
+        if selector.expectation.role == Role::Operator {
+            return self.resolve_operator_role_evidence(transaction, consumer, selector).await;
+        }
+        if !consumer.matches_transaction(transaction)
+            || !consumer.command().evidence_selectors().into_iter().any(|expected| role_selectors_match(expected, selector))
+            || selector.expectation.receipt_scope.owner_account_id != consumer.current_scope().owner_account_id
+            || selector.expectation.receipt_scope.workspace_id != consumer.current_scope().workspace_id {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let (verified, issuance_operation_id) = self.read_role_evidence_with_query(
+            &ModelLaneQuery::Transaction(transaction), selector,
+        ).await?;
+        self.validate_validator_designation(
+            &ModelLaneQuery::Transaction(transaction), selector, &verified.receipt().body,
+        ).await?;
+        Ok(TxCheckedRoleEvidence {
+            transaction, operation_id: consumer.operation_id(), current_consumer: consumer.current_scope().clone(),
+            selector: selector.clone(), verified, issuance_operation_id, command: consumer.command().clone(),
+        })
+    }
+
+    pub(crate) async fn readback_role_evidence(
+        &self,
+        publication: &super::resource_authority::RolePublicationGuard<'_>,
+        expected: &RoleEvidenceReadback,
+    ) -> Result<PublishedRoleEvidence, SurrealStorageError> {
+        publication.require_unexpired().map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        if publication.operation_id() != expected.operation_id || publication.current_scope() != &expected.current_consumer {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let (verified, issuance_operation_id) = self.read_role_evidence_with_query(
+            &ModelLaneQuery::Storage(&self.storage), &expected.selector,
+        ).await?;
+        if expected.selector.expectation.role == handshake_role_authority::domain::Role::Validator {
+            self.validate_validator_designation(&ModelLaneQuery::Storage(&self.storage), &expected.selector, &verified.receipt().body).await?;
+        }
+        if verified.receipt() != &expected.receipt || issuance_operation_id != expected.issuance_operation_id {
+            return Err(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "independent role evidence readback differs from the transaction result",
+            });
+        }
+        publication.require_unexpired().map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        Ok(PublishedRoleEvidence { operation_id: expected.operation_id, receipt: verified.receipt().clone() })
+    }
+
+    pub(crate) async fn read_routing_prior_in_transaction<'tx>(
+        &self,
+        transaction: &'tx super::SurrealTransactionContext<'tx>,
+        seal: &super::resource_authority::RoutingAuthorityCaptureReadSeal<'tx>,
+        canonical_prior_ref: &handshake_role_authority::domain::RoleEvidenceRef,
+    ) -> Result<(handshake_role_authority::domain::RoleReceipt, uuid::Uuid), SurrealStorageError> {
+        if !seal.matches_transaction(transaction) {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let reference = canonical_prior_ref.to_string();
+        let event_id = reference.strip_prefix("eventledger://role-authority/")
+            .filter(|value| !value.is_empty())
+            .ok_or(SurrealStorageError::InvalidModelLaneRecord { reason: "routing prior reference is malformed" })?;
+        let current = seal.current_scope();
+        let bindings = RoutingPriorLookupBindings {
+            event_id: event_id.to_owned(),
+            owner_account_id: current.owner_account_id.to_string(),
+            workspace_id: current.workspace_id.as_str().to_owned(),
+        };
+        let rows = transaction.query_values_at::<CanonicalRoleEvidenceRow, _>(
+            "SELECT record::id(id) AS record_id, owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, aggregate_id, run_id, idempotency_key, record_json, event_id, event_seq, event_stream_version, transaction_seq, event_ledger_event_id.event_sequence AS ledger_event_seq, event_ledger_event_id.event_id AS ledger_event_id, event_ledger_event_id.payload.event_stream_version AS ledger_event_stream_version, event_ledger_event_id.session_run_id AS ledger_stream_id, event_ledger_event_id.payload.event_payload_json AS payload_json, event_ledger_event_id.payload_hash AS payload_hash, event_ledger_event_id.causation_id AS causation_id, event_ledger_event_id.correlation_id AS correlation_id, event_ledger_event_id.payload.issuance_operation_id AS issuance_operation_id FROM model_lane_authority WHERE record_kind = 'role_evidence' AND event_id = $event_id AND event_ledger_event_id = type::record('kernel_event_ledger', $event_id) AND owner_account_id = $owner_account_id AND workspace_id = $workspace_id AND event_ledger_event_id.owner_account_id = owner_account_id AND event_ledger_event_id.actor_principal_id = actor_principal_id AND event_ledger_event_id.authenticated_session_id = authenticated_session_id AND event_ledger_event_id.access_space_id = access_space_id AND event_ledger_event_id.workspace_id = workspace_id AND event_ledger_event_id.source_component = 'model_lane' AND event_ledger_event_id.event_version = 'kernel_event_v1' AND event_ledger_event_id.event_type = 'MODEL_LANE_AUTHORITY_RECORDED' AND event_ledger_event_id.actor_kind = 'principal' AND event_ledger_event_id.actor_id = actor_principal_id AND event_ledger_event_id.aggregate_type = 'role_evidence' AND event_ledger_event_id.aggregate_id = aggregate_id AND event_ledger_event_id.kernel_task_run_id = run_id AND event_ledger_event_id.payload.run_id = run_id AND event_ledger_event_id.payload.record_kind = record_kind LIMIT 2;", bindings, 0,
+        ).await?;
+        if rows.len() != 1 {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "canonical routing prior is missing or ambiguous" });
+        }
+        let row = &rows[0];
+        if row.owner_account_id != current.owner_account_id.to_string()
+            || row.workspace_id != current.workspace_id.as_str() {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let receipt: handshake_role_authority::domain::RoleReceipt = serde_json::from_str(&row.record_json)
+            .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "canonical routing prior receipt is malformed" })?;
+        let issuer = &receipt.body.scope;
+        let issuer_scope = ModelLaneScope {
+            owner_account_id: issuer.owner_account_id.to_string(),
+            actor_principal_id: issuer.actor_principal_id.to_string(),
+            authenticated_session_id: issuer.authenticated_session_id.to_string(),
+            access_space_id: issuer.access_space_id.to_string(),
+            workspace_id: issuer.workspace_id.as_str().to_owned(),
+        };
+        if row.owner_account_id != issuer_scope.owner_account_id
+            || row.actor_principal_id != issuer_scope.actor_principal_id
+            || row.authenticated_session_id != issuer_scope.authenticated_session_id
+            || row.access_space_id != issuer_scope.access_space_id
+            || row.workspace_id != issuer_scope.workspace_id
+            || row.record_id != stable_record_id(ModelLaneRecordKind::RoleEvidence.as_str(), &receipt.body.action.idempotency_key, &issuer_scope) {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "canonical routing prior immutable issuer or record identity differs" });
+        }
+        // Decoded expectations check integrity only; Account binds the canonical stage before command capture.
+        let selector = crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector {
+            evidence_ref: canonical_prior_ref.clone(),
+            expectation: handshake_role_authority::domain::ResolutionExpectation {
+                receipt_scope: issuer.clone(), role: receipt.body.role.clone(),
+                run: receipt.body.run.clone(), subject: receipt.body.subject.clone(),
+                purpose: receipt.body.purpose.clone(), expected: receipt.body.expected.clone(),
+            },
+            designation_ref: None, producer: None,
+        };
+        let (verified, issuance_operation_id) = self.validate_role_evidence_row(row, event_id, &selector)?;
+        Ok((verified.receipt().clone(), issuance_operation_id))
+    }
+
+    async fn read_role_evidence_with_query(
+        &self,
+        query: &ModelLaneQuery<'_, '_>,
+        selector: &crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector,
+    ) -> Result<(handshake_role_authority::domain::PureVerifiedRoleEvidence, uuid::Uuid), SurrealStorageError> {
+        let reference = selector.evidence_ref.to_string();
+        let event_id = reference.strip_prefix("eventledger://role-authority/")
+            .filter(|value| !value.is_empty())
+            .ok_or(SurrealStorageError::InvalidModelLaneRecord { reason: "role evidence reference is malformed" })?;
+        let scope = &selector.expectation.receipt_scope;
+        let bindings = RoleEvidenceLookupBindings {
+            event_id: event_id.to_owned(),
+            owner_account_id: scope.owner_account_id.to_string(),
+            actor_principal_id: scope.actor_principal_id.to_string(),
+            authenticated_session_id: scope.authenticated_session_id.to_string(),
+            access_space_id: scope.access_space_id.to_string(),
+            workspace_id: scope.workspace_id.as_str().to_owned(),
+        };
+        let rows = query.query_values::<CanonicalRoleEvidenceRow, _>(
+            "SELECT record::id(id) AS record_id, owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, aggregate_id, run_id, idempotency_key, record_json, event_id, event_seq, event_stream_version, transaction_seq, event_ledger_event_id.event_sequence AS ledger_event_seq, event_ledger_event_id.event_id AS ledger_event_id, event_ledger_event_id.payload.event_stream_version AS ledger_event_stream_version, event_ledger_event_id.session_run_id AS ledger_stream_id, event_ledger_event_id.payload.event_payload_json AS payload_json, event_ledger_event_id.payload_hash AS payload_hash, event_ledger_event_id.causation_id AS causation_id, event_ledger_event_id.correlation_id AS correlation_id, event_ledger_event_id.payload.issuance_operation_id AS issuance_operation_id FROM model_lane_authority WHERE record_kind = 'role_evidence' AND event_id = $event_id AND event_ledger_event_id = type::record('kernel_event_ledger', $event_id) AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND event_ledger_event_id.owner_account_id = $owner_account_id AND event_ledger_event_id.actor_principal_id = $actor_principal_id AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id AND event_ledger_event_id.access_space_id = $access_space_id AND event_ledger_event_id.workspace_id = $workspace_id AND event_ledger_event_id.source_component = 'model_lane' AND event_ledger_event_id.event_version = 'kernel_event_v1' AND event_ledger_event_id.event_type = 'MODEL_LANE_AUTHORITY_RECORDED' AND event_ledger_event_id.actor_kind = 'principal' AND event_ledger_event_id.actor_id = $actor_principal_id AND event_ledger_event_id.aggregate_type = 'role_evidence' AND event_ledger_event_id.aggregate_id = aggregate_id AND event_ledger_event_id.kernel_task_run_id = run_id AND event_ledger_event_id.payload.run_id = run_id AND event_ledger_event_id.payload.record_kind = record_kind LIMIT 2;",
+            bindings,
+        ).await?;
+        if rows.len() != 1 {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "canonical role evidence is missing or ambiguous" });
+        }
+        self.validate_role_evidence_row(&rows[0], event_id, selector)
+    }
+
+    fn validate_role_evidence_row(
+        &self,
+        row: &CanonicalRoleEvidenceRow,
+        event_id: &str,
+        selector: &crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector,
+    ) -> Result<(handshake_role_authority::domain::PureVerifiedRoleEvidence, uuid::Uuid), SurrealStorageError> {
+        let receipt: handshake_role_authority::domain::RoleReceipt = serde_json::from_str(&row.record_json)
+            .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "canonical role receipt JSON is malformed" })?;
+        let payload_hash = handshake_role_authority::domain::ContentSha256::from_hex(&row.payload_hash)
+            .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "canonical role event hash is malformed" })?;
+        let payload = handshake_role_authority::domain::CanonicalEventPayload {
+            key: receipt.event.clone(), payload_json: row.payload_json.clone(), payload_hash,
+        };
+        let expected_causation = match &receipt.body.purpose {
+            handshake_role_authority::domain::Purpose::PriorSelection => receipt.body.action.request_id.as_str(),
+            handshake_role_authority::domain::Purpose::StageAcknowledgement(stage) => stage.authority_request_message_ref.as_str(),
+        };
+        if row.record_json.as_bytes() != row.payload_json.as_bytes()
+            || row.event_id != receipt.event.event_id || row.event_id != event_id || row.ledger_event_id != row.event_id
+            || u64::try_from(row.event_seq).ok() != Some(receipt.event.event_seq)
+            || row.ledger_event_seq != row.event_seq
+            || u64::try_from(row.transaction_seq).ok() != Some(receipt.event.transaction_seq)
+            || row.event_stream_version <= 0 || row.event_stream_version != row.ledger_event_stream_version
+            || row.ledger_stream_id != receipt.event.stream_id
+            || row.run_id != receipt.body.run.run_id || row.aggregate_id != receipt.body.action.action_id
+            || row.idempotency_key != receipt.body.action.idempotency_key
+            || row.causation_id.as_deref() != Some(expected_causation)
+            || row.correlation_id.as_deref() != Some(receipt.body.run.trace_id.as_str()) {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "canonical role record, event, request, or causation binding differs" });
+        }
+        let verified = handshake_role_authority::resolution::verify_receipt(&receipt, &payload, &selector.expectation)
+            .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "canonical role receipt integrity or expected binding differs" })?;
+        if verified.reference() != &selector.evidence_ref {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "canonical role receipt reference differs" });
+        }
+        let issuance_operation_id = uuid::Uuid::parse_str(&row.issuance_operation_id)
+            .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "canonical role issuance operation is malformed" })?;
+        Ok((verified, issuance_operation_id))
+    }
+
+    pub(crate) async fn get_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        kind: ModelLaneRecordKind,
+        aggregate_id: &str,
+        issuer: &ModelLaneScope,
+    ) -> Result<Option<SurrealModelLaneRecord>, SurrealStorageError> {
+        validate_scope(issuer)?;
+        let rows = transaction.query_values_at::<StoredRow, _>(
+            "SELECT aggregate_id, run_id, idempotency_key, record_json, event_id, event_seq, event_stream_version, transaction_seq FROM model_lane_authority WHERE record_kind = $record_kind AND aggregate_id = $aggregate_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 2;",
+            scoped_bindings(kind, aggregate_id, "", "", issuer),
+            0,
+        ).await?;
+        if rows.len() > 1 {
+            return Err(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "provided-transaction authority lookup is ambiguous",
+            });
+        }
+        Ok(rows.into_iter().next().map(Into::into))
+    }
+
+    pub(crate) async fn original_run_create_canonical_records(
+        &self,
+        scope: &ModelLaneScope,
+    ) -> Result<SurrealModelLaneCanonicalSet, SurrealStorageError> {
+        validate_scope(scope)?;
+        let bindings = scoped_bindings(ModelLaneRecordKind::Run, "", "", "", scope);
+        let observed = self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_first::<CanonicalScopeQueryResult, _>(
+                "RETURN { scope_records: (SELECT record_kind, aggregate_id, run_id, idempotency_key, record_json, event_id, event_seq, event_stream_version, transaction_seq FROM model_lane_authority WHERE record_kind IN ['run', 'lane', 'message', 'recovery_checkpoint', 'recovery_event', 'lease'] AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id ORDER BY event_seq ASC, aggregate_id ASC), ordered_ledger: (SELECT event_id, event_sequence AS event_seq, payload.event_stream_version AS event_stream_version, event_sequence AS transaction_seq, aggregate_id, payload.run_id AS run_id, session_run_id, kernel_task_run_id, payload_hash, payload.event_payload_json AS event_payload_json FROM kernel_event_ledger WHERE source_component = 'model_lane' AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id ORDER BY event_sequence ASC, event_id ASC) };",
+                bindings,
+            ).await
+        })).await?.ok_or(SurrealStorageError::InvalidModelLaneRecord {
+            reason: "canonical scope observation returned no result",
+        })?;
+        let mut scope_records = Vec::with_capacity(observed.scope_records.len());
+        for row in observed.scope_records {
+            let kind = match row.record_kind.as_str() {
+                "run" => ModelLaneRecordKind::Run,
+                "lane" => ModelLaneRecordKind::Lane,
+                "message" => ModelLaneRecordKind::Message,
+                "recovery_checkpoint" => ModelLaneRecordKind::RecoveryCheckpoint,
+                "recovery_event" => ModelLaneRecordKind::RecoveryEvent,
+                "lease" => ModelLaneRecordKind::Lease,
+                _ => return Err(SurrealStorageError::InvalidModelLaneRecord {
+                    reason: "canonical scope observation has an unexpected record kind",
+                }),
+            };
+            scope_records.push((kind, SurrealModelLaneRecord {
+                aggregate_id: row.aggregate_id, run_id: row.run_id,
+                idempotency_key: row.idempotency_key, record_json: row.record_json,
+                event_id: row.event_id, event_seq: row.event_seq,
+                event_stream_version: row.event_stream_version, transaction_seq: row.transaction_seq,
+            }));
+        }
+        Ok(SurrealModelLaneCanonicalSet { scope_records, ordered_ledger: observed.ordered_ledger })
+    }
+
     pub(crate) async fn list_run(
         &self,
         kind: ModelLaneRecordKind,
@@ -4875,15 +6305,53 @@ impl SurrealModelLaneStore {
         search_term: &str,
         scope: &ModelLaneScope,
     ) -> Result<Vec<SurrealModelLaneRecord>, SurrealStorageError> {
+        self.find_by_term_with_query(&ModelLaneQuery::Storage(&self.storage), kind, search_term, scope).await
+    }
+
+    pub(crate) async fn find_by_term_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        kind: ModelLaneRecordKind,
+        search_term: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Vec<SurrealModelLaneRecord>, SurrealStorageError> {
+        self.find_by_term_with_query(&ModelLaneQuery::Transaction(transaction), kind, search_term, scope).await
+    }
+
+    async fn find_by_term_with_query(
+        &self,
+        query: &ModelLaneQuery<'_, '_>,
+        kind: ModelLaneRecordKind,
+        search_term: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Vec<SurrealModelLaneRecord>, SurrealStorageError> {
         validate_scope(scope)?;
-        self.query_rows(
+        query.query_values::<StoredRow, _>(
             "SELECT aggregate_id, run_id, idempotency_key, record_json, event_id, event_seq, event_stream_version, transaction_seq FROM model_lane_authority WHERE record_kind = $record_kind AND $search_term IN search_terms AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id ORDER BY event_seq ASC;",
             scoped_bindings(kind, "", "", search_term, scope),
-        ).await
+        ).await.map(|rows| rows.into_iter().map(Into::into).collect())
     }
 
     pub(crate) async fn crdt_update_by_ref(
         &self,
+        update_bytes_ref: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Option<SurrealModelLaneCrdtUpdate>, SurrealStorageError> {
+        self.crdt_update_by_ref_with_query(&ModelLaneQuery::Storage(&self.storage), update_bytes_ref, scope).await
+    }
+
+    pub(crate) async fn crdt_update_by_ref_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        update_bytes_ref: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Option<SurrealModelLaneCrdtUpdate>, SurrealStorageError> {
+        self.crdt_update_by_ref_with_query(&ModelLaneQuery::Transaction(transaction), update_bytes_ref, scope).await
+    }
+
+    async fn crdt_update_by_ref_with_query(
+        &self,
+        query: &ModelLaneQuery<'_, '_>,
         update_bytes_ref: &str,
         scope: &ModelLaneScope,
     ) -> Result<Option<SurrealModelLaneCrdtUpdate>, SurrealStorageError> {
@@ -4897,22 +6365,34 @@ impl SurrealModelLaneStore {
             access_space_id: scope.access_space_id.clone(),
             workspace_id: scope.workspace_id.clone(),
         };
-        self.storage
-            .with_data_operation(|database| {
-                Box::pin(async move {
-                    database
+        query
                         .query_first::<SurrealModelLaneCrdtUpdate, _>(
                             "SELECT schema_id, owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, document_id, crdt_document_id, update_id, update_seq, update_sha256, update_bytes_ref, encoding::base64::encode(update_bytes) AS update_bytes_b64, actor_id, actor_kind, session_id, trace_id, state_vector_before, state_vector_after, replay_metadata_json.replay_order_key AS replay_order_key, replay_metadata_json.dependency_update_ids AS dependency_update_ids, replay_metadata_json.encoding AS replay_encoding, replay_metadata_json.schema_version AS replay_schema_version, event_ledger_stream_id, record::id(event_ledger_event_id) AS event_ledger_event_id, storage_authority, event_ledger_event_id.session_run_id AS ledger_session_run_id, event_ledger_event_id.event_type AS ledger_event_type, event_ledger_event_id.aggregate_type AS ledger_aggregate_type, event_ledger_event_id.aggregate_id AS ledger_aggregate_id, event_ledger_event_id.actor_kind AS ledger_actor_kind, event_ledger_event_id.actor_id AS ledger_actor_id, event_ledger_event_id.correlation_id AS ledger_correlation_id, event_ledger_event_id.payload_hash AS ledger_payload_hash, event_ledger_event_id.payload.update_id AS ledger_update_id, event_ledger_event_id.payload.update_seq AS ledger_update_seq, event_ledger_event_id.payload.actor_id AS ledger_actor_payload_id, event_ledger_event_id.payload.update_sha256 AS ledger_update_sha256, event_ledger_event_id.payload.state_vector_before AS ledger_state_vector_before, event_ledger_event_id.payload.state_vector_after AS ledger_state_vector_after, event_ledger_event_id.payload.site_id AS ledger_site_id FROM kernel_crdt_updates WHERE update_bytes_ref = $authority_ref AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND event_ledger_event_id.owner_account_id = $owner_account_id AND event_ledger_event_id.actor_principal_id = $actor_principal_id AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id AND event_ledger_event_id.access_space_id = $access_space_id AND event_ledger_event_id.workspace_id = $workspace_id LIMIT 1;",
                             bindings,
                         )
                         .await
-                })
-            })
-            .await
     }
 
     pub(crate) async fn crdt_update_by_id(
         &self,
+        update_id: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Option<SurrealModelLaneCrdtUpdate>, SurrealStorageError> {
+        self.crdt_update_by_id_with_query(&ModelLaneQuery::Storage(&self.storage), update_id, scope).await
+    }
+
+    pub(crate) async fn crdt_update_by_id_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        update_id: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Option<SurrealModelLaneCrdtUpdate>, SurrealStorageError> {
+        self.crdt_update_by_id_with_query(&ModelLaneQuery::Transaction(transaction), update_id, scope).await
+    }
+
+    async fn crdt_update_by_id_with_query(
+        &self,
+        query: &ModelLaneQuery<'_, '_>,
         update_id: &str,
         scope: &ModelLaneScope,
     ) -> Result<Option<SurrealModelLaneCrdtUpdate>, SurrealStorageError> {
@@ -4926,22 +6406,34 @@ impl SurrealModelLaneStore {
             access_space_id: scope.access_space_id.clone(),
             workspace_id: scope.workspace_id.clone(),
         };
-        self.storage
-            .with_data_operation(|database| {
-                Box::pin(async move {
-                    database
+        query
                         .query_first::<SurrealModelLaneCrdtUpdate, _>(
                             "SELECT schema_id, owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, document_id, crdt_document_id, update_id, update_seq, update_sha256, update_bytes_ref, encoding::base64::encode(update_bytes) AS update_bytes_b64, actor_id, actor_kind, session_id, trace_id, state_vector_before, state_vector_after, replay_metadata_json.replay_order_key AS replay_order_key, replay_metadata_json.dependency_update_ids AS dependency_update_ids, replay_metadata_json.encoding AS replay_encoding, replay_metadata_json.schema_version AS replay_schema_version, event_ledger_stream_id, record::id(event_ledger_event_id) AS event_ledger_event_id, storage_authority, event_ledger_event_id.session_run_id AS ledger_session_run_id, event_ledger_event_id.event_type AS ledger_event_type, event_ledger_event_id.aggregate_type AS ledger_aggregate_type, event_ledger_event_id.aggregate_id AS ledger_aggregate_id, event_ledger_event_id.actor_kind AS ledger_actor_kind, event_ledger_event_id.actor_id AS ledger_actor_id, event_ledger_event_id.correlation_id AS ledger_correlation_id, event_ledger_event_id.payload_hash AS ledger_payload_hash, event_ledger_event_id.payload.update_id AS ledger_update_id, event_ledger_event_id.payload.update_seq AS ledger_update_seq, event_ledger_event_id.payload.actor_id AS ledger_actor_payload_id, event_ledger_event_id.payload.update_sha256 AS ledger_update_sha256, event_ledger_event_id.payload.state_vector_before AS ledger_state_vector_before, event_ledger_event_id.payload.state_vector_after AS ledger_state_vector_after, event_ledger_event_id.payload.site_id AS ledger_site_id FROM kernel_crdt_updates WHERE update_id = $authority_ref AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND event_ledger_event_id.owner_account_id = $owner_account_id AND event_ledger_event_id.actor_principal_id = $actor_principal_id AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id AND event_ledger_event_id.access_space_id = $access_space_id AND event_ledger_event_id.workspace_id = $workspace_id LIMIT 1;",
                             bindings,
                         )
                         .await
-                })
-            })
-            .await
     }
 
     pub(crate) async fn crdt_snapshot_by_ref(
         &self,
+        snapshot_bytes_ref: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Option<SurrealModelLaneCrdtSnapshot>, SurrealStorageError> {
+        self.crdt_snapshot_by_ref_with_query(&ModelLaneQuery::Storage(&self.storage), snapshot_bytes_ref, scope).await
+    }
+
+    pub(crate) async fn crdt_snapshot_by_ref_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        snapshot_bytes_ref: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Option<SurrealModelLaneCrdtSnapshot>, SurrealStorageError> {
+        self.crdt_snapshot_by_ref_with_query(&ModelLaneQuery::Transaction(transaction), snapshot_bytes_ref, scope).await
+    }
+
+    async fn crdt_snapshot_by_ref_with_query(
+        &self,
+        query: &ModelLaneQuery<'_, '_>,
         snapshot_bytes_ref: &str,
         scope: &ModelLaneScope,
     ) -> Result<Option<SurrealModelLaneCrdtSnapshot>, SurrealStorageError> {
@@ -4955,22 +6447,32 @@ impl SurrealModelLaneStore {
             access_space_id: scope.access_space_id.clone(),
             workspace_id: scope.workspace_id.clone(),
         };
-        self.storage
-            .with_data_operation(|database| {
-                Box::pin(async move {
-                    database
+        query
                         .query_first::<SurrealModelLaneCrdtSnapshot, _>(
                             "SELECT schema_id, snapshot_id, owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, document_id, crdt_document_id, covered_update_seq, state_vector, snapshot_sha256, snapshot_bytes_ref, encoding::base64::encode(snapshot_bytes) AS snapshot_bytes_b64, actor_id, actor_kind, event_ledger_stream_id, record::id(event_ledger_event_id) AS event_ledger_event_id, promotion_evidence_update_ids, storage_authority, event_ledger_event_id.event_type AS ledger_event_type, event_ledger_event_id.aggregate_type AS ledger_aggregate_type, event_ledger_event_id.aggregate_id AS ledger_aggregate_id, event_ledger_event_id.actor_kind AS ledger_actor_kind, event_ledger_event_id.actor_id AS ledger_actor_id, event_ledger_event_id.payload_hash AS ledger_payload_hash, event_ledger_event_id.payload.document_id AS ledger_document_id, event_ledger_event_id.payload.state_vector AS ledger_state_vector, event_ledger_event_id.payload.covered_update_seq AS ledger_covered_update_seq FROM kernel_crdt_snapshots WHERE snapshot_bytes_ref = $authority_ref AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND event_ledger_event_id.owner_account_id = $owner_account_id AND event_ledger_event_id.actor_principal_id = $actor_principal_id AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id AND event_ledger_event_id.access_space_id = $access_space_id AND event_ledger_event_id.workspace_id = $workspace_id LIMIT 1;",
                             bindings,
                         )
                         .await
-                })
-            })
-            .await
     }
 
     pub(crate) async fn crdt_proposal_base_snapshot(
         &self, document_id: &str, crdt_document_id: &str, base_update_seq: i64,
+        scope: &ModelLaneScope,
+    ) -> Result<SurrealModelLaneCrdtSnapshot, SurrealStorageError> {
+        self.crdt_proposal_base_snapshot_with_query(&ModelLaneQuery::Storage(&self.storage), document_id, crdt_document_id, base_update_seq, scope).await
+    }
+
+    pub(crate) async fn crdt_proposal_base_snapshot_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>, document_id: &str, crdt_document_id: &str, base_update_seq: i64,
+        scope: &ModelLaneScope,
+    ) -> Result<SurrealModelLaneCrdtSnapshot, SurrealStorageError> {
+        self.crdt_proposal_base_snapshot_with_query(&ModelLaneQuery::Transaction(transaction), document_id, crdt_document_id, base_update_seq, scope).await
+    }
+
+    async fn crdt_proposal_base_snapshot_with_query(
+        &self,
+        query: &ModelLaneQuery<'_, '_>, document_id: &str, crdt_document_id: &str, base_update_seq: i64,
         scope: &ModelLaneScope,
     ) -> Result<SurrealModelLaneCrdtSnapshot, SurrealStorageError> {
         validate_scope(scope)?;
@@ -4981,11 +6483,9 @@ impl SurrealModelLaneStore {
             workspace_id: scope.workspace_id.clone(), document_id: document_id.to_owned(),
             crdt_document_id: crdt_document_id.to_owned(), covered_update_seq: base_update_seq, update_seq: base_update_seq,
         };
-        let rows = self.storage.with_data_operation(|database| Box::pin(async move {
-            database.query_values::<SurrealModelLaneCrdtSnapshot, _>(
+        let rows = query.query_values::<SurrealModelLaneCrdtSnapshot, _>(
                 "SELECT schema_id, snapshot_id, owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, document_id, crdt_document_id, covered_update_seq, state_vector, snapshot_sha256, snapshot_bytes_ref, encoding::base64::encode(snapshot_bytes) AS snapshot_bytes_b64, actor_id, actor_kind, event_ledger_stream_id, record::id(event_ledger_event_id) AS event_ledger_event_id, promotion_evidence_update_ids, storage_authority, event_ledger_event_id.event_type AS ledger_event_type, event_ledger_event_id.aggregate_type AS ledger_aggregate_type, event_ledger_event_id.aggregate_id AS ledger_aggregate_id, event_ledger_event_id.actor_kind AS ledger_actor_kind, event_ledger_event_id.actor_id AS ledger_actor_id, event_ledger_event_id.payload_hash AS ledger_payload_hash, event_ledger_event_id.payload.document_id AS ledger_document_id, event_ledger_event_id.payload.state_vector AS ledger_state_vector, event_ledger_event_id.payload.covered_update_seq AS ledger_covered_update_seq FROM kernel_crdt_snapshots WHERE document_id = $document_id AND crdt_document_id = $crdt_document_id AND covered_update_seq = $covered_update_seq AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND event_ledger_event_id.owner_account_id = $owner_account_id AND event_ledger_event_id.actor_principal_id = $actor_principal_id AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id AND event_ledger_event_id.access_space_id = $access_space_id AND event_ledger_event_id.workspace_id = $workspace_id LIMIT 2;", bindings,
-            ).await
-        })).await?;
+            ).await?;
         let mut rows = rows;
         if rows.len() != 1 { return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "proposal base snapshot is missing or ambiguous" }); }
         Ok(rows.remove(0))
@@ -4993,6 +6493,30 @@ impl SurrealModelLaneStore {
 
     pub(crate) async fn crdt_update_chain(
         &self,
+        document_id: &str,
+        crdt_document_id: &str,
+        covered_update_seq: i64,
+        update_seq: i64,
+        scope: &ModelLaneScope,
+    ) -> Result<Vec<SurrealModelLaneCrdtUpdate>, SurrealStorageError> {
+        self.crdt_update_chain_with_query(&ModelLaneQuery::Storage(&self.storage), document_id, crdt_document_id, covered_update_seq, update_seq, scope).await
+    }
+
+    pub(crate) async fn crdt_update_chain_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        document_id: &str,
+        crdt_document_id: &str,
+        covered_update_seq: i64,
+        update_seq: i64,
+        scope: &ModelLaneScope,
+    ) -> Result<Vec<SurrealModelLaneCrdtUpdate>, SurrealStorageError> {
+        self.crdt_update_chain_with_query(&ModelLaneQuery::Transaction(transaction), document_id, crdt_document_id, covered_update_seq, update_seq, scope).await
+    }
+
+    async fn crdt_update_chain_with_query(
+        &self,
+        query: &ModelLaneQuery<'_, '_>,
         document_id: &str,
         crdt_document_id: &str,
         covered_update_seq: i64,
@@ -5012,22 +6536,38 @@ impl SurrealModelLaneStore {
             covered_update_seq,
             update_seq,
         };
-        self.storage
-            .with_data_operation(|database| {
-                Box::pin(async move {
-                    database
+        query
                         .query_values::<SurrealModelLaneCrdtUpdate, _>(
                             "SELECT schema_id, owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, document_id, crdt_document_id, update_id, update_seq, update_sha256, update_bytes_ref, encoding::base64::encode(update_bytes) AS update_bytes_b64, actor_id, actor_kind, session_id, trace_id, state_vector_before, state_vector_after, replay_metadata_json.replay_order_key AS replay_order_key, replay_metadata_json.dependency_update_ids AS dependency_update_ids, replay_metadata_json.encoding AS replay_encoding, replay_metadata_json.schema_version AS replay_schema_version, event_ledger_stream_id, record::id(event_ledger_event_id) AS event_ledger_event_id, storage_authority, event_ledger_event_id.session_run_id AS ledger_session_run_id, event_ledger_event_id.event_type AS ledger_event_type, event_ledger_event_id.aggregate_type AS ledger_aggregate_type, event_ledger_event_id.aggregate_id AS ledger_aggregate_id, event_ledger_event_id.actor_kind AS ledger_actor_kind, event_ledger_event_id.actor_id AS ledger_actor_id, event_ledger_event_id.correlation_id AS ledger_correlation_id, event_ledger_event_id.payload_hash AS ledger_payload_hash, event_ledger_event_id.payload.update_id AS ledger_update_id, event_ledger_event_id.payload.update_seq AS ledger_update_seq, event_ledger_event_id.payload.actor_id AS ledger_actor_payload_id, event_ledger_event_id.payload.update_sha256 AS ledger_update_sha256, event_ledger_event_id.payload.state_vector_before AS ledger_state_vector_before, event_ledger_event_id.payload.state_vector_after AS ledger_state_vector_after, event_ledger_event_id.payload.site_id AS ledger_site_id FROM kernel_crdt_updates WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND event_ledger_event_id.owner_account_id = $owner_account_id AND event_ledger_event_id.actor_principal_id = $actor_principal_id AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id AND event_ledger_event_id.access_space_id = $access_space_id AND event_ledger_event_id.workspace_id = $workspace_id AND document_id = $document_id AND crdt_document_id = $crdt_document_id AND update_seq > $covered_update_seq AND update_seq <= $update_seq ORDER BY update_seq ASC;",
                             bindings,
                         )
                         .await
-                })
-            })
-            .await
     }
 
     pub(crate) async fn crdt_seen_update_ids(
         &self,
+        document_id: &str,
+        crdt_document_id: &str,
+        covered_update_seq: i64,
+        scope: &ModelLaneScope,
+    ) -> Result<Vec<String>, SurrealStorageError> {
+        self.crdt_seen_update_ids_with_query(&ModelLaneQuery::Storage(&self.storage), document_id, crdt_document_id, covered_update_seq, scope).await
+    }
+
+    pub(crate) async fn crdt_seen_update_ids_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        document_id: &str,
+        crdt_document_id: &str,
+        covered_update_seq: i64,
+        scope: &ModelLaneScope,
+    ) -> Result<Vec<String>, SurrealStorageError> {
+        self.crdt_seen_update_ids_with_query(&ModelLaneQuery::Transaction(transaction), document_id, crdt_document_id, covered_update_seq, scope).await
+    }
+
+    async fn crdt_seen_update_ids_with_query(
+        &self,
+        query: &ModelLaneQuery<'_, '_>,
         document_id: &str,
         crdt_document_id: &str,
         covered_update_seq: i64,
@@ -5046,12 +6586,10 @@ impl SurrealModelLaneStore {
             covered_update_seq,
             update_seq: covered_update_seq,
         };
-        let rows = self.storage.with_data_operation(|database| Box::pin(async move {
-            database.query_values::<CrdtUpdateIdRow, _>(
+        let rows = query.query_values::<CrdtUpdateIdRow, _>(
                 "SELECT update_id FROM kernel_crdt_updates WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND event_ledger_event_id.owner_account_id = $owner_account_id AND event_ledger_event_id.actor_principal_id = $actor_principal_id AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id AND event_ledger_event_id.access_space_id = $access_space_id AND event_ledger_event_id.workspace_id = $workspace_id AND document_id = $document_id AND crdt_document_id = $crdt_document_id AND update_seq <= $covered_update_seq ORDER BY update_seq ASC;",
                 bindings,
-            ).await
-        })).await?;
+            ).await?;
         Ok(rows.into_iter().map(|row| row.update_id).collect())
     }
 
@@ -5123,8 +6661,26 @@ impl SurrealModelLaneStore {
         proposal_id: &str,
         scope: &ModelLaneScope,
     ) -> Result<Option<SurrealModelLaneCrdtProposal>, SurrealStorageError> {
+        self.crdt_proposal_with_query(&ModelLaneQuery::Storage(&self.storage), proposal_id, scope).await
+    }
+
+    pub(crate) async fn crdt_proposal_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        proposal_id: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Option<SurrealModelLaneCrdtProposal>, SurrealStorageError> {
+        self.crdt_proposal_with_query(&ModelLaneQuery::Transaction(transaction), proposal_id, scope).await
+    }
+
+    async fn crdt_proposal_with_query(
+        &self,
+        query: &ModelLaneQuery<'_, '_>,
+        proposal_id: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Option<SurrealModelLaneCrdtProposal>, SurrealStorageError> {
         Ok(self
-            .crdt_proposal_record(proposal_id, scope)
+            .crdt_proposal_record_with_query(query, proposal_id, scope)
             .await?
             .map(|row| SurrealModelLaneCrdtProposal {
                 proposal_id: row.proposal_id,
@@ -5151,6 +6707,24 @@ impl SurrealModelLaneStore {
         proposal_id: &str,
         scope: &ModelLaneScope,
     ) -> Result<Option<SurrealModelLaneCrdtProposalRecord>, SurrealStorageError> {
+        self.crdt_proposal_record_with_query(&ModelLaneQuery::Storage(&self.storage), proposal_id, scope).await
+    }
+
+    pub(crate) async fn crdt_proposal_record_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        proposal_id: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Option<SurrealModelLaneCrdtProposalRecord>, SurrealStorageError> {
+        self.crdt_proposal_record_with_query(&ModelLaneQuery::Transaction(transaction), proposal_id, scope).await
+    }
+
+    async fn crdt_proposal_record_with_query(
+        &self,
+        query: &ModelLaneQuery<'_, '_>,
+        proposal_id: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Option<SurrealModelLaneCrdtProposalRecord>, SurrealStorageError> {
         validate_scope(scope)?;
         let bindings = CrdtReferenceBindings {
             navigation_selection: NAVIGATION_READ_SELECTOR.try_with(Clone::clone).ok(),
@@ -5161,27 +6735,36 @@ impl SurrealModelLaneStore {
             access_space_id: scope.access_space_id.clone(),
             workspace_id: scope.workspace_id.clone(),
         };
-        let row = self
-            .storage
-            .with_data_operation(|database| {
-                Box::pin(async move {
-                    database
+        let row = query
                         .query_first::<SurrealModelLaneCrdtProposalRecord, _>(
                             "SELECT proposal_id, owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, document_id, crdt_document_id, base_update_seq, base_state_vector, proposed_diff, diff_sha256, source_span_citations, actor_id, actor_kind, session_id, correlation_id, lease_id.lease_id AS lease_id, review_state, decided_by, decided_at_utc, decision_reason, record::id(recorded_event_id) AS recorded_event_id, record::id(decided_event_id) AS decided_event_id, record::id(promotion_requested_event_id) AS promotion_requested_event_id, record::id(promotion_accepted_event_id) AS promotion_accepted_event_id, applied_update_id, applied_update_sha256, record::id(applied_event_id) AS applied_event_id, record::id(last_transition_event_id) AS last_transition_event_id, created_at_utc FROM knowledge_crdt_ai_edit_proposals WHERE proposal_id = $authority_ref AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND recorded_event_id.owner_account_id = $owner_account_id AND recorded_event_id.actor_principal_id = $actor_principal_id AND recorded_event_id.authenticated_session_id = $authenticated_session_id AND recorded_event_id.access_space_id = $access_space_id AND recorded_event_id.workspace_id = $workspace_id AND last_transition_event_id.owner_account_id = $owner_account_id AND last_transition_event_id.actor_principal_id = $actor_principal_id AND last_transition_event_id.authenticated_session_id = $authenticated_session_id AND last_transition_event_id.access_space_id = $access_space_id AND last_transition_event_id.workspace_id = $workspace_id LIMIT 1;",
                             bindings,
                         )
-                        .await
-                })
-            })
-            .await?;
+                        .await?;
         if let Some(row) = row.as_ref() {
-            self.validate_crdt_proposal_receipts(row, scope).await?;
+            self.validate_crdt_proposal_receipts_with_query(query, row, scope).await?;
         }
         Ok(row)
     }
 
     pub(crate) async fn crdt_proposal_application_links(
         &self, proposal: &SurrealModelLaneCrdtProposalRecord, update: &SurrealModelLaneCrdtUpdate,
+        scope: &ModelLaneScope,
+    ) -> Result<(i64, i64, Option<Value>), SurrealStorageError> {
+        self.crdt_proposal_application_links_with_query(&ModelLaneQuery::Storage(&self.storage), proposal, update, scope).await
+    }
+
+    pub(crate) async fn crdt_proposal_application_links_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>, proposal: &SurrealModelLaneCrdtProposalRecord, update: &SurrealModelLaneCrdtUpdate,
+        scope: &ModelLaneScope,
+    ) -> Result<(i64, i64, Option<Value>), SurrealStorageError> {
+        self.crdt_proposal_application_links_with_query(&ModelLaneQuery::Transaction(transaction), proposal, update, scope).await
+    }
+
+    async fn crdt_proposal_application_links_with_query(
+        &self,
+        query: &ModelLaneQuery<'_, '_>, proposal: &SurrealModelLaneCrdtProposalRecord, update: &SurrealModelLaneCrdtUpdate,
         scope: &ModelLaneScope,
     ) -> Result<(i64, i64, Option<Value>), SurrealStorageError> {
         validate_scope(scope)?;
@@ -5195,11 +6778,9 @@ impl SurrealModelLaneStore {
             access_space_id: scope.access_space_id.clone(), workspace_id: scope.workspace_id.clone(),
         };
         if bindings.navigation_selection.is_some() {
-            let rows = self.storage.with_data_operation(|database| Box::pin(async move {
-                database.query_values::<NavigationApplicationReceiptRow, _>(
+            let rows = query.query_values::<NavigationApplicationReceiptRow, _>(
                     "SELECT event_id, event_sequence, navigation_semantic_input AS semantic FROM kernel_event_ledger WHERE event_id IN $event_ids AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;", bindings,
-                ).await
-            })).await?;
+                ).await?;
             let by_id = rows.into_iter().map(|row| (row.event_id.clone(), row)).collect::<BTreeMap<_, _>>();
             if by_id.len() != event_ids.len() || event_ids.iter().any(|id| !by_id.contains_key(id)) {
                 return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "proposal application canonical receipts are missing or ambiguous" });
@@ -5224,11 +6805,9 @@ impl SurrealModelLaneStore {
             } else { None };
             return Ok((approval_seq, update_seq, application));
         }
-        let rows = self.storage.with_data_operation(|database| Box::pin(async move {
-            database.query_values::<Value, _>(
+        let rows = query.query_values::<Value, _>(
                 "SELECT event_id, event_sequence, payload, payload_hash FROM kernel_event_ledger WHERE event_id IN $event_ids AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;", bindings,
-            ).await
-        })).await?;
+            ).await?;
         if rows.len() != event_ids.len() { return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "proposal application canonical receipts are missing or ambiguous" }); }
         let find = |id: &str| rows.iter().find(|row| row.get("event_id").and_then(Value::as_str) == Some(id));
         let approval_seq = find(approval).and_then(|row| row.get("event_sequence")).and_then(Value::as_i64)
@@ -5255,6 +6834,24 @@ impl SurrealModelLaneStore {
         proposal: &SurrealModelLaneCrdtProposalRecord,
         scope: &ModelLaneScope,
     ) -> Result<(), SurrealStorageError> {
+        self.validate_crdt_proposal_receipts_with_query(&ModelLaneQuery::Storage(&self.storage), proposal, scope).await
+    }
+
+    async fn validate_crdt_proposal_receipts_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        proposal: &SurrealModelLaneCrdtProposalRecord,
+        scope: &ModelLaneScope,
+    ) -> Result<(), SurrealStorageError> {
+        self.validate_crdt_proposal_receipts_with_query(&ModelLaneQuery::Transaction(transaction), proposal, scope).await
+    }
+
+    async fn validate_crdt_proposal_receipts_with_query(
+        &self,
+        query: &ModelLaneQuery<'_, '_>,
+        proposal: &SurrealModelLaneCrdtProposalRecord,
+        scope: &ModelLaneScope,
+    ) -> Result<(), SurrealStorageError> {
         let event_ids = proposal_receipt_ids(proposal)?;
         let navigation = NAVIGATION_READ_SELECTOR.try_with(Clone::clone).ok();
         let bindings = CrdtProposalReceiptBindings {
@@ -5266,27 +6863,25 @@ impl SurrealModelLaneStore {
             access_space_id: scope.access_space_id.clone(),
             workspace_id: scope.workspace_id.clone(),
         };
-        let receipts = self.storage.with_data_operation(|database| Box::pin(async move {
-            if navigation.is_some() {
-                database.query_values::<CrdtProposalSemanticReceiptRow, _>(
+        let receipts = if navigation.is_some() {
+                query.query_values::<CrdtProposalSemanticReceiptRow, _>(
                     "SELECT event_id, event_version, kernel_task_run_id, session_run_id, aggregate_type, aggregate_id, idempotency_key, event_type, actor_kind, actor_id, causation_id, correlation_id, source_component, navigation_semantic_input AS semantic FROM kernel_event_ledger WHERE navigation_semantic_input != NONE AND event_id IN $event_ids AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;", bindings,
                 ).await
             } else {
-                database.query_values::<CrdtProposalReceiptRow, _>(
+                query.query_values::<CrdtProposalReceiptRow, _>(
                     "SELECT event_id, event_version, kernel_task_run_id, session_run_id, aggregate_type, aggregate_id, idempotency_key, event_type, actor_kind, actor_id, causation_id, correlation_id, payload_hash, source_component, payload FROM kernel_event_ledger WHERE event_id IN $event_ids AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;", bindings,
                 ).await?.into_iter().map(CrdtProposalReceiptRow::into_semantic).collect()
-            }
-        })).await?;
+            }?;
         validate_crdt_proposal_receipt_rows(proposal, receipts)?;
         if let Some(update_id) = &proposal.applied_update_id {
-            let update = self.crdt_update_by_id(update_id, scope).await?.ok_or(SurrealStorageError::InvalidModelLaneRecord { reason: "applied canonical Yjs update is missing" })?;
-            let snapshot = self.crdt_proposal_base_snapshot(&proposal.document_id, &proposal.crdt_document_id, proposal.base_update_seq, scope).await?;
-            let base = self.crdt_update_chain(&proposal.document_id, &proposal.crdt_document_id, 0, proposal.base_update_seq, scope).await?;
+            let update = self.crdt_update_by_id_with_query(query, update_id, scope).await?.ok_or(SurrealStorageError::InvalidModelLaneRecord { reason: "applied canonical Yjs update is missing" })?;
+            let snapshot = self.crdt_proposal_base_snapshot_with_query(query, &proposal.document_id, &proposal.crdt_document_id, proposal.base_update_seq, scope).await?;
+            let base = self.crdt_update_chain_with_query(query, &proposal.document_id, &proposal.crdt_document_id, 0, proposal.base_update_seq, scope).await?;
             if base.last().is_none_or(|base| base.state_vector_after != proposal.base_state_vector) || snapshot.state_vector != proposal.base_state_vector {
                 return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "applied proposal canonical base is invalid" });
             }
-            let seen = self.crdt_seen_update_ids(&proposal.document_id, &proposal.crdt_document_id, proposal.base_update_seq, scope).await?.into_iter().collect();
-            let (approval_sequence, update_sequence, actual) = self.crdt_proposal_application_links(proposal, &update, scope).await?;
+            let seen = self.crdt_seen_update_ids_with_query(query, &proposal.document_id, &proposal.crdt_document_id, proposal.base_update_seq, scope).await?.into_iter().collect();
+            let (approval_sequence, update_sequence, actual) = self.crdt_proposal_application_links_with_query(query, proposal, &update, scope).await?;
             let expected = crate::swarm_orchestration::model_lane::derive_crdt_proposal_application_evidence(
                 proposal, &update, &snapshot, &base, scope, seen, approval_sequence, update_sequence,
             ).map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "applied proposal does not realize its canonical approved operation" })?;
@@ -5297,6 +6892,28 @@ impl SurrealModelLaneStore {
 
     pub(crate) async fn crdt_lease_history(
         &self,
+        lease_id: &str,
+        document_id: &str,
+        crdt_document_id: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Option<SurrealModelLaneCrdtLeaseHistory>, SurrealStorageError> {
+        self.crdt_lease_history_with_query(&ModelLaneQuery::Storage(&self.storage), lease_id, document_id, crdt_document_id, scope).await
+    }
+
+    pub(crate) async fn crdt_lease_history_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        lease_id: &str,
+        document_id: &str,
+        crdt_document_id: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Option<SurrealModelLaneCrdtLeaseHistory>, SurrealStorageError> {
+        self.crdt_lease_history_with_query(&ModelLaneQuery::Transaction(transaction), lease_id, document_id, crdt_document_id, scope).await
+    }
+
+    async fn crdt_lease_history_with_query(
+        &self,
+        query: &ModelLaneQuery<'_, '_>,
         lease_id: &str,
         document_id: &str,
         crdt_document_id: &str,
@@ -5314,12 +6931,10 @@ impl SurrealModelLaneStore {
             document_id: document_id.to_owned(),
             crdt_document_id: crdt_document_id.to_owned(),
         };
-        self.storage.with_data_operation(|database| Box::pin(async move {
-            database.query_first::<SurrealModelLaneCrdtLeaseHistory, _>(
+        query.query_first::<SurrealModelLaneCrdtLeaseHistory, _>(
                 "SELECT lease_id, owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id, document_id, crdt_document_id, lane_id, actor_id, actor_kind, session_id, correlation_id, scope_kind, scope_id, claimed_at_utc, expires_at_utc, renewal_count, released_at_utc, expired_at_utc, record::id(takeover_of) AS takeover_of, record::id(recorded_event_id) AS recorded_event_id, record::id(last_transition_event_id) AS last_transition_event_id FROM knowledge_crdt_agent_lane_leases WHERE lease_id = $authority_ref AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND recorded_event_id.owner_account_id = $owner_account_id AND recorded_event_id.actor_principal_id = $actor_principal_id AND recorded_event_id.authenticated_session_id = $authenticated_session_id AND recorded_event_id.access_space_id = $access_space_id AND recorded_event_id.workspace_id = $workspace_id AND last_transition_event_id.owner_account_id = $owner_account_id AND last_transition_event_id.actor_principal_id = $actor_principal_id AND last_transition_event_id.authenticated_session_id = $authenticated_session_id AND last_transition_event_id.access_space_id = $access_space_id AND last_transition_event_id.workspace_id = $workspace_id AND ((scope_kind = 'workspace' AND scope_id = $workspace_id) OR (scope_kind = 'document' AND scope_id = $crdt_document_id AND document_id = $document_id AND crdt_document_id = $crdt_document_id)) LIMIT 1;",
                 bindings,
             ).await
-        })).await
     }
 
     pub(crate) async fn validate_event_link(
@@ -5354,66 +6969,35 @@ impl SurrealModelLaneStore {
                 })
             })
             .await?;
-        if rows.len() != 1 {
-            return Err(SurrealStorageError::InvalidModelLaneRecord {
-                reason: "model-lane authority row lacks one exact-scope EventLedger envelope",
-            });
-        }
-        let event = &rows[0];
-        if event.event_id != record.event_id
-            || event.aggregate_id != record.aggregate_id
-            || event.run_id != record.run_id
-            || event.kernel_task_run_id != record.run_id
-            || event.session_run_id != declared_event_stream(kind, &record.record_json)?.as_deref().unwrap_or(&record.run_id)
-            || event.event_seq != record.event_seq
-            || event.event_stream_version != record.event_stream_version
-            || event.transaction_seq != record.transaction_seq
-            || event.payload_hash != sha256_hex(event.event_payload_json.as_bytes())
-        {
-            return Err(SurrealStorageError::InvalidModelLaneRecord {
-                reason: "model-lane authority/EventLedger envelope mismatch",
-            });
-        }
-        if matches!(kind, ModelLaneRecordKind::Run | ModelLaneRecordKind::Lane | ModelLaneRecordKind::Message
-            | ModelLaneRecordKind::ContextArtifact | ModelLaneRecordKind::ContextHandoff) {
-            let payload: Value = serde_json::from_str(&event.event_payload_json).map_err(|_|
-                SurrealStorageError::InvalidModelLaneRecord { reason: "canonical source receipt payload is malformed" })?;
-            for (field, expected) in [
-                ("owner_account_id", scope.owner_account_id.as_str()),
-                ("actor_principal_id", scope.actor_principal_id.as_str()),
-                ("authenticated_session_id", scope.authenticated_session_id.as_str()),
-                ("access_space_id", scope.access_space_id.as_str()),
-                ("workspace_id", scope.workspace_id.as_str()),
-            ] {
-                if payload.get(field).and_then(Value::as_str) != Some(expected) {
-                    return Err(SurrealStorageError::InvalidModelLaneRecord {
-                        reason: "canonical source receipt immutable payload scope mismatch",
-                    });
-                }
-            }
-            if matches!(kind, ModelLaneRecordKind::ContextArtifact | ModelLaneRecordKind::ContextHandoff) {
-                let canonical: Value = serde_json::from_str(&record.record_json).map_err(|_|
-                    SurrealStorageError::InvalidModelLaneRecord { reason: "canonical context record JSON is malformed" })?;
-                let schema = if kind == ModelLaneRecordKind::ContextArtifact {
-                    "hsk.model_lane_context_bundle_artifact@1"
-                } else { "hsk.model_lane_context_bundle_handoff@1" };
-                if kind == ModelLaneRecordKind::ContextHandoff
-                    && payload.get("record").and_then(|record| record.get("context_bundle_hash"))
-                        != canonical.get("context_bundle_hash") {
-                    return Err(SurrealStorageError::InvalidModelLaneRecord {
-                        reason: "context_bundle_hash differs from immutable CONTEXT_BUNDLE_RECORDED authority",
-                    });
-                }
-                if payload.get("schema_id").and_then(Value::as_str) != Some(schema)
-                    || payload.get("dexterity_kernel").and_then(Value::as_str) != Some("Dexterity")
-                    || payload.get("record") != Some(&canonical) {
-                    return Err(SurrealStorageError::InvalidModelLaneRecord {
-                        reason: "canonical context receipt does not contain its exact finalized record",
-                    });
-                }
-            }
-        }
-        Ok(())
+        validate_stored_event_link(kind, record, scope, &rows)
+    }
+
+    pub(crate) async fn validate_event_link_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        kind: ModelLaneRecordKind,
+        record: &SurrealModelLaneRecord,
+        scope: &ModelLaneScope,
+    ) -> Result<(), SurrealStorageError> {
+        validate_scope(scope)?;
+        let bindings = EventLinkBindings {
+            event_id: record.event_id.clone(),
+            record_kind: kind.as_str().to_owned(),
+            aggregate_id: record.aggregate_id.clone(),
+            run_id: record.run_id.clone(),
+            event_ledger_stream_id: declared_event_stream(kind, &record.record_json)?,
+            owner_account_id: scope.owner_account_id.clone(),
+            actor_principal_id: scope.actor_principal_id.clone(),
+            authenticated_session_id: scope.authenticated_session_id.clone(),
+            access_space_id: scope.access_space_id.clone(),
+            workspace_id: scope.workspace_id.clone(),
+        };
+        let rows = transaction.query_values_at::<StoredEventLink, _>(
+            "SELECT event_ledger_event_id.event_id AS event_id, event_ledger_event_id.event_sequence AS event_seq, event_ledger_event_id.payload.event_stream_version AS event_stream_version, event_ledger_event_id.event_sequence AS transaction_seq, event_ledger_event_id.aggregate_id AS aggregate_id, event_ledger_event_id.payload.run_id AS run_id, event_ledger_event_id.kernel_task_run_id AS kernel_task_run_id, event_ledger_event_id.session_run_id AS session_run_id, event_ledger_event_id.payload_hash AS payload_hash, event_ledger_event_id.payload.event_payload_json AS event_payload_json FROM model_lane_authority WHERE record_kind = $record_kind AND aggregate_id = $aggregate_id AND run_id = $run_id AND event_id = $event_id AND event_ledger_event_id = type::record('kernel_event_ledger', $event_id) AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND event_ledger_event_id.source_component = 'model_lane' AND event_ledger_event_id.aggregate_type = $record_kind AND event_ledger_event_id.aggregate_id = $aggregate_id AND event_ledger_event_id.kernel_task_run_id = $run_id AND event_ledger_event_id.payload.run_id = $run_id AND event_ledger_event_id.session_run_id = IF $event_ledger_stream_id = NONE { $run_id } ELSE { $event_ledger_stream_id } AND event_ledger_event_id.owner_account_id = $owner_account_id AND event_ledger_event_id.actor_principal_id = $actor_principal_id AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id AND event_ledger_event_id.access_space_id = $access_space_id AND event_ledger_event_id.workspace_id = $workspace_id LIMIT 2;",
+            bindings,
+            0,
+        ).await?;
+        validate_stored_event_link(kind, record, scope, &rows)
     }
 
     pub(crate) async fn run_event_high_watermark(
@@ -5564,6 +7148,152 @@ impl SurrealModelLaneStore {
             .await?;
         Ok(rows.into_iter().map(Into::into).collect())
     }
+}
+
+// Supplied transactions retain the caller's controller across every dependent read.
+enum ModelLaneQuery<'a, 'tx> {
+    Storage(&'a SurrealStorage),
+    Transaction(&'a super::SurrealTransactionContext<'tx>),
+}
+
+impl ModelLaneQuery<'_, '_> {
+    async fn query_values<R, B>(
+        &self, statement: &'static str, bindings: B,
+    ) -> Result<Vec<R>, SurrealStorageError>
+    where R: SurrealValue + Send + 'static, B: SurrealValue + Send + 'static,
+    {
+        self.query_values_at(statement, bindings, 0).await
+    }
+
+    async fn query_first<R, B>(
+        &self, statement: &'static str, bindings: B,
+    ) -> Result<Option<R>, SurrealStorageError>
+    where R: SurrealValue + Send + 'static, B: SurrealValue + Send + 'static,
+    {
+        super::decode_first_value(self.query_values(statement, bindings).await?)
+    }
+
+    async fn query_values_at<R, B>(
+        &self, statement: &'static str, bindings: B, statement_index: usize,
+    ) -> Result<Vec<R>, SurrealStorageError>
+    where R: SurrealValue + Send + 'static, B: SurrealValue + Send + 'static,
+    {
+        match self {
+            Self::Storage(storage) => storage.with_data_operation(|database| Box::pin(async move {
+                database.query_values_at(statement, bindings, statement_index).await
+            })).await,
+            Self::Transaction(transaction) => {
+                let (statement, statement_index) = if let Some(body) = statement.trim().strip_prefix("BEGIN TRANSACTION;") {
+                    let body = body.strip_suffix("COMMIT TRANSACTION;").ok_or(
+                        SurrealStorageError::InvalidModelLaneRecord {
+                            reason: "provided transaction query has an unmatched legacy wrapper",
+                        },
+                    )?;
+                    let index = statement_index.checked_sub(1).ok_or(
+                        SurrealStorageError::InvalidModelLaneRecord {
+                            reason: "provided transaction query has an invalid legacy result index",
+                        },
+                    )?;
+                    (body, index)
+                } else { (statement, statement_index) };
+                transaction.query_values_at(statement, bindings, statement_index).await
+            }
+        }
+    }
+}
+
+fn stage_ack_command_matches(
+    command: &crate::swarm_orchestration::model_lane::RoleConsumptionCommand,
+    operation_id: uuid::Uuid,
+    prior_selector: &crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector,
+    acknowledgement: &crate::swarm_orchestration::model_lane::RoutingStageAcknowledgementIntent,
+) -> bool {
+    match command {
+        crate::swarm_orchestration::model_lane::RoleConsumptionCommand::AcknowledgeRoutingStage {
+            operation_id: captured_operation, selector, execution_id, stage_id, message_id: _,
+            acknowledgement: captured_acknowledgement,
+        } => *captured_operation == operation_id && role_selectors_match(selector, prior_selector)
+            && captured_acknowledgement == acknowledgement
+            && execution_id == &acknowledgement.stage().execution_id
+            && stage_id == &acknowledgement.stage().stage_id,
+        _ => false,
+    }
+}
+
+fn role_selectors_match(
+    left: &crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector,
+    right: &crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector,
+) -> bool {
+    left.evidence_ref == right.evidence_ref && left.expectation == right.expectation
+        && left.designation_ref == right.designation_ref && left.producer == right.producer
+}
+
+fn validate_stored_event_link(
+    kind: ModelLaneRecordKind,
+    record: &SurrealModelLaneRecord,
+    scope: &ModelLaneScope,
+    rows: &[StoredEventLink],
+) -> Result<(), SurrealStorageError> {
+    if rows.len() != 1 {
+        return Err(SurrealStorageError::InvalidModelLaneRecord {
+            reason: "model-lane authority row lacks one exact-scope EventLedger envelope",
+        });
+    }
+    let event = &rows[0];
+    if event.event_id != record.event_id
+        || event.aggregate_id != record.aggregate_id
+        || event.run_id != record.run_id
+        || event.kernel_task_run_id != record.run_id
+        || event.session_run_id != declared_event_stream(kind, &record.record_json)?.as_deref().unwrap_or(&record.run_id)
+        || event.event_seq != record.event_seq
+        || event.event_stream_version != record.event_stream_version
+        || event.transaction_seq != record.transaction_seq
+        || event.payload_hash != sha256_hex(event.event_payload_json.as_bytes())
+    {
+        return Err(SurrealStorageError::InvalidModelLaneRecord {
+            reason: "model-lane authority/EventLedger envelope mismatch",
+        });
+    }
+    if matches!(kind, ModelLaneRecordKind::Run | ModelLaneRecordKind::Lane | ModelLaneRecordKind::Message
+        | ModelLaneRecordKind::ContextArtifact | ModelLaneRecordKind::ContextHandoff) {
+        let payload: Value = serde_json::from_str(&event.event_payload_json).map_err(|_|
+            SurrealStorageError::InvalidModelLaneRecord { reason: "canonical source receipt payload is malformed" })?;
+        for (field, expected) in [
+            ("owner_account_id", scope.owner_account_id.as_str()),
+            ("actor_principal_id", scope.actor_principal_id.as_str()),
+            ("authenticated_session_id", scope.authenticated_session_id.as_str()),
+            ("access_space_id", scope.access_space_id.as_str()),
+            ("workspace_id", scope.workspace_id.as_str()),
+        ] {
+            if payload.get(field).and_then(Value::as_str) != Some(expected) {
+                return Err(SurrealStorageError::InvalidModelLaneRecord {
+                    reason: "canonical source receipt immutable payload scope mismatch",
+                });
+            }
+        }
+        if matches!(kind, ModelLaneRecordKind::ContextArtifact | ModelLaneRecordKind::ContextHandoff) {
+            let canonical: Value = serde_json::from_str(&record.record_json).map_err(|_|
+                SurrealStorageError::InvalidModelLaneRecord { reason: "canonical context record JSON is malformed" })?;
+            let schema = if kind == ModelLaneRecordKind::ContextArtifact {
+                "hsk.model_lane_context_bundle_artifact@1"
+            } else { "hsk.model_lane_context_bundle_handoff@1" };
+            if kind == ModelLaneRecordKind::ContextHandoff
+                && payload.get("record").and_then(|record| record.get("context_bundle_hash"))
+                    != canonical.get("context_bundle_hash") {
+                return Err(SurrealStorageError::InvalidModelLaneRecord {
+                    reason: "context_bundle_hash differs from immutable CONTEXT_BUNDLE_RECORDED authority",
+                });
+            }
+            if payload.get("schema_id").and_then(Value::as_str) != Some(schema)
+                || payload.get("dexterity_kernel").and_then(Value::as_str) != Some("Dexterity")
+                || payload.get("record") != Some(&canonical) {
+                return Err(SurrealStorageError::InvalidModelLaneRecord {
+                    reason: "canonical context receipt does not contain its exact finalized record",
+                });
+            }
+        }
+    }
+    Ok(())
 }
 
 fn scoped_bindings(
@@ -6918,4 +8648,15 @@ mod routing_provider_contract_tests {
             .contains("state_vector_before = $proposal[0].base_state_vector"));
         assert!(BIND_CRDT_PROPOSAL_UPDATE_QUERY.contains("$expected_actor_id"));
     }
+}
+
+const DESIGNATION_INSERT_QUERY: &str = "LET $existing = (SELECT aggregate_id, run_id, idempotency_key, record_json, event_id, event_seq, event_stream_version, transaction_seq FROM type::record('model_lane_authority', $record_id) WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id);\
+                 IF array::len($existing) > 0 { RETURN $existing; } ELSE {\
+                   LET $ledger = CREATE type::record('kernel_event_ledger', $event_id) CONTENT { event_id: $event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $run_id, session_run_id: IF $event_ledger_stream_id = NONE { $run_id } ELSE { $event_ledger_stream_id }, aggregate_type: $record_kind, aggregate_id: $aggregate_id, idempotency_key: $event_id, event_type: 'MODEL_LANE_AUTHORITY_RECORDED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: NONE, correlation_id: NONE, payload_hash: $event_payload_hash, source_component: 'model_lane', payload: { record_kind: $record_kind, run_id: $run_id, event_stream_version: 1, event_payload_json: $event_payload_json }, authority_resource_id: type::record('protected_resources', $wp012_original_resource), authority_grant_id: type::record('resource_grants', $wp012_original_grant), authority_session_id: $auth.id, authority_capability_id: $wp012_original_capability, authority_action: $wp012_original_action, wsids: [$workspace_id], owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };\
+                   LET $seq = $ledger[0].event_sequence;\
+                   RETURN CREATE type::record('model_lane_authority', $record_id) CONTENT { record_kind: $record_kind, aggregate_id: $aggregate_id, run_id: $run_id, idempotency_key: $idempotency_key, record_json: $record_json, search_terms: $search_terms, event_id: $event_id, event_ledger_event_id: type::record('kernel_event_ledger', $event_id), event_seq: $seq, event_stream_version: 1, transaction_seq: $seq, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };\
+                 };";
+
+fn role_storage_scope(scope: &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution) -> ModelLaneScope {
+    ModelLaneScope { owner_account_id: scope.owner_account_id.to_string(), actor_principal_id: scope.actor_principal_id.to_string(), authenticated_session_id: scope.authenticated_session_id.to_string(), access_space_id: scope.access_space_id.to_string(), workspace_id: scope.workspace_id.as_str().to_owned() }
 }

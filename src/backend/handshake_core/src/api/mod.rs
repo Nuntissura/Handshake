@@ -133,6 +133,8 @@ pub fn routes_with_scoped_operator_chat(
     launch_service: Arc<crate::swarm_orchestration::operator_chat::OperatorChatLaunchService>,
     swarm_event_drain: crate::swarm_orchestration::events::DurableSwarmFrDrain,
 ) -> ApiRoutes {
+    let operator_chat_state = operator_chat_state
+        .with_account_bootstrap(crate::AccountBootstrapState::from(&state));
     let operator_routes = operator_chat::scoped_routes(operator_chat_state)
         .layer(axum::Extension(product_scope.clone()))
         .layer(axum::Extension(state.surreal.resource_access_lifecycle()));
@@ -195,6 +197,12 @@ pub mod workspaces;
 pub fn routes(state: AppState) -> Router {
     let authority_routes = authority::routes(state.clone());
     let navigation_routes = model_lane_navigation::routes(state.clone());
+    let model_runtime_routes = model_runtime_registry::routes(
+        model_runtime_registry::ModelRuntimeRegistryApiState::new(
+            state.surreal.clone(),
+            state.llm_client.clone(),
+        ),
+    );
     let workspace_routes = workspaces::routes(state.clone());
     let preferences_routes = preferences::routes(state.clone());
     let calendar_routes = calendar::routes(state.clone());
@@ -232,6 +240,7 @@ pub fn routes(state: AppState) -> Router {
 
     authority_routes
         .merge(navigation_routes)
+        .merge(model_runtime_routes)
         .merge(workspace_routes)
         .merge(preferences_routes)
         .merge(calendar_routes)

@@ -63,6 +63,15 @@ pub struct SurrealDatabase {
 }
 
 impl SurrealDatabase {
+    pub(crate) async fn execute_job_admission(
+        storage: &SurrealStorage,
+        command: JobCreationCommand,
+        cancellation: std::sync::Arc<super::ContextOperationCancellation>,
+        retention: super::resource_authority::JobAdmissionTransactionRetention,
+    ) -> Result<JobCreateCommitOutcome, JobAdmissionError> {
+        storage.execute_job_admission(command, cancellation, retention).await
+    }
+
     /// Wrapper with a fresh keyed registry in [`super::keyed_lock::LockMode::Keyed`]
     /// (today's contention-shaping behaviour).
     pub fn new(storage: SurrealStorage) -> Self {

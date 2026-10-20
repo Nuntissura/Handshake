@@ -182,6 +182,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_context_coordination_key($row: object) {
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_operation_matrix($kind: string, $purpose: string, $action: string) {
     RETURN ($kind = 'workspace' AND $purpose IN ['consume', 'source_read', 'navigation_read'] AND $action = 'read')
         OR ($kind = 'workspace' AND $purpose IN ['artifact_binding', 'handoff', 'guarded_message', 'run_create', 'lane_create', 'workspace_claim', 'index_run_claim', 'cloud_projection_plan', 'cloud_consent_receipt', 'cloud_run', 'cloud_lane', 'cloud_consent_denial', 'diagnostic_record', 'recovery_checkpoint_record'] AND $action = 'create')
+        OR ($kind = 'workspace' AND $purpose = 'recovery_execute' AND $action = 'update')
         OR ($kind = 'rich_document' AND $purpose IN ['crdt_update', 'crdt_snapshot', 'document_claim', 'proposal_record', 'proposal_decide', 'proposal_apply'] AND $action = 'update')
         OR ($kind IN ['workspace', 'rich_document'] AND $purpose IN ['lease_renew', 'lease_release', 'lease_expiry'] AND $action = 'update');
 };
@@ -252,6 +253,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_context_coordination_domain($row: object) {
 DEFINE FUNCTION OVERWRITE fn::wp012_context_coordination_envelope($row: object, $resource: record<protected_resources>, $grant: record<resource_grants>, $capability: string, $action: string, $purpose: string, $kind: string, $subject: string) {
     RETURN fn::wp012_context_coordination_domain($row)
         AND fn::wp012_model_lane_operation_matrix($kind, $purpose, $action)
+        AND ($purpose != 'recovery_execute' OR $capability = 'model_lane.recovery.execute')
         AND fn::wp012_model_lane_resource_domain($resource, $row.workspace_id, $kind, $subject) = $row.canonical_workspace
         AND fn::wp012_model_lane_original_grant($resource, $grant, $capability, $action)
         AND ($kind != 'workspace' OR fn::mt109_has_workspace_access($row.workspace_id, $action, $capability));
@@ -298,7 +300,7 @@ DEFINE FIELD OVERWRITE authority_grant_id ON model_lane_context_coordination TYP
 DEFINE FIELD OVERWRITE authority_session_id ON model_lane_context_coordination TYPE record<authenticated_sessions>;
 DEFINE FIELD OVERWRITE authority_capability_id ON model_lane_context_coordination TYPE string;
 DEFINE FIELD OVERWRITE authority_action ON model_lane_context_coordination TYPE 'read' | 'create' | 'update';
-DEFINE FIELD OVERWRITE authority_purpose ON model_lane_context_coordination TYPE 'consume' | 'artifact_binding' | 'handoff' | 'guarded_message' | 'document_claim' | 'workspace_claim' | 'index_run_claim' | 'lease_renew' | 'lease_release' | 'lease_expiry' | 'crdt_update' | 'crdt_snapshot' | 'proposal_record' | 'proposal_decide' | 'proposal_apply' | 'cloud_projection_plan' | 'cloud_consent_receipt' | 'cloud_run' | 'cloud_lane' | 'cloud_consent_denial';
+DEFINE FIELD OVERWRITE authority_purpose ON model_lane_context_coordination TYPE 'consume' | 'recovery_execute' | 'artifact_binding' | 'handoff' | 'guarded_message' | 'document_claim' | 'workspace_claim' | 'index_run_claim' | 'lease_renew' | 'lease_release' | 'lease_expiry' | 'crdt_update' | 'crdt_snapshot' | 'proposal_record' | 'proposal_decide' | 'proposal_apply' | 'cloud_projection_plan' | 'cloud_consent_receipt' | 'cloud_run' | 'cloud_lane' | 'cloud_consent_denial';
 DEFINE FIELD OVERWRITE state ON model_lane_context_coordination TYPE 'held' | 'released';
 DEFINE FIELD OVERWRITE holder_operation_id ON model_lane_context_coordination TYPE uuid;
 DEFINE FIELD OVERWRITE generation ON model_lane_context_coordination TYPE int ASSERT $value > 0;
@@ -418,6 +420,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_original_operation($row: object) 
         AND fn::wp012_model_lane_original_grant($resource, $grant, $wp012_original_capability, $wp012_original_action)
         AND fn::wp012_model_lane_operation_matrix($kind, $wp012_original_purpose, $wp012_original_action)
         AND ($wp012_original_purpose != 'navigation_read' OR $wp012_original_capability = 'model_lane.navigation.read')
+        AND ($wp012_original_purpose != 'recovery_execute' OR $wp012_original_capability = 'model_lane.recovery.execute')
         AND ($wp012_original_purpose NOT IN ['proposal_record', 'proposal_decide', 'proposal_apply'] OR $wp012_original_capability = 'fs.write')
         AND ($kind != 'workspace' OR fn::mt109_has_workspace_access($row.workspace_id, $wp012_original_action, $wp012_original_capability));
 };
@@ -850,6 +853,18 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_context_message($row: 
     RETURN $messages[0];
 };
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_source_input($row: object) {
+    IF $row.record_kind = 'run' {
+        LET $body = encoding::json::decode($row.record_json);
+        RETURN { source_kind: 'run', run_id: $body.run_id, kind: 'run',
+            source_event_id: $row.event_id, source_event_seq: $row.event_seq,
+            memory_pack_ref: $body.memory_pack_ref, memory_pack_hash: $body.memory_pack_hash };
+    };
+    IF $row.record_kind = 'mt_runtime_status' {
+        LET $body = encoding::json::decode($row.record_json);
+        RETURN { source_kind: 'mt_runtime_status', kind: 'mt_runtime_status',
+            mt_status_id: $body.mt_status_id, run_id: $body.run_id, micro_task_id: $body.micro_task_id,
+            source_event_id: $row.event_id, source_event_seq: $row.event_seq };
+    };
     IF $row.record_kind IN ['message', 'lane'] { RETURN fn::wp012_model_lane_navigation_message_lane_input($row); };
     IF $row.record_kind = 'recovery_event' {
         LET $body = encoding::json::decode($row.record_json);
@@ -858,7 +873,15 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_source_input($row: obj
     };
     IF $row.record_kind NOT IN ['context_handoff', 'context_artifact'] { RETURN NONE; };
     LET $contexts = fn::wp012_model_lane_navigation_context_candidates($row);
-    RETURN { source_kind: 'context_sources', run_id: $row.run_id, kind: $row.record_kind,
+    LET $body = encoding::json::decode($row.record_json);
+    LET $artifact = IF $row.record_kind = 'context_artifact' {
+        { source_kind: 'context_artifact', run_id: $body.run_id, artifact_binding_id: $body.artifact_binding_id,
+          source_event_id: $row.event_id, source_event_seq: $row.event_seq,
+          artifact_ref: $body.artifact_ref, artifact_manifest_ref: $body.artifact_manifest_ref,
+          artifact_payload_ref: $body.artifact_payload_ref, artifact_sha256: $body.artifact_sha256,
+          content_hash: $body.content_hash, payload_json: encoding::json::encode($body.payload_json) }
+    } ELSE { NONE };
+    RETURN { source_kind: 'context_sources', run_id: $row.run_id, kind: $row.record_kind, artifact: $artifact,
         inputs: array::map($contexts, |$context| {
             LET $message = fn::wp012_model_lane_navigation_context_message($row, $context);
             RETURN { context_event_id: $context.event_id, context_event_seq: $context.event_seq,
@@ -868,6 +891,8 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_source_input($row: obj
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_source_input_access($row: object) {
     IF $row.navigation_source_input != fn::wp012_model_lane_navigation_source_input($row)
         OR !fn::wp012_model_lane_navigation_selector($row, $navigation_selection) { RETURN false; };
+    IF $row.record_kind = 'run' { RETURN fn::wp012_model_lane_navigation_identity($row); };
+    IF $row.record_kind = 'mt_runtime_status' { RETURN fn::wp012_model_lane_navigation_identity($row); };
     IF $row.record_kind IN ['lane', 'recovery_event'] { RETURN true; };
     IF $row.record_kind IN ['context_handoff', 'context_artifact'] {
         LET $candidates = fn::wp012_model_lane_navigation_context_candidates($row);
@@ -907,6 +932,10 @@ DEFINE FIELD OVERWRITE navigation_source_input.failstate_code ON model_lane_auth
 DEFINE FIELD OVERWRITE navigation_source_input.error_code ON model_lane_authority TYPE option<string>;
 DEFINE FIELD OVERWRITE navigation_source_input.source_event_id ON model_lane_authority TYPE option<string>;
 DEFINE FIELD OVERWRITE navigation_source_input.source_event_seq ON model_lane_authority TYPE option<int>;
+DEFINE FIELD OVERWRITE navigation_source_input.mt_status_id ON model_lane_authority TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_source_input.micro_task_id ON model_lane_authority TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_source_input.memory_pack_ref ON model_lane_authority TYPE option<string>;
+DEFINE FIELD OVERWRITE navigation_source_input.memory_pack_hash ON model_lane_authority TYPE option<string>;
 DEFINE FIELD OVERWRITE navigation_source_input.message_id ON model_lane_authority TYPE option<string>;
 DEFINE FIELD OVERWRITE navigation_source_input.from_lane_id ON model_lane_authority TYPE option<string>;
 DEFINE FIELD OVERWRITE navigation_source_input.to_lane ON model_lane_authority TYPE option<object>;
@@ -936,6 +965,18 @@ DEFINE FIELD OVERWRITE navigation_source_input.crdt_stale_base_ref ON model_lane
 -- Only the existing complete canonical binding is carried; its owning strict
 -- serde decoder is reused under a bounded internal reader, not duplicated here.
 DEFINE FIELD OVERWRITE navigation_source_input.binding ON model_lane_authority TYPE option<object> FLEXIBLE;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact ON model_lane_authority TYPE option<object>;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.source_kind ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.run_id ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.artifact_binding_id ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.source_event_id ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.artifact_ref ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.artifact_manifest_ref ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.artifact_payload_ref ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.artifact_sha256 ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.content_hash ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.payload_json ON model_lane_authority TYPE string;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.source_event_seq ON model_lane_authority TYPE int;
 DEFINE FIELD OVERWRITE navigation_source_input.inputs ON model_lane_authority TYPE option<array<object>>;
 DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.context_event_id ON model_lane_authority TYPE string;
 DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.context_event_seq ON model_lane_authority TYPE int;
@@ -1000,7 +1041,224 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_document_read($scope: 
         AND record::exists($canonical) AND $canonical.workspace_id = $scope.workspace_id
         AND fn::mt120_document_access($document, $scope.workspace_id, 'read', 'fs.read');
 };
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_runs($scope: object, $selection: object) {
+    LET $wp012_navigation_memory_metadata_only = true;
+    IF $wp012_original_purpose != 'navigation_read' OR $selection = NONE OR $selection != $navigation_selection
+        OR !fn::wp012_model_lane_original_operation($scope) { RETURN []; };
+    LET $runs = SELECT run_id, event_id, event_seq, navigation_source_input AS input FROM model_lane_authority
+        WHERE record_kind = 'run' AND owner_account_id = $scope.owner_account_id
+        AND actor_principal_id = $scope.actor_principal_id AND authenticated_session_id = $scope.authenticated_session_id
+        AND access_space_id = $scope.access_space_id AND workspace_id = $scope.workspace_id
+        AND fn::wp012_model_lane_navigation_selector($this, $selection)
+        ORDER BY run_id ASC, event_id ASC, event_seq ASC;
+    LET $candidates = array::filter($runs, |$run| {
+        $run.input != NONE AND $run.input != NULL
+            AND type::is_string($run.input.memory_pack_ref) AND string::trim($run.input.memory_pack_ref) != ''
+            AND type::is_string($run.input.memory_pack_hash) AND string::trim($run.input.memory_pack_hash) != '';
+    });
+    IF !array::all(array::map($candidates, |$run| {
+        $run.input.source_kind = 'run' AND $run.input.run_id = $run.run_id
+            AND $run.input.source_event_id = $run.event_id AND $run.input.source_event_seq = $run.event_seq
+            AND string::len($run.input.memory_pack_hash) = 64;
+    })) { THROW 'ModelLane navigation canonical run MemoryPack input is malformed'; };
+    RETURN array::map($candidates, |$run| { $run.input; });
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_metadata_access($row: object) {
+    LET $wp012_navigation_memory_metadata_only = true;
+    LET $scope = { owner_account_id: record::id($auth.account_id), actor_principal_id: record::id($auth.principal_id),
+        authenticated_session_id: record::id($auth.id), access_space_id: record::id($auth.access_space_id),
+        workspace_id: $wp012_original_workspace };
+    IF $wp012_original_purpose != 'navigation_read' OR $row.workspace_id != type::record('workspaces', $scope.workspace_id)
+        OR $row.pack_id != record::id($row.id) OR $row.navigation_memory_pack_id != $row.pack_id { RETURN false; };
+    LET $runs = fn::wp012_model_lane_navigation_memory_runs($scope, $navigation_selection);
+    RETURN array::len(array::filter($runs, |$run| {
+        $run.memory_pack_ref = record::id($row.id) AND $run.memory_pack_hash = $row.navigation_memory_pack_hash;
+    })) > 0;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_metadata($scope: object, $selection: object) {
+    LET $wp012_navigation_memory_metadata_only = true;
+    LET $runs = fn::wp012_model_lane_navigation_memory_runs($scope, $selection);
+    LET $metadata = array::map($runs, |$run| {
+        LET $packs = SELECT id, pack_id, workspace_id, navigation_memory_pack_id,
+            navigation_memory_pack_hash, navigation_memory_source_membership FROM fems_memory_packs
+            WHERE id = type::record('fems_memory_packs', $run.memory_pack_ref)
+            AND pack_id = $run.memory_pack_ref AND navigation_memory_pack_id = $run.memory_pack_ref
+            AND navigation_memory_pack_hash = $run.memory_pack_hash
+            AND workspace_id = type::record('workspaces', $scope.workspace_id) LIMIT 2;
+        IF array::len($packs) = 0 { RETURN NONE; };
+        IF array::len($packs) = 1 AND ($packs[0].navigation_memory_source_membership = NONE
+            OR $packs[0].navigation_memory_source_membership = NULL) { RETURN NONE; };
+        IF array::len($packs) != 1 OR !type::is_array($packs[0].navigation_memory_source_membership) {
+            THROW 'ModelLane navigation persisted MemoryPack metadata differs from canonical run';
+        };
+        RETURN { run_id: $run.run_id, source_event_id: $run.source_event_id, source_event_seq: $run.source_event_seq,
+            memory_pack_ref: $run.memory_pack_ref, memory_pack_hash: $run.memory_pack_hash,
+            record_pack_id: record::id($packs[0].id), record_workspace_id: record::id($packs[0].workspace_id),
+            source_membership: $packs[0].navigation_memory_source_membership, pack_record: $packs[0].id };
+    });
+    RETURN array::filter($metadata, |$row| { $row != NONE AND $row != NULL; });
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_block_metadata_access($row: object) {
+    LET $wp012_navigation_memory_metadata_only = true;
+    LET $scope = { owner_account_id: record::id($auth.account_id), actor_principal_id: record::id($auth.principal_id),
+        authenticated_session_id: record::id($auth.id), access_space_id: record::id($auth.access_space_id), workspace_id: $wp012_original_workspace };
+    IF $wp012_original_purpose != 'navigation_read' OR $navigation_selection = NONE
+        OR !fn::wp012_model_lane_original_operation($scope)
+        OR !type::is_string(record::id($row.id)) OR $row.id != type::record('blocks', record::id($row.id))
+        OR !type::is_string(record::id($row.document_id)) OR $row.document_id != type::record('documents', record::id($row.document_id)) { RETURN false; };
+    LET $documents = SELECT VALUE id FROM documents WHERE id = $row.document_id
+        AND workspace_id = type::record('workspaces', $scope.workspace_id) LIMIT 2;
+    IF array::len($documents) != 1 OR !fn::mt120_document_access(record::id($row.document_id), $scope.workspace_id, 'read', 'fs.read') { RETURN false; };
+    LET $packs = fn::wp012_model_lane_navigation_memory_metadata($scope, $navigation_selection);
+    LET $sources = array::flatten(array::map($packs, |$pack| { $pack.source_membership; }));
+    RETURN array::len(array::filter($sources, |$source| {
+        $source.kind = 'doc_block' AND type::is_string($source.id) AND $source.id = record::id($row.id);
+    })) > 0;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_document_metadata_access($row: object) {
+    LET $wp012_navigation_memory_metadata_only = true;
+    LET $scope = { owner_account_id: record::id($auth.account_id), actor_principal_id: record::id($auth.principal_id),
+        authenticated_session_id: record::id($auth.id), access_space_id: record::id($auth.access_space_id), workspace_id: $wp012_original_workspace };
+    IF $wp012_original_purpose != 'navigation_read' OR $navigation_selection = NONE
+        OR !fn::wp012_model_lane_original_operation($scope)
+        OR !type::is_string(record::id($row.id)) OR $row.id != type::record('documents', record::id($row.id))
+        OR $row.workspace_id != type::record('workspaces', $scope.workspace_id) { RETURN false; };
+    RETURN fn::mt120_document_access(record::id($row.id), $scope.workspace_id, 'read', 'fs.read');
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_document_links($scope: object, $selection: object) {
+    LET $wp012_navigation_memory_metadata_only = true;
+    IF $selection = NONE OR $selection != $navigation_selection OR $wp012_original_purpose != 'navigation_read'
+        OR !fn::wp012_model_lane_original_operation($scope) { RETURN []; };
+    LET $packs = fn::wp012_model_lane_navigation_memory_metadata($scope, $selection);
+    LET $sources = array::flatten(array::map($packs, |$pack| { $pack.source_membership; }));
+    LET $doc_sources = array::filter($sources, |$source| { $source.kind = 'doc_block' AND type::is_string($source.id) AND string::trim($source.id) != ''; });
+    LET $resolved = array::filter(array::map($doc_sources, |$source| {
+        LET $blocks = SELECT id, document_id, created_at, updated_at FROM blocks
+            WHERE id = type::record('blocks', $source.id) AND type::is_string(record::id(id))
+            AND record::id(id) = $source.id AND type::is_string(record::id(document_id))
+            AND document_id = type::record('documents', record::id(document_id)) LIMIT 2;
+        IF array::len($blocks) != 1 OR $blocks[0].created_at = NONE OR $blocks[0].updated_at = NONE { RETURN NONE; };
+        LET $documents = SELECT id, workspace_id FROM documents WHERE id = $blocks[0].document_id
+            AND type::is_string(record::id(id)) AND id = type::record('documents', record::id(id))
+            AND workspace_id = type::record('workspaces', $scope.workspace_id) LIMIT 2;
+        IF array::len($documents) != 1 OR !fn::mt120_document_access(record::id($documents[0].id), $scope.workspace_id, 'read', 'fs.read') { RETURN NONE; };
+        RETURN { source_id: $source.id, block_key: record::id($blocks[0].id), document_key: record::id($documents[0].id),
+            created_at: $blocks[0].created_at, updated_at: $blocks[0].updated_at };
+    }), |$link| { $link != NONE AND $link != NULL; });
+    LET $canonical_links = array::distinct($resolved);
+    RETURN SELECT source_id, block_key, document_key, created_at, updated_at FROM $canonical_links
+        ORDER BY source_id ASC, block_key ASC, document_key ASC, created_at ASC, updated_at ASC;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_artifact_metadata_access($row: object) {
+    LET $wp012_navigation_memory_metadata_only = true;
+    LET $scope = { owner_account_id: record::id($auth.account_id), actor_principal_id: record::id($auth.principal_id),
+        authenticated_session_id: record::id($auth.id), access_space_id: record::id($auth.access_space_id), workspace_id: $wp012_original_workspace };
+    IF $wp012_original_purpose != 'navigation_read' OR $navigation_selection = NONE
+        OR !fn::wp012_model_lane_original_operation($scope) OR $row.workspace_external_id != $scope.workspace_id
+        OR !fn::wp012_artifact_publication_association($row) { RETURN false; };
+    LET $packs = fn::wp012_model_lane_navigation_memory_metadata($scope, $navigation_selection);
+    LET $sources = array::flatten(array::map($packs, |$pack| { $pack.source_membership; }));
+    RETURN array::len(array::filter($sources, |$source| {
+        $source.kind = 'artifact' AND type::is_string($source.id) AND type::is_string($source.hash)
+            AND $source.id = $row.artifact_id;
+    })) > 0;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_artifact_metadata($scope: object, $selection: object) {
+    LET $wp012_navigation_memory_metadata_only = true;
+    IF $selection = NONE OR $selection != $navigation_selection OR $wp012_original_purpose != 'navigation_read'
+        OR !fn::wp012_model_lane_original_operation($scope) { RETURN []; };
+    LET $packs = fn::wp012_model_lane_navigation_memory_metadata($scope, $selection);
+    LET $sources = array::flatten(array::map($packs, |$pack| { $pack.source_membership; }));
+    LET $artifacts = array::filter($sources, |$source| { $source.kind = 'artifact' AND type::is_string($source.id) AND type::is_string($source.hash); });
+    LET $rows = array::filter(array::map($artifacts, |$source| {
+        LET $publications = SELECT artifact_id, artifact_resource_id, workspace_external_id, workspace_resource_id,
+            manifest_sha256, producer_operation_id, registration_version FROM artifact_publication
+            WHERE id = type::record('artifact_publication', $source.id) AND artifact_id = $source.id
+            AND workspace_external_id = $scope.workspace_id AND registration_version = 1 LIMIT 2;
+        IF array::len($publications) != 1 { RETURN NONE; };
+        RETURN $publications[0];
+    }), |$row| { $row != NONE AND $row != NULL; });
+    LET $canonical = array::distinct($rows);
+    RETURN SELECT artifact_id, artifact_resource_id, workspace_external_id, workspace_resource_id,
+        manifest_sha256, producer_operation_id, registration_version FROM $canonical ORDER BY artifact_id ASC;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_artifact_publications($scope: object, $selection: object) {
+    LET $wp012_navigation_memory_metadata_only = true;
+    LET $metadata = fn::wp012_model_lane_navigation_memory_artifact_metadata($scope, $selection);
+    LET $rows = array::filter(array::map($metadata, |$row| {
+        LET $publications = SELECT artifact_id, artifact_resource_id, workspace_external_id, workspace_resource_id,
+            manifest_json, manifest_sha256, producer_operation_id, registration_version FROM artifact_publication
+            WHERE id = type::record('artifact_publication', $row.artifact_id)
+            AND artifact_resource_id = $row.artifact_resource_id AND workspace_resource_id = $row.workspace_resource_id
+            AND workspace_external_id = $scope.workspace_id AND manifest_sha256 = $row.manifest_sha256
+            AND producer_operation_id = $row.producer_operation_id AND registration_version = 1
+            AND fn::wp012_artifact_publication_full_read($this) LIMIT 2;
+        IF array::len($publications) = 0 { RETURN NONE; };
+        IF array::len($publications) != 1 { THROW 'ModelLane navigation Artifact publication is ambiguous'; };
+        LET $publication = $publications[0];
+        LET $manifest = encoding::json::decode($publication.manifest_json);
+        IF crypto::sha256($publication.manifest_json) != $publication.manifest_sha256 OR $manifest.artifact_id != $publication.artifact_id {
+            THROW 'ModelLane navigation Artifact manifest differs from immutable registration';
+        };
+        LET $packs = fn::wp012_model_lane_navigation_memory_metadata($scope, $selection);
+        LET $sources = array::flatten(array::map($packs, |$pack| { $pack.source_membership; }));
+        IF array::len(array::filter($sources, |$source| {
+            $source.kind = 'artifact' AND $source.id = $publication.artifact_id
+                AND type::is_string($source.hash) AND $source.hash = $manifest.content_hash;
+        })) = 0 { RETURN NONE; };
+        RETURN $publication;
+    }), |$row| { $row != NONE AND $row != NULL; });
+    RETURN SELECT artifact_id, artifact_resource_id, workspace_external_id, workspace_resource_id,
+        manifest_json, manifest_sha256, producer_operation_id, registration_version FROM $rows ORDER BY artifact_id ASC;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_raw_access($row: object, $scope: object, $selection: object) {
+    IF $selection != $navigation_selection OR !fn::wp012_model_lane_navigation_memory_metadata_access($row)
+        OR $row.workspace_id != type::record('workspaces', $scope.workspace_id)
+        OR !fn::wp012_model_lane_original_operation($scope)
+        OR !fn::mt109_has_grant('memory_pack', $scope.workspace_id, 'read', 'memory.read')
+        OR !type::is_array($row.navigation_memory_source_membership) { RETURN false; };
+    LET $links = fn::wp012_model_lane_navigation_memory_document_links($scope, $selection);
+    LET $artifacts = fn::wp012_model_lane_navigation_memory_artifact_publications($scope, $selection);
+    RETURN array::all(array::map($row.navigation_memory_source_membership, |$source| {
+        IF $source.kind = 'doc_block' AND type::is_string($source.id) {
+            RETURN array::len(array::filter($links, |$link| {
+                $link.source_id = $source.id AND $link.block_key = $source.id
+                    AND fn::mt120_document_access($link.document_key, $scope.workspace_id, 'read', 'fs.read');
+            })) > 0;
+        };
+        IF $source.kind = 'artifact' AND type::is_string($source.id) AND type::is_string($source.hash) {
+            RETURN array::len(array::filter($artifacts, |$artifact| {
+                $artifact.artifact_id = $source.id AND encoding::json::decode($artifact.manifest_json).content_hash = $source.hash;
+            })) = 1;
+        };
+        -- Other source adapters remain unresolved.
+        RETURN false;
+    }));
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_packs($scope: object, $selection: object) {
+    LET $metadata = fn::wp012_model_lane_navigation_memory_metadata($scope, $selection);
+    RETURN array::map($metadata, |$source| {
+        LET $raw = SELECT VALUE pack FROM fems_memory_packs WHERE id = $source.pack_record;
+        RETURN { run_id: $source.run_id, source_event_id: $source.source_event_id, source_event_seq: $source.source_event_seq,
+            memory_pack_ref: $source.memory_pack_ref, memory_pack_hash: $source.memory_pack_hash,
+            record_pack_id: $source.record_pack_id, record_workspace_id: $source.record_workspace_id,
+            source_membership: $source.source_membership, pack: IF array::len($raw) = 1 { $raw[0] } ELSE { NONE } };
+    });
+};
+
+
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_consulted_grant($grant: object) {
+    LET $wp012_navigation_memory_metadata_only = true;
     IF $navigation_selection = NONE OR $wp012_original_purpose != 'navigation_read'
         OR $wp012_original_subject_kind != 'workspace' OR $wp012_original_action != 'read'
         OR $wp012_original_capability != 'model_lane.navigation.read' { RETURN false; };
@@ -1012,6 +1270,30 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_consulted_grant($grant
         RETURN fn::wp012_model_lane_original_grant(type::record('protected_resources', $wp012_original_resource),
             $grant.id, 'model_lane.navigation.read', 'read');
     };
+    LET $memory = fn::wp012_model_lane_navigation_memory_metadata($scope, $navigation_selection);
+    LET $resource = $grant.resource_id;
+    IF array::len($memory) > 0 AND $resource.resource_kind = 'memory_pack'
+        AND $resource.external_resource_id = $scope.workspace_id AND $resource.lifecycle_state = 'active'
+        AND $resource.owner_account_id = $auth.account_id AND $resource.access_space_id = $auth.access_space_id
+        AND $resource.created_by_principal_id.status = 'enabled'
+        AND fn::wp012_model_lane_original_grant($resource, $grant.id, 'memory.read', 'read') { RETURN true; };
+    LET $artifact_publications = fn::wp012_model_lane_navigation_memory_artifact_metadata($scope, $navigation_selection);
+    IF array::len(array::filter($artifact_publications, |$publication| {
+        RETURN $resource = type::record('protected_resources', $publication.artifact_resource_id)
+            AND $resource.resource_kind = 'artifact' AND $resource.external_resource_id = $publication.artifact_id
+            AND $resource.parent_resource_id = type::record('protected_resources', $publication.workspace_resource_id)
+            AND $resource.owner_account_id = $auth.account_id AND $resource.access_space_id = $auth.access_space_id
+            AND $resource.lifecycle_state = 'active' AND $resource.created_by_principal_id.status = 'enabled'
+            AND $grant.policy_version >= $resource.parent_resource_id.policy_version
+            AND fn::wp012_model_lane_original_grant($resource, $grant.id, 'artifact.read', 'read');
+    })) > 0 { RETURN true; };
+    LET $memory_links = fn::wp012_model_lane_navigation_memory_document_links($scope, $navigation_selection);
+    IF array::len(array::filter($memory_links, |$link| {
+        LET $document = fn::wp012_model_lane_resource_domain($resource, $scope.workspace_id, 'rich_document', $link.document_key);
+        LET $workspace = fn::wp012_model_lane_resource_domain($resource, $scope.workspace_id, 'workspace', $scope.workspace_id);
+        RETURN ($document != NONE OR $workspace != NONE)
+            AND fn::wp012_model_lane_original_grant($resource, $grant.id, 'fs.read', 'read');
+    })) > 0 { RETURN true; };
     LET $sources = fn::wp012_model_lane_navigation_dependency_sources($scope);
     RETURN array::len(array::filter($sources, |$source| {
         IF $source.record_json = NONE { RETURN false; };
@@ -1105,7 +1387,8 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_receipt_input_access($
 
 DEFINE FIELD OVERWRITE grant_version ON TABLE resource_grants TYPE int ASSERT $value >= 1
     PERMISSIONS FOR select WHERE $wp012_original_purpose != 'navigation_read'
-        OR fn::wp012_model_lane_navigation_consulted_grant($this);
+        OR ($wp012_navigation_memory_metadata_only != true
+            AND fn::wp012_model_lane_navigation_consulted_grant($this));
 
 -- Field restrictions run on the original row before output reduction. No raw
 -- child bytes or hash evidence are projected under the workspace navigation grant.
@@ -1133,6 +1416,26 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_source_access($row: object, $writ
         RETURN array::len($sources) = 1
             AND encoding::json::decode($sources[0].record_json) = encoding::json::decode($row.record_json)
             AND fn::wp012_model_lane_navigation_selector($sources[0], $navigation_selection);
+    };
+    IF $wp012_original_purpose = 'recovery_execute' {
+        IF !fn::wp012_model_lane_original_operation($row)
+            OR $wp012_original_subject_kind != 'workspace' OR $wp012_original_action != 'update'
+            OR $wp012_original_capability != 'model_lane.recovery.execute'
+            OR !fn::wp012_context_coordination_fence($row, 'run', $row.run_id) { RETURN false; };
+        LET $record = encoding::json::decode($row.record_json);
+        LET $body = IF $row.record_kind = 'message' { $record.inner } ELSE { $record };
+        IF type::is_string($body.document_id)
+            AND !fn::mt120_document_access($body.document_id, $row.workspace_id, 'read', 'fs.read') { RETURN false; };
+        LET $binding = $record.crdt_authority_binding;
+        IF $binding != NONE AND $binding != NULL
+            AND ($binding.workspace_id != $row.workspace_id
+                OR !fn::mt120_document_access($binding.document_id, $row.workspace_id, 'read', 'fs.read')) { RETURN false; };
+        IF $write {
+            RETURN $row.record_kind = 'recovery_event'
+                AND ($body.lane_id = NONE OR fn::wp012_context_coordination_fence($row, 'lane', $body.lane_id));
+        };
+        RETURN $row.record_kind IN ['run', 'lane', 'message', 'context_artifact',
+            'recovery_checkpoint', 'recovery_event', 'lease', 'mt_runtime_status'];
     };
     IF $wp012_original_purpose IN ['diagnostic_record', 'recovery_checkpoint_record'] {
         RETURN fn::wp012_model_lane_original_operation($row)
@@ -1170,6 +1473,9 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_source_access($row: object, $writ
     RETURN false;
 };
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_source_identity($row: object) {
+    IF $wp012_original_purpose = 'recovery_execute' {
+        RETURN fn::wp012_model_lane_canonical_record_identity($row);
+    };
     IF $wp012_original_purpose IN ['diagnostic_record', 'recovery_checkpoint_record'] {
         RETURN (fn::wp012_model_lane_recording_kind($row.record_kind) OR $row.record_kind IN ['run', 'lane'])
             AND fn::wp012_model_lane_canonical_record_identity($row);
@@ -1207,15 +1513,37 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_source_identity($row: object) {
         AND type::is_string($body.event_ledger_stream_id) AND string::trim($body.event_ledger_stream_id) != ''
         AND $ledger.session_run_id = $body.event_ledger_stream_id;
 };
+DEFINE TABLE OVERWRITE model_lane_recovery_order SCHEMAFULL
+    PERMISSIONS FOR select, create, update WHERE fn::wp012_model_lane_original_operation($this)
+        AND $wp012_original_purpose = 'recovery_execute' AND $wp012_original_action = 'update'
+        AND $wp012_original_subject_kind = 'workspace'
+        AND $wp012_original_capability = 'model_lane.recovery.execute'
+        AND fn::wp012_context_coordination_fence($this, 'run', run_id)
+    FOR delete NONE;
+DEFINE EVENT OVERWRITE model_lane_recovery_order_fence ON TABLE model_lane_recovery_order
+    WHEN $event IN ['CREATE', 'UPDATE'] THEN {
+        IF !type::is_int($after.next_value) OR $after.next_value < 1
+            OR ($event = 'CREATE' AND $after.next_value != 1)
+            OR ($event = 'UPDATE' AND ($after.next_value != $before.next_value + 1
+                OR $after.run_id != $before.run_id OR $after.owner_account_id != $before.owner_account_id
+                OR $after.actor_principal_id != $before.actor_principal_id
+                OR $after.authenticated_session_id != $before.authenticated_session_id
+                OR $after.access_space_id != $before.access_space_id OR $after.workspace_id != $before.workspace_id)) {
+            THROW 'HSK-403-PROTECTED-RESOURCE';
+        };
+    };
+
 DEFINE TABLE OVERWRITE model_lane_authority SCHEMAFULL
     PERMISSIONS FOR select WHERE fn::wp012_model_lane_source_access($this, false) AND (IF $wp012_original_purpose = 'navigation_read' { fn::wp012_model_lane_navigation_identity($this) } ELSE { fn::wp012_model_lane_source_identity($this) })
-    FOR create WHERE $wp012_original_action = 'create' AND fn::wp012_model_lane_source_access($this, true) AND fn::wp012_model_lane_source_identity($this)
+    FOR create WHERE ($wp012_original_action = 'create'
+            OR ($wp012_original_purpose = 'recovery_execute' AND $wp012_original_action = 'update'))
+        AND fn::wp012_model_lane_source_access($this, true) AND fn::wp012_model_lane_source_identity($this)
     FOR update, delete NONE;
 
 -- This producer branch preserves the original Document Update grant; it is not general content Read.
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_crdt_dependency_access($row: object) {
     IF !fn::wp012_model_lane_original_operation($row) OR $wp012_original_subject_kind != 'workspace'
-        OR !($wp012_original_purpose IN ['handoff', 'consume', 'guarded_message', 'source_read']) { RETURN false; };
+        OR !($wp012_original_purpose IN ['handoff', 'consume', 'guarded_message', 'source_read', 'recovery_execute']) { RETURN false; };
     IF $wp012_original_purpose = 'guarded_message' {
         RETURN fn::wp012_context_coordination_fence($row, 'workspace', $row.workspace_id)
             AND fn::wp012_model_lane_resource_domain($row.event_ledger_event_id.authority_resource_id,
@@ -1232,6 +1560,8 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_crdt_dependency_access($row: obje
         RETURN $binding != NONE AND $binding.document_id = $row.document_id
             AND ($wp012_original_purpose = 'consume' OR $binding.crdt_document_id = $row.crdt_document_id)
             AND fn::wp012_model_lane_source_identity($source)
+            AND ($wp012_original_purpose != 'recovery_execute'
+                OR fn::mt120_document_access($binding.document_id, $row.workspace_id, 'read', 'fs.read'))
             AND (($wp012_original_purpose = 'source_read' AND $wp012_original_action = 'read')
                 OR (fn::wp012_context_coordination_fence($source, 'run', $source.run_id)
                     AND fn::wp012_context_coordination_fence($source, 'lane', IF $wp012_original_purpose = 'consume' { $record.downstream_lane_id } ELSE { $record.inner.from_lane_id })));
@@ -1333,6 +1663,9 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_crdt_lease_identity($row: object)
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_crdt_lease_access($row: object, $write: bool) {
     IF !$write AND $wp012_original_purpose = 'navigation_read' { RETURN fn::wp012_model_lane_navigation_crdt_dependency($row, 'lease'); };
     IF !fn::wp012_model_lane_original_operation($row) { RETURN false; };
+    IF !$write AND $wp012_original_purpose = 'recovery_execute' {
+        RETURN fn::wp012_model_lane_crdt_dependency_access($row);
+    };
     IF !$write AND $wp012_original_purpose IN ['consume', 'handoff', 'guarded_message', 'document_claim', 'workspace_claim', 'index_run_claim', 'crdt_update', 'crdt_snapshot', 'proposal_record', 'proposal_decide', 'proposal_apply'] {
         RETURN ($row.scope_kind = 'workspace' AND $row.scope_id = $row.workspace_id)
             OR ($row.scope_kind = 'document' AND $row.document_id != NONE AND $row.crdt_document_id = $row.scope_id
