@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-20T19:39:18Z",
+ "updated_at": "2026-10-20T19:48:12Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8188,17 +8188,19 @@
   },
   {
    "lane_id": "SMB-CRATE-SEAM-SPLITS",
-   "crate": "press (slice 1); harness (slice 2, deferred)",
-   "phase": "done (STUDIO-R35 PASS_V1 @237256f)",
-   "status": "PASS_V1",
+   "crate": "press, interop-vector, harness",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-r33-findings-20261015",
    "commits": [
-    "46d8e4d"
+    "46d8e4d",
+    "38d491b",
+    "12e2d46"
    ],
    "verdicts": [
     "STUDIO-R35 PASS_V1 @237256f [slice 1 (46d8e4d); slice 2 not claimed]"
    ],
-   "note": "slice 1 press-read/press-write pushed 46d8e4d (211/211); steward sync pending. Slice 2: reel split rejected (pure-move seam only ~6%: not a meaningful seam); harness-core/harness-view approved in principle, implement after SMB-PR-SOURCE-MONITOR and SMB-LAYOUT-UI-2 push",
+   "note": "harness -> harness-core + harness-view (pure move, features forwarded by old names); 154/156 (2 wall-clock audio-device tests flaky under parallel load, pass serially). interop-fig and web splits for a fresh agent. Steward: sync incl. score-plugin edge + eframe/egui owner rows",
    "lane_file": "builders/lanes/hsk-studio-crate-seam-splits.json"
   },
   {
