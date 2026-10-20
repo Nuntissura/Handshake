@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-20T17:02:01Z",
+ "updated_at": "2026-10-20T18:33:48Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8588,13 +8588,21 @@
   },
   {
    "lane_id": "SMB-PS-ORACLE-PARITY-1",
-   "crate": "pigment + render-gpu + composite",
-   "phase": "build",
-   "status": null,
+   "crate": "pigment + render-cpu + render-gpu",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-ps-oracle-parity-20261016",
-   "commits": [],
+   "commits": [
+    "30ea18e",
+    "03e3f9c",
+    "a95f819",
+    "819880b",
+    "d69a277",
+    "f9b2fd7"
+   ],
    "verdicts": [],
-   "note": "from research/d5-photoshop-compare-20261016.json follow-ups: effect blur tent kernel (half-width = size) + shadow offset rounding, fill opacity on the special-8 modes, levels gamma toe, Blend-If integer ramps / transparent underlying / clip roles, interior-effect alpha on AA edges, stroke corners, pass-through mask/opacity"
+   "note": "Photoshop oracle MATCH 196->340 (no regressions): tent effect kernel, offsets, knockout, interior alpha, special-8 fill, levels toe, Blend-If ramps. Satin/soften re-pins UNVERIFIED (rescript requested). render-gpu concurrent timeouts = infra (pass alone 13/13). Gaps: ~100 spread/choke/stroke corners, gamma 1.5 toe, this-gray Blend-If, 8-bit quantisation, C14/C16, Lab->SWOP",
+   "lane_file": "builders/lanes/hsk-studio-ps-oracle-parity-1.json"
   },
   {
    "lane_id": "SMB-PS-ORACLE-RESCRIPT",
@@ -8689,6 +8697,16 @@
    "commits": [],
    "verdicts": [],
    "note": "FU-ID-6: prefer cmap uniFB00 ff ligature advance over GPOS kern like InDesign; drop kern across hyphen split; then glyph-scaling implementation"
+  },
+  {
+   "lane_id": "SMB-PS-ORACLE-PARITY-2",
+   "crate": "pigment + render-gpu",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "spread/choke/stroke dilation corner rule, gamma 1.5 toe, this-gray Blend-If metric, 8-bit quantisation, C14 opacity grouping, C16 fill-0 glow, pass-through premultiplied lerp"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

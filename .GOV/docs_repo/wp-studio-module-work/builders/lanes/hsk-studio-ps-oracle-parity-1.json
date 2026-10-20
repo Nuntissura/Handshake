@@ -1,0 +1,77 @@
+{
+ "crate": "hsk-studio-pigment (effect_math, blend_math, adjust_math, coverage_math), hsk-studio-render-cpu, hsk-studio-render-gpu (fx/kernel WGSL mirrors), hsk-studio-harness (tests/d5_ps_compare/expectations.json)",
+ "lane": "SMB-PS-ORACLE-PARITY-1",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-4 pushed (5fa82ec..f9b2fd7); D5 196 -> 340 MATCH",
+ "commits": [
+  {
+   "sha": "30ea18e",
+   "subject": "slices 1-4 (pigment + render-cpu): Photoshop D5 oracle maths",
+   "slice": "1-4",
+   "status": "READY_FOR_VALIDATION"
+  },
+  {
+   "sha": "03e3f9c",
+   "subject": "slices 1-4 (render-gpu): WGSL mirrors of the D5 oracle maths",
+   "slice": "1-4",
+   "status": "READY_FOR_VALIDATION"
+  },
+  {
+   "sha": "a95f819",
+   "subject": "oracle hand-value tests, cross-lane re-pins, D5 expectations (196 -> 340 MATCH)",
+   "slice": "1-4",
+   "status": "READY_FOR_VALIDATION"
+  },
+  {
+   "sha": "819880b",
+   "subject": "render-gpu knockout LayerParams carry the fill split and pass flags",
+   "slice": "1-4",
+   "status": "READY_FOR_VALIDATION"
+  },
+  {
+   "sha": "d69a277",
+   "subject": "re-pin the remaining hand values to the oracle-measured rules (whole-suite run)",
+   "slice": "1-4",
+   "status": "READY_FOR_VALIDATION"
+  },
+  {
+   "sha": "f9b2fd7",
+   "subject": "render-gpu one blend() call per composite entry point",
+   "slice": "1-4",
+   "status": "READY_FOR_VALIDATION"
+  }
+ ],
+ "capabilities_done": [
+  "slice 1: effect blur = tent kernel of half-width max(size, 2) (pigment effect_blur_kernel/effect_blur_support) for drop/inner shadow, outer/inner glow, satin, bevel soften; shadow offset round-half-away after a 1e-6 snap (PS-C12 *_a120_d5 -> (3,4)); drop-shadow knockout as disjoint coverage (knockout_coverage); CPU reference + windowed evaluator + GPU fx (taps from pigment, FINISH 0 knock factor)",
+  "slice 2: special-eight fill inside the blend (blend_math::composite_over_fill; render-cpu over_fill, effect content pass, GPU Params fill/unfilled); interior effects (inner shadow/glow, colour/gradient/pattern overlay, satin) composed inside the layer and mixed back by the shape alpha (effect_math::interior_mix, reference_interior_matte; window interior unit; GPU interior unit with level copies, flags 8/16)",
+  "slice 3: Levels gamma toe for 1 < gamma <= 2 (adjust_math::levels_gamma, WGSL levels_gamma)",
+  "slice 4: Blend-If inclusive integer ramps on the 0..255 scale, gray rounded to a level, Underlying weight 1 - ab (1 - w) over a translucent backdrop (coverage_math::blend_if_weight_over, blend_if_value; render-cpu, WGSL)",
+  "D5 suite: 196 -> 340 MATCH (MISMATCH 301 -> 157); expectations.json lists every remaining MISMATCH by exact variant name so the 144 fixed variants are enforced"
+ ],
+ "tests": {
+  "argv": "r8 (post-rebase tree f9b2fd7, one D: lock hold): cargo clippy -p pigment -p render-cpu -p render-gpu -p harness --features hsk-studio-harness/viewer --tests (exit 0); cargo nextest run --no-fail-fast -p harness -p pigment -p render-cpu -p render-gpu --features hsk-studio-harness/viewer --test d5_ps_compare --test effects --test effects_wave2 --test effect_window --test layer_styles --test blend_math --test adjust_coverage --test oracle_parity --test bevel_techniques --test cpu_effects --test cpu_window --test cpu_extended --test cpu_effects_fx2 --test gpu_plan; r10: the 13 render-gpu tests that timed out in r6/r8, --test-threads 1; r3 earlier: whole pigment/render-cpu/render-gpu suites + d5 (363 pass, 5 re-pinned in d69a277)",
+  "exit": 0,
+  "sha": "f9b2fd7",
+  "passed": 89,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 9964,
+ "bg_pids": [],
+ "next": "validator",
+ "updated_at": "2026-10-20T18:33:26Z",
+ "notes": {
+  "worktree": "wt-studio-lanes/smb-ps-oracle-parity-1 (branch lane/smb-ps-oracle-parity-1); STUDIO_OWNER=smb-ps-oracle-parity-1; run 1 on D: (2026-10-16), re-run on the C: SSD slot per the Operator build strategy of 2026-10-20",
+  "setup": "first worktree add -b created the branch but failed on a transient assets-repository/config lock; the worktree was then added on the existing branch. lane-gameplan.sh printed OK",
+  "oracle": "Photoshop 27.11.0 D5 corpus <oracle corpus root>/adobe-session/photoshop (pins unchanged); evidence research/d5-photoshop-compare-20261016.json",
+  "method": "scratch numpy model of the oracle variants (lane scratchpad smb-ps-oracle-parity-1/*.py) to identify each rule, the Rust d5 suite is the proof",
+  "match_before_after": "MATCH 196 -> 340: PS-C15 +64, PS-C12 +38, PS-C17 +14, PS-C16 +8, PS-B01 +7, PS-C09 +4, PS-C02 +2, PS-C23 +2, PS-C27 +2, PS-C14 +1, PS-C24 +1, PS-C26 +1; no MATCH regressed",
+  "evidence": "tent kernel: PS-C12/C15/C16 spread/choke-0 variants exact at sizes 2/10/40 (Gaussian was up to 55 codes); size-1 blur = [1,2,1]/4 from PS-C12 square_s2_sp50 (64/191 at the grown edge); offset: binary64 5cos120 = -2.4999999999999996 rounded to 2, Photoshop (3,4); knockout: PS-C12 soft_fill50_knocks a=.541 m=.102 -> alpha .318 = af + m(1-a); special-eight fill: PS-B01 d8_o100_f50 seven modes within 1 code; interior: PS-C15 circle rim alpha 22 stays 22 (Studio raised it to 32); levels toe: PS-C02 16bit_comp_g2 within 0.92 steps of 15 bits with s0 = 2^g = 4, x0 = 2^g/32 = 1/8 (gamma 1.5 fit s0 2.84, x0 .088 ~ 2^1.5, 2^1.5/32); Blend-If: PS-C09 this-red/under-gray/under-red within 1 code, hard variant exact with rounded gray; PS-C23 both MATCH",
+  "remaining_divergences": "157 MISMATCH: spread/choke/stroke dilation corners (PS-C12 sp50/sp100 60, PS-C15 ck50/ck100 30, PS-C16 12, PS-C13 32, PS-C14 6: Photoshop's grown corner coverage is not a disc area, lattice disc, chamfer distance or a function of a separable/disc blur; FP-SPREAD-DILATION); gamma 1.5 toe constants (PS-C02 4 variants, up to 2-3 codes); this-gray metric (PS-C09 1, 5 codes on 192 samples); 8-bit quantisation (B01 linear light f50 2 codes, two 8-bit vivid light, C04 sat+50, C06 ev+1, PS-C28/29 nomask/fill100 3 codes: Photoshop stores the multiply result in 8 bits before Levels, scratch-verified); C14 opacity50 (layer + effects fade as one unit); C16 soft fill-0 glow; C20 circle rim geometry; PS-L01 Lab->SWOP CMYK engine (out of scope, FP-CMS-ACE-PARITY). 84 NOT_SUPPORTED unchanged (clip-role Blend-If, pass-through mask/opacity/fill, precise/range glow, style switches). Measured but not implemented: pass-through group opacity and mask = premultiplied lerp(backdrop, children result, opacity x mask coverage) (PS-C28 opacity50_nomask, mask_opacity50 within 1 code in scratch); pass-through fill 50 is not that (121 codes)",
+  "cross_lane_repins": "re-pinned to the oracle-measured rules (validators check): pigment tests effects.rs drop_shadow_offset_blur_taps_and_spread (size-2 taps .5/.25, margin 8 -> 6; oracle covers size-2 drop shadows exactly), effects_wave2.rs (size-2 inner glow/outer glow taps, choke-0 inner shadow, margins 8/6/5 -> 6/3/3), effect_window.rs (support 23 -> 19; 1000 px blur half-width 1500 -> 999, sample points moved inside the support), layer_styles.rs satin support 13 -> 10 (satin: follows the shared tent kernel; Photoshop behaviour UNVERIFIED (no oracle case)), bevel_techniques.rs soften recomputed with effect_blur_kernel (bevel soften: follows the shared tent kernel; Photoshop behaviour UNVERIFIED (no oracle case)), adjust_coverage.rs Blend-If hand values moved to the oracle case PS-C09 levels 50/100/200/240; render-cpu cpu_effects.rs size-2 bar taps, cpu_window.rs supports 9/305/45 -> 6/204/29 and a domain >= 12 for the feathered-mask oracle; render-gpu gpu_plan.rs reference Blend-If weight with the backdrop alpha and params 64 -> 80 bytes",
+  "process": "run 1 (D:, pre-rebase): clippy exit 0 (fixed afterwards: unused import in render-cpu plan_sink, two dead FINISH_SATIN constants in render-gpu fx.rs; the layer_styles manual_is_multiple_of warning is pre-existing), d5 suite 5/5 green, 11 failures (support/tap re-pins, GPU params bytes, GPU test reference Blend-If alpha, GPU interior unit: later over-content effects read the shape alpha from the content level that now held the unit -> fixed to read the copy). Commits are grouped by crate, not one per slice: the four slices share effect_math/window/fx/kernel functions; only the tip is validated. Rebase on 5c1cbf3 had conflicts in render-gpu kernel.rs (new knockout passes) and lib.rs (descriptor), resolved; knockout.rs LayerParams got the new fields (product fold kept, as pigment knockout_math). No new dependency; Cargo.lock left uncommitted",
+  "oracle_rescript_request": "for SMB-PS-ORACLE-RESCRIPT: add satin (sizes 2/10/40, distance 5/11, angles 19/120, invert on/off, black Multiply on a white square and the 96-gon circle) and bevel & emboss soften (inner bevel smooth size 5 depth 100, soften 0/2/8, highlight Screen white and shadow Multiply black) so the satin blur and the soften blur, which follow the shared tent kernel today, can be judged; also a Levels gamma sweep (1.1, 1.2, 1.4, 1.5, 1.7, 2.5, 3, 5) on the 16-bit ramp (toe constants above 2 and between 1 and 1.4 UNVERIFIED) and a spread/choke/stroke sweep at sizes 1, 3, 20 (dilation corner rule)",
+  "gpu_timeouts": "r3/r4/r5/r6: up to 30 render-gpu tests exceed the 120 s cap, including refusal-only tests (shared backend pipeline creation ~70-110 s per process); r7 A/B at --test-threads 1: origin render-gpu src TIMEOUT on both gpu_content_aware refusal (147.7 s) and gpu_extended_range (138.3 s), lane src 74.5 s PASS / 158.5 s TIMEOUT -> not caused by this lane; f9b2fd7 halves the composite shader (one blend() call); INFRA: several render-gpu tests at once (two build slots running GPU tests concurrently) exceed the 120 s cap; the same tests pass alone (r10, --test-threads 1, 13/13 PASS); origin src fails the same way (A/B r7)",
+  "test_counts": "r8: 83 run, 76 pass, 7 render-gpu gpu_plan TIMEOUT (infra, see gpu_timeouts); r10 solo: those 7 + 6 r6 timeouts 13/13 PASS (19.9-105.6 s each); d5 5/5 PASS; clippy exit 0"
+ }
+}
