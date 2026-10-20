@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-20T14:16:42Z",
+ "updated_at": "2026-10-20T14:29:53Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8437,13 +8437,17 @@
   },
   {
    "lane_id": "SMB-AFFINITY-INTEROP-1",
-   "crate": "hsk-studio-interop-affinity (new)",
-   "phase": "build",
-   "status": null,
+   "crate": "hsk-studio-interop-affinity (new) + harness",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-affinity-interop-20261016",
-   "commits": [],
+   "commits": [
+    "9844243",
+    "bc09e72",
+    "a82a77c"
+   ],
    "verdicts": [],
-   "note": "typed refusal naming PSD/PDF/SVG export route; clean-room KA container reader (header, #FT4 directory, zstd streams, CRC); thumbnail + resource extraction; MIT readers (afread, AFDesignLoad, afphoto crate) may be read with attribution; Inkscape afdesign ext GPL excluded; PhotoCraft no licence excluded; no native write",
+   "note": "typed refusal naming export route; read-only KA container reader (caps, CRC, sha256 assets); opt-in flattened thumbnail preview. Steward registry sync pending. Gaps: layer decode, native write, V2/V3 behaviour (Operator-attended oracle)",
    "lane_file": "builders/lanes/hsk-studio-affinity-interop-1.json"
   },
   {
