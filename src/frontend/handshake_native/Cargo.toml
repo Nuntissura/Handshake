@@ -117,14 +117,16 @@ handshake_rename = { path = "../handshake_rename" }
 handshake_gutter = { path = "../handshake_gutter" }
 handshake_lsp_wire = { path = "../handshake_lsp_wire" }
 handshake_runtime_instance = { path = "../../backend/handshake_runtime_instance" }
-handshake_rich_document_model = { path = "../handshake_rich_document_model" }
+handshake_rich_document_model = { git = "https://github.com/Nuntissura/assets.git", rev = "a118e58a2afaad6009567e046422828c99277aa0" }
 handshake_wikilink_semantics = { path = "../handshake_wikilink_semantics" }
-handshake_rich_formatting = { path = "../handshake_rich_formatting" }
-handshake_text_mechanics = { path = "../handshake_text_mechanics" }
+handshake_rich_formatting = { git = "https://github.com/Nuntissura/assets.git", rev = "1d66fe5d614d7e8e0e2b36d7b69ae23afdd7ed4c" }
+handshake_text_mechanics = { git = "https://github.com/Nuntissura/assets.git", rev = "9339227c05a813600db1fa4cdb71b9b9988d5992" }
 handshake_asset_resolver = { path = "../handshake_asset_resolver" }
 handshake_embed_views = { path = "../handshake_embed_views" }
 handshake_internal_diagnostics = { path = "../handshake_internal_diagnostics" }
 handshake_swarm_lane_diagnostics = { git = "https://github.com/Nuntissura/assets.git", rev = "2813dc1768ddd2a4e1843abded1a228f22eeba8e" }
+handshake_context_menu_egui = { git = "https://github.com/Nuntissura/assets.git", rev = "92e4729398b7630c0802db36a34001b429821c78" }
+handshake_signature_help = { git = "https://github.com/Nuntissura/assets.git", rev = "558844d5b81abe30651f94d193ac0bf76165b9cd" }
 palmistry-control-protocol = { path = "../palmistry_control_protocol" }
 handshake-layout-snapshot = { path = "../layout_snapshot" }
 handshake-workspace-activation = { path = "workspace_activation" }

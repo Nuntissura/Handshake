@@ -5297,7 +5297,7 @@ impl CodeEditorPanel {
                 return; // no LSP, no symbol -> nothing renders (graceful, no panic — AC-003/AC-008).
             };
             if let Some(state) =
-                SignatureHelpState::from_code_nav(&symbol, open_paren_byte, active_parameter)
+                super::signature_help::from_code_nav(&symbol, open_paren_byte, active_parameter)
             {
                 if let Ok(mut slot) = cell.lock() {
                     *slot = Some(state);
@@ -12985,7 +12985,7 @@ impl CodeEditorPanel {
             for entry in CODE_ACTION_CATALOG {
                 let author_id = handle.author_id(entry.action_id);
                 let state =
-                    self.code_action_state(entry, find_open, find_state.as_ref(), multi_cursor);
+                    self.code_action_state(ui.ctx(), entry, find_open, find_state.as_ref(), multi_cursor);
                 reg.upsert(author_id, entry.role, entry.label, state);
             }
             // AC-041-04: a `editor.code.find-panel` node appears in the tree ONLY while the find panel is
@@ -13029,7 +13029,7 @@ impl CodeEditorPanel {
         };
         // Run the dispatch targets AFTER dropping the registry lock (a handler may itself touch state).
         for target in to_run {
-            self.run_code_dispatch(target);
+            self.run_code_dispatch(target, ui.ctx());
         }
         dispatched
     }
@@ -13037,6 +13037,7 @@ impl CodeEditorPanel {
     /// The live [`EditorActionState`] for one catalog entry, from the real editor state (no mocks).
     fn code_action_state(
         &self,
+        ctx: &egui::Context,
         entry: &crate::accessibility::editor_action_registry::CodeActionEntry,
         find_open: bool,
         find_state: Option<&FindState>,
@@ -13063,14 +13064,14 @@ impl CodeEditorPanel {
         if !present {
             return EditorActionState::absent();
         }
-        // The language picker AND format are documented gaps (no native language-picker action and no
-        // format-document action yet — the keymap has only IndentLine): present but DISABLED so a
-        // dispatch is rejected by the MCP channel rather than silently dropped or mis-applied
-        // (aliasing format to IndentLine would be a silent wrong action — AC-041-08).
-        let enabled = !matches!(
-            entry.dispatch,
-            CodeDispatch::LanguagePickerUnavailable | CodeDispatch::FormatUnavailable
-        ) && (entry.action_id != "multi-cursor-clear" || multi_cursor);
+        // Formatting follows the live LSP capability.
+        let enabled = (!matches!(
+                entry.dispatch,
+                CodeDispatch::Action(CodeEditorAction::FormatDocument)
+            ) || self.formatter_available())
+            && (!matches!(entry.dispatch, CodeDispatch::OpenLanguagePicker)
+                || self.owns_language_picker(ctx))
+            && (entry.action_id != "multi-cursor-clear" || multi_cursor);
         match entry.role {
             AxRole::Button => EditorActionState {
                 present,
@@ -13112,7 +13113,78 @@ impl CodeEditorPanel {
     }
 
     /// Run one canonical-action dispatch target against the real panel (the alias-to-real-action step).
-    fn run_code_dispatch(&self, target: CodeDispatch) {
+    fn language_picker_focus_matches(&self, ctx: &egui::Context) -> bool {
+        let pane_id = self.host_render_pane_id.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let Some(pane_id) = pane_id else { return false; };
+        let bus = crate::interop::InteractionBus::get_or_init(ctx);
+        crate::interop::InteractionBus::with_try_lock(&bus, |b| b.focus_owner() == Some(&pane_id))
+            .unwrap_or(false)
+    }
+
+    /// Project the host's actual statusbar document; no mounted/focused owner fails closed.
+    pub fn sync_language_picker_target(ctx: &egui::Context, panel: Option<&Arc<Self>>) {
+        let popup_id = crate::top_menu_bar::EditorStatusSegments::picker_popup_id(
+            crate::top_menu_bar::EditorSegment::LanguageMode,
+        );
+        let owner_id = egui::Id::new("code-language-picker-owner");
+        let origin_id = egui::Id::new("code-language-picker-origin");
+        let panel = panel.filter(|panel| panel.language_picker_focus_matches(ctx));
+        let open = egui::Popup::is_id_open(ctx, popup_id);
+        let stale = ctx.data_mut(|data| {
+            // Runs before rows, never between a row closing and applying its action.
+            if !open {
+                data.remove::<std::sync::Weak<Self>>(origin_id);
+            }
+            let stale = data.get_temp::<std::sync::Weak<Self>>(origin_id).is_some_and(|origin| {
+                !origin.upgrade().is_some_and(|origin| {
+                    panel.is_some_and(|panel| Arc::ptr_eq(panel, &origin))
+                })
+            });
+            if let Some(panel) = panel {
+                data.insert_temp(owner_id, Arc::downgrade(panel));
+            } else {
+                data.remove::<std::sync::Weak<Self>>(owner_id);
+            }
+            stale
+        });
+        if stale {
+            egui::Popup::close_id(ctx, popup_id);
+        }
+    }
+
+    fn owns_language_picker(&self, ctx: &egui::Context) -> bool {
+        self.language_picker_focus_matches(ctx)
+            && ctx.data(|data| {
+                data.get_temp::<std::sync::Weak<Self>>(egui::Id::new("code-language-picker-owner"))
+                    .and_then(|owner| owner.upgrade())
+                    .is_some_and(|owner| std::ptr::eq(self, owner.as_ref()))
+            })
+    }
+
+    /// Apply a picker row only to its current host owner and original action target.
+    pub fn apply_language_picker_selection(
+        &self,
+        ctx: &egui::Context,
+        language: super::language_mode::LanguageId,
+    ) -> bool {
+        let origin = ctx.data_mut(|data| {
+            let id = egui::Id::new("code-language-picker-origin");
+            let origin = data.get_temp::<std::sync::Weak<Self>>(id);
+            data.remove::<std::sync::Weak<Self>>(id);
+            origin
+        });
+        if !self.owns_language_picker(ctx)
+            || origin.is_some_and(|origin| {
+                !origin.upgrade().is_some_and(|origin| std::ptr::eq(self, origin.as_ref()))
+            })
+        {
+            return false;
+        }
+        self.set_language_override(Some(language));
+        true
+    }
+
+    fn run_code_dispatch(&self, target: CodeDispatch, ctx: &egui::Context) {
         match target {
             CodeDispatch::Action(action) => self.dispatch_action(action),
             CodeDispatch::OpenReplace => self.open_find(true),
@@ -13144,18 +13216,22 @@ impl CodeEditorPanel {
                     self.set_find_toggles(q.case_sensitive, q.whole_word, !q.is_regex);
                 }
             }
-            // Disabled nodes — a dispatch should never reach here (the MCP channel rejects a disabled
-            // target), but if it does it is a benign no-op + trace, never a silent wrong action.
-            CodeDispatch::LanguagePickerUnavailable => {
-                tracing::debug!(
-                    "editor.code.language-picker-open dispatched but no native language picker exists \
-                     (typed gap); no-op"
-                );
-            }
-            CodeDispatch::FormatUnavailable => {
-                tracing::debug!(
-                    "editor.code.format dispatched but no native format-document action exists \
-                     (only IndentLine; typed gap); no-op — never silently indents"
+            CodeDispatch::OpenLanguagePicker => {
+                if !self.owns_language_picker(ctx) {
+                    return;
+                }
+                ctx.data_mut(|data| {
+                    if let Some(owner) = data.get_temp::<std::sync::Weak<Self>>(
+                        egui::Id::new("code-language-picker-owner"),
+                    ) {
+                        data.insert_temp(egui::Id::new("code-language-picker-origin"), owner);
+                    }
+                });
+                egui::Popup::open_id(
+                    ctx,
+                    crate::top_menu_bar::EditorStatusSegments::picker_popup_id(
+                        crate::top_menu_bar::EditorSegment::LanguageMode,
+                    ),
                 );
             }
         }

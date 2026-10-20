@@ -1612,8 +1612,8 @@ impl RichEditorWidget {
     /// (stale id — RISK-003 / MC-003; the next revision-gated rebuild drops the entry).
     pub fn scroll_to_block(&mut self, block_id: &str) {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        if let Err(error) = state.document_owner.current_context() {
-            return ui.label(format!("Rich document unavailable: {error}"));
+        if state.document_owner.current_context().is_err() {
+            return;
         }
         if let Some(path) = state.block_path_from_id(block_id) {
             state.pending_scroll_block = Some(path);

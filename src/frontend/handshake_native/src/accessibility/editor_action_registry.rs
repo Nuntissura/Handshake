@@ -594,21 +594,8 @@ pub enum CodeDispatch {
     FindToggleWord,
     /// Toggle the find "use regular expression" option (see [`Self::FindToggleCase`]).
     FindToggleRegex,
-    /// Open the language picker. The native editor has no language-picker action variant yet (the
-    /// language is derived from the file extension), so this is a TYPED, present-but-disabled node
-    /// pointing at the documented gap (NOT a silent no-op): it is discoverable so a swarm agent sees
-    /// the action exists, but disabled so a dispatch is rejected by the MCP channel rather than
-    /// silently dropped. The pane records this as a typed limitation (see the MT blocker note).
-    LanguagePickerUnavailable,
-    /// Format the document. IN-041-03 specifies `format` as "format document via LSP or built-in
-    /// formatter", but [`CodeEditorAction`] has NO `Format`/`FormatDocument` variant (the keymap has
-    /// `IndentLine` only). Aliasing `format` to `IndentLine` would be a silent semantic substitution
-    /// (a swarm agent asking to format the document would silently get a single-line indent — the
-    /// mock-in-disguise AC-041-08 forbids). So `format` is a TYPED, present-but-disabled node pointing
-    /// at the documented gap, handled exactly like [`Self::LanguagePickerUnavailable`]: discoverable
-    /// so a swarm agent sees the action exists, but disabled so a dispatch is rejected rather than
-    /// mis-indenting. The pane records this as a typed limitation (see the MT blocker note).
-    FormatUnavailable,
+    /// Open the existing status-bar language picker for this code editor.
+    OpenLanguagePicker,
 }
 
 /// One canonical CODE-editor action entry: its `action_id` (the `<action>` segment), AccessKit role,
@@ -706,7 +693,7 @@ pub const CODE_ACTION_CATALOG: &[CodeActionEntry] = &[
         action_id: "format",
         role: AxRole::Button,
         label: "Format document",
-        dispatch: CodeDispatch::FormatUnavailable,
+        dispatch: CodeDispatch::Action(CodeEditorAction::FormatDocument),
         always_present: true,
     },
     CodeActionEntry {
@@ -741,7 +728,7 @@ pub const CODE_ACTION_CATALOG: &[CodeActionEntry] = &[
         action_id: "language-picker-open",
         role: AxRole::Button,
         label: "Open language picker",
-        dispatch: CodeDispatch::LanguagePickerUnavailable,
+        dispatch: CodeDispatch::OpenLanguagePicker,
         always_present: true,
     },
 ];

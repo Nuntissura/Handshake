@@ -35,39 +35,8 @@
 //! slice (it never mutates the caller's gutter store, per the implementation note). So F8 traversal order
 //! equals the Problems-list order a user would see for that file.
 
-use super::cursor::Cursor;
+pub use handshake_text_mechanics::navigation::BufferPosition;
 use super::gutter::{GutterMarker, GutterMarkerKind};
-
-/// A `(line, column)` position in the buffer, both 0-based. The traversal coordinate space. The editor's
-/// live caret is a byte offset; the panel converts at the boundary (`byte_to_line_col` /
-/// `line_col_to_byte`) so this module stays a pure, egui-free, trivially-testable comparator.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct BufferPosition {
-    /// 0-based line.
-    pub line: usize,
-    /// 0-based column (chars from the line start). Always 0 for a whole-line diagnostic marker.
-    pub column: usize,
-}
-
-impl BufferPosition {
-    /// A position at `(line, column)`.
-    pub fn new(line: usize, column: usize) -> Self {
-        Self { line, column }
-    }
-
-    /// The `(line, column)` of a byte-offset caret head, computed against `buffer`. The bridge from the
-    /// editor's byte-offset [`Cursor`] to traversal space. `column` is the number of chars from the
-    /// line start (the same convention [`super::cursor::byte_to_line_col`] uses).
-    pub fn from_cursor(cursor: Cursor, buffer: &super::buffer::TextBuffer) -> Self {
-        let (line, column) = super::cursor::byte_to_line_col(cursor.head, buffer);
-        Self { line, column }
-    }
-
-    /// The total order key: `(line, column)`. Ascending line first, then column.
-    fn key(&self) -> (usize, usize) {
-        (self.line, self.column)
-    }
-}
 
 /// The position of one diagnostic marker: its line, column 0 (whole-line marker). Centralized so the
 /// comparison code reads the SAME (line, column) shape for both the caret and a marker.
@@ -92,7 +61,7 @@ fn sorted_diagnostic_positions(markers: &[GutterMarker]) -> Vec<BufferPosition> 
         .filter(|m| is_diagnostic(m))
         .map(marker_position)
         .collect();
-    positions.sort_by_key(BufferPosition::key);
+    positions.sort_by_key(|position| (position.line, position.column));
     positions.dedup();
     positions
 }
@@ -118,7 +87,7 @@ impl DiagnosticNavigator {
         }
         positions
             .iter()
-            .find(|p| p.key() > cursor.key())
+            .find(|p| (p.line, p.column) > (cursor.line, cursor.column))
             .copied()
             // Wrap: no marker strictly after the cursor -> the first marker.
             .or_else(|| positions.first().copied())
@@ -136,7 +105,7 @@ impl DiagnosticNavigator {
         positions
             .iter()
             .rev()
-            .find(|p| p.key() < cursor.key())
+            .find(|p| (p.line, p.column) < (cursor.line, cursor.column))
             .copied()
             // Wrap: no marker strictly before the cursor -> the last marker.
             .or_else(|| positions.last().copied())

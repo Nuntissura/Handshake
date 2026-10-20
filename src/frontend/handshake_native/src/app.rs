@@ -20009,12 +20009,10 @@ impl HandshakeApp {
     /// drives (the single doc-model source of truth — RISK-004), so the segments reflect the active
     /// document's real language / EOL / indent / encoding / whitespace state and never a parallel store.
     fn editor_segment_state(&self, ctx: &egui::Context) -> Option<EditorMetaSegmentState> {
-        if !self.focused_pane_is_code_editor(ctx) {
-            return None;
-        }
-        Some(EditorMetaSegmentState::from_panel(
-            &self.active_mounted_code_panel(),
-        ))
+        let panel = self.focused_pane_is_code_editor(ctx)
+            .then(|| self.active_mounted_code_panel());
+        CodeEditorPanel::sync_language_picker_target(ctx, panel.as_ref());
+        panel.map(|panel| EditorMetaSegmentState::from_panel(&panel))
     }
 
     /// WP-KERNEL-012 MT-071: apply a typed [`EditorSegmentAction`] the status-bar segment emitted back
@@ -20031,8 +20029,8 @@ impl HandshakeApp {
         let panel = self.active_mounted_code_panel();
         match action {
             EditorSegmentAction::SetLanguage(lang) => {
-                panel.set_language_override(Some(lang));
-                true
+                self.focused_pane_is_code_editor(ctx)
+                    && panel.apply_language_picker_selection(ctx, lang)
             }
             EditorSegmentAction::ConvertEol(eol) => panel.convert_eol(eol),
             EditorSegmentAction::SetIndent(style) => {
@@ -20239,6 +20237,33 @@ impl HandshakeApp {
     }
 
     fn bind_backend_clients(&mut self, base_url: &str, handle: tokio::runtime::Handle) {
+        self.factories.insert(
+            PaneType::ModelRuntime,
+            Box::new(crate::model_runtime_panel::ModelRuntimePaneFactory::with_transport(
+                Arc::new(
+                    crate::backend_client::ModelRuntimeRegistryClient::new(base_url, handle.clone())
+                        .with_authenticated_context(self.local_account.context.clone()),
+                ),
+            )),
+        );
+        self.factories.insert(
+            PaneType::Wp1OrchestrationConsole,
+            Box::new(crate::console_stream_pane::ConsoleStreamPaneFactory::with_transport(
+                Arc::new(
+                    crate::backend_client::ConsoleStreamClient::new(base_url, handle.clone())
+                        .with_authenticated_context(self.local_account.context.clone()),
+                ),
+            )),
+        );
+        self.factories.insert(
+            PaneType::OperatorChatLaunch,
+            Box::new(crate::operator_chat_pane::OperatorChatLaunchPaneFactory::with_client(
+                Arc::new(
+                    crate::backend_client::OperatorChatClient::new(base_url, handle.clone())
+                        .with_authenticated_context(self.local_account.context.clone()),
+                ),
+            )),
+        );
         self.workspace_activation.invalidate();
         self.refresh_mcp_durability_binding(base_url);
         self.swarm_concurrency_epoch = self.swarm_concurrency_epoch.wrapping_add(1);

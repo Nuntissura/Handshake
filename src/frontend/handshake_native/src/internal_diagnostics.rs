@@ -207,6 +207,259 @@ struct PalmistryRecoverRequest<'a> {
     proof: String,
 }
 
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PalmistryAdoptionStatus {
+    Applied,
+    AlreadyApplied,
+    Uncertain,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PalmistryAdoptionReply {
+    adoption_operation_id: Uuid,
+    process_uuid: Uuid,
+    adoption_status: PalmistryAdoptionStatus,
+    receipt: Option<PalmistryLaunchReceipt>,
+    canonical_receipt: Option<serde_json::Value>,
+    diagnostic: Option<String>,
+}
+
+type AdoptionHttpFuture = std::pin::Pin<Box<dyn std::future::Future<
+    Output = Result<(u16, Zeroizing<Vec<u8>>), String>,
+> + Send>>;
+
+struct AdoptionHttpAttempt {
+    future: AdoptionHttpFuture,
+    raw: Option<Result<(u16, Zeroizing<Vec<u8>>), String>>,
+    reply: Option<Result<PalmistryAdoptionReply, String>>,
+    panic_payload: Option<Box<dyn std::any::Any + Send>>,
+}
+
+pub(crate) struct OwnedPalmistryAdoption {
+    operation_id: Uuid,
+    expected_os_creation_time_100ns: u64,
+    ready: crate::diagnostics::palmistry_launch::SignedWatcherReady,
+    provenance: AdoptedDiagnosticProvenance,
+    account: Arc<crate::local_account::AuthenticatedContext>,
+    url: String,
+    original_request: serde_json::Value,
+    request_bytes: Vec<Zeroizing<Vec<u8>>>,
+    attempts: Vec<AdoptionHttpAttempt>,
+}
+
+impl OwnedPalmistryAdoption {
+    pub(crate) fn new(
+        operation_id: Uuid,
+        ready: crate::diagnostics::palmistry_launch::SignedWatcherReady,
+        provenance: AdoptedDiagnosticProvenance,
+        account: Arc<crate::local_account::AuthenticatedContext>,
+        backend_base_url: &str,
+        request: serde_json::Value,
+    ) -> Result<Self, String> {
+        if operation_id.is_nil() || !account.is_active()
+            || ready.identity.session_id != provenance.session_id()
+            || ready.identity.launch_nonce != provenance.launch_nonce()
+            || ready.transport_public_key != provenance.transport_public_key()
+        {
+            return Err("Palmistry adoption owner or authentication is unavailable".into());
+        }
+        let adopt = request.get("adopt_existing")
+            .ok_or("Palmistry adoption requires the existing watcher wire evidence")?;
+        let expected_os_creation_time_100ns = adopt.get("os_creation_time_100ns")
+            .and_then(serde_json::Value::as_u64).filter(|value| *value != 0)
+            .ok_or("Palmistry adoption requires the original watcher OS generation")?;
+        if request.get("session_id").and_then(serde_json::Value::as_str)
+                != Some(provenance.session_id().to_string().as_str())
+            || request.get("launch_nonce").and_then(serde_json::Value::as_str)
+                != Some(Uuid::from_bytes(provenance.launch_nonce()).to_string().as_str())
+            || request.get("parent_pid").and_then(serde_json::Value::as_u64)
+                != Some(u64::from(std::process::id()))
+            || request.get("transport_public_key").and_then(serde_json::Value::as_str)
+                != Some(hex::encode(provenance.transport_public_key()).as_str())
+            || adopt.get("process_uuid").and_then(serde_json::Value::as_str)
+                != Some(ready.identity.process_instance_id.to_string().as_str())
+            || adopt.get("watcher_pid").and_then(serde_json::Value::as_u64)
+                != Some(u64::from(ready.identity.watcher_pid))
+        {
+            return Err("Palmistry adoption request differs from the owned watcher".into());
+        }
+        let mut owner = Self {
+            operation_id,
+            expected_os_creation_time_100ns,
+            ready,
+            provenance,
+            account,
+            url: format!("{}{}", backend_base_url.trim_end_matches('/'), PALMISTRY_START_PATH),
+            original_request: request,
+            request_bytes: Vec::new(),
+            attempts: Vec::new(),
+        };
+        owner.queue_request("BEGIN")?;
+        owner.provenance.state.active.store(false, Ordering::Release);
+        Ok(owner)
+    }
+
+    fn queue_request(&mut self, intent: &str) -> Result<(), String> {
+        if !self.account.is_active() {
+            return Err("Palmistry adoption account is no longer active".into());
+        }
+        let mut wire = self.original_request.clone();
+        let object = wire.as_object_mut().ok_or("Palmistry adoption request is not an object")?;
+        object.insert("mode".into(), serde_json::Value::String("ADOPT_EXISTING".into()));
+        object.insert("adoption_operation_id".into(),
+            serde_json::Value::String(self.operation_id.to_string()));
+        object.insert("adoption_intent".into(), serde_json::Value::String(intent.into()));
+        let body = Zeroizing::new(serde_json::to_vec(&wire)
+            .map_err(|_| "Palmistry adoption request cannot be encoded")?);
+        let client = crate::backend_client::shared_http_client();
+        let request = self.account.authorize_builder(
+            client.clone(),
+            client.post(&self.url).timeout(Duration::from_secs(8))
+                .header(reqwest::header::CONTENT_TYPE, "application/json")
+                .body(body.to_vec()),
+        )?;
+        let account = Arc::clone(&self.account);
+        let future = Box::pin(async move {
+            let mut response = request.send().await
+                .map_err(|_| "Palmistry adoption transport outcome is uncertain")?;
+            let status = response.status();
+            account.observe_status(status);
+            let mut body = Zeroizing::new(Vec::new());
+            while let Some(chunk) = response.chunk().await
+                .map_err(|_| "Palmistry adoption response outcome is uncertain")?
+            {
+                if body.len().saturating_add(chunk.len()) > 64 * 1024 {
+                    return Err("Palmistry adoption response exceeded 64 KiB".into());
+                }
+                body.extend_from_slice(&chunk);
+            }
+            Ok((status.as_u16(), body))
+        });
+        self.request_bytes.push(body);
+        self.attempts.push(AdoptionHttpAttempt {
+            future, raw: None, reply: None, panic_payload: None,
+        });
+        Ok(())
+    }
+
+    pub(crate) fn prepare_read(
+        &mut self,
+        account: Arc<crate::local_account::AuthenticatedContext>,
+    ) -> Result<(), String> {
+        let last = self.attempts.last().ok_or("Palmistry adoption has no retained request")?;
+        if last.panic_payload.is_some() || last.reply.is_none() {
+            return Err("Palmistry adoption request still has unresolved custody".into());
+        }
+        if matches!(last.reply.as_ref(), Some(Ok(reply))
+            if reply.adoption_status != PalmistryAdoptionStatus::Uncertain)
+        {
+            return Err("Palmistry adoption already has a positive response".into());
+        }
+        if account.account_id != self.account.account_id
+            || account.principal_id != self.account.principal_id
+            || account.access_space_id != self.account.access_space_id
+            || !account.is_active()
+        {
+            return Err("Palmistry adoption read changed the current custodian".into());
+        }
+        self.account = account;
+        self.queue_request("READ")
+    }
+
+    pub(crate) fn suspend(&self) {
+        self.provenance.state.active.store(false, Ordering::Release);
+    }
+
+    pub(crate) async fn advance(
+        &mut self,
+        current_account: &Arc<crate::local_account::AuthenticatedContext>,
+    ) -> Result<PalmistryAdoptionStatus, String> {
+        if !Arc::ptr_eq(&self.account, current_account) || !current_account.is_active() {
+            self.suspend();
+            return Err("Palmistry adoption current authentication changed".into());
+        }
+        let operation_id = self.operation_id;
+        let watcher_id = self.ready.identity.process_instance_id;
+        let attempt = self.attempts.last_mut().ok_or("Palmistry adoption has no retained request")?;
+        let status = std::future::poll_fn(|cx| {
+            if attempt.reply.is_none() {
+                if attempt.raw.is_none() {
+                    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        std::future::Future::poll(attempt.future.as_mut(), cx)
+                    })) {
+                        Ok(std::task::Poll::Pending) => return std::task::Poll::Pending,
+                        Ok(std::task::Poll::Ready(result)) => attempt.raw = Some(result),
+                        Err(payload) => {
+                            attempt.panic_payload = Some(payload);
+                            attempt.reply = Some(Err("Palmistry adoption request panicked; custody is uncertain".into()));
+                        }
+                    }
+                }
+                if attempt.reply.is_none() {
+                    let parsed = match attempt.raw.as_ref().expect("retained HTTP outcome") {
+                        Err(error) => Err(error.clone()),
+                        Ok((http_status, body)) => {
+                            serde_json::from_slice::<PalmistryAdoptionReply>(body.as_slice())
+                                .map_err(|_| "Palmistry adoption response is invalid".to_owned())
+                                .and_then(|reply| {
+                                    let positive = reply.adoption_status != PalmistryAdoptionStatus::Uncertain;
+                                    if reply.adoption_operation_id != operation_id
+                                        || reply.process_uuid != watcher_id
+                                        || (positive && (*http_status != 200 || reply.receipt.is_none()))
+                                        || (!positive && (*http_status != 202 || reply.receipt.is_some()))
+                                    {
+                                        Err("Palmistry adoption response identity or outcome mismatch".into())
+                                    } else {
+                                        Ok(reply)
+                                    }
+                                })
+                        }
+                    };
+                    attempt.reply = Some(parsed);
+                }
+            }
+            std::task::Poll::Ready(match attempt.reply.as_ref().expect("retained response") {
+                Ok(reply) => Ok(reply.adoption_status),
+                Err(error) => Err(error.clone()),
+            })
+        }).await?;
+        if !Arc::ptr_eq(&self.account, current_account) || !current_account.is_active() {
+            self.suspend();
+            return Err("Palmistry adoption authentication changed before publication".into());
+        }
+        if status == PalmistryAdoptionStatus::Uncertain {
+            self.suspend();
+            return Ok(status);
+        }
+        Ok(status)
+    }
+
+    pub(crate) fn accept_positive(
+        &self,
+        current_account: &Arc<crate::local_account::AuthenticatedContext>,
+    ) -> Result<(), String> {
+        if !Arc::ptr_eq(&self.account, current_account) || !current_account.is_active() {
+            self.suspend();
+            return Err("Palmistry adoption authentication changed before activation".into());
+        }
+        let reply = self.attempts.last().and_then(|attempt| attempt.reply.as_ref())
+            .and_then(|result| result.as_ref().ok())
+            .ok_or("Palmistry adoption positive response is unavailable")?;
+        if reply.adoption_status == PalmistryAdoptionStatus::Uncertain {
+            return Err("Palmistry adoption remains uncertain".into());
+        }
+        let receipt = reply.receipt.as_ref()
+            .ok_or("Palmistry adoption sealed response is missing")?;
+        if receipt.os_creation_time_100ns != self.expected_os_creation_time_100ns {
+            return Err("Palmistry adoption response differs from the original watcher OS generation".into());
+        }
+        self.provenance.accept_adoption(&self.ready, receipt)
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PalmistryLaunchReceipt {

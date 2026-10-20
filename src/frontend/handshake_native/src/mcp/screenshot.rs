@@ -217,7 +217,7 @@ mod windows_capture {
 
     use windows_sys::Win32::Foundation::{HWND, LPARAM, RECT, TRUE};
     use windows_sys::Win32::Graphics::Gdi::{
-        BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDC,
+        BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetWindowDC,
         GetDIBits, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
         HBITMAP, HDC, SRCCOPY,
     };
@@ -369,9 +369,9 @@ mod windows_capture {
                 ));
             }
 
-            let window_dc: HDC = GetDC(hwnd);
+            let window_dc: HDC = GetWindowDC(hwnd);
             if window_dc.is_null() {
-                return Err(ScreenshotError("GetDC failed".to_owned()));
+                return Err(ScreenshotError("GetWindowDC failed".to_owned()));
             }
             let mem_dc: HDC = CreateCompatibleDC(window_dc);
             if mem_dc.is_null() {
@@ -385,6 +385,12 @@ mod windows_capture {
                 return Err(ScreenshotError("CreateCompatibleBitmap failed".to_owned()));
             }
             let old = SelectObject(mem_dc, bitmap as _);
+            if old.is_null() {
+                DeleteObject(bitmap as _);
+                DeleteDC(mem_dc);
+                ReleaseDC(hwnd, window_dc);
+                return Err(ScreenshotError("SelectObject failed".to_owned()));
+            }
 
             // Ask the window to paint into the memory DC WITHOUT activating it. Unlike PrintWindow,
             // SendMessageTimeoutW cannot wedge this request forever: an unresponsive window is aborted
@@ -405,11 +411,25 @@ mod windows_capture {
                 1_000,
                 &mut paint_result,
             );
-            if printed == 0 {
-                let _ = BitBlt(mem_dc, 0, 0, width, height, window_dc, 0, 0, SRCCOPY);
+            if printed == 0
+                && BitBlt(mem_dc, 0, 0, width, height, window_dc, 0, 0, SRCCOPY) == 0
+            {
+                SelectObject(mem_dc, old);
+                DeleteDC(mem_dc);
+                DeleteObject(bitmap as _);
+                ReleaseDC(hwnd, window_dc);
+                return Err(ScreenshotError("WM_PRINT and BitBlt capture failed".to_owned()));
             }
 
-            // Read the bitmap bits out as top-down BGRA.
+            // GetDIBits requires the bitmap to be deselected from every DC.
+            if SelectObject(mem_dc, old).is_null() {
+                DeleteDC(mem_dc);
+                DeleteObject(bitmap as _);
+                ReleaseDC(hwnd, window_dc);
+                return Err(ScreenshotError("bitmap deselection failed".to_owned()));
+            }
+
+            // Read the bitmap bits out as top-down BGRX.
             let mut info: BITMAPINFO = std::mem::zeroed();
             info.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
             info.bmiHeader.biWidth = width;
@@ -431,7 +451,6 @@ mod windows_capture {
             );
 
             // Clean up GDI objects before encoding.
-            SelectObject(mem_dc, old);
             DeleteObject(bitmap as _);
             DeleteDC(mem_dc);
             ReleaseDC(hwnd, window_dc);
@@ -440,9 +459,10 @@ mod windows_capture {
                 return Err(ScreenshotError("GetDIBits returned 0 scanlines".to_owned()));
             }
 
-            // Convert BGRA -> RGBA in place.
+            // BI_RGB's fourth byte is unused; PNG needs an explicit opaque alpha.
             for px in bgra.chunks_exact_mut(4) {
                 px.swap(0, 2);
+                px[3] = 255;
             }
 
             // Encode to PNG via the `image` crate (already in the graph for the render path).

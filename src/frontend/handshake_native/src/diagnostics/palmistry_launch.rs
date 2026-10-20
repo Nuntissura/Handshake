@@ -952,6 +952,8 @@ pub enum ShutdownOutcome {
 pub struct PalmistryHandle {
     signed_expected: Option<(SignedWatcherIdentity, [u8; 32], [u8; 32])>,
     signed_ready: Option<SignedWatcherReady>,
+    adoption_operation_id: uuid::Uuid,
+    adoption_operation: Option<crate::internal_diagnostics::OwnedPalmistryAdoption>,
     child: Child,
     /// The live control connection, `Some` once the startup handshake acked (held for the later
     /// `Shutdown`), `None` if the handshake was unconfirmed (the watcher still runs; shutdown reconnects).
@@ -968,6 +970,65 @@ pub struct PalmistryHandle {
 }
 
 impl PalmistryHandle {
+
+    pub fn adoption_operation_id(&self) -> uuid::Uuid {
+        self.adoption_operation_id
+    }
+
+    pub fn prepare_adoption(
+        &mut self,
+        provenance: &crate::internal_diagnostics::AdoptedDiagnosticProvenance,
+        account: std::sync::Arc<crate::local_account::AuthenticatedContext>,
+        backend_base_url: &str,
+        request: serde_json::Value,
+    ) -> Result<uuid::Uuid, String> {
+        if self.adoption_operation.is_some() {
+            return Err("Palmistry adoption already retains its original operation".into());
+        }
+        let ready = self.signed_ready.clone().ok_or("Owned watcher has no signed readiness")?;
+        if ready.identity.watcher_pid != self.child.id()
+            || self.child.try_wait().map_err(|_| "Owned watcher status is unavailable")?.is_some()
+        {
+            return Err("Original Palmistry child is no longer live".into());
+        }
+        let operation = crate::internal_diagnostics::OwnedPalmistryAdoption::new(
+            self.adoption_operation_id, ready, provenance.clone(), account,
+            backend_base_url, request,
+        )?;
+        self.adoption_operation = Some(operation);
+        Ok(self.adoption_operation_id)
+    }
+
+    pub fn prepare_adoption_read(
+        &mut self,
+        account: std::sync::Arc<crate::local_account::AuthenticatedContext>,
+    ) -> Result<(), String> {
+        self.adoption_operation.as_mut()
+            .ok_or("Palmistry adoption has no original operation")?
+            .prepare_read(account)
+    }
+
+    pub async fn advance_adoption(
+        &mut self,
+        current_account: &std::sync::Arc<crate::local_account::AuthenticatedContext>,
+    ) -> Result<crate::internal_diagnostics::PalmistryAdoptionStatus, String> {
+        let operation = self.adoption_operation.as_mut()
+            .ok_or("Palmistry adoption has no original operation")?;
+        if self.child.try_wait().map_err(|_| "Owned watcher status is unavailable")?.is_some() {
+            operation.suspend();
+            return Err("Original Palmistry child exited before adoption".into());
+        }
+        let status = operation.advance(current_account).await?;
+        if self.child.try_wait().map_err(|_| "Owned watcher status is unavailable")?.is_some() {
+            operation.suspend();
+            return Err("Original Palmistry child exited before adoption activation".into());
+        }
+        if status != crate::internal_diagnostics::PalmistryAdoptionStatus::Uncertain {
+            operation.accept_positive(current_account)?;
+        }
+        Ok(status)
+    }
+
     /// Launch-local signed evidence; not backend adoption/START/authenticated key delivery.
     pub fn signed_ready(&self) -> Option<&SignedWatcherReady> {
         self.signed_ready.as_ref()
@@ -1457,6 +1518,8 @@ fn launch_palmistry_at_with_bootstrap(
         // Failure retains THIS actual Child and reaper, without presenting a legacy ACK as signed proof.
         return Ok(PalmistryHandle {
             signed_expected: Some((identity, verifier, transport_public_key)),
+            adoption_operation_id: uuid::Uuid::new_v4(),
+            adoption_operation: None,
             child,
             handshake_acked: signed_ready.is_some(),
             control,
@@ -1538,6 +1601,8 @@ fn launch_palmistry_at_with_bootstrap(
     Ok(PalmistryHandle {
         signed_expected: None,
         signed_ready: None,
+        adoption_operation_id: uuid::Uuid::new_v4(),
+        adoption_operation: None,
         child,
         control,
         handshake_acked,

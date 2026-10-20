@@ -67,10 +67,31 @@ impl SwarmLaneDiagnosticsClient {
         }
     }
 
-    fn fetch(&self, spec: RequestSpec, cell: crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell) {
+    /// Construct an owned latest request without spawning it.
+    pub fn latest_request_future(
+        &self,
+        cell: crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell,
+    ) -> impl std::future::Future<Output = ()> + Send + 'static {
+        self.request_future(self.latest_request(), cell)
+    }
+
+    /// Construct an owned run request without borrowing the client or run identifier.
+    pub fn run_request_future(
+        &self,
+        run_id: &str,
+        cell: crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell,
+    ) -> impl std::future::Future<Output = ()> + Send + 'static {
+        self.request_future(self.run_request(run_id), cell)
+    }
+
+    fn request_future(
+        &self,
+        spec: RequestSpec,
+        cell: crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell,
+    ) -> impl std::future::Future<Output = ()> + Send + 'static {
         let client = self.client.clone();
         let account = self.authenticated_context.clone();
-        self.runtime.spawn(async move {
+        async move {
             let result = get_json(&client, account, &spec.url, &[])
                 .await
                 .and_then(|value| {
@@ -81,7 +102,11 @@ impl SwarmLaneDiagnosticsClient {
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(result);
             }
-        });
+        }
+    }
+
+    fn fetch(&self, spec: RequestSpec, cell: crate::swarm_lane_diagnostics::SwarmLaneDiagnosticsCell) {
+        self.runtime.spawn(self.request_future(spec, cell));
     }
 }
 
@@ -464,6 +489,413 @@ impl UserManualTransport for UserManualClient {
 /// MT-037 consolidated client + the MT-029 find/replace `RichDocClient`, which now delegates to it)
 /// resolves its client from here so there is exactly ONE document-transport pool. Lazily initialized on
 /// first use; construction is proof-gated so an unbounded fallback client can never enter the app.
+/// Client for the backend-owned ModelRuntime registry projection and its
+/// explicit control receipts.
+/// Every request is spawned on the app runtime; the egui frame thread only
+/// drains the one-slot delivery cell.
+#[derive(Clone)]
+pub struct ModelRuntimeRegistryClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+    authenticated_context: AccountContext,
+}
+
+impl ModelRuntimeRegistryClient {
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: shared_http_client(),
+            base_url: base_url.into().trim_end_matches('/').to_owned(),
+            runtime,
+            authenticated_context: None,
+        }
+    }
+
+    pub fn with_authenticated_context(mut self, context: AccountContext) -> Self {
+        self.authenticated_context = context;
+        self
+    }
+
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    pub fn registry_request(&self) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Get,
+            url: format!("{}/model-runtime/registry", self.base_url),
+            body: None,
+        }
+    }
+
+    pub fn selection_request(&self, target_model_id: &str) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/model-runtime/selection", self.base_url),
+            body: Some(serde_json::json!({
+                "target_model_id": target_model_id,
+                "actor": "native-model-runtime-panel",
+                "reason": "operator selected a READY model from ModelRuntime Control Panel"
+            })),
+        }
+    }
+
+    pub fn quiesce_request(&self, model_id: &str, request_id: uuid::Uuid) -> RequestSpec {
+        self.control_request(
+            model_id,
+            request_id,
+            &crate::model_runtime_panel::ModelRuntimeControlAction::Quiesce,
+            None,
+            None,
+        )
+    }
+
+    pub fn control_request(
+        &self,
+        model_id: &str,
+        request_id: uuid::Uuid,
+        action: &crate::model_runtime_panel::ModelRuntimeControlAction,
+        expected_catalog_revision: Option<u64>,
+        expected_selection_revision: Option<u64>,
+    ) -> RequestSpec {
+        RequestSpec {
+            method: HttpMethod::Post,
+            url: format!("{}/model-runtime/control", self.base_url),
+            body: Some(serde_json::json!({
+                "schema_version": 1,
+                "request_id": request_id,
+                "model_id": model_id,
+                "action": action,
+                "timeout_ms": 5_000,
+                "expected_catalog_revision": expected_catalog_revision,
+                "expected_selection_revision": expected_selection_revision
+            })),
+        }
+    }
+}
+
+impl crate::model_runtime_panel::ModelRuntimeRegistryTransport for ModelRuntimeRegistryClient {
+    fn fetch_registry(&self, cell: crate::model_runtime_panel::ModelRuntimeRegistryCell) {
+        let spec = self.registry_request();
+        let client = self.client.clone();
+        let account = self.authenticated_context.clone();
+        self.runtime.spawn(async move {
+            let result = fetch_model_runtime_registry(&client, account, &spec.url)
+                .await
+                .map_err(|error| error.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    fn fetch_process_ownership(
+        &self,
+        uri: String,
+        cell: crate::model_runtime_panel::ProcessOwnershipCell,
+    ) {
+        let Some(process_uuid) = uri.strip_prefix("process-ownership-ledger://process/") else {
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(Err("ProcessOwnershipLedger URI is not canonical".to_owned()));
+            }
+            return;
+        };
+        let Ok(process_uuid) = uuid::Uuid::parse_str(process_uuid) else {
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(Err(
+                    "ProcessOwnershipLedger URI has an invalid UUID".to_owned()
+                ));
+            }
+            return;
+        };
+        let url = format!(
+            "{}/model-runtime/process-ownership/{process_uuid}",
+            self.base_url
+        );
+        let client = self.client.clone();
+        let account = self.authenticated_context.clone();
+        self.runtime.spawn(async move {
+            let result = get_json_authenticated(&client, account, &url, &[])
+                .await
+                .and_then(|value| {
+                    serde_json::from_value::<crate::model_runtime_panel::ModelRuntimeProcessOwnershipRecord>(value)
+                        .map_err(|error| AppError::Parse(error.to_string()))
+                })
+                .map_err(|error| error.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    fn select_model(
+        &self,
+        target_model_id: String,
+        cell: crate::model_runtime_panel::ModelRuntimeRegistryCell,
+    ) {
+        let spec = self.selection_request(&target_model_id);
+        let client = self.client.clone();
+        let account = self.authenticated_context.clone();
+        let body = spec.body.unwrap_or_default();
+        self.runtime.spawn(async move {
+            let result = post_json_expect_value_authenticated(&client, account, &spec.url, &body, Duration::from_secs(5))
+                .await
+                .and_then(|value| {
+                    serde_json::from_value::<
+                        crate::model_runtime_panel::ModelRuntimeRegistryProjection,
+                    >(value)
+                    .map_err(|error| AppError::Parse(error.to_string()))
+                })
+                .and_then(|projection| {
+                    crate::model_runtime_panel::validate_projection_for_native_surface(&projection)
+                        .map(|()| projection)
+                        .map_err(AppError::Parse)
+                })
+                .map_err(|error| error.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+
+    fn control_model(
+        &self,
+        model_id: String,
+        action: crate::model_runtime_panel::ModelRuntimeControlAction,
+        expected_catalog_revision: Option<u64>,
+        expected_selection_revision: Option<u64>,
+        cell: crate::model_runtime_panel::ModelRuntimeControlCell,
+    ) {
+        let request_id = uuid::Uuid::now_v7();
+        let spec = self.control_request(
+            &model_id,
+            request_id,
+            &action,
+            expected_catalog_revision,
+            expected_selection_revision,
+        );
+        let client = self.client.clone();
+        let account = self.authenticated_context.clone();
+        let body = spec.body.unwrap_or_default();
+        self.runtime.spawn(async move {
+            let result = post_json_expect_value_authenticated(&client, account, &spec.url, &body, Duration::from_secs(5))
+                .await
+                .and_then(|value| {
+                    serde_json::from_value::<
+                            crate::model_runtime_panel::ModelRuntimeControlReceipt,
+                        >(value)
+                        .map_err(|error| AppError::Parse(error.to_string()))
+                })
+                .and_then(|receipt| {
+                    let valid = receipt.schema_version == 1
+                        && receipt.request_id == request_id
+                        && receipt.model_id == model_id
+                        && receipt.action == action;
+                    if valid {
+                        Ok(receipt)
+                    } else {
+                        Err(AppError::Parse(
+                            "ModelRuntime control receipt does not match the submitted request"
+                                .to_owned(),
+                        ))
+                    }
+                })
+                .map_err(|error| error.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(result);
+            }
+        });
+    }
+}
+
+async fn fetch_model_runtime_registry(
+    client: &reqwest::Client,
+    account: AccountContext,
+    url: &str,
+) -> Result<crate::model_runtime_panel::ModelRuntimeRegistryProjection, AppError> {
+    let value = get_json_authenticated(client, account, url, &[]).await?;
+    let projection =
+        serde_json::from_value::<crate::model_runtime_panel::ModelRuntimeRegistryProjection>(value)
+            .map_err(|error| AppError::Parse(error.to_string()))?;
+    crate::model_runtime_panel::validate_projection_for_native_surface(&projection)
+        .map_err(AppError::Parse)?;
+    Ok(projection)
+}
+
+/// WP-1 live orchestration debug console SSE client. Tails
+/// `GET /wp1/diagnostics/console/stream` (`text/event-stream`) on the app's tokio
+/// runtime and appends each parsed `hsk.wp1_console_entry@1` entry into a shared
+/// bounded delivery buffer the egui frame thread drains each frame. Reads the
+/// stream via `Response::chunk()` (no `reqwest` `stream` feature needed) and
+/// reconnects with a bounded backoff, so the UI thread is never blocked and a
+/// transient backend restart self-heals. Speaks plain `serde` — never depends on
+/// the `handshake_core` crate's types.
+#[derive(Clone)]
+pub struct ConsoleStreamClient {
+    client: reqwest::Client,
+    base_url: String,
+    runtime: tokio::runtime::Handle,
+    authenticated_context: AccountContext,
+}
+
+impl ConsoleStreamClient {
+    pub fn new(base_url: impl Into<String>, runtime: tokio::runtime::Handle) -> Self {
+        Self {
+            client: shared_http_client(),
+            base_url: base_url.into().trim_end_matches('/').to_owned(),
+            runtime,
+            authenticated_context: None,
+        }
+    }
+
+    pub fn with_authenticated_context(mut self, context: AccountContext) -> Self {
+        self.authenticated_context = context;
+        self
+    }
+
+    pub fn production(runtime: tokio::runtime::Handle) -> Self {
+        Self::new(BACKEND_BASE_URL, runtime)
+    }
+
+    fn stream_url(&self) -> String {
+        format!("{}/wp1/diagnostics/console/stream", self.base_url)
+    }
+}
+
+/// Max entries retained in the delivery buffer before the oldest are dropped
+/// (the egui frame drains it each frame; this only bounds a burst while the UI
+/// is not drawing).
+const CONSOLE_STREAM_BUFFER_CAP: usize = 4096;
+
+impl crate::console_stream_pane::ConsoleStreamTransport for ConsoleStreamClient {
+    fn start_tail(
+        &self,
+        buffer: crate::console_stream_pane::ConsoleStreamBuffer,
+        status: crate::console_stream_pane::ConsoleStreamStatus,
+        repaint: crate::console_stream_pane::ConsoleStreamRepaint,
+    ) {
+        let url = self.stream_url();
+        let client = self.client.clone();
+        let account = self.authenticated_context.clone();
+        self.runtime.spawn(async move {
+            loop {
+                if !account.as_ref().is_some_and(|context| context.is_active()) {
+                    if let Ok(mut current) = status.lock() {
+                        *current = crate::console_stream_pane::ConsoleStreamConnectionState::Error(
+                            "Account login required".to_owned(),
+                        );
+                    }
+                    repaint();
+                    return;
+                }
+                let response = crate::local_account::AuthenticatedRequest::new(
+                    client.clone(),
+                    account.clone(),
+                    client.get(&url).header("accept", "text/event-stream"),
+                ).send().await;
+                let mut response = match response {
+                    Ok(response) if response.status().is_success() => {
+                        if let Ok(mut current) = status.lock() {
+                            *current =
+                                crate::console_stream_pane::ConsoleStreamConnectionState::Connected;
+                        }
+                        repaint();
+                        response
+                    }
+                    Ok(response) => {
+                        if let Ok(mut current) = status.lock() {
+                            *current =
+                                crate::console_stream_pane::ConsoleStreamConnectionState::Error(
+                                    format!("HTTP {}", response.status()),
+                                );
+                        }
+                        repaint();
+                        tokio::time::sleep(Duration::from_secs(2)).await;
+                        continue;
+                    }
+                    Err(error) => {
+                        if let Ok(mut current) = status.lock() {
+                            *current =
+                                crate::console_stream_pane::ConsoleStreamConnectionState::Error(
+                                    error.to_string(),
+                                );
+                        }
+                        repaint();
+                        // Backend not up yet / transient error: bounded backoff, retry.
+                        tokio::time::sleep(Duration::from_secs(2)).await;
+                        continue;
+                    }
+                };
+
+                let mut sse = String::new();
+                loop {
+                    if !account.as_ref().is_some_and(|context| context.is_active()) {
+                        if let Ok(mut current) = status.lock() {
+                            *current = crate::console_stream_pane::ConsoleStreamConnectionState::Error(
+                                "Account session is no longer active".to_owned(),
+                            );
+                        }
+                        repaint();
+                        return;
+                    }
+                    match response.chunk().await {
+                        Ok(Some(bytes)) => {
+                            sse.push_str(&String::from_utf8_lossy(&bytes));
+                            // SSE events are separated by a blank line.
+                            while let Some(idx) = sse.find("\n\n") {
+                                let raw: String = sse[..idx].to_string();
+                                sse.drain(..idx + 2);
+                                for line in raw.lines() {
+                                    let Some(data) = line.strip_prefix("data:") else {
+                                        continue; // event:/id:/comment/keep-alive lines
+                                    };
+                                    if let Ok(entry) =
+                                        serde_json::from_str::<
+                                            crate::console_stream_pane::ConsoleStreamEntry,
+                                        >(data.trim())
+                                    {
+                                        if let Ok(mut buffer) = buffer.lock() {
+                                            buffer.push_back(entry);
+                                            while buffer.len() > CONSOLE_STREAM_BUFFER_CAP {
+                                                buffer.pop_front();
+                                            }
+                                        }
+                                        repaint();
+                                    }
+                                }
+                            }
+                        }
+                        // Stream ended or errored: reconnect after a short delay.
+                        Ok(None) => break,
+                        Err(error) => {
+                            if let Ok(mut current) = status.lock() {
+                                *current =
+                                    crate::console_stream_pane::ConsoleStreamConnectionState::Error(
+                                        error.to_string(),
+                                    );
+                            }
+                            repaint();
+                            break;
+                        }
+                    }
+                }
+                if let Ok(mut current) = status.lock() {
+                    if matches!(
+                        *current,
+                        crate::console_stream_pane::ConsoleStreamConnectionState::Connected
+                    ) {
+                        *current =
+                            crate::console_stream_pane::ConsoleStreamConnectionState::Connecting;
+                    }
+                }
+                repaint();
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
+        });
+    }
+}
+
+
 static SHARED_HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 
 /// WP-KERNEL-012 MT-088 (D2 internal_diagnostics — backend-down graceful degradation, Master Spec

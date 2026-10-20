@@ -7543,7 +7543,16 @@ impl AtelierPanelRuntime {
                 egui::UiBuilder::new().id_salt(tab.content_author_id()),
                 |ui| match tab {
                     AtelierPanelTab::CastkitCodex => self.show_ckc(ui, palette),
-                    AtelierPanelTab::Posekit => self.show_posekit(ui, palette),
+                    AtelierPanelTab::Posekit => {
+                        ui.label(
+                            egui::RichText::new("Scroll for full preview and export controls.")
+                                .color(palette.text_subtle),
+                        );
+                        egui::ScrollArea::vertical()
+                            .max_height(ui.available_height().max(1.0))
+                            .auto_shrink([false, false])
+                            .show(ui, |ui| self.show_posekit(ui, palette));
+                    }
                     AtelierPanelTab::Ingest => self.show_ingest(ui, palette),
                 },
             )
