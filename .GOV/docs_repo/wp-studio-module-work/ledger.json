@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-20T21:57:04Z",
+ "updated_at": "2026-10-20T22:11:29Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8746,11 +8746,14 @@
   {
    "lane_id": "SMB-PARITY-REFRESH-4",
    "crate": "(read-only)",
-   "phase": "build",
-   "status": null,
+   "phase": "done",
+   "status": "DONE",
    "owner": "parity-auditor-20261020",
-   "commits": [],
-   "verdicts": []
+   "commits": [
+    "5a284135"
+   ],
+   "verdicts": [],
+   "note": "parity-matrix-20261020: 8 apps 54.2 -> 61.2%, 9 apps 50.2 -> 56.7%; UI rows 44 -> 81 of 308; scorecard artifact v5 republished"
   },
   {
    "lane_id": "SMB-CRATE-SEAM-SPLITS-2",
