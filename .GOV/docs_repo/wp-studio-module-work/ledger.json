@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-20T19:55:54Z",
+ "updated_at": "2026-10-20T21:35:05Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8717,12 +8717,25 @@
   {
    "lane_id": "SMB-STEWARD-GPU-CONTENTION",
    "crate": "tools/disk-build-lock.sh + studio-env + round entry script",
-   "phase": "build",
+   "phase": "done",
+   "status": "DONE",
+   "owner": "steward",
+   "commits": [
+    "673f9b7",
+    "52306106"
+   ],
+   "verdicts": [],
+   "note": "cross-slot GPU test lock: two-slot render-gpu timeouts 42 -> 1; render-gpu group 8 -> 4 threads approved (one-line sync pending)"
+  },
+  {
+   "lane_id": "SMB-STEWARD-ROUND-SELECT",
+   "crate": "(round tooling)",
+   "phase": "queued",
    "status": null,
    "owner": "steward",
    "commits": [],
    "verdicts": [],
-   "note": "diagnosis: not the driver (R35 binaries same speed on 617.42), not today's code (12 s direct), not CPU (1.5x at 64 busy procs), not 2 GPU procs (12 s); timeouts fit 16+ concurrent GPU test processes across two slots (R35: 32 threads -> 25 timeouts). Fix: cross-slot GPU test mutex, render-gpu group stays 8 threads per slot"
+   "note": "WF3-006 selection helper: crates changed since the last finalized round + reverse-dependency closure, emitted as the round selection; CX-VAL-002 reuse record for the rest; full union every third round"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
