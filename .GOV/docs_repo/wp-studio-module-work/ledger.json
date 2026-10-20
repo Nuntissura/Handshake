@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-20T15:25:42Z",
+ "updated_at": "2026-10-20T15:49:59Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8213,17 +8213,18 @@
   },
   {
    "lane_id": "SMB-D24A-CODEC-DEFAULTS",
-   "crate": "hsk-studio-reel + reel-native + harness",
-   "phase": "remediation (STUDIO-R35 FAIL_V1 @237256f)",
-   "status": "FAIL_V1",
+   "crate": "reel + reel-native + harness",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-d24a-20261015",
    "commits": [
-    "c91f791"
+    "c91f791",
+    "3b73143"
    ],
    "verdicts": [
     "STUDIO-R35 FAIL_V1 @237256f (reel engine_video.rs:332/455: mpeg-audio in Registry::standard() (18c85ac) has no export/past-the-end case; 6 units; F-R35-1)"
    ],
-   "note": "pushed 18c85ac..c91f791; MP3 default; AAC via OS MF decoder default (Studio AAC behind studio-aac); H.264/HEVC export via os-encode (default off). Needs steward round-features for studio-aac/os-encode before R35. Gaps: harness viewer does not register AAC worker (routed to SMB-PR-SOURCE-MONITOR); HEVC decode-back NOT_PROVEN; only 320x192 encode tested; AAC chan config 7 not reordered",
+   "note": "R35 FAIL_V1 remediated 3b73143",
    "lane_file": "builders/lanes/hsk-studio-d24a-codec-defaults.json"
   },
   {
@@ -8351,8 +8352,8 @@
   {
    "lane_id": "SMB-ID-PREPRESS",
    "crate": "layout + press + folio",
-   "phase": "remediation (STUDIO-R35 FAIL_V1 @237256f)",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-id-prepress-20261016",
    "commits": [
     "c28363a",
@@ -8361,12 +8362,13 @@
     "b69791b",
     "718434d",
     "2036f0f",
-    "3195ea5"
+    "3195ea5",
+    "3b73143"
    ],
    "verdicts": [
     "STUDIO-R35 FAIL_V1 @237256f (layout threaded_reflow.rs:686: vjust Center composes since 19990d2 but the test pins UnsupportedComposition; F-R35-2)"
    ],
-   "note": "vjust, inks/separations, find/change modes on layout find.rs, grids/snapping/units, EPUB3, data merge CSV/JSON, PDF place. Gaps -> SMB-ID-PREPRESS-2",
+   "note": "R35 FAIL_V1 remediated 3b73143",
    "lane_file": "builders/lanes/hsk-studio-id-prepress.json"
   },
   {
@@ -8650,13 +8652,15 @@
   },
   {
    "lane_id": "SMB-R35-REMEDIATION",
-   "crate": "hsk-studio-reel + hsk-studio-layout (tests)",
-   "phase": "build",
-   "status": null,
+   "crate": "reel + layout (tests)",
+   "phase": "done",
+   "status": "DONE",
    "owner": "builder-r35-remediation-20261020",
-   "commits": [],
+   "commits": [
+    "3b73143"
+   ],
    "verdicts": [],
-   "note": "F: D24A engine_video.rs:203/:455 mpeg-audio cases; ID-PREPRESS threaded_reflow.rs:686 vjust Center re-pin; full reel + layout suites in one bundled build"
+   "note": "remediates R35 FAIL_V1 of SMB-D24A-CODEC-DEFAULTS and SMB-ID-PREPRESS; reel all round feature sets + layout default green in one hold"
   },
   {
    "lane_id": "SMB-RAW-CLEANROOM-3",

@@ -2,7 +2,7 @@
   "crate": "hsk-studio-layout, hsk-studio-folio (layout records), hsk-studio-press(-write/-read), hsk-studio-interop-layout",
   "lane": "SMB-ID-PREPRESS",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slices 1-6 pushed; claim = c28363a (s1), d44b0a9 (s2), 609141c (s3), b69791b (s4), 718434d (s5), 2036f0f (s6), 3195ea5 (s4-6 test fixes)",
+  "phase": "slices 1-6 pushed; claim = c28363a (s1), d44b0a9 (s2), 609141c (s3), b69791b (s4), 718434d (s5), 2036f0f (s6), 3195ea5 (s4-6 test fixes); R35 FAIL_V1 remediation 3b73143 (threaded_reflow vjust Center re-pinned to the composed result)",
   "commits": [
     {
       "sha": "19990d2",
@@ -35,6 +35,10 @@
     {
       "sha": "3195ea5",
       "subject": "SMB-ID-PREPRESS slices 4-6: test fixes (StudioRgba profile binding, closure borrow, Result alias), unused mut"
+    },
+    {
+      "sha": "3b73143",
+      "subject": "R35 remediation (lane SMB-R35-REMEDIATION): layout tests/threaded_reflow.rs vjust Center re-pinned to the composed result, hand-checked (12 pt line box fills 12 pt frame 0: baseline 10; frame 1 grown to 24 pt: 6 pt above, baseline 16); still-refused vjust case (span/split in a non-top frame) stays pinned by tests/id_prepress_vjust.rs:135"
     }
   ],
   "capabilities_done": [
@@ -48,17 +52,17 @@
     "slice 6 (ID-30, ID-31) interop-layout data_merge.rs: RFC 4180 delimited and JSON-array sources (text, @image, #QR fields), <<field>> placeholders, merge_story with blank-line removal, record selection, multiple records per page, captured typed errors; pdf_place.rs: STU-LAY-130 seven crops from press page boxes (press-read PageView gains declared crop/bleed/trim/art boxes) and vector content bounds, draw_placed_pdf into a press PdfExport (CMYK/gray kept, clips, groups, hidden layers skipped, typed losses)"
   ],
   "tests": {
-    "argv": "batch under one lock at 687d58c (= 3195ea5 rebased over develop-only commits): clippy folio/layout/components/interop-layout/press/press-read/press-write --tests (exit 0); nextest layout --test id_prepress_vjust --test id_prepress_find_change --test id_prepress_grids; press --test id_prepress_separations; interop-layout --test id_prepress_epub --test id_prepress_merge_place",
+    "argv": "R35 remediation, one lock hold on D: (SSD guard refused 77 on the 191 GiB record), lane worktree wt-studio-lanes/smb-r35-remediation, STUDIO_OWNER=smb-r35-remediation, at 4b4d517 (= 3b73143 before rebase; the rebase onto 51484e1 touched neither layout/reel nor accord/observe/folio/type): cargo clippy -p hsk-studio-reel -p hsk-studio-layout --tests (exit 0); cargo nextest run -p hsk-studio-reel -p hsk-studio-layout = WHOLE layout suite + reel default (216/216, incl. threaded_reflow folio_inputs_select_the_story_thread_and_unsupported_properties_are_refused)",
     "exit": 0,
-    "sha": "687d58c",
-    "passed": 26,
+    "sha": "3b73143",
+    "passed": 216,
     "failed": 0
   },
   "blockers": [],
-  "lock_wait_s": 0,
+  "lock_wait_s": 4330,
   "bg_pids": [],
-  "next": "validation round; then D5 oracle checks and the gaps above",
-  "updated_at": "2026-10-16T07:24:30Z",
+  "next": "validation round on 3b73143 (R35 FAIL_V1 remediated); then D5 oracle checks and the gaps above",
+  "updated_at": "2026-10-20T15:49:23Z",
   "notes": {
     "owned_paths": [
       "crates/hsk-studio-layout/src/threaded_reflow.rs (vertical_justify pass + compose_flow verticals parameter)",

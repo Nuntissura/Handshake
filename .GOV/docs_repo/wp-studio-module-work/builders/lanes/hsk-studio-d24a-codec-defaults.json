@@ -2,13 +2,14 @@
   "crate": "hsk-studio-reel + hsk-studio-reel-native",
   "lane": "SMB-D24A-CODEC-DEFAULTS",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slices 1 (MP3 default), 2 (AAC via OS decoder, Studio AAC opt-in) and 3 (os-encode H.264/HEVC) pushed as 18c85ac..c91f791 (head c91f791). Slices share files (registry.rs, wire.rs, host.rs, ffi.rs), so the commits are split by crate, not by slice; claim = 18c85ac..c91f791 for all three slices.",
+  "phase": "slices 1 (MP3 default), 2 (AAC via OS decoder, Studio AAC opt-in) and 3 (os-encode H.264/HEVC) pushed as 18c85ac..c91f791 (head c91f791). Slices share files (registry.rs, wire.rs, host.rs, ffi.rs), so the commits are split by crate, not by slice; claim = 18c85ac..c91f791 for all three slices. R35 FAIL_V1 remediation 3b73143 (engine_video mpeg-audio export + past-the-end cases).",
   "commits": [
     {"sha": "18c85ac", "subject": "reel (slices 1-3, D24-A): MP3 in Registry::standard(); AAC via ExternalAudioDecoder (Studio AAC behind studio-aac); OS-encoder port for H.264/HEVC export (+ harness feature studio-aac, tests/audio_import.rs pin)"},
     {"sha": "e21c70f", "subject": "reel-native (slices 2-3, D24-A): OS AAC decoder worker mode (WorkerMfAacProvider); os-encode: OS H.264/HEVC encoder MFT worker (WorkerMfEncoder)"},
     {"sha": "85ceeb3", "subject": "reel: OS-encode frame-size check before the worker only; in-process encoders keep their judged refusal order"},
     {"sha": "bc351cf", "subject": "reel-native: encoder output time maps to the nearest owed frame; decode-back test prints the sample table"},
-    {"sha": "c91f791", "subject": "reel-native: learn the encoder's output-time offset from the first key unit"}
+    {"sha": "c91f791", "subject": "reel-native: learn the encoder's output-time offset from the first key unit"},
+    {"sha": "3b73143", "subject": "R35 remediation (lane SMB-R35-REMEDIATION): reel tests/engine_video.rs export_cases gains an mpeg-audio case (mp2-48k-2ch.mp2, 11 x 1152 = 12672 samples, D24-A: MP3/MP2/MP1 decode on by default): exact / MEDIA_NOT_EXACT export at 100 samples, past-the-end range 12667 + 10 > 12672 = MEDIA_OUT_OF_RANGE before the first read (export and preview)"}
   ],
   "capabilities_done": [
     "slice 1: reel Registry::standard() = wav-pcm, y4m, isobmff, matroska, mpeg-audio (last, so container sniffing comes first); register_audio_codecs / with_audio_codecs / with_audio register only ids not held yet (no duplicate refusal for mpeg-audio, a caller's own provider is kept). Judged pins updated with a D24-A note: reel tests/foundation_contract.rs registry_is_enumerable_instance_owned_and_reports (5 providers), harness tests/audio_import.rs opening_mp3_flac_and_opus_lands_in_a_score_mix_of_the_decoded_file (mpeg-audio now in standard()); mxf/provider.rs doc and DESCRIPTOR updated",
@@ -20,15 +21,16 @@
   "tests": {
     "argv": "lane worktree, D: target, STUDIO_OWNER=smb-d24a-codec-defaults: cargo clippy -p hsk-studio-reel --tests and -p hsk-studio-reel-native --features mf-worker,test-faults,os-encode,hsk-studio-reel/studio-aac --tests (no findings in lane files; only hsk-studio-observe too_many_arguments, not this lane); cargo nextest run -p hsk-studio-reel --test d24a_defaults --test foundation_contract --test audio_containers --test export_queue --test audio_mp3 --lib -E 'not test(ffmpeg_reads)' (50/50); -p hsk-studio-reel --features studio-aac --test audio_aac --test audio_containers --test d24a_defaults (8/8); -p hsk-studio-harness --features media --test audio_import (5/5) and --features studio-aac (5/5); -p hsk-studio-reel-native --features mf-worker,test-faults,os-encode,hsk-studio-reel/studio-aac --test mf_aac --test mf_encode --test mf_worker --lib (18/18). After the rebase onto d44b0a9: reel d24a_defaults/foundation_contract/export_queue/audio_containers 13/13, harness media audio_import 5/5, reel-native mf_aac + mf_encode 4/4",
     "exit": 0,
-    "sha": "c91f791",
-    "passed": 99,
-    "failed": 0
+    "sha": "3b73143",
+    "passed": 977,
+    "failed": 0,
+    "r35_remediation_argv": "one lock hold on D: (SSD guard refused 77 on the 191 GiB record), lane worktree wt-studio-lanes/smb-r35-remediation, STUDIO_OWNER=smb-r35-remediation, at 4b4d517 (= 3b73143 before rebase; the rebase onto 51484e1 touched neither reel/layout nor accord/observe): cargo clippy -p hsk-studio-reel -p hsk-studio-layout --tests (exit 0); WHOLE reel suite per round unit: cargo nextest run -p hsk-studio-reel -p hsk-studio-layout 216/216; -p hsk-studio-reel --features av1 152/152; prores 151/151; av1-encode 150/150; av1,av1-encode 157/157; studio-aac 151/151 (engine_video export_is_exact_or_error_for_every_provider and export_range_past_the_end_is_refused_before_the_first_read_for_every_provider pass in all 6)"
   },
   "blockers": [],
   "lock_wait_s": 9000,
   "bg_pids": [],
-  "next": "Validator: judge 18c85ac..c91f791 with round units reel default and [studio-aac], harness [media] and [studio-aac], reel-native [mf-worker,test-faults] plus [mf-worker,test-faults,os-encode,hsk-studio-reel/studio-aac] (Windows with Media Foundation). Steward: round-features requests filed in builders/dep-requests.jsonl (kind round-features, lane SMB-D24A-CODEC-DEFAULTS). Lead: see notes.lead_report.",
-  "updated_at": "2026-10-16T04:05:19Z",
+  "next": "Validator: judge R35 FAIL_V1 remediation 3b73143 together with 18c85ac..c91f791 with round units reel default and [studio-aac], harness [media] and [studio-aac], reel-native [mf-worker,test-faults] plus [mf-worker,test-faults,os-encode,hsk-studio-reel/studio-aac] (Windows with Media Foundation). Steward: round-features requests filed in builders/dep-requests.jsonl (kind round-features, lane SMB-D24A-CODEC-DEFAULTS). Lead: see notes.lead_report.",
+  "updated_at": "2026-10-20T15:49:23Z",
   "notes": {
     "lead_report": "NEW features (no new crates.io dependency, no new manifest edge): reel studio-aac (default off), reel-native os-encode (= mf, default off), harness studio-aac (= media + hsk-studio-reel/studio-aac). Three round-features lines appended to builders/dep-requests.jsonl. Changed public API: VideoRoute gained pub field `audio` (all struct literals are inside reel); VideoCodecChoice gained H264/Hevc; mux::VideoEntry gained Hevc; PacketDecoder gained default flush. Harness wiring of WorkerMfAacProvider into its media-native viewer (so the desktop viewer decodes AAC by default) is NOT done: follow-up for the harness owner.",
     "measurements": {
