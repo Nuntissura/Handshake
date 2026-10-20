@@ -1,0 +1,47 @@
+{
+  "crate": "hsk-studio-score",
+  "lane": "SMB-AUDITION-UI-2",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-2 pushed from worktree wt-studio-lanes/smb-audition-ui (STUDIO_OWNER=smb-audition-ui), rebased on origin and re-tested before push",
+  "commits": [
+    {
+      "sha": "1bc8395",
+      "subject": "score (SMB-AUDITION-UI-2 slice 1): processor-state checkpoints, exact backward seek without re-rendering from the start"
+    },
+    {
+      "sha": "57ce0d0",
+      "subject": "harness (SMB-AUDITION-UI-2 slice 2): bus and master effect editing from the mixer panel"
+    }
+  ],
+  "capabilities_done": [
+    "(1) checkpoints: Processor::save_state / restore_state (engine.rs, default unsupported); exact bit-pattern state for Gain, Unity, Equalizer, Dynamics, LookaheadLimiter (+ true-peak histories) and Reverb; score state.rs StateWriter / StateReader (bounds-checked, LengthMismatch before change). MixGraph saves bus/master stage states and alignment delay lines during forward render every interval (CheckpointPolicy default 1 s, 64 MiB budget; over budget every second checkpoint is dropped and the interval doubles); SeekMode::Exact resumes from the nearest checkpoint at or before the target. Stated seek-time bound: at most interval_frames + max_block_frames frames rendered after a resume (CheckpointStats.seek_bound_frames, last_seek_frames); before the first checkpoint, or forward into unplayed audio, the distance itself. A stage without support turns checkpoints off (exact re-render from 0). Automation lanes are re-applied after restore (lane-derived parameters are pure functions of the lane value).",
+    "(2) mixer effect editing: MixerEdit AddEffect / RemoveEffect / MoveEffect / EffectEnabled / EffectParam on a submix bus or the master, each one routing-entry undo step, refused before storing when the instance does not build; panel rows (enable, up, down, remove, a drag value per parameter) and an add combo (gain, equalizer, dynamics, lookahead_limiter) per bus and master; mixer_json effects"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-score --test audition_session --test session --test session_latency --test chain_mix --test dynamics --test reverb --test eq_response (26/26; score unchanged upstream at rebase); -p hsk-studio-harness --features media,audio-batch,audio-device --test audio_mixer --test audio_session --test audio_batch --test audio_import --test viewer_audio --test viewer_layers (18/18 after rebase); -p hsk-studio-pulse --test bus_mix --test playback_audio --test playback_mix_stream (5/5 after rebase); clippy score lib+tests and harness lib + audio_mixer: no findings in lane files",
+    "exit": 0,
+    "sha": "57ce0d0",
+    "passed": 49,
+    "failed": 0,
+    "cases": [
+      "score audition_session: checkpointed_backward_seeks_are_exact_and_bounded (4 s RT60 reverb bus + automated EQ / compressor / limiter bus + latent master: backward seeks to 2.6 s, 0.3 s, 4.75 s bit-equal to continuous play, rendered frames <= 49000 bound; thinning under a tight budget; fallback with an unsupported stage; state round trip and refusal)",
+      "harness audio_mixer: mixer_edits_bus_and_master_effects_as_single_undo_steps"
+    ]
+  },
+  "blockers": [],
+  "lock_wait_s": 7200,
+  "bg_pids": [],
+  "next": "Validator: judge 1bc8395 (score engine.rs trait defaults, dsp.rs/eq.rs/dynamics.rs/reverb.rs/truepeak.rs state hooks, state.rs, bus.rs checkpoints, lib.rs exports, tests/audition_session.rs) and 57ce0d0 (harness view/mixer.rs, tests/audio_mixer.rs).",
+  "updated_at": "2026-10-16T02:58:00Z",
+  "notes": {
+    "not_proven": [
+      "NOT_PROVEN: checkpoint support for score processors other than Gain, Unity, Equalizer, Dynamics, LookaheadLimiter and Reverb (they report unsupported; graphs using them seek exactly by re-rendering from 0)",
+      "NOT_PROVEN: score-track strips (StripInput::Track) seek by re-rendering their session from 0; pulse timeline strips rebuild from their group start",
+      "NOT_PROVEN: real device and windowed mixer session"
+    ],
+    "licensing": "no new dependencies"
+  },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": ["harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness audio_import::wav_and_surround_files_import_with_the_bs775_downmix_and_channel_map (features:hsk-studio-harness+media): AAC 5.1 downmix needs --features studio-aac (D24-A)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+media): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness audio_import::wav_and_surround_files_import_with_the_bs775_downmix_and_channel_map (features:hsk-studio-harness+media-native): AAC 5.1 downmix needs --features studio-aac (D24-A)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+media-native): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+audio-device): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+audio-batch): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness audio_import::wav_and_surround_files_import_with_the_bs775_downmix_and_channel_map (features:hsk-studio-harness+audio-batch): AAC 5.1 downmix needs --features studio-aac (D24-A)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+studio-aac): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"], "note": "claim 1bc8395 57ce0d0: processor-state checkpoints (exact bit patterns for gain/unity/EQ/dynamics/limiter/reverb; others report unsupported and fall back to exact re-render from 0, declared) with a stated seek bound; mixer bus/master effect add/remove/move/enable/param edits as single undo steps. score state.rs reads only in-memory checkpoint bytes with checked arithmetic but carries no V4-01 deny (finding). Audition parity UNVERIFIED (D5), not failed. units of harness/score: 31 crate units + default; all build 0 / run 0; default harness 7, score 121", "idempotency_key": "STUDIO-R35:SMB-AUDITION-UI-2:237256f8792c:PASS_V1", "round": "STUDIO-R35", "lane": "SMB-AUDITION-UI-2", "candidate": "237256f8792c708b96464030d4b40f3a93e8f0e0", "tree": "f699823b8e0d0530a5f9a96df354b8b7aac8294f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R35", "started_at": "2026-10-16T07:31:56Z", "completed_at": "2026-10-20T14:11:50Z"}
+ ]
+}
