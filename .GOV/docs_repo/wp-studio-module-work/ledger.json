@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-20T16:27:42Z",
+ "updated_at": "2026-10-20T17:02:01Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8619,12 +8619,17 @@
   {
    "lane_id": "SMB-ID-COMPOSER-PARITY",
    "crate": "type + layout",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-id-composer-20261016",
-   "commits": [],
+   "commits": [
+    "98d70fb",
+    "ec8b2c8",
+    "5fa82ec"
+   ],
    "verdicts": [],
-   "note": "75 InDesign oracle mismatches: paragraph-composer emergency pass (forced loose line first), single-line justification shrink, justify past max word spacing, hyphenation points, glyph scaling / justify-all, Arial ff 0.088 pt"
+   "note": "InDesign oracle MATCH 20->55; 35 of 40 remaining mismatches are only the Arial ff x (cmap uniFB00 vs GPOS kern; type owner FU-ID-6); 5 break differences; glyph scaling measured not implemented. Validator: composer constants are fitted to this oracle only (overfitting risk; behaviour outside the oracle UNVERIFIED)",
+   "lane_file": "builders/lanes/hsk-studio-id-composer-parity.json"
   },
   {
    "lane_id": "SMB-AI-AE-ORACLE-FOLLOWUPS",
@@ -8674,6 +8679,16 @@
    "commits": [],
    "verdicts": [],
    "note": "RAF predictor-switch/gradient context/X-Trans/lossy quantiser; CR3 CRX; SR2 keystream - black-box vs DNG Converter only"
+  },
+  {
+   "lane_id": "SMB-TYPE-FF-LIGATURE",
+   "crate": "hsk-studio-type",
+   "phase": "queued",
+   "status": null,
+   "owner": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "FU-ID-6: prefer cmap uniFB00 ff ligature advance over GPOS kern like InDesign; drop kern across hyphen split; then glyph-scaling implementation"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
