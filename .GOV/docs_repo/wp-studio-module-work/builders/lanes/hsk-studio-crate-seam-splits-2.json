@@ -1,0 +1,66 @@
+{
+  "crate": "hsk-studio-interop-fig (-> hsk-studio-interop-fig-base, hsk-studio-interop-fig-native), hsk-studio-web (-> hsk-studio-web-core, hsk-studio-web-assets)",
+  "lane": "SMB-CRATE-SEAM-SPLITS-2",
+  "status": "BLOCKED",
+  "phase": "both splits implemented and committed locally (fef312e interop-fig, 67a7496 web) on base 6585ff0; NOT pushed: the bundled lane-check run was refused by the global gameplan PreToolUse hook before it started",
+  "worktree": "Handshake Worktrees/wt-studio-lanes/smb-crate-seam-splits-2 (branch lane/smb-crate-seam-splits-2, base 6585ff0), STUDIO_OWNER=smb-crate-seam-splits-2",
+  "commits": [
+    {
+      "sha": "fef312e",
+      "subject": "interop-fig (SMB-CRATE-SEAM-SPLITS-2): split into hsk-studio-interop-fig-base and -native",
+      "pushed": false
+    },
+    {
+      "sha": "67a7496",
+      "subject": "web (SMB-CRATE-SEAM-SPLITS-2): split into hsk-studio-web-core and hsk-studio-web-assets",
+      "pushed": false
+    }
+  ],
+  "decision_basis": "START_LOG 'Lead decision 2026-10-16 (SMB-CRATE-SEAM-SPLITS slice 3)' items (2) and (3); lanes/hsk-studio-crate-seam-splits.json slice3_candidates",
+  "in_flight_check": "2026-10-20: git status --short and git log origin/codex/handshake-studio-assets..HEAD in every wt-studio-lanes/* worktree and the shared wt-studio-assets tree: no uncommitted or unpushed path under hsk-studio-interop-fig or hsk-studio-web",
+  "spec_basis": {
+    "STU-ARC-018": "each facade re-exports only its own two halves, item by item (no glob); hsk-studio-interop-fig and hsk-studio-web stay the single owners of STUDIO-MODULE-INTEROP_FIG and STUDIO-MODULE-WEB",
+    "CX-CAP-001": "one active owner per capability: unchanged"
+  },
+  "capabilities_done": [
+    "interop-fig: pure move (git renames, content unchanged except graph.rs) of container, error, graph, import, kiwi, kiwi_value, nodes, semantic_decode, version_map -> crates/hsk-studio-interop-fig-base/src and native, effects, geometry, text_out, export -> crates/hsk-studio-interop-fig-native/src; descriptor.rs stays in the facade",
+    "interop-fig seam: base container, graph, import, nodes, semantic_decode are #[doc(hidden)] pub mod; graph::build and GraphBuild pub(crate) -> #[doc(hidden)] pub; native lib.rs imports those modules plus FigError, Result, SourceId under the same crate:: names",
+    "web: pure move of dom (+dom/construction), charref, entity, entity_table, css, responsive, preview, refresh, source_dom_patch, error, report -> crates/hsk-studio-web-core/src (DESCRIPTOR moved verbatim from the facade lib.rs into web-core lib.rs because the moved carriers unit test reads crate::DESCRIPTOR); assets, carriers, cssurl, datauri and their unit test files -> crates/hsk-studio-web-assets/src",
+    "web seam: core charref, dom, error are #[doc(hidden)] pub mod; charref Context, CharData, Decoded, decode and dom Sheet, Sheet::span, WebDoc::sheet/raw_text_data/text_value pub(crate) -> #[doc(hidden)] pub; assets lib.rs has #[cfg(test)] use of DESCRIPTOR, Limits, parse for the moved unit tests",
+    "web cssurl/tests.rs: include_str! of the css-parsing-tests corpus now ../../../hsk-studio-web/tests/data/... (path only)",
+    "facades: same public names re-exported item by item (web keeps responsive and source_dom_patch module paths); original deps kept for integration tests and examples",
+    "root Cargo.toml: members + declared-members add the four crates; dependencies.allowed: fig-base [accord, folio, observe, package], fig-native [accord, folio, components, type, package, nib, press, interop-raster, interop-fig-base], interop-fig += fig-base, fig-native; web-core [accord, observe], web-assets [accord, web-core], web += web-core, web-assets",
+    "dep-requests.jsonl: 6 lines at 2026-10-20T22:07:34Z (fig -> base, fig -> native, native -> base, web -> core, web -> assets, assets -> core)"
+  ],
+  "tests": {
+    "argv": "cd <lane>/handshake-studio-assets && bash <GOV>/tools/lane-check.sh --owner smb-crate-seam-splits-2 -- cargo nextest run -p hsk-studio-interop-fig-base -p hsk-studio-interop-fig-native -p hsk-studio-interop-fig -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/viewer,hsk-studio-harness-view/viewer --no-fail-fast",
+    "exit": null,
+    "result": "NOT RUN: refused by the PreToolUse gameplan hook (it resolved .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.yaml: 'confirm_binding target missing: wtc-WP-KERNEL-012', GLOBAL-GAMEPLAN-001); lane-gameplan.sh skipped per lead (gameplan retired 2026-10-20); command not reshaped",
+    "static_checks": "cargo metadata --no-deps (ungated) lists all six crates; baseline counts by #[test]: interop-fig 55 integration tests (no unit tests), web crates 138",
+    "web_run_planned": "cargo nextest run -p hsk-studio-web-core -p hsk-studio-web-assets -p hsk-studio-web --no-fail-fast (no workspace consumer of hsk-studio-web)"
+  },
+  "blockers": [
+    "INCIDENT 2026-10-20 ~22:45Z: this builder DELETED origin branch codex/handshake-studio-assets. Cause: a chained command `git rebase ... && F=$(git rev-parse HEAD~1) && ... ; git push origin $F:refs/heads/codex/handshake-studio-assets`; the rebase failed (Cargo.lock unstaged), F stayed empty, and the push after ';' ran as a delete refspec. Last tip before the delete: 8bb6f6461e99bb3d3e6d3aaf46c20393249df9b0 (Steward sync for 6585ff0; present in the local object store of the shared repo). Restore = git push origin 8bb6f6461e99bb3d3e6d3aaf46c20393249df9b0:refs/heads/codex/handshake-studio-assets; the builder's restore push was denied by the permission classifier, so the Operator or lead must restore it. Nothing else was pushed.",
+    "gameplan hook: resolved by the lane pointer (lane-gameplan.sh, lead 2026-10-20)"
+  ],
+  "fig_bundle": {
+    "argv": "lane-check.sh --owner smb-crate-seam-splits-2 --disk d (SSD refused 77: 142 GiB > 140) -- cargo nextest run -p hsk-studio-interop-fig-base -p hsk-studio-interop-fig-native -p hsk-studio-interop-fig -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/viewer,hsk-studio-harness-view/viewer --no-fail-fast",
+    "head": "67a7496 (fig fef312e + web 67a7496 on 6585ff0)",
+    "clippy": "clean for the fig crates and harness/harness-view (warnings only in hsk-studio-type and hsk-studio-observe)",
+    "result": "180 run: 179 passed, 1 failed, 20 skipped; FAIL hsk-studio-interop-fig::fig_paints_2 bold_text_renders_with_the_inter_bold_fixture (artboard p99 5.700324 > pin 5.698; mean 0.907880, <=8 0.993252)",
+    "pre_existing_proof": "same test at unsplit origin 6585ff0 (temp detached worktree wt-studio-lanes/smb-crate-seam-splits-2-base, since removed): FAIL with identical metrics (artboard p99 5.700324, mean 0.907880): not caused by the split; render-path commits since R35 candidate 237256f8 (SMB-PS-ORACLE-PARITY-1 30ea18e/a95f819/d69a277, SMB-AI-AE-ORACLE-FOLLOWUPS 3a876c5/87707e1/fb9882c, ...) are the candidates; not re-pinned by this lane (another lane's expectation)"
+  },
+  "steward_items": [
+    ".config/duplicate-fingerprints.toml D16 allowed: crates/hsk-studio-interop-fig/src/container.rs -> crates/hsk-studio-interop-fig-base/src/container.rs (run-round step 0 exit 71 otherwise)",
+    ".config/machine-paths.toml pinned: crates/hsk-studio-web/src/cssurl/tests.rs = 1 -> crates/hsk-studio-web-assets/src/cssurl/tests.rs = 1 (run-round step 0 exit 72 otherwise)",
+    "registry pins, APPROVED, probe and lock for the four new crates (batched sync, WF3-008)"
+  ],
+  "bg_pids": [],
+  "next": "after the hook block is lifted: run the fig bundle (argv above), fix all, one re-run; push; then the web bundle; push; record shas and set READY_FOR_VALIDATION",
+  "updated_at": "2026-10-20T22:07:34Z",
+  "notes": {
+    "api": "public names of hsk-studio-interop-fig and hsk-studio-web unchanged (same lists, explicit); new surface exists only as #[doc(hidden)] seam items in the base/core halves",
+    "cargo_lock": "left uncommitted",
+    "gov_kernel": "no gov_kernel commits; this file and the dep-requests lines are uncommitted kernel edits"
+  }
+}

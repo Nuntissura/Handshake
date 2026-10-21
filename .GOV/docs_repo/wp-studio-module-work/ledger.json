@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-20T23:02:35Z",
+ "updated_at": "2026-10-21T00:37:22Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8348,13 +8348,18 @@
   },
   {
    "lane_id": "SMB-AE-ROTO-TIMEREMAP",
-   "crate": "composite + motion + pulse",
-   "phase": "build",
-   "status": null,
+   "crate": "composite + motion + pigment",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-ae-roto-20261020",
-   "commits": [],
+   "commits": [
+    "06ac8e2",
+    "75b759f",
+    "79ebca8",
+    "3432d5c"
+   ],
    "verdicts": [],
-   "note": "AE-18 roto brush/refine edge, AE-10 time remapping + frame blending",
+   "note": "pushed 8bb6f64..3432d5c on 2026-10-21 by the lead; 370/370 whole motion/pigment/composite suites. Assisted roto slice conflicts with spec STU-CMP-034/100 (spec update requested by Operator, not yet done)",
    "lane_file": "builders/lanes/hsk-studio-ae-roto-timeremap.json"
   },
   {
@@ -8475,12 +8480,14 @@
   {
    "lane_id": "SMB-DXF-EPS-IMPORT",
    "crate": "interop-vector-core (+worker)",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-dxf-eps-20261020",
-   "commits": [],
+   "commits": [
+    "85b3446"
+   ],
    "verdicts": [],
-   "note": "DXF via dxf crate (MIT; 0.6.2 released 2026-10-03 fails 2-week age rule until 2026-10-17: pin prior version or wait); DWG typed refusal dwg_unavailable -> DXF route; EPS: DSC + DOS-header preview first, then stet (Apache-2.0 OR MIT; 0.8.7 of 2026-10-15 too new: pin an older version) in isolated capped worker -> PDF -> import_ai_with; EPSF export from SVG path model; Ghostscript excluded",
+   "note": "rebased onto 3432d5c and pushed as ..85b3446 on 2026-10-21; 39/39 at pre-rebase base; steward sync for new deps/edge/bin still owed",
    "lane_file": "builders/lanes/hsk-studio-dxf-eps-import.json"
   },
   {
@@ -8698,24 +8705,28 @@
   },
   {
    "lane_id": "SMB-TYPE-FF-LIGATURE",
-   "crate": "type + layout",
-   "phase": "build",
-   "status": null,
+   "crate": "type + layout + interop-layout",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-type-ff-20261020",
-   "commits": [],
+   "commits": [
+    "2e0f53e"
+   ],
    "verdicts": [],
-   "note": "FU-ID-6: prefer cmap uniFB00 ff ligature advance over GPOS kern like InDesign; drop kern across hyphen split; then glyph-scaling implementation",
+   "note": "rebased and pushed as ..2e0f53e on 2026-10-21; InDesign oracle 55 -> 93/99; 169/169 at pre-rebase base",
    "lane_file": "builders/lanes/hsk-studio-type-ff-ligature.json"
   },
   {
    "lane_id": "SMB-PS-ORACLE-PARITY-2",
-   "crate": "pigment + render-gpu",
-   "phase": "build",
-   "status": null,
+   "crate": "pigment + render-cpu + render-gpu",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-ps-oracle-parity-2-20261020",
-   "commits": [],
+   "commits": [
+    "e64eacd"
+   ],
    "verdicts": [],
-   "note": "spread/choke/stroke dilation corner rule, gamma 1.5 toe, this-gray Blend-If metric, 8-bit quantisation, C14 opacity grouping, C16 fill-0 glow, pass-through premultiplied lerp",
+   "note": "rebased and pushed as ..e64eacd on 2026-10-21; Photoshop oracle 340 -> 489/588; 408/408 at pre-rebase base",
    "lane_file": "builders/lanes/hsk-studio-ps-oracle-parity-2.json"
   },
   {
@@ -8764,7 +8775,7 @@
    "commits": [],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-crate-seam-splits-2.json",
-   "note": "INCIDENT 2026-10-21: lane deleted origin/codex/handshake-studio-assets (push chained after ';' with empty sha after a failed rebase). Restore target 8bb6f64 pending Operator approval. Local commits fef312e (fig split, 179/180; the 1 failure fig_paints_2 bold_text_renders_with_the_inter_bold_fixture also fails at unsplit 6585ff0) and 67a7496 (web split, untested). Fresh agent finishes after restore."
+   "note": "not pushed: web split 67a7496 untested; fig split fef312e local only"
   },
   {
    "lane_id": "STUDIO-R36",

@@ -1,0 +1,81 @@
+{
+  "crate": "hsk-studio-motion (time remap), hsk-studio-pigment (frame_blend, select_tools::roto, select_tools::roto_refine), hsk-studio-composite (CompositionTemporalSource::with_time_remap)",
+  "lane": "SMB-AE-ROTO-TIMEREMAP",
+  "status": null,
+  "phase": "slices 1-3 committed locally on lane/smb-ae-roto-timeremap and green in one bundled run on 3432d5c (rebased on origin 8bb6f64); PUSH HELD by lead order 2026-10-20 (origin/codex/handshake-studio-assets deleted by another lane, restoration pending the Operator). READY_FOR_VALIDATION is set only after the push.",
+  "commits": [
+    {"sha": "06ac8e2", "subject": "Studio AE-10: time remapping, time stretch/reverse and frame blending (SMB-AE-ROTO-TIMEREMAP slice 1)", "pushed": false},
+    {"sha": "75b759f", "subject": "Studio AE-18: assisted roto from base-frame strokes with flow-guided propagation (SMB-AE-ROTO-TIMEREMAP slice 2)", "pushed": false},
+    {"sha": "79ebca8", "subject": "Studio AE-18: roto refine edge with trimap-band matting, decontamination and reduce chatter (SMB-AE-ROTO-TIMEREMAP slice 3)", "pushed": false},
+    {"sha": "3432d5c", "subject": "Studio AE-10: Horn-Schunck default alpha 0.2 and 4 px coarsest level (SMB-AE-ROTO-TIMEREMAP fix)", "pushed": false}
+  ],
+  "capabilities_done": [
+    "slice 1 motion::time_remap: TimeRemap over a one-component time_remap Property (source seconds; every keyframe op applies via property_mut), enable = keys (in, 0) and (in + last frame, last frame) so the render is unchanged, from_stretch(num, den) with negative = reverse, reverse() = time-reverse keyframes (mirrored times, swapped in/out, negated speeds), with_keys/from_property, sample() clamps to [0, last frame] with RemapClamp First/Last (STU-MOT-045 contract 5) and rounds to whole source ticks; frame_sample(): STU-MOT-007a off = floor frame, frame_mix/pixel_motion = floor and next frame with remainder weight, held at the last frame; FrameBlending wire/parse off|frame_mix|pixel_motion; motion DESCRIPTOR updated",
+    "slice 1 pigment::frame_blend: frame_mix (premultiplied binary64 weighted blend, one rounding), optical_flow (Horn-Schunck 1981 Jacobi update, 2x2-box pyramid to a 4 px coarsest level, repeated warping per Papenberg et al. 2006, alpha 0.2), pixel_motion (bidirectional flow, Super SloMo 2018 eq. 4 intermediate-flow formula only, bilinear clamped sampling); BlendLimits bytes/work admitted before allocation; typed BlendError; module denies clippy::arithmetic_side_effects",
+    "slice 1 composite: CompositionTemporalSource::with_time_remap(layer_id, TimeRemap) (DanglingInput for unknown layers); with a remap the layer's source tick (source_tick, precomposition sampling in scene_of and the 3D collapse path) is the remap's clamped source tick instead of start_time/stretch",
+    "slice 2 pigment::select_tools::roto: roto_base (fg/bg strokes -> shared Boykov-Jolly/GrabCut segment(), bg strokes win, ROI ring as initial bg model), roto_propagate (forward and backward from the base frame: flow from new to previous frame, previous mask warped bilinearly, pixels beyond band_px from the predicted boundary pinned, band re-segmented with colour models from the previous frame plus pinned pixels; Base/Propagated/Lost); RotoEngine::Learned refuses model_unavailable (nothing downloaded); RotoLimits: frame count, aggregate output bytes, per-frame graph bytes and aggregate flow work admitted before work",
+    "slice 3 pigment::select_tools::roto_refine: refine_roto_frame (shared refine_with_marks engine, trimap band by radius or painted unknown region, guided filter or closed-form matting, decontaminate colours), refine_roto_sequence (per-frame refine, reduce chatter a' = (1-k) a + k mean(flow-warped neighbour alphas), k = 2/3 * percent/100); options range-checked, output bytes and flow work admitted before work"
+  ],
+  "tests": {
+    "argv": "cd <lane>/handshake-studio-assets && bash <GOV>/tools/lane-check.sh --owner smb-ae-roto-timeremap --disk d -- cargo nextest run -p hsk-studio-motion -p hsk-studio-pigment -p hsk-studio-composite --features hsk-studio-composite/motion --no-fail-fast --no-capture (clippy over the 3 crates + dependents develop, harness, harness-view, interop-fig, interop-layout, interop-psd, motion-js, pulse, render-cpu, render-gpu; whole suites of the 3 changed crates, rule 4a)",
+    "exit": 0,
+    "sha": "3432d5c",
+    "passed": 370,
+    "failed": 0,
+    "new_tests": [
+      "motion time_remap::enable_is_identity_and_clamps_hostile_values",
+      "motion time_remap::stretch_reverse_and_frame_blending_hand_values",
+      "pigment frame_blend::frame_mix_hand_values_and_hostile_inputs",
+      "pigment frame_blend::pixel_motion_follows_a_translating_blob",
+      "composite composition_adapter::time_remap_replaces_the_stretch_source_time",
+      "pigment roto::roto_base_and_propagation_track_a_moving_disc",
+      "pigment roto::roto_hostile_inputs_and_model_unavailable",
+      "pigment roto_refine::trimap_band_matting_recovers_the_soft_edge_and_decontaminates",
+      "pigment roto_refine::reduce_chatter_damps_a_flickering_matte_and_refuses_hostile_options"
+    ],
+    "earlier_run": "same argv on e57eb71 (pre-rebase): 369/370, pixel_motion_follows_a_translating_blob FAILED (flow (-1.714, -3.263) for a (4, 0) shift with alpha 0.05, 8 px coarsest level); fixed by 3432d5c"
+  },
+  "blockers": [
+    {"error": "push held: origin/codex/handshake-studio-assets deleted by another lane (lead order 2026-10-20, restoration pending the Operator)", "file_line": "n/a", "attempts": 0}
+  ],
+  "lock_wait_s": 2400,
+  "bg_pids": [],
+  "next": "When the lead reports origin restored: git fetch (no --prune), rebase on the restored tip, re-run the bundled lane check only if the rebase touched motion, pigment, composite or their dependencies, git diff --stat <origin tip>..HEAD (only the 16 lane paths), push HEAD:codex/handshake-studio-assets, then set status READY_FOR_VALIDATION on the pushed sha.",
+  "updated_at": "2026-10-20T23:03:23Z",
+  "notes": {
+    "spec_basis": {
+      "STU-MOT-045": "Time remapping turns a layer's source time into a keyframable property. Enabling it on a footage or composition layer creates a `time_remap` property whose value AT a composition time is the SOURCE time to sample. 1. Enabling creates exactly two keyframes: source time 0 at the layer's in point, and the source's final frame at its out point, so enabling changes nothing about the render. 2. The property is an ordinary `StudioProperty` and every keyframe operation, interpolation type and expression applies to it. 3. A decreasing segment plays the source backwards. A flat segment freezes. A steeper segment plays faster. 4. The layer's `out_point` is no longer bounded by the source duration ... 5. Values outside the source's range are clamped to the first or last frame; this is a clamp, not an error ... 6. Frame blending ([STU-MOT-007a]) governs what happens between source frames under a non-integer remap. 7. Clip-level speed and time remap in the sequence surface ([STU-VID-031a]) resolve to this same property",
+      "STU-MOT-007a": "The frame-blending enumeration is normative: `off`, `frame_mix`, `pixel_motion`.",
+      "STU-MOT-006 stretch": "`stretch` | rational | Time-stretch factor; negative reverses.",
+      "STU-CMP Timewarp row": "Retimes with a speed or a source-frame parameter, using frame sampling, frame mixing or pixel-motion estimation ... Shares its engine with [STU-MOT-007a] and [STU-VID-031].",
+      "STU-CMP-034": "DECLARED GAP -- rotoscoping. Mask-path animation ([STU-CMP-025]) is the manual rotoscoping mechanism and it is fully specified. An ASSISTED rotoscoping capability -- propagating a hand-drawn boundary across frames by tracking edges -- is NOT specified here ... until it is specified an implementer builds the manual path and does not improvise a propagation algorithm.",
+      "STU-CMP-100": "GAP -- assisted rotoscoping. Per [STU-CMP-034]. Manual mask-path animation is specified; boundary propagation is not.",
+      "STU-RAS-121 refine controls (module 14 parameter table)": "`decontaminate_colours` boolean; gates the amount control; `decontamination_amount` percent, all four bounds and the default undeclared",
+      "STU-CMP-033": "A key is a MATTE PIPELINE ... refine (choke, spread, feather, edge-blur, hole-fill) ... Studio MUST NOT ship a single opaque key operation that hides these stages."
+    },
+    "spec_conflict_for_lead": "STU-CMP-034 tells implementers not to improvise a propagation algorithm until STU-CMP-100 is specified. Slices 2-3 were built on the lead dispatch (Operator-approved scope expansion) using published methods (Boykov-Jolly 2001, GrabCut 2004, Video SnapCut 2009 shape-prior idea, Horn-Schunck 1981, Levin et al. 2008, He et al. 2010). A spec enrichment resolving STU-CMP-100 (or an Operator waiver recorded against STU-CMP-034) is needed so the validator does not judge slice 2 against the 'do not improvise' clause.",
+    "research_sources": [
+      "Adobe Research: Video SnapCut: Robust Video Object Cutout Using Localized Classifiers (Bai, Wang, Simons, Sapiro, SIGGRAPH 2009) https://research.adobe.com/publication/video-snapcut-robust-video-object-cutout-using-localized-classifiers/",
+      "Technion seminar 2009 (Sapiro): SnapCut shown as an After Effects plug-in https://cs.technion.ac.il/events/2009/809/ (link to the shipped Roto Brush is likely, not confirmed: UNVERIFIED)",
+      "Horn and Schunck, Determining Optical Flow, Artificial Intelligence 17 (1981) 185-203 (citation confirmed via https://www.academia.edu/6947567/Determining_Optical_Flow); coarse-to-fine warping: Papenberg et al., IJCV 2006 https://www.vision.uji.es/~pla/V3DM/docs/papers/Papenberg-2006-IJCV-OpticalFlowWarping.pdf",
+      "After Effects Frame Mix = crossfade of adjacent frames, Pixel Motion = optical-flow interpolation (ProVideoCoalition CMG Hidden Gems ch. 28 https://www.provideocoalition.com/cmg_hidden_gems_chapter_28_frame_rate_manipulation/)",
+      "Jiang et al., Super SloMo, CVPR 2018, eq. 4 intermediate-flow approximation (formula only; no learned model used; citation from memory, UNVERIFIED by web fetch this session)"
+    ],
+    "measured_bounds (lanecheck2, sha 3432d5c)": {
+      "flow at blob centre": "(3.9947, -0.0088) for a (4, 0) shift; bound 0.75 px",
+      "pixel motion vs truth rms": "0.00007 (frame mix 0.03484); bound pixel motion < 0.5 * frame mix",
+      "roto IoU": "base 1.0000, frames 0,1,3,4 propagated 1.0000 each (band 268 px); bound 0.9",
+      "refine": "closed-form band mean |alpha error| 0.0000 vs binary 0.1364; decontamination distance to F at alpha 0.5: 0.5679 -> 0.0564",
+      "reduce chatter 100 %": "frame-to-frame matte change 240.00 -> 80.00"
+    },
+    "after_effects_parity": "UNVERIFIED (D5) for every formula: remap key placement on enable, floor frame selection for Off, Frame Mix weighting, Pixel Motion flow, Roto Brush segmentation/propagation, Refine Edge and Reduce Chatter. Class Approximate.",
+    "files_outside_new_modules (shared files, additive hunks only)": "pigment src/select_tools/quick.rs (Hard, bin, counts, check_options, segment -> pub(super)); pigment src/select_tools/refine.rs (new pub(super) edt_grid wrapper); pigment src/select_tools.rs and src/lib.rs (mod lines); composite src/temporal/composition.rs (remaps field, with_time_remap, layer_source replacing three map_source call sites, module doc); composite tests/composition_adapter.rs (one new test appended); motion src/lib.rs and src/receipt.rs (exports, DESCRIPTOR). No other lane had uncommitted edits in these files (own worktree).",
+    "build_notes": "SSD slot refused with status 77 (C:/HandshakeBuild/WP-KERNEL-STUDIO record 149567521 KiB > 140 GiB cap), so per dispatch the lane built on D: (STUDIO_BUILD_DISK=d). Lock waits ~40 min behind steward run-round canaries. An earlier lane-check started with --no-capture was stopped via the task tool, but its child bash (pids 2965311/2965402) kept its queue slot; stopping it by kill was refused by the permission classifier, so it ran to completion (that run is the 369/370 result above). No new dependencies, no new module edges (composite -> motion stays optional behind feature motion). Cargo.lock untouched. The lane gameplan pointer was written by lane-gameplan.sh (first attempt timed out on git rev-parse during checkout; re-run OK).",
+    "gaps_left": [
+      "Folio stores no time_remap or frame_blending per layer: a caller attaches TimeRemap through with_time_remap; persistence needs a folio record (folio owner).",
+      "Frame blending is pixel maths only: no render-plan operator or render-cpu/gpu wiring that fetches footage frames A/B and calls frame_mix/pixel_motion.",
+      "Pixel motion has no occlusion handling; roto has one global colour model (no SnapCut localized classifiers), no motion blur, no 'freeze' of propagated mattes, and pins the predicted interior (a vanishing object is not detected until the band is empty).",
+      "No GUI (ui false)."
+    ]
+  }
+}
