@@ -1,13 +1,33 @@
 {
   "crate": "hsk-studio-motion (time remap), hsk-studio-pigment (frame_blend, select_tools::roto, select_tools::roto_refine), hsk-studio-composite (CompositionTemporalSource::with_time_remap)",
   "lane": "SMB-AE-ROTO-TIMEREMAP",
-  "status": null,
-  "phase": "slices 1-3 committed locally on lane/smb-ae-roto-timeremap and green in one bundled run on 3432d5c (rebased on origin 8bb6f64); PUSH HELD by lead order 2026-10-20 (origin/codex/handshake-studio-assets deleted by another lane, restoration pending the Operator). READY_FOR_VALIDATION is set only after the push.",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed 2026-10-21 (lead rebase after the branch restore): 06ac8e2..3432d5c; READY_FOR_VALIDATION on 3432d5c (ledger authority); awaiting R36",
   "commits": [
-    {"sha": "06ac8e2", "subject": "Studio AE-10: time remapping, time stretch/reverse and frame blending (SMB-AE-ROTO-TIMEREMAP slice 1)", "pushed": false},
-    {"sha": "75b759f", "subject": "Studio AE-18: assisted roto from base-frame strokes with flow-guided propagation (SMB-AE-ROTO-TIMEREMAP slice 2)", "pushed": false},
-    {"sha": "79ebca8", "subject": "Studio AE-18: roto refine edge with trimap-band matting, decontamination and reduce chatter (SMB-AE-ROTO-TIMEREMAP slice 3)", "pushed": false},
-    {"sha": "3432d5c", "subject": "Studio AE-10: Horn-Schunck default alpha 0.2 and 4 px coarsest level (SMB-AE-ROTO-TIMEREMAP fix)", "pushed": false}
+    {
+      "sha": "06ac8e2",
+      "subject": "Studio AE-10: time remapping, time stretch/reverse and frame blending (SMB-AE-ROTO-TIMEREMAP slice 1)",
+      "pushed": true,
+      "pushed_as": "06ac8e2"
+    },
+    {
+      "sha": "75b759f",
+      "subject": "Studio AE-18: assisted roto from base-frame strokes with flow-guided propagation (SMB-AE-ROTO-TIMEREMAP slice 2)",
+      "pushed": true,
+      "pushed_as": "75b759f"
+    },
+    {
+      "sha": "79ebca8",
+      "subject": "Studio AE-18: roto refine edge with trimap-band matting, decontamination and reduce chatter (SMB-AE-ROTO-TIMEREMAP slice 3)",
+      "pushed": true,
+      "pushed_as": "79ebca8"
+    },
+    {
+      "sha": "3432d5c",
+      "subject": "Studio AE-10: Horn-Schunck default alpha 0.2 and 4 px coarsest level (SMB-AE-ROTO-TIMEREMAP fix)",
+      "pushed": true,
+      "pushed_as": "3432d5c"
+    }
   ],
   "capabilities_done": [
     "slice 1 motion::time_remap: TimeRemap over a one-component time_remap Property (source seconds; every keyframe op applies via property_mut), enable = keys (in, 0) and (in + last frame, last frame) so the render is unchanged, from_stretch(num, den) with negative = reverse, reverse() = time-reverse keyframes (mirrored times, swapped in/out, negated speeds), with_keys/from_property, sample() clamps to [0, last frame] with RemapClamp First/Last (STU-MOT-045 contract 5) and rounds to whole source ticks; frame_sample(): STU-MOT-007a off = floor frame, frame_mix/pixel_motion = floor and next frame with remainder weight, held at the last frame; FrameBlending wire/parse off|frame_mix|pixel_motion; motion DESCRIPTOR updated",
@@ -35,13 +55,11 @@
     ],
     "earlier_run": "same argv on e57eb71 (pre-rebase): 369/370, pixel_motion_follows_a_translating_blob FAILED (flow (-1.714, -3.263) for a (4, 0) shift with alpha 0.05, 8 px coarsest level); fixed by 3432d5c"
   },
-  "blockers": [
-    {"error": "push held: origin/codex/handshake-studio-assets deleted by another lane (lead order 2026-10-20, restoration pending the Operator)", "file_line": "n/a", "attempts": 0}
-  ],
+  "blockers": [],
   "lock_wait_s": 2400,
   "bg_pids": [],
   "next": "When the lead reports origin restored: git fetch (no --prune), rebase on the restored tip, re-run the bundled lane check only if the rebase touched motion, pigment, composite or their dependencies, git diff --stat <origin tip>..HEAD (only the 16 lane paths), push HEAD:codex/handshake-studio-assets, then set status READY_FOR_VALIDATION on the pushed sha.",
-  "updated_at": "2026-10-20T23:03:23Z",
+  "updated_at": "2026-10-21T14:39:23Z",
   "notes": {
     "spec_basis": {
       "STU-MOT-045": "Time remapping turns a layer's source time into a keyframable property. Enabling it on a footage or composition layer creates a `time_remap` property whose value AT a composition time is the SOURCE time to sample. 1. Enabling creates exactly two keyframes: source time 0 at the layer's in point, and the source's final frame at its out point, so enabling changes nothing about the render. 2. The property is an ordinary `StudioProperty` and every keyframe operation, interpolation type and expression applies to it. 3. A decreasing segment plays the source backwards. A flat segment freezes. A steeper segment plays faster. 4. The layer's `out_point` is no longer bounded by the source duration ... 5. Values outside the source's range are clamped to the first or last frame; this is a clamp, not an error ... 6. Frame blending ([STU-MOT-007a]) governs what happens between source frames under a non-integer remap. 7. Clip-level speed and time remap in the sequence surface ([STU-VID-031a]) resolve to this same property",
@@ -76,6 +94,15 @@
       "Frame blending is pixel maths only: no render-plan operator or render-cpu/gpu wiring that fetches footage frames A/B and calls frame_mix/pixel_motion.",
       "Pixel motion has no occlusion handling; roto has one global colour model (no SnapCut localized classifiers), no motion blur, no 'freeze' of propagated mattes, and pins the predicted interior (a vanishing object is not detected until the band is empty).",
       "No GUI (ui false)."
-    ]
+    ],
+    "pushed_as": {
+      "map_local_to_origin": {
+        "06ac8e2": "06ac8e2",
+        "75b759f": "75b759f",
+        "79ebca8": "79ebca8",
+        "3432d5c": "3432d5c"
+      },
+      "by": "lead 2026-10-21 record upkeep: origin/codex/handshake-studio-assets restored at 8bb6f64 after the deletion incident; this lane's commits were rebased by the lead and pushed (patch-ids verified identical); ledger status READY_FOR_VALIDATION on the pushed tip."
+    }
   }
 }

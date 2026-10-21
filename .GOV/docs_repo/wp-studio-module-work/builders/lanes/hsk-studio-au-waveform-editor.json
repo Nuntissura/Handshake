@@ -45,7 +45,7 @@
   "lock_wait_s": 23780,
   "bg_pids": [],
   "next": "Validator: judge 04bb6ed..af11aa4 and 557ac06. Steward (told 2026-10-20): Cargo.lock entry for harness -> score-plugin, round-features hsk-studio-harness + [\"audio-plugin\"] with hsk-studio-score-plugin selected so score-plugin-worker is built (else the plugin test prints NOT_PROVEN).",
-  "updated_at": "2026-10-20T19:12:00Z",
+  "updated_at": "2026-10-21T14:39:23Z",
   "notes": {
     "owned_paths": [
       "crates/hsk-studio-score/src/wave_edit.rs, spectral_view.rs, spectral_mask.rs (new), src/spectrogram.rs (additive: SpectralWindow, with_window), src/lib.rs (exports)",
@@ -86,6 +86,7 @@
       "the rebase onto 5fa82ec brought hsk-studio-layout src changes (a harness dependency): re-run; the SSD refused with 77 (cap), fell back to D: as directed: 331/331 at 8411820",
       "the final rebase onto f9b2fd7 brought SMB-PS-ORACLE-PARITY-1 pigment / render-cpu / render-gpu commits (their own whole-suite run); per the lead's 'one re-run' instruction no further run was taken; pushed 557ac06 (diff --stat: 5 lane files only)",
       "SSD 77 refusals 2026-10-20T15:23Z (176 GiB) and 17:18Z (155 GiB) > cap 140 GiB"
-    ]
+    ],
+    "tests_sha_pushed_equivalent": "8411820 is the pre-rebase copy of 557ac06 (same patch; lead 2026-10-21)"
   }
 }

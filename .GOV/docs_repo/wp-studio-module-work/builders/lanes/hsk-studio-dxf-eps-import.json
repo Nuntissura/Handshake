@@ -1,27 +1,63 @@
 {
  "crate": "hsk-studio-interop-vector-core",
  "lane": "SMB-DXF-EPS-IMPORT",
- "status": null,
- "phase": "slices 1-3 committed locally on lane/smb-dxf-eps-import (fce2faf..8a89e7b over 6585ff0); bundled lane-check on D: (SSD refused 77, C: over cap) green at ae8d787: clippy clean on interop-vector-core, interop-vector and dependents [harness, harness-view, interop-vector-svg]; whole suites of both changed crates 39/39. PUSH ON HOLD (lead 2026-10-20: origin/codex/handshake-studio-assets deleted, restore pending the Operator); READY_FOR_VALIDATION is set only on a pushed commit.",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed 2026-10-21 (lead rebase after the branch restore): 13b36ac..85b3446; READY_FOR_VALIDATION on 85b3446 (ledger authority); awaiting R36",
  "commits": [
-  {"sha": "fce2faf", "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT slice 1): DXF import via the dxf crate, DWG typed refusal"},
-  {"sha": "69d9a8a", "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT slice 2): EPS DSC/DOS-header/preview reading and EPSF 3.0 export"},
-  {"sha": "48e6432", "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT slice 3): isolated stet EPS-to-PDF worker"},
-  {"sha": "26cc259", "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT slice 3b): EPS worker memory-cap detection, test fixes"},
-  {"sha": "ae8d787", "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT): DXF test counts fills by paint rows"},
-  {"sha": "8a89e7b", "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT): NOTICE for ezdxf (MIT) ACI table and stet embedded resources"}
+  {
+   "sha": "fce2faf",
+   "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT slice 1): DXF import via the dxf crate, DWG typed refusal",
+   "pushed_as": "13b36ac",
+   "pushed": true
+  },
+  {
+   "sha": "69d9a8a",
+   "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT slice 2): EPS DSC/DOS-header/preview reading and EPSF 3.0 export",
+   "pushed_as": "a395928",
+   "pushed": true
+  },
+  {
+   "sha": "48e6432",
+   "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT slice 3): isolated stet EPS-to-PDF worker",
+   "pushed_as": "fca69c0",
+   "pushed": true
+  },
+  {
+   "sha": "26cc259",
+   "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT slice 3b): EPS worker memory-cap detection, test fixes",
+   "pushed_as": "c3894bd",
+   "pushed": true
+  },
+  {
+   "sha": "ae8d787",
+   "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT): DXF test counts fills by paint rows",
+   "pushed_as": "86061c0",
+   "pushed": true
+  },
+  {
+   "sha": "8a89e7b",
+   "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT): NOTICE for ezdxf (MIT) ACI table and stet embedded resources",
+   "pushed_as": "85b3446",
+   "pushed": true
+  }
  ],
  "capabilities_done": [
   "slice 1 (AF-06): feature dxf, import_dxf: ASCII and binary DXF via dxf =0.6.2 into the shared PDF-drawing Folio builder (extracted from import_ai_document as document_from_drawing, .ai behaviour unchanged): LINE, CIRCLE, ARC, ELLIPSE, LWPOLYLINE/POLYLINE with bulges (arcs as cubics), SPLINE (clamped non-rational degree 1..3 exact by Boehm knot insertion, else rational de Boor sampling, fit points as polyline), SOLID/TRACE fills, INSERT/BLOCK expansion with scale, rotation, column/row arrays, layer-0 inheritance, BYBLOCK/BYLAYER colour and weight, layers as named group layers (hidden when off), $INSUNITS / $MEASUREMENT units, ACI and true colour, lineweights; typed losses (text, dimensions, leaders, hatches/unknown entities, images, points, paper space, invisible, polyline widths, meshes, linetypes drawn solid, non-planar extrusions, unitless assumed, draw order grouped by layer, aci 7 drawn black). DWG (all builds): identify_cad, import_dwg -> VectorError::DwgUnavailable{version, route DWG_ROUTE, preserved bytes}; import_dxf on DWG refuses the same way",
   "slice 2 (AF-07 EPS stage 1 + export): read_eps / import_eps_preview: DOS binary header (PS/WMF/TIFF sections bounds-checked), DSC header line-tokenised (BoundingBox, HiResBoundingBox, (atend) trailer, LanguageLevel, DocumentFonts/DocumentNeededResources with %%+), EPSI preview decoded to 8-bit gray, TIFF/WMF preview bytes returned; losses eps_vector_not_decoded + eps_preview_raster/missing; import_eps -> EpsVectorNotDecoded{route EPS_ROUTE, preserved}; EpsPdfConverter port + import_eps_with (PDF to the same drawing builder, loss eps_via_pdf_conversion); export_eps / export_eps_proposal: DSC EPSF 3.0 (bbox from artboard, solid fills, LanguageLevel 3 shfill linear/radial gradients via stitched type 2 functions, strokes with cap/join/miter/dash) with typed losses (opacity, blend, gradient strokes/midpoints/spread/interpolation, profiles, stroke align, hidden layers, clips, masks, patterns, non-vector layers, preview not written)",
   "slice 3 (AF-07 EPS stage 2): feature eps: WorkerEpsConverter via hsk-studio-worker (one fresh worker per conversion, env cleared, no window, deadline + cancel, Windows Job Object memory and CPU caps, memory notice polled every 100 ms -> memory_cap, killed and reaped); feature eps-worker: bin interop-vector-eps-worker running stet =0.8.4 render_to_pdf on a 64 MiB stack thread with file/run limited to embedded resources, deletefile/renamefile/filenameforall denied, status hiding disk names, system-font loaders off, print sunk; panic exits 70. Facade hsk-studio-interop-vector forwards dxf/eps/eps-worker and re-exports the API; DESCRIPTOR native_gap names the routes. NOTICE for ezdxf and stet resources"
  ],
- "tests": {"argv": "lane-check.sh --owner smb-dxf-eps-import --disk d -- cargo nextest run -p hsk-studio-interop-vector-core -p hsk-studio-interop-vector --features hsk-studio-interop-vector-core/dxf,hsk-studio-interop-vector-core/eps-worker,hsk-studio-interop-vector/dxf,hsk-studio-interop-vector/eps --no-fail-fast", "exit": 0, "sha": "ae8d787", "passed": 39, "failed": 0},
- "blockers": [{"error": "push held: origin/codex/handshake-studio-assets deleted (lead message 2026-10-20); waiting for the lead's restore notice", "file_line": "n/a", "attempts": 0}],
+ "tests": {
+  "argv": "lane-check.sh --owner smb-dxf-eps-import --disk d -- cargo nextest run -p hsk-studio-interop-vector-core -p hsk-studio-interop-vector --features hsk-studio-interop-vector-core/dxf,hsk-studio-interop-vector-core/eps-worker,hsk-studio-interop-vector/dxf,hsk-studio-interop-vector/eps --no-fail-fast",
+  "exit": 0,
+  "sha": "ae8d787",
+  "passed": 39,
+  "failed": 0
+ },
+ "blockers": [],
  "lock_wait_s": 2704,
  "bg_pids": [],
  "next": "on the lead's restore notice: fetch (no --prune), rebase lane on origin, re-run the bundled lane-check only if the rebase touched interop-vector-core/-svg/facade or their deps, diff --stat check, guarded push (&& + non-empty sha), then status READY_FOR_VALIDATION with the pushed sha. Follow-ups (new lanes): harness import routes for .dxf/.eps/.dwg (TIFF preview through interop-tiff), WMF preview decoder, DXF text/hatch/dimension rendering, DXF/DWG export, EPS preview in export, Press end-to-end test of import_eps_with.",
- "updated_at": "2026-10-20T23:14:06Z",
+ "updated_at": "2026-10-21T14:38:55Z",
  "notes": {
   "operator_basis": "START_LOG lead decision 2026-10-16 (Affinity/AF-02/06/07): DXF via dxf (MIT); DWG typed refusal (acadrust MPL, LibreDWG GPL, ODA proprietary excluded); EPS DSC/preview first, then stet (Apache-2.0 OR MIT) in an isolated capped worker producing PDF for the existing import_ai_with/PDF path; Ghostscript (AGPL) excluded; dependency age >= 2 weeks. Lead approval 2026-10-20 (message): dxf =0.6.2, stet 0.8.4 set with pins, optional edge interop-vector-core -> hsk-studio-worker, eps-worker bin, subject to the steward licence gate; NOTICE entries added.",
   "spec_basis": [
@@ -41,6 +77,17 @@
   "runs": "run1 (48e6432): 36/39, 3 own-test failures (bulge direction expectation, EPSF error tolerance, memory abort held to deadline); run2 (26cc259): 38/39 (fill detection by winding); run3 (ae8d787): clippy clean, 39/39. Logs: Handshake_Artifacts/WP-KERNEL-STUDIO/smb-dxf-eps-import/logs/run1..3.log. 8a89e7b adds only NOTICE (no re-run needed).",
   "gaps": "import_eps_with is proven with a recording provider, not with Press read_vector_document end to end (needs a harness-level lane; cargo builds no bins of dependencies); no harness import route for .dxf/.eps/.dwg yet; TIFF preview decode left to the host (interop-tiff), no WMF decoder; non-Windows workers have the deadline only (no memory/CPU cap); DXF text/hatch/dimensions not drawn; DXF/DWG export and EPS preview export not built.",
   "unverified": "DOS EPS header field layout (Adobe TN 5002, not re-fetched; consistent with stet's own reader for the PS section); EPSI sample polarity (0 black) and row order; ACI palette values (ezdxf's AutoCAD 2020 table; 249-255 look atypical); unitless DXF assumed mm (metric) or inch (English); Affinity's own DXF/EPS behaviour (D5).",
-  "shared_files": "commits carry only interop-vector-core and interop-vector paths (pathspec commits); Cargo.lock not committed"
+  "shared_files": "commits carry only interop-vector-core and interop-vector paths (pathspec commits); Cargo.lock not committed",
+  "pushed_as": {
+   "map_local_to_origin": {
+    "fce2faf": "13b36ac",
+    "69d9a8a": "a395928",
+    "48e6432": "fca69c0",
+    "26cc259": "c3894bd",
+    "ae8d787": "86061c0",
+    "8a89e7b": "85b3446"
+   },
+   "by": "lead 2026-10-21 record upkeep: origin/codex/handshake-studio-assets restored at 8bb6f64 after the deletion incident; this lane's commits were rebased by the lead and pushed (patch-ids verified identical); ledger status READY_FOR_VALIDATION on the pushed tip."
+  }
  }
 }

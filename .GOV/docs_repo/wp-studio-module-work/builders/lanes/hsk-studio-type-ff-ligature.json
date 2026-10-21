@@ -1,15 +1,45 @@
 {
   "crate": "hsk-studio-type (engine.rs, result.rs, serialize.rs, validate.rs, descriptor.rs, provider/harfrust.rs, tests) + hsk-studio-layout (paragraph.rs, breaker.rs, threaded_reflow.rs, typeset.rs, adobe_composer.rs, lib.rs, tests) + hsk-studio-interop-layout tests (d5_id_oracle.rs, d5_id_expected_mismatch.txt, longdoc_pdf.rs Line literal)",
   "lane": "SMB-TYPE-FF-LIGATURE",
-  "status": "BLOCKED",
-  "phase": "all slices committed locally on lane/smb-type-ff-ligature and green in one bundled run (D: slot, 169/169); push held by the lead: origin/codex/handshake-studio-assets deleted by another lane, restore pending the Operator",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed 2026-10-21 (lead rebase after the branch restore): 9b29497..2e0f53e; READY_FOR_VALIDATION on 2e0f53e (ledger authority); awaiting R36",
   "commits": [
-    {"sha": "6b8b2d7", "subject": "Type: composition v2 standard-ligature fallback from cmap presentation forms and line-end advance data"},
-    {"sha": "e80d545", "subject": "Layout: hyphenation breaks use Type v2 line-end data: ligature split into components, no kern across the hyphen"},
-    {"sha": "6674746", "subject": "Layout: glyph scaling in justification (min/desired/max), InDesign D5 ID-02 model"},
-    {"sha": "ae857f7", "subject": "Layout: Adobe composers count letter and glyph ranges (paragraph cost, overfull test)"},
-    {"sha": "2bf8664", "subject": "D5 ID oracle: glyph scaling and Type v2 ligature carets compared, ff tolerance removed, expected list regenerated"},
-    {"sha": "f9e1cad", "subject": "Type: is_multiple_of in the v2 ligature gate (clippy manual_is_multiple_of)"}
+    {
+      "sha": "6b8b2d7",
+      "subject": "Type: composition v2 standard-ligature fallback from cmap presentation forms and line-end advance data",
+      "pushed_as": "9b29497",
+      "pushed": true
+    },
+    {
+      "sha": "e80d545",
+      "subject": "Layout: hyphenation breaks use Type v2 line-end data: ligature split into components, no kern across the hyphen",
+      "pushed_as": "d3dc86d",
+      "pushed": true
+    },
+    {
+      "sha": "6674746",
+      "subject": "Layout: glyph scaling in justification (min/desired/max), InDesign D5 ID-02 model",
+      "pushed_as": "df1b7ce",
+      "pushed": true
+    },
+    {
+      "sha": "ae857f7",
+      "subject": "Layout: Adobe composers count letter and glyph ranges (paragraph cost, overfull test)",
+      "pushed_as": "b063dd5",
+      "pushed": true
+    },
+    {
+      "sha": "2bf8664",
+      "subject": "D5 ID oracle: glyph scaling and Type v2 ligature carets compared, ff tolerance removed, expected list regenerated",
+      "pushed_as": "ad57100",
+      "pushed": true
+    },
+    {
+      "sha": "f9e1cad",
+      "subject": "Type: is_multiple_of in the v2 ligature gate (clippy manual_is_multiple_of)",
+      "pushed_as": "2e0f53e",
+      "pushed": true
+    }
   ],
   "capabilities_done": [
     "Type COMPOSITION_VERSION v2 (STU-TYP-130 token increment; COMPOSITION_VERSION_V1 recomposes v1 unchanged, bytes identical): ff/fi/fl/ffi/ffl from cmap presentation forms U+FB00..U+FB04 when liga is on and GSUB formed no ligature, so the ligature replaces the f-f pair kern (Arial ff = uniFB00, 1094 units, as InDesign)",
@@ -25,13 +55,11 @@
     "passed": 169,
     "failed": 0
   },
-  "blockers": [
-    {"error": "push held: origin/codex/handshake-studio-assets deleted (lead hold 2026-10-20, Operator restore pending); git ls-remote shows no such branch", "file_line": "n/a", "attempts": 0}
-  ],
+  "blockers": [],
   "lock_wait_s": 2600,
   "bg_pids": [],
   "next": "on lead's go: fetch (no --prune), rebase lane/smb-type-ff-ligature on the restored origin tip, one bundled re-run (same argv; f9e1cad and any rebase changes), diff --stat check, push HEAD:codex/handshake-studio-assets, set READY_FOR_VALIDATION. Follow-ups: FU single-line glyph-scaling break rule (2 ID-02 sets); pdf_export ignores Justification::glyph_scale and Line::start_part/end_part (a split ligature is drawn whole on the next line); fi/fl/ffi/ffl presentation ligatures need a D5 oracle text",
-  "updated_at": "2026-10-20T23:42:19Z",
+  "updated_at": "2026-10-21T14:39:23Z",
   "notes": {
     "worktree": "wt-studio-lanes/smb-type-ff-ligature (branch lane/smb-type-ff-ligature from 6585ff0); lane-gameplan pointer written per lead correction",
     "build_disk": "runs 1-2 on the SSD slot; run 3 refused (exit 77: SSD tree 160 GiB > 140 GiB cap at 2026-10-20T23:02Z) after a 1987 s lock wait; run 4 on D: per the setup fallback, exit 0",
@@ -44,6 +72,17 @@
     "tests_added": "type foundation_contract composition_v2_presentation_ligatures_keep_gsub_priority; layout typeset hyphen_inside_a_ligature_sets_its_components_and_drops_kerning_at_the_line_end, glyph_scaling_shares_the_rest_with_letters_by_range_and_is_validated, glyph_scaling_shrink_keeps_an_adobe_line_inside_the_limits (hostile: non-partitioning ligature parts, out-of-range/NaN glyph scaling); d5 arial_ff_is_the_presentation_form_ligature",
     "provenance": "no vendored rustybuzz/ttf-parser/unicode-bidi file changed (tests/provenance.rs count unchanged)",
     "cargo_lock": "unchanged, never committed",
-    "arial": "local proprietary font only read from the oracle corpus; never committed; d5 tests print NOT_PROVEN without it"
+    "arial": "local proprietary font only read from the oracle corpus; never committed; d5 tests print NOT_PROVEN without it",
+    "pushed_as": {
+      "map_local_to_origin": {
+        "6b8b2d7": "9b29497",
+        "e80d545": "d3dc86d",
+        "6674746": "df1b7ce",
+        "ae857f7": "b063dd5",
+        "2bf8664": "ad57100",
+        "f9e1cad": "2e0f53e"
+      },
+      "by": "lead 2026-10-21 record upkeep: origin/codex/handshake-studio-assets restored at 8bb6f64 after the deletion incident; this lane's commits were rebased by the lead and pushed (patch-ids verified identical); ledger status READY_FOR_VALIDATION on the pushed tip."
+    }
   }
 }
