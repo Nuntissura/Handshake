@@ -59,7 +59,7 @@
   "lock_wait_s": 2400,
   "bg_pids": [],
   "next": "When the lead reports origin restored: git fetch (no --prune), rebase on the restored tip, re-run the bundled lane check only if the rebase touched motion, pigment, composite or their dependencies, git diff --stat <origin tip>..HEAD (only the 16 lane paths), push HEAD:codex/handshake-studio-assets, then set status READY_FOR_VALIDATION on the pushed sha.",
-  "updated_at": "2026-10-21T14:39:23Z",
+  "updated_at": "2026-10-21T14:50:42Z",
   "notes": {
     "spec_basis": {
       "STU-MOT-045": "Time remapping turns a layer's source time into a keyframable property. Enabling it on a footage or composition layer creates a `time_remap` property whose value AT a composition time is the SOURCE time to sample. 1. Enabling creates exactly two keyframes: source time 0 at the layer's in point, and the source's final frame at its out point, so enabling changes nothing about the render. 2. The property is an ordinary `StudioProperty` and every keyframe operation, interpolation type and expression applies to it. 3. A decreasing segment plays the source backwards. A flat segment freezes. A steeper segment plays faster. 4. The layer's `out_point` is no longer bounded by the source duration ... 5. Values outside the source's range are clamped to the first or last frame; this is a clamp, not an error ... 6. Frame blending ([STU-MOT-007a]) governs what happens between source frames under a non-integer remap. 7. Clip-level speed and time remap in the sequence surface ([STU-VID-031a]) resolve to this same property",
@@ -103,6 +103,7 @@
         "3432d5c": "3432d5c"
       },
       "by": "lead 2026-10-21 record upkeep: origin/codex/handshake-studio-assets restored at 8bb6f64 after the deletion incident; this lane's commits were rebased by the lead and pushed (patch-ids verified identical); ledger status READY_FOR_VALIDATION on the pushed tip."
-    }
+    },
+    "spec_conflict_resolved": "Spec v02.217 (gov_kernel 555c9f9f, 2026-10-21) specifies assisted rotoscoping in STU-CMP-034 (strokes, base frames, spans, forward/backward propagation with base/propagated/lost state, classic/learned engines with model_unavailable refusal, refine stage consumed from STU-RAS-121 plus temporal controls, freeze, views, admission) and resolves STU-CMP-100; the 'do not improvise' clause no longer applies. R36 judges slices 2-3 against STU-CMP-034 v02.217; the lane's stated gaps (no Folio record, no GUI, no learned model, no freeze, no spans/corrective-stroke UI) remain gaps, not refusal grounds for the implemented slice."
   }
 }
