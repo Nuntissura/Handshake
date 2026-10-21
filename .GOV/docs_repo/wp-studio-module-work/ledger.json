@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-21T00:37:22Z",
+ "updated_at": "2026-10-21T15:31:58Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8484,11 +8484,15 @@
    "status": "READY_FOR_VALIDATION",
    "owner": "builder-dxf-eps-20261020",
    "commits": [
-    "85b3446"
+    "85b3446",
+    "6cf1de4 remediation R1: EPS interpreter route (stet) removed for licensing; DSC/preview/EPSF export kept; typed refusal eps_vector_not_decoded",
+    "65f3a04 remediation R2: own DXF reader adapted from MIT dxf 0.6.2 (NOTICE), default-on, no image dep",
+    "a105766 remediation R2b: clippy fix"
    ],
    "verdicts": [],
-   "note": "rebased onto 3432d5c and pushed as ..85b3446 on 2026-10-21; 39/39 at pre-rebase base; steward sync for new deps/edge/bin still owed",
-   "lane_file": "builders/lanes/hsk-studio-dxf-eps-import.json"
+   "note": "rebased onto 3432d5c and pushed as ..85b3446 on 2026-10-21; 39/39 at pre-rebase base; steward sync for new deps/edge/bin still owed | lead 2026-10-21: pre-R36 steward reject (dxf hard-depends on image; stet embeds AGPL-published URW fonts) remediated on the same lane; deps removed, bundled check 39/39 clippy clean on a105766; no EPS-to-PDF route (Operator item); DXF reader UNVERIFIED on CAD-written files",
+   "lane_file": "builders/lanes/hsk-studio-dxf-eps-import.json",
+   "candidate": "a105766"
   },
   {
    "lane_id": "SMB-D5-PS-COMPARE",
