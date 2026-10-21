@@ -1,0 +1,1343 @@
+{
+ "schema": "hsk.studio.audit.parity_app@1",
+ "file_id": "WP-KERNEL-STUDIO-AUDIT-20261021-PARITY-ILLUSTRATOR",
+ "updated_at": "2026-10-21T01:24:41Z",
+ "by": "read-only parity verifier (Sonnet)",
+ "app": "illustrator",
+ "basis": {
+  "tip": "e64eacd",
+  "matrix_file": "research/parity-matrix-20261020.json",
+  "matrix_lines": "1-80 header; illustrator features 1976-2734; summary 7578-7695; oracle block 7722-8404",
+  "checkout_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ps-oracle-parity-2/handshake-studio-assets",
+  "method": "read-only: Read/Grep/git log only; no cargo, no test run. 'tests' lists test fns that exist and assert outputs at e64eacd (existence verified by text search, results NOT rerun). Lane statuses read from ledger.json (updated_at 2026-10-21T00:37:22Z). verified_level: VALIDATED = PASS_Vn lane covers the capability; BUILT_NOT_VALIDATED = code exists, only READY lanes cover it (no Illustrator row is wholly in this class; READY sub-capabilities are named inside PARTIAL rows); PARTIAL = named sub-capability absent. proof_stale = an owning crate is in the changed-since-R35 list (nearly all Illustrator crates changed).",
+  "matrix_statuses_translation": "matrix IMPLEMENTED == BUILT_NOT_VALIDATED (0.5 weight); matrix had 0 IMPLEMENTED rows for Illustrator"
+ },
+ "rows": [
+  {
+   "id": "AI-01",
+   "name": "Path model: anchors, cubic Bezier segments, handles, open/closed contours",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": false,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-nib/src/owned_path.rs:104",
+    "crates/hsk-studio-nib/src/anchor_path.rs:157"
+   ],
+   "tests": [
+    "crates/hsk-studio-nib/tests/owned_path.rs::owned_path_validation_rules",
+    "crates/hsk-studio-nib/tests/anchor_path.rs::pen_builds_paths_and_owned_form_round_trips"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-NIB-ENG-1",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-INTEROP-VECTOR",
+     "status": "PASS_V15"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Cubic anchors/handles, open/closed contours real in nib; SVG/.ai import maps onto them (interop-vector-core/-svg)."
+  },
+  {
+   "id": "AI-02",
+   "name": "Vector networks",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": true,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-folio/src/vector_network.rs:111",
+    "crates/hsk-studio-nib/src/network.rs:496",
+    "crates/hsk-studio-harness-view/src/view/vector.rs:1550"
+   ],
+   "tests": [
+    "crates/hsk-studio-nib/tests/network.rs::junction_regions_paint_bucket_and_stroke_chains",
+    "crates/hsk-studio-nib/tests/network_pen.rs::pen_clicks_join_edges_and_vertices",
+    "crates/hsk-studio-harness/tests/viewer_vector_3.rs::network_promote_edit_paint_bucket_undo_and_save",
+    "crates/hsk-studio-harness/tests/viewer_network_adapter.rs::saved_network_renders_through_the_folio_adapter",
+    "crates/hsk-studio-composite/tests/vector_network.rs::network_records_prepare_and_hostile_records_are_refused_typed"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN-2",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN-3",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-STROKE-GEOMETRY",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-NETWORK-ADAPTER",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-VECTOR-STYLES",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Editable network (Folio record, planarize, regions, viewer paint bucket, composite adapter). Anchor harness/src/view/vector.rs moved to harness-view/src/view/vector.rs (split)."
+  },
+  {
+   "id": "AI-03",
+   "name": "Fill rule / winding (non-zero, even-odd), path direction",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": false,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-render-cpu/src/lib.rs:24",
+    "crates/hsk-studio-nib/src/owned_path.rs:19"
+   ],
+   "tests": [
+    "crates/hsk-studio-nib/tests/vector_raster.rs::coverage_hand_values_and_fill_rules",
+    "crates/hsk-studio-render-cpu/tests/d5_ai_oracle.rs::ai02_dashes_and_fill_rules"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-RENDER-CPU",
+     "status": "PASS_V20"
+    },
+    {
+     "lane_id": "SMB-INTEROP-VECTOR",
+     "status": "PASS_V15"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "ORACLE_MATCH (2 of 2: AI-02 fill_evenodd, fill_nonzero; geometry through the oracle point-sampler model, not Studio's native exact-area raster) (lane-recorded result; not rerun at e64eacd)",
+   "matrix_verdict": "AGREE",
+   "notes": "Non-zero/even-odd real in nib raster and render-cpu; path direction via reverse_path/join in anchor_path."
+  },
+  {
+   "id": "AI-04",
+   "name": "Drawing tools: pen, curvature, pencil, blob brush, shaper",
+   "matrix_status": "PARTIAL",
+   "matrix_ui": true,
+   "verified_level": "PARTIAL",
+   "code_anchor": [
+    "crates/hsk-studio-nib/src/anchor_path.rs:482",
+    "crates/hsk-studio-nib/src/freeform.rs:80",
+    "crates/hsk-studio-nib/src/freeform.rs:109",
+    "crates/hsk-studio-nib/src/freeform.rs:607",
+    "crates/hsk-studio-harness-view/src/view/vector.rs:1197",
+    "crates/hsk-studio-harness-view/src/view/vector.rs:1251",
+    "crates/hsk-studio-harness-view/src/view/vector.rs:1295",
+    "crates/hsk-studio-harness-view/src/view/vector.rs:1690"
+   ],
+   "tests": [
+    "crates/hsk-studio-nib/tests/freeform.rs::curvature_smoothing_and_pencil_fit",
+    "crates/hsk-studio-nib/tests/pen3.rs::blob_brush_paints_and_merges_same_attribute_shapes",
+    "crates/hsk-studio-harness/tests/viewer_vector.rs::pen_clicks_and_drags_build_a_closed_path_one_transaction_each",
+    "crates/hsk-studio-harness/tests/viewer_vector_2.rs::curvature_points_and_pencil_strokes"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN-2",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN-3",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Pen, curvature, pencil, blob brush real with viewer tools. Shaper absent: Grep 'shaper' over crates finds only a LUT 1D shaper (develop/composite), no gesture-recognition shaper."
+  },
+  {
+   "id": "AI-05",
+   "name": "Direct selection / anchor editing, scissors, knife, join",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": true,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-nib/src/anchor_path.rs:531",
+    "crates/hsk-studio-nib/src/anchor_path.rs:645",
+    "crates/hsk-studio-nib/src/anchor_path.rs:770",
+    "crates/hsk-studio-nib/src/anchor_path.rs:820",
+    "crates/hsk-studio-nib/src/freeform.rs:300",
+    "crates/hsk-studio-harness-view/src/view/vector.rs:1328"
+   ],
+   "tests": [
+    [
+     "crates/hsk-studio-nib/tests/anchor_path.rs::insert_delete_convert_hand_values",
+     "crates/hsk-studio-nib/tests/anchor_path.rs::move_anchor_handle_bend_and_constraints",
+     "crates/hsk-studio-nib/tests/anchor_path.rs::join_split_reverse"
+    ],
+    "crates/hsk-studio-nib/tests/freeform.rs::knife_cuts_filled_regions_apart",
+    "crates/hsk-studio-harness/tests/viewer_vector.rs::direct_selection_moves_anchors_bends_segments_and_drags_handles"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN-2",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN-3",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-NIB-VECTOR-RENDER",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-STROKE-GEOMETRY",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Anchor editing, scissors (edit.rs convert_scissors_join_average), knife, join real."
+  },
+  {
+   "id": "AI-06",
+   "name": "Parametric (live) shapes: rectangle, ellipse, polygon, star",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": true,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-folio/src/live_shape.rs:78",
+    "crates/hsk-studio-nib/src/shape.rs:342",
+    "crates/hsk-studio-nib/src/shape.rs:157"
+   ],
+   "tests": [
+    "crates/hsk-studio-folio/tests/live_shapes_contract.rs::live_shapes_round_trip_and_refuse_typed",
+    "crates/hsk-studio-nib/tests/shape.rs::polygon_star_line_and_deterministic_trig",
+    "crates/hsk-studio-harness/tests/viewer_vector.rs::shape_tools_draw_live_shapes_and_parameters_stay_editable",
+    "crates/hsk-studio-harness/tests/viewer_vector_2.rs::arc_grid_polar_grid_and_spiral_shapes_stay_live"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN-2",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-INTEROP-VECTOR",
+     "status": "PASS_V15"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Live shapes incl. grids/arc/spiral real; SVG import still yields plain paths."
+  },
+  {
+   "id": "AI-07",
+   "name": "Live corners / per-corner radius",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": true,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-folio/src/live_shape.rs:85",
+    "crates/hsk-studio-nib/src/freeform.rs:224"
+   ],
+   "tests": [
+    "crates/hsk-studio-nib/tests/freeform.rs::live_corners_round_inverted_chamfer_and_clamp",
+    "crates/hsk-studio-nib/tests/shape.rs::rectangles_plain_rounded_clamped_and_corner_kinds",
+    "crates/hsk-studio-harness/tests/viewer_vector_2.rs::knife_cuts_and_live_corners"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN-2",
+     "status": "PASS_V4"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Per-corner radius and live corners real; fancy corners / corner_smoothing != 0 refused (per matrix note, not re-grepped)."
+  },
+  {
+   "id": "AI-08",
+   "name": "Pathfinder / boolean operations",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": false,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-nib/src/boolean.rs:38",
+    "crates/hsk-studio-nib/src/pathfinder.rs:41",
+    "crates/hsk-studio-nib/src/pathfinder.rs:218",
+    "crates/hsk-studio-nib/src/pathfinder.rs:267",
+    "crates/hsk-studio-nib/src/freeform.rs:369",
+    "crates/hsk-studio-harness-view/src/view/vector.rs:1370"
+   ],
+   "tests": [
+    [
+     "crates/hsk-studio-nib/tests/pathfinder.rs::divide_squares_and_circles_into_faces",
+     "crates/hsk-studio-nib/tests/pathfinder.rs::trim_merge_crop_hand_areas"
+    ],
+    "crates/hsk-studio-nib/tests/path_boolean.rs::rectangle_union_difference_winding",
+    "crates/hsk-studio-nib/tests/freeform.rs::shape_builder_merges_and_deletes_faces",
+    "crates/hsk-studio-harness/tests/viewer_vector.rs::pathfinder_offset_and_outline_stroke_in_the_viewer"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-NIB-VECTOR-RENDER",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN-2",
+     "status": "PASS_V4"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "CORRECTION to matrix note: nib/src/pathfinder.rs (SMB-ILLUSTRATOR-PEN slice 3, 6cca045, PASS_V4) implements unite/intersect/exclude/minus front/minus back plus divide, trim, merge, crop. Pathfinder Outline (and hard/soft mix, trap) are typed refusals (UnsupportedOperation). So 9 of Illustrator's 10 Pathfinder panel ops; kept VALIDATED because Outline is not named in the row, but this is the weakest VALIDATED call."
+  },
+  {
+   "id": "AI-09",
+   "name": "Offset path, simplify, outline stroke, expand, expand appearance",
+   "matrix_status": "PARTIAL",
+   "matrix_ui": false,
+   "verified_level": "PARTIAL",
+   "code_anchor": [
+    "crates/hsk-studio-nib/src/edit.rs:503",
+    "crates/hsk-studio-nib/src/stroke.rs:192",
+    "crates/hsk-studio-composite/src/vector.rs:2251",
+    "crates/hsk-studio-harness-view/src/view/vector.rs:1937",
+    "crates/hsk-studio-harness-view/src/view/vector.rs:1951"
+   ],
+   "tests": [
+    "crates/hsk-studio-nib/tests/vector_edit.rs::offset_path_hand_areas",
+    "crates/hsk-studio-nib/tests/pathfinder.rs::offset_and_outline_stroke_on_curves",
+    "crates/hsk-studio-composite/tests/vector_tools.rs::expand_vectors_returns_the_drawn_shapes_for_export"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-NIB-VECTOR-RENDER",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-INTEROP",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Simplify absent: Grep 'simplify_path|fn simplify_|Simplify' over nib, harness-view, composite finds nothing (nib/edit.rs fn simplify is a private segment helper; fit_freehand is the pencil fit, not a command on existing paths)."
+  },
+  {
+   "id": "AI-10",
+   "name": "Compound paths",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": false,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-nib/src/anchor_path.rs:157",
+    "crates/hsk-studio-nib/src/raster.rs:125"
+   ],
+   "tests": [
+    "crates/hsk-studio-nib/tests/anchor_path.rs::join_split_reverse",
+    "crates/hsk-studio-nib/tests/vector_raster.rs::coverage_hand_values_and_fill_rules",
+    "crates/hsk-studio-interop-vector/tests/masking_patterns.rs::clip_path_exact_or_typed_loss"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-INTEROP-VECTOR",
+     "status": "PASS_V15"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-NIB-VECTOR-RENDER",
+     "status": "PASS_V4"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Multi-contour paths real. Grep 'make_compound|release_compound|compound_path' finds only the polar-grid flag create_compound_path_from_ellipses: no explicit Make/Release Compound Path command (matrix already says so). Weak VALIDATED."
+  },
+  {
+   "id": "AI-11",
+   "name": "Rendering filled vector art to pixels (anti-aliased)",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": false,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-render-cpu/src/lib.rs:24",
+    "crates/hsk-studio-nib/src/raster.rs:125"
+   ],
+   "tests": [
+    "crates/hsk-studio-render-cpu/tests/vector_nib.rs::nib_vector_layer_matches_the_oracle_on_every_chunking_and_thread_count",
+    "crates/hsk-studio-render-cpu/tests/vector_paint.rs::vector_fills_and_booleans_render_like_pigment_for_every_chunking",
+    "crates/hsk-studio-nib/tests/vector_raster.rs::coverage_hand_values_and_fill_rules"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-RENDER-CPU",
+     "status": "PASS_V20"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f; golden digests re-pinned in 87707e1 (midpoint curve)",
+   "oracle": "ORACLE_PARTIAL: geometry matches Illustrator only through the oracle 4x4-sampler model (+0.17 px fill / +0.04 px stroke bias fitted); Studio's native exact-area raster is 0.5-3.5 % lighter in ink, max 84 grey (FU-AI-2, optional Illustrator-compatible sampler, not built) (lane-recorded result; not rerun at e64eacd)",
+   "matrix_verdict": "AGREE",
+   "notes": "Row is engine-level VALIDATED (self-consistent oracle tests pass); pixel parity with Illustrator is not met on the default raster path. vector_nib golden digests were re-pinned by 87707e1 after the midpoint change, so the R35 PASS digest for this lane no longer holds."
+  },
+  {
+   "id": "AI-12",
+   "name": "Stroke rendering",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": false,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-composite/src/vector.rs:303",
+    "crates/hsk-studio-composite/src/vector_nib.rs:91",
+    "crates/hsk-studio-nib/src/stroke.rs:192"
+   ],
+   "tests": [
+    [
+     "crates/hsk-studio-nib/tests/vector_stroke.rs::stroke_joins_and_miter_limit",
+     "crates/hsk-studio-nib/tests/vector_stroke.rs::stroke_dashes_hand_values"
+    ],
+    "crates/hsk-studio-composite/tests/stroke_geometry.rs::stroke_geometry_rows_have_their_own_planes_and_refuse_typed",
+    "crates/hsk-studio-render-cpu/tests/vector_stroke_geometry.rs::stroke_geometry_layer_matches_the_oracle_on_every_chunking_and_thread_count"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPOSITE-VECTOR-IN-GROUP",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-NIB-VECTOR-RENDER",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-INTEROP-FIG-PAINTS",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-STROKE-GEOMETRY",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "ORACLE_PARTIAL (same stroke-outline geometry as AI-13: 25 MATCH / 6 MISMATCH / 1 NOT_SUPPORTED of 32 entries) (lane-recorded result; not rerun at e64eacd)",
+   "matrix_verdict": "AGREE",
+   "notes": "Stroke planes with own coverage, paint kinds, per-edge geometry real. nib butt_cap_extension is opt-in (default 0.0), so default stroke output is unchanged by fb9882c."
+  },
+  {
+   "id": "AI-13",
+   "name": "Stroke attributes: weight, caps, joins, miter, dashes, arrowheads, variable width profiles",
+   "matrix_status": "PARTIAL",
+   "matrix_ui": true,
+   "verified_level": "PARTIAL",
+   "code_anchor": [
+    "crates/hsk-studio-nib/src/width.rs:32",
+    "crates/hsk-studio-folio/src/width_profile.rs:42",
+    "crates/hsk-studio-folio/src/paint.rs:25",
+    "crates/hsk-studio-nib/src/stroke.rs:189"
+   ],
+   "tests": [
+    "crates/hsk-studio-nib/tests/vector_stroke.rs::stroke_caps_on_a_line",
+    "crates/hsk-studio-nib/tests/pen3.rs::variable_width_outlines",
+    "crates/hsk-studio-folio/tests/width_profile.rs::width_profiles_are_byte_identical_round_trip_and_refuse_hostile_input",
+    "crates/hsk-studio-harness/tests/viewer_vector_styles.rs::stroke_panel_weight_caps_joins_dash_and_alignment",
+    "crates/hsk-studio-render-cpu/tests/d5_ai_oracle.rs::ai01_caps_joins_miters"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-INTEROP-VECTOR",
+     "status": "PASS_V15"
+    },
+    {
+     "lane_id": "SMB-NIB-VECTOR-RENDER",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-VECTOR-IN-GROUP",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN-3",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-VECTOR-STYLES",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AI-AE-ORACLE-FOLLOWUPS",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "ORACLE_PARTIAL (25 of 32 MATCH: AI-01 21 of 27 cap/join/miter variants, AI-02 4 of 4 dash variants; 6 MISMATCH = miter4/miter10 x butt/round/projecting on 137 px exports, expected-listed, attributed to the test sampler model (FU-AI-2); 1 NOT_SUPPORTED = antiAliasing None) (lane-recorded result; not rerun at e64eacd)",
+   "matrix_verdict": "AGREE",
+   "notes": "Arrowheads, corner adjustment, gap colour not stored (folio/paint.rs doc comment). Butt-cap fit (+0.01 x width) is opt-in only, not the default output."
+  },
+  {
+   "id": "AI-14",
+   "name": "Gradients (linear, radial, freeform) and gradient editing",
+   "matrix_status": "PARTIAL",
+   "matrix_ui": true,
+   "verified_level": "PARTIAL",
+   "code_anchor": [
+    "crates/hsk-studio-nib/src/raster.rs:658",
+    "crates/hsk-studio-nib/src/mesh.rs:81",
+    "crates/hsk-studio-harness-view/src/view/vector/style.rs:385",
+    "crates/hsk-studio-folio/src/vector_mesh.rs:41",
+    "crates/hsk-studio-harness-view/src/view/vector/mesh.rs:84"
+   ],
+   "tests": [
+    "crates/hsk-studio-nib/tests/vector_raster.rs::paint_gradients_and_patterns_over_coverage",
+    "crates/hsk-studio-nib/tests/ai_mesh.rs::ai_mesh_grid_from_path_and_line_edits",
+    "crates/hsk-studio-render-cpu/tests/ai_mesh_raster.rs::ai_mesh_raster_bilinear_colours_transparency_frame_and_hostile_input",
+    "crates/hsk-studio-harness/tests/viewer_ai_type_path_recolor.rs::ai_gradient_mesh_from_a_shape_edits_rasterises_and_undoes",
+    "crates/hsk-studio-harness/tests/viewer_vector_styles.rs::fill_styles_are_one_undo_step_each_and_persist"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-INTEROP-VECTOR",
+     "status": "PASS_V15"
+    },
+    {
+     "lane_id": "SMB-NIB-VECTOR-RENDER",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-VECTOR-IN-GROUP",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-VECTOR-STYLES",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AI-AE-ORACLE-FOLLOWUPS",
+     "status": "READY_FOR_VALIDATION"
+    },
+    {
+     "lane_id": "SMB-AI-TYPE-PATH-RECOLOR",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f; behaviour of validated gradient output changed by 3a876c5",
+   "oracle": "ORACLE_MATCH (5 of 5 AI-03: mid25, mid50, mid75, radial, stop opacity; was 3/5 before the midpoint power curve, which is READY) (lane-recorded result; not rerun at e64eacd)",
+   "matrix_verdict": "AGREE",
+   "notes": "Linear/radial authored and rendered; midpoint changed to Illustrator's power curve in 3a876c5 (changes rendering of every gradient with midpoint != 0.5 AFTER the PASS_V4/V15 proofs; vector_nib/vector_mask digests re-pinned). Mesh engine + CPU raster + harness edit exist (READY) but composite/PDF/SVG do not draw meshes. No Folio home for freeform/angular/diamond gradients (folio composition.rs Angular is a different, composition enum)."
+  },
+  {
+   "id": "AI-15",
+   "name": "Pattern fills",
+   "matrix_status": "PARTIAL",
+   "matrix_ui": false,
+   "verified_level": "PARTIAL",
+   "code_anchor": [
+    "crates/hsk-studio-composite/src/vector.rs:1003",
+    "crates/hsk-studio-composite/src/vector.rs:1795",
+    "crates/hsk-studio-folio/src/vector.rs:16"
+   ],
+   "tests": [
+    "crates/hsk-studio-nib/tests/vector_raster.rs::paint_gradients_and_patterns_over_coverage",
+    "crates/hsk-studio-interop-vector/tests/vector_records_roundtrip.rs::pattern_paint_is_stored_and_round_trips",
+    "crates/hsk-studio-interop-vector/tests/masking_patterns.rs::pattern_paint_exact_or_typed_loss"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-ENG-7",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-INTEROP-VECTOR-RECORDS",
+     "status": "PASS_V12"
+    },
+    {
+     "lane_id": "SMB-NIB-VECTOR-RENDER",
+     "status": "PASS_V4"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Confirmed typed refusal: Folio pattern-bound fill rows and stroke rows are refused in composite (paint_pattern_not_resolved) on nib vector layers; patterns are stored/imported and rendered only in nib. Pattern brushes are separate (AI-21)."
+  },
+  {
+   "id": "AI-16",
+   "name": "Clipping masks and opacity masks",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": true,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-composite/src/vector.rs:464",
+    "crates/hsk-studio-composite/src/vector_mask.rs:3",
+    "crates/hsk-studio-folio/src/vector.rs:277",
+    "crates/hsk-studio-harness-view/src/view/vector/clipping.rs:60",
+    "crates/hsk-studio-harness-view/src/view/vector/clipping.rs:77"
+   ],
+   "tests": [
+    "crates/hsk-studio-composite/tests/vector_mask.rs::vector_alpha_and_luminance_masks_lower_to_the_expected_planes",
+    "crates/hsk-studio-render-cpu/tests/vector_mask.rs::masked_nib_layer_matches_the_oracle_for_every_mask_kind_and_chunking",
+    "crates/hsk-studio-harness/tests/viewer_vector_masks.rs::clips_and_masks_draw_and_export_to_pdf_and_svg",
+    "crates/hsk-studio-interop-vector/tests/vector_records_roundtrip.rs::masks_luminance_and_alpha_round_trip"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPOSITE-CLIP-RECORDS",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-VECTOR-MASK",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-VECTOR-MASK-2",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-INTEROP-VECTOR-RECORDS",
+     "status": "PASS_V12"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-INTEROP-2",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f; render-cpu vector_mask digests re-pinned in 87707e1",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Clips, opacity masks (LUMINANCE/ALPHA/VECTOR), viewer make clip/mask, PDF/SVG export real. vector_mask digests re-pinned in 87707e1."
+  },
+  {
+   "id": "AI-17",
+   "name": "Appearance stack (multiple fills/strokes per object)",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": false,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-composite/src/vector.rs:140",
+    "crates/hsk-studio-composite/src/vector.rs:303",
+    "crates/hsk-studio-composite/src/vector.rs:196"
+   ],
+   "tests": [
+    "crates/hsk-studio-composite/tests/vector_in_group.rs::image_typed_vector_composites_inside_a_group_over_a_raster",
+    "crates/hsk-studio-composite/tests/vector_lowering.rs::vector_layer_with_solid_and_image_fills_lowers_to_pigment_routes",
+    "crates/hsk-studio-folio/tests/appearance_contract.rs::old_documents_stay_valid_and_absent_appearance_is_the_identity_default"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPOSITE-VECTOR-IN-GROUP",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-FOLIO-ENG-4",
+     "status": "PASS_V12"
+    },
+    {
+     "lane_id": "SMB-INTEROP-VECTOR-FOLIO-MIGRATE",
+     "status": "PASS_V14"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Multiple fill/stroke rows with per-row blend/opacity real; per-row effects not modelled (folio doc)."
+  },
+  {
+   "id": "AI-18",
+   "name": "Object transparency and blend modes",
+   "matrix_status": "PARTIAL",
+   "matrix_ui": false,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-composite/src/vector.rs:196",
+    "crates/hsk-studio-interop-vector-core/src/ai_import.rs:150",
+    "crates/hsk-studio-interop-vector-svg/src/svg_adapter.rs:1272",
+    "crates/hsk-studio-pigment/src/blend_math.rs:17"
+   ],
+   "tests": [
+    [
+     "crates/hsk-studio-render-cpu/tests/d5_ai_oracle.rs::ai04_blend_modes",
+     "crates/hsk-studio-render-cpu/tests/d5_ai_oracle.rs::ai05_isolation_knockout"
+    ],
+    "crates/hsk-studio-composite/tests/vector_in_group.rs::image_typed_vector_composites_inside_a_group_over_a_raster",
+    "crates/hsk-studio-interop-vector/tests/ai_import.rs::pdf_compatible_ai_becomes_folio_layers_artboards_clips_and_losses"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-ENG-1",
+     "status": "PASS_V20"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-VECTOR-IN-GROUP",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-INTEROP-2",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f; pigment blend_math.rs changed after the oracle run",
+   "oracle": "ORACLE_MATCH (36 of 36: AI-04 16 blend modes x opacity 100/50 = 32, AI-05 isolation x knockout 4) (lane-recorded result; not rerun at e64eacd); UNVERIFIED at e64eacd: pigment blend_math.rs changed afterwards (f6b518d pass-through group opacity, fcb12d5 linear light at fill), d5_ai_oracle not rerun",
+   "matrix_verdict": "RAISE",
+   "notes": "RAISE PARTIAL->VALIDATED: the matrix reason was layer-level only + SVG import loss. Code shows per-row fill/stroke blend+opacity (composite FillSpec.mode), isolation/knockout through pigment, and .ai blend/opacity group import (ai_import PushGroup). Residual: SVG mix-blend-mode is a typed import loss (interop-only). Oracle 36/36 is a lane claim from before the PS-parity pigment commits, so confidence is moderate."
+  },
+  {
+   "id": "AI-19",
+   "name": "Live effects: drop shadow, feather, distort & transform, warp, 3D",
+   "matrix_status": "PARTIAL",
+   "matrix_ui": false,
+   "verified_level": "PARTIAL",
+   "code_anchor": [
+    "crates/hsk-studio-nib/src/warp.rs:328",
+    "crates/hsk-studio-pigment/src/effect_math.rs:714",
+    "crates/hsk-studio-harness-view/src/view/vector/envelope.rs:58"
+   ],
+   "tests": [
+    "crates/hsk-studio-nib/tests/warp.rs::warp_styles_and_envelopes_map_points_as_specified",
+    "crates/hsk-studio-harness/tests/viewer_illustrator_tools.rs::envelopes_warp_mesh_and_top_object_then_release_and_expand",
+    "crates/hsk-studio-composite/tests/vector_tools.rs::envelopes_wrap_the_paths_or_the_drawn_appearance"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-INTEROP-FIG-PAINTS",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-NEW-KINDS",
+     "status": "PASS_V8"
+    },
+    {
+     "lane_id": "SMB-EFFECTS-WAVE-1",
+     "status": "PASS_V17"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-TOOLS-2",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Shadows/blur on vector layers, warp/envelope, transform each real. Feather exists only as a mask/coverage feather (pigment coverage_math), not an Illustrator live effect. nib/src/shape_ops.rs has zig_zag, pucker_bloat, round_corners, twist, wiggle_path but these are AE shape-layer operators with no Folio live-effect record or harness surface (see unlisted)."
+  },
+  {
+   "id": "AI-20",
+   "name": "Graphic styles",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": true,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-harness-view/src/view/vector/style.rs:417",
+    "crates/hsk-studio-harness-view/src/view/vector/style.rs:424",
+    "crates/hsk-studio-harness-view/src/view/vector/style.rs:447",
+    "crates/hsk-studio-harness-view/src/view/vector/style.rs:304"
+   ],
+   "tests": [
+    "crates/hsk-studio-harness/tests/viewer_illustrator_tools.rs::graphic_styles_link_redefine_break_merge_clear_and_reduce"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-TOOLS-2",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Graphic styles as published PAINT styles, harness surface. Single test covers the whole capability."
+  },
+  {
+   "id": "AI-21",
+   "name": "Brushes: calligraphic, scatter, art, pattern, bristle",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": false,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-nib/src/brush.rs:186",
+    "crates/hsk-studio-nib/src/brush.rs:271",
+    "crates/hsk-studio-nib/src/brush.rs:354",
+    "crates/hsk-studio-nib/src/brush.rs:532",
+    "crates/hsk-studio-nib/src/brush.rs:574",
+    "crates/hsk-studio-folio/src/vector_tools.rs:303"
+   ],
+   "tests": [
+    [
+     "crates/hsk-studio-nib/tests/brush.rs::art_and_scatter_brushes_follow_the_spine",
+     "crates/hsk-studio-nib/tests/brush.rs::pattern_brush_lays_side_start_end_and_corner_tiles",
+     "crates/hsk-studio-nib/tests/brush.rs::calligraphic_and_bristle_brushes_sweep_the_spine"
+    ],
+    "crates/hsk-studio-harness/tests/viewer_illustrator_tools.rs::art_scatter_and_pattern_brushes_paint_strokes_and_persist",
+    "crates/hsk-studio-composite/tests/vector_tools.rs::brushed_stroke_rows_draw_each_art_path_with_its_colour"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-TOOLS-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-INTEROP",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "All five brush kinds real. Viewer UI covers art/scatter/pattern (calligraphic/bristle drawn via interop test)."
+  },
+  {
+   "id": "AI-22",
+   "name": "Artboards",
+   "matrix_status": "PARTIAL",
+   "matrix_ui": false,
+   "verified_level": "PARTIAL",
+   "code_anchor": [
+    "crates/hsk-studio-folio/src/lib.rs:193",
+    "crates/hsk-studio-interop-vector-core/src/eps_export.rs:386"
+   ],
+   "tests": [
+    "crates/hsk-studio-interop-vector/tests/ai_import.rs::pdf_compatible_ai_becomes_folio_layers_artboards_clips_and_losses",
+    "crates/hsk-studio-folio/tests/foundation_contract.rs::mixed_actual_roundtrip_order_and_snapshot_isolation"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-ENG-4",
+     "status": "PASS_V12"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Artboard record (id, name, parent, bounds only), .ai artboard import and EPS bbox from the first artboard; no artboard options, multi-artboard export or artboard tool found."
+  },
+  {
+   "id": "AI-23",
+   "name": "Align and distribute",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": true,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-nib/src/arrange.rs:345",
+    "crates/hsk-studio-nib/src/arrange.rs:359",
+    "crates/hsk-studio-harness-view/src/view/vector/arrange.rs:89",
+    "crates/hsk-studio-harness-view/src/view/vector/arrange.rs:99"
+   ],
+   "tests": [
+    "crates/hsk-studio-nib/tests/arrange.rs::transforms_transform_each_align_and_distribute",
+    "crates/hsk-studio-harness/tests/viewer_illustrator_tools.rs::align_distribute_and_transform_tools_are_one_step_each"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-TOOLS-2",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Align/distribute to selection, key object, artboard real."
+  },
+  {
+   "id": "AI-24",
+   "name": "Transform tools: rotate, scale, reflect, shear, transform each",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": true,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-nib/src/arrange.rs:153",
+    "crates/hsk-studio-nib/src/arrange.rs:160",
+    "crates/hsk-studio-nib/src/arrange.rs:166",
+    "crates/hsk-studio-nib/src/arrange.rs:173",
+    "crates/hsk-studio-nib/src/arrange.rs:260",
+    "crates/hsk-studio-harness-view/src/view/vector/arrange.rs:140"
+   ],
+   "tests": [
+    "crates/hsk-studio-nib/tests/arrange.rs::transforms_transform_each_align_and_distribute",
+    "crates/hsk-studio-harness/tests/viewer_illustrator_tools.rs::align_distribute_and_transform_tools_are_one_step_each"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-TOOLS-2",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Rotate/scale/reflect/shear/transform each real with harness commands."
+  },
+  {
+   "id": "AI-25",
+   "name": "Envelope, warp, liquify, puppet warp, perspective grid",
+   "matrix_status": "PARTIAL",
+   "matrix_ui": false,
+   "verified_level": "PARTIAL",
+   "code_anchor": [
+    "crates/hsk-studio-nib/src/warp.rs:328",
+    "crates/hsk-studio-harness-view/src/view/vector/envelope.rs:58"
+   ],
+   "tests": [
+    "crates/hsk-studio-nib/tests/warp.rs::warp_styles_and_envelopes_map_points_as_specified",
+    "crates/hsk-studio-harness/tests/viewer_illustrator_tools.rs::envelopes_warp_mesh_and_top_object_then_release_and_expand"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-TOOLS-2",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Envelope/warp real. Grep 'puppet|Puppet|perspective grid' over nib and harness-view: only develop Upright perspective hits (Lightroom-side); no puppet warp, perspective grid or vector liquify."
+  },
+  {
+   "id": "AI-26",
+   "name": "Symbols (reusable instances)",
+   "matrix_status": "PARTIAL",
+   "matrix_ui": false,
+   "verified_level": "PARTIAL",
+   "code_anchor": [
+    "crates/hsk-studio-components/src/lib.rs:216",
+    "crates/hsk-studio-interop-vector-svg/src/svg_adapter.rs:2465"
+   ],
+   "tests": [
+    "crates/hsk-studio-components/tests/instance_resolution.rs::variant_mode_override_resolution"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPONENTS",
+     "status": "PASS_V13"
+    }
+   ],
+   "proof_stale": false,
+   "stale_reason": null,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Reusable instances exist in the shared components engine (Figma-style components); no Illustrator symbol library/sprayer, no symbol import (.ai/SVG symbol is a loss)."
+  },
+  {
+   "id": "AI-27",
+   "name": "Blend tool, live paint, gradient mesh, image trace, repeat, intertwine",
+   "matrix_status": "PARTIAL",
+   "matrix_ui": true,
+   "verified_level": "PARTIAL",
+   "code_anchor": [
+    "crates/hsk-studio-harness-view/src/view/vector.rs:1550",
+    "crates/hsk-studio-nib/src/network.rs:360",
+    "crates/hsk-studio-nib/src/mesh.rs:81",
+    "crates/hsk-studio-harness-view/src/view/vector/mesh.rs:84"
+   ],
+   "tests": [
+    "crates/hsk-studio-harness/tests/viewer_vector_3.rs::paint_bucket_finds_faces_across_crossings",
+    "crates/hsk-studio-nib/tests/network.rs::junction_regions_paint_bucket_and_stroke_chains",
+    "crates/hsk-studio-nib/tests/ai_mesh.rs::ai_mesh_tessellation_and_hostile_input",
+    "crates/hsk-studio-harness/tests/viewer_ai_type_path_recolor.rs::ai_gradient_mesh_from_a_shape_edits_rasterises_and_undoes"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN-3",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-AI-TYPE-PATH-RECOLOR",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Live Paint reading (VALIDATED) + gradient mesh (BUILT_NOT_VALIDATED; composite/PDF/SVG do not draw it). Grep 'blend_tool|BlendTool|live_paint|intertwine|image_trace|ImageTrace|vectoriz' over crates finds nothing: no blend tool, image trace, intertwine. nib shape_ops::repeater is the AE Repeater, no Illustrator Repeat object."
+  },
+  {
+   "id": "AI-28",
+   "name": "Type: point/area type, type on a path",
+   "matrix_status": "PARTIAL",
+   "matrix_ui": false,
+   "verified_level": "PARTIAL",
+   "code_anchor": [
+    "crates/hsk-studio-type/src/path_text.rs:550",
+    "crates/hsk-studio-folio/src/vector_path_text.rs:95",
+    "crates/hsk-studio-harness-view/src/view/vector/path_text.rs:84"
+   ],
+   "tests": [
+    "crates/hsk-studio-type/tests/ai_path_text.rs::ai_path_text_rainbow_hand_positions_runs_alignment_overset",
+    "crates/hsk-studio-folio/tests/ai_path_text_records.rs::ai_path_text_records_round_trip_and_refuse_hostile_bindings",
+    "crates/hsk-studio-harness/tests/viewer_ai_type_path_recolor.rs::ai_type_on_a_path_lays_out_and_converts_to_outlines",
+    "crates/hsk-studio-interop-vector/tests/ai_import.rs::ai_layers_document_colours_and_text_runs_are_kept"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-TYPE",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-TYPE-GLYPH-RENDER",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-TEXT",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-INTEROP-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AI-TYPE-PATH-RECOLOR",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f; type composition v2 (9b29497) post-dates SMB-TYPE PASS (R28)",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Type on a path real but READY only (BUILT_NOT_VALIDATED); point/paragraph shaping validated; no area-type authoring in vector documents found; no live path-text layer in the viewer (harness exposes layout + convert-to-outlines). Type crate also changed after R35 (9b29497 ligature composition v2)."
+  },
+  {
+   "id": "AI-29",
+   "name": "Create outlines from text",
+   "matrix_status": "PARTIAL",
+   "matrix_ui": false,
+   "verified_level": "PARTIAL",
+   "code_anchor": [
+    "crates/hsk-studio-type/src/outline.rs:184",
+    "crates/hsk-studio-type/src/path_text.rs:701",
+    "crates/hsk-studio-harness-view/src/view/vector/path_text.rs:91"
+   ],
+   "tests": [
+    "crates/hsk-studio-type/tests/glyph_render.rs::outlines_extract_typed",
+    "crates/hsk-studio-harness/tests/viewer_ai_type_path_recolor.rs::ai_type_on_a_path_lays_out_and_converts_to_outlines"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-TYPE-GLYPH-RENDER",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AI-TYPE-PATH-RECOLOR",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Glyph outline extraction validated; path-text -> outlines READY; Grep 'create_outlines|text_to_outlines|outline_text' finds no general command for point/area text."
+  },
+  {
+   "id": "AI-30",
+   "name": "Swatches, spot colours, recolour artwork",
+   "matrix_status": "PARTIAL",
+   "matrix_ui": true,
+   "verified_level": "PARTIAL",
+   "code_anchor": [
+    "crates/hsk-studio-folio/src/vector_tools.rs:105",
+    "crates/hsk-studio-prism/src/recolor.rs:227",
+    "crates/hsk-studio-harness-view/src/view/vector/recolor.rs:196",
+    "crates/hsk-studio-harness-view/src/view/vector/swatch.rs:266"
+   ],
+   "tests": [
+    "crates/hsk-studio-harness/tests/viewer_illustrator_tools.rs::folio_swatches_resolve_through_prism_and_their_links_persist",
+    "crates/hsk-studio-harness/tests/viewer_vector_styles.rs::swatches_update_every_use_in_one_step_and_detach_keeps_a_copy",
+    "crates/hsk-studio-prism/tests/ai_recolor.rs::ai_recolor_harmony_rules_are_pure_and_snap_to_a_library",
+    "crates/hsk-studio-harness/tests/viewer_ai_type_path_recolor.rs::ai_recolor_artwork_is_one_undo_step_and_global_swatches_propagate"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-TOOLS-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-VECTOR-STYLES",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AI-TYPE-PATH-RECOLOR",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Swatches validated; recolour artwork READY; no swatch groups/ASE exchange found."
+  },
+  {
+   "id": "AI-31",
+   "name": "CMYK documents, separations, overprint preview",
+   "matrix_status": "PARTIAL",
+   "matrix_ui": false,
+   "verified_level": "PARTIAL",
+   "code_anchor": [
+    "crates/hsk-studio-harness-view/src/view/vector/separations.rs:272",
+    "crates/hsk-studio-press-write/src/separations.rs:235",
+    "crates/hsk-studio-folio/src/vector_tools.rs:135",
+    "crates/hsk-studio-press-read/src/vector_read.rs:560"
+   ],
+   "tests": [
+    "crates/hsk-studio-press/tests/id_prepress_separations.rs::pdf_page_separates_cmyk_gray_spot_and_clips",
+    "crates/hsk-studio-harness/tests/viewer_ai_type_path_recolor.rs::ai_vector_separations_preview_through_press",
+    "crates/hsk-studio-folio/tests/vector_tools.rs::icc_profile_records_pin_the_swatch_profiles",
+    "crates/hsk-studio-press/tests/vector_read.rs::documents_keep_source_colours_layers_and_glyph_text"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-INTEROP",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-INTEROP-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AI-TYPE-PATH-RECOLOR",
+     "status": "READY_FOR_VALIDATION"
+    },
+    {
+     "lane_id": "SMB-ID-PREPRESS",
+     "status": "READY_FOR_VALIDATION (FAIL_V1 at R35, remediated 3b73143)"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "CMYK/ICC records validated; separations preview and ink manager READY. Folio overprint attribute: only layoutflow overprint_gap + raster overprint flag found, no per-object vector overprint."
+  },
+  {
+   "id": "AI-32",
+   "name": "Placed / embedded images",
+   "matrix_status": "PARTIAL",
+   "matrix_ui": false,
+   "verified_level": "PARTIAL",
+   "code_anchor": [
+    "crates/hsk-studio-composite/src/vector.rs:987",
+    "crates/hsk-studio-folio/src/vector.rs:403"
+   ],
+   "tests": [
+    "crates/hsk-studio-composite/tests/vector_lowering.rs::vector_layer_with_solid_and_image_fills_lowers_to_pigment_routes",
+    "crates/hsk-studio-folio/tests/paint_blur_style_contract.rs::image_paint_round_trips_and_refusals"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPOSITE-NEW-KINDS",
+     "status": "PASS_V8"
+    },
+    {
+     "lane_id": "SMB-FOLIO-PAINT-BLUR-STYLE",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-INTEROP-FIG-PAINTS-2",
+     "status": "PASS_V5"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate(s) changed since R35 candidate 237256f",
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Embedded package-asset images render as image paints; Grep 'fn place_|fn link_' in harness-view vector.rs finds nothing: no Place/Link command. folio 608dbce adds linked placed-source resolver ports (package level), not wired to a vector Place command."
+  }
+ ],
+ "counts": {
+  "VALIDATED": 17,
+  "BUILT_NOT_VALIDATED": 0,
+  "PARTIAL": 15,
+  "MISSING": 0
+ },
+ "counts_matrix": {
+  "VALIDATED": 16,
+  "BUILT_NOT_VALIDATED": 0,
+  "PARTIAL": 16,
+  "MISSING": 0
+ },
+ "engine_pct": {
+  "matrix": 62.5,
+  "verified": 64.8,
+  "verified_stale_adjusted": 38.3,
+  "formula": "100*(VALIDATED + 0.5*BUILT_NOT_VALIDATED + 0.25*PARTIAL)/rows, rows=32",
+  "stale_adjusted_note": "same formula with every VALIDATED row whose proof_stale=true counted as BUILT_NOT_VALIDATED (0.5): a floor if the changed crates regress; not a finding that they do"
+ },
+ "oracle_summary": {
+  "source": "research/d5-ai-id-ae-compare-20261016.json (Illustrator 30.8.2, cases AI-01..05, 75 entries) + crates/hsk-studio-render-cpu/tests/d5_ai_oracle.rs + tests/d5_ai_expected_mismatch.txt at e64eacd + lane file builders/lanes/hsk-studio-ai-ae-oracle-followups.json",
+  "as_recorded_2026_10_16": {
+   "MATCH": 59,
+   "MISMATCH": 15,
+   "NOT_SUPPORTED": 1,
+   "NOT_PROVEN": 0
+  },
+  "current_derived_at_e64eacd": {
+   "MATCH": 68,
+   "MISMATCH": 6,
+   "NOT_SUPPORTED": 1,
+   "NOT_PROVEN": 0,
+   "total": 75
+  },
+  "derivation": "expected-mismatch file at e64eacd lists exactly 6 MISMATCH lines (AI-01 miter4/miter10 x butt/round/projecting, 137 px exports); lane followups claim AI-03 mid25/mid75 MISMATCH->MATCH (2) and 7 AI-01 butt variants MISMATCH->MATCH; 15-2-7=6 agrees with the file; NOT_SUPPORTED 1 = aa_none (no aliased raster mode). MATCH = 75-6-1 = 68.",
+  "per_case_current": {
+   "AI-01 caps/joins/miters (+aa_none)": "21 MATCH, 6 MISMATCH, 1 NOT_SUPPORTED of 28",
+   "AI-02 dashes and fill rules": "6 of 6 MATCH",
+   "AI-03 gradients": "5 of 5 MATCH",
+   "AI-04 blend modes": "32 of 32 MATCH",
+   "AI-05 isolation/knockout": "4 of 4 MATCH"
+  },
+  "caveats": [
+   "Counts are derived from checked-in expectation files and lane claims; the oracle test was NOT rerun here (no cargo).",
+   "SMB-AI-AE-ORACLE-FOLLOWUPS and the Illustrator slice of SMB-D5-AI-ID-AE-COMPARE are READY_FOR_VALIDATION (unjudged); only AE slice 1 of the D5 lane is PASS_V1.",
+   "Lane's last bundled run was at 128d8d8; pigment blend_math.rs (f6b518d, fcb12d5) and render-cpu 8-bit working depth (e67479f) changed afterwards for Photoshop parity: AI-04/AI-05 MATCH at e64eacd is UNVERIFIED.",
+   "Most MATCH rows are geometry through a fitted test-side 4x4 point sampler (bias 0.17 px fill / 0.04 px stroke), not Studio's native exact-area raster, which is 0.5-3.5 % lighter in ink (max 84 grey).",
+   "Oracle covers only AI-01..05: strokes/dashes/fill rules/gradients/blends/knockout. No oracle case for pen/path editing, pathfinder, brushes, clipping, type, swatches, effects, export."
+  ]
+ },
+ "top_gaps": [
+  {
+   "rank": 1,
+   "gap": "Type: no area-type authoring in vector documents, no live path-text layer in viewer, no general Create Outlines for point/area text; type on a path and path-text outlines are READY only (AI-28, AI-29).",
+   "evidence": "type/src/path_text.rs, harness-view/src/view/vector/path_text.rs exist (READY lane SMB-AI-TYPE-PATH-RECOLOR); Grep 'create_outlines|text_to_outlines|outline_text' no hits."
+  },
+  {
+   "rank": 2,
+   "gap": "Missing everyday vector commands: Shaper, Simplify, Make/Release Compound Path, Blend tool, Image Trace, Repeat, Intertwine, Pathfinder Outline, puppet warp, perspective grid (AI-04, 08, 09, 10, 25, 27).",
+   "evidence": "Grep over crates for each token returns nothing relevant; nib/src/pathfinder.rs refuses outline/hard/soft/trap (UnsupportedOperation)."
+  },
+  {
+   "rank": 3,
+   "gap": "Fills: pattern-bound Folio fills/strokes still refused by composite; gradient mesh not drawn by composite/PDF/SVG; no freeform/angular/diamond gradient home (AI-14, AI-15, AI-27).",
+   "evidence": "composite/src/vector.rs REFUSE_PAINT_PATTERN returns at the pattern checks; mesh rasterised only by render-cpu/src mesh path through harness mesh.rs."
+  },
+  {
+   "rank": 4,
+   "gap": "Interchange: no .ai writer (vector PDF/SVG export only); DXF/EPS import and EPSF export are behind non-default cargo features (dxf, eps, eps-worker) with no harness routes yet and the lane is READY, DWG typed refusal; no Place/Link command (AI-32).",
+   "evidence": "interop-vector-core/Cargo.toml default = []; lane notes 'harness import routes for .dxf/.eps/.dwg' listed as follow-up."
+  },
+  {
+   "rank": 5,
+   "gap": "Print/appearance fidelity: no per-object overprint, arrowheads, corner adjustment, CMYK/spot swatch recolour, swatch libraries/ASE, live effects beyond shadow/blur/warp (feather, roughen, zig-zag, 3D) (AI-13, AI-19, AI-30, AI-31). Default raster path differs from Illustrator by 0.5-3.5 % ink (AI-11)."
+  }
+ ],
+ "unlisted_capabilities": [
+  {
+   "capability": "DXF import (ASCII/binary via dxf =0.6.2: lines, arcs, circles, ellipses, (LW)polylines with bulges, splines, solids, INSERT/BLOCK arrays, layers, ACI/true colour, lineweights, units; typed losses for text/dimensions/hatches/etc.); DWG typed refusal",
+   "anchor": "crates/hsk-studio-interop-vector-core/src/dxf_import.rs:706",
+   "tests": [
+    [
+     "crates/hsk-studio-interop-vector-core/tests/dxf_import.rs::dxf_entities_become_layered_paths_in_points",
+     "crates/hsk-studio-interop-vector-core/tests/dxf_import.rs::dwg_is_refused_naming_the_dxf_route"
+    ]
+   ],
+   "lane": "SMB-DXF-EPS-IMPORT READY_FOR_VALIDATION (13b36ac slice 1, lane file says commits fce2faf.. pre-rebase)",
+   "note": "cargo feature 'dxf', default off; Affinity row AF-06 in the matrix, no Illustrator row"
+  },
+  {
+   "capability": "EPS DSC/DOS-header/EPSI preview reading; EPSF 3.0 export (fills, linear/radial shfill, strokes with dashes); EPS vector import through an isolated stet EPS-to-PDF worker (deadline, memory cap, file operators denied)",
+   "anchor": [
+    "crates/hsk-studio-interop-vector-core/src/eps.rs:173",
+    "crates/hsk-studio-interop-vector-core/src/eps_export.rs:313",
+    "crates/hsk-studio-interop-vector-core/src/eps_worker.rs:2"
+   ],
+   "tests": [
+    "crates/hsk-studio-interop-vector-core/tests/eps_import.rs::dos_header_and_dsc_comments_are_read",
+    [
+     "crates/hsk-studio-interop-vector-core/tests/eps_worker.rs::eps_converts_to_pdf_in_the_isolated_worker",
+     "crates/hsk-studio-interop-vector-core/tests/eps_worker.rs::postscript_loops_and_bombs_are_contained"
+    ],
+    "crates/hsk-studio-interop-vector/tests/eps_export.rs::proposal_exports_as_dsc_conforming_epsf"
+   ],
+   "lane": "SMB-DXF-EPS-IMPORT READY_FOR_VALIDATION",
+   "note": "matrix interop row says 'PDF / EPS ... EPS MISSING (in build, no commits)': now partially stale-wrong; features eps / eps-worker default off; lane blocker note (push held, branch deleted) is old, commits are on origin at e64eacd. Worker EPS->PDF test is feature-gated: not confirmed to run in default test sets"
+  },
+  {
+   "capability": "Pathfinder Divide, Trim, Merge, Crop (nib pathfinder.rs) with piece/operand receipts",
+   "anchor": "crates/hsk-studio-nib/src/pathfinder.rs:41",
+   "tests": [
+    "crates/hsk-studio-nib/tests/pathfinder.rs::trim_merge_crop_hand_areas"
+   ],
+   "lane": "SMB-ILLUSTRATOR-PEN PASS_V4",
+   "note": "matrix AI-08 note said trim/crop not found"
+  },
+  {
+   "capability": "AE shape-layer path operators reusable for Illustrator effects/Repeat: trim_path, repeater, merge_paths, pucker_bloat, round_corners, zig_zag, wiggle_path, twist",
+   "anchor": "crates/hsk-studio-nib/src/shape_ops.rs:906",
+   "tests": [
+    "crates/hsk-studio-nib/tests/shape_ops.rs::point_modifiers_generators_and_hostile_inputs"
+   ],
+   "lane": "SMB-AE-MOTION-TOOLS (not an Illustrator lane)",
+   "note": "geometry exists, no Folio live-effect record or harness surface for Illustrator"
+  },
+  {
+   "capability": "Layout grids / ruler guides / baseline grid records (InDesign-side) usable for Illustrator guides",
+   "anchor": "crates/hsk-studio-folio/src/layout_grids.rs:19",
+   "tests": [
+    "crates/hsk-studio-folio/tests/layout_contract.rs (UNVERIFIED names)"
+   ],
+   "lane": "SMB-ID-PREPRESS READY",
+   "note": "no Illustrator row; mentioned for reuse only"
+  }
+ ],
+ "unverified": [
+  "No test or build was run (read-only, no cargo): all 'tests' entries prove existence and assertion shape only; all lane PASS statuses are as of the last judged round (R35 @237256f or earlier).",
+  "Oracle counts at e64eacd are derived (expected-mismatch file + lane claims), not rerun; the Illustrator oracle lanes are READY (unjudged); possible regression from post-run pigment/render-cpu Photoshop-parity commits is unchecked.",
+  "Adobe behavioural equivalence for everything without an AI-01..05 oracle case (pen gestures, pathfinder piece order, brushes, effects, type on a path, recolour harmony rules) is UNVERIFIED (repo notes say the same).",
+  "Desktop window launch / actual UI usability is NOT_PROVEN (headless viewer state only).",
+  "Whether eps-worker/dxf feature tests run in any standard validation set (features are default-off): not inspected.",
+  "Luma coefficient set for opacity masks, GPU mesh path, GPU vector coverage parity: not inspected."
+ ],
+ "notes": [
+  "Verdicts: 1 RAISE (AI-18 PARTIAL->VALIDATED), 0 LOWER, 31 AGREE. Weak AGREEs worth a lead decision: AI-08 (Outline refused), AI-10 (no Make/Release Compound Path), AI-17 (per-row effects not modelled).",
+  "Matrix anchors under crates/hsk-studio-harness/src/view now live in crates/hsk-studio-harness-view/src/view (confirmed); several nib/composite line numbers moved: current lines are in code_anchor.",
+  "Matrix interop table is stale for DXF/EPS (see unlisted_capabilities) and for the Pathfinder note (AI-08).",
+  "Proof staleness: all 31 rows whose lanes live in changed crates are flagged; AI-14/AI-11/AI-16 additionally have golden digests re-pinned by 87707e1 because 3a876c5 changed gradient midpoint behaviour after their PASS rounds.",
+  "SMB-CRATE-SEAM-SPLITS (interop-vector split) is READY (slice 1 PASS_V1 only): the interop-vector/-core/-svg facade layout is itself not independently validated beyond R35 slice 1."
+ ]
+}

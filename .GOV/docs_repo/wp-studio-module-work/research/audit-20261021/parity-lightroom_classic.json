@@ -1,0 +1,1033 @@
+{
+ "schema": "hsk.studio.audit.parity_app@1",
+ "file_id": "WP-KERNEL-STUDIO-AUDIT-20261021-PARITY-LIGHTROOM-CLASSIC",
+ "updated_at": "2026-10-21T01:25:54Z",
+ "by": "read-only parity verifier (Sonnet)",
+ "app": "lightroom_classic",
+ "basis": {
+  "tip": "e64eacd",
+  "matrix_file": "research/parity-matrix-20261020.json",
+  "matrix_lines": "lightroom_classic block lines 1237-1975; summary 7578-7695 (read via apps.lightroom_classic)",
+  "checkout_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ps-oracle-parity-2/handshake-studio-assets",
+  "ledger": "ledger.json updated_at 2026-10-21T00:37:22Z",
+  "paths_note": "harness anchors now live in crates/hsk-studio-harness-view/src/view and crates/hsk-studio-harness-core/src; harness tests stay in crates/hsk-studio-harness/tests"
+ },
+ "rows": [
+  {
+   "id": "LR-01",
+   "name": "DNG decode (uncompressed and lossless JPEG, strips/tiles)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-develop/src/dng.rs:352 (decode)",
+   "tests": [
+    "develop/tests/develop_dng.rs::dng_uncompressed_end_to_end",
+    "develop/tests/develop_dng.rs::dng_colour_solution_paths",
+    "develop/tests/develop_dng.rs::dng_tiles_active_area_black_levels",
+    "develop/tests/real_dng.rs::real_dng_decode_and_develop (#[ignore], needs the CC0 corpus)"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP",
+     "status": "PASS_V20"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-DNG-MLV",
+     "status": "PASS_V11"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-CORPUS-PATH",
+     "status": "PASS_V10"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic; DNG Converter oracle does not cover this row's behaviour",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Synthetic/unit tests assert decode; the real-camera DNG test is #[ignore] and prints NOT_PROVEN when the corpus is absent. DNG Converter oracle (SMB-RAW-CLEANROOM-2) compares converter output only as the reference for RW2/NEF decoders, not DNG input decode. Deflate / lossy-JPEG DNG compressions listed as pending in the DESCRIPTOR."
+  },
+  {
+   "id": "LR-02",
+   "name": "Proprietary raw decode (CR2, NEF, ARW, CR3, RAF, ORF, RW2 ...)",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-develop/src/lib.rs:294 (decode_container routing); src/raw_cr/orf.rs:43, src/raw_cr/rw2.rs:119, src/raw_cr/nef.rs:275 (clean-room, routed ahead of the old decoders); src/cr2.rs:102, src/arw.rs, src/cr3.rs, src/raf.rs; src/camera_colour.rs:102 (ColourRoute)",
+   "tests": [
+    "develop/tests/develop_rw2.rs::rw2_format4_known_answers_and_format5_rotated_chunks",
+    "develop/tests/develop_nef_compressed.rs::nef_huffman_lossless_and_lossy_decode_to_the_source_cfa",
+    "develop/tests/develop_orf.rs::orf_two_field_layout_decodes_and_hostile_variants_are_typed",
+    "develop/tests/develop_cr3.rs::cr3_lossless_crx_decodes_the_sensor_mosaic_and_refuses_hostile_input",
+    "develop/src/raw_cr/rw2.rs::rw2_clean_room_matches_the_dng_converter_oracle_bit_exact + raw_cr/nef.rs::nef_clean_room_matches_the_dng_converter_oracle_bit_exact (both #[ignore], need the oracle corpus)"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-RAW-VENDOR",
+     "status": "PASS_V11"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-RAW-ARW",
+     "status": "PASS_V11"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-RAW-COMPRESSED",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-RAW-COMPRESSED-2",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-CAMERA-COLOUR",
+     "status": "PASS_V1"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-CAMERA-COLOUR-2",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-R33-FINDINGS",
+     "status": "PASS_V1"
+    },
+    {
+     "lane_id": "SMB-RAW-CLEANROOM",
+     "status": "PASS_V1",
+     "note": "slice 1 ORF only (PASS_V1, digest-equal to the former decoder, not compared to DNG Converter)"
+    },
+    {
+     "lane_id": "SMB-RAW-CLEANROOM-2",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "DNG Converter 18.7 oracle (RAW-decode rows only): RW2 8/8 and Huffman NEF 10/10 files bit-exact on the stored CFA plane (lane SMB-RAW-CLEANROOM-2 READY, unjudged; tests #[ignore], NOT_PROVEN when the corpus is absent); type-1 NEF curves equal the DNG LinearizationTable; 257-point curves (D3, Z6) UNVERIFIED; ORF, CR2, ARW, CR3, RAF not compared to the converter; RAF/CR3/SR2 clean-room blocked. Lightroom itself: UNVERIFIED.",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Status PARTIAL agreed, but the matrix note overstates the validated part: at e64eacd src/nefc.rs and the old src/rw2.rs are gone (d51b0c9 removed rw2.rs; 6c1387c removed nefc.rs), so RW2 and Huffman NEF (34713) decode ONLY through the clean-room code of READY lane SMB-RAW-CLEANROOM-2: for those two vendors the capability is BUILT_NOT_VALIDATED, not 'VALIDATED decode'. ORF is clean-room under PASS_V1 (digest-equal to the old decoder). CR2, ARW, CR3, RAF still on the PASS-covered older decoders (no converter comparison). Absent: compressed ORF (decoder_unavailable:orf), RW2 format 8, NEF 32769 / no maker-note table, SuperCCD RAF, SR2 beyond key 11 22 33 44; no permissive colour data for 9 bodies (refusal kept)."
+  },
+  {
+   "id": "LR-03",
+   "name": "Demosaic (Bayer and X-Trans)",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-develop/src/pipeline.rs:35 (X-Trans 6x6 table), :48 (CfaPattern::XTrans), :389 (demosaic_at_reflect), :515 (demosaic_normalized)",
+   "tests": [
+    "develop/tests/develop_digest.rs (xtrans_6x6 and xtrans_41x33 digest cases)",
+    "develop/tests/develop_recipe.rs::analytic_cfa_matrix",
+    "develop/tests/real_raw_compressed.rs::raf_xtrans_lossy_x_s10_decodes_and_matches_the_embedded_preview (#[ignore])"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP",
+     "status": "PASS_V20"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic; DNG Converter oracle does not cover this row's behaviour",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Matrix note 'no X-Trans' is wrong at the tip: the same bilinear same-colour-neighbour demosaic runs on the X-Trans 6x6 pattern (digest-pinned, no value-level hand test found). Still PARTIAL: bilinear only (bilinear_reflect_native_v1), no edge-aware/quality demosaic, no parity with Adobe."
+  },
+  {
+   "id": "LR-04",
+   "name": "White balance (as shot, temperature/tint, presets, eyedropper)",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-develop/src/adjust.rs:49 (WhiteBalanceShift), :161 (white_xy), crates/hsk-studio-develop/src/dng.rs:1078 (recipe_for_white_point)",
+   "tests": [
+    "develop/tests/develop_adjust.rs::white_balance_shift_adapts_neutral_and_planck_locus_matches_references",
+    "develop/tests/develop_colour2.rs::absolute_white_balance_resolves_the_target_illuminant",
+    "harness/tests/viewer_develop_2.rs::panel_families_are_drawn_undoable_and_refused_by_develop"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-CONTROLS",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-CONTROLS-2",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-HARNESS-DEVELOP-2",
+     "status": "PASS_V6"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "As shot, temperature/tint and absolute kelvin real; no named WB presets and no click eyedropper (Grep Daylight|Cloudy|eyedropper over develop/src and harness-view/src: none)."
+  },
+  {
+   "id": "LR-05",
+   "name": "Exposure",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-develop/src/recipe.rs:179 (DevelopRecipe), :191 (exposure_stops)",
+   "tests": [
+    "develop/tests/develop_recipe.rs::recipe_reedit_preserves_original",
+    "develop/tests/develop_recipe.rs::disabled_group_preserves_recipe_and_pixels",
+    "harness/tests/viewer_develop.rs::viewer_develop_sliders_undo_and_export_headlessly"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP",
+     "status": "PASS_V20"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "Adobe exposure equivalence UNVERIFIED."
+  },
+  {
+   "id": "LR-06",
+   "name": "Basic tone: contrast, highlights, shadows, whites, blacks",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-develop/src/adjust.rs:56-60 (contrast, highlights, shadows, whites, blacks)",
+   "tests": [
+    "develop/tests/develop_adjust.rs::tone_controls_are_monotone_directional_and_identity_at_zero",
+    "harness/tests/viewer_develop.rs::viewer_develop_sliders_undo_and_export_headlessly"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-CONTROLS",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-HARNESS-DEVELOP-EXPORT",
+     "status": "PASS_V6"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "Studio maths (PCHIP in sRGB domain); Adobe slider equivalence UNVERIFIED."
+  },
+  {
+   "id": "LR-07",
+   "name": "Presence: texture, clarity, dehaze, vibrance, saturation",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-develop/src/adjust.rs:66 (vibrance), :68 (clarity); crates/hsk-studio-develop/src/detail.rs:85 (texture), :87 (dehaze)",
+   "tests": [
+    "develop/tests/develop_adjust.rs::vibrance_saturation_and_mixer_bands",
+    "develop/tests/develop_detail.rs::texture_and_sharpening_act_on_detail_and_edges",
+    "develop/tests/develop_detail.rs::dehaze_follows_the_dark_channel_prior"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-CONTROLS",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-CONTROLS-2",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-HARNESS-DEVELOP-EXPORT",
+     "status": "PASS_V6"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "Clarity whole-frame only (tile API refuses); Adobe equivalence UNVERIFIED."
+  },
+  {
+   "id": "LR-08",
+   "name": "Point tone curves (composite, R, G, B)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-develop/src/curves.rs:10 (Curve), :23 (Curve::new)",
+   "tests": [
+    "develop/tests/develop_recipe.rs::disabled_group_preserves_recipe_and_pixels",
+    "harness/tests/viewer_develop_3.rs::mixer_curve_grayscale_gradient_and_brush_masks_develop_and_reopen"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP",
+     "status": "PASS_V20"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "No curve-specific unit test found by name in develop/tests; coverage is through recipe and viewer tests (UNVERIFIED depth). Matrix cites curves.rs:10 and recipe.rs:82-85 (not re-opened)."
+  },
+  {
+   "id": "LR-09",
+   "name": "Parametric tone curve (region sliders)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-develop/src/adjust.rs:89 (ParametricCurve)",
+   "tests": [
+    "develop/tests/develop_adjust.rs (parametric region cases)",
+    "harness/tests/viewer_develop_3.rs::mixer_curve_grayscale_gradient_and_brush_masks_develop_and_reopen"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-CONTROLS",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-HARNESS-DEVELOP-3",
+     "status": "PASS_V5"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "Test name for the parametric case not individually confirmed (UNVERIFIED)."
+  },
+  {
+   "id": "LR-10",
+   "name": "Colour mixer / HSL",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-develop/src/adjust.rs:81 (ColourMixer); crates/hsk-studio-develop/src/colour.rs:28 (PointColour)",
+   "tests": [
+    "develop/tests/develop_adjust.rs::vibrance_saturation_and_mixer_bands",
+    "develop/tests/develop_colour2.rs::point_colour_selects_by_hue_saturation_and_value",
+    "develop/tests/develop_colour2.rs::grayscale_mix_converts_and_weights_bands"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-CONTROLS",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-CONTROLS-2",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-HARNESS-DEVELOP-3",
+     "status": "PASS_V5"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "Adobe band equivalence UNVERIFIED."
+  },
+  {
+   "id": "LR-11",
+   "name": "Colour grading wheels",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-develop/src/colour.rs:74 (ColourGrading)",
+   "tests": [
+    "develop/tests/develop_colour2.rs::colour_grading_regions_blending_and_balance"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-CONTROLS-2",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-HARNESS-DEVELOP-2",
+     "status": "PASS_V6"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": ""
+  },
+  {
+   "id": "LR-12",
+   "name": "Detail: sharpening and noise reduction",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-develop/src/detail.rs:45 (Sharpen), :69 (NoiseReduction)",
+   "tests": [
+    "develop/tests/develop_detail.rs::texture_and_sharpening_act_on_detail_and_edges",
+    "develop/tests/develop_detail.rs::noise_reduction_smooths_noise_and_keeps_edges"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-CONTROLS-2",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-HARNESS-DEVELOP-EXPORT",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-HARNESS-DEVELOP-2",
+     "status": "PASS_V6"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "Adobe numeric equivalence UNVERIFIED."
+  },
+  {
+   "id": "LR-13",
+   "name": "Lens corrections: profiles, chromatic aberration, vignetting, defringe",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-develop/src/lens_profile.rs:109 (LensProfile); crates/hsk-studio-develop/src/optics.rs",
+   "tests": [
+    "develop/tests/develop_lens.rs::profile_parse_and_bind_interpolate_the_sampled_grid",
+    "develop/tests/develop_lens.rs::known_barrel_grid_is_straightened",
+    "develop/tests/develop_lens.rs::vignetting_and_lateral_ca_match_hand_values",
+    "harness/tests/viewer_develop_lens.rs::lens_transform_effects_calibration_look_and_preset_develop_undo_and_reopen (slice 6, READY)"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-LENS-PRESETS",
+     "status": "READY_FOR_VALIDATION",
+     "note": "slices 1-5 PASS_V2 @237256f (R35, after FAIL_V1 at R34); slice 6 (viewer panel, b0025d2/658aef4) READY"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Caller-supplied hsk-lens-profile grid only; lens_profile.rs:5 states Adobe .lcp is not read and no database is bundled."
+  },
+  {
+   "id": "LR-14",
+   "name": "Transform / Upright perspective correction",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-develop/src/upright.rs:389 (analyse); crates/hsk-studio-develop/src/geometry.rs:467 (apply_geometry)",
+   "tests": [
+    "develop/tests/develop_upright.rs::pitched_and_rolled_scenes_are_rectified",
+    "develop/tests/develop_upright.rs::guided_mode_follows_the_guides_exactly",
+    "develop/tests/develop_upright.rs::manual_transform_matches_hand_values"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-LENS-PRESETS",
+     "status": "READY_FOR_VALIDATION",
+     "note": "slices 1-5 PASS_V2 @237256f (R35, after FAIL_V1 at R34); slice 6 (viewer panel, b0025d2/658aef4) READY"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Slice 2 of SMB-DEVELOP-LENS-PRESETS (PASS_V2 @237256f); lane status in ledger is READY because slice 6 is unjudged. Slider mappings UNVERIFIED."
+  },
+  {
+   "id": "LR-15",
+   "name": "Effects: grain and post-crop vignette",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-develop/src/effects.rs:35 (Grain), :72 (PostCropVignette)",
+   "tests": [
+    "develop/tests/develop_effects.rs::grain_statistics_match_hand_values",
+    "develop/tests/develop_effects.rs::post_crop_vignette_matches_hand_values"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-LENS-PRESETS",
+     "status": "READY_FOR_VALIDATION",
+     "note": "slices 1-5 PASS_V2 @237256f (R35, after FAIL_V1 at R34); slice 6 (viewer panel, b0025d2/658aef4) READY"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Slice 3, PASS_V2; Lightroom formulas UNVERIFIED."
+  },
+  {
+   "id": "LR-16",
+   "name": "Calibration panel",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-develop/src/effects.rs:98 (Calibration)",
+   "tests": [
+    "develop/tests/develop_effects.rs::calibration_moves_primaries_and_keeps_white"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-LENS-PRESETS",
+     "status": "READY_FOR_VALIDATION",
+     "note": "slices 1-5 PASS_V2 @237256f (R35, after FAIL_V1 at R34); slice 6 (viewer panel, b0025d2/658aef4) READY"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Slice 3, PASS_V2; slider equivalence UNVERIFIED."
+  },
+  {
+   "id": "LR-17",
+   "name": "Camera profiles (DNG colour matrices, DCP/Adobe profiles)",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-develop/src/camera_colour.rs:102 (ColourRoute); crates/hsk-studio-develop/src/camera_table.rs (vendor matrix table, 52 models per DESCRIPTOR, count not re-derived)",
+   "tests": [
+    "develop/tests/camera_colour.rs::every_corpus_file_has_its_own_test",
+    "develop/tests/develop_camera_colour.rs::single_illuminant_file_matrix_is_refused_by_default_and_developed_on_opt_in",
+    "develop/tests/develop_dng.rs::dng_colour_solution_paths"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP",
+     "status": "PASS_V20"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-CAMERA-COLOUR",
+     "status": "PASS_V1"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-CAMERA-COLOUR-2",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "DNG ColorMatrix/ForwardMatrix dual-illuminant interpolation real; no DCP/Adobe profile reader, no profile picker. Camera-colour corpus tests are #[ignore] (NOT_PROVEN without corpus); R35 NOT_PROVEN includes a 160x120 ORF preview thumbnail case."
+  },
+  {
+   "id": "LR-18",
+   "name": "Creative profiles / LUT looks",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-develop/src/look.rs:38 (CreativeLook); crates/hsk-studio-prism/src/lut.rs:85 (CubeLut), :125 (parse_cube)",
+   "tests": [
+    "develop/tests/develop_presets.rs::cube_identity_affine_and_tetrahedral_hand_values",
+    "develop/tests/develop_presets.rs::creative_look_runs_per_pixel_with_amount",
+    "harness/tests/viewer_develop_lens.rs::lens_transform_effects_calibration_look_and_preset_develop_undo_and_reopen (READY)"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-LENS-PRESETS",
+     "status": "READY_FOR_VALIDATION",
+     "note": "slices 1-5 PASS_V2 @237256f (R35, after FAIL_V1 at R34); slice 6 (viewer panel, b0025d2/658aef4) READY"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": ".cube looks real; no Adobe creative/camera profile (XMP/DCP) reader and no profile browser."
+  },
+  {
+   "id": "LR-19",
+   "name": "Presets, snapshots, defaults",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-develop/src/preset.rs:63 (DevelopPreset); crates/hsk-studio-develop/src/records.rs:470 (take_snapshot, READY)",
+   "tests": [
+    "develop/tests/develop_presets.rs::presets_record_their_keys_apply_with_amount_merge_and_round_trip",
+    "develop/tests/develop_records.rs::virtual_copies_snapshots_and_history (slice 3, READY)",
+    "develop/tests/develop_records.rs::copy_paste_and_sync_settings_per_group (READY)"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-LENS-PRESETS",
+     "status": "READY_FOR_VALIDATION",
+     "note": "slices 1-5 PASS_V2 @237256f (R35, after FAIL_V1 at R34); slice 6 (viewer panel, b0025d2/658aef4) READY"
+    },
+    {
+     "lane_id": "SMB-LR-LIBRARY-WRITE",
+     "status": "PASS_V1",
+     "note": "slices 1-2 PASS_V1 @237256f (R35); slice 3 (75d7242 develop records/virtual copies) local/READY, unjudged"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Mixed: presets VALIDATED (slice 4 of LENS-PRESETS), snapshots/history/sync-settings BUILT_NOT_VALIDATED (SMB-LR-LIBRARY-WRITE slice 3). No camera/ISO-specific defaults."
+  },
+  {
+   "id": "LR-20",
+   "name": "Masking and local adjustments (brush, linear/radial gradient, subject/sky/range masks)",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-develop/src/local.rs:95 (LuminanceRange), :105 (ColourRange), :164 (MaskSource incl. Model kinds)",
+   "tests": [
+    "develop/tests/develop_local.rs::linear_gradient_ramps_exposure_and_flip_is_the_complement",
+    "develop/tests/develop_local.rs::radial_gradient_geometry_feather_rotation_roundness",
+    "develop/tests/develop_local.rs::brush_dabs_accumulate_and_render_at_any_resolution",
+    "develop/tests/develop_model_mask.rs::model_masks_are_typed_model_unavailable_and_never_evaluated",
+    "harness/tests/viewer_develop_3.rs::mixer_curve_grayscale_gradient_and_brush_masks_develop_and_reopen"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-CONTROLS",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-CONTROLS-2",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-HARNESS-DEVELOP-2",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-HARNESS-DEVELOP-3",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-LENS-PRESETS",
+     "status": "READY_FOR_VALIDATION",
+     "note": "slices 1-5 PASS_V2 @237256f (R35, after FAIL_V1 at R34); slice 6 (viewer panel, b0025d2/658aef4) READY"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "Subject/sky/object masks are retained but evaluate to typed model_unavailable (no provider). Brush dabs are API/panel driven, not painted on canvas."
+  },
+  {
+   "id": "LR-21",
+   "name": "Healing / spot removal / distraction removal",
+   "matrix_status": "MISSING",
+   "verified_level": "MISSING",
+   "code_anchor": "none; refusal only: crates/hsk-studio-develop/src/recipe.rs:58 (first_unsupported: red_eye, retouch, distraction_removal enable flags refuse); Grep spot|heal|clone|distraction over develop/src finds flags only",
+   "tests": [
+    "develop/tests/develop_recipe.rs (red_eye enable -> UnsupportedContribution(\"red_eye\"), line 281)"
+   ],
+   "lanes": [],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": ""
+  },
+  {
+   "id": "LR-22",
+   "name": "Crop and straighten",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-develop/src/geometry.rs:83 (Geometry: crop angle, flips, constrain-to-warp); crates/hsk-studio-develop/src/recipe.rs:90-101 (crop + orientation)",
+   "tests": [
+    "develop/tests/develop_lens.rs::lens_and_crop_angle_run_whole_frame_only_and_identity_is_exact",
+    "develop/tests/develop_upright.rs::manual_transform_matches_hand_values",
+    "develop/tests/develop_dng.rs::dng_uncompressed_end_to_end"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP",
+     "status": "PASS_V20"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-LENS-PRESETS",
+     "status": "READY_FOR_VALIDATION",
+     "note": "slices 1-5 PASS_V2 @237256f (R35, after FAIL_V1 at R34); slice 6 (viewer panel, b0025d2/658aef4) READY"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Orientation != 1 is still refused (recipe.rs:93). No crop-specific rectangular crop test confirmed by name (UNVERIFIED depth)."
+  },
+  {
+   "id": "LR-23",
+   "name": "HDR / panorama merge, Enhance (AI denoise, super resolution), lens blur",
+   "matrix_status": "MISSING",
+   "verified_level": "MISSING",
+   "code_anchor": "none; Grep panorama|hdr_merge|HdrMerge|super_resolution|SuperRes|enhance_denoise|ai_denoise over hsk-studio-develop/src and hsk-studio-harness-view/src: no match",
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": ""
+  },
+  {
+   "id": "LR-24",
+   "name": "Colour-managed develop output (working to output profile)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-develop/src/convert.rs (PrismConverter); crates/hsk-studio-develop/src/pipeline.rs:927 (develop_with)",
+   "tests": [
+    "develop/tests/develop_profile.rs::profile_transform_admitted",
+    "develop/tests/develop_profile.rs::wide_requests_are_chunk_invariant_and_report_plan_cache_and_clip",
+    "develop/tests/develop_output.rs::icc_header_and_recipe_hash_binding"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-WIDE",
+     "status": "PASS_V17"
+    },
+    {
+     "lane_id": "SMB-PRISM-ENG-7",
+     "status": "PASS_V8"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Relative colorimetric, BPC off, linear-light profiles only."
+  },
+  {
+   "id": "LR-25",
+   "name": "Deterministic multi-threaded develop and batch jobs",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-develop/src/pipeline.rs:949 (develop_with_threads), :1189 (develop_to_image_threads)",
+   "tests": [
+    "develop/tests/develop_parallel.rs::output_is_identical_for_every_thread_count",
+    "develop/tests/develop_parallel.rs::converter_bands_run_once_each_on_the_tile_workers",
+    "develop/tests/develop_records.rs::batch_apply_is_all_or_nothing_over_the_selection (batch apply, READY)"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-JOBS",
+     "status": "PASS_V17"
+    },
+    {
+     "lane_id": "SMB-DEVELOP",
+     "status": "PASS_V20"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Thread determinism PASS-covered; batch apply over a selection belongs to READY slice 3 of SMB-LR-LIBRARY-WRITE."
+  },
+  {
+   "id": "LR-26",
+   "name": "Non-destructive parametric develop recipe, originals immutable",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-develop/src/recipe.rs:179 (DevelopRecipe); crates/hsk-studio-harness-view/src/view/develop_entry.rs (typed `develop` session entry)",
+   "tests": [
+    "develop/tests/develop_recipe.rs::recipe_reedit_preserves_original",
+    "harness/tests/viewer_develop_2.rs::develop_edit_saves_and_reopens_through_the_develop_entry"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP",
+     "status": "PASS_V20"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Authority-row / EventLedger persistence still absent (interim session entry)."
+  },
+  {
+   "id": "LR-27",
+   "name": "Library catalog: folders, files, import",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-interop-lrcat/src/extract.rs:966 (extract_catalog); crates/hsk-studio-interop-lrcat/src/library.rs:497 (extract_library); crates/hsk-studio-kernel-bindings/src/ckc.rs:874 (CkcCatalogPort trait; only impl is ckc_double.rs:284 CkcTestDouble)",
+   "tests": [
+    "interop-lrcat/tests/catalog_decode.rs::real_catalog_wal_fixed_entity_reconciliation",
+    "interop-lrcat/tests/library_mapping.rs::library_mapping_keeps_catalog_and_types_state",
+    "interop-lrcat/tests/ckc_import.rs::library_proposal_imports_through_ckc_port_double"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-INTEROP-LRCAT",
+     "status": "PASS_V7"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Read-only extraction from an existing .lrcat. No native catalog and no CKC host adapter (Grep 'impl CkcCatalogPort for' finds the test double and a test Racing wrapper only). Table/column names UNVERIFIED against a Lightroom-written catalog (lrcat DESCRIPTOR says so)."
+  },
+  {
+   "id": "LR-28",
+   "name": "Ratings, picks/flags, colour labels",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-kernel-bindings/src/ckc_library.rs:27 (LibraryEdit)",
+   "tests": [
+    "kernel-bindings/src/ckc_library_tests.rs::library_edits_resolve_against_fresh_reads_with_receipts_and_conflicts",
+    "kernel-bindings/src/ckc_library_tests.rs::hostile_keyword_sets_and_selections_are_refused_before_any_command",
+    "kernel-bindings/tests/bridge_contract.rs::stale_epoch_conflict_and_unknown_outcome"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-INTEROP-LRCAT",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-LR-LIBRARY-WRITE",
+     "status": "PASS_V1",
+     "note": "slices 1-2 PASS_V1 @237256f (R35); slice 3 (75d7242 develop records/virtual copies) local/READY, unjudged"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Edits are all-or-nothing revision-checked batches over the CKC test double only; no real library to edit."
+  },
+  {
+   "id": "LR-29",
+   "name": "Keywords and EXIF/IPTC metadata",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-interop-lrcat/src/xmp.rs (library XMP fields); crates/hsk-studio-interop-lrcat/src/xmp_sidecar.rs:959 (write_sidecar); crates/hsk-studio-kernel-bindings/src/ckc_library.rs:27",
+   "tests": [
+    "interop-lrcat/tests/library_xmp.rs::library_fixture_end_to_end",
+    "interop-lrcat/tests/library_xmp.rs::xmp_fields_namespace_and_adversarial_xml",
+    "interop-lrcat/tests/xmp_sidecar.rs::sidecar_roundtrip_of_crs_and_library_fields"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-INTEROP-LRCAT",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-LR-LIBRARY-WRITE",
+     "status": "PASS_V1",
+     "note": "slices 1-2 PASS_V1 @237256f (R35); slice 3 (75d7242 develop records/virtual copies) local/READY, unjudged"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "No EXIF/IPTC editing found."
+  },
+  {
+   "id": "LR-30",
+   "name": "Collections and smart collections",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-kernel-bindings/src/ckc_rules.rs:85 (RuleContext); crates/hsk-studio-interop-lrcat/src/lua_rules.rs (smart-collection rule parsing)",
+   "tests": [
+    "kernel-bindings/src/ckc_library_tests.rs::smart_rules_evaluate_three_valued_over_port_records",
+    "kernel-bindings/src/ckc_library_tests.rs::smart_collection_references_cycles_and_budgets_are_bounded",
+    "interop-lrcat/tests/library_mapping.rs::smart_rules_typed_tree_and_adversarial_text"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-INTEROP-LRCAT",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-LR-LIBRARY-WRITE",
+     "status": "PASS_V1",
+     "note": "slices 1-2 PASS_V1 @237256f (R35); slice 3 (75d7242 develop records/virtual copies) local/READY, unjudged"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Lightroom rule semantics UNVERIFIED; no native catalog."
+  },
+  {
+   "id": "LR-31",
+   "name": "Library filter / search",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-kernel-bindings/src/ckc_rules.rs:185 (RuleContext::evaluate)",
+   "tests": [
+    "kernel-bindings/src/ckc_library_tests.rs::smart_rules_evaluate_three_valued_over_port_records"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-LR-LIBRARY-WRITE",
+     "status": "PASS_V1",
+     "note": "slices 1-2 PASS_V1 @237256f (R35); slice 3 (75d7242 develop records/virtual copies) local/READY, unjudged"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Preview evaluation over port records; no search/query execution."
+  },
+  {
+   "id": "LR-32",
+   "name": "Import Lightroom develop settings into the develop recipe",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-interop-lrcat/src/xmp_sidecar.rs:775 (read_sidecar), :959 (write_sidecar); crates/hsk-studio-interop-lrcat/src/develop_map.rs:18 (MAPPED_DEVELOP_KEYS, 13 catalog-side keys)",
+   "tests": [
+    "interop-lrcat/tests/xmp_sidecar.rs::sidecar_roundtrip_of_crs_and_library_fields",
+    "interop-lrcat/tests/xmp_sidecar.rs::edits_touch_only_managed_spans_and_keep_unknown_bytes",
+    "interop-lrcat/tests/xmp_sidecar.rs::hostile_sidecars_are_refused_typed",
+    "interop-lrcat/tests/ckc_import.rs::develop_settings_and_zlib_xmp_map_typed"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-CKC-PORTS",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-LR-LIBRARY-WRITE",
+     "status": "PASS_V1",
+     "note": "slices 1-2 PASS_V1 @237256f (R35); slice 3 (75d7242 develop records/virtual copies) local/READY, unjudged"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Matrix says 109 numeric crs: keys are mapped: not recounted (UNVERIFIED count). Tone-curve points and mask groups copied verbatim, not mapped; Camera Raw key names UNVERIFIED (no oracle)."
+  },
+  {
+   "id": "LR-33",
+   "name": "Export: JPEG/TIFF/DNG with resize, output sharpening, watermark",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-develop/src/output.rs:158 (develop_to_output); crates/hsk-studio-harness-view/src/view/develop.rs:544 (DevelopExport = Png | Jpeg only), :918 (export_develop)",
+   "tests": [
+    "harness/tests/viewer_develop.rs::viewer_develop_sliders_undo_and_export_headlessly",
+    "harness/tests/viewer_develop.rs::cli_develop_round_trip_on_a_corpus_dng_is_thread_invariant",
+    "develop/tests/develop_output.rs::srgb_encoding_matches_hand_values_clamps_and_counts",
+    "develop/tests/develop_output.rs::icc_header_and_recipe_hash_binding"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-HARNESS-DEVELOP-EXPORT",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-INTEROP-TIFF",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-IO-RASTER-COMMON",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-CONVERT-RASTER",
+     "status": "PASS_V9"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "DevelopExport has exactly two variants (PNG 8/16-bit, JPEG); no TIFF/DNG export, resize, output sharpening, watermark or presets (Grep watermark|output_sharpen|resize over develop output.rs and view/develop.rs: no match)."
+  },
+  {
+   "id": "LR-34",
+   "name": "Open developed raw as an editable layered document (\"Edit in Photoshop\" equivalent)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-harness-core/src/import.rs:391 (convert_to_native; import-raw feature)",
+   "tests": [
+    "harness/tests/import_psd.rs::dng_converts_to_one_developed_raster_layer_and_opens_in_a_session",
+    "harness/tests/import_colour.rs",
+    "harness/tests/import_tiff.rs::camera_raw_never_imports_as_plain_tiff_without_import_raw"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-CONVERT-NATIVE",
+     "status": "PASS_V11"
+    },
+    {
+     "lane_id": "SMB-CONVERT-COLOUR",
+     "status": "PASS_V11"
+    },
+    {
+     "lane_id": "SMB-CONVERT-FOLLOWUPS",
+     "status": "PASS_V11"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-RAW-VENDOR",
+     "status": "PASS_V11"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "Single developed layer; not an Adobe round trip. Anchor moved from harness to harness-core (12e2d46)."
+  },
+  {
+   "id": "LR-35",
+   "name": "Map, Book, Slideshow, Print, Web modules; tethered capture; virtual copies",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-develop/src/records.rs:503 (create_virtual_copy, READY)",
+   "tests": [
+    "develop/tests/develop_records.rs::virtual_copies_snapshots_and_history (READY)"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-LR-LIBRARY-WRITE",
+     "status": "PASS_V1",
+     "note": "slices 1-2 PASS_V1 @237256f (R35); slice 3 (75d7242 develop records/virtual copies) local/READY, unjudged"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Lightroom Classic (no Lightroom real-app oracle exists)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Virtual copies BUILT_NOT_VALIDATED; Map/Book/Slideshow/Print/Web and tethered capture: no code (Grep map|book|slideshow|print|web|tether over develop/src and harness-view develop: no match)."
+  }
+ ],
+ "counts": {
+  "VALIDATED": 16,
+  "BUILT_NOT_VALIDATED": 0,
+  "PARTIAL": 17,
+  "MISSING": 2
+ },
+ "engine_pct": {
+  "matrix": 57.9,
+  "verified": 57.9
+ },
+ "oracle_summary": {
+  "lightroom_classic": "no Lightroom Classic real-app oracle exists: every develop, library and export behaviour is UNVERIFIED against Lightroom (slider maths, XMP crs: semantics, lens, Upright, effects, presets, smart-collection rules, catalog schema)",
+  "raw_decode_oracle": {
+   "reference": "Adobe DNG Converter 18.7 x64 (decode oracle, not Lightroom), uncompressed DNG output (-u -p0), sha256-pinned corpus; tests compare the stored CFA plane of the converter DNG bit for bit with the clean-room decoder output",
+   "rw2": "8 of 8 Panasonic files (LX7, LX3, G9, GH5M2, S1, GH5S, FZ8, LX1) bit-exact; test crates/hsk-studio-develop/src/raw_cr/rw2.rs::rw2_clean_room_matches_the_dng_converter_oracle_bit_exact (8 case rows confirmed in source); RW2 format 8 (S5M2) stays a typed refusal",
+   "nef_huffman_34713": "10 of 10 Nikon files (D70s, Z6 x3, D500, D3 x3, D2H, D200) stored planes bit-exact; type-1 683-point curves equal the DNG LinearizationTable (D70s, D2H, D200); 257-point curves (D3, Z6) UNVERIFIED; test raw_cr/nef.rs::nef_clean_room_matches_the_dng_converter_oracle_bit_exact (10 case rows confirmed in source)",
+   "total": "18 files; the lane records run5 at d51b0c9: 135/135 develop tests incl. ignored corpus and 18 ORACLE lines equal=true",
+   "judged": "SMB-RAW-CLEANROOM-2 is READY_FOR_VALIDATION (ledger): unjudged; the tests are #[ignore] (need <oracle corpus root>) and print NOT_PROVEN when the corpus is absent; this verifier did not run them",
+   "not_compared": "ORF (SMB-RAW-CLEANROOM PASS_V1 proves digest equality with the former decoder, not converter equality), CR2, ARW, CR3, RAF, SR2; RAF/CR3/SR2 clean-room blocked (lane blockers)",
+   "regression_note": "src/nefc.rs (6c1387c) and src/rw2.rs (d51b0c9) were deleted: RW2 and Huffman NEF now depend solely on this READY lane; the earlier PASS lanes SMB-DEVELOP-RAW-COMPRESSED(-2) no longer cover those code paths"
+  }
+ },
+ "top_gaps": [
+  "Library is a port without a catalog: CKC catalog port has only a test double (kernel-bindings/src/ckc_double.rs:284), so rating/flag/keyword/collection edits, smart-collection preview and filter preview cannot touch a real library; no native catalog or search (LR-27..LR-31).",
+  "No local healing: spot removal, red-eye and distraction removal are refused flags (develop/src/recipe.rs:58) and there is no retouch code in develop (LR-21).",
+  "No AI features: subject/sky/object masks retained but evaluate to model_unavailable (develop/tests/develop_model_mask.rs); no HDR/panorama merge, Enhance or lens blur (LR-20, LR-23).",
+  "Export is PNG and JPEG only (harness-view/src/view/develop.rs:544): no TIFF/DNG export, resize, output sharpening, watermark or presets; Map/Book/Slideshow/Print/Web and tethering absent (LR-33, LR-35).",
+  "No Adobe interchange of looks and optics: no lens-profile database or .lcp reader (lens_profile.rs:5), no DCP/creative-profile reader or picker, no WB presets or eyedropper, tone-curve/mask groups in XMP not mapped; and no oracle for any develop maths (LR-04, LR-13, LR-17, LR-18, LR-32)."
+ ],
+ "unlisted_capabilities": [
+  "model-mask retention and validation (seven kinds: subject, sky, background, landscape_component, object, person, person_component) with typed model_unavailable evaluation: develop/src/local.rs MaskSource::Model (folded into LR-20 by the matrix)",
+  "develop records: bounded history, named snapshots, virtual copies, copy/paste/sync settings groups, all-or-nothing batch apply: develop/src/records.rs (READY, partly under LR-19/LR-35)",
+  "Cube LUT 1.0 parser and tetrahedral application in prism/src/lut.rs (shared with other apps)",
+  "own hsk-develop-preset 1 and hsk-lens-profile 1 file formats (develop/src/preset.rs, lens_profile.rs)",
+  "XMP sidecar byte-preserving write-back of library fields (xmp:Rating, xmp:Label, dc:subject, lr:hierarchicalSubject): interop-lrcat/src/xmp_sidecar.rs (under LR-29/LR-32)",
+  "bounded WAL-aware read-only .lrcat snapshot (interop-lrcat/src/wal_snapshot.rs) and Lua smart-rule parsing (lua_rules.rs)",
+  "seeded deterministic grain and Upright (Hough/vanishing-point) analysis: effects.rs, upright.rs (LR-14/LR-15)"
+ ],
+ "unverified": [
+  "Lightroom/Camera Raw equivalence of every develop control, preset, look, lens and Upright mapping (no oracle)",
+  "whether the real-camera RAW corpus tests (all #[ignore]) pass at the tip; this verifier ran nothing",
+  "exact count of mapped crs: keys in the XMP sidecar (109 claimed, not recounted) and of camera-matrix table models (52 claimed, not recounted)",
+  "curve/parametric/crop test depth for LR-08, LR-09, LR-22 (named unit tests not individually confirmed)",
+  ".lrcat table/column names against a Lightroom-written catalog"
+ ],
+ "notes": [
+  "verified_level uses the same rule as the Photoshop file; no Lightroom row met the 'refused sub-capability named in the row and exercised by an oracle' lowering rule (no oracle), so no row was lowered; no row was raised: READY work since 6585ff0 (SMB-RAW-CLEANROOM-2, LENS-PRESETS slice 6, LR-LIBRARY-WRITE slice 3) is unjudged.",
+  "Correction inside an AGREE: LR-02 matrix text counts RW2 and NEF-compressed decode as VALIDATED, but their only code at e64eacd is READY (nefc.rs and rw2.rs deleted); LR-03 matrix text 'no X-Trans' is wrong (the bilinear demosaic runs on the X-Trans pattern, digest-pinned).",
+  "LR-14/15/16/18 and the preset part of LR-19 are VALIDATED only per slice (SMB-DEVELOP-LENS-PRESETS slices 1-5 PASS_V2 at R35 while the lane's ledger status is READY_FOR_VALIDATION because slice 6, the viewer panel, is unjudged); the matrix uses the same per-slice reading.",
+  "proof_stale is true for every row that has code (LR-23 is MISSING, no code). LR-27 is the only row whose covering PASS lane (SMB-INTEROP-LRCAT, interop-lrcat) is outside the changed-since-R35 list; it is flagged stale only because its cited CKC port anchor lives in kernel-bindings, which changed. Every develop, kernel-bindings, prism and harness row has a stale PASS proof pending R36.",
+  "Row-level verdict tally: AGREE 35, LOWER 0, RAISE 0.",
+  "Tests were confirmed present by file and name at e64eacd; most develop corpus tests are #[ignore] and assert only when the oracle/CC0 corpus is present."
+ ]
+}

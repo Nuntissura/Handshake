@@ -1,0 +1,1018 @@
+{
+ "schema": "hsk.studio.audit.parity_app@1",
+ "file_id": "WP-KERNEL-STUDIO-AUDIT-20261021-PARITY-INDESIGN",
+ "file_kind": "audit_parity_app",
+ "updated_at": "2026-10-21T01:27:21Z",
+ "by": "read-only parity verifier (Sonnet)",
+ "app": "Adobe InDesign",
+ "basis": {
+  "tip": "e64eacd",
+  "matrix_file": "research/parity-matrix-20261020.json",
+  "matrix_lines": "indesign block 2735-3504 (31 rows), summary 7578-7695, oracle block inside 'oracle' (indesign)",
+  "checkout_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ps-oracle-parity-2/handshake-studio-assets",
+  "ledger": "ledger.json updated_at 2026-10-21T00:37:22Z",
+  "method": "read-only: Read/Grep/git only, no cargo/nextest. Test names were read from the checkout, NEVER executed; every pass/fail/oracle figure below is a ledger, lane-file or expected-mismatch-file reading, not a run by this verifier. proof_stale = a covering PASS lane's owning crate changed between R35 candidate 237256f and e64eacd (crate level); proof_stale_file_level = the row's own source files changed (git diff 237256f e64eacd).",
+  "level_vocabulary": "VALIDATED | BUILT_NOT_VALIDATED (= matrix IMPLEMENTED) | PARTIAL | MISSING"
+ },
+ "rows": [
+  {
+   "id": "ID-01",
+   "name": "Pages and spreads: mixed page sizes, margins, bleed, facing pages",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-folio/src/layout.rs:82 (StudioPage), :95 (bleed: Option<PageBleed>), :69 (PageBleed)",
+   "tests": [
+    "crates/hsk-studio-folio/tests/layout_contract.rs::pages_frames_and_threads_round_trip_and_old_documents_are_unchanged",
+    "crates/hsk-studio-harness/tests/viewer_layout_ui_2.rs::pages_and_parent_pages_panel_edits_are_single_undo_steps",
+    "crates/hsk-studio-interop-layout/tests/layout_reflow_folio_export.rs::folio_created_document_exports_idml_and_round_trips",
+    "crates/hsk-studio-interop-layout/tests/pdf_export.rs::snapshot_lowers_to_pdf"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-ENG-3",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-INTEROP-LAYOUT",
+     "status": "PASS_V16"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-UI-2",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": false,
+   "oracle": "NO_ORACLE_CASE (the 3 InDesign-written IDML packages import, but only story text equality is compared, not pages/margins/bleed)",
+   "matrix_verdict": "AGREE",
+   "notes": "Real code: per-page size/margins/bleed in pt, spreads, PageSide. Declared gaps in layout.rs:14-27/50-52: document facing_pages flag, binding_location, shuffle flags, slug, page colour label, document_offset are not stored (facing is per-page side only). folio/src/layout.rs unchanged since R35 (folio lib.rs etc. changed)."
+  },
+  {
+   "id": "ID-02",
+   "name": "Parent (master) pages and overrides",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-folio/src/parentpages.rs:107 (StudioParentPageRecords); crates/hsk-studio-layout/src/parents.rs:91 (ParentSet); crates/hsk-studio-layout/src/parent_adapter.rs:312 (resolve_page_from_records)",
+   "tests": [
+    "crates/hsk-studio-folio/tests/parent_pages_contract.rs::parent_pages_round_trip_and_resolve_inherited_items",
+    "crates/hsk-studio-layout/tests/parent_adapter.rs::round_trip_folio_to_parent_set_to_resolved_items",
+    "crates/hsk-studio-layout/tests/typeset.rs::parent_pages_inherit_override_and_stack",
+    "crates/hsk-studio-harness/tests/viewer_layout_ui_2.rs::pages_and_parent_pages_panel_edits_are_single_undo_steps"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-PARENT-PAGES",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-TYPESET",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-PARENT-ADAPTER",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-UI-2",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": false,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Based-on parents, per-page applied parent, replace/suppress overrides, panel UI. Gaps (code-confirmed): parent_transform/allow_overrides/page-local items not stored (layout.rs:21-24); IDML import does NOT decode master spreads (interop-layout descriptor: master spreads are part_preserved_verbatim), so an InDesign document's parents are lost on import. parents.rs, parent_adapter.rs, parentpages.rs unchanged since R35."
+  },
+  {
+   "id": "ID-03",
+   "name": "Sections, automatic page numbers, running headers",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-folio/src/longdoc.rs:455 (StudioSection); crates/hsk-studio-layout/src/numbering.rs:182 (number_pages); crates/hsk-studio-layout/src/running.rs:126 (resolve_running_texts)",
+   "tests": [
+    "crates/hsk-studio-layout/tests/longdoc_numbering_toc.rs::sections_number_pages_and_formats",
+    "crates/hsk-studio-layout/tests/longdoc_running_notes.rs::running_headers_section_markers_and_variables",
+    "crates/hsk-studio-folio/tests/longdoc_records_contract.rs::longdoc_sections_and_toc_styles_round_trip_and_refusals",
+    "crates/hsk-studio-interop-layout/tests/longdoc_pdf.rs::sections_and_toc_export_page_labels",
+    "crates/hsk-studio-interop-layout/tests/idml_longdoc.rs::idml_longdoc_export_round_trip_is_stable"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-LONGDOC",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-LONGDOC-2",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-INTEROP-IDML",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": false,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Sections/prefixes/number styles, page numbering, running headers and 12 variable kinds. IDML export reports running_text_not_exported and index_not_exported (interop-layout descriptor losses). numbering.rs/running.rs unchanged since R35; only 2-line test edits in layout longdoc tests."
+  },
+  {
+   "id": "ID-04",
+   "name": "Text frames: columns, gutter, inset, vertical justification, first baseline, auto-size",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-layout/src/threaded_reflow.rs:378 (reflow_flow); crates/hsk-studio-layout/src/folio_input.rs:130-139 (supported(): auto_sizing_type != Off or first_baseline_offset != Fixed -> UnsupportedComposition); crates/hsk-studio-layout/src/threaded_reflow.rs:642 (vertical_justify)",
+   "tests": [
+    "crates/hsk-studio-layout/tests/layout_columns.rs::columns_and_gutter_then_thread_to_next_page",
+    "crates/hsk-studio-layout/tests/layout_columns.rs::balanced_columns_at_story_end",
+    "crates/hsk-studio-layout/tests/layout_columns.rs::span_heading_and_split_paragraph",
+    "crates/hsk-studio-layout/tests/id_prepress_vjust.rs::vjust_center_and_bottom_move_the_block",
+    "crates/hsk-studio-layout/tests/id_prepress_vjust.rs::vjust_justify_threshold_caps_the_paragraph_gap_and_spreads_the_rest_over_lines"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-ENG-3",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-LAYOUT",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-UI",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-ID-PREPRESS",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": true,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Absent sub-capabilities: frame auto-size and every first-baseline kind except Fixed (typed refusals), fixed/flexible column width, column rules. Columns/gutter/span/split/balance have a PASS lane (SMB-LAYOUT-UI); vertical justification center/bottom/justify+threshold is in SMB-ID-PREPRESS (FAIL_V1 R35 on a stale test pin at threaded_reflow.rs:686, remediated 3b73143, READY). threaded_reflow.rs changed since R35 (+141 lines)."
+  },
+  {
+   "id": "ID-05",
+   "name": "Story threading with exact overset detection",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-layout/src/threaded_reflow.rs:378 (reflow_flow), :166 (overset: Option<SourceSpan>), :514",
+   "tests": [
+    "crates/hsk-studio-layout/tests/threaded_reflow.rs::two_frame_flow_overset",
+    "crates/hsk-studio-layout/tests/threaded_reflow.rs::cyclic_missing_font_budget_cancel_stale_unsupported",
+    "crates/hsk-studio-harness/tests/viewer_layout_threads.rs::thread_references_ports_and_story_lines_follow_the_composition",
+    "crates/hsk-studio-interop-layout/tests/layout_reflow_folio_export.rs::reflow_overset_per_thread_and_typed_refusals",
+    "crates/hsk-studio-interop-layout/tests/d5_id_oracle.rs::id04_threaded_frames"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-FOLIO-MIGRATE",
+     "status": "PASS_V12"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-UI",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-UI-2",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": true,
+   "oracle": "ORACLE_MATCH (ID-04 two linked frames 1 of 1; lane-claimed, not re-run; needs host Arial + oracle corpus, otherwise NOT_PROVEN)",
+   "matrix_verdict": "AGREE",
+   "notes": "Thread/unthread, in/out ports and exact overset span are real (engine + layout-editor surface). threaded_reflow.rs changed since R35, so the R35 PASS (SMB-LAYOUT PASS_V13 etc.) predates the current reflow code."
+  },
+  {
+   "id": "ID-06",
+   "name": "Paragraph composer (Knuth-Plass) and single-line composer",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-layout/src/breaker.rs:40 (enum Composer: FirstFit, KnuthPlass, AdobeSingleLine, AdobeParagraph); crates/hsk-studio-layout/src/adobe_composer.rs:110 (single_line), :638 (paragraph)",
+   "tests": [
+    "crates/hsk-studio-layout/tests/threaded_reflow.rs::knuth_plass_hand_computed_and_deterministic",
+    "crates/hsk-studio-layout/tests/typeset.rs::adobe_single_line_compresses_within_minimum_and_honours_the_hyphenation_zone",
+    "crates/hsk-studio-layout/tests/typeset.rs::adobe_paragraph_fills_every_justified_line_and_is_deterministic",
+    "crates/hsk-studio-interop-layout/tests/d5_id_oracle.rs::id01_composer_width_sweep",
+    "crates/hsk-studio-interop-layout/tests/d5_id_oracle.rs::id02_spacing_limits"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-ID-COMPOSER-PARITY",
+     "status": "READY_FOR_VALIDATION"
+    },
+    {
+     "lane_id": "SMB-TYPE-FF-LIGATURE",
+     "status": "READY_FOR_VALIDATION"
+    },
+    {
+     "lane_id": "SMB-D5-AI-ID-AE-COMPARE",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": true,
+   "oracle": "ORACLE_PARTIAL (89 of 95 composer entries MATCH at e64eacd: ID-01 79/80, ID-02 9/12, ID-03 1/3 break entries; the 6 expected mismatches in d5_id_expected_mismatch.txt are all line-break differences; derived from the expected list, not re-run)",
+   "matrix_verdict": "AGREE",
+   "notes": "VALIDATED stands only for the generic FirstFit/Knuth-Plass composers (PASS lane SMB-LAYOUT, proof pre-dates breaker.rs/paragraph.rs/typeset.rs edits). The InDesign-parity Single-line/Paragraph composers are BUILT_NOT_VALIDATED (SMB-ID-COMPOSER-PARITY, SMB-TYPE-FF-LIGATURE READY) and fitted to ONE oracle (Arial 12/14.4); layout descriptor says relation to the Adobe Paragraph Composer is UNVERIFIED. Not reachable from the product: layout editor composes with Composer::FirstFit (harness-view layout_ui.rs:445), IDML reflow defaults to FirstFit (interop-layout reflow.rs:81). Matrix oracle numbers (55/99, 5 break misses) are superseded: 93/99 with 6 break misses."
+  },
+  {
+   "id": "ID-07",
+   "name": "Justification and H&J settings",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-layout/src/typeset.rs:29 (JustifyParams; glyph_scaling :36), crates/hsk-studio-layout/src/styles.rs:30 (Alignment::JustifiedAll)",
+   "tests": [
+    "crates/hsk-studio-layout/tests/typeset.rs::justify_widens_spaces_to_the_limit_and_leaves_the_last_line",
+    "crates/hsk-studio-layout/tests/typeset.rs::justify_metrics_shrink_letters_and_desired",
+    "crates/hsk-studio-layout/tests/typeset.rs::justify_all_sets_the_last_line_and_splits_past_the_limits_by_range",
+    "crates/hsk-studio-layout/tests/typeset.rs::glyph_scaling_shares_the_rest_with_letters_by_range_and_is_validated",
+    "crates/hsk-studio-interop-layout/tests/d5_id_oracle.rs::id02_spacing_limits"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-TYPESET",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-TYPESET-HARDEN",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-ID-COMPOSER-PARITY",
+     "status": "READY_FOR_VALIDATION"
+    },
+    {
+     "lane_id": "SMB-TYPE-FF-LIGATURE",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": true,
+   "oracle": "ORACLE_PARTIAL (50 of 55 justified entries MATCH: ID-01 leftjust 40/40, ID-02 fully-justified 9/12, ID-03 fully-justified 1/3; mismatches are line breaks, x identical on equal-break lines; lane-claimed, not re-run)",
+   "matrix_verdict": "AGREE",
+   "notes": "Word/letter/glyph-scaling ranges are real and glyph scaling is now implemented at the tip (matrix text 'glyph scaling measured, not implemented, 4 NOT_SUPPORTED' is stale; d5_id_oracle.rs has no NOT_SUPPORTED producer). Justification settings are engine options (TypesetOptions.justify) only: not Folio style fields, not read from IDML, not in the layout editor. interop-layout pdf_export.rs uses word_scale and letter_gap_pt but never glyph_scale or Line::start_part/end_part, so glyph-scaled or ligature-split lines are not reproduced in the PDF (lane note)."
+  },
+  {
+   "id": "ID-08",
+   "name": "Hyphenation",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-layout/src/hyphenate.rs:31 (HyphenationParams), :133 (Hyphenator::en_us_indesign), :281 (hyphenate_text)",
+   "tests": [
+    "crates/hsk-studio-layout/tests/hyphenation.rs::word_list_matches_tex_en_us",
+    "crates/hsk-studio-layout/tests/hyphenation.rs::custom_pattern_set_liang_semantics",
+    "crates/hsk-studio-layout/tests/typeset.rs::hyphenation_breaks_a_word_with_the_hyphen_width",
+    "crates/hsk-studio-layout/tests/typeset.rs::consecutive_hyphen_limit",
+    "crates/hsk-studio-layout/tests/typeset.rs::hyphen_inside_a_ligature_sets_its_components_and_drops_kerning_at_the_line_end"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-TYPESET",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-TYPESET-HARDEN",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-ID-COMPOSER-PARITY",
+     "status": "READY_FOR_VALIDATION"
+    },
+    {
+     "lane_id": "SMB-TYPE-FF-LIGATURE",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": true,
+   "oracle": "ORACLE_PARTIAL (49 of 54 hyphenation-enabled entries MATCH: ID-01 39/40, ID-02 9/12, ID-03 1/2; hyphenation-off entries 40/41; lane-claimed, not re-run)",
+   "matrix_verdict": "AGREE",
+   "notes": "Liang en-US patterns + 3-word InDesign exception list (en_us_indesign) fitted to the oracle; InDesign dictionary unavailable so other disagreements are an open gap; en-US only, non-ASCII words left whole. Hyphenation points inside ligatures now split into components (d3dc86d). Hyphenation is an engine option, not a style/doc setting in Folio."
+  },
+  {
+   "id": "ID-09",
+   "name": "OpenType shaping, complex scripts and bidi",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-type/src/engine.rs:16 (TextEngine::shaped_runs), descriptor.rs selected_profile (Latn, Arab, Hani; unicode-bidi); engine.rs:650 (presentation_ligatures, composition v2)",
+   "tests": [
+    "crates/hsk-studio-type/tests/foundation_contract.rs::mixed_script_bidi_font_runs",
+    "crates/hsk-studio-type/tests/foundation_contract.rs::composition_v2_presentation_ligatures_keep_gsub_priority",
+    "crates/hsk-studio-interop-layout/tests/d5_id_oracle.rs::arial_ff_is_the_presentation_form_ligature"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-TYPE",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-TYPE-ENG-1",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-TYPE-FF-LIGATURE",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": true,
+   "oracle": "ORACLE_MATCH (scope: Latin Arial glyph advances and kerning at 12 pt; every compared line has x identical to 0.001 pt incl. the 'ff' pair after the v2 ligature; Arabic/Hani/bidi have NO oracle case)",
+   "matrix_verdict": "AGREE",
+   "notes": "Shaping engine is real and PASS-judged (SMB-TYPE PASS_V7). End-to-end caveat: layout consumes Latin LTR only; RTL/CJK/complex stories are refused as unsupported_composition (folio_input.rs:130-139) and IDML import flags them reflow_certified=false. Type changed since R35 (composition v2, +271 lines engine.rs) -> PASS proof stale; v1 recompose claimed byte-identical (lane)."
+  },
+  {
+   "id": "ID-10",
+   "name": "Variable fonts and OpenType feature tags",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-type/src/descriptor.rs (inputs.style feature/axis tags); src/engine.rs:327 (fonts::axes), :347 (feature loop)",
+   "tests": [
+    "crates/hsk-studio-type/tests/foundation_contract.rs::font_axis_missing_cancel_stale (invalid axis/unsupported feature refusals; variable case hashes, axes().len()==2)"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-TYPE",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-TYPE-FONTS",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": true,
+   "oracle": "NO_ORACLE_CASE (variable fonts and OpenType feature sets other than the ff/liga fallback were not compared with InDesign)",
+   "matrix_verdict": "AGREE",
+   "notes": "In-repo variable Inter fixture (tests/fixtures/evidence/Inter-variable-opsz-wght.ttf) exercises axes. No host font discovery (caller grants fonts), so 'use any installed font' is absent."
+  },
+  {
+   "id": "ID-11",
+   "name": "Vertical / CJK typography (tate-chu-yoko, mojikumi)",
+   "matrix_status": "MISSING",
+   "verified_level": "MISSING",
+   "code_anchor": "none; Grep (case-insensitive) tate.?chu|tcy|mojikumi|kinsoku|kenten|ruby|WritingMode|vertical_writing|StoryOrientation over hsk-studio-layout/src, -type/src, -folio/src, -interop-layout/src found only vendored rustybuzz tables and unrelated StudioGuideOrientation",
+   "tests": [
+    "crates/hsk-studio-interop-layout/tests/layout_edit_roundtrip.rs::rtl_cjk_cyclic_dangling_cancel_stale (asserts the typed refusal, not support)"
+   ],
+   "lanes": [],
+   "proof_stale": false,
+   "proof_stale_file_level": false,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "IDML import only detects CJK/vertical stories and marks them unsupported_composition. Folio does not store story_orientation (layout.rs:25)."
+  },
+  {
+   "id": "ID-12",
+   "name": "Character and paragraph styles, nested and GREP styles",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-layout/src/grep.rs:158 (apply_grep_styles); crates/hsk-studio-layout/src/styles.rs:72 (resolve_style; ResolvedStyle fields: font family/style/size, fill, line_height, letter_spacing, align)",
+   "tests": [
+    "crates/hsk-studio-layout/tests/layout_styles_grep.rs::grep_styles_split_ranges_and_reach_composition",
+    "crates/hsk-studio-layout/tests/layout_styles_grep.rs::grep_hostile_patterns_are_bounded_or_refused",
+    "crates/hsk-studio-layout/tests/typeset.rs::style_inheritance_child_overrides_parent_fields",
+    "crates/hsk-studio-harness/tests/viewer_layout_styles.rs::styles_create_edit_grep_delete_and_constraints_are_typed",
+    "crates/hsk-studio-harness/tests/viewer_layout_styles.rs::styles_panel_draws_both_lists_and_the_grep_editor"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-TYPESET",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-UI",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-UI-2",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": true,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Absent: nested/line styles, style groups, cross-document load (matrix) AND, code-confirmed, the Folio style record does not store composer, hyphenation, justification limits, indents, space before/after, OpenType features or baseline shift (folio typestyle.rs:19-22 declared gaps; layout styles.rs consumes only align, line height, letter spacing). IDML import keeps style ids but not definitions (Resources/Styles.xml preserved verbatim). typestyle.rs +12 lines and styles.rs +3 lines since R35."
+  },
+  {
+   "id": "ID-13",
+   "name": "Object styles",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-layout/src/objstyle.rs:101 (apply_object_style); header objstyle.rs:1-20 (stored_only: fill, stroke, corner, tagging not applied)",
+   "tests": [
+    "crates/hsk-studio-layout/tests/layout_styles_grep.rs::object_styles_apply_in_one_operation"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-UI",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": false,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "No harness-view panel references object styles (Grep 'object.?style' over layout_ui*.rs: none), so ui=false is correct. objstyle.rs unchanged since R35."
+  },
+  {
+   "id": "ID-14",
+   "name": "Tables",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-folio/src/longdoc.rs:267 (StudioTable); crates/hsk-studio-layout/src/table.rs:472 (layout_table)",
+   "tests": [
+    "crates/hsk-studio-layout/tests/longdoc_tables.rs::table_repeats_header_and_footer_across_threaded_frames",
+    "crates/hsk-studio-layout/tests/longdoc_tables.rs::spans_stroke_priorities_and_split_row",
+    "crates/hsk-studio-layout/tests/longdoc_running_notes.rs::host_text_resumes_after_tables",
+    "crates/hsk-studio-interop-layout/tests/longdoc_pdf.rs::table_exports_fills_strokes_and_repeated_header_text",
+    "crates/hsk-studio-harness/tests/viewer_layout_tables_find.rs::tables_insert_edit_merge_and_compose_through_layout"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-LONGDOC",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-PDF-EXPORT-2",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-INTEROP-IDML",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-UI-2",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": false,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Header/body/footer, spans, header repeat, row breaks, edge-stroke priority, anchored tables, IDML table import/export. Absent: cell/table styles, split cells, nested tables (IDML nested_table_not_imported). table.rs unchanged since R35."
+  },
+  {
+   "id": "ID-15",
+   "name": "Footnotes, endnotes",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-folio/src/longdoc.rs:645 (StudioFootnote), :1060 (StudioEndnote); crates/hsk-studio-layout/src/footnotes.rs:250 (layout_footnotes); crates/hsk-studio-layout/src/endnotes.rs:77 (generate_endnotes), :162 (place_sidenotes)",
+   "tests": [
+    "crates/hsk-studio-layout/tests/longdoc_notes_index.rs::footnotes_reserve_bands_number_and_continue",
+    "crates/hsk-studio-layout/tests/longdoc_notes_index.rs::footnote_refusals",
+    "crates/hsk-studio-layout/tests/longdoc_running_notes.rs::endnotes_and_sidenotes",
+    "crates/hsk-studio-interop-layout/tests/longdoc_pdf.rs::footnotes_and_index_export",
+    "crates/hsk-studio-interop-layout/tests/idml_longdoc.rs::idml_longdoc_features_import_with_typed_losses"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-LONGDOC",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-LONGDOC-2",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-INTEROP-IDML",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": false,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Bottom bands, split/continue, restart rules, endnotes, sidenote placement (provisional spec contract). IDML: note_in_note_or_cell_not_imported. footnotes.rs/endnotes.rs unchanged since R35."
+  },
+  {
+   "id": "ID-16",
+   "name": "Table of contents and index",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-layout/src/toc.rs:230 (generate_toc); crates/hsk-studio-layout/src/index.rs:152 (generate_index)",
+   "tests": [
+    "crates/hsk-studio-layout/tests/longdoc_numbering_toc.rs::toc_from_paragraph_styles_with_page_labels_and_loops",
+    "crates/hsk-studio-layout/tests/longdoc_notes_index.rs::index_from_marks_nested_run_in_and_refusals",
+    "crates/hsk-studio-interop-layout/tests/longdoc_pdf.rs::page_labels_and_outline_from_sections_and_toc"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-LONGDOC",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-LONGDOC-2",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": false,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "toc.rs/index.rs unchanged since R35. IDML export reports index_not_exported."
+  },
+  {
+   "id": "ID-17",
+   "name": "Cross-references, text variables, conditional text",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-layout/src/xref.rs:316 (resolve_cross_references); crates/hsk-studio-layout/src/textflow.rs:271 (conditional_view); crates/hsk-studio-layout/src/running.rs:126",
+   "tests": [
+    "crates/hsk-studio-layout/tests/layout_anchors_xrefs.rs::cross_references_resolve_write_and_refuse_hostile_formats",
+    "crates/hsk-studio-layout/tests/layout_anchors_xrefs.rs::conditional_text_resolves_before_composition_and_story_edits_remap",
+    "crates/hsk-studio-layout/tests/longdoc_running_notes.rs::running_headers_section_markers_and_variables",
+    "crates/hsk-studio-interop-layout/tests/layout_flow_pdf.rs::anchored_picture_cross_reference_and_hidden_condition_export"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-LONGDOC-2",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-UI",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": false,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "paraNum token and cross-document xrefs unsupported; xref/live-caption variable kinds typed variable_unsupported. xref.rs/textflow.rs/running.rs unchanged since R35."
+  },
+  {
+   "id": "ID-18",
+   "name": "Books (multi-document publications)",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-layout/src/book.rs:88 (combine_book); crates/hsk-studio-folio/src/book.rs:84 (StudioBookChapter)",
+   "tests": [
+    "crates/hsk-studio-layout/tests/layout_book.rs::book_numbering_continues_across_chapters_with_parity_rules",
+    "crates/hsk-studio-layout/tests/layout_book.rs::combined_toc_hostile_books_and_typed_book_errors",
+    "crates/hsk-studio-interop-layout/tests/layout_flow_pdf.rs::book_exports_one_pdf_with_continuous_page_labels"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-UI",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": false,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Absent: style synchronisation (17 categories stored, not executed), book-level preflight/package, UI."
+  },
+  {
+   "id": "ID-19",
+   "name": "Placed graphics in frames, fitting, links panel",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-folio/src/longdoc.rs:368 (StudioGraphicFrame); crates/hsk-studio-layout/src/fitting.rs:81 (fit_content), :198 (place_graphic); crates/hsk-studio-interop-layout/src/pdf_place.rs:241 (draw_placed_pdf); crates/hsk-studio-package/src/externals.rs:490 (external_references)",
+   "tests": [
+    "crates/hsk-studio-layout/tests/longdoc_graphics.rs::fitting_modes_hand_computed",
+    "crates/hsk-studio-layout/tests/longdoc_graphics.rs::fitting_refusals_and_folio_frame_on_its_spread",
+    "crates/hsk-studio-interop-layout/tests/id_prepress_merge_place.rs::pdf_place_resolves_the_seven_crops",
+    "crates/hsk-studio-interop-layout/tests/id_prepress_merge_place.rs::placed_pdf_draws_into_an_export_page",
+    "crates/hsk-studio-package/tests/linked_files.rs::linked_files_are_checked_for_existence_and_hash_inside_the_document_directory"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-LONGDOC",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-PACKAGE-COMPLETENESS",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-ID-PREPRESS",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": true,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Absent: links panel surface, content-aware fit, embed placed PDF into export (shadings/images/soft masks of placed PDF are typed losses), IDML linked pixels (linked_pixels_not_imported). package crate changed since R35 (externals.rs +133, linked.rs new)."
+  },
+  {
+   "id": "ID-20",
+   "name": "Text wrap",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-layout/src/folio_input.rs:19-22 (FrameObstacles), lib.rs:60; Folio stores no wrap fields (crates/hsk-studio-folio/src/layout.rs:25-27)",
+   "tests": [
+    "crates/hsk-studio-layout/tests/threaded_reflow.rs::obstacle_wrap_and_overfull_word"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT",
+     "status": "PASS_V13"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": false,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Bounding obstacles supplied by the caller; no stored text-wrap mode/offset, no contour wrap, no UI. Footnote bands use the same obstacle mechanism internally."
+  },
+  {
+   "id": "ID-21",
+   "name": "Anchored objects, text on path",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-layout/src/anchors.rs:242 (place_anchored_objects); crates/hsk-studio-type/src/path_text.rs:550 (layout_path_text, vector docs only, READY)",
+   "tests": [
+    "crates/hsk-studio-layout/tests/layout_anchors_xrefs.rs::anchored_inline_above_line_and_custom",
+    "crates/hsk-studio-type/tests/ai_path_text.rs::ai_path_text_rainbow_hand_positions_runs_alignment_overset"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-UI",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": true,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Anchored objects real; text on a path exists only for vector documents (SMB-AI-TYPE-PATH-RECOLOR READY), not in layout frames."
+  },
+  {
+   "id": "ID-22",
+   "name": "Grids, guides, smart guides, measurement units",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-folio/src/layout_grids.rs:172 (StudioLayoutGrids); crates/hsk-studio-layout/src/grids.rs:159 (snap_point), :210 (MeasureSystem), :271 (parse_measure)",
+   "tests": [
+    "crates/hsk-studio-layout/tests/id_prepress_grids.rs::snapping_to_guides_and_document_grid",
+    "crates/hsk-studio-layout/tests/id_prepress_grids.rs::reflow_aligns_paragraphs_to_the_baseline_grid",
+    "crates/hsk-studio-layout/tests/id_prepress_grids.rs::measurement_units_and_input_suffixes",
+    "crates/hsk-studio-layout/tests/id_prepress_grids.rs::frame_and_document_grid_lines"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-ID-PREPRESS",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": false,
+   "proof_stale_file_level": false,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Engine only (no panel/canvas surface; ui=false correct). Absent: smart guides (Grep none), liquid guide behaviour (only GuideKind::Liquid enum value, layout_grids.rs:89). Lane SMB-ID-PREPRESS READY after FAIL_V1."
+  },
+  {
+   "id": "ID-23",
+   "name": "Liquid / adjust / alternate layouts",
+   "matrix_status": "MISSING",
+   "verified_level": "MISSING",
+   "code_anchor": "none; Grep -i liquid|alternate.?layout|adjust.?layout over layout/folio/interop-layout/harness-view src found only GuideKind::Liquid (folio layout_grids.rs:89) and a comment listing applied_alternate_layout/layout_rule as not stored (folio layout.rs:21-24)",
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "proof_stale_file_level": false,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "No layout-rule engine, no alternate-layout records."
+  },
+  {
+   "id": "ID-24",
+   "name": "Swatches, inks, separations preview, overprint",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-press-write/src/inks.rs:119 (InkManager), crates/hsk-studio-press-write/src/separations.rs:209 (SeparationPreview, Separator::new :253)",
+   "tests": [
+    "crates/hsk-studio-press/tests/id_prepress_separations.rs::ink_manager_aliases_conversion_and_mixed_inks",
+    "crates/hsk-studio-press/tests/id_prepress_separations.rs::separations_knockout_overprint_readouts_and_views",
+    "crates/hsk-studio-press/tests/id_prepress_separations.rs::ink_limits_are_three_independent_limits_scaled_by_ink_count",
+    "crates/hsk-studio-press/tests/id_prepress_separations.rs::pdf_page_separates_cmyk_gray_spot_and_clips"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-TOOLS-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-ID-PREPRESS",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": false,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "BUILT_NOT_VALIDATED part: ink manager, mixed inks, separations preview, ink limits (press-write, press unchanged since R35; SMB-ID-PREPRESS READY). Absent: Folio swatches not bound to layout inks, PDF overprint flags not read (separations.rs:19-20 SepNote::PdfOverprintNotRead), RGB/Lab/ICC separation converter, overprint preview in the layout surface."
+  },
+  {
+   "id": "ID-25",
+   "name": "Live preflight",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-layout/src/preflight.rs:156 (run_preflight, 9 rules: text.overset, text.composition_refused, text.missing_style, text.double_space, document.blank_page, objects.outside_page, data.xref_stale, data.xref_broken, document.parent_records); crates/hsk-studio-harness-view/src/layout_ui/preflight.rs",
+   "tests": [
+    "crates/hsk-studio-layout/tests/layout_preflight.rs::preflight_rules_read_engine_results_with_profile_and_scope",
+    "crates/hsk-studio-harness/tests/viewer_layout_preflight.rs::preflight_reports_structured_findings_live_with_scope_and_severities",
+    "crates/hsk-studio-harness/tests/viewer_layout_preflight.rs::preflight_panel_draws_status_indicator_and_findings"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-UI-2",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": false,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "No link/colour/ink/font/image/spelling rules, no stored profiles (preflight.rs:19 header lists them as not implemented). preflight.rs unchanged since R35."
+  },
+  {
+   "id": "ID-26",
+   "name": "Package (collect fonts and links)",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-package/src/externals.rs:490 (external_references), src/linked.rs:28 (LinkedFileResolver)",
+   "tests": [
+    "crates/hsk-studio-package/tests/externals.rs::every_external_is_kept_on_save_and_reported_with_its_link_state",
+    "crates/hsk-studio-package/tests/linked_files.rs::linked_files_are_checked_for_existence_and_hash_inside_the_document_directory"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PACKAGE-COMPLETENESS",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PACKAGE-COMPLETENESS-2",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": true,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Self-contained save embedding granted externals; not an InDesign package (no collected-fonts folder, no package report; Grep collect_fonts/package_folder: none). package crate changed since R35 -> PASS proof stale; PACKAGE-COMPLETENESS-2 (resolver ports) READY."
+  },
+  {
+   "id": "ID-27",
+   "name": "PDF export (print, PDF/X) and printing / booklet",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-interop-layout/src/pdf_export.rs:287 (export_pdf), :294 (export_pdf_with); crates/hsk-studio-press-write/src/export/pdfx.rs (PDF/X-4 identification + self-check, conformance not_proven)",
+   "tests": [
+    "crates/hsk-studio-interop-layout/tests/pdf_export.rs::snapshot_lowers_to_pdf",
+    "crates/hsk-studio-interop-layout/tests/pdf_export.rs::folio_clipping_gradient_and_pdfx4",
+    "crates/hsk-studio-interop-layout/tests/longdoc_pdf.rs::long_document_archival_export",
+    "crates/hsk-studio-interop-layout/tests/longdoc_pdf.rs::page_labels_and_outline_from_sections_and_toc",
+    "crates/hsk-studio-interop-layout/tests/longdoc_pdf.rs::press_tj_runs_program_widths_and_navigation_refusals"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-PDF-EXPORT",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-PDF-EXPORT-2",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-PDF-EXPORT-3",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-PDFX-VERAPDF",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-PRESS-PAINT-TRANSPARENCY",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-LONGDOC-2",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": false,
+   "oracle": "NO_ORACLE_CASE (ID-03 PDFs were exported by InDesign but 'not compared'; SMB-PDFX-ORACLE lane has no claim)",
+   "matrix_verdict": "AGREE",
+   "notes": "PDF/A-2b veraPDF-passed (fixtures pinned to output sha256); PDF/X-4: identification + self-check only, rules 'as recalled, UNVERIFIED' (pdfx.rs header), conformance stays not_proven. Absent: printer marks, booklet/print. Glyph-scaled justification and ligature-split lines are not mapped in the PDF (no glyph_scale/start_part use in pdf_export). interop-layout src and press unchanged since R35 (tests only)."
+  },
+  {
+   "id": "ID-28",
+   "name": "EPUB / interactive / HTML export",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-interop-layout/src/epub.rs:184 (export_epub), :397 (inspect_epub)",
+   "tests": [
+    "crates/hsk-studio-interop-layout/tests/id_prepress_epub.rs::epub_package_structure_chapters_nav_and_metadata",
+    "crates/hsk-studio-interop-layout/tests/id_prepress_epub.rs::epub_refusals_and_hostile_rereads"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-ID-PREPRESS",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": false,
+   "proof_stale_file_level": false,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Reflowable EPUB 3 only (BUILT_NOT_VALIDATED, SMB-ID-PREPRESS READY); epubcheck NOT run; fixed-layout, images, cover, embedded fonts, footnotes, interactive PDF, HTML export absent (descriptor gaps)."
+  },
+  {
+   "id": "ID-29",
+   "name": "Story editor, find/change, spell check",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-layout/src/find_change.rs:304 (find_change_text), :427 (find_objects), :482 (find_colour), :514 (SavedQueries); crates/hsk-studio-harness-view/src/layout_ui.rs:284 (LayoutEditor), layout_ui/find.rs",
+   "tests": [
+    "crates/hsk-studio-layout/tests/id_prepress_find_change.rs::glyph_and_transliterate_modes",
+    "crates/hsk-studio-layout/tests/id_prepress_find_change.rs::saved_queries_and_their_typed_errors",
+    "crates/hsk-studio-layout/tests/id_prepress_find_change.rs::object_and_colour_modes",
+    "crates/hsk-studio-harness/tests/viewer_layout_tables_find.rs::find_change_text_and_grep_modes_are_single_undo_steps",
+    "crates/hsk-studio-harness/tests/viewer_layout_ui.rs::frame_thread_columns_text_and_styles_each_one_undo_step"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-UI",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-UI-2",
+     "status": "PASS_V1"
+    },
+    {
+     "lane_id": "SMB-ID-PREPRESS",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": false,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Matrix note 'no saved queries' is stale: SavedQueries save/load/delete exist in the engine (READY). Still absent: spell check (layout/harness-view Grep 'spell': comments only), glyph-id search, formatting criteria, location tokens, shipped queries; the panel covers text/GREP only."
+  },
+  {
+   "id": "ID-30",
+   "name": "Data merge",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-interop-layout/src/data_merge.rs:299 (merge_story)",
+   "tests": [
+    "crates/hsk-studio-interop-layout/tests/id_prepress_merge_place.rs::data_sources_parse_with_typed_errors",
+    "crates/hsk-studio-interop-layout/tests/id_prepress_merge_place.rs::merge_records_into_story_placeholders_and_arrange"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-ID-PREPRESS",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": false,
+   "proof_stale_file_level": false,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "CSV/JSON text merge only; image (@image) and QR (#qr) fields parse but are not placed; no direct-to-PDF merge; no UI. SMB-ID-PREPRESS READY."
+  },
+  {
+   "id": "ID-31",
+   "name": "Convert / open PDF as a layout document",
+   "matrix_status": "MISSING",
+   "verified_level": "MISSING",
+   "code_anchor": "crates/hsk-studio-harness-core/src/import/pdf.rs:2-6,68 (PDF carried with original bytes and one pdf_pages_not_imported loss per page); Grep for a PDF -> StudioPageSpread importer found none (press-read read_vector_pages feeds vector documents, not layout)",
+   "tests": [
+    "crates/hsk-studio-harness/tests/import_pdf.rs::pdf_is_carried_with_its_original_and_a_pages_not_imported_receipt"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-CONVERT-NATIVE",
+     "status": "PASS_V11"
+    }
+   ],
+   "proof_stale": true,
+   "proof_stale_file_level": false,
+   "oracle": "NO_ORACLE_CASE",
+   "matrix_verdict": "AGREE",
+   "notes": "Vector-page read (press-read vector_read.rs:560) exists for vector documents but there is no PDF -> layout document path."
+  }
+ ],
+ "counts": {
+  "VALIDATED": 13,
+  "BUILT_NOT_VALIDATED": 0,
+  "PARTIAL": 15,
+  "MISSING": 3,
+  "total": 31
+ },
+ "matrix_counts": {
+  "VALIDATED": 13,
+  "IMPLEMENTED": 0,
+  "PARTIAL": 15,
+  "MISSING": 3,
+  "total": 31
+ },
+ "verdict_counts": {
+  "AGREE": 31,
+  "RAISE": 0,
+  "LOWER": 0
+ },
+ "engine_pct": {
+  "matrix": 54.0,
+  "verified": 54.0,
+  "verified_discounting_file_level_stale_proofs": 44.4,
+  "verified_discounting_crate_level_stale_proofs": 33.1,
+  "formula": "100*(VALIDATED + 0.5*BUILT_NOT_VALIDATED + 0.25*PARTIAL)/rows (matrix formula). The two 'discounting' figures re-count a VALIDATED row as BUILT_NOT_VALIDATED when its R35 PASS proof is stale at the stated level (information only; status unchanged; R36 would restore).",
+  "note": "No row changes status: all 31 matrix statuses are confirmed by code at e64eacd. The matrix figure therefore stands; the risk is staleness (R35 proofs pre-date commits touching layout, type, folio, package) and un-wired engines, not over-statement of row status."
+ },
+ "oracle_summary": {
+  "session": "D5 2026-10-16 InDesign 21.6, cases ID-01..ID-04, 99 entries, host Arial (never committed)",
+  "at_e64eacd": "93 of 99 MATCH (derived: tests/d5_id_expected_mismatch.txt lists exactly 6 allowed MISMATCH entries: ID-01 para_hyph_left_w240; ID-02 para_ws100_100_100, single_ws80_100_133_gs95_100_105, single_ws100_100_100_ls-5_0_5_gs90_100_110; ID-03 para_hyph_w240, para_nohyph_w240; no NOT_SUPPORTED producer remains in d5_id_oracle.rs). Lane SMB-TYPE-FF-LIGATURE claims the same (ID-01 79/80, ID-02 9/12, ID-03 4/6, ID-04 1/1, plus the arial ff ligature check MATCH). Reading limits: the test fails only on an UNLISTED mismatch, so the list gives MATCH >= 93 only if every other entry is a MATCH rather than NOT_PROVEN; the lane's own run (169/169, pre-rebase) is the only run evidence.",
+  "history": "20/99 (2026-10-16, 16d5c9e) -> 55 (SMB-ID-COMPOSER-PARITY) -> 93 (SMB-TYPE-FF-LIGATURE, rebased 2e0f53e). The matrix still reports 55/99, 40 mismatches and 4 NOT_SUPPORTED: superseded.",
+  "remaining_mismatch_classes": "6 line-break differences: FULLY_JUSTIFIED paragraph composer last-line trade-off (3), ragged hyphen choice (1), single-line composer with glyph scaling choosing hyphenated vs tight word (2). All other lines: x identical.",
+  "missing_font_handling": "d5_id_oracle.rs reads arial.ttf from <oracle-corpus>/host-fonts via .config/oracle-corpus.toml, sha256-pinned (read_pinned); corpus root or font absent -> setup_or_not_proven() records NOT_PROVEN (prints 'NOT_PROVEN: ...') and the test returns WITHOUT failing; the font is not in the repo. A green test run without the corpus proves nothing about InDesign parity.",
+  "judged": "NOT judged: SMB-D5-AI-ID-AE-COMPARE is PASS_V1 at R35 for slice 1 (After Effects) only per its ledger note; ID slice 3, SMB-ID-COMPOSER-PARITY and SMB-TYPE-FF-LIGATURE are READY_FOR_VALIDATION (round R36).",
+  "overfit_risk": "Composer constants, hyphenation exceptions (3 words) and the 'ff' model are fitted to one font (Arial 12/14.4), one paragraph and 99 variants: behaviour outside it UNVERIFIED (validator note on SMB-ID-COMPOSER-PARITY).",
+  "rows_with_real_app_evidence": {
+   "ID-05": "ORACLE_MATCH 1/1",
+   "ID-06": "ORACLE_PARTIAL 89/95",
+   "ID-07": "ORACLE_PARTIAL 50/55",
+   "ID-08": "ORACLE_PARTIAL 49/54 (hyphenation on)",
+   "ID-09": "ORACLE_MATCH (Latin Arial advances/kerning only)"
+  },
+  "rows_without_oracle": "the other 26 rows: NO_ORACLE_CASE"
+ },
+ "top_gaps": [
+  {
+   "rank": 1,
+   "gap": "Adobe-parity composition is not wired into any product surface or document model",
+   "evidence": "layout editor composes with Composer::FirstFit and TypesetOptions{styles only} (crates/hsk-studio-harness-view/src/layout_ui.rs:445-454, layout_ui/tables.rs:442-447); IDML reflow defaults to FirstFit (interop-layout src/reflow.rs:81); Folio style records carry no composer/hyphenation/justification/indent fields (folio typestyle.rs:19-22; layout styles.rs ResolvedStyle); IDML import does not read MinimumWordSpacing/HyphenationZone (Grep: only d5_id_oracle.rs, adobe_composer.rs, breaker.rs)",
+   "user_impact": "ID-06/07/08 are validated or READY engines, yet a user typesetting in Studio gets greedy first-fit lines, no hyphenation and no justification limits"
+  },
+  {
+   "rank": 2,
+   "gap": "Importing real InDesign documents is lossy or impossible",
+   "evidence": "import_indd always Err (NativeEditabilityBlocked, interop-layout src/indd_adapter.rs:72-86); IDML import keeps style definitions, master spreads, graphics and groups verbatim/uninterpreted (descriptor losses part_preserved_verbatim, text_frame_in_group_not_decoded, graphic_page_item_not_interpreted); the three InDesign-written D5 packages import with 48 typed loss entries each",
+   "user_impact": "parents (ID-02), styles (ID-12), grouped frames and linked pixels (ID-19) of an existing .indd/.idml do not arrive"
+  },
+  {
+   "rank": 3,
+   "gap": "Non-Latin and vertical typography",
+   "evidence": "ID-11 MISSING (Grep none); folio_input.rs:130-139 refuses RTL stories; layout consumes Latin LTR only though Type shapes Latn/Arab/Hani with bidi",
+   "user_impact": "Arabic/Hebrew/CJK/vertical frames cannot be composed"
+  },
+  {
+   "rank": 4,
+   "gap": "Print/prepress output conformance",
+   "evidence": "PDF/X-4 conformance not_proven (press-write export/pdfx.rs header: rules 'as recalled, UNVERIFIED'); no printer marks/booklet; PDF overprint flags not read (separations.rs:19-20); EPUB epubcheck not run, no fixed-layout; pdf_export ignores glyph_scale and ligature split parts; ink/separation lane is READY after a FAIL_V1",
+   "user_impact": "cannot claim press-ready output"
+  },
+  {
+   "rank": 5,
+   "gap": "Frame and object automation: auto-size, first-baseline kinds, stored text wrap, liquid/alternate layouts, object-style rendering, spell check",
+   "evidence": "folio_input.rs:136-137 refusals; Folio stores no wrap fields (layout.rs:25-27); ID-23 MISSING; objstyle.rs stored_only fill/stroke; Grep spell: none",
+   "user_impact": "everyday InDesign frame behaviours are refused or absent"
+  }
+ ],
+ "unlisted_capabilities": [
+  "IDML round-trip export with deterministic byte-identical re-export (interop-layout src/idml_encode.rs:220 export_idml, src/folio_export.rs:390 export_folio, src/idml_longdoc.rs:1510 export_folio_longdoc); in the matrix 'interop' block but not a row",
+  "Saved find/change queries (layout src/find_change.rs:514 SavedQueries; test id_prepress_find_change::saved_queries_and_their_typed_errors) while the matrix says none",
+  "INDD/INDB/INDL header identification (interop-layout src/indd_adapter.rs:36 identify_indd) with an explicit native-editability blocker",
+  "Twelve measurement systems and ten input suffixes (layout grids.rs:210 MeasureSystem, :271 parse_measure)",
+  "Anchored tables inside host text (layout src/story_tables.rs reflow_with_tables) and overlay composition of any text into frames (compose_overlay)",
+  "Book export subset / chapter page ranges (layout book.rs; descriptor 'books')",
+  "Vector separations preview for vector documents (harness-view src/view/vector/separations.rs, SMB-AI-TYPE-PATH-RECOLOR slice 4, READY)",
+  "DSC-conforming EPSF 3.0 export of vector proposals (interop-vector tests/eps_export.rs::proposal_exports_as_dsc_conforming_epsf; SMB-DXF-EPS-IMPORT READY): not an InDesign row"
+ ],
+ "unverified": [
+  "No test was run by this verifier; all PASS/READY statuses, the 93/99 oracle figure and the 169/169 lane run are ledger or lane-file claims (93 is additionally consistent with the 6-entry expected-mismatch list)",
+  "InDesign behaviour of every row other than the ID-01..ID-04 oracle cases (pages, parents, styles, tables, long-document, prepress, EPUB, data merge, PDF)",
+  "Whether the oracle corpus and host Arial exist on the machine that runs R36 (absent -> NOT_PROVEN, not FAIL)",
+  "ID-09 Arabic/Hani and ID-10 variable/OpenType-feature behaviour against InDesign (no oracle case)",
+  "Whether R35 FAIL_V1 remediation 3b73143 fixes the vjust test pin (visible only as lane status READY)",
+  "ID-08 split of hyphenation-on/off oracle counts and ID-07 justified counts are derived from variant names and the test doc comments (ID-02/ID-03 hyphenation and justification settings read from d5_id_oracle.rs comments), not from per-entry verdict output"
+ ],
+ "notes": [
+  "Matrix anchors drifted: read_vector_pages moved to hsk-studio-press-read; harness view code moved to hsk-studio-harness-view; layout_table now table.rs:472, layout_footnotes footnotes.rs:250, external_references externals.rs:490. Row substance unchanged.",
+  "Stale matrix statements corrected here: oracle 55/99 -> 93/99; '4 NOT_SUPPORTED glyph scaling' -> implemented (READY); 'no saved queries' -> SavedQueries exist; top_gaps item 2 ('Arial ff model and glyph scaling missing; SMB-TYPE-FF-LIGATURE not started') -> READY.",
+  "All 31 row verdicts are AGREE. The material correction is a wiring gap, not a status: ID-06/07/08 engine capability is not reachable from the layout editor, IDML reflow defaults or Folio style records.",
+  "R36 must re-prove the VALIDATED rows' crates: layout (breaker, paragraph, typeset, threaded_reflow edited), type (composition v2), folio (typestyle, vector records), package (externals, linked); press, press-read and press-write are unchanged since R35.",
+  "ledger status of SMB-D5-AI-ID-AE-COMPARE reads PASS_V1 for the whole lane, but its verdict text says 'slice 1 (b822715); slices 2-3 local'; the InDesign slice (3) is therefore unjudged."
+ ]
+}

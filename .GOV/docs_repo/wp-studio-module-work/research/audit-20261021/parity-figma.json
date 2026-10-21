@@ -1,0 +1,902 @@
+{
+ "schema": "hsk.studio.audit.parity_app@1",
+ "file_id": "WP-KERNEL-STUDIO-AUDIT-20261021-PARITY-FIGMA",
+ "updated_at": "2026-10-21T01:24:54Z",
+ "by": "read-only parity verifier (Sonnet)",
+ "app": "figma",
+ "basis": {
+  "tip": "e64eacd",
+  "matrix_file": "research/parity-matrix-20261020.json",
+  "matrix_lines": "1-80 header; figma features 3505-3913; summary 7578-7695",
+  "checkout_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ps-oracle-parity-2/handshake-studio-assets",
+  "method": "read-only: Read/Grep/git log only; no cargo, no test run. 'tests' lists test fns that exist and assert outputs (existence verified by text search, results NOT rerun). Lane statuses from ledger.json. Figma has no real-app oracle: 'oracle' field reports FIXTURE_PROVEN (fixture render test within a stated tolerance, Operator-exported Figma 126.10.7 .fig + PNG) or UNVERIFIED against Figma.",
+  "matrix_statuses_translation": "matrix IMPLEMENTED == BUILT_NOT_VALIDATED; matrix had 0 IMPLEMENTED rows for Figma"
+ },
+ "rows": [
+  {
+   "id": "FG-01",
+   "name": "Scene graph: frames, groups, nested layers",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": false,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-folio/src/lib.rs:145",
+    "crates/hsk-studio-folio/src/lib.rs:193"
+   ],
+   "tests": [
+    "crates/hsk-studio-folio/tests/foundation_contract.rs::containment_cycles_and_illegal_group_parent",
+    "crates/hsk-studio-interop-fig/tests/fig_geometry.rs::real_geometry_matches_png_positions",
+    "crates/hsk-studio-interop-fig/tests/fig_composite.rs::real_layer_graph_shape_and_losses_are_pinned"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-ENG-4",
+     "status": "PASS_V12"
+    },
+    {
+     "lane_id": "SMB-COMPONENTS",
+     "status": "PASS_V13"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate folio changed since R35 candidate 237256f",
+   "oracle": "FIXTURE_PROVEN (node positions on 3 fixtures: fig_geometry::real_geometry_matches_png_positions; layer-graph shape and loss counts pinned in fig_composite). UNVERIFIED against Figma beyond the 3 Operator fixtures",
+   "matrix_verdict": "AGREE",
+   "notes": "Frames/groups/nested layers real in Folio. matrix line moved: NodeKind is now lib.rs:145."
+  },
+  {
+   "id": "FG-02",
+   "name": "Components and component sets (variants), variant conflict detection",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": false,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-components/src/lib.rs:216",
+    "crates/hsk-studio-folio/src/components.rs:164"
+   ],
+   "tests": [
+    [
+     "crates/hsk-studio-components/tests/instance_resolution.rs::set_members_must_have_distinct_ids",
+     "crates/hsk-studio-components/tests/instance_resolution.rs::switch_variant_and_swap_never_return_an_unresolvable_instance",
+     "crates/hsk-studio-components/tests/instance_resolution.rs::variant_mode_override_resolution"
+    ],
+    "crates/hsk-studio-folio/tests/design_records_contract.rs::component_sets_instances_and_overrides_are_validated"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPONENTS",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-COMPONENTS-FOLIO-MIGRATE",
+     "status": "PASS_V12"
+    },
+    {
+     "lane_id": "SMB-FOLIO-UNIQUENESS",
+     "status": "PASS_V9"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "lane SMB-FOLIO-UNIQUENESS owns folio, changed since R35; components crate itself unchanged",
+   "oracle": "UNVERIFIED against Figma: fixtures/fig-components-autolayout-variants.png exists but is referenced by no test (Grep 'autolayout-variants' over crates *.rs: no hit); variants/conflict detection are spec-derived unit tests only",
+   "matrix_verdict": "AGREE",
+   "notes": "Component sets, variant switching and distinct-member checks real. SMB-FOLIO-UNIQUENESS is folio-owned (stale); the other lanes are components-owned (components unchanged since R35, but it depends on folio)."
+  },
+  {
+   "id": "FG-03",
+   "name": "Instances with property-granular overrides and precedence",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": false,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-components/src/instance_resolution.rs:565",
+    "crates/hsk-studio-components/src/lib.rs:216"
+   ],
+   "tests": [
+    [
+     "crates/hsk-studio-components/tests/instance_resolution.rs::override_rules_and_properties",
+     "crates/hsk-studio-components/tests/instance_resolution.rs::variant_mode_override_resolution",
+     "crates/hsk-studio-components/tests/instance_resolution.rs::alias_type_disjoint_stale_cancel"
+    ],
+    "crates/hsk-studio-interop-fig/tests/fig_instances_frames.rs::instance_override_renders_overridden_value"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPONENTS",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-COMPONENTS-FOOTPRINT",
+     "status": "PASS_V9"
+    }
+   ],
+   "proof_stale": false,
+   "stale_reason": null,
+   "oracle": "FIXTURE_PROVEN (instance expansions with overrides in the components fixture render within tolerance: fig_instances_frames::whole_fixture_render_matches_operator_png: components fixture, 3 frames within 8/255 >= 99.19 %, mean <= 0.72/255, p99 <= 0.87/255)",
+   "matrix_verdict": "AGREE",
+   "notes": "Override precedence and property-granular overrides real; .fig instance expansion with overrides renders on the fixture."
+  },
+  {
+   "id": "FG-04",
+   "name": "Component properties",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": false,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-folio/src/components.rs:151",
+    "crates/hsk-studio-folio/src/components.rs:95"
+   ],
+   "tests": [
+    "crates/hsk-studio-components/tests/instance_resolution.rs::override_value_type_is_checked_against_property_and_variable_types",
+    "crates/hsk-studio-folio/tests/design_records_contract.rs::design_records_round_trip_and_node_rules_are_refused"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPONENTS",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-FOLIO-ENG-4",
+     "status": "PASS_V12"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate folio changed since R35 candidate 237256f",
+   "oracle": "UNVERIFIED against Figma",
+   "matrix_verdict": "AGREE",
+   "notes": "Boolean/text/instance-swap/variant property records real; the SLOT property type is declared but refused (matrix note stands); instance-swap behaviour vs Figma unverified."
+  },
+  {
+   "id": "FG-05",
+   "name": "Variables: collections, modes, aliases, typed values",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": false,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-folio/src/components.rs:246",
+    "crates/hsk-studio-folio/src/components.rs:265",
+    "crates/hsk-studio-components/src/lib.rs:216"
+   ],
+   "tests": [
+    [
+     "crates/hsk-studio-components/tests/instance_resolution.rs::alias_type_disjoint_stale_cancel",
+     "crates/hsk-studio-components/tests/instance_resolution.rs::variant_mode_override_resolution"
+    ],
+    "crates/hsk-studio-folio/tests/design_records_contract.rs::variables_modes_aliases_and_publishing_are_validated",
+    "crates/hsk-studio-interop-fig/tests/fig_native.rs::real_native_auto_layout_reactions_variables"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPONENTS",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-FOLIO-ENG-4",
+     "status": "PASS_V12"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate folio changed since R35 candidate 237256f",
+   "oracle": "UNVERIFIED against Figma (fixtures have ONE variable mode only per provenance.json: Figma plan limit, multi-mode resolution never compared with a Figma render)",
+   "matrix_verdict": "AGREE",
+   "notes": "Collections, modes, aliases, typed values real; .fig variables map into them (fig_native)."
+  },
+  {
+   "id": "FG-06",
+   "name": "Styles (colour, text, effect, grid)",
+   "matrix_status": "PARTIAL",
+   "matrix_ui": false,
+   "verified_level": "PARTIAL",
+   "code_anchor": [
+    "crates/hsk-studio-folio/src/paint.rs:237",
+    "crates/hsk-studio-folio/src/typestyle.rs:143",
+    "crates/hsk-studio-interop-fig/src/native.rs:2000"
+   ],
+   "tests": [
+    "crates/hsk-studio-folio/tests/paint_blur_style_contract.rs::type_styles_resolve_stories_and_refuse",
+    "crates/hsk-studio-folio/tests/design_records_contract.rs::paint_styles_round_trip_and_invalid_paint_is_refused",
+    "crates/hsk-studio-interop-fig/tests/fig_folio_kinds.rs::real_text_styles_resolve_stys_ids",
+    "crates/hsk-studio-interop-fig/tests/fig_paints.rs::effect_style_shadow_renders_under_instances"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-ENG-4",
+     "status": "PASS_V12"
+    },
+    {
+     "lane_id": "SMB-FOLIO-PAINT-BLUR-STYLE",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-INTEROP-FIG-FOLIO-KINDS",
+     "status": "PASS_V9"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate folio changed since R35 candidate 237256f",
+   "oracle": "FIXTURE_PROVEN for effect-style shadow render and text-style ids only as part of the fixture renders (fig_paints_2::basic_shapes_artboard_remeasured_with_image_fill: basic-shapes artboard mean <= 0.9208/255, >= 99.324 % within 8/255, p99 <= 5.698; text region only >= 91.445 % within 8/255 (mean <= 3.863)); UNVERIFIED against Figma otherwise",
+   "matrix_verdict": "AGREE",
+   "notes": "paint.rs doc: 'Only PAINT entries are modelled by StudioPaintStyle' (StyleKind has Text/Effect/Grid variants but no registry rows); text styles via typestyle records; effect styles are resolved at import into node effects, not stored as styles; grid styles absent."
+  },
+  {
+   "id": "FG-07",
+   "name": "Auto layout (direction, wrap, padding, gap, alignment, hug/fill, absolute children)",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": false,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-components/src/auto_layout.rs:695",
+    "crates/hsk-studio-folio/src/autolayout.rs:96",
+    "crates/hsk-studio-folio/src/autolayout.rs:248"
+   ],
+   "tests": [
+    [
+     "crates/hsk-studio-components/tests/auto_layout.rs::flow_hug_gap_padding_alignment",
+     "crates/hsk-studio-components/tests/auto_layout.rs::fill_clamps_space_between_and_resize",
+     "crates/hsk-studio-components/tests/auto_layout.rs::wrap_lines_and_typed_refusals",
+     "crates/hsk-studio-components/tests/auto_layout.rs::nested_absolute_hug_fill_and_resize"
+    ]
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPONENTS",
+     "status": "PASS_V13"
+    }
+   ],
+   "proof_stale": false,
+   "stale_reason": null,
+   "oracle": "UNVERIFIED against Figma (solver is unit-tested against hand values; the fixture renders use Figma-stored geometry, not Studio's solver output)",
+   "matrix_verdict": "AGREE",
+   "notes": "Flow/wrap/padding/gap/alignment/hug/fill/absolute real. CAVEAT: folio/src/autolayout.rs refuses layout_mode GRID (and grid container/child fields STU-DS-146/147/150) as UnsupportedDescriptor; row name does not list grid so kept VALIDATED, but the row's source cites STU-DS-146 (matrix says 'grid flow UNVERIFIED'; verified: refused)."
+  },
+  {
+   "id": "FG-08",
+   "name": "Constraints and resizing; min/max clamps",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": false,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-components/src/constraints.rs:62",
+    "crates/hsk-studio-components/src/constraints.rs:88"
+   ],
+   "tests": [
+    "crates/hsk-studio-components/tests/instance_resolution.rs::constraints_hand_computed"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPONENTS",
+     "status": "PASS_V13"
+    }
+   ],
+   "proof_stale": false,
+   "stale_reason": null,
+   "oracle": "UNVERIFIED against Figma",
+   "matrix_verdict": "AGREE",
+   "notes": "Constraints/resizing/min-max clamps real; one hand-value test covers it."
+  },
+  {
+   "id": "FG-09",
+   "name": "Prototyping: triggers, actions, flows, flow validation",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": false,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-folio/src/reactions.rs:60",
+    "crates/hsk-studio-components/src/prototype.rs:59"
+   ],
+   "tests": [
+    "crates/hsk-studio-components/tests/instance_resolution.rs::actions_after_the_first_add_no_reachability_edge",
+    [
+     "crates/hsk-studio-interop-fig/tests/fig_prototype.rs::flow_start_overflow_and_easing_are_records",
+     "crates/hsk-studio-interop-fig/tests/fig_prototype.rs::player_overlay_back_close_scroll_hover_and_after_delay"
+    ],
+    "crates/hsk-studio-folio/tests/prototype_records_contract.rs::overlay_records_round_trip_and_keep_empty_sets_identical"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPONENTS",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-FOLIO-ENG-4",
+     "status": "PASS_V12"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate folio changed since R35 candidate 237256f",
+   "oracle": "FIXTURE_PROVEN (reactions decoded from fig-prototype-pages.fig drive the player; screens compared: fig_prototype::player_steps_the_prototype_fixture_and_frames_match_the_pngs: start/detail/animated screens mean <= 0.378/255, >= 99.197 % within 8/255)",
+   "matrix_verdict": "AGREE",
+   "notes": "Triggers/actions/flows/validation real; click-navigate-back verified on the Operator prototype fixture only."
+  },
+  {
+   "id": "FG-10",
+   "name": "Transitions / smart animate playback",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": true,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-components/src/smart_animate.rs:239",
+    "crates/hsk-studio-components/src/transition.rs:56",
+    "crates/hsk-studio-harness-view/src/view/prototype.rs:502"
+   ],
+   "tests": [
+    [
+     "crates/hsk-studio-components/tests/smart_animate.rs::matching_by_name_path_same_name_index_and_implicit_text_style",
+     "crates/hsk-studio-components/tests/smart_animate.rs::interpolated_properties_equal_hand_computed_values_at_progress_points"
+    ],
+    "crates/hsk-studio-components/tests/transition.rs::spring_progress_equals_the_damped_oscillator_solution",
+    "crates/hsk-studio-harness/tests/viewer_prototype.rs::smart_animate_pairs_the_fixture_layers_and_tweens_the_orb",
+    "crates/hsk-studio-interop-fig/tests/fig_smart_animate_2.rs::directional_tokens_and_custom_spring_map_to_folio_transitions"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-ENG-4",
+     "status": "PASS_V12"
+    },
+    {
+     "lane_id": "SMB-INTEROP-FIG-PROTOTYPE",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-HARNESS-PROTOTYPE-PLAY",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-FIG-SMART-ANIMATE",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-FIG-SMART-ANIMATE-2",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "SMB-HARNESS-PROTOTYPE-PLAY owns harness and SMB-FOLIO-ENG-4 folio, both changed since R35; components/interop-fig unchanged",
+   "oracle": "FIXTURE_PROVEN for the animated END state only (fig_prototype::player_steps_the_prototype_fixture_and_frames_match_the_pngs: start/detail/animated screens mean <= 0.378/255, >= 99.197 % within 8/255); intermediate tween frames: viewer_prototype compares the mid frame to a Studio-side reference blend of the two PNGs (mean <= 0.0966/255), which is a model, not a Figma-rendered frame -> UNVERIFIED against Figma for tween curves/springs",
+   "matrix_verdict": "AGREE",
+   "notes": "Smart-animate matching, easing, springs, directional/overlay transitions real. Real overlay/directional/spring byte decode NOT_PROVEN per matrix note (fixture covers bezier ease + smart animate only; directional/spring tests are synthetic)."
+  },
+  {
+   "id": "FG-11",
+   "name": "Prototype presentation / player",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": true,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-components/src/player.rs:132",
+    "crates/hsk-studio-harness-view/src/view/prototype.rs:502"
+   ],
+   "tests": [
+    "crates/hsk-studio-interop-fig/tests/fig_prototype.rs::player_steps_the_prototype_fixture_and_frames_match_the_pngs",
+    [
+     "crates/hsk-studio-harness/tests/viewer_prototype.rs::play_mode_steps_the_prototype_fixture_against_the_operator_pngs",
+     "crates/hsk-studio-harness/tests/viewer_prototype.rs::viewer_draws_the_play_panel",
+     "crates/hsk-studio-harness/tests/viewer_prototype.rs::overlays_are_placed_by_their_frame_records_and_close_on_click_outside"
+    ]
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-INTEROP-FIG-PROTOTYPE",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-HARNESS-PROTOTYPE-PLAY",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-FIG-SMART-ANIMATE",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "SMB-HARNESS-PROTOTYPE-PLAY owns harness (changed since R35); interop-fig/components unchanged",
+   "oracle": "FIXTURE_PROVEN (fig_prototype::player_steps_the_prototype_fixture_and_frames_match_the_pngs: start/detail/animated screens mean <= 0.378/255, >= 99.197 % within 8/255; viewer play-mode screens vs the Operator PNGs: viewer_prototype.rs, 99.72 % within 8/255 on the smart-animate reference frame). Figma player behaviour beyond the fixture: UNVERIFIED against Figma",
+   "matrix_verdict": "AGREE",
+   "notes": "Deterministic player + viewer play mode real (ui=true headless)."
+  },
+  {
+   "id": "FG-12",
+   "name": "Vector editing, vector networks, pen tool",
+   "matrix_status": "PARTIAL",
+   "matrix_ui": false,
+   "verified_level": "PARTIAL",
+   "code_anchor": [
+    "crates/hsk-studio-nib/src/anchor_path.rs:482",
+    "crates/hsk-studio-folio/src/vector_network.rs:111",
+    "crates/hsk-studio-interop-fig/tests/fig_geometry.rs:357"
+   ],
+   "tests": [
+    "crates/hsk-studio-interop-fig/tests/fig_geometry.rs::rotation_and_line_baked_and_network_fallback",
+    "crates/hsk-studio-nib/tests/network.rs::path_promotes_losslessly_and_flattens_back",
+    "crates/hsk-studio-harness/tests/viewer_vector_3.rs::network_promote_edit_paint_bucket_undo_and_save"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN-2",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN-3",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-NETWORK-ADAPTER",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "nib, composite, harness lanes changed since R35",
+   "oracle": "UNVERIFIED against Figma (editing is the shared Illustrator engine; .fig vector networks import as baked paths per fig_geometry 'network_fallback')",
+   "matrix_verdict": "AGREE",
+   "notes": "Pen/path/network editing exists on the shared nib/folio engine but the Figma path imports networks baked (not editable networks); no Figma-specific pen UI. Same engine lanes as AI-02/AI-04."
+  },
+  {
+   "id": "FG-13",
+   "name": "Boolean groups",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": false,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-folio/src/vector.rs:435",
+    "crates/hsk-studio-nib/src/boolean.rs:111",
+    "crates/hsk-studio-composite/src/vector_nib.rs:5"
+   ],
+   "tests": [
+    "crates/hsk-studio-composite/tests/boolean_lowering.rs::boolean_operations_cached_outline_and_nesting_follow_the_hand_counts",
+    "crates/hsk-studio-interop-fig/tests/fig_folio_kinds.rs::real_boolean_operation_maps_to_group_with_cached_outline",
+    "crates/hsk-studio-folio/tests/paint_blur_style_contract.rs::boolean_group_round_trips_and_refusals"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-PAINT-BLUR-STYLE",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-INTEROP-FIG-FOLIO-KINDS",
+     "status": "PASS_V9"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-NEW-KINDS",
+     "status": "PASS_V8"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-VECTOR-IN-GROUP",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-NIB-VECTOR-RENDER",
+     "status": "PASS_V4"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "composite, folio, nib changed since R35",
+   "oracle": "FIXTURE_PROVEN only as part of the basic-shapes artboard render (fig_paints_2::basic_shapes_artboard_remeasured_with_image_fill: basic-shapes artboard mean <= 0.9208/255, >= 99.324 % within 8/255, p99 <= 5.698; text region only >= 91.445 % within 8/255 (mean <= 3.863)); the boolean node's own pixels are not isolated",
+   "matrix_verdict": "AGREE",
+   "notes": "Boolean groups with live nib evaluation real; BOOLEAN_OPERATION maps onto them."
+  },
+  {
+   "id": "FG-14",
+   "name": "Canvas rendering of design nodes: fills (solid/gradient/image), strokes, effects",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": false,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-composite/src/vector.rs:140",
+    "crates/hsk-studio-composite/src/vector.rs:303",
+    "crates/hsk-studio-interop-fig/src/native.rs:714"
+   ],
+   "tests": [
+    "crates/hsk-studio-interop-fig/tests/fig_paints_2.rs::basic_shapes_artboard_remeasured_with_image_fill",
+    [
+     "crates/hsk-studio-interop-fig/tests/fig_composite.rs::real_basic_shapes_composite_through_render_cpu_at_png_positions",
+     "crates/hsk-studio-interop-fig/tests/fig_composite.rs::real_prototype_orbs_composite_at_png_positions"
+    ],
+    "crates/hsk-studio-interop-fig/tests/fig_instances_frames.rs::whole_fixture_render_matches_operator_png",
+    "crates/hsk-studio-interop-fig/tests/fig_paints.rs::gradient_renders_and_unmapped_kinds_are_losses"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPOSITE-NEW-KINDS",
+     "status": "PASS_V8"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-VECTOR-IN-GROUP",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-INTEROP-FIG-PAINTS",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-INTEROP-FIG-PAINTS-2",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-INTEROP-FIG-LAYER-GRAPH",
+     "status": "PASS_V7"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "fixture render tests run through composite + render-cpu (dev-deps), both changed since R35 (incl. PS-parity pigment/render-cpu commits 8f5bbfc..fcb12d5); interop-fig itself unchanged",
+   "oracle": "FIXTURE_PROVEN: fig_paints_2::basic_shapes_artboard_remeasured_with_image_fill: basic-shapes artboard mean <= 0.9208/255, >= 99.324 % within 8/255, p99 <= 5.698; text region only >= 91.445 % within 8/255 (mean <= 3.863); fig_instances_frames::whole_fixture_render_matches_operator_png: components fixture, 3 frames within 8/255 >= 99.19 %, mean <= 0.72/255, p99 <= 0.87/255; fig_composite named-node colours within 4/255 (measured max 1/255). Studio's own comments: 'Figma parity of this fixture stays UNVERIFIED' beyond these floors; residue = glyph AA/font build, image resampling, shadow/blur edges. Not proven: multi-stop/angular/diamond gradients, marker caps, any non-fixture file",
+   "matrix_verdict": "AGREE",
+   "notes": "Solid/linear/radial/image fills, strokes (caps/dashes/align), shadows and blur render. Angular/diamond gradients are typed losses."
+  },
+  {
+   "id": "FG-15",
+   "name": "Text in designs",
+   "matrix_status": "PARTIAL",
+   "matrix_ui": false,
+   "verified_level": "PARTIAL",
+   "code_anchor": [
+    "crates/hsk-studio-interop-fig/src/native.rs:1080",
+    "crates/hsk-studio-interop-fig/src/native.rs:1076",
+    "crates/hsk-studio-type/src/engine.rs:16"
+   ],
+   "tests": [
+    "crates/hsk-studio-interop-fig/tests/fig_paints_2.rs::bold_text_renders_with_the_inter_bold_fixture",
+    "crates/hsk-studio-interop-fig/tests/fig_instances_frames.rs::text_output_resolves_granted_font_and_types_missing_family",
+    "crates/hsk-studio-interop-fig/tests/fig_composite.rs::real_components_document_draws_instances_through_expansions"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-TYPE",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-TYPE-GLYPH-RENDER",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-TEXT",
+     "status": "PASS_V10"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "type and composite changed since R35 (type composition v2 9b29497 ligatures)",
+   "oracle": "FIXTURE_PROVEN (partly): with bundled Inter Regular 3.019 + Inter Bold 4.1 the text region of basic-shapes is >= 91.445 % within 8/255 (mean <= 3.863/255), i.e. weakest part of the fixture; without a granted font text is refused (text_to_image_conversion: 14 in the prototype fixture, 6 in components via fig_composite). UNVERIFIED against Figma for any other font/shaping",
+   "matrix_verdict": "AGREE",
+   "notes": "No general font resolver (fonts must be granted); text auto-resize and vertical alignment are typed losses (native.rs, 'native.text.auto_resize')."
+  },
+  {
+   "id": "FG-16",
+   "name": "Real-time multiplayer and comments",
+   "matrix_status": "MISSING",
+   "matrix_ui": false,
+   "verified_level": "MISSING",
+   "code_anchor": [
+    "crates/hsk-studio-kernel-bindings/src/lib.rs:79"
+   ],
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "stale_reason": null,
+   "oracle": "n/a (capability MISSING; nothing to compare)",
+   "matrix_verdict": "AGREE",
+   "notes": "MISSING confirmed. Evidence: Grep 'multiplayer|crdt|presence|comment' -i over folio, kernel-bindings, session src: only doc-comment hits; kernel-bindings DESCRIPTOR storage 'NONE: transient host memory only'; chronicle DESCRIPTOR scope lists 'no ... CRDT'"
+  },
+  {
+   "id": "FG-17",
+   "name": "Version history",
+   "matrix_status": "MISSING",
+   "matrix_ui": false,
+   "verified_level": "MISSING",
+   "code_anchor": [
+    "crates/hsk-studio-chronicle/src/lib.rs:1651"
+   ],
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "stale_reason": null,
+   "oracle": "n/a (capability MISSING; nothing to compare)",
+   "matrix_verdict": "AGREE",
+   "notes": "MISSING confirmed. Evidence: chronicle/src/lib.rs DESCRIPTOR scope: 'no persisted StudioEditProposal/HistoryEntry, approval, EventLedger, CRDT, retained history'; Grep 'version_history|history_snapshot|named_version' over chronicle, folio: no hits"
+  },
+  {
+   "id": "FG-18",
+   "name": "Team libraries (publish / subscribe)",
+   "matrix_status": "MISSING",
+   "matrix_ui": false,
+   "verified_level": "MISSING",
+   "code_anchor": [
+    "crates/hsk-studio-folio/src/values.rs:115"
+   ],
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "stale_reason": null,
+   "oracle": "n/a (capability MISSING; nothing to compare)",
+   "matrix_verdict": "AGREE",
+   "notes": "MISSING confirmed. Evidence: Grep 'publish_library|team_library|library_subscribe|TeamLibrary' over crates *.rs: no hits; only a StudioPublishing flag on styles/variables/components (folio values.rs) with no publish/subscribe/sync workflow"
+  },
+  {
+   "id": "FG-19",
+   "name": "Dev Mode / code inspect / design tokens export",
+   "matrix_status": "MISSING",
+   "matrix_ui": false,
+   "verified_level": "MISSING",
+   "code_anchor": [],
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "stale_reason": null,
+   "oracle": "n/a (capability MISSING; nothing to compare)",
+   "matrix_verdict": "AGREE",
+   "notes": "MISSING confirmed. Evidence: Grep 'dev_mode|DevMode|design_token|tokens_export|export_tokens|css_vars' -i over crates *.rs: no hits"
+  },
+  {
+   "id": "FG-21",
+   "name": "Plugins and REST/plugin API",
+   "matrix_status": "MISSING",
+   "matrix_ui": false,
+   "verified_level": "MISSING",
+   "code_anchor": [
+    "crates/hsk-studio-motion-js/src/lib.rs:2"
+   ],
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "stale_reason": null,
+   "oracle": "n/a (capability MISSING; nothing to compare)",
+   "matrix_verdict": "AGREE",
+   "notes": "MISSING confirmed. Evidence: motion-js sandbox ('no private script/plugin authority') exists for expressions only; Grep 'plugin' over components/folio finds nothing; no REST/plugin surface for design documents"
+  },
+  {
+   "id": "FG-22",
+   "name": "Layout grids",
+   "matrix_status": "MISSING",
+   "matrix_ui": false,
+   "verified_level": "MISSING",
+   "code_anchor": [
+    "crates/hsk-studio-folio/src/autolayout.rs:18",
+    "crates/hsk-studio-folio/src/layout_grids.rs:19"
+   ],
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "stale_reason": null,
+   "oracle": "n/a (capability MISSING; nothing to compare)",
+   "matrix_verdict": "AGREE",
+   "notes": "MISSING confirmed. Evidence: folio/src/autolayout.rs doc: 'layout grids (STU-DS-153..156) are not stored'; paint.rs StyleKind::Grid declared but no grid-style rows; .fig GRID layout mode maps to LayoutMode::Grid which composite/folio refuse. folio/src/layout_grids.rs exists for InDesign-style layout grids/guides (STU-LAY-050/114/115, lane SMB-ID-PREPRESS READY), a possible reuse base, not a Figma layout-grid feature"
+  },
+  {
+   "id": "FG-20",
+   "name": "Export frames as PNG/SVG/PDF",
+   "matrix_status": "PARTIAL",
+   "matrix_ui": false,
+   "verified_level": "PARTIAL",
+   "code_anchor": [
+    "crates/hsk-studio-interop-fig/src/export.rs:126",
+    "crates/hsk-studio-interop-fig/src/export.rs:688",
+    "crates/hsk-studio-interop-fig/src/export.rs:774"
+   ],
+   "tests": [
+    [
+     "crates/hsk-studio-interop-fig/tests/fig_export.rs::frame_pdf_export_renders_like_the_operator_png",
+     "crates/hsk-studio-interop-fig/tests/fig_export.rs::export_settings_scale_suffix_format_and_typed_losses",
+     "crates/hsk-studio-interop-fig/tests/fig_export.rs::basic_shapes_artboard_pdf_export_with_image"
+    ],
+    "crates/hsk-studio-interop-fig/tests/fig_prototype.rs::png_and_jpeg_frame_exports_through_interop_raster"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-INTEROP-FIG-EXPORT",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-INTEROP-FIG-PROTOTYPE",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-INTEROP-VECTOR",
+     "status": "PASS_V15"
+    },
+    {
+     "lane_id": "SMB-IO-RASTER-COMMON",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "SMB-INTEROP-VECTOR lane owns interop-vector (changed); fixture comparison via press/composite",
+   "oracle": "FIXTURE_PROVEN (PNG/PDF frame export of the prototype screens vs Operator PNGs: fig_prototype::player_steps_the_prototype_fixture_and_frames_match_the_pngs: start/detail/animated screens mean <= 0.378/255, >= 99.197 % within 8/255; JPEG q90 file mean <= 1.4989/255, >= 98.838 % within 8/255; PDF page of basic-shapes via fig_export)",
+   "matrix_verdict": "AGREE",
+   "notes": "PDF/PNG/JPEG per-frame export honouring exportSettings real. Grep 'svg' -i in interop-fig/src/export.rs: no hit, so SVG frame export is absent (SVG export exists only for vector proposals in interop-vector-svg). P3/CMYK profiles typed losses."
+  },
+  {
+   "id": "FG-23",
+   "name": ".fig file import into an editable native document (pages/artboards, layers, vector geometry, effects, masks, image paints, boolean groups, text styles, components, variables, prototype reactions)",
+   "matrix_status": "VALIDATED",
+   "matrix_ui": false,
+   "verified_level": "VALIDATED",
+   "code_anchor": [
+    "crates/hsk-studio-interop-fig/src/native.rs:3177",
+    "crates/hsk-studio-interop-fig/src/import.rs:189",
+    "crates/hsk-studio-interop-fig/src/export.rs:126"
+   ],
+   "tests": [
+    [
+     "crates/hsk-studio-interop-fig/tests/fig_native.rs::real_native_mapping_structure",
+     "crates/hsk-studio-interop-fig/tests/fig_native.rs::real_native_package_round_trip",
+     "crates/hsk-studio-interop-fig/tests/fig_native.rs::real_native_components_instances_overrides"
+    ],
+    [
+     "crates/hsk-studio-interop-fig/tests/fig_import.rs::real_fig_fixtures_container_facts",
+     "crates/hsk-studio-interop-fig/tests/fig_import.rs::actual_fig_instance_variable_prototype_edit_reopen"
+    ],
+    "crates/hsk-studio-interop-fig/tests/fig_nodes.rs::real_node_counts_match_census_and_tree_is_ordered"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-INTEROP-FIG-FORMAT",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-INTEROP-FIG-NODES",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-INTEROP-FIG-NATIVE",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-INTEROP-FIG-GEOMETRY",
+     "status": "PASS_V9"
+    },
+    {
+     "lane_id": "SMB-INTEROP-FIG-FOLIO-KINDS",
+     "status": "PASS_V9"
+    },
+    {
+     "lane_id": "SMB-FOLIO-PAINT-BLUR-STYLE",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-INTEROP-FIG",
+     "status": "PASS_V14"
+    }
+   ],
+   "proof_stale": true,
+   "stale_reason": "owning crate folio changed since R35 candidate 237256f; fixture renders depend on changed composite/render-cpu",
+   "oracle": "FIXTURE_PROVEN on 3 Operator fixtures (Figma desktop 126.10.7, provenance.json): geometry/positions and renders per FG-14 tolerances; container/node census pinned. Editable fidelity (instance/variable/prototype edit-reopen) and fig-jam/deck/diff layouts: UNVERIFIED against Figma / NOT_PROVEN; no real-app oracle",
+   "matrix_verdict": "AGREE",
+   "notes": "Import to editable native document real (kiwi container, typed nodes, to_native). No .fig writer (Grep 'write_fig|export_fig' not run; export.rs exports frames only). Fixtures: 3 files, one author, single variable mode."
+  }
+ ],
+ "counts": {
+  "VALIDATED": 13,
+  "BUILT_NOT_VALIDATED": 0,
+  "PARTIAL": 4,
+  "MISSING": 6
+ },
+ "counts_matrix": {
+  "VALIDATED": 13,
+  "BUILT_NOT_VALIDATED": 0,
+  "PARTIAL": 4,
+  "MISSING": 6
+ },
+ "engine_pct": {
+  "matrix": 60.9,
+  "verified": 60.9,
+  "verified_stale_adjusted": 39.1,
+  "formula": "100*(VALIDATED + 0.5*BUILT_NOT_VALIDATED + 0.25*PARTIAL)/rows, rows=23",
+  "stale_adjusted_note": "every VALIDATED row with proof_stale=true counted as BUILT_NOT_VALIDATED; a floor, not a finding of regression. interop-fig and components did not change since R35, but fixture render tests depend on changed composite/render-cpu/folio"
+ },
+ "oracle_summary": {
+  "real_app_oracle": "NONE for Figma (no Figma session, no Figma-rendered output beyond Operator exports)",
+  "fixtures": "crates/hsk-studio-interop-fig/tests/fixtures: fig-basic-shapes.fig+png (900x640 artboard), fig-components-autolayout.fig+png, fig-components-autolayout-variants.png (referenced by NO test), fig-prototype-pages.fig + start/detail/animated/scroll PNG (360x520; the -scroll PNG is also referenced by no test found); Figma desktop 126.10.7, Operator-authored 2026-10-14; variables have one mode only",
+  "proven_against_figma_png_within_tolerance": [
+   "fig_paints_2::basic_shapes_artboard_remeasured_with_image_fill: basic-shapes artboard mean <= 0.9208/255, >= 99.324 % within 8/255, p99 <= 5.698; text region only >= 91.445 % within 8/255 (mean <= 3.863)",
+   "fig_instances_frames::whole_fixture_render_matches_operator_png: components fixture, 3 frames within 8/255 >= 99.19 %, mean <= 0.72/255, p99 <= 0.87/255",
+   "fig_prototype::player_steps_the_prototype_fixture_and_frames_match_the_pngs: start/detail/animated screens mean <= 0.378/255, >= 99.197 % within 8/255",
+   "fig_composite: named nodes of basic-shapes within 4/255 (measured max 1/255), prototype orbs at PNG positions within 4/255",
+   "fig_prototype JPEG q90 export: mean <= 1.4989/255, >= 98.838 % within 8/255",
+   "viewer_prototype: smart-animate mid frame vs a Studio-side blend reference (mean <= 0.0966/255, 99.72 % within 8/255) - NOT a Figma-rendered frame"
+  ],
+  "not_proven": [
+   "any file other than the 3 fixtures; text rendering beyond ~91 % within 8/255 in the text region; components variants (PNG unused); multi-mode variables; tween/spring/directional transitions vs Figma playback; auto-layout solver vs Figma re-layout; angular/diamond gradients, marker caps (typed losses); real overlay/directional/spring byte decode; fig-jam/fig-deck/fig-diff; editable fidelity after edit-reopen in Figma",
+   "Studio's own test comments state 'Figma parity of this fixture stays UNVERIFIED'; tolerances are regression floors measured on Studio's own renders"
+  ],
+  "stale_warning": "fixture render tests were last judged at R35 (237256f); composite, render-cpu, folio, pigment (via PS-parity commits 8f5bbfc, e67479f, f6b518d, fcb12d5) changed afterwards and could move the measured numbers; interop-fig/components unchanged",
+  "tolerance_not_exact": "no fixture comparison is exact; the lowest reported share is 91.445 % within 8/255 (text region), whole artboards 99.19-99.32 % within 8/255"
+ },
+ "top_gaps": [
+  {
+   "rank": 1,
+   "gap": "No collaboration stack: real-time multiplayer/comments, version history, team libraries (FG-16, FG-17, FG-18) - core of Figma's product; module has no CRDT/host authority (kernel-bindings memory-only, chronicle 'no retained history'). SMB-FIG-COLLAB is queued with no commits.",
+   "evidence": "kernel-bindings/src/lib.rs DESCRIPTOR storage NONE; chronicle/src/lib.rs DESCRIPTOR scope; ledger SMB-FIG-COLLAB status null."
+  },
+  {
+   "rank": 2,
+   "gap": "Design editing UI is thin: Figma ui flags are only FG-10/FG-11 (prototype play); no component/auto-layout/variable editing surface verified (NOT_INSPECTED beyond the matrix ui flags).",
+   "evidence": "matrix ui_rows_by_app figma=2; harness-view/src/view/prototype.rs is the only Figma-specific viewer module found."
+  },
+  {
+   "rank": 3,
+   "gap": "Text in designs: no general font resolver, text auto-resize/vertical align are typed losses, text is the weakest fixture area (91.4 % within 8/255 even with bundled Inter) (FG-15).",
+   "evidence": "interop-fig/src/native.rs native.text.auto_resize loss; fig_paints_2 text-region assertions."
+  },
+  {
+   "rank": 4,
+   "gap": "Layout fidelity gaps: GRID auto layout refused, layout grids and effect/grid style registry absent, SLOT component properties refused, Dev Mode/plugins/REST absent (FG-06, FG-07, FG-04, FG-19, FG-21, FG-22).",
+   "evidence": "folio/src/autolayout.rs UnsupportedDescriptor for GRID; paint.rs 'Only PAINT entries are modelled'."
+  },
+  {
+   "rank": 5,
+   "gap": "Interchange and proof depth: no .fig writer, SVG frame export absent, .fig vector networks import baked; proof rests on 3 single-author fixtures with no real-app oracle, a variants PNG and a scroll PNG that no test reads (FG-12, FG-20, FG-23)."
+  }
+ ],
+ "unlisted_capabilities": [
+  {
+   "capability": "Overlay, scroll, hover, after-delay and back/close navigation triggers in the prototype player, with overlay positioning by frame records",
+   "anchor": "crates/hsk-studio-components/src/player.rs:132",
+   "tests": [
+    "crates/hsk-studio-interop-fig/tests/fig_prototype.rs::player_overlay_back_close_scroll_hover_and_after_delay",
+    "crates/hsk-studio-harness/tests/viewer_prototype.rs::overlays_are_placed_by_their_frame_records_and_close_on_click_outside"
+   ],
+   "note": "partly inside FG-09/FG-11 text; no separate row"
+  },
+  {
+   "capability": "Per-frame export settings (scale, suffix, width/height constraints) + JPEG quality handling with typed loss jpeg_quality_default_used",
+   "anchor": "crates/hsk-studio-interop-fig/src/export.rs:126",
+   "tests": [
+    "crates/hsk-studio-interop-fig/tests/fig_export.rs::export_settings_scale_suffix_format_and_typed_losses"
+   ],
+   "note": "inside FG-20 text"
+  },
+  {
+   "capability": "Directional/push transitions, custom spring easing, gradient tweening, text-by-content smart-animate rule",
+   "anchor": "crates/hsk-studio-components/src/transition.rs:56",
+   "tests": [
+    [
+     "crates/hsk-studio-components/tests/transition.rs::directional_placement_equals_hand_values",
+     "crates/hsk-studio-components/tests/transition.rs::gradient_stops_and_colours_tween",
+     "crates/hsk-studio-components/tests/transition.rs::text_by_content_rule_is_opt_in_and_typed"
+    ]
+   ],
+   "note": "inside FG-10 text"
+  },
+  {
+   "capability": "StudioPublishing flag on styles/variables/components (validated, no publish workflow)",
+   "anchor": "crates/hsk-studio-folio/src/values.rs:115",
+   "tests": [
+    "crates/hsk-studio-folio/tests/design_records_contract.rs::variables_modes_aliases_and_publishing_are_validated"
+   ],
+   "note": "metadata groundwork for FG-18, not a feature"
+  },
+  {
+   "capability": "Hostile .fig input handling (zstd/deflate chunk bounds, kiwi bomb limits, cycles, fig-diff layout recognised as unsupported)",
+   "anchor": "crates/hsk-studio-interop-fig/src/import.rs:189",
+   "tests": [
+    [
+     "crates/hsk-studio-interop-fig/tests/fig_import.rs::unsupported_version_duplicate_key_bomb_cancel",
+     "crates/hsk-studio-interop-fig/tests/fig_import.rs::fig_diff_is_known_unsupported_and_file_version_is_recorded"
+    ]
+   ],
+   "note": "robustness, no row"
+  },
+  {
+   "capability": "Folio InDesign-style layout grids/guides records (reuse base for FG-22)",
+   "anchor": "crates/hsk-studio-folio/src/layout_grids.rs:19",
+   "tests": [],
+   "note": "lane SMB-ID-PREPRESS READY; not a Figma grid"
+  }
+ ],
+ "unverified": [
+  "No test or build run (read-only, no cargo); PASS statuses are as of rounds up to R35 (@237256f). Fixture tolerances were measured by the lanes on their own renders.",
+  "Figma behavioural parity beyond the 3 Operator fixtures (including variants, multi-mode variables, auto-layout re-flow, tween/spring playback, text) is UNVERIFIED; Figma has no real-app oracle.",
+  "Whether a design-editing UI exists beyond prototype play: NOT_INSPECTED (relied on the matrix ui flags).",
+  "No .fig writer: matrix says none; Grep for a writer symbol not run beyond export.rs inspection - treat as unverified-absent.",
+  "SMB-CRATE-SEAM-SPLITS-2 (local, unpushed interop-fig split) ignored per instructions; the interop-fig layout analysed here is the pushed one.",
+  "Desktop window launch / UI usability NOT_PROVEN."
+ ],
+ "notes": [
+  "Verdicts: 0 RAISE, 0 LOWER, 23 AGREE. Counts equal the matrix (13 VALIDATED / 4 PARTIAL / 6 MISSING = 60.9 %). Weak AGREEs for a lead decision: FG-07 (GRID refused though STU-DS-146 is cited), FG-04 (SLOT refused), FG-12 (PARTIAL by the matrix; same engine as Illustrator).",
+  "Several matrix anchors moved: folio NodeKind lib.rs:145; native.rs text-loss now ~1079; harness anchors live in crates/hsk-studio-harness-view/src/view/prototype.rs (tests remain in crates/hsk-studio-harness/tests).",
+  "proof_stale is true for rows owned by folio, harness or fixture render paths; components-only rows (FG-03, FG-07, FG-08) are not stale by crate but depend on the changed folio crate.",
+  "interop-fig 'DESCRIPTOR/NOT_PROVEN strings stale' remark in the matrix FG-23 note was not re-checked."
+ ]
+}

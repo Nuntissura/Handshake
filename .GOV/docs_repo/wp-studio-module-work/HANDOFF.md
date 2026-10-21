@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-HANDOFF
 file_kind: handoff
-updated_at: 2026-10-21T12:00:00Z
+updated_at: 2026-10-21T01:35:48Z
 wp: WP-KERNEL-STUDIO
 authority: Handshake Codex, KERNEL_BUILDER_PROTOCOL, START_LOG.md, ledger.json, validation/*, builders/briefs/wave-parity-2-common.md, workflow/workflow-v3.json (this file is a projection; they win on conflict)
 ---
@@ -58,15 +58,21 @@ DO NOT:
 
 <topic id="state" status="active" summary="Verified state on 2026-10-21">
 
-## State (verified 2026-10-21)
+## State (verified 2026-10-21, takeover audit by the new lead)
 
-- gov_kernel: a594ac5e, equal to origin. Untracked only: `refund-claim-20261021.md` at the kernel root (Operator's document, not part of the repo).
-- Product branch codex/handshake-studio-assets: tip e64eacd. It was accidentally deleted on GitHub on 2026-10-21 by a lead sub-agent (unguarded push), restored at 8bb6f64, then four finished lanes were pushed on top: 3432d5c (AE roto/time remap), 85b3446 (DXF/EPS import), 2e0f53e (type ff ligature / InDesign 93 of 99 oracle matches), e64eacd (Photoshop oracle parity 2, 489 of 588 matches).
-- Not pushed: SMB-CRATE-SEAM-SPLITS-2 (fef312e fig split, 67a7496 web split untested) in wt-studio-lanes/smb-crate-seam-splits-2; one empty steward probe commit in wt-studio-lanes/smb-steward-lock-release-bug (not meant to be pushed).
-- Last finalized round: R35 at 237256f (256 PASS, 2 FAIL; both remediated in 3b73143). R36 never ran.
-- Spec: v02.216 (roto update requested by the Operator, not done).
-- Shared product worktree wt-studio-assets has old uncommitted leftovers not made by this session (Cargo.lock patch, two stale test edits from 2026-10-15, two old press_desc JSON notes) and SAFETY stashes; leave them unless the Operator decides.
-- C: build area about 160 GiB, over its guard; eviction stopped pending Operator approval.
+- Takeover audit written: `research/feature-completeness-20261021.json` (per-app engine and GUI completeness with evidence levels) over the eight read-only audit files in `research/audit-20261021/` (git inventory, validation state, nine parity verifications, GUI surfaces, cargo disk inventory). Read it before any new build work.
+- gov_kernel: see git log (this handoff commit). Untracked only: `refund-claim-20261021.md` at the kernel root (Operator's document, not part of the repo).
+- Product branch codex/handshake-studio-assets: tip e64eacd, 705 commits since 2026-10-14, 79 commits and 28 crates since the R35 candidate 237256f. The branch was deleted on GitHub on 2026-10-21 by an unguarded lane push, restored at 8bb6f64, then four finished lanes were rebased and pushed on top: 3432d5c (AE roto/time remap), 85b3446 (DXF/EPS import), 2e0f53e (type ff ligature / InDesign 93 of 99 oracle matches), e64eacd (Photoshop oracle parity 2, 489 of 588 matches). Patch-ids verified by the lead: the pre-rebase shas in those lane files are exact copies of the pushed commits.
+- Not pushed: SMB-CRATE-SEAM-SPLITS-2 (fef312e fig split, 67a7496 web split UNTESTED) in wt-studio-lanes/smb-crate-seam-splits-2; one empty steward probe commit d44a708 in wt-studio-lanes/smb-steward-lock-release-bug (not meant to be pushed).
+- Uncommitted source edits outside the shared tree (decision needed): wt-studio-lanes/smb-premiere-color-titles composite/src/composition.rs (PASS lane leftover); wt-studio-lanes/smb-raw-cleanroom two untracked develop/src/raw_cr drafts superseded by SMB-RAW-CLEANROOM-2. Six lane trees carry Cargo.lock-only edits (by rule).
+- Validation: 274 PASS lanes, 255 with stale proof (crate changed since their round); 19 READY_FOR_VALIDATION, 1 BLOCKED. Last finalized round R35 at 237256f (256 PASS, 2 FAIL, both remediated in 3b73143 and READY again). R36 never ran and must be full scope (Cargo.lock, .config and tools/run-round.sh changed since R35).
+- Lockfile gap: Cargo.lock at e64eacd has no entries for the dxf/stet* optional deps declared by interop-vector-core; the steward sync (deps approved 2026-10-21) must land before any locked round build.
+- Known regression candidate for R36: harness fig_paints_2 bold text p99 5.700324 > pinned 5.698 at 6585ff0; suspects 30ea18e, 3d5fbda, then a95f819, d69a277, f588e45 (pigment/render-cpu).
+- Lane-record drift (ledger is authority): lane files for AE-ROTO-TIMEREMAP, DXF-EPS-IMPORT, TYPE-FF-LIGATURE, PS-ORACLE-PARITY-2 still show null/BLOCKED and pre-rebase shas; ACCORD-COMPOSITION-PREFIX cites "see git log"; AU-WAVEFORM-EDITOR cites 8411820 (pre-rebase copy of 557ac06).
+- Spec: v02.216. The Operator-requested roto spec update (v02.217 specifying assisted rotoscoping; STU-CMP-034/STU-CMP-100 still declare it a gap) is NOT done.
+- Shared product worktree wt-studio-assets (HEAD 8bb6f64, 25 behind origin) has old uncommitted leftovers not made by this session (Cargo.lock patch, two stale test edits from 2026-10-15, two old press_desc JSON notes) and 12 SAFETY stashes; leave them unless the Operator decides.
+- C: build area over its 140 GiB guard; eviction stopped pending Operator approval. Measured candidates: `research/audit-20261021/cargo-disk-inventory.json`.
+- Remote branches outside the Studio branch: origin/codex/handpick (7511afa), origin/lane/smb-layout-ui-2-backup (f3c2a32).
 
 </topic>
 

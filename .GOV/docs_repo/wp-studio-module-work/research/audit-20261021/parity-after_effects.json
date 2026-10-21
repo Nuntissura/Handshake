@@ -1,0 +1,860 @@
+{
+ "schema": "hsk.studio.audit.parity_app@1",
+ "file_id": "WP-KERNEL-STUDIO-AUDIT-20261021-PARITY-AFTER_EFFECTS",
+ "updated_at": "2026-10-21T01:27:12Z",
+ "by": "read-only parity verifier (Sonnet)",
+ "app": "after_effects",
+ "basis": {
+  "tip": "e64eacd",
+  "matrix_file": "research/parity-matrix-20261020.json",
+  "matrix_lines": "4454-5090 (features), oracle 7722-8404, summary 7578-7695",
+  "checkout_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ps-oracle-parity-2/handshake-studio-assets",
+  "ledger_read": "ledger.json updated_at 2026-10-21T00:37:22Z",
+  "method": "git grep/show at e64eacd only; no cargo/rustc run, so no test was executed by this verifier: 'tests' lists test files/names found and read at e64eacd, not results. Lane statuses from ledger.json. proof_stale marks crates changed since R35 candidate 237256f per the lead list (git diff 237256f..e64eacd read-only confirms the crate set)."
+ },
+ "rows": [
+  {
+   "id": "AE-01",
+   "name": "Compositions with settings and time model",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-folio/src/composition.rs:718 (StudioComposition); crates/hsk-studio-composite/src/temporal/composition.rs:340 (CompositionTemporalSource); crates/hsk-studio-composite/src/temporal.rs:527 (lower_frame)",
+   "tests": [
+    "crates/hsk-studio-folio/tests/composition_contract.rs::composition_round_trips_and_maps_time",
+    "crates/hsk-studio-composite/tests/composition_adapter.rs::stored_composition_evaluates_to_the_hand_written_scenes",
+    "crates/hsk-studio-composite/tests/composition_adapter.rs::temporal_source_on_the_document_graph_matches_the_scene",
+    "crates/hsk-studio-composite/tests/temporal.rs::frame_at_ticks_inside_and_outside_layer_windows"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-COMPOSITION",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-TEMPORAL",
+     "status": "PASS_V9"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-COMPOSITION-ADAPTER",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-COMPOSITION-2",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-MOTION",
+     "status": "PASS_V4"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (no After Effects case covers this; UNVERIFIED against After Effects) (the oracle case named AE-01 is keyframe interpolation, not the composition model)",
+   "matrix_verdict": "AGREE",
+   "notes": "No composition work area stored (harness render_queue.rs:83 refuses WorkAreaOnly: 'Folio stores no work area'). Adobe frame equivalence NOT_PROVEN."
+  },
+  {
+   "id": "AE-02",
+   "name": "Layer compositing: bottom-up stack, blend modes, opacity, alpha typing",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-pigment/src/render_plan.rs (RenderPlan blend/opacity); crates/hsk-studio-composite/src/composition.rs:791 (lower_scene)",
+   "tests": [
+    "crates/hsk-studio-composite/tests/composition_static.rs (file present; names not listed)",
+    "crates/hsk-studio-composite/tests/composition_adapter.rs::stored_composition_evaluates_to_the_hand_written_scenes",
+    "crates/hsk-studio-composite/tests/static_plan.rs (file present)",
+    "crates/hsk-studio-pigment/tests/blend_math.rs (file present)"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-ENG-1",
+     "status": "PASS_V20"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE",
+     "status": "PASS_V20"
+    },
+    {
+     "lane_id": "SMB-RENDER-CPU",
+     "status": "PASS_V20"
+    },
+    {
+     "lane_id": "SMB-RENDER-GPU",
+     "status": "PASS_V15"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (no After Effects case covers this; UNVERIFIED against After Effects) (Photoshop blend-mode oracle exists but is a different app)",
+   "matrix_verdict": "AGREE",
+   "notes": "Premultiplied alpha declared Unsupported on CPU (per matrix; not re-read). Test names for the static files not enumerated by this verifier (UNVERIFIED names; files exist)."
+  },
+  {
+   "id": "AE-03",
+   "name": "Layer transform (anchor, position, scale, rotation) and parenting",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-folio/src/composition.rs:266 (parent), :279 (corner_pin), :641 (StudioCornerPin); crates/hsk-studio-composite/src/temporal/composition.rs (parent chain); crates/hsk-studio-pigment/src/transform_math.rs",
+   "tests": [
+    "crates/hsk-studio-composite/tests/composition_adapter.rs::parent_chain_anchor_stream_and_source_time",
+    "crates/hsk-studio-composite/tests/temporal.rs::integer_translation_moves_tiles_and_linked_masks_exactly",
+    "crates/hsk-studio-composite/tests/temporal.rs::opacity_scale_applies_per_tick",
+    "crates/hsk-studio-composite/tests/corner_pin.rs::four_point_track_pins_a_layer_and_lowers_to_a_projective_transform",
+    "crates/hsk-studio-composite/tests/three_d_adapter.rs::three_d_parent_chains_from_records"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPOSITE-COMPOSITION-ADAPTER",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-PIGMENT-TRANSFORM",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-TEMPORAL",
+     "status": "PASS_V9"
+    },
+    {
+     "lane_id": "SMB-AE-KEY-TRACK-2",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-AE-KEY-TRACK-3",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AE-3D-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AE-3D-3",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (no After Effects case covers this; UNVERIFIED against After Effects)",
+   "matrix_verdict": "AGREE",
+   "notes": ""
+  },
+  {
+   "id": "AE-04",
+   "name": "Keyframes: linear, Bezier, hold; independent in/out; ease speed and influence",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-motion/src/keyframe.rs:42 (Interpolation), :80 (TemporalTangent); crates/hsk-studio-motion/src/property.rs:377 (Property::sample)",
+   "tests": [
+    "crates/hsk-studio-motion/tests/d5_ae_oracle.rs::ae01_bezier_grid",
+    "crates/hsk-studio-motion/tests/d5_ae_oracle.rs::ae01b_mixed_types_and_chains",
+    "crates/hsk-studio-motion/tests/foundation_contract.rs::keyframe_sampling_analytic",
+    "crates/hsk-studio-motion/tests/foundation_contract.rs::tangent_defaults_and_rejects"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-MOTION",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-D5-AI-ID-AE-COMPARE",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "ORACLE_MATCH (333 of 333: AE-01 324/324 segments + AE-01b 9/9, tol 1e-6 deg, max 1.3e-9; D5 session 2026-10-16 After Effects 26.5; PASS_V1 R35)",
+   "matrix_verdict": "AGREE",
+   "notes": "Real-app evidence is genuine and the only judged oracle here. Caveat: motion/src/property.rs (+54 lines, spatial tangents) and tests/d5_ae_oracle.rs (+52) changed after R35, so the 333/333 result is not reproduced at e64eacd by this verifier (no runs allowed); the AE corpus root is also required (tests print NOT_PROVEN without it)."
+  },
+  {
+   "id": "AE-05",
+   "name": "Spatial interpolation, roving keyframes, auto/continuous Bezier behaviour",
+   "matrix_status": "IMPLEMENTED",
+   "verified_level": "BUILT_NOT_VALIDATED",
+   "code_anchor": "crates/hsk-studio-motion/src/spatial.rs:35 (SpatialTangents), :209 (spatial_auto_bezier); crates/hsk-studio-motion/src/property.rs:116 (with_spatial_tangents); crates/hsk-studio-motion/src/assistants.rs:137,164,192 (auto_bezier, make_continuous, rove)",
+   "tests": [
+    "crates/hsk-studio-motion/tests/graph_assistants.rs::spatial_tangents_arc_length_auto_bezier_and_refusals",
+    "crates/hsk-studio-motion/tests/graph_assistants.rs::roving_and_sequence_layers_retime_by_hand_computed_ticks",
+    "crates/hsk-studio-motion/tests/graph_assistants.rs::ease_hold_auto_bezier_and_velocity_record",
+    "crates/hsk-studio-motion/tests/d5_ae_oracle.rs::ae02_spatial_position"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-MOTION",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-AE-MOTION-TOOLS",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AI-AE-ORACLE-FOLLOWUPS",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "ORACLE_PARTIAL (3 of 5 relevant variants MATCH: AE-01b chain3_auto_bezier + chain3_continuous, AE-02 two_keys_default_spatial; AE-02 three_keys_roving_middle is now a listed expected MISMATCH (0.011 px vs tol 0.01, was NOT_SUPPORTED at session time); AE-02 two_keys_spatial_tangents_set NOT_PROVEN (variant absent from corpus, AE rerun pending))",
+   "matrix_verdict": "AGREE",
+   "notes": "Auto/continuous assistants PASS (SMB-AE-MOTION-TOOLS); spatial Bezier tangents, arc-length timing and roving are READY and unjudged. d5_ae_expected_mismatch.txt at e64eacd lists exactly one entry (AE-02 three_keys_roving_middle, FU-AE-1 residual: AE's own arc-length table jitter, 0.0045 px even on a straight path)."
+  },
+  {
+   "id": "AE-06",
+   "name": "Property tree with stable property paths",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-motion/src/store.rs:59 (PropertyStore), crates/hsk-studio-motion/src/path.rs (PropertyPath)",
+   "tests": [
+    "crates/hsk-studio-motion/tests/store_contract.rs::store_orders_and_serves_cross_property_reads",
+    "crates/hsk-studio-motion/tests/store_contract.rs::store_revisions_cycles_and_unknowns"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-MOTION",
+     "status": "PASS_V4"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (no After Effects case covers this; UNVERIFIED against After Effects)",
+   "matrix_verdict": "AGREE",
+   "notes": "Keyed store with validated paths; the 13-group AE property tree and its UI are not modelled (per matrix; no tree type found)."
+  },
+  {
+   "id": "AE-07",
+   "name": "Expressions (JavaScript, sandboxed, deterministic)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "BUILT_NOT_VALIDATED",
+   "code_anchor": "crates/hsk-studio-motion-js/src/provider.rs:139 (MotionJsProvider), :40 (AE_GLOBALS_PRELUDE: value, time, linear; READY); crates/hsk-studio-motion-js/src/quickjs.rs:896 (QuickJsBackend, feature quickjs, rquickjs/QuickJS-NG)",
+   "tests": [
+    "crates/hsk-studio-motion-js/tests/quickjs_contract.rs::quickjs_evaluates_and_reads_host",
+    "crates/hsk-studio-motion-js/tests/quickjs_contract.rs::quickjs_binds_after_effects_globals",
+    "crates/hsk-studio-motion-js/tests/quickjs_worker.rs::worker_results_match_in_process_exactly",
+    "crates/hsk-studio-motion-js/tests/d5_ae_expressions.rs::ae03_post_expression_values",
+    "crates/hsk-studio-motion/tests/d5_ae_oracle.rs::ae03_expressions"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-MOTION-JS",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-MOTION-JS-WORKER",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-MOTION-JS-SANDBOX-2",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-AI-AE-ORACLE-FOLLOWUPS",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "ORACLE_PARTIAL (AE-03: 3 of 6 judged MATCH = pre-expression values; the 3 post-expression variants were NOT_SUPPORTED at session time; at e64eacd motion-js tests/d5_ae_expressions.rs asserts 3/3 post-expression MATCH but is corpus-gated, READY and not run by this verifier; the pure motion suite still records post_expression as NotSupported at d5_ae_oracle.rs:314)",
+   "matrix_verdict": "LOWER to IMPLEMENTED (BUILT_NOT_VALIDATED)",
+   "notes": "Consistency with the matrix's own policy for validated-core + READY-remainder rows (ID-03, ID-15, AE-05 count 0.5): the row cites SMB-AI-AE-ORACLE-FOLLOWUPS (READY) for the After Effects globals, which are the only After Effects-compatible part. The sandboxed JS engine itself is PASS and opt-in (feature quickjs, isolated worker). After Effects compatibility is tiny: only value, time, linear() are bound; Grep 'wiggle\\(|loopOut|thisComp|thisLayer|valueAtTime' in motion-js/src and motion/src/expression.rs finds nothing, so the AE expression library (matrix: 333 identifiers) is essentially absent; see top_gaps."
+  },
+  {
+   "id": "AE-08",
+   "name": "Expression dependency graph and cycle detection",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-motion/src/depgraph.rs:24 (resolve_references), depgraph.rs:12 (Resolution)",
+   "tests": [
+    "crates/hsk-studio-motion/tests/foundation_contract.rs::dependency_cycle_and_order",
+    "crates/hsk-studio-motion/tests/store_contract.rs::store_revisions_cycles_and_unknowns"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-MOTION",
+     "status": "PASS_V4"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (no After Effects case covers this; UNVERIFIED against After Effects)",
+   "matrix_verdict": "AGREE",
+   "notes": ""
+  },
+  {
+   "id": "AE-09",
+   "name": "Graph editor, keyframe assistants (easy ease), expression editor / pick-whip",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-motion/src/graph.rs:179 (separate_dimensions), :216 (join_dimensions); crates/hsk-studio-motion/src/assistants.rs:64 (ease), :83 (toggle_hold)",
+   "tests": [
+    "crates/hsk-studio-motion/tests/graph_assistants.rs::speed_and_value_graphs_match_hand_computed_curves",
+    "crates/hsk-studio-motion/tests/graph_assistants.rs::ease_hold_auto_bezier_and_velocity_record",
+    "crates/hsk-studio-motion/tests/graph_assistants.rs::separate_and_join_dimensions_are_stated_conversions"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-AE-MOTION-TOOLS",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "ORACLE_PARTIAL (the auto-bezier / continuous / velocity read-back part is covered by AE-01b chain cases MATCH; easy ease, toggle hold, separate dimensions, graph curves and pick-whip have no oracle case)",
+   "matrix_verdict": "AGREE",
+   "notes": "Engine data/graph only. Grep 'graph_editor|GraphEditor|curve_editor|pick.?whip' in harness/harness-view: none: there is no graph-editor or expression-editor UI."
+  },
+  {
+   "id": "AE-10",
+   "name": "Time remapping, frame blending, time stretch",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-folio/src/composition.rs:123 (StudioLayerTiming.stretch); NEW (READY, SMB-AE-ROTO-TIMEREMAP): crates/hsk-studio-motion/src/time_remap.rs:41 (FrameBlending), :141 (frame_sample), :164 (TimeRemap); crates/hsk-studio-composite/src/temporal/composition.rs:1228 (with_time_remap); crates/hsk-studio-pigment/src/frame_blend.rs:236,432,450",
+   "tests": [
+    "crates/hsk-studio-motion/tests/time_remap.rs::enable_is_identity_and_clamps_hostile_values",
+    "crates/hsk-studio-motion/tests/time_remap.rs::stretch_reverse_and_frame_blending_hand_values",
+    "crates/hsk-studio-composite/tests/composition_adapter.rs::time_remap_replaces_the_stretch_source_time",
+    "crates/hsk-studio-pigment/tests/frame_blend.rs::frame_mix_hand_values_and_hostile_inputs",
+    "crates/hsk-studio-pigment/tests/frame_blend.rs::pixel_motion_follows_a_translating_blob"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-COMPOSITION",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-COMPOSITION-ADAPTER",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-AE-ROTO-TIMEREMAP",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (no After Effects case covers this; UNVERIFIED against After Effects)",
+   "matrix_verdict": "AGREE",
+   "notes": "Layer time stretch/reverse VALIDATED (earlier lanes). Time-remap curve over source time and frame_mix/optical-flow/pixel-motion primitives now exist (READY, 370/370 per lane file, unjudged) but: Folio stores no time-remap record ('not stored by Folio either', temporal/composition.rs:54), the composite adapter takes a caller-attached TimeRemap only, and composite never calls frame_sample/frame_mix/pixel_motion (Grep outside pigment/motion: none). harness render_queue.rs:109-110 still refuses frame blending: 'frame blending is not built'. So the matrix row stays PARTIAL; its note 'time remapping curves and frame blending are not modelled' is stale for the primitives."
+  },
+  {
+   "id": "AE-11",
+   "name": "Text layers and text animators",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-motion/src/text_animator.rs:153 (AnimatorProperties: position, scale, rotation, opacity, fill, tracking), :169 (Animator); crates/hsk-studio-composite/src/text.rs",
+   "tests": [
+    "crates/hsk-studio-motion/tests/text_animators.rs::range_selector_weights_match_hand_computed_values",
+    "crates/hsk-studio-motion/tests/text_animators.rs::animator_properties_resolve_per_character_and_a_keyframed_offset_travels",
+    "crates/hsk-studio-composite/tests/text_animators.rs::animated_glyphs_lower_to_hand_computed_planes",
+    "crates/hsk-studio-composite/tests/composition_text.rs::text_layer_plays_in_a_composition_through_the_static_path",
+    "crates/hsk-studio-harness/tests/motion_records_session.rs::text_animator_glyphs_come_from_type_shaping"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-TYPE-GLYPH-RENDER",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-TEXT",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-AE-MOTION-TOOLS",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AE-MOTION-RECORDS",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AE-MOTION-RECORDS-2",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (no After Effects case covers this; UNVERIFIED against After Effects)",
+   "matrix_verdict": "AGREE",
+   "notes": "Six animator properties built (STU-MOT-092 'subset' per file comment); composite/src/text.rs:6 'one run per placed line'."
+  },
+  {
+   "id": "AE-12",
+   "name": "Shape layers and shape operators (trim paths, repeater, wiggle paths)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-nib/src/shape_ops.rs:548 (trim_path), :607 (repeater), :652 (offset_path), :971 (wiggle_path); crates/hsk-studio-composite/src/composition.rs (SceneContent shape lowering)",
+   "tests": [
+    "crates/hsk-studio-composite/tests/shape_layers.rs::repeater_fills_and_trimmed_strokes_follow_authored_order",
+    "crates/hsk-studio-composite/tests/shape_layers.rs::keyframed_trim_end_draws_the_stroke_on",
+    "crates/hsk-studio-composite/tests/motion_records.rs::saved_shape_and_text_records_render_in_the_composition",
+    "crates/hsk-studio-harness/tests/render_queue_records.rs::saved_render_queue_item_renders_a_saved_shape_layer_composition"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPOSITE-COMPOSITION-2",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-AE-MOTION-TOOLS",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AE-MOTION-RECORDS",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (no After Effects case covers this; UNVERIFIED against After Effects) (operator formulas UNVERIFIED)",
+   "matrix_verdict": "AGREE",
+   "notes": "Illustrator oracle exists for fills/strokes but not for AE shape operators."
+  },
+  {
+   "id": "AE-13",
+   "name": "Masks: Bezier mask paths, feather, expansion, modes, animated",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-folio/src/composition.rs:599 (StudioCompositionMaskMode, 7 modes), :615 (StudioCompositionMask: mask_id, mode, inverted, closed, static_value, keyframes); crates/hsk-studio-composite/src/mask_paths.rs:37; crates/hsk-studio-pigment/src/coverage_math.rs:54",
+   "tests": [
+    "crates/hsk-studio-composite/tests/mask_paths.rs::masks_combine_in_order_on_exact_rectangles",
+    "crates/hsk-studio-composite/tests/mask_paths.rs::a_planar_track_becomes_an_animated_mask_path",
+    "crates/hsk-studio-composite/tests/composition_docgraph_masks.rs::feathered_unlinked_masks_match_the_scene_path",
+    "crates/hsk-studio-composite/tests/composition_docgraph_masks.rs::unlinked_masks_in_compositions_from_folio_records",
+    "crates/hsk-studio-folio/tests/mask_path_contract.rs::mask_paths_are_serde_default_round_trip_and_are_validated"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-ENG-2",
+     "status": "PASS_V18"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-VECTOR-MASK-2",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-DOCGRAPH-MASKS",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-DOCGRAPH-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AE-KEY-TRACK-3",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AE-3D-2",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (no After Effects case covers this; UNVERIFIED against After Effects)",
+   "matrix_verdict": "AGREE",
+   "notes": "StudioCompositionMask (the AE-style animated Bezier mask record) has NO feather, opacity or expansion field; feather exists only for document-graph unlinked/raster masks. Grep -i 'mask.*expansion|mask_expansion' over crates: only unrelated DESCRIPTOR strings (develop, interop-fig). Mask expansion confirmed absent."
+  },
+  {
+   "id": "AE-14",
+   "name": "Track mattes",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-folio/src/composition.rs:270 (track_matte), :243 (StudioMatteMode alpha/luma), :252 (StudioTrackMatte, inverted); crates/hsk-studio-composite/src/temporal/composition.rs:24",
+   "tests": [
+    "crates/hsk-studio-composite/tests/composition_adapter.rs::track_mattes_use_another_layers_rendered_alpha_or_luma",
+    "crates/hsk-studio-composite/tests/composition_docgraph_masks.rs::track_mattes_on_masked_layers_on_the_document_graph_equal_the_scene_path",
+    "crates/hsk-studio-composite/tests/three_d_adapter.rs::three_d_masks_and_track_mattes_from_records"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-COMPOSITION",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-COMPOSITION-ADAPTER",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-COMPOSITION-2",
+     "status": "PASS_V6"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (no After Effects case covers this; UNVERIFIED against After Effects) (luma coefficients UNVERIFIED)",
+   "matrix_verdict": "AGREE",
+   "notes": ""
+  },
+  {
+   "id": "AE-15",
+   "name": "Pre-compose / precomps",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-folio/src/composition.rs:268 (precomp), :234 (StudioPrecompSource, collapse_transformations); crates/hsk-studio-composite/src/temporal/composition.rs (collapse), crates/hsk-studio-composite/src/composition.rs:977 (SceneContent::Precomp)",
+   "tests": [
+    "crates/hsk-studio-composite/tests/composition_adapter.rs::precomposition_plays_the_nested_composition_at_its_source_time",
+    "crates/hsk-studio-composite/tests/three_d_adapter.rs::three_d_corner_pin_clipping_and_collapse_from_records",
+    "crates/hsk-studio-folio/tests/composition_contract.rs::cycle_refusals"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPOSITE-COMPOSITION-ADAPTER",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-COMPOSITION-2",
+     "status": "PASS_V6"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (no After Effects case covers this; UNVERIFIED against After Effects)",
+   "matrix_verdict": "AGREE",
+   "notes": "Evaluation of existing precomps; there is no 'Pre-compose' creation command (per matrix; Grep 'pub fn precompose' not run: UNVERIFIED)."
+  },
+  {
+   "id": "AE-16",
+   "name": "Adjustment layers",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-composite/src/composition.rs:113 (SceneContent::Adjustment(AdjustmentOp)); crates/hsk-studio-composite/src/temporal/composition.rs:156 (Adjustment), lower_extensions.rs (adjustment_for, is_adjustment_layer)",
+   "tests": [
+    "crates/hsk-studio-composite/tests/adjust_colour_records.rs (file present)",
+    "crates/hsk-studio-composite/tests/composition_adapter.rs::stored_composition_evaluates_to_the_hand_written_scenes",
+    "crates/hsk-studio-composite/tests/static_plan.rs (file present)"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPOSITE-ADJ",
+     "status": "PASS_V17"
+    },
+    {
+     "lane_id": "SMB-RENDER-GPU-ADJ",
+     "status": "PASS_V16"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (no After Effects case covers this; UNVERIFIED against After Effects) (Photoshop adjustment oracle is a different app)",
+   "matrix_verdict": "AGREE",
+   "notes": "Shared with the Photoshop adjustment set; test names of the adjustment files not enumerated by this verifier (UNVERIFIED names, files exist)."
+  },
+  {
+   "id": "AE-17",
+   "name": "Effects: blur, glow, colour correction, distort, generate",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-pigment/src/adjust_math.rs:21; crates/hsk-studio-pigment/src/blur_math.rs; composition 'Static' content (composition.rs:107-110: effects/blur of document layers)",
+   "tests": [
+    "crates/hsk-studio-composite/tests/blur_lowering.rs (file present)",
+    "crates/hsk-studio-composite/tests/smart_filter_lowering.rs (file present)",
+    "crates/hsk-studio-composite/tests/layer_style_records.rs (file present)"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-ENG-2",
+     "status": "PASS_V18"
+    },
+    {
+     "lane_id": "SMB-FOLIO-PAINT-BLUR-STYLE",
+     "status": "PASS_V7"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (no After Effects case covers this; UNVERIFIED against After Effects)",
+   "matrix_verdict": "AGREE",
+   "notes": "StudioCompositionLayer (composition.rs:261) has no effect-stack field (fields: timing, parent, precomp, track_matte, streams, corner_pin, masks, three_d, camera, light); Photoshop-style filters/styles apply via document layers only. No distort/generate families. Test names not enumerated (UNVERIFIED names)."
+  },
+  {
+   "id": "AE-18",
+   "name": "Keying and matte refinement, rotoscoping (Roto Brush)",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-pigment/src/keying.rs:686 (run_key_pipeline); NEW (READY, SMB-AE-ROTO-TIMEREMAP): crates/hsk-studio-pigment/src/select_tools/roto.rs:53 (RotoEngine; Learned refuses model_unavailable), :240 (roto_base), :375 (roto_propagate); select_tools/roto_refine.rs:93 (refine_roto_frame), :130 (refine_roto_sequence)",
+   "tests": [
+    "crates/hsk-studio-pigment/tests/keying.rs::pipeline_is_bit_deterministic_and_gpu_refuses_typed",
+    "crates/hsk-studio-pigment/tests/keying_2.rs::colour_difference_linear_extract_and_unmult_on_known_colours",
+    "crates/hsk-studio-pigment/tests/roto.rs::roto_base_and_propagation_track_a_moving_disc",
+    "crates/hsk-studio-pigment/tests/roto_refine.rs::trimap_band_matting_recovers_the_soft_edge_and_decontaminates",
+    "crates/hsk-studio-pigment/tests/roto_refine.rs::reduce_chatter_damps_a_flickering_matte_and_refuses_hostile_options"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-AE-KEY-TRACK",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-AE-KEY-TRACK-2",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-AE-KEY-TRACK-3",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AE-ROTO-TIMEREMAP",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (no After Effects case covers this; UNVERIFIED against After Effects) (keyer parity UNVERIFIED)",
+   "matrix_verdict": "AGREE",
+   "notes": "Keyers/despill/unmult/choke PASS. Assisted roto (base-frame strokes -> Boykov-Jolly/GrabCut segment; flow-guided propagation; trimap-band refine edge; reduce chatter) is coded and READY but is a pigment library only: no wiring to Folio, composite, session or any UI (Grep roto in composite/folio/harness-view/harness/session: none). SPEC CONFLICT: master spec STU-CMP-034 'DECLARED GAP -- rotoscoping' says assisted rotoscoping is \"NOT specified here\" and that \"an implementer builds the manual path and does not improvise a propagation algorithm\" (STU-CMP-100: 'GAP -- assisted rotoscoping ... boundary propagation is not [specified]'). The lane note records that a spec update was requested by the Operator and is not done, so this slice cannot pass validation until the spec changes. Matrix text 'SMB-AE-ROTO-TIMEREMAP in build, no commits' is stale (lane READY with 4 commits 06ac8e2..3432d5c)."
+  },
+  {
+   "id": "AE-19",
+   "name": "Motion tracking, stabilization, 3D camera tracker",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-pigment/src/track_math.rs:388 (track_points), :1118 (track_planar); crates/hsk-studio-composite/src/track_apply.rs:215 (apply_track), :272 (stabilize); crates/hsk-studio-composite/src/camera_solve.rs:425 (solve_camera)",
+   "tests": [
+    "crates/hsk-studio-pigment/tests/tracking.rs::translation_is_tracked_subpixel_forward_and_backward",
+    "crates/hsk-studio-pigment/tests/planar.rs::planar_track_recovers_the_plane_through_an_occluder_deterministically",
+    "crates/hsk-studio-composite/tests/track_apply.rs::tracked_footage_stabilises_end_to_end",
+    "crates/hsk-studio-composite/tests/camera_solve.rs::exact_tracks_recover_the_path_and_the_written_camera_reprojects_the_cloud",
+    "crates/hsk-studio-composite/tests/tracker_commands.rs::a_shot_is_tracked_corrected_and_stabilised_by_typed_commands"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-AE-KEY-TRACK",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-AE-KEY-TRACK-2",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-AE-KEY-TRACK-3",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AE-3D",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (no After Effects case covers this; UNVERIFIED against After Effects) (tracker parity UNVERIFIED)",
+   "matrix_verdict": "AGREE",
+   "notes": "Camera-solve parameters are a Studio definition (spec gap STU-CMP-065b per matrix). Tracking is data/typed-command level: no tracker UI."
+  },
+  {
+   "id": "AE-20",
+   "name": "3D layers, cameras, lights, 3D models",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-composite/src/three_d.rs:991 (shade), :1186 (aux_channels), PLANAR_RENDERER :150 (extrusion/bevels/environment_lighting/reflections/refraction/ray_traced_shadows all false); three_d/cryptomatte.rs; crates/hsk-studio-folio/src/composition.rs:320 (StudioLayer3d)",
+   "tests": [
+    "crates/hsk-studio-composite/tests/three_d_adapter.rs::three_d_runs_camera_breaks_and_refusals",
+    "crates/hsk-studio-composite/tests/three_d_adapter.rs::lights_materials_and_shadow_diagnostics_from_records",
+    "crates/hsk-studio-composite/tests/three_d_adapter.rs::cryptomatte_hashes_exr_and_mattes_match_the_specification",
+    "crates/hsk-studio-composite/tests/three_d_adapter.rs::anti_aliased_aux_channels_match_hand_values",
+    "crates/hsk-studio-folio/tests/three_d_contract.rs::three_d_records_are_serde_default_round_trip_and_are_bounded"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-AE-3D",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AE-3D-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AE-3D-3",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (no After Effects case covers this; UNVERIFIED against After Effects); non-vendor: Cryptomatte specification hand values",
+   "matrix_verdict": "AGREE",
+   "notes": "Planar renderer only: layers are flat planes; extrusion, bevels, reflections, refraction, environment lighting and ray-traced shadows are declared inactive with reasons (three_d.rs PLANAR_RENDERER). 3D models: absent."
+  },
+  {
+   "id": "AE-21",
+   "name": "Particles and simulation effects",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-composite/src/particles.rs:299 (ParticleWorld; Emitter :268, EmitterShape Point/Box/Layer :258, ParticleKind Dot/Sprite :283)",
+   "tests": [
+    "crates/hsk-studio-composite/tests/particles.rs::particle_frames_are_random_access_and_identical_scrubbed_forward_or_backward",
+    "crates/hsk-studio-composite/tests/particles.rs::single_particle_follows_hand_computed_physics_life_curves_and_raster",
+    "crates/hsk-studio-composite/tests/particles.rs::hostile_parameters_and_particle_bombs_are_refused_before_allocation",
+    "crates/hsk-studio-composite/tests/particles.rs::motion_blur_through_the_composition_shutter_averages_the_sample_frames"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-AE-PARTICLES-AUDIO-PRESETS",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (no After Effects case covers this; UNVERIFIED against After Effects)",
+   "matrix_verdict": "AGREE",
+   "notes": "READY lane, unjudged. One simulation family (seeded point/box/layer emitter with gravity, air resistance, curl turbulence); no Folio particle-layer record and no per-frame composition hook (lane note), so a user cannot place a particle layer in a composition."
+  },
+  {
+   "id": "AE-22",
+   "name": "Render queue / render composition to video",
+   "matrix_status": "VALIDATED",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-harness-view/src/view/timeline_export/composition.rs:601 (composition_export_job); crates/hsk-studio-harness-view/src/view/timeline_export/render_queue.rs:199 (render_queue_jobs), :74-188 (settings checks); crates/hsk-studio-folio/src/motion_records.rs:587 (StudioOutputModule), :613 (StudioRenderQueueItem)",
+   "tests": [
+    "crates/hsk-studio-harness/tests/composition_export.rs::composition_renders_through_the_queue_and_decodes_back",
+    "crates/hsk-studio-harness/tests/render_queue_records.rs::saved_render_queue_item_renders_a_saved_shape_layer_composition",
+    "crates/hsk-studio-harness/tests/render_queue_records.rs::unsupported_render_settings_are_refused_before_rendering",
+    "crates/hsk-studio-harness/tests/motion_records_session.rs::saved_records_reopen_and_render_once_into_two_modules",
+    "crates/hsk-studio-harness/tests/motion_records_session.rs::motion_blur_samples_the_shutter_window_of_checked_layers"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-REEL-ENCODE",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-COMPOSITION-ADAPTER",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-AE-MOTION-TOOLS",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AE-MOTION-RECORDS",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AE-MOTION-RECORDS-2",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (no After Effects case covers this; UNVERIFIED against After Effects)",
+   "matrix_verdict": "LOWER to PARTIAL",
+   "notes": "Core render-to-file works, but render_queue.rs typed-refuses: draft/wireframe quality (:95), reduced resolutions (:98), effects-all-off (:101), 16/32 bpc (:104), fields and 3:2 pulldown (:107), frame blending (:110), frame-rate conversion (:79), work-area-only span (:83, 'Folio stores no work area'), alpha-carrying output (:143), post-render actions (:146), non-BT.709 output space (:152), non-stereo audio (:188). That is most of AE's render-settings surface, so a flat VALIDATED overstates; H.264/HEVC encode additionally is the READY D24-A lane (opt-in os-encode)."
+  },
+  {
+   "id": "AE-23",
+   "name": "Motion presets and scripting",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-folio/src/motion_preset.rs:89 (StudioMotionPresetSet); crates/hsk-studio-motion/src/preset.rs:177 (capture_preset), :226 (apply_preset); crates/hsk-studio-composite/src/temporal/motion_preset.rs",
+   "tests": [
+    "crates/hsk-studio-motion/tests/presets.rs::saved_preset_applies_values_keyframes_expressions_and_effects_at_a_time_offset",
+    "crates/hsk-studio-motion/tests/presets.rs::incompatible_targets_and_malformed_presets_apply_nothing",
+    "crates/hsk-studio-composite/tests/motion_presets.rs::preset_records_round_trip_through_json_apply_at_an_offset_and_refuse_ffx"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-AE-PARTICLES-AUDIO-PRESETS",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (no After Effects case covers this; UNVERIFIED against After Effects) (.ffx semantics UNVERIFIED; .ffx never read, typed refusal)",
+   "matrix_verdict": "AGREE",
+   "notes": "Studio-native presets READY; .ffx import is a typed refusal. Scripting: Grep -i 'extendscript|.jsx|scripting' over crates finds only oracle-session script references in tests and a keyframe.rs comment (no scripting host)."
+  },
+  {
+   "id": "AE-24",
+   "name": "Audio in compositions",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-pulse/src/comp_audio.rs:65 (CompAudioLayer), :248 (mix stream new), :290 (render); crates/hsk-studio-motion/src/audio_amplitude.rs:31 (amplitude_property), :59 (insert_audio_amplitude)",
+   "tests": [
+    "crates/hsk-studio-pulse/tests/comp_audio.rs::composition_audio_layers_mix_through_score_with_stereo_level_keyframes",
+    "crates/hsk-studio-pulse/tests/comp_audio.rs::audio_amplitude_series_and_preview_stay_on_the_audio_clock",
+    "crates/hsk-studio-pulse/tests/comp_audio.rs::hostile_composition_audio_is_refused_before_mixing",
+    "crates/hsk-studio-motion/tests/audio_amplitude.rs::amplitude_series_become_expression_readable_slider_keyframes"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-AE-PARTICLES-AUDIO-PRESETS",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (no After Effects case covers this; UNVERIFIED against After Effects)",
+   "matrix_verdict": "AGREE",
+   "notes": "READY, unjudged. The lane's CompAudioLayer (stereo level keyframes, solo, preview clock) takes caller-supplied sample vectors, not Folio records. A separate record-driven path already exists in the export: render_queue.rs:230-243 reads motion.composition_audio(...) layers (audio_id, start_tick, static gain) into CompositionAudioLayer for output modules (SMB-AE-MOTION-RECORDS-2, PASS). So the matrix 'Missing: composition audio from Folio records' is true only for the READY keyframed-level layer, not for the exported mix; no bezier level keys."
+  }
+ ],
+ "counts": {
+  "VALIDATED": 10,
+  "BUILT_NOT_VALIDATED": 2,
+  "PARTIAL": 12,
+  "MISSING": 0,
+  "total": 24
+ },
+ "matrix_counts": {
+  "VALIDATED": 12,
+  "IMPLEMENTED": 1,
+  "PARTIAL": 11,
+  "MISSING": 0
+ },
+ "verdict_counts": {
+  "AGREE": 22,
+  "LOWER": 2
+ },
+ "engine_pct": {
+  "matrix": 63.5,
+  "matrix_formula_recomputed": 63.5,
+  "verified": 58.3,
+  "formula": "100*(VALIDATED + 0.5*BUILT_NOT_VALIDATED + 0.25*PARTIAL)/rows"
+ },
+ "oracle_summary": {
+  "session": "After Effects 26.5, D5 2026-10-16, cases AE-01, AE-01b, AE-02, AE-03 (342 entries)",
+  "counts": {
+   "MATCH": 337,
+   "MISMATCH": 0,
+   "NOT_SUPPORTED": 4,
+   "NOT_PROVEN": 1
+  },
+  "judged": "SMB-D5-AI-ID-AE-COMPARE slice 1 PASS_V1 (R35 @237256f); follow-ups (SMB-AI-AE-ORACLE-FOLLOWUPS) READY unjudged",
+  "rows": {
+   "AE-04": "ORACLE_MATCH 333/333",
+   "AE-05": "ORACLE_PARTIAL 3 of 5",
+   "AE-07": "ORACLE_PARTIAL 3 of 6 judged (3 more READY, corpus-gated, unrun)",
+   "AE-09": "ORACLE_PARTIAL (assistant chains only)",
+   "others": "NO_ORACLE_CASE"
+  },
+  "expected_mismatch_file_at_tip": "crates/hsk-studio-motion/tests/d5_ae_expected_mismatch.txt: 1 entry, AE-02 three_keys_roving_middle",
+  "rows_with_oracle_evidence_pct": 16.7
+ },
+ "ui": {
+  "timeline_ui_exists": false,
+  "composition_ui_exists": false,
+  "ui_rows_matrix": 0
+ },
+ "top_gaps": [
+  {
+   "rank": 1,
+   "gap": "No composition/timeline UI for the user at all (ui_features 0): no composition panel, layer/property panel, graph editor, timeline, or pick-whip. Everything runs through records and typed APIs; the only After Effects-adjacent surface is composition export/render-queue jobs driven by a caller trait.",
+   "evidence": "Grep composition_panel|CompositionPanel|graph_editor|GraphEditor|property_panel|curve_editor over harness-view/harness: none; view/mod.rs panels do not include a composition view"
+  },
+  {
+   "rank": 2,
+   "gap": "Effects inside compositions: no per-layer effect stack, no distort/generate families, no particle layer record/hook (AE-17, AE-21); composition layers carry masks/3D/corner pin but not effects.",
+   "evidence": "folio composition.rs:261 StudioCompositionLayer fields; lane note for particles"
+  },
+  {
+   "rank": 3,
+   "gap": "Expression library: only value, time, linear() are After Effects-compatible; wiggle, loopOut, thisComp/thisLayer, valueAtTime etc. absent; no scripting.",
+   "evidence": "Grep wiggle\\(|loopOut|thisComp|thisLayer|valueAtTime in motion-js/src and motion expression.rs: none"
+  },
+  {
+   "rank": 4,
+   "gap": "Time remap / frame blending / Roto Brush exist as unwired libraries (READY): no Folio record, no composition render hook for frame blending (render queue refuses it), no roto wiring; roto also blocked by spec STU-CMP-034/100 until the spec is updated.",
+   "evidence": "AE-10, AE-18 rows"
+  },
+  {
+   "rank": 5,
+   "gap": "Render queue refuses most AE render settings (16/32 bpc, reduced resolution, draft quality, fields, frame blending, work area, alpha output) and mask expansion/feather on composition masks is missing; 3D is planar only (no extrusion/bevel/reflection).",
+   "evidence": "render_queue.rs:79-188; folio composition.rs:615; three_d.rs PLANAR_RENDERER"
+  }
+ ],
+ "unlisted_capabilities": [
+  "Cryptomatte hash/EXR/matte export and EXR aux channels (three_d/cryptomatte.rs, three_d/exr.rs) and immersive/VR output settings (folio StudioImmersiveSettings, three_d/immersive.rs) - folded into AE-20 only as a list item",
+  "Planar-track-to-mask-path conversion and 18 typed tracker commands (composite tracker.rs, tests tracker_commands.rs::the_eighteen_recovered_commands_and_refusals)",
+  "Render-once-encode-many output modules and per-item motion blur (harness render_queue_records / motion_records_session tests) - inside AE-22",
+  "Corner pin effect on 2D and 3D layers with projective transform (corner_pin.rs) - inside AE-03",
+  "Dependency-graph-ordered property store with failure isolation (store_contract.rs::store_failure_isolation_and_fallback)",
+  "Horn-Schunck optical flow (pigment frame_blend::optical_flow) reusable by Premiere retime, not wired"
+ ],
+ "unverified": [
+  "All AE rows other than AE-04/05/07/09 have no After Effects oracle case: UNVERIFIED against After Effects.",
+  "No test was run: results of tests at e64eacd (including the 333/333 keyframe MATCH after motion property.rs/spatial changes and the corpus-gated motion-js d5_ae_expressions 3/3) are not reproduced here; the AE oracle corpus root (.config/oracle-corpus.toml) is required for those tests to do anything.",
+  "Test names for pigment/composite static, adjustment, blur and smart-filter files (AE-02, AE-16, AE-17) were not enumerated; files exist.",
+  "AE expression library coverage (333 identifiers) not verified; only value/time/linear/binding tests read.",
+  "Whether a 'Pre-compose' creation command exists (AE-15) was not grepped.",
+  "Desktop window launch NOT_PROVEN per matrix ui_status."
+ ],
+ "notes": [
+  "Matrix rows 24, counts V12 I1 P11 M0 = 63.5 recomputed OK. Verified: two LOWER (AE-07 VALIDATED -> BUILT_NOT_VALIDATED under the matrix's own READY-remainder policy; AE-22 VALIDATED -> PARTIAL); no RAISE (AE-10/AE-18 gained READY libraries but remain PARTIAL for the reasons in their notes).",
+  "SMB-AE-ROTO-TIMEREMAP (READY, unjudged): slice 1 time remap/stretch/reverse/frame blending (AE-10), slices 2-3 assisted roto + refine edge (AE-18). Assisted roto conflicts with spec STU-CMP-034/STU-CMP-100 (declared gap); the lane cannot pass validation on that slice until the spec is updated (lane note says Operator requested the update, not done).",
+  "Oracle: only After Effects 26.5 session of 2026-10-16: 342 entries, 337 MATCH, 0 MISMATCH, 4 NOT_SUPPORTED (AE-02 roving + 3 post-expression), 1 NOT_PROVEN (AE-02 spatial tangents variant). At e64eacd: roving is now an expected-MISMATCH (0.011 px vs 0.01 tol) and AE globals value/time/linear are bound in motion-js (READY). The AE-02 tangents variant still needs the attended AE rerun.",
+  "harness split: anchors under crates/hsk-studio-harness/src/view now live in crates/hsk-studio-harness-view/src/view (render_queue and composition export files moved)."
+ ]
+}

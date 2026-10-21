@@ -1,0 +1,719 @@
+{
+ "schema": "hsk.studio.audit.parity_app@1",
+ "file_id": "WP-KERNEL-STUDIO-AUDIT-20261021-PARITY-AUDITION",
+ "updated_at": "2026-10-21T01:28:26Z",
+ "by": "read-only parity verifier (Sonnet)",
+ "app": "audition",
+ "basis": {
+  "tip": "e64eacd",
+  "matrix_file": "research/parity-matrix-20261020.json",
+  "matrix_lines": "5091-5547 (features), summary 7578-7695",
+  "checkout_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ps-oracle-parity-2/handshake-studio-assets",
+  "ledger_read": "ledger.json updated_at 2026-10-21T00:37:22Z",
+  "method": "git grep/show at e64eacd only; no cargo/rustc run, so no test was executed by this verifier: 'tests' lists test files/names found and read at e64eacd, not results. Lane statuses from ledger.json. proof_stale marks crates changed since R35 candidate 237256f per the lead list (git diff 237256f..e64eacd read-only confirms the crate set)."
+ },
+ "rows": [
+  {
+   "id": "AU-01",
+   "name": "Audio engine: planar f32 block processing, latency compensation, admission/refusal before write",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-score/src/lib.rs:57 (DESCRIPTOR); crates/hsk-studio-score/src/engine.rs, block.rs, stage.rs; crates/hsk-studio-score/src/chain.rs (latency)",
+   "tests": [
+    "crates/hsk-studio-score/tests/foundation_contract.rs::unity_block_is_bit_exact",
+    "crates/hsk-studio-score/tests/foundation_contract.rs::admission_rejects_before_write",
+    "crates/hsk-studio-score/tests/guards.rs::overflowing_stages_are_discarded_not_published",
+    "crates/hsk-studio-score/tests/session_latency.rs::latent_stacks_line_up_sample_exact_with_dry_tracks",
+    "crates/hsk-studio-score/tests/chain_mix.rs::chain_stack_exact_values_latency_and_bypass"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-SCORE",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-SCORE-GUARDS",
+     "status": "PASS_V7"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "Test names read, not run."
+  },
+  {
+   "id": "AU-02",
+   "name": "Sample-rate conversion (streaming, bit-identical to whole-clip)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-score/src/stream_resample.rs:48 (StreamReceipt; streaming resampler over rubato); crates/hsk-studio-score/src/resample.rs; crates/hsk-studio-score/src/src_bounce.rs",
+   "tests": [
+    "crates/hsk-studio-score/tests/streaming_src.rs::streaming_resampler_is_bit_identical_to_the_whole_clip_oracle",
+    "crates/hsk-studio-score/tests/streaming_src.rs::five_minutes_bounce_exactly_in_bounded_memory",
+    "crates/hsk-studio-score/tests/dsp_resample.rs::resampler_preserves_counts_tone_and_dc",
+    "crates/hsk-studio-score/tests/src_bounce.rs::counts_are_exact_for_44k_to_48k_and_back"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-SCORE",
+     "status": "PASS_V10"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session); non-vendor oracle: whole-clip resample as oracle (bit-identical)",
+   "matrix_verdict": "AGREE",
+   "notes": ""
+  },
+  {
+   "id": "AU-03",
+   "name": "Amplify / gain and linear gain ramps",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-score/src/dsp.rs:83 (Gain); crates/hsk-studio-score/src/ramp.rs:22 (RampedGain)",
+   "tests": [
+    "crates/hsk-studio-score/tests/dsp_resample.rs::gain_pan_mix_exact_values",
+    "crates/hsk-studio-score/tests/ramp_spectrum.rs::ramp_is_exact_continuous_and_revertible_and_receipt_meters",
+    "crates/hsk-studio-score/tests/automation.rs::ramped_automation_through_a_session_is_partition_independent_for_every_kind"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-SCORE",
+     "status": "PASS_V10"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": ""
+  },
+  {
+   "id": "AU-04",
+   "name": "Fades with curve shapes (log, cosine, S-curve)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-score/src/session.rs:271 (FadeCurve: linear, equal-power, SCurve, Logarithmic; FADE_LOG_RANGE_DB)",
+   "tests": [
+    "crates/hsk-studio-score/tests/audition_session.rs::s_curve_and_logarithmic_fades_follow_their_formulas",
+    "crates/hsk-studio-score/tests/session_fades.rs::abutting_fades_form_exact_linear_and_equal_power_crossfades",
+    "crates/hsk-studio-score/tests/session_fades.rs::fades_apply_before_a_latent_stack_and_stay_aligned"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-SCORE",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-SCORE-EFFECTS-4",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-AUDITION-SESSION",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AU-WAVEFORM-EDITOR",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "Session fades are fully PASS. The waveform editor's destructive fade (READY) belongs to AU-20, not this row."
+  },
+  {
+   "id": "AU-05",
+   "name": "Pan and channel mixing (mono/stereo, matrix)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-score/src/dsp.rs:142 (Pan), :219 (ChannelMix)",
+   "tests": [
+    "crates/hsk-studio-score/tests/dsp_resample.rs::gain_pan_mix_exact_values",
+    "crates/hsk-studio-score/tests/bounce_output_layout.rs::mono_to_stereo_pan_keeps_both_output_channels",
+    "crates/hsk-studio-score/tests/bounce_output_layout.rs::stereo_to_mono_chain_bounces_the_mono_output",
+    "crates/hsk-studio-score/tests/session.rs::volume_and_pan_automation_are_sample_accurate_across_tracks"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-SCORE",
+     "status": "PASS_V10"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": ""
+  },
+  {
+   "id": "AU-06",
+   "name": "Parametric EQ (peaking, shelves, low/high pass)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-score/src/eq.rs:140 (Equalizer)",
+   "tests": [
+    "crates/hsk-studio-score/tests/eq_response.rs::equalizer_matches_known_responses"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-SCORE",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-SCORE-GUARDS",
+     "status": "PASS_V7"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session); non-vendor: analytic biquad responses",
+   "matrix_verdict": "AGREE",
+   "notes": "One response test; no EQ UI beyond the mixer's effect editing."
+  },
+  {
+   "id": "AU-07",
+   "name": "Hard limiter",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-score/src/dsp.rs:316 (HardLimiterParams), :382 (HardLimiter); crates/hsk-studio-score/src/dynamics.rs:409 (lookahead LimiterParams)",
+   "tests": [
+    "crates/hsk-studio-score/tests/foundation_contract.rs::hard_limiter_spec_ranges",
+    "crates/hsk-studio-score/tests/dynamics.rs::limiter_holds_the_ceiling_with_documented_latency_and_true_peak",
+    "crates/hsk-studio-score/tests/truepeak.rs::limiter_true_peak_ceiling_holds_across_frequency"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-SCORE",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-SCORE-GUARDS",
+     "status": "PASS_V7"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": ""
+  },
+  {
+   "id": "AU-08",
+   "name": "Dynamics: compressor, expander, noise gate, multiband",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-score/src/dynamics.rs:195 (Dynamics), :54 (DynamicsParams); crates/hsk-studio-score/src/multiband.rs:171 (MultibandCompressor, Linkwitz-Riley); crates/hsk-studio-score/src/sidechain.rs",
+   "tests": [
+    "crates/hsk-studio-score/tests/dynamics.rs::compressor_matches_the_static_curve_in_steady_state",
+    "crates/hsk-studio-score/tests/dynamics.rs::expander_and_gate_follow_the_curve_range_and_hold",
+    "crates/hsk-studio-score/tests/multiband.rs::linkwitz_riley_bands_sum_to_flat_and_match_the_analytic_band_shapes",
+    "crates/hsk-studio-score/tests/sidechain.rs::external_key_drives_the_static_curve_and_leaves_main_untouched_when_silent"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-SCORE-DSP",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-SCORE-EFFECTS-2",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-SCORE-EFFECTS-3",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session); non-vendor: analytic static curves",
+   "matrix_verdict": "AGREE",
+   "notes": "Audition numeric parity UNVERIFIED."
+  },
+  {
+   "id": "AU-09",
+   "name": "Reverb, delay, modulation (chorus/flanger/phaser)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-score/src/reverb.rs:39,176 (ReverbParams, Reverb); crates/hsk-studio-score/src/delay.rs:87 (FeedbackDelay); crates/hsk-studio-score/src/modulation.rs:197,323,433 (Flanger, Chorus, Phaser)",
+   "tests": [
+    "crates/hsk-studio-score/tests/reverb.rs::decay_time_follows_rt60_at_two_rates",
+    "crates/hsk-studio-score/tests/delay.rs::impulse_echoes_land_on_exact_samples_with_exact_amplitudes",
+    "crates/hsk-studio-score/tests/modulation.rs::chorus_and_phaser_match_their_analytic_responses",
+    "crates/hsk-studio-score/tests/modulation.rs::flanger_feedback_comb_matches_the_analytic_response"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-SCORE-DSP",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-SCORE-EFFECTS-2",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-SCORE-EFFECTS-3",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session); non-vendor: analytic RT60 / comb responses",
+   "matrix_verdict": "AGREE",
+   "notes": "Grep -i convolution over score: none (no convolution reverb)."
+  },
+  {
+   "id": "AU-10",
+   "name": "Noise reduction and restoration (noise print, hiss, click/pop, hum)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-score/src/denoise.rs:101,142,272 (NoiseProfile, NoiseProfiler, NoiseReducer); crates/hsk-studio-score/src/restore.rs:115,571 (ClickRepair, HumRemover)",
+   "tests": [
+    "crates/hsk-studio-score/tests/denoise.rs::noise_is_reduced_and_the_signal_is_kept",
+    "crates/hsk-studio-score/tests/denoise.rs::unit_gain_reconstructs_the_input_delayed_by_the_reported_latency",
+    "crates/hsk-studio-score/tests/restore.rs::clicks_are_detected_and_interpolated",
+    "crates/hsk-studio-score/tests/restore.rs::hum_notches_remove_the_harmonics_and_follow_the_analytic_passband",
+    "crates/hsk-studio-score/tests/restore_floor.rs::clicks_on_the_floor_and_in_the_music_are_repaired"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-SCORE-DSP",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-SCORE-EFFECTS-3",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-SCORE-EFFECTS-5",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "Algorithm equivalence to Audition's DeNoise/DeClick UNVERIFIED."
+  },
+  {
+   "id": "AU-11",
+   "name": "Spectrum analysis (FFT)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-score/src/spectrum.rs:17 (SpectrumAnalyzer)",
+   "tests": [
+    "crates/hsk-studio-score/tests/ramp_spectrum.rs::spectrum_matches_direct_dft_and_known_bins",
+    "crates/hsk-studio-score/tests/guards.rs::mix_converter_and_spectrum_refuse_overflow"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-SCORE",
+     "status": "PASS_V10"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session); non-vendor oracle: direct DFT",
+   "matrix_verdict": "AGREE",
+   "notes": ""
+  },
+  {
+   "id": "AU-12",
+   "name": "Spectral frequency display and spectral editing",
+   "matrix_status": "VALIDATED",
+   "verified_level": "BUILT_NOT_VALIDATED",
+   "code_anchor": "crates/hsk-studio-score/src/spectrogram.rs:118 (Spectrogram; window choice SpectralWindow added after R35), spectral_edit.rs:69 (spectral_edit, PASS), spectral_mask.rs:139 (spectral_mask_edit, READY), spectral_view.rs; crates/hsk-studio-harness-view/src/view/spectral_display.rs:51 (SpectralDisplayState), :244 (egui panel, READY)",
+   "tests": [
+    "crates/hsk-studio-score/tests/spectrogram.rs::grid_geometry_and_amplitude_calibration",
+    "crates/hsk-studio-score/tests/spectral_edit.rs::heal_replaces_a_time_frequency_burst_by_its_surroundings",
+    "crates/hsk-studio-score/tests/spectral_mask.rs::heal_fills_a_lasso_defect_from_its_surroundings",
+    "crates/hsk-studio-score/tests/spectral_view.rs::rows_map_frequencies_and_read_calibrated_db",
+    "crates/hsk-studio-harness/tests/audio_spectral.rs::spectral_selection_edits_are_undo_steps_equal_to_score"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-SCORE-SPECTRAL",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-AU-WAVEFORM-EDITOR",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session); non-vendor: calibrated sine amplitude, brute-force lasso cell count",
+   "matrix_verdict": "LOWER to IMPLEMENTED (BUILT_NOT_VALIDATED)",
+   "notes": "Engine spectrogram tiles and band attenuate/heal are PASS (SMB-SCORE-SPECTRAL), but the row is 'display and editing' and the display panel, windows, linear/log rows and marquee/lasso edits are only in READY SMB-AU-WAVEFORM-EDITOR (the row's own lane list cites it). The matrix counts the same shape (validated core + READY remainder) as IMPLEMENTED for ID-03, ID-15 and AE-05, so VALIDATED here is inconsistent. Spectrogram default Hann path is stated bit-identical to before, so the PASS proof is likely sound but stale (spectrogram.rs +84 lines since R35)."
+  },
+  {
+   "id": "AU-13",
+   "name": "Loudness metering and normalisation (LUFS / ITU BS.1770)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-score/src/loudness.rs:206 (LoudnessMeter); crates/hsk-studio-score/src/normalize.rs:152 (loudness_normalize); crates/hsk-studio-score/src/truepeak.rs; crates/hsk-studio-harness-view/src/view/mixer.rs (master LUFS meters)",
+   "tests": [
+    "crates/hsk-studio-score/tests/loudness.rs::k_weighting_matches_the_standard_table_and_calibration_holds",
+    "crates/hsk-studio-score/tests/loudness.rs::gating_and_loudness_range_follow_the_definitions",
+    "crates/hsk-studio-score/tests/truepeak.rs::tech3341_tone_cases_15_to_18_in_tolerance_for_the_meter",
+    "crates/hsk-studio-score/tests/audition_session.rs::loudness_normalise_reaches_the_target_under_a_true_peak_ceiling",
+    "crates/hsk-studio-harness/tests/audio_mixer.rs::mixer_edits_are_single_undo_steps_and_drive_the_bus_mix_and_meters"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-SCORE-DSP",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-SCORE-TRUEPEAK",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-AUDITION-SESSION",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AUDITION-UI",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session); non-vendor oracles: BS.1770-4 K-weighting table + gating definitions (loudness.rs test), BS.1770 Annex 2 4x true-peak filter, EBU Tech 3341 section 2.6 cases 15-18 tones SYNTHESISED from the spec text (tolerance +0.2/-0.4 dB; meter reads +0.207 and -0.455 in the measured envelope so asserted bounds are 0.25/0.5); the official EBU Tech 3341/3342 audio files could not be downloaded: EBU vectors NOT_PROVEN",
+   "matrix_verdict": "AGREE",
+   "notes": "The only Audition-side reference that is not Studio-authored is the EBU/ITU spec text; note the true-peak meter marginally exceeds the Tech 3341 tolerance in the measured envelope (truepeak.rs header)."
+  },
+  {
+   "id": "AU-14",
+   "name": "Multitrack session: tracks, clips, buses/sends, mixer",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-score/src/session.rs:435 (Session), :96 (AutomationLane); crates/hsk-studio-score/src/bus.rs:356 (MixGraph); crates/hsk-studio-harness-view/src/view/mixer.rs:71 (MixerState), :122 (open_mixer), :506 (egui bottom panel)",
+   "tests": [
+    "crates/hsk-studio-score/tests/audition_session.rs::sends_buses_and_master_are_latency_compensated_and_levelled",
+    "crates/hsk-studio-score/tests/audition_session.rs::checkpointed_backward_seeks_are_exact_and_bounded",
+    "crates/hsk-studio-score/tests/audition_session.rs::bus_keyframes_exact_seek_through_long_tails_and_meters",
+    "crates/hsk-studio-harness/tests/audio_mixer.rs::mixer_edits_bus_and_master_effects_as_single_undo_steps",
+    "crates/hsk-studio-harness/tests/audio_session.rs::routing_is_saved_with_the_session_reopens_and_plays_through_the_buses"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-SCORE-EFFECTS-3",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-SCORE-EFFECTS-4",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-AUDITION-SESSION",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AUDITION-SESSION-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AUDITION-UI",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AUDITION-UI-2",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "Mixer/routing/meters panel exists (headless-judged). There is NO multitrack timeline/clip-editing view: Grep timeline_panel|multitrack_view|clip_view over harness-view: none; the Viewer shows mixer strips, not tracks with clips."
+  },
+  {
+   "id": "AU-15",
+   "name": "Mixdown / bounce with receipts (peak, RMS, digest)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-score/src/bounce.rs:108 (bounce), digest.rs; crates/hsk-studio-score/src/src_bounce.rs",
+   "tests": [
+    "crates/hsk-studio-score/tests/alignment_bounce.rs::bounce_receipt_is_exact_and_digest_matches_independent_oracle",
+    "crates/hsk-studio-score/tests/src_bounce.rs::digest_and_graph_identity_follow_the_documented_schemes",
+    "crates/hsk-studio-score/tests/streaming_src.rs::streaming_bounce_equals_the_whole_clip_bounce",
+    "crates/hsk-studio-harness/tests/audio_import.rs::mixdown_exports_to_flac_and_aiff_and_decodes_back"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-SCORE",
+     "status": "PASS_V10"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session); non-vendor oracle: independent digest implementation, libavcodec for FLAC/AIFF in reel tests",
+   "matrix_verdict": "AGREE",
+   "notes": ""
+  },
+  {
+   "id": "AU-16",
+   "name": "Track and clip automation (volume/pan envelopes)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-score/src/session.rs:96 (AutomationLane step/linear, volume/pan/effect parameters)",
+   "tests": [
+    "crates/hsk-studio-score/tests/session.rs::automation_lanes_evaluate_exactly_and_refuse_bad_points",
+    "crates/hsk-studio-score/tests/session.rs::volume_and_pan_automation_are_sample_accurate_across_tracks",
+    "crates/hsk-studio-score/tests/session.rs::effect_parameter_automation_is_sample_accurate",
+    "crates/hsk-studio-score/tests/automation.rs::setting_a_parameter_equals_constructing_with_it_for_every_processor"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-SCORE-EFFECTS-3",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-SCORE-EFFECTS-4",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "Lanes are step/linear only (no curve shapes); no automation lane UI."
+  },
+  {
+   "id": "AU-17",
+   "name": "Recording from an input device",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-score-device/src/lib.rs:32 (capture_callback), :52 (DESCRIPTOR); crates/hsk-studio-score-device/src/cpal_backend.rs (opt-in feature cpal-backend); software device software.rs",
+   "tests": [
+    "crates/hsk-studio-score-device/tests/foundation_contract.rs::software_device_lifecycle_and_loss",
+    "crates/hsk-studio-score-device/tests/foundation_contract.rs::ring_fill_and_overflow_discontinuity",
+    "crates/hsk-studio-score-device/tests/callback_alloc.rs::callback_is_allocation_free_and_lock_free",
+    "crates/hsk-studio-score-device/tests/native_cpal.rs::native_output_streams_silence_and_reconciles"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-SCORE-DEVICE",
+     "status": "PASS_V9"
+    }
+   ],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "Capture ring/callback and lifecycle proven on the software clocked device; the only native test is OUTPUT silence (native_cpal.rs, ignored unless STUDIO_NATIVE_AUDIO=1, per DESCRIPTOR), no native capture test; 'record-to-file' is listed in DESCRIPTOR not_in_scope; no recording UI. score-device unchanged since R35."
+  },
+  {
+   "id": "AU-18",
+   "name": "Playback to an output device",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-score-device/src/lib.rs:32 (render_callback); crates/hsk-studio-harness-view/src/view/audio_out.rs:132,339 (AudioOut::new, with_buses)",
+   "tests": [
+    "crates/hsk-studio-harness/tests/viewer_audio.rs::audio_out_plays_the_timeline_mix_through_the_device_in_sync",
+    "crates/hsk-studio-harness/tests/viewer_audio.rs::looping_audio_wraps_at_the_out_point_and_config_is_checked",
+    "crates/hsk-studio-harness/tests/audio_import.rs::imported_file_plays_through_the_device",
+    "crates/hsk-studio-score-device/tests/native_cpal.rs::native_output_streams_silence_and_reconciles"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-SCORE-DEVICE",
+     "status": "PASS_V9"
+    },
+    {
+     "lane_id": "SMB-PULSE-PLAYBACK-2",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "Native cpal backend is opt-in (default off) and the native test streams silence only: audible output on a real device NOT_PROVEN. ASIO/JACK not in scope. stale flag true because the viewer AudioOut moved into harness-view (changed crate); score-device itself is unchanged."
+  },
+  {
+   "id": "AU-19",
+   "name": "Plugin hosting (VST3, AU, CLAP)",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-score-plugin/src/lib.rs:63 (DESCRIPTOR), clap_backend.rs (opt-in feature clap = clack-host), types.rs:17 (Vst3 enum member, refused); crates/hsk-studio-harness-view/src/view/waveform_plugin.rs:122 (register_waveform_plugin, READY, opt-in feature audio-plugin)",
+   "tests": [
+    "crates/hsk-studio-score-plugin/tests/foundation_contract.rs::worker_gain_block_exact",
+    "crates/hsk-studio-score-plugin/tests/fault_injection.rs::process_faults_are_contained",
+    "crates/hsk-studio-score-plugin/tests/clap_fixture.rs::clap_fixture_gain_runs_in_the_worker",
+    "crates/hsk-studio-harness/tests/audio_waveform_plugin.rs::hosted_plugin_on_a_selection_is_one_undo_step"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-SCORE-PLUGIN",
+     "status": "PASS_V11"
+    },
+    {
+     "lane_id": "SMB-SCORE-PLUGIN-RATE",
+     "status": "PASS_V8"
+    },
+    {
+     "lane_id": "SMB-AU-WAVEFORM-EDITOR",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "Process-isolated host PASS; CLAP behind opt-in feature clap and needs a fixture plugin (CLAP NOT_PROVEN without it); VST3 and AU absent (VST3 typed refusal); no plugin editor UI. score-plugin unchanged since R35 (proof_stale false); the harness-view plugin-on-selection slice is READY."
+  },
+  {
+   "id": "AU-20",
+   "name": "Waveform editing: cut/copy/paste/trim/delete ranges",
+   "matrix_status": "IMPLEMENTED",
+   "verified_level": "BUILT_NOT_VALIDATED",
+   "code_anchor": "crates/hsk-studio-score/src/wave_edit.rs:125 (WaveBuffer; copy :313, delete :319, cut :330); crates/hsk-studio-harness-view/src/view/waveform.rs:100 (WaveformEdit: Spectral, Effect, Plugin ...), :856/:880 (egui panel)",
+   "tests": [
+    "crates/hsk-studio-score/tests/wave_edit.rs::cut_copy_paste_delete_silence_insert_are_sample_accurate",
+    "crates/hsk-studio-score/tests/wave_edit.rs::fades_envelope_amplify_and_normalise_follow_hand_values",
+    "crates/hsk-studio-score/tests/wave_edit.rs::zero_crossings_snap_to_hand_found_boundaries",
+    "crates/hsk-studio-harness/tests/audio_waveform.rs::waveform_edits_are_single_undo_steps_replayed_after_reopen",
+    "crates/hsk-studio-harness/tests/audio_waveform_effects.rs::effects_on_a_selection_are_aligned_single_undo_steps"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PULSE",
+     "status": "PASS_V14"
+    },
+    {
+     "lane_id": "SMB-AU-WAVEFORM-EDITOR",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "READY lane, six commits 04bb6ed..557ac06, unjudged; the lane note flags a rebase over pigment/render commits pushed without re-running (rule 3 deviation, round covers it). A waveform editor panel exists in the Viewer (bottom panel), so this is the only Audition editing surface with a UI."
+  },
+  {
+   "id": "AU-21",
+   "name": "Pitch shift and time stretch",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-score/src/stretch.rs:69 (time_stretch), :480 (pitch_shift); crates/hsk-studio-score/src/varispeed.rs:146 (render_at_speed)",
+   "tests": [
+    "crates/hsk-studio-score/tests/stretch.rs::stretch_keeps_pitch_and_amplitude_and_hits_the_exact_duration",
+    "crates/hsk-studio-score/tests/stretch.rs::pitch_shift_moves_the_frequency_by_the_stated_ratio_and_keeps_the_length",
+    "crates/hsk-studio-score/tests/stretch_stream.rs::streaming_without_transients_is_bit_identical_to_the_offline_stretch",
+    "crates/hsk-studio-score/tests/varispeed.rs::band_limiting_meets_the_stated_stopband_and_passband"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-SCORE-EFFECTS-5",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-SCORE-SPECTRAL",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session); non-vendor: analytic frequency/duration ratios, offline-vs-streaming identity",
+   "matrix_verdict": "AGREE",
+   "notes": "Quality parity with Audition's iZotope-class stretch NOT_PROVEN."
+  },
+  {
+   "id": "AU-22",
+   "name": "Batch processing, favourites, effects rack presets",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-harness-view/src/view/audio_batch.rs:115 (AudioBatchJob); crates/hsk-studio-folio/src/audio_preset.rs (effect preset records)",
+   "tests": [
+    "crates/hsk-studio-harness/tests/audio_batch.rs::batch_runs_import_effect_chain_and_export_with_progress_and_receipts",
+    "crates/hsk-studio-harness/tests/audio_batch.rs::effect_presets_are_stored_records_that_drive_the_batch_chain",
+    "crates/hsk-studio-harness/tests/audio_batch.rs::preset_keyframes_automate_the_batch_chain",
+    "crates/hsk-studio-folio/tests/audio_preset_records.rs (file present)"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-AUDIO-IMPORT-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AUDITION-SESSION",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AUDITION-SESSION-2",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Audition (no Audition oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "Grep -i 'favou?rite' over crates: only an LRCat collection fixture (unrelated); no recorded command sequences."
+  }
+ ],
+ "counts": {
+  "VALIDATED": 16,
+  "BUILT_NOT_VALIDATED": 2,
+  "PARTIAL": 4,
+  "MISSING": 0,
+  "total": 22
+ },
+ "matrix_counts": {
+  "VALIDATED": 17,
+  "IMPLEMENTED": 1,
+  "PARTIAL": 4,
+  "MISSING": 0
+ },
+ "verdict_counts": {
+  "AGREE": 21,
+  "LOWER": 1
+ },
+ "engine_pct": {
+  "matrix": 84.1,
+  "matrix_formula_recomputed": 84.1,
+  "verified": 81.8,
+  "formula": "100*(VALIDATED + 0.5*BUILT_NOT_VALIDATED + 0.25*PARTIAL)/rows"
+ },
+ "oracle_summary": "Audition: no real-app oracle (0 entries). Non-vendor facts: ITU-R BS.1770-4 K-weighting table and gating definitions (loudness.rs), BS.1770 Annex 2 4x true-peak filter, EBU Tech 3341 section 2.6 cases 15-18 synthesised (official audio files NOT_PROVEN), analytic EQ/RT60/comb responses, independent bounce digest, libavcodec/libopus/libFLAC for codec decode (reel). All rows UNVERIFIED against Audition.",
+ "ui": {
+  "timeline_ui_exists": false,
+  "composition_ui_exists": null,
+  "panels_in_viewer": [
+   "mixer/routing + meters (mixer.rs:506, PASS headless)",
+   "waveform editor (waveform.rs:856/880, READY)",
+   "spectral display (spectral_display.rs:244, READY)"
+  ],
+  "ui_rows_matrix": 2
+ },
+ "top_gaps": [
+  {
+   "rank": 1,
+   "gap": "No multitrack timeline/clip view for the user: Audition's core surface is absent. The Viewer offers a mixer/routing panel with meters (validated headless) and a waveform + spectral editor panel (READY), but no tracks-with-clips editor, no clip drag/trim, no automation-lane UI.",
+   "evidence": "Grep multitrack_view|clip_view|timeline_panel over harness-view: none; panels at mixer.rs:506, waveform.rs:856/880, spectral_display.rs:244"
+  },
+  {
+   "rank": 2,
+   "gap": "Destructive waveform/spectral editor and CLAP plugin on selection are all READY, unjudged (AU-20, AU-12, AU-19); R36 must pass them before they count.",
+   "evidence": "SMB-AU-WAVEFORM-EDITOR READY_FOR_VALIDATION, 6 commits, 331/331 at 8411820 then rebase without re-run"
+  },
+  {
+   "rank": 3,
+   "gap": "Plugin ecosystem: VST3/AU absent, CLAP opt-in and unproven without a fixture, no plugin editor UI.",
+   "evidence": "AU-19 anchors; types.rs Vst3 refused"
+  },
+  {
+   "rank": 4,
+   "gap": "Real device I/O not proven: native cpal backend opt-in, native test streams silence only, no native capture test, no record-to-file.",
+   "evidence": "AU-17/AU-18; score-device DESCRIPTOR not_in_scope"
+  },
+  {
+   "rank": 5,
+   "gap": "No Audition oracle at all: every DSP result (EQ, dynamics, denoise, stretch, loudness) is UNVERIFIED against Audition; only analytic and spec-text references exist (EBU Tech 3341 cases synthesised, official files not obtained). No favourites/macros, no convolution reverb.",
+   "evidence": "AU-22, AU-09, AU-13"
+  }
+ ],
+ "unlisted_capabilities": [
+  "Spectrogram window choice (Hann, Hamming, Blackman, Blackman-Harris, rectangular) with time-frequency reassignment (spectrogram.rs SpectralWindow) - inside AU-12 READY",
+  "Clip varispeed with band-limited windowed-sinc (varispeed.rs) and session clips at speed - inside AU-21",
+  "Sidechain with lookahead and external key (sidechain.rs) and lookahead true-peak limiter - inside AU-07/AU-08",
+  "Seek checkpoints with exact backward seeks through long reverb/delay tails (audition_session.rs::checkpointed_backward_seeks_are_exact_and_bounded) - inside AU-14",
+  "Isolated plugin worker with approved-file staging, tamper refusal and fault containment (score-plugin staging.rs, fault_injection.rs) - inside AU-19"
+ ],
+ "unverified": [
+  "Every behaviour vs Adobe Audition: no Audition oracle exists.",
+  "No test was run; names read at e64eacd. Score PASS proofs (R35 @237256f) are stale for the whole crate list per lead (score changed by new files wave_edit/spectral_mask/spectral_view and spectrogram.rs +84; score-device and score-plugin unchanged).",
+  "Whether the cpal backend produces audible output or captures on a real device (NOT_PROVEN per DESCRIPTOR).",
+  "Whether a hosted CLAP plugin works end to end (needs a CLAP fixture; clap_fixture test not run).",
+  "EBU official test vectors (Tech 3341/3342) not obtained; the Tech 3341 tones are synthesised.",
+  "Test names for audio_preset_records.rs were not enumerated."
+ ],
+ "notes": [
+  "Matrix rows 22, counts V17 I1 P4 M0 = 84.1 recomputed OK. Verified: one LOWER (AU-12 VALIDATED -> BUILT_NOT_VALIDATED under the matrix's own validated-core + READY-remainder policy); no RAISE.",
+  "Audition has the highest engine parity of the three apps but the least user-facing surface: UI is a mixer/routing panel (validated headless) and a READY waveform + spectral editor panel; there is no multitrack timeline.",
+  "harness split: anchors under crates/hsk-studio-harness/src/view now live in crates/hsk-studio-harness-view/src/view (mixer, waveform, spectral_display, waveform_plugin, audio_batch, audio_out); tests remain in crates/hsk-studio-harness/tests.",
+  "score-device and score-plugin were not changed since R35, so AU-17 and AU-19 PASS proof is not stale (proof_stale=false); AU-18 is stale only through the moved viewer audio-out code."
+ ]
+}

@@ -1,0 +1,2585 @@
+{
+ "schema": "hsk.studio.audit.parity_app@1",
+ "file_id": "WP-KERNEL-STUDIO-AUDIT-20261021-PARITY-AFFINITY",
+ "file_kind": "audit_parity_app",
+ "updated_at": "2026-10-21T01:30:00Z",
+ "by": "read-only parity verifier (Sonnet)",
+ "app": "Affinity (unified Affinity app: former Photo, Designer, Publisher)",
+ "basis": {
+  "tip": "e64eacd",
+  "matrix_file": "research/parity-matrix-20261020.json",
+  "matrix_lines": "affinity block 5548-7577 (80 rows AF-01..AF-80), summary 7578-7695",
+  "checkout_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ps-oracle-parity-2/handshake-studio-assets",
+  "ledger": "ledger.json updated_at 2026-10-21T00:37:22Z",
+  "method": "read-only (Read/Grep/git; no cargo/nextest, nothing executed). Own-code rows (AF-02, AF-04, AF-05, AF-06, AF-07) got the full procedure; the 75 other rows are INHERITS rows: the reuse mapping was checked against the reused rows' notes and the Affinity-specific scope was grep-checked, the shared row itself was not re-verified in depth. proof_stale = a covering PASS lane's owning crate changed between R35 candidate 237256f and e64eacd.",
+  "level_vocabulary": "VALIDATED | BUILT_NOT_VALIDATED (= matrix IMPLEMENTED) | PARTIAL | MISSING | INHERITS <row ids>"
+ },
+ "rows": [
+  {
+   "id": "AF-01",
+   "name": "One document across Vector / Pixel / Layout studios (studio switch without conversion)",
+   "studio": "shared",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS PS-01, AI-01, ID-01",
+   "inherited_levels": {
+    "PS-01": "VALIDATED",
+    "AI-01": "VALIDATED",
+    "ID-01": "VALIDATED"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: crates/hsk-studio-folio (one StudioDocument: raster, vector, text, page spreads, timeline)",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-ENG-1",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-FOLIO-ENG-2",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-FOLIO-ENG-3",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-FOLIO-ENG-4",
+     "status": "PASS_V12"
+    },
+    {
+     "lane_id": "SMB-FOLIO-ENG-6",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-FOLIO-ENG-7",
+     "status": "PASS_V10"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "Reuse sensible for the shared document: Folio StudioDocument holds raster, vector, text and page spreads (PS-01, AI-01, ID-01 all VALIDATED). Affinity-specific Persona/studio switching is not implemented (Grep persona|workspace.?preset over folio, harness-view, harness-core: none); the row is engine-only. Folio changed since R35.",
+   "reuses": [
+    "PS-01",
+    "AI-01",
+    "ID-01"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-02",
+   "name": "Native Affinity documents (.af / .afphoto / .afdesign / .afpub) import and export",
+   "studio": "shared",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-interop-affinity/src/container.rs:262 (KaContainer::parse), src/thumbnail.rs:168 (thumbnail), :215 (resources), src/stream.rs:12 (read_entry, CRC-32 + stored/zlib/zstd); crates/hsk-studio-harness-core/src/import.rs:377 (import_affinity_preview, feature import-affinity, opt-in), src/import/affinity.rs; default import refuses every KA file with affinity_native_use_export (crates/hsk-studio-harness-core/src/import.rs:45)",
+   "tests": [
+    "crates/hsk-studio-interop-affinity/tests/container.rs::v1_v2_v3_containers_parse_decode_and_crc_check_at_the_head_revision",
+    "crates/hsk-studio-interop-affinity/tests/container.rs::hostile_containers_are_typed_refusals_without_panics",
+    "crates/hsk-studio-interop-affinity/tests/container.rs::afdesignload_v1_designs_read_with_matching_crcs_and_thumbnails (#[ignore], needs oracle corpus)",
+    "crates/hsk-studio-harness/tests/import_affinity.rs::affinity_documents_are_refused_naming_the_export_route",
+    "crates/hsk-studio-harness/tests/import_affinity.rs::affinity_preview_imports_the_thumbnail_as_one_lossy_layer_with_the_original (feature import-affinity)"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-AFFINITY-INTEROP-1",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API). Sample-file evidence: the 9 pinned MIT AFDesignLoad V1 .afdesign files (oracle-corpus/affinity/afdesignload-mit, sha256 pins in provenance.json) are exercised by tests/container.rs::afdesignload_v1_designs_read_with_matching_crcs_and_thumbnails (asserts version 9, Generation::V1, #FAT directory, every stream CRC-valid, doc.dat present, 512x512 PNG Thmb) and harness import_affinity::afdesignload_v1_designs_open_as_flattened_previews; both are #[ignore] and print NOT_PROVEN without the corpus. Lane SMB-AFFINITY-INTEROP-1 claims 8/8 incl. both ignored corpus tests, exit 0 at a82a77c (lane claim, not re-run here). V2/V3 containers are only synthetic constructions in the unit test plus an uncommitted hexdump check of 4 installed fixtures: real V2/V3 behaviour UNVERIFIED.",
+   "matrix_verdict": "AGREE",
+   "reuses": [],
+   "notes": "Real code, not a stub: clean-room read-only KA container reader (header, chained #FAT/#FT2/#FT3/#FT4 directories, stored/zlib/zstd streams, predictor inverse, CRC-32, Thmb preview, image/font/PDF resource blobs as sha256 assets) with hostile-input caps, plus an opt-in flattened-thumbnail import as ONE raster layer marked affinity.lossy/preview_only. Absent (BUILT_NOT_VALIDATED part vs missing): layer/object-graph decode (doc.dat not decoded: typed loss affinity_layers_not_decoded), any native write (.af/.afphoto/.afdesign/.afpub/.aftemplate/.afpackage; by lead decision), real V2/V3 verification. Supported route is the typed refusal naming PSD/PDF/SVG export. Lane READY_FOR_VALIDATION (no verdict); the crate is new since R35 so no PASS proof exists (proof_stale n/a)."
+  },
+  {
+   "id": "AF-03",
+   "name": "PSD / PSB open and export",
+   "studio": "pixel",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS PS-35",
+   "inherited_levels": {
+    "PS-35": "VALIDATED"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: crates/hsk-studio-interop-psd",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-CONVERT-NATIVE",
+     "status": "PASS_V11"
+    },
+    {
+     "lane_id": "SMB-CONVERT-TIFF",
+     "status": "PASS_V11"
+    },
+    {
+     "lane_id": "SMB-CONVERT-COLOUR",
+     "status": "PASS_V11"
+    },
+    {
+     "lane_id": "SMB-CONVERT-FOLLOWUPS",
+     "status": "PASS_V11"
+    },
+    {
+     "lane_id": "SMB-INTEROP-PSD-LE-LAYERS",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-SESSION-IMPORT-ENTRIES",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-TIFF-CONSOLIDATE",
+     "status": "PASS_V10"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "PS-35 covers OPEN only; the export half rests on interop-psd export.rs (edited properties/tiles written back; added/removed layers typed losses). PARTIAL is right; the VALIDATED reused row does not justify more.",
+   "reuses": [
+    "PS-35"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-04",
+   "name": "PDF open as an editable document",
+   "studio": "shared",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-press-read/src/vector_read.rs:560 (read_vector_pages; moved from hsk-studio-press, press-read unchanged since R35); crates/hsk-studio-harness-view/src/view/vector/interop.rs; crates/hsk-studio-interop-layout/src/pdf_place.rs:241 (draw_placed_pdf, READY)",
+   "tests": [
+    "crates/hsk-studio-press/tests/vector_read.rs::pages_record_fills_strokes_shadings_clips_groups_and_glyphs",
+    "crates/hsk-studio-press/tests/vector_read.rs::documents_keep_source_colours_layers_and_glyph_text",
+    "crates/hsk-studio-harness/tests/viewer_illustrator_interop.rs (viewer PDF open)",
+    "crates/hsk-studio-interop-layout/tests/id_prepress_merge_place.rs::placed_pdf_draws_into_an_export_page"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-INTEROP",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-INTEROP-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-ID-PREPRESS",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "reuses": [
+    "ID-31"
+   ],
+   "notes": "PDF pages read into vector layers with text runs and document colours is real code. Matrix reuse ID-31 (open PDF as layout, MISSING) is the wrong source for this feature: the capability comes from press-read vector reading under the ILLUSTRATOR-INTEROP lanes; ID-31 only explains why there is no page-layout import. Absent: PDF -> layout pages, form fields, editable raster images. Status PARTIAL correct."
+  },
+  {
+   "id": "AF-05",
+   "name": "IDML import",
+   "studio": "layout",
+   "matrix_status": "VALIDATED",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-interop-layout/src/idml_longdoc.rs:927 (import_longdoc), src/idml_decode.rs (import_idml, lib.rs:35)",
+   "tests": [
+    "crates/hsk-studio-interop-layout/tests/idml_longdoc.rs::idml_longdoc_features_import_with_typed_losses",
+    "crates/hsk-studio-interop-layout/tests/idml_longdoc.rs::idml_longdoc_export_round_trip_is_stable",
+    "crates/hsk-studio-interop-layout/tests/layout_edit_roundtrip.rs::idml_threaded_story_style_edit_reopen_twice",
+    "crates/hsk-studio-interop-layout/tests/layout_reflow_folio_export.rs::folio_edited_import_round_trips_with_names_and_reflow",
+    "crates/hsk-studio-interop-layout/tests/d5_id_oracle.rs::id03_idml_configurations (3 InDesign-written IDML packages accepted)"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-INTEROP-LAYOUT",
+     "status": "PASS_V16"
+    },
+    {
+     "lane_id": "SMB-INTEROP-IDML",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API). InDesign (not Affinity) evidence: the 3 InDesign 21.6-written IDML packages import (3/3 MATCH, 48 typed loss entries each); this says nothing about Affinity Publisher's IDML behaviour.",
+   "matrix_verdict": "LOWER",
+   "reuses": [
+    "ID-14",
+    "ID-15"
+   ],
+   "notes": "LOWER VALIDATED -> PARTIAL: import is real and PASS-judged, but interop-layout's own descriptor lists as NOT interpreted (kept verbatim, dropped on export_idml): style definitions (Resources/Styles.xml), master spreads, graphic page items beyond Rectangle/Oval/Polygon-with-Image, text frames inside groups, nested tables, linked pixels, rich paragraph-level objects. The matrix note lists what imports; it does not mention that parents and style definitions do not. A Publisher user importing IDML expects masters and styles. interop-layout src unchanged since R35 (only tests)."
+  },
+  {
+   "id": "AF-06",
+   "name": "DWG / DXF import and place",
+   "studio": "shared",
+   "matrix_status": "MISSING",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-interop-vector-core/src/dxf_import.rs:706 (import_dxf, feature `dxf`, default off, dxf =0.6.2 MIT); DWG typed refusal naming the DXF route (tests/dxf_import.rs)",
+   "tests": [
+    "crates/hsk-studio-interop-vector-core/tests/dxf_import.rs::dxf_entities_become_layered_paths_in_points",
+    "crates/hsk-studio-interop-vector-core/tests/dxf_import.rs::dxf_inserts_splines_and_losses",
+    "crates/hsk-studio-interop-vector-core/tests/dxf_import.rs::dwg_is_refused_naming_the_dxf_route",
+    "crates/hsk-studio-interop-vector-core/tests/dxf_import.rs::hostile_dxf_is_bounded_and_typed"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-DXF-EPS-IMPORT",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "RAISE",
+   "reuses": [],
+   "notes": "RAISE MISSING -> PARTIAL: matrix says 'lane in build, no commits'; at e64eacd the lane has commits (13b36ac slice 1, 85b3446) and is READY_FOR_VALIDATION: DXF entities -> layered vector paths in points with units and typed losses (BUILT_NOT_VALIDATED, feature-gated off by default; steward sync for the new dep still owed). Absent: DWG (typed refusal), DXF export, placing DXF as a linked drawing, CAD-style scale/units UI. Lane lists 39/39 tests pre-rebase (lane claim). The crate is new/changed since R35; no PASS proof exists."
+  },
+  {
+   "id": "AF-07",
+   "name": "SVG and EPS import/export",
+   "studio": "vector",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-interop-vector-svg/src/svg_adapter.rs:559 (import_svg), src/svg_export.rs:938 (export_svg); crates/hsk-studio-interop-vector-core/src/eps.rs:377 (import_eps via isolated stet PostScript worker, feature eps-worker), src/eps_export.rs:313 (export_eps, EPSF 3.0)",
+   "tests": [
+    "crates/hsk-studio-interop-vector/tests/paint_stroke_svgz.rs::svgz_roundtrip_and_decompression_bomb",
+    "crates/hsk-studio-interop-vector/tests/masking_patterns.rs::clip_path_exact_or_typed_loss",
+    "crates/hsk-studio-interop-vector/tests/eps_export.rs::proposal_exports_as_dsc_conforming_epsf",
+    "crates/hsk-studio-interop-vector-core/tests/eps_import.rs::dos_header_and_dsc_comments_are_read",
+    "crates/hsk-studio-interop-vector-core/tests/eps_worker.rs::eps_converts_to_pdf_in_the_isolated_worker"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-INTEROP-VECTOR",
+     "status": "PASS_V15"
+    },
+    {
+     "lane_id": "SMB-DXF-EPS-IMPORT",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "reuses": [
+    "AI-01"
+   ],
+   "notes": "SVG/SVGZ import and export PASS-judged (interop-vector lane PASS_V15; crate split into -core/-svg since, so proof stale). Matrix text 'EPS MISSING (no importer/exporter found)' is stale: EPS DSC/DOS-header reading, EPS import through an isolated stet worker and EPSF 3.0 export exist at the tip (SMB-DXF-EPS-IMPORT READY, feature-gated). Row stays PARTIAL (SVG validated, EPS unjudged and opt-in; no PDF/X-style EPS preflight)."
+  },
+  {
+   "id": "AF-08",
+   "name": "Raster formats: TIFF, JPEG, PNG, WebP, GIF, EXR/HDR, JPEG XL, HEIC",
+   "studio": "pixel",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS PS-36, PS-35",
+   "inherited_levels": {
+    "PS-36": "VALIDATED",
+    "PS-35": "VALIDATED"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: @ad7a8ff: crates/hsk-studio-composite/src/three_d/exr.rs:43 (encode_exr_f32)",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-IO-RASTER-COMMON",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-CONVERT-RASTER",
+     "status": "PASS_V9"
+    },
+    {
+     "lane_id": "SMB-INTEROP-TIFF",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-AE-3D-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AE-3D-3",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "PS-36/PS-35 cover PNG/JPEG/TIFF; the EXR float encoder (composite/three_d/exr.rs:53) serves 3D aux channels only; WebP refused, GIF/JPEG XL/HEIC/Radiance HDR absent. PARTIAL right.",
+   "reuses": [
+    "PS-36",
+    "PS-35"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-09",
+   "name": "Save as package (document plus linked resources)",
+   "studio": "shared",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS ID-26",
+   "inherited_levels": {
+    "ID-26": "PARTIAL"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: @ad7a8ff: crates/hsk-studio-package/src/externals.rs:420",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-PACKAGE-COMPLETENESS",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PACKAGE-COMPLETENESS-2",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "ID-26 is PARTIAL because it is InDesign's package folder with fonts; the Affinity feature (embed linked resources in one file) is the package embed_external walk (externals.rs:490). Justified at feature level. Affinity .afpackage/.aftemplate containers are not written. package crate changed since R35 (stale); PACKAGE-COMPLETENESS-2 READY.",
+   "reuses": [
+    "ID-26"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-10",
+   "name": "Resource manager: linked/embedded resources, status, relink",
+   "studio": "shared",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS ID-19",
+   "inherited_levels": {
+    "ID-19": "PARTIAL"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: @ad7a8ff: crates/hsk-studio-package/src/externals.rs:420",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-PACKAGE-COMPLETENESS",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PACKAGE-COMPLETENESS-2",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "ID-19 PARTIAL concerns the missing links panel; AF-10 scopes the engine report (link state + relink data from the same code, externals.rs:490). Justified for the engine; no resource-manager panel (ui false). Package crate changed since R35.",
+   "reuses": [
+    "ID-19"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-11",
+   "name": "Undo history and history saved with the document",
+   "studio": "shared",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS PS-29",
+   "inherited_levels": {
+    "PS-29": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see PS-29",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-HARNESS-UI-2",
+     "status": "PASS_V8"
+    },
+    {
+     "lane_id": "SMB-CHRONICLE-TABLE",
+     "status": "PASS_V13"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "PS-29: undo/redo through chronicle inverses is real, no history panel and no persistence with the document; PARTIAL right.",
+   "reuses": [
+    "PS-29"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-12",
+   "name": "Macros and batch jobs",
+   "studio": "shared",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS PS-31, LR-25, AU-22",
+   "inherited_levels": {
+    "PS-31": "MISSING",
+    "LR-25": "VALIDATED",
+    "AU-22": "PARTIAL"
+   },
+   "resolved_level_for_pct": "MISSING",
+   "code_anchor": "inherited: see LR-25, AU-22",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-JOBS",
+     "status": "PASS_V17"
+    },
+    {
+     "lane_id": "SMB-AUDIO-IMPORT-2",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "LOWER",
+   "inheritance_assessment": "LOWER PARTIAL -> MISSING. Affinity macros (record/replay) and Batch Job (apply macros / convert many files) are not provided: PS-31 is MISSING (no macro recorder), LR-25 is a develop-only thread-count determinism/batch claim and AU-22 an audio-only batch queue. Neither is a generic document batch (Grep macro over crates: only unrelated hits). Inheritance not justified.",
+   "reuses": [
+    "PS-31",
+    "LR-25",
+    "AU-22"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-13",
+   "name": "Export persona: slices, export presets, multi-format batch export",
+   "studio": "shared",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS FG-20, PS-36, LR-33",
+   "inherited_levels": {
+    "FG-20": "PARTIAL",
+    "PS-36": "VALIDATED",
+    "LR-33": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see FG-20",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-INTEROP-FIG-EXPORT",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-CONVERT-RASTER",
+     "status": "PASS_V9"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "Weak but defensible: FG-20 (per-frame export from .fig exportSettings with scale/suffix), PS-36 (composite PNG/JPEG) and LR-33 (develop export) give plain multi-format export; no slices, no export presets, no persona. PARTIAL is generous.",
+   "reuses": [
+    "FG-20",
+    "PS-36",
+    "LR-33"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-14",
+   "name": "ICC colour management: assign / convert, intents, BPC",
+   "studio": "shared",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS PS-27",
+   "inherited_levels": {
+    "PS-27": "VALIDATED"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: see PS-27",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-PRISM-ENG-1",
+     "status": "PASS_V11"
+    },
+    {
+     "lane_id": "SMB-PRISM-ENG-7",
+     "status": "PASS_V8"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "PS-27 ICC engine (prism) is VALIDATED and sensible for assign/convert/intents/BPC. prism changed since R35 (stale proof).",
+   "reuses": [
+    "PS-27"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-15",
+   "name": "Document colour formats and 32-bit HDR (RGB 8/16/32F, CMYK, Lab, Gray; OCIO, 32-bit preview)",
+   "studio": "pixel",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS PS-26",
+   "inherited_levels": {
+    "PS-26": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see PS-26",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-EXTENDED-RANGE",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-PRISM-VIEW-TRANSFORM-2",
+     "status": "PASS_V4"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "PS-26: linear f32 working space and view transforms real; no mode-conversion command, no OCIO. PARTIAL right.",
+   "reuses": [
+    "PS-26"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-16",
+   "name": "Colour panel, swatches, palettes, global and spot colours",
+   "studio": "shared",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS AI-30",
+   "inherited_levels": {
+    "AI-30": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see AI-30",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-TOOLS-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-VECTOR-STYLES",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AI-TYPE-PATH-RECOLOR",
+     "status": "READY_FOR_VALIDATION"
+    },
+    {
+     "lane_id": "SMB-ID-PREPRESS",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "AI-30 swatches/recolour sensible; Affinity palette scopes and .afpalette exchange absent (Grep afpalette: none). Recolour + ink manager are READY.",
+   "reuses": [
+    "AI-30"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-17",
+   "name": "Gradients (linear, radial, elliptical, conical), bitmap fills, gradient tool",
+   "studio": "vector",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS AI-14, FG-14",
+   "inherited_levels": {
+    "AI-14": "PARTIAL",
+    "FG-14": "VALIDATED"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see AI-14",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-NIB-VECTOR-RENDER",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-VECTOR-STYLES",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "AI-14/FG-14: linear/radial/image fills render and edit; elliptical/conical have no Folio home. PARTIAL right.",
+   "reuses": [
+    "AI-14",
+    "FG-14"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-18",
+   "name": "Snapping, grids, guides, measure and area tools, X-ray view",
+   "studio": "shared",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS ID-22",
+   "inherited_levels": {
+    "ID-22": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: no snapping/guide/measure surface found in harness view",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-ID-PREPRESS",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "ID-22 grids/guides/snapping are page-layout engine code (layout grids.rs:159, READY) and not reachable from raster/vector canvases or a viewer surface; measure/area/X-ray absent. PARTIAL is generous but within the matrix convention.",
+   "reuses": [
+    "ID-22"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-19",
+   "name": "Layers, groups, blend modes, opacity",
+   "studio": "shared",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS PS-01, PS-03",
+   "inherited_levels": {
+    "PS-01": "VALIDATED",
+    "PS-03": "VALIDATED"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: see PS-01, PS-03",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPOSITE",
+     "status": "PASS_V20"
+    },
+    {
+     "lane_id": "SMB-PIGMENT-ENG-1",
+     "status": "PASS_V20"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "PS-01/PS-03 sensible: 35-member StudioBlendMode (pigment blend_math.rs:75) includes Average, Negation, Reflect, Glow; no ContrastInvert member; Affinity name mapping UNVERIFIED.",
+   "reuses": [
+    "PS-01",
+    "PS-03"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-20",
+   "name": "Blend ranges (spline source/underlying curves)",
+   "studio": "pixel",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS PS-11",
+   "inherited_levels": {
+    "PS-11": "VALIDATED"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see PS-11",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-BLENDIF-CLIP",
+     "status": "PASS_V17"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "PS-11 stores Photoshop-style eight-value ramps; Affinity spline ranges are not modelled. PARTIAL is at best; inheritance only partly justified (kept AGREE: the Blend-If engine does provide ranged blending).",
+   "reuses": [
+    "PS-11"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-21",
+   "name": "Pixel masks, vector masks and mask layers",
+   "studio": "shared",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS PS-04, PS-05, AI-16",
+   "inherited_levels": {
+    "PS-04": "VALIDATED",
+    "PS-05": "PARTIAL",
+    "AI-16": "VALIDATED"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: see PS-04, PS-05",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPOSITE-VECTOR-MASK-2",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-DOCGRAPH-MASKS",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "PS-04, AI-16 VALIDATED (raster, vector clip/opacity masks, viewer make-mask); PS-05 PARTIAL concerns PSD vector-mask import only. Justified.",
+   "reuses": [
+    "PS-04",
+    "PS-05",
+    "AI-16"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-22",
+   "name": "Compound masks (add / subtract / intersect / XOR mask layers)",
+   "studio": "pixel",
+   "matrix_status": "MISSING",
+   "verified_level": "INHERITS (none named: row stands on its own Studio evidence: no mask-combination record)",
+   "inherited_levels": {},
+   "resolved_level_for_pct": "MISSING",
+   "code_anchor": "inherited: no mask-combination record",
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "Grep compound.?mask|mask_combine: no match. MISSING confirmed.",
+   "reuses": [],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-23",
+   "name": "Live masks: hue range, band-pass, luminosity",
+   "studio": "pixel",
+   "matrix_status": "MISSING",
+   "verified_level": "INHERITS LR-20",
+   "inherited_levels": {
+    "LR-20": "PARTIAL"
+   },
+   "resolved_level_for_pct": "MISSING",
+   "code_anchor": "inherited: no live mask layer",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-CONTROLS",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-CONTROLS-2",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-HARNESS-DEVELOP-2",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-HARNESS-DEVELOP-3",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-LENS-PRESETS",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "LR-20 colour/luminance range masks exist only inside develop recipes; no live-mask layer node. MISSING confirmed.",
+   "reuses": [
+    "LR-20"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-24",
+   "name": "Adjustment layers (Affinity set incl. split toning, white balance, OCIO, LUT, soft proof)",
+   "studio": "pixel",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS PS-07, PS-08",
+   "inherited_levels": {
+    "PS-07": "VALIDATED",
+    "PS-08": "VALIDATED"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see PS-07, PS-08",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPOSITE-ADJ",
+     "status": "PASS_V17"
+    },
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-HARNESS-RENDER-RECORDS",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "PS-07/PS-08 sensible for the Photoshop-style kinds; Affinity-only kinds (split toning, white balance, OCIO, soft proof, normals) absent. PARTIAL right.",
+   "reuses": [
+    "PS-07",
+    "PS-08"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-25",
+   "name": "Live filter layers",
+   "studio": "pixel",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS PS-22",
+   "inherited_levels": {
+    "PS-22": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see PS-22",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-PS-SELECT-LIQUIFY",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-PS-SMART-FILTER-WIRING",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "PS-22 mapping approximate: Studio's smart-filter stack is a member of a raster layer record (folio smart_filter.rs:1-10), not a standalone live-filter layer node as in Affinity; small filter catalogue. PARTIAL right.",
+   "reuses": [
+    "PS-22"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-26",
+   "name": "Layer effects (shadows, glows, outline, bevel/emboss, colour and gradient overlay)",
+   "studio": "shared",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS PS-09, PS-10",
+   "inherited_levels": {
+    "PS-09": "VALIDATED",
+    "PS-10": "VALIDATED"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see PS-09, PS-10",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-EFFECTS-WAVE-1",
+     "status": "PASS_V17"
+    },
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-HARNESS-RENDER-RECORDS",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "PS-09/PS-10 VALIDATED effects sensible; Affinity 3D effect absent. PARTIAL right.",
+   "reuses": [
+    "PS-09",
+    "PS-10"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-27",
+   "name": "Selection tools: marquee, freehand/polygonal/magnetic, selection brush, flood select, refine",
+   "studio": "pixel",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS PS-13, PS-14",
+   "inherited_levels": {
+    "PS-13": "PARTIAL",
+    "PS-14": "PARTIAL"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: see PS-13, PS-14",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-PS-SELECT-LIQUIFY",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-PS-SELECT-LIQUIFY-2",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-PIGMENT-SELECTION",
+     "status": "PASS_V11"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "PS-13/PS-14 are PARTIAL only for object/subject/sky select and quick mask; the AF row's tools exist: polygonal lasso (pigment selection.rs:445), magnetic lasso, wand, quick select, refine. Justified.",
+   "reuses": [
+    "PS-13",
+    "PS-14"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-28",
+   "name": "Select Subject / Object Selection (ML)",
+   "studio": "pixel",
+   "matrix_status": "MISSING",
+   "verified_level": "INHERITS PS-13",
+   "inherited_levels": {
+    "PS-13": "PARTIAL"
+   },
+   "resolved_level_for_pct": "MISSING",
+   "code_anchor": "inherited: select_tools object_select -> model_unavailable",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-SELECTION",
+     "status": "PASS_V11"
+    },
+    {
+     "lane_id": "SMB-HARNESS-UI-2",
+     "status": "PASS_V8"
+    },
+    {
+     "lane_id": "SMB-PS-SELECT-LIQUIFY",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-PS-SELECT-LIQUIFY-2",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "typed model_unavailable; MISSING confirmed.",
+   "reuses": [
+    "PS-13"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-29",
+   "name": "Raster brush tools (paint, pixel, erase, smudge, dodge/burn/sponge, blur/sharpen, symmetry)",
+   "studio": "pixel",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS PS-15, PS-17",
+   "inherited_levels": {
+    "PS-15": "PARTIAL",
+    "PS-17": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see PS-15",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-BRUSH",
+     "status": "PASS_V10"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "PS-15/PS-17 PARTIAL: round-tip brush and eraser only; Grep smudge|dodge|burn|sponge in pigment: none. PARTIAL right.",
+   "reuses": [
+    "PS-15",
+    "PS-17"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-30",
+   "name": "Retouch: clone, healing, patch, inpainting, blemish removal, red eye",
+   "studio": "pixel",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS PS-16, PS-18",
+   "inherited_levels": {
+    "PS-16": "PARTIAL",
+    "PS-18": "VALIDATED"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see PS-16, PS-18",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-RETOUCH",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-PIGMENT-CONTENT-AWARE",
+     "status": "PASS_V7"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "PS-16/PS-18 sensible (clone, heal, patch, content-aware inpaint); no red-eye tool (develop recipe flag only), no viewer retouch tools. PARTIAL right.",
+   "reuses": [
+    "PS-16",
+    "PS-18"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-31",
+   "name": "Frequency separation",
+   "studio": "pixel",
+   "matrix_status": "MISSING",
+   "verified_level": "INHERITS (none named: row stands on its own Studio evidence: git grep frequency_separation: no matches)",
+   "inherited_levels": {},
+   "resolved_level_for_pct": "MISSING",
+   "code_anchor": "inherited: git grep frequency_separation: no matches",
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "Grep frequency.?separation: no match. MISSING confirmed.",
+   "reuses": [],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-32",
+   "name": "Liquify persona",
+   "studio": "pixel",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS PS-22",
+   "inherited_levels": {
+    "PS-22": "PARTIAL"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: @ad7a8ff: crates/hsk-studio-pigment/src/liquify.rs:205; crates/hsk-studio-harness/src/view/select_liquify.rs:522",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-PS-SELECT-LIQUIFY",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-PS-SELECT-LIQUIFY-2",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "PS-22 PARTIAL concerns other filter families; the Liquify mesh (pigment liquify.rs:205) and the viewer liquify tool (harness-view select_liquify.rs) are real. Justified; no persona UI.",
+   "reuses": [
+    "PS-22"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-33",
+   "name": "Live mesh warp and perspective",
+   "studio": "pixel",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS PS-20",
+   "inherited_levels": {
+    "PS-20": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see PS-20",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-AE-KEY-TRACK-2",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "PS-20: perspective layer transform only; no raster mesh-warp filter. PARTIAL right.",
+   "reuses": [
+    "PS-20"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-34",
+   "name": "Transform, crop, canvas size, resample",
+   "studio": "pixel",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS PS-20, PS-21",
+   "inherited_levels": {
+    "PS-20": "PARTIAL",
+    "PS-21": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see PS-20, PS-21",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-TRANSFORM",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-PIGMENT-RETOUCH",
+     "status": "PASS_V7"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "PS-20/PS-21: transform, crop, canvas size engine; no resample command, no crop tool. PARTIAL right.",
+   "reuses": [
+    "PS-20",
+    "PS-21"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-35",
+   "name": "HDR merge and tone mapping persona",
+   "studio": "pixel",
+   "matrix_status": "MISSING",
+   "verified_level": "INHERITS LR-23",
+   "inherited_levels": {
+    "LR-23": "MISSING"
+   },
+   "resolved_level_for_pct": "MISSING",
+   "code_anchor": "inherited: no merge code",
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "Grep hdr.?merge|exposure.?merge|bracket: only unrelated hits. MISSING confirmed.",
+   "reuses": [
+    "LR-23"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-36",
+   "name": "Panorama stitching",
+   "studio": "pixel",
+   "matrix_status": "MISSING",
+   "verified_level": "INHERITS LR-23",
+   "inherited_levels": {
+    "LR-23": "MISSING"
+   },
+   "resolved_level_for_pct": "MISSING",
+   "code_anchor": "inherited: no stitching code",
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "Grep panorama|stitch: only unrelated hits. MISSING confirmed.",
+   "reuses": [
+    "LR-23"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-37",
+   "name": "Focus merge and image stacks",
+   "studio": "pixel",
+   "matrix_status": "MISSING",
+   "verified_level": "INHERITS (none named: row stands on its own Studio evidence: git grep focus_merge/image_stack: no matches)",
+   "inherited_levels": {},
+   "resolved_level_for_pct": "MISSING",
+   "code_anchor": "inherited: git grep focus_merge/image_stack: no matches",
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "Grep focus.?merge|focus.?stack|image.?stack: no match. MISSING confirmed.",
+   "reuses": [],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-38",
+   "name": "Develop: basic tone, white balance, curves, HSL, detail, local masks",
+   "studio": "develop",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS LR-04, LR-05, LR-06, LR-08, LR-10, LR-12, LR-20",
+   "inherited_levels": {
+    "LR-04": "PARTIAL",
+    "LR-05": "VALIDATED",
+    "LR-06": "VALIDATED",
+    "LR-08": "VALIDATED",
+    "LR-10": "VALIDATED",
+    "LR-12": "VALIDATED",
+    "LR-20": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see LR rows",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-CONTROLS",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-CONTROLS-2",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-HARNESS-DEVELOP-2",
+     "status": "PASS_V6"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "LR-04..LR-20 develop recipe (basic, WB, curves, HSL, detail, local masks) sensible for the Develop persona's adjustments; no persona UI, AI masks absent. PARTIAL right.",
+   "reuses": [
+    "LR-04",
+    "LR-05",
+    "LR-06",
+    "LR-08",
+    "LR-10",
+    "LR-12",
+    "LR-20"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-39",
+   "name": "Develop lens corrections (profile, CA, vignette, defringe)",
+   "studio": "develop",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS LR-13",
+   "inherited_levels": {
+    "LR-13": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see LR-13",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-LENS-PRESETS",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "LR-13 sensible (caller-supplied lens profile grid); no bundled database. PARTIAL right.",
+   "reuses": [
+    "LR-13"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-40",
+   "name": "RAW format decode",
+   "studio": "develop",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS LR-01, LR-02",
+   "inherited_levels": {
+    "LR-01": "VALIDATED",
+    "LR-02": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see LR-02",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-DEVELOP-RAW-COMPRESSED",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-CAMERA-COLOUR",
+     "status": "PASS_V1"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-CAMERA-COLOUR-2",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-RAW-CLEANROOM-2",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "LR-01/LR-02 raw decoders real; SMB-RAW-CLEANROOM-2 READY. PARTIAL right.",
+   "reuses": [
+    "LR-01",
+    "LR-02"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-41",
+   "name": "Channels panel and spare channels",
+   "studio": "pixel",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS PS-25",
+   "inherited_levels": {
+    "PS-25": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see PS-25",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-INTEROP-PSD",
+     "status": "PASS_V28"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "PS-25: channels carried through PSD only; no channel editing. PARTIAL right.",
+   "reuses": [
+    "PS-25"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-42",
+   "name": "Artistic text and frame text",
+   "studio": "shared",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS PS-23, AI-28, ID-05",
+   "inherited_levels": {
+    "PS-23": "PARTIAL",
+    "AI-28": "PARTIAL",
+    "ID-05": "VALIDATED"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see PS-23, ID-05",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPOSITE-TEXT",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-LAYOUT",
+     "status": "PASS_V13"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "PS-23/AI-28/ID-05: threaded frame text real; point text renders only with caller-supplied shaped runs. PARTIAL right.",
+   "reuses": [
+    "PS-23",
+    "AI-28",
+    "ID-05"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-43",
+   "name": "Text on a path",
+   "studio": "shared",
+   "matrix_status": "IMPLEMENTED",
+   "verified_level": "INHERITS AI-28, ID-21",
+   "inherited_levels": {
+    "AI-28": "PARTIAL",
+    "ID-21": "PARTIAL"
+   },
+   "resolved_level_for_pct": "BUILT_NOT_VALIDATED",
+   "code_anchor": "inherited: no path-text story kind in layout/type",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-AI-TYPE-PATH-RECOLOR",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "Higher than AI-28/ID-21 (PARTIAL) is justified: this row is only the path-text slice, which exists (type path_text.rs:550 layout_path_text, folio vector_path_text.rs:104 StudioPathText; tests/ai_path_text.rs), READY, vector documents only. Level BUILT_NOT_VALIDATED.",
+   "reuses": [
+    "AI-28",
+    "ID-21"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-44",
+   "name": "OpenType features, variable fonts, complex scripts",
+   "studio": "shared",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS ID-09, ID-10",
+   "inherited_levels": {
+    "ID-09": "VALIDATED",
+    "ID-10": "VALIDATED"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: see ID-09, ID-10",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-TYPE",
+     "status": "PASS_V7"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "ID-09/ID-10 VALIDATED for Type shaping; but layout/frames compose Latin LTR only (RTL/CJK refused), so complex scripts are not usable in frames. Kept AGREE under the matrix's engine convention; end-to-end caveat.",
+   "reuses": [
+    "ID-09",
+    "ID-10"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-45",
+   "name": "Text styles, find and replace (regex), spell check",
+   "studio": "layout",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS ID-12, ID-29",
+   "inherited_levels": {
+    "ID-12": "PARTIAL",
+    "ID-29": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see ID-12, ID-29",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-TYPESET",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-UI",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-UI-2",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "ID-12/ID-29 PARTIAL; styles + text/GREP find/change with panels real, no spell check. Folio style record omits composer/hyphenation/justification/indent fields. PARTIAL right.",
+   "reuses": [
+    "ID-12",
+    "ID-29"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-46",
+   "name": "Pen, node and pencil tools",
+   "studio": "vector",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS AI-04, AI-05",
+   "inherited_levels": {
+    "AI-04": "PARTIAL",
+    "AI-05": "VALIDATED"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: see AI-04, AI-05",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN-2",
+     "status": "PASS_V4"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "AI-04 PARTIAL only for the missing Shaper tool; pen, curvature, pencil, node/direct-select exist and are PASS. Justified.",
+   "reuses": [
+    "AI-04",
+    "AI-05"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-47",
+   "name": "Shape tools (rectangle, ellipse, polygon, star, arrow, cog, donut, callouts ...)",
+   "studio": "vector",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS AI-06",
+   "inherited_levels": {
+    "AI-06": "VALIDATED"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see AI-06",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN-2",
+     "status": "PASS_V4"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "AI-06 live shapes real; Affinity-only shapes (cog, donut, heart, callouts, arrow, tear, crescent) absent. PARTIAL right.",
+   "reuses": [
+    "AI-06"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-48",
+   "name": "Corner tool",
+   "studio": "vector",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS AI-07",
+   "inherited_levels": {
+    "AI-07": "VALIDATED"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: see AI-07",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN-2",
+     "status": "PASS_V4"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "AI-07 live corners real (round/inverted/chamfer). Justified.",
+   "reuses": [
+    "AI-07"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-49",
+   "name": "Boolean operations and Shape Builder",
+   "studio": "vector",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS AI-08",
+   "inherited_levels": {
+    "AI-08": "VALIDATED"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: see AI-08",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-NIB-VECTOR-RENDER",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN-2",
+     "status": "PASS_V4"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "AI-08 boolean + shape builder real. Justified.",
+   "reuses": [
+    "AI-08"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-50",
+   "name": "Knife and scissor tools",
+   "studio": "vector",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS AI-05",
+   "inherited_levels": {
+    "AI-05": "VALIDATED"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: see AI-05",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN-3",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "AI-05 knife/scissors real. Justified.",
+   "reuses": [
+    "AI-05"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-51",
+   "name": "Contour tool (offset path)",
+   "studio": "vector",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS AI-09",
+   "inherited_levels": {
+    "AI-09": "PARTIAL"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: see AI-09",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-NIB-VECTOR-RENDER",
+     "status": "PASS_V4"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "AI-09 PARTIAL only for Simplify; offset path (nib edit.rs offset_path) real, engine-only, no interactive tool. Justified.",
+   "reuses": [
+    "AI-09"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-52",
+   "name": "Vector flood fill",
+   "studio": "vector",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS AI-27",
+   "inherited_levels": {
+    "AI-27": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see AI-27",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN-3",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "AI-27 Live Paint reading real, no new-shape creation across overlapping shapes. PARTIAL right.",
+   "reuses": [
+    "AI-27"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-53",
+   "name": "Vector brushes (textured stroke brushes)",
+   "studio": "vector",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS AI-21",
+   "inherited_levels": {
+    "AI-21": "VALIDATED"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see AI-21",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-TOOLS-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-ILLUSTRATOR-INTEROP",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "AI-21 five brush kinds VALIDATED, but Affinity raster-texture vector brushes are a different feature. PARTIAL right.",
+   "reuses": [
+    "AI-21"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-54",
+   "name": "Vector warp (non-destructive warp groups)",
+   "studio": "vector",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS AI-25",
+   "inherited_levels": {
+    "AI-25": "PARTIAL"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: see AI-25",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-TOOLS-2",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "AI-25 PARTIAL only for puppet warp/perspective grid; envelope warp (nib warp.rs:328) is non-destructive but is not Affinity's group-level warp object: mapping approximate, UNVERIFIED.",
+   "reuses": [
+    "AI-25"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-55",
+   "name": "Stroke panel: width profiles, dashes, arrowheads, pressure",
+   "studio": "vector",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS AI-13",
+   "inherited_levels": {
+    "AI-13": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see AI-13",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-PEN-3",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-VECTOR-STYLES",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "AI-13: widths/dashes/caps real; arrowheads not stored. PARTIAL right.",
+   "reuses": [
+    "AI-13"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-56",
+   "name": "Appearance: multiple fills and strokes per object",
+   "studio": "vector",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS AI-17",
+   "inherited_levels": {
+    "AI-17": "VALIDATED"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: see AI-17",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPOSITE-VECTOR-IN-GROUP",
+     "status": "PASS_V6"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "AI-17 multi-fill/stroke appearance real. Justified.",
+   "reuses": [
+    "AI-17"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-57",
+   "name": "Mesh gradient fill",
+   "studio": "vector",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS AI-27",
+   "inherited_levels": {
+    "AI-27": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: no mesh-fill record",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-AI-TYPE-PATH-RECOLOR",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "AI-27 mesh engine is READY but not drawn by composite/PDF/SVG export and GPU NOT_PROVEN; PARTIAL (0.25) is already low for a fill that does not render in the composite.",
+   "reuses": [
+    "AI-27"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-58",
+   "name": "Symbols",
+   "studio": "vector",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS AI-26",
+   "inherited_levels": {
+    "AI-26": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see AI-26",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPONENTS",
+     "status": "PASS_V13"
+    }
+   ],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "AI-26: components engine, no symbol panel. PARTIAL right.",
+   "reuses": [
+    "AI-26"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-59",
+   "name": "Constraints",
+   "studio": "vector",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS FG-08",
+   "inherited_levels": {
+    "FG-08": "VALIDATED"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: see FG-08",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPONENTS",
+     "status": "PASS_V13"
+    }
+   ],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "FG-08: constraint maths are pure geometry (components constraints.rs:62 apply_constraints, :88 resize_component) over design records; wiring to arbitrary Folio raster/vector layers on resize is UNVERIFIED (not opened). Kept AGREE.",
+   "reuses": [
+    "FG-08"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-60",
+   "name": "Artboards",
+   "studio": "vector",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS AI-22",
+   "inherited_levels": {
+    "AI-22": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see AI-22",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-ENG-4",
+     "status": "PASS_V12"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "AI-22: Artboard node kind only. PARTIAL right.",
+   "reuses": [
+    "AI-22"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-61",
+   "name": "Align, distribute and transform panel",
+   "studio": "vector",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS AI-23, AI-24",
+   "inherited_levels": {
+    "AI-23": "VALIDATED",
+    "AI-24": "VALIDATED"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: see AI-23, AI-24",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-ILLUSTRATOR-TOOLS-2",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "AI-23/AI-24 align/distribute/transform real with viewer surfaces. Justified.",
+   "reuses": [
+    "AI-23",
+    "AI-24"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-62",
+   "name": "Pages, spreads and master pages",
+   "studio": "layout",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS ID-01, ID-02",
+   "inherited_levels": {
+    "ID-01": "VALIDATED",
+    "ID-02": "VALIDATED"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: see ID-01, ID-02",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-PARENT-PAGES",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-PARENT-ADAPTER",
+     "status": "PASS_V7"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "ID-01/ID-02 VALIDATED pages/parents with panels. Caveat: IDML import drops master spreads.",
+   "reuses": [
+    "ID-01",
+    "ID-02"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-63",
+   "name": "Text frames, linking and columns",
+   "studio": "layout",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS ID-04, ID-05",
+   "inherited_levels": {
+    "ID-04": "PARTIAL",
+    "ID-05": "VALIDATED"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see ID-04",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-UI",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-ID-PREPRESS",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "ID-04 PARTIAL (auto-size/baseline refusals), ID-05 VALIDATED threading. PARTIAL right.",
+   "reuses": [
+    "ID-04",
+    "ID-05"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-64",
+   "name": "Picture frames with fitting and cropping",
+   "studio": "layout",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS ID-19",
+   "inherited_levels": {
+    "ID-19": "PARTIAL"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: see ID-19",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-LONGDOC",
+     "status": "PASS_V4"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "ID-19 PARTIAL concerns links panel and placed-PDF crops; fitting commands (layout fitting.rs:81) are PASS. Justified.",
+   "reuses": [
+    "ID-19"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-65",
+   "name": "Tables",
+   "studio": "layout",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS ID-14",
+   "inherited_levels": {
+    "ID-14": "VALIDATED"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: see ID-14",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-LONGDOC",
+     "status": "PASS_V4"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "ID-14 tables real incl. panel. Justified.",
+   "reuses": [
+    "ID-14"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-66",
+   "name": "Footnotes, endnotes and sidenotes",
+   "studio": "layout",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS ID-15",
+   "inherited_levels": {
+    "ID-15": "VALIDATED"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: see ID-15",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-LONGDOC-2",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "ID-15 notes real; sidenote contract provisional (spec follow-up).",
+   "reuses": [
+    "ID-15"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-67",
+   "name": "Sections, fields (text variables), TOC and index",
+   "studio": "layout",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS ID-03, ID-16",
+   "inherited_levels": {
+    "ID-03": "VALIDATED",
+    "ID-16": "VALIDATED"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: see ID-03, ID-16",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-LONGDOC",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-LONGDOC-2",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "ID-03/ID-16 sections, variables, TOC, index real. Justified.",
+   "reuses": [
+    "ID-03",
+    "ID-16"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-68",
+   "name": "Books",
+   "studio": "layout",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS ID-18",
+   "inherited_levels": {
+    "ID-18": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see ID-18",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-UI",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "ID-18 books PARTIAL (no style sync). PARTIAL right.",
+   "reuses": [
+    "ID-18"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-69",
+   "name": "Text wrap",
+   "studio": "layout",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS ID-20",
+   "inherited_levels": {
+    "ID-20": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see ID-20",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT",
+     "status": "PASS_V13"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "ID-20: caller-supplied obstacles only. PARTIAL right.",
+   "reuses": [
+    "ID-20"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-70",
+   "name": "Pinning (anchored objects)",
+   "studio": "layout",
+   "matrix_status": "VALIDATED",
+   "verified_level": "INHERITS ID-21",
+   "inherited_levels": {
+    "ID-21": "PARTIAL"
+   },
+   "resolved_level_for_pct": "VALIDATED",
+   "code_anchor": "inherited: see ID-21",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-UI",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "ID-21 PARTIAL only because of text-on-path; anchored objects (anchors.rs:242) real. Justified.",
+   "reuses": [
+    "ID-21"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-71",
+   "name": "Data merge",
+   "studio": "layout",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS ID-30",
+   "inherited_levels": {
+    "ID-30": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: git grep data_merge: no matches",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-ID-PREPRESS",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "ID-30 text merge READY. Matrix evidence 'git grep data_merge: no matches' is wrong at the tip (interop-layout data_merge.rs:299 exists). PARTIAL right.",
+   "reuses": [
+    "ID-30"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-72",
+   "name": "Place auto-flow of images",
+   "studio": "layout",
+   "matrix_status": "MISSING",
+   "verified_level": "INHERITS (none named: row stands on its own Studio evidence: no place command)",
+   "inherited_levels": {},
+   "resolved_level_for_pct": "MISSING",
+   "code_anchor": "inherited: no place command",
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "No autoflow/place-gun code (Grep: none). MISSING confirmed.",
+   "reuses": [],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-73",
+   "name": "Linked-file layer visibility override (placed PSD/PDF/Affinity)",
+   "studio": "layout",
+   "matrix_status": "MISSING",
+   "verified_level": "INHERITS PS-24",
+   "inherited_levels": {
+    "PS-24": "PARTIAL"
+   },
+   "resolved_level_for_pct": "MISSING",
+   "code_anchor": "inherited: placed records carry no per-layer visibility override",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PACKAGE-COMPLETENESS",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES-3",
+     "status": "READY_FOR_VALIDATION"
+    },
+    {
+     "lane_id": "SMB-PACKAGE-COMPLETENESS-2",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "placed records carry no per-layer visibility override. MISSING confirmed.",
+   "reuses": [
+    "PS-24"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-74",
+   "name": "Preflight",
+   "studio": "layout",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS ID-25",
+   "inherited_levels": {
+    "ID-25": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see ID-25",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-UI-2",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "ID-25 preflight 9 rules + panel. PARTIAL right.",
+   "reuses": [
+    "ID-25"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-75",
+   "name": "PDF export (PDF/X, PDF/A, bleed, printer marks)",
+   "studio": "layout",
+   "matrix_status": "PARTIAL",
+   "verified_level": "INHERITS ID-27",
+   "inherited_levels": {
+    "ID-27": "PARTIAL"
+   },
+   "resolved_level_for_pct": "PARTIAL",
+   "code_anchor": "inherited: see ID-27",
+   "tests": [],
+   "lanes": [
+    {
+     "lane_id": "SMB-LAYOUT-PDF-EXPORT-2",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-LAYOUT-PDFX-VERAPDF",
+     "status": "PASS_V5"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "ID-27: PDF/A-2b veraPDF-passed, PDF/X-4 not_proven, no printer marks. PARTIAL right.",
+   "reuses": [
+    "ID-27"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-76",
+   "name": "Style picker tool",
+   "studio": "shared",
+   "matrix_status": "MISSING",
+   "verified_level": "INHERITS (none named: row stands on its own Studio evidence: no style-picker command)",
+   "inherited_levels": {},
+   "resolved_level_for_pct": "MISSING",
+   "code_anchor": "inherited: no style-picker command",
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "Grep style.?picker: none. MISSING confirmed.",
+   "reuses": [],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-77",
+   "name": "Saved layer states",
+   "studio": "pixel",
+   "matrix_status": "MISSING",
+   "verified_level": "INHERITS (none named: row stands on its own Studio evidence: no layer-state record)",
+   "inherited_levels": {},
+   "resolved_level_for_pct": "MISSING",
+   "code_anchor": "inherited: no layer-state record",
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "Grep layer.?state|saved_state: only unrelated component/timeline hits. MISSING confirmed.",
+   "reuses": [],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-78",
+   "name": "Studios / personas as tool and panel presets (workspace presets)",
+   "studio": "shared",
+   "matrix_status": "MISSING",
+   "verified_level": "INHERITS (none named: row stands on its own Studio evidence: viewer has no docking or workspace presets (ui_status.what_exists))",
+   "inherited_levels": {},
+   "resolved_level_for_pct": "MISSING",
+   "code_anchor": "inherited: viewer has no docking or workspace presets (ui_status.what_exists)",
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "Grep persona|workspace.?preset: none; viewer has no docking. MISSING confirmed (also covers Persona switching and StudioLink: neither exists).",
+   "reuses": [],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-79",
+   "name": "Affinity 3.1 tone tools: Tone Brush, Live Tone Blend Groups, curves from pixel selections",
+   "studio": "pixel",
+   "matrix_status": "MISSING",
+   "verified_level": "INHERITS (none named: row stands on its own Studio evidence: git grep selection_to_path/trace_selection: no matches)",
+   "inherited_levels": {},
+   "resolved_level_for_pct": "MISSING",
+   "code_anchor": "inherited: git grep selection_to_path/trace_selection: no matches",
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "Grep tone.?brush|live.?tone: none. MISSING confirmed.",
+   "reuses": [],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  },
+  {
+   "id": "AF-80",
+   "name": "Canva AI tools (generative fill, background removal)",
+   "studio": "pixel",
+   "matrix_status": "MISSING",
+   "verified_level": "INHERITS PS-33",
+   "inherited_levels": {
+    "PS-33": "MISSING"
+   },
+   "resolved_level_for_pct": "MISSING",
+   "code_anchor": "inherited: not core per spec",
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "oracle": "UNVERIFIED against Affinity (no Affinity oracle: installed Affinity has no scripting API)",
+   "matrix_verdict": "AGREE",
+   "inheritance_assessment": "Account-gated cloud AI; none in code. MISSING confirmed.",
+   "reuses": [
+    "PS-33"
+   ],
+   "notes": "Shared row not re-verified in depth (other verifiers own it); this row's own scope was checked against the reused rows' notes."
+  }
+ ],
+ "counts": {
+  "own_code_rows": {
+   "VALIDATED": 0,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 5,
+   "MISSING": 0,
+   "total": 5
+  },
+  "inherits_rows": 75,
+  "total": 80,
+  "resolved_status_counts_all_80": {
+   "VALIDATED": 24,
+   "BUILT_NOT_VALIDATED": 1,
+   "PARTIAL": 40,
+   "MISSING": 15
+  },
+  "note": "INHERITS rows resolve to the AF row's matrix status because each AF row's scope is narrower than (or equal to) the named reused rows (reused rows' statuses are recorded per row in inherited_levels); the only changes are my explicit verdicts: AF-05 LOWER to PARTIAL, AF-06 RAISE to PARTIAL, AF-12 LOWER to MISSING."
+ },
+ "matrix_counts": {
+  "VALIDATED": 25,
+  "IMPLEMENTED": 1,
+  "PARTIAL": 39,
+  "MISSING": 15,
+  "total": 80
+ },
+ "inherited_level_distribution": {
+  "inherits_rows_by_resolved_level": {
+   "VALIDATED": 24,
+   "BUILT_NOT_VALIDATED": 1,
+   "PARTIAL": 35,
+   "MISSING": 15
+  },
+  "unique_reused_source_rows_by_matrix_status": {
+   "VALIDATED": 40,
+   "BUILT_NOT_VALIDATED": 0,
+   "PARTIAL": 43,
+   "MISSING": 3
+  },
+  "unique_reused_source_rows": 86,
+  "af_rows_whose_status_exceeds_every_reused_row": [
+   "AF-09",
+   "AF-10",
+   "AF-27",
+   "AF-32",
+   "AF-43",
+   "AF-51",
+   "AF-54",
+   "AF-64",
+   "AF-70"
+  ],
+  "af_rows_whose_status_is_below_every_reused_row": [
+   "AF-03",
+   "AF-08",
+   "AF-20",
+   "AF-23",
+   "AF-24",
+   "AF-26",
+   "AF-28",
+   "AF-47",
+   "AF-53",
+   "AF-73"
+  ],
+  "reading": "Where an AF row is higher than all reused rows, the AF scope is a sub-capability of the reused row (e.g. AF-09 package vs InDesign package folder); each such case was judged in its inheritance_assessment and none was lowered except AF-12/AF-05."
+ },
+ "verdict_counts": {
+  "AGREE": 77,
+  "RAISE": 1,
+  "LOWER": 2
+ },
+ "engine_pct": {
+  "matrix": 44.1,
+  "verified": 43.1,
+  "formula": "100*(VALIDATED + 0.5*BUILT_NOT_VALIDATED + 0.25*PARTIAL)/80; INHERITS rows resolved to the inherited (AF-scoped) matrix status, own-code rows to my verified level, plus the three explicit verdicts",
+  "pure_inheritance_no_adjustments": 44.1,
+  "rows_with_proof_stale_true": 60
+ },
+ "oracle_summary": {
+  "affinity_real_app_oracle": "NONE. The installed Affinity (3.x) has no scripting API; SMB-AFFINITY-ORACLE-OPERATOR (Operator-attended) has no claim. Every behaviour row is UNVERIFIED against Affinity.",
+  "sample_files": "9 MIT AFDesignLoad V1 .afdesign files (oracle-corpus/affinity/afdesignload-mit) back only the KA container reader (AF-02): header, #FAT directory, per-stream CRC-32, doc.dat presence, 512x512 PNG Thmb. Tests are #[ignore] and print NOT_PROVEN without the corpus; lane claims them green at a82a77c. They prove file-structure reading, not rendering or layer semantics. V2/V3 containers: synthetic test builders plus an uncommitted hexdump check of 4 installed fixtures only.",
+  "indirect_evidence": "Rows that inherit from Photoshop/Illustrator/InDesign carry those apps' D5 oracle results at best (e.g. InDesign composer 93/99); these are not Affinity evidence."
+ },
+ "top_gaps": [
+  {
+   "rank": 1,
+   "gap": "No native Affinity document support beyond a container reader and a flattened preview",
+   "evidence": "AF-02: layer/object graph (doc.dat) not decoded (interop-affinity lib.rs LOSS_LAYERS_NOT_DECODED), no writer, default import refuses every KA file (harness-core import.rs:45); no .afdesign/.afphoto/.afpub layer, vector or text round-trip; V2/V3 real behaviour unverified",
+   "user_impact": "an Affinity user must export PSD/PDF/SVG first; native round-trip impossible"
+  },
+  {
+   "rank": 2,
+   "gap": "No Studio/Persona model and no workspace presets",
+   "evidence": "AF-78 MISSING; Grep persona|workspace.?preset over folio, harness-view, harness-core: none; viewer has no docking; Develop/Liquify/Export 'personas' exist only as engines or tool surfaces",
+   "user_impact": "the defining Affinity UX (one document, Vector/Pixel/Layout/Develop/Export personas) cannot be operated"
+  },
+  {
+   "rank": 3,
+   "gap": "Pixel persona editing gaps",
+   "evidence": "AF-22 compound masks, AF-23 live masks, AF-31 frequency separation, AF-35/36/37 HDR/panorama/focus merge, AF-28 Select Subject, AF-79 tone tools all MISSING (Greps none); AF-29 no smudge/dodge/burn/sponge; AF-30 no red-eye or viewer retouch tools",
+   "user_impact": "Photo-class retouching/compositing workflows missing"
+  },
+  {
+   "rank": 4,
+   "gap": "Automation and productivity: macros, batch jobs, export persona, style picker, saved layer states",
+   "evidence": "AF-12 lowered to MISSING (PS-31 MISSING, Grep macro none); AF-13 no slices/presets; AF-76 and AF-77 MISSING",
+   "user_impact": "no recordable workflows or batch conversion"
+  },
+  {
+   "rank": 5,
+   "gap": "Affinity-flavoured Publisher output and import fidelity",
+   "evidence": "AF-05 IDML import lowered (no masters/styles/groups); AF-75 PDF/X-4 not_proven, no printer marks; AF-72 no place autoflow; AF-71 image/QR merge absent; layout composition (Adobe-parity composers) not wired into the editor",
+   "user_impact": "Publisher-style print workflows are not dependable"
+  }
+ ],
+ "unlisted_capabilities": [
+  "interop-affinity extracts embedded image/font/PDF resource blobs from a KA container as content-addressed (sha256) assets with BlobKind sniffing (thumbnail.rs:215 resources); matrix lists only container + preview",
+  "DXF import (interop-vector-core dxf_import.rs:706) and EPS import/export (eps.rs:377, eps_export.rs:313) at the tip, absent from the matrix rows' evidence (AF-06/AF-07)",
+  "StudioBlendMode already carries the Affinity-specific names Average, Negation, Reflect, Glow (pigment blend_math.rs:75); ContrastInvert not present",
+  "Saved find/change queries, twelve measurement systems and data-merge record arrangement in the layout engine (see the InDesign file) are reachable for Publisher-style rows but are engine-only",
+  "Affinity-specific features NOT present anywhere in code and NOT listed as rows: StudioLink (cross-app persona hand-off), .afpalette/.afbrush/.aftemplate/.afmacro/.afpackage exchange, Affinity Assets panel, spline blend ranges (AF-20 notes only)"
+ ],
+ "unverified": [
+  "Every Affinity behaviour row: no Affinity oracle exists; no row can be called parity with Affinity",
+  "AF-02 real V2/V3 documents (only synthetic constructions plus an uncommitted hexdump check) and the green result of the two #[ignore] corpus tests (lane claim at a82a77c, not run here)",
+  "The 75 INHERITS rows' shared-engine status (owned by the Photoshop/Illustrator/InDesign/Lightroom/Figma verifiers); only the reuse mapping and Affinity-specific sub-scope were checked",
+  "AF-59 whether constraints act on arbitrary Folio layers (maths read, wiring not opened)",
+  "AF-54 equivalence of envelope warp to Affinity's warp group object"
+ ],
+ "notes": [
+  "Verdicts: AF-05 LOWER (VALIDATED -> PARTIAL: IDML import does not interpret masters, style definitions, groups); AF-06 RAISE (MISSING -> PARTIAL: DXF import READY at the tip); AF-12 LOWER (PARTIAL -> MISSING: inherited batch/macro rows are other domains). All other rows AGREE, several with documented caveats (AF-01, AF-44, AF-59 end-to-end/wiring caveats).",
+  "Stale matrix evidence found: AF-06 'no importer' and AF-07 'EPS MISSING' (SMB-DXF-EPS-IMPORT READY at 85b3446); AF-71 'git grep data_merge: no matches' (interop-layout data_merge.rs exists); AF-04 anchor moved to hsk-studio-press-read; AF-02 anchors valid (container.rs:262, import.rs:377).",
+  "The AF-02 lane (SMB-AFFINITY-INTEROP-1) and SMB-DXF-EPS-IMPORT are READY_FOR_VALIDATION with no verdict; neither crate had a PASS proof before the tip, so they are BUILT_NOT_VALIDATED, never VALIDATED.",
+  "proof_stale is crate-level for the covering PASS lanes (R35 candidate 237256f vs e64eacd); see the InDesign file for file-level detail on layout/type/folio/package."
+ ]
+}

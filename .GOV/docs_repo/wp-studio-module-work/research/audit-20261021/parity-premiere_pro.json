@@ -1,0 +1,793 @@
+{
+ "schema": "hsk.studio.audit.parity_app@1",
+ "file_id": "WP-KERNEL-STUDIO-AUDIT-20261021-PARITY-PREMIERE_PRO",
+ "updated_at": "2026-10-21T01:22:45Z",
+ "by": "read-only parity verifier (Sonnet)",
+ "app": "premiere_pro",
+ "basis": {
+  "tip": "e64eacd",
+  "matrix_file": "research/parity-matrix-20261020.json",
+  "matrix_lines": "3914-4453 (features), summary 7578-7695",
+  "checkout_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ps-oracle-parity-2/handshake-studio-assets",
+  "ledger_read": "ledger.json updated_at 2026-10-21T00:37:22Z",
+  "method": "git grep/show at e64eacd only; no cargo/rustc run, so no test was executed by this verifier: 'tests' lists test files/names found and read at e64eacd, not results. Lane statuses from ledger.json. proof_stale marks crates changed since R35 candidate 237256f per the lead list (git diff 237256f..e64eacd read-only confirms the crate set)."
+ },
+ "rows": [
+  {
+   "id": "PR-01",
+   "name": "Sequences with integer-tick time base and normative frame-rate table",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-folio/src/timeline.rs:394 (StudioSequence), :100 (SequenceFrameRate::accord); crates/hsk-studio-pulse/src/time.rs:105 (TimecodeFormat); crates/hsk-studio-accord/src/timescale.rs:196 (canonical table rate)",
+   "tests": [
+    "crates/hsk-studio-pulse/tests/foundation_contract.rs::ripple_trim_fixture_25fps",
+    "crates/hsk-studio-pulse/tests/foundation_contract.rs::legacy_rates_and_conversions",
+    "crates/hsk-studio-folio/tests/timeline_contract.rs::sequences_roundtrip_as_integer_ticks_and_stay_optional",
+    "crates/hsk-studio-interop-media/tests/foundation_contract.rs::ticks_to_frames_exact_is_exact_on_every_table_rate_and_refuses_off_frame_ticks"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PULSE",
+     "status": "PASS_V14"
+    },
+    {
+     "lane_id": "SMB-PULSE-ENG-1",
+     "status": "PASS_V12"
+    },
+    {
+     "lane_id": "SMB-FOLIO-ENG-1",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-ACCORD-ENG-2",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session); non-vendor: analytic/hand tick<->frame vectors only",
+   "matrix_verdict": "AGREE",
+   "notes": "Real code. Sequence settings beyond frame rate (matrix note: not stored) not re-checked beyond timeline.rs header comment."
+  },
+  {
+   "id": "PR-02",
+   "name": "Tracks and clips (video, audio, caption, submix tracks; speed, reverse)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-folio/src/timeline.rs:79 (TrackKind Video/Audio/Caption/Submix), :260 (Speed, negative = reverse), :304 (StudioClip), :354 (StudioTrack)",
+   "tests": [
+    "crates/hsk-studio-folio/tests/timeline_contract.rs::sequences_roundtrip_as_integer_ticks_and_stay_optional",
+    "crates/hsk-studio-folio/tests/timeline_contract.rs::invalid_timelines_reject_with_stable_codes_and_targets",
+    "crates/hsk-studio-pulse/tests/timeline_edit.rs::trims_bounds_reverse_speed_and_grid"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-ENG-1",
+     "status": "PASS_V13"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "Records and edit algebra only; no timeline UI."
+  },
+  {
+   "id": "PR-03",
+   "name": "Trim edits: trim in/out, ripple, roll, slip, slide",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-pulse/src/timeline_edit.rs:61 (TimelineEdit TrimOut/TrimIn with ripple flag, Roll, Slip, Slide), :1013 (plan_timeline_edit)",
+   "tests": [
+    "crates/hsk-studio-pulse/tests/timeline_edit.rs::ripple_trim_out_links_and_sync_lock",
+    "crates/hsk-studio-pulse/tests/timeline_edit.rs::trims_bounds_reverse_speed_and_grid",
+    "crates/hsk-studio-pulse/tests/timeline_edit.rs::razor_roll_slip_slide_exact_ticks",
+    "crates/hsk-studio-pulse/tests/timeline_edit.rs::refusals_cancel_and_folio_validation"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PULSE",
+     "status": "PASS_V14"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "Typed planner returning validated proposals; no mouse/trim-mode UI."
+  },
+  {
+   "id": "PR-04",
+   "name": "Razor / add edit",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-pulse/src/timeline_edit.rs:61 (TimelineEdit::Razor, LinkedRazor)",
+   "tests": [
+    "crates/hsk-studio-pulse/tests/timeline_edit.rs::razor_roll_slip_slide_exact_ticks",
+    "crates/hsk-studio-pulse/tests/timeline_edit.rs::linked_razor_roll_slide_extract_exact_ticks"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PULSE",
+     "status": "PASS_V14"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": ""
+  },
+  {
+   "id": "PR-05",
+   "name": "Lift / extract (clip and range), close gap",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-pulse/src/timeline_edit.rs:61 (LiftClip, ExtractClip, LiftRange, ExtractRange, CloseGap)",
+   "tests": [
+    "crates/hsk-studio-pulse/tests/timeline_edit.rs::lift_extract_range_and_close_gap_exact_ticks",
+    "crates/hsk-studio-pulse/tests/timeline_edit.rs::linked_razor_roll_slide_extract_exact_ticks"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PULSE",
+     "status": "PASS_V14"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": ""
+  },
+  {
+   "id": "PR-06",
+   "name": "Linked clips, sync lock, track lock",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-folio/src/timeline.rs:329 (link_group), :363-364 (locked, sync_locked); crates/hsk-studio-pulse/src/timeline_edit.rs:340 (require_unlocked)",
+   "tests": [
+    "crates/hsk-studio-pulse/tests/timeline_edit.rs::ripple_trim_out_links_and_sync_lock",
+    "crates/hsk-studio-pulse/tests/timeline_edit.rs::linked_razor_roll_slide_extract_exact_ticks",
+    "crates/hsk-studio-pulse/tests/timeline_edit.rs::refusals_cancel_and_folio_validation"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PULSE",
+     "status": "PASS_V14"
+    },
+    {
+     "lane_id": "SMB-FOLIO-ENG-1",
+     "status": "PASS_V13"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "Roll/slide on a linked clip refuse unless the link group is closed over the edit (linked_edit_unsupported)."
+  },
+  {
+   "id": "PR-07",
+   "name": "Three/four-point editing: insert and overwrite from a source monitor",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-harness-view/src/view/source_monitor.rs:115 (SourceMonitor), :330 (plan_source_edit); crates/hsk-studio-pulse/src/assemble.rs:39 (FourPointFit), :178 (plan_assembly_edit)",
+   "tests": [
+    "crates/hsk-studio-harness/tests/viewer_source_monitor.rs::insert_and_overwrite_from_the_source_monitor_land_in_the_program_with_undo",
+    "crates/hsk-studio-harness/tests/viewer_source_monitor.rs::source_monitor_plays_scrubs_marks_and_shuttles_frame_accurately",
+    "crates/hsk-studio-harness/tests/viewer_source_monitor.rs::source_monitor_decodes_a_media_file_and_inserts_its_marked_window",
+    "crates/hsk-studio-pulse/tests/editing.rs::three_point_insert_and_overwrite_match_hand_built_timelines"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PULSE-EDITING",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-PR-SOURCE-MONITOR",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "ui=true is a headless egui bottom panel (source_monitor.rs:647); harness-view moved from harness (split). Tests live in the harness crate."
+  },
+  {
+   "id": "PR-08",
+   "name": "Nested sequences",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-folio/src/timeline.rs:294 (ClipSource::Sequence, acyclic check ~:701)",
+   "tests": [
+    "crates/hsk-studio-folio/tests/timeline_contract.rs::invalid_timelines_reject_with_stable_codes_and_targets"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-ENG-1",
+     "status": "PASS_V13"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "Model only. Grep 'ClipSource::Sequence' finds no use in pulse playback, composite or harness-view render (only frame_cache.rs:127 cache key and source_monitor.rs:73); no nest/un-nest command (Grep 'pub fn nest' none)."
+  },
+  {
+   "id": "PR-09",
+   "name": "Speed / duration, time remapping, optical-flow retiming",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-folio/src/timeline.rs:260 (Speed); NEW at tip (READY, not wired to sequences): crates/hsk-studio-motion/src/time_remap.rs:164 (TimeRemap), crates/hsk-studio-pigment/src/frame_blend.rs:236,432,450 (frame_mix, optical_flow, pixel_motion)",
+   "tests": [
+    "crates/hsk-studio-motion/tests/time_remap.rs::stretch_reverse_and_frame_blending_hand_values",
+    "crates/hsk-studio-pigment/tests/frame_blend.rs::pixel_motion_follows_a_translating_blob",
+    "crates/hsk-studio-pigment/tests/frame_blend.rs::frame_mix_hand_values_and_hostile_inputs"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-ENG-1",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-AE-ROTO-TIMEREMAP",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session); non-vendor: Horn-Schunck 1981 / Super SloMo eq. 4 hand values only",
+   "matrix_verdict": "AGREE",
+   "notes": "StudioClip carries only a rational Speed (reverse = negative). The SMB-AE-ROTO-TIMEREMAP primitives (remap curve, frame mix, Horn-Schunck pixel motion) are READY but are consumed only by the AE composition adapter (composite/temporal/composition.rs:1228 with_time_remap); no speed ramp / remap on a Premiere sequence clip and no frame blending in the sequence render path (Grep frame_blend|FrameBlending outside pigment/motion: only AE render-queue refusal). Matrix 'no frame interpolation' is stale as a statement about primitives but still true for Premiere clips."
+  },
+  {
+   "id": "PR-10",
+   "name": "Multicam",
+   "matrix_status": "MISSING",
+   "verified_level": "MISSING",
+   "code_anchor": "none (Grep -i 'multi.?cam' over crates: only the doc-comment pulse/src/lib.rs:4)",
+   "tests": [],
+   "lanes": [],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "Grep pattern 'multi.?cam' (case-insensitive) matches only that comment."
+  },
+  {
+   "id": "PR-11",
+   "name": "Markers, work area",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-folio/src/timeline.rs:151 (StudioMarker), :141 (MarkerRole), :411 (work_area); crates/hsk-studio-pulse/src/annotate.rs:200 (plan_record_edit), :321/:333 (next/previous marker navigation)",
+   "tests": [
+    "crates/hsk-studio-pulse/tests/editing.rs::markers_keep_their_scope_through_edits_with_spans_and_undo",
+    "crates/hsk-studio-folio/tests/timeline_records.rs::markers_and_transitions_round_trip_and_old_wire_is_unchanged",
+    "crates/hsk-studio-folio/tests/timeline_records.rs::hostile_timeline_records_are_refused_typed"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PULSE-EDITING",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-FOLIO-TIMELINE-RECORDS",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-PULSE-PLAYBACK",
+     "status": "PASS_V4"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "Next/previous-edit playhead commands of STU-VID-035 not found (only marker navigation)."
+  },
+  {
+   "id": "PR-12",
+   "name": "Snapping and timecode (drop-frame / non-drop) display",
+   "matrix_status": "VALIDATED",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-pulse/src/display.rs:130 (format_ticks), crates/hsk-studio-pulse/src/time.rs:113 (drop-frame only for 29.97/59.94-class), :234 (snap_to_frame)",
+   "tests": [
+    "crates/hsk-studio-pulse/tests/schedule_and_display.rs::display_parse_and_snap",
+    "crates/hsk-studio-pulse/tests/foundation_contract.rs::timecode_labels"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PULSE",
+     "status": "PASS_V14"
+    },
+    {
+     "lane_id": "SMB-PULSE-ENG-1",
+     "status": "PASS_V12"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session)",
+   "matrix_verdict": "LOWER to PARTIAL",
+   "notes": "Drop/non-drop timecode display is real and tested. The only snapping code is frame-grid snap_to_frame; Grep -i 'snap|magnet|snap_target' in pulse/folio/harness-view finds no snap-to-edit-point/marker/work-area magnet (spec STU-VID-035 defines snapping as exactly that), and feet+frames displays return timecode_unsupported (display.rs:127-129). Evidence: row title bundles snapping, which is absent."
+  },
+  {
+   "id": "PR-13",
+   "name": "Captions",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-folio/src/clip_finishing.rs:800 (StudioCaptionTrack); crates/hsk-studio-interop-media/src/captions.rs:340 (parse_srt), :391 (parse_vtt), :454 (write_srt); crates/hsk-studio-reel/src/captions.rs",
+   "tests": [
+    "crates/hsk-studio-interop-media/tests/captions.rs::srt_and_vtt_import_and_export_hand_values",
+    "crates/hsk-studio-composite/tests/clip_captions.rs::active_caption_burns_in_at_the_hand_computed_place_and_colour",
+    "crates/hsk-studio-harness/tests/timeline_captions.rs::timeline_export_carries_the_caption_track_through_a_studio_preset",
+    "crates/hsk-studio-reel/tests/export_captions.rs::captions_embed_as_timed_text_and_publish_a_webvtt_sidecar",
+    "crates/hsk-studio-folio/tests/clip_finishing_records.rs::caption_tracks_validate_timing_activity_and_bombs"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-ENG-1",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-PREMIERE-COLOR-TITLES",
+     "status": "PASS_V1"
+    },
+    {
+     "lane_id": "SMB-PR-SOURCE-MONITOR",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "No CEA-608/708 or SCC (Grep 'cea|scc' none); styled/placed captions limited."
+  },
+  {
+   "id": "PR-14",
+   "name": "Proxies, offline media, relink",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-reel/src/identity.rs:97 (sampled_identity), :214 (relink); crates/hsk-studio-reel/src/registry.rs (ProxySource, lib.rs:134)",
+   "tests": [
+    "crates/hsk-studio-reel/tests/slice3_contract.rs::sampled_identity_and_relink_report_confidence",
+    "crates/hsk-studio-reel/tests/video_route.rs::trusted_original_never_lends_its_trust_to_a_proxy"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-REEL",
+     "status": "PASS_V21"
+    },
+    {
+     "lane_id": "SMB-REEL-AV1-ROUTE",
+     "status": "PASS_V19"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "Grep 'generate_proxy|make_proxy|proxy_generation' none: proxy sources and relink exist, no proxy creation workflow, no offline-media UI. reel src unchanged since R35 (only tests/engine_video.rs changed)."
+  },
+  {
+   "id": "PR-15",
+   "name": "Media import: MP4/MOV (incl. fragmented), MKV/WebM, MXF; frame-accurate seek; source timecode",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-reel/src/isobmff.rs (TrackIndex, frame-accurate lookup :423); crates/hsk-studio-reel/src/matroska.rs:97 (MatroskaProvider); crates/hsk-studio-reel/src/mxf/provider.rs:18 (MxfProvider, index only)",
+   "tests": [
+    "crates/hsk-studio-reel/tests/slice2_contract.rs::fragmented_mp4_exact_pts_sidx_and_bounds",
+    "crates/hsk-studio-reel/tests/slice3_contract.rs::matroska_index_exact_pts_lacing_cues_and_cued_seek",
+    "crates/hsk-studio-reel/tests/mxf_index.rs::mxf_op1a_variable_index_matches_ffprobe_positions_and_decodes_order",
+    "crates/hsk-studio-reel/tests/engine_video.rs::ffmpeg_made_mov_matches_independent_oracle"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-REEL",
+     "status": "PASS_V21"
+    },
+    {
+     "lane_id": "SMB-REEL-ENG-1",
+     "status": "PASS_V15"
+    },
+    {
+     "lane_id": "SMB-REEL-RECEIPTS",
+     "status": "PASS_V12"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session); non-vendor oracles: ffprobe positions (MXF index), ffmpeg-made MOV reference (engine_video.rs), SMPTE ST 377-1:2019 text (labels UNVERIFIED per mxf/mod.rs)",
+   "matrix_verdict": "AGREE",
+   "notes": "MXF: index and packet delivery only; essence decode is CodecUnavailable (mxf/mod.rs:12-13). reel src unchanged since R35."
+  },
+  {
+   "id": "PR-16",
+   "name": "Decode H.264 / HEVC",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-reel-native/src/mf_host.rs:189 (WorkerMfProvider, H.264 via Windows Media Foundation worker, feature mf-worker); Grep -i 'hevc' in reel and reel-native decode paths: only ENCODE (media_host.rs:338-375, os-encode)",
+   "tests": [
+    "crates/hsk-studio-reel-native/tests/mf_worker.rs::h264_baseline_software_decode_exact_vs_oracle",
+    "crates/hsk-studio-reel-native/tests/mf_worker.rs::h264_bframe_streams_decode_exact_in_presentation_order",
+    "crates/hsk-studio-reel-native/tests/mf_worker.rs::mf_worker_fault_matrix",
+    "crates/hsk-studio-harness/tests/viewer_media.rs::h264_frames_decode_through_the_media_foundation_worker"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-REEL-NATIVE-ENG-1",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-REEL-BFRAME-ORDER",
+     "status": "PASS_V6"
+    },
+    {
+     "lane_id": "SMB-REEL-NATIVE-FAULTS",
+     "status": "PASS_V17"
+    },
+    {
+     "lane_id": "SMB-REEL-NATIVE-FAULTS-2",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-REEL",
+     "status": "PASS_V21"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session); non-vendor: exact-vs-oracle decode (reference H.264 decoder per mf_worker test name), B-frame order",
+   "matrix_verdict": "AGREE",
+   "notes": "H.264 decode is real but opt-in feature mf-worker (OS decoder in isolated worker, Windows only); HEVC decode absent. reel-native itself unchanged since R35, reel only tests."
+  },
+  {
+   "id": "PR-17",
+   "name": "Decode professional codecs: ProRes, DNxHD/HR (VC-3), AV1",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-reel/src/vc3/mod.rs:381 (decode_vc3_frame); crates/hsk-studio-reel/src/prores/mod.rs:752 (decode_prores_frame, opt-in feature prores); crates/hsk-studio-reel/src/av1/mod.rs:128 (Av1Decoder, opt-in feature av1) + reel-native av1-worker",
+   "tests": [
+    "crates/hsk-studio-reel/tests/vc3_decode.rs::vc3_decode_matches_external_oracle_within_tolerance",
+    "crates/hsk-studio-reel/tests/prores_decode.rs::prores_decode_matches_external_oracle_within_tolerance",
+    "crates/hsk-studio-reel/tests/av1_decode.rs::av1_output_is_bit_exact_against_dav1d_oracle_deterministic_and_seekable",
+    "crates/hsk-studio-reel-native/tests/av1_worker.rs::worker_decode_is_bit_exact_with_in_process_and_the_dav1d_oracle",
+    "crates/hsk-studio-harness/tests/viewer_media.rs::program_monitor_shows_decoded_prores_frames_at_stated_ticks"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-REEL-ENG-2",
+     "status": "PASS_V8"
+    },
+    {
+     "lane_id": "SMB-REEL-ENG-3",
+     "status": "PASS_V19"
+    },
+    {
+     "lane_id": "SMB-REEL-NATIVE-AV1-WORKER",
+     "status": "PASS_V20"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session); non-vendor oracles: ffmpeg decode (VC-3, ProRes via prores_ks fixtures; VC-3 CID 1271 10-bit max delta 4 not bit-exact), dav1d (AV1 bit-exact)",
+   "matrix_verdict": "AGREE",
+   "notes": "Opt-in features: prores (default off), av1 / av1-worker (default off); default build returns typed unavailable (test prores_default_build_is_typed_unavailable). ProRes alpha/RAW and VC-3 interlaced/alpha refused."
+  },
+  {
+   "id": "PR-18",
+   "name": "Audio decode (PCM; AAC/MP3/AC-3)",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-reel/src/audio/mod.rs:223 (decode_audio_file), crates/hsk-studio-reel/src/registry.rs:135 (standard), :168 (with_audio); AAC: OS decoder via reel-native media_host.rs:183 (WorkerMfAacProvider) or opt-in feature studio-aac",
+   "tests": [
+    "crates/hsk-studio-reel/tests/audio_mp3.rs::mp3_cbr_stereo_matches_libavcodec",
+    "crates/hsk-studio-reel/tests/audio_aac.rs::aac_lc_adts_matches_libavcodec",
+    "crates/hsk-studio-reel/tests/audio_ogg.rs::opus_stereo_and_surround_match_libopus",
+    "crates/hsk-studio-reel/tests/d24a_defaults.rs::aac_routes_to_the_external_os_decoder",
+    "crates/hsk-studio-reel/tests/audio_flac.rs::flac_decode_is_bit_exact_against_libavcodec_and_streaminfo_md5"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-REEL",
+     "status": "PASS_V21"
+    },
+    {
+     "lane_id": "SMB-AUDIO-CODECS",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-AUDIO-IMPORT-WIRING",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AUDIO-IMPORT-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-D24A-CODEC-DEFAULTS",
+     "status": "READY_FOR_VALIDATION (R35 FAIL_V1 remediated 3b73143)"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session); non-vendor oracles: libavcodec (MP3/AAC/Vorbis/FLAC/AIFF), libopus, FLAC STREAMINFO MD5",
+   "matrix_verdict": "AGREE",
+   "notes": "AC-3/E-AC-3: Grep 'ac3|ac-3|eac3' in reel/src none. MP3-in-standard-registry and AAC default routing are the READY D24-A lane (FAIL_V1 R35, remediated 3b73143); AAC/MP3 are opt-in per D24-A. Validated codecs: PCM, FLAC, Ogg, AIFF, MPEG audio engine."
+  },
+  {
+   "id": "PR-19",
+   "name": "Real-time playback / program and source monitors",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-pulse/src/playback.rs:217 (PlaybackScheduler), :55 (AudioClock); crates/hsk-studio-pulse/src/frame_cache.rs:144 (FrameCache); crates/hsk-studio-harness-view/src/view/monitor.rs:493 (program monitor ui), source_monitor.rs:115",
+   "tests": [
+    "crates/hsk-studio-pulse/tests/playback.rs::playback_stays_within_one_frame_of_the_audio_clock",
+    "crates/hsk-studio-pulse/tests/playback_shuttle.rs::loop_wraps_exactly_and_shuttles_in_both_directions",
+    "crates/hsk-studio-pulse/tests/frame_pipeline.rs::frame_pipeline_caches_prefetches_and_refuses_before_allocation",
+    "crates/hsk-studio-harness/tests/viewer_monitor.rs::program_monitor_plays_pauses_steps_and_scrubs_through_composite",
+    "crates/hsk-studio-harness/tests/viewer_source_monitor.rs::source_monitor_plays_scrubs_marks_and_shuttles_frame_accurately"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PULSE-PLAYBACK",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-PULSE-PLAYBACK-2",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-PR-SOURCE-MONITOR",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "Program and source monitor panels exist in the egui Viewer (view/mod.rs:397, :941) but there is NO timeline track/clip panel at all (Grep timeline_panel|TimelinePanel|draw_timeline none; view/mod.rs panels: toolbar, layers, properties, status, canvas, monitor, source monitor, mixer, waveform). Real-time performance on a real screen not measured."
+  },
+  {
+   "id": "PR-20",
+   "name": "Video effects and transitions",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-composite/src/clip_finishing.rs:642 (evaluate_effect_stack); crates/hsk-studio-folio/src/clip_finishing.rs:402 (StudioClipEffectParams: ColorGrade, Transform, Opacity, Crop, GaussianBlur, PigmentFilter); crates/hsk-studio-pulse/src/transition.rs:30,32 (cross_dissolve, audio_crossfade only)",
+   "tests": [
+    "crates/hsk-studio-composite/tests/clip_effect_stack.rs::clip_effect_stack_evaluates_keyframes_and_applies_in_order",
+    "crates/hsk-studio-pulse/tests/editing.rs::cross_dissolve_frame_matches_hand_computed_blend",
+    "crates/hsk-studio-folio/tests/timeline_records.rs::markers_and_transitions_round_trip_and_old_wire_is_unchanged"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PULSE-EDITING",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-FOLIO-TIMELINE-RECORDS",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-PULSE-PLAYBACK",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-PREMIERE-COLOR-TITLES",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "Exactly one video transition kind (cross_dissolve); six effect param kinds."
+  },
+  {
+   "id": "PR-21",
+   "name": "Lumetri colour, LUTs, video scopes, legal range",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-folio/src/clip_finishing.rs:238 (StudioColorGrade); crates/hsk-studio-prism/src/grade.rs; crates/hsk-studio-render-gpu/src/plan_sink/grade.rs",
+   "tests": [
+    "crates/hsk-studio-prism/tests/clip_grade.rs::wheels_key_and_vignette_follow_the_grade_maths",
+    "crates/hsk-studio-prism/tests/clip_grade.rs::cube_export_round_trips_and_evaluates_hand_values",
+    "crates/hsk-studio-composite/tests/clip_grade_keyframes.rs::keyframed_grade_faded_film_and_sharpen_follow_the_clip_tick"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PREMIERE-COLOR-TITLES",
+     "status": "PASS_V1"
+    },
+    {
+     "lane_id": "SMB-PR-SOURCE-MONITOR",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session); non-vendor: analytic grade maths, .cube round trip, GPU-vs-CPU 1e-4 per lane",
+   "matrix_verdict": "AGREE",
+   "notes": "Grep -i 'vectorscope|waveform_monitor|histogram|legal_range|broadcast.?safe' over prism, folio clip_finishing, composite clip_finishing, render-gpu plan_sink: none -> scopes and legal range absent."
+  },
+  {
+   "id": "PR-22",
+   "name": "Titles, text, motion graphics templates",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-folio/src/clip_finishing.rs:527 (StudioMotionTemplate), :575 (StudioGraphicInstance); crates/hsk-studio-composite/src/clip_finishing.rs:899 (instantiate_template)",
+   "tests": [
+    "crates/hsk-studio-composite/tests/clip_graphics.rs::placed_template_resolves_controls_renders_and_refuses_unmet_requirements",
+    "crates/hsk-studio-folio/tests/clip_finishing_records.rs::graphic_clips_honour_template_permissions_and_placement"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PREMIERE-COLOR-TITLES",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "Grep -i 'mogrt|Essential Graphics' over crates: none. No title designer UI."
+  },
+  {
+   "id": "PR-23",
+   "name": "Audio mixing in the timeline (track gain/pan, submix, keyframes)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-pulse/src/bus_mix.rs (TimelineBusStream); crates/hsk-studio-pulse/src/audio.rs:327 (build_timeline_mix); crates/hsk-studio-folio/src/audio_routing.rs:47,82,101 (send, master, clip gain envelope); crates/hsk-studio-harness-view/src/view/mixer.rs:122 (open_mixer), :506 (mixer panel)",
+   "tests": [
+    "crates/hsk-studio-pulse/tests/bus_mix.rs::timeline_plays_through_submix_buses_sends_and_clip_gain_envelopes",
+    "crates/hsk-studio-pulse/tests/bus_mix.rs::all_to_master_equals_the_plain_mix_and_refusals_are_typed",
+    "crates/hsk-studio-pulse/tests/playback_mix_stream.rs::streamed_groups_equal_the_single_session_mix_with_crossfades",
+    "crates/hsk-studio-harness/tests/audio_mixer.rs::mixer_edits_are_single_undo_steps_and_drive_the_bus_mix_and_meters",
+    "crates/hsk-studio-folio/tests/audio_routing_records.rs::audio_routing_round_trips_and_refuses_bad_references_cycles_and_ranges"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PULSE-PLAYBACK",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-SCORE-EFFECTS-4",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-AUDITION-SESSION-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AUDITION-UI",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-AUDITION-UI-2",
+     "status": "PASS_V1"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": "Mixer panel is a real egui bottom panel, headless-judged."
+  },
+  {
+   "id": "PR-24",
+   "name": "Export / encode (H.264, HEVC, ProRes, DNx) with presets and queue",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-reel/src/presets.rs:34 (ExportPreset), :47 (6 EXPORT_PRESETS: H.264 x2, HEVC, DNxHR HQ/LB, AV1); crates/hsk-studio-reel/src/export.rs:351 (ExportQueue); crates/hsk-studio-reel/src/mux.rs:349 (Muxer); crates/hsk-studio-reel/src/vc3/encode.rs:316 (Vc3Encoder); crates/hsk-studio-reel-native/src/media_host.rs:349 (WorkerMfEncoder, opt-in os-encode); crates/hsk-studio-harness-view/src/view/timeline_export.rs:254 (timeline_export_job)",
+   "tests": [
+    "crates/hsk-studio-reel/tests/export_queue.rs::queue_exports_vc3_mov_with_pcm_and_reads_back",
+    "crates/hsk-studio-reel/tests/vc3_encode.rs::ffmpeg_decodes_studio_vc3_like_reel",
+    "crates/hsk-studio-harness/tests/timeline_export.rs::timeline_range_exports_through_the_render_queue_and_reads_back",
+    "crates/hsk-studio-reel-native/tests/mf_encode.rs::h264_export_through_the_os_encoder_decodes_back",
+    "crates/hsk-studio-reel/tests/av1_encode.rs::ffmpeg_decodes_studio_av1"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-REEL",
+     "status": "PASS_V21"
+    },
+    {
+     "lane_id": "SMB-REEL-RECEIPTS",
+     "status": "PASS_V12"
+    },
+    {
+     "lane_id": "SMB-REEL-ENCODE",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-PR-SOURCE-MONITOR",
+     "status": "PASS_V1"
+    },
+    {
+     "lane_id": "SMB-D24A-CODEC-DEFAULTS",
+     "status": "READY_FOR_VALIDATION (R35 FAIL_V1 remediated 3b73143)"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session); non-vendor oracle: ffmpeg decodes Studio VC-3 and AV1 output",
+   "matrix_verdict": "AGREE",
+   "notes": "H.264/HEVC encode is the READY D24-A lane behind opt-in feature os-encode (Windows MFT; HEVC needs the paid OS extension). AV1 encode opt-in av1-encode. No ProRes encode (Grep -i 'prores.*encode|ProResEncoder': only decode/provenance text) and no AAC encode (Grep -i 'AacEncoder|encode_aac': none). Audio in presets is PCM only."
+  },
+  {
+   "id": "PR-25",
+   "name": "Text-based editing, auto reframe, speech to text, AI features",
+   "matrix_status": "MISSING",
+   "verified_level": "MISSING",
+   "code_anchor": "none (Grep -i 'speech.to.text|transcri|auto.?reframe|text-based edit|scene.?detect|whisper' over crates: only unrelated 'transcribe' comments in pigment/prism/render-gpu/reel AAC tables)",
+   "tests": [],
+   "lanes": [],
+   "proof_stale": true,
+   "oracle": "UNVERIFIED against Adobe Premiere Pro (no Premiere oracle session)",
+   "matrix_verdict": "AGREE",
+   "notes": ""
+  }
+ ],
+ "counts": {
+  "VALIDATED": 11,
+  "BUILT_NOT_VALIDATED": 0,
+  "PARTIAL": 12,
+  "MISSING": 2,
+  "total": 25
+ },
+ "matrix_counts": {
+  "VALIDATED": 12,
+  "IMPLEMENTED": 0,
+  "PARTIAL": 11,
+  "MISSING": 2
+ },
+ "verdict_counts": {
+  "AGREE": 24,
+  "LOWER": 1
+ },
+ "engine_pct": {
+  "matrix": 59.0,
+  "matrix_formula_recomputed": 59.0,
+  "verified": 56.0,
+  "formula": "100*(VALIDATED + 0.5*BUILT_NOT_VALIDATED + 0.25*PARTIAL)/rows"
+ },
+ "oracle_summary": "Premiere: no real-app oracle (0 entries). Non-vendor facts only: ffmpeg/libavcodec/libopus/dav1d/ffprobe reference decoders (PR-15, PR-17, PR-18, PR-24), SMPTE ST 377-1:2019 text for MXF (labels UNVERIFIED), Horn-Schunck/Super SloMo equations for blend primitives. All rows UNVERIFIED against Premiere.",
+ "ui": {
+  "timeline_ui_exists": false,
+  "composition_ui_exists": null,
+  "panels_in_viewer": [
+   "program monitor (view/mod.rs:397)",
+   "source monitor (source_monitor.rs:647)",
+   "mixer (mixer.rs:506)"
+  ],
+  "ui_rows_matrix": 4
+ },
+ "top_gaps": [
+  {
+   "rank": 1,
+   "gap": "No timeline UI for the user at all: no track/clip panel, no drag-trim, no snapping, no timeline playhead. The egui Viewer (harness-view/src/view/mod.rs:786-957) has program monitor, source monitor and mixer panels only; every timeline edit is a typed planner call (pulse::plan_timeline_edit) with no front end.",
+   "evidence": "Grep timeline_panel|TimelinePanel|draw_timeline in harness-view/harness: none; egui panels in view/mod.rs listed above; PR-03/04/05/06 all ui=false"
+  },
+  {
+   "rank": 2,
+   "gap": "Snapping/magnet and playhead-to-edit navigation absent (PR-12); no nest command or nested-sequence render (PR-08).",
+   "evidence": "pulse/src time.rs:234 is the only snap; ClipSource::Sequence unused in render"
+  },
+  {
+   "rank": 3,
+   "gap": "Codec coverage: no HEVC decode, no ProRes or AAC encode, no AC-3; H.264 decode/encode only through Windows Media Foundation behind opt-in features (mf-worker, os-encode).",
+   "evidence": "PR-16, PR-18, PR-24 anchors"
+  },
+  {
+   "rank": 4,
+   "gap": "Effects/colour finishing: one video transition (cross_dissolve), six effect kinds, no scopes/legal range, no clip time remap/optical flow on sequences (primitives exist for AE only), no mogrt.",
+   "evidence": "PR-09, PR-20, PR-21, PR-22"
+  },
+  {
+   "rank": 5,
+   "gap": "Multicam and AI/text-based editing absent; no proxy generation workflow.",
+   "evidence": "PR-10, PR-25 Grep nothing; PR-14"
+  }
+ ],
+ "unlisted_capabilities": [
+  "MXF OP1a/OP-Atom index reader and essence packet delivery (reel/src/mxf, tests/mxf_index.rs) - folded into PR-15 only as 'MXF essence opaque'",
+  "Matroska/WebM cue index cache (reel tests/mkv_cache.rs) and PCM-in-MKV (mkv_pcm.rs)",
+  "CMX/EDL import and Folio sequence mapping (interop-media/src/edl.rs, folio_map.rs; tests edl_fixture_ticks_losses_and_folio_sequence)",
+  "Frame cache with prefetch and allocation refusal (pulse/src/frame_cache.rs:144) and reference-time conversion (pulse/src/reference_time.rs)",
+  "Export-time caption embedding as tx3g/WebVTT sidecar (reel/src/captions.rs, tests/export_captions.rs)",
+  "Streamed mix of >64 audio clips (pulse tests/playback_mix_stream.rs)"
+ ],
+ "unverified": [
+  "Every behaviour vs Adobe Premiere Pro: no Premiere oracle session exists; only non-vendor references (ffmpeg/ffprobe/dav1d/libavcodec/libopus, SMPTE ST 377-1 text, analytic vectors).",
+  "No test was executed by this verifier (no cargo allowed): test names were read at e64eacd, results not reproduced; proof from R35 (237256f) is stale for pulse/reel/folio/composite/harness-view/render-* per the changed-crate list.",
+  "Whether the desktop Viewer window actually shows the monitor/source-monitor/mixer panels interactively (Operator-attended, NOT_PROVEN per matrix ui_status).",
+  "Lumetri slider mapping, caption layout and cross-dissolve maths vs Premiere (no oracle)."
+ ],
+ "notes": [
+  "Matrix rows 25 / counts V12 I0 P11 M2 = 59.0 recomputed OK. Verified: one LOWER (PR-12 VALIDATED -> PARTIAL). No RAISE.",
+  "Timeline UI: none. Premiere is an editing-engine plus two monitor panels and a mixer; there is nothing a user can drag.",
+  "Since the matrix (6585ff0) no Premiere-owned code changed except folio timeline.rs +7 lines (CKC asset_id on media clips, commit 608dbce) and the motion/pigment time-remap/frame-blend primitives (SMB-AE-ROTO-TIMEREMAP READY) that are not wired to sequences; pulse changed only by new comp_audio.rs (AE lane).",
+  "reel src unchanged since R35 (only tests/engine_video.rs), so its stale flag is formal; D24-A remediation 3b73143 touched the reel test.",
+  "harness crate split: anchors under crates/hsk-studio-harness/src/view now live in crates/hsk-studio-harness-view/src/view; tests remain in crates/hsk-studio-harness/tests."
+ ]
+}
