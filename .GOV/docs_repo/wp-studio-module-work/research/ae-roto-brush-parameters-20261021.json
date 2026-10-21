@@ -1,0 +1,468 @@
+{
+ "schema": "hsk.studio.research.ae_roto_parameters@1",
+ "file_id": "ae-roto-brush-parameters-20261021",
+ "updated_at": "2026-10-21T14:39:10Z",
+ "by": "read-only research agent (Sonnet)",
+ "sources": [
+  {
+   "url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "title": "Roto Brush and Refine Matte in After Effects (Last updated Apr 15, 2026)",
+   "fetched_at": "2026-10-21T14:39Z",
+   "notes": "PRIMARY. WebFetch and curl returned HTTP 403; read via built-in browser pane (including collapsed property accordions). Legacy URL https://helpx.adobe.com/after-effects/using/roto-brush-refine-matte.html redirects here."
+  },
+  {
+   "url": "https://helpx.adobe.com/after-effects/desktop/apply-effects-and-animation-presets/list-of-effects/matte-effects.html",
+   "title": "Apply Matte effects in After Effects (Last updated Jun 27, 2025)",
+   "fetched_at": "2026-10-21T14:39Z",
+   "notes": "Standalone Refine Soft Matte property list; used for Chatter Reduction and Decontamination Amount wording."
+  },
+  {
+   "url": "https://helpx.adobe.com/ph_fil/photoshop/how-to/make-precise-selections-in-select-mask.html",
+   "title": "How to make precise selections in Select and Mask",
+   "fetched_at": "2026-10-21T14:39Z",
+   "notes": "Seen only as web-search snippets; page not opened."
+  },
+  {
+   "url": "https://helpx.adobe.com/photoshop/desktop/make-selections/refine-modify-selections/refine-your-selection-and-mask.html",
+   "title": "Refine selections in Photoshop",
+   "fetched_at": "2026-10-21T14:39Z",
+   "notes": "Opened; covers View Modes and Refine modes (Color Aware / Object Aware) only."
+  }
+ ],
+ "workflow": {
+  "tool_selection": "Roto Brush tool via toolbar or Alt+W (Win)/Option+W (mac); Refine Edge Tool is chosen from the same tool group. In the newest beta an Object Matte Tool icon replaces the Roto Brush icon (Object Matte tools: Quick Selection, Selection Brush, Refine Edge; dedicated page https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/object-matte.html NOT fetched, UNVERIFIED).",
+  "where": "Selection can only be made in the Layer panel (double-click the layer). Strokes live in a Strokes group inside the Roto Brush & Refine Edge effect in the timeline.",
+  "base_frame": "First stroke drawn makes that frame a base frame. Choose a stable frame where the object is entirely visible. Base frame shown as a bright green box at span start.",
+  "strokes": "Foreground: plain drag (green cross cursor). Background: hold Alt/Option (red circle with minus). Start with one stroke through the object middle/skeleton; do not outline or paint across edges; use as few strokes as needed; do not undo a misinterpreted stroke, teach with more strokes. Strokes last 1 frame but influence propagates within the span. Brush diameter via Brushes panel or Ctrl/Cmd-drag; Hardness has no effect. A new stroke is always created (no stroke replacement). Magenta outline = segmentation boundary.",
+  "span": "Default span = whole layer duration (or empty durations if multiple spans). Arrows in span bar show direction; corrective stroke where arrows point right propagates forward, left backward. Stroke outside any span creates a new base frame and span. Span grows with each stroke unless adjacent to another span; drag span ends to resize; right-click Remove Span; delete the effect to remove all spans. Influence of each corrective stroke covers all frames in its direction within the span regardless of stroke order.",
+  "propagation": "Spacebar propagates from base frame and shows per frame; Page Up/Down or Ctrl/Cmd+Left/Right step frame by frame forward/backward; moving the CTI (I/O jump to layer in/out) waits for propagation then displays. Propagation banner at bottom of Layer and Comp panels (3.0/2.0). Span: light gray chevrons; green chevrons mid-span after propagation. To correct drift: background stroke (Alt) or new foreground stroke on the first frame where the error occurs.",
+  "refine_edge_tool": "Refine Edge Tool strokes for hair/soft detail; Alt/Option erases Refine Edge strokes; use on other frames until precise. Using it ticks Fine-tune Refine Edge Matte.",
+  "views": "Alpha, Alpha Boundary, Alpha Overlay toggles at the bottom of the Layer panel; Composition panel shows result in context.",
+  "effect_applied": "Roto Brush & Refine Edge effect holds strokes, spans, base frames; Refine Matte exists as a separate effect (all properties outside Propagation except Invert Foreground/Background). Explicit statement that the effect is auto-applied on first stroke: UNVERIFIED.",
+  "recommendations": "Work at Full resolution (Fast Previews/Adaptive Resolution are turned off on stroke since resolution switching forces recalculation). Comp frame rate should match layer source footage (warning banner otherwise).",
+  "copy_paste": "Roto Brush Path properties can be copied to masks/shapes/Paint; copying a single stroke omits span info; copying the whole effect instance includes span and base frame info; expressions allowed on Path."
+ },
+ "effect_parameters": [
+  {
+   "group": "Top-level",
+   "name": "Version",
+   "type": "enum",
+   "range": "1.0 (Classic) | 2.0 | 3.0",
+   "default": "3.0 (Next-Gen) per page note on default rotoscoping option",
+   "meaning": "Select from the Roto Brush versions - 1.0 (Classic), 2.0, or 3.0.",
+   "version_notes": "3.0 = Next-Gen Roto Brush. Page says the default rotoscoping option is Next-Gen Roto Brush. Projects from v17.1.4 or earlier open as 1.0 (set automatically in v17.5+ so old projects render the same).",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Top-level",
+   "name": "Quality",
+   "type": "enum",
+   "range": "Standard | Best",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Quality of detailing around the edges when version 2.0 is selected. Standard is faster with less edge detail; Best is refined around the edges.",
+   "version_notes": "Stated for Version 2.0 only; applicability to 3.0 UNVERIFIED.",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Propagation",
+   "name": "Search Radius",
+   "type": "number",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Radius of the area within which AE searches for matching pixels from one frame to the next. Too small: some motion missed; too large: extraneous motion detected. Adapted by Motion Threshold and Motion Damping.",
+   "version_notes": "Page mentions an increasable percentage covering the entire area (slower, more accurate).",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Propagation",
+   "name": "View Search Radius (brief name: View Search Region)",
+   "type": "checkbox",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "When selected, displays a green box around the subject showing where the algorithm searches; if the subject leaves the box the effect is lost.",
+   "version_notes": "Page label is View Search Radius; page also says Propagation properties except View Search Region do not require recalculation (display only).",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Propagation",
+   "name": "Enable Classic Controls",
+   "type": "checkbox",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Only for Version 3.0/2.0: passes the new algorithm propagation result through the Classic (1.0) algorithm for finer propagation control and more edge detail; turns Motion Threshold, Edge Detection, Motion Damping back on.",
+   "version_notes": "In 1.0 those options are on by default; in 3.0/2.0 enable manually.",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Propagation",
+   "name": "Motion Threshold",
+   "type": "number",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Motion level below which is considered no motion, where the search region shrinks to nothing.",
+   "version_notes": "Available in 1.0 by default, in 2.0/3.0 only with Enable Classic Controls.",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Propagation",
+   "name": "Motion Damping",
+   "type": "number",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Affects remaining in-motion areas; increasing tightens the search region, slow-moving areas tightening more than fast. Constraining slight-motion regions reduces edge chatter; over-constraining makes the boundary fall off the object edge.",
+   "version_notes": "Same availability as Motion Threshold.",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Propagation",
+   "name": "Edge Detection",
+   "type": "enum",
+   "range": "Balanced | Favor Predicted Edges | (Favor Current Edges name UNVERIFIED)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Whether to favor the segmentation boundary calculated for the current frame in isolation or the one predicted from the previous frame. Balanced weighs current and surrounding frames equally. Foreground colors matching the background usually benefit from Favor Predicted Edges.",
+   "version_notes": "Same availability as Motion Threshold. Literal option names in page: Balanced, Favor Predicted Edges; the name Favor Current Edges is not literally listed (UNVERIFIED).",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Propagation",
+   "name": "Use Alternate Color Estimation",
+   "type": "checkbox",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Subtly changes how the effect decides foreground vs background; sometimes helps segmentation, sometimes not.",
+   "version_notes": "",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Top-level",
+   "name": "Invert Foreground/Background",
+   "type": "checkbox",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Inverts which strokes count as foreground and which as background in the segmentation phase.",
+   "version_notes": "Listed outside the Propagation group; Refine Matte effect excludes it.",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Fine-tune",
+   "name": "Fine-tune Roto Brush Matte",
+   "type": "checkbox",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Enables the Roto Brush Matte group to refine edges, reduce chatter, shift edges, contrast, feather.",
+   "version_notes": "",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Roto Brush Matte",
+   "name": "Feather",
+   "type": "number",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Softness of the segmentation boundary.",
+   "version_notes": "",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Roto Brush Matte",
+   "name": "Contrast",
+   "type": "number",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Increases contrast; tightens the boundary further.",
+   "version_notes": "",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Roto Brush Matte",
+   "name": "Shift Edges",
+   "type": "number",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Positive expands, negative shrinks the segmentation boundary.",
+   "version_notes": "",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Roto Brush Matte",
+   "name": "Reduce Chatter",
+   "type": "number",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Reduces visible noise/erratic movement along the segmentation boundary for cleaner edges.",
+   "version_notes": "",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Refine Edge",
+   "name": "Render Refine Edge",
+   "type": "checkbox",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Allows viewing the refined edge of Roto Brush results; works for base frames and propagated frames.",
+   "version_notes": "",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Refine Edge",
+   "name": "Base Refine Edge Radius",
+   "type": "number",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Expands the area of refined edges already created with the Refine Edge tool; use when the brush was too small for AE to calculate refined edges between frames.",
+   "version_notes": "",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Refine Edge",
+   "name": "Fine-tune Refine Edge Matte",
+   "type": "checkbox",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Enables fine-tuning of edges created with the Refine Edge Tool. Workflow text: it is selected once the Refine Edge Tool has been used.",
+   "version_notes": "",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Refine Edge Matte",
+   "name": "Smooth",
+   "type": "number",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Reduces sharpness of curves in the segmentation boundary by smoothing along the edge; keep low for sharp features like hair.",
+   "version_notes": "",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Refine Edge Matte",
+   "name": "Feather",
+   "type": "number",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Softness of the segmentation boundary; does nothing if Smooth is 0; applies across the edge (Smooth is along the edge).",
+   "version_notes": "",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Refine Edge Matte",
+   "name": "Contrast",
+   "type": "number",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Increases contrast; tightens the boundary.",
+   "version_notes": "",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Refine Edge Matte",
+   "name": "Shift Edges",
+   "type": "number",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Positive expands, negative shrinks the segmentation boundary.",
+   "version_notes": "",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Refine Edge Matte",
+   "name": "Reduce Chatter",
+   "type": "number",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Weighted average across adjacent frames; higher value = stronger chatter reduction and current frame weighs less; 0 = only current frame used. Tip: object still but edges move -> increase; object moves but edge lags -> decrease.",
+   "version_notes": "",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Refine Edge Matte",
+   "name": "Chatter Reduction enum (None/Detailed/Smoother)",
+   "type": "enum",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Not in the Roto Brush page. Refine Soft Matte page lists generic Chatter Reduction (reduces noise in matte edge over time) with no enum values.",
+   "version_notes": "Enum values None/Detailed/Smoother NOT found.",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/apply-effects-and-animation-presets/list-of-effects/matte-effects.html",
+   "verified": false
+  },
+  {
+   "group": "Refine Edge Matte",
+   "name": "Use Motion Blur",
+   "type": "checkbox",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Renders the matte with motion blur. High-quality option is slower but gives a cleaner edge. Number of samples and shutter angle are controllable, same meaning as in composition motion-blur settings.",
+   "version_notes": "Exact sub-property names (Shutter Angle, Shutter Samples) not literal in page; only described. Names UNVERIFIED.",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Refine Edge Matte",
+   "name": "Decontaminate Edge Colors",
+   "type": "checkbox",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Removes background color fringing from edges (Refine Soft Matte page: helpful in green/blue-screen work).",
+   "version_notes": "Meaning text from Refine Soft Matte page.",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/apply-effects-and-animation-presets/list-of-effects/matte-effects.html",
+   "verified": true
+  },
+  {
+   "group": "Decontaminate Edge Colors",
+   "name": "Decontamination Amount",
+   "type": "number",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Refine Soft Matte page: controls how strongly edge colors are replaced with nearby foreground colors. Not described in the Roto Brush page.",
+   "version_notes": "Source is Refine Soft Matte, not Roto Brush & Refine Edge.",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/apply-effects-and-animation-presets/list-of-effects/matte-effects.html",
+   "verified": false
+  },
+  {
+   "group": "Decontaminate Edge Colors",
+   "name": "Extend Where Smoothed",
+   "type": "checkbox",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Only functional when Reduce Chatter > 0 and Decontaminate Edge Colors selected. Edges moved to reduce chatter are cleaned.",
+   "version_notes": "",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Decontaminate Edge Colors",
+   "name": "Increase Radius",
+   "type": "number",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Pixels by which to increase the radius for cleaning edge colors, in addition to cleaning covering feather, motion blur and extended decontamination.",
+   "version_notes": "Named Increase Decontamination Radius in Roto Brush 1. Unit: pixels.",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Decontaminate Edge Colors",
+   "name": "View Map",
+   "type": "checkbox",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Shows which pixels will be cleaned (white pixels in the map).",
+   "version_notes": "Named View Decontamination Map in Roto Brush 1.",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  },
+  {
+   "group": "Layer panel views",
+   "name": "Alpha / Alpha Boundary / Alpha Overlay",
+   "type": "view toggles",
+   "range": "UNVERIFIED (not stated in page)",
+   "default": "UNVERIFIED (not stated in page)",
+   "meaning": "Alpha: layer alpha channel (Alt/Option+4). Alpha Boundary: source with segmentation boundary overlaid as colored outline (Alt/Option+5); off when Layer panel View is not Roto Brush. Alpha Overlay: foreground unchanged, background overlaid with solid color (Alt/Option+6). Overlay color and opacity adjustable at panel bottom.",
+   "version_notes": "",
+   "source_url": "https://helpx.adobe.com/after-effects/desktop/roto-brush-and-refine-matte/roto-brush/roto-brush-refine-matte.html",
+   "verified": true
+  }
+ ],
+ "freeze_semantics": {
+  "what": "Freeze button (lower-right of Layer panel when View menu = Roto Brush) caches and locks segmentation for all Roto Brush spans of the layer within the comp work area; preserves the matte, saved with project, prevents recalculation on reopen/change.",
+  "cache_rule": "Already-calculated frames are cached on freeze; uncalculated frames in a span are calculated first. Stop in the Freezing dialog stops adding frames but locks what was cached so far. Newer versions (2.0/3.0) cache inference of already propagated frames so Freeze does not recompute each frame.",
+  "indicators": "Frozen frames: blue bars in span view (Roto Brush 1); purple bars (3.0/2.0). Tooltip on Freeze shows when the cache was created. Tool cursor has a slash through it while frozen.",
+  "unfreeze": "Click Freeze again. While frozen, new Roto Brush strokes and changes to Propagation group properties do NOT affect the result until unfrozen. Roto Brush Matte group properties are NOT frozen (remain live).",
+  "persistence": "Frozen cache kept while the app runs and saved with the project."
+ },
+ "limits": [
+  "Propagation property changes require recalculation from the base frame; the base-frame result itself is unaffected by them (page).",
+  "No numeric span length limit stated: UNVERIFIED.",
+  "Subject leaving the View Search Radius box loses the effect.",
+  "Selection needs the Layer panel; Alpha Boundary view only when Layer panel View = Roto Brush.",
+  "Quality option stated for Version 2.0 only.",
+  "Extend Where Smoothed requires Reduce Chatter > 0 and Decontaminate Edge Colors on.",
+  "Refine Edge Matte Feather has no effect if Smooth = 0.",
+  "Base-frame changes: only documented rule is that a stroke outside any span creates a new base frame and span."
+ ],
+ "photoshop_select_and_mask_equivalents": [
+  {
+   "name": "Smooth",
+   "meaning": "smooths selection edges / evens out uneven edges",
+   "source_url": "https://helpx.adobe.com/ph_fil/photoshop/how-to/make-precise-selections-in-select-mask.html",
+   "verified": false,
+   "note": "search snippet only"
+  },
+  {
+   "name": "Feather",
+   "meaning": "blends selection boundary into composite background",
+   "source_url": "https://helpx.adobe.com/ph_fil/photoshop/how-to/make-precise-selections-in-select-mask.html",
+   "verified": false,
+   "note": "search snippet only"
+  },
+  {
+   "name": "Contrast",
+   "meaning": "soft-edged transitions become more abrupt",
+   "source_url": "https://helpx.adobe.com/ph_fil/photoshop/how-to/make-precise-selections-in-select-mask.html",
+   "verified": false,
+   "note": "search snippet only"
+  },
+  {
+   "name": "Shift Edge",
+   "meaning": "negative contracts, positive expands, default 0",
+   "source_url": "https://helpx.adobe.com/ph_fil/photoshop/how-to/make-precise-selections-in-select-mask.html",
+   "verified": false,
+   "note": "search snippet only"
+  },
+  {
+   "name": "Decontaminate Colors + Amount",
+   "meaning": "replaces color fringes with colors of nearby fully selected pixels, strength proportional to edge softness; Amount sets the level",
+   "source_url": "https://helpx.adobe.com/ph_fil/photoshop/how-to/make-precise-selections-in-select-mask.html",
+   "verified": false,
+   "note": "search snippet only"
+  },
+  {
+   "name": "Refine modes",
+   "meaning": "Color Aware (high-contrast/simple backgrounds); Object Aware (hair, fur, complex backgrounds)",
+   "source_url": "https://helpx.adobe.com/photoshop/desktop/make-selections/refine-modify-selections/refine-your-selection-and-mask.html",
+   "verified": true,
+   "note": "opened page"
+  },
+  {
+   "name": "Premiere Pro equivalent",
+   "meaning": "not researched",
+   "source_url": null,
+   "verified": false,
+   "note": "UNVERIFIED"
+  }
+ ],
+ "unverified": [
+  "Numeric ranges and defaults for every effect property (none stated in the official page).",
+  "Edge Detection literal option Favor Current Edges.",
+  "Chatter Reduction enum None/Detailed/Smoother.",
+  "Exact names of motion-blur sub-properties (Shutter Angle / Shutter Samples).",
+  "Decontamination Amount semantics inside Roto Brush & Refine Edge (only in Refine Soft Matte page).",
+  "Maximum span length / base-frame count limits.",
+  "Object Matte page contents (not fetched).",
+  "Premiere Pro equivalent.",
+  "Photoshop Select and Mask descriptions are search-snippet level; page not opened.",
+  "Whether the effect is auto-applied on first stroke."
+ ]
+}
