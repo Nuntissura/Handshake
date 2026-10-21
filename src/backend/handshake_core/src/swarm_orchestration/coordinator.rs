@@ -237,9 +237,42 @@ impl ClaimLease {
     }
 }
 
+pub(crate) struct BoundOperatorChatLaunch {
+    original: Arc<super::operator_chat::CapturedOperatorChatLaunch>,
+    committed_request: SpawnRequest,
+    spawn_generation: u64,
+}
+
+impl BoundOperatorChatLaunch {
+    pub(crate) fn selection_json(&self) -> &serde_json::Value {
+        self.original.selection_json()
+    }
+
+    pub(crate) fn original_request_json(&self) -> &serde_json::Value {
+        self.original.original_request_json()
+    }
+
+    pub(crate) fn committed_launch_json(&self) -> Result<serde_json::Value, serde_json::Error> {
+        serde_json::to_value(&self.committed_request)
+    }
+
+    pub(crate) fn instance_id(&self) -> ModelInstanceId {
+        self.committed_request.instance_id
+    }
+
+    pub(crate) fn spawn_generation(&self) -> u64 { self.spawn_generation }
+
+    pub(crate) fn committed_request(&self) -> &SpawnRequest { &self.committed_request }
+
+    pub(crate) fn launch_contract(&self) -> Option<&super::model_lane::DexterityLaunchContract> {
+        self.committed_request.dexterity_launch.as_ref()
+    }
+}
+
 /// One entry in the session registry. Holds everything needed to drive,
 /// observe, cancel, and ledger-stop a live session.
 pub struct SessionHandle {
+    original_operator_chat_launch: Option<Arc<BoundOperatorChatLaunch>>,
     validator_producer: Option<Arc<ValidatorProducerKey>>,
     pub instance_id: ModelInstanceId,
     /// Monotonic registry incarnation. A stale generation future may retain the
@@ -342,6 +375,9 @@ pub(crate) struct ValidatorProducerKey {
 }
 
 impl ValidatorProducerKey {
+    pub(crate) fn authorization_seal(&self) -> &crate::storage::surreal::resource_authority::AuthenticatedValidatorLaunchSeal {
+        &self.authorization
+    }
     pub(crate) fn registration_ref(&self) -> &str { &self.registration_ref }
     pub(crate) fn instance_id(&self) -> &ModelInstanceId { self.registered.instance_id() }
     pub(crate) fn spawn_generation(&self) -> u64 { self.registered.spawn_generation() }
@@ -1209,6 +1245,56 @@ fn reserves_host_committed_memory(request: &SpawnRequest) -> bool {
 }
 
 impl SwarmCoordinator {
+    pub(crate) async fn spawn_session_with_original_operator_chat_launch(
+        &self,
+        request: SpawnRequest,
+        existing_run: Option<ModelLaneRunRecord>,
+        original: Option<Arc<super::operator_chat::CapturedOperatorChatLaunch>>,
+    ) -> SwarmResult<ModelInstanceId> {
+        if original.as_ref().is_some_and(|source| !source.matches_request(&request)) {
+            return Err(SwarmError::LedgerFailed("original launch request differs".into()));
+        }
+        if original.is_some() && request.dexterity_launch.is_none() {
+            return Err(SwarmError::LedgerFailed("original launch contract unavailable".into()));
+        }
+        self.spawn_session_with_run(request, existing_run, original)
+            .await.map(|(instance, _)| instance)
+    }
+
+    pub(crate) fn original_operator_chat_launch(
+        &self,
+        registered: &RegisteredValidatorInstance,
+        scope: &super::resource_scope::ExactResourceScopeAttribution,
+    ) -> SwarmResult<Arc<BoundOperatorChatLaunch>> {
+        let denied = || SwarmError::LedgerFailed("original launch source unavailable".into());
+        if !std::sync::Weak::ptr_eq(&registered.owner, &Arc::downgrade(&self.inner)) {
+            return Err(denied());
+        }
+        let registry = self.inner.registry.lock().map_err(|_| denied())?;
+        let handle = registry.get(&registered.instance_id).ok_or_else(denied)?;
+        if handle.spawn_generation != registered.spawn_generation
+            || handle.model_id != registered.model_id
+            || handle.parent_session_id != registered.parent_session_id
+            || !handle.dexterity_model_lane_persisted
+            || !matches!(handle.state, ModelSessionState::Ready | ModelSessionState::Generating)
+            || handle.lease.is_expired(Utc::now())
+            || handle.cleanup.is_some()
+        {
+            return Err(denied());
+        }
+        let source = handle.original_operator_chat_launch.as_ref().ok_or_else(denied)?;
+        if source.original.scope() != scope
+            || source.instance_id() != handle.instance_id
+            || source.spawn_generation != handle.spawn_generation
+            || source.launch_contract().map(|launch| launch.lane_id.as_str())
+                != handle.dexterity_lane_id.as_deref()
+        {
+            return Err(denied());
+        }
+        Ok(Arc::clone(source))
+    }
+
+
     /// Build a coordinator. `factory`, `sink`, and `ledger` are injected so the
     /// same coordinator code runs in production (real runtime + flight recorder
     /// + postgres-backed ledger) and in tests (controllable adapter + recording
@@ -2049,6 +2135,7 @@ impl SwarmCoordinator {
             }
             let handle = SessionHandle {
                 validator_producer: None,
+                original_operator_chat_launch: None,
                 instance_id,
                 spawn_generation: self.inner.checkout_lease_generation.fetch_add(1, Ordering::SeqCst) + 1,
                 routing_attempt: request.routing_attempt.clone(),
@@ -2310,7 +2397,20 @@ impl SwarmCoordinator {
 
     async fn spawn_session_with_generation(
         &self,
-        mut request: SpawnRequest,
+        request: SpawnRequest,
+    ) -> SwarmResult<(ModelInstanceId, u64)> {
+        self.spawn_session_with_run(request, None, None).await
+    }
+
+    pub(crate) async fn spawn_session_for_existing_run(
+        &self, request: SpawnRequest, run: ModelLaneRunRecord,
+    ) -> SwarmResult<ModelInstanceId> {
+        self.spawn_session_with_run(request, Some(run), None).await.map(|(instance, _)| instance)
+    }
+
+    async fn spawn_session_with_run(
+        &self, mut request: SpawnRequest, existing_run: Option<ModelLaneRunRecord>,
+        original: Option<Arc<super::operator_chat::CapturedOperatorChatLaunch>>,
     ) -> SwarmResult<(ModelInstanceId, u64)> {
         let inner = Arc::clone(&self.inner);
         let instance_id = request.instance_id;
@@ -2784,6 +2884,7 @@ impl SwarmCoordinator {
                     checkout_lease,
                     committed_memory_reservation,
                     checkout_generation,
+                    original,
                 );
                 match inserted {
                     Ok(()) => {
@@ -2806,7 +2907,12 @@ impl SwarmCoordinator {
                                     "Dexterity launch contract requires ModelLaneStore".into(),
                                 ));
                             };
-                            if let Err(err) = store.record_prepared_launch(records).await {
+                            let persisted = if let Some(run) = existing_run.as_ref() {
+                                store.record_existing_run_launch(run, records).await
+                            } else {
+                                store.record_prepared_launch(records).await
+                            };
+                            if let Err(err) = persisted {
                                 if let Err(cleanup_err) = self
                                     .terminate(
                                         instance_id,
@@ -2963,7 +3069,12 @@ impl SwarmCoordinator {
                                 ))
                             },
                         )?;
-                        if let Err(record_err) = store.record_prepared_launch(records).await {
+                        let persisted = if let Some(run) = existing_run.as_ref() {
+                            store.record_existing_run_launch(run, records).await
+                        } else {
+                            store.record_prepared_launch(records).await
+                        };
+                        if let Err(record_err) = persisted {
                             return Err(SwarmError::LedgerFailed(format!(
                                 "Dexterity failed launch record failed after {err}: {record_err}"
                             )));
@@ -3959,6 +4070,13 @@ impl SwarmCoordinator {
             registered.instance_id, registered.spawn_generation, request, run_id, session_id, Some(capture.clone()),
         )?;
         Ok((stream, RegisteredValidatorInvocationObservation { trace_id, capture }))
+    }
+
+    pub(crate) fn validator_producer_lane(&self, producer: &Arc<ValidatorProducerKey>) -> SwarmResult<String> {
+        self.with_current_validator_producer(producer, None, || Ok(()))?;
+        let registry = self.inner.registry.lock().expect("registry poisoned");
+        registry.get(producer.instance_id()).and_then(|handle| handle.dexterity_lane_id.clone())
+            .ok_or_else(|| SwarmError::LedgerFailed("validator runtime has no canonical model lane".into()))
     }
 
     fn generate_session_managed_generation_observed(
@@ -5889,6 +6007,7 @@ impl SwarmCoordinator {
         committed_memory_bytes: u64,
         checkout_lease: Option<CheckoutLeaseGuard>,
         spawn_generation: u64,
+        original: Option<Arc<super::operator_chat::CapturedOperatorChatLaunch>>,
     ) -> Result<(), TryInsertLoadingError> {
         let now = Utc::now();
         // rank-7: a per-spawn time_box overrides the configured lease_ttl, so a
@@ -5932,6 +6051,9 @@ impl SwarmCoordinator {
             }
             let handle = SessionHandle {
                 validator_producer: None,
+                original_operator_chat_launch: original.map(|original| Arc::new(BoundOperatorChatLaunch {
+                    original, committed_request: request.clone(), spawn_generation,
+                })),
                 instance_id,
                 spawn_generation,
                 routing_attempt: request.routing_attempt.clone(),
@@ -5986,6 +6108,7 @@ impl SwarmCoordinator {
         checkout_lease: Option<CheckoutLeaseGuard>,
         mut committed_memory_reservation: CommittedMemoryReservation,
         spawn_generation: u64,
+        original: Option<Arc<super::operator_chat::CapturedOperatorChatLaunch>>,
     ) -> Result<(), (TryInsertLoadingError, CommittedMemoryReservation)> {
         match self.try_insert_loading(
             request,
@@ -5994,6 +6117,7 @@ impl SwarmCoordinator {
             committed_memory_reservation.bytes,
             checkout_lease,
             spawn_generation,
+            original,
         ) {
             Ok(()) => {
                 // `SessionHandle::committed_memory_bytes` and its owned permit
@@ -6114,6 +6238,7 @@ impl SwarmCoordinator {
             None,
             committed_memory_reservation,
             spawn_generation,
+            None,
         ) {
             Ok(()) => Err(SwarmError::Internal(format!(
                 "duplicate insertion test seam expected a live winner for {}",
@@ -6190,6 +6315,7 @@ impl SwarmCoordinator {
             None,
             committed_memory_reservation,
             spawn_generation,
+            None,
         ) {
             Ok(()) => {
                 std::future::pending::<()>().await;

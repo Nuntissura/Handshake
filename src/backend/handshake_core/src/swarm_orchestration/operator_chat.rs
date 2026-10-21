@@ -74,10 +74,12 @@ pub use paired_initial::{
     OperatorChatAdmissionSlot, OperatorChatInitialSettlement, OperatorChatInitialState,
     OperatorChatObservationError, OperatorChatRejectedWriter, OperatorChatSubmission,
     OperatorChatWriterResult, OwnedOperatorChatOperation,
+    AwaitingParent, OperatorChatSubmissionError, OperatorChatParentObservation,
+    OperatorChatSecondOwnerRejected,
 };
 
 #[cfg(feature = "runtime-full")]
-pub(crate) use paired_initial::{OperatorChatEngineOwnerInstallReason, OperatorChatEngineOwnerInstallRejected, OperatorChatInitialOwnersRef};
+pub(crate) use paired_initial::{OperatorChatEngineOwnerInstallReason, OperatorChatEngineOwnerInstallRejected, OperatorChatInitialOwnersRef, OperatorChatFirstOwnerRef};
 
 #[cfg(feature = "runtime-full")]
 mod paired_initial {
@@ -93,12 +95,13 @@ mod paired_initial {
         JobCreateCommitOutcome, JobInitialObservation, JobInitialWriterResult, JobRejectedObservation,
         JobSubmissionSettlement,
     };
-    use crate::workflows::{OwnedOperatorChatEngineOwner, SessionRegistry};
+    use crate::workflows::{OwnedOperatorChatEngineOwner, SessionRegistry, WorkflowReserveError};
     use crate::AppState;
 
     pub enum OperatorChatAdmissionSlot { First, Second }
 
     pub enum OperatorChatSubmission<'a> {
+        NotSubmitted,
         WriterInstalled,
         ReturnedError(&'a JobAdmissionError),
         PanickedUnknown,
@@ -144,23 +147,25 @@ mod paired_initial {
     }
 
     enum Submission {
+        NotSubmitted,
         Returned(Result<(), JobAdmissionError>),
-        PanickedUnknown,
+        PanickedUnknown { _payload: Box<dyn std::any::Any + Send> },
     }
 
     impl Submission {
         fn view(&self) -> OperatorChatSubmission<'_> {
             match self {
+                Self::NotSubmitted => OperatorChatSubmission::NotSubmitted,
                 Self::Returned(Ok(())) => OperatorChatSubmission::WriterInstalled,
                 Self::Returned(Err(error)) => OperatorChatSubmission::ReturnedError(error),
-                Self::PanickedUnknown => OperatorChatSubmission::PanickedUnknown,
+                Self::PanickedUnknown { .. } => OperatorChatSubmission::PanickedUnknown,
             }
         }
     }
 
-    struct InitialOwners {
+    struct InitialOwners<S = JobAdmission> {
         first: JobAdmission,
-        second: JobAdmission,
+        second: S,
         state: Arc<AppState>,
         _registry: Arc<SessionRegistry>,
         original_deadline: Instant,
@@ -183,44 +188,115 @@ mod paired_initial {
     }
 
     #[must_use = "retain the original operation while either initial writer is unsettled"]
-    pub struct OwnedOperatorChatOperation {
-        owners: InitialOwners,
+    pub struct OwnedOperatorChatOperation<S = JobAdmission> {
+        owners: InitialOwners<S>,
         workflow_engine_owner: Option<OwnedOperatorChatEngineOwner>,
+        _workflow_engine_owner_install_rejected: Option<OperatorChatEngineOwnerInstallRejected>,
         first_submission: Submission,
         second_submission: Submission,
         first_observation_panicked: bool,
         second_observation_panicked: bool,
+        _first_observation_panic: Option<Box<dyn std::any::Any + Send>>,
+        _second_observation_panic: Option<Box<dyn std::any::Any + Send>>,
     }
 
     impl OwnedOperatorChatOperation {
-        pub fn begin(
+        pub fn prepare(
             first: JobAdmission,
             second: JobAdmission,
             state: Arc<AppState>,
             original_deadline: Instant,
         ) -> Self {
             let registry = state.session_registry.clone();
-            let mut owners = InitialOwners {
+            let owners = InitialOwners {
                 first, second, state, _registry: registry, original_deadline,
             };
-            let first_submission = match catch_unwind(AssertUnwindSafe(|| {
-                owners.first.submit(owners.state.clone())
-            })) {
-                Ok(result) => Submission::Returned(result),
-                Err(_) => Submission::PanickedUnknown,
-            };
-            let second_submission = match catch_unwind(AssertUnwindSafe(|| {
-                owners.second.submit(owners.state.clone())
-            })) {
-                Ok(result) => Submission::Returned(result),
-                Err(_) => Submission::PanickedUnknown,
-            };
             Self {
-                owners, first_submission, second_submission,
+                owners,
+                first_submission: Submission::NotSubmitted,
+                second_submission: Submission::NotSubmitted,
                 workflow_engine_owner: None,
+                _workflow_engine_owner_install_rejected: None,
                 first_observation_panicked: false,
                 second_observation_panicked: false,
+                _first_observation_panic: None,
+                _second_observation_panic: None,
             }
+        }
+
+        pub fn begin(
+            first: JobAdmission,
+            second: JobAdmission,
+            state: Arc<AppState>,
+            original_deadline: Instant,
+        ) -> Self {
+            let mut operation = Self::prepare(first, second, state, original_deadline);
+            Self::submit_initial(
+                &mut operation.owners,
+                &mut operation.first_submission,
+                &mut operation.second_submission,
+            );
+            operation
+        }
+
+        fn submit_initial(
+            owners: &mut InitialOwners,
+            first_submission: &mut Submission,
+            second_submission: &mut Submission,
+        ) {
+            if matches!(first_submission, Submission::NotSubmitted) {
+                *first_submission = match catch_unwind(AssertUnwindSafe(|| {
+                    owners.first.submit(owners.state.clone())
+                })) {
+                    Ok(result) => Submission::Returned(result),
+                    Err(payload) => Submission::PanickedUnknown { _payload: payload },
+                };
+            }
+            if matches!(second_submission, Submission::NotSubmitted) {
+                *second_submission = match catch_unwind(AssertUnwindSafe(|| {
+                    owners.second.submit(owners.state.clone())
+                })) {
+                    Ok(result) => Submission::Returned(result),
+                    Err(payload) => Submission::PanickedUnknown { _payload: payload },
+                };
+            }
+        }
+
+        pub(crate) fn prepare_with_workflow_engine_owner(
+            first: JobAdmission,
+            second: JobAdmission,
+            state: Arc<AppState>,
+            original_deadline: Instant,
+        ) -> Self {
+            let mut operation = Self::prepare(first, second, state, original_deadline);
+            let incoming = OwnedOperatorChatEngineOwner::from_initial_owners(operation.initial_owners());
+            if let Err(rejected) = operation.install_workflow_engine_owner(incoming) {
+                operation._workflow_engine_owner_install_rejected = Some(rejected);
+            }
+            operation
+        }
+
+        pub(crate) async fn submit_prepared(&mut self) -> Result<(), WorkflowReserveError> {
+            let Self {
+                owners, workflow_engine_owner, first_submission, second_submission, ..
+            } = self;
+            let owner = workflow_engine_owner.as_mut().ok_or(WorkflowReserveError::OwnerNotInstalled)?;
+            if !matches!(first_submission, Submission::NotSubmitted)
+                || !matches!(second_submission, Submission::NotSubmitted)
+            {
+                return Err(WorkflowReserveError::AlreadyConsumed);
+            }
+            let initial = OperatorChatInitialOwnersRef {
+                state: &owners.state,
+                registry: &owners._registry,
+                first: &owners.first,
+                second: &owners.second,
+                original_deadline: owners.original_deadline,
+            };
+            let access = owner.reserve_initial_submission(initial).await?;
+            Self::submit_initial(owners, first_submission, second_submission);
+            drop(access);
+            Ok(())
         }
 
         pub(crate) fn initial_owners(&self) -> OperatorChatInitialOwnersRef<'_> {
@@ -367,6 +443,337 @@ mod paired_initial {
                     reason: *reason, outcome: writer_result(outcome),
                 },
             })
+        }
+    }
+
+
+    pub struct AwaitingParent { _private: () }
+
+    #[derive(Clone, Copy, Debug)]
+    pub enum OperatorChatSubmissionError {
+        OwnerNotInstalled, OwnerMismatch, Deadline, AlreadyConsumed, RegistryUnknown, PanickedUnknown,
+    }
+
+    impl From<WorkflowReserveError> for OperatorChatSubmissionError {
+        fn from(reason: WorkflowReserveError) -> Self {
+            match reason {
+                WorkflowReserveError::OwnerNotInstalled => Self::OwnerNotInstalled,
+                WorkflowReserveError::OwnerMismatch => Self::OwnerMismatch,
+                WorkflowReserveError::Deadline => Self::Deadline,
+                WorkflowReserveError::AlreadyConsumed => Self::AlreadyConsumed,
+                WorkflowReserveError::RegistryUnknown => Self::RegistryUnknown,
+                WorkflowReserveError::PanickedUnknown => Self::PanickedUnknown,
+            }
+        }
+    }
+
+    pub(crate) struct OperatorChatFirstOwnerRef<'a> {
+        state: &'a Arc<AppState>,
+        registry: &'a Arc<SessionRegistry>,
+        first: &'a JobAdmission,
+        original_deadline: Instant,
+    }
+
+    impl OperatorChatFirstOwnerRef<'_> {
+        pub(crate) fn state(&self) -> &Arc<AppState> { self.state }
+        pub(crate) fn registry(&self) -> &Arc<SessionRegistry> { self.registry }
+        pub(crate) fn first_admission(&self) -> &JobAdmission { self.first }
+        pub(crate) fn original_deadline(&self) -> Instant { self.original_deadline }
+    }
+
+    impl<S> OwnedOperatorChatOperation<S> {
+        pub(crate) fn first_owner(&self) -> OperatorChatFirstOwnerRef<'_> {
+            OperatorChatFirstOwnerRef {
+                state: &self.owners.state,
+                registry: &self.owners._registry,
+                first: &self.owners.first,
+                original_deadline: self.owners.original_deadline,
+            }
+        }
+
+        pub fn first_job_id(&self) -> Uuid { self.owners.first.job_id() }
+
+        pub fn first_submission(&self) -> OperatorChatSubmission<'_> {
+            self.first_submission.view()
+        }
+    }
+
+    impl OwnedOperatorChatOperation<AwaitingParent> {
+        pub async fn submit_first_prepared(&mut self) -> Result<(), OperatorChatSubmissionError> {
+            let Self { owners, workflow_engine_owner, first_submission, .. } = self;
+            let owner = workflow_engine_owner.as_mut()
+                .ok_or(OperatorChatSubmissionError::OwnerNotInstalled)?;
+            if !matches!(first_submission, Submission::NotSubmitted) {
+                return Err(OperatorChatSubmissionError::AlreadyConsumed);
+            }
+            let initial = OperatorChatFirstOwnerRef {
+                state: &owners.state,
+                registry: &owners._registry,
+                first: &owners.first,
+                original_deadline: owners.original_deadline,
+            };
+            let access = owner.reserve_first_submission(initial).await?;
+            *first_submission = match catch_unwind(AssertUnwindSafe(|| {
+                owners.first.submit(owners.state.clone())
+            })) {
+                Ok(result) => Submission::Returned(result),
+                Err(payload) => Submission::PanickedUnknown { _payload: payload },
+            };
+            drop(access);
+            Ok(())
+        }
+
+        pub(crate) async fn bind_second(
+            &mut self,
+            second: &JobAdmission,
+        ) -> Result<(), OperatorChatSubmissionError> {
+            let Self { owners, workflow_engine_owner, .. } = self;
+            let owner = workflow_engine_owner.as_mut()
+                .ok_or(OperatorChatSubmissionError::OwnerNotInstalled)?;
+            let first = OperatorChatFirstOwnerRef {
+                state: &owners.state,
+                registry: &owners._registry,
+                first: &owners.first,
+                original_deadline: owners.original_deadline,
+            };
+            owner.extend_second_owner(first, second).await.map_err(Into::into)
+        }
+    }
+
+    impl OwnedOperatorChatOperation {
+        pub async fn submit_second_prepared(&mut self) -> Result<(), OperatorChatSubmissionError> {
+            let Self { owners, workflow_engine_owner, second_submission, .. } = self;
+            let owner = workflow_engine_owner.as_mut()
+                .ok_or(OperatorChatSubmissionError::OwnerNotInstalled)?;
+            if !matches!(second_submission, Submission::NotSubmitted) {
+                return Err(OperatorChatSubmissionError::AlreadyConsumed);
+            }
+            let initial = OperatorChatInitialOwnersRef {
+                state: &owners.state,
+                registry: &owners._registry,
+                first: &owners.first,
+                second: &owners.second,
+                original_deadline: owners.original_deadline,
+            };
+            let access = owner.reserve_second_submission(initial).await?;
+            *second_submission = match catch_unwind(AssertUnwindSafe(|| {
+                owners.second.submit(owners.state.clone())
+            })) {
+                Ok(result) => Submission::Returned(result),
+                Err(payload) => Submission::PanickedUnknown { _payload: payload },
+            };
+            drop(access);
+            Ok(())
+        }
+    }
+
+    pub struct OperatorChatParentObservation {
+        inner: crate::workflows::OperatorChatParentObservation,
+    }
+
+    impl OperatorChatParentObservation {
+        pub fn session_id(&self) -> &str { self.inner.session_id() }
+        pub fn spawn_depth(&self) -> i32 { self.inner.spawn_depth() }
+        pub fn is_active(&self) -> bool { self.inner.is_active() }
+    }
+
+    impl OwnedOperatorChatOperation<AwaitingParent> {
+        pub(crate) fn prepare_first_with_workflow_engine_owner(
+            first: JobAdmission,
+            state: Arc<AppState>,
+            original_deadline: Instant,
+        ) -> Self {
+            let registry = state.session_registry.clone();
+            let mut operation = Self {
+                owners: InitialOwners {
+                    first, second: AwaitingParent { _private: () },
+                    state, _registry: registry, original_deadline,
+                },
+                workflow_engine_owner: None,
+                _workflow_engine_owner_install_rejected: None,
+                first_submission: Submission::NotSubmitted,
+                second_submission: Submission::NotSubmitted,
+                first_observation_panicked: false,
+                second_observation_panicked: false,
+                _first_observation_panic: None,
+                _second_observation_panic: None,
+            };
+            let incoming = OwnedOperatorChatEngineOwner::from_first_owner(operation.first_owner());
+            let verification = catch_unwind(AssertUnwindSafe(|| {
+                incoming.matches_first_owner(operation.first_owner())
+            }));
+            match verification {
+                Ok(true) => operation.workflow_engine_owner = Some(incoming),
+                other => {
+                    let reason = match other {
+                        Ok(false) => OperatorChatEngineOwnerInstallReason::OwnerMismatch,
+                        Err(_) => OperatorChatEngineOwnerInstallReason::PanickedUnknown,
+                        Ok(true) => unreachable!("successful verification handled above"),
+                    };
+                    operation._workflow_engine_owner_install_rejected = Some(
+                        OperatorChatEngineOwnerInstallRejected { _incoming: incoming, reason },
+                    );
+                }
+            }
+            operation
+        }
+
+        pub async fn first_parent_observation(
+            &mut self,
+        ) -> Result<OperatorChatParentObservation, OperatorChatSubmissionError> {
+            if self.first_observation_panicked {
+                return Err(OperatorChatSubmissionError::PanickedUnknown);
+            }
+            match AssertUnwindSafe(self.owners.first.settle(self.owners.original_deadline))
+                .catch_unwind().await
+            {
+                Ok(JobSubmissionSettlement::Observed(observation))
+                    if observation.rejected.is_none()
+                        && matches!(observation.primary, Some(Ok(Ok(
+                            JobCreateCommitOutcome::Created(_) | JobCreateCommitOutcome::AlreadyCreated(_)
+                        )))) => {}
+                Ok(_) => return Err(OperatorChatSubmissionError::RegistryUnknown),
+                Err(payload) => {
+                    self.first_observation_panicked = true;
+                    self._first_observation_panic = Some(payload);
+                    return Err(OperatorChatSubmissionError::PanickedUnknown);
+                }
+            }
+            let Self { owners, workflow_engine_owner, .. } = self;
+            let owner = workflow_engine_owner.as_mut()
+                .ok_or(OperatorChatSubmissionError::OwnerNotInstalled)?;
+            let first = OperatorChatFirstOwnerRef {
+                state: &owners.state,
+                registry: &owners._registry,
+                first: &owners.first,
+                original_deadline: owners.original_deadline,
+            };
+            owner.first_parent_observation(first).await
+                .map(|inner| OperatorChatParentObservation { inner }).map_err(Into::into)
+        }
+    }
+
+    impl<S> OwnedOperatorChatOperation<S> {
+
+        pub fn request_cancel(&mut self) -> Result<(), OperatorChatSubmissionError> {
+            self.workflow_engine_owner.as_mut()
+                .ok_or(OperatorChatSubmissionError::OwnerNotInstalled)?
+                .request_cancel().map_err(Into::into)
+        }
+
+    }
+
+    #[must_use = "retain both the original parent operation and actual incoming admission on rejection"]
+    pub struct OperatorChatSecondOwnerRejected {
+        operation: OwnedOperatorChatOperation<AwaitingParent>,
+        second: JobAdmission,
+        reason: OperatorChatSubmissionError,
+        _verification_panic: Option<Box<dyn std::any::Any + Send>>,
+    }
+
+    impl OperatorChatSecondOwnerRejected {
+        pub fn reason(&self) -> OperatorChatSubmissionError { self.reason }
+
+        pub fn operation_mut(&mut self) -> &mut OwnedOperatorChatOperation<AwaitingParent> {
+            &mut self.operation
+        }
+
+        pub(crate) fn into_parts(self) -> (
+            OwnedOperatorChatOperation<AwaitingParent>, JobAdmission,
+            OperatorChatSubmissionError, Option<Box<dyn std::any::Any + Send>>,
+        ) {
+            (self.operation, self.second, self.reason, self._verification_panic)
+        }
+    }
+
+    impl OwnedOperatorChatOperation<AwaitingParent> {
+        pub fn extend_second(
+            self,
+            second: JobAdmission,
+        ) -> Result<OwnedOperatorChatOperation, OperatorChatSecondOwnerRejected> {
+            let verification = catch_unwind(AssertUnwindSafe(|| {
+                self.workflow_engine_owner.as_ref().map(|owner| owner.matches_initial_owners(
+                    &self.owners.state, &self.owners._registry,
+                    &self.owners.first, &second, self.owners.original_deadline,
+                ))
+            }));
+            let (reason, payload) = match verification {
+                Ok(Some(true)) => (None, None),
+                Ok(Some(false)) => (Some(OperatorChatSubmissionError::OwnerMismatch), None),
+                Ok(None) => (Some(OperatorChatSubmissionError::OwnerNotInstalled), None),
+                Err(payload) => (Some(OperatorChatSubmissionError::PanickedUnknown), Some(payload)),
+            };
+            if let Some(reason) = reason {
+                return Err(OperatorChatSecondOwnerRejected {
+                    operation: self, second, reason, _verification_panic: payload,
+                });
+            }
+            let Self {
+                owners, workflow_engine_owner, _workflow_engine_owner_install_rejected,
+                first_submission, second_submission,
+                first_observation_panicked, second_observation_panicked,
+                _first_observation_panic, _second_observation_panic,
+            } = self;
+            let InitialOwners { first, state, _registry, original_deadline, .. } = owners;
+            Ok(OwnedOperatorChatOperation {
+                owners: InitialOwners { first, second, state, _registry, original_deadline },
+                workflow_engine_owner, _workflow_engine_owner_install_rejected,
+                first_submission, second_submission,
+                first_observation_panicked, second_observation_panicked,
+                _first_observation_panic, _second_observation_panic,
+            })
+        }
+    }
+
+
+    async fn settle_owned_admission(
+        admission: &mut JobAdmission,
+        submission: &Submission,
+        original_deadline: Instant,
+        panicked: &mut bool,
+        payload: &mut Option<Box<dyn std::any::Any + Send>>,
+    ) -> bool {
+        if *panicked { return false; }
+        match AssertUnwindSafe(admission.settle(original_deadline)).catch_unwind().await {
+            Ok(JobSubmissionSettlement::NotSubmitted) => !matches!(submission, Submission::PanickedUnknown { .. }),
+            Ok(JobSubmissionSettlement::Observed(_)) => true,
+            Ok(JobSubmissionSettlement::Pending) => false,
+            Err(cause) => {
+                *panicked = true;
+                *payload = Some(cause);
+                false
+            }
+        }
+    }
+
+    impl OwnedOperatorChatOperation<AwaitingParent> {
+        pub async fn drain(&mut self) -> Result<(), OperatorChatSubmissionError> {
+            let settled = settle_owned_admission(
+                &mut self.owners.first, &self.first_submission, self.owners.original_deadline,
+                &mut self.first_observation_panicked, &mut self._first_observation_panic,
+            ).await;
+            self.workflow_engine_owner.as_mut()
+                .ok_or(OperatorChatSubmissionError::OwnerNotInstalled)?
+                .drain().await?;
+            if settled { Ok(()) } else { Err(OperatorChatSubmissionError::RegistryUnknown) }
+        }
+    }
+
+    impl OwnedOperatorChatOperation {
+        pub async fn drain(&mut self) -> Result<(), OperatorChatSubmissionError> {
+            let first_settled = settle_owned_admission(
+                &mut self.owners.first, &self.first_submission, self.owners.original_deadline,
+                &mut self.first_observation_panicked, &mut self._first_observation_panic,
+            ).await;
+            let second_settled = settle_owned_admission(
+                &mut self.owners.second, &self.second_submission, self.owners.original_deadline,
+                &mut self.second_observation_panicked, &mut self._second_observation_panic,
+            ).await;
+            self.workflow_engine_owner.as_mut()
+                .ok_or(OperatorChatSubmissionError::OwnerNotInstalled)?
+                .drain().await?;
+            if first_settled && second_settled { Ok(()) }
+            else { Err(OperatorChatSubmissionError::RegistryUnknown) }
         }
     }
 
@@ -712,6 +1119,8 @@ pub struct OperatorChatModelInventory {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct OperatorChatSessionRow {
+    #[serde(default)]
+    pub job_id: Option<Uuid>,
     pub session_id: String,
     pub parent_session_id: Option<String>,
     pub label: String,
@@ -1463,6 +1872,10 @@ fn operator_lane_for_run(
     run: &ModelLaneRunRecord,
     selection: &OperatorChatSelection,
 ) -> Result<NewModelLane, OperatorChatError> {
+    operator_lane_for_owner(run, &selection.owner_session)
+}
+
+fn operator_lane_for_owner(run: &ModelLaneRunRecord, owner_session: &str) -> Result<NewModelLane, OperatorChatError> {
     let work_packet_id = run.work_packet_id.clone().ok_or_else(|| {
         OperatorChatError::Invalid(format!(
             "run {} is missing work_packet_id required for operator prompt lane",
@@ -1491,7 +1904,7 @@ fn operator_lane_for_run(
         coordinator_session_id: run.coordinator_session_id.clone(),
         session_id: session_id.clone(),
         model_session_id: model_session_id.clone(),
-        owner_session: selection.owner_session.clone(),
+        owner_session: owner_session.to_owned(),
         locus_binding_ref: format!("locus://operator-chat/{}/{lane_id}", run.run_id),
     };
     Ok(NewModelLane {
@@ -1552,7 +1965,7 @@ fn operator_lane_for_run(
         work_packet_id: Some(work_packet_id),
         micro_task_id: Some(micro_task_id),
         task_board_id: Some(task_board_id),
-        owner_session: selection.owner_session.clone(),
+        owner_session: owner_session.to_owned(),
         locus_binding: Some(locus),
     })
 }
@@ -1675,7 +2088,106 @@ pub struct OperatorChatLaunchService {
     _process_ledger_runtime: Option<RetainedLedgerBatcher>,
 }
 
+pub(crate) struct CapturedOperatorChatLaunch {
+    scope: ExactResourceScopeAttribution,
+    selection_json: Value,
+    original_request_json: Value,
+    original_request: SpawnRequest,
+}
+
+impl CapturedOperatorChatLaunch {
+    fn capture(
+        scope: ExactResourceScopeAttribution,
+        selection: &OperatorChatSelection,
+        request: &SpawnRequest,
+    ) -> Result<Arc<Self>, OperatorChatError> {
+        let encode = |error: serde_json::Error| OperatorChatError::Invalid(
+            format!("original operator-chat launch encoding failed: {error}")
+        );
+        Ok(Arc::new(Self {
+            scope,
+            selection_json: serde_json::to_value(selection).map_err(encode)?,
+            original_request_json: serde_json::to_value(request).map_err(encode)?,
+            original_request: request.clone(),
+        }))
+    }
+
+    pub(crate) fn matches_request(&self, request: &SpawnRequest) -> bool {
+        self.original_request == *request
+    }
+
+    pub(crate) fn scope(&self) -> &ExactResourceScopeAttribution { &self.scope }
+
+    pub(crate) fn selection_json(&self) -> &Value { &self.selection_json }
+
+    pub(crate) fn original_request_json(&self) -> &Value {
+        &self.original_request_json
+    }
+}
+
 impl OperatorChatLaunchService {
+    fn capture_original_launch(
+        &self,
+        selection: &OperatorChatSelection,
+        request: &SpawnRequest,
+        scope: Option<&ExactResourceScopeAttribution>,
+    ) -> Result<Option<Arc<CapturedOperatorChatLaunch>>, OperatorChatError> {
+        let Some(scope) = scope else { return Ok(None); };
+        let store = self.coordinator.model_lane_store().ok_or_else(|| {
+            OperatorChatError::Invalid("original launch source store unavailable".into())
+        })?;
+        if store.access().exact_read_scope() != Some(scope) {
+            return Err(OperatorChatError::Invalid("original launch source scope differs".into()));
+        }
+        store.access().authorize_exact_request(scope).map_err(|_| {
+            OperatorChatError::Invalid("original launch source authority unavailable".into())
+        })?;
+        CapturedOperatorChatLaunch::capture(scope.clone(), selection, request).map(Some)
+    }
+
+    pub(crate) async fn original_launch_for_registered_validator(
+        &self,
+        scope: &ExactResourceScopeAttribution,
+        registered: &super::coordinator::RegisteredValidatorInstance,
+    ) -> Result<Arc<super::coordinator::BoundOperatorChatLaunch>, OperatorChatError> {
+        let store = self.coordinator.model_lane_store().ok_or_else(|| {
+            OperatorChatError::Invalid("original launch source store unavailable".into())
+        })?;
+        if store.access().exact_read_scope() != Some(scope) {
+            return Err(OperatorChatError::Invalid("original launch source scope differs".into()));
+        }
+        store.access().authorize_exact_request(scope).map_err(|_| {
+            OperatorChatError::Invalid("original launch source authority unavailable".into())
+        })?;
+        let source = self.coordinator.original_operator_chat_launch(registered, scope)?;
+        let contract = source.launch_contract().ok_or_else(|| {
+            OperatorChatError::Invalid("original launch contract unavailable".into())
+        })?;
+        let replay = store.replay_run(&contract.run_id).await?;
+        let lane = replay.lanes.iter().find(|lane| lane.lane_id == contract.lane_id)
+            .ok_or_else(|| OperatorChatError::Invalid("original launch lane unavailable".into()))?;
+        if replay.run.trace_id != contract.trace_id
+            || replay.run.event_ledger_stream_id != contract.event_ledger_stream_id
+            || lane.run_id != contract.run_id
+            || lane.trace_id != contract.trace_id
+            || lane.event_ledger_stream_id != contract.event_ledger_stream_id
+            || lane.model_session_id != super::model_lane::dexterity_spawn_model_session_id(
+                source.committed_request()
+            )
+        {
+            return Err(OperatorChatError::Invalid("original launch canonical binding differs".into()));
+        }
+        store.access().authorize_exact_request(scope).map_err(|_| {
+            OperatorChatError::Invalid("original launch source authority unavailable".into())
+        })?;
+        let current = self.coordinator.original_operator_chat_launch(registered, scope)?;
+        if !Arc::ptr_eq(&source, &current) {
+            return Err(OperatorChatError::Invalid("original launch incarnation changed".into()));
+        }
+        Ok(source)
+    }
+
+
     fn require_exact_cloud_scope(
         &self,
         request_scope: Option<&ExactResourceScopeAttribution>,
@@ -2663,6 +3175,272 @@ impl OperatorChatLaunchService {
     }
 
     #[cfg(feature = "runtime-full")]
+    pub(crate) async fn review_designated_validator(
+        &self,
+        bootstrap: &crate::AccountBootstrapState,
+        auth: crate::storage::surreal::resource_authority::RoleAuthorityAuthInput,
+        designation_record: &super::model_lane::WorkspaceValidatorRunnerDesignationRecord,
+        operator_selector: super::model_lane::RoleEvidenceConsumeSelector,
+        request: GenerateRequest,
+        max_output_bytes: usize,
+    ) -> super::model_lane::ModelLaneResult<super::model_lane::RoleEvidenceConsumeSelector> {
+        use futures::StreamExt;
+        use handshake_role_authority::domain as role;
+        let denied = |error: String| ModelLaneError::AuthorityDenied(error);
+        let designation = designation_record.request();
+        let store = self.coordinator.model_lane_store()
+            .ok_or_else(|| denied("validator review requires canonical storage".into()))?;
+        if designation.run != operator_selector.expectation.run
+            || designation.subject != operator_selector.expectation.subject
+            || designation.expected != operator_selector.expectation.expected
+            || operator_selector.designation_ref.is_some() || operator_selector.producer.is_some()
+            || operator_selector.expectation.role != role::Role::Operator
+            || operator_selector.expectation.purpose != role::Purpose::PriorSelection
+            || store.access().exact_read_scope() != Some(&designation.scope)
+            || operator_selector.expectation.receipt_scope != designation.scope
+        { return Err(denied("validator review does not bind the canonical Operator prior".into())); }
+        let authorization = auth.workspace_creation_request(designation.scope.workspace_id.as_str());
+        let session_token = authorization.session_token.clone();
+        let channel_binding_hash = authorization.channel_binding_hash.clone();
+        let decision = bootstrap.surreal.authorize_protected_resource(authorization).await
+            .map_err(|error| denied(error.to_string()))?;
+        if decision.account_id != designation.scope.owner_account_id.to_string()
+            || decision.principal_id != designation.scope.actor_principal_id.to_string()
+            || decision.session_id != designation.scope.authenticated_session_id.to_string()
+            || decision.access_space_id != designation.scope.access_space_id.to_string()
+            || decision.resource_id.is_empty() || decision.grant_id.is_empty()
+            || !bootstrap.capability_registry.profile_can(&decision.capability_profile_id, "fs.write").unwrap_or(false)
+        { return Err(denied("validator review capture authority differs from Operator scope".into())); }
+        let record_user = crate::storage::surreal::resource_authority::RecordUserScope {
+            grant_id: Some(decision.grant_id), workspace_id: Some(designation.scope.workspace_id.to_string()),
+            session_token, channel_binding_hash, resource_id: decision.resource_id, session_id: decision.session_id,
+            capability_id: "fs.write".into(), action: crate::storage::surreal::resource_authority::ResourceAction::Create,
+        };
+        bootstrap.surreal.authorize_validator_delegation_parent(
+            &bootstrap.capability_registry, auth.clone(), &designation.scope,
+        ).await.map_err(|error| denied(error.to_string()))?;
+        bootstrap.surreal.with_record_user_scope(record_user, crate::storage::surreal::with_model_lane_subject(
+            crate::storage::surreal::ModelLaneOperationSubject {
+                kind: crate::storage::surreal::resource_authority::ResourceKind::Workspace,
+                external_id: designation.scope.workspace_id.to_string(),
+            }, async {
+        let registered = self.coordinator.registered_validator_instance_by_ref(&designation.runner.producer_instance_ref)
+            .map_err(|error| denied(error.to_string()))?;
+        let producer = self.coordinator.current_validator_producer(&registered)
+            .map_err(|error| denied(error.to_string()))?
+            .ok_or_else(|| denied("designated runtime has no authenticated producer".into()))?;
+        if producer.registration_ref() != designation.runner.producer_registration_ref
+            || producer.spawn_generation() != designation.runner.producer_spawn_generation
+            || producer.registered_principal() != &designation.runner.producer_registered_principal
+            || registered.parent_session_id() != designation.run.coordinator_session_id
+        { return Err(denied("designation runtime incarnation changed".into())); }
+        producer.revalidate(&bootstrap.surreal).await.map_err(|error| denied(error.to_string()))?;
+        let runner_lane_id = self.coordinator.validator_producer_lane(&producer)
+            .map_err(|error| denied(error.to_string()))?;
+        let replay = store.replay_run(&designation.run.run_id).await?;
+        let operator_lane = if let Some(lane) = replay.lanes.iter().find(|lane| lane.kind == ModelLaneKind::HumanOperator
+            && lane.session_id == designation.scope.authenticated_session_id.to_string()) {
+            lane.clone()
+        } else {
+            let mut lane = operator_lane_for_owner(&replay.run, &designation.run.owner_session)
+                .map_err(|error| denied(error.to_string()))?;
+            lane.lane_id = format!("operator-review-lane-{}", Uuid::now_v7());
+            lane.lane_span_id = format!("span-{}", lane.lane_id);
+            lane.session_id = designation.scope.authenticated_session_id.to_string();
+            lane.model_session_id = lane.session_id.clone();
+            if let Some(locus) = &mut lane.locus_binding {
+                locus.session_id = lane.session_id.clone(); locus.model_session_id = lane.model_session_id.clone();
+            }
+            store.record_lane(lane).await?
+        };
+        let operation_id = Uuid::now_v7();
+        let request_payload = json!({"text": request.prompt.as_str(), "turn_role": "operator",
+            "activity_kind": "text", "validator_review_operation": operation_id.to_string()});
+        let plan = CapturedMessagePlan { kind: ModelLaneMessageKind::Status,
+            activity_kind: "text", summary: "Operator requested designated Validator review".into(),
+            payload: request_payload.clone(), is_tool: false };
+        let mut message_input = build_captured_message(&replay.run, &operator_lane, &plan, 0,
+            &format!("validator-review-{operation_id}"))
+            .map_err(|error| denied(error.to_string()))?;
+        message_input.to_lane = ModelLaneTarget::Lane(runner_lane_id.clone());
+        let payload_binding = build_message_payload_binding(&message_input, request_payload)
+            .map_err(|error| denied(error.to_string()))?;
+        let message = store.record_message_with_payload_binding(message_input, payload_binding).await?;
+        let (mut stream, mut observation) = self.coordinator.run_registered_validator_review(
+            &registered, request, designation.run.run_id.clone(),
+            designation.run.coordinator_session_id.clone(), max_output_bytes,
+        ).map_err(|error| denied(error.to_string()))?;
+        while let Some(token) = stream.next().await {
+            token.map_err(|error| denied(error.to_string()))?;
+        }
+        let observed = observation.take_output().map_err(|error| denied(error.to_string()))?;
+        self.coordinator.with_current_validator_producer(&producer, Some(observed.terminal()), || Ok(()))
+            .map_err(|error| denied(error.to_string()))?;
+        let artifact_ref = format!("artifact-store://validator-review/{operation_id}/output");
+        let manifest_ref = format!("artifact-store://validator-review/{operation_id}/manifest");
+        let payload = Value::String(observed.output().to_owned());
+        let artifact_sha = sha256_hex(&canonical_json_bytes(&payload));
+        let binding = store.record_context_bundle_artifact_binding(NewModelLaneContextBundleArtifactBinding {
+            artifact_binding_id: operation_id.to_string(), run_id: designation.run.run_id.clone(),
+            trace_id: designation.run.trace_id.clone(), artifact_ref: artifact_ref.clone(),
+            artifact_sha256: artifact_sha.clone(), content_hash: artifact_sha.clone(),
+            artifact_kind: "validator_review_output".into(), artifact_manifest_ref: manifest_ref.clone(),
+            artifact_payload_ref: artifact_ref.clone(), payload_json: payload,
+            event_ledger_stream_id: replay.run.event_ledger_stream_id.clone(),
+            work_packet_id: designation.run.work_packet_id.clone(), micro_task_id: designation.run.micro_task_id.clone(),
+            task_board_id: designation.run.task_board_id.clone(), owner_session: designation.run.owner_session.clone(),
+            idempotency_key: format!("validator-review-output::{operation_id}"), created_at_utc: Utc::now().to_rfc3339(),
+            diagnostic_payload: json!({"invocation_trace_id": observed.terminal().trace_id().to_string()}),
+        }).await?;
+        let key_number = |number: i64| u64::try_from(number)
+            .map_err(|_| denied("canonical review artifact event has invalid sequence".into()));
+        let verdict = role::RecordValidatorVerdict {
+            action: role::ActionKey { action_id: operation_id.to_string(), request_id: operation_id.to_string(),
+                idempotency_key: format!("validator-review::{operation_id}") },
+            scope: producer.exact_scope().clone(),
+            designation_ref: role::DesignationRef::parse(&format!("eventledger://validator-designation/{}", designation_record.event().event_id))
+                .map_err(|error| denied(error.to_string()))?,
+            execution: role::ValidatorExecutionEvidence {
+                runner_principal: producer.registered_principal().clone(), runner_lane_id,
+                invocation_ref: observed.terminal().trace_id().to_string(), request_message_ref: message.message_id.clone(),
+                execution_event: role::CanonicalEventKey { event_id: binding.event_ledger_event_id.clone(),
+                    stream_id: binding.event_ledger_stream_id.clone(), event_seq: key_number(binding.event_ledger_seq)?,
+                    transaction_seq: key_number(binding.transaction_seq)? },
+                verdict_artifact: role::ArtifactSubject { artifact_ref, manifest_ref, version: binding.event_stream_version.to_string(),
+                    sha256: role::ContentSha256::from_hex(&artifact_sha).map_err(|error| denied(error.to_string()))? },
+            },
+            run: designation.run.clone(), subject: designation.subject.clone(), purpose: role::Purpose::PriorSelection,
+            expected: designation.expected.clone(), retention: designation.retention.clone(),
+        };
+        let issuance = bootstrap.surreal.capture_initial_validator_issuance(
+            bootstrap, auth, self.coordinator.clone(), producer.clone(), observed, operator_selector.clone(), verdict, operation_id,
+        ).await.map_err(|error| denied(error.to_string()))?;
+        let receipt = bootstrap.surreal.consume_initial_validator_issuance(bootstrap, issuance, store).await?;
+        Ok(super::model_lane::RoleEvidenceConsumeSelector {
+            evidence_ref: role::RoleEvidenceRef::parse(&format!("eventledger://role-authority/{}", receipt.event.event_id))
+                .map_err(|error| denied(error.to_string()))?,
+            expectation: role::ResolutionExpectation { receipt_scope: receipt.body.scope.clone(), role: role::Role::Validator,
+                run: receipt.body.run.clone(), subject: receipt.body.subject.clone(), purpose: receipt.body.purpose.clone(),
+                expected: receipt.body.expected.clone() },
+            designation_ref: receipt.body.designation.clone(), producer: Some(designation.runner.clone()),
+        })
+        })).await
+    }
+
+    #[cfg(feature = "runtime-full")]
+    pub(crate) async fn prepare_designated_validator_runtime(
+        &self,
+        selection: &OperatorChatSelection,
+        request_scope: &ExactResourceScopeAttribution,
+        bootstrap: &crate::AccountBootstrapState,
+        authentication: crate::storage::surreal::resource_authority::RoleAuthorityAuthInput,
+        candidate_run: &ModelLaneRunRecord,
+    ) -> Result<super::ModelInstanceId, OperatorChatError> {
+        let denied = || OperatorChatError::Invalid("validator runtime preparation authority unavailable".into());
+        let store = self.coordinator.model_lane_store().ok_or_else(denied)?;
+        let lifecycle = bootstrap.surreal.resource_access_lifecycle();
+        if selection.lane_kind == OperatorChatLaneKind::Subagent
+            || store.surreal_storage().resource_access_lifecycle() != lifecycle
+            || store.access().lifecycle_authority() != Some(&lifecycle)
+            || store.access().exact_read_scope() != Some(request_scope)
+        { return Err(denied()); }
+        store.access().authorize_exact_request(request_scope).map_err(|_| denied())?;
+        if candidate_run.owner_session != selection.owner_session
+            || candidate_run.coordinator_session_id != selection.parent_session_id
+            || candidate_run.work_packet_id.as_deref() != Some(selection.work_packet())
+            || candidate_run.micro_task_id.as_deref() != Some(selection.micro_task())
+        { return Err(denied()); }
+        let authorization = authentication.workspace_creation_request(request_scope.workspace_id.as_str());
+        let session_token = authorization.session_token.clone();
+        let channel_binding_hash = authorization.channel_binding_hash.clone();
+        let decision = bootstrap.surreal.authorize_protected_resource(authorization).await.map_err(|_| denied())?;
+        if decision.account_id != request_scope.owner_account_id.to_string()
+            || decision.principal_id != request_scope.actor_principal_id.to_string()
+            || decision.session_id != request_scope.authenticated_session_id.to_string()
+            || decision.access_space_id != request_scope.access_space_id.to_string()
+            || decision.grant_id.is_empty() || decision.resource_id.is_empty()
+            || !bootstrap.capability_registry.profile_can(&decision.capability_profile_id, "fs.write").unwrap_or(false)
+        { return Err(denied()); }
+        let record_user = crate::storage::surreal::resource_authority::RecordUserScope {
+            grant_id: Some(decision.grant_id), workspace_id: Some(request_scope.workspace_id.to_string()),
+            session_token, channel_binding_hash, resource_id: decision.resource_id, session_id: decision.session_id,
+            capability_id: "fs.write".into(), action: crate::storage::surreal::resource_authority::ResourceAction::Create,
+        };
+        bootstrap.surreal.authorize_validator_delegation_parent(
+            &bootstrap.capability_registry, authentication, request_scope,
+        ).await.map_err(|_| denied())?;
+        bootstrap.surreal.with_record_user_scope(record_user, crate::storage::surreal::with_model_lane_subject(
+            crate::storage::surreal::ModelLaneOperationSubject {
+                kind: crate::storage::surreal::resource_authority::ResourceKind::Workspace,
+                external_id: request_scope.workspace_id.to_string(),
+            }, async {
+        let mut request = self.build_spawn_request(selection)?;
+        let contract = request.dexterity_launch.as_mut().ok_or_else(denied)?;
+        contract.run_id = candidate_run.run_id.clone();
+        contract.trace_id = candidate_run.trace_id.clone();
+        contract.run_span_id = candidate_run.run_span_id.clone();
+        contract.context_bundle_id = candidate_run.context_bundle_id.clone();
+        contract.event_ledger_stream_id = candidate_run.event_ledger_stream_id.clone();
+        contract.artifact_namespace = candidate_run.artifact_namespace.clone();
+        contract.routing_policy = candidate_run.routing_policy.clone();
+        contract.task_board_id = candidate_run.task_board_id.clone().ok_or_else(denied)?;
+        contract.locus_binding_ref = candidate_run.locus_binding.as_ref().ok_or_else(denied)?.locus_binding_ref.clone();
+        self.attach_cloud_launch_authority(selection, &mut request, Some(request_scope)).await?;
+        let plan = build_cloud_projection_artifact_binding_plan(selection, &request)?;
+        let original = self.capture_original_launch(selection, &request, Some(request_scope))?;
+        let instance_id = self.coordinator
+            .spawn_session_with_original_operator_chat_launch(
+                request, Some(candidate_run.clone()), original,
+            ).await?;
+        if let Some(plan) = plan {
+            if let Err(error) = self.record_cloud_projection_artifact_bindings(plan).await {
+                self.coordinator.cancel_session(instance_id,
+                    format!("validator preparation artifact binding failed: {error}")).await?;
+                return Err(error);
+            }
+        }
+        Ok(instance_id)
+        })).await
+    }
+
+    #[cfg(feature = "runtime-full")]
+    pub(crate) async fn register_authenticated_validator_producer_for_designation(
+        &self,
+        bootstrap: &crate::AccountBootstrapState,
+        scope: &ExactResourceScopeAttribution,
+        auth: crate::storage::surreal::resource_authority::RoleAuthorityAuthInput,
+        instance: ModelInstanceId,
+    ) -> Result<Arc<ValidatorProducerKey>, OperatorChatError> {
+        let denied = || OperatorChatError::Invalid("validator producer authority unavailable".into());
+        let store = self.coordinator.model_lane_store().ok_or_else(denied)?;
+        if store.surreal_storage().resource_access_lifecycle() != bootstrap.surreal.resource_access_lifecycle()
+            || store.access().exact_read_scope() != Some(scope)
+            || store.access().lifecycle_authority() != Some(&bootstrap.surreal.resource_access_lifecycle())
+        { return Err(denied()); }
+        store.access().authorize_exact_request(scope).map_err(|_| denied())?;
+        let parent = bootstrap.surreal.authorize_validator_delegation_parent(
+            &bootstrap.capability_registry, auth, scope,
+        ).await.map_err(|_| denied())?;
+        let registered = self.coordinator.registered_validator_instance(instance)?;
+        if let Some(producer) = self.coordinator.current_validator_producer(&registered)? {
+            if producer.delegating_scope() != scope { return Err(denied()); }
+            producer.revalidate(&bootstrap.surreal).await.map_err(|_| denied())?;
+            return Ok(producer);
+        }
+        let seal = bootstrap.surreal.issue_authenticated_validator_launch(
+            &bootstrap.capability_registry, parent, &registered,
+        ).await.map_err(|_| denied())?;
+        let session_id = seal.authenticated_session_id().to_owned();
+        match self.coordinator.register_authenticated_validator_producer(seal).await {
+            Ok(producer) => Ok(producer),
+            Err(error) => {
+                bootstrap.surreal.revoke_session(&session_id).await.map_err(|_| denied())?;
+                Err(error.into())
+            }
+        }
+    }
+
+    #[cfg(feature = "runtime-full")]
     pub(crate) async fn designate_authenticated_validator(
         &self,
         bootstrap: &crate::AccountBootstrapState,
@@ -2687,26 +3465,9 @@ impl OperatorChatLaunchService {
         if registered.parent_session_id() != request.run.coordinator_session_id {
             return Err(denied());
         }
-        let producer = if let Some(producer) = self.coordinator.current_validator_producer(&registered)? {
-            if producer.delegating_scope() != &request.scope { return Err(denied()); }
-            producer.revalidate(storage).await.map_err(|_| denied())?;
-            producer
-        } else {
-            let parent = storage.authorize_validator_delegation_parent(
-                &bootstrap.capability_registry, authentication, &request.scope,
-            ).await.map_err(|_| denied())?;
-            let seal = storage.issue_authenticated_validator_launch(
-                &bootstrap.capability_registry, parent, &registered,
-            ).await.map_err(|_| denied())?;
-            let session_id = seal.authenticated_session_id().to_owned();
-            match self.coordinator.register_authenticated_validator_producer(seal).await {
-                Ok(producer) => producer,
-                Err(error) => {
-                    storage.revoke_session(&session_id).await.map_err(|_| denied())?;
-                    return Err(error.into());
-                }
-            }
-        };
+        let producer = self.register_authenticated_validator_producer_for_designation(
+            bootstrap, &request.scope, authentication, *registered.instance_id(),
+        ).await?;
         request.runner = super::model_lane::ValidatorRunnerRegistrationBinding {
             producer_registration_ref: producer.registration_ref().to_owned(),
             producer_instance_ref: producer.instance_id().to_string(),
@@ -2752,7 +3513,10 @@ impl OperatorChatLaunchService {
                 }).await;
             }
         }
-        let instance_id = self.coordinator.spawn_session(request).await?;
+        let original = self.capture_original_launch(selection, &request, request_scope)?;
+        let instance_id = self.coordinator
+            .spawn_session_with_original_operator_chat_launch(request, None, original)
+            .await?;
 
         if let Some(plan) = cloud_artifact_binding_plan {
             if let Err(err) = self.record_cloud_projection_artifact_bindings(plan).await {

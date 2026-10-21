@@ -84,7 +84,7 @@ pub struct RoutingAttemptIdentity {
 /// A request to spawn a single model session into the swarm. The factory turns
 /// this into a live session; the coordinator enforces the bounds before the
 /// factory is ever called.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct SpawnRequest {
     pub instance_id: ModelInstanceId,
     pub runtime_binding: RuntimeBinding,
