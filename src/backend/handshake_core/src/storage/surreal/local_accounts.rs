@@ -17,6 +17,16 @@ const PASSWORD_ITERATIONS: u32 = 2;
 const MAX_PASSWORD_BYTES: usize = 1024;
 static PASSWORD_WORKERS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(2);
 
+fn session_authentication_error(
+    phase: &'static str,
+    error: surrealdb::Error,
+) -> surrealdb::Error {
+    tracing::error!(target: "handshake_core::resource_authority",
+        phase = phase, cause = error.kind_str(),
+        "local_session_authentication_failed");
+    error
+}
+
 pub(crate) async fn new_password_verifier(
     password: String,
 ) -> Result<String, ResourceAuthorityError> {
@@ -351,13 +361,26 @@ impl SurrealStorage {
         let channel_binding_hash = Some(channel_hash.to_owned());
         let row = self.with_lease(move |client| Box::pin(async move {
             let ordinary = client.clone();
-            ordinary.use_ns(namespace.clone()).use_db(database.clone()).await?;
+            ordinary.use_ns(namespace.clone()).use_db(database.clone()).await
+                .map_err(|error| session_authentication_error("select_context", error))?;
             ordinary.signin(Record { namespace, database, access: AUTHORITY_ACCESS_METHOD.to_owned(),
-                params: SigninParams { token_hash, channel_binding_hash } }).await?;
-            let mut response = ordinary.query("SELECT account_id, principal_id, access_space_id, id AS session_id, principal_id.actor_id AS actor_id, principal_id.principal_kind AS principal_kind, principal_id.actor_kind AS actor_kind, policy_version, delegation_chain, delegated_capabilities FROM authenticated_sessions WHERE id = $auth.id LIMIT 1;").await?.check()?;
-            let mut rows: Vec<SessionRow> = response.take(0)?;
+                params: SigninParams { token_hash, channel_binding_hash } }).await
+                .map_err(|error| session_authentication_error("signin", error))?;
+            let response = ordinary.query("SELECT account_id, principal_id, access_space_id, id AS session_id, principal_id.actor_id AS actor_id, principal_id.principal_kind AS principal_kind, principal_id.actor_kind AS actor_kind, policy_version, delegation_chain, delegated_capabilities FROM authenticated_sessions WHERE id = $auth.id LIMIT 1;").await
+                .map_err(|error| session_authentication_error("session_query", error))?;
+            let mut response = response.check()
+                .map_err(|error| session_authentication_error("session_query_check", error))?;
+            let mut rows: Vec<SessionRow> = response.take(0)
+                .map_err(|error| session_authentication_error("session_row_decode", error))?;
             Ok(rows.pop())
-        })).await?;
+        })).await.map_err(|error| {
+            if matches!(&error, super::SurrealStorageError::Closed) {
+                tracing::error!(target: "handshake_core::resource_authority",
+                    phase = "lease", cause = "Closed",
+                    "local_session_authentication_failed");
+            }
+            error
+        })?;
         let row = row.ok_or(ResourceAuthorityError::InvalidInput(
             "authentication denied",
         ))?;
