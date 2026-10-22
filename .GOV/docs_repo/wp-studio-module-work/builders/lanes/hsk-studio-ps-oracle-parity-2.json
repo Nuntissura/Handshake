@@ -2,7 +2,7 @@
  "crate": "hsk-studio-pigment (effect_math, effect_math/window, coverage_math, blend_math, adjust_math, render_plan, render_plan/output, render_plan/extensions), hsk-studio-render-cpu (plan_sink, plan_sink/extended, plan_sink/display), hsk-studio-render-gpu (fx.rs/fx.wgsl, kernel.rs/kernel.wgsl/kernel_pixel.wgsl, plan_sink, plan_sink/knockout), hsk-studio-harness (tests/d5_ps_compare/support.rs, expectations.json)",
  "lane": "SMB-PS-ORACLE-PARITY-2",
  "status": "READY_FOR_VALIDATION",
- "phase": "pushed 2026-10-21 (lead rebase after the branch restore): 8f5bbfc..e64eacd; READY_FOR_VALIDATION on e64eacd (ledger authority); awaiting R36",
+ "phase": "R36 FAIL_V1 (stale_dependent_test_pin, composite render_plan_lowering) remediated: composite re-pin 9e09375 pushed 2026-10-22 on a105766; READY_FOR_VALIDATION on 9e09375; awaiting R37",
  "commits": [
   {
    "sha": "77c4972",
@@ -75,6 +75,14 @@
    "status": "COMMITTED_LOCAL",
    "pushed_as": "e64eacd",
    "pushed": true
+  },
+  {
+   "sha": "9e09375",
+   "subject": "composite tests: re-pin effect hand values to pigment's Photoshop grow fringe (R36 FAIL_V1)",
+   "slice": "R36 remediation",
+   "status": "PUSHED",
+   "pushed_as": "9e09375",
+   "pushed": true
   }
  ],
  "capabilities_done": [
@@ -88,10 +96,10 @@
   "slice 4 8-bit linear light at fill: composite_over_fill_at floors the linear-light fill-scaled source to a whole level (other special modes keep the float source); render-cpu over_fill, render-gpu flag 128"
  ],
  "tests": {
-  "argv": "r5 (HEAD 335c231, one D: lock hold via tools/lane-check.sh --disk d; SSD refused 77, C: tree 160 GiB > 140 GiB cap): clippy over pigment, render-cpu, render-gpu, harness (+viewer) and dependents composite, develop, harness-view, interop-fig, interop-layout, interop-psd, pulse (exit 0, no new warnings); cargo nextest run -p hsk-studio-pigment -p hsk-studio-render-cpu -p hsk-studio-render-gpu -p hsk-studio-harness --features hsk-studio-harness/viewer --no-fail-fast -E 'package(hsk-studio-pigment) | package(hsk-studio-render-cpu) | package(hsk-studio-render-gpu) | binary(d5_ps_compare)'",
+  "argv": "R36 remediation r1 (HEAD 9e09375 on a105766, one D: lock hold): cd <lane worktree>/handshake-studio-assets && bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-ps-oracle-parity-2 --disk d -- cargo nextest run -p hsk-studio-composite --features hsk-studio-composite/motion --no-fail-fast (clippy over composite and dependents harness, harness-view, interop-fig, pulse, render-cpu, render-gpu: exit 0, no warning in the edited file; then the whole composite suite with motion: 130 run, 130 passed, 0 skipped)",
   "exit": 0,
-  "sha": "335c231",
-  "passed": 408,
+  "sha": "9e09375",
+  "passed": 130,
   "failed": 0
  },
  "blockers": [
@@ -99,17 +107,25 @@
  ],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "rebase on the restored origin, re-run if the rebase touched pigment/render-cpu/render-gpu/harness or their dependencies, push, then READY_FOR_VALIDATION",
- "updated_at": "2026-10-21T14:39:23Z",
+ "next": "R37 judges 9e09375 (composite re-pin) with the lane's earlier claim 8f5bbfc..e64eacd; never PASS by builder",
+ "updated_at": "2026-10-22T05:54:12Z",
  "notes": {
   "worktree": "wt-studio-lanes/smb-ps-oracle-parity-2 (branch lane/smb-ps-oracle-parity-2 from origin 6585ff0); STUDIO_OWNER=smb-ps-oracle-parity-2; r1 on the C: SSD slot, r2-r5 on D: (SSD cap guard 77); lane-gameplan.sh printed OK",
   "oracle": "Photoshop 27.11.0 D5 corpus <oracle corpus root>/adobe-session/photoshop (pins unchanged, no corpus file added)",
   "method": "scratch numpy models of the oracle variants (session scratchpad p2/*.py: ch.py grow, stroke.py, c09*.py gray, c14.py stack, lev.py levels, rows/fitw.py weight fits); the Rust d5 suite is the proof",
   "match_before_after": "MATCH 340 -> 489 (d5 JSON counts at 335c231: MATCH 489, NOT_SUPPORTED 83, MISMATCH 9, ORACLE_INVALID 6, ORACLE_ABSENT 1); PS-C12 +60, PS-C13 +31, PS-C15 +30, PS-C16 +13, PS-C14 +7, PS-C02 +3, PS-C09 +1, PS-C28 +2 (nomask, opacity50_nomask), PS-C29 +1, PS-B01 +1; no MATCH regressed",
   "evidence": "grow: PS-C12 square_s10_sp100 corner ramp 196/135/75/15 = 60 codes per pixel (chamfer (2,1) face), (8,6) 223 and (9,5) 164 on the (1,1)-(2,1) face, 1/255 fringe one pixel beyond the spread (w1 < 1); PS-C13 square_outside_s2 195/44 equals square_s2_sp100; circle/soft rims need src as a sub-pixel edge (max src*ramp missed by 60 codes). Weights least-squares fitted over the anti-aliased pixels of PS-C12 square_s{2,10,40}_sp100 (every sample within 1 code); validated on the independent circle variants of PS-C12/C15/C16 and all PS-C13 except circle_outside_s50. stroke: outside/inside matched as behind-content disjoint coverage / interior, centre as ring over content (H1/H5 scratch models over PS-C13 square/circle/soft s1/2/5/50). glow knockout: PS-C16 soft_fill0_s10_sp0_softer shows m (1 - a) (255 codes before). unit fade: PS-C14 opacity50 (50 codes before, within 1 after). Blend-If gray: PS-C09 exact halves round down on red-only/magenta bands and up on cyan/yellow; 9830/19334/3604 / 32768 (15-bit 0.3/0.59/0.11, green the remainder) fits every sample. pass-through: PS-C28 opacity50_nomask within 1 code (float). 8-bit: PS-C28 nomask / PS-C29 fill100 need the Multiply result stored in 8 bits before Levels; PS-C02 8-bit levels need every stage rounded to a level half up (round-half-even put ramp 27 at v8 8 instead of 9). linear light: PS-B01 d8_o100_f50 floor of the scaled source (round and float fail; floor breaks colour dodge/burn, so linear light only)",
-  "cross_lane_repins": "pigment tests effects.rs (stroke bands corner 0.79289 -> 0.58634 + fringe 0.00076, spread-1 dot 0.91886/0.37868/0 -> 0.76416/0.17269/0.00114, supports 6/5 -> 7/6), effects_wave2.rs (choke ring sum 24 -> 24.00114, outer glow equals the knocking drop shadow, fill-0 glow knocked out under the shape, supports 6/3 -> 7/4), effect_window.rs (support 19 -> 20); render-cpu cpu_effects.rs (stroke ring hand values), cpu_window.rs (margin 6 -> 7), cpu_plan.rs (pass-through opacity renders, Exact floor refused as group_pass_through_opacity Approximate), refusal_keys.rs (opacity case removed); render-gpu gpu_plan.rs (PassThroughOpacity Approximate, admitted at the Approximate floor), refusal_keys.rs (opacity case removed). New tests: pigment tests/working_depth.rs, render-cpu tests/cpu_working_depth.rs (bit for bit, chunks 16/4/3), render-gpu tests/gpu_working_depth.rs (tolerance 1e-5, live adapter)",
+  "cross_lane_repins": "pigment tests effects.rs (stroke bands corner 0.79289 -> 0.58634 + fringe 0.00076, spread-1 dot 0.91886/0.37868/0 -> 0.76416/0.17269/0.00114, supports 6/5 -> 7/6), effects_wave2.rs (choke ring sum 24 -> 24.00114, outer glow equals the knocking drop shadow, fill-0 glow knocked out under the shape, supports 6/3 -> 7/4), effect_window.rs (support 19 -> 20); render-cpu cpu_effects.rs (stroke ring hand values), cpu_window.rs (margin 6 -> 7), cpu_plan.rs (pass-through opacity renders, Exact floor refused as group_pass_through_opacity Approximate), refusal_keys.rs (opacity case removed); render-gpu gpu_plan.rs (PassThroughOpacity Approximate, admitted at the Approximate floor), refusal_keys.rs (opacity case removed). New tests: pigment tests/working_depth.rs, render-cpu tests/cpu_working_depth.rs (bit for bit, chunks 16/4/3), render-gpu tests/gpu_working_depth.rs (tolerance 1e-5, live adapter). R36 remediation (9e09375): composite tests/render_plan_lowering.rs effect_stack_lowers_to_pigment_ops_that_render_as_derived (1 px outside stroke: (0,3) 0 -> alpha 0.000759 white; knight-step (0,1) pinned 0) and inner_shadow_and_glows_lower_to_pigment_ops_that_render_as_derived (inner glow edge centre (2,2) blue -> (0.000759, 0.000759, 1); inner glow centre source (2,2) white -> (0.999241, 0.999241, 1))",
   "remaining_divergences": "9 MISMATCH: PS-C13 circle_outside_s50 (3 codes at 50 px: Photoshop's grown edge 0.01 px closer than the 40 px weight fit; exact weights miss the other way; needs a spread/stroke sweep at 20/50/100 px), PS-C02 16bit_comp_and_red (gamma 1.5 in a 16-bit document: residual noise of 5-11 steps of the 15-bit scale not explained by input/LUT/output quantisation hypotheses; needs the gamma sweep oracle), PS-B01 d8 VIVIDLIGHT x2 (8-bit integer burn/dodge formula not identified), PS-C04 sat+50, PS-C06 8bit_ev+1_only (8-bit internals not identified: PS darkens ramp 2 -> 1 where every quantised 2.2 linearisation gives 3), PS-C20 clipped_no_blendif (harness supersampled circle rim, harness geometry), PS-L01 x2 (colour engine, out of scope). PS-C28 mask / mask_opacity50 / mask_density50 stay NOT_SUPPORTED pending the pass-through-mask decision (see blockers). 83 NOT_SUPPORTED otherwise unchanged",
   "process": "r1 (C: SSD): 10 failures = hand values pinned to the disc/plain glow/old supports, re-pinned in eedd0e8; 8 render-gpu composition_* TIMEOUTs at 120 s (parallel GPU pipeline creation, as SMB-PS-ORACLE-PARITY-1 measured), all passed in r3-r5 on D:. r2: SSD refused 77 (C: 160 GiB > 140 GiB cap), D: run failed to compile (MixWeight placed between Opac's derive and struct), fixed 0577179. r3 398/398, r4 406/406, r5 408/408. No new dependency; Cargo.lock untouched; no gov_kernel commit",
+  "remediation_R36": {
+   "failure": "STUDIO-R36 @ a105766 FAIL_V1, failure_class stale_dependent_test_pin: composite render_plan_lowering effect_stack_lowers_to_pigment_ops_that_render_as_derived and inner_shadow_and_glows_lower_to_pigment_ops_that_render_as_derived (default and [motion]) panicked at render_plan_lowering.rs:874 (assert_close via assert_pixel) with 0.00075900555 != 0",
+   "derivation": "Not a product bug: the value is pigment's grow rule of 8f5bbfc. grow(x) = max over y of grow_coverage(src(y), r, d) = clamp(r + src - d, 0, 1) with d the 5 x 5 chamfer of GROW_WEIGHTS (w1 0.9996205, w2 1.413657, w5 2.235836, oracle-fitted on PS-C12, w1 < 1 is the measured 1-code fringe beyond the spread). For r = 1 and an opaque source two axis steps away, d = 2 w1 = 1.999241 -> 2 - 2 w1 = 0.00075900555 (binary32), the 'fringe 2 - 2 w1' pigment tests/effects.rs and render-cpu tests/cpu_effects.rs pin since a39d2fd; a knight step (d = w5) and the diagonal 2 w2 give 0. Stroke outside 1 px on the 3 x 3 square at 2..4 of 7 x 7: pixel (0,3) is two axis steps from (2,3) -> alpha c = 0.000759 (white, behind content over transparent). Inner glow edge choke 1 size 1 = grow(1 - a, 1) * a on the 3 x 3 square at 1..3 of 5 x 5: centre (2,2) is two axis steps from the outside -> c, white Normal over blue = (c, c, 1). Inner glow centre source = (1 - grow) * a -> 1 - c = 0.999241 -> (0.999241, 0.999241, 1).",
+   "files_repinned": "crates/hsk-studio-composite/tests/render_plan_lowering.rs only (test pins and their derivation comments); no product code, no tolerance widened (assert_close 1e-6 unchanged)",
+   "v4_06_sites": "class stale_dependent_test_pin, search regex 'render_layer_reference|reference_matte|StrokeOp::new|with_spread|with_choke' over crates/hsk-studio-composite/tests: 7 render sites in render_plan_lowering.rs (line numbers at a105766): :1402 drop shadow (no grow, n/a), :1414 colour overlay (n/a), :1422 outside stroke (fixed), :1638 inner shadow size 0 (n/a), :1649 outer glow spread 1 size 2 on 5 x 1 (fringe at d = 2 w1 clamps to 1, n/a), :1661 inner glow edge (fixed), :1674 inner glow centre source (fixed); 3 fixed, 4 not applicable",
+   "proof": "lane-check.sh --disk d bundled run on 9e09375: clippy exit 0; composite [motion] nextest 130/130 passed incl. both previously failing tests; the default unit (no motion) was not run separately (the motion unit is a superset build of the same test sources)",
+   "pushed": "9e09375 on origin/codex/handshake-studio-assets (fast-forward from a105766; git ls-remote verified)"
+  },
   "pushed_as": {
    "map_local_to_origin": {
     "77c4972": "8f5bbfc",

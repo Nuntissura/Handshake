@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-22T05:34:45Z",
+ "updated_at": "2026-10-22T05:55:26Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9062,16 +9062,17 @@
   {
    "lane_id": "SMB-PS-ORACLE-PARITY-2",
    "crate": "pigment + render-cpu + render-gpu",
-   "phase": "remediation",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-ps-oracle-parity-2-20261020",
    "commits": [
-    "e64eacd"
+    "e64eacd",
+    "9e09375 R36 remediation: composite render_plan_lowering re-pinned to the oracle-derived grow fringe 2-2*w1 = 0.000759 (3 sites)"
    ],
    "verdicts": [
     "STUDIO-R36 FAIL_V1 @a105766 (render_plan_lowering::effect_stack_lowers_to_pigment_ops_that_render_as_derived crates/hsk-studio-composite/tests/render_plan_lowering.rs:874; render_plan_lowering::inner_shadow_and_glows_lower_to_pigment_ops_that_render_as_derived crates/hsk-studio-composite/tests/render_plan_lowering.rs:874; re-pin the composite stroke/glow hand values to the grow rule (fringe 0.000759) with derivation; run composite suites; attributed elsewhere: SMB-PS-ORACLE-PARITY-1, flaky (no lane): wall-clock audio device; NOT_PROVEN lines: 21, see round-R36.json)"
    ],
-   "note": "rebased and pushed as ..e64eacd on 2026-10-21; Photoshop oracle 340 -> 489/588; 408/408 at pre-rebase base",
+   "note": "rebased and pushed as ..e64eacd on 2026-10-21; Photoshop oracle 340 -> 489/588; 408/408 at pre-rebase base | R36 FAIL_V1 remediated 2026-10-22 (stale_dependent_test_pin): composite tests re-pinned; derivation recorded in the lane file; R37 judges",
    "lane_file": "builders/lanes/hsk-studio-ps-oracle-parity-2.json",
    "remediation": {
     "failed_acceptance_refs": [
@@ -9096,7 +9097,7 @@
      "hsk-studio-composite::render_plan_lowering::inner_shadow_and_glows_lower_to_pigment_ops_that_render_as_derived"
     ]
    },
-   "candidate": "a105766"
+   "candidate": "9e09375"
   },
   {
    "lane_id": "SMB-STEWARD-GPU-CONTENTION",
