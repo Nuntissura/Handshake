@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-22T19:22:25Z",
+ "updated_at": "2026-10-22T20:36:55Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9667,6 +9667,34 @@
    ],
    "verdicts": [],
    "note": "AE-22: render queue honours resolution, bit depth, spans, frame blending and alpha laws (13 new tests; 469/469 over folio, composite, harness-view, harness, package, session before the last rebase, which pulled only tiff/dng changes). Still refused by design: fields/3:2 pulldown (no field path, no encoder field flags), rgb_alpha output codec (no reel encoder carries alpha), wireframe, effects-off, frame-rate conversion, non-BT.709 output. Spec gaps recorded: matte colour for premultiplied output, composition frame-blending master switch, 8/16 bpc quantisation and reduced-size rounding rules, draft switch. Finding for the motion lane: shape-layer streams in a nested composition do not follow the nested source time (frame blending proven at scene level + synthetic renderer test only). AE parity UNVERIFIED (no D5 case). R38 judges."
+  },
+  {
+   "lane_id": "SMB-TIMELINE-UI-1",
+   "crate": "hsk-studio-harness-view (view/timeline*.rs, registration + Workspace menu hunks) + hsk-studio-pulse (snap.rs additive)",
+   "phase": "build",
+   "status": "BLOCKED",
+   "blocked_on": "two headless drag tests fail (viewer_timeline.rs:372/:421: the synthetic pointer drag never trims the clip); 4 bundled runs (221 passed / 2 failed); pre-existing viewer defect F-TL-1 (toolbar separators in horizontal_wrapped take the full height and squeeze bottom panels) fixed under lead waiver (56d963f) but did not clear the tests; fresh diagnostics agent dispatched (one probe + one confirming run)",
+   "owner": "builder (Opus) -> diagnostics (Opus), lead dispatch 2026-10-22",
+   "lane_file": "builders/lanes/hsk-studio-timeline-ui-1.json",
+   "candidate": null,
+   "commits": [
+    "(local only, lane/smb-timeline-ui-1 on e3953de) 1fafd92 pulse snap targets; 4185b59 timeline panel (WORKSPACE > Panels > Timeline F10: ruler, tracks, clips, playhead, markers, work-area bar; trim/lift/ripple/razor/move via pulse as single undo steps); a994595 tests; cd3d85a 0bc2a81 e1c014c 56d963f fixes"
+   ],
+   "verdicts": [],
+   "note": "Premiere/AE/Audition GUI 0 % gap: first timeline surface; not pushed until the two drag tests pass (never push a lane with failing own tests)"
+  },
+  {
+   "lane_id": "SMB-EPS-FREE-FONTS",
+   "crate": "vendored stet fork (EPS -> PDF crates, Apache-2.0 OR MIT) + hsk-studio-interop-vector-core EPS worker",
+   "phase": "build",
+   "status": null,
+   "blocked_on": null,
+   "owner": "builder (Opus), lead dispatch 2026-10-22 on the Operator decision 'replace EPS with open source fonts'",
+   "lane_file": "builders/lanes/hsk-studio-eps-free-fonts.json",
+   "candidate": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "replace the AGPL-published URW base35 fonts with free fonts (TeX Gyre GFL, Liberation/STIX Two/Noto Sans Symbols 2 OFL), trim hayro-jpeg2000 default features so image/moxcms never enter the lock, restore the EPS worker on the fork"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

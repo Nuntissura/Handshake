@@ -1,0 +1,141 @@
+{
+  "crate": "hsk-studio-harness-view + hsk-studio-pulse (additive)",
+  "lane": "SMB-TIMELINE-UI-1",
+  "status": "BLOCKED",
+  "phase": "local only, NOT pushed: run4 at 56d963f (waiver HBR-STOP-005 applied in mod.rs) still 221/223; the two pointer-drag tests fail; stopped per lead",
+  "commits": [
+    {
+      "sha": "1fafd92",
+      "subject": "Studio PR-12: pulse snap targets (edit points, markers, work area, playhead) for timeline snapping (slice 2a)",
+      "pushed": false
+    },
+    {
+      "sha": "4185b59",
+      "subject": "Studio timeline panel: WORKSPACE > Panels > Timeline (F10), ruler, tracks, clip blocks, playhead on the program monitor clock, zoom and scroll, pulse edits, snapping and markers (slices 1-3)",
+      "pushed": false
+    },
+    {
+      "sha": "a994595",
+      "subject": "Studio timeline panel headless tests (slice 4)",
+      "pushed": false
+    },
+    {
+      "sha": "cd3d85a",
+      "subject": "slice 1 fix: checked tick division and float positions (clippy)",
+      "pushed": false
+    },
+    {
+      "sha": "0bc2a81",
+      "subject": "slice 1/4 fix: toolbar spacing, 25-frame ruler steps, razor test scrub",
+      "pushed": false
+    },
+    {
+      "sha": "e1c014c",
+      "subject": "slice 1/4 fix: one-row scrolling toolbar, monitor follows undo/redo before a command, taller headless test screen",
+      "pushed": false
+    },
+    {
+      "sha": "56d963f",
+      "subject": "harness-view toolbar: bound each wrapping toolbar row to one line height (untested)",
+      "pushed": false
+    }
+  ],
+  "capabilities_done": [
+    "pulse src/snap.rs (additive): snap_targets(sequence, playhead, exclude_clips, cancel) = sequence start, clip edit points, marker starts/span ends (clip markers mapped from source ticks), work-area bounds, playhead; sorted, deduped, Folio clip/marker limits checked before collection; nearest_snap(targets, at, distance) inclusive with deterministic ties; adjacent_edit (next/previous edit). DESCRIPTOR gains a snapping entry. tests/snap.rs 3 tests PASS in run3.",
+    "harness-view view/timeline.rs + view/timeline_ui.rs: Timeline panel (WORKSPACE > Panels > Timeline, F10; Panel::Timeline in shell.rs, availability 'the open document has no sequence'); ruler with timecode labels (pulse format_ticks, TimeDisplay::matching), tracks (caption/video above, audio/submix below), clips as named blocks at their in/out, sequence + clip markers, work-area bar, playhead = program monitor scheduler (playhead/master clock; opening the timeline opens the monitor; scrub scrubs it; edits and undo/redo replace the monitor's sequence), zoom, scroll slider, wheel scroll / Ctrl+wheel zoom",
+    "editing through pulse planners only, each one Run::submit_sequence step (EDIT > Undo works): trim in / trim out (TimelineEdit::TrimIn/TrimOut), lift (LiftClip), ripple delete (ExtractClip), razor at playhead (Razor per clip under the playhead: selected clip, else targeted tracks; linked razor with minted ids), move (LiftClip + plan_assembly_edit Overwrite at the destination keeping the clip id, markers and enabled carried; same-kind track change; linked clips refused linked_move_unsupported); snapping of dragged edges and the scrubbed playhead within 8 px",
+    "markers: drawn on the ruler, Add Marker at the playhead frame (RecordEdit::AddMarker, ids mk-tl-N), next/previous marker (pulse next_marker/prev_marker), next/previous edit",
+    "keys while the panel is active: Ctrl+K, Delete/Backspace, Alt+Backspace / Shift+Delete, S, M, Shift+M, Ctrl+Shift+M, Up/Down, = / -, backslash; model navigation Viewer::timeline_command(TimelineCommand), state_json()['timeline'], stable widget names timeline.*",
+    "bounded drawing: <= 64 rows, 2048 blocks, 16384 clips scanned per row, 1024 markers, 64 ruler labels; overflowing clips counted, zero-length drawn 1 px"
+  ],
+  "tests": {
+    "argv": "cd <lane>/handshake-studio-assets && bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-timeline-ui-1 --disk d -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness -p hsk-studio-pulse --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+    "exit": 100,
+    "sha": "56d963f",
+    "passed": 221,
+    "failed": 2,
+    "failed_tests": [
+      "hsk-studio-harness-view::viewer_timeline dragging_a_clip_edge_trims_it_through_pulse_and_undo_restores_it",
+      "hsk-studio-harness-view::viewer_timeline dragged_edges_snap_to_edit_points_within_the_snap_distance"
+    ],
+    "passed_new": [
+      "viewer_timeline: timeline_opens_from_the_workspace_menu_and_f10, accesskit_click_opens_the_timeline_and_clips_are_nodes, clip_blocks_sit_at_the_pixels_of_their_in_and_out, razor_lift_and_ripple_delete_are_single_undo_steps, markers_show_add_at_the_playhead_and_jump, hostile_sequences_lay_out_bounded",
+      "pulse snap: 3 tests"
+    ],
+    "clippy": "clean on run3 (harness-view, harness, pulse + dependent interop-media)"
+  },
+  "blockers": [
+    {
+      "error": "real egui pointer drags on clip blocks never start (clip window unchanged, no timeline status line): both drag tests",
+      "file_line": "crates/hsk-studio-harness-view/tests/viewer_timeline.rs:372 and :421",
+      "diagnosis": "measured with a temporary debug print: the timeline panel is laid out at y 825..965 on a 900 px screen with its clip rect 20 px tall (825..845) or empty, so ui.interact rects are clipped away. Cause: the viewer's top toolbar (mod.rs TopBottomPanel 'toolbar', and tools_ui / ps_options_ui / vector_options_ui) puts ui.separator() inside ui.horizontal_wrapped; in a wrapping row egui's separator takes available_size_before_wrap().y, i.e. all the height below it, so the toolbar fills most of the window and every bottom panel (status, timeline, monitors, mixer) is squeezed below it. Pre-existing; also affects the real window (desktop launch never proven).",
+      "attempts": "1) removed the separators from the timeline's own toolbar + one-row scrolling toolbar (fixed the panel-internal case: menu/pixel/razor/marker tests pass); 2) taller 1200 px headless screen (not enough: the toolbar grows with the screen); 3) 56d963f bounds each viewer toolbar row with ui.set_max_height(interact_size.y) (one hunk in mod.rs, outside the registration hunks) - committed, NOT yet run (lead asked for a report instead of iterating); run4 at 56d963f: still the same two failures (clip windows unchanged, no timeline status line). select_liquify.rs / vector.rs not changed: their separators draw into the same row Ui that 56d963f already bounds, so the same limit there is not expected to change the result; whether the panel is now on-screen after 56d963f is NOT_INSPECTED (no debug run after the fix)"
+    }
+  ],
+  "lock_wait_s": 14000,
+  "bg_pids": [],
+  "next": "lead decision: a debug run that prints the timeline panel rect / clip rect and egui dragged_id after 56d963f, to tell a remaining layout squeeze from a drag-start problem in the pointer event sequence",
+  "updated_at": "2026-10-22T20:34:00Z",
+  "notes": {
+    "worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-timeline-ui-1 (branch lane/smb-timeline-ui-1)",
+    "spec_basis": [
+      "[STU-VID-022] The clip timeline and the keyframe timeline are DIFFERENT surfaces ... Unit of arrangement StudioClip ... Vertical axis StudioTrack ... Horizontal edit: trim, ripple, roll, slip, slide, razor, lift, extract, insert, overwrite",
+      "[STU-VID-026] The normative trim vocabulary ... Trim in: Move a clip's head ... Trim out: Move a clip's tail ... each is one reversible history step",
+      "[STU-VID-027] Razor / add edit. Splits the clip under the playhead into two clips sharing the source",
+      "[STU-VID-028] Lift: removes the selection and leaves a gap ... Extract: removes it and closes the gap ... Ripple delete is extract applied to a selection",
+      "[STU-VID-034] A SEQUENCE marker is positioned in sequence time and does not move with clips ... Each carries a name, a comment, a colour, a duration",
+      "[STU-VID-035] Snapping is a toggleable magnet that attracts dragged edges and the playhead to edit points, markers, the work-area bounds and the sequence start. The playhead is addressable by typed command (to a timecode, to the next or previous edit ..., to a marker ...)",
+      "[STU-VID-040] Every operation in this sub-section is one reversible StudioHistoryEntry. A trim is one step, not one step per frame dragged",
+      "[STU-VID-041] command rows used: cmd.sequence.razorateditline Ctrl+K, cmd.timeline.ripple.delete Alt+Backspace, cmd.sequence.snap S, cmd.marker.gotomarker.next Shift+M, cmd.marker.gotomarker.previous Ctrl+Shift+M, cmd.tlnav.next.edit Down, cmd.tlnav.prev.edit Up",
+      "[STU-SHL-036] WORKSPACE: Panels | expansion | studio.workspace.panel - one show/hide toggle per panel; panel registry row 'Timeline | timeline | document_type_specific | Time & Results Dock'",
+      "[STU-SHL-008] No vendor product name is a Studio menu title, submenu, leaf, panel ...",
+      "[STU-SHL-091] timeline (clips on tracks) and keyframe-timeline are separate panels ... Both panels read ONE document time model ... A playhead moved in either moves in both and in every viewer"
+    ],
+    "unverified_D5": [
+      "drag-to-overwrite as the default move, snap distance (8 px) and snap priorities, marker default colour (green) and the M binding are Studio/harness choices; Premiere behaviour UNVERIFIED"
+    ],
+    "gui_surfaces_workflows": {
+      "premiere_pro": "'Timeline assembly and editing' and 'Trimming' become reachable in the window (trim in/out, razor, lift, ripple delete, move, markers, snapping) once the drag tests pass; ripple/roll/slip/slide trims, insert/overwrite from the timeline, nesting stay API-only; 'Program monitor playback' shares the playhead",
+      "after_effects": "none (keyframe timeline / composition panel not built)",
+      "audition": "none directly (audio clips show on audio tracks; no multitrack mixing UI added)",
+      "status": "not judged; drag proof pending"
+    },
+    "gaps": [
+      "no ripple / roll / slip / slide trim modes, no trim session (STU-VID-026a/026b), no nudge (STU-VID-035a)",
+      "no insert/overwrite drops onto the timeline, no copy/paste, no multi-select, no link/unlink, no track targeting or sync-lock toggles, no track headers controls (lock/mute/solo/height)",
+      "no transitions UI, no keyframe lanes, no audio waveforms or video thumbnails in clips (STU-VID-036 display state)",
+      "work area shown, not editable; no in/out marking on the ruler; no timecode entry for the playhead",
+      "moves drop the moved clip's transitions; with unknown source extents (viewer default) every edit drops transitions needing handles (pulse prune_transitions; listed in the status line)",
+      "single sequence per panel (the program monitor's or the document's first); no sequence tabs",
+      "timeline toolbar uses plain egui, not hsk-studio-controls descriptors (STU-ARC-014)"
+    ],
+    "touched_outside_owned": "56d963f: crates/hsk-studio-harness-view/src/view/mod.rs viewer toolbar (two ui.set_max_height(row) lines + comment) beyond the registration hunks, to stop the toolbar separators from taking the window height (blocks the timeline drag proof); waiver requested. shell.rs: Panel::Timeline variant, ALL[11], key/label/F10/open/availability/close hunks.",
+    "own_causes": [
+      "clippy arithmetic_side_effects on tick division and Pos2+Vec2 (fixed cd3d85a)",
+      "ruler label steps missed 25 (fixed 0bc2a81)",
+      "scrub past the end clamps to the last frame (test fixed)",
+      "monitor kept the pre-undo sequence until the next frame (e1c014c: sync before each command)"
+    ],
+    "kernel_not_committed": true,
+    "findings": {
+      "F-TL-1": "pre-existing harness-view defect: ui.separator() inside ui.horizontal_wrapped (viewer top toolbar in view/mod.rs, tools_ui, select_liquify.rs ps_options_ui, vector.rs vector_options_ui) takes available_size_before_wrap().y, i.e. the full remaining height, so the top toolbar fills most of the window and squeezes every bottom panel (status, timeline, program/source monitor, mixer) in headless runs and in the real window too; measured: timeline panel at y 825..965 on a 900 px screen with a 20 px clip rect. Remedy 56d963f: each toolbar row bounded with ui.set_max_height(interact_size.y) in mod.rs (ps/vector options draw into the same row Ui)."
+    },
+    "waiver": "Lead waiver HBR-STOP-005 (2026-10-22): toolbar row height limit in harness-view view/mod.rs (56d963f); select_liquify.rs / vector.rs only if the drag tests still fail.",
+    "diagnosis_R1": {
+      "agent": "fresh diagnostics agent (not the builder), recorded 2026-10-22T20:40Z before any run",
+      "failing_assertions": [
+        "tests/viewer_timeline.rs:372 window(clip 1) == (10,35,0,25) after a tail drag +20 px; observed (10,30,0,20), no timeline status line",
+        "tests/viewer_timeline.rs:421 window(clip 1) == (10,21,0,11) after a tail drag -36 px; observed (10,30,0,20), no timeline status line"
+      ],
+      "attempts_so_far": "run1..run3 (a994595..e1c014c: panel-internal separators removed, one-row timeline toolbar, 1200 px screen) and run4 at 56d963f (viewer toolbar rows bounded by set_max_height): the two drag tests fail identically every time; 221 passed in run4. No measurement of panel/clip rects after 56d963f (NOT_INSPECTED).",
+      "code_path": "drag(): tests/viewer_timeline.rs:185-191 (hover, press, move, move+release, idle; block rect read once from the frame before, :367/:417). Panel: src/view/timeline_ui.rs:65 (TopBottomPanel bottom), :201 bg allocate_exact_size click_and_drag, :248 body / :265 edge ui.interact (interact rect = ui clip rect ∩ rect), :284 drag_start from r.drag_started(), :76-87 begin/update/finish -> one TimelineCommand. egui 0.33.3 interaction.rs: click_and_drag widgets become dragged only when is_decidedly_dragging (moved > 6 px while down) and hits.drag of the press frame (widget rects of the previous frame) was that widget.",
+      "hypotheses": {
+        "H1": "layout squeeze still present after 56d963f: the timeline panel / clip rows lie outside the panel's clip rect or the screen, so the edge widget's interact rect is empty and the press hits nothing (toolbar mod.rs:812-860, tools_ui/ps_options/vector_options separators).",
+        "H2": "the drag never starts although the rect is on-screen: the event sequence (press frame, one move frame, move+release frame) does not make egui decide a drag on the edge widget (hits.drag picks bg/body, widget disabled, or drag decided only in the release frame).",
+        "H3": "layout shift between the frame the test reads the block rect (F0) and the drag frames: a panel above or inside the timeline changes height on the second frame (e.g. monitor/status/toolbar ScrollArea sizing), so the pointer y misses the clip row in the hit-test frame."
+      },
+      "intended_probe": "temporary eprintln (TLPROBE, never committed) in timeline_ui.rs after the panel per pass: pass nr, ctx.available_rect at entry, panel rect, lanes area, clip 1 block rect, read_response interact_rect + contains_pointer of clip 1 body/in/out widgets, pointer latest/press_origin/down/decidedly_dragging, ctx.dragged_id == clip 1 out/in/body, layer_id_at(pointer), out.drag_start / drag_stopped, t.drag. One lane-check run on the two tests only (--disk d, same packages/features as run4, STUDIO_LANE_CHECK_NO_DEPENDENTS=1, --no-capture).",
+      "intended_fix": "H1: bound the remaining full-height widget found by the probe (lane paths first; select_liquify.rs / vector.rs minimal hunk only if proven). H2: make the press/drag start reliable in the panel (e.g. edge/body hit order or drag start from is_pointer_button_down_on + pointer delta) or, if egui needs it, extra move frames in the test helper (test-only). H3: the test reads the block rect after a settle frame / the panel keeps a stable height. Exact fix chosen from the probe evidence only."
+    }
+  }
+}
