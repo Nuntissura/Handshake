@@ -46,6 +46,11 @@ export TEMP="${TMP}"
 export TMPDIR="${TMP}"
 export CARGO_PROFILE_DEV_DEBUG=line-tables-only
 export CARGO_PROFILE_TEST_DEBUG=line-tables-only
+# Lead decision 2026-10-22 (Operator: "we are only adding cargo without cleaning anything"; cargo-cleanup-proposal-20261022
+# P1): no incremental compilation state for builder lanes. Incremental dirs were the largest regrowing class of Studio
+# cargo output (268.5 GiB on D: + 19.3 GiB on C: purged 2026-10-21, regrown with every build since). Cost: an edited
+# workspace crate recompiles whole instead of incrementally. STUDIO_INCREMENTAL=1 opts a lane back in (lead approval only).
+export CARGO_INCREMENTAL="${STUDIO_INCREMENTAL:-0}"
 mkdir -p "${CARGO_TARGET_DIR}" "${TMP}"
 
 # Tree binding (diagnostics/stale-artifacts.md M2): Cargo hashes workspace-member paths relative to the workspace

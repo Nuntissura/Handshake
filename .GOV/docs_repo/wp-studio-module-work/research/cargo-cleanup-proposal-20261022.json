@@ -1,0 +1,1321 @@
+{
+ "schema": "hsk.studio.research.cargo_cleanup_proposal@1",
+ "file_id": "CARGO-CLEANUP-PROPOSAL-20261022",
+ "generated_at": "2026-10-22T21:25:17Z",
+ "scope_rule": "WP-KERNEL-STUDIO own cargo output only (Operator 2026-10-22): C:/HandshakeBuild/WP-KERNEL-STUDIO/**, Handshake_Artifacts/WP-KERNEL-STUDIO/**, Studio lane-worktree and shared-tree repo-local targets. Nothing else is listed.",
+ "method": "No disk scan (Operator: disks were hammered). Top-level directory listing + ledger lane states + sizes copied from research/audit-20261021/cargo-disk-inventory.json (measured 2026-10-21 before that day's incremental purge: per-owner sizes are upper bounds for deps/build parts and exclude incremental state regrown since). Current sizes UNVERIFIED; measure by free-space delta after deletion.",
+ "free_space_now_gib": {
+  "C": 328.75,
+  "D": 1369.35
+ },
+ "footprint_20261021": {
+  "D_total_studio_gib": 1101.67,
+  "D_classes": {
+   "SAFE_CHEAP_deleted": 328.48,
+   "KEEP": 411.97,
+   "SAFE_BUT_REBUILD_COST": 345.7,
+   "UNKNOWN": 15.52
+  },
+  "C_total_studio_gib": 163.97,
+  "incremental_state_deleted_gib": {
+   "C": 19.32,
+   "D": 268.54
+  },
+  "free_after_cleanup_20261021": {
+   "C": 306.78,
+   "D": 1467.55
+  }
+ },
+ "batch_A_dead_lane_output": {
+  "rule": "owner dir of a lane that is PASS/DONE/closed with its commits on origin, or a pre-lane microtask/probe owner last touched 2026-10-09..16: delete <owner>/target and <owner>/tmp only; other files in the owner dir stay",
+  "D": {
+   "n": 50,
+   "size_gib_known": 210.71,
+   "size_unknown_count": 3,
+   "items": [
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/prism-eng5/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/prism-eng5/tmp"
+     ],
+     "owner": "prism-eng5",
+     "lane_state": "(no ledger lane: closed owner)",
+     "kind": "finished probe/export/oracle-run owner",
+     "last_modified": "2026-10-11",
+     "size_gib_20261021": 0.17,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/prism-eng5 (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/prism-eng6/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/prism-eng6/tmp"
+     ],
+     "owner": "prism-eng6",
+     "lane_state": "(no ledger lane: closed owner)",
+     "kind": "finished probe/export/oracle-run owner",
+     "last_modified": "2026-10-11",
+     "size_gib_20261021": 0.72,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/prism-eng6 (minus incremental)",
+     "other_subdirs_kept": [
+      "src"
+     ]
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/prism-eng8-export/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/prism-eng8-export/tmp"
+     ],
+     "owner": "prism-eng8-export",
+     "lane_state": "(no ledger lane: closed owner)",
+     "kind": "finished probe/export/oracle-run owner",
+     "last_modified": "2026-10-11",
+     "size_gib_20261021": 0.82,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/prism-eng8-export (minus incremental)",
+     "other_subdirs_kept": [
+      "src"
+     ]
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/prism-oracle/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/prism-oracle/tmp"
+     ],
+     "owner": "prism-oracle",
+     "lane_state": "(no ledger lane: closed owner)",
+     "kind": "finished probe/export/oracle-run owner",
+     "last_modified": "2026-10-11",
+     "size_gib_20261021": 0.16,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/prism-oracle",
+     "other_subdirs_kept": [
+      "gen",
+      "out",
+      "pip-cache",
+      "venv"
+     ]
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/pulse-playback-2/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/pulse-playback-2/tmp"
+     ],
+     "owner": "pulse-playback-2",
+     "lane_state": "(no ledger lane: closed owner)",
+     "kind": "finished probe/export/oracle-run owner",
+     "last_modified": "2026-10-15",
+     "size_gib_20261021": 2.1,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/pulse-playback-2 (minus incremental)",
+     "other_subdirs_kept": [
+      "build.txt",
+      "clippy.txt",
+      "clippy2.txt",
+      "clippy4.txt",
+      "src",
+      "test.txt"
+     ]
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/reel-av1/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/reel-av1/tmp"
+     ],
+     "owner": "reel-av1",
+     "lane_state": "(no ledger lane: closed owner)",
+     "kind": "finished probe/export/oracle-run owner",
+     "last_modified": "2026-10-11",
+     "size_gib_20261021": 0.17,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/reel-av1 (minus incremental)",
+     "other_subdirs_kept": [
+      "Cargo.toml.av1-edit",
+      "fixture-gen",
+      "matroska.rs.fixed",
+      "mut-results.txt",
+      "spike",
+      "spike-build.log"
+     ]
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/score-plugin-fixture/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/score-plugin-fixture/tmp"
+     ],
+     "owner": "score-plugin-fixture",
+     "lane_state": "(no ledger lane: closed owner)",
+     "kind": "finished probe/export/oracle-run owner",
+     "last_modified": "2026-10-11",
+     "size_gib_20261021": 0.01,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/score-plugin-fixture (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-3d-2/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-3d-2/tmp"
+     ],
+     "owner": "smb-ae-3d-2",
+     "lane_state": "PASS_V4",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-15",
+     "size_gib_20261021": 1.88,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-ae-3d-2 (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-3d-3/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-3d-3/tmp"
+     ],
+     "owner": "smb-ae-3d-3",
+     "lane_state": "PASS_V3",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-15",
+     "size_gib_20261021": 1.57,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-ae-3d-3 (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-3d-3-slices/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-3d-3-slices/tmp"
+     ],
+     "owner": "smb-ae-3d-3-slices",
+     "lane_state": "(no ledger lane: closed owner)",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-16",
+     "size_gib_20261021": 0.33,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-ae-3d-3-slices (minus incremental)",
+     "other_subdirs_kept": [
+      "src"
+     ]
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-particles-audio-presets/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-particles-audio-presets/tmp"
+     ],
+     "owner": "smb-ae-particles-audio-presets",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-16",
+     "size_gib_20261021": 0.58,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-ae-particles-audio-presets (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-roto-timeremap/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-roto-timeremap/tmp"
+     ],
+     "owner": "smb-ae-roto-timeremap",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-20",
+     "size_gib_20261021": 2.78,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-ae-roto-timeremap (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-affinity-interop-1/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-affinity-interop-1/tmp"
+     ],
+     "owner": "smb-affinity-interop-1",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-20",
+     "size_gib_20261021": 1.3,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-affinity-interop-1 (minus incremental)",
+     "other_subdirs_kept": [
+      "run1",
+      "run2"
+     ]
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-ae-oracle-followups/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-ae-oracle-followups/tmp"
+     ],
+     "owner": "smb-ai-ae-oracle-followups",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-16",
+     "size_gib_20261021": 0.98,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-ai-ae-oracle-followups (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-type-path-recolor/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-type-path-recolor/tmp"
+     ],
+     "owner": "smb-ai-type-path-recolor",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-16",
+     "size_gib_20261021": 2.88,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-ai-type-path-recolor (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-au-waveform-editor/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-au-waveform-editor/tmp"
+     ],
+     "owner": "smb-au-waveform-editor",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-16",
+     "size_gib_20261021": 15.56,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-au-waveform-editor (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-audition-ui/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-audition-ui/tmp"
+     ],
+     "owner": "smb-audition-ui",
+     "lane_state": "PASS_V4",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-15",
+     "size_gib_20261021": 4.48,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-audition-ui (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-crate-seam-splits/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-crate-seam-splits/tmp"
+     ],
+     "owner": "smb-crate-seam-splits",
+     "lane_state": "PASS_V3",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-15",
+     "size_gib_20261021": 37.84,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-crate-seam-splits (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-crate-seam-splits-2/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-crate-seam-splits-2/tmp"
+     ],
+     "owner": "smb-crate-seam-splits-2",
+     "lane_state": "PASS_V1",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-20",
+     "size_gib_20261021": 11.39,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-crate-seam-splits-2 (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-crate-seam-splits-2-base/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-crate-seam-splits-2-base/tmp"
+     ],
+     "owner": "smb-crate-seam-splits-2-base",
+     "lane_state": "(no ledger lane: closed owner)",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-20",
+     "size_gib_20261021": 1.62,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-crate-seam-splits-2-base (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-d24a-codec-defaults/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-d24a-codec-defaults/tmp"
+     ],
+     "owner": "smb-d24a-codec-defaults",
+     "lane_state": "PASS_V3",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-15",
+     "size_gib_20261021": 2.59,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-d24a-codec-defaults (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-d5-ai-id-ae-compare/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-d5-ai-id-ae-compare/tmp"
+     ],
+     "owner": "smb-d5-ai-id-ae-compare",
+     "lane_state": "PASS_V3",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-16",
+     "size_gib_20261021": 1.04,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-d5-ai-id-ae-compare (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-d5-ps-compare/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-d5-ps-compare/tmp"
+     ],
+     "owner": "smb-d5-ps-compare",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-16",
+     "size_gib_20261021": 2.83,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-d5-ps-compare (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-develop-export-tiff/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-develop-export-tiff/tmp"
+     ],
+     "owner": "smb-develop-export-tiff",
+     "lane_state": "PASS_V1",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-22",
+     "size_gib_20261021": null,
+     "size_evidence": "UNVERIFIED: not in the 2026-10-21 inventory rows",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-develop-lens-presets/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-develop-lens-presets/tmp"
+     ],
+     "owner": "smb-develop-lens-presets",
+     "lane_state": "PASS_V4",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-15",
+     "size_gib_20261021": 18.99,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-develop-lens-presets (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-dxf-eps-import/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-dxf-eps-import/tmp"
+     ],
+     "owner": "smb-dxf-eps-import",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-20",
+     "size_gib_20261021": 1.11,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-dxf-eps-import (minus incremental)",
+     "other_subdirs_kept": [
+      "logs"
+     ]
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-harness-shell-1/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-harness-shell-1/tmp"
+     ],
+     "owner": "smb-harness-shell-1",
+     "lane_state": "PASS_V1",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-22",
+     "size_gib_20261021": null,
+     "size_evidence": "UNVERIFIED: not in the 2026-10-21 inventory rows",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-composer-parity/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-composer-parity/tmp"
+     ],
+     "owner": "smb-id-composer-parity",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-16",
+     "size_gib_20261021": 1.63,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-id-composer-parity (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-prepress/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-prepress/tmp"
+     ],
+     "owner": "smb-id-prepress",
+     "lane_state": "PASS_V3",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-16",
+     "size_gib_20261021": 1.55,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-id-prepress (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-composer-wiring/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-composer-wiring/tmp"
+     ],
+     "owner": "smb-layout-composer-wiring",
+     "lane_state": "PASS_V1",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-22",
+     "size_gib_20261021": null,
+     "size_evidence": "UNVERIFIED: not in the 2026-10-21 inventory rows",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-ui/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-ui/tmp"
+     ],
+     "owner": "smb-layout-ui",
+     "lane_state": "PASS_V4",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-15",
+     "size_gib_20261021": 1.82,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-layout-ui (minus incremental)",
+     "other_subdirs_kept": [
+      "src"
+     ]
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-ui-2/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-ui-2/tmp"
+     ],
+     "owner": "smb-layout-ui-2",
+     "lane_state": "PASS_V3",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-15",
+     "size_gib_20261021": 1.07,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-layout-ui-2 (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-lr-library-write/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-lr-library-write/tmp"
+     ],
+     "owner": "smb-lr-library-write",
+     "lane_state": "PASS_V3",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-16",
+     "size_gib_20261021": 1.54,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-lr-library-write (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-package-completeness/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-package-completeness/tmp"
+     ],
+     "owner": "smb-package-completeness",
+     "lane_state": "PASS_V4",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-15",
+     "size_gib_20261021": 20.56,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-package-completeness (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-source-monitor/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-source-monitor/tmp"
+     ],
+     "owner": "smb-pr-source-monitor",
+     "lane_state": "PASS_V3",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-16",
+     "size_gib_20261021": 4.36,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-pr-source-monitor (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-premiere-color-titles/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-premiere-color-titles/tmp"
+     ],
+     "owner": "smb-premiere-color-titles",
+     "lane_state": "PASS_V3",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-15",
+     "size_gib_20261021": 0.64,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-premiere-color-titles (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-prism-view-transform/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-prism-view-transform/tmp"
+     ],
+     "owner": "smb-prism-view-transform",
+     "lane_state": "PASS_V7",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-15",
+     "size_gib_20261021": 1.2,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-prism-view-transform (minus incremental)",
+     "other_subdirs_kept": [
+      "src"
+     ]
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-adjust-styles-2/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-adjust-styles-2/tmp"
+     ],
+     "owner": "smb-ps-adjust-styles-2",
+     "lane_state": "PASS_V4",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-15",
+     "size_gib_20261021": 2.41,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-ps-adjust-styles-2 (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-adjust-styles-3/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-adjust-styles-3/tmp"
+     ],
+     "owner": "smb-ps-adjust-styles-3",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-16",
+     "size_gib_20261021": 5.97,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-ps-adjust-styles-3 (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-oracle-parity-1/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-oracle-parity-1/tmp"
+     ],
+     "owner": "smb-ps-oracle-parity-1",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-16",
+     "size_gib_20261021": 21.05,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-ps-oracle-parity-1 (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-oracle-parity-2/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-oracle-parity-2/tmp"
+     ],
+     "owner": "smb-ps-oracle-parity-2",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-20",
+     "size_gib_20261021": 15.04,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-ps-oracle-parity-2 (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r33-findings/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r33-findings/tmp"
+     ],
+     "owner": "smb-r33-findings",
+     "lane_state": "PASS_V3",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-15",
+     "size_gib_20261021": 3.2,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-r33-findings (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r35-remediation/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r35-remediation/tmp"
+     ],
+     "owner": "smb-r35-remediation",
+     "lane_state": "DONE",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-20",
+     "size_gib_20261021": 3.91,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-r35-remediation (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-raw-cleanroom/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-raw-cleanroom/tmp"
+     ],
+     "owner": "smb-raw-cleanroom",
+     "lane_state": "PASS_V3",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-16",
+     "size_gib_20261021": 0.95,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-raw-cleanroom (minus incremental)",
+     "other_subdirs_kept": [
+      "run1",
+      "run2",
+      "run3",
+      "run4",
+      "run5",
+      "run6",
+      "run7",
+      "wip-rw2"
+     ]
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-raw-cleanroom-2/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-raw-cleanroom-2/tmp"
+     ],
+     "owner": "smb-raw-cleanroom-2",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-20",
+     "size_gib_20261021": 0.99,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-raw-cleanroom-2 (minus incremental)",
+     "other_subdirs_kept": [
+      "oracle-dng",
+      "run1",
+      "run2",
+      "run3",
+      "run4",
+      "run5"
+     ]
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-encode/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-encode/tmp"
+     ],
+     "owner": "smb-reel-encode",
+     "lane_state": "PASS_V5",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-15",
+     "size_gib_20261021": 2.28,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-reel-encode (minus incremental)",
+     "other_subdirs_kept": [
+      "SCRATCH_IDENTITY.txt",
+      "src"
+     ]
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-steward-notice/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-steward-notice/tmp"
+     ],
+     "owner": "smb-steward-notice",
+     "lane_state": "(no ledger lane: closed owner)",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-20",
+     "size_gib_20261021": 4.4,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-steward-notice (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-ff-ligature/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-ff-ligature/tmp"
+     ],
+     "owner": "smb-type-ff-ligature",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-20",
+     "size_gib_20261021": 2.1,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-type-ff-ligature (minus incremental)",
+     "other_subdirs_kept": []
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-difftest/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-difftest/tmp"
+     ],
+     "owner": "smb-web-difftest",
+     "lane_state": "PASS_V5",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-11",
+     "size_gib_20261021": 0.13,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-web-difftest (minus incremental)",
+     "other_subdirs_kept": [
+      "src"
+     ]
+    },
+    {
+     "disk": "D",
+     "delete_paths": [
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r10-cssparser/target",
+      "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r10-cssparser/tmp"
+     ],
+     "owner": "smb-web-r10-cssparser",
+     "lane_state": "(no ledger lane: closed owner)",
+     "kind": "finished lane owner",
+     "last_modified": "2026-10-11",
+     "size_gib_20261021": 0.01,
+     "size_evidence": "d:/projects/llm projects/handshake/handshake worktrees/handshake_artifacts/wp-kernel-studio/smb-web-r10-cssparser (minus incremental)",
+     "other_subdirs_kept": [
+      "Cargo.lock",
+      "Cargo.toml",
+      "cssparser-diff-300k-b0a1887.log",
+      "cssparser-diff-300k.log",
+      "src"
+     ]
+    }
+   ]
+  },
+  "C": {
+   "n": 21,
+   "size_gib_known": 41.51,
+   "size_unknown_count": 0,
+   "items": [
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ae-roto-timeremap"
+     ],
+     "owner": "smb-ae-roto-timeremap",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 0.0,
+     "newest_write": "2026-10-20T22:01:44Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    },
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-affinity-interop-1"
+     ],
+     "owner": "smb-affinity-interop-1",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 0.0,
+     "newest_write": "2026-10-20T14:09:15Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    },
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ai-ae-oracle-followups"
+     ],
+     "owner": "smb-ai-ae-oracle-followups",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 0.0,
+     "newest_write": "2026-10-20T14:03:43Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    },
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-au-waveform-editor"
+     ],
+     "owner": "smb-au-waveform-editor",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 13.15,
+     "newest_write": "2026-10-20T17:50:39Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    },
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-crate-seam-splits"
+     ],
+     "owner": "smb-crate-seam-splits",
+     "lane_state": "PASS_V3",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 0.0,
+     "newest_write": "2026-10-20T16:57:48Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    },
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-crate-seam-splits-2"
+     ],
+     "owner": "smb-crate-seam-splits-2",
+     "lane_state": "PASS_V1",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 0.0,
+     "newest_write": "2026-10-20T22:10:04Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    },
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-d24a-codec-defaults"
+     ],
+     "owner": "smb-d24a-codec-defaults",
+     "lane_state": "PASS_V3",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 0.0,
+     "newest_write": "2026-10-16T02:25:47Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    },
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-develop-lens-presets"
+     ],
+     "owner": "smb-develop-lens-presets",
+     "lane_state": "PASS_V4",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 9.63,
+     "newest_write": "2026-10-20T17:17:08Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    },
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-dxf-eps-import"
+     ],
+     "owner": "smb-dxf-eps-import",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 0.0,
+     "newest_write": "2026-10-20T22:05:42Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    },
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-id-composer-parity"
+     ],
+     "owner": "smb-id-composer-parity",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 1.64,
+     "newest_write": "2026-10-20T16:57:44Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    },
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-layout-ui-2"
+     ],
+     "owner": "smb-layout-ui-2",
+     "lane_state": "PASS_V3",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 0.0,
+     "newest_write": "2026-10-16T02:25:54Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    },
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-package-completeness"
+     ],
+     "owner": "smb-package-completeness",
+     "lane_state": "PASS_V4",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 0.07,
+     "newest_write": "2026-10-16T03:42:24Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    },
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-premiere-color-titles"
+     ],
+     "owner": "smb-premiere-color-titles",
+     "lane_state": "PASS_V3",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 0.0,
+     "newest_write": "2026-10-16T02:23:31Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    },
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ps-adjust-styles-2"
+     ],
+     "owner": "smb-ps-adjust-styles-2",
+     "lane_state": "PASS_V4",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 0.0,
+     "newest_write": "2026-10-16T02:23:31Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    },
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ps-oracle-parity-1"
+     ],
+     "owner": "smb-ps-oracle-parity-1",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 0.0,
+     "newest_write": "2026-10-20T14:13:47Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    },
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ps-oracle-parity-2"
+     ],
+     "owner": "smb-ps-oracle-parity-2",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 14.92,
+     "newest_write": "2026-10-20T23:38:14Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    },
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-r35-remediation"
+     ],
+     "owner": "smb-r35-remediation",
+     "lane_state": "DONE",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 0.0,
+     "newest_write": "2026-10-20T14:23:10Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    },
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-raw-cleanroom"
+     ],
+     "owner": "smb-raw-cleanroom",
+     "lane_state": "PASS_V3",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 0.0,
+     "newest_write": "2026-10-16T02:23:44Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    },
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-raw-cleanroom-2"
+     ],
+     "owner": "smb-raw-cleanroom-2",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 0.0,
+     "newest_write": "2026-10-20T14:31:04Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    },
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-steward-notice"
+     ],
+     "owner": "smb-steward-notice",
+     "lane_state": "(no ledger lane)",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 0.0,
+     "newest_write": "2026-10-20T16:13:45Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    },
+    {
+     "disk": "C",
+     "delete_paths": [
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-type-ff-ligature"
+     ],
+     "owner": "smb-type-ff-ligature",
+     "lane_state": "PASS_V2",
+     "kind": "finished lane target on the SSD slot (lanes build on D: since the 140 GiB guard tripped)",
+     "size_gib_20261021": 2.1,
+     "newest_write": "2026-10-20T23:02:23Z",
+     "size_evidence": "c_build.json walk 2026-10-21T23:38Z (after that day's incremental purge)",
+     "active": false
+    }
+   ]
+  }
+ },
+ "batch_B_expensive_reclaim": {
+  "rule": "rebuildable but costly; Operator decides separately",
+  "items": [
+   {
+    "disk": "C",
+    "delete_paths": [
+     "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/debug"
+    ],
+    "owner": "studio-team-dev (shared edit tree, SSD slot)",
+    "size_gib_20261021": 99.13,
+    "newest_write": "2026-10-15T13:59:52Z",
+    "class": "EXPENSIVE_RECLAIM",
+    "note": "no write since 2026-10-15 (builders moved to lane targets, steward canaries run on D:); deleting it costs one full workspace build the next time the shared tree is built on C:; keeping it costs 99 GiB of the 140 GiB guard"
+   }
+  ]
+ },
+ "c_guard_arithmetic": {
+  "c_tree_gib_20261021": 140.76,
+  "guard_gib": 140,
+  "after_batch_A": 99.25,
+  "after_batch_A_and_B": 0.12,
+  "note": "after batch A alone the SSD slot re-admits lane builds (99 GiB used of 140); each live lane target was 2-15 GiB on 2026-10-21"
+ },
+ "kept": [
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/app-inspect",
+   "reason": "shared hot slot or required data (round target, builder slot incl. steward-export, oracle corpus, downloads, tools, app-inspect)"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/downloads",
+   "reason": "shared hot slot or required data (round target, builder slot incl. steward-export, oracle corpus, downloads, tools, app-inspect)"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/engine-video-oracle",
+   "reason": "name suggests oracle data; NOT_INSPECTED, kept until the lead has looked inside"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus",
+   "reason": "shared hot slot or required data (round target, builder slot incl. steward-export, oracle corpus, downloads, tools, app-inspect)"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-render-queue-2",
+   "reason": "active lane (READY_FOR_VALIDATION); R38 or in-progress build"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-roto-wiring",
+   "reason": "active lane (READY_FOR_VALIDATION); R38 or in-progress build"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-develop-dng-writer",
+   "reason": "active lane (READY_FOR_VALIDATION); R38 or in-progress build"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-eps-free-fonts",
+   "reason": "active lane (null); R38 or in-progress build"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-fill-layers",
+   "reason": "active lane (READY_FOR_VALIDATION); R38 or in-progress build"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-timeline-ui-1",
+   "reason": "active lane (BLOCKED); R38 or in-progress build"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round",
+   "reason": "shared hot slot or required data (round target, builder slot incl. steward-export, oracle corpus, downloads, tools, app-inspect)"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev",
+   "reason": "shared hot slot or required data (round target, builder slot incl. steward-export, oracle corpus, downloads, tools, app-inspect)"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/tools",
+   "reason": "shared hot slot or required data (round target, builder slot incl. steward-export, oracle corpus, downloads, tools, app-inspect)"
+  }
+ ],
+ "out_of_scope_not_cargo_output": [
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock",
+   "reason": "no target/ or tmp/ subdir (contents: events.log, held, over.1792701703-3189310-2296919583, queue); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/.gpu-test-lock",
+   "reason": "no target/ or tmp/ subdir (contents: queue); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-30318",
+   "reason": "no target/ or tmp/ subdir (contents: visual-parent); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-30319",
+   "reason": "no target/ or tmp/ subdir (contents: visual-parent); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-30320",
+   "reason": "no target/ or tmp/ subdir (contents: visual-parent); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-30321",
+   "reason": "no target/ or tmp/ subdir (contents: visual-parent); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-30322",
+   "reason": "no target/ or tmp/ subdir (contents: visual-parent); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-30785",
+   "reason": "no target/ or tmp/ subdir (contents: visual_layout_components); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-30789",
+   "reason": "no target/ or tmp/ subdir (contents: visual_layout_components); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-30790",
+   "reason": "no target/ or tmp/ subdir (contents: visual_layout_components); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-34817",
+   "reason": "no target/ or tmp/ subdir (contents: prism-additional-author); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35528",
+   "reason": "no target/ or tmp/ subdir (contents: studio-assets-kernel-builder, studio-assets-validator); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35529",
+   "reason": "no target/ or tmp/ subdir (contents: studio-assets-kernel-builder, studio-assets-validator); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35530",
+   "reason": "no target/ or tmp/ subdir (contents: studio-assets-kernel-builder, studio-assets-validator); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35531",
+   "reason": "no target/ or tmp/ subdir (contents: studio-assets-kernel-builder, studio-assets-validator); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35532",
+   "reason": "no target/ or tmp/ subdir (contents: studio-assets-kernel-builder, studio-assets-validator); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35533",
+   "reason": "no target/ or tmp/ subdir (contents: studio-assets-kernel-builder, studio-assets-validator); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35534",
+   "reason": "no target/ or tmp/ subdir (contents: studio-assets-kernel-builder, studio-assets-validator); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35535",
+   "reason": "no target/ or tmp/ subdir (contents: studio-assets-kernel-builder, studio-assets-validator); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35536",
+   "reason": "no target/ or tmp/ subdir (contents: studio-assets-kernel-builder, studio-assets-validator); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35538",
+   "reason": "no target/ or tmp/ subdir (contents: studio-assets-kernel-builder); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/autonomous-research-team",
+   "reason": "no target/ or tmp/ subdir (contents: concurrency.json, interchange.json, presentation.json); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/interop-lrcat",
+   "reason": "no target/ or tmp/ subdir (contents: fixtures-gen, library-fixture-2-out, library-fixture-out); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/press-d27",
+   "reason": "no target/ or tmp/ subdir (contents: research); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/reel-mxf-mkv",
+   "reason": "no target/ or tmp/ subdir (contents: a-op1a.mxf, a-opatom.mxf, av1-1080p, enc, mpeg2-pcm.mxf, mxf); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-audio-codecs",
+   "reason": "no target/ or tmp/ subdir (contents: gen); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-kernel-bindings",
+   "reason": "no target/ or tmp/ subdir (contents: demo); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering",
+   "reason": "no target/ or tmp/ subdir (contents: source); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-media",
+   "reason": "no target/ or tmp/ subdir (contents: source); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-root",
+   "reason": "no target/ or tmp/ subdir (contents: source); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-ui",
+   "reason": "no target/ or tmp/ subdir (contents: source); not cargo output"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-session",
+   "reason": "no target/ or tmp/ subdir (contents: demo, demo2, demo3); not cargo output"
+  }
+ ],
+ "root_cause": "Every lane, microtask, probe and export owner gets its own complete cargo target (tree binding: a target is bound to one workspace root, so lane worktrees cannot share one) and nothing retires it when the lane closes; incremental state (288 GiB purged 2026-10-21) regrows with every build; rounds keep a 218 GiB target. About 95 owner dirs exist on D: for 6 active lanes.",
+ "policy_changes": [
+  {
+   "id": "P1",
+   "change": "CARGO_INCREMENTAL=0 for all builder commands (studio-env.sh) and for rounds/canaries (run-round.sh env_set; steward edit)",
+   "effect": "removes the largest regrowing class (incremental dirs were 288 GiB on 2026-10-21); workspace crates recompile fully after an edit (seconds to a few minutes per crate)",
+   "owner": "lead (studio-env.sh) + steward (run-round.sh)",
+   "status": "studio-env.sh: applied 2026-10-22; run-round.sh: queued for the steward next sync"
+  },
+  {
+   "id": "P2",
+   "change": "Lane close-out retires the lane targets: when a lane is PASS (commits on origin) or abandoned, the lead lists <owner>/target(+tmp) on D: and lanes/<owner> on C: in the next deletion batch presented after the round",
+   "effect": "steady-state footprint = round target + builder slot + at most 6 active lane targets instead of about 95 owner dirs",
+   "owner": "lead",
+   "status": "adopted as lead rule; needs Operator approval per batch unless the Operator grants a standing approval for finished-lane targets"
+  },
+  {
+   "id": "P3",
+   "change": "Cap: at most 6 live lane targets per disk (5 builders + 1 diagnostics); no new lane dispatch while 6 live lane targets exist until a batch is approved",
+   "owner": "lead",
+   "status": "adopted"
+  },
+  {
+   "id": "P4",
+   "change": "Round target hygiene: studio-round/target (218 GiB on 2026-10-21) accumulates stale dependency artifacts cargo never garbage-collects; fresh round target once per month or above 250 GiB (cost: one dependency rebuild, duration UNVERIFIED)",
+   "owner": "lead proposes, Operator decides",
+   "status": "proposed"
+  }
+ ],
+ "unverified": [
+  "current per-owner sizes (no scan)",
+  "run-round.sh incremental default (no CARGO_INCREMENTAL in its env_set; cargo default = incremental on for dev/test profiles)",
+  "engine-video-oracle contents"
+ ]
+}

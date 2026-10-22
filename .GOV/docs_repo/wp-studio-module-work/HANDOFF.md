@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-HANDOFF
 file_kind: handoff
-updated_at: 2026-10-22T21:15:05Z
+updated_at: 2026-10-22T21:26:30Z
 wp: WP-KERNEL-STUDIO
 authority: Handshake Codex, KERNEL_BUILDER_PROTOCOL, START_LOG.md, ledger.json, validation/*, builders/briefs/wave-parity-2-common.md, workflow/workflow-v3.json (this file is a projection; they win on conflict)
 ---
@@ -91,6 +91,6 @@ DO NOT:
 - Spec deltas to publish: press-read/press-write and interop-affinity crate notes (STU-ARC-010), STU-AUD waveform/spectral editor clauses, STU-ASSET-004 reading for the Lightroom smart-rule preview.
 - Optional: delete GitHub branch lane/smb-layout-ui-2-backup.
 - Spec residue (2026-10-22): `.GOV/spec/master-spec-v02.218` (lead lineage, preserved byte-identical at `spec_archive/574defe175436959e4f1200ed232316bad5fe77c/master-spec-v02.218`) and `.GOV/spec/master-spec-v02.220` (identical to `spec_archive/master-spec-v02.220`) sit beside the current v02.221 while SPEC_CURRENT names only v02.221. Proposed: `git rm -r` both live folders on gov_kernel (archive keeps the content). Deletion: needs explicit approval.
-- Cargo disk cleanup round 2 (2026-10-22): scope = WP-KERNEL-STUDIO's own cargo output only (Operator correction; see START_LOG): C:/HandshakeBuild/WP-KERNEL-STUDIO, Handshake_Artifacts/WP-KERNEL-STUDIO slots, Studio lane-worktree targets, the shared Studio tree's target. Inventory resumes after R38 frees D: (one serial idle-priority walker, C: data already captured); result file research/cargo-disk-inventory-20261022.json; the exact SAFE_CHEAP / EXPENSIVE_RECLAIM deletion lists will be presented for approval; nothing is deleted before it.
+- Cargo disk cleanup round 2 (2026-10-22): PROPOSAL research/cargo-cleanup-proposal-20261022.json awaits approval (scope: Studio's own cargo output only). Batch A (dead lane output, zero rebuild cost): D: 50 finished owners' target+tmp (210.71 GiB known 2026-10-21 + regrown incremental), C: all 21 lanes/* (41.51 GiB). Batch B (Operator decision): C: studio-team-dev/target/debug 99.13 GiB unused since 2026-10-15. Policy P1 (CARGO_INCREMENTAL=0 builders) applied; P2/P3 adopted; run-round.sh incremental=0 queued for the steward. Deletion only after explicit approval, only when no build runs on that disk, via a script with allowed-root/forbidden-name guards like cleanup-20261021.
 
 </topic>
