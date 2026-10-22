@@ -1,0 +1,22 @@
+schema_version: handshake.gameplan.v1
+template_version: 1
+kind: gameplan
+instance_policy:
+  omit_empty_optional_fields: true
+  policy_lives_in_rule_refs_not_instance_fields: true
+  schema_ref: repo-governance/schemas/gameplan.schema.yaml
+rule_refs: []
+writing: 'no prose; terse fragments; determinism > grammar; verb object [op value]'
+precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; correct the step'
+scope: mt
+assignment: MT-192
+parent: .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.yaml
+generation: 5
+refs:
+  metadata_contract: {from: .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-192.json, key: execution.changed_input_metadata_verification_20261019}
+expensive_actions: []
+steps:
+- {id: GP-580, role: builder, at: any, do: verify MT192 process plan and kernel_builder role replace wrong CKC pointer selection, check: {type: cmd, argv: [python, -c, 'import os,pathlib,sys;p=pathlib.Path(".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplans/MT-192.yaml").resolve();v=os.environ.get(''GAMEPLAN_PATH'');ok=bool(v) and pathlib.Path(v).resolve()==p and os.environ.get(''GAMEPLAN_ROLE'')==''kernel_builder'';print(''MT192 process plan/role'',ok);sys.exit(0 if ok else 1)'], expect_exit: 0, timeout_seconds: 10}, source: 'infra: MT192 selected unrelated CKC pointer with unset process role', state: active}
+- {id: GP-581, role: builder, at: any, do: verify four model pin inputs and selected Cargo identity match metadata allocation, check: {type: cmd, argv: [python, -c, 'import pathlib,json,hashlib,sys;d=json.loads(pathlib.Path(".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-192.json").read_text(encoding=''utf-8-sig''));x=d[''execution''][''changed_input_metadata_verification_20261019''];r=pathlib.Path(d[''execution''][''product_worktree'']);a=[(r/g[''path'']).is_file() and (r/g[''path'']).stat().st_size==g[''bytes''] and hashlib.sha256((r/g[''path'']).read_bytes()).hexdigest()==g[''sha256''] for g in x[''input_guards'']];t=pathlib.Path(x[''command''][''executable_provenance''][''observed_machine_path'']);ok=len(a)==4 and all(a) and t.is_file() and hashlib.sha256(t.read_bytes()).hexdigest()==x[''command''][''executable_provenance''][''sha256''];print(''four input guards and selected Cargo identity'',ok,a);sys.exit(0 if ok else 1)'], expect_exit: 0, timeout_seconds: 10}, source: MT192 changed manual lock batch requires one locked full graph verification, state: active}
+- {id: GP-582, role: builder, at: any, do: verify metadata output ancestors are ordinary and result paths remain unused, check: {type: cmd, argv: [python, -c, 'import pathlib,json,sys;d=json.loads(pathlib.Path(".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-192.json").read_text(encoding=''utf-8-sig''));x=d[''execution''][''changed_input_metadata_verification_20261019''];a=x[''artifact_paths''];b=pathlib.Path(a[''base'']).absolute();parents=[b,*b.parents];ordinary=all(not p.exists() or (p.is_dir() and not p.is_symlink() and not (getattr(p.lstat(),''st_file_attributes'',0)&1024)) for p in parents);outputs=all(not pathlib.Path(a[k]).exists() for k in (''stdout'',''stderr'',''result''));ok=ordinary and outputs;print(''ordinary metadata ancestors and unused outputs'',ok);sys.exit(0 if ok else 1)'], expect_exit: 0, timeout_seconds: 10}, source: MT192 isolated metadata capture must preserve prior outputs and foreign resources, state: active}
+- {id: GP-583, role: builder, at: any, do: 'confirm exact metadata argv, owned capture, cache scope and input freeze before one launch', check: {type: confirm}, source: 'MT192 metadata only; no compile, tests, lock writes, old capture inheritance or retry', state: active}

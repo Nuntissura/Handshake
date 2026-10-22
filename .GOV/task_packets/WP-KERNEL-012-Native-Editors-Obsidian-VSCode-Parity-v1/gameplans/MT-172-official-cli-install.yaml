@@ -1,0 +1,27 @@
+schema_version: handshake.gameplan.v1
+template_version: 1
+kind: gameplan
+instance_policy:
+  omit_empty_optional_fields: true
+  policy_lives_in_rule_refs_not_instance_fields: true
+  schema_ref: repo-governance/schemas/gameplan.schema.yaml
+rule_refs: []
+writing: 'no prose; terse fragments; determinism > grammar; verb object [op value]'
+precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; correct the step'
+scope: session
+assignment: MT172-OFFICIAL-CLI-INSTALL
+parent: null
+generation: 9
+expensive_actions: []
+steps:
+- {id: GP-001, role: any, at: on_resume, do: confirm reread state|notes|receipts|gameplan before new work, check: {type: confirm}, source: 'preset:resume', state: active}
+- {id: GP-002, role: any, at: on_resume, do: confirm statuses recounted from source records; memory counts == 0, check: {type: confirm}, source: 'preset:resume', state: active}
+- {id: GP-003, role: any, at: on_resume, do: confirm half-written records finished before new work, check: {type: confirm}, source: 'preset:resume', state: active}
+- {id: GP-004, role: any, at: before_round, do: verify owned isolated prefix contains only this task npm cache and preserves global installation graph, check: {type: confirm}, source: 'risk: prefix collision or global changes', state: active}
+- {id: GP-005, role: any, at: before_round, do: verify exact install args use pinned package global mode with isolated prefix and isolated cache no profile edits, check: {type: confirm}, source: 'risk: global npm prefix mutation', state: active}
+- {id: GP-006, role: any, at: before_round, do: verify official package version integrity and repository match npm metadata, check: {type: confirm}, source: 'source: official registry metadata exit0', state: active}
+- {id: GP-007, role: any, at: before_round, do: verify launcher owns install process log and numeric terminal without timeout, check: {type: confirm}, source: 'risk: orphan install or false terminal', state: active}
+- {id: GP-008, role: any, at: before_round, do: verify preparation instructions each contain at most 120 characters, check: {type: confirm}, source: 'infra: controller rejected overlong preparation instruction', state: active}
+- {id: GP-009, role: any, at: before_round, do: verify confirmation notes contain at most 120 characters, check: {type: confirm}, source: 'infra: controller rejected overlong confirmation note', state: active}
+- {id: GP-010, role: any, at: before_round, do: verify official win32-x64 optional package matches x64 bridge on ARM64 host, check: {type: confirm}, source: 'risk: host Node ARM64 differs from product x64 target', state: active}
+- {id: GP-011, role: any, at: before_round, do: verify one approved read-only gpt-6-luna turn uses explicit 180s cap with no fallback or retry, check: {type: confirm}, source: 'source: Master new scoped provider turn declaration', state: active}

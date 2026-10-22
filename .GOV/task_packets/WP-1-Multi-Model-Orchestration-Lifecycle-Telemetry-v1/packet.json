@@ -359,26 +359,10 @@
   },
   "microtasks": {
     "contract_glob": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-*.json",
-    "count": 17,
-    "declared_ids": [
-      "MT-001",
-      "MT-002",
-      "MT-003",
-      "MT-004",
-      "MT-005",
-      "MT-006",
-      "MT-007",
-      "MT-008",
-      "MT-009",
-      "MT-010",
-      "MT-011",
-      "MT-012",
-      "MT-013",
-      "MT-014",
-      "MT-015",
-      "MT-016",
-      "MT-017"
-    ],
+    "count": 23,
+    "declared_ids": ["MT-001", "MT-002", "MT-003", "MT-004", "MT-005", "MT-006", "MT-007", "MT-008", "MT-009", "MT-010", "MT-011", "MT-012", "MT-013", "MT-014", "MT-015", "MT-016", "MT-017", "MT-025",
+  "MT-026", "MT-027", "MT-028", "MT-029",
+      "MT-030"],
     "active_id": null,
     "next_id": "MT-003"
   },
@@ -577,6 +561,22 @@
       "No cloud bypass: CloudLane/BYOK consent/projection checks remain mandatory.",
       "No advisory promotion confusion: only explicit promotion changes authority.",
       "No orphan subagents: lane status and recovery metadata must be canonical."
+    ]
+  },
+  "architecture_binding": {
+    "module_lifecycle_refs": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-025.json",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/execution/source_adoption",
+  ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-026.json",
+  ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/execution/workflow_lifecycle_host_adoption",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-027.json",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/execution/producer_association_host_adoption",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-028.json",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/execution/producer_task_policy_host_adoption",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-029.json",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/execution/runtime_checkpoint_host_adoption",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/execution/member_enrollment_host_adoption"
     ]
   }
 }

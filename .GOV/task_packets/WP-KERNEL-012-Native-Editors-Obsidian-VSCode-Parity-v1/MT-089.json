@@ -301,4 +301,458 @@
     "basis": "Fresh clause-by-clause inspection found the MT-specific product implementation and proof surfaces consistent with its MT/WP/current-Master-Spec contract, with no unresolved MT-owned runtime, persistence, interaction, manual, Argus, or diagnostics blocker.",
     "residual_scope": "Failures in shared or downstream surfaces are assigned to the MT that owns that unmet contract and do not manufacture a failure for this independently complete MT."
   }
+,
+  "phase2_palmistry_lifecycle_source_extension_20261018": {
+    "pinned_host_adoption_20261018": {
+      "actual_source_closure_20261018": {
+        "status": "SOURCE_IMPLEMENTED_DIRECT_CODECHECK_CLEAR_HOST_PROOF_OPEN",
+        "basis": "Current Central personally reports actual Primary and T1 source outputs and direct Codecheck source verdict; this closure records those attributed results without a new product acquisition or proof run.",
+        "manifest": {"path": "src/frontend/palmistry/Cargo.toml", "before_bytes": 10444, "before_sha256": "2eda38e60d1d83e694bd2c389b725e4ccfa2b5f98ac24fcc1c85d3a5ffe7325c", "after_bytes": 10544, "after_sha256": "03ab0de4ea422614305d8cdfdc2128a012699f20597562f33afca17c96e90797", "actual_delta": "Actual unique existing dependency key preserved; local ../handshake_palmistry_lifecycle replaced by Assets Git rev80a5016cdd72250157c33cb546b73c89497283bd and package handshake-palmistry-lifecycle", "inverse": "Independent in-memory inverse exactly restored10444/2eda38e60d1d83e694bd2c389b725e4ccfa2b5f98ac24fcc1c85d3a5ffe7325c", "evidence": "Central reports actual Primary d08b47 plus21156e/cf1e73"},
+        "retirement": {"status": "EXACT_THREE_TRACKED_FILES_REMOVED_DIRECTORIES_RETAINED", "paths": ["src/frontend/handshake_palmistry_lifecycle/Cargo.toml", "src/frontend/handshake_palmistry_lifecycle/src/lib.rs", "src/frontend/handshake_palmistry_lifecycle/src/windows_parent_watch.rs"], "evidence": "Actual Primary completed all scoped guard/custody/canonical-retention checks; Primary plus T1 actual scoped Git diff shows exactly the one manifest and these three old tracked files. No unrelated/untracked cleanup, Git mutation, locks or compiler action reported", "directories_retained": true},
+        "source_reviews": {"team": "T1 distinct NEVERAUTHOR and dependency checker report no finding on actual scoped source adoption", "direct_codecheck": "01a14d52-fa57-73a3-a4ad-1bf70f4084b8 SOURCE NO_ACTIONABLE; personally inspected manifest/full inverse/wrapper/main/Windows cfg", "qualification": "Codecheck did no Git/full pathset inspection. Exact four-path scope and deletion custody rely on actual Primary plus T1 diff evidence, not a freshly checked whole tree by Codecheck. No source review is a host/runtime verdict"},
+        "unchanged_and_reused": "Wrapper unchanged one-line pub use; main and tests unchanged. Canonical owning4 proof and independent source/result rereads reused for unchanged source; no whole-kit rehash or repeated review",
+        "resolver_handoff": "Neither of the new Native/composition resolver calls has run; both allocations remain0. Captured old lifecycle manifest membership and Palmistry manifest guard are stale after this source unit. Before future resolver execution, refresh ONLY changed membership/manifest guards and bind BOTH Assets pins2813dc1768ddd2a4e1843abded1a228f22eeba8e and80a5016cdd72250157c33cb546b73c89497283bd, preserving every other valid captured input, existing configuration/cache/profile and all consumed history. No automatic run or counter renewal",
+        "remaining_proof": "Original actual Windows parent kill/survival, job-membership, MT094 launcher, persistence/native/host compatibility, full original independent acceptance remain OPEN. Four fake-watch component tests and Windows cfg do not replace these proofs",
+        "new_git_lock_or_run_grant": false,
+        "host_runtime_acceptance": "NOT_ACCEPTED"
+      },
+      "decision_id": "WP012-MT089-PALMISTRY-LIFECYCLE-PINNED-HOST-SOURCE-ADOPTION-20261018",
+      "authority": "Current Operator product parallelism and Master standing exact necessary-scope delegation through Central; standalone owning4 proof, lock publication80a5016 and independent canonical/result rereads are complete. This is the distinct pinned host-adoption source unit, not a replay or expansion of prior source proof. No additional routine Root/human GO.",
+      "status": "SOURCE_IMPLEMENTED_DIRECT_CODECHECK_CLEAR_HOST_PROOF_OPEN",
+      "owner": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+      "leader": "01a14c72-1989-7ed2-aedc-326199f80ed4",
+      "repository": "../wtc-WP-KERNEL-012",
+      "branch": "feat/WP-KERNEL-012",
+      "module_change_stage": "host_adoption",
+      "immutable_source": {"git": "https://github.com/Nuntissura/assets.git", "rev": "80a5016cdd72250157c33cb546b73c89497283bd", "package": "handshake-palmistry-lifecycle", "source_path": "hskernel/handshake_palmistry_lifecycle", "predecessor": "#/phase2_palmistry_lifecycle_source_extension_20261018/continuous_owning_proof_allocation_20261018/actual_owning_closure_20261018", "predecessor_observed": "Actual own4 passed4/failed0/ignored0/filtered0, published sole lock at80a5016 and independent immutable/result rereads complete. Component fake-watch/Windowscfg qualification preserved; no real host acceptance inferred."},
+      "manifest_assignment": {"writer": "PRIMARY_PERSONALLY", "path": "src/frontend/palmistry/Cargo.toml", "observed_before_sha256": "2eda38e60d1d83e694bd2c389b725e4ccfa2b5f98ac24fcc1c85d3a5ffe7325c", "observed_before_bytes": 10444, "line_locator": 36, "old_dependency_path": "../handshake_palmistry_lifecycle", "exact_change": "Replace ONLY the existing lifecycle dependency local-path source with immutable git https://github.com/Nuntissura/assets.git, rev80a5016cdd72250157c33cb546b73c89497283bd and package handshake-palmistry-lifecycle. Preserve its actual dependency key and every other manifest byte/feature/pin. Primary verifies the actual unique existing dependency entry and fresh exact whole guard before apply; ambiguity or drift stops only this path, never overwrites peers.", "rust_source": "T1 wrapper already reexports the canonical crate; no invented wrapper/Rust patch, copy, alternate implementation or source expansion."},
+      "old_tracked_source_retirement": {
+        "stage": "SEPARATE_CONDITIONAL_SOURCE_RETIREMENT_AFTER_MANIFEST_BINDING",
+        "writer": "PRIMARY_PERSONALLY",
+        "paths": [
+          {"path": "src/frontend/handshake_palmistry_lifecycle/Cargo.toml", "retained_sha256": "c0c35dec4857c3f2c3f3eb76333c06bec43d86979be395dea7646e5c38c89cc9", "retained_bytes": 310},
+          {"path": "src/frontend/handshake_palmistry_lifecycle/src/lib.rs", "retained_sha256": "28061884ce9d48208cc83a54dd21766189799fa97f5279fec026f02dd54d0cbd", "retained_bytes": 20801},
+          {"path": "src/frontend/handshake_palmistry_lifecycle/src/windows_parent_watch.rs", "retained_sha256": "5d0c47f0fc4cecb1cfc032fea81602b807cf4fac739e4733425837a9a3bcef21", "retained_bytes": 4409}
+        ],
+        "current_observation": "Latest Primary f714cc ordinary metadata confirms all three EXIST/TRACKED/CLEAN and no personal writer or reservation. This is a dated observation, not a global-free claim or fresh deletion guard.",
+        "conditions": "Before retirement, Primary freshly verifies actual ordinary files/all ancestors, exact current guards, tracked clean state, no actual conflicting unfinished writer/capture and canonical source retention at immutable80a5016. Reuse valid unchanged conservation/independent rereads with explicit CRLF-to-LF qualification; never blanket raw equality. All-three exact tracked file retirement only after lawful current custody and manifest pin. Preserve the directories and every unrelated/untracked file; no recursive directory cleanup, whole-root deletion or automatic extra-path removal.",
+        "git_boundary": "Only the existing sole Primary may perform separately scoped exact tracked-path retirement under current Git/process/safety authority. Helper performs no deletion or Git. This source assignment does not grant commit/push, lock generation, compilation, process disruption or destructive fallback. Any actual deletion/helper/hook denial remains local and binding; no alternate route. If a current prerequisite fails, retain originals and report exact affected path."
+      },
+      "resolver_capture_coordination": "Current Native/composition resolver capture includes the old lifecycle manifest and Palmistry manifest. No resolver has started; its new allocations remain0. Sole Primary pauses only those unstarted resolver calls during this manifest/source adoption and refreshes ONLY invalidated captured manifests/input-set membership afterward, preserving other valid captured inputs, existing profile/cache/config, original histories and allocation0. Do not execute against stale captured manifests, renew old budgets or invent metadata/compile prerequisites. This child changes no MT175 counters or plan pointers.",
+      "review_and_proof": "T1 actual dependency checker and distinct NEVERAUTHOR review the exact manifest delta and, if performed, exact tracked source retirement/caller/import/Windowscfg closure; send actual deltas directly to current Codecheck before expensive Cargo. Source change and source retirement do not prove host compatibility. Existing four component tests are reused unchanged; original Windows parent kill/survival, job-membership, launcher/MT094, native/runtime/persistence and full independent acceptance remain OPEN. Later affected owning host lock/compile/proof requires its own current allocations; no automatic lock/run budget here.",
+      "start": "After this exact child parse/outside-inverse/readback, helper sends Primary the one-manifest source assignment and separate guarded source3 retirement, plus T1 review/ownership assignment. Primary personally verifies fresh guards/custody and reconciles unstarted resolver captures. No routine GO or all-kit/all-team ACK condition. Return actual manifest delta/retirement disposition/current guards, not invented Rust work or runtime verdict.",
+      "scope_limits": "Product source writes limited to the one Palmistry Cargo manifest and separately conditioned retirement of exactly three named tracked old package files. No other Rust/source, directories/untracked, shared locks/manifests, v6, schema, auth/grant, branches/worktrees/backups, force/reset/stash/foreign-process action or new run allowance. Existing denied actions and finite history retained.",
+      "source_write_authorized": true,
+      "compiler_runtime_or_new_lock_budget_granted": false,
+      "helper_product_git_or_delete_authorized": false,
+      "acceptance": "NOT_ACCEPTED"
+    },
+    "status": "SOURCE_PUBLISHED_INDEPENDENTLY_REREAD_OWNING4_PROOF_ALLOCATED_UNRUN",
+    "authority": "Live Operator Phase2 parallel implementation instruction and Master01a14c5c current exact-source engineering delegation to Central/current owning leaders; no further routine Root GO",
+    "governance_writer": "01a14c69-82fc-7422-b422-73fc827aada4",
+    "source_repository": "../../.assets",
+    "source_branch": "codex/handpick",
+    "origin_repository": "../wtc-WP-KERNEL-012",
+    "origin_branch": "feat/WP-KERNEL-012",
+    "preservation": "Original MT/WP/spec scope, acceptance, source pins, historical verdicts and unresolved full original proof remain unchanged. This child grants only new standalone source placement, not acceptance or host adoption.",
+    "custody": "Existing leaders bind personal exclusive scopes, fresh reference guards and ordinary absent destinations immediately before CreateNew writes. No overwrite/revert of peers, no foreign-custody absence claim. Source originals stay read-only.",
+    "review": "Existing distinct NEVERAUTHOR and dependency checker inspect actual assembled source/API/import/feature/caller closure. Leader contacts supplemental Codecheck01a14d52-fa57-73a3-a4ad-1bf70f4084b8 directly for actual diff review before expensive Cargo. Reuse unchanged valid proof; no repeated census.",
+    "primary_boundary": "Primary01a14c6a-749a-7cd0-a789-0a5c97c47f36 alone assembles new Cargo.toml and owns locks, Git, compiler and resource launch. Rust source authors need not wait for manifest assembly to start their disjoint source files.",
+    "budgets": {
+      "cargo": 0,
+      "metadata": 0,
+      "tests": 0,
+      "git": 0,
+      "publication": 0
+    },
+    "limits": "No original source/native/backend/index/shared-root/lock edits, runtime/process execution, test invocation, auth/grant/capability change, denied-action retry or alternate route. No new branches/worktrees/backups.",
+    "next": "Actual quiescent source handback plus team/dependency/direct Codecheck, then distinct finite owning proof/publication allocation and independent immutable reread; only then separate pinned host adoption. No old-monolith/all-kit prerequisite.",
+    "decision_id": "WP012-MT089-PHASE2-PALMISTRY-LIFECYCLE-STANDALONE-SOURCE-20261018",
+    "leader": "01a14c72-1989-7ed2-aedc-326199f80ed4",
+    "new_source_root": "hskernel/handshake_palmistry_lifecycle",
+    "package_identity": "handshake-palmistry-lifecycle",
+    "reference_root": "src/frontend/handshake_palmistry_lifecycle",
+    "owning_contracts": [
+      "MT-089 original lifecycle inversion acceptance",
+      "MT-094 launcher law and original proof",
+      "MT-175 host/import custody",
+      "packet.json#/swarm_production_20261014/coordination/palmistry_lifecycle_component_extraction_20261015"
+    ],
+    "files": [
+      {
+        "path": "src/lib.rs",
+        "bytes": 20801,
+        "sha256": "28061884ce9d48208cc83a54dd21766189799fa97f5279fec026f02dd54d0cbd",
+        "writer": "/root/formatting_coder",
+        "outcome": "Carry complete existing portable lifecycle implementation and its four existing tests unchanged; preserve shutdown/parent death/finalization behavior",
+        "next_queue": "Finish own source conservation, then real review findings in this file"
+      },
+      {
+        "path": "src/windows_parent_watch.rs",
+        "bytes": 4409,
+        "sha256": "5d0c47f0fc4cecb1cfc032fea81602b807cf4fac739e4733425837a9a3bcef21",
+        "writer": "/root/navigation_coder",
+        "outcome": "Carry complete existing Windows parent-watch implementation unchanged, preserving handle/exit observation semantics and cfg boundary",
+        "next_queue": "Finish Windows dependency/API closure and resolve actual findings in this file"
+      }
+    ],
+    "manual": {
+      "path": "README.md",
+      "writer": "/root/formatting_coder",
+      "when": "After actual source",
+      "scope": "Concise existing package purpose, use, Windows cfg, original lifecycle proof limits; no invented runtime pass"
+    },
+    "manifest_reference": {
+      "bytes": 310,
+      "sha256": "c0c35dec4857c3f2c3f3eb76333c06bec43d86979be395dea7646e5c38c89cc9",
+      "requirements": "Retain existing package identity, isolated workspace, serde1 derive and cfg(windows) windows-sys0.61 Foundation/Threading; Primary sole assembler"
+    },
+    "tests": "Preserve four existing lib tests once in owning source. No process/runtime proof follows from authored tests; original actual Windows lifecycle and launch acceptance remains required.",
+    "local_denials": "Independent new subtree/source placement; no MT190 source grant, MT189 spent/denied proof or protected process execution renewed.",
+    "source_output": {
+      "guards": [
+        {
+          "path": "hskernel/handshake_palmistry_lifecycle/Cargo.toml",
+          "bytes": 310,
+          "sha256": "c0c35dec4857c3f2c3f3eb76333c06bec43d86979be395dea7646e5c38c89cc9"
+        },
+        {
+          "path": "hskernel/handshake_palmistry_lifecycle/src/lib.rs",
+          "bytes": 20801,
+          "sha256": "28061884ce9d48208cc83a54dd21766189799fa97f5279fec026f02dd54d0cbd"
+        },
+        {
+          "path": "hskernel/handshake_palmistry_lifecycle/src/windows_parent_watch.rs",
+          "bytes": 4409,
+          "sha256": "5d0c47f0fc4cecb1cfc032fea81602b807cf4fac739e4733425837a9a3bcef21"
+        },
+        {
+          "path": "hskernel/handshake_palmistry_lifecycle/README.md",
+          "bytes": 2792,
+          "sha256": "2a037f8d6e1f6603f8b056361fffb7e259e5b4a9085a31340360484a4ea51778"
+        }
+      ],
+      "quiescence": "Both source authors and Primary manifest assembler personally report no pending/inflight/unfinished own writes; no foreign absence claim.",
+      "conservation": "Central00aea1 EXIT0 actual three implementation/manifest raw byte comparisons exactly equal declared original source; all four final guards matched and README opened. Four retained unit tests remain UNRUN.",
+      "reviews": "Team NEVERAUTHOR/dependency actual complete4file source clear; direct supplemental Codecheck actual351e2d/ff802b/1a7e06 inspected complete source/README and independently established parity, no scoped finding. Historical first reserved-variable comparison failed, only corrected independent1a7e06 used.",
+      "limits": "Advisory source-only reviews; original Windows lifecycle survival, launcher job membership, persistence, native adoption and independent acceptance remain unproven at original boundaries."
+    },
+    "source_publication_allocation_20261018": {
+      "decision_id": "WP012-MT089-PALMISTRY-LIFECYCLE-EXACT4-SOURCE-PUBLICATION-20261018",
+      "status": "COMPLETE_ACTUAL_SOURCE_PUBLICATION_AND_INDEPENDENT_IMMUTABLE_REREAD",
+      "authority": "Master continuous ordinary exact source publication delegation through Central; actual exact source handback/review now complete, no new routine approval.",
+      "publisher": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+      "independent_reader": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+      "repository": "../../.assets",
+      "branch": "codex/handpick",
+      "budget": {
+        "normal_exact_four_path_source_checkpoint_push": {
+          "limit": 1,
+          "consumed": 0
+        },
+        "independent_immutable_source_reread": {
+          "limit": 1,
+          "consumed": 0
+        }
+      },
+      "execution": "Fresh exact4 guards/current branch/HEAD/matching remote/scoped index/no actual competing source writer or capture. Normal source checkpoint/push of exact4 only; preserve all peer index/untracked/source work. Before push verify actual post-hook parent/tree/pathset/blobs and reconcile newline filtering explicitly; never blanket raw equality or automatic post_hook_verified.",
+      "limits": "No compiler/test/metadata/lock/shared-index-root source changes, host adoption, acceptance, new branch/worktree/reset/stash/amend/force. Package proof is separate finite allocation after publication plus independent canonical reread. Coordinate only actual captured inputs; unrelated source continues.",
+      "next": "Direct publisher-to-existingIV one immutable commit/tree/parent/pathset/blob/raw guard reread. Then minimum genuine own package4-test proof, Windows cfg and original boundary proof remain distinct, no old-monolith prerequisite.",
+      "actual_result": {
+        "recorded_at": "2026-10-18",
+        "artifact": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-089/phase2-palmistry-lifecycle-source-publication/publication-result.json",
+        "artifact_bytes": 1715,
+        "artifact_sha256": "13466db013998511f06ce4484b07d9bc94612a2bf1217743c86f9aae916714d4",
+        "commit": "5cd174f81193dacf914b25c0e6055b5946338c7c",
+        "tree": "a90c0420c5e6c8fd055363b16e77e3debbd62104",
+        "parent": "654411c4c1357d58478d8dfa7dc93bf0643a631b",
+        "source_rows": [
+          {
+            "path": "hskernel/handshake_palmistry_lifecycle/Cargo.toml",
+            "bytes": 310,
+            "sha256": "c0c35dec4857c3f2c3f3eb76333c06bec43d86979be395dea7646e5c38c89cc9"
+          },
+          {
+            "path": "hskernel/handshake_palmistry_lifecycle/src/lib.rs",
+            "bytes": 20801,
+            "sha256": "28061884ce9d48208cc83a54dd21766189799fa97f5279fec026f02dd54d0cbd"
+          },
+          {
+            "path": "hskernel/handshake_palmistry_lifecycle/src/windows_parent_watch.rs",
+            "bytes": 4409,
+            "sha256": "5d0c47f0fc4cecb1cfc032fea81602b807cf4fac739e4733425837a9a3bcef21"
+          },
+          {
+            "path": "hskernel/handshake_palmistry_lifecycle/README.md",
+            "bytes": 2792,
+            "sha256": "2a037f8d6e1f6603f8b056361fffb7e259e5b4a9085a31340360484a4ea51778"
+          }
+        ],
+        "publisher": "Actual d972f1 EXIT0 normal exact4 commit/push; post-hook parent/tree/pathset/filtered stage+commit blob identities checked before push, matching remote; Central ed100f opened complete before-push and publication-result artifacts",
+        "independent_reread": {
+          "owner": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+          "status": "COMPLETE_ACTUAL_IMMUTABLE_SOURCE4_REREAD",
+          "commit_tree_parent_exact": true,
+          "pathset": "Exactly four added mode100644 paths, GitSHA1 blob identities verified, both recursive trees not truncated and all prior654 blobs unchanged",
+          "representation": "Cargo/README raw exact; Rust CRLF-to-LF only, all4 normalized exact; no blanket raw equality",
+          "canonical_filtered_guards": {
+            "src/lib.rs": {
+              "bytes": 20335,
+              "sha256": "cfbce213c5a2939a9d9153fa3c13c2667c976ed7ff10ae35b6ab3eb51c6aa720"
+            },
+            "src/windows_parent_watch.rs": {
+              "bytes": 4312,
+              "sha256": "2a31cdf40726178a146419db4f0fc43c1846e5de5b9b516faf82f21094bda22f"
+            }
+          }
+        },
+        "budget_consumed": {
+          "normal_exact_four_path_source_checkpoint_push": 1,
+          "independent_immutable_source_reread": 1
+        },
+        "limits": "Source identity only; four existing unit tests unrun, Windows behavior/launcher/persistence/host/original independent acceptance unproven"
+      }
+    },
+    "continuous_owning_proof_allocation_20261018": {
+  "decision_id": "WP012-MT089-PALMISTRY-LIFECYCLE-OWNING4-PROOF-20261018",
+  "status": "OWNING4_AND_LOCK_PUBLICATION_INDEPENDENT_READS_COMPLETE_ORIGINAL_HOST_ACCEPTANCE_OPEN",
+  "authority": "Existing Master continuous published-package minimum owning proof delegation through Central; actual exact4 source publication and independent immutable reread complete",
+  "owner": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+  "independent_reader": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+  "repository": "../../.assets",
+  "branch": "codex/handpick",
+  "source_commit": "5cd174f81193dacf914b25c0e6055b5946338c7c",
+  "source_tree": "a90c0420c5e6c8fd055363b16e77e3debbd62104",
+  "guards": [
+    {
+      "path": "hskernel/handshake_palmistry_lifecycle/Cargo.toml",
+      "bytes": 310,
+      "sha256": "c0c35dec4857c3f2c3f3eb76333c06bec43d86979be395dea7646e5c38c89cc9"
+    },
+    {
+      "path": "hskernel/handshake_palmistry_lifecycle/src/lib.rs",
+      "bytes": 20801,
+      "sha256": "28061884ce9d48208cc83a54dd21766189799fa97f5279fec026f02dd54d0cbd"
+    },
+    {
+      "path": "hskernel/handshake_palmistry_lifecycle/src/windows_parent_watch.rs",
+      "bytes": 4409,
+      "sha256": "5d0c47f0fc4cecb1cfc032fea81602b807cf4fac739e4733425837a9a3bcef21"
+    },
+    {
+      "path": "hskernel/handshake_palmistry_lifecycle/README.md",
+      "bytes": 2792,
+      "sha256": "2a037f8d6e1f6603f8b056361fffb7e259e5b4a9085a31340360484a4ea51778"
+    }
+  ],
+  "budget": {
+    "own_package_lock_generation": {
+      "limit": 1,
+      "consumed": 1
+    },
+    "owning_library_four_test_attempt": {
+      "limit": 1,
+      "consumed": 1
+    },
+    "normal_lock_only_checkpoint_push": {
+      "limit": 1,
+      "consumed": 1
+    },
+    "independent_immutable_lock_reread": {
+      "limit": 1,
+      "consumed": 1
+    },
+    "independent_actual_behavior_result_reread": {
+      "limit": 1,
+      "consumed": 1
+    }
+  },
+  "command": {
+    "argv": [
+      "test",
+      "--manifest-path",
+      "hskernel/handshake_palmistry_lifecycle/Cargo.toml",
+      "--locked",
+      "--lib",
+      "-j",
+      "1"
+    ],
+    "cwd": "../../.assets",
+    "toolchain": "Current directly verified1.97.1-x86_64-pc-windows-msvc with actual owned child env, no wrapper substitution"
+  },
+  "expected_tests": [
+    "tests::clean_shutdown_while_parent_alive_records_no_crash",
+    "tests::abnormal_parent_death_survives_and_records_then_finalizes",
+    "tests::shutdown_during_finalize_yields_shutdown_after_death",
+    "tests::job_object_contract_is_documented"
+  ],
+  "expected_result": {
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0,
+    "filtered_out": 0
+  },
+  "artifact_root": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-089/phase2-lifecycle-owning-proof",
+  "mutable_target": "../Handshake_Artifacts/handshake-cargo-target/wp012-mt089",
+  "preparation": "Primary normal scoped owning gameplan/current exact source+manifest+generated lock/registry/config/child env/resource/physical-slot/target/cache/path binding and direct actual new lock/dependency review precede one test. Reuse unchanged actual source reviews, publication+IV, and compatible verified toolchain/cache/path constructors. At most one actual Cargo operation on owned physical slot; no whole tree/source freeze beyond captured inputs. Fresh normal32/5/2 compilation scheduling/disk floor50GiB, canonical external output/short ownTMP and no outer timeout.",
+  "execution": "Generate only this package lock once; record full actual lock/registry closure and targeted dependency review before one --locked --lib run. No extra check/metadata/list, zero/missing/filtered/ignored cannot pass. Record PID/birth/argv, direct outputs/numeric exit/testnames/count, scheduling and actual input no-drift. On successful stable closure normal exact lock-only commit/push and direct IV immutable lock+source binding and actual result read; finite allowances do not renew old actions.",
+  "limits": "No host/native/source edits/shared roots, manifest rebinding without exact source authority, genuine OS parent kill/process launch, full Windows lifecycle/launcher/persistence or original independent acceptance claim. These are four existing fake-watch/component tests only, with Windows cfg compile when applicable. No denied MT189/MT005/MT011 action retry/new parent acquisition.",
+  "next": "Actual successful owning proof+published lock+independent immutable/result rereads then separate exact pinned host adoption through existing leader, no additional discretionary Root GO. Failures preserved for exact evidence-based repair; never identical rerun without changed input/diagnosis.",
+  "initial_mutable_target_proposal": "../Handshake_Artifacts/handshake-cargo-target/wp012-mt089-lifecycle",
+  "owning_assets_preparation_scope_20261018": {
+    "purpose": "This separate canonical Assets project owning-component proof is not a Product validation round or original MT acceptance",
+    "authority": "Live Operator no artificial workflow caps, Master continuous own-source proof delegation, CX-GP-003 action/role/inputs/resource-owner preparation scope; canonical WP012 Product gameplan and original Product proof gates remain unchanged",
+    "gameplan": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-089/phase2-lifecycle-owning-proof/gameplan.yaml",
+    "scope": "session",
+    "assignment": "WP-KERNEL-012-MT-089-OWNING-ASSET-PROOF",
+    "role": "builder",
+    "confirm_binding": "Canonical Assets repository",
+    "lock_generation_moment": "before_dispatch",
+    "owning_four_test_moment": "before_round",
+    "target_correction": "Unstarted private proposal root107/TMP111 would yield262 with143 filename cap; selected shorter canonical basename wp012-mt089 root97/TMP101 yields252, retain original empty directory/provenance; no source/cache/OS/global selector relocation or denial workaround",
+    "limits": "Only source4/future actual lock+registry/config/env/cache/target/hardware/path/output boundaries relevant to this own unit. No bypass or false confirmation of original Product conditions, no separate original acceptance grant, no repeated broad source/schema/auth/native inventory. Budgets unchanged"
+  },
+  "allocation_before_actual_result": {
+    "status": "CONDITIONALLY_ALLOCATED_NOT_STARTED",
+    "budget": {
+      "own_package_lock_generation": {
+        "limit": 1,
+        "consumed": 0
+      },
+      "owning_library_four_test_attempt": {
+        "limit": 1,
+        "consumed": 0
+      },
+      "normal_lock_only_checkpoint_push": {
+        "limit": 1,
+        "consumed": 0
+      },
+      "independent_immutable_lock_reread": {
+        "limit": 1,
+        "consumed": 0
+      },
+      "independent_actual_behavior_result_reread": {
+        "limit": 1,
+        "consumed": 0
+      }
+    }
+  },
+  "actual_owning_closure_20261018": {
+    "central_observation": "e0705c EXIT0 entire actual behavior/lock result and full stdout/stderr opened",
+    "behavior_result": {
+      "action": "MT089_OWNING_LIBRARY_BEHAVIOR",
+      "owner": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+      "status": "EXITED",
+      "attempt_consumed": 1,
+      "source_pin": "5cd174f81193dacf914b25c0e6055b5946338c7c",
+      "executable": "C:/Users/iljas/.rustup/toolchains/1.97.1-x86_64-pc-windows-msvc/bin/cargo.exe",
+      "argv": [
+        "test",
+        "--manifest-path",
+        "hskernel/handshake_palmistry_lifecycle/Cargo.toml",
+        "--locked",
+        "--lib",
+        "-j",
+        "1"
+      ],
+      "cwd": "C:/Projects/LLM Projects/.assets",
+      "target": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/handshake-cargo-target/wp012-mt089",
+      "cargo_home": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-189\\phase2-notes-source-primary\\cargo-home",
+      "stdout": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\MT-089\\phase2-lifecycle-owning-proof\\behavior.stdout.log",
+      "stderr": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\MT-089\\phase2-lifecycle-owning-proof\\behavior.stderr.log",
+      "profile_sha256": "9872c38bdf8bfd4e29c71548ebfddf47d3a1d2b03924e392eaaa7b6ba3b5130a",
+      "inputs_sha256": "1edc8d9d78f69fd28d9b9b74c9f19a047951e51d53f6c2d0f5beb78e0a59ebe1",
+      "process_id": 55116,
+      "process_birth_utc": "2026-10-18T12:11:44.0488082Z",
+      "exit_code": 0,
+      "failures": [],
+      "started_at_utc": "2026-10-18T12:11:44.0414702Z",
+      "tests": [
+        "tests::job_object_contract_is_documented",
+        "tests::clean_shutdown_while_parent_alive_records_no_crash",
+        "tests::shutdown_during_finalize_yields_shutdown_after_death",
+        "tests::abnormal_parent_death_survives_and_records_then_finalizes"
+      ],
+      "counts": {
+        "ignored": 0,
+        "filtered_out": 0,
+        "measured": 0,
+        "passed": 4,
+        "failed": 0
+      },
+      "input_drift": [],
+      "scheduling_observation": {
+        "pid": 55116,
+        "handle_open": true,
+        "cpu": 32,
+        "memory_query_ok": true,
+        "memory": 5,
+        "io_status": 0,
+        "io": 2
+      },
+      "completed_at_utc": "2026-10-18T12:11:59.3052181Z"
+    },
+    "behavior_result_bytes": 2182,
+    "behavior_result_sha256": "5648781ca842c3da3a6c0596ac80ef17dbe6056e0fb3af4cb57330e1f3321e99",
+    "lock_generation_result": {
+      "action": "MT089_OWN_LOCK_GENERATION",
+      "owner": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+      "attempt_consumed": 1,
+      "source_commit": "5cd174f81193dacf914b25c0e6055b5946338c7c",
+      "argv": [
+        "generate-lockfile",
+        "--manifest-path",
+        "hskernel/handshake_palmistry_lifecycle/Cargo.toml"
+      ],
+      "cwd": "C:/Projects/LLM Projects/.assets",
+      "executable": "C:/Users/iljas/.rustup/toolchains/1.97.1-x86_64-pc-windows-msvc/bin/cargo.exe",
+      "started_at_utc": "2026-10-18T12:02:51.3949297Z",
+      "process_id": 63728,
+      "process_birth_utc": "2026-10-18T12:02:51.4006779Z",
+      "exit_code": 0,
+      "failures": [],
+      "input_drift": [],
+      "scheduling_observation": {
+        "pid": 63728,
+        "handle_open": true,
+        "cpu": 32,
+        "memory_query_ok": true,
+        "memory": 5,
+        "io_status": 0,
+        "io": 2
+      },
+      "lock": {
+        "sha256": "f4cb7aedf4385c087e2b0815a86d4002ca87078ce09a443c383e07283e48fda1",
+        "path": "C:\\Projects\\LLM Projects\\.assets\\hskernel\\handshake_palmistry_lifecycle\\Cargo.lock",
+        "bytes": 2278
+      },
+      "completed_at_utc": "2026-10-18T12:02:52.1993729Z"
+    },
+    "lock_result_bytes": 1111,
+    "lock_result_sha256": "f787d480b9c3685d2d7882ba678661dfd05ce0ac64bb95bd9bbc6417f9a8f1df",
+    "stdout": {
+      "bytes": 385,
+      "sha256": "e2362739a2031642eec8324f34268e67a58316f47fd87ee7d8d084312f749a2a"
+    },
+    "stderr": {
+      "bytes": 676,
+      "sha256": "dc6b86c8565491f0b186e1392db5834892f11260d53413b9604626ae25b75dd9"
+    },
+    "published_lock": {
+      "commit": "80a5016cdd72250157c33cb546b73c89497283bd",
+      "tree": "d4a4730c87225b62ebf6f4ffbf2ae7c8c3a668dc",
+      "sole_parent": "5cd174f81193dacf914b25c0e6055b5946338c7c",
+      "path": "hskernel/handshake_palmistry_lifecycle/Cargo.lock",
+      "blob": "9d8c359ff1215a453d817bbd048c565691bf1b0a",
+      "bytes": 2278,
+      "sha256": "f4cb7aedf4385c087e2b0815a86d4002ca87078ce09a443c383e07283e48fda1",
+      "primary_report": "fe172d normal lock-only publication EXIT0; no other source selected"
+    },
+    "independent_reader": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+    "independent_actual_result": "Complete actual result/raw logs/resource/profile/input/caller read; exact4 names/count4/0/0/0/numeric0/no failures or drift. Actual596-row before/after capture attributed to Primary; IV freshly rehashed own source4+lock5rows, not all596 registry/tool/config inputs. Exact own executable inside short target checked. Synthetic fake-watch+Windowscfg component only.",
+    "independent_immutable_lock": "GitHub80a5016 exact untruncated parent/current trees, soleaddedlock, all previous5cd source blobs unchanged; immutable blob identity/GitSHA1/rawSHA/bytes match2278. Source4 earlier immutable reread reused. Both allocated reads complete once.",
+    "qualification": "No real Windows parent kill/survival, launcher/job membership/persistence/native/host or full original independent acceptance. No additional run/read allowance. Existing next pinned host source adoption may proceed separately under original current delegation."
+  }
+}
+  }
 }

@@ -1,0 +1,5 @@
+kind: gameplan_confirmations
+confirmations:
+- {id: GP-013, head: 609eb001de9726e83496a3f45e196a14117f61a2, at: '2026-10-18T07:39:12Z', note: Primary f3e4a4 21-case0; direct Codecheck cleared corrected future adapter; no actual lock claimed}
+- {id: GP-007, head: 609eb001de9726e83496a3f45e196a14117f61a2, at: '2026-10-18T08:23:18Z', by: builder, note: 4382/2cfe reviewed; exact PowerShell call has no timeout; yields retain session and owned completion.}
+- {id: GP-005, head: 609eb001de9726e83496a3f45e196a14117f61a2, at: '2026-10-18T08:38:37Z', by: builder, note: 'Exact direct lockgen only: fixed roots + c980 constructors give max248; independently computed d96438.'}

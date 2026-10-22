@@ -179,6 +179,7 @@
     "proof_reuse": "Main source changed; old MT184 full485-target proof remains historical and cannot substitute for current MT188 main compilation. Nativecheck is not proof of backendmain."
   },
   "independent_drain_source_repair_20261015": {
+    "runtime_cleanup_current_body_selected_input_20261019": {"paths":["src/backend/handshake_core/tests/crash_recovery_e2e/runtime_chaos.rs","src/backend/handshake_core/tests/crash_recovery_e2e/runtime_child.rs"],"limits":"No Source write grant/writer lease transfer/old owner replacement/old budget reset; no Cargo/metadata/tests/FR fault injection/event fabrication/Git/process/other Product file. No helper Product read/write/new sidecar","authority":"Central minimum prospective defining INPUT under existing Operator/Master delegation; no approval ceremony/Source grant","native_uuid":"NOT_EXPOSED","input_budget":{"limit":1,"consumed":0,"meaning":"ONE coherent COMPLETE READONLY current-body defining outcome, not one-command quota. All historical eight-file Source/run/input budgets untouched","status":"PROSPECTIVE_UNSTARTED"},"acceptance":"NOT_ACCEPTED","selection":"ONLY complete current failure-runner/owned-resource retention/cancellation/cleanup/closure functions plus direct actual types/imports necessary in these TWO literal files. Actual names/ranges selected from current bodies; no wholemodule export/other eight-file audit/selector/config/test kit/schema acquisition","branch":"feat/WP-KERNEL-012","leader":"01a151a4-85a2-7470-9175-9d21bb2fc5a4","preservation":"ALL old current fields/historical ownership/eight-file release/later chaos-only transfer/pins/denials/spents/independent runtime acceptance preserved unchanged","guard":"Actual reader current retained-handback reconciliation, ordinary ALL ancestors/FULL RAW before-after identity guards/ownpending and capture reconciliation before selected acquisition. Historical eight-file preimages navigation-only, not current Source custody/guard","path_authority":"Existing MT188 independent_drain_source_repair_20261015/eight_path_source_assignment_20261015/paths4+5 and chaos successor canonical_path_correction; short tests/runtime_chaos.rs explicitly retracted historically, no invented new path","retained_first":"Actual successor lead finalturn01a151c2-121d-7be0-802f-b161062ed274 relays SAME retained_custody NOT_RETAINED locally for BOTH complete current cleanup handbacks. NOT repository absence; no retained current body proving resolved available, so no repeat of an already-held current body","reason":"Resolve original reviewed_source_only_publication_batch_20261015/exclusions/Runtime8 exact Unready cleanup, excluded finding from CURRENT bodies. Current implementation deficit NOT_PROVEN; real FR-only fault+restore/healthy-write/canonicalSurreal/other drain proof UNRUN is proof debt, not automatic code gap","output":"Actual remaining concrete cleanup defect and exact Source needed OR current alreadyimplemented handback/identity. Do not invent work or claim runtime acceptance. Any NEW Source unit requires actual deficit+exact actual author/current custody/separate Source admission","repository":"../wtc-WP-KERNEL-012","actor":"/root/retained_custody","decision_id":"WP012-MT188-CURRENT-RUNTIME-CLEANUP-DEFINING-INPUT-20261019"},
     "decision_id": "WP012-MT188-INDEPENDENT-DRAIN-SOURCE-REPAIR-20261015",
     "recorded_at_utc": "2026-10-14T23:34:57Z",
     "status": "SOURCE_ONLY_IMPLEMENTATION_RELEASED_PRODUCTION_PROOF_HELD",
@@ -224,7 +225,280 @@
       "Original genuine executable positive/negative and DuckDB FlightRecorder-only INSERT-fault proof plus independent verdict remain required. No compiler/test/runtime invocation or acceptance closure supplied.",
       "Additional paths or changed acceptance law require the exact evidenced Root disposition."
     ],
-    "next_actor": "Central primary releases its source owner/checker and returns handback plus affected-proof binding on the final coherent candidate."
+    "next_actor": "Central primary releases its source owner/checker and returns handback plus affected-proof binding on the final coherent candidate.",
+    "authority_disposition_20261015": {
+      "decision_id": "WP012-MT188-DIAGNOSTIC-FAULT-AUTHORITY-DISPOSITION-20261015",
+      "status": "NARROW_RETAINED_REQUIREMENT_CONFLICT_RESOLVED_NO_EXECUTION_GRANT",
+      "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+      "authority_evidence": [
+        {
+          "source": ".GOV/codex/Handshake_Codex_v1.4.md",
+          "rule_id": "CX-503R",
+          "line": 45,
+          "root_read_chunk": "c5440a",
+          "meaning": "Exclusive Surreal/EventLedger application authority."
+        },
+        {
+          "source": ".GOV/codex/Handshake_Codex_v1.4.md",
+          "rule_id": "CX-021",
+          "line": 15,
+          "root_read_chunk": "0d33e3",
+          "meaning": "Explicit Operator instructions govern and supersede conflicting repo procedures."
+        },
+        {
+          "source": "MT-188.json#/independent_drain_source_repair_20261015/controls",
+          "root_read_chunk": "25c070",
+          "meaning": "Original genuine executable positive/negative DuckDB FlightRecorder-only INSERT-fault proof and independent verdict explicitly retained."
+        }
+      ],
+      "current_operator_requirement": "Current user heartbeat2026-10-15T05:21:35 explicitly retains exact fault requirement.",
+      "disposition": "Existing diagnostic DuckDB sink ONLY for isolated owned-test-data fault and restore. It is not new database authority and NEVER substitutes canonical Surreal/EventLedger application state/auth/lifecycle/receipts. Existing explicit Operator requirement resolves ONLY this narrow policy conflict; no new approval needed for retained scope.",
+      "pending": [
+        "Genuine event ID/prearm producer/private caller contract/features.",
+        "Exclusive exact paths/source SQL review.",
+        "Finite execution admission and independent ORIGINAL positive/negative acceptance."
+      ],
+      "limits": "No source/SQL/invocation grant or broadened DuckDB exception. All histories/parent statuses/pins/budgets/Assets50580 hold/V2 source assignment unchanged."
+    },
+    "recorder_fault_ordering_disposition_20261015": {
+      "decision_id": "WP012-MT188-RECORDER-FAULT-ORDERING-DISPOSITION-20261015",
+      "status": "DESIGN_SELECTED_ENGINE_PROOF_HELD",
+      "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+      "selected_source": "Runtime actual local-restore-before-original-Err proposal selected by Root/buddy, under retained MT188 original diagnostic fault+restore requirement.",
+      "ordering": [
+        "Predispatch genuine-event selection/pending wait BEFORE connection mutex; Arm records intent ONLY.",
+        "Actual selected INSERT holds SAME shared connection mutex, creates/exhausts OWNED TEMP candidate, freshly binds ORIGINAL INSERT, captures actual original Err, drops statement references, performs plain DROP owned TEMP and restore/invariant observations BEFORE unlock and return ORIGINAL error.",
+        "No unrelated same-connection consumer inside TEMP interval; no parent await while holding lock.",
+        "Actual event Err then existing sticky Release-store then correlated acknowledgement records original error AND restore_result; never invoke drain setter.",
+        "ConfirmRestored confirms/resets ONLY already-physical restoration proof state, no SQL and no clearing sticky flag."
+      ],
+      "parent_loss": "EOF before SQL releases genuine event healthy, proof INCOMPLETE. After SQL, local restoration must finish despite parent loss.",
+      "drop_failure": "Retain ORIGINAL INSERT error plus cleanup failure separately. No Restored/PASS/CASCADE/permanent repair/automatic retry. Exact owned-recovery disposition required separately under existing authority, no foreign stop.",
+      "proof_held": "Successful return/engine behavior UNPROVEN until real owned fault+restore plus genuine healthy write, canonical Surreal proof and independent acceptance.",
+      "remaining_source_dependencies": [
+        "Genuine predispatch instance/producer barrier.",
+        "Event/private caller stdout logging, features and exclusive exact paths."
+      ],
+      "source_readiness": "Remaining dependencies unbound, source-ready blocked. No new research or product scan authorized by this decision.",
+      "limits": "Design selection ONLY, no source/SQL/engine probe/Cargo/runtime/finite budget grant. All original requirements/history/Assets50580 hold/V2/code-structure assignments preserved."
+    },
+    "eight_path_source_assignment_20261015": {
+      "decision_id": "WP012-MT188-EIGHT-PATH-SOURCE-ASSIGNMENT-20261015",
+      "status": "SOURCE_ONLY_IMPLEMENTATION_RELEASED",
+      "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+      "source_root": "../wtc-WP-KERNEL-012",
+      "authority_refs": [
+        "packet.json#/operator_adaptive_delivery_delegation_20261014",
+        "MT-188.json#/independent_drain_source_repair_20261015/authority_disposition_20261015",
+        "MT-188.json#/independent_drain_source_repair_20261015/recorder_fault_ordering_disposition_20261015",
+        "MT-188.json#/closure_unit/materialized_acceptance",
+        "MT-188.json#/proof"
+      ],
+      "owners": {
+        "runtime_leader": "01a13d23-7c3c-7280-86e0-6cf37bdffa0b",
+        "primary_personal": "01a13d2a-fbcb-7ce2-b8e7-9dcb7ce2984a",
+        "runtime_author_a": "/root/runtime_dependency_readiness",
+        "runtime_author_a_thread": "01a13d24-316e-77b3-a188-36fdebfc1ea3",
+        "runtime_author_b": "/root/cloud_live_acceptance_readiness",
+        "distinct_nonauthor_checker": "/root/persistent_recovery_readiness"
+      },
+      "paths": [
+        {
+          "path": "src/backend/handshake_core/src/flight_recorder/duckdb.rs",
+          "before_sha256": "fcd103d15850b5c1aa950dd0f0455a7437f90202d9b0bcaf5f65389957a28d13",
+          "writer": "/root/runtime_dependency_readiness"
+        },
+        {
+          "path": "src/backend/handshake_core/src/flight_recorder/mod.rs",
+          "before_sha256": "a3d26ae9f532e2d9365c21e61930b0a573c7cb8e28aad349f74437b69aca2875",
+          "writer": "/root/runtime_dependency_readiness"
+        },
+        {
+          "path": "src/backend/handshake_core/src/swarm_orchestration/events.rs",
+          "before_sha256": "07983102a1a4bbce9350a416017099eee3e2be4d9c5411d28af86cfd8fb49124",
+          "writer": "/root/runtime_dependency_readiness"
+        },
+        {
+          "path": "src/backend/handshake_core/src/swarm_orchestration/operator_chat.rs",
+          "before_sha256": "59c4fe9305bcc9fe5c1d21d1b539ad2272c7cecdbfd419ada14efc44a293809c",
+          "writer": "/root/runtime_dependency_readiness"
+        },
+        {
+          "path": "src/backend/handshake_core/tests/crash_recovery_e2e/runtime_child.rs",
+          "before_sha256": "01adc167182d3cf75497a394fd4fa41970869ab4d92f8751487c9839d82dc952",
+          "writer": "/root/cloud_live_acceptance_readiness"
+        },
+        {
+          "path": "src/backend/handshake_core/tests/crash_recovery_e2e/runtime_chaos.rs",
+          "before_sha256": "11a34dd6bf59ca8391d9c83964aefc82b97080bd7a08e088772014048f90bce3",
+          "writer": "/root/cloud_live_acceptance_readiness"
+        },
+        {
+          "path": "src/backend/handshake_core/src/main.rs",
+          "before_sha256": "cc6f56757a308fbccdb3718a0613bf4370b6379454b8880815c53e91151802f7",
+          "writer": "PRIMARY_PERSONALLY"
+        },
+        {
+          "path": "src/backend/handshake_core/src/logging.rs",
+          "before_sha256": "21c3474927225a2d04cf38be0dd3fae117735637ea469c2858ea2bafd9fa820c",
+          "writer": "PRIMARY_PERSONALLY"
+        }
+      ],
+      "actual_acks": {
+        "runtime": "Actual two-author plus distinct nonauthor ACKs and fresh unchanged eight preimages: Runtime turn01a13e11-36ed-7300-bce1-ee8f38e81d4c/exec-69c53cc5-71bf-4c8b-b46d-6a01f85cb431.",
+        "primary": "Actual personal exclusive main/logging acceptance, no helper physical writer or own unreturned writes; fresh main/logging matches. Runtime turn01a13e12-fe7a-72d0-80e0-e6089396f732 records Primary actual ACK.",
+        "composition": {
+          "chat": "01a13d23-3c68-7850-81a4-1c53f34395b5",
+          "completed_turn": "01a13e18-8418-73c2-8c18-1c8a9a149ed8",
+          "item": "exec-8b6ac18f-8463-4493-b58f-8c090f98fa1d",
+          "actual_handoff": "ACTUAL explicit two-path release: existing author composition_service_contracts fresh ACK events.rs no in-flight/unreturned writes/unfinished patch, earlier eventIDs handback complete, relinquishes held claim to Runtime /root/runtime_dependency_readiness (thread01a13d24-316e-77b3-a188-36fdebfc1ea3) EFFECTIVE forthcoming Root saved MT188 amendment. For swarm_orchestration/operator_chat.rs author reports no current writes/unfinished patch; historical exact individual author UNKNOWN to refreshed worker, holds no current claim and explicitly relinquishes any residual claim under same amendment. Leader accepts canonical packet historical SAME Composition team owner and explicitly RELINQUISHES TEAM ownership of BOTH paths ONLY to named Runtime writer effective saved amendment; no source START before Root saved/opened grant. No active/unreturned writes/unfinished patches by Composition on either; all3 helpers quiescent except this completed ACK. Supplied Runtimefresh beforehashes events07983102a1a4bbce9350a416017099eee3e2be4d9c5411d28af86cfd8fb49124/operator59c4fe9305bcc9fe5c1d21d1b539ad2272c7cecdbfd419ada14efc44a293809c retained as their observation, no rehash performed. ALL OTHER Composition scopes retained, MT054 pending same complete payload. No source/Git/Cargo/tests/metadata/runtime actions."
+        }
+      },
+      "ownership_disposition": "Explicit new exclusive Runtime six-path assignment. Composition transfers ONLY events.rs/operator_chat.rs effective this saved amendment; prior completed results/history and all other Composition scopes unchanged. Historical operator_chat individual author UNKNOWN; current leader accepts canonical SAME-team ownership and explicitly relinquishes it, without inventing an individual author. Primary personally retains old same-Primary main implementation lease and adds logging personally; no foreign main transfer inferred.",
+      "source_exclusion_override": "Supersedes ONLY conflicting initial scope/execution forbidden-path/test/non-main exclusions for these EXACT eight existing files and this original private proof-control adaptation. Original API repair ownership/history and every other excluded path/gate remain unchanged; no general agent tool or new harness/script.",
+      "preimage_guard": "Fresh exact whole-file hash before START/write; mismatch stops ONLY that file and reports exact owner. One exclusive writer per path, no reverting peers. Root must open saved grant before Central START; no redundant ACK loop.",
+      "selected_contract": {
+        "stage1": "Inside actual operator_chat::launch_for_scope after build_spawn_request, cloud-authority attach and contract extraction, BEFORE coordinator.spawn_session(request).await2223: expose actual preallocated instance/parent/scope/swarm/worktree/run/lane/trace through SAME recorder control. Own needed copies before await; no coordinator/recorder/connection lock held while waiting. Exact per-invocation pending handle/tuple ACK releases ONLY that invocation; duplicate/out-of-order/mismatched ACK never releases another. ScopeNone denies proof attachment. Parent loss/deadline releases healthy and marks incomplete.",
+        "stage2": "ONLY subsequently genuine SessionSpawned matching discriminator plus actual instance/parent/stamped ExactResourceScopeAttribution/swarm/worktree including None enters pre-SQL PendingEvent/arm. AllocationPending is NOT accepted proof. Rejected spawn/no genuine event remains incomplete/unarmed, never fabricated. No caller-minted producer IDs or widening selectors.",
+        "control": "cfg(all(feature=test-utils,feature=duckdb-flight-recorder)) SAME FlightRecorder/DuckDB shared control per invocation, not second controller. Existing proposed recorder_proof_control/select/pending_event/arm/release/swarm_failure_observed/confirm_restored typed hooks and before_session_spawn seam. Default unavailable/fail-closed. Private inherited stdin commands/stdout receipts: 4-byte BE u32 length, UTF8 JSON <=65536 bytes, version1 tagged deny_unknown_fields, monotonic request u64 plus operation/causation echo. Correlation is NOT authentication; one writer per stream. Unknown/duplicate/out-of-phase/mismatched/oversize/truncated/badUTF8/JSON/EOF/timeout/early exit/log pollution fails closed INCOMPLETE.",
+        "logging": "ONLY console writer cfg BOTH test-utils and duckdb-flight-recorder -> stderr; complementary cfg -> stdout. Effect applies to ALL builds with BOTH features, not merely attached child. Existing zero-argument init_logging API/file JSON/nonblocking writer/filter unchanged; no new environment/config API. Owned receipt stdout exclusivity still requires actual assembled review/runtime proof.",
+        "normal_shutdown": "Primary gated main attachment clones existing shutdown watch sender before move and signals true through SAME normal graceful channel; preserve Axum grace/deadline and all runtime/coordinator/reclaimer/ledger/lease/swarm predicates. Original positive0 and real negative1 preserved; do not invent healthy other drains.",
+        "fault_implementation": "SOURCE SQL TEXT implementation of selected private OWNED TEMP fault permitted ONLY within admitted DuckDB file. Pending selection/wait BEFORE connection mutex; Arm intent ONLY. Actual selected original INSERT holds SAME shared connection mutex through create/exhaust owned TEMP, fresh original INSERT binding/actual Err capture, dropping statement references, plain DROP and restore/invariant observations BEFORE unlock/return ORIGINAL error. No unrelated same-connection consumer during TEMP interval or parent await under lock.",
+        "failure_order": "Actual original Err -> existing sticky Release-store -> correlated ACK containing original error AND restore_result. Never drain setter. ConfirmRestored confirms/resets only already-physical restoration state, no SQL/flag clear. EOF before SQL releases genuine event healthy/incomplete; once SQL begins local restoration finishes despite parent loss. Failed DROP retains ORIGINAL error plus cleanup failure separately; INCOMPLETE/no Restored/PASS/CASCADE/permanent repair/automatic retry/synthetic cancellation; exact owned recovery disposition separately required.",
+        "features": "Retain SAME existing test-utils+duckdb-flight-recorder hooks across trait/binary/recorder/events; cfg(test) alone insufficient. Existing app-runtime/Surreal-test-support/test-utils target requirements preserved. No manifest/lock/dependency/feature source grant."
+      },
+      "handoff": "Distinct NONAUTHOR assembled actual eight-file diff/interfaces/callers/dependencies/type/feature/serde/error/borrow/lifetime/pending-ACK/local-restoration/log-framing/cancellation/original-acceptance review; resolve findings then leader DIRECT codecheck01a13d18-8ae0-7642-a76f-04cf3836ea3a. Concise Primary/Central handback.",
+      "proof_preservation": "Original genuine executable positive0/negative1/DuckDB FlightRecorder-only INSERT fault+restore, genuine healthy subsequent write/real other drains, canonical Surreal/EventLedger application state/auth/lifecycle/receipts, owned-resource floor and independent IV remain required. Existing schema164/165 before166 and full three-WP scope/pins/budgets/parents0of5 preserved. Real authenticated CLI/model/workdir/owner/session/context values are later execution inputs, not a source predecessor; no fake auth/grants/default store or substitute values.",
+      "limits": "NO actual SQL engine query/probe/command/execution, Cargo/test/metadata/run/finite allowance/runtime/acceptance grant. No new tool/script/port/env/branch/worktree/backup/process stop or host Assets adoption. Separate Assets50580/current70 hold and V2/code_structure rights unchanged.",
+        "main_current_guard_and_preobserve_source_disposition_20261015": {
+          "decision_id": "WP012-MT188-MAIN-CURRENT-GUARD-PREOBSERVE-SOURCE-20261015",
+          "status": "SOURCE_ONLY_RELEASED_EXECUTION_HELD",
+          "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+          "physical_writer": "PRIMARY_PERSONALLY",
+          "physical_writer_chat": "01a13d2a-fbcb-7ce2-b8e7-9dcb7ce2984a",
+          "scope": "Same existing src/backend/handshake_core/src/main.rs lease only; no transfer or new path. All other existing eight-path owners and scopes remain unchanged.",
+          "current_main_guard": {
+            "path": "src/backend/handshake_core/src/main.rs",
+            "before_sha256": "4b5a5712777a82945ba6af408717dfc7467400b8b2ade85d5e8ddcaffa1ba9cd",
+            "byte_count": 44065,
+            "superseded_historical_before_sha256": "cc6f56757a308fbccdb3718a0613bf4370b6379454b8880815c53e91151802f7",
+            "head_lf_sha256": "5df42c3cf4676e334798740726b6e746fa0235b71015dd37c248c8e84f3f3380",
+            "head_lf_byte_count": 43084,
+            "head_normalized_crlf_matches_current": true,
+            "prefix_hex": "757365",
+            "bom_present": false,
+            "crlf_count": 981,
+            "lf_count": 981,
+            "actual_evidence": {
+              "primary_turn": "01a14070-7734-7c83-afa5-8e12718f1ef8",
+              "command_execution": "exec-0e816f67-f6e8-4a4b-9fa6-c887bfef56cd",
+              "exit_code": 0,
+              "root_opened_full_output": true,
+              "scoped_main_git_diff": "EMPTY; Primary reported HEAD clean. No foreign change inferred."
+            },
+            "override": "Only the historical main preimage is superseded for this SAME lease. Preserve historical paths/guard and all current base bytes except the exact original gated main attachment. Fresh exact guard and no conflicting unfinished writer required before physical write; mismatch stops only main, with no reset/revert/peer overwrite."
+          },
+          "preobserve_source_interpretation": {
+            "before_validated_allocation": "Before complete validated ObserveAllocation, no operation deadline exists and no proof selection, attachment, arming or release occurs. Initial ordinary blocking IO is bounded externally by the ORIGINAL parent global deadline/EOF; no new child timeout or renewed budget.",
+            "after_validated_allocation": "After complete validated allocation, use SAME original operation_deadline accessor from actual Runtime facade 8703a3748bb5ffce31e2b7fc24881629eb8037359592fad2b576bd09adc01911. No arbitrary child duration or restartable per-stage 30-second budget.",
+            "control_and_stage_preservation": "Retain selected_contract stage1 parent loss/deadline -> healthy INCOMPLETE; stage2 ONLY genuine matching SessionSpawned; control EOF/truncation/timeout fail closed and original local-restoration-before-error failure ordering.",
+            "io_dispatch_and_shutdown": "Separate detached ordinary IO from async dispatch. Dispatcher/teardown must not wait for stdin EOF after actual ShutdownRequested. Signal existing normal shutdown watch ONLY actual ShutdownRequested plus flushed receipt, preserving SAME channel and all drain predicates. Ordinary unattached EOF must not request shutdown.",
+            "proof_limit": "Actual parent duration and null proof timeout are not bound by this source record. Parent timeout alone does not prove child closure. Eventual finite proof must bind actual deadline/method and observe owned closure; original genuine positive0/negative1, FlightRecorder fault and healthy other drains remain required."
+          },
+          "unchanged_boundaries": "Logging current handback shorthand09efd and other Runtime six paths retain existing leases; no logging preimage change here. No new manifest/dependency/features. Proposed windows-sys Win32_System_IO is NOT admitted; existing manifest source exclusion retained.",
+          "review": "Existing own plus distinct nonauthor actual assembled eight-file source/interface/caller/error/type/ownership review and leader DIRECT codecheck remain required before integration proof. This is not acceptance of the current partial batch.",
+          "preservation": "No final candidate, 147-policy or final-input acceptance. Preserve original full three-WP scope/proof/pins, schema165 before166, immutable164, Assets50580 hold, failed history and all consumed budgets.",
+          "execution_authorized": false,
+          "proof_started": false,
+          "allowance_granted": false,
+          "limits": "SOURCE interpretation and current main guard only. No Cargo, SQL engine, runtime, tests, metadata, OS, slot, process, finite allowance or new feature authority."
+        },
+        "windows_owned_io_feature_source_amendment_20261015": {
+          "decision_id": "WP012-MT188-WINDOWS-OWNED-IO-FEATURE-SOURCE-AMENDMENT-20261015",
+          "status": "SOURCE_ONLY_RELEASED_EXECUTION_HELD",
+          "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+          "physical_writer": "PRIMARY_PERSONALLY",
+          "physical_writer_chat": "01a13d2a-fbcb-7ce2-b8e7-9dcb7ce2984a",
+          "actual_proposal": {
+            "primary_turn": "01a1407b-bafc-7013-971f-667cd00e639e",
+            "outgoing_reference": "exec35867151",
+            "root_personally_opened": true
+          },
+          "path": "src/backend/handshake_core/Cargo.toml",
+          "before_sha256": "109c15a07c9cd38c5a0991a44177d83560642c0a03b54088254519389efdc439",
+          "before_bytes": 29899,
+          "planned_after_sha256": "64e4f201474b5640d0d831225b4504d0a133d59a2bb70ec03fa942cb0d6a8361",
+          "planned_after_bytes": 29918,
+          "exact_delta": {
+            "existing_line": 310,
+            "replace": "\"Win32_System_Console\", \"Win32_System_Diagnostics_ToolHelp\"",
+            "with": "\"Win32_System_Console\", \"Win32_System_Diagnostics_ToolHelp\", \"Win32_System_IO\"",
+            "preserve": "EVERY other byte, version, default, target, feature and dependency. Proposed postimage is not an observed physical application."
+          },
+          "fresh_guard": "Before physical write require exact current whole-file preimage and no conflicting unfinished writer. Mismatch stops only manifest; rebase precise single-feature delta preserving peers, never peer revert.",
+          "specific_exception": "Supersedes ONLY selected_contract.features manifest/feature prohibition for this single existing windows-sys feature addition, tied to actual B owned blocked-writer-thread cleanup finding. All other feature/manifests/source exclusions remain unchanged.",
+          "owned_io_boundary": "CancelSynchronousIo ONLY retained OWNED I/O thread handles. Preserve original deadline/stop/cancel race/error/completion and join floor. Feature availability is not owned closure proof; no new process or OS action is authorized here.",
+          "review": "Distinct actual declaration plus changed callers/type/ownership review, repair actual findings, then leader DIRECT codecheck01a13d18-8ae0-7642-a76f-04cf3836ea3a before publication/integration proof.",
+          "input_evidence_disposition": "Only affected declaration/provenance and later graph/input binding change. Original147 unchanged contexts are not redone. Old109c evidence remains historical; affected context requires new review. No whole policy, final input or acceptance promotion.",
+          "execution_authorized": false,
+          "proof_started": false,
+          "allowance_granted": false,
+          "limits": "No lock mutation, metadata, resolver, Cargo, tests, SQL engine, runtime, OS/probes/process, slot, new budgets or execution allowance. All other eight-path grants/scopes, budgets, failed history and original full three-WP proofs remain unchanged. Kernel record only; no product inspection or write."
+        },
+        "human_failure_only_runner_retention_disposition_20261015": {
+          "decision_id": "WP012-MT188-HUMAN-FAILURE-ONLY-RUNNER-RETENTION-DISPOSITION-20261015",
+          "status": "HUMAN_FAILURE_ONLY_SOURCE_DISPOSITION_RECORDED_EXECUTION_HELD",
+          "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+          "direct_human_input": {
+            "ui_call": "call_1809c17c40034607b1ddaa6dd144db8a",
+            "item": 0,
+            "question": "If Runtime cleanup fails permanently, may the FAILED/INCOMPLETE run keep its existing runner and owned resources alive pending explicit recovery? This is a failure-only exception to your finite-exit rule; it grants no acceptance or compiler-slot release.",
+            "answer": "Allow the failure-only exception (Recommended)",
+            "provenance": "DIRECT human UI reply RECEIVED, not quoted historical GO. No reconfirmation required."
+          },
+          "narrow_supersession": "ONLY earlier unanswered/HELD failure-only finite-exit disposition for FAILED/INCOMPLETE Runtime cleanup is superseded. OLD failures/c197 finding and all prior proof history remain historical, NOT PASSED.",
+          "retained_runner_and_resources": "Existing failed run ORIGINAL runner plus ALL owned resources AND physical slot retained pending OBSERVED terminal settlement or explicit recovery. Preserve COMPLETE actual ownership/native handles/backing store/factory/drain/runtime resources; no new custodian.",
+          "forbidden_substitutions": "No detach/drop/forget/leak/new custodian/Job/process stop/store deletion/acceptance/slot release/retry/new budget. Does NOT authorize successful-run delay/blanket timeouts/Assets staffing/unrelated fixture policy.",
+          "honest_failure_status": "Durable FAILED/INCOMPLETE plus actual diagnostic status remains honest while closure pending. No fabricated numeric exit/closure/success or acceptance from retention.",
+          "source_implementation_boundary": "Human-authorized FAILURE behavior SOURCE disposition only. Current Runtime/Primary owners must submit/apply MINIMAL EXACT source amendment within EXISTING owned paths/fresh guards. Do NOT pretend current c197 source already implements this disposition or dispatch new source files. If existing eight-path scope covers bounded failure-only retention implementation, only those current owners repair AFTER Root reads this record; otherwise exact fresh source amendment required.",
+          "chat_backing_store_condition": "Applies to chat backing-store issue ONLY IF SAME failed Runtime existing runner demonstrably retains ALL owned fixture/factory/store/non-Send guards. No automatic permission to invent recipient/detach/remove files.",
+          "preservation": "All other original three-WP scope/proofs/finite budgets/nonfailure constraints/independent IV and existing ownership remain. No other contract/status/proof-history edits or new source leases.",
+          "execution_authorized": false,
+          "compiler_authorized": false,
+          "proof_started": false,
+          "allowance_granted": false,
+          "limits": "No execution/compiler/actual SQL/tests/metadata/process/artifact allowance. No product/Git/confirmation writes by kernel helper; source implementation requires existing exact scope or separate fresh amendment as above."
+        },
+        "runtime_chaos_one_path_ownership_successor_20261015": {
+          "decision_id": "WP012-MT188-RUNTIME-CHAOS-ONE-PATH-OWNERSHIP-SUCCESSOR-20261015",
+          "status": "SOURCE_OWNERSHIP_ONLY_TRANSFER_RECORDED_EXECUTION_HELD",
+          "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+          "only_existing_path": "src/backend/handshake_core/tests/crash_recovery_e2e/runtime_chaos.rs",
+          "before_sha256": "28bda1e0e90fa3e8758dffcad3c79af53e44f9b0002b788753f271ebca204c0e",
+          "previous_writer": "/root/cloud_live_acceptance_readiness",
+          "new_exclusive_writer": "/root/runtime_dependency_readiness",
+          "new_writer_thread": "01a13d24-316e-77b3-a188-36fdebfc1ea3",
+          "actual_transfer_evidence": "Runtime actual DIRECT two messages verify B conditional relinquishment effective SAVED assignment, no inflight/unreturned/pending patch and no chaos writes during transfer. A actual acceptance/quiescence/no claim/write/pending/unreturned. No global-free or unrelated transfer inference.",
+          "canonical_path_correction": "Root verified existing nested crash_recovery_e2e/runtime_chaos.rs and sibling runtime_child.rs. Earlier shorter tests/runtime_chaos.rs shorthand retracted; NO new path admitted.",
+          "history_and_current_owner": "Historical original paths array/guards preserved. This successor supersedes ONLY chaos writer entry, effective saved transfer. Other SEVEN leases and operator_chat2b3 cloud wrapper remain; no Account or new custodian assignment.",
+          "B_retained_path": {
+            "path": "src/backend/handshake_core/tests/crash_recovery_e2e/runtime_child.rs",
+            "actual_current_sha256": "c197d05fbe4af4d66f91eafb4106cb253886e9923ff7891544386d511b388cd1",
+            "writer": "/root/cloud_live_acceptance_readiness",
+            "state": "B child actual START/work continues under existing lease."
+          },
+          "A_scope": "Complete original case-frame child/client/OwnedLaunch/input borrow; intercept Err/panic BEFORE unwind. Retain SAME ORIGINAL runner task/frame plus COMPLETE owned resources/physical slot, failure-only pending explicit recovery, and call B nonblocking observed settlement. No detach/drop/forget/leak or new custodian.",
+          "B_scope_preserved": "Durable honest pending diagnostics plus retained native handles/status/finished-only joins/try_wait under existing source scope.",
+          "distinct_nonauthor": "Existing /root/persistent_recovery_readiness; Runtime leader01a13d23-7c3c-7280-86e0-6cf37bdffa0b retains actual changed-source review and leader DIRECT codecheck.",
+          "human_disposition_ref": "#/independent_drain_source_repair_20261015/eight_path_source_assignment_20261015/human_failure_only_runner_retention_disposition_20261015",
+          "fresh_write_guards": "Fresh full exact guard/no actual peer conflict before write. Drift/conflict stops affected path, preserve peers/no reset/revert. A chaos SOURCE START waits Root readback plus Central relay; B child continues. No extra source-fit ACK gate when already covered existing owned paths.",
+          "preservation": "Existing EIGHT source scope and human failure-only exception ONLY; old success deadlines/failure history/independent acceptance/full three-WP scope/pins/budgets remain. No blanket Chat retention coverage or proof of implementation/closure.",
+          "execution_authorized": false,
+          "proof_started": false,
+          "allowance_granted": false,
+          "limits": "No new behavior law/path/custodian/Chat blanket coverage/leak/forget/detach/process stop/store delete/acceptance/slot release/Git/runs/metadata/artifact/execution budget. Kernel ownership record only; no product inspection/write."
+        }
+    }
   },
   "delegated_source_only_shutdown_repair_20261014": {
     "decision_id": "WP012-MT188-SOURCE-REPAIR-20261014",
@@ -1115,6 +1389,164 @@
         },
         "acceptance_limit": "Recovered compiler-only evidence cannot supply missing historical host/wrapper exits, repair durable09 or waive original native/runtime/WP acceptance. Original durable09 and earlier budgets stay consumed."
       }
+    }
+  },
+    "reviewed_source_only_publication_batch_20261015": {
+    "decision_id": "WP012-MT188-REVIEWED-SOURCE-ONLY-PUBLICATION-BATCH-20261015",
+    "status": "SOURCE_CHECKPOINT_PUBLISHED_UNCOMPILED_NOT_ACCEPTED",
+    "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+    "authority_refs": [
+      "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_quote",
+      "packet.json#/operator_adaptive_delivery_delegation_20261014/authority",
+      "ADAPT003/006/007",
+      "Current direct human production loop: coherent SOURCE push THEN strategic ORIGINAL compile"
+    ],
+    "authority_interpretation": "Explicit human commit/push WP012 with dirt authorizes this exact coherent earlier source checkpoint. CX-EXEC007 timely commit after compile is not an explicit ban on authorized earlier source checkpoint. Old MT188 delegated_source_only_shutdown_repair_20261014/review and source_only_checkpoint_20261014 are limited old scopes, not blanket authority. This NEW exact scope records current human order; no new user permission required.",
+    "sole_publisher": "PRIMARY_PERSONALLY",
+    "publisher_chat": "01a13d2a-fbcb-7ce2-b8e7-9dcb7ce2984a",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "existing_branch": "feat/WP-KERNEL-012",
+    "eligible_exact_path_sha256_pairs": [
+      [
+        "src/backend/handshake_ckc_moodboard/Cargo.toml",
+        "bfb9201ee8077e22073bd1017d94103d96f1e89e1f6a8d3f39fd706db91c8757"
+      ],
+      [
+        "src/backend/handshake_ckc_moodboard/src/lib.rs",
+        "48178e5945cf195b9f083d171e467f384cf9a6d854c32ab473d904c3ebdc7603"
+      ],
+      [
+        "src/backend/handshake_ckc_moodboard/src/schema.rs",
+        "ecce63cdcbdeb148583694015364aacbb0c84756f3f62d836703062215b1be6a"
+      ],
+      [
+        "src/backend/handshake_ckc_moodboard/src/model.rs",
+        "0453987138b9cef85d63300be21d9ceb1d47f714b31b6bcd489aab2b76d04553"
+      ],
+      [
+        "src/backend/handshake_core/Cargo.toml",
+        "c84f265696b5bf60e7e8cec71b07efa24e0eaa865a111e0c848cfa7935a62c3e"
+      ],
+      [
+        "src/backend/handshake_core/src/atelier/moodboards.rs",
+        "e1d31f9b4085f005300c6b815a104e7ef7e3b81412389dff0db0fc529f4ecf7b"
+      ],
+      [
+        "src/frontend/handshake_lsp_wire/Cargo.toml",
+        "da86815435577f37e6dd640c58c2eeb4bdfadb71e37cfeae3b739302a31baa7d"
+      ],
+      [
+        "src/frontend/handshake_lsp_wire/src/lib.rs",
+        "979b17c1ee54ec2a387a0976b2424b326cb922bc515a5929aa5b5e5158e56117"
+      ],
+      [
+        "src/frontend/handshake_lsp_wire/src/protocol.rs",
+        "a22cdf7f0fa7f1047500060482f222c517b0fda459b29da4b8173c580c42eb0c"
+      ],
+      [
+        "src/frontend/handshake_lsp_wire/src/framing.rs",
+        "f99477eb5e5d2237b5dc3bf786aec1efabe91063958b9c14fffcb6ad65360ced"
+      ],
+      [
+        "src/frontend/handshake_native/Cargo.toml",
+        "b9a50aeb8504ca20f70c5079f15379305051b39a625cf9eb17638794b044c532"
+      ],
+      [
+        "src/frontend/handshake_native/src/code_editor/lsp_client.rs",
+        "bce7c987b7be39a85f65f07c44efab1ef82e3447600a72731fb1a1c18f5d901e"
+      ],
+      [
+        "src/backend/handshake_core/src/atelier/documents.rs",
+        "54afd1d953025bc5daf92ceb8e72b8fc2eb7aae7586718aea95d2f91d487593c"
+      ],
+      [
+        "src/backend/handshake_core/src/atelier/mod.rs",
+        "0b36449ccb58ba94fbfbdf17e83a3b84eace25996cf14dc463e97fe5d500dd25"
+      ],
+      [
+        "src/backend/handshake_core/src/api/atelier.rs",
+        "8cbd34368640dabe92744423736557993af60a7136b7695a2aae954fe26a42a5"
+      ],
+      [
+        "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs",
+        "183e82b6001ad03939f8c775e693b474980fdf1f7e402beedf1a39c50b007a71"
+      ],
+      [
+        "src/frontend/handshake_native/tests/native_gui_support/canonical_argus_driver.rs",
+        "02848ad1d43aa5af502a05247aef7a49e2b8703f3192539643bd07f327de9886"
+      ],
+      [
+        "src/frontend/handshake_native/tests/test_canvas_board_argus.rs",
+        "e0bd83de9af7883fe8f5911ed013ea90509b348b5169fdbeaf65cbb798cb9582"
+      ],
+      [
+        "src/frontend/handshake_native/tests/test_ckc_embed.rs",
+        "8d131e1a41c210c2cbb98aea3414bd704dc9646a28cc385f0aad4d92b30d9827"
+      ]
+    ],
+    "actual_preflight": "HISTORICAL17-subset preflight: Primary all17 reviewed hash matches c2f686, index EMPTY and scoped git diff check0. Preserved as old-subset provenance only, not full19 preflight/publication proof or Root Git verification.",
+    "fresh_before_mutation": "Primary freshly reverify branch/HEAD/upstream/index/exact19 hashes and no actual affected owned Cargo capture freeze. Stage ONLY literal19 paths; ensure no unrelated staged content. Preserve every ineligible peer working/untracked file. On hash/HEAD/index/remote conflict STOP affected publication and factually rebind. No kernel publication/equality predecessor.",
+    "permitted_git": "ONLY named Primary routine exact scoped normal commit plus NONFORCE push to existing feature branch. Individual worker NoGit unchanged. Commit message/record MUST state SOURCE ONLY/uncompiled/not accepted. Separately applicable normal merge permissions only; no automatic unreviewed merge grant.",
+    "after_publication": "Actual publication now observed only as recorded in actual_publication_observation. Historical release/postcondition text and commit-only handback preserved; no new permission, run budget, freeze or action from this observation.",
+    "exclusions": {
+      "Runtime8": "Unready cleanup, excluded.",
+      "AC9": "Shared lib/parent plus leaves excluded: current B5194 closure not yet reviewed. Independently reviewed Account producer included only exact model_lane hash above.",
+      "prospective_sources": "Unwritten/ungranted parser/restoration prospective files excluded.",
+      "scope_preservation": "Exclusions reflect actual coherence, not arbitrary count cutoff or abandoned scope; all remain original backlog."
+    },
+    "concurrency": "Disjoint source work continues. Protect only these19 captured commit inputs during stage/commit; no global freeze.",
+    "prohibited_git": "NO force/reset/stash/cleanup/foreign process stop/new branch/worktree/backup file. NEVER gameplan.confirmations.yaml. No unrelated staging or peer revert.",
+    "proof_boundary": "Compiler/resolver/lock/runtime/IV/full-WP NOT PROVEN. Published SOURCE checkpoint yields no finite allowance/reset/final-candidate acceptance; terminal claim/full128/stronger events/original16 restorations remain OPEN. All other source grants/nonGit limits/failed history/three-WP requirements and budgets unchanged.",
+    "git_publication_authorized": true,
+    "execution_authorized": false,
+    "compiler_runtime_authorized": false,
+    "proof_started": false,
+    "allowance_granted": false,
+    "limits": "Exact SOURCE publication scope clarification ONLY for Primary; no compiler/runtime authority. Helper performs only SAME child update; no Git/source/code/product/artifact/confirmation writes or inspections. Root independent read of final19 before relay.",
+    "added_two_source_readiness": {
+      "actual_review": "Own plus DISTINCT plus DIRECT external affected review NO introduced finding; original prefix/catalog conserved; authors quiescent/no unreturned patch. Reviewed API/helper dependencies already in original17.",
+      "inverse_limit": "No count-delta full-inverse claim: not performed.",
+      "acceptance_open": "Unresolved ModelOpsClaimApplied production-producer gap, unrun setup, full128, stronger terminal-event and runtime acceptance remain OPEN, not a predecessor to this SOURCE checkpoint."
+    },
+    "actual_commit_handback": {
+      "classification": "PRIMARY_COMMIT_OBSERVED_PENDING_CANONICAL_PUSH_NOT_ROOT_INDEPENDENT_GIT_PROOF",
+      "primary_command_reference": "c80492",
+      "numeric_exit": 0,
+      "commit": "433315d8a47902b98252c9a98b1812bab72f7fd9",
+      "tree": "e10900fa6c20d2125852743e2f5ff74c816d765c",
+      "exact_source_paths": 19,
+      "actual_primary_observations": "All19 fresh raw guards matched; initial index EMPTY; explicit19 stage; cached exact set/filtered blobs/diff check/committed path set checked; after-index EMPTY and raw hashes preserved. Peer Runtime/AC9 dirt preserved.",
+      "authority_and_timing": "Primary commit occurred under verified existing explicit human standing Git authority BEFORE this exact19 record clarification. Do not pretend this19 record preexisted/retroactively authorized commit. Original operator quote and Primary standing role authority retained; worker NoGit is not a role-blanket prohibition.",
+      "push_status": "Historical NOT_YET_REPORTED at earlier handback, now superseded by actual_publication_observation normal push and fresh canonical post exits0.",
+      "continuation": "Normal NONFORCE push on SAME branch may proceed after fresh preflight under standing authority; no new user permission, compiler PASS, Root/helper product Git or kernel publication predecessor.",
+      "historical_status": "Preserved earlier COMMIT_OBSERVED_PENDING_CANONICAL_PUSH stage; superseded only by actual_publication_observation."
+    },
+    "actual_publication_observation": {
+      "commit": "433315d8a47902b98252c9a98b1812bab72f7fd9",
+      "tree": "e10900fa6c20d2125852743e2f5ff74c816d765c",
+      "exact_source_paths": 19,
+      "commit_execution": {
+        "id": "exec-dfbb9244-55aa-49b4-8c89-950466c4c1d4",
+        "exit_code": 0,
+        "actual_observations": "EXACT19 review guards; empty starting index; exact staged filtered blobs/diff check/19 committed paths; after-index empty and all19 raw hashes preserved."
+      },
+      "normal_push_execution": {
+        "id": "exec-345bf9a3-c6e4-42dd-8203-ef3e05f18735",
+        "exit_code": 0,
+        "branch": "origin/feat/WP-KERNEL-012",
+        "before_prefix": "75ffa6f29",
+        "after_prefix": "433315d8a",
+        "nonforce": true
+      },
+      "fresh_canonical_post_execution": {
+        "id": "exec-c10edfb4-4d73-48d8-a37e-494506001e0a",
+        "exit_code": 0,
+        "actual_observations": "HEAD exact433315d8a47902b98252c9a98b1812bab72f7fd9, tree exacte10900fa6c20d2125852743e2f5ff74c816d765c; ls-remote --heads origin refs/heads/feat/WP-KERNEL-012 compared equal HEAD; exact19 scope CLEAN, index EMPTY, all19 raw hashes preserved."
+      },
+      "independent_reads": "Root opened actual Primary command CODE/canonical Git query+assert and retained outputs independently via read_thread; Central independently read SAME actual outputs. NOT a Root Git/network invocation.",
+      "timing_and_authority": "Primary acted under PREEXISTING verified explicit human standing packet order/role Git authority BEFORE later exact19 clarification record. No retroactive claim that Root19 record preexisted commit; worker NoGit limits do not negate Primary standing role authority.",
+      "peer_preservation": "Failed/unreviewed Runtime8 and current AC9 B5194/registration closure dirty working files preserved, no peer cleanup or whole-worktree clean claim.",
+      "acceptance_limit": "SOURCE ONLY published; NOT compiled/resolved/current-locked/final-frozen/runtime/whole-WP IV accepted. Terminal claim/full128/stronger events/original16 proof restorations remain OPEN; original scope/history/budgets preserved."
     }
   }
 }

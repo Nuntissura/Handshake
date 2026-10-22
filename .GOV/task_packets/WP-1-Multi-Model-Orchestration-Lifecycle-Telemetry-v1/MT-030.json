@@ -1,0 +1,630 @@
+{
+  "source_publication_observation_20261016": {
+    "status": "INDEPENDENTLY_VERIFIED_SOURCE_PUBLICATION_ONLY",
+    "owning_publication_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/reviewed_member_and_checkpoint_source_publication_20261016/actual_publication/independent_canonical_verification_20261016",
+    "independent_verifier_turn": "01a1454d-6ac6-73d0-ac49-9d11558eec91",
+    "canonical": {
+      "commit": "4be1b4f8c0ade75ce6461ad260c93bedf0e5ac56",
+      "parent": "be0cc01c4780832829f429eede44f5971e8c2e0f",
+      "tree": "79680a55ce17d1a362f53b248fd0dc300d2b4ac5"
+    },
+    "module": "handshake_member_enrollment",
+    "scope": "This module's FOUR exact source guards already bound and independently reconciled in the existing eight-path owning verdict; no copied full verdict.",
+    "declared_tests": 22,
+    "test_status": "UNRUN_UNCOMPILED_UNDISCOVERED",
+    "root_boundary": "Independent IV performed canonical hash verification. Root read the actual IV verdict; underlying MCP byte bodies were not exposed to Root, who did not independently fetch/hash them.",
+    "limits": "Source publication observation only. No lifecycle completion/owning behavioral proof/pinned host adoption/runtime/IV product acceptance/slot/capture closure or new allowance; all old guards/requirements preserved."
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-030",
+  "created_at_utc": "2026-10-16T14:23:52Z",
+  "updated_at_utc": "2026-10-16T14:23:52Z",
+  "identity": {
+    "mt_id": "MT-030",
+    "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+    "title": "handshake_member_enrollment standalone_source",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "Implement actual invitation planning and command-plan/one-codec primitives in standalone module; no host authentication or persistent effects.",
+    "requirement_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-001",
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-002",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007",
+      ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md#2.3.13.12",
+      ".GOV/spec/master-spec-v02.206/spec-modules/10-product-surfaces.md#10.18 Account and Resource Privacy Surfaces",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-187.json#/genuine_producer_preparation_policy_selection_20261016"
+    ],
+    "acceptance_refs": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json#/scope/acceptance_criteria/0",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json#/scope/acceptance_criteria/1",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json#/scope/acceptance_criteria/2",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json#/scope/acceptance_criteria/3",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json#/scope/acceptance_criteria/4",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json#/scope/acceptance_criteria/5",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json#/scope/acceptance_criteria/6"
+    ],
+    "materialized_acceptance": [
+      {
+        "acceptance_id": "AC030-01",
+        "text": "AC030-01: Exact four new standalone source paths, exclusive authors, B owns ALL descriptors/getters/ONE codec; A imports B ONLY; no host/backedge/lock scope. Primary exact Cargo/lib with uuid=1.24.1/default-features=false; no lock permission.",
+        "detail": {
+          "binding": "Entire exact merged semantic packet and Root TTL clarification below are cumulative mandatory semantics.",
+          "contract_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json#/semantic_contract",
+          "exact_four_paths": [
+            "src/backend/handshake_member_enrollment/Cargo.toml",
+            "src/backend/handshake_member_enrollment/src/lib.rs",
+            "src/backend/handshake_member_enrollment/src/invitation.rs",
+            "src/backend/handshake_member_enrollment/src/command_plan.rs"
+          ],
+          "primary_exact_literals": {
+            "cargo_toml": "[package]\nname = \"handshake_member_enrollment\"\nversion = \"0.1.0\"\nedition = \"2021\"\npublish = false\n\n[workspace]\n\n[dependencies]\nuuid = { version = \"=1.24.1\", default-features = false }\n",
+            "lib_rs": "pub mod invitation;\npub mod command_plan;\n",
+            "encoding": "UTF-8/no BOM/LF/exactly one final LF",
+            "uuid_requirement": {
+              "version": "=1.24.1",
+              "default_features": false,
+              "purpose": "ONLY actual operation UUIDs; no generation/serde/crypto/time feature implied."
+            },
+            "supplier_provenance": {
+              "root_actual_read": true,
+              "primary_thread": "01a143ef-a88b-7b40-aecb-cad547863ad0",
+              "turn": "01a14502-bf43-7203-865b-8ca9bd13e60e",
+              "message": "msg_0598e0d39c4f552d016ad22dc856c48191ad5a2dd01c0bdb2f",
+              "personal_ack": "Prospective exclusive Cargo/lib owner; no pending/inflight/unfinished/unreturned patch or known captured-input conflict."
+            },
+            "qualification": "Source-design closure only, not compiler/resolver/cache proof. No lock scope.",
+            "uuid_primary_source_observation": {
+              "root_actual_observation": true,
+              "version": "1.24.1",
+              "references": [
+                "https://docs.rs/uuid/1.24.1/src/uuid/lib.rs.html",
+                "https://docs.rs/uuid/1.24.1/src/uuid/builder.rs.html",
+                "https://docs.rs/uuid/1.24.1/src/uuid/parser.rs.html"
+              ],
+              "observed_design_surface": [
+                "no_std",
+                "as_bytes",
+                "is_nil",
+                "from_bytes",
+                "nil",
+                "parse_str"
+              ],
+              "qualification": "Root independently observed versioned primary source for design compatibility only; not compiler, resolver, cache or runtime proof."
+            }
+          }
+        }
+      },
+      {
+        "acceptance_id": "AC030-02",
+        "text": "Preserve exact ordered enrollment/revocation fields, opaque five strings and distinct UUID operation roles, immutable original/current/staged separation and both source refs.",
+        "detail": {
+          "binding": "Entire exact merged semantic packet and Root TTL clarification below are cumulative mandatory semantics.",
+          "contract_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json#/semantic_contract",
+          "descriptor_direction": "B owns ALL shared descriptors/getters/ONE codec; A imports B ONLY. Five exact opaque Strings in owner_account_id,actor_principal_id,authenticated_session_id,access_space_id,workspace_id order; actual UUIDs only for operation roles."
+        }
+      },
+      {
+        "acceptance_id": "AC030-03",
+        "text": "ONE B codec hsk.member_enrollment.command_plan@1 NUL/kind01or02, exact source-order binary representation, fixed mappings, bounds and strict malformed/noncanonical rejection from frozen packet.",
+        "detail": {
+          "binding": "Entire exact merged semantic packet and Root TTL clarification below are cumulative mandatory semantics.",
+          "contract_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json#/semantic_contract",
+          "codec": "Entire frozen ONE B-owned @1 NUL kind01/02 codec/body order/fixed tags/string-vector-total bounds is mandatory; no JSON/hash/second codec."
+        }
+      },
+      {
+        "acceptance_id": "AC030-04",
+        "text": "A recomputes complete checked TTL bound from issued+60s/session/BOTH optional grants/optional policy; shorter valid expiry accepted, expires>issued; lossless i64 seconds/u32 nanos.",
+        "detail": {
+          "binding": "Entire exact merged semantic packet and Root TTL clarification below are cumulative mandatory semantics.",
+          "contract_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json#/semantic_contract",
+          "ttl": "expires_at <= min(issued_at+60 seconds,captured session expiry,BOTH Enroll/Create and Assign/Update optional grant expiries,canonical optional policy expiry), expires_at>issued_at; SHORTER valid. A evaluate RECOMPUTES bound from immutable inputs and does not trust descriptor expiry."
+        }
+      },
+      {
+        "acceptance_id": "AC030-05",
+        "text": "Closed ordered Enroll+Assign/revocation/audit equality plans; capability ordering representation never extra authorization; no pure-data success proves authority, identity, crypto, persistent idempotency or commit.",
+        "detail": {
+          "binding": "Entire exact merged semantic packet and Root TTL clarification below are cumulative mandatory semantics.",
+          "contract_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json#/semantic_contract",
+          "authority_boundary": "Pure planning/eligibility/audit comparison ONLY; no real auth/crypto/identity/newness/grant/persistent idempotency/EventLedger/commit/host behavior."
+        }
+      },
+      {
+        "acceptance_id": "AC030-06",
+        "text": "Meaningful inline owning behavioral tests cover ALL A/B cases in frozen packet; actual compile/nonzero owning behavioral proof separately bound, no declaration count/PASS invention.",
+        "detail": {
+          "binding": "Entire exact merged semantic packet and Root TTL clarification below are cumulative mandatory semantics.",
+          "contract_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json#/semantic_contract",
+          "owning_test_cases": "ALL actual A/B behavioral cases in frozen packet; no guessed count or run; exact proof method/lock/finite authority separately held."
+        }
+      },
+      {
+        "acceptance_id": "AC030-07",
+        "text": "Own plus SAME never-author assembled actual source review then leader DIRECT current Codecheck; actual canonical source publication/maintenance/immutable four-file pins before distinct host adoption.",
+        "detail": {
+          "binding": "Entire exact merged semantic packet and Root TTL clarification below are cumulative mandatory semantics.",
+          "contract_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json#/semantic_contract",
+          "adoption": "Whole owning LIB compile, independent nonzero behavioral proof, maintenance, canonical publication and independent immutable commit/tree/ALL FOUR source pins before separate pinned host adoption."
+        }
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": null,
+    "tier_reason": "Current packet role profile; no model override.",
+    "sized_for_declared_tier": false,
+    "escalate_to_tier_on_blocker": null
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 0,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 0,
+      "confirm": 0
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "allowance_granted": false,
+    "budget_note": "Original budgets unchanged; zero new invocation allowance."
+  },
+  "execution": {
+    "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "module_change_stage": "standalone_source",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [],
+    "allowed_write_paths": [
+      "src/backend/handshake_member_enrollment/Cargo.toml",
+      "src/backend/handshake_member_enrollment/src/lib.rs",
+      "src/backend/handshake_member_enrollment/src/invitation.rs",
+      "src/backend/handshake_member_enrollment/src/command_plan.rs"
+    ],
+    "forbidden_write_paths": [
+      "All other paths",
+      "Core/Surreal/serde/hash/chrono/async/SQL/backedges",
+      "Locks/manifests outside exact new package/host edges/schema/config/artifacts/Git/execution"
+    ],
+    "stop_conditions": [
+      "Saved bounded four-path source admission is conditional on Root FULL saved-contract readback and Central separate official SOURCE START. Named writers personally read exact final scope; reuse actual prospective ACKs, no new semantic consensus gate.",
+      "Initial CreateNew requires fresh exact path absence/ordinary parent/no actual captured-input or unfinished-writer conflict. Drift stops affected path only; preserve peers.",
+      "Subsequent same-owned-file actual-finding repairs require fresh writer-last-output full guard/size, out-of-scope conservation/inverse and affected distinct/DIRECT review; no extra path or repeat green review."
+    ],
+    "sourcewrite_authorized": true,
+    "execution_authorized": false,
+    "proof_started": false,
+    "allowance_granted": false
+  },
+  "proof": {
+    "parent_proof_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-001",
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-002",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007",
+      ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md#2.3.13.12",
+      ".GOV/spec/master-spec-v02.206/spec-modules/10-product-surfaces.md#10.18 Account and Resource Privacy Surfaces",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-187.json#/genuine_producer_preparation_policy_selection_20261016"
+    ],
+    "checks": [
+      {
+        "check_id": "WP1-MT030-OWNING-MEMBER-ENROLLMENT-BEHAVIOR",
+        "claim_refs": [
+          "AC030-01",
+          "AC030-02",
+          "AC030-03",
+          "AC030-04",
+          "AC030-05",
+          "AC030-06",
+          "AC030-07"
+        ],
+        "command_or_method": null,
+        "expected": "All exact A/B owning cases in frozen packet; compile/nonzero independent behavioral proof and canonical publication/pins before adoption.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Actual final source and affected reviews",
+          "Separately bound actual owning nonzero behavioral results",
+          "Immutable canonical publication and all four pins"
+        ],
+        "status": "UNRUN_UNCOMPILED_NOT_DISCOVERED",
+        "execution_authorized": false
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "actual_command": null,
+    "actual_selection": null,
+    "finite_allowance": null,
+    "tool_bindings": null,
+    "config_binding": null,
+    "cache_binding": null,
+    "lock_binding": null,
+    "slot_binding": null,
+    "closure_binding": null,
+    "execution_status": "HELD"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json",
+    "microtask_projection": null,
+    "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "NOT_REQUESTED",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "SOURCE_IMPLEMENTED_REVIEWED_PROOF_UNRUN",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Pure member enrollment invitation and closed command/audit plan integrity only.",
+    "allowed_paths": [
+      "src/backend/handshake_member_enrollment/Cargo.toml",
+      "src/backend/handshake_member_enrollment/src/lib.rs",
+      "src/backend/handshake_member_enrollment/src/invitation.rs",
+      "src/backend/handshake_member_enrollment/src/command_plan.rs"
+    ],
+    "forbidden_paths": [
+      "All other paths",
+      "Core/Surreal/serde/hash/chrono/async/SQL/backedges",
+      "Locks/manifests outside exact new package/host edges/schema/config/artifacts/Git/execution"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC030-01",
+        "requirement": "Exact four new standalone source paths, exclusive authors, B owns ALL descriptors/getters/ONE codec; A imports B ONLY; no host/backedge/lock scope. Primary exact Cargo/lib with uuid=1.24.1/default-features=false; no lock permission."
+      },
+      {
+        "id": "AC030-02",
+        "requirement": "Preserve exact ordered enrollment/revocation fields, opaque five strings and distinct UUID operation roles, immutable original/current/staged separation and both source refs."
+      },
+      {
+        "id": "AC030-03",
+        "requirement": "ONE B codec hsk.member_enrollment.command_plan@1 NUL/kind01or02, exact source-order binary representation, fixed mappings, bounds and strict malformed/noncanonical rejection from frozen packet."
+      },
+      {
+        "id": "AC030-04",
+        "requirement": "A recomputes complete checked TTL bound from issued+60s/session/BOTH optional grants/optional policy; shorter valid expiry accepted, expires>issued; lossless i64 seconds/u32 nanos."
+      },
+      {
+        "id": "AC030-05",
+        "requirement": "Closed ordered Enroll+Assign/revocation/audit equality plans; capability ordering representation never extra authorization; no pure-data success proves authority, identity, crypto, persistent idempotency or commit."
+      },
+      {
+        "id": "AC030-06",
+        "requirement": "Meaningful inline owning behavioral tests cover ALL A/B cases in frozen packet; actual compile/nonzero owning behavioral proof separately bound, no declaration count/PASS invention."
+      },
+      {
+        "id": "AC030-07",
+        "requirement": "Own plus SAME never-author assembled actual source review then leader DIRECT current Codecheck; actual canonical source publication/maintenance/immutable four-file pins before distinct host adoption."
+      }
+    ],
+    "proof_targets": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json#/proof/checks/0"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Pure data/planning/codec only, no GUI/authentication/content access implementation; full original host/manual/Argus/privacy obligations remain OPEN.",
+    "required": false
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Pure data/planning/codec only, no GUI/authentication/content access implementation; full original host/manual/Argus/privacy obligations remain OPEN."
+  },
+  "resource_privacy_obligation": {
+    "required": false,
+    "applicable": false,
+    "resources_touched": [],
+    "identity_and_scope_contexts": [],
+    "enforcement_boundaries": [],
+    "same_project_private_resource_cases": [],
+    "cross_account_negative_cases": [],
+    "derived_resource_non_widening_cases": [],
+    "revocation_and_context_switch_cases": [],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Pure data/planning/codec only, no GUI/authentication/content access implementation; full original host/manual/Argus/privacy obligations remain OPEN."
+  },
+  "hbr_obligations": [
+    "HBR-MODULE-LIFECYCLE-007"
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "SOURCE_IMPLEMENTED_REVIEWED_PROOF_UNRUN"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PURE_MEMBER_PLANNING",
+    "risks": [
+      "Two encodings or mutable descriptor breaks equality",
+      "TTL skips optional source bound",
+      "Pure data falsely elevated to authority"
+    ],
+    "minimum_controls": [
+      "B-only codec/descriptors A->B",
+      "Recompute all bound inputs losslessly",
+      "Explicit host-owned real authorization/persistence boundary"
+    ]
+  },
+  "specification_anchor_refs": [
+    ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-001",
+    ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-002",
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007",
+    ".GOV/spec/master-spec-v02.206/spec-modules/02-system-architecture.md#2.3.13.12",
+    ".GOV/spec/master-spec-v02.206/spec-modules/10-product-surfaces.md#10.18 Account and Resource Privacy Surfaces",
+    ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-187.json#/genuine_producer_preparation_policy_selection_20261016"
+  ],
+  "canonical_module": {
+    "module_id": "handshake_member_enrollment",
+    "canonical_source_repository": "https://github.com/Nuntissura/Handshake.git",
+    "canonical_source_path": "src/backend/handshake_member_enrollment",
+    "package_version": "0.1.0",
+    "edition": "2021",
+    "publish": false,
+    "own_workspace": true,
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "source_commit": null,
+    "source_tree": null,
+    "exact_source_pins": null,
+    "publication_status": "NOT_OBSERVED",
+    "distinct_host_adoption_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/execution/member_enrollment_host_adoption",
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json#/canonical_module",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json#/semantic_contract",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json#/proof",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-030.json#/assignments"
+    ],
+    "maintenance": "Concrete source/API/codec/errors/owning proof/owner contract supplies prospective maintenance. Actual source/release/proof/pins remain unobserved; source-before-distinct-pinned-host-adoption required."
+  },
+  "assignments": [
+    {
+      "writer": "PRIMARY_PERSONALLY",
+      "chat": "01a143ef-a88b-7b40-aecb-cad547863ad0",
+      "paths": [
+        "src/backend/handshake_member_enrollment/Cargo.toml",
+        "src/backend/handshake_member_enrollment/src/lib.rs"
+      ],
+      "scope": "Exact supplied Cargo/lib literals only; no algorithm or helper physical writing."
+    },
+    {
+      "writer": "/root/account_recovery_contract",
+      "paths": [
+        "src/backend/handshake_member_enrollment/src/invitation.rs"
+      ],
+      "scope": "A invitation.rs; consumes B immutable descriptors/codec only."
+    },
+    {
+      "writer": "/root/account_backend_adapter",
+      "paths": [
+        "src/backend/handshake_member_enrollment/src/command_plan.rs"
+      ],
+      "scope": "B command_plan.rs ALL shared immutable descriptors/getters/ONE codec; B never A."
+    }
+  ],
+  "primary_exact_literals": {
+    "cargo_toml": "[package]\nname = \"handshake_member_enrollment\"\nversion = \"0.1.0\"\nedition = \"2021\"\npublish = false\n\n[workspace]\n\n[dependencies]\nuuid = { version = \"=1.24.1\", default-features = false }\n",
+    "lib_rs": "pub mod invitation;\npub mod command_plan;\n",
+    "encoding": "UTF-8/no BOM/LF/exactly one final LF",
+    "uuid_requirement": {
+      "version": "=1.24.1",
+      "default_features": false,
+      "purpose": "ONLY actual operation UUIDs; no generation/serde/crypto/time feature implied."
+    },
+    "supplier_provenance": {
+      "root_actual_read": true,
+      "primary_thread": "01a143ef-a88b-7b40-aecb-cad547863ad0",
+      "turn": "01a14502-bf43-7203-865b-8ca9bd13e60e",
+      "message": "msg_0598e0d39c4f552d016ad22dc856c48191ad5a2dd01c0bdb2f",
+      "personal_ack": "Prospective exclusive Cargo/lib owner; no pending/inflight/unfinished/unreturned patch or known captured-input conflict."
+    },
+    "qualification": "Source-design closure only, not compiler/resolver/cache proof. No lock scope.",
+    "uuid_primary_source_observation": {
+      "root_actual_observation": true,
+      "version": "1.24.1",
+      "references": [
+        "https://docs.rs/uuid/1.24.1/src/uuid/lib.rs.html",
+        "https://docs.rs/uuid/1.24.1/src/uuid/builder.rs.html",
+        "https://docs.rs/uuid/1.24.1/src/uuid/parser.rs.html"
+      ],
+      "observed_design_surface": [
+        "no_std",
+        "as_bytes",
+        "is_nil",
+        "from_bytes",
+        "nil",
+        "parse_str"
+      ],
+      "qualification": "Root independently observed versioned primary source for design compatibility only; not compiler, resolver, cache or runtime proof."
+    }
+  },
+  "semantic_contract": {
+    "frozen_merged_packet": "ONE MERGED SEMANTIC ABI PACKET — Root-selected handshake_member_enrollment; actual SAME A+B coordinated output, personal A/B partition ACKs and SAME distinct checker FINAL ACCEPT. READONLY; no prewrittenRust/source/governancewrite/run/import/probe/metadata action or START.\n\nSELECTED HOME: existing https://github.com/Nuntissura/Handshake current wtc-WP-KERNEL-012/feat/WP-KERNEL-012; src/backend/handshake_member_enrollment, own standalone workspace/package0.1.0/edition2021/publish=false. No newrepo/branch/worktree. B actualdirectoryabsence3b35d1 EXIT0; repeat freshabsence only at actualwriteprecondition. A exclusive src/invitation.rs; B exclusive src/command_plan.rs including ALL sharedimmutable descriptors/getters+ONEcodec. A importsB ONLY, BneverA. Primaryalone Cargo/lib/minimaldependencyproposal/workspacewiring; NOlockwritegrant. Technicalnames NEW Rootselection, notoldSpec/UIclaims.\n\nVERIFIED CANONICAL IDENTIFIERS: exact order owner_account_id,actor_principal_id,authenticated_session_id,access_space_id,workspace_id. Actual handshake_resource_scope/src/lib.rs193–198 has first4 UUIDnewtypes and opaqueStringworkspace74–88; existing handshake_account_activation/src/lib.rs11–17 ActivationOriginalEnvelope wires ALLfiveString. Core ProvisionedIdentity resource_authority.rs2133–36 account_id/principal_id/access_space_id:String; LocalSessionContext sessionString. SharedABI preserves identity/resource/grantlocators exactopaqueStrings, no trim/case/Unicode normalization/UUIDforcing/reminting. ONLY operationUUIDs use actualUuid. The canonicalcurrentwire order/types were personally checked by authors/checker; no all16byteidentity proposal retained.\n\nB IMMUTABLE ENROLLMENT DESCRIPTOR SEMANTICS/FIELDORDER:\n1 originalenrollmentoperationUUID;\n2 ORIGINALcurrentenroller5 in exactaboveorder;\n3 stagedNEW account_id/principal_id/access_space_id Strings inthatorder;\n4 hostnormalized account_name String (puredoesnotrenormalize);\n5 exact AccountAdministration resource locatorString;\n6 TWOordered RAWsource refs [Enroll/Create,FixedProfileAssign/Update]. Each SourceRef order: resource_id:String,grant_id:String,grant_version:i64,policy_versions:orderedVec<i64>,revocation_epochs:orderedVec<i64>,optionalgrantExpiry. Keep BOTHseparategrantrefs/bounds; equalgrantIDs notforbidden. These facts are comparisons, notpermission;\n7 immutable issued_at,expires_at,captured_enroller_session_expiry,optionalpolicyExpiry;\n8 hostcomputed purpose-bound invitationtoken_digest32;\n9 fixedprofile MemberEnrollment tag; EXACTsteps [Enroll,AssignFixedMemberProfile]; fixedeligibility model_lane.navigation.read/fs.write/diagnostics.read.\nPurpose/action/cap/resourcekind deriveclosedstepmapping below, cannot be arbitrarycallerarrays. Time is LOSSLESS (unix_seconds:i64,nanoseconds:u32<1e9), notmillisecondtruncation. Optionalpolicybound None means hostcanonicalpolicyhasnobound, nevermissingunknownfallback. DescriptorSHA256 is EXTERNAL hostcomputed32bytes overBcanonicalbytes; NEVERselfhashinsideencoding. No rawtoken/password/verifier/secrets in immutableenrollmentdescriptor.\nEffects CLOSED tothosefields+fixeddefinitions. Account_key/display/actor/Space metadata are not arbitraryselectedinputs: futurehost projects deterministicallyfromcloseddescriptor OR explicitlyversionsencoding BEFOREadditionalindependent effectfields. No silent hiddeneffectbinding implemented/claimed.\n\nSEPARATE REVOCATION REQUEST FIELDORDER: ownnonnil requestUUID (distinctfromoriginalenrollmentUUID), linkedoriginalenrollmentUUID, sameoriginalstaged3,adminlocator,originaldescriptorSHA32,CURRENTrevoker5 separatelynamed,revocationSourceRef,currentrequested_at,singleRevoke step. This preserves ORIGINALenrollercontext and neverrestampsit. RequestUUID andoriginalenrollmentUUID aredifferentoperationroles. Currentrecipient/currentauthorizer/currentpolicy/now facts are SEPARATE Afunctioninputs, notoriginaldescriptor mutation. Recipientchosenpassword/verifier belongs laterhostredemption effect; pureunit does NOTclaim persistentredemptionidempotency/passwordenabledmapping/normalpasswordlogin/sessionissuance. Any redemptionattemptUUID argument is distinct, neveroverwriteoriginalenrollmentUUID.\n\nB CLOSED COMMAND/AUDIT ALGORITHMS:\nEnroll=(AccountAdministration,account.identity.enroll,Create,identity_enrollment).\nAssignFixedMemberProfile=(AccountAdministration,account.identity.member_profile.assign,Update,member_profile_assignment).\nRevokeEnrollment=(AccountAdministration,account.identity.enrollment.revoke,Update,identity_enrollment_revocation).\nprepareEnrollment yields exactly ordered[Enroll,Assign] SAMEoriginalop/stagedtarget/adminresource/fixedMemberEnrollment; prepareRevocation only separateUpdate/Revoke. Enroll/Create never impliesassignment/revokepermission.\nvalidateCreatedAudit compares RAWsuppliedauditbindings exacttwoorderedCreate+fixedprofileUpdate SAMEop/target/resource/profile. Createdeventualpayloadincludesorderedassignmentaudit; nofifthfamily orLocalAccountSetupchange. Equalitysuccess neverprovesrealdecision/EventLedgerexistence/commit/newidentity/authority. FixedTHREEcapabilityordering is canonicalrepresentationONLY: semanticallyequaleligibilitysets cannotbe deniedsolelyarrayorder. Command/auditTWOsteporder remains significantselectedlaw.\n\nONE B-OWNED CODEC v1:\nliteralASCII hsk.member_enrollment.command_plan@1 followed exactlyONE NUL, then u8kind0x01EnrollmentDescriptor OR0x02RevocationRequest. Noauditcodec/kind3.\nOperations:16canonical Uuid::as_bytes octets.\nStrings:u32LE UTF8bytecount thenexactbytes; noimplicitnormalization.\nTimestamp:i64LE seconds thenu32LE nanos.\nOptional:u8tag0=None/1=Some thenvalue.\nVersion/epochvectors:u32LEcount theni64LEitems.\nDigests:32rawbytes.\nDescriptorbody order EXACT numberedsemanticlist above; endfixedtags: profile0x01,stepcountu8=2,codes0x01Enroll/0x02Assign,capcountu8=3,codes0x01NavigationRead/0x02FsWrite/0x03DiagnosticsRead.\nRevocationbody order EXACTseparaterequestparagraph above, finalstepcode0x03Revoke. SourceRef order exactabove.\nBounds: <=1,048,576UTF8bytes/string,<=1,024items/eachversion-or-epochvector,<=16,777,216totalencodedbytes. Checkedlength/arithmetic; rejectinvalidUTF8/nanos/version/kind/optional-or-fixedtag/length/truncation/trailingdata. Decode revalidatesfixedprofile/step/capcodes+canonicalorder. Bounds are transportintegrity, notrolepolicy. NoJSON/mapordering/secondencoding/homemadecrypto. InternalRustspellings ordinaryauthorwork; Bsharedgetters expose immutablefields/canonicalbytes toA.\n\nA INVITATION ALGORITHMS: checked deadline min(issued_at+60seconds,capturedsessionexpiry,eachofBOTHoptionalgrantbounds,optionalpolicybound), rejectoverflow/nonpositivevalidity. This is <=60s MAXIMUMTTL, notminimum60s. Suppliedpurpose/token/descriptor comparisons viaBONEcanonicalbytes; active/unexpired/correctdisabledstagedidentity rules yield redemption consumed/enabled/enabled/active transitionDATA or active→revoked DATA. Consumed/revoked neverreactivate; invalid/expired/revoked/disabled convergeconstantpublicdenialclassification. A owns no plan/profile/audit/encoding/hash, no persistence-idempotency/permissiondecision. Allnow/currentfacts separateoriginal.\n\nMINIMAL DEPENDENCY NEED: std +uuid solelyactualoperationUUIDs. NoCore/Surreal/chrono/serde/hash/async/SQL neededforpureunit. HostlosslesslyconvertsDateTime andsuppliesdigests. Primary mustpropose actualcompatible existingworkspaceuuidconfiguration, NOguessedpin/no lockwrite/generatedmetadata here.\n\nMEANINGFUL OWNING BEHAVIORAL TESTS:\nA earliestdeadline/allbounds/equality/nanosecondexpiry/checkedoverflow, wrongpurpose/digest/op/eachidentity/descriptor, terminalconsumed/revokedreplay/stagedstatusmismatch, exactBbytecomparison.\nB stablebytegoldens+roundtrip/exactrepeatability/UTF8+nonUUIDworkspace, fieldmutations, missing/swapped/extrasteps, exactfixedmappings, auditwrongop/eachaxis/resource/profile/action, separate revocationUUID/originaldigestlink, malformed/unknown/truncated/trailing/length/nanos/overflow. Capabilityorderrepresentation tests mustnotinventauthorizationlaw. Puretests doNOTprove realauth/identity/grants/HTTP/expiry/revoke/runtime.\n\nPERSONAL RESPONSIBILITIES: A actualaccepts exclusiveinvitation.rs andconsumeONEBdescriptor/codec, noadditionalsemanticcounterfield. B actualaccepts exclusivecommand_plan.rs/sharedABIcodec, no pending/inflight/unfinished/unreturnedpatch orknownactualconflict. SAMEaccount_dependencies personallyFINALACCEPT suppliedcompletepartition/effectcoverage/canonicalrepresentations/codec/deps/testresponsibilities; no remainingsemanticcounterfield identified. Actual A/B/checker no writes/runs. Currentrevieweddeclarationpair/63fc/3ffa closure reused unchanged, noreviewloop.\n\nEXACT REMAINING ADMISSION COUNTERFIELDS ONLY: Root register/save MT030 exactselectedroot/pathowners/newabsencepreconditions/thisONEABI+testscope; Primary actualCargo/lib/minimaldependencyproposal withoutlockgrant; own+SAMEneverauthor actualfutureassembledsource+DIRECTreview selection; separateofficialCentralSOURCESTART. NoexistingAPI/futurevalue/Corecompile/schema165/166/hostissuer predecessor toauthoringthispuremodule. No requestforpolicyconsensus orhistoricalaudit.\n\nHOST/FLOOR CONSERVATION: actualcurrentauth/passwordreauth/profile/explicitperoperationgrant/fullchain/fence/currentexpiry,serversecretandpurposehash,currentcanonicalstagedidentity,atomicCAS/oneusepersistence/orderedCreatedauditappend+canonicalreadback,passwordmapping/normalpasswordlogin/sessionexchange,originalUUID/fullintentpersistentidempotency/Unknowncustody allremainhost-owned underseparateexactadmission. NoexistingCore/API/schema ownershiptransfer. Genuineidentity/foreigncombinedANDisolatedsameaccountPrincipal/Space/readlaw/own200/run/realHTTPsessiongrant expiry/revoke/cleanup/R2/fulloriginalproofsOPEN. Puredata/success NEVERauthority/realproducer. Owningstandalone sourceproof/publication/independentimmutablepins BEFOREdistincthostadoption. Actual165measure→solepin→indconfirmBEFORE166;164immutable/alloriginalscopes/pins/budgets/MT026/globalAholds unchanged.\nHandshake(Product): ONEactualmergedengineeringpacket foradmission. RepoGovernance:NONE.",
+    "root_ttl_clarification": "expires_at <= min(issued_at+60 seconds,captured session expiry,BOTH Enroll/Create and Assign/Update optional grant expiries,canonical optional policy expiry), expires_at>issued_at; SHORTER valid. A evaluate RECOMPUTES bound from immutable inputs and does not trust descriptor expiry.",
+    "typed_algorithm_requirement": "Entire exact frozen field order/roles/time codec/mappings/bounds/test partition preserved. Rust internal spellings remain authors' engineering work, no Root-invented API."
+  },
+  "proposal_provenance": {
+    "author_thread": "01a13d1f-cb1b-7903-8ae5-2b416ce20b1f",
+    "turn": "01a144f4-5f31-7891-a426-7abc8d855530",
+    "root_tool": "exec-0f379d8c-56e0-4ac4-a98d-5f68538e0abe",
+    "central_tool": "exec-8afe56a8-9bb3-4060-86b5-a66e7e28e26f",
+    "qualification": "Actual tool arguments read intact; two identical delivery packets, not source implementation."
+  },
+  "review": {
+    "distinct_neverauthor": "/root/account_dependencies",
+    "requirement": "Own + SAME never-author actual future assembled source/callers/dependencies/failure/type/borrow/lifetime/assertion review, then Account leader DIRECT current Codecheck01a1423a-88bf-7ce0-8944-ca8f214f1fe4.",
+    "status": "Future source review NOT_OBSERVED; semantic proposal ACK complete."
+  },
+  "start": {
+    "state": "SOURCE_IMPLEMENTED_REVIEWED_PROOF_UNRUN",
+    "source_started": true,
+    "required": [
+      "Root approved exact three-file materialization; Root FULL reads actual saved contract and exact related deltas before separate Central official SOURCE START.",
+      "Root FULL reads actual saved MT030 plus added MT017 held binding/packet delta.",
+      "Central FULL reads actual canonical contract. A/B/Primary each personally full-read final scope and acknowledge; SAME never-author checks actual contract. Reuse valid actual semantic/Primary prospective ACKs, no new consensus loop.",
+      "Fresh ALL FOUR path absence/ordinary parent/no actual unfinished-writer or captured-input conflict immediately before first creation; CreateNew only after separate official Central SOURCE START.",
+      "Subsequent same-owned-file actual-finding repairs follow execution stop conditions; no new path/scope or repeated passing review."
+    ]
+  },
+  "preserved_original_obligations": {
+    "scope": "All original three-WP/SIX/16/full128/native/manual/Argus/IV/pins/history/spent budgets/MT026/globalA retained; genuine165->sole pin->independent confirm before166;164 immutable. Real identity/combined AND isolated foreign axes/own200/run/fullHTTP expiry/revoke/cleanup remain OPEN.",
+    "original_16_commands_semantic_sha256": "fc87a0ef0116276547fddd5b018c3aec0435c44a371a53a1a9a17de7a532b860"
+  },
+  "status": "SOURCE_IMPLEMENTED_REVIEWED_PROOF_UNRUN",
+  "sourcewrite_authorized": true,
+  "execution_authorized": false,
+  "proof_started": false,
+  "allowance_granted": false,
+  "admission_boundary": "Root approved materialization. Saved bounded four-path source admission is conditional on FULL saved-contract reads and separate Central official SOURCE START; no actual source START, execution, proof or finite allowance is recorded.",
+  "source_start_observation_20261016": {
+    "decision_id": "WP1-MT030-SOURCE-START-OBSERVATION-20261016",
+    "observed_event_utc": "2026-10-16T14:36:00Z",
+    "recorded_at_utc": "2026-10-16T14:38:05Z",
+    "status": "SOURCE_STARTED_IMPLEMENTING_PROOF_UNRUN",
+    "prior_contract": {
+      "sha256": "2025b739ff6374c29fabc9578048843fd8d07ca6358b14ffe1c84d6f5515033f",
+      "bytes": 38283,
+      "status": "SAVED_SOURCE_ADMISSION_CONDITIONAL_ON_FULL_READS_AND_SEPARATE_CENTRAL_START",
+      "start_source_started": false
+    },
+    "source_start": {
+      "provenance": "Root independently FULL read actual Primary turn01a14522-e34d-7ff1-9505-3b32546abf90 commandexec-b91e6efe-bc59-4653-a0b1-32bd04eba8ca EXIT0. Central reports official START delivered successfully to Account and Primary; A/B received START and are implementing their own algorithms.",
+      "scope": "Exact existing four-path source admission only; no global source/management/slot transfer.",
+      "primary_receipt": "Official Central START received via MC, fresh immediate all-four absence and ordinary-parent guards before CreateNew of ONLY Cargo/lib. Exact saved-byte comparison PASS, regular directories, no drift or personal pending writes. Direct Account/Central delivery succeeded; MC native app delivery rejected with no retry."
+    },
+    "actual_scaffold_outputs": [
+      {
+        "path": "src/backend/handshake_member_enrollment/Cargo.toml",
+        "bytes": 184,
+        "sha256": "a9983f36dde46fb02b065af491becec4230870be62dff0028e1efa55d407081c"
+      },
+      {
+        "path": "src/backend/handshake_member_enrollment/src/lib.rs",
+        "bytes": 42,
+        "sha256": "8f03315ae35777ddcd8f1bce0421b63554bdc2fcace6d2823920176877af3814"
+      }
+    ],
+    "substantive_algorithms": "A invitation.rs and B command_plan.rs source postimages PENDING at this dated observation; scaffolds are not source completion.",
+    "proof_limits": "No compile/test discovery/nonzero selection/runtime/publication/immutable source pins/host adoption/IV proof. Execution, proof_started and allowance remain false; lifecycle.active remains false and validator_verdict PENDING.",
+    "preservation": "All seven ACs, entire frozen ABI/TTL/literals/owners, original16 semantic SHAfc87a0ef0116276547fddd5b018c3aec0435c44a371a53a1a9a17de7a532b860, original3WP/SIX/full128/native/manual/Argus/pins/history/spent budgets/MT026/globalA/independent IV/genuine165->solepin->independentconfirmbefore166/immutable164 unchanged."
+  },
+  "source_review_closure_observation_20261016": {
+    "decision_id": "WP1-MT030-SOURCE-REVIEW-CLOSURE-OBSERVATION-20261016",
+    "recorded_at_utc": "2026-10-16T14:57:58Z",
+    "status": "SOURCE_IMPLEMENTED_REVIEWED_PROOF_UNRUN",
+    "prior_contract": {
+      "sha256": "a5615a4683708607aecd574c0fd9ae3ecbabd1cae1487110a9d48189ed9f6e36",
+      "bytes": 40632,
+      "status": "SOURCE_STARTED_IMPLEMENTING_PROOF_UNRUN"
+    },
+    "attribution": {
+      "account_thread": "01a13d1f-cb1b-7903-8ae5-2b416ce20b1f",
+      "account_turn": "01a14522-5c29-74c1-9e76-a2f5005839b6",
+      "root_delivery": "exec84a20633",
+      "central_delivery": "0cfe7055 per dispatch receipt",
+      "evidence": "Root received FULL actual Account source handoff. Central corroborates DIRECT current Codecheck NO_NEW_ACTIONABLE_STATIC_FINDING. Source-review closure is ATTRIBUTED to these actual handbacks, not a new Root semantic source verdict.",
+      "guards": "Account/Central report opening424d67, closing3cbb0e and Account closing4fcfaa match all four complete files."
+    },
+    "exact_source_outputs": [
+      {
+        "path": "src/backend/handshake_member_enrollment/Cargo.toml",
+        "sha256": "a9983f36dde46fb02b065af491becec4230870be62dff0028e1efa55d407081c",
+        "bytes": 184
+      },
+      {
+        "path": "src/backend/handshake_member_enrollment/src/lib.rs",
+        "sha256": "8f03315ae35777ddcd8f1bce0421b63554bdc2fcace6d2823920176877af3814",
+        "bytes": 42
+      },
+      {
+        "path": "src/backend/handshake_member_enrollment/src/invitation.rs",
+        "sha256": "3e37b94f3e3738b5984d541bf6bfd62cb46f3fa65cf52d5b27baddda66ab0c83",
+        "bytes": 19442
+      },
+      {
+        "path": "src/backend/handshake_member_enrollment/src/command_plan.rs",
+        "sha256": "c684e3c35f125c2a135ec0433155f800347e0059243a8e0069edfc571903d1e5",
+        "bytes": 41440,
+        "lines": 749
+      }
+    ],
+    "source_review": {
+      "own_and_leader": "Own reviews and leader FULL all-four source read complete per actual handback.",
+      "distinct_neverauthor": "SAME account_dependencies FULL four-file/current callers/dependencies/type/borrow/lifetimes/failure-negative/codec-closure review no actionable finding per actual handback.",
+      "direct_codecheck": "DIRECT current Codecheck NO_NEW_ACTIONABLE_STATIC_FINDING per actual Account/Central evidence.",
+      "writers": "All named writers quiescent, no pending writes per actual handback.",
+      "scope": "Only actual captured source/static review closure; no full AC030-06/07 acceptance."
+    },
+    "declared_owning_tests": {
+      "invitation": 13,
+      "command_plan": 9,
+      "total": 22,
+      "status": "UNRUN_UNCOMPILED_UNDISCOVERED",
+      "qualification": "Ordinary inline source declarations only; no Cargo selection/nonzero execution/PASS."
+    },
+    "root_verification_boundary": {
+      "canonical_final_verdict_read": "NOT_OBTAINED",
+      "actual_read_outcome": "Root current Codecheck two-turn read succeeded but did not reach source verdict. ONE paginated read returned non-JSON text prefix 'Could not...' then parser failed; FULL error UNEXPOSED.",
+      "limits": "No policy denial or unresponsiveness inferred; no retry. Exact existing verdict locator requested through Central, no new review or invented Root acceptance gate. Current Codecheck retained IV22 inventory/proof preparation is not a source re-review.",
+      "later_independent_verdict_readback": {
+        "status": "OBTAINED",
+        "observed_at_utc": "2026-10-16T15:04:31Z",
+        "recorded_at_utc": "2026-10-16T15:06:01Z",
+        "verification": "Root independently FULL opened actual current Codecheck completed turn01a1452d-41ae-70b0-9858-b3ba3bb3fdbf DIRECT Account tool exec-18a60db2-a2ca-493b-afd1-c423036b35c4 and finalmsg_00385e4e8b4299d8016ad239faef888191ab2018ff57d33cf3 via newly supplied locator/supported current four-turn query.",
+        "actual_verdict": "NO_NEW_ACTIONABLE_STATIC_FINDING; all four exact guards, source boundaries and22 UNRUN declarations read.",
+        "limits": "Independent actual verdict readback only; no Root semantic source verdict, compiler/runtime/IV or Source/MT acceptance. Earlier failed paginated read and NOT_OBTAINED value remain dated history; no retry of failed cursor or new review."
+      }
+    },
+    "history": "B0de94beb/16330 is historical intermediate only, not a current pin. Prior source-start observation retained unchanged.",
+    "proof_limits": "No compile/runtime/nonzero owning proof/publication/immutable remote source pins/host adoption/IV acceptance. Seven AC proof portions remain unfulfilled; publication-readiness mapping is PREPARATION only, not SOURCE_PUBLICATION_READY.",
+    "preservation": "Source_started=true retained; lifecycle.active=false and validator_verdict=PENDING. Entire seven ACs/frozen ABI/TTL/literals/owners/runfalse/zero-new-budget scope unchanged; all original3WP/SIX/original16/full128/pins/history/spent budgets/MT026/globalA/IV/genuine165->solepin->independentconfirmbefore166/164 immutable preserved."
+  }
+}

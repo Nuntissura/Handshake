@@ -1,0 +1,13 @@
+kind: gameplan_confirmations
+confirmations:
+- {id: GP-001, head: b98e0558fba2b194ca40fe17cac13f1c2acac8f0, at: '2026-10-20T11:55:57Z', note: Official pinned source verified; isolated prefix/cache inspected; owned logged launch prepared; notes <=120.}
+- {id: GP-002, head: b98e0558fba2b194ca40fe17cac13f1c2acac8f0, at: '2026-10-20T11:55:57Z', note: Official pinned source verified; isolated prefix/cache inspected; owned logged launch prepared; notes <=120.}
+- {id: GP-003, head: b98e0558fba2b194ca40fe17cac13f1c2acac8f0, at: '2026-10-20T11:55:57Z', note: Official pinned source verified; isolated prefix/cache inspected; owned logged launch prepared; notes <=120.}
+- {id: GP-004, head: b98e0558fba2b194ca40fe17cac13f1c2acac8f0, at: '2026-10-20T11:55:57Z', note: Official pinned source verified; isolated prefix/cache inspected; owned logged launch prepared; notes <=120.}
+- {id: GP-005, head: b98e0558fba2b194ca40fe17cac13f1c2acac8f0, at: '2026-10-20T11:55:57Z', note: Official pinned source verified; isolated prefix/cache inspected; owned logged launch prepared; notes <=120.}
+- {id: GP-006, head: b98e0558fba2b194ca40fe17cac13f1c2acac8f0, at: '2026-10-20T11:55:57Z', note: Official pinned source verified; isolated prefix/cache inspected; owned logged launch prepared; notes <=120.}
+- {id: GP-007, head: b98e0558fba2b194ca40fe17cac13f1c2acac8f0, at: '2026-10-20T11:55:57Z', note: Official pinned source verified; isolated prefix/cache inspected; owned logged launch prepared; notes <=120.}
+- {id: GP-008, head: b98e0558fba2b194ca40fe17cac13f1c2acac8f0, at: '2026-10-20T11:55:57Z', note: Official pinned source verified; isolated prefix/cache inspected; owned logged launch prepared; notes <=120.}
+- {id: GP-009, head: b98e0558fba2b194ca40fe17cac13f1c2acac8f0, at: '2026-10-20T11:55:57Z', note: Official pinned source verified; isolated prefix/cache inspected; owned logged launch prepared; notes <=120.}
+- {id: GP-010, head: b98e0558fba2b194ca40fe17cac13f1c2acac8f0, at: '2026-10-20T12:18:44Z', note: Bridge resolves pinned final native executable directly; official win32-x64 alias verified.}
+- {id: GP-011, head: b98e0558fba2b194ca40fe17cac13f1c2acac8f0, at: '2026-10-20T13:26:19Z', note: 'Exact approved config opened; real status0; one owned read-only turn, 180s cap, no repo tools or retries.'}

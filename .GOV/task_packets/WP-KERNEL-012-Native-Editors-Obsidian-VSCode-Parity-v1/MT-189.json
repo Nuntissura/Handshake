@@ -1,0 +1,1465 @@
+{
+  "notes_source_extension_20261018": {
+    "decision_id": "WP012-MT189-NOTES-FIND-DIFF-SOURCE-EXTENSION-20261018",
+    "authority": "Direct Operator Phase2 delegation to coding execution chat 01a14cfb-dea3-7590-b6f3-21e4062b0cb9 authorizes exact new Notes package subtrees, disjoint coders and distinct nonauthor source/dependency review; no further GO required.",
+    "stage": "standalone_source",
+    "status": "SOURCE_AUTHORED_CODECHECK_NO_FINDINGS_PROOF_NOT_RUN_NOT_ACCEPTED",
+    "repository": "../../.assets",
+    "branch": "codex/handpick",
+    "selected_new_kit_root": "Notes",
+    "assignments": [
+      {"actor": "/root/find_replace_coder", "write_path": "../../.assets/Notes/handshake_find_replace/**", "reference": "../wtc-WP-KERNEL-012/src/frontend/handshake_find_replace/**"},
+      {"actor": "/root/diff_merge_coder", "write_path": "../../.assets/Notes/handshake_diff_merge/**", "reference": "../wtc-WP-KERNEL-012/src/frontend/handshake_diff_merge/**"}
+    ],
+    "source_checker": "/root/source_checker",
+    "source_publication_handback": {
+      "owner": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+      "batch_a_reported_publication": "Primary/Central reported normal push ca5cdccaf067c6f71f43a64bd11555f9e57daabc tree fd641acbfd5ea4c7ee9394c239d18a5898d1d23b for exact ten find/diff source files. Independent IV 01a14c66-e01c-7551-9ee0-b913f2d6b277 assigned and sent fresh exact raw guards plus locally computed CRLF-to-LF comparison hashes. Remote readback pending; no source behavior acceptance.",
+      "batch_a_independent_readback": "Independent IV confirmed immutable ca5cdcc commit/tree/parent/exact ten delta paths and decoded blobs. Five raw guards exact, five reconcile only after CRLF-to-LF normalization; no non-newline content mismatch. Manifest mechanics binding and original text-mechanics/lock/index identities retained. Immutable checkpoint verification only; compiler/tests/source behavior/host acceptance UNPROVEN, original MT189 launch denial retained.",
+      "batch_b_reported_publication": "Central reported normal push 1d9d5fe1313de3a3659b7970750f9a38d4a87d6c for exact twelve code-structure/rename files; independent IV readback assigned separately. Source lane has not executed Git or inferred source behavior acceptance.",
+      "scope": "Exact frozen reviewed ten find/diff files and twelve code-structure/rename files only; full raw SHA256/bytes handed directly to Primary. Source-only UNCOMPILED/TESTS_UNRUN/NO_HOST_ACCEPTANCE. No lock or Git command executed by this source lane.",
+      "boundary": "New lsp-wire/gutter authoring is separate and outside captured publication inputs. Existing text-mechanics 0702255 source/lock and unrelated work retained. Primary owns separately granted publication and package-lock/compile preparation."
+    },
+    "third_disjoint_allocation": {
+      "authority": "Central direct NEXT DISJOINT SOURCE START under Operator Phase2 allocation after direct Codecheck closure of all22 files.",
+      "status": "SOURCE_AUTHORED_CODECHECK_NO_FINDINGS_PROOF_NOT_RUN_NOT_ACCEPTED",
+      "publication_owner": "01a14c6a-749a-7cd0-a789-0a5c97c47f36; exact ten frozen paths/raw SHA256/bytes and direct Codecheck reference handed directly to Primary under Central grant. Execution follows Primary's separately selected prior batch. No source/Git/Cargo action by this lane.",
+      "result": "Ten files authored and quiescent. Six Rust files byte-identical, LSP-wire manifest unchanged and gutter manifest only canonical mechanics relative path transform. Two wire and eleven gutter tests preserved UNRUN. Both manuals inspected. Distinct source/dependency checkers and direct Codecheck 01a14c66-d632-7d40-94bb-d550b00c371f completed no actionable static extraction/API/manual finding.",
+      "proof_handback": "Assigned proof owner prepares locks and standalone proof; gutter requires rendered interaction/layout proof and compatible egui/canonical buffer identity. Wire preserves actual Tokio io-util/sync I/O and needs compatible LSP/Tokio identities. Source publication and independent canonical reread precede distinct pinned host adoption. No compiler/Git/runtime/GUI launch by this source lane.",
+      "assignments": [
+        {"actor": "/root/find_replace_coder", "write_path": "../../.assets/Notes/handshake_lsp_wire/**", "reference": "../wtc-WP-KERNEL-012/src/frontend/handshake_lsp_wire/**"},
+        {"actor": "/root/diff_merge_coder", "write_path": "../../.assets/Notes/handshake_gutter/**", "reference": "../wtc-WP-KERNEL-012/src/frontend/handshake_gutter/**"}
+      ],
+      "bounds": "Copy all existing Rust/tests byte-identically; retain lsp-wire Tokio IO and gutter egui GUI adapter boundaries. Only gutter existing text-mechanics sibling dependency changes to ../../handshake_text_mechanics. No host/shared/root/index/lock/Git/Cargo/metadata/runtime/process action. Previous22 files frozen."
+    },
+    "next_disjoint_allocation": {
+      "authority": "Central 01a14c69-82fc-7422-b422-73fc827aada4 direct NEXT DISJOINT SOURCE START under Operator Phase2 allocation; current find/diff paths frozen for Codecheck, separate new paths authorized without additional GO.",
+      "status": "SOURCE_AUTHORED_CODECHECK_NO_FINDINGS_PROOF_NOT_RUN_NOT_ACCEPTED",
+      "reference_commit_provenance_only": "73ca13f65706c8b67c498edc30f4f3ebf4a952e0",
+      "result": "Twelve new files, eight Rust byte-identical to current reference and 44 inline tests retained. Manifests only change sibling text-mechanics path. Both authors quiescent; distinct source checker found no extraction issue and rename BYTE law unchanged. Both manuals inspected. Source proof/publication/remote reread/adoption NOT_RUN; reference commit is not accepted module pin.",
+      "dependency_review": "Distinct /root/dependency_checker inspected canonical directory/API signatures, unchanged registry/dev dependencies and isolated workspace sections, final manuals and both BYTE range conversions; no static findings. Later host adoption must share canonical text-mechanics identity and compatible tree-sitter identity. Four new Notes packages have no generated lock or compiler/runtime proof.",
+      "direct_codecheck": "01a14c66-d632-7d40-94bb-d550b00c371f independently verified all eight Rust source hashes, only manifest path transforms and 38+6 tests; distinct specialist inspected actual manuals/API behavior including BYTE rename ordering/partial writes and code-structure language/clamp/symbol boundaries. No actionable extraction/manual/API finding. Tests UNRUN; no compilation/publication/remote reread/host acceptance.",
+      "assignments": [
+        {"actor": "/root/find_replace_coder", "write_path": "../../.assets/Notes/handshake_code_structure/**", "reference": "../wtc-WP-KERNEL-012/src/frontend/handshake_code_structure/**"},
+        {"actor": "/root/diff_merge_coder", "write_path": "../../.assets/Notes/handshake_rename/**", "reference": "../wtc-WP-KERNEL-012/src/frontend/handshake_rename/**"}
+      ],
+      "bounds": "Preserve all existing Rust/test bytes and crate identities. Only adapt actual sibling text-mechanics dependency to ../../handshake_text_mechanics. MT048 BYTE rename law preserved, no UTF16 conversion. Same no-host/shared/root/index/lock/Git/Cargo/runtime/process constraints apply. Current reference commit is provenance only, not accepted source pin or renewed adoption."
+    },
+    "dependency_checker": "/root/dependency_checker",
+    "find_diff_changed_source_to_caller_revalidation_20261018": {
+      "authority": "Root/Central selected this retained find/diff team for the distinct source-to-caller unit, independent of unrelated P1/MemoryPack/global handler/whole-kit work. Preserve source-before-own-host proof and actual local denials/custody.",
+      "find_owner": "/root/find_replace_coder",
+      "diff_owner": "/root/diff_merge_coder",
+      "observed": "Both actual coders independently matched all 23 captured source/package/canonical-mechanics input rows for their package to current raw guards, with empty drift. Find lock3180 bytes/SHA256d6b39af2b71fbc815189cee16153dca4f68ca5da78e48b5b4616069b73b96e10 and diff lock4689 bytes/SHA2564d6f6b6602e83dee6109e2df581d9e8af74302cc07d3f959e1c1c322ea56a915 match existing static proofs. Reuse their exit0 checks, source reviews and recorded immutable publication/readback; no unchanged Cargo rerun or source edits.",
+      "remaining_original_outcome": "Independent execution/verdict for the 16 find and 13 diff owning behavior tests remains UNRUN/NOT_ACCEPTED, followed by distinct immutable host dependency/caller adoption and removal of actual moved duplicates through existing owners. Native currently consumes local find/diff and local text-mechanics; adoption must preserve SAME canonical TextBuffer identity without wrappers/conversions or ungranted T1/shared-file custody.",
+      "local_coordination_input": "Current direct cross-chat send/read/wait methods are undefined and absent from the callable tool inventory. Existing Primary/independent-validator coordination cannot be delivered from this session through those tools. This is tool unavailability, not a policy denial; no alternate actor/tool/route, Cargo/Git/lock or host action attempted. Central may deliver the exact owning proof request through its available authorized channel."
+    },
+    "source_result": "Ten new files: two package manifests, six byte-identical Rust source files preserving 16 find/replace and 13 diff/merge owning inline tests, two package manuals. Only manifest transformation is ../handshake_text_mechanics to ../../handshake_text_mechanics. Authors quiescent. No Git reference established, no Cargo/metadata/tests/runtime/process actions.",
+    "static_review": "Distinct source checker verified six exact source byte comparisons and sole manifest path transform; distinct dependency checker verified same canonical directory and required public buffer/cursor API closure with no copied types or Core/native edge. README formatting finding corrected by each owner. Direct Codecheck 01a14c66-d632-7d40-94bb-d550b00c371f independently inspected all ten files and algorithms/manual APIs, no actionable finding; all 29 tests preserved NOT_RUN. Static checks do not establish compilation, runtime, publication or acceptance.",
+    "source_proof_handback": "Each package retains original isolated [workspace] and has no Cargo.lock. Sole assigned proof owner must prepare/review/record lock and run the required separately authorized standalone source proof, normal publication and independent canonical remote reread. Preserve original MT189 proof independently.",
+    "host_callers": ["src/frontend/handshake_native/Cargo.toml:114-115", "src/frontend/handshake_native/src/code_editor/mod.rs:66,73,172,182", "src/frontend/handshake_native/src/code_editor/panel.rs:119", "src/frontend/handshake_native/src/code_editor/diff_editor_panel.rs:44"],
+    "dependency_binding": "Both package manifests resolve ../../handshake_text_mechanics from their package roots to the same existing canonical Assets crate. No copied TextBuffer/Cursor types; Central owns any later common kit layout/pin changes.",
+    "bounds": "Only new assigned package manifests/source/owning tests. No Notes root manifest/index/lock, existing manifests/locks, host edits, Git, Cargo/metadata/tests/runtime/process control, rich_document_model/scanner/rich_formatting rejected-action retry or MT190 host ownership change.",
+    "proof_boundary": "Preserve original MT189 scope, text-mechanics source/adoption proof, pins, failures, acceptance and MT190 HELD independently. Codecheck reviews actual diff before separately assigned source proof/publication; independent canonical remote reread precedes distinct immutable host adoption. Source-only edits are not acceptance.",
+    "next_actor": "All 32 authored files across six packages are quiescent with direct Codecheck and distinct source/dependency reviews complete. Primary owns assigned source publication/proof preparation; independent IV owns immutable canonical readback. Central assigns next disjoint source work. Standalone compiler/runtime/GUI proof and distinct pinned host adoption remain outstanding. Host adoption must unify canonical buffer and compatible tree-sitter/egui/LSP/Tokio type identities as applicable.",
+    "owning_find_diff_behavior_units_20261018": {
+      "decision_id": "WP012-MT189-NOTES-FIND-DIFF-OWNING-BEHAVIOR-20261018",
+      "status": "NEW_FINITE_BEHAVIOR_UNITS_APPROVED_NOT_STARTED",
+      "authority": "Direct current Root buddy-consulted approval under live Operator delegation: two distinct Notes owning behavior units, one exact execution each plus one combined independent canonical result/guard read. This is not hypothetical approval or transfer of original MT189 text-mechanics budgets.",
+      "source_contract": "#/notes_source_extension_20261018",
+      "owners": {
+        "source_leader": "01a14cfb-dea3-7590-b6f3-21e4062b0cb9",
+        "independent_execution_and_verdict": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+        "physical_slot_resources_preparation": "01a14c6a-749a-7cd0-a789-0a5c97c47f36"
+      },
+      "repository": "../../.assets",
+      "repository_context": "Actual existing Assets checkout, existing branch/custody; no checkout/switch or Git action authorized.",
+      "units": [
+        {
+          "id": "NOTES-FIND-REPLACE-OWNING-BEHAVIOR",
+          "allocation": {
+            "limit": 1,
+            "consumed": 1
+          },
+          "argv": [
+            "test",
+            "--manifest-path",
+            "Notes/handshake_find_replace/Cargo.toml",
+            "--locked",
+            "-j",
+            "1"
+          ],
+          "cwd": "../../.assets",
+          "immutable_candidate": {
+            "commit": "f13eb354170a172e0e696b8ae70fe7c4b1a360d8",
+            "tree": "59e0a11942bae6d1f4b22702e4e7d9c01d97801f",
+            "parent": "ca9bc84c1f7f3fa71cd4728774e16f7b57e6129f",
+            "lock": {
+              "path": "Notes/handshake_find_replace/Cargo.lock",
+              "bytes": 3180,
+              "sha256": "d6b39af2b71fbc815189cee16153dca4f68ca5da78e48b5b4616069b73b96e10",
+              "git_blob": "f0101cefa5fc107aabfb5151d932a9be98fb9faa"
+            }
+          },
+          "retained_proof": {
+            "record_id": "MT189-NOTES-FIND-REPLACE-LOCKED-STATIC-20261018",
+            "record_ref": "#/validation/proof_records",
+            "static_exit": 0,
+            "captured_source_rows": 23,
+            "postcheck_drift": [],
+            "input_manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/inputs-before-lock.json",
+            "input_manifest_sha256": "b798128dd23e70f1c62e6acc682b478b37e4b5fac7911c8c0527ccb4e935a70d",
+            "static_proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/static-proof.json",
+            "static_proof_sha256": "bcf82d83ca794f0484b3f45b7a6de4357ef28d7f23a449ccc0932d0200e3a1ad",
+            "publication_iv": "Exact one-lock delta/canonical immutable commit/tree/parent/raw lock/blob and prior source unchanged independently verified; reuse."
+          },
+          "expected_targets": {
+            "library_existing_behavior_tests": 16,
+            "normal_doc_and_integration_targets": "Run actual normal targets selected by this exact unfiltered Cargo invocation. Their target names/counts are not established here; record actual observed targets/counts, including truthful zeros. Do not add library counts to doc/integration or accept zero-match library success.",
+            "required": "Observed library16 pass,0 failed/ignored/filtered; all actual normal doc/integration target results retained, no omitted failure. Record actual unique test names and nonzero observed library behavior."
+          },
+          "actual_behavior_result_20261018": {
+            "status": "ACTUAL_FIND_EXIT0_PENDING_COMBINED_INDEPENDENT_RESULT_READ",
+            "canonical_result_observation": "Root personally opened actual canonical result e1fddd. This record is that supplied canonical observation, not a helper re-execution or new independent read.",
+            "cargo": {
+              "pid": 32480,
+              "birth_utc": "2026-10-18T18:17:41.813481Z",
+              "closed": true,
+              "numeric_exit": 0,
+              "final_timestamp": "NOT_PROVIDED_TO_CENTRAL; not invented",
+              "exact_result_artifact_path": "NOT_PROVIDED_TO_CENTRAL; not invented"
+            },
+            "observed_targets": {
+              "library": {
+                "unique_passed": 16,
+                "failed": 0,
+                "ignored": 0,
+                "filtered_out": 0
+              },
+              "doc": {
+                "observed_tests": 0
+              },
+              "integration": {
+                "observed_tests": 0
+              },
+              "individual_name_strings": "Root verified all16 unique existing names; individual strings not supplied in this handoff, not reconstructed."
+            },
+            "captured_inputs": {
+              "input_drift": [],
+              "capture_failures": [],
+              "source_lock_binding": "Existing f13eb354170a172e0e696b8ae70fe7c4b1a360d8 source+lock candidate and saved raw lock guards unchanged; no helper reacquisition or stronger raw/Git equality claim."
+            },
+            "scheduling": "Actual normal32/5/2 observed.",
+            "initial_independent_cli": {
+              "pid": 8436,
+              "birth_utc": "2026-10-18T18:17:01.6581585Z",
+              "closed": true,
+              "numeric_exit": 0,
+              "controls_drift": []
+            },
+            "actual_closure_observation": {
+              "observer": "Primary",
+              "reference": "53be0c",
+              "at_utc": "2026-10-18T18:27:01Z",
+              "observed": "Exact IDs/parents, find target executable, attributable compilers[] and whole current compiler floor[].",
+              "qualification": "Current observed closure only; NOT unseen historical descendant proof."
+            },
+            "preparation_observations": "Actual normal60d6c7 and publice35779 report11/11. These do not replace the pending full combined independent canonical result/guard read.",
+            "acceptance": "Find invocation consumed1/1 and observed exit0; no final package, host or whole-WP acceptance. Combined independent canonical result/guard read remains0/1 UNUSED. Diff remains0/1 UNUSED; actual serial Diff reservation READY only, not a run/result claim.",
+            "preserved": "No original text-mechanics budget transfer, MT191 adapter dependency, source/publication change, other proof action or prior denial clearance. Full original acceptance and all missing-artifact/closure qualifications retained.",
+            "recorded_at_utc": "2026-10-18T18:30:44.129Z"
+          },
+          "component_verdict_20261018": {
+            "verdict": "VERIFIED_OWNING_COMPONENT_BEHAVIOR_ONLY",
+            "reader": "/root/notes_combined_validator",
+            "basis": "Actual Root native independent combined read completed under saved prospective binding. Exact expected unique names, profiles, full stdout/stderr, all executed dependencies, captured input/control guards and numeric results reconciled.",
+            "failed": 0,
+            "ignored": 0,
+            "filtered_out": 0,
+            "doc_tests_observed": 0,
+            "integration_tests_observed": 0,
+            "numeric_cargo_exit": 0,
+            "capture_failures": [],
+            "input_drift": [],
+            "scope_limit": "Only this package's owning behavior proof. Original mechanics/text, host, full MT189/WP, MT191/193 and other source acceptance remain unchanged; no proxy verdict or new run allowance.",
+            "recorded_at_utc": "2026-10-18T18:43:48.002Z",
+            "unique_expected_passed": 16,
+            "result_sha256": "afe16bfd7a109db1656a6ecfbefc65916d9fbf473947924d085ca6ca6f82c83a"
+          }
+        },
+        {
+          "id": "NOTES-DIFF-MERGE-OWNING-BEHAVIOR",
+          "allocation": {
+            "limit": 1,
+            "consumed": 1
+          },
+          "argv": [
+            "test",
+            "--manifest-path",
+            "Notes/handshake_diff_merge/Cargo.toml",
+            "--locked",
+            "-j",
+            "1"
+          ],
+          "cwd": "../../.assets",
+          "immutable_candidate": {
+            "commit": "2be0e3e9d9b8114aa7b1566af43766cd62bb4bb6",
+            "tree": "388d09309679b069992c622e42afece2a3bbcaa0",
+            "parent": "743f42dd63dda7d4a718cf725bc1f6e70c850688",
+            "lock": {
+              "path": "Notes/handshake_diff_merge/Cargo.lock",
+              "bytes": 4689,
+              "sha256": "4d6f6b6602e83dee6109e2df581d9e8af74302cc07d3f959e1c1c322ea56a915",
+              "git_blob": "a96a12316f811b5f1c55ca312dd31dd6b1616656"
+            }
+          },
+          "retained_proof": {
+            "record_id": "MT189-NOTES-DIFF-MERGE-LOCKED-STATIC-20261018",
+            "record_ref": "#/validation/proof_records",
+            "static_exit": 0,
+            "captured_source_rows": 23,
+            "postcheck_drift": [],
+            "input_manifest": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/diff-merge/inputs-before-lock.json",
+            "input_manifest_sha256": "86a3133a1fc66bbb3a9d04309ef1785966a60fb807e469c655561c9cb56ba496",
+            "static_proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/diff-merge/static-proof.json",
+            "static_proof_sha256": "4a68bfae3eb8d6950e62f97dd46c56c3b28f061021aa225d4572b1a8b17ece06",
+            "publication_iv": "Complete canonical trees/exact one-lock delta/decoded raw blob identity/all earlier source unchanged independently verified; reuse."
+          },
+          "expected_targets": {
+            "library_existing_behavior_tests": 13,
+            "normal_doc_and_integration_targets": "Run actual normal targets selected by this exact unfiltered Cargo invocation. Their target names/counts are not established here; record actual observed targets/counts, including truthful zeros. Do not add library counts to doc/integration or accept zero-match library success.",
+            "required": "Observed library13 pass,0 failed/ignored/filtered; all actual normal doc/integration target results retained, no omitted failure. Record actual unique test names and nonzero observed library behavior."
+          },
+          "actual_behavior_result_20261018": {
+            "status": "ACTUAL_DIFF_EXIT0_PENDING_COMBINED_INDEPENDENT_RESULT_READ",
+            "canonical_result_observation": "Actual Root supplied completed Diff result and control/process observations; no helper execution/read of Product/proof performed.",
+            "cargo": {
+              "pid": 26436,
+              "birth_utc": "2026-10-18T18:29:06.3491287Z",
+              "closed": true,
+              "numeric_exit": 0,
+              "scheduling": "normal32/5/2"
+            },
+            "observed_targets": {
+              "library": {
+                "unique_passed": 13,
+                "failed": 0,
+                "ignored": 0,
+                "filtered_out": 0
+              },
+              "doc": {
+                "observed_tests": 0
+              },
+              "integration": {
+                "observed_tests": 0
+              },
+              "individual_name_strings": "Actual all13 unique existing names observed by Root; individual strings not supplied here, not reconstructed."
+            },
+            "result": {
+              "bytes": 3060,
+              "sha256": "1cf354b4f477fbcbfd5c742bb1be9fa27610e33d5a29d3cfeb54ab428de9901f",
+              "provided_location": "owning-behavior/diff",
+              "full_exact_artifact_file_path": "NOT_PROVIDED_IN_THIS_HANDOFF; retain Root canonical result pointer without inventing a full pathname/filename",
+              "streams": "Full actual stdout/stderr retained by Root."
+            },
+            "initial_independent_cli": {
+              "pid": 46352,
+              "birth_utc": "2026-10-18T18:28:20.5765119Z",
+              "start_observation": "311697",
+              "closed_observation": "446b41",
+              "closed": true,
+              "numeric_exit": 0,
+              "controls_drift": [],
+              "failures": []
+            },
+            "actual_closure_observation": {
+              "observer": "Primary",
+              "reference": "54672c",
+              "numeric_exit": 0,
+              "at_utc": "2026-10-18T18:32:08.0688301Z",
+              "process_id_parent_matches": [],
+              "current_diff_target_executables": [],
+              "target_attributable_compilers": [],
+              "current_compiler_floor": [],
+              "c_free_bytes": 355371913216,
+              "qualification": "Current scoped closure only, not unseen historical descendant proof. No foreign-process stop."
+            },
+            "source_lock_binding": "Existing immutable2be0e3e9d9b8114aa7b1566af43766cd62bb4bb6/tree388d09309679b069992c622e42afece2a3bbcaa0/lock identity and all original full proof pointers remain unchanged. Combined read must reconcile actual retained captured inputs/controls; no input-clean claim invented beyond supplied evidence.",
+            "acceptance": "Diff execution1/1 SPENT, NEVER rerun under this allocation. Find1/1 SPENT16PASS remains unchanged and NEVER rerun. Combined read0/1 remains UNUSED until Root starts native validator after saved binding; no final package/host/whole-WP verdict.",
+            "recorded_at_utc": "2026-10-18T18:35:19.861Z"
+          },
+          "component_verdict_20261018": {
+            "verdict": "VERIFIED_OWNING_COMPONENT_BEHAVIOR_ONLY",
+            "reader": "/root/notes_combined_validator",
+            "basis": "Actual Root native independent combined read completed under saved prospective binding. Exact expected unique names, profiles, full stdout/stderr, all executed dependencies, captured input/control guards and numeric results reconciled.",
+            "failed": 0,
+            "ignored": 0,
+            "filtered_out": 0,
+            "doc_tests_observed": 0,
+            "integration_tests_observed": 0,
+            "numeric_cargo_exit": 0,
+            "capture_failures": [],
+            "input_drift": [],
+            "scope_limit": "Only this package's owning behavior proof. Original mechanics/text, host, full MT189/WP, MT191/193 and other source acceptance remain unchanged; no proxy verdict or new run allowance.",
+            "recorded_at_utc": "2026-10-18T18:43:48.002Z",
+            "unique_expected_passed": 13,
+            "result_sha256": "1cf354b4f477fbcbfd5c742bb1be9fa27610e33d5a29d3cfeb54ab428de9901f"
+          }
+        }
+      ],
+      "independent_canonical_result_guard_read": {
+        "allocation": {
+          "limit": 1,
+          "consumed": 1
+        },
+        "owner": "/root/notes_combined_validator",
+        "scope": "ONE combined actual canonical result/guard read covering both exact units, not another source-publication IV or run allowance. Independently reconcile full numeric results/logs/unique target names/counts/process closure and stable before/after captured inputs with the retained immutable source+lock identities; qualify any missing fact. Verdict remains independent.",
+        "prospective_native_read_routing_20261018": {
+          "decision_id": "WP012-MT189-NOTES-COMBINED-RESULT-READ-NATIVE-ROUTING-20261018",
+          "authority": "Actual Root buddy-consulted approved prospective read-routing binding through Central; no extra GO or new budget.",
+          "original_read_owner": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+          "prospective_read_actor": "/root/notes_combined_validator",
+          "routing_history": "Original parent IV execution/verdict authority and original acceptance remain unchanged. Prior failed cross-chat deliveries and no combined-read START are retained as history; no successful delivery or execution is inferred. New actor binding is prospective only.",
+          "activation": "Master starts the native NEVERAUTHOR validator directly only after this saved binding. Combined read allocation remains0/1, not started by helper.",
+          "target": "ONE combined actual canonical result/guard read for Find16 plus Diff13 unique passing library tests, actual normal doc0/integration0, captured input/control guards and scoped current closure. Reconcile original published f13eb354 and2be0e3e slices against actual current a118 unchanged slices; a118 is supplied shorthand, not an invented full commit. Preserve canonical newline qualifications, full owning proof pointers and any missing observation.",
+          "verdict_boundary": "Read ownership only. Does not replace original IV verdict authority, MT191/MT193 or whole-MT189/host acceptance, does not authorize tests/build/Git/process actions or reset original counters. No unseen-historical-child closure inference."
+        },
+        "actual_combined_independent_verdict_20261018": {
+          "verdict": "VERIFIED_COMBINED_FIND16_DIFF13_RESULT_AND_GUARDS",
+          "actual_reader": "/root/notes_combined_validator",
+          "actual_allocation": "Combined canonical result/guard read consumed1/1. Find and Diff executions remain1/1 SPENT; no reruns.",
+          "observed": "Find16/16 and Diff13/13 unique exact expected names; zero failed/ignored/filtered; doc0/integration0 observed for each; both Cargo exits0. Profiles/full streams/all executed dependencies/input and control guards reconciled, no capture failure or input drift.",
+          "result_sha256": {
+            "find": "afe16bfd7a109db1656a6ecfbefc65916d9fbf473947924d085ca6ca6f82c83a",
+            "diff": "1cf354b4f477fbcbfd5c742bb1be9fa27610e33d5a29d3cfeb54ab428de9901f"
+          },
+          "fresh_independent_current_closure": {
+            "at_utc": "2026-10-18T18:40:32.2758134Z",
+            "ids_parents_targets_compilers": "Absent on actual independent current observation.",
+            "qualification": "Current closure only; no unseen historical descendant claim, foreign process action or helper probe."
+          },
+          "qualification": "This actual executed read supersedes only the prior pending combined-read state for these two package components. Original IV parent authority/routing, actual failed deliveries/no-START history and old declines remain. No broader MT189, mechanics, MT191/193, host or full-WP acceptance; no permission or counter transfer.",
+          "next": "Owning source behavior proof is resolved for these two packages only. Distinct immutable pinned host dependency/caller adoption still requires its own exact custody and scope; no early host-write grant.",
+          "recorded_at_utc": "2026-10-18T18:43:48.013Z"
+        }
+      },
+      "preparation": "IV owns independent execution/verdict. Primary retains physical slot/resources and exact genuine current initial harness, public plan/config/tool/cache preparation under existing roles; agree ordinary invocation delivery/ownership before execution without pretending a custody transfer. Only actual captured inputs freeze. Bind actual current source/dependencies/lock/tool/config/harness to immutable candidates before and after; reconcile Git newline qualifications, no blanket raw equality claim. Normal fresh resources/owned output/cache/target and honest current plan checks apply; no new plan/audit/script required by this allocation and no fake confirmations.",
+      "execution": "One exact unfiltered execution per unit after actual preparation/resources/ownership. Record actual argv/cwd/tool/config/process PID+birth, full stdout/stderr, numeric exit and owned closure, actual unique target/test names/counts, stable before/after captured guards and all failures. Failure consumes applicable unit; no unchanged replay, reset or implicit further allowance. No outer timeout or foreign-process control.",
+      "reuse": "Reuse unchanged team/direct Codecheck source review, source publication/immutable IV, existing static check and lock proof. Original ten-file ca5cdcc source IV qualification remains five raw equal/five CRLF-to-LF only; later published source+lock identities above are from owning proof records. No source/static/check/metadata/list/lock regeneration/publication/readback repeated here.",
+      "preserved": "Original MT189 text-mechanics tests/launch denial, MT190 holds, all other actual local denials/custody and all source/lock/proof counters remain unchanged. No P1/MemoryPack/whole-kit/text-mechanics predecessor or behavioral acceptance transfer. These two units prove only their own existing behavior; full original MT189/WP and host acceptance remain open.",
+      "limits": "No Product or Assets source/manifest/lock/Git/publication writes; no additional test/check/metadata/list/campaign or lock regeneration. No helper Cargo/test/run. Actual policy rejection stops that exact action without actor/tool/route/selector/context workaround.",
+      "next": "Normal proof START to Primary, IV and existing Notes leader after saved binding; no extra Root GO. After actual owning proof and combined independent result/guard verdict, distinct pinned host adoption consumes published source+lock and exact caller custody; no early host write.",
+      "recorded_at_utc": "2026-10-18T17:27:26.881Z"
+    }
+  },
+  "notes_kit_grouping_correction_20261018": {
+    "decision_id": "WP012-NOTES-KIT-GROUPING-20261018",
+    "authority": "Direct Operator: not every crate needs an asset sub folder. these all belong to the notes modules. this kit can cover many crates.",
+    "status": "ASSET_BOUNDARY_CORRECTED_PHYSICAL_LAYOUT_NOT_MIGRATED",
+    "scope": "Notes kit and these editor crate assignments only; no global consolidation of unrelated assets",
+    "requirements": [
+      {"id": "WP012-NOTES-KIT-001", "requirement": "Treat Notes as one reusable kit asset containing multiple internal crates; a Cargo package boundary is not a separate asset identity or top-level asset folder requirement."},
+      {"id": "WP012-NOTES-KIT-002", "requirement": "Preserve existing handshake_text_mechanics, handshake_rich_document_model and handshake_rich_formatting crate identities, public APIs and narrow dependency boundaries as kit components. Do not merge them into a monolithic crate."},
+      {"id": "WP012-NOTES-KIT-003", "requirement": "Supersede only the earlier separate top-level asset classification and destination assumption in MT189-194. Maintain component source/adoption tasks where they represent distinct executable work; they do not create separate asset identities."},
+      {"id": "WP012-NOTES-KIT-004", "requirement": "The kit index entry describes its internal packages and dependency direction. Do not create individual asset entries merely because components are separate crates."},
+      {"id": "WP012-NOTES-KIT-005", "requirement": "Preserve published9339227 source/index and0702255 lock history, all partial source work, actual compile-check evidence and original acceptance. No force rewrite, deletion or claimed completed migration."},
+      {"id": "WP012-NOTES-KIT-006", "requirement": "Before physical relocation bind the verified Notes kit root and exact owners. No canonical kit folder was found in inspected Assets index/layout or current MTs; do not invent or present an unverified destination as existing authority. Update affected paths, dependencies, workspace/lock ownership, docs and kit index coherently through source owners."},
+      {"id": "WP012-NOTES-KIT-007", "requirement": "Reuse valid unchanged component proof; verify affected kit composition and actual host adoption independently. Source and kit publication precede immutable host adoption; component compilation is not full kit or WP acceptance."},
+      {"id": "WP012-NOTES-KIT-008", "requirement": "This correction clears the conceptual crate-equals-asset assumption only. It does not release unrelated Assets actions, prior rejected source writes, compiler budgets or unbound physical migration. Route the corrected Notes kit work through Central with one kit assembly/index writer and disjoint internal-crate writers."}
+    ],
+    "kit_root": "../../.assets/Notes",
+    "current_components": ["handshake_text_mechanics", "handshake_rich_document_model", "handshake_rich_formatting"],
+    "acceptance": "NOT_ACCEPTED",
+    "canonical_model_source_placement_20261018": {
+      "decision_id": "WP012-NOTES-RICHDOC-MODEL-CANONICAL-SOURCE-20261018",
+      "authority": "Direct Master01a14c5c-837c-7951-89fc-56e8deadc554, buddy consulted on verified14f98f0 contradictions; Central records this exact current root/owner decision",
+      "kit_root": "../../.assets/Notes",
+      "new_unstarted_model_path": "Notes/handshake_rich_document_model",
+      "model_source_and_manifest_lib_assembly_owner": "/root/coder_document",
+      "meaning": "The existing Notes directory is the canonical current kit assembly root containing many crates. SAME existing model package/API and SAME explicit manifest/lib assembly owner. This resolves only current Notes correction006 root/model ownership and stale unstarted MT191 placement; it transfers no historical writer or generic Primary custody.",
+      "source_alignment_ref": "MT-191.json#/canonical_source_placement_correction_20261018",
+      "preservation": "Preserve unmoved historical text-mechanics/top-formatting partials and all original pins/proof/denials/acceptance. No whole-kit migration, deletion, per-crate asset entry or index action. Withdraw only never-executed stale-top model SOURCE dispatch; original5751 DATA,oldBLOCK1/1,finalcase1/1,17GREEN/independent0440e4 remain completed classifier evidence, not changed-command proof.",
+      "next": "SAME coder_document normal path-aligned model SOURCE action after saved binding and fresh ordinary parent/destination-absence/reference guards under existing authority, without another GO. Same author/tool/controller/normal hook and honest preparation. No encoding/env/role/selector change, new classifier case, B clearance, source-permission reset or unrelated allowance. Any actual new rejection remains binding/local; actual source and direct Codecheck review are next."
+    }
+  },
+  "source_lock_preparation_result_20261018": {
+    "decision_id": "WP012-MT189-SOURCE-LOCK-PREPARATION-RESULT-20261018",
+    "executor": "/root/mt189_source_proof_executor",
+    "observed": "Actual lock generation exited0; Root opened full Cargo.lock, manifest and attributable output. Nine packages including root, eight registry dependencies with checksums; no egui/wgpu/backend/path dependency. Existing18 source/index guards unchanged per sole executor; index empty. Focused changed-lock Codecheck assigned before compilation.",
+    "lock_path": "../../.assets/handshake_text_mechanics/Cargo.lock",
+    "sha256": "255a757d6a6137ddf43d2d4d56d25053342019fa919f5ea865072f142e1cb434",
+    "bytes": 1910,
+    "preparation": "Documented session init with parentnull succeeded. Actual on_resume3of3 and before_round11of11 passed; existing plans/pointers preserved. Original mt-scope validation failure and oversized confirmation note input failures retained and corrected through same documented controller.",
+    "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/primary-source/logs/lock-generation.log",
+    "result": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/primary-source/lock-generation-result.json",
+    "compile_or_test_proof": "NOT_RUN",
+    "lock_review": "Direct Codecheck01a14c66-d632 final turn01a14cbe-da5a-7e12-a3ac-ae2896bf2e2c completed: no actionable dependency finding; actual lock/manifest guards, eight cached registry checksums and dependency edges matched. No compiler/feature acceptance inferred.",
+    "lock_publication": "NORMAL_LOCK_ONLY_PUSH_CONFIRMED",
+    "lock_commit": "070225584228143e8454a19fe7b86123f5d3b486",
+    "lock_tree": "c76cdd6ca1d3feead375b69eeac292a4726a9bad",
+    "lock_git_blob": "dc4ef803ecb47cbc5cb2563499f9bfc1106c3408",
+    "publication_evidence": "Root opened actual primary-source/lock-publication.json: exact one changed path Cargo.lock, normal commit/push and executor canonical remote ref match. Original18 guards unchanged and selected inputs clean per sole executor. Independent IV canonical new-candidate reread assigned; executor read is not independent proof.",
+    "current_proof_candidate": "070225584228143e8454a19fe7b86123f5d3b486",
+    "acceptance": "NOT_ACCEPTED"
+  },
+  "standalone_source_proof_dispatch_20261018": {
+  "decision_id": "WP012-MT189-STANDALONE-SOURCE-PROOF-DISPATCH-20261018",
+  "status": "AUTHORIZED_SUBJECT_TO_ACTUAL_PREPARATION",
+  "authority": "Operator requests continued work and approves necessary scope expansion after team deliberation. Root, Central, Primary and workflow buddy deliberated exact distinct canonical Assets source proof. This decision grants no rejected T2 action or historical Handshake compiler custody.",
+  "source_binding": {
+    "repository": "https://github.com/Nuntissura/assets.git",
+    "worktree": "../../.assets",
+    "branch": "codex/handpick",
+    "source_commit": "9339227c05a813600db1fa4cdb71b9b9988d5992",
+    "source_tree": "60a3fdc1e36189b732df155dcb8a24f8ffaecfc2",
+    "inputs": "Preserve exact17 source files plus reviewed index. Bind actual raw local guards and immutable Git blobs; independent IV confirmed18pathset and content with documented15 CRLF-to-LF differences. No exact raw-byte equality claim. No source/config edits are granted by this proof dispatch."
+  },
+  "owners": {
+    "lock_and_check": "/root/mt189_source_proof_executor",
+    "independent_test_and_verdict": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+    "governance": "Root01a14c5c-837c-7951-89fc-56e8deadc554",
+    "prospective_execution_transfer": "App Primary01a14c6a completed read-only proposal and explicitly reported no controller/plan/env/Cargo/lock/Git action. Two Root START deliveries returned Cannot steer conversation without an active turn id, with intervening actual completed/idle readback. This is transport failure, not policy/hook rejection. Sole NEW MT189 lock/preparation/check/lock-only normal publication duty transfers to actual native specialist /root/mt189_source_proof_executor; no competing dispatch or old Handshake custody transfer. App Primary retains its other integration duties. All Primary permissions and limits below apply to this named specialist only for this prospective MT189 duty."
+  },
+  "gameplan_disposition": {
+    "scope": "MT189 standalone Assets source proof only",
+    "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplans/MT-189.yaml",
+    "parent": null,
+    "controller_scope": "session",
+    "controller_input_correction": "Actual documented controller rejected scope mt with parentnull: mt scope requires --parent (repo-relative WP gameplan path). No plan was created, no hook denied execution and no Cargo/Git ran. Correct this unsupported input combination with documented scope session for SAME MT189 assignment/path/build-round+resume checks/roles/source and approved distinct-repository parentnull. Preserve all normal hooks and protections; this is a controller argument correction, not an alternate tool, actor, environment or check bypass. Record cause-specific preparation step before costly action.",
+    "exception": "Only this distinct canonical standalone-source repository is exempted from inheriting WP012 host gameplan generation703. Its Handshake confirm_binding and receipt/SQL/fixture incidents do not describe MT189. Preserve all host and Handpick plans/pointers unchanged; exception does not retire or weaken their checks.",
+    "controller": "Primary may create/edit this exact kernel gameplan only through documented gameplan skill commands. Use build-round and resume preparation, Assets Git/confirm binding and truthful actor-role checks. Root delegates only this named controller-owned kernel file and its normal confirmation/failure artifacts.",
+    "selection": "Documented scoped GAMEPLAN_PATH selects the new approved plan without rewriting any existing .gameplan-active pointer. Actual roles kernel_builder and integration_validator remain honest. Existing normal hooks remain mandatory.",
+    "scoped_cleanliness": "Preserve unrelated dirty Assets work. Through controller retire only this new plan's unscoped cleanliness step and replace with git clean check constrained to declared module/index inputs via paths_ref; retain pushed candidate and immutable input checks. Lock-generation preparation records intentional sole new lock before its publication; round checks require selected inputs clean on pushed lock candidate.",
+    "gate": "Show on_resume and next-moment steps, satisfy actual checks and run check before each applicable costly action. No false confirmations, undocumented classifier changes or claim that this exception passes a gate. If controller or normal hook rejects, stop affected action and return complete exact result; no alternate route/actor/preset/env workaround."
+  },
+  "machine_profile": {
+    "toolchain": "1.97.1-x86_64-pc-windows-msvc",
+    "basis": "Primary inspected current machine-local host profile and installed cargo/rustc/x64 standard components. Explicit toolchain preserves that selected profile instead of implicit ARM64 stable default.",
+    "artifact_base": "../Handshake_Artifacts/WP-KERNEL-012/MT-189",
+    "primary_subdirectory": "primary-source",
+    "validator_subdirectory": "iv-source",
+    "outputs": "Each owner uses disjoint target,cargo-home,tmp,logs under its subdirectory. CARGO_TARGET_DIR,CARGO_HOME,TMP,TEMP resolve there from verified kernel artifact base; no repo-local target, shared old target/cache adoption or sccache change.",
+    "profile": "CARGO_INCREMENTAL=0; dev/test debug=line-tables-only; jobs1. Preserve machine-local SDK10.0.26100.0/MSVC14.44.35207 HostARM64/x64 profile; validate actual selected tools before launch, record effective configuration.",
+    "resources": "Fresh launch admission identifies actual attributable PID+birth+argv conflicts on selected target disk, observes available resources and preserves50GiB free floor. One exact owned command at a time, no competing physical build job, no foreign process stop or historical172932 retry. Earlier free-space observation is not launch admission. No timeout wrapper or process-kill timer."
+  },
+  "lock_preparation": {
+    "command": "cargo generate-lockfile --manifest-path handshake_text_mechanics/Cargo.toml",
+    "sole_allowed_product_write": "handshake_text_mechanics/Cargo.lock",
+    "sequence": "After real preparation, Primary generates lock once using selected toolchain/config, retains full stdout/stderr/exit output externally, checks actual dependency closure and source guards. Send changed lock to Codecheck for actual dependency review before compilation; resolve concrete findings through source owner, no broad repeated source review.",
+    "publication": "After lock review Primary may stage/normal explicit-path commit ONLY handshake_text_mechanics/Cargo.lock and normal push existing codex/handpick. Verify source17/index unchanged and preserve unrelated work. No bare commit, force/switch/reset/stash/clean/newbranch/worktree or additional paths. Independent IV rereads canonical resulting immutable lock/source candidate before its proof."
+  },
+  "source_proof": {
+    "primary_command": "cargo check --manifest-path handshake_text_mechanics/Cargo.toml --locked --tests -j 1",
+    "validator_command": "cargo test --manifest-path handshake_text_mechanics/Cargo.toml --locked -j 1",
+    "sequence": "Freeze pushed reviewed lock+source candidate, bind manifests/dependencies/toolchain/config and artifact inputs. Primary runs exact check once on valid preparation. Independent IV runs exact test once only after check passes, with attributable artifacts and nonzero actual behavior-test results. No extra suite, cargo metadata, unrelated host build or duplicate unchanged green check.",
+    "failure": "Retain original error and artifacts. Route concrete code failure to actual source owner via Central; add cause-specific preparation step after infrastructure/wasted run before retry. Never retry unchanged failure or substitute source review/zero-test result for behavior proof.",
+    "acceptance": "Independent validator alone issues MT189 verdict against entire existing source acceptance. This dispatch is not readiness or acceptance. MT190 remains HELD until required source proof and immutable publication/reread are satisfied; no host source/manifests/locks adoption is authorized here."
+  },
+  "preservation": "All original WP012, CKC and WP1 pins, acceptance, finite histories/budgets and independent runtime obligations remain. New standalone-source command authorization creates no old host budget reset, actual denial bypass, broad source grant or production-runtime execution permission.",
+  "code_structure_source_proof_20261018": {
+    "decision_id": "WP012-MT189-NOTES-CODE-STRUCTURE-STANDALONE-STATIC-PROOF-20261018",
+    "status": "AUTHORIZED_SUBJECT_TO_FRESH_ACTUAL_PREPARATION",
+    "authority": "Master01a14c5c explicit NEW standalone source-proof grant after workflow_buddy consultation, under existing Operator Phase2 delegation. No further Root/human GO. Independent of T4/F5 auth closure and old-monolith compilation.",
+    "executor_thread": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+    "repository": "../../.assets",
+    "branch": "codex/handpick",
+    "package": "Notes/handshake_code_structure",
+    "source_binding": "Reuse published source1d9d5fe1313de3a3659b7970750f9a38d4a87d6c and existing independent immutable source reread plus valid source/dependency Codecheck review only while inputs remain unchanged. Bind actual current package, required canonical text-mechanics inputs, configuration and lock with fresh guards; no source/config edits.",
+    "sole_source_repository_write": "Notes/handshake_code_structure/Cargo.lock",
+    "commands": {
+      "lock": "cargo generate-lockfile --manifest-path Notes/handshake_code_structure/Cargo.toml",
+      "static_check": "cargo check --manifest-path Notes/handshake_code_structure/Cargo.toml --locked --tests -j 1"
+    },
+    "sequence": [
+      "Primary closes any actually conflicting owned operation and binds fresh relevant hardware/owned-command state, using normal documented scoped gameplan and hooks.",
+      "Generate package-only lock once, retain actual command/result/logs and unchanged input guards.",
+      "Direct Codecheck inspects actual changed lock and dependency edges; reuse valid unchanged source review.",
+      "Run one normal permitted exact locked package check with test targets compiled; runtime tests are not authorized.",
+      "After exact input postbinding and owned numeric closure, normal explicit-path lock-only commit/push on existing Assets codex/handpick.",
+      "Publisher sends one exact immutable commit/tree/parent/path/guard handback directly to IV for canonical independent reread."
+    ],
+    "allowances": {
+      "package_lock_generation": 1,
+      "locked_static_check": 1,
+      "normal_lock_only_publication": 1,
+      "direct_independent_canonical_reread": 1
+    },
+    "artifacts": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/code-structure/; distinct inputs/results/logs, preserve all prior proof files and reuse only compatible cache.",
+    "conflict_boundary": "Command-only reader design by Diagnostics is independent. Stop only the exact affected action on actual conflict, source/config drift or hook failure and retain its real result. No foreign-process disruption.",
+    "limits": "No repeated prior checks, runtime tests, host adoption, denied-action retry, host proof-budget renewal, broad compiler/Git custody transfer, new branch/worktree, source edits or unrelated staging.",
+    "proof_boundary": "Static check is not behavior/runtime proof or independent source acceptance; all original WP012/CKC/WP1 proof, pins, actual denials and spent histories remain."
+  },
+  "continuous_notes_source_queue_20261018": {
+    "decision_id": "WP012-MT189-CONTINUOUS-PUBLISHED-NOTES-SOURCE-PROOF-QUEUE-20261018",
+    "authority": "Root continuous Phase2 standalone-source queue delegation after buddy consultation; explicit one-time supplemental changed-lock/input review extension. No per-package Root/human GO. Does not renew original host/runtime/spent or rejected budgets.",
+    "coordinator": "01a14c69-82fc-7422-b422-73fc827aada4",
+    "executor": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+    "changed_lock_input_reviewer": "01a14d52-fa57-73a3-a4ad-1bf70f4084b8 (Root supplemental read-only execution; original Codecheck history/duties retained)",
+    "independent_publication_reader": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+    "repository": "../../.assets",
+    "branch": "codex/handpick",
+    "order": [
+      {
+        "package": "Notes/handshake_rename",
+        "status": "STATIC_CHECK_EXIT0_LOCK_PUBLISHED_INDEPENDENT_IMMUTABLE_REREAD_COMPLETE",
+        "owning_mt": "MT-189",
+        "source_contract_ref": "#/notes_source_extension_20261018/next_disjoint_allocation",
+        "published_source_commit": "1d9d5fe1313de3a3659b7970750f9a38d4a87d6c",
+        "latest_reused_candidate": "c92c67b7f6dc122a27f436c7966ccfd653d79519",
+        "source_binding": "Reuse valid unchanged source/dependency review and immutable publication readback. Freshly bind actual current package and only required canonical mechanics/registry/config inputs; reference pin is provenance, not acceptance.",
+        "guarded_inputs": [
+          "Notes/handshake_rename/**",
+          "handshake_text_mechanics/** (only actual required dependency closure)"
+        ],
+        "sole_source_repository_write": "Notes/handshake_rename/Cargo.lock",
+        "lock_command": "cargo generate-lockfile --manifest-path Notes/handshake_rename/Cargo.toml",
+        "static_command": "cargo check --manifest-path Notes/handshake_rename/Cargo.toml --locked --tests -j 1",
+        "artifact_subdirectory": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/rename",
+        "allocation": {
+          "package_lock_generation": 1,
+          "focused_locked_static_check": 1,
+          "exact_lock_only_normal_publication": 1,
+          "direct_iv_immutable_readback": 1
+        },
+        "preservation": "No Rust/config/feature edits or behavioral changes; no test execution. Preserve rename BYTE law, lsp-wire Tokio I/O and gutter egui GUI boundary plus all original integration/rendered/runtime proof.",
+        "actual_result": {
+          "static_proof": {
+            "action": "RENAME_STANDALONE_STATIC_PROOF",
+            "package": "Notes/handshake_rename",
+            "source_parent_commit": "c92c67b7f6dc122a27f436c7966ccfd653d79519",
+            "source_rows": 23,
+            "source_drift": [],
+            "lock_bytes": 14745,
+            "lock_sha256": "0efe35f07b313e8b47ec142e7193d0881ddf8b4b53093780bb1a53a017977ace",
+            "command": [
+              "check",
+              "--manifest-path",
+              "Notes/handshake_rename/Cargo.toml",
+              "--locked",
+              "--tests",
+              "-j",
+              "1"
+            ],
+            "process_id": 13484,
+            "process_birth_utc": "2026-10-18T05:02:42.0392702Z",
+            "exit_code": 0,
+            "scheduling_observation": {
+              "pid": 13484,
+              "handle_open": true,
+              "cpu": 32,
+              "memory_query_ok": true,
+              "memory": 5,
+              "io_status": 0,
+              "io": 2
+            },
+            "runtime_tests_executed": false,
+            "host_acceptance": false,
+            "completed_at_utc": "2026-10-18T05:03:19.3783715Z",
+            "published_commit": "5cddc0a5f26719e03deac5597e558b8b0384ca90",
+            "published_tree": "f11ad5529e60d7fa52822573e17c5317ebfbacc7",
+            "lock_git_blob": "6225239980fec9132ee9f9a6a6ecc1a2c6d31813",
+            "remote_confirmed": true,
+            "sole_delta": [
+              "Notes/handshake_rename/Cargo.lock"
+            ]
+          },
+          "artifact": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/rename/static-proof.json",
+          "artifact_sha256": "1546840399477ffb6a3349961a5523d8c935e14a325ba952995c93ad75e2558f",
+          "central_inspection": "Actual proof/result/raw compiler stderr opened; numeric EXIT0, Finished dev, source drift empty.",
+          "independent_reread": {
+            "reader": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+            "status": "COMPLETE_NO_MISMATCH",
+            "commit": "5cddc0a5f26719e03deac5597e558b8b0384ca90",
+            "tree": "f11ad5529e60d7fa52822573e17c5317ebfbacc7",
+            "parent": "c92c67b7f6dc122a27f436c7966ccfd653d79519",
+            "lock_blob": "6225239980fec9132ee9f9a6a6ecc1a2c6d31813",
+            "meaning": "Direct independent canonical GitHub immutable reread: both untruncated trees, exact one lock addition/all prior blob identities unchanged, decoded Git SHA1 and raw SHA256/length matched. No duplicate reacquisition by Central."
+          },
+          "acceptance": "Tests/runtime/rendered/host adoption and original independent acceptance remain unrun/not accepted; earlier actual policy denial and its spent budget unchanged."
+        }
+      },
+      {
+        "package": "Notes/handshake_lsp_wire",
+        "status": "STATIC_CHECK_EXIT0_LOCK_PUBLISHED_INDEPENDENT_IMMUTABLE_REREAD_COMPLETE",
+        "owning_mt": "MT-189",
+        "source_contract_ref": "#/notes_source_extension_20261018/third_disjoint_allocation",
+        "published_source_commit": "12c253388dfa31e247ac8b392929dc5a84043ae1",
+        "latest_reused_candidate": "c92c67b7f6dc122a27f436c7966ccfd653d79519",
+        "source_binding": "Reuse valid unchanged source/dependency review and immutable publication readback. Freshly bind actual current package and only required canonical mechanics/registry/config inputs; reference pin is provenance, not acceptance.",
+        "guarded_inputs": [
+          "Notes/handshake_lsp_wire/**",
+          "handshake_text_mechanics/** (only actual required dependency closure)"
+        ],
+        "sole_source_repository_write": "Notes/handshake_lsp_wire/Cargo.lock",
+        "lock_command": "cargo generate-lockfile --manifest-path Notes/handshake_lsp_wire/Cargo.toml",
+        "static_command": "cargo check --manifest-path Notes/handshake_lsp_wire/Cargo.toml --locked --tests -j 1",
+        "artifact_subdirectory": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/lsp-wire",
+        "allocation": {
+          "package_lock_generation": 1,
+          "focused_locked_static_check": 1,
+          "exact_lock_only_normal_publication": 1,
+          "direct_iv_immutable_readback": 1
+        },
+        "preservation": "No Rust/config/feature edits or behavioral changes; no test execution. Preserve rename BYTE law, lsp-wire Tokio I/O and gutter egui GUI boundary plus all original integration/rendered/runtime proof.",
+        "actual_result": {
+          "static_proof": {
+            "action": "LSP-WIRE_STANDALONE_STATIC_PROOF",
+            "package": "Notes/handshake_lsp_wire",
+            "source_parent_commit": "5cddc0a5f26719e03deac5597e558b8b0384ca90",
+            "source_rows": 5,
+            "source_drift": [],
+            "lock_bytes": 10929,
+            "lock_sha256": "fbd89498c692048d937b94eb3323358e08fc86050ef772cd25cae50d88fb387d",
+            "command": [
+              "check",
+              "--manifest-path",
+              "Notes/handshake_lsp_wire/Cargo.toml",
+              "--locked",
+              "--tests",
+              "-j",
+              "1"
+            ],
+            "process_id": 68460,
+            "process_birth_utc": "2026-10-18T05:08:22.9855357Z",
+            "exit_code": 0,
+            "scheduling_observation": {
+              "pid": 68460,
+              "handle_open": true,
+              "cpu": 32,
+              "memory_query_ok": true,
+              "memory": 5,
+              "io_status": 0,
+              "io": 2
+            },
+            "runtime_tests_executed": false,
+            "host_acceptance": false,
+            "completed_at_utc": "2026-10-18T05:08:28.0666163Z",
+            "published_commit": "61d2481b1a01d7f1d400633e983e3244662db436",
+            "published_tree": "ff5c99bbf578226630793c5a969eb58584680330",
+            "lock_git_blob": "f34da59a4f6586bdd5e2d9e670862ab1c0e3fd8b",
+            "remote_confirmed": true,
+            "sole_delta": [
+              "Notes/handshake_lsp_wire/Cargo.lock"
+            ]
+          },
+          "artifact": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/lsp-wire/static-proof.json",
+          "artifact_sha256": "2e03a340a7cddf51f59f0bc1287898ca87af08343f2e17cdd1def7798d26efa0",
+          "central_inspection": "Actual proof/result/raw compiler stderr opened; numeric EXIT0, Finished dev, source drift empty.",
+          "independent_reread": {
+            "reader": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+            "status": "COMPLETE_NO_MISMATCH",
+            "commit": "61d2481b1a01d7f1d400633e983e3244662db436",
+            "tree": "ff5c99bbf578226630793c5a969eb58584680330",
+            "parent": "5cddc0a5f26719e03deac5597e558b8b0384ca90",
+            "lock_blob": "f34da59a4f6586bdd5e2d9e670862ab1c0e3fd8b",
+            "meaning": "Direct independent canonical GitHub immutable reread: both untruncated trees, exact one lock addition/all prior blob identities unchanged, decoded Git SHA1 and raw SHA256/length matched. No duplicate reacquisition by Central."
+          },
+          "acceptance": "Tests/runtime/rendered/host adoption and original independent acceptance remain unrun/not accepted; earlier actual policy denial and its spent budget unchanged."
+        }
+      },
+      {
+        "package": "Notes/handshake_gutter",
+        "status": "STATIC_CHECK_EXIT0_LOCK_PUBLISHED_INDEPENDENT_IMMUTABLE_REREAD_COMPLETE",
+        "owning_mt": "MT-189",
+        "source_contract_ref": "#/notes_source_extension_20261018/third_disjoint_allocation",
+        "published_source_commit": "12c253388dfa31e247ac8b392929dc5a84043ae1",
+        "latest_reused_candidate": "c92c67b7f6dc122a27f436c7966ccfd653d79519",
+        "source_binding": "Reuse valid unchanged source/dependency review and immutable publication readback. Freshly bind actual current package and only required canonical mechanics/registry/config inputs; reference pin is provenance, not acceptance.",
+        "guarded_inputs": [
+          "Notes/handshake_gutter/**",
+          "handshake_text_mechanics/** (only actual required dependency closure)"
+        ],
+        "sole_source_repository_write": "Notes/handshake_gutter/Cargo.lock",
+        "lock_command": "cargo generate-lockfile --manifest-path Notes/handshake_gutter/Cargo.toml",
+        "static_command": "cargo check --manifest-path Notes/handshake_gutter/Cargo.toml --locked --tests -j 1",
+        "artifact_subdirectory": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/gutter",
+        "allocation": {
+          "package_lock_generation": 1,
+          "focused_locked_static_check": 1,
+          "exact_lock_only_normal_publication": 1,
+          "direct_iv_immutable_readback": 1
+        },
+        "preservation": "No Rust/config/feature edits or behavioral changes; no test execution. Preserve rename BYTE law, lsp-wire Tokio I/O and gutter egui GUI boundary plus all original integration/rendered/runtime proof.",
+        "actual_result": {
+          "static_proof": {
+            "action": "GUTTER_STANDALONE_STATIC_PROOF",
+            "package": "Notes/handshake_gutter",
+            "source_parent_commit": "61d2481b1a01d7f1d400633e983e3244662db436",
+            "source_rows": 23,
+            "source_drift": [],
+            "lock_bytes": 8371,
+            "lock_sha256": "e9ce4d7b5db85c7277ff56aa0d298b3a6977bd5a5ea82d82281ee05c7efbcb03",
+            "command": [
+              "check",
+              "--manifest-path",
+              "Notes/handshake_gutter/Cargo.toml",
+              "--locked",
+              "--tests",
+              "-j",
+              "1"
+            ],
+            "process_id": 11632,
+            "process_birth_utc": "2026-10-18T05:10:24.4603424Z",
+            "exit_code": 0,
+            "scheduling_observation": {
+              "pid": 11632,
+              "handle_open": true,
+              "cpu": 32,
+              "memory_query_ok": true,
+              "memory": 5,
+              "io_status": 0,
+              "io": 2
+            },
+            "runtime_tests_executed": false,
+            "host_acceptance": false,
+            "completed_at_utc": "2026-10-18T05:10:43.2298197Z",
+            "published_commit": "6bb1cb1edc314f28cbd5130a71f84147b4795bf0",
+            "published_tree": "b2e7847846d18827f9d88e25e2317aba769e47a7",
+            "lock_git_blob": "9f4badff59f604faccc8fb7e1621272a7d612530",
+            "remote_confirmed": true,
+            "sole_delta": [
+              "Notes/handshake_gutter/Cargo.lock"
+            ]
+          },
+          "artifact": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/gutter/static-proof.json",
+          "artifact_sha256": "3782dfef3ebc24c3da12490fbce5960b072794cb10201163289a97a42b41a719",
+          "central_inspection": "Actual proof/result/raw compiler stderr opened; numeric EXIT0, Finished dev, source drift empty.",
+          "independent_reread": {
+            "reader": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+            "status": "COMPLETE_NO_MISMATCH",
+            "commit": "6bb1cb1edc314f28cbd5130a71f84147b4795bf0",
+            "tree": "b2e7847846d18827f9d88e25e2317aba769e47a7",
+            "parent": "61d2481b1a01d7f1d400633e983e3244662db436",
+            "lock_blob": "9f4badff59f604faccc8fb7e1621272a7d612530",
+            "meaning": "Direct independent canonical GitHub immutable reread: both untruncated trees, exact one lock addition/all prior blob identities unchanged, decoded Git SHA1 and raw SHA256/length matched. No duplicate reacquisition by Central."
+          },
+          "acceptance": "Tests/runtime/rendered/host adoption and original independent acceptance remain unrun/not accepted; earlier actual policy denial and its spent budget unchanged."
+        }
+      }
+    ],
+    "sequence": "For each exact package: fresh affected guards/current Git+owned-command+hardware binding and normal gameplan/hooks; lock once; direct actual changed-lock/input review; one focused locked static check with test targets; input postbinding/owned numeric closure; normal exact lock-only commit/push; one publisher-direct IV immutable reread. Then immediately proceed to the next admitted package without another Root GO. No overlapping shared mutable target, Git writer or physical compiler.",
+    "reuse": "Preserve all earlier proof artifacts and compatible cache; no rerun of already-valid find/replace, diff/merge, code-structure or verifier checks. Prior source reviews remain valid only with unchanged inputs.",
+    "scope_limits": "No source/feature/host adoption/runtime test, global compiler transfer, protected parent/Member2/kernel reads or denied-action repackage. Stop only exact actual conflict, drift, unavailable dependency or policy rejection; preserve actual result and route concrete repairs through existing source owner. No all-team ACK or old-monolith prerequisite.",
+    "acceptance": "Static/source/publication/runtime and original independent acceptance remain separate; none promoted by allocation.",
+    "status": "THREE_ALLOCATED_STATIC_CHECKS_LOCK_PUBLICATIONS_AND_IMMUTABLE_REREADS_COMPLETE"
+  },
+    "current_original_mechanics_preparation_only_20261018": {
+      "temp_lifetime_isolation_preparation_continuation_20261019": {
+        "independent_provenance_adequacy_outcome_20261019": {
+          "decision_id": "WP012-MT189-INDEPENDENT-PROVENANCE-ADEQUACY-OUTCOME-20261019",
+          "status": "NO_SOURCE_MATCH_ADMITTED",
+          "reviewer": "01a15322-1723-7f23-b8dc-9dc278dcaea3",
+          "actual_review_turn": "01a1532b-141c-70c3-929a-12352b67b4bc",
+          "reviewed_binding": {
+            "bytes": 154942,
+            "sha256": "614e3d5f1fb133832946f614ea7ca3e1174df0d892b044d5065dde995d9a1831"
+          },
+          "finding": "Current IV verified the saved reviewer bindings, the corrected mapping counter and both complete exact public HTTP404 outcomes. Those responses provide no useful mapping on the two selected public subjects/repository/surface; they do not establish global absence. Held signature and embedded-digest facts do not establish authentic payload-to-full-source-commit linkage.",
+          "supplemental_disposition": "The prospective CMS input cannot satisfy its existing sufficient-proof predecessor from the held facts. Leave its allocation limit1/consumed0 UNUSED/HOLD; no supplemental acquisition, endpoint/document loop or replacement query follows.",
+          "remaining_dependency": "Authenticated vendor build/package/source mapping for the actual image, or independently adequate official-payload equivalence and exact-release-to-full-source-commit provenance under the existing trust/time/coverage proof contract. No such mapping has been established by this review.",
+          "preservation": "Original V2 rejection remains before-shell STOP with rejecting control/cause UNKNOWN. Original failed preparation1/1, completed metadata1/1, version1/1, public mapping1/1, original behavior NOT_RUN/unspent, all source pins, MT190 owning-behavior predecessor and separate MT192/A5/CKC denials remain unchanged. This disposition grants no source acquisition, handler repair, replay, test or host adoption.",
+          "parallel_work": "RunCreate, current MT173 defining input, CKC prospective capture preparation and other permitted work remain independent under their existing scopes.",
+          "recorded_at_utc": "2026-10-19T08:08:39.164Z"
+        },
+        "pending_independent_review_control_succession_20261019_02": {
+          "decision_id": "WP012-MT189-PENDING-INDEPENDENT-REVIEW-CONTROL-SUCCESSION-20261019-02",
+          "current_reviewer": "01a15322-1723-7f23-b8dc-9dc278dcaea3",
+          "old_reviewer": "01a151da-ce95-79b3-a475-475cc60def61",
+          "authority": "RootactualSAMEpurposecontrolsuccession WP012-INDEPENDENT-IV-CONTROL-SUCCESSION-20261019-02 inexistingv6; actualnewstartup3NNhelpers/read-onlypendingreconciliation complete. MultipleexplicitfailedNEWnormaldeliveries plusobservedcompletedturnchange andfailedsubstantivefollowup, notIDLEalone/policydenial.",
+          "scope": "OnlyfuturePENDING/UNRECEIVED MT189 prospectiveCMS-standard-method and actualpublicmappingmetadata adequacy withincurrentadmissions. Successormayreadheldartifacts/primarydocsandissueindependenttechnicalfinding; originalSourcepubandoldNO_SOURCE_MATCHproducer/verdictsretained/reused. No Source/binary/currentimage/SDK/proofexecution/acquisition/handler/V2/preparation/test/Cargo orsourceemitterread/adoption.",
+          "pending_capture": "Globalactualno pendingmutation/capturehold; rawCMSNOT_HELD, supplemental1/0unused/HOLD; newexactpublicmetadata1/1nowcomplete. OldIVSourcepuboutcomeCOMPLETE; oldnewmethodhandoffsnodelivery/no reviewconsumption. CompleteoldIVphysicalinventoryNOT_RETAINED, no universalNONE. No oldACK/allteamFREE required; resolveanyactualspecificcaptureconflictthroughitsowner.",
+          "preservation": "WHOLEoriginalindependentresponsibility/pins/requirements/failures/spents/actualdenials remain; no budgetreset/newproof/Test orself-authoredsoleproof. Scopeisreviewcontrolonly; Rootsourceadmissionsneverreplacetechnicalverdict."
+        },
+        "exact_digest_public_attestation_mapping_input_20261019": {
+          "actual_outcome_20261019": {
+            "status": "COMPLETE_TWO_EXACT_PUBLIC_404_NO_USEFUL_MAPPING_ON_SELECTED_SURFACE",
+            "executor": "01a151f4-5b5b-79e1-9d4b-c837b03d83b0",
+            "actual": "cda6d8 EXIT0 and retainedresponseanalysisba57e9. EXACTtwoauthorizedopenai/codex subject GETs?per_page=1, APIversion2026-03-10/publicunauth, reportedredirectdisabled. BothHTTP404, complete126bytes each, combined252; no pagination/retry/otherendpoint/digest/repository/bundle(0).",
+            "artifacts": [
+              {
+                "subject": "bba1612e7c1111dfad1617eee026b237434fb0e77275e0819285f5a0a50548f9",
+                "body": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/iv-source/exact-attestation-subject-1-20261019.body",
+                "body_bytes": 126,
+                "body_sha256": "8ecae33333826db91507fbc9512eabf6e8e7c9be3c43f6681ca70bff4c028a6d",
+                "response": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/iv-source/exact-attestation-subject-1-20261019-response.json",
+                "response_bytes": 2127,
+                "response_sha256": "ea275d78468bf9923f00892a720700e40ca4b917cc6138ea4f711ee6f600f564"
+              },
+              {
+                "subject": "2c7984a4c42ae24968d5ce814e80ced67622a05fada418dd97af135bc44aad65",
+                "body": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/iv-source/exact-attestation-subject-2-20261019.body",
+                "body_bytes": 126,
+                "body_sha256": "8ecae33333826db91507fbc9512eabf6e8e7c9be3c43f6681ca70bff4c028a6d",
+                "response": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/iv-source/exact-attestation-subject-2-20261019-response.json",
+                "response_bytes": 2127,
+                "response_sha256": "653da05c38bbbabf26278014b2d95cd8450af010641acab9d54f733fd1efb932"
+              }
+            ],
+            "root_verification": "Root personally opened/parsed all4actualfiles, verifiedfullbytes/SHA256 andHTTPstatus/body/headers/requestsubject/completeflags. Bothrawbodies exactlyNotFound/status404 withofficialdocsreference. NewIVhelpersindependentlyopenedheldartifacts inREADONLYstartup, notyetformaladjudicationbeforebinding.",
+            "scope_limit": "No usefulmappingreturnedonTHESEtwoexactpublicunauthsubjects/repository/surface only. Notglobalabsenceorproofattestationcannotexistelsewhere/withotheraccess. No qualifiedauthenticvendoractualdigest/adequateofficialpayload->fullsourcecommitmapping established. No endpoint/docsloop or newunsupportedquery.",
+            "continuation": "Thisdistinctmetadataoutcomeconsumed1/1; supplementalrawCMSseparate1/0UNUSED/HOLD because adequatefullsourcelinkagecontract remainsunsatisfied. No sourceemitter/callsite/sourceaudit/handler/V2/test/native/Cargo/cryptoquery release. Genuinechangedauthenticvendorinput canchange exactexternaldependency; no genericunresponsiveness or blanketProducthold.",
+            "preservation": "Alloldmetadata1/1/version1/1/failedprep1/1 andoriginalbehaviorNOT_RUN/unspent/Sourcepins/denials/MT190/192/A5 unchanged. Actualproducer andearlyfailures retained; labelsSHA1/SHA2 incompressedhandoff meantsubjectindexes, bothartifacts areSHA256."
+          },
+          "decision_id": "WP012-MT189-EXACT-DIGEST-PUBLIC-ATTESTATION-MAPPING-20261019",
+          "status": "COMPLETE_TWO_EXACT_PUBLIC_404_NO_QUALIFIED_MAPPING",
+          "authority": "Direct Operator exact-blocker/full-control delegation; Root verified primary current GitHub REST repository-attestations documentation and consulted workflow_buddy. This is one distinct actual vendor mapping lookup before treating a missing held mapping as an external-only dependency; no old input is renewed or reset.",
+          "executor": "01a151f4-5b5b-79e1-9d4b-c837b03d83b0",
+          "coordinator": "01a14c69-82fc-7422-b422-73fc827aada4",
+          "independent_adequacy": "01a15322-1723-7f23-b8dc-9dc278dcaea3",
+          "basis": "Supplemental CMS method primary research establishes that CMS alone cannot supply build/source linkage. No attestation is held, but that is not proof no exact publicvendor record is available. GitHub primarydocs verify a public unauthenticated exactsubject endpoint; metadata presence alone is not a qualified mapping.",
+          "primary_documentation": {
+            "url": "https://docs.github.com/en/rest/repos/attestations",
+            "verified": "Root opened current search result from primaryGitHubDocs for REST repositoryattestations; exactSHA256subject and publicresources unauthsupported, currentrecommendedAPIversion2026-03-10.",
+            "qualification": "No existing attestation or sourcecommit is claimed from this documentation."
+          },
+          "allocation": {
+            "kind": "DISTINCT_EXACT_VENDOR_ATTESTATION_MAPPING_METADATA",
+            "limit": 1,
+            "consumed": 1,
+            "count_when": "Count the first actual subject-list metadata request, including failure or emptyresult. One outcome includes only the two pinnedsubject list requests and atmostONE exactmatching referenced provenancebundle. No retries, digest/repository/endpoint sweep, renewals or silentoldcounterreset."
+          },
+          "only_endpoints": [
+            "https://api.github.com/repos/openai/codex/attestations/sha256:bba1612e7c1111dfad1617eee026b237434fb0e77275e0819285f5a0a50548f9",
+            "https://api.github.com/repos/openai/codex/attestations/sha256:2c7984a4c42ae24968d5ce814e80ced67622a05fada418dd97af135bc44aad65"
+          ],
+          "bounds": "Only public unauthenticated normalHTTPS requests with exactrepository/subjects above; per_page1 and provenance predicate filter may be used asdocumented, do not paginate or broaden after partial/emptyresult. Actualreceivedbody cap65536 perlist and196608 combinedincludingatmostONE exactmatching provenancebundle referencedbyanactualreturnedrecord. Boundedstream/abort beforeovercap, no fullfallback, credentials/auth changes or toolsetup. Preserve exactHTTPstatus/headers/request/body/hash, including errors. A truncated/overcap/unsupportedresponse is incomplete, not noattestation.",
+          "selected_bundle": "Before dereferencing, bind its returnedrecord/repository/exactsubject metadata; choose only an exactmatching referenced provenancebundle within the remainingcap. Do not guess a URL, follow unrelatedlinks or query another repository. Verify exactsubjectdigest, claimed fullsourcecommit and genuinely trusted buildidentity/provenance semantics with existingnormalAPIs/primarydocs; decodedpresence alone is not signature/trust/sourceproof. If adequateverificationneedsunavailabletools, extraacquisitionorpermissions, reportexactdependency andstop.",
+          "outcomes": "Return exact qualifiedmapping plus actualproofandlimits, or narrowly classify200empty/404/unsupported/overcap/noadequatetrust/nomapping forTHESEselectedsubjects/repository. Never generalize public404/empty/permissionlimits to globalabsence. SAME independentIV must assess any resulting mapping BEFORE downstreamsource/proof; no substitute reviewer or self-authoredsoleproof.",
+          "preservation": "SupplementalCMS1/0 remainsUNUSED/HOLD until its genuinelysufficientmethodconditionpasses. All previousmetadata1/1/version1/1/oldprep1/1, exactV2STOP/historicalcauseUNKNOWN, Sourcepins/counters/acceptance/MT190/192/A5/CKCdenials unchanged. No binary/CMS/sourcecode/currentimagebytes, targetexec, handleredit, installation, policy/role/config/transport/privilege change, Git/Cargo/test/compilerreservation or Source/hoststart follows from this metadata admission.",
+          "followthrough": "SAME executor consumes actualsavedchild and performs this one boundedmetadataoutcome after realnormalguards, no routineRoot/humanGO. Actualpolicydenial stops thatrequest withoutalternateroute. Preserveactualerrors, no blindretry; other Productworkindependent.",
+          "acceptance": "NO_ATTESTATION_MAPPING_OR_SOURCE_MATCH_CLAIMED"
+        },
+        "supplemental_official_cms_provenance_input_20261019": {
+          "decision_id": "WP012-MT189-SUPPLEMENTAL-OFFICIAL-CMS-PROVENANCE-20261019",
+          "status": "PROSPECTIVE_DISTINCT_INPUT_CONDITIONAL_ON_SUFFICIENT_STANDARD_PROOF_CONTRACT",
+          "authority": "Direct Operator instruction to resolve exact MT189/CKC blockers with Central and Diagnostics, plus standing full-control scope expansion to repair evidenced blockers without discretionary approvals. Root consulted workflow_buddy: no rule makes missing CMS retention permanently external; the missing bytes are a capture/proof gap, not a denied acquisition. This prospectively admits one distinct changed proof input; no spent unit is renewed.",
+          "basis": "SAMEIV and Dx accepted narrow local platform-signature/version observations but NO_SOURCE_MATCH_ADMITTED. Their exact adequate alternative is independently adequately verified equivalent official payload linked to sourcecommit. Prior metadata parsing retained no remoteCMSraw, so cryptographic verification was NOT_RUN; digest equality alone was correctly rejected. This input adds raw retention and actual cryptographic/trust/linkage proof only, not another parsing/header comparison.",
+          "owners": {
+            "executor": "01a151f4-5b5b-79e1-9d4b-c837b03d83b0",
+            "diagnostics": "01a14c66-cf2a-7463-b60d-4e8e596c6887",
+            "independent_adequacy": "01a15322-1723-7f23-b8dc-9dc278dcaea3",
+            "coordinator": "01a14c69-82fc-7422-b422-73fc827aada4"
+          },
+          "allocation": {
+            "kind": "DISTINCT_SUPPLEMENTAL_EXACT_REMOTE_CMS_RAW_RETENTION_AND_CRYPTOGRAPHIC_PROVENANCE_INPUT",
+            "limit": 1,
+            "consumed": 0,
+            "count_when": "Count first actual supplemental certificate-table acquisition, including failure/incomplete output. This prospective1/0 is separate from completed metadata1/1, version1/1 and old failedprep1/1. No automatic retry, target substitution, bulkdownload or silent reset."
+          },
+          "hard_predecessor_before_acquisition": "Using held artifacts/facts and minimum primary Microsoft/cryptographic/vendor-release documentation ONLY, SAME Dx and independentIV must specify an actually sufficient standard proof contract for signer trust, signed-content verification, applicable standard PE/Authenticode hash semantics and payload-to-official-release-to-exact-sourcecommit linkage. Existing localValid proof is reused only if its actualimage inputs remain identical. Identify which current observations plus exact new CMS bytes can establish that contract. If it cannot establish adequate equivalence/linkage, STOP BEFORE acquisition and return the precise genuinely external dependency. No all-team ceremony or further Root/human GO is needed when this concrete precondition actually passes.",
+          "exact_target": {
+            "official_asset": "https://github.com/openai/codex/releases/download/rust-v0.163.0-alpha.10.2/codex-aarch64-pc-windows-msvc.exe",
+            "held_release_id": 414135617,
+            "held_official_asset_sha256": "2c7984a4c42ae24968d5ce814e80ced67622a05fada418dd97af135bc44aad65",
+            "expected_total_bytes": 288626992,
+            "only_remote_range": "bytes=288611328-288626991",
+            "maximum_actual_received_bytes": 15664,
+            "expected_etag": "\"0x8DF2AE9F344BF00\"",
+            "expected_last_modified": "2026-10-15T18:27:20Z",
+            "held_range_sha256": "c0041353ef1899586143e1026ae09e5c6ffebfa0cf3e73126b13e6c9bcbecc38"
+          },
+          "acquisition_guard": "After the adequate contract is established, use SAME normal tool permissions/hooks. Require exact206/Content-Range/total and expected stable asset/ETag/lastmodified before consuming body; abort unsupported/full200/inconsistent/overcap response, never full-response fallback. Bound actual received bytes15664. Retain exact raw certificate-table bytes and response identity/range/hash BEFORE crypto work; verify rawSHA equals held exactrangeSHA. No other remote header/image range acquisition. Rebind current localimage ordinaryALLancestors/leaf/stableidentity and fresh fullrawSHA solely as a guard; freshSHA must equal heldbba1612e7c1111dfad1617eee026b237434fb0e77275e0819285f5a0a50548f9. Hashing is not code audit. Drift stops this unit, and no repeat localplatformsignaturetest follows unchanged inputs.",
+          "only_proof": "Use only normal already-available standard cryptographic APIs on retained certificate data as DATA. Actually verify the CMS signed content and signer trust/time semantics required by the adequate contract; do not substitute decoded labels, common signer, equal embedded claims or signature-math alone where trust/linkage is missing. Verify exact official release/sourcecommit provenance under primary authoritative metadata; no adjacent release, movingmain or guessedcommit. Record explicitly what is and is not established. Existing artifacts and all malformed/corrected history remain.",
+          "prohibitions": "No fullremoteimage/code-section/binaryaudit/sourceemitter/callsite/sourceaudit/handleredit, executabletargetlaunch/load/attach/runtimeprobe/server/nativeharness/originalV2 replay, tool/package/systeminstallation, policy/role/config/transport/privilege change, Productsource/Git/Cargo/test/compilerreservation or new originalbehavior/preparation allowance.",
+          "output_and_verdict": "Retain raw supplementalbytes and exact proof contract/requests/observations/actualfailures/results in existing external MT189 iv-source surface. SAME independentIV qualifies only the actually established provenance scope; no self-authored sole proof. If adequate match cannot be proved, keep NO_SOURCE_MATCH_ADMITTED with exact remainingdependency. A successful current-source provenance proof does not attribute historical rejectingcontrol, establish policycause, clearV2, qualifyhandlerrepair or start Source reads automatically. Return actual mapping+limits for the separate owning source-scope decision.",
+          "preservation": "All original denials/pins/failures/spents and completed narrowmetadata/localtrust verdicts retained, including originalV2STOP, behaviorNOT_RUN/unspent, MT190independentowningbehaviorpredecessor, MT192/A5 and CKCregistry/save denials. RunCreate/CKC/otherpermittedcoding remainindependent.",
+          "acceptance": "NO_SUPPLEMENTAL_ACQUISITION_PROOF_SOURCE_MATCH_OR_POLICY_CAUSE_CLAIMED"
+        },
+        "exact_host_pe_signing_metadata_input_20261019": {
+          "actual_outcome_20261019": {
+            "local_static_signature_and_independent_adequacy_20261019": {
+              "status": "COMPLETE_LOCAL_PLATFORM_SIGNATURE_VALID_INDEPENDENT_NO_SOURCE_MATCH_ADMITTED",
+              "tool": "1d7363 EXIT0",
+              "artifact": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/iv-source/exact-host-local-signature-verification-20261019.json",
+              "bytes": 1495,
+              "sha256": "f8724cfb0bb79607804bc3098cd1972b258b1db7e5f6aa0c849a80d7c8b744ec",
+              "observation": "Actual Microsoft.PowerShell.Security/Get-AuthenticodeSignature on bound288626992/bba1612e... image reports Valid/Signature verified/Authenticode; signer OpenAI OpCo thumb8C1BBD222297A3669B63F95B42710343619559BB and Microsoft timestamp signerBDA7BAB5B5B180CF0768C06C0F11C49ACC9690F5; ordinary ALL-ancestor/stableprepostidentity metadata. Root personally opened/parsed exact1495byte artifact and verifiedfullSHA.",
+              "limits": "Local platform verification only; no separately evidenced online revocationfreshness. RemoteCMSrawbytes NOT_HELD aftercompletedacquisition; no reacquisition/remotecryptoverification/computedremotepayloadhash. Metadata does not establish signing-onlydifference/wholepayload equivalence or actualimage-to-sourcecommit.",
+              "independent_adequacy": {
+                "actor": "01a151da-ce95-79b3-a475-475cc60def61",
+                "actual": "SAMEIV personally opened1495/f8724cfb, correctedPE11020/f4dac69e, version2383/5d92725d pluscanonicalscope.",
+                "verdict": "NO_SOURCE_MATCH_ADMITTED",
+                "exact_dependency": "Authentic vendor build/package/source mapping connecting ACTUALlocaldigest or independentlyadequatelyverifiedequivalentofficialpayload tosourcecommit; localtrust+version+officialmetadata/TLSembeddedclaim insufficient.",
+                "history": "Historical rejectingcontrol attribution separatelyUNPROVEN. Currenthostmetadata does not proveoldcause."
+              },
+              "continuation": "This outcome closes SAME consumed1/1 metadata input. Stop unchangedprovenancesearch, broadsource-emitter/callsite/sourceaudit/patch/replay; exactexternalmapping dependency retained. CKC and admitted Productwork proceed independently.",
+              "preservation": "No newallocation/reacquisition/setup/targetexec/proofbudget. Version1/1 and oldfailedprep1/1 unchanged; originalV2 remainsSTOPPED, originalbehaviorNOT_RUN/unspent and MT190 predecessor unchanged."
+            },
+            "status": "BOUNDED_METADATA_ACQUIRED_NO_SOURCE_MATCH_ADMITTED_STATIC_VERIFICATION_PENDING",
+            "artifact": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/iv-source/exact-host-pe-signing-metadata-20261019-corrected.json",
+            "bytes": 11020,
+            "sha256": "f4dac69efb591a76ab26508e5bee686c3a6f660bb978b501078d2ddd80f616af",
+            "actual": "a38f3d EXIT0; primary Microsoft PE/Authenticode references consulted by executor; exact official ranges and288626992 total,206 checked before body, stable ETag/lastmodified, combined actualmetadata31984<=262144; localordinary/stableidentity.",
+            "observed": "Both images have ARM64/PE+, timestamp1792085284,8sections, certificateoffset288611328/size15664. Checksums and certificate records differ. Embedded signed-content hash and embedded SHA256 image digest match; these are embedded claims only because cryptographic verification was NOT_PERFORMED in this artifact.",
+            "root_verification": "Root personally opened and parsed the exact corrected11020byte artifact and verified fullSHA. This does not substitute for independent adequacy review or prove the historical denying control.",
+            "serialization_failure_preserved": "Original10564/dcfaa108ede7e1c08d95bcc48b9bd8b424573c82d41e0339f76ba4cf0dcab735 had literal trailing backslash-n, invalidJSON. Corrected artifact preserves exact original reference/cause; no metadata reacquisition.",
+            "remaining": "The acquisition is consumed1/1. Previously admitted ordinary built-in static local signature verification may finish within SAME input/scope without metadata reacquisition or new setup; actual report is pending. No source match, complete payload equivalence, vendor image-to-source mapping, rejecting-control attribution or handler repair is established. If permitted remaining static verification cannot establish adequate provenance, retain the exact external mapping dependency; no retry/nearby release/bulkdownload.",
+            "preservation": "Original V2 request STOPPED; version query1/1, failed prep1/1 and all old counters remain. No Cargo/test/behavior/native/compiler result or MT190 host release."
+          },
+          "decision_id": "WP012-MT189-EXACT-HOST-PE-SIGNING-METADATA-20261019",
+          "status": "BOUNDED_DEFINING_INPUT_RELEASED_NO_REJECTED_EXECUTION_REPLAY",
+          "authority": "Direct Operator instruction to resolve exact MT189 and CKC blockers with Central and Diagnostics without discretionary approvals. Existing workflow_buddy recommended a bounded documented PE/signing comparison to test only the same-version/same-size/raw-SHA mismatch hypothesis. This is a distinct changed defining input; no old allowance is reset.",
+          "executor": "01a151f4-5b5b-79e1-9d4b-c837b03d83b0",
+          "coordinator": "01a14c69-82fc-7422-b422-73fc827aada4",
+          "actual_basis": {
+            "installed_image": "C:/Users/iljas/AppData/Local/OpenAI/Codex/bin/37517219fabc9229/codex.exe",
+            "installed_bytes": 288626992,
+            "installed_raw_sha256": "bba1612e7c1111dfad1617eee026b237434fb0e77275e0819285f5a0a50548f9",
+            "completed_version": "codex-cli 0.163.0-alpha.10.2",
+            "official_release": "https://github.com/openai/codex/releases/tag/rust-v0.163.0-alpha.10.2",
+            "reported_official_asset": "codex-aarch64-pc-windows-msvc.exe",
+            "reported_asset_bytes": 288626992,
+            "reported_asset_raw_sha256": "2c7984a4c42ae24968d5ce814e80ced67622a05fada418dd97af135bc44aad65",
+            "qualification": "Global/Central reported exact official release API metadata; SAME executor must bind the exact held release/asset identity before range reads. Equal version/size with unequal raw digests does not establish the cause, binary equivalence, source revision or historical rejecting component."
+          },
+          "allocation": {
+            "kind": "DISTINCT_EXACT_IMAGE_PE_SIGNING_METADATA_DEFINING_INPUT",
+            "limit": 1,
+            "consumed": 1,
+            "count_when": "Count when this distinct local PE/signing metadata or exact remote byte-range acquisition starts, including a failing or incomplete acquisition. No automatic retry, nearby release, target substitution, new binary download or old-input reset."
+          },
+          "only_scope": "Before reading target metadata, verify primary Microsoft PE/Authenticode digest rules and the exact asset binding from already-held official release metadata. Then inspect only current-image PE header/certificate/build metadata and corresponding exact official-asset small metadata ranges, with a combined metadata-byte cap262144. An existing ordinary built-in static signature verification is permitted on the bound local file; it must not launch/load the target as executable code or acquire tools. Reuse held full-raw SHA/identity evidence, with fresh ordinary ALL-ancestor/leaf and stable-identity guards sufficient to bind the same actual file; any target drift stops the input.",
+          "remote_guard": "Use the exact official asset URL/asset identity and expected total288626992. Bind response identity/version/ETag where exposed. Before consuming a body require206 and exact requested Content-Range/total, reject full200/unsupported/inconsistent ranges, enforce262144 combined metadata bytes and stop before exceeding it. Do not fetch code sections or the full image. Header/certificate offsets and lengths must be validated against the actual PE structure and total bytes; malformed/out-of-range/unsupported metadata stops this input. Bind the cap to actual received bytes, use bounded reads/abort, and do not buffer a full-response fallback.",
+          "hypothesis_and_proof_limit": "Test only whether verified standard PE signing/build metadata explains the reported raw-digest difference. No arbitrary byte exclusions, hand-selected normalization, approximate source match or unsigned claim is allowed. Equal size, signature validity, shared signer, embedded signed digest or metadata equality alone cannot prove complete payload equivalence, actual-image-to-source commit provenance or historical policy cause. Only an authentic vendor build/package/source mapping or a separately adequate authoritative equivalence proof can advance source provenance; otherwise preserve that exact external dependency. Source-emitter inspection remains conditioned on a real current-image match.",
+          "excluded": "No full binary audit, disassembly/code-section read, full288MB download, target process/server/native harness/original request execution, attach, runtime probe, installation, policy/role/config/transport/privilege change, handler edit, Product source, Git, Cargo, tests or compiler-slot reservation. The original denied V2 request remains STOPPED.",
+          "capture_and_finish": "Retain exact byte-range requests/responses and bounded metadata observations with identity, limits and actual outcome in the existing external MT189 iv-source preparation surface. Return the precise verified result or unresolved external provenance dependency through Central/Dx. SAME owner proceeds after these actual conditions without new Root/human GO; normal hooks still decide actual requests. A real denial stops that request with no alternate route.",
+          "preservation": "All historical denials/failures/spent inputs, version query1/1, failed prep1/1, original behavior NOT_RUN/unspent, candidate/source pins, independent actor, MT190 owning behavior predecessor and MT192/A5 exact denials remain unchanged. CKC and permitted RunCreate/other source continue independently.",
+          "acceptance": "NO_SOURCE_MATCH_NO_POLICY_CAUSE_NO_PREPARATION_OR_BEHAVIOR_PASS_CLAIMED"
+        },
+        "host_provider_version_metadata_input_20261019": {
+          "actual_outcome_20261019": {
+            "status": "COMPLETE_CURRENT_VERSION_ONLY_SOURCE_PROVENANCE_STILL_REQUIRED",
+            "artifact": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/iv-source/current-host-provider-version-metadata-20261019.json",
+            "artifact_bytes": 2383,
+            "artifact_sha256": "5d92725ded8430708cefdf47fa27c4ab020ee12bee199ebf40c1b165be0d0c5a",
+            "actual_preflight": "3481f4 EXIT0, current parent33632 selected path, ordinary leaf/10 path nodes, bytes288626992/fullSHAbba1612e7c1111dfad1617eee026b237434fb0e77275e0819285f5a0a50548f9 and stable identity metadata",
+            "actual_query": "7f15ac ordinary exact bound host --version EXIT0; output codex-cli 0.163.0-alpha.10.2",
+            "observation_limit": "Tool returned combined output; separate stderr unavailable. Version query produced no source commit/image-to-source build mapping or historical rejecting-control attribution.",
+            "root_verification": "Root personally read exact artifact, parsed its actual request/preflight/result/limits and verified complete bytes/SHA. New metadata input is consumed1/1; every old input/preparation/behavior counter remains unchanged.",
+            "continuation": "Existing already-authorized source-emitter defining outcome may seek only exact-version official release/build-provenance metadata and actual-image digest/source mapping before inspecting matched source; no nearby-release substitute, arbitrary-source attribution, bulk tool download, binary audit, new process or version-query retry. If exact mapping unavailable, report that external dependency. Original denied V2 request remains STOPPED."
+          },
+          "decision_id": "WP012-MT189-HOST-PROVIDER-VERSION-METADATA-20261019",
+          "status": "COMPLETE_CURRENT_VERSION_ONLY_SOURCE_PROVENANCE_STILL_REQUIRED",
+          "authority": "Direct Operator 2026-10-19 instruction to resolve exact MT189/CKC blockers with Central and Diagnostics without discretionary approvals; Root consulted existing workflow_buddy, which approved this single documented metadata query. This minimum changed input extends only the prior read-only source-identification outcome, not any stopped execution.",
+          "executor": "01a151f4-5b5b-79e1-9d4b-c837b03d83b0",
+          "coordinator": "01a14c69-82fc-7422-b422-73fc827aada4",
+          "allocation": {
+            "kind": "DISTINCT_CURRENT_HOST_TOOL_VERSION_METADATA_INPUT",
+            "limit": 1,
+            "consumed": 1,
+            "count_when": "Count the one actual version query including failure. No alternate flag, binary, launch mode or automatic retry; no reset or reuse of an old preparation, defining-input or behavior allowance."
+          },
+          "actual_gap": {
+            "reported_method": "9b50a9/current execution ancestry and bca798/exact provider folder",
+            "current_observed_image": "C:/Users/iljas/AppData/Local/OpenAI/Codex/bin/37517219fabc9229/codex.exe",
+            "reported_bytes": 288626992,
+            "reported_metadata": "FileVersion/ProductVersion/ProductName empty; exact provider folder exposes no source/version manifest. Parent app package26.1013.4894.0/Electron155 does not establish Codex provider source revision.",
+            "qualification": "This is current execution-parent evidence, not proof of the historical rejecting component. Previously qualified child Codex0.162.1 is distinct and must not be substituted."
+          },
+          "before_query": "SAME executor verifies the actual current selected host binary path from held real execution binding, ordinary leaf and ALL ancestors, fresh full raw image SHA/identity and no actual captured-input conflict. Reuse valid held provenance first; no app/SDK/filesystem census. Verify --version is the official documented standard metadata option before invoking it. A changed/mismatched target or unsupported flag stops this input; no alternate executable is selected.",
+          "only_query": "Through the ordinary supported execution tool and genuine existing hooks, invoke ONLY that exact bound host executable with the documented --version argument. This is a quiet version-metadata command, not original exec-stdin/native harness/old24626-byte request, policy-classification probe, build, test, server or application startup. Do not alter role, hook, pointer, trust, config, policy, privilege or transport.",
+          "capture": "Retain actual ordinary stdout/stderr and numeric exit in the existing external MT189 preparation output surface, with selected image identity/SHA and exact request binding. No command-body/credential dump or new backup. A successful version command proves only its actual output for that current image.",
+          "result_limits": "A version string alone does not prove full source commit/binary provenance, the historical denying host/control, causal repair, original preparation success or behavior acceptance. Official source may be inspected only when a real match is established; no lookalike-source attribution. Unsupported/denied/failing query or still-unmatchable source returns the exact limitation and stops this input, with no alternate flag/mode retry.",
+          "preservation": "All original policy rejections, failures, spent allowances, Source pins, independent actor and method/candidate constraints remain. Original V2 execution stays STOPPED, no handler/source edit or rejected-command replay is admitted. CKC registry action remains STOPPED and its own path preparation remains separate. MT190 owning-behavior predecessor and MT192/A5 denials are unchanged. RunCreate and other permitted source continue independently.",
+          "followthrough": "After the concrete conditions pass, SAME actor performs this one metadata input and hands actual output/provenance/limitations to Dx/Central/Root; no additional routine Root or human GO. Normal policy still decides the actual metadata request.",
+          "acceptance": "NO_CURRENT_VERSION_OR_SOURCE_MATCH_OR_POLICY_CAUSE_CLAIMED"
+        },
+        "decision_id": "WP012-MT189-TEMP-LIFETIME-ISOLATION-PREPARATION-CONTINUATION-20261019",
+        "status": "DISTINCT_CHANGED_METHOD_PREPARATION_ONLY_RELEASED_BIND_AND_REVIEW_BEFORE_INVOCATION",
+        "checkpoint_precedence": "This prospective child controls only the distinct changed-method continuation. Parent preparation_allocation remains FAILED1/1 and actual_terminal_failure_20261019 remains immutable history; no original counter is reset. This is not a behavior-test allowance or evidence of PASS.",
+        "authority": "Direct Operator autonomous blocker-remediation delegation; Root consulted workflow_buddy, which endorsed separate tooling/future-IV temp lifetimes, preservation of dirty failed inputs, exact affected method review and one distinct preparation invocation.",
+        "owner_and_method_author": "Prospective current corrected-method author/preparer is root-role Primary CONTROL 01a155cc-64d5-7fd3-8aaf-1b6d7453d8ab itself. Historical failed producer and custody remain unchanged; this binding launches nothing and transfers no physical/capture/Git/compiler/behavior authority. Corrected method and temp/result bindings plus distinct affected-method review remain required before invocation.",
+        "coordinator": "01a151f4-5b5b-79e1-9d4b-c837b03d83b0",
+        "basis": {
+          "failure_ref": "actual_terminal_failure_20261019; canonical result23308/4c81930c86cd6632f115ad3e20da05e7e69cd66ca81657806c472d8fcfea8362",
+          "retained_assignment": "SAME Primary handback and existing independent preparation_dependencies helper inspected retained preStart code/config: outerf8ef2e copies effective-env profile except PATH_PREFIX into si.EnvironmentVariables; observed bdf296 profile binds TMP=TEMP to existing MT-189/iv-source/tmp; retained93baa6 linker overrides omit TMP/TEMP, followed by GP assignments and Start. Launch records initial environment applied before start.",
+          "demonstrated_mechanism": "The retained code and observed configuration assign the preparation native tooling process to the future IV protected temporary root. Inner method later checks that future root for emptiness after native startup and reads. Separate tool and future-test temporary lifetimes to remove this evidenced sharing.",
+          "unproved": "No child runtime environment snapshot, historical temp creator or exact failing-directory attribution is proved. The correction does not label the two old entries as owned by the native child."
+        },
+        "method_source_scope": [
+          {
+            "id": "WP012-MT189-TEMP-001",
+            "rule": "SAME Primary may make only the causal private phase-preparation method/capture/environment binding correction under the existing MT189 artifact surface. Keep original package candidate, source, lock, intended independent behavior selector, role and authority unchanged. Create no new public tool, script API, branch, worktree or backup."
+          },
+          {
+            "id": "WP012-MT189-TEMP-002",
+            "rule": "Bind distinct prep-tool TMP/TEMP and future-IV TMP/TEMP before native launch. Preserve the future-IV environment as an explicit verified input rather than accidentally deriving its TMP/TEMP from the tooling environment. Record selected preStart tool temp assignments and exact future-IV bindings without a broad environment dump."
+          },
+          {
+            "id": "WP012-MT189-TEMP-003",
+            "rule": "Preserve the two old TMP entries and all failed artifacts untouched. Do not delete, adopt, ignore or silently reuse a nonempty future-IV root. Bind a fresh future-IV TMP under the SAME existing MT189 proof root when the old root is nonempty; its ordinary-path, ownership, identity, emptiness and no-overlap guards remain mandatory. Actual private path names and preimages are supplied and frozen by the owner, not inferred here."
+          },
+          {
+            "id": "WP012-MT189-TEMP-004",
+            "rule": "Reuse existing owner cargo-home and target only after current consistency, ownership and relevant isolation guards. A new attempt-specific future-IV environment input may be bound under the same private proof root while preserving the prior consumed input. No unrelated source/config/lock change or old-input overwrite to hide failure."
+          },
+          {
+            "id": "WP012-MT189-TEMP-005",
+            "rule": "Retain strict applicable ordinary-path/alias, source/dependency/config/resource/gameplan and captured-input checks. Capture actual argv/options/UTF8/hash before await, exact output ownership and full numeric return. Add the actual shared-temp failure cause to the task gameplan before the next attempt through its legitimate existing controller. Improve exact failure path/count diagnostics in the same method if needed, without exposing credentials or weakening a guard."
+          }
+        ],
+        "binding_before_invocation": "Owner supplies actual corrected method bytes/hash, complete exact selected tool/future-IV temp identities, future environment/config/source/lock/candidate bindings, normal request/options and distinct mutable output/result paths under the existing proof root. Distinct actual nonauthor reviews only affected method/env/capture delta. Respect actual Source proof captures and pending handler mutation; rebind current stable handler/control guards after actual quiescence without an unreachable ACK or blanket other-case acceptance gate.",
+        "finite_preparation": {
+          "limit": 1,
+          "consumed": 0,
+          "state": "NOT_STARTED",
+          "kind": "DISTINCT_CHANGED_METHOD_PREPARATION_ONLY",
+          "meaning": "One actual normal changed-method preparation invocation after all concrete method/review/current preparation bindings pass. No auto-retry, old counter reset or additional behavior execution. Count actual invocation and preserve any failure."
+        },
+        "success_floor": "Require the actual inner preparation command success, genuine expected descriptor creation with exact verified future-IV environment/input/path bindings, complete control/candidate pre-post equality and owned numeric process closure. Native/outer exit0 or self-authored status alone cannot PASS. A failed/partial result stops this exact continuation and is reported honestly.",
+        "continuation": "After bound correction, actual affected review and genuine preparation, SAME owner proceeds within this one unit without another routine Root/human/all-team GO. Only real descriptor PASS may precede the original unused independent mechanics behavior selector under its already-bound actor/allowance and original independent verdict. This child does not transfer that actor, grant a second test or release MT190 host Source. After actual numeric/postcapture closure or explicit abort release only the captured handler window.",
+        "reuse": "Reuse valid unchanged0702255 static, prior31-test classifier/registered DATA/independent verdict, MT19150, immutable source publication and method/alias source review within their unchanged input claims. Necessary current per-invocation identity/control observations are not another unchanged proof campaign.",
+        "preservation": "Original failed preparation limit1/consumed1, all historical rejection/failure artifacts and original behavior allowance0 remain unchanged. No original MT060 SAVE, MT192/A5, Source-policy denial, host adoption or Product acceptance is cleared. Disjoint admitted Source and fixture work continues.",
+        "acceptance": "NOT_ACCEPTED"
+      },
+      "actual_terminal_failure_20261019": {
+        "decision_id": "WP012-MT189-CURRENT-PREPARATION-TERMINAL-FAILURE-20261019",
+        "status": "PREPARATION_FAILED_DESCRIPTOR_ABSENT_NO_BEHAVIOR_TEST",
+        "previous_checkpoint": "ONE_CURRENT_PREPARATION_ONLY_UNIT_APPROVED_NOT_STARTED; preparation limit1 consumed0 was the prelaunch checkpoint and is now superseded by this actual consumed failure, without resetting historical attempts.",
+        "owner": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+        "normal_outer_request": {
+          "reference": "20e710",
+          "ascii_bytes": 24578,
+          "sha256": "f2bcb7164f7d2980876c3b9dd7e491fdf59bb1c18b70be92a28eb73f70dd50c8",
+          "original_four_options_preserved": true
+        },
+        "native": {
+          "pid": 25988,
+          "birth_utc": "2026-10-19T02:56:47.0129349Z",
+          "retained_handle": true,
+          "exit_code": 0,
+          "completed_utc": "2026-10-19T02:58:12.9552949Z"
+        },
+        "outer": {
+          "execution": "80358",
+          "numeric_return": "825a4c",
+          "exit_code": 0
+        },
+        "inner": {
+          "ascii_bytes": 13130,
+          "sha256": "5d88bd671e37da426a578ffb4f1374b67f2cd4d1eb6d1f24dada419a3b159633",
+          "executions": 1,
+          "exit_code": 1,
+          "elapsed_ms": 4501,
+          "line": 116,
+          "error": "Original IV mutable directory is not empty; no cleanup or adoption",
+          "exact_failed_directory": "UNVERIFIED"
+        },
+        "canonical_artifacts": {
+          "result": {
+            "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/current-mechanics-preparation-20261019T025646330Z/result.json",
+            "bytes": 23308,
+            "sha256": "4c81930c86cd6632f115ad3e20da05e7e69cd66ca81657806c472d8fcfea8362"
+          },
+          "stdout": {
+            "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/current-mechanics-preparation-20261019T025646330Z/codex.stdout.log",
+            "bytes": 716,
+            "sha256": "227cce9b6c70150b7905037e0569f1c972e038b7fa46dece5fa828dad5cd421f"
+          },
+          "stderr": {
+            "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/current-mechanics-preparation-20261019T025646330Z/codex.stderr.log",
+            "bytes": 326250,
+            "sha256": "3f12a9b79657653c926be6460586c2c3135ca76470e49aeb327bba805d26a040"
+          },
+          "descriptor": {
+            "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/iv-source/current-original-mechanics-preparation.json",
+            "root_observation": "ABSENT via exact lstat ENOENT"
+          }
+        },
+        "independent_root_observation": "Root directly opened and parsed the full canonical23308 result at its exact reported SHA, opened full716 stdout and326250 stderr, and inspected the genuine formatted inner exec return exited1/4501ms and line116 exception. Root observed exact descriptor ENOENT and result byte equality afterward. Outer failures[] and native0 are not inner preparation success. Formatted trace is not a raw provider-wire envelope.",
+        "controls_and_closure": "Canonical result has all six before/after control guards equal, failures[] and control_drift[]. SAME Primary separately reports current PID25988 NONE and exact full raw before/post reviewed3871 alias JSON equality; no atomic anti-redirect/mapped-image claim. Native/outer numeric closure and actual terminal handback release the handler-only captured-input hold; no indefinite global Source hold.",
+        "directory_observations": "SAME Primary retained before714707 UTC02:55:39.9621887Z showed all three mutable counts0. Its AFTER observation a44aa3 showed cargo-home0,target0,TMP2 ordinary directories .tmpa24zsi/.tmptz1025. The current metadata does not establish the failing directory, failure-time contents, creator or ordering. No historical creator is inferred.",
+        "counters": "This preparation-only allocation limit1 consumed1 FAILED. Original behavior allowance remains unused0 and unchanged. No Cargo or behavior test ran. Every earlier failure, classifier proof and spent allowance is preserved.",
+        "next": "Normal global coordinator01a151f4 and SAME Primary diagnose only the actual retained command/environment/chronology and necessary defining metadata. No cleanup/adoption, ignored guard, unchanged retry, alternate route or new execution allowance follows. Any genuinely necessary changed method/finite continuation is bound distinctly from this retained failure under the existing authority, without silent budget reset or routine human/all-team GO.",
+        "source_independence": "Released handler-only hold permits SAME Dx already-admitted MT060 classifier Source/proof after actual guards; it clears no original SAVE, MT190 host Source, MT192/A5 or Product acceptance. Disjoint current Product implementation and admitted fixture work continue.",
+        "acceptance": "NOT_ACCEPTED"
+      },
+      "decision_id": "WP012-MT189-ORIGINAL-MECHANICS-CURRENT-PREPARATION-ONLY-20261018",
+      "status": "PREPARATION_FAILED_DESCRIPTOR_ABSENT_NO_BEHAVIOR_TEST",
+      "authority": "Actual Root plus buddy prospective approval through Central. Missing historical raw payload alone does not prohibit a new lawful preparation; actual normal hook decides this newly authored method.",
+      "preparation_allocation": {
+        "limit": 1,
+        "consumed": 1,
+        "kind": "PREPARATION_ONLY",
+        "not_a_new_test_budget": true
+      },
+      "owner": "SAME existing Primary/private-phase preparer holding the original MT189 preparation duty; no actor or physical-custody transfer.",
+      "existing_owner_refs": [
+        "#/standalone_source_proof_dispatch_20261018/owners",
+        "#/standalone_source_proof_dispatch_20261018/machine_profile"
+      ],
+      "method_author": "Actual SAME private-phase preparer authors the new current method; helper only records this decision.",
+      "artifact_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-189",
+      "current_input_scope": "Actual CURRENT canonical handshake_text_mechanics package, its existing published lock, configuration/tool/cache and required captured process/resource inputs. Preserve all source/lock/Git/compiler/hardware capture conflicts. Only actual captured inputs freeze; no whole-kit/new host predecessor.",
+      "original_execution_selector": "cargo test --manifest-path handshake_text_mechanics/Cargo.toml --locked -j 1",
+      "original_allowance": "Use ONLY original UNUSED mechanics behavior selector and allowance from existing original dispatch. No execution is authorized until CURRENT preparation PASS. No test allowance added, transferred, renewed or reset; original independent IV execution/verdict and current qualified method remain.",
+      "static_reuse": "Reuse valid unchanged0702255 static check/source-lock/publication/IV evidence; do not rerun it or treat Find16/Diff13 verification as original mechanics acceptance or old-case clearance.",
+      "changed_method_requirement": "NEVERAUTHOR must inspect the ACTUAL CHANGED method before its normal hooked invocation. Use documented qualified NATIVE_IV_INITIAL hook method and supported installed APIs, honestly bound to current original input/role/selection. No unsupported Python/tomllib consumer, encoded historical packet, alternate writer/transport/selector, false confirmation, masking, new public tool or probe.",
+      "hook_boundary": "Actual normal hook decides. If rejected, retain COMPLETE actual new runtime request/payload/result immediately and STOP ONLY this unit; no retry, actor/tool/route/encoding/context change or inferred hook cause. Prior rejection is not erased by this prospective approval.",
+      "historical_rejection": "Old denied capture remains historical PRETOOL_REJECTED; exact cause UNKNOWN and raw UNAVAILABLE. Do not reconstruct, retransmit or hunt raw history; do not revive the retracted initial-context diagnosis. This decision records no historical repair or Find/Diff clearance of that case.",
+      "preserved": "All original owners/IV verdict authority, selector, allowance/history/old declines/source pins/acceptance and all unrelated Notes proof/counters remain unchanged. No publication handoff, new Root GO or all-ACK gate.",
+      "limits": "Decision record ONLY. No helper method body, Product/source/lock/Git/compiler/test/probe/public-runner or preparation execution, new plan/audit/script, budget reset, source START or host-adoption grant. Actual preparer carries normal current preparation under original ownership.",
+      "next": "SAME actual preparer produces the current method, obtains actual NEVERAUTHOR changed-method review, then one ordinary qualified hooked preparation. Only after current prep PASS may original independent mechanics execution proceed within its existing unused allocation; retain any exact new failure.",
+      "installed_cli_alias_preparation_disposition_20261019": {"decision_id":"WP012-MT189-INSTALLED-CLI-ALIAS-PREPARATION-DISPOSITION-20261019","status":"BOUNDED_IDENTITY_DIAGNOSIS_AND_CONDITIONAL_METHOD_CORRECTION_RELEASED","authority":"Operator full-control blocker-remediation delegation; Root and existing buddy authorize only the necessary current tool-identity preparation outcome, preserving the original unused preparation and behavior allowances.","owner":"01a155cc-64d5-7fd3-8aaf-1b6d7453d8ab","actual_failed_preflight":{"result":"5defd3 EXIT1","failure":"All-ancestor ordinary-path preflight rejected the installed Codex bin reparse point before exact outer invocation.","actual_metadata":"7b16c5 reports Junction at C:/Users/iljas/AppData/Local/Programs/OpenAI/Codex/bin targeting C:/Users/iljas/.codex/packages/standalone/current/bin; preparation descriptor freshly absent.","later_checks":"Checks after the failed ancestry step remain unproven.","execution":"Exact24578/f2bcb outer NOT_INVOKED, no native child, descriptor, compiler or pending owned execution; original preparation outcome unconsumed.","retained_prior_identity":"bdf296 reports CLI282434864 bytes SHA3afc6a5195ce3fc08ee69b99521773b1542f129ee5b68dd4f0bb10cf7930c6ef and current149750/d7c81 handler plus other five controls unchanged; this is not canonical target-chain proof."},"diagnostic_scope":"SAME Primary may inspect only this installed bin reparse point, its actual referent chain and the approved executable identity using supported read-only metadata/hash/identity operations. Reuse actual retained observations. Bound the tag, targets and canonical executable/redirect safeguards; following the actual referent for identity is not permission to launch a different path. No install, update, configuration change, filesystem mutation, broad profile scan or Product inspection is granted.","conditional_method_disposition":"If actual evidence establishes that this is the approved installed-tool alias and binds the same pinned executable identity with the required redirect/change safeguards, distinguish that exact tool alias from ordinary source ancestry in the preparation capture/preflight. Keep every ordinary source guard strict. Preserve the exact approved launch path, selector, role, environment-selection law, payload and original pins. Correct only the evidenced preparation distinction, never ignore all reparse points or silently follow an unverified target.","review_and_execution":"An actual independent nonauthor reviews the changed capture/preflight or method delta and the retained identity evidence before the SAME original unused preparation proceeds through normal hooks. No routine Root GO follows that review. Prefer the unchanged reviewed request when only the external preflight changes; if the method itself must change, bind and review that actual minimum changed request under this existing preparation unit. Retain its exact supplied request/options/bytes/hash before awaiting the normal invocation and its complete returned result.","stop_condition":"Unresolved target/identity, actual drift, unavailable required safeguards or a real normal-hook denial stops only this exact preparation action. Preserve full failure and do not change executable path, actor, transport, encoding, hook/configuration, selector or confirmations to evade it.","preserved":"The source classification proof remains scoped to its captured candidate. No Product behavior test, test allowance renewal, static-check/metadata rerun, host-source release, independent acceptance or other denied-case clearance follows. Original real preparation descriptor PASS is still required before the original independent behavior selector.","handler_ownership":"Primary reports no capture/process is running, so no handler hold may wait for a nonexistent child. The actual owner coordinates only genuine captured-input conflicts with Primary; this decision grants no handler mutation or bypass."},
+      "classification_destructive_array_changed_input_continuation_20261019": {"decision_id":"WP012-MT189-DESTRUCTIVE-ARRAY-CHANGED-INPUT-GREEN-CONTINUATION-20261019","status":"SCOPED_CLASSIFIER_PROOF_INDEPENDENTLY_VERIFIED_ORIGINAL_PREPARATION_NOT_RUN","authority":"Operator full-control blocker-remediation delegation; Root and existing buddy agreed this distinct continuation after personally inspected failed proof, without resetting any original allowance.","owner":"/root/skill_patch_owner","proof_unit":"GP-MT189-NATIVE-PREPARATION-CLASSIFICATION-20261019","failure":{"artifact":"../Handshake_Artifacts/handshake-tool/gameplan-hook-classifier-20261018/hook-mt189-native-preparation-proof-result.json","bytes":127074,"sha256":"2147115af6aa7e8c41e12d19ef5f75c4c1d31bea3f0c7b65983b5c9dd07cd679","pid":61424,"exit_code":1,"tests":31,"duration_seconds":0.889,"assertion":"destructive_array in test_native_preparation_keeps_command_data_and_unknown_consumers_gated at test_gameplan.py:1366 returned no gating moments","candidate_handler_sha256":"77544fafd512d47a8336278fa3e7d7650ce511699d983d1f2ff9ca1b114cb889","candidate_test_sha256":"e5670114c061c7d794710f8bd9087e711f3a00a2319c5cc95bd3bb0f7cf15261","six_control_guards_unchanged":true},"preserved_spent":{"original_red":{"limit":1,"consumed":1},"original_green":{"limit":1,"consumed":1},"history":"Retain complete original failed results and controls; append continuation observations without overwriting or reclassifying failed evidence."},"source":"SAME Diagnostics sole author corrects only the evidenced causal classifier defect in the existing two-file source outcome; no new Source actor or permission.","before_invocation":"Freeze the actual changed causal source and test bytes, retain their hashes and the six current control guards, and obtain the existing independent nonauthor final-delta verdict. Normal current preparation must pass. Record the causal diagnosis and actual review in the existing proof producer before invoking. If a real denial occurs, retain it and stop only its exact scope.","green_continuation":{"limit":1,"consumed":1,"selector":"ClassifierInertDataRegressionTests","expected_tests":31,"scope":"One same owning focused class on the corrected stable candidate. No new RED, broader suite, unchanged rerun, payload execution or test-assertion weakening."},"existing_unspent":{"registered_data":{"limit":1,"consumed":1,"disposition":"Rebind the existing unspent full exact 24578-byte f2bcb7164f7d2980876c3b9dd7e491fdf59bb1c18b70be92a28eb73f70dd50c8 DATA case after GREEN passes; no renewal."},"independent_read":{"limit":1,"consumed":1,"disposition":"Rebind the existing unspent independent canonical read after completed exact-case proof; no renewal."}},"next":"The delegated proof owner hands this scoped verified result to SAME Primary for the original normal preparation. Preserve the original unused preparation and Product behavior allocations and exact selector; actual current preparation output must pass before original independent behavior execution. No routine Root GO or repeated classifier/static proof.","limits":"No Product behavior run, native launch, compiler, source/host adoption, role or selection change, config/trust/packet whitelist, gate bypass, false confirmation or clearing of MT060, MT192 or A5. Original mechanics behavior acceptance and every prior failure/pin remain.","actual_result":{"canonical_producer":"../Handshake_Artifacts/handshake-tool/gameplan-hook-classifier-20261018/hook-mt189-native-preparation-proof-result.json","bytes":248242,"sha256":"dda05ef253864700a06d472c3b2e4efbe815516b14cf9aac3b93af769c28cee9","handler":{"bytes":149750,"sha256":"d7c81c827749b97cc06fa89484c33f465d25241be3f7ce2dcc082a34fba10e9a"},"tests":{"bytes":201612,"sha256":"8bef3c0ab84427395b4b9d060677288ce7bcd9799489de0db6b62e53ec408e65"},"green":{"pid":72108,"exit_code":0,"tests":31,"duration_seconds":0.769},"registered_data":{"pid":47640,"exit_code":0,"stdout":"EMPTY","stderr":"EMPTY","command_bytes":24578,"command_sha256":"f2bcb7164f7d2980876c3b9dd7e491fdf59bb1c18b70be92a28eb73f70dd50c8","preparation":"PASS23/23"},"independent_verdict":{"reader":"01a14f46-9aa2-7d22-9442-7827edcf1211","status":"VERIFIED_SCOPED_CLASSIFICATION","canonical_read":"668b44","stable_post":"cb916a","fresh_controls":"de614e","scope":"Full canonical producer/source packet and actual observed requests/results, exact four-key command and registered-hook bindings, six pre/post/fresh controls verified. Prior RED and failed GREEN retained unchanged. Reused independent final source review; no new source audit or proof run.","reader_capacity_failures":"Two native reader starts failed before operations and consumed no read; the successful normal independent read consumed the existing one allowance.","read_capture_correction":"A local helper-name alias collision failed a5dca9; corrected GetReviewDigest capture succeeded de614e without retrying a policy-denied reader."},"limits":"Author/recognized DATA proof does not expose provider wire or prove whole-launcher inertness. No embedded/native/Product preparation, compiler, behavior-test, host-adoption or whole-WP acceptance is established. Earlier denied Python reader and MT060/MT192/A5 cases remain stopped separately."}}
+    }
+},
+  "source_checkpoint_result_20261018": {
+  "decision_id": "WP012-MT189-SOURCE-CHECKPOINT-RESULT-20261018",
+  "checkpoint": "SOURCE_ONLY_NOT_COMPILED",
+  "commit": "9339227c05a813600db1fa4cdb71b9b9988d5992",
+  "tree": "60a3fdc1e36189b732df155dcb8a24f8ffaecfc2",
+  "remote": "https://github.com/Nuntissura/assets.git",
+  "branch": "codex/handpick",
+  "paths": 18,
+  "executor": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+  "actual_result": "Root personally inspected original command outputs: source-only exact18-path commit, normal push, and executor canonical remote read all exit0; remote ref9339227. Original staged-diff EOF failure retained. Same source owner removed terminal0D0A only; inverse reconstructs original navigation hash; changed-input cached check passed after only navigation restage. Unrelated work preserved.",
+  "independent_readback": "Independent IV01a14c66-e01c-7551-9ee0-b913f2d6b277 completed canonical ls-remote/GitHub immutable commit+tree+18decodedblobs+exactchangedpathset:9339227/tree60a3fd confirmed, no lock.3of18 rawguards equal;15 differ only by independently verified CRLF-to-LF normalization, all18 contents reconcile. Preserve original local raw guards; do not claim exact raw-byte publication equality. No source/compiler/runtime acceptance.",
+  "compiler_or_tests_run": false,
+  "lock_generated": false,
+  "host_adoption": "HELD",
+  "acceptance": "NOT_ACCEPTED",
+  "remaining": "MT189 remains BLOCKED on lock preparation/source behavior proof. Independent canonical revision/tree/pathset and normalized contents confirmed; raw-byte equality NOT_CONFIRMED because Git published LF. Checkpoint is not source acceptance; MT190 HELD."
+},
+  "source_publication_custody_20261018": {
+    "decision_id": "WP012-MT189-SOURCE-ONLY-PUBLICATION-CUSTODY-20261018",
+    "status": "PROSPECTIVE_EXACT_ASSETS_SOURCE_CHECKPOINT_AUTHORIZED",
+    "basis": "Direct Operator refresh/five-team/modular delivery and push code before expensive Cargo; Root/Central/Primary/buddy deliberated exact source checkpoint. Actual MT189 author/assembly handback quiescent/no pending writes; direct Codecheck source review complete with no actionable extraction/API/dependency finding. No compiler/runtime proof inferred.",
+    "executor": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+    "repository": "../../.assets",
+    "remote": "https://github.com/Nuntissura/assets.git",
+    "branch": "codex/handpick",
+    "checkpoint_label": "SOURCE_ONLY_NOT_COMPILED",
+    "allowed_paths": [
+      {
+        "bytes": 271,
+        "sha256": "e62f906fa4254762b872c99c2d8fb990598939a4ad35e40cab31cb8dc517708d",
+        "path": "handshake_text_mechanics/Cargo.toml"
+      },
+      {
+        "bytes": 2732,
+        "sha256": "cdf524087e1621cdf36b7afce19918a2f08bd9a36c408c23957f4dbd7b8912c3",
+        "path": "handshake_text_mechanics/README.md"
+      },
+      {
+        "bytes": 18803,
+        "sha256": "588a7fbec0250b536f47b5eaad0f7f8f3990a747c1cd17c46d2cfb36f4543998",
+        "path": "handshake_text_mechanics/src/buffer.rs"
+      },
+      {
+        "bytes": 49498,
+        "sha256": "01bd3a9672fc6ddafe4b05deacf9f84b4ae324820df2d0b59d92bbe646ba2769",
+        "path": "handshake_text_mechanics/src/cursor.rs"
+      },
+      {
+        "bytes": 16006,
+        "sha256": "28a7591621aaf56d5782a1b84e6203d77ec6af90042199be4378b98f53dfcb26",
+        "path": "handshake_text_mechanics/src/formatting.rs"
+      },
+      {
+        "bytes": 16259,
+        "sha256": "af75bc8c9da86822ef76dbd1abca6c08f821daee91b030c9fc3e24047446c5f9",
+        "path": "handshake_text_mechanics/src/jump_history.rs"
+      },
+      {
+        "bytes": 285,
+        "sha256": "aec48a31d59c50e444b9ae2cc53a2d5c33f5723f7edbbb64f798d163cf71b872",
+        "path": "handshake_text_mechanics/src/lib.rs"
+      },
+      {
+        "bytes": 52217,
+        "sha256": "7c4716fb9c0c93d97fcf3cdb136056e41fef9a3feea5d724d38bb041d5256fd9",
+        "path": "handshake_text_mechanics/src/line_ops.rs"
+      },
+      {
+        "bytes": 1298,
+        "sha256": "4bd71abfa9b0dc73ad7a11b9a3153803d07e33b61a11371160a4e8a39e97d4a7",
+        "path": "handshake_text_mechanics/src/navigation.rs"
+      },
+      {
+        "bytes": 25113,
+        "sha256": "228f802df78986f1089b171b5c44a83a29d9ebc0a1b031b104fde31cd8eb5838",
+        "path": "handshake_text_mechanics/src/render_decorations.rs"
+      },
+      {
+        "bytes": 28715,
+        "sha256": "48ebead86816a37c2009baa7b652658401d64fbdcf973331190ac4ba29a503a0",
+        "path": "handshake_text_mechanics/src/text_intl/bidi.rs"
+      },
+      {
+        "bytes": 6415,
+        "sha256": "d898925129817de9b37cde175a286c2d56388e762aa433a638a246ed64992d1f",
+        "path": "handshake_text_mechanics/src/text_intl/counts.rs"
+      },
+      {
+        "bytes": 19110,
+        "sha256": "6814f3c687eb39b9cffbd2ec0614c5b3c14989acc9d756652114cae296496733",
+        "path": "handshake_text_mechanics/src/text_intl/grapheme.rs"
+      },
+      {
+        "bytes": 13931,
+        "sha256": "109f7cc96df1f9ba141bc53401d104adc85afadc4e4566115224345ef3ea2019",
+        "path": "handshake_text_mechanics/src/text_intl/linebreak.rs"
+      },
+      {
+        "bytes": 3916,
+        "sha256": "34a4a4293985707b67bb9b1b87de777a95ae81447210f5a38d48a47db12fb4ac",
+        "path": "handshake_text_mechanics/src/text_intl/mod.rs"
+      },
+      {
+        "bytes": 20293,
+        "sha256": "4b3686a185906da531ba9e9ff4ce36f87ef85487ee83c78fb090d8378e5d0eb9",
+        "path": "handshake_text_mechanics/src/virtual_lines.rs"
+      },
+      {
+        "bytes": 25063,
+        "sha256": "61f3c4549ebc78f1681e65f05c2c1ef835eef8b415b3d1409f1c1ee5c0857d91",
+        "path": "handshake_text_mechanics/src/word_wrap.rs"
+      },
+      {
+        "bytes": 1685,
+        "sha256": "f85d2d610701ba98fe1ecc0534d8e91beab6021b00e36c90dd2748a3b917cc45",
+        "path": "assets-index.yaml"
+      }
+    ],
+    "before_action": "Executor personally verifies canonical repo/ordinary paths/current branch/remote/current exact guards, actual scoped diff/index and normal hook state. Compare exact reviewed source against received handback. Preserve unrelated dirty/staged Assets work; no clean-tree requirement over unrelated files.",
+    "git_permission": "Sole executor may stage ONLY explicit18 paths, create normal explicit-path source checkpoint commit, and normal push ONLY existing canonical codex/handpick. Never bare commit over staged content, force/switch/reset/stash/clean/worktree/branch creation, bypass hooks, or include other files. No root Assets Cargo/workspace/lock edits.",
+    "conflict_stop": "Changed guards, unexplained owned index content, overlapping pending source work, unexpected repository/branch/remote, actual hook rejection or push failure stops that affected action and returns complete exact result. Do not retry unchanged failed action or use alternate route/author.",
+    "source_freeze": "Only these17 package files and current reviewed index delta through actual commit/push result. Team1 single index writer is quiescent; coordinate any later index updates after source checkpoint. No whole Assets or other team freeze.",
+    "proof_boundary": "Cargo.lock ABSENT and no compile/test executed. This is source-only checkpoint, not module publication acceptance or readiness. MT189 remains BLOCKED on lock preparation/source behavior proof and independent canonical remote confirmation; hostMT190 stays HELD. Generate/review/commit lock and run named source checks only after separate exact proof-owner/gameplan/artifact/resource grant.",
+    "independent_readback": "Independent IV/source validator separately rereads actual canonical GitHub revision/tree/selected bytes after push. It does not self-accept publication proof from executor and does not bypass required later source behavior proof.",
+    "custody_boundary": "Prospective Assets-only Git execution. Historical172932 delivery/consumption remains UNKNOWN; no retry/contact/replay. No Handshake product Git/manifests/locks/compiler/slot custody transfer and no Asset compiler/test/runtime/process permission.",
+    "compiler_authorized": false,
+    "tests_or_runtime_authorized": false,
+    "host_adoption_authorized": false,
+    "acceptance": "NOT_ACCEPTED"
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "created_at_utc": "2026-10-18T00:00:00Z",
+  "operator_authority": {
+    "decision": "Direct Operator2026-10-18 five-team modularization and approved blocker scope expansion after team deliberation",
+    "handoff_ref": "WP-KERNEL-012-phase02-successor-handoff-v6.json#/operator_team_refresh_and_modular_delivery_20261018",
+    "deliberation": "Actual repo/WP012 comparison, Central+Team1/2+Assets source-home/interface proposals, Root create-assets skill/live remote/index/manifests and official Cargo research inspected."
+  },
+  "authority_files": {
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "role": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+    "packet": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "spec": ".GOV/spec/SPEC_CURRENT.md"
+  },
+  "context_capsule": {
+    "original_mt_refs": [
+      "MT-050",
+      "MT-052",
+      "MT-175",
+      "MT-186"
+    ],
+    "module_maintenance_refs": [
+      "MT-189.json#/execution/module_maintenance"
+    ],
+    "pin_policy": "Original in-flight WP012896f4e15/v02.206 and all adopted amendments/source-WP pins/acceptance/history remain. New source/adoption work follows explicitly adopted current module lifecycle; no old verdict rewritten."
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "Original text-mechanics lock and static check passed; independent behavior test launch was rejected before execution, so behavior verdict and host adoption remain open. Notes find/replace and diff/merge locked static checks separately passed without executing tests.",
+    "claimed_by": null,
+    "completed_by": null,
+    "validator_verdict": null
+  },
+  "preservation": "All original WP012/CKC/WP1 obligations, native/manual/Argus/privacy/FlightRecorder/diagnostics, source pins, historical failures/spent budgets and independent acceptance remain. No new branch/worktree/backup, foreign process disruption or actual denied-action bypass.",
+  "mt_id": "MT-189",
+  "title": "Standalone canonical handshake_text_mechanics",
+  "closure_unit": {
+    "outcome": "Real independently reusable source package with behavior tests, source proof, normal canonical publication and independent remote reread, then immutable release binding for separate host adoption.",
+    "materialized_acceptance": [
+      "Public API preserves existing formatter edit order/UTF16/newline/CR/surrogate/overlap behavior with meaningful relocated owning tests.",
+      "Navigation/history use same canonical Cursor/BufferPosition; host reexports keep panel4061 caller valid without panel.rs edit.",
+      "One owner per TextBuffer/Cursor mechanic; no copied divergent host implementation or egui core dependency.",
+      "README documents public API, model use, input/output, dependencies, errors/limitations, recovery and host boundary.",
+      "Canonical assets-index.yaml entry matches actual manifest/API/docs, preserving partial coverage and Cabinet/Peak.",
+      "Independent source proof/publication/canonical remote reread names exact immutable revision and source input digest. No host integration acceptance inferred."
+    ]
+  },
+  "scope": {
+    "base_scope": [
+      "Extract existing UTF16 formatter edit mechanics using SAME canonical TextBuffer; preserve exact newline/CR/surrogate/overlap/current behavior. No MT048 byte-rename migration.",
+      "Extract BufferPosition/history around SAME canonical Cursor; keep inherent implementations with owning types or use free APIs. Preserve current history behavior."
+    ],
+    "allowed_write_paths": [
+      "../../.assets/handshake_text_mechanics/"
+    ],
+    "reference_only_paths": [
+      "src/frontend/handshake_text_mechanics/",
+      "src/frontend/handshake_native/src/code_editor/formatting.rs",
+      "src/frontend/handshake_native/src/code_editor/jump_history.rs",
+      "src/frontend/handshake_native/src/code_editor/navigation.rs"
+    ],
+    "forbidden_paths": [
+      "Handshake product source/manifests/locks",
+      "other Assets folders",
+      "new nested Git repository, submodule or repository-wide/cross-asset workspace; unchanged existing package-local [workspace] isolation stanza is allowed",
+      "host adoption before source proof/publication/reread"
+    ]
+  },
+  "execution": {
+    "module_change_stage": "standalone_source",
+    "product_worktree": "../../.assets",
+    "source_repository": "https://github.com/Nuntissura/assets.git",
+    "declared_existing_branch": "codex/handpick",
+    "module_maintenance": {
+      "module_id": "handshake_text_mechanics",
+      "canonical_repository": "https://github.com/Nuntissura/assets.git",
+      "canonical_path": "handshake_text_mechanics",
+      "maintainer": "01a14c72-1989-7ed2-aedc-326199f80ed4",
+      "public_api": "Single canonical TextBuffer/Cursor/positions/line mechanics; formatter UTF16 edits and history public API. Keep byte-rename semantics separate.",
+      "dependency_direction": "Preserve existing ecolor0.33 default-features=false, ropey1.6, unicode-segmentation1.13, unicode-linebreak0.1, unicode-bidi0.3. No egui/Gutter/LSP runtime dependency or ownership cycle.",
+      "inputs": [
+        "src/frontend/handshake_text_mechanics/",
+        "src/frontend/handshake_native/src/code_editor/formatting.rs",
+        "src/frontend/handshake_native/src/code_editor/jump_history.rs",
+        "src/frontend/handshake_native/src/code_editor/navigation.rs"
+      ],
+      "outputs": [
+        "handshake_text_mechanics/Cargo.toml",
+        "handshake_text_mechanics/README.md",
+        "public source and owning behavior tests",
+        "immutable source revision/proof/independent reread"
+      ],
+      "gui_boundary": "Native GUI rendering/styling/framework event decode remains host; reusable core logic exposes state/actions/results. No egui core dependency.",
+      "recovery": "Preserve previous host implementation/pin until separate adoption; new package has no authority over host auth/storage/controller/fixture."
+    },
+    "assignments": [
+      {
+        "actor": "/root/formatting_coder",
+        "files": [
+          "src/formatting.rs"
+        ],
+        "outcome": "Extract existing UTF16 formatter edit mechanics using SAME canonical TextBuffer; preserve exact newline/CR/surrogate/overlap/current behavior. No MT048 byte-rename migration."
+      },
+      {
+        "actor": "/root/navigation_coder",
+        "files": [
+          "src/navigation.rs",
+          "src/jump_history.rs"
+        ],
+        "outcome": "Extract BufferPosition/history around SAME canonical Cursor; keep inherent implementations with owning types or use free APIs. Preserve current history behavior."
+      }
+    ],
+    "assembly": "Team1 leader owns ONLY new asset Cargo.toml, Cargo.lock, README.md, src/lib.rs and copied baseline closure src/{buffer,cursor,line_ops,virtual_lines,render_decorations,word_wrap}.rs and src/text_intl/{mod,linebreak,grapheme,counts,bidi}.rs. It assembles author modules through lib.rs. No other actor edits these paths.",
+    "index_owner": "Team1 leader01a14c72-1989-7ed2-aedc-326199f80ed4 is SOLE writer of ../../.assets/assets-index.yaml for all three entries; preserve schema assets.index.v1, partial coverage and existing Cabinet/Peak. No unrelated index/catalog work.",
+    "ownership": "New target folders were inspected ABSENT. Source writers obtain actual before-write guards/ordinary path checks and preserve any newly observed work. This grants only new package paths; no old host source lease transfer. One writer per shared manifest/lib/index.",
+    "parallel_authoring": "Text source and rich source packages are disjoint. Model and formatting may be authored in parallel using existing stable model API; dependency correctness is checked on actual assembled source before proof, not an authoring predecessor.",
+    "source_write_authorized": true,
+    "start": "Central routes this exact contract and separately issues SOURCE START to named team writers/assembly owner after current guards. Actual source patches plus meaningful existing public API tests/docs required; no placeholder-only deliverable. No additional human GO or whole-parent committee.",
+    "review": "Team NEVERAUTHOR/dependency specialists inspect actual API/imports/features/manifests/tests and source diff; direct Codecheck team review BEFORE expensive Cargo. Findings resolved on actual changes, no repeated closed reviews.",
+    "tests_or_compiler_authorized": false,
+    "git_execution_authorized": false,
+    "proof_start": "Required commands below define acceptance, NOT immediate run allowance. Root/Primary assigns exact source-proof owner/gameplan/artifact root and reviewed stable source before any compile/test/publication; existing compiler/finite holds are not bypassed.",
+    "source_adoption": {
+      "host_mt": "MT-190",
+      "host_write_predecessor": "Independent source behavior proof, normal canonical GitHub publication and independent remote reread at same immutable revision; no source-source serial authoring gate."
+    }
+  },
+  "validation": {
+    "required_source_commands": [
+      "cargo check --manifest-path handshake_text_mechanics/Cargo.toml --locked --tests -j 1",
+      "cargo test --manifest-path handshake_text_mechanics/Cargo.toml --locked -j 1"
+    ],
+    "working_directory": "Verified canonical Assets repository root",
+    "requirements": "Use only meaningful owning tests, nonzero actual results, exact source digest/lock/feature inputs, existing required gameplan and verified artifact paths. New package lock generation belongs assigned sole source manifest/proof owner, not worker Cargo.",
+    "independent_acceptance_owner": "01a14c66-e01c-7551-9ee0-b913f2d6b277 or exact independently assigned source validator; implementers never self-accept",
+    "proof_records": [
+      {
+        "record_id": "MT189-TEXT-MECHANICS-STATIC-0702255-20261018",
+        "kind": "IMPLEMENTER_STATIC_SOURCE_CHECK",
+        "executor": "/root/mt189_source_proof_executor",
+        "executor_role": "kernel_builder",
+        "covers": ["MT-189"],
+        "scope": "Original standalone handshake_text_mechanics static compilation only; independent behavior/source verdict remains open.",
+        "command": "cargo check --manifest-path handshake_text_mechanics/Cargo.toml --locked --tests -j 1",
+        "working_directory": "../../.assets",
+        "commit": "070225584228143e8454a19fe7b86123f5d3b486",
+        "tree": "c76cdd6ca1d3feead375b69eeac292a4726a9bad",
+        "exit_code": 0,
+        "inputs": "Eighteen source guards unchanged before/after; lock SHA256255a757d6a6137ddf43d2d4d56d25053342019fa919f5ea865072f142e1cb434/1910 bytes. Later independent canonical readbacks confirm those source/lock blobs unchanged; reuse without another check.",
+        "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/primary-source/source-check-proof.json",
+        "runtime_tests_executed": false,
+        "source_acceptance": "NOT_ACCEPTED"
+      },
+      {
+        "record_id": "MT189-NOTES-FIND-REPLACE-LOCKED-STATIC-20261018",
+        "kind": "IMPLEMENTER_STATIC_SOURCE_CHECK",
+        "executor": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+        "executor_role": "kernel_builder",
+        "covers": ["MT-189"],
+        "scope_ref": "MT-189.json#/notes_source_extension_20261018",
+        "scope": "Only Notes/handshake_find_replace and its canonical text-mechanics dependency; no original text-mechanics behavior verdict or host adoption.",
+        "command": "cargo check --manifest-path Notes/handshake_find_replace/Cargo.toml --locked --tests -j 1",
+        "working_directory": "../../.assets",
+        "checked_source_commit": "ca9bc84c1f7f3fa71cd4728774e16f7b57e6129f",
+        "checked_source_tree": "27819e001f40dc3b91e483481f14ea4cb2a8a923",
+        "additional_checked_lock": {"path": "Notes/handshake_find_replace/Cargo.lock", "sha256": "d6b39af2b71fbc815189cee16153dca4f68ca5da78e48b5b4616069b73b96e10", "bytes": 3180, "git_blob": "f0101cefa5fc107aabfb5151d932a9be98fb9faa", "package_nodes": {"total": 15, "registry": 13, "local": 2}},
+        "exit_code": 0,
+        "owned_process": {"pid": 8620, "birth_utc": "2026-10-18T03:45:12.6159649Z", "result": "Numeric exit0 retained; postcheck compiler snapshot empty, no foreign process control."},
+        "source_binding": {"captured_source_rows": 23, "postcheck_drift": [], "input_manifest_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/inputs-before-lock.json", "input_manifest_sha256": "b798128dd23e70f1c62e6acc682b478b37e4b5fac7911c8c0527ccb4e935a70d"},
+        "artifact_refs": {"proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/static-proof.json", "proof_sha256": "bcf82d83ca794f0484b3f45b7a6de4357ef28d7f23a449ccc0932d0200e3a1ad", "result": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/check-result.json", "result_sha256": "e3360f51fb75a5f4c31296927554a89b980d8ed82f3f19c97cc5a551cceee7ad", "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/logs/check.stderr.log"},
+        "publication": {"commit": "f13eb354170a172e0e696b8ae70fe7c4b1a360d8", "tree": "59e0a11942bae6d1f4b22702e4e7d9c01d97801f", "parent": "ca9bc84c1f7f3fa71cd4728774e16f7b57e6129f", "delta": "Only the same checked lock bytes were added; no compiler rerun.", "independent_canonical_readback": "IV verified exact one-path delta, immutable commit/tree/parent and raw lock/blob identity; all prior source blobs unchanged. Publication verification is not independent compiler execution or behavior proof."},
+        "observation": "Root opened full proof/result, actual Finished dev-profile log and artifact digests. Private source gameplan4/4 passed; normal command boundary allowed. Original MT189 test and Team3 source-write denials remain unchanged.",
+        "runtime_tests_executed": false,
+        "source_acceptance": "NOT_ACCEPTED",
+        "host_acceptance": "NOT_ACCEPTED"
+      },
+      {
+        "record_id": "MT189-NOTES-DIFF-MERGE-LOCKED-STATIC-20261018",
+        "kind": "IMPLEMENTER_STATIC_SOURCE_CHECK",
+        "executor": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+        "scope_ref": "MT-189.json#/notes_source_extension_20261018",
+        "command": "cargo check --manifest-path Notes/handshake_diff_merge/Cargo.toml --locked --tests -j 1",
+        "working_directory": "../../.assets",
+        "checked_source_commit": "743f42dd63dda7d4a718cf725bc1f6e70c850688",
+        "additional_checked_lock": {"path": "Notes/handshake_diff_merge/Cargo.lock", "sha256": "4d6f6b6602e83dee6109e2df581d9e8af74302cc07d3f959e1c1c322ea56a915", "bytes": 4689, "git_blob": "a96a12316f811b5f1c55ca312dd31dd6b1616656", "package_nodes": {"total": 22, "registry": 20, "local": 2}},
+        "exit_code": 0,
+        "owned_process": {"pid": 38168, "birth_utc": "2026-10-18T04:06:33.0383121Z", "numeric_exit": 0, "postcheck_compilers": []},
+        "source_binding": {"captured_source_rows": 23, "postcheck_drift": [], "input_manifest_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/diff-merge/inputs-before-lock.json", "input_manifest_sha256": "86a3133a1fc66bbb3a9d04309ef1785966a60fb807e469c655561c9cb56ba496"},
+        "artifact_refs": {"proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/diff-merge/static-proof.json", "proof_sha256": "4a68bfae3eb8d6950e62f97dd46c56c3b28f061021aa225d4572b1a8b17ece06", "result": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/diff-merge/check-result.json", "result_sha256": "9fee273ccdc6a98824a2df65b2b7dadee3119209112d39565e9c41a0dc2e0c1c", "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/diff-merge/logs/check.stderr.log"},
+        "publication": {"commit": "2be0e3e9d9b8114aa7b1566af43766cd62bb4bb6", "tree": "388d09309679b069992c622e42afece2a3bbcaa0", "parent": "743f42dd63dda7d4a718cf725bc1f6e70c850688", "delta": "Only the same checked lock bytes were added; no repeated compiler invocation.", "independent_canonical_readback": "IV independently verified complete canonical trees, the exact one-path delta, decoded blob identity, SHA/bytes and all earlier blobs unchanged. Publication evidence only."},
+        "root_inspection": "Root opened the full proof/result and actual Finished dev-profile log and obtained artifact digests. First find/replace artifacts are preserved; no denied test retry.",
+        "runtime_tests_executed": false,
+        "source_acceptance": "NOT_ACCEPTED",
+        "host_acceptance": "NOT_ACCEPTED"
+      },
+      {
+        "record_id": "MT189-NOTES-CODE-STRUCTURE-LOCKED-STATIC-20261018",
+        "kind": "IMPLEMENTER_STATIC_SOURCE_CHECK",
+        "executor": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+        "scope_ref": "MT-189.json#/standalone_source_proof_dispatch_20261018/code_structure_source_proof_20261018",
+        "command": "cargo check --manifest-path Notes/handshake_code_structure/Cargo.toml --locked --tests -j 1",
+        "working_directory": "../../.assets",
+        "checked_source_commit": "2be0e3e9d9b8114aa7b1566af43766cd62bb4bb6",
+        "additional_checked_lock": {"path": "Notes/handshake_code_structure/Cargo.lock", "sha256": "43e9bd3e65666bb714919730b40c2baf5a5fb7e0132c52ac354f88e4075ac1cc", "bytes": 8198, "git_blob": "8d83c489698dd63a51b4c1c460ef0e606591ec14", "package_nodes": {"total": 37, "registry": 35, "local": 2}},
+        "exit_code": 0,
+        "owned_process": {"pid": 46944, "birth_utc": "2026-10-18T04:40:08.7512617Z", "numeric_exit": 0, "cpu_class_observed": 32, "memory_io_priority": "NOT_OBSERVED_BEFORE_EXIT"},
+        "source_binding": {"captured_source_rows": 25, "postcheck_drift": [], "input_manifest_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/code-structure/inputs-before-lock.json", "input_manifest_sha256": "095f263b3f3bfd0d588c58af616173b89574257876c53b5e2b404b786d4099de"},
+        "artifact_refs": {"proof": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/code-structure/static-proof.json", "proof_sha256": "25c5af975821fdd63f40c6e453d2f7c4ac885da0710749aedf1d8a74a83198a3", "result": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/code-structure/check-result.json", "result_sha256": "c5f09c655ad0aa76b3ce3a19cd3bb5510f6d651abc57fa0770a5465c2274fdcb", "log": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/code-structure/logs/check.stderr.log"},
+        "publication": {"commit": "c92c67b7f6dc122a27f436c7966ccfd653d79519", "tree": "7646ff706fb88f25db55a2ac4013be7a044770ca", "parent": "2be0e3e9d9b8114aa7b1566af43766cd62bb4bb6", "delta": "Only the same checked lock bytes were added; normal commit/push and fresh remote equality, no repeated compiler invocation.", "independent_canonical_readback": "IV independently verified exact one-path delta, complete canonical trees, decoded lock/blob/SHA/8198bytes and unchanged earlier blobs. Publication identity proof only."},
+        "root_inspection": "Root opened full proof/result and actual Finished dev-profile log17.32s and obtained artifact digests. Direct Codecheck inspected all35 registry checksums. Memory/IO priority observation was missed after process exit and remains unproven; no inference or repeat check.",
+        "runtime_tests_executed": false,
+        "source_acceptance": "NOT_ACCEPTED",
+        "host_acceptance": "NOT_ACCEPTED"
+      }
+    ]
+  },
+  "research_basis": {
+    "sources": [
+      "https://doc.rust-lang.org/cargo/reference/resolver.html#feature-resolver-version-2",
+      "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#integration-tests",
+      "https://doc.rust-lang.org/cargo/reference/workspaces.html"
+    ],
+    "selected": "Existing exact crate identities as contained standalone source; narrow production dependencies and owning tests; GUI/host policy stay host.",
+    "rejected": "Resolver-only fix, separate test files as dependency isolation, root workspace/nested repo creation, duplicated TextBuffer mechanics, host-first fork.",
+    "risks_and_controls": "UTF16/byte and cursor ownership drift=>retain exact existing semantics/API tests; heavy feature leaks=>inspect actual manifests/callers; index conflict=>single writer; host divergence=>source proof/publication/reread before immutable adoption. No measured build speedup claimed."
+  }
+}

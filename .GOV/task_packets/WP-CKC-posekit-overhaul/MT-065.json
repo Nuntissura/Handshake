@@ -245,5 +245,186 @@
       "atelier-ckc-template-status",
       "atelier-ckc-typed-ref-kind"
     ]
-  }
+  },
+    "existing_target_moodboard_story_restoration_source_admission_20261015": {
+      "decision_id": "WP012-CKC-MT065-EXISTING-TARGET-MOODBOARD-STORY-RESTORATION-SOURCE-ADMISSION-20261015",
+      "status": "SOURCE_ONLY_IMPLEMENTATION_RELEASED_EXECUTION_HELD",
+      "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+      "leader_chat": "01a13d23-507b-7fa2-b94e-31d57ff26584",
+      "product_worktree": "../wtc-WP-KERNEL-012",
+      "authority_refs": [
+        "MT-065.json#/scope",
+        "MT-065.json#/widget_ids",
+        "MT-066.json#/scope"
+      ],
+      "assignments": [
+        {
+          "writer": "/root/manual_component_readiness",
+          "thread": "01a13d24-0249-7940-abdd-ab3efab3e27e",
+          "existing_only_path": "src/frontend/handshake_native/tests/test_canvas_board_argus.rs",
+          "before_sha256": "ba3acb277f2e5e8bbf285f29553625573c65061fc07807a9ca391052748c6d33",
+          "proposed_selectors": [
+            "mt065_mounted_ckc_moodboard_argus_inspect_steer_reobserve"
+          ],
+          "scope": "Actual linked Story/Mood controls/open/reopen/save/mounted native reconnect/state, AccessKit/list_widgets/canonical Argus inspect/steer/reobserve/typed rejects. ALL128 immutable original IDs over appropriate actual states, never only Mood subset or Canvas relabel."
+        },
+        {
+          "writer": "/root/layout_restore_test_writer",
+          "thread": "01a13d88-49b4-78c1-a634-9725feef9ecb",
+          "existing_only_path": "src/frontend/handshake_native/tests/test_ckc_embed.rs",
+          "before_sha256": "9820e0065dcd2173b21f149dbc5a40509263074b9cb3bc27b751c5eb3d96e692",
+          "proposed_selectors": [
+            "mt065_story_moodboard_link_refs_persist_across_authenticated_client_reconnect",
+            "mt065_story_moodboard_rejections_preserve_refs_versions_and_hash"
+          ],
+          "scope": "Actual authenticated document/snapshot setup then fresh authenticated SAME-backend client independent ref/version/raw JSON/content SHA/link reread; stale parent/wrong-story unchanged. Client reconnect does NOT prove mounted native reconnect."
+        }
+      ],
+      "distinct_nonauthor_checker": {
+        "role": "/root/dependency_readiness",
+        "thread": "01a13d23-dbcc-7c80-9470-4571519fa1b2"
+      },
+      "prospective_ownership": "Exact WHOLE-file leases only for named authors. Prior overall owner UNKNOWN retained, no global-free claim. Before write require Central actual assignment/no known competing unfinished writer plus fresh matching full preimage. Drift/conflict stops affected file only; preserve peers, no foreign stop/reset/revert.",
+      "genuine_setup": "Reuse quiet headless native egui ScreenshotHarness, production HandshakeApp plus managed REAL Surreal LiveBackend and genuine account-preserving CanonicalArgusDriver::bind_in_current_app_data. No synthetic auth/runtime substitutes.",
+      "all128_ids": "Existing /widget_ids/ids ALL128 exact strings remain immutable and unchanged. This source admission does not establish their implementation, visibility or acceptance.",
+      "existing_proof_conservation": "Preserve ALL existing Canvas/MT026 and MT033 embed/Stage/undo/events tests and assertions; no source/full128/acceptance claim from this record.",
+      "known_missing_assertions": "Exact canonical Story/Mood event-family/aggregate/public-readback/action assertion seam is NOT_EXPOSED from retained inputs, not a repository absence claim. Supported UI/backend source START permitted now; missing assertions explicitly BLOCKED, never skipped/ignored/synthesized or substituted by generic-native-editor-event, receipt JSON or FlightRecorder.",
+      "bounded_followup": "Central/Diagnostics ONE bounded actual named producer/readback inspection returns verified map or smallest separately owned source-repair proposal. Existing ExpectedArgusSurface fixed7 excludes Atelier: no relabel or invented helper expectation. Missing helper/control seam requires separate minimal proposal.",
+      "shared_integration_hold": "Primary alone any shared registration/manifest/export changes under separate exact grant. Current NativeCargo supplied b9a50aeb8504ca20f70c5079f15379305051b39a625cf9eb17638794b044c532 is binding only, not writer authority. No helper/library/product source paths added.",
+      "MT066_preservation": "Full original events/exports/required-feature registration, all11 overview tables, schema shared batch, manual mappings, once-per-batch broad proof and independent integration remain. Original schema165 before166 and historical164 preserved. MT066 unchanged. No new exact Validation-payload runtime gate merely for mechanical extraction.",
+      "review": "Own and DISTINCT actual assembled changed sources/setup/callers/failure/type/borrow/lifetime/ownership/dependency/assertion conservation review, resolve actual findings then leader DIRECT codecheck before publication. Proposed selectors require future exact nonzero binding and execution admission.",
+      "execution_authorized": false,
+      "proof_started": false,
+      "allowance_granted": false,
+      "limits": "No Cargo/tests/metadata/actual SQL/runtime/OS/probes/Git/artifact writes, finite allowance, acceptance or other source authority. Original status/proof commands/history/all128 IDs/all three-WP obligations/pins/budgets preserved. Actual leader proposal and original obligations are inputs, not permission beyond these TWO files.",
+        "primary_canonical_argus_list_widgets_alias_source_amendment_20261015": {
+          "decision_id": "WP012-CKC-MT065-PRIMARY-CANONICAL-ARGUS-LIST-WIDGETS-ALIAS-SOURCE-AMENDMENT-20261015",
+          "status": "SOURCE_ONLY_HELPER_IMPLEMENTATION_RELEASED_EXECUTION_HELD",
+          "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+          "physical_writer": "PRIMARY_PERSONALLY",
+          "writer_chat": "01a13d2a-fbcb-7ce2-b8e7-9dcb7ce2984a",
+          "only_path": "src/frontend/handshake_native/tests/native_gui_support/canonical_argus_driver.rs",
+          "before_sha256": "a31379c0605c42933e28e1edc85f97f9840597c713325c1e105e3c4403e9c939",
+          "before_bytes": 52708,
+          "planned_after_sha256": "02848ad1d43aa5af502a05247aef7a49e2b8703f3192539643bd07f327de9886",
+          "planned_after_bytes": 53000,
+          "line_endings": "CRLF",
+          "exact_delta": {
+            "location": "After public inspect, before private inspect_until_receipt_terminal.",
+            "literal_lf_convert_to_crlf": "    pub fn list_widgets(\n        &mut self,\n        harness: &mut egui_kittest::Harness<'_, HandshakeApp>,\n    ) -> serde_json::Value {\n        harness.state_mut().capture_mcp_snapshot_for_navigation();\n        self.rpc(\"list_widgets\", serde_json::json!({}))[\"result\"].clone()\n    }\n\n",
+            "inserted_bytes_crlf": 292,
+            "inverse": "Remove ONLY this exact292-byte insertion to reproduce entire a31379 preimage. Every other byte unchanged; planned postimage is not observed application."
+          },
+          "authority_evidence": "Root received buddy recommendation, actual distinct Native preflight and Primary personal sole-writer ACK. Known Native A/B own only the two admitted test files; no global-free claim.",
+          "fresh_guard": "Before physical write require full matching preimage and actual no known competing unfinished writer. Drift/conflict stops ONLY helper; preserve all peer edits, no reset/revert/foreign-writer stop.",
+          "existing_alias_semantics": "Actual mcp/argus.rs446 LEGACY_INSPECT_METHOD=list_widgets;464 maps alias and canonical method to Inspect. Same snapshot and private authenticated rpc; existing rpc asserts JSON-RPC errors and connect/write/decode panics. Same missing-result Value::Null semantics as inspect.",
+          "owning_caller_obligation": "Null is NOT success. Existing A actual caller must reject null/missing/malformed evidence and assert verified tree/ID shape plus ALL128 IDs across appropriate actual states. No invented list-array/shape or new acceptance gate.",
+          "boundary": "Legacy wire path through SAME producer, not independent state proof/new MCP tool/fixed7 extension/raw RPC/credential or account access. Missing event seam remains separate.",
+          "review": {
+            "actual_preflight_checker": "/root/dependency_readiness",
+            "checker_thread": "01a13d23-dbcc-7c80-9470-4571519fa1b2",
+            "actual_preflight": "Signature/owned return/borrow/account/error CLEAR.",
+            "after_write": "Actual Primary posts/inverse plus assembled caller/ownership/error/type/borrow source check, then Primary/leader DIRECT codecheck under existing workflow before publication. No duplicate producer review or runtime acceptance."
+          },
+          "preservation": "Existing A/B exact source leases and all128 IDs/full original MT065/MT066 events/schema165 before166/history/pins/budgets/independent acceptance retained. No other helper/caller source granted.",
+          "execution_authorized": false,
+          "proof_started": false,
+          "allowance_granted": false,
+          "limits": "No other helper/caller/manifest/lock/Git/artifact/actual SQL/test/Cargo/runtime/OS/metadata/probe/budget authority. Kernel record only; no code file created or product inspection/write."
+        },
+        "canonical_moodboard_event_count_source_admission_20261015": {
+          "decision_id": "WP012-CKC-MT065-CANONICAL-MOODBOARD-EVENT-COUNT-SOURCE-ADMISSION-20261015",
+          "status": "SOURCE_ONLY_IMPLEMENTATION_RELEASED_EXECUTION_HELD",
+          "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+          "only_path": "src/backend/handshake_core/src/api/atelier.rs",
+          "before_sha256": "af77e0d6d4db76369786da61fe2e2190132bc8bc4846fbe9d6d8ed7b3b027f46",
+          "before_bytes": 51283,
+          "planned_after_sha256": "8cbd34368640dabe92744423736557993af60a7136b7695a2aae954fe26a42a5",
+          "planned_after_bytes": 53211,
+          "line_endings": "LF",
+          "product_worktree": "../wtc-WP-KERNEL-012",
+          "exclusive_writer": {
+            "role": "/root/consumer_error_provenance",
+            "thread": "01a13d28-4c8d-7ca2-8dc2-274edd77a29d",
+            "leader": "01a13d27-c380-7833-9eab-781378e2db92"
+          },
+          "distinct_nonauthor": {
+            "role": "/root/dependency_preflight",
+            "thread": "01a13d28-6607-7a60-ba00-e9efeda858c9"
+          },
+          "authority_evidence": "Central selected exact prospective writer. Actual author/checker availability ACK plus distinct SIX-patch type/default/visibility/binding/inverse proposal review received. This is proposal review, NOT actual implementation clearance. Exact full NAV proposal and six unique replacements already held by author; no Root-created product code or observed postimage.",
+          "ownership": "Historical functional owner UNKNOWN preserved. Primary/Diagnostics/NAV actual teams report no current whole-file lease/unfinished/unreturned/inflight patch; not global-free proof. This saved child establishes NEW prospective exclusive whole-file source assignment only for exact six-patch scope.",
+          "fresh_guards": "Fresh full matching preimage plus no known specific competing unfinished writer before write; drift/conflict stops only affected path and exact rebase preserves peers. No ghost historical ACK predecessor or peer reset/revert.",
+          "exact_six_patch_scope": [
+            "Import Query and add private OverviewQuery{moodboard_document_id:Option<Uuid>}.",
+            "Add private MoodboardSnapshotEventCount{document_id:Uuid,event_family:String,count:i64}.",
+            "Add optional response field with skip_serializing_if None; absent query/default response unchanged and new field absent.",
+            "Existing overview gains Query extractor, SAME Read authority plus conditional supplied actor mismatch -> Validation BEFORE as_account.",
+            "overview_as_account accepts optional ID; as_account-scoped get_character_document visibility plus require Moodboard type BEFORE count. Fixed existing MOODBOARD_SNAPSHOT_RECORDED family atelier.moodboard.snapshot_recorded, fixed aggregate atelier_character_document, bound actual document UUID.",
+            "Assign optional typed count response. Retain actual full19 table allowlist/query/event_families/tracing and EVERY other byte; full six-patch inverse must reproduce entire af77 preimage."
+          ],
+          "prohibited_expansion": "No dynamic family/type/filter/SQL/general query/raw payload/private DB bridge/new endpoint/grant/backend_client/helper/manifest changes. Preserve original MT065/066 eleven-table acceptance too; no table-list reduction.",
+          "native_consumers": "Existing TWO Native test writers consume through SAME-backend genuine authenticated fixture_request within own existing leases AFTER actual physical API source and checks. Exact occurrence ONLY; pair with typed independent document/version/raw JSON/content SHA/refs reads and dedup/rejection unchanged. No extra Native source path granted.",
+          "count_evidence_limits": "Count is NOT payload/actor/causation/kernel/FlightRecorder/same-transaction or mounted proof. Original MT059 same-transaction Story repair remains independent, not supplied by this count.",
+          "review": "Own plus DISTINCT actual changed API/callers/auth/visibility/default/error/type/borrow review, actual postimage/full inverse, resolve findings then leader DIRECT codecheck01a13d18-8ae0-7642-a76f-04cf3836ea3a before publication. No implementation/source acceptance from preflight.",
+          "preservation": "All128 IDs/full MT012/065/066 tables/events/exports/registration/manual/schema165 before166/history/pins/budgets/all three-WP obligations/independent IV unchanged. Primary shared integration/manifests/locks/Git/compiler authority retained.",
+          "execution_authorized": false,
+          "proof_started": false,
+          "allowance_granted": false,
+          "limits": "No Git/Cargo/tests/actual SQL/runtime/OS/metadata/probes/artifact/finite allowance or acceptance. Kernel record only, no product inspection or edits. Root independent read before START."
+        },
+        "panel_claim_applied_observer_source_admission_20261015": {
+          "decision_id": "WP012-CKC-MT065-PANEL-CLAIM-APPLIED-OBSERVER-SOURCE-ADMISSION-20261015",
+          "status": "SOURCE_ONLY_IMPLEMENTATION_RELEASED_EXECUTION_HELD",
+          "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+          "product_worktree": "../wtc-WP-KERNEL-012",
+          "only_path": "src/frontend/handshake_native/src/atelier_panel.rs",
+          "before_sha256": "73ba256dae5b8ff953d090b31ee97d7a829a0b65ccc8ddf6bee3a6a4b9ed5341",
+          "exclusive_writer": {
+            "role": "/root/pane_integration_readiness",
+            "thread": "01a13d24-7fc7-7652-875e-922d4f3c3b8e",
+            "leader_chat": "01a13d23-bee7-73a1-a9ac-e0b50db5ca93"
+          },
+          "distinct_nonauthor": {
+            "role": "/root/dependency_readiness",
+            "thread": "01a13d24-5288-78b3-85fd-c6fd84df386e"
+          },
+          "ownership_and_readiness": "Actual author plus distinct contract complete, no prior write, prepared/quiescent. Historical overall owner UNKNOWN retained, not globally free. Root prospectively assigns this ONE exclusive writer conditional no actual conflict. Fresh matching whole-file guard/no specific competing unfinished writer before physical write; drift stops affected path, preserve peers and every unrelated byte.",
+          "private_runtime_state": "Private per-runtime context String using existing Uuid::new_v4; generation u64 initially0; frozen claim Option<(Option<u64>,actor,session,thread,rawTTL,semantic)>; observer Option<String>. Existing rebind replaces runtime and resets NEW cells. Do not invent auth accessor or guarantee in-place auth-loss invalidation.",
+          "controls_and_retention": "SAME FOUR TextEdit controls gain add_enabled(!claim_pending), with SAME IDs/labels. Freeze genuine pending inputs. Explicit changed outside pending clears claim and observer, NOT generation. Retain terminal frozen strings until next claim/input edit/runtime replacement. Unrelated Read/Release/Receipt cannot acknowledge or clear Claim.",
+          "existing_imports_only": "Existing mcp::action serializers/ClickCompletionState ONLY imports; no helper or new API.",
+          "claim_preflight": "Existing Claim author ID/status observer ID/context UUID. Checked generation+1 plus request sequence+1 and serialization of BOTH successor target AND Pending observer BEFORE enabled/dispatch. Overflow/token preflight leaves BOTH states unchanged/fail closed, never vanilla click fallback.",
+          "click_and_ttl": "On click freeze owned strings plus semantic JSON tuple; existing DispatchClaim uses SAME frozen inputs and ONCE-parsed TTL. Invalid TTL preserves existing visible error and matching Failed generation+1 with request None, no fake backend call. Reemit BOTH actual button target plus observer generation+1 AFTER same-frame click INCLUDING invalid TTL, never old-generation target.",
+          "matching_result": "Matching drain ONLY actual request-ID tuple before clearing active. Actual returned nonempty claim_id plus EXACT actor/session/thread, active/unexpired, mode EXACT exclusive_lease -> Applied with actual lease ID/expiry JSON. Other Ok or mismatch -> local Failed, NEVER Applied. Actual Err -> visible error plus bounded escaped ACTUAL error Failed, no pattern inference.",
+          "status_node": "Preserve human status-label text/style. SAME status author node machine value uses stored observer or initial Ready rather than plain human status. Mutable guards/owned clones avoid borrow conflicts.",
+          "serializer_budgets": "EXACT existing byte budgets: context512, semantic/detail2048, error1024. Error bounded escaped ASCII prefix1024; never truncate success identity. Oversized/unrepresentable success detail -> local Failed, NEVER Applied.",
+          "global_pending_truth": "Explicit Root disposition: preserve truthful global pending/actually enabled target. Unrelated intervening request may invalidate completion -> existing honest Indeterminate. Never fake enabled/ACK/Applied or block other actions indefinitely. Strict uninterrupted fixture ClaimApplied plus actual lease remains UNCHANGED. No runtime proof/automatic interruption absence/guaranteed receipt-survival claim. Any stronger original concurrency requirement remains OPEN, not waived.",
+          "scope_limit": "ONLY panel private state/FOUR controls/existing Claim/status/backend-result observer. No test/consumer/endpoint/IDs/receipt/auth API/MCP action/manifest/lock/other file permission. Original same IDs/visible behavior retained except exact admitted producer completion state.",
+          "review": "Own plus DISTINCT ACTUAL changed source/callers/types/failure/lifetime/generation/result-identity/diff checks, repair findings then GUI leader DIRECT codecheck01a13d18-8ae0-7642-a76f-04cf3836ea3a before publication.",
+          "preservation": "All128 native/full original MT065/066/events/atomicity/runtime/independent IV/full three-WP scope/pins/history/budgets remain required. Existing test leases/assertions unchanged. Correct owning contract is CKC MT065; no unrelated WP012 MT065 edit.",
+          "execution_authorized": false,
+          "proof_started": false,
+          "allowance_granted": false,
+          "limits": "No Cargo/tests/actual SQL/runtime/metadata/probes/OS/Git/artifact/budget/acceptance. No new roles/ACK/audit/helper/API; kernel source-admission record only, no product inspection/write.",
+            "finite_counter_exhaustion_source_disposition_20261015": {
+              "decision_id": "WP012-CKC-MT065-FINITE-COUNTER-EXHAUSTION-SOURCE-DISPOSITION-20261015",
+              "status": "SOURCE_ONLY_COUNTER_EXHAUSTION_DISPOSITION_EXECUTION_HELD",
+              "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+              "actual_source_observation": {
+                "panel_sha256": "6f307a0d4e3a13a43dbc383ea424f014ec8a43af359e9a842f64960026620988",
+                "panel_bytes": 834683,
+                "own_source_checks": "ELEVEN hunks/full inverse to73ba; actual distinct counterexample inspected. Reported evidence, no kernel product inspection."
+              },
+              "actual_counterexample": "Generation MAX-1->MAX OR request MAX-1->MAX yields genuine LeaseApplied, but NEXT frame checked next-dispatch None disables persistent Claim; existing consumer honestly returns Indeterminate even uninterrupted. This was NOT covered by prior interference admission; do not retroactively claim it was.",
+              "selected_source_disposition": "Root explicitly adopts fail-closed NEW dispatch plus truthful Indeterminate at finite counter exhaustion, preserving ACTUAL lease and human status. No fake enabled/ACK/reset/wrap/replay or reserve+2 shifting the frontier.",
+              "implementation_scope": "No additional implementation write needed IF current admitted source already matches. Scope clarification only; finish exact source conservation/own plus DISTINCT review and leader DIRECT codecheck before publication. No new source paths or extra patch authority.",
+              "proof_preservation": "Fresh start0 STRICT ClaimApplied plus actual active lease fixture UNCHANGED. No claim all uninterrupted cases, counter-edge PASS or universal receipt guarantee. Stronger original receipt/concurrency acceptance remains OPEN/not waived; no acceptance-floor weakening.",
+              "original_obligations": "All128 IDs/full MT065/066/full three-WP runtime/events/independent IV/pins/history/budgets retain. Existing prior scope/lease/status unchanged.",
+              "execution_authorized": false,
+              "proof_started": false,
+              "allowance_granted": false,
+              "limits": "No new ACK API/consumer/test/helper/IDs/other file/Git/execute/Cargo/actual SQL/runtime/metadata/probe/artifact/budget permission. Kernel record only; preserve peers."
+            }
+        }
+    }
 }

@@ -793,5 +793,500 @@
     "backend_build_profile": "dev + allow-listed dependency opt-level override (see decision)",
     "verdict_labelling": "every verdict records the backend build profile",
     "earlier_verdicts_note": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement"
+  },
+  "phase2_standalone_asset_resolver_embed_source_20261018": {
+  "decision_id": "WP012-MT014-PHASE2-STANDALONE-RESOLVER-EMBED-SOURCE-20261018",
+  "authority": "Operator Phase2 source modularization and Master continuous source-assignment delegation; current owner plus Diagnostics deliberation found no concrete portable/custody conflict. No further Root/human GO.",
+  "status": "SOURCE_AUTHORED_DIRECT_CODECHECK_CLEAR_PROOF_AND_PUBLICATION_PENDING_NOT_ACCEPTED",
+  "authored_result": "Exact thirteen new files are written and authors quiescent. Parent and distinct NEVERAUTHOR compared all eleven Cargo/Rust file raw guards with saved reference guards, byte-identical with no transformations. Forty test declarations retained UNRUN. Both manuals directly opened, no source/API/manual finding from NEVERAUTHOR. No host/shared/root/index/lock/Git/Cargo/runtime action by source lane.",
+  "manual_guards": [
+    {
+      "path": "handshake_asset_resolver/README.md",
+      "bytes": 3700,
+      "sha256": "636018759490ea300a69a40851ef2deedd739d6381bc239c0f8b2988b99a2d3d"
+    },
+    {
+      "path": "handshake_embed_views/README.md",
+      "bytes": 4676,
+      "sha256": "107e9296e40b4abf1778a9a88ac1ee67ab17031c01f641ec50538789f12b53af"
+    }
+  ],
+  "dependency_review": "Distinct /root/dependency_checker inspected actual canonical sibling identity, exported error/asset/limit APIs, unchanged registry/runtime/image features, direct host callers and manuals. One actual manual defect corrected by owning embed author: render_image sets hover text, not accessibility alt text. Checker re-read the corrected claim and guard only, finding resolved. All other twelve files remain unchanged and all thirteen files quiescent. No remaining team static source/dependency/manual finding; compiler/runtime/rendered/publication/host acceptance not claimed.",
+  "codecheck_intake": "Current supplemental 01a14d52-fa57-73a3-a4ad-1bf70f4084b8 completed the Root-authorized exact thirteen-file source review with NO_FINDING. It personally inspected all thirteen candidate files, verified all eleven Cargo/Rust raw guards against contract authority and both final manual guards, counted 23+17 UNRUN tests and confirmed the same canonical sibling resolver directory. Production API/manual/dependency conservation inspected; supplied independently inspected host-caller handback reused without claiming fresh host acquisition. No compiler/runtime/rendered/publication/host acceptance. Earlier scope mismatch retained as resolved intake history, not a source denial.",
+  "leader": "01a14cfb-dea3-7590-b6f3-21e4062b0cb9",
+  "repository": "../../.assets",
+  "branch": "codex/handpick",
+  "reference_root": "../wtc-WP-KERNEL-012/src/frontend",
+  "reference_commit_provenance_only": "73ca13f65706c8b67c498edc30f4f3ebf4a952e0",
+  "reference_guards": [
+    {
+      "path": "handshake_asset_resolver/Cargo.toml",
+      "bytes": 338,
+      "sha256": "42565d14eacc9c5137c3da8c8f6fe7049af92918806dce4ada06b1e1cbd539c7"
+    },
+    {
+      "path": "handshake_asset_resolver/src/lib.rs",
+      "bytes": 163,
+      "sha256": "eda7cb970c0bd9f2d943c7ac93e50a93b23d983854d0fa8200dc6ea7e48cb789"
+    },
+    {
+      "path": "handshake_asset_resolver/src/types.rs",
+      "bytes": 16293,
+      "sha256": "ced626bdcdce04b7c04adb8bd90a36492272c61962cf6a11230389f0425c9898"
+    },
+    {
+      "path": "handshake_asset_resolver/src/resolution.rs",
+      "bytes": 34449,
+      "sha256": "7f9d4bdf912eb146d08e81ea81aba5dea9f41e9a259d2f42c5c2dbb3afe0afb5"
+    },
+    {
+      "path": "handshake_asset_resolver/src/cache.rs",
+      "bytes": 2524,
+      "sha256": "ba50dad99d641deb9b398558c0c4a31969ec3c8a95cb7bd22f0ca4eeaf27658c"
+    },
+    {
+      "path": "handshake_embed_views/Cargo.toml",
+      "bytes": 301,
+      "sha256": "d23d50b3ce537858b1c5985b1d74cc98e23bf63e4c4b675d5822bf438e0615c3"
+    },
+    {
+      "path": "handshake_embed_views/src/lib.rs",
+      "bytes": 84,
+      "sha256": "994460a2bbe3f1da310febf0544814ce7903a8439a85581ea5c517f05e631657"
+    },
+    {
+      "path": "handshake_embed_views/src/image_view.rs",
+      "bytes": 12674,
+      "sha256": "4d6133b0524c75cea88fe5c69952eaa50915c596432ddd05f2274b2954800b8e"
+    },
+    {
+      "path": "handshake_embed_views/src/slideshow_view.rs",
+      "bytes": 5448,
+      "sha256": "82d3114246dd72043c856bf7d3fc4f5162b260f8ba538938f2a477e608d75908"
+    },
+    {
+      "path": "handshake_embed_views/src/album_view.rs",
+      "bytes": 4175,
+      "sha256": "d26bb7e2848634c013a6ce515630a23ed7b20f2f07a3e63891bdd4f20c2ede13"
+    },
+    {
+      "path": "handshake_embed_views/src/video_view.rs",
+      "bytes": 6955,
+      "sha256": "ebefa5b2d050fc5ed70e3f98d30b1490bf108f94d1b96ca628006333de5cd766"
+    }
+  ],
+  "destination_precondition": "Leader and both actual authors personally checked all11 ordinary/nonreparse references and matching guards; both Notes destinations absent and parents ordinary. Repeat exact affected guards/conflict checks before first write; changedguard or collision stops affected write without overwriting peers.",
+  "assignments": [
+    {
+      "writer": "/root/find_replace_coder",
+      "exclusive_subtree": "Notes/handshake_asset_resolver",
+      "immediate_source_outcome": "Preserve existing types.rs and resolution.rs behavior: reference/MIME/workspace validation, owned deadlines, ordered resolution, shared six-permit budget and cancellation.",
+      "next_queue": "Preserve cache.rs/lib.rs/Cargo.toml, then add package README with actual API/host boundary/proof limitations."
+    },
+    {
+      "writer": "/root/diff_merge_coder",
+      "exclusive_subtree": "Notes/handshake_embed_views",
+      "immediate_source_outcome": "Preserve existing image_view.rs and slideshow_view.rs decode limits/errors/aspect/cache/ordered wrap behavior.",
+      "next_queue": "Preserve album_view.rs/video_view.rs/lib.rs/Cargo.toml, then add package README with actual GUI/host boundary/proof limitations."
+    }
+  ],
+  "allowed_files": [
+    "handshake_asset_resolver/Cargo.toml",
+    "handshake_asset_resolver/src/lib.rs",
+    "handshake_asset_resolver/src/types.rs",
+    "handshake_asset_resolver/src/resolution.rs",
+    "handshake_asset_resolver/src/cache.rs",
+    "handshake_embed_views/Cargo.toml",
+    "handshake_embed_views/src/lib.rs",
+    "handshake_embed_views/src/image_view.rs",
+    "handshake_embed_views/src/slideshow_view.rs",
+    "handshake_embed_views/src/album_view.rs",
+    "handshake_embed_views/src/video_view.rs",
+    "handshake_asset_resolver/README.md",
+    "handshake_embed_views/README.md"
+  ],
+  "allowed_files_relative_to": "../../.assets/Notes",
+  "conservation": "Exactly11 existing reference files copied byte-identically plus2 new scoped README manuals. Preserve23 resolver and17 view test declarations UNRUN. Both manifests already standalone and embed sibling ../handshake_asset_resolver stays unchanged; no path/feature/dependency transformation.",
+  "dependency_boundary": "Resolver transport via existing AssetMetadataFetcher and host-supplied runtime/time; no Core/native backedge. Preserve Tokio rt/sync/time plus test macros/multithread, explicit egui0.33/image0.25 restricted codecs, semaphore6/deadlines/cancellation. No hidden workspace/root/include/environment relocation assumptions were found in leader inspection.",
+  "review": "Existing distinct /root/source_checker NEVERAUTHOR and /root/dependency_checker inspect actual assembled pair+callers/manuals. Leader sends actual13-file delta directly to current Codecheck execution; no expensive Cargo before scoped findings resolved. Static review is not compiler/runtime/rendered proof.",
+  "limits": "Only two new assigned package subtrees. No frozen prior Notes inputs, host caller/manifests, common roots/index/locks, worker Git/Cargo/metadata/runtime/process action, original denied T2 model/actions retry, new branch/worktree or source acceptance.",
+  "acceptance_preservation": "All original MT014 backend/real-asset/quiet-video/AccessKit/cancellation/cache/GUI/rendered/Argus/full independent acceptance remains. Source publication/proof/independent reread precedes separately pinned host adoption.",
+  "next_actor": "Thirteen source files are quiescent with team and direct Codecheck no-finding reviews complete. Primary separately owns prospective source publication/proof under its exact granted custody; independent canonical remote reread and distinct pinned host adoption remain required. Central assigns next disjoint source unit. No source worker Git/Cargo/runtime authority granted.",
+  "supplemental_review_execution_authority_20261018": {
+    "owner": "Master01a14c5c-837c-7951-89fc-56e8deadc554",
+    "reviewer": "01a14d52-fa57-73a3-a4ad-1bf70f4084b8",
+    "disposition": "Prospective normal exact-source review extension personally delivered by Root after buddy consultation; exact current13 files explicitly included, prior six-lock/F5-only scope superseded only for this additional read-only duty. Subsequent Central-admitted continuous Phase2 units may use the same reviewer with named owning MT/candidate/path/behavior/owners, without per-unit Root/human GO.",
+    "limits": "Actual supplied/retained source, conservation and immediately necessary supplied caller/dependency comparisons only; no source writing, broad audit, Git/provider acquisition, Cargo/test/capture/publication or acceptance authority."
+  },
+  "continuous_source_publication_allocation_20261018": {
+    "authority": "Master continuous ordinary-source publication/proof delegation to Central; exact new SourceGit assignment to current Primary, not inherited old Primary custody or bypass of any actual denial.",
+    "status": "SOURCE_PUBLICATION_COMPLETE_INDEPENDENT_IMMUTABLE_REREAD_COMPLETE",
+    "publisher_thread": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+    "repository": "../../.assets",
+    "remote": "Nuntissura/assets",
+    "branch": "codex/handpick",
+    "paths": [
+      {
+        "path": "Notes/handshake_asset_resolver/Cargo.toml",
+        "bytes": 338,
+        "sha256": "42565d14eacc9c5137c3da8c8f6fe7049af92918806dce4ada06b1e1cbd539c7"
+      },
+      {
+        "path": "Notes/handshake_asset_resolver/src/lib.rs",
+        "bytes": 163,
+        "sha256": "eda7cb970c0bd9f2d943c7ac93e50a93b23d983854d0fa8200dc6ea7e48cb789"
+      },
+      {
+        "path": "Notes/handshake_asset_resolver/src/types.rs",
+        "bytes": 16293,
+        "sha256": "ced626bdcdce04b7c04adb8bd90a36492272c61962cf6a11230389f0425c9898"
+      },
+      {
+        "path": "Notes/handshake_asset_resolver/src/resolution.rs",
+        "bytes": 34449,
+        "sha256": "7f9d4bdf912eb146d08e81ea81aba5dea9f41e9a259d2f42c5c2dbb3afe0afb5"
+      },
+      {
+        "path": "Notes/handshake_asset_resolver/src/cache.rs",
+        "bytes": 2524,
+        "sha256": "ba50dad99d641deb9b398558c0c4a31969ec3c8a95cb7bd22f0ca4eeaf27658c"
+      },
+      {
+        "path": "Notes/handshake_embed_views/Cargo.toml",
+        "bytes": 301,
+        "sha256": "d23d50b3ce537858b1c5985b1d74cc98e23bf63e4c4b675d5822bf438e0615c3"
+      },
+      {
+        "path": "Notes/handshake_embed_views/src/lib.rs",
+        "bytes": 84,
+        "sha256": "994460a2bbe3f1da310febf0544814ce7903a8439a85581ea5c517f05e631657"
+      },
+      {
+        "path": "Notes/handshake_embed_views/src/image_view.rs",
+        "bytes": 12674,
+        "sha256": "4d6133b0524c75cea88fe5c69952eaa50915c596432ddd05f2274b2954800b8e"
+      },
+      {
+        "path": "Notes/handshake_embed_views/src/slideshow_view.rs",
+        "bytes": 5448,
+        "sha256": "82d3114246dd72043c856bf7d3fc4f5162b260f8ba538938f2a477e608d75908"
+      },
+      {
+        "path": "Notes/handshake_embed_views/src/album_view.rs",
+        "bytes": 4175,
+        "sha256": "d26bb7e2848634c013a6ce515630a23ed7b20f2f07a3e63891bdd4f20c2ede13"
+      },
+      {
+        "path": "Notes/handshake_embed_views/src/video_view.rs",
+        "bytes": 6955,
+        "sha256": "ebefa5b2d050fc5ed70e3f98d30b1490bf108f94d1b96ca628006333de5cd766"
+      },
+      {
+        "path": "Notes/handshake_asset_resolver/README.md",
+        "bytes": 3700,
+        "sha256": "636018759490ea300a69a40851ef2deedd739d6381bc239c0f8b2988b99a2d3d"
+      },
+      {
+        "path": "Notes/handshake_embed_views/README.md",
+        "bytes": 4676,
+        "sha256": "107e9296e40b4abf1778a9a88ac1ee67ab17031c01f641ec50538789f12b53af"
+      }
+    ],
+    "preconditions": [
+      "Actual source authors quiescent, fresh exact path guards and ordinary nonreparse files, no conflicting captured input/writer.",
+      "Serialize with current owned Git work; preserve all peer index/working/untracked state and source proof captures. Fresh matching declared branch/HEAD/remote and exact selected pathset before mutation.",
+      "Team distinct NEVERAUTHOR/dependency and DIRECT Codecheck actual source review complete; reuse matching unchanged source/caller reviews."
+    ],
+    "budget": {
+      "source_checkpoint_push": 1,
+      "independent_immutable_source_reread": 1
+    },
+    "execution": "Normal exact-path source-only checkpoint and declared-branch push with normal hooks; only named pathset. No broad staging/reset/stash/amend/force, root/shared manifest or locks, source edits, host adoption, metadata/runtime/test. Post-hook actual parent/tree/pathset/source guards must equal selection before push; discrepancy stops without cleanup.",
+    "after_push": "Publisher sends actual immutable commit/tree/parent/exact path guard handback DIRECTLY to current independent IV once. Source publication/reread establishes identity only; no compiler/runtime/acceptance success.",
+    "proof_queue": "After actual source publication plus independent canonical readback, join existing sequential standalone proof queue. MT014 pair precedes newly added Recovery; never interrupt current owned job or duplicate valid proof.",
+    "packages": [
+      "Notes/handshake_asset_resolver",
+      "Notes/handshake_embed_views"
+    ],
+    "actual_result": {
+      "publication": {
+        "status": "SOURCE_ONLY_PUBLISHED_UNCOMPILED_NOT_ACCEPTED",
+        "parent": "578f2c6ccdb2a35bab1edaf43b75eca732dc7a78",
+        "bound_tree": "06d444e733de74c4330b7b9bd7b395fc7763813c",
+        "source_rows": [
+          {
+            "path": "Notes/handshake_asset_resolver/Cargo.toml",
+            "bytes": 338,
+            "sha256": "42565d14eacc9c5137c3da8c8f6fe7049af92918806dce4ada06b1e1cbd539c7",
+            "blob": "84628d83e02cc082ff1b25f37f796a3c5614a2be",
+            "mode": "100644"
+          },
+          {
+            "path": "Notes/handshake_asset_resolver/src/lib.rs",
+            "bytes": 163,
+            "sha256": "eda7cb970c0bd9f2d943c7ac93e50a93b23d983854d0fa8200dc6ea7e48cb789",
+            "blob": "34fcf14bc566fd7b2e6cb01b8a3daebcfc41dbc9",
+            "mode": "100644"
+          },
+          {
+            "path": "Notes/handshake_asset_resolver/src/types.rs",
+            "bytes": 16293,
+            "sha256": "ced626bdcdce04b7c04adb8bd90a36492272c61962cf6a11230389f0425c9898",
+            "blob": "8a2669b44cca79cb79eaca4036e03aaaaffbe8f1",
+            "mode": "100644"
+          },
+          {
+            "path": "Notes/handshake_asset_resolver/src/resolution.rs",
+            "bytes": 34449,
+            "sha256": "7f9d4bdf912eb146d08e81ea81aba5dea9f41e9a259d2f42c5c2dbb3afe0afb5",
+            "blob": "fcc41ff2f46b6943a06c068e8c80c6966bc17e78",
+            "mode": "100644"
+          },
+          {
+            "path": "Notes/handshake_asset_resolver/src/cache.rs",
+            "bytes": 2524,
+            "sha256": "ba50dad99d641deb9b398558c0c4a31969ec3c8a95cb7bd22f0ca4eeaf27658c",
+            "blob": "3e05ad07b48bb4b2257fa58d11cab176987d9e20",
+            "mode": "100644"
+          },
+          {
+            "path": "Notes/handshake_embed_views/Cargo.toml",
+            "bytes": 301,
+            "sha256": "d23d50b3ce537858b1c5985b1d74cc98e23bf63e4c4b675d5822bf438e0615c3",
+            "blob": "91d7ae4824f4b51924ebea1ba90b4acaf75c09c4",
+            "mode": "100644"
+          },
+          {
+            "path": "Notes/handshake_embed_views/src/lib.rs",
+            "bytes": 84,
+            "sha256": "994460a2bbe3f1da310febf0544814ce7903a8439a85581ea5c517f05e631657",
+            "blob": "d3761a3b2e9318b907d1a932d9acb50adcd33269",
+            "mode": "100644"
+          },
+          {
+            "path": "Notes/handshake_embed_views/src/image_view.rs",
+            "bytes": 12674,
+            "sha256": "4d6133b0524c75cea88fe5c69952eaa50915c596432ddd05f2274b2954800b8e",
+            "blob": "039505715cc10d8631249c22aaedfe92e00703d7",
+            "mode": "100644"
+          },
+          {
+            "path": "Notes/handshake_embed_views/src/slideshow_view.rs",
+            "bytes": 5448,
+            "sha256": "82d3114246dd72043c856bf7d3fc4f5162b260f8ba538938f2a477e608d75908",
+            "blob": "a9fa2c69673bf07d9e6e0702a9b96a6740437197",
+            "mode": "100644"
+          },
+          {
+            "path": "Notes/handshake_embed_views/src/album_view.rs",
+            "bytes": 4175,
+            "sha256": "d26bb7e2848634c013a6ce515630a23ed7b20f2f07a3e63891bdd4f20c2ede13",
+            "blob": "e63e83c31c197750a1bd8e7d82ab35dabada7cd7",
+            "mode": "100644"
+          },
+          {
+            "path": "Notes/handshake_embed_views/src/video_view.rs",
+            "bytes": 6955,
+            "sha256": "ebefa5b2d050fc5ed70e3f98d30b1490bf108f94d1b96ca628006333de5cd766",
+            "blob": "b305b90671941a3c8d09a93f0b8f7f0a568623eb",
+            "mode": "100644"
+          },
+          {
+            "path": "Notes/handshake_asset_resolver/README.md",
+            "bytes": 3700,
+            "sha256": "636018759490ea300a69a40851ef2deedd739d6381bc239c0f8b2988b99a2d3d",
+            "blob": "7b99aeda9d179150e934257a7af45384f488e344",
+            "mode": "100644"
+          },
+          {
+            "path": "Notes/handshake_embed_views/README.md",
+            "bytes": 4676,
+            "sha256": "107e9296e40b4abf1778a9a88ac1ee67ab17031c01f641ec50538789f12b53af",
+            "blob": "85a6225831e2fdc474ead62a1631ed2b6ef76060",
+            "mode": "100644"
+          }
+        ],
+        "compiler_or_runtime_run": false,
+        "commit": "58a90dbf881143f59b65226801cc98014a31f88f",
+        "tree": "06d444e733de74c4330b7b9bd7b395fc7763813c",
+        "post_hook_verified": true,
+        "remote_confirmed": true
+      },
+      "artifact": "../Handshake_Artifacts/WP-KERNEL-012/MT-014/phase2-resolver-embed-source-publication/publication-result.json",
+      "artifact_sha256": "ee8a5773907574886165f5d9ce14d3780d7feaa453720fe14dc3e3410df41e23",
+      "central_inspection": "d582dc EXIT0 actual complete publication record opened.",
+      "independent_reread": {
+        "reader": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+        "status": "COMPLETE_NO_MISMATCH",
+        "meaning": "MT014 exact13 immutable GitHub blobs/modes/OIDs and decoded Git SHA1 verified, both untruncated recursive trees exact13 additions/all prior blobs unchanged. All local raw guards match publication record; eight remote raw exact and five only CRLF-to-LF filtering, all thirteen normalized content exact. No blanket raw-byte equality claim.",
+        "remote_newline_filtered_rows": [
+          {
+            "path": "Notes/handshake_asset_resolver/README.md",
+            "bytes": 3666,
+            "sha256": "5f0db1dbdba66ae156d92e89e6138f096a1631bd5f58e52eba743de61a0c370f"
+          },
+          {
+            "path": "Notes/handshake_embed_views/src/image_view.rs",
+            "bytes": 12375,
+            "sha256": "f8e1b89f9deff1eeff9b440f245adfdfeab7141a615e45fb554d896309370a54"
+          },
+          {
+            "path": "Notes/handshake_embed_views/src/slideshow_view.rs",
+            "bytes": 5309,
+            "sha256": "e507550937db74bb2acaaf606e25fa2696c2e15a9d71c4fb31e5fd5c26be3430"
+          },
+          {
+            "path": "Notes/handshake_embed_views/src/album_view.rs",
+            "bytes": 4060,
+            "sha256": "f1d2a39182cbe40011f9d9647d2962b1965e536f64bb98f2393875b067b4fe69"
+          },
+          {
+            "path": "Notes/handshake_embed_views/src/video_view.rs",
+            "bytes": 6797,
+            "sha256": "7c32900ccdc2712b6fd945f8a258ba630f6a329780845f7fccce9a2c35e4e30b"
+          }
+        ]
+      },
+      "acceptance": "Source-only; no compiler/runtime/rendered or original independent acceptance. Normal Git newline filtering does not change source semantics."
+    }
+  },
+  "continuous_source_proof_allocation_20261018": {
+    "authority": "Same Master continuous source-proof delegation; no per-package Root/human GO. Conditional on actual allocated source publication and independent immutable reread.",
+    "owner_thread": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+    "status": "BOTH_ALLOCATED_STATIC_CHECKS_LOCK_PUBLICATIONS_AND_INDEPENDENT_IMMUTABLE_REREADS_COMPLETE",
+    "packages": [
+      "Notes/handshake_asset_resolver",
+      "Notes/handshake_embed_views"
+    ],
+    "budget_per_package": {
+      "lock_generation": 1,
+      "locked_focused_cargo_check_tests": 1,
+      "lock_only_checkpoint_push": 1,
+      "independent_immutable_lock_reread": 1
+    },
+    "target": "cargo check --manifest-path <named-package>/Cargo.toml --locked --tests -j 1",
+    "requirements": [
+      "Normal gameplan/hooks and fresh hardware observation before each costly command; package-specific external owning-MT proof artifacts, canonical compatible cache, bounded actual process/PID/birth/inputs/numeric exit/closure.",
+      "Lock generation only in named package after source reread. Direct supplemental Codecheck changed lock/manifest/dependency/cache/proof-input review precedes allocated Cargo check. Reuse unchanged source reviews.",
+      "Freeze actual named inputs and required closed package dependencies only, sequential shared-cache execution; continue disjoint admitted source work.",
+      "Fresh source/dependency/config guards before and after; exact normal lock-only push and independent immutable IV readback after successful check.",
+      "No runtime/GUI/behavior tests, host adoption, acceptance or old denied job retry. Zero matched tests never acceptance; check --tests compiles test targets only."
+    ],
+    "preservation": "All original MT scope/pins/independent acceptance, finite prior budgets and actual platform denials remain distinct and unchanged.",
+    "actual_package_results": {
+      "Notes/handshake_asset_resolver": {
+        "status": "STATIC_CHECK_EXIT0_LOCK_PUBLISHED_INDEPENDENT_IMMUTABLE_REREAD_COMPLETE",
+        "proof": {
+          "action": "HANDSHAKE_ASSET_RESOLVER_STANDALONE_STATIC_PROOF",
+          "package": "Notes/handshake_asset_resolver",
+          "source_parent_commit": "1a2322b80fd7c71c589ce821825a47a2bd3eb8f8",
+          "source_rows": 6,
+          "source_drift": [],
+          "lock_bytes": 3034,
+          "lock_sha256": "1037349e6d5843d1abb83284429ef8be3a96c6e65d8e6e3169e8989de991f5b2",
+          "command": [
+            "check",
+            "--manifest-path",
+            "Notes/handshake_asset_resolver/Cargo.toml",
+            "--locked",
+            "--tests",
+            "-j",
+            "1"
+          ],
+          "process_id": 24048,
+          "process_birth_utc": "2026-10-18T05:42:40.1974526Z",
+          "exit_code": 0,
+          "scheduling_observation": {
+            "pid": 24048,
+            "handle_open": true,
+            "cpu": 32,
+            "memory_query_ok": true,
+            "memory": 5,
+            "io_status": 0,
+            "io": 2
+          },
+          "runtime_tests_executed": false,
+          "host_acceptance": false,
+          "completed_at_utc": "2026-10-18T05:42:53.3348089Z",
+          "published_commit": "9743350097b94b5ccbe17872d3f791bc6345dd82",
+          "published_tree": "64120223e7a9659e41800e511ea288ea1fedd9a2",
+          "lock_git_blob": "81db40030dd43b0aa2d196a55ad8935687a7387f",
+          "remote_confirmed": true,
+          "sole_delta": [
+            "Notes/handshake_asset_resolver/Cargo.lock"
+          ]
+        },
+        "artifact": "../Handshake_Artifacts/WP-KERNEL-012/MT-014/phase2-resolver-source-primary/static-proof.json",
+        "artifact_sha256": "31161f454e1e6ca50b9decdc773a40c1686c73a321a790526c25a87939cb03c5",
+        "central_inspection": "b165bc EXIT0 actual proof/check numeric0 and raw compiler stderr Finished dev opened.",
+        "independent_reread": {
+          "reader": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+          "status": "COMPLETE_NO_MISMATCH",
+          "commit": "9743350097b94b5ccbe17872d3f791bc6345dd82",
+          "tree": "64120223e7a9659e41800e511ea288ea1fedd9a2",
+          "parent": "1a2322b80fd7c71c589ce821825a47a2bd3eb8f8",
+          "blob": "81db40030dd43b0aa2d196a55ad8935687a7387f",
+          "verification": "Canonical immutable GitHub reread: untruncated trees exact one lock addition/all prior blobs unchanged; decoded Git SHA1/raw SHA256/3034bytes match. No duplicate acquisition by Central."
+        },
+        "limits": "23 resolver test declarations UNRUN, no runtime/host/original acceptance; actual prior denials untouched."
+      },
+      "Notes/handshake_embed_views": {
+        "status": "STATIC_CHECK_EXIT0_LOCK_PUBLISHED_INDEPENDENT_IMMUTABLE_REREAD_COMPLETE",
+        "proof": {
+          "action": "HANDSHAKE_EMBED_VIEWS_STANDALONE_STATIC_PROOF",
+          "package": "Notes/handshake_embed_views",
+          "source_parent_commit": "9743350097b94b5ccbe17872d3f791bc6345dd82",
+          "source_rows": 14,
+          "source_drift": [],
+          "lock_bytes": 14520,
+          "lock_sha256": "43558fe7ae40d71da48006f756f2262da31c7baaa5fd670af06df0e96f5a3345",
+          "command": [
+            "check",
+            "--manifest-path",
+            "Notes/handshake_embed_views/Cargo.toml",
+            "--locked",
+            "--tests",
+            "-j",
+            "1"
+          ],
+          "process_id": 59584,
+          "process_birth_utc": "2026-10-18T05:46:07.9938781Z",
+          "exit_code": 0,
+          "scheduling_observation": {
+            "pid": 59584,
+            "handle_open": true,
+            "cpu": 32,
+            "memory_query_ok": true,
+            "memory": 5,
+            "io_status": 0,
+            "io": 2
+          },
+          "runtime_tests_executed": false,
+          "host_acceptance": false,
+          "completed_at_utc": "2026-10-18T05:46:41.0732556Z",
+          "published_commit": "cbdcac2baa8309f9549dbca571b87a423c7fab19",
+          "published_tree": "f5b74eb55db7a874468554f8f1f707fbc8bd0965",
+          "lock_git_blob": "2ddcb7304df04a2b091ac63daf04ddaf5c006617",
+          "remote_confirmed": true,
+          "sole_delta": [
+            "Notes/handshake_embed_views/Cargo.lock"
+          ]
+        },
+        "artifact": "../Handshake_Artifacts/WP-KERNEL-012/MT-014/phase2-embed-views-source-primary/static-proof.json",
+        "artifact_sha256": "9c00156f0d700e7a5c262b38c9fee08498d68811c4fd9b7d0cb397e1ab2f8b92",
+        "central_inspection": "7e2775 EXIT0 actual proof/check numeric0 and raw compiler stderr Finished dev opened.",
+        "independent_reread": {
+          "reader": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+          "status": "COMPLETE_NO_MISMATCH",
+          "commit": "cbdcac2baa8309f9549dbca571b87a423c7fab19",
+          "tree": "f5b74eb55db7a874468554f8f1f707fbc8bd0965",
+          "parent": "9743350097b94b5ccbe17872d3f791bc6345dd82",
+          "blob": "2ddcb7304df04a2b091ac63daf04ddaf5c006617",
+          "verification": "Canonical immutable GitHub reread: untruncated trees exact one lock addition/all prior blobs unchanged; decoded Git SHA1/raw SHA256/14520bytes match. No duplicate acquisition by Central."
+        },
+        "limits": "17 embed plus23 resolver source test declarations UNRUN, no decode/renderedGUI/runtime/host/original acceptance; prior actual denials unchanged."
+      }
+    }
   }
+}
 }

@@ -1,0 +1,109 @@
+{
+  "notes_kit_grouping_ref": {"decision_id": "WP012-NOTES-KIT-GROUPING-20261018", "authority": "MT-189.json#/notes_kit_grouping_correction_20261018", "precedence": "Notes is one kit with multiple internal crates; prior per-crate separate asset/destination assumption is superseded. Preserve distinct source/adoption proof and original acceptance; no physical migration or host-write release inferred."},
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "created_at_utc": "2026-10-18T00:00:00Z",
+  "operator_authority": {
+    "decision": "Direct Operator2026-10-18 five-team modularization and approved blocker scope expansion after team deliberation",
+    "handoff_ref": "WP-KERNEL-012-phase02-successor-handoff-v6.json#/operator_team_refresh_and_modular_delivery_20261018",
+    "deliberation": "Actual repo/WP012 comparison, Central+Team1/2+Assets source-home/interface proposals, Root create-assets skill/live remote/index/manifests and official Cargo research inspected."
+  },
+  "authority_files": {
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "role": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+    "packet": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "spec": ".GOV/spec/SPEC_CURRENT.md"
+  },
+  "context_capsule": {
+    "original_mt_refs": [
+      "MT-050",
+      "MT-052",
+      "MT-175",
+      "MT-186"
+    ],
+    "module_maintenance_refs": [
+      "MT-189.json#/execution/module_maintenance"
+    ],
+    "pin_policy": "Original in-flight WP012896f4e15/v02.206 and all adopted amendments/source-WP pins/acceptance/history remain. New source/adoption work follows explicitly adopted current module lifecycle; no old verdict rewritten."
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "MT-189",
+    "claimed_by": null,
+    "completed_by": null,
+    "validator_verdict": null
+  },
+  "preservation": "All original WP012/CKC/WP1 obligations, native/manual/Argus/privacy/FlightRecorder/diagnostics, source pins, historical failures/spent budgets and independent acceptance remain. No new branch/worktree/backup, foreign process disruption or actual denied-action bypass.",
+  "mt_id": "MT-190",
+  "title": "Pinned host adoption of handshake_text_mechanics",
+  "closure_unit": {
+    "outcome": "Host consumes proven immutable canonical source through exact existing editor adapters while preserving original native behavior and independent acceptance.",
+    "materialized_acceptance": [
+      "Public API preserves existing formatter edit order/UTF16/newline/CR/surrogate/overlap behavior with meaningful relocated owning tests.",
+      "Navigation/history use same canonical Cursor/BufferPosition; host reexports keep panel4061 caller valid without panel.rs edit.",
+      "One owner per TextBuffer/Cursor mechanic; no copied divergent host implementation or egui core dependency.",
+      "Host dependency resolves exact independently reread source revision and compatible dependency pins; no divergent host copy or stale local override.",
+      "Original owning MT/native integration/manual/Argus/protected persistence and independent proof floors remain required."
+    ]
+  },
+  "scope": {
+    "allowed_write_paths": [
+      "src/frontend/handshake_native/src/code_editor/formatting.rs",
+      "src/frontend/handshake_native/src/code_editor/jump_history.rs",
+      "src/frontend/handshake_native/src/code_editor/navigation.rs"
+    ],
+    "forbidden_paths": [
+      "source asset internals",
+      "app.rs",
+      "main.rs",
+      "backend_client.rs",
+      "panel.rs",
+      "root exports/manifests/locks without exact sole-owner pin disposition"
+    ]
+  },
+  "execution": {
+    "module_change_stage": "host_adoption",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "depends_on": [
+      "MT-189"
+    ],
+    "source_adoption": {
+      "source_mt": "MT-189",
+      "canonical_repository": "https://github.com/Nuntissura/assets.git",
+      "canonical_path": "handshake_text_mechanics",
+      "immutable_revision": null,
+      "source_proof_ref": null,
+      "independent_remote_reread_ref": null,
+      "host_pin_status": "HELD_UNTIL_SOURCE_PREDECESSORS"
+    },
+    "module_maintenance": {
+      "source_contract_ref": "MT-189.json#/execution/module_maintenance",
+      "host_adapter_paths": [
+        "src/frontend/handshake_native/src/code_editor/formatting.rs",
+        "src/frontend/handshake_native/src/code_editor/jump_history.rs",
+        "src/frontend/handshake_native/src/code_editor/navigation.rs"
+      ],
+      "maintainer": "01a14c72-1989-7ed2-aedc-326199f80ed4"
+    },
+    "ownership": "No host writer lease transfers from this future adoption contract. Bind exact historical writer handbacks/current guards and prospective paths before source START. Physical Primary retains manifest/lock/shared exports/Git/compiler custody until exact new disposition.",
+    "source_write_authorized": false,
+    "start": "HELD until source proof/publication/independent immutable remote reread and exact host pin/adapter custody are resolved. Root records exact binding once real; do not fabricate pin, acceptance or early host adoption.",
+    "tests_or_compiler_authorized": false,
+    "git_execution_authorized": false,
+    "review": "Direct independent Codecheck of actual adapter/diff/dependency resolution before expensive Cargo; original independent runtime/native acceptance remains.",
+    "rollback": "Prior immutable host dependency revision plus matching adapter implementation as one coherent reviewed rollback; no branch reset/reseed or abandoned source history."
+  },
+  "validation": {
+    "original_acceptance_refs": [
+      "MT-050",
+      "MT-052",
+      "MT-175",
+      "MT-186"
+    ],
+    "requirements": "Use original owning MT proof targets/feature sets and existing strategic shared compiler boundary on stable pinned host inputs; no extra worker build or repeat unchanged green183/184 proof.",
+    "proof_records": []
+  }
+}

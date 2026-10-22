@@ -1,0 +1,24 @@
+schema_version: handshake.gameplan.v1
+template_version: 1
+kind: gameplan
+instance_policy:
+  omit_empty_optional_fields: true
+  policy_lives_in_rule_refs_not_instance_fields: true
+  schema_ref: repo-governance/schemas/gameplan.schema.yaml
+rule_refs: []
+writing: 'no prose; terse fragments; determinism > grammar; verb object [op value]'
+precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; correct the step'
+scope: mt
+assignment: MT-008
+parent: .GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/gameplan.yaml
+generation: 9
+expensive_actions: []
+steps:
+- {id: GP-002, role: builder, at: before_round, do: confirm source6 lock guards and canonical2813 pin equal captured inputs, check: {type: confirm}, source: MT008 distinct owning behavior admission, state: active}
+- {id: GP-003, role: builder, at: before_round, do: confirm declared branch remote and package index state preserve peers, check: {type: confirm}, source: CX-GP-003 scoped candidate identity, state: active}
+- {id: GP-004, role: builder, at: before_round, do: confirm current owned physical slot target cache custody disk50GiB and normal32-5-2, check: {type: confirm}, source: CX-HOST-002 current resources and owners, state: active}
+- {id: GP-005, role: builder, at: before_round, do: confirm runtime generated path bound and own output tmp target roots, check: {type: confirm}, source: CX-HOST-001 runtime path proof, state: active}
+- {id: GP-006, role: builder, at: before_round, do: confirm exact eight lib tests direct toolchain env and no outer timeout, check: {type: confirm}, source: GLOBAL-GAMEPLAN-001 selected own behavior, state: active}
+- {id: GP-007, role: builder, at: before_round, do: confirm unchanged source reviews static proof and independent source lock reads reused, check: {type: confirm}, source: CX-GP-006 minimum sufficient proof, state: active}
+- {id: GP-008, role: builder, at: before_round, do: require literal quoting for observer extraction regex, check: {type: confirm}, source: MT008 prep59cfc8 double quoted regex interpolated variable, state: active}
+- {id: GP-009, role: builder, at: before_round, do: require literal payload assembly without replacement token expansion, check: {type: confirm}, source: MT008 prep5ab25e JS dollar suffix expanded script text, state: active}

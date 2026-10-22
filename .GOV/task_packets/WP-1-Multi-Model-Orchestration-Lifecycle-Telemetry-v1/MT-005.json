@@ -4,6 +4,146 @@
   "contract_authority": "PRIMARY_MACHINE_READABLE",
   "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
   "mt_id": "MT-005",
+  "phase2_canonical_json_source_20261018": {
+  "decision_id": "WP1-MT005-PHASE2-CANONICAL-JSON-SOURCE-20261018",
+  "status": "SOURCE_PUBLISHED_REREAD_COMPLETE_UNCOMPILED",
+  "source_publication": {
+    "commit": "ca9bc84c1f7f3fa71cd4728774e16f7b57e6129f",
+    "tree": "27819e001f40dc3b91e483481f14ea4cb2a8a923",
+    "parent": "1d9d5fe1313de3a3659b7970750f9a38d4a87d6c",
+    "result": "Primary normal eight-path helper plus ContextBundle commit/push0, followed by independent IV canonical immutable commit/tree/pathdelta/blob/source readback. Helper canonical_json.rs remote LF differs from original working CRLF only; normalized algorithm exact. No package locks, compile or executed tests; this is source-publication verification, not standalone behavior or host acceptance."
+  },
+  "authority": "Direct Operator authorizes Phase2 splitting of existing code into kits, actual caller rewiring and as many useful coding chats/roles as hardware allows. Root, Central and workflow_buddy deliberated the exact portable dependency required by the active ContextBundle extraction.",
+  "owner_chat": "01a14cfe-c664-7333-8b96-59831eadde3b",
+  "canonical_source_root": "../../.assets/shared/handshake_canonical_json",
+  "canonical_repository": "https://github.com/Nuntissura/assets.git",
+  "canonical_branch": "codex/handpick",
+  "reference_input": {
+    "worktree": "../wtc-WP-KERNEL-012",
+    "path": "src/backend/handshake_storage_support/src/canonical_json.rs",
+    "sha256": "7d9b9ae17a91d54a6bcf852ed0527e49effd377d623327a5c349f98b20cda8f7",
+    "bytes": 2124
+  },
+  "assignments": [
+    {
+      "writer": "/root/package_source",
+      "paths": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "src/canonical_json.rs"
+      ],
+      "scope": "Existing canonical JSON/hash algorithms unchanged; own new package-local manifest/root exports, required portable serde_json/sha2/hex dependencies only."
+    },
+    {
+      "writer": "/root/behavior_tests",
+      "paths": [
+        "src/tests.rs"
+      ],
+      "scope": "Owning original behavior and canonical byte/hash test vectors; preserve original canonicalization, strings, numbers, key order and error semantics."
+    }
+  ],
+  "consumer": {
+    "chat": "01a14cfb-f0fa-7b80-8fd3-0f4adde62884",
+    "source_root": "../../.assets/hskernel/handshake_context_bundle",
+    "dependency_path": "../../shared/handshake_canonical_json",
+    "public_functions": [
+      "canonical_json_bytes",
+      "sha256_hex"
+    ]
+  },
+  "reported_source_guards": {
+    "Cargo.toml": "ebcdbd0bb8bbf8939ca10c8d2b9d783b5d4d6ea79b73e20a6b201a974880138d",
+    "src/lib.rs": "5f8a0355193d5b587a9ec9698fa419930d555f94488aac4d6bd706be2f6234dc",
+    "src/canonical_json.rs": "7d9b9ae17a91d54a6bcf852ed0527e49effd377d623327a5c349f98b20cda8f7",
+    "src/tests.rs": "3e13672b6a0943f536cb38f37f57d22f631d3b293cd4b720b47bdaa04a161b9e"
+  },
+  "boundary": "New assigned source subtree only, plus this minimum owning record. No Core/native/Tokio/storage backdependency, copied ContextBundle helper, host source, shared root/index/lock/Git/compiler permission. Later distinct pinned storage_support host reexport/caller adoption retires the moved host body after source proof/publication/independent reread.",
+  "review_and_acceptance": "Actual nonauthor/dependency/direct Codecheck source reviews have no actionable finding, and independent canonical source publication/readback is complete as recorded. Eight owning helper tests remain UNRUN, package lock/static/behavior proof and distinct host adoption remain open. No runtime/host acceptance or rejected-action retry follows from these source outcomes.",
+  "continuous_source_proof_allocation_20261018": {
+    "decision_id": "PHASE2-STANDALONE-STATIC-HANDSHAKE-CANONICAL-JSON-20261018",
+    "authority": "Root continuous Phase2 source-proof scheduling/allocation delegation and one-time supplemental review extension; no per-package Root/human GO, host/runtime/spent budget renewal or global compiler transfer.",
+    "executor": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+    "changed_lock_input_reviewer": "01a14d52-fa57-73a3-a4ad-1bf70f4084b8",
+    "independent_canonical_reader": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+    "repository": "../../.assets",
+    "branch": "codex/handpick",
+    "package": "shared/handshake_canonical_json",
+    "published_source_commit": "ca9bc84c1f7f3fa71cd4728774e16f7b57e6129f",
+    "source_proof_basis": "Reuse actual published source/IV immutable reread and valid unchanged team/dependency/direct Codecheck source reviews. Freshly bind actual current candidate, package, required dependencies and lock; publication metadata is not behavior acceptance.",
+    "guarded_inputs": [
+      "shared/handshake_canonical_json/**"
+    ],
+    "sole_source_repository_write": "shared/handshake_canonical_json/Cargo.lock",
+    "lock_command": "cargo generate-lockfile --manifest-path shared/handshake_canonical_json/Cargo.toml",
+    "static_command": "cargo check --manifest-path shared/handshake_canonical_json/Cargo.toml --locked --tests -j 1",
+    "allocation": {
+      "package_lock_generation": 1,
+      "focused_locked_static_check": 1,
+      "exact_lock_only_normal_publication": 1,
+      "direct_iv_immutable_reread": 1
+    },
+    "sequence": "After admitted Notes queue and no actual conflicting owned Git/compiler/target operation: fresh guards/current Git/hardware binding and normal gameplan/hooks; one package-only lock; direct actual changed-lock/input review before one focused locked check; captured-input postbinding and owned numeric closure; normal explicit lock-only commit/push; publisher direct one IV reread. JSON precedes its ContextBundle consumer.",
+    "artifacts": "Distinct owning-MT/package action artifacts under the verified Handshake_Artifacts root, preserving every earlier proof file and only reusing compatible compiler/cache artifacts. No repository-local target.",
+    "limits": "No Rust/config/feature edits, test execution, host adoption, old denied-action retry or broad source/provider/parent acquisition. Keep original error/wire/policy/ABI semantics and all original runtime/manual/integration/independent acceptance. Exact actual conflict/drift/hookfailure stops affected action only; route concrete source repair to actual owner.",
+    "status": "STATIC_CHECK_EXIT0_LOCK_PUBLISHED_INDEPENDENT_IMMUTABLE_REREAD_COMPLETE",
+    "acceptance": "NOT_ACCEPTED",
+    "actual_result": {
+      "static_proof": {
+        "action": "HANDSHAKE_CANONICAL_JSON_STANDALONE_STATIC_PROOF",
+        "package": "shared/handshake_canonical_json",
+        "source_parent_commit": "6bb1cb1edc314f28cbd5130a71f84147b4795bf0",
+        "source_rows": 4,
+        "source_drift": [],
+        "lock_bytes": 5069,
+        "lock_sha256": "127a2905b3ccc25d11495b73c3576c95b9b717aba7ec091e8dd45c826df79762",
+        "command": [
+          "check",
+          "--manifest-path",
+          "shared/handshake_canonical_json/Cargo.toml",
+          "--locked",
+          "--tests",
+          "-j",
+          "1"
+        ],
+        "process_id": 51724,
+        "process_birth_utc": "2026-10-18T05:15:26.0121031Z",
+        "exit_code": 0,
+        "scheduling_observation": {
+          "pid": 51724,
+          "handle_open": true,
+          "cpu": 32,
+          "memory_query_ok": true,
+          "memory": 5,
+          "io_status": 0,
+          "io": 2
+        },
+        "runtime_tests_executed": false,
+        "host_acceptance": false,
+        "completed_at_utc": "2026-10-18T05:15:31.2603583Z",
+        "published_commit": "a931e2434cc809a545a3c20997fafdc06f09202f",
+        "published_tree": "e67693c7214c15834ec6ecc9cbe9bd9fbe6b9a74",
+        "lock_git_blob": "70eaf41851cacb1b5c279f431650ede919a3d116",
+        "remote_confirmed": true,
+        "sole_delta": [
+          "shared/handshake_canonical_json/Cargo.lock"
+        ]
+      },
+      "artifact": "../Handshake_Artifacts/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-005/phase2-canonical-json-source-primary/static-proof.json",
+      "artifact_sha256": "2827032ac81949dd339d977e494238e88a4a0d36ff5d81a26d39bafabd746f87",
+      "central_inspection": "Actual proof/result/raw compiler stderr opened; numeric EXIT0, Finished dev, source drift empty.",
+      "independent_reread": {
+        "reader": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+        "status": "COMPLETE_NO_MISMATCH",
+        "commit": "a931e2434cc809a545a3c20997fafdc06f09202f",
+        "tree": "e67693c7214c15834ec6ecc9cbe9bd9fbe6b9a74",
+        "parent": "6bb1cb1edc314f28cbd5130a71f84147b4795bf0",
+        "lock_blob": "70eaf41851cacb1b5c279f431650ede919a3d116",
+        "meaning": "Direct independent canonical GitHub immutable reread: both untruncated trees, exact one lock addition/all prior blob identities unchanged, decoded Git SHA1 and raw SHA256/length matched. No duplicate reacquisition by Central."
+      },
+      "acceptance": "Tests/runtime/rendered/host adoption and original independent acceptance remain unrun/not accepted; earlier actual policy denial and its spent budget unchanged."
+    }
+  }
+},
   "created_at_utc": "2026-06-28T17:11:31.143Z",
   "updated_at_utc": "2026-09-05T01:30:11.415Z",
   "authority_files": {
@@ -424,5 +564,120 @@
         ]
       }
     ]
+  },
+  "phase02_context_bundle_source_extension_20261018": {
+  "authority": "Operator-authorized source-only Phase2 assignment relayed by Root 01a14c5c-837c-7951-89fc-56e8deadc554",
+  "source_root": "../../.assets/hskernel/handshake_context_bundle",
+  "canonical_module_branch": "codex/handpick",
+  "reference_worktree": "../wtc-WP-KERNEL-012",
+  "reference_branch": "feat/WP-KERNEL-012",
+  "source_reference": "src/backend/handshake_core/src/kernel/context_bundle.rs",
+  "reference_sha256": "4c24a9da96ed3c228f343bf191652c424ebb05ec729818ca69e3e29485c365b1",
+  "ownership": {
+    "context_impl": [
+      "Cargo.toml",
+      "src/lib.rs",
+      "src/context.rs"
+    ],
+    "context_tests": [
+      "src/tests.rs"
+    ]
+  },
+  "source_scope": "Existing DTO, canonical hash/validation and wire tests; explicit timestamp/error boundary; no host writes, Core dependency, common manifests/locks, Git or Cargo",
+  "dependency": "Root assigned shared helper chat 01a14cfe-c664-7333-8b96-59831eadde3b. Actual ../../.assets/shared/handshake_canonical_json manifest/root APIs read; helper source SHA256 7d9b9ae17a91d54a6bcf852ed0527e49effd377d623327a5c349f98b20cda8f7 matches original. Context Cargo path ../../shared/handshake_canonical_json and root import wired; no Core backdependency. Standalone compile/tests/publication/independent remote reread remain unproved",
+  "source_guards": {
+    "Cargo.toml": "a51091a4e99bbee4a1db6a91f6c21a7abbfb780821f35ee905f03e92aaeb65dd",
+    "src/lib.rs": "a4eb6aa4c8baf68974ef60e9ff04db9bc4aa32cd3a4db2ae339d04a60476d806",
+    "src/context.rs": "df6d10d433dc86cc539fae3fe72c2693b1a93c7154715cdb9a208a4c34515a26",
+    "src/tests.rs": "6df56c28908af70268b46a10aa27400918b2124025905db1540eaced9a1fc948"
+  },
+  "review": "Distinct neverauthor source checker and dependency checker inspected all four files; portable helper path and actual source now inspected; separate dependency delta review retained. Nine tests NOT_RUN; no Cargo/Git/host edits; no acceptance. Codecheck and Central received exact handback.",
+  "preserved": "Original MT acceptance, blockers, history, ModelLane and hsk.model_lane_* IDs, Dexterity name retained; source extension alone is not MT completion",
+  "next_actor": "Central/Codecheck own dependency allocation, standalone proof and publication; distinct pinned host-adoption predecessor remains",
+  "continuous_source_proof_allocation_20261018": {
+    "decision_id": "PHASE2-STANDALONE-STATIC-HANDSHAKE-CONTEXT-BUNDLE-20261018",
+    "authority": "Root continuous Phase2 source-proof scheduling/allocation delegation and one-time supplemental review extension; no per-package Root/human GO, host/runtime/spent budget renewal or global compiler transfer.",
+    "executor": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+    "changed_lock_input_reviewer": "01a14d52-fa57-73a3-a4ad-1bf70f4084b8",
+    "independent_canonical_reader": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+    "repository": "../../.assets",
+    "branch": "codex/handpick",
+    "package": "hskernel/handshake_context_bundle",
+    "published_source_commit": "ca9bc84c1f7f3fa71cd4728774e16f7b57e6129f",
+    "source_proof_basis": "Reuse actual published source/IV immutable reread and valid unchanged team/dependency/direct Codecheck source reviews. Freshly bind actual current candidate, package, required dependencies and lock; publication metadata is not behavior acceptance.",
+    "guarded_inputs": [
+      "hskernel/handshake_context_bundle/**",
+      "shared/handshake_canonical_json/**"
+    ],
+    "sole_source_repository_write": "hskernel/handshake_context_bundle/Cargo.lock",
+    "lock_command": "cargo generate-lockfile --manifest-path hskernel/handshake_context_bundle/Cargo.toml",
+    "static_command": "cargo check --manifest-path hskernel/handshake_context_bundle/Cargo.toml --locked --tests -j 1",
+    "allocation": {
+      "package_lock_generation": 1,
+      "focused_locked_static_check": 1,
+      "exact_lock_only_normal_publication": 1,
+      "direct_iv_immutable_reread": 1
+    },
+    "sequence": "After admitted Notes queue and no actual conflicting owned Git/compiler/target operation: fresh guards/current Git/hardware binding and normal gameplan/hooks; one package-only lock; direct actual changed-lock/input review before one focused locked check; captured-input postbinding and owned numeric closure; normal explicit lock-only commit/push; publisher direct one IV reread. JSON precedes its ContextBundle consumer.",
+    "artifacts": "Distinct owning-MT/package action artifacts under the verified Handshake_Artifacts root, preserving every earlier proof file and only reusing compatible compiler/cache artifacts. No repository-local target.",
+    "limits": "No Rust/config/feature edits, test execution, host adoption, old denied-action retry or broad source/provider/parent acquisition. Keep original error/wire/policy/ABI semantics and all original runtime/manual/integration/independent acceptance. Exact actual conflict/drift/hookfailure stops affected action only; route concrete source repair to actual owner.",
+    "status": "STATIC_CHECK_EXIT0_LOCK_PUBLISHED_INDEPENDENT_IMMUTABLE_REREAD_COMPLETE",
+    "acceptance": "NOT_ACCEPTED",
+    "actual_result": {
+      "static_proof": {
+        "action": "HANDSHAKE_CONTEXT_BUNDLE_STANDALONE_STATIC_PROOF",
+        "package": "hskernel/handshake_context_bundle",
+        "source_parent_commit": "a931e2434cc809a545a3c20997fafdc06f09202f",
+        "source_rows": 9,
+        "source_drift": [],
+        "lock_bytes": 5887,
+        "lock_sha256": "7e599f9a7a982dccd8ff2db838b9a16274432c433842e6208a6e1ab4c9d6ed7b",
+        "command": [
+          "check",
+          "--manifest-path",
+          "hskernel/handshake_context_bundle/Cargo.toml",
+          "--locked",
+          "--tests",
+          "-j",
+          "1"
+        ],
+        "process_id": 75320,
+        "process_birth_utc": "2026-10-18T05:26:26.0633348Z",
+        "exit_code": 0,
+        "scheduling_observation": {
+          "pid": 75320,
+          "handle_open": true,
+          "cpu": 32,
+          "memory_query_ok": true,
+          "memory": 5,
+          "io_status": 0,
+          "io": 2
+        },
+        "runtime_tests_executed": false,
+        "host_acceptance": false,
+        "completed_at_utc": "2026-10-18T05:26:38.2527194Z",
+        "published_commit": "af7eb54e17573a803e6b2ed568cc03ff8f6a59c9",
+        "published_tree": "012ba431ff406aa4000a7175d952909d147bb291",
+        "lock_git_blob": "8b6711382ee977949f9fb422a6af98b81a139319",
+        "remote_confirmed": true,
+        "sole_delta": [
+          "hskernel/handshake_context_bundle/Cargo.lock"
+        ]
+      },
+      "artifact": "../Handshake_Artifacts/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-005/phase2-context-bundle-source-primary/static-proof.json",
+      "artifact_sha256": "80bf7cbe1aee64a863992d3802ee71a23a9b8cd8e06906f3c8ecb5e1f344d117",
+      "central_inspection": "93e614 EXIT0: actual proof/result and raw compiler stderr opened, numeric check EXIT0 and Finished dev observed.",
+      "independent_reread": {
+        "reader": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+        "status": "COMPLETE_NO_MISMATCH",
+        "commit": "af7eb54e17573a803e6b2ed568cc03ff8f6a59c9",
+        "tree": "012ba431ff406aa4000a7175d952909d147bb291",
+        "parent": "a931e2434cc809a545a3c20997fafdc06f09202f",
+        "lock_blob": "8b6711382ee977949f9fb422a6af98b81a139319",
+        "meaning": "Direct independent immutable canonical GitHub commit/tree/blob reread, untruncated recursive trees, exact one lock addition and all prior blobs unchanged, decoded Git SHA1 and raw SHA256/length matched. Separate moving tip is not asserted as immutable commit."
+      },
+      "acceptance": "Check --tests compiles test targets; no tests/runtime/rendered/host acceptance. All original independent acceptance and actual platform denials remain unchanged."
+    }
   }
+}
 }

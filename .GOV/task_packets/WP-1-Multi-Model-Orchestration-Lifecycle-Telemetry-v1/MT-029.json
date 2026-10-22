@@ -1,0 +1,950 @@
+{
+  "source_publication_observation_20261016": {
+    "status": "INDEPENDENTLY_VERIFIED_SOURCE_PUBLICATION_ONLY",
+    "owning_publication_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/reviewed_member_and_checkpoint_source_publication_20261016/actual_publication/independent_canonical_verification_20261016",
+    "independent_verifier_turn": "01a1454d-6ac6-73d0-ac49-9d11558eec91",
+    "canonical": {
+      "commit": "4be1b4f8c0ade75ce6461ad260c93bedf0e5ac56",
+      "parent": "be0cc01c4780832829f429eede44f5971e8c2e0f",
+      "tree": "79680a55ce17d1a362f53b248fd0dc300d2b4ac5"
+    },
+    "module": "handshake_runtime_checkpoint",
+    "scope": "This module's FOUR exact source guards already bound and independently reconciled in the existing eight-path owning verdict; no copied full verdict.",
+    "declared_tests": 34,
+    "test_status": "UNRUN_UNCOMPILED_UNDISCOVERED",
+    "root_boundary": "Independent IV performed canonical hash verification. Root read the actual IV verdict; underlying MCP byte bodies were not exposed to Root, who did not independently fetch/hash them.",
+    "limits": "Source publication observation only. No lifecycle completion/owning behavioral proof/pinned host adoption/runtime/IV product acceptance/slot/capture closure or new allowance; all old guards/requirements preserved."
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "specification_anchor_refs": [
+    ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-001",
+    ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-002",
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-003",
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-004",
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007",
+    ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016",
+    ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-187.json#/genuine_producer_preparation_policy_selection_20261016/runtime_checkpoint_publication/durable_claim_fence_preparation_amendment_20261016",
+    ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-029.json#/semantic_contract",
+    ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/execution/runtime_checkpoint_host_adoption"
+  ],
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-029",
+  "created_at_utc": "2026-10-16T12:45:54Z",
+  "updated_at_utc": "2026-10-16T12:45:54Z",
+  "identity": {
+    "mt_id": "MT-029",
+    "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+    "title": "handshake_runtime_checkpoint standalone_source",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "Implement the selected pure canonical lane-wide claim reduction and immutable checkpoint-capture intent/idempotency algorithms, with meaningful owning proof and canonical publication before distinct pinned host adoption.",
+    "requirement_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-001",
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-002",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-003",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-004",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016"
+    ],
+    "acceptance_refs": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-029.json#/scope/acceptance_criteria",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/execution/runtime_checkpoint_host_adoption"
+    ],
+    "materialized_acceptance": [
+      {
+        "acceptance_id": "AC029-01",
+        "text": "AC029-01: Exact four-path ownership, own workspace/package literals/std-only and acyclic capture->claim boundary; no host/backedge/effects.",
+        "detail": {
+          "exact_four_paths": [
+            "src/backend/handshake_runtime_checkpoint/Cargo.toml",
+            "src/backend/handshake_runtime_checkpoint/src/lib.rs",
+            "src/backend/handshake_runtime_checkpoint/src/claim.rs",
+            "src/backend/handshake_runtime_checkpoint/src/capture.rs"
+          ],
+          "primary_exact_literals": {
+            "cargo_toml": "[package]\nname = \"handshake_runtime_checkpoint\"\nversion = \"0.1.0\"\nedition = \"2021\"\npublish = false\n\n[workspace]\n",
+            "lib_rs": "pub mod claim;\npub mod capture;\n",
+            "dependencies": "NONE; std only. No UUID/time/serde/DB/auth/task/runtime dependency.",
+            "literal_owner": "Root SELECTED exact literals; current Primary personally owns their physical writes."
+          },
+          "dependency_boundary": "A claim MUST NOT import capture; B capture -> claim ONLY. Authors agree concrete Rust types/signatures before dependent use while coding. Exact ABI is not a preimplementation gate; frozen semantics control.",
+          "resource_scope_boundary": "Do not duplicate canonical five-scope semantics. If genuine existing typed resource_scope dependency is necessary, return exact dependency/source-compatibility counterfield before addition; no Root-invented alias/authentication.",
+          "source_path_limits": [
+            "All other product/governance/config/lock/workspace/schema/artifact paths",
+            "Core/adapters/reexports/host manifests/DB/auth/tasks/controller/keeper/process/lifecycle/cleanup implementations",
+            "Any copy or port from held MT026"
+          ],
+          "initial_creation_and_repair": [
+            "Initial physical creation requires actual personal FULL saved-contract ACK, fresh ABSENT guard plus regular parent/no actual captured-input or unfinished-writer conflict, then CreateNew ONLY AFTER separate official Central SOURCE START. Subsequent SAME-owned-file repairs within SAME scope are permitted after actual own/peer finding: fresh whole current posthash/size must match that writer's last output, with no other unfinished writer/conflict; preserve EVERY out-of-scope byte and record own delta/inverse. SAME distinct affected review/direct Codecheck as needed; no new path/Root scope or repeat passing reviews. No unconditional overwrite.",
+            "Existence/drift/conflicting unfinished delta stops affected new unit only; do not erase, overwrite or claim global freedom.",
+            "Any required dependency/resource-scope compatibility edge must return exact counterfield BEFORE addition; no improvised alias, authority or five-scope duplication."
+          ],
+          "start": {
+            "state": "SOURCE_STARTED_REVIEW_COMPLETE_PROOF_UNRUN",
+            "required": [
+              "Root FULL reads actual saved MT029 and exact packet/MT017 added nodes.",
+              "Central FULL reads actual canonical complete contract. A/B/Primary EACH personally FULL read and give specific exact final-scope ACK; SAME distinct NEVERAUTHOR actual contract ACK. Reuse prior Primary prospective ACK for its scope, but actual final lib-literal ACK remains required.",
+              "BEFORE official separate Central SOURCE START/write, obtain all FOUR initial fresh ABSENT/regular-parent-type/no actual captured-input or unfinished-writer conflict observations. Existence counterfield stops affected unit only, never erases existing work.",
+              "Only after those actual readbacks, personal ACKs, distinct contract ACK and initial guards may Central deliver separate official SOURCE START; initial creation uses CreateNew. Subsequent SAME-owned-file repairs follow execution.stop_conditions[0]: actual finding, fresh writer-last-output full posthash/size, no unfinished conflict, out-of-scope byte preservation and own delta/inverse, SAME distinct affected review/direct Codecheck as needed; no repeated passing review or new path/scope."
+            ],
+            "source_started": true
+          }
+        }
+      },
+      {
+        "acceptance_id": "AC029-02",
+        "text": "AC029-02: Claim domain, canonical lane-wide event predecessor reduction, ACTIVE tuple/fullbody/revision/cursor match, acquire constraints and all negative/counter invariants preserved.",
+        "detail": {
+          "claim": {
+            "domain": "Typed original canonical claim domain/run/lane/stream/incarnation DATA; no duplicated canonical five-scope semantics. Use pure domain parameters/opaque owner-issued DATA.",
+            "chain": "Reduce unique LANE-WIDE predecessor EVENT chain Acquire/Renew/Terminal BEFORE per-incarnation revision. Validate canonical predecessor/cursor/full body, not independent per-incarnation maps.",
+            "current_head": "Match ACTIVE tuple(instance_id,spawn_generation:u64,process_record_id) plus real claim revision/full body/cursor. Closed head denies old A after B even with fresh guard.",
+            "acquire": "Only empty canonical new lane, verified Terminal predecessor, or EXTERNALLY SEPARATELY authorized takeover input DATA. Takeover input is not a grant.",
+            "negative_floor": "Fork/gap/wrong predecessor/equal-revision-divergent-body/late old incarnation deny. No UUID/time ordering.",
+            "counters": "Checked monotonic arithmetic, no overflow/ABA/reset. Distinguish coordinator-token revision, actual claim revision and cursor.",
+            "expiry": "Stale expiry/revision data reject under selected supplied-data contract; leaf invents no current clock/expiry/authorization law."
+          },
+          "classification": "Pure std-only DATA algorithms. Phase/state/owner-issued data cannot mint actual authorization, claim/process ownership, permits or cleanup proof.",
+          "dependency_boundary": "A claim MUST NOT import capture; B capture -> claim ONLY. Authors agree concrete Rust types/signatures before dependent use while coding. Exact ABI is not a preimplementation gate; frozen semantics control."
+        }
+      },
+      {
+        "acceptance_id": "AC029-03",
+        "text": "AC029-03: Full immutable intent original identity, Historical-first exact retry, mismatch conflict, current-head new-effect check and retained Unknown semantics preserved.",
+        "detail": {
+          "capture": {
+            "intent": "Full immutable prepared capture intent: original operation/message-id-idempotency/run/from-lane/stream/payload reference+digest/full body with canonical equality. No body/hash string replaces authority.",
+            "bookkeeping": "Original-owner-bound DATA ticket/capture phase/cursor/reservation transitions; pure values, not real keepers/controllers or task owners.",
+            "retry": "Existing FULL intent outcome FIRST returns Historical DATA only even after new head. Never rotate lease fence or produce claim authority/new effects. Same operation with different body conflicts.",
+            "new_effect": "New-effect DATA decision requires A exact current head/cursor.",
+            "unknown": "Unknown/unsettled plus NotFound remains Unknown; no automatic resubmit/new UUID/new sequence/resample. Retain original intent for late completion and idempotent cursor behavior.",
+            "custody": "No destructive Take/release of sole input/result masquerading as actual cleanup or settlement."
+          },
+          "classification": "Pure std-only DATA algorithms. Phase/state/owner-issued data cannot mint actual authorization, claim/process ownership, permits or cleanup proof.",
+          "resource_scope_boundary": "Do not duplicate canonical five-scope semantics. If genuine existing typed resource_scope dependency is necessary, return exact dependency/source-compatibility counterfield before addition; no Root-invented alias/authentication.",
+          "host_retained": "ALL SQL/current auth/canonical CAS/gates/tasks/JoinHandles/DB writes/control/keeper/process/lifecycle/cleanup stay host-side in existing seven adapters, SEPARATE AND UNADMITTED here. Leaf cannot prove Surreal atomicity/restart/revocation. No Core reexport/fake DTO-only stub or copy/port from MT026."
+        }
+      },
+      {
+        "acceptance_id": "AC029-04",
+        "text": "AC029-04: Meaningful inline owning tests cover every selected algorithm and negative floor; later actual whole owning lib target discovers nonzero tests.",
+        "detail": {
+          "meaningful_inline_owning_test_declarations": [
+            "Empty canonical new lane versus nonempty mismatch.",
+            "Valid Acquire -> Renew -> Terminal -> new Acquire.",
+            "Fork/gap/wrong predecessor/late old incarnation/equal revision with divergent full body.",
+            "Stale expiry/revision, checked overflow and distinct counter tracking.",
+            "Exact original intent retry returns Historical after r2 versus mismatched intent conflict.",
+            "Retained Unknown/NotFound/late completion/idempotent cursor.",
+            "Deterministic permutation and canonical full-equality boundary cases."
+          ],
+          "tests_status": "REQUIRED_SOURCE_DECLARATIONS_UNRUN_UNCOMPILED_NOT_OBSERVED_NONZERO_SELECTION",
+          "whole_owning_target_requirement": "Whole owning lib nonzero discovery and meaningful claim/capture behavioral assertions with independent actual results; no pureDATA-as-production-authority claims."
+        }
+      },
+      {
+        "acceptance_id": "AC029-05",
+        "text": "AC029-05: Actual own/NEVERAUTHOR/direct Codecheck source review, then future implementer compilation and independent owning behavioral proof with exact separately admitted candidate/tool/config/finite bindings.",
+        "detail": {
+          "review": {
+            "required": "Own plus SAME distinct NEVERAUTHOR actual changed code/callers/failure paths/types/lifetimes and algorithm/assertion conservation; resolve actual findings; Runtime leader DIRECT current Codecheck01a1423a.",
+            "qualification": "Source review is NOT compiler/runtime/conflict proof or independent acceptance. Do not repeat unchanged reviews or require canonical Core compile/future host IDs/preimplemented APIs before source authoring."
+          },
+          "owning_proof": {
+            "parent_proof_refs": [
+              ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-001",
+              ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-002",
+              ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-003",
+              ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-004",
+              ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007",
+              ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016"
+            ],
+            "checks": [
+              {
+                "check_id": "WP1-MT029-OWNING-CLAIM-CAPTURE-BEHAVIOR",
+                "claim_refs": [
+                  ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-029.json#/semantic_contract",
+                  ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-029.json#/scope/acceptance_criteria"
+                ],
+                "command_or_method": null,
+                "expected": "Whole owning lib nonzero discovery and meaningful claim/capture behavioral assertions with independent actual results; no pureDATA-as-production-authority claims.",
+                "timeout_seconds": null,
+                "on_timeout": "record_timeout",
+                "evidence_required": [
+                  "Actual A/B algorithms plus meaningful inline test declarations",
+                  "Own/SAME NEVERAUTHOR assembled review and direct Codecheck",
+                  "Future separately admitted implementer compile and independent nonzero owning behavioral proof",
+                  "Canonical publication and independently read immutable four-file source pins"
+                ],
+                "status": "UNRUN_UNCOMPILED_EXECUTION_HELD",
+                "execution_authorized": false
+              }
+            ],
+            "independent_review_required": true,
+            "duplicate_parent_proof_forbidden": true,
+            "declarations_only": {
+              "implementer": "cargo check --tests --manifest-path src/backend/handshake_runtime_checkpoint/Cargo.toml --locked --offline",
+              "independent_validator": "cargo test --lib --manifest-path src/backend/handshake_runtime_checkpoint/Cargo.toml --locked --offline",
+              "status": "HELD_NOT_INVOKABLE_FROM_THIS_CONTRACT"
+            },
+            "actual_command": null,
+            "actual_selection": null,
+            "finite_allowance": null,
+            "tool_bindings": null,
+            "config_binding": null,
+            "canary_binding": null,
+            "cache_binding": null,
+            "lock_binding": null,
+            "slot_binding": null,
+            "closure_binding": null,
+            "execution_status": "HELD",
+            "budget_note": "No 0-unused grant or observed zero-test assertion. No lock generation/metadata or execution authority from declaration. Future exact tools/config/canary/cache/gates/resources/slot/closure and candidate finite decision separately bound.",
+            "input_effects": "No actual production metadata/input change observed from governance authoring; changes arise only after actual source writes. No old proof resets."
+          },
+          "execution_authorized": false,
+          "proof_started": false,
+          "allowance_granted": false
+        }
+      },
+      {
+        "acceptance_id": "AC029-06",
+        "text": "AC029-06: Canonical source publication, independent immutable remote revision/four-file pins and maintenance contract completion before distinct MT017 pinned host-adoption source writes.",
+        "detail": {
+          "canonical_module": {
+            "module_id": "handshake_runtime_checkpoint",
+            "canonical_source_repository": "https://github.com/Nuntissura/Handshake.git",
+            "canonical_source_path": "src/backend/handshake_runtime_checkpoint",
+            "package_version": "0.1.0",
+            "product_worktree": "../wtc-WP-KERNEL-012",
+            "product_branch": "feat/WP-KERNEL-012",
+            "source_commit": null,
+            "source_tree": null,
+            "exact_source_pins": null,
+            "publication_status": "NOT_OBSERVED",
+            "source_contract_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-029.json",
+            "distinct_host_adoption_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/execution/runtime_checkpoint_host_adoption",
+            "module_maintenance_refs": [
+              ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-029.json#/canonical_module",
+              ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-029.json#/semantic_contract",
+              ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-029.json#/proof",
+              ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-029.json#/assignments"
+            ],
+            "maintenance": "This concrete source/public API/error/behavioral proof/owner contract establishes prospective module maintenance. Actual canonical source proof/release/pins remain UNBOUND until proven; no completed release or compatibility inferred."
+          },
+          "standalone_proof_and_pin_before_host_obligation": "AC029-06: Canonical source publication, independent immutable remote revision/four-file pins and maintenance contract completion before distinct MT017 pinned host-adoption source writes.",
+          "required_actual_evidence": [
+            "Actual A/B algorithms plus meaningful inline test declarations",
+            "Own/SAME NEVERAUTHOR assembled review and direct Codecheck",
+            "Future separately admitted implementer compile and independent nonzero owning behavioral proof",
+            "Canonical publication and independently read immutable four-file source pins"
+          ]
+        }
+      },
+      {
+        "acceptance_id": "AC029-07",
+        "text": "AC029-07: All original host/runtime/persistence/revocation/atomicity/negative/three-WP independent acceptance obligations remain OPEN; source/static proof does not satisfy them.",
+        "detail": {
+          "preserved_original_obligations": "ALL original WP012/WP1/CKC scopes/pins/SIX/original16/full128/manual/Argus/independent IV/immutable164/genuine165 measure -> sole measured pin -> independent confirm BEFORE166/MT026 LOCAL_POLICY_HOLD/globalA holds/spent finite history remain. No existing proof resets or new execution allowance.",
+          "source_execution_limits": "FOUR new source paths only, after required actual ordered readback/ACK/initial-absence/START guards and initial CreateNew; subsequent SAME-owned-file guarded repairs only under execution.stop_conditions[0]. No product/source action by kernel writer. No Cargo/build/test/metadata/lock generation/solver/config/controller/SQL/runtime/process/OS probe/Git/artifact/plan/confirmation/budget/slot/host adoption/member/other file permission. No new branch/worktree/backup.",
+          "source_scope": {
+            "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+            "module_change_stage": "standalone_source",
+            "foreground_or_interactive_tools_forbidden": true,
+            "depends_on": [],
+            "allowed_write_paths": [
+              "src/backend/handshake_runtime_checkpoint/Cargo.toml",
+              "src/backend/handshake_runtime_checkpoint/src/lib.rs",
+              "src/backend/handshake_runtime_checkpoint/src/claim.rs",
+              "src/backend/handshake_runtime_checkpoint/src/capture.rs"
+            ],
+            "forbidden_write_paths": [
+              "All other product/governance/config/lock/workspace/schema/artifact paths",
+              "Core/adapters/reexports/host manifests/DB/auth/tasks/controller/keeper/process/lifecycle/cleanup implementations",
+              "Any copy or port from held MT026"
+            ],
+            "stop_conditions": [
+              "Initial physical creation requires actual personal FULL saved-contract ACK, fresh ABSENT guard plus regular parent/no actual captured-input or unfinished-writer conflict, then CreateNew ONLY AFTER separate official Central SOURCE START. Subsequent SAME-owned-file repairs within SAME scope are permitted after actual own/peer finding: fresh whole current posthash/size must match that writer's last output, with no other unfinished writer/conflict; preserve EVERY out-of-scope byte and record own delta/inverse. SAME distinct affected review/direct Codecheck as needed; no new path/Root scope or repeat passing reviews. No unconditional overwrite.",
+              "Existence/drift/conflicting unfinished delta stops affected new unit only; do not erase, overwrite or claim global freedom.",
+              "Any required dependency/resource-scope compatibility edge must return exact counterfield BEFORE addition; no improvised alias, authority or five-scope duplication."
+            ],
+            "sourcewrite_authorized": true,
+            "execution_authorized": false,
+            "proof_started": false,
+            "allowance_granted": false
+          },
+          "source_start": {
+            "state": "SOURCE_STARTED_REVIEW_COMPLETE_PROOF_UNRUN",
+            "required": [
+              "Root FULL reads actual saved MT029 and exact packet/MT017 added nodes.",
+              "Central FULL reads actual canonical complete contract. A/B/Primary EACH personally FULL read and give specific exact final-scope ACK; SAME distinct NEVERAUTHOR actual contract ACK. Reuse prior Primary prospective ACK for its scope, but actual final lib-literal ACK remains required.",
+              "BEFORE official separate Central SOURCE START/write, obtain all FOUR initial fresh ABSENT/regular-parent-type/no actual captured-input or unfinished-writer conflict observations. Existence counterfield stops affected unit only, never erases existing work.",
+              "Only after those actual readbacks, personal ACKs, distinct contract ACK and initial guards may Central deliver separate official SOURCE START; initial creation uses CreateNew. Subsequent SAME-owned-file repairs follow execution.stop_conditions[0]: actual finding, fresh writer-last-output full posthash/size, no unfinished conflict, out-of-scope byte preservation and own delta/inverse, SAME distinct affected review/direct Codecheck as needed; no repeated passing review or new path/scope."
+            ],
+            "source_started": true
+          },
+          "authority_qualification": "Root-selected engineering decision under the already-approved original three-WP split goal and human delegation; no assertion these new source permissions preexisted in the Master Spec."
+        }
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Two substantive algorithm authors with distinct nonauthor review; exact owner-directed source unit only.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "interpretation": "Template failure/diagnosis policy only, NOT an invocation grant, observed zero tests, remaining allowance or historical counter reset. All future execution requires separate candidate-bound finite admission."
+  },
+  "execution": {
+    "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "module_change_stage": "standalone_source",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [],
+    "allowed_write_paths": [
+      "src/backend/handshake_runtime_checkpoint/Cargo.toml",
+      "src/backend/handshake_runtime_checkpoint/src/lib.rs",
+      "src/backend/handshake_runtime_checkpoint/src/claim.rs",
+      "src/backend/handshake_runtime_checkpoint/src/capture.rs"
+    ],
+    "forbidden_write_paths": [
+      "All other product/governance/config/lock/workspace/schema/artifact paths",
+      "Core/adapters/reexports/host manifests/DB/auth/tasks/controller/keeper/process/lifecycle/cleanup implementations",
+      "Any copy or port from held MT026"
+    ],
+    "stop_conditions": [
+      "Initial physical creation requires actual personal FULL saved-contract ACK, fresh ABSENT guard plus regular parent/no actual captured-input or unfinished-writer conflict, then CreateNew ONLY AFTER separate official Central SOURCE START. Subsequent SAME-owned-file repairs within SAME scope are permitted after actual own/peer finding: fresh whole current posthash/size must match that writer's last output, with no other unfinished writer/conflict; preserve EVERY out-of-scope byte and record own delta/inverse. SAME distinct affected review/direct Codecheck as needed; no new path/Root scope or repeat passing reviews. No unconditional overwrite.",
+      "Existence/drift/conflicting unfinished delta stops affected new unit only; do not erase, overwrite or claim global freedom.",
+      "Any required dependency/resource-scope compatibility edge must return exact counterfield BEFORE addition; no improvised alias, authority or five-scope duplication."
+    ],
+    "sourcewrite_authorized": true,
+    "execution_authorized": false,
+    "proof_started": false,
+    "allowance_granted": false
+  },
+  "proof": {
+    "parent_proof_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-001",
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-002",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-003",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-004",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016"
+    ],
+    "checks": [
+      {
+        "check_id": "WP1-MT029-OWNING-CLAIM-CAPTURE-BEHAVIOR",
+        "claim_refs": [
+          ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-029.json#/semantic_contract",
+          ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-029.json#/scope/acceptance_criteria"
+        ],
+        "command_or_method": null,
+        "expected": "Whole owning lib nonzero discovery and meaningful claim/capture behavioral assertions with independent actual results; no pureDATA-as-production-authority claims.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Actual A/B algorithms plus meaningful inline test declarations",
+          "Own/SAME NEVERAUTHOR assembled review and direct Codecheck",
+          "Future separately admitted implementer compile and independent nonzero owning behavioral proof",
+          "Canonical publication and independently read immutable four-file source pins"
+        ],
+        "status": "UNRUN_UNCOMPILED_EXECUTION_HELD",
+        "execution_authorized": false
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "declarations_only": {
+      "implementer": "cargo check --tests --manifest-path src/backend/handshake_runtime_checkpoint/Cargo.toml --locked --offline",
+      "independent_validator": "cargo test --lib --manifest-path src/backend/handshake_runtime_checkpoint/Cargo.toml --locked --offline",
+      "status": "HELD_NOT_INVOKABLE_FROM_THIS_CONTRACT"
+    },
+    "actual_command": null,
+    "actual_selection": null,
+    "finite_allowance": null,
+    "tool_bindings": null,
+    "config_binding": null,
+    "canary_binding": null,
+    "cache_binding": null,
+    "lock_binding": null,
+    "slot_binding": null,
+    "closure_binding": null,
+    "execution_status": "HELD",
+    "budget_note": "No 0-unused grant or observed zero-test assertion. No lock generation/metadata or execution authority from declaration. Future exact tools/config/canary/cache/gates/resources/slot/closure and candidate finite decision separately bound.",
+    "input_effects": "No actual production metadata/input change observed from governance authoring; changes arise only after actual source writes. No old proof resets."
+  ,
+"original_four_package_manifest_preparation_20261017": {
+  "decision_id": "WP1-MT029-ORIGINAL-FOUR-PACKAGE-MANIFEST-PREPARATION-20261017",
+  "recorded_at_utc": "2026-10-17T00:44:13.125678+00:00",
+  "status": "READ_PREPARATION_RELEASED_CONDITIONAL_ROOT_FULL_PERSONAL_START_OWNING_PROOF_HELD",
+  "authority": "Root+buddy select independent owning-proof preparation. Retained-only proposal reconciled DIRECT Central; no product/tool/OS/Git/metadata/Cargo acquisition occurred; new manifest+directory read NOT yet commissioned.",
+  "actor": "PERSONAL current Primary8b01a1468b-5371-7111-99ce-4f5840702f16 READONLY",
+  "batch": {
+    "limit": 1,
+    "consumed": 0,
+    "actual_state": "NOT_STARTED",
+    "worktree": "../wtc-WP-KERNEL-012"
+  },
+  "original_owning_units": [
+    {
+      "contract": "Original WP1 MT027",
+      "declared_tests": 16,
+      "source_publication": "2e848... SOURCE ONLY"
+    },
+    {
+      "contract": "Original WP1 MT028",
+      "declared_tests": 27,
+      "source_publication": "73ca.../treeeb3f... SOURCE ONLY"
+    },
+    {
+      "contract": "Original WP1 MT029",
+      "declared_tests": 34,
+      "source_publication": "4be1... SOURCE ONLY"
+    },
+    {
+      "contract": "Original WP1 MT030",
+      "declared_tests": 22,
+      "source_publication": "4be1... SOURCE ONLY"
+    }
+  ],
+  "total_declarations": 99,
+  "declaration_state": "UNRUN/UNCOMPILED; current candidate equivalence NOT inferred.",
+  "exact_manifest_guards": [
+    {
+      "path": "src/backend/handshake_producer_association/Cargo.toml",
+      "sha256": "455dc9f0c9c6b1ee8a11dbe97b694ce9fc119ad77a7c5d8867ba8cc6566b6c5b",
+      "bytes": 278
+    },
+    {
+      "path": "src/backend/handshake_producer_task_policy/Cargo.toml",
+      "sha256": "61815e603011363bd7aba8ede19d4773a089f5cc6e8e083df80d1d43fbd7c395",
+      "bytes": 332
+    },
+    {
+      "path": "src/backend/handshake_runtime_checkpoint/Cargo.toml",
+      "sha256": "c94464fd439fc15f0906c98d6b4cb27c6de609be09968827769ec3a6e916e769",
+      "bytes": 112
+    },
+    {
+      "path": "src/backend/handshake_member_enrollment/Cargo.toml",
+      "sha256": "a9983f36dde46fb02b065af491becec4230870be62dff0028e1efa55d407081c",
+      "bytes": 184
+    }
+  ],
+  "manifest_method": "Each exact ordinary/nonreparse file ONE byte buffer SHA256+length MATCH BEFORE SAME-buffer strict decode. Capture ALL FOUR before body emission. Any drift/type/error/cap ENTIRE body report WITHHELD STOP/no retry/no repaired guard.",
+  "directory_names_only": "ONLY ordinary TOP-LEVEL entry NAMES/TYPES in each of the four exact manifest parent directories; <=100 entries EACH/400 TOTAL, metadata ONLY, no recursion/link follow/content. Reparse entries report TYPE ONLY, do not traverse; reparse root/manifest STOP.",
+  "output": "ALL four manifests+metadata+guards+footer complete<=16000 characters IN MEMORY BEFORE body emission. Explicit Console Out WriteLine+Flush success0/Error bounded STOP+Flush failure1, structured output max_output_tokens10000, ordinary JS string NO String.raw/backtick template.",
+  "purpose": "Actual package/workspace/lock/config references from manifest+top names, no assumed lock/path/executable closure. Result feeds TDM/8b actual reviewable owning-four-package argv/candidate/resolver/lock/feature/executor/finite proposal; technical analysis Primary+owning checker/IV within actual scope, Root concise bindings.",
+  "start": "Root FULL saved node/hash then normal Central PERSONAL8b READ START first.",
+  "exclusions": "No lock/config/other source-body read/metadata COMMAND/Git/tool-version/OS/process/cache probe/slot/Cargo/build/test/lock generation/source write/new workspace/target/resource/evaluation allowance.",
+  "proof_preservation": "Original checks[0] method/actual/selection/finite/tool/config/cache/lock/slot/closure NULL/HELD and declarations HELD remain unchanged. No zero-unused budget or source-publication-to-owning-proof/Core compile/extraction/publication predecessor or Mounted-seven batch compatibility inferred.",
+  "preservation": "All original three-WP scopes/source-first/165 measure-pin-independent-confirm BEFORE166/immutable164/old custody/history/proof/pins/budgets/holds retained.",
+  "source_write_or_Git_authorized": false,
+  "Cargo_metadata_build_test_or_runtime_authorized": false,
+  "new_finite_or_resource_allowance_granted": false,
+  "proof_or_acceptance_claimed": false
+,
+"terminal_read_and_lock_strategy_20261017": {
+  "decision_id": "WP1-MT029-FOUR-PACKAGE-TERMINAL-READ-LOCK-STRATEGY-20261017",
+  "recorded_at_utc": "2026-10-17T01:04:49.859585+00:00",
+  "status": "TERMINAL_READ_COMPLETE_LOCK_STRATEGY_PREPARATION_ONLY_OWNING_PROOF_HELD",
+  "actual_read": {
+    "actor": "Primary8b PERSONAL",
+    "chunk": "3b944a",
+    "exit_code": 0,
+    "duration_seconds": 0.1745907,
+    "host_utc": "2026-10-17T00:46:08.3976363Z",
+    "complete": true,
+    "truncated": false,
+    "limit": 1,
+    "consumed": 1,
+    "remaining": 0,
+    "own_pending": false,
+    "guards": "ALL FOUR parent admitted manifests ordinary/nonreparse SAME-buffer SHA256+length MATCH BEFORE decode.",
+    "directory_tops": "Each of four package tops EXACT Cargo.toml FILE +src DIRECTORY,8 entries TOTAL. No package-top Cargo.lock/.cargo ONLY; no ancestor/config/cache absence inference."
+  },
+  "actual_manifest_facts": {
+    "all_four": "package0.1.0/edition2021/publishfalse/empty[workspace]",
+    "association": "serde1 derive/serde_json1/sha2 0.10/thiserror2.0.17/uuid1 serde",
+    "task_policy": "local ../handshake_resource_scope +serde1 derive/serde_json1/thiserror2.0.17/uuid1 serde",
+    "checkpoint": "NO dependency section",
+    "enrollment": "uuid=1.24.1 default-features=false"
+  },
+  "history_precedence": "Parent consumed0 retained pre-invocation history; THIS child current terminal projection consumed1of1.",
+  "selected_lock_strategy": {
+    "selection": "FOUR PACKAGE-OWNED Cargo.lock files for FUTURE separately admitted finite OFFLINE resolution by Primary.",
+    "state": "PREPARATION_ONLY",
+    "not_authorized": "NO lock generation/write/Cargo allowance/copied Core lock/new workspace/online fallback.",
+    "still_unbound": [
+      "Exact ResourceScope manifest dependency closure",
+      "Effective config/resolver",
+      "Tool/controller",
+      "Cache/resources/slot/captured closure"
+    ],
+    "retained_ResourceScope_manifest": {
+      "path": "src/backend/handshake_resource_scope/Cargo.toml",
+      "sha256": "ee4977d873367dc802e9e8b29f79597e9551e56a15f407ac10eba2096b7a0dba",
+      "bytes": 264,
+      "qualification": "Guard supplied by8b prior actual proposal; BODY NOT ACQUIRED."
+    },
+    "proposal_commission": "Through Central: retained-input proposal for existing phase-owned-cargo.py8210 executor adaptation and exact ResourceScope input ONLY. NO product read grant here.",
+    "cache_boundary": "Exhaustive cache-availability proof is NOT predecessor to finite offline resolution; missing cache is real failure, no automatic fallback."
+  },
+  "preservation": "Original99 UNRUN and checks/methods/actual selection/finite/tool/config/cache/lock/slot/closure NULL/HELD unchanged. All original scope/proof/pins/history/budgets/holds retained.",
+  "product_read_or_source_write_authorized": false,
+  "lock_generation_or_Cargo_or_online_authorized": false,
+  "finite_allowance_granted": false,
+  "proof_or_acceptance_claimed": false
+,
+"exact_dependency_manifest_read_preparation_20261017": {
+  "decision_id": "WP1-MT029-RESOURCE-SCOPE-DEPENDENCY-MANIFEST-READ-20261017",
+  "recorded_at_utc": "2026-10-17T01:09:41.537245+00:00",
+  "status": "READ_PREPARATION_RELEASED_CONDITIONAL_ROOT_FULL_PERSONAL_START_OWNING_PROOF_HELD",
+  "basis": "Actual TaskPolicy manifest3b944a declares local ../handshake_resource_scope. Exact retained8b source guard supplied; BODY NOT_RETAINED after actual8b+Dx inquiries. Known dependency path, not hunt.",
+  "actor": "PERSONAL current Primary8b01a1468b-5371-7111-99ce-4f5840702f16 READONLY",
+  "new_acquisition": {
+    "limit": 1,
+    "consumed": 0,
+    "actual_state": "NOT_STARTED",
+    "worktree": "../wtc-WP-KERNEL-012",
+    "exact_path": "src/backend/handshake_resource_scope/Cargo.toml",
+    "expected_sha256": "ee4977d873367dc802e9e8b29f79597e9551e56a15f407ac10eba2096b7a0dba",
+    "expected_bytes": 264,
+    "guard": "Exact ordinary/nonreparse file and parents, no follow. ONE byte buffer SHA256+length MATCH BEFORE strict UTF8 decode/emission.",
+    "method": "Complete body+guard+footer <=4000 characters preassembled IN MEMORY. Explicit Console Out WriteLine+Flush+numeric EXIT0; bounded error stderr+Flush+EXIT1.",
+    "failure": "Cap/drift/type/decoder/emission error STOP, no automatic retry/repaired guard.",
+    "start": "Only Root FULL saved node/hash then normal Central PERSONAL8b commission+own inflight reconciliation."
+  },
+  "interpretation": "Actual local dependency/workspace/features/registry declaration inputs ONLY; not resolved-lock/runtime proof.",
+  "prior_allowance": "Existing four-manifest read SPENT1of1 retained. New264-byte read EXPLICIT DISTINCT limit1/consumed0, no reset.",
+  "exclusions": "No directory listing/other file/lib/source audit/lock/config/cache/OS/tool/version/controller/rejected target/metadata COMMAND/Cargo/run/write/finite/ownership transfer.",
+  "preservation": "Method/tool/config/cache/resources/slot/finite/99UNRUN remain HELD. Existing rejected controller/hook policy unchanged; independent target not bypass. All original three-WP scope/proof/pins/165 measure-pin-independent-confirm BEFORE166/immutable164/history/budgets/holds retained.",
+  "source_or_other_file_write_authorized": false,
+  "Cargo_metadata_or_runtime_authorized": false,
+  "finite_allowance_granted": false,
+  "ownership_transfer_authorized": false,
+  "proof_or_acceptance_claimed": false
+,
+"terminal_read_result_20261017": {
+  "decision_id": "WP1-MT029-RESOURCE-SCOPE-MANIFEST-TERMINAL-READ-20261017",
+  "recorded_at_utc": "2026-10-17T01:17:36.437045+00:00",
+  "status": "TERMINAL_EXIT0_DEPENDENCY_DECLARATION_READ_COMPLETE_OWNING_PROOF_HELD",
+  "actual": {
+    "actor": "Primary8b PERSONAL",
+    "chunk": "7ed0fd",
+    "exit_code": 0,
+    "duration_seconds": 0.2458708,
+    "host_utc": "2026-10-17T01:11:53.6401862Z",
+    "complete": true,
+    "truncated": false,
+    "limit": 1,
+    "consumed": 1,
+    "remaining": 0,
+    "own_pending": false,
+    "guard": "Exact ordinary file+parents ONE byte buffer ee4977.../264 MATCH BEFORE strict decode."
+  },
+  "actual_manifest": {
+    "package": "handshake_resource_scope",
+    "version": "0.1.0",
+    "edition": "2021",
+    "publish": false,
+    "workspace": "Own empty[workspace]",
+    "dependencies": [
+      "serde1 derive",
+      "serde_json1",
+      "uuid1 features v7+serde",
+      "thiserror2.0.17"
+    ],
+    "no_declarations": "NO feature table/further local path/config/lock references."
+  },
+  "scope": "Closes TaskPolicy dependency DECLARATION ONLY. TaskPolicy OWN selected lock resolves actual path dependency+registry closure. Not fifth owning-proof package/extra99 count/lock-generation/test authority.",
+  "history_precedence": "Parent0 prospective counter retained historically; child current SPENT1of1. No reset.",
+  "still_unbound": "Controller/config/supported method/mutation-output/finite/custody NOT_RETAINED. Prior rejections HELD,99UNRUN; no cache census/network fallback/allowance reset.",
+  "preservation": "All original scope/history/proof/pins/budgets/165 measure-pin-independent-confirm BEFORE166/immutable164 and holds retained.",
+  "new_read_write_or_execution_authorized": false,
+  "finite_allowance_granted": false,
+  "proof_or_acceptance_claimed": false
+}}}}},
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-029.json",
+    "microtask_projection": null,
+    "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "NOT_REQUESTED_MACHINE_CONTRACT_ONLY",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "SOURCE_IMPLEMENTED_REVIEWED_PROOF_UNRUN",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "New standalone handshake_runtime_checkpoint0.1.0 std-only pure claim-chain/head/revision/reservation and full immutable capture-intent/idempotency algorithms. Actual production adapters and authority/effects remain separately held.",
+    "allowed_paths": [
+      "src/backend/handshake_runtime_checkpoint/Cargo.toml",
+      "src/backend/handshake_runtime_checkpoint/src/lib.rs",
+      "src/backend/handshake_runtime_checkpoint/src/claim.rs",
+      "src/backend/handshake_runtime_checkpoint/src/capture.rs"
+    ],
+    "forbidden_paths": [
+      "All other product/governance/config/lock/workspace/schema/artifact paths",
+      "Core/adapters/reexports/host manifests/DB/auth/tasks/controller/keeper/process/lifecycle/cleanup implementations",
+      "Any copy or port from held MT026"
+    ],
+    "acceptance_criteria": [
+      "AC029-01: Exact four-path ownership, own workspace/package literals/std-only and acyclic capture->claim boundary; no host/backedge/effects.",
+      "AC029-02: Claim domain, canonical lane-wide event predecessor reduction, ACTIVE tuple/fullbody/revision/cursor match, acquire constraints and all negative/counter invariants preserved.",
+      "AC029-03: Full immutable intent original identity, Historical-first exact retry, mismatch conflict, current-head new-effect check and retained Unknown semantics preserved.",
+      "AC029-04: Meaningful inline owning tests cover every selected algorithm and negative floor; later actual whole owning lib target discovers nonzero tests.",
+      "AC029-05: Actual own/NEVERAUTHOR/direct Codecheck source review, then future implementer compilation and independent owning behavioral proof with exact separately admitted candidate/tool/config/finite bindings.",
+      "AC029-06: Canonical source publication, independent immutable remote revision/four-file pins and maintenance contract completion before distinct MT017 pinned host-adoption source writes.",
+      "AC029-07: All original host/runtime/persistence/revocation/atomicity/negative/three-WP independent acceptance obligations remain OPEN; source/static proof does not satisfy them."
+    ],
+    "proof_targets": [
+      "Whole owning lib behavioral target with actual nonzero discovery and selected meaningful tests; UNRUN.",
+      "Future separately admitted implementer cargo check --tests --manifest-path src/backend/handshake_runtime_checkpoint/Cargo.toml --locked --offline; DECLARATION ONLY.",
+      "Future independent cargo test --lib --manifest-path src/backend/handshake_runtime_checkpoint/Cargo.toml --locked --offline; DECLARATION ONLY.",
+      "Canonical publication plus independently read immutable source pins before distinct host adoption."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [
+      "Pure algorithm/source/proof contract and later actual owning test evidence"
+    ],
+    "not_applicable_reason": "No GUI/host changes in this pure source unit; all original GUI/manual/Argus/full128 host acceptance preserved separately."
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "Source public API/error/maintenance contract"
+    ],
+    "not_applicable_reason": "No product user workflow changed by source-only pure primitive; original host/user manual acceptance remains mandatory at adoption."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "Untrusted immutable domain/identity/intent DATA only"
+    ],
+    "identity_and_scope_contexts": [
+      "Original typed claim domain/run/lane/stream/incarnation and full immutable intent; no authority from raw data"
+    ],
+    "enforcement_boundaries": [
+      "Actual host canonical CAS/auth/resource gates retained outside leaf"
+    ],
+    "same_project_private_resource_cases": [],
+    "cross_account_negative_cases": [],
+    "derived_resource_non_widening_cases": [
+      "Leaf does not mint or widen authority; exact full-body/identity equality and current-head checks"
+    ],
+    "revocation_and_context_switch_cases": [
+      "Host actual revocation/lifecycle remains required; leaf data cannot establish freshness/current authority"
+    ],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [],
+    "expected_evidence": [
+      "Actual algorithm negative/equality tests and independent source review; later genuine host authorization/privacy proof"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-003",
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-004",
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007"
+  ],
+  "hbr_int_009_tier_obligations": [
+    "Pure source/unit ownership only; original production diagnostic/independent acceptance floors remain required in host stage."
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "actual personal FULL contract/START receipts",
+      "fresh absence/ownership counterfields",
+      "actual source postimages/owning test declarations",
+      "actual distinct/direct source findings",
+      "remaining UNRUN proof and host holds"
+    ],
+    "worker_final_status": "source_implemented_reviewed_proof_unrun_or_exact_blocker"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PURE_CLAIM_CAPTURE_SOURCE_BOUNDARY",
+    "risks": [
+      "Per-incarnation-only reduction could reauthorize old A after B.",
+      "Historical intent replay might rotate authority or resubmit Unknown effects.",
+      "Hash-only comparison or destructive Take could lose immutable intent/custody.",
+      "A reverse capture import/dependency/backedge could conflate pure DATA with host authority."
+    ],
+    "minimum_controls": [
+      "Lane-wide predecessor event reduction before per-incarnation revision and exact ACTIVE tuple/full body/cursor checks.",
+      "Historical-first full-intent equality; mismatch conflict; Unknown+NotFound remains Unknown.",
+      "No effect/cleanup/controller/authority claims from pure states; preserve full immutable original intent.",
+      "B->A only, std-only, exact four paths and actual owning negative/equality tests."
+    ]
+  },
+  "canonical_module": {
+    "module_id": "handshake_runtime_checkpoint",
+    "canonical_source_repository": "https://github.com/Nuntissura/Handshake.git",
+    "canonical_source_path": "src/backend/handshake_runtime_checkpoint",
+    "package_version": "0.1.0",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "source_commit": null,
+    "source_tree": null,
+    "exact_source_pins": null,
+    "publication_status": "NOT_OBSERVED",
+    "source_contract_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-029.json",
+    "distinct_host_adoption_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/execution/runtime_checkpoint_host_adoption",
+    "module_maintenance_refs": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-029.json#/canonical_module",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-029.json#/semantic_contract",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-029.json#/proof",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-029.json#/assignments"
+    ],
+    "maintenance": "This concrete source/public API/error/behavioral proof/owner contract establishes prospective module maintenance. Actual canonical source proof/release/pins remain UNBOUND until proven; no completed release or compatibility inferred."
+  },
+  "assignments": [
+    {
+      "writer": "PRIMARY_PERSONALLY",
+      "writer_chat": "01a143ef-a88b-7b40-aecb-cad547863ad0",
+      "paths": [
+        "src/backend/handshake_runtime_checkpoint/Cargo.toml",
+        "src/backend/handshake_runtime_checkpoint/src/lib.rs"
+      ],
+      "scope": "Exact selected Cargo.toml and lib.rs literals only; no algorithms or other shared roots.",
+      "prospective_ack": "Root reports actual Primary personal prospective ACK turn01a144b5 tool0a4f671d delivered Runtime. lib literal Root SELECTED now; personal FULL final-contract ACK remains required before START/write.",
+      "before_state": "EXPECTED_ABSENT_CONDITIONAL_FRESH_CREATENEW_NOT_OBSERVED"
+    },
+    {
+      "writer": "/root/runtime_owner_contract_successor",
+      "paths": [
+        "src/backend/handshake_runtime_checkpoint/src/claim.rs"
+      ],
+      "scope": "Substantive claim-domain/chain/head/revision/cursor reduction, error boundaries and meaningful inline owning behavioral tests. Must NOT import capture.",
+      "personal_source_scope_ack": "PENDING_REQUIRED_BEFORE_START",
+      "before_state": "EXPECTED_ABSENT_CONDITIONAL_FRESH_CREATENEW_NOT_OBSERVED"
+    },
+    {
+      "writer": "/root/runtime_entry_coding_author",
+      "paths": [
+        "src/backend/handshake_runtime_checkpoint/src/capture.rs"
+      ],
+      "scope": "Substantive immutable capture intent/ticket/reservation/idempotency/historical/Unknown transition bookkeeping and meaningful inline owning behavioral tests; depends on claim only.",
+      "personal_source_scope_ack": "PENDING_REQUIRED_BEFORE_START",
+      "before_state": "EXPECTED_ABSENT_CONDITIONAL_FRESH_CREATENEW_NOT_OBSERVED"
+    }
+  ],
+  "ownership": {
+    "leader": "Runtime team under existing canonical coordination; no invented native app ID",
+    "distinct_neverauthor": "/root/runtime_owner_design_checker",
+    "distinct_contract_ack": "PENDING_REQUIRED_BEFORE_START",
+    "partition": "Exactly TWO actual substantive code authors plus distinct NEVERAUTHOR and sole Primary Cargo/lib owner; one writer per file. A claim MUST NOT import B capture; B capture -> A claim ONLY.",
+    "scope": "Prospective exact four-path source ownership only. No other manifest/lock/Git/compiler/host lease transfer or global writer quiescence inferred."
+  },
+  "primary_exact_literals": {
+    "cargo_toml": "[package]\nname = \"handshake_runtime_checkpoint\"\nversion = \"0.1.0\"\nedition = \"2021\"\npublish = false\n\n[workspace]\n",
+    "lib_rs": "pub mod claim;\npub mod capture;\n",
+    "dependencies": "NONE; std only. No UUID/time/serde/DB/auth/task/runtime dependency.",
+    "literal_owner": "Root SELECTED exact literals; current Primary personally owns their physical writes."
+  },
+  "proposal_provenance": {
+    "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+    "source": "Root-selected actual Runtime standalone primitive proposal under original retained three-WP real-crate goal and current absence/full-control delegation.",
+    "related_saved_engineering_decision": {
+      "contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-187.json",
+      "root_supplied_hash_prefix": "149af",
+      "root_supplied_bytes": 43871,
+      "qualification": "Root verified actual FULL runtime child d1a8ab and current whole policy binding 3adac8. Exact saved source hash and pointer below; this reference imports no Member permissions.",
+      "source_sha256": "149af73b73fca19ceeb9fc202ab3a98c0f9de9215067671f80bb471c514da138",
+      "json_pointer": "#/genuine_producer_preparation_policy_selection_20261016/runtime_checkpoint_publication/durable_claim_fence_preparation_amendment_20261016"
+    },
+    "primary_prospective_ack": {
+      "turn_reference_as_supplied": "01a144b5",
+      "tool_reference_as_supplied": "0a4f671d",
+      "qualification": "No invented expansion of partial turn/tool IDs; final contract ACK required."
+    },
+    "distinction": "NEW pure immutable algorithm source contract; not MT026 lifecycle rejection retry/replacement/port. No source implementation, product-path absence, runtime proof or source readiness asserted by governance authoring."
+  },
+  "review": {
+    "required": "Own plus SAME distinct NEVERAUTHOR actual changed code/callers/failure paths/types/lifetimes and algorithm/assertion conservation; resolve actual findings; Runtime leader DIRECT current Codecheck01a1423a.",
+    "qualification": "Source review is NOT compiler/runtime/conflict proof or independent acceptance. Do not repeat unchanged reviews or require canonical Core compile/future host IDs/preimplemented APIs before source authoring."
+  },
+  "start": {
+    "state": "SOURCE_STARTED_REVIEW_COMPLETE_PROOF_UNRUN",
+    "required": [
+      "Root FULL reads actual saved MT029 and exact packet/MT017 added nodes.",
+      "Central FULL reads actual canonical complete contract. A/B/Primary EACH personally FULL read and give specific exact final-scope ACK; SAME distinct NEVERAUTHOR actual contract ACK. Reuse prior Primary prospective ACK for its scope, but actual final lib-literal ACK remains required.",
+      "BEFORE official separate Central SOURCE START/write, obtain all FOUR initial fresh ABSENT/regular-parent-type/no actual captured-input or unfinished-writer conflict observations. Existence counterfield stops affected unit only, never erases existing work.",
+      "Only after those actual readbacks, personal ACKs, distinct contract ACK and initial guards may Central deliver separate official SOURCE START; initial creation uses CreateNew. Subsequent SAME-owned-file repairs follow execution.stop_conditions[0]: actual finding, fresh writer-last-output full posthash/size, no unfinished conflict, out-of-scope byte preservation and own delta/inverse, SAME distinct affected review/direct Codecheck as needed; no repeated passing review or new path/scope."
+    ],
+    "source_started": true
+  },
+  "preserved_original_obligations": "ALL original WP012/WP1/CKC scopes/pins/SIX/original16/full128/manual/Argus/independent IV/immutable164/genuine165 measure -> sole measured pin -> independent confirm BEFORE166/MT026 LOCAL_POLICY_HOLD/globalA holds/spent finite history remain. No existing proof resets or new execution allowance.",
+  "status": "SOURCE_IMPLEMENTED_REVIEWED_PROOF_UNRUN",
+  "sourcewrite_authorized": true,
+  "execution_authorized": false,
+  "proof_started": false,
+  "allowance_granted": false,
+  "limits": "FOUR new source paths only, after required actual ordered readback/ACK/initial-absence/START guards and initial CreateNew; subsequent SAME-owned-file guarded repairs only under execution.stop_conditions[0]. No product/source action by kernel writer. No Cargo/build/test/metadata/lock generation/solver/config/controller/SQL/runtime/process/OS probe/Git/artifact/plan/confirmation/budget/slot/host adoption/member/other file permission. No new branch/worktree/backup.",
+  "semantic_contract": {
+    "classification": "Pure std-only DATA algorithms. Phase/state/owner-issued data cannot mint actual authorization, claim/process ownership, permits or cleanup proof.",
+    "claim": {
+      "domain": "Typed original canonical claim domain/run/lane/stream/incarnation DATA; no duplicated canonical five-scope semantics. Use pure domain parameters/opaque owner-issued DATA.",
+      "chain": "Reduce unique LANE-WIDE predecessor EVENT chain Acquire/Renew/Terminal BEFORE per-incarnation revision. Validate canonical predecessor/cursor/full body, not independent per-incarnation maps.",
+      "current_head": "Match ACTIVE tuple(instance_id,spawn_generation:u64,process_record_id) plus real claim revision/full body/cursor. Closed head denies old A after B even with fresh guard.",
+      "acquire": "Only empty canonical new lane, verified Terminal predecessor, or EXTERNALLY SEPARATELY authorized takeover input DATA. Takeover input is not a grant.",
+      "negative_floor": "Fork/gap/wrong predecessor/equal-revision-divergent-body/late old incarnation deny. No UUID/time ordering.",
+      "counters": "Checked monotonic arithmetic, no overflow/ABA/reset. Distinguish coordinator-token revision, actual claim revision and cursor.",
+      "expiry": "Stale expiry/revision data reject under selected supplied-data contract; leaf invents no current clock/expiry/authorization law."
+    },
+    "capture": {
+      "intent": "Full immutable prepared capture intent: original operation/message-id-idempotency/run/from-lane/stream/payload reference+digest/full body with canonical equality. No body/hash string replaces authority.",
+      "bookkeeping": "Original-owner-bound DATA ticket/capture phase/cursor/reservation transitions; pure values, not real keepers/controllers or task owners.",
+      "retry": "Existing FULL intent outcome FIRST returns Historical DATA only even after new head. Never rotate lease fence or produce claim authority/new effects. Same operation with different body conflicts.",
+      "new_effect": "New-effect DATA decision requires A exact current head/cursor.",
+      "unknown": "Unknown/unsettled plus NotFound remains Unknown; no automatic resubmit/new UUID/new sequence/resample. Retain original intent for late completion and idempotent cursor behavior.",
+      "custody": "No destructive Take/release of sole input/result masquerading as actual cleanup or settlement."
+    },
+    "dependency_boundary": "A claim MUST NOT import capture; B capture -> claim ONLY. Authors agree concrete Rust types/signatures before dependent use while coding. Exact ABI is not a preimplementation gate; frozen semantics control.",
+    "resource_scope_boundary": "Do not duplicate canonical five-scope semantics. If genuine existing typed resource_scope dependency is necessary, return exact dependency/source-compatibility counterfield before addition; no Root-invented alias/authentication.",
+    "host_retained": "ALL SQL/current auth/canonical CAS/gates/tasks/JoinHandles/DB writes/control/keeper/process/lifecycle/cleanup stay host-side in existing seven adapters, SEPARATE AND UNADMITTED here. Leaf cannot prove Surreal atomicity/restart/revocation. No Core reexport/fake DTO-only stub or copy/port from MT026.",
+    "meaningful_inline_owning_test_declarations": [
+      "Empty canonical new lane versus nonempty mismatch.",
+      "Valid Acquire -> Renew -> Terminal -> new Acquire.",
+      "Fork/gap/wrong predecessor/late old incarnation/equal revision with divergent full body.",
+      "Stale expiry/revision, checked overflow and distinct counter tracking.",
+      "Exact original intent retry returns Historical after r2 versus mismatched intent conflict.",
+      "Retained Unknown/NotFound/late completion/idempotent cursor.",
+      "Deterministic permutation and canonical full-equality boundary cases."
+    ],
+    "tests_status": "REQUIRED_SOURCE_DECLARATIONS_UNRUN_UNCOMPILED_NOT_OBSERVED_NONZERO_SELECTION"
+  },
+  "source_phase_observation_20261016": {
+  "decision_id": "WP1-MT029-SOURCE-PHASE-OBSERVATION-20261016",
+  "recorded_at_utc": "2026-10-16T13:47:04.048133Z",
+  "status": "SOURCE_IMPLEMENTED_REVIEWED_PROOF_UNRUN",
+  "prior_contract": {
+    "sha256": "73139ed5df89d11799f53bf38752507bbd104c9c864fc366542643e7fce7a698",
+    "bytes": 50091
+  },
+  "prior_status_history": {
+    "top_status": "SOURCE_ONLY_CONTRACT_SAVED_START_PENDING_NO_PRODUCT_OBSERVATION",
+    "lifecycle_status": "SOURCE_ONLY_ADMITTED_START_HELD",
+    "start_projections": {
+      "#/start": {
+        "state": "HELD_PENDING_ROOT_FULL_READ_CENTRAL_OFFICIAL_START_PERSONAL_ACKS",
+        "source_started": false
+      },
+      "#/closure_unit/materialized_acceptance/0/detail/start": {
+        "state": "HELD_PENDING_ROOT_FULL_READ_CENTRAL_OFFICIAL_START_PERSONAL_ACKS",
+        "source_started": false
+      },
+      "#/closure_unit/materialized_acceptance/6/detail/source_start": {
+        "state": "HELD_PENDING_ROOT_FULL_READ_CENTRAL_OFFICIAL_START_PERSONAL_ACKS",
+        "source_started": false
+      }
+    }
+  },
+  "actual_source_guards": [
+    {
+      "path": "src/backend/handshake_runtime_checkpoint/src/capture.rs",
+      "sha256": "b768929881d8c0b9a22e07b9477e9ce7160f6d4ada8e783f3f7a53a53df71270",
+      "bytes": 40475
+    },
+    {
+      "path": "src/backend/handshake_runtime_checkpoint/src/claim.rs",
+      "sha256": "453c14d010a027896f11c0130aa16873bfe6d958b6480ed47162f4e342bb74b4",
+      "bytes": 24178
+    },
+    {
+      "path": "src/backend/handshake_runtime_checkpoint/Cargo.toml",
+      "sha256": "c94464fd439fc15f0906c98d6b4cb27c6de609be09968827769ec3a6e916e769",
+      "bytes": 112
+    },
+    {
+      "path": "src/backend/handshake_runtime_checkpoint/src/lib.rs",
+      "sha256": "ceb13717aec3611d37563fe080ed3850018ed21d98c616c7080d7034f35b9d32",
+      "bytes": 32
+    }
+  ],
+  "source_authors": {
+    "primary": "PRIMARY_PERSONALLY01a143ef-a88b-7b40-aecb-cad547863ad0 Cargo/lib",
+    "claim": "/root/runtime_owner_contract_successor",
+    "capture": "/root/runtime_entry_coding_author",
+    "distinct_neverauthor": "SAME /root/runtime_owner_design_checker"
+  },
+  "review_provenance": {
+    "root_actual_read": "Actual Codecheck final turn01a144ee-e524-7880-879c-90e05a13cfcb, exec-14e1f49f-072d-4267-bf90-9932eedf6756 FULL read by Root.",
+    "finding": "P2 cross-Prepared affinity CLOSED STATICALLY; NO_NEW_ACTIONABLE_SOURCE_FINDING at final capture/unchanged claim/Cargo/lib guards.",
+    "own_and_distinct": "Own and SAME never-author actual reviews closed; DIRECT Codecheck complete; source authors quiescent."
+  },
+  "owning_tests": {
+    "claim_inline_declarations": 8,
+    "capture_inline_declarations": 26,
+    "total_declarations": 34,
+    "status": "UNRUN_UNCOMPILED_NOT_DISCOVERED_NO_PASS"
+  },
+  "proof_and_adoption_hold": "Whole LIB compile, independent nonzero owning behavioral proof, maintenance completion, canonical publication and independently verified immutable FOUR-file remote pins REQUIRED before separately admitted MT017 host adoption, which remains HELD.",
+  "unbound": [
+    "Candidate",
+    "Tools",
+    "Config",
+    "Cache",
+    "Lock",
+    "Finite allowance",
+    "Physical slot",
+    "Owned closure"
+  ],
+  "lifecycle_active_qualification": "active=false preserved without reinterpretation; formal meaning not verified and source authors quiescent. Source status is not READY/completed/acceptance.",
+  "preservation": "All original source requirements/proof checks/commands/status conditions/three-WP/SIX/16/full128/pins/history/spent budgets/IV/MT026/global A holds preserved.164 immutable; genuine165 measure -> sole pin -> independent confirm before166.",
+  "sourcewrite_authorized": false,
+  "execution_authorized": false,
+  "proof_started": false,
+  "allowance_granted": false
+}
+}

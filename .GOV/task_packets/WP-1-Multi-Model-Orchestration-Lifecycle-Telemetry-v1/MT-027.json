@@ -1,0 +1,423 @@
+{
+  "source_publication_observation_20261016": {
+    "status": "INDEPENDENTLY_VERIFIED_SOURCE_PUBLICATION_ONLY",
+    "owning_publication_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/reviewed_producer_association_source_publication_20261016/actual_publication",
+    "independent_verification_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/reviewed_producer_association_source_publication_20261016/actual_publication/independent_canonical_verification_20261016",
+    "canonical": {
+      "commit": "2e84894bacc9516f4cd273da681ca68542c86206",
+      "parent": "4be1b4f8c0ade75ce6461ad260c93bedf0e5ac56",
+      "tree": "de00901f0d6e685ac3d45afd3e526b6ef320aaf1"
+    },
+    "scope": "EXACT FOUR handshake_producer_association paths, guarded in owning MT017 record.",
+    "declared_tests": 16,
+    "test_status": "UNRUN_UNCOMPILED_UNDISCOVERED",
+    "boundary": "Earlier pending push history retained by owning publication record. No lifecycle completion/behavioral acceptance/pinned host adoption/runtime/slot/capture-closure or new allowance. Existing requirements/source guards untouched."
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-027",
+  "created_at_utc": "2026-10-16T07:57:56.6479925Z",
+  "updated_at_utc": "2026-10-16T08:12:00.5053562Z",
+  "identity": {
+    "mt_id": "MT-027",
+    "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+    "title": "handshake_producer_association standalone_source",
+    "version": 1,
+    "contract_revision": 2
+  },
+  "closure_unit": {
+    "outcome": "Implement the selected standalone pure immutable producer-association body and full canonical EventLedger envelope codec with owning behavioral proof and canonical source publication before distinct pinned host adoption.",
+    "requirement_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-001",
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-002",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-003",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-004",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/ac9_current_surreal_two_author_source_admission_20261015/positive_completion_five_path_source_admission_20261015",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016"
+    ],
+    "acceptance_refs": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-027.json#/scope/acceptance_criteria",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/execution/producer_association_host_adoption"
+    ],
+    "materialized_acceptance": []
+  },
+  "model_routing": {
+    "model_tier": "CURRENT_ASSIGNED_ACTUAL_TEAM_NO_MODEL_OVERRIDE",
+    "tier_reason": "Reuse accepted Primary and Diagnostics A/B plus distinct neverauthor; no new model selection.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "qualification": "Template counter structure is not a finite execution allowance or reset of any original counters. ALL proof invocation held."
+  },
+  "execution": {
+    "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "module_change_stage": "standalone_source",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [],
+    "allowed_write_paths": [
+      "src/backend/handshake_producer_association/Cargo.toml",
+      "src/backend/handshake_producer_association/src/lib.rs",
+      "src/backend/handshake_producer_association/src/association.rs",
+      "src/backend/handshake_producer_association/src/event_envelope.rs"
+    ],
+    "forbidden_write_paths": [
+      "All paths outside the exact four source paths",
+      "Core/host concrete types, AppState, JobAdmission, authentication, database/SQL, runtime capture/cleanup, locks/workspace members/schema/artifacts"
+    ],
+    "stop_conditions": [
+      "Before EACH create, fresh exact package/file absence and no actual conflicting unfinished writer; no overwrite, drift stops affected path only and preserves peers.",
+      "No physical write until Root FULL saved contract readback, Central independent FULL read and separate official SOURCE START with actual author receipt.",
+      "Any required dependency/feature/path/interface delta returns its exact proposal before affected implementation."
+    ],
+    "sourcewrite_authorized": true,
+    "execution_authorized": false,
+    "proof_started": false,
+    "allowance_granted": false
+  },
+  "proof": {
+    "parent_proof_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-001",
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-002",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-003",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-004",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007"
+    ],
+    "checks": [
+      {
+        "check_id": "WP1-MT027-OWNING-PURE-ASSOCIATION-BEHAVIOR",
+        "claim_refs": [
+          ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-027.json#/semantic_contract"
+        ],
+        "command_or_method": null,
+        "expected": "Meaningful owning inline behavioral proof of both algorithms and negative/canonical/counter/link/inventory cases; declarations are not executed proof.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Actual source diff and own/distinct/direct changed-source review",
+          "Later separately admitted owning nonzero behavioral result bound to actual inputs",
+          "Canonical normal publication and independent immutable commit/tree/all-four raw pins before host adoption"
+        ],
+        "status": "UNRUN_NOT_COMPILED_NOT_NONZERO_SELECTION",
+        "execution_authorized": false
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "owning_behavioral_cases": [
+      "Full signed i64 grant versions and Vec<i64> policy/revocation provenance without loss",
+      "Full ordered principal/session chains, singleton resource/action/capability edges and one source to multiple unique child grant IDs",
+      "Expected original child principal/session/full grant inventory and mismatch/disjointness cases",
+      "Duplicate/escape-equivalent keys, unknown/trailing/noncanonical record/outer/embedded payload inputs",
+      "Standard JSON escaping/numbers/null/ordered arrays and whole canonical payload hash",
+      "Exact issuer-five/duplicated facts/constants/event IDs/record links/positive counter and stream-version equality",
+      "Host-supplied expected stable identity and raw cleanup witness equality without authority inference"
+    ],
+    "actual_command": null,
+    "actual_selection": null,
+    "execution_status": "HELD_NO_FINITE_ALLOWANCE"
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-027.json",
+    "microtask_projection": null,
+    "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "NOT_REQUIRED_TYPED_AUTHORITY",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "NEW four-path standalone pure association body/key input and complete canonical EventLedger envelope codec; no current authority or cleanup implementation.",
+    "allowed_paths": [
+      "src/backend/handshake_producer_association/Cargo.toml",
+      "src/backend/handshake_producer_association/src/lib.rs",
+      "src/backend/handshake_producer_association/src/association.rs",
+      "src/backend/handshake_producer_association/src/event_envelope.rs"
+    ],
+    "forbidden_paths": [
+      "All other source/manifests/locks/workspace/schema/config/artifact paths",
+      "Current authentication/approval/authorization seals, genuine capture, database/SQL/store/protected transaction or actual cleanup/runtime implementation",
+      "Core backedges, new IDs, clocks, stable-record formula or new product policy"
+    ],
+    "acceptance_criteria": [
+      "Implement BOTH substantive A body/ordered-chain/pair/inventory/strict-parser algorithm and B full event-envelope/raw decode/hash/counter/link algorithm; no empty scaffold or deferred split.",
+      "A owns ONE duplicate-aware parser and canonical renderer/common error; B depends only on crate-private checked-record/helpers; A never imports B and no duplicate helper logic.",
+      "Preserve exact corrected NEW design semantics and Root-selected final four-path partition/public exports; do not restore retired/public-private exports.",
+      "Own plus same distinct NEVERAUTHOR assembled changed-source review, then leader DIRECT effective Codecheck; repair actual findings.",
+      "Owning behavioral proof and canonical standalone publication/independent actual immutable four-file pins precede separate host adoption; no invocation is authorized here.",
+      "All original three-WP requirements and schema/execution boundaries remain unchanged."
+    ],
+    "proof_targets": [
+      {
+        "kind": "OWNING_INLINE_BEHAVIORAL_TESTS",
+        "manifest": "src/backend/handshake_producer_association/Cargo.toml",
+        "module_sources": [
+          "src/backend/handshake_producer_association/src/association.rs",
+          "src/backend/handshake_producer_association/src/event_envelope.rs"
+        ],
+        "actual_target_selection": null,
+        "command": null,
+        "status": "NOT_OBSERVED_NOT_RUN",
+        "execution_authorized": false
+      }
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Pure non-UI codec source only; original host/native/Argus acceptance remains required."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "Public contract/source maintenance boundaries and honest error/proof limits"
+    ],
+    "not_applicable_reason": "No new operator-facing workflow or UI; original host manuals remain required."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "Untrusted association audit data only; no live resource access"
+    ],
+    "identity_and_scope_contexts": [
+      "Original issuer five and child five are compared data, not current permission"
+    ],
+    "enforcement_boundaries": [
+      "Pure codec/expected inventory/link equality only"
+    ],
+    "same_project_private_resource_cases": [],
+    "cross_account_negative_cases": [],
+    "derived_resource_non_widening_cases": [],
+    "revocation_and_context_switch_cases": [],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [],
+    "expected_evidence": [
+      "No raw/checked/witness value mints current authority",
+      "Lossless five-field/chain/versions/inventory preservation"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-003",
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-004",
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007"
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": "Diagnostics A/B with Primary Cargo/lib",
+    "wp_validator_session": "01a13d23-ceed-72b0-b045-21c4826a4154",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "ready_for_validation_or_blocked"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Lossy signed version/ordered-chain/inventory mapping",
+      "Duplicate-parser disagreement or circular module boundary",
+      "Raw/checked audit data mistaken for authorization or cleanup proof"
+    ],
+    "minimum_controls": [
+      "One A-owned strict parser/renderer; B->A only",
+      "Full corrected semantics and negative inline owning cases",
+      "No host backedge or authority inference; distinct review/direct source check"
+    ]
+  },
+  "context_capsule": {
+    "module_maintenance_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-001",
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-002",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-003",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-004",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/execution/producer_association_host_adoption"
+    ]
+  },
+  "canonical_module": {
+    "module_id": "handshake_producer_association",
+    "canonical_source_repository": "https://github.com/Nuntissura/Handshake.git",
+    "canonical_source_path": "src/backend/handshake_producer_association",
+    "package_version": "0.1.0",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "source_commit": null,
+    "source_tree": null,
+    "exact_source_pins": null,
+    "publication_status": "NOT_OBSERVED"
+  },
+  "assignments": [
+    {
+      "writer": "PRIMARY_PERSONALLY",
+      "writer_thread": "01a1421b-fbee-75d1-a35a-29a962dea250",
+      "new_only_paths": [
+        "src/backend/handshake_producer_association/Cargo.toml",
+        "src/backend/handshake_producer_association/src/lib.rs"
+      ],
+      "scope": "Exact accepted Cargo plus two private module declarations/grouped public reexports."
+    },
+    {
+      "writer": "/root/failure_boundary_readiness",
+      "writer_thread": null,
+      "writer_thread_status": "NOT_EXPOSED_IN_PERSONAL_HANDBACK_NOT_LEADER_ID",
+      "new_only_paths": [
+        "src/backend/handshake_producer_association/src/association.rs"
+      ],
+      "scope": "Body/ordered chains/grant pairs/child inventory/record DTOs/common AssociationCodecError and SINGLE strict duplicate parser/canonical renderer; crate-private CheckedAssociationRecord/helpers; no B imports."
+    },
+    {
+      "writer": "/root/diagnostics_host_coder",
+      "writer_thread": "01a13d88-6214-7301-975d-e6a9de742d47",
+      "new_only_paths": [
+        "src/backend/handshake_producer_association/src/event_envelope.rs"
+      ],
+      "scope": "Complete outer/event/raw stored decode/issuer-five/counters/links/full payload hash/host-expected key/event witness, public encode/decode and opaque CheckedProducerAssociation; B->A helpers only."
+    }
+  ],
+  "ownership": {
+    "leader_thread": "01a13d26-6af9-7d71-81f3-fbf73f6facdd",
+    "distinct_nonauthor": "/root/dependency_readiness",
+    "checker_thread": null,
+    "checker_thread_status": "NOT_EXPOSED_IN_PERSONAL_HANDBACK_NOT_LEADER_ID",
+    "actual_readiness": "Dx A PERSONALLY rebound association.rs; B personally accepted event_envelope.rs; BOTH quiescent/no pending/inflight/unfinished/unreturned patches. SAME distinct NEVERAUTHOR personally accepts BOTH algorithms/no authored code or pending patch. Primary personal exact Cargo/lib accepted. Root's final partition supersedes single-author/three-path/optional-B/waiver shape; no staffing exception.",
+    "absence_evidence": [
+      "Central d7a607 EXIT0 2026-10-16T07:42:38.2448634Z package/four files ABSENT/backend parent PRESENT",
+      "Dx ba68f8 package/B path ABSENT",
+      "Dx a63676 EXIT0 EACH four files ABSENT",
+      "Composition879b7d four files ABSENT"
+    ],
+    "qualification": "Reported actual observations/ACKs, not new kernel product inspection/global-free claim or physical START."
+  },
+  "primary_exact_literals": [
+    {
+      "path": "src/backend/handshake_producer_association/Cargo.toml",
+      "literal": "[package]\nname = \"handshake_producer_association\"\nversion = \"0.1.0\"\nedition = \"2021\"\npublish = false\n\n[workspace]\n\n[dependencies]\nserde = { version = \"1\", features = [\"derive\"] }\nserde_json = \"1\"\nsha2 = \"0.10\"\nthiserror = \"2.0.17\"\nuuid = { version = \"1\", features = [\"serde\"] }\n",
+      "encoding": "UTF8 LF/no BOM/one final LF"
+    },
+    {
+      "path": "src/backend/handshake_producer_association/src/lib.rs",
+      "literal": "mod association;\nmod event_envelope;\n\npub use association::{\n    Scope5V1, AssociationBodyV1, InstanceGenerationV1, RunTraceV1,\n    ResourceV1, ActionCapabilityV1, GrantAuditV1, SourceChildPairV1,\n    GrantIdentityV1, ChildGrantCleanupV1, ChildCleanupInventoryV1,\n    ExpectedAssociationInventoryV1, AssociationRecordV1, AssociationCodecError,\n};\npub use event_envelope::{\n    encode_checked, decode_checked,\n    AssociationEventPayloadV1, AssociationOuterV1, AssociationLinksV1,\n    CleanupCasWitnessV1, CheckedProducerAssociation,\n};\n",
+      "encoding": "UTF8 LF/no BOM/one final LF"
+    }
+  ],
+  "semantic_contract": {
+    "status": "NEW_CORRECTED_SOURCE_DESIGN_NOT_EXISTING_DTO_OR_PROOF",
+    "public_signatures": [
+      "encode_checked(body:AssociationBodyV1, original_stream:&str, expected_record_id:&str, expected_inventory:&ExpectedAssociationInventoryV1, observed:&AssociationLinksV1)->Result<CheckedProducerAssociation,AssociationCodecError>",
+      "decode_checked(record_json:&str, outer_json:&str, expected_record_id:&str, expected_inventory:&ExpectedAssociationInventoryV1, observed:&AssociationLinksV1)->Result<CheckedProducerAssociation,AssociationCodecError>"
+    ],
+    "visibility": "Raw public input DTOs are data. CheckedProducerAssociation immutable opaque data with borrowed record_json/outer_json/event_payload_json/event_payload_sha256/body/cleanup_cas_witness getters. CheckedAssociationRecord, checked-record functions/parser/renderer remain crate-private. No ExpiryPolicyV1/ChildCleanupIdsV1/public checked-record export.",
+    "body": "Format1, original operation UUID, request/idempotency/causation strings with no extra UUID/emptiness rule; original issuer-five plus child-five; actual instance/generation u64; complete normalized selection/launch producer JSON; full run/trace/Locus/WP/MT. Full ordered source and child principal/session delegation chains as Vec<Value>, exact per-edge resource and singleton action/capability; same source may map to multiple unique child grant IDs; no flattened/cartesian union.",
+    "grant_audit": "GrantAuditV1 {grant_id:String,grant_version:i64,policy_versions:Vec<i64>,revocation_epochs:Vec<i64>,expires_at:Option<String>,full_grant_provenance:Value}. Preserve complete signed versions/arrays and actual grant/session/expiry/profile/capability provenance. None establishes no eligibility/current authority; no invented expiry label/scalar reduction.",
+    "cleanup_inventory": "ChildCleanupInventoryV1 {child_principal_id:String,child_session_id:String,child_grants:Vec<ChildGrantCleanupV1>,full_canonical_cleanup_inventory:Value}; ChildGrantCleanupV1 {source_parent_grant_id:String,source_parent_grant_version:i64,child_grant_id:String,child_grant_version:i64,expected_cas:Value}. ExpectedAssociationInventoryV1 includes exact original child principal/session IDs, Vec<GrantIdentityV1{grant_id:String,grant_version:i64}> and exact created inventory. Preserve full status/policy epoch/CAS/original operation/full intent/accountSpace/runtime generation/association/source-child links. Pure comparison only; no arbitrary created-resource delete target.",
+    "record": "Exactly {run_id,event_ledger_stream_id,association:body}.",
+    "event_payload": "Exactly TOPLEVEL {dexterity_kernel:\"Dexterity\",owner_account_id,actor_principal_id,authenticated_session_id,access_space_id,workspace_id,record,original_operation_id,request_id,causation_ref,trace_id}. Five identity fields are ORIGINAL issuer; exact duplicated body facts; hash ENTIRE canonical UTF8 event payload.",
+    "outer": "Exactly {record_kind:\"producer_association\",run_id,event_stream_version:1,event_payload_json,issuance_operation_id}.",
+    "ledger_links": "Observed source_component=model_lane; aggregate_type=producer_association; aggregate_id=original operation UUID string; event MODEL_LANE_AUTHORITY_RECORDED/event_version kernel_event_v1. Actual ledger.event_sequence=row.event_seq=row.transaction_seq>0; row and outer stream version1; exact event ID/ledger-record link. NO ledger.transaction_seq field.",
+    "canonicalization": "Strict duplicate-aware parse raw record AND raw outer AND embedded event_payload_json BEFORE typed conversion; reject unknown/trailing/noncanonical wire. Recursive key sorting, standard serde_json complete escaping/numbers/null and ordered arrays. Exact constants/duplicated facts/full bytes/full hash/links/counters/full chains/singleton pair/resource/unique child IDs/expected inventory consistency.",
+    "host_identity": "Existing Core stable_record_id(kind,aggregate,ORIGINAL5) stays HOST; leaf accepts expected_record_id and validates links, no new key formula.",
+    "witness": "Raw comparison witness binds original operation/association record/event/full payload SHA/actual generation/source-chain SHA/issuer-five/child-five/full intent/full inventory; not current authorization, ownership custody, actual CAS/commit/live policy/runtime/cleanup truth.",
+    "requested_snapshot": "Task operations/revision/full ordered resource-action-capability-tool tuples are immutable UNTRUSTED requested snapshot only. Actual server task/tool/policy mapping and Account CURRENT intersection/capture remain host work, not codec permission.",
+    "implementation_discretion": "Concrete internal type/borrowing/helper signatures within fixed public semantic contract belong to authors before wiring; no prewritten algorithm or existing producer/body/runtime/schema165 proof prerequisite to pure source authoring."
+  },
+  "proposal_provenance": {
+    "composition_thread": "01a13d23-3c68-7850-81a4-1c53f34395b5",
+    "actual_retrieved_turn": "01a143a7-8416-7251-b4e8-ccbde6d969f8",
+    "corrected_outgoing_tool": "exec-64d4fdd3-4783-4cc5-933b-e58d35bd0dd9",
+    "corrected_prompt_prefix": "MT027 — ONE CORRECTED MERGED SOURCE CONTRACT.",
+    "corrected_semantic_payload": "MT027 — ONE CORRECTED MERGED SOURCE CONTRACT. SUPERSEDES my earlier MT027 wire/lib proposals. DO NOT SAVE retired ExpiryPolicyV1/ChildCleanupIdsV1/CheckedAssociationRecord exports. No SourceSTART.\nSOURCEFIRST selectedhome src/backend/handshake_producer_association@0.1.0 in actualproductworktree C:/Projects/LLM Projects/handshake-desktop/wtc-WP-KERNEL-012; canonical https://github.com/Nuntissura/Handshake.git perPrimaryobservedorigin. MT017 distinctmodulehost_adoption remainsHOLD. MT026untouched. Fresh Compositiona129b5 package+Cargo.toml+src/lib.rs+src/association.rs ABSENT/backendparentPRESENT; no leasefromabsence.\nAUTHORROWS: Primary01a1421b-fbee-75d1-a35a-29a962dea250 PERSONALexclusiveCargo.toml+src/lib.rs literalACK. Diagnostics SAMEA /root/failure_boundary_readiness PERSONALselectedassociation.rs accept/no pending/inflight/unfinished/unreturnedpatch. SAME /root/dependency_readiness PERSONALseparateNEVERAUTHOR/no code/no patch acceptedcodec review. A+checker nativeappIDs NOT_EXPOSED in personalhandoff; do not substitute leader. Prior A ID inmyproposal was observedDxsubAgentActivity, not personal identityhandback; OMITitfromcontract. Dxleader01a13d26-6af9-7d71-81f3-fbf73f6facdd retains actualpersonalrows. RootoptionalB actualsubstantiveenvelopepartition personallyA+BACK, Bapp01a13d88-6214-7301-975d-e6a9de742d47; onlyRootexplicitselectionmayadd event_envelope.rs/rebind. No artificial2ndfile or silentstaffingwaiver; currentselected3pathsinglecohesivemodule shape retained untilRootdecision. Rootstaffingdecision is explicitboundedcounterfield, not algorithm/runtime gate.\nCARGO EXACT:\n[package]\nname = \"handshake_producer_association\"\nversion = \"0.1.0\"\nedition = \"2021\"\npublish = false\n\n[workspace]\n\n[dependencies]\nserde = { version = \"1\", features = [\"derive\"] }\nserde_json = \"1\"\nsha2 = \"0.10\"\nthiserror = \"2.0.17\"\nuuid = { version = \"1\", features = [\"serde\"] }\n\nFINAL LIB EXACT (A final publicvisibility supersedes Primarylatest staleCheckedAssociationRecord):\nmod association;\n\npub use association::{\n    encode_checked, decode_checked,\n    Scope5V1, AssociationBodyV1, InstanceGenerationV1, RunTraceV1,\n    ResourceV1, ActionCapabilityV1, GrantAuditV1, SourceChildPairV1,\n    GrantIdentityV1, ChildGrantCleanupV1, ChildCleanupInventoryV1,\n    ExpectedAssociationInventoryV1, AssociationRecordV1,\n    AssociationEventPayloadV1, AssociationOuterV1, AssociationLinksV1,\n    CleanupCasWitnessV1, CheckedProducerAssociation, AssociationCodecError,\n};\nBothUTF8LFonefinalLF. NO CheckedAssociationRecord reexport; it+encode_record_checked/decode_record_checked/singleduplicate-awareparser/canonicalhelpers cratePRIVATE.\nACTUAL AUTHOR NEWPUBLIC signatures:\nencode_checked(body:AssociationBodyV1, original_stream:&str, expected_record_id:&str, expected_inventory:&ExpectedAssociationInventoryV1, observed:&AssociationLinksV1)->Result<CheckedProducerAssociation,AssociationCodecError>\ndecode_checked(record_json:&str, outer_json:&str, expected_record_id:&str, expected_inventory:&ExpectedAssociationInventoryV1, observed:&AssociationLinksV1)->Result<CheckedProducerAssociation,AssociationCodecError>\nStrict rawrecord+outer+embedded event_payload_json duplicate-awareparse BEFOREtypedconversion; no competingtypedouteroverload. CheckedimmutableopaqueDATA borrowedgetters record_json/event_payload_json/event_payload_sha256/body/cleanup_cas_witness; no trustseal.\n\nBODY: format1/originalopUuid/requestString/idempotencyString/causeString(noextraUUID/emptyrule)/ORIGINALissuer5+child5/actualinstancegenerationu64/completeactualnormalizedselection+launchproducerJSON/fullruntrace+Locus/WP/MT/run/trace. SourceChildPairV1 EACHsource+childGrantAudit/resource/actioncap AND source_delegation_chain:Vec<Value>,child_delegation_chain:Vec<Value>, exactFULLorderedprincipal/sessionlinkobjects. Same resource/action-cappair peredge; onesourcegrant→multipleuniquechildIDs allowed; nocartesianflatten/union.\nGrantAuditV1 EXACT {grant_id:String,grant_version:i64,policy_versions:Vec<i64>,revocation_epochs:Vec<i64>,expires_at:Option<String>,full_grant_provenance:Value}. ALLgrantversionsi64, no unsignedcast/scalarreduction. Full provenance retains complete actualgrant/session/expiry/profile/capability facts. Raw expires_at None provesNOeligibility/currentauthority; ExpiryPolicyV1 REMOVED, no inventedlabel.\nChildCleanupInventoryV1 {child_principal_id:String,child_session_id:String,child_grants:Vec<ChildGrantCleanupV1>,full_canonical_cleanup_inventory:Value}.\nChildGrantCleanupV1 {source_parent_grant_id:String,source_parent_grant_version:i64,child_grant_id:String,child_grant_version:i64,expected_cas:Value}.\nExpectedAssociationInventoryV1 exactoriginalprincipal/sessionIDs+Vec<GrantIdentityV1{grant_id:String,grant_version:i64}>+exactcreatedinventory. Retainfullstatus/policyepoch/CAS/originalop/fullintent/accountSpace/runtimegen/association/source-childlinks. Pureequality/pair/ID/disjointness/inventorycomparison only; no arbitrarycreatedresource-delete targets. Witness originalop/associationrecord/event/fullpayloadSHA/actualgen/sourcechainSHA/issuer5+child5/fullintent/fullinventory; not currentauth/cleanuptruth.\n\nRECORD exact {run_id,event_ledger_stream_id,association:body}.\nFULLCANONICALEVENT exactTOPLEVEL {dexterity_kernel:\"Dexterity\",owner_account_id,actor_principal_id,authenticated_session_id,access_space_id,workspace_id,record,original_operation_id,request_id,causation_ref,trace_id}; flatfiveORIGINALissuer/exactbodyduplication. Canonicalrecursivekeysort/standardserdeJSONescapingnumbersnull/arrayorder; SHA256ENTIREUTF8eventpayload.\nOUTER exact {record_kind:\"producer_association\",run_id,event_stream_version:1,event_payload_json,issuance_operation_id}.\nObservedledger source_component=model_lane; aggregate_type=producer_association; aggregate_id=originalopUUIDstring; MODEL_LANE_AUTHORITY_RECORDED/kernel_event_v1. ledger.event_sequence=row.event_seq=row.transaction_seq>0; row+outerstreamversion1; exacteventID/ledgerrecordlink. NOledger.transaction_seqfield. Expectedstableidentity suppliedbyHOST EXISTINGstable_record_id(kind,aggregate,ORIGINAL5), no newkeyformula.\nCHECK strictduplicates/unknown/trailing/noncanonicalwire/constants/duplicatefacts/fullbytes/hash/links/counters/orderedchain/singletonpair/resource/uniquechildIDs/fullinventory. Auditinput/observedlinks/Checked/witness NEVERauthenticate orproveTX/commit/livepolicy/runtime/teardown. NoDB/auth/SQL/clock/newID/Coreimport/backedge.\nACCEPTANCE sourceimplementation+authorreview+independentneverauthor+DIRECTCodecheck; owningbehavioralproof/canonicalstandalonesourcepublication+actualimmutablepins BEFOREdistinctCorehostadoption. Primarysolecompiler/Git, no freshcommandbudgetgrantedbythismessage. No fullyprewrittenalgorithm/preexistingproducer/body/schema165/runtimeproofpredecessor forPUREMT027.\nOriginalcanonicalsemanticsprovenance retainedRuntime01a1413e turn01a1428a-dac7 exec5f4611b7 fullbody/event/hash/key; turn01a142ad-5fda exec6bda6107 pairACK; U2turn01a1428f-62a6 countercorrection. RetainedU2model_lane727425/551678 actualpersonalowner CLOSED but LATERhostadoptiononly, NOTMT0272ndwriter.\nSeparate Rootchosen SAMEcaptureREQUESTEDsnapshot/servertool/currentpolicy/Accountcurrentauthgrantintersection design remainsoriginalscope; not claimedimplemented. Immutable164/actual165->solepin->independentconfirmBEFORE166 unchanged. No code/Git/build/test/Cargo/metadata/SQL/runtime/process/artifact/kernelchanges here. RootsaveexactMT027 +explicitstaffingdecision, FULLreads+CentralofficialSTART next; no SourceSTARTinferred.",
+    "final_four_path_delta_tool": "exec-941a19a6-16f1-43f7-91ef-46a7d5ca3dbd",
+    "final_four_path_delta_prompt": "MT027 FINAL FOUR-PATH OWNERSHIP/MODULE DELTA over my ONE CORRECTED MERGED SOURCE CONTRACT. Root selected substantive A/B split; supersedes ALL singlefile/optionalB/waiver/3pathflags. Every corrected body/signature/publicvisibility/strictwire/hash/link/counter/losslessprovenance/cleanupsemantic in correctedcontract unchanged. FinalprivateCheckedAssociationRecord notexported. No SourceSTART.\nFOURPATHS selected src/backend/handshake_producer_association/{Cargo.toml,src/lib.rs,src/association.rs,src/event_envelope.rs}. FreshINDEPENDENTComposition879b7d ALLFOUR Exists=false; Dx a63676 independentlyALLFOURfalse. Actualbackendparentpresent froma129b5. No filescreated, guardnotpermission.\nPERSONALOWNERS:\n- Primary01a1421b-fbee-75d1-a35a-29a962dea250 exclusiveCargo.toml+src/lib.rs, exactliteralaccepted/no pendingwrites.\n- SAMEA /root/failure_boundary_readiness PERSONALREBOUND association.rs ONLY: fullbody/orderedchains/grantpair/inventory/recordDTOs+COMMONAssociationCodecError+SOLEstrictparser/canonicalrenderer. No pending/inflight/unfinished/unreturnedpatch; nativeappID NOT_EXPOSEDinpersonalhandoff, canonicalnativeidentityretained.\n- SAMEB /root/diagnostics_host_coder actualapp01a13d88-6214-7301-975d-e6a9de742d47 PERSONALselectedevent_envelope.rs acceptance/quiescentretained: actualfullouter/event/rawdecode/issuer5/counters/links/fullpayloadSHA/keyhashwitness/topencode-decode/opaqueCheckedProducerAssociation.\n- SAME /root/dependency_readiness PERSONALseparateNEVERAUTHOR BOTHassociation.rs+event_envelope.rs ACK, no authoredcode/no pending/inflight/unfinished/unreturnedpatch; nativeappID NOT_EXPOSED. Dxleader01a13d26-6af9-7d71-81f3-fbf73f6facdd actualpersonalrows.\nB->AONLY: B consumesA cratePRIVATECheckedAssociationRecord/checkedrecordfunctions/parser/renderer/commonerror. A NEVERimportsB, no duplicateparser/renderer/bodyrepresentation or circularfacade. No fakefile/staffingexception needed.\nPRIMARY EXACT FINALlib UTF8LFonefinalLF:\nmod association;\nmod event_envelope;\n\npub use association::{\n    Scope5V1, AssociationBodyV1, InstanceGenerationV1, RunTraceV1,\n    ResourceV1, ActionCapabilityV1, GrantAuditV1, SourceChildPairV1,\n    GrantIdentityV1, ChildGrantCleanupV1, ChildCleanupInventoryV1,\n    ExpectedAssociationInventoryV1, AssociationRecordV1, AssociationCodecError,\n};\npub use event_envelope::{\n    encode_checked, decode_checked,\n    AssociationEventPayloadV1, AssociationOuterV1, AssociationLinksV1,\n    CleanupCasWitnessV1, CheckedProducerAssociation,\n};\nPrimaryCargo EXACTUNCHANGED:\n[package]\nname = \"handshake_producer_association\"\nversion = \"0.1.0\"\nedition = \"2021\"\npublish = false\n\n[workspace]\n\n[dependencies]\nserde = { version = \"1\", features = [\"derive\"] }\nserde_json = \"1\"\nsha2 = \"0.10\"\nthiserror = \"2.0.17\"\nuuid = { version = \"1\", features = [\"serde\"] }\n\nACTUAL pairedAccount author+neverauthor FINALsemanticACK closes SAMEcaptureREQUESTEDsnapshot/servertool/currentpolicy/AccountCURRENTintersection +losslessauditmapping. Schema distinctneverauthor correctedDTO conservation NOremainingmaterialsemanticloss; Runtimeactualgenerationu64ACK. These are sourceDESIGN/dataACKs, not implementedcapture/auth/runtime/teardownverdicts; no pureevaluatorimplementationgate.\nNOremaining sourceproposal semantic/path/author/module/reexport/guard/checkerdecision fromComposition. ROOTSAVE exactMT027 fourpathcontract+FULLreads+CentralofficialSTART next; no sourcepermission fromthismessage. MT017distincthostadoptionHOLD/sourcefirstpublication+actualpins; MT026LOCALHOLD;164immutable/actual165->solepin->independentconfirmBEFORE166 remain. NoCompositioncode/Git/Cargo/metadata/test/SQL/runtime/process/artifact/kernelwrites.",
+    "provenance_note": "Root originally supplied turn01a14398-3fb5-7012-a2ea-f64fd771c102; current supported read exposed corrected actual outgoing in the recorded later turn. Older exec-70edaa8b wire and single-author/lib shapes are superseded ONLY by corrected semantics and Root-selected final four-path/Primary grouped-lib counterfields.",
+    "original_design_refs": [
+      {
+        "thread": "01a1413e-41f5-7990-802d-c2fbc51184ef",
+        "turn": "01a1428a-dac7-7de3-8dca-b2eef7160154",
+        "tool": "exec-5f4611b7-e1de-4d57-8cf7-a4270658d254",
+        "qualification": "Supplied original provenance, not re-read by this writer"
+      },
+      {
+        "thread": "01a1413e-41f5-7990-802d-c2fbc51184ef",
+        "turn": "01a142ad-5fda-76e1-825a-1e39b52fe683",
+        "tool": "exec-6bda6107-e9eb-4af7-af74-d1e5dc1c3d32",
+        "qualification": "Supplied original pair-encoding provenance, not re-read by this writer"
+      },
+      {
+        "thread": "01a1413f-04e8-7862-9213-aaa19882a32f",
+        "turn": "01a1428f-62a6-7703-b53e-ca376e26327d",
+        "message": "msg_07cb633b33dec9d8016ad18d4a0d348191a785ebf68fe7a727",
+        "qualification": "Actual recovered exact counter correction"
+      }
+    ]
+  },
+  "design_acknowledgments": "Account SAME personal author plus separate NEVERAUTHOR accepted SAME capture/signed complete versions/full ordered chains/pure data mapping/current server-policy/current Account intersection semantics. Schema distinct neverauthor no remaining material semantic loss; Runtime u64 generation ACK. These close design mapping flags, not implemented capture/auth/runtime/teardown proof.",
+  "review": {
+    "required": "Own plus SAME distinct NEVERAUTHOR BOTH algorithms/actual assembled diff/callers/failure/lifetime/borrow/dependency/private/public boundaries, then Diagnostics leader DIRECT effective Codecheck01a1423a-88bf-7ce0-8944-ca8f214f1fe4. Repair actual findings; no unchanged review repetition.",
+    "source_verdict": "NOT_YET_OBSERVED",
+    "publication": "Primary sole product Git after separate exact source publication authority; no Git granted by this source admission."
+  },
+  "start": "HELD. Root FULL actual MT027/MT017/packet readback, Central independent FULL read and SEPARATE official SOURCE START with actual per-writer receipt before EACH fresh absent-path create.",
+  "preserved_original_obligations": {
+    "original_16_commands_semantic_sha256": "fc87a0ef0116276547fddd5b018c3aec0435c44a371a53a1a9a17de7a532b860",
+    "requirements": "Preserve ALL original WP012/CKC/WP1 scope, SIX/original16/native/manual/Argus/independent IV, source pins and historical failures/spent budgets. Genuine165 measurement -> sole measured pin -> independent confirm before166;164 immutable. MT026 preserved/unreleased/no START; this independent pure association unit does not retry, rename, replace or cure that lifecycle action."
+  },
+  "status": "SOURCE_ONLY_FOUR_PATH_IMPLEMENTATION_ADMITTED_AWAITING_SEPARATE_CENTRAL_START_EXECUTION_HELD",
+  "sourcewrite_authorized": true,
+  "execution_authorized": false,
+  "proof_started": false,
+  "allowance_granted": false,
+  "limits": "Exact four new source paths and meaningful inline own behavioral test declarations/focused static source checks ONLY. No other source/manifests/locks/members/workspace/config/schema/DDL/Git/build/Cargo/tests/metadata/actual SQL/runtime/process/probes/artifact/physical-slot/finite invocation permission. MT026 incident remains preserved/unreleased, not retried or cured."
+}

@@ -356,5 +356,237 @@
     ],
     "basis": "Fresh clause-by-clause inspection found the MT-specific product implementation and proof surfaces consistent with its MT/WP/current-Master-Spec contract, with no unresolved MT-owned runtime, persistence, interaction, manual, Argus, or diagnostics blocker.",
     "residual_scope": "Failures in shared or downstream surfaces are assigned to the MT that owns that unmet contract and do not manufacture a failure for this independently complete MT."
+  },
+  "phase2_original_format_accesskit_residual_source_20261018": {
+    "decision_id": "WP012-MT041-ORIGINAL-FORMAT-ACCESSKIT-RESIDUAL-SOURCE-20261018",
+    "status": "SOURCE_ADMITTED_PERSONAL_EXCLUSIVE_ACK_REQUIRED",
+    "authority": "Current Operator/Master exact necessary-scope delegation through Central. This closes the original MT050-deferred MT041/E7 source failure, not new feature research or an MT190/T2 hold reset; no further routine Root GO.",
+    "recorded_failure": {
+      "contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-050.json#/lifecycle/rfv_evidence_2026_07_08",
+      "anchors": [
+        "cross_mt_swarm_drift_disclosed",
+        "deferred_to_future_mt_same_wp"
+      ],
+      "original_requirement": "MT041 IN-041-03 canonical editor.code.format formats document through actual LSP/built-in formatter; AC-041-08 prohibits placeholder/no-op substitutions.",
+      "current_observation": "Registry CodeDispatch::FormatUnavailable611/catalog709, pane hard-disabled13066–73/no-op13155–60 remain, while real formatter_available6098 and FormatDocument dispatch13666 exist. Existing E7test734 asserts the stale permanent format-gap premise."
+    },
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "source_leader": "01a14c72-1989-7ed2-aedc-326199f80ed4",
+    "assignments": [
+      {
+        "author": "T1 /root/formatting_coder",
+        "sole_paths": [
+          {
+            "path": "src/frontend/handshake_native/src/accessibility/editor_action_registry.rs",
+            "bytes": 51851,
+            "sha256": "c89a033c13822956b9421f901986919405c4f50a9e33ea9b3cb0ec298b1707bc"
+          }
+        ],
+        "source_outcome": "Route canonical format catalog entry to existing CodeDispatch::Action(CodeEditorAction::FormatDocument). Remove obsolete FormatUnavailable enum/docs and update existing owning catalog checks as needed within this same file. Preserve all other actions, IDs, roles, presence and dispatch behavior."
+      },
+      {
+        "author": "T1 /root/navigation_coder",
+        "sole_paths": [
+          {
+            "path": "src/frontend/handshake_native/src/code_editor/panel.rs",
+            "bytes": 851308,
+            "sha256": "c38c45b18f582a8e664a4657a72a3c9cce808a0547be2aea52e973e96b9447ec"
+          },
+          {
+            "path": "src/frontend/handshake_native/tests/test_e7_editor_action_accesskit.rs",
+            "bytes": 35243,
+            "sha256": "acce20e78028e9f4c93bd8bece6b2b034e75e898ac631cc8a4120914e0538294"
+          }
+        ],
+        "source_outcome": "Replace only stale permanent format-gap enablement with actual live formatter availability, preserve LanguagePickerUnavailable behavior and remove obsolete FormatUnavailable dispatch arm. Use existing real FormatDocument dispatch path. Adapt the existing E7 format-gap test to true no-LSP disabled/no-op semantics and actual formatter-enabled AccessKit route semantics using existing actual harness/transport APIs; preserve all unrelated assertions and tests. No fake enabled state, keyboard-only substitute or IndentLine alias."
+      }
+    ],
+    "exact_current_api": {
+      "pane_state": "CodeEditorPanel::code_action_state(&self, entry: &CodeActionEntry, find_open: bool, find_state: Option<&FindState>, multi_cursor: bool) -> EditorActionState at13038; live registry loop calls self.code_action_state at12988.",
+      "available": "CodeEditorPanel::formatter_available(&self) -> bool6098 resolves self.lsp_client(), formatting::formatter_available(&lsp,&self.language_id()); capability requires real running attached transport and documentFormattingProvider.",
+      "dispatch": "Registry CodeDispatch::Action(action) reaches self.dispatch_action(action) at13117; existing A::FormatDocument arm13666 calls self.request_format_document(). Preserve asynchronous real-format/single-undo/error/no-LSP behavior owned by MT050.",
+      "harness": "Existing E7 code_harness66 returns Arc<CodeEditorPanel>, Arc<Mutex<EditorActionRegistry>>, Harness; native show emits actual AccessKit nodes and consumes same-frame AccessKitActionRequest. Existing test734 no-LSP negative is retained semantically. Existing MT050 test_formatting real in-memory LSP transport/capability seams may be read as reference only; no new source path admitted."
+    },
+    "source_allocation": {
+      "author_units": 2,
+      "consumed": 0,
+      "scope": "One bounded source patch per named author, disjoint paths; no proof/run/publication allocation."
+    },
+    "activation": "Before each coder edit, T1 obtains that same named author personal ACK of exact file set, fresh current guards and exclusive per-file custody. Current post-Signature panel c38c45b1 is required, not old eded47a0. Any ACTUAL current writer/capture conflict or policy denial holds only affected path; do not reroute/retry denial or demand global/all-old-owner ACK. Helper hash observations do not certify global file freedom.",
+    "review": "After substantive actual source outcome, team NEVERAUTHOR plus dependency check review exact diff, then direct current Codecheck inspects actual changed files, every preserved action and unchanged outside scope before expensive proof.",
+    "preserved": "Historical lifecycle PASS_V1, validation/history and original MT041/WP/spec pins/acceptance remain unchanged. Full original feature/dependency/GUI/accessibility/manual/Argus/independent proof remain required; source correction does not claim fresh runtime PASS or waive original acceptance.",
+    "limits": "ONLY these three existing MT041-allowed native paths. No formatting/navigation algorithm or MT190 model-adapter changes, T2 MT191/189 blocked8974 reassignment, MT190 local-hold reset, Assets edit, manifest/lock/Git/publication/Cargo/test/runtime/metadata grant, new schema/spec/v6 change or old budget reset. Preserve all peer Context/Signature changes and concurrent disjoint MT175 work.",
+    "next": "Central routes normal SOURCESTART after this saved binding; T1 obtains actual same-author custody ACKs and implements disjoint registry/pane outcomes without another Root GO. Return actual source guards and diff for reviews; Primary later refreshes only affected capture/graph inputs under separate proof authority. Original E7 runtime acceptance stays OPEN.",
+    "recorded_at_utc": "2026-10-18T14:07:05.614Z"
+  },
+  "phase2_original_language_picker_accesskit_residual_source_20261018": {
+    "decision_id": "WP012-MT041-ORIGINAL-LANGUAGE-PICKER-ACCESSKIT-RESIDUAL-SOURCE-20261018",
+    "status": "SOURCE_WRITTEN_DIRECT_CODECHECK_P2_OPEN_REPAIR_ADMITTED",
+    "authority": "Current live Operator full delegation through Central/Master; minimum original MT041 IN-041-03 residual. No routine additional GO after saved binding and named author fresh personal guards/custody.",
+    "recorded_failure": "Original IN-041-03 requires editor.code.language-picker-open to open the language selector. Current catalog retains LanguagePickerUnavailable and pane traces/no-ops, existing E7case716 asserts the stale gap, although MT071 real statusbar language picker/programmatic open and selection already exist.",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "source_leader": "01a14c72-1989-7ed2-aedc-326199f80ed4",
+    "path_resolution": "All three existing paths resolved from current MT041 scope.allowed_paths and actual prior Format assignments, then fresh current hash/length read. Discarded unverified registry pathname shorthand; no new path or writer transfer.",
+    "assignments": [
+      {
+        "author": "T1 /root/formatting_coder",
+        "sole_paths": [
+          {
+            "path": "src/frontend/handshake_native/src/accessibility/editor_action_registry.rs",
+            "bytes": 51039,
+            "sha256": "d13c3bb99661f6222694680dd6831ff61ef4cfbc255226ab23e8da72ff4e32ce"
+          }
+        ],
+        "source_outcome": "Replace LanguagePickerUnavailable and its obsolete gap documentation with explicit OpenLanguagePicker dispatch in existing catalog/enum. Preserve current real FormatDocument mapping and all other IDs/roles/actions. No duplicate picker, widget or separate action model."
+      },
+      {
+        "author": "T1 /root/navigation_coder",
+        "sole_paths": [
+          {
+            "path": "src/frontend/handshake_native/src/code_editor/panel.rs",
+            "bytes": 850831,
+            "sha256": "b3f62777ad5fe85f4c0d87244edfe6b35b7e0bcfefe9e0eb97bee47f026b8d81"
+          },
+          {
+            "path": "src/frontend/handshake_native/tests/test_e7_editor_action_accesskit.rs",
+            "bytes": 37170,
+            "sha256": "80d62421627e33a02a555c5a7a501176ae292fb95b9e7fe15c5a1b8551372379"
+          }
+        ],
+        "source_outcome": "Pass actual ui.ctx() from sole sync_editor_actions(ui) caller into run_code_dispatch. OpenLanguagePicker uses egui::Popup::open_id(ctx, EditorStatusSegments::picker_popup_id(EditorSegment::LanguageMode)). Remove only permanent disabled-picker gate/no-op; retain live FormatDocument availability gate. Update existing E7case716 to canonical AccessKit Click -> real statusbar picker opens -> existing language item selection -> same panel language override, using actual EditorStatusSegments/EditorMetaSegmentState::from_panel harness. Preserve every other case and current formatting transport test."
+      }
+    ],
+    "read_only_reference": {
+      "path": "src/frontend/handshake_native/src/top_menu_bar.rs",
+      "bytes": 125373,
+      "sha256": "3c933bfaa0dd651c5370412de95fc0eeeecaf3adf0df2cce0d91253ea25df285",
+      "api": "Existing real popup picker at2030; documented programmatic seam2042–2047 picker_popup_id(EditorSegment)->egui::Id; LanguageMode rows2060–2066 emit existing EditorSegmentAction::SetLanguage. Existing app20034 applies panel.set_language_override. These references authorize NO app/top_menu writes."
+    },
+    "source_allocation": {
+      "limit": 1,
+      "consumed": 1,
+      "scope": "One distinct new language-picker implementation unit with the two named disjoint authors; not a reset of completed Format unit1/1 or any existing counter. Test source only, UNRUN."
+    },
+    "activation": "T1 uses SAME actual authors and obtains each author's own fresh exact file guards and exclusive personal custody ACK before edit, then normal SOURCESTART through existing T1 leader. Any actual writer/capture conflict or policy denial stops only affected slice without rerouting/retry. No global free-file or all-old-owner ACK inference.",
+    "review": "Team actual NEVERAUTHOR and dependency review followed by direct current Codecheck of complete scoped diff and all changed callers before expensive proof. Next queue contains only actual evidenced review finding, focus/disabled/pane-instance coupling if found; no invented hardening.",
+    "preserved": "Historical PASS_V1/history/original acceptance and prior actual Format source unit/counters/preimage remain byte-exact. This separate original residual supersedes ONLY the prior source unit's instruction to preserve LanguagePickerUnavailable, which described the old unrelated gap; real FormatDocument gate remains. Preserve full original feature/dependency/GUI/UserManual/Argus/independent runtime acceptance; no source-only PASS claim.",
+    "limits": "ONLY these three existing MT041 paths. No app/top_menu writes, duplicate picker/widget/action model, Assets/source/manifests/locks/Git/Cargo/test/runtime/publication campaign, new Spec/v6 change or budget reset. MT011/MT026/T2B/native editor-lock/MT190 and all other actual denials/holds unchanged. Preserve all peers.",
+    "next": "After saved child, SAME T1 leader obtains fresh personal ACKs and starts the two actual source responsibilities without another routine GO. Return actual changed guards and substantive diff for reviews; tests remain UNRUN until separately authorized proof.",
+    "recorded_at_utc": "2026-10-18T15:39:32.48Z",
+    "source_outcome_20261018": {
+      "status": "SOURCE_WRITTEN_DIRECT_CODECHECK_P2_OPEN",
+      "actual_authors": "Same T1 /root/formatting_coder and /root/navigation_coder delivered their admitted disjoint source changes and are quiescent, as personally reported by T1 leader through Central.",
+      "source_allocation": {
+        "limit": 1,
+        "consumed": 1,
+        "scope": "Original distinct language-picker source unit actually written; prior Format source/counters/history are not reset."
+      },
+      "changed_sources": [
+        {
+          "path": "src/frontend/handshake_native/src/accessibility/editor_action_registry.rs",
+          "bytes": 50601,
+          "sha256": "8a792d81114ef168f05951e2e58dfaec552d6c890e6c027f7221570c3295f20c"
+        },
+        {
+          "path": "src/frontend/handshake_native/src/code_editor/panel.rs",
+          "bytes": 850590,
+          "sha256": "e2845d108fa8f14ece6ed2e3240f712a5a3ddc034f28d872b524dc4a700cce94"
+        },
+        {
+          "path": "src/frontend/handshake_native/tests/test_e7_editor_action_accesskit.rs",
+          "bytes": 38821,
+          "sha256": "ce1d3b62dd247be34b9c996f1621c0f9266fb7c131145bccde4201ade5b3a5d6"
+        }
+      ],
+      "actual_outcome": "OpenLanguagePicker enum/catalog/docs implemented. Pane sole caller passes actual egui context; new dispatch opens the same existing statusbar popup ID, removes permanent picker-disabled gate and retains live FormatDocument gate plus Signature caller5300. Existing E7 case uses same Arc pane/statusbar, canonical AccessKit Click, real picker List and JavaScript row, existing SetLanguage and UserOverride.",
+      "source_execution_provenance": "Specific source-writing command/chunk/numeric exit was not supplied; not invented. Source completion and exact guards are the actual T1 leader's personal read/hash report.",
+      "review": {
+        "team_neverauthor": "Static clear, actual source.",
+        "team_dependency": "Static clear; no obsolete variant/type/borrow/import/dependency source finding.",
+        "direct_current_codecheck": {
+          "reviewer": "01a14f46",
+          "verdict": "P2_OPEN_NO_SOURCE_CLEARANCE",
+          "kind": "Static source failure, not runtime test failure",
+          "finding": "Global language picker ID is segment-only; per-pane action remains always enabled without actual host-target binding. Production hides the statusbar for non-Code focus, while SetLanguage routes active_mounted_code_panel. Existing E7 unconditional statusbar/direct panel SetLanguage masks this mismatch.",
+          "evidence": [
+            "src/frontend/handshake_native/src/code_editor/panel.rs:13145–13152",
+            "src/frontend/handshake_native/src/top_menu_bar.rs:2046–2047",
+            "src/frontend/handshake_native/src/app.rs:20011–20034"
+          ]
+        }
+      },
+      "preservation_qualification": "Author ordinal full-string outside inverse for four panel spans and one existing test case passed prewrite. This is NOT an independent old-blob full-hash receipt; no stronger conservation claim is made.",
+      "remaining_acceptance": "Tests UNRUN, no host/runtime PASS. Test harness supplies shell statusbar-to-pane routing; production focus/active-pane identity is NOT PROVEN. Actual shell statusbar focuses code while selection uses active_mounted_code_panel; original GUI/manual/Argus/native/independent acceptance remains OPEN.",
+      "limits": "No app/top_menu/Assets/manifest/lock/Git/Cargo/probe writes or policy-case clearance. Prior Format unit, PASS_V1, history and every byte outside picker child remain unchanged.",
+      "recorded_at_utc": "2026-10-18T15:57:08.23Z"
+    },
+    "target_ownership_p2_remediation_20261018": {
+      "decision_id": "WP012-MT041-LANGUAGE-PICKER-TARGET-OWNERSHIP-P2-REMEDIATION-20261018",
+      "status": "EXACT_REMEDIATION_SOURCE_ADMITTED_NOT_STARTED",
+      "authority": "Actual current direct Codecheck01a14f46 P2 finding and Central current same-author necessary-scope delegation. Recorded failure is remediation specification; no new Operator GO.",
+      "allocation": {
+        "limit": 1,
+        "consumed": 0,
+        "scope": "Separate new exact source repair only, preserving completed original picker Source1/1 and all prior counters."
+      },
+      "authors_and_paths": [
+        {
+          "author": "T1 /root/formatting_coder",
+          "sole_path": "src/frontend/handshake_native/src/accessibility/editor_action_registry.rs",
+          "bytes": 50601,
+          "sha256": "8a792d81114ef168f05951e2e58dfaec552d6c890e6c027f7221570c3295f20c",
+          "responsibility": "Only actual catalog/dispatch semantics required by target-ownership fix. Recover existing types/host data with T1; no invented API or unnecessary patch merely to occupy second author."
+        },
+        {
+          "author": "T1 /root/navigation_coder",
+          "sole_paths": [
+            {
+              "path": "src/frontend/handshake_native/src/code_editor/panel.rs",
+              "bytes": 850590,
+              "sha256": "e2845d108fa8f14ece6ed2e3240f712a5a3ddc034f28d872b524dc4a700cce94"
+            },
+            {
+              "path": "src/frontend/handshake_native/tests/test_e7_editor_action_accesskit.rs",
+              "bytes": 38821,
+              "sha256": "ce1d3b62dd247be34b9c996f1621c0f9266fb7c131145bccde4201ade5b3a5d6"
+            },
+            {
+              "path": "src/frontend/handshake_native/src/app.rs",
+              "bytes": 2072915,
+              "sha256": "1f4cd555b0238c1228dfcab4c0bdfcec808eb8b4d898660ef23d4facc87caf37",
+              "scope": "Prospective SAME B sole author; only exact host-target spans; actual competing-writer disposition/fresh personal guard ACK required before edit."
+            }
+          ],
+          "responsibility": "Bind or fail closed actual per-pane action target ownership of the existing shared popup and production-faithful non-Code-focus/other-pane test semantics. Preserve real FormatDocument gate, Signature and all unrelated behavior; no unconditional harness statusbar/direct panel selection that masks production routing."
+        }
+      ],
+      "required_behavior": "First recover actual scope from T1 existing types and host data. A per-pane action must not open a global popup whose production selection can mutate another active pane; unsupported focus/target continuity must fail closed. Exercise production-faithful non-Code focus and different-pane routing in existing test source, without claiming runtime execution.",
+      "scope_boundary": "Existing three admitted files plus SAME B prospective app.rs limited host-target spans under app_host_target_scope_extension_20261018. No top_menu writes or generic app/GUI rewrite. Actual current-writer conflict check and any one evidenced handoff remain explicit; no global free-file inference or additional Root GO.",
+      "activation": "T1 retains SAME actual authors, fresh exact personal guards and exclusive file custody before repair; Central directs minimum actual source remediation. Do not require two authors to edit one file or fabricate a second code patch. No source outside saved paths, reroute or policy-denial bypass.",
+      "review": "After actual repair diff, team NEVERAUTHOR and dependency review plus direct current Codecheck against this P2 target ownership finding before expensive proof. Existing team static clearance does not replace the open direct finding.",
+      "limits": "No Product writes by helper; only exact existing three paths plus conditional SAME B app.rs host-target spans. No top_menu/Assets/manifest/lock/Spec/v6/Git/Cargo/test/probe/runtime/publication grant or old budget reset. Historical GUI-A known input action remains closed, exact denial scope UNVERIFIED; no blanket app ban/clearance inferred. Full original GUI/manual/Argus/native/independent acceptance remains OPEN; source pending/P2 OPEN.",
+      "app_host_target_scope_extension_20261018": {
+        "decision_id": "WP012-MT041-P2-APP-HOST-TARGET-PROSPECTIVE-SOURCE-20261018",
+        "authority": "Actual new Root018 app-custody/source-scope decision through Central. Execution coordination only; not a Spec/acceptance change or retry of historical GUI-A input action.",
+        "prospective_author": "T1 SAME /root/navigation_coder is prospective sole app.rs source writer for this new language-picker P2 host projection, conditional on actual current-writer conflict disposition.",
+        "path": "src/frontend/handshake_native/src/app.rs",
+        "before": {
+          "bytes": 2072915,
+          "sha256": "1f4cd555b0238c1228dfcab4c0bdfcec808eb8b4d898660ef23d4facc87caf37",
+          "last_write_utc": "2026-10-15T07:14:39.6621338Z",
+          "metadata_evidence": "T1 SAME original metadata reader c8c39a exit0 with BEGIN/END: ordinary File Archive, no directory/reparse; pre/post bytes and LastWriteUtc unchanged. Reader own pending APP writes NONE, not global file-freedom or custody proof."
+        },
+        "allowed_spans": "Only existing editor_segment_state around20011, apply_editor_segment_action around20031, and minimum existing focused/active-mounted target helpers actually needed: active_mounted_code_panel17755, active_code_panel_and_content_id18008, focused_editor_target19443. Anchors are current T1-retained input, not permission for generic app search/rewrite.",
+        "source_outcome": "Bind actual host-owned target identity across action availability, dispatch, popup selection and stale-target rejection. Existing E7 source must use production-faithful different-pane/non-Code/same-owner host seam. Preserve FormatDocument gate, mounted panes, selections and prior Source4 type work.",
+        "current_custody_condition": "Actual competing current app source lease is NOT YET ESTABLISHED. Central asks T2 once for exact current app lease/pending-capture disposition. T1 resolves ONE actual writer handoff if a real competing writer exists; no all-team ACK/search. Before B writes, require actual saved binding, B fresh personal guards/custody ACK, and no actual competing current writer or evidenced handoff. Hash/metadata never prove no other writer. Actual T2 conflict holds only this app source slice until disposition; do not fabricate ACK.",
+        "historical_denial": "GUI-A historical app-input rejection exact scope is UNVERIFIED; that known input action remains CLOSED. No evidence establishes a blanket app metadata/future-mutation ban. This newly changed-source/current-direct-CC P2 repair is distinct from that old action. Do not reroute, change actor, retry or clear the old action.",
+        "scope": "App scope is additional to SAME B existing pane/E7 files under pending target-ownership repair0/1; existing A registry responsibility unchanged. No new repair/source counter, no reset of picker Source1/1, Format or any prior source/proof budget.",
+        "excluded": "No top_menu_bar.rs mutation unless an actual mandatory new field receives a separate narrow disposition; no generic app/GUI rewrite, unrelated source, Assets, manifest/lock/Git/Cargo/test/probe/runtime/publication, acceptance waiver or new authority query.",
+        "activation": "Normal SAME B source start follows saved scope, fresh personal guards and actual current-writer disposition/evidenced handoff without another Root/human GO. Source remains pending and direct P2 OPEN until same-author actual fix and direct current Codecheck. Team NEVERAUTHOR/dependency and direct actual diff review still required.",
+        "recorded_at_utc": "2026-10-18T16:38:21.709Z",
+        "prior_scope_boundary": "ONLY the same three existing files. No app.rs/top_menu_bar.rs reference writes. If actual existing host data requires app-side signature/ownership injection, return exact required caller path/preimage/current custodian and minimum edit through Master BEFORE that scope write. This local dependency is not a blanket new app approval gate.",
+        "prior_limits": "No Product writes by helper; no app/top_menu/Assets/manifest/lock/Spec/v6/Git/Cargo/test/probe/runtime/publication grant or old budget reset. Original GUI/manual/Argus/native/independent acceptance remains OPEN; no host PASS or policy-case clearance."
+      }
+    }
   }
 }

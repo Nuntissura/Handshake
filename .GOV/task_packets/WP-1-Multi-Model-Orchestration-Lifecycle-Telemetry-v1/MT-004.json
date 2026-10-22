@@ -611,5 +611,31 @@
         "risks_and_controls": "Request races recover only an independently validated same-intent canonical winner; cancellation and deadline admission conflict with atomic authority publication; failed transactions remain retryable without a fabricated completed effect."
       }
     }
-  }
+  },
+    "human_delegated_promotion_consumer_eligibility_20261015": {
+      "decision_id": "WP012-WP1-MT004-HUMAN-DELEGATED-PROMOTION-CONSUMER-ELIGIBILITY-20261015",
+      "status": "DIRECT_HUMAN_DELEGATED_POLICY_SELECTION_RECORDED_IMPLEMENTATION_EXECUTION_HELD",
+      "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+      "direct_human_delegation": {
+        "ui_call": "call_936fa8964387437e9ad394192bbfb3f8",
+        "item": 0,
+        "exact_question": "The original promotion contracts require Owner approval, a designated Validator verdict and PromotionGate checks, but do not define who may submit the final request. Should any authenticated actor with current Workspace/fs.write/Create authority be allowed to request promotion of that exact approved artifact, subject to canonical run-owner/fence and all Gate checks, or should requests be limited to the workspace Owner?",
+        "exact_ui_answer": "do whatever is fastest",
+        "latest_separate_direct_human_plain_message": "do whatever is good practice",
+        "priority": "Latest separate direct human instruction supersedes pace preference and delegates selection. No further human re-ask or historical GO substitution."
+      },
+      "selected_root_policy": "LEAST PRIVILEGE: ONLY current authenticated canonical Workspace OWNING-ACCOUNT actor with current required operation grants plus EXPLICIT final-promotion-request intent may REQUEST FINAL promotion of EXACT canonical Owner-approved artifact plus actual designated Validator verdict.",
+      "owner_definition": "Canonical Workspace owner_account_id equals current canonical authenticated account. NOT global profile/created_by/label. No invented Owner-principal/separate-account/exact historical approver-principal-equality rule.",
+      "no_grant_shortcut": "Workspace Create/fs.write ALONE is NOT promotion authority or issuer evidence. No new capability enum; underlying current grants remain required and Owner cannot bypass them.",
+      "narrow_scope": "ONLY final promotion REQUEST eligibility. NO Owner-only extension to runner ReviewInvocation/RecordReviewCompletion/advisory/read/evidence consumption/other role ACKs.",
+      "protected_mutation": "Coordinator internal mutations derive ONLY valid owned final request plus ALL PromotionGate checks, no silent Create/ID grants. Preserve original state/base/vector/schema/aggregate/idempotency/expiry/cancel/trace/selected-rejected/run-owner/fence/current-auth protected-commit checks.",
+      "explicit_request_boundary": "No actual human-presence/per-run-consent/extra approval ritual beyond explicit authenticated final request.",
+      "implementation_direction": "Genuine authenticated input through existing positive HTTP/service path -> private owned permit -> SAME provided transaction/fence. No scope-to-auth conversion/new endpoint/new public raw authorizer. Actual paths/owners/guards/code binding still require exact SOURCE admission; policy is not completed implementation.",
+      "independence": "Preserve closed Owner issuance/designation policy MT017 plus Chat2d35 and Runtime MT188 unchanged. No MT017/spec propagation rewrite in this record.",
+      "preservation": "All original MT004/full retained three-WP assertion floors/commands and their hashes/pins/history/budgets/independent IV/immutable164/schema165 before166 remain unchanged. Existing status remains.",
+      "execution_authorized": false,
+      "proof_started": false,
+      "allowance_granted": false,
+      "limits": "Policy decision ONLY; no source grant/completed policy implementation/proof/run/budget/slot/metadata/Git/artifact/process/SQL permission. Kernel ONE MT004 child only, no product/spec/other contract edits."
+    }
 }

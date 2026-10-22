@@ -452,5 +452,287 @@
       "MT108 gitless matrix validation requires HANDSHAKE_PROOF_SOURCE_MANIFEST with exact observed source SHA256 map.",
       "Installed Cargo registry inputs were read from existing C cache during offline run; all configured target/temp/runtime outputs used D. Cache-home policy must be checked before resumed build."
     ]
+  },
+  "phase2_signature_help_standalone_source_extension_20261018": {
+    "decision_id": "WP012-MT047-PHASE2-SIGNATURE-HELP-STANDALONE-SOURCE-20261018",
+    "status": "SOURCE_START_AUTHORIZED_PRIMARY_ASSEMBLY_ONLY_HOST_ADOPTION_HELD",
+    "authority": "Direct current Operator/Master Phase2 splitting and Central exact delegation select this new engineering address and permit two disjoint source authors START without another GO. New source extraction only; original MT047 lifecycle/verdict, lifecycle4 captured inputs and all host acceptance remain unchanged.",
+    "governance_writer": "Central delegated editor_richdoc_assignments; only this MT047 child",
+    "source_leader": "01a14c72-1989-7ed2-aedc-326199f80ed4",
+    "leader_owned_after_code": "Notes/handshake_signature_help/README.md only, concise package API/dependency/host boundary manual after actual Rust source; no governance or proof claims. This explicit doc ownership needs no further GO.",
+    "source_repository": "../../.assets",
+    "remote": "https://github.com/Nuntissura/assets.git",
+    "branch": "codex/handpick",
+    "selected_engineering_address": "Notes/handshake_signature_help",
+    "address_qualification": "Central explicitly selected prospective NEW package/address with canonical Notes casing. No existing canonical crate identity is asserted. Exact target absent; Assets and Notes parents inspected ordinary directories without links.",
+    "read_only_source": {
+      "path": "../wtc-WP-KERNEL-012/src/frontend/handshake_native/src/code_editor/signature_help.rs",
+      "sha256": "79aad23d8441124f965bcb58e6b2c59339b9d2b98f0155e448938a3cd1115e08",
+      "bytes": 51205
+    },
+    "assignments": [
+      {
+        "writer": "/root/formatting_coder",
+        "paths": [
+          "Notes/handshake_signature_help/src/scanner.rs"
+        ],
+        "scope": "Extract existing active_parameter_from_commas407, top_level_paren_args344 and DepthScanner641 onward. Keep single bracket/literal/comparison/generic/comma algorithm and existing byte-offset behavior. Expose the parsing/count functions needed by later host converter; DepthScanner remains private. Own only scanner.rs and its five original tests.",
+        "existing_test_names": [
+          "active_parameter_counts_top_level_commas",
+          "active_parameter_ignores_nested_calls",
+          "active_parameter_ignores_brackets_braces_and_generics",
+          "active_parameter_ignores_string_and_char_literals",
+          "comparison_less_than_is_not_a_generic"
+        ]
+      },
+      {
+        "writer": "/root/navigation_coder",
+        "paths": [
+          "Notes/handshake_signature_help/src/model.rs"
+        ],
+        "scope": "Extract actual SignatureSource66, ParamSpan80, SignatureInfo90/from_label104, SignatureHelpState131 with active/select/clamp146-187 and from_lsp190, LSP conversion252/documentation292, signature_label_runs442 and string helpers611/623. std String/Range plus lsp_types only. Exclude host from_code_nav229, signature_from_code_nav_symbol319 and rendering480 onward. Own only model.rs and its seven original model tests.",
+        "existing_test_names": [
+          "label_runs_emphasize_the_active_parameter",
+          "simple_label_form_resolves_repeated_names_to_distinct_spans",
+          "from_lsp_parses_active_parameter_and_both_label_forms",
+          "from_lsp_empty_signatures_is_none",
+          "from_lsp_clamps_out_of_range_indices_without_panic",
+          "label_offsets_out_of_bounds_does_not_panic",
+          "overload_cycling_wraps_and_clamps_active_parameter"
+        ]
+      }
+    ],
+    "assembly_custody": {
+      "sole_writer": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+      "paths": [
+        "Notes/handshake_signature_help/Cargo.toml",
+        "Notes/handshake_signature_help/src/lib.rs"
+      ],
+      "package_name": "handshake_signature_help",
+      "dependency_contract": "Core std plus lsp-types actual native manifest0.95 and inspected lock0.95.1. Primary verifies compatible declaration and exports scanner/model public APIs. No egui/backend/native/Core/CodeSymbolNavProjection dependency. No author manifests/lib.rs/locks/index/Git/Cargo or shared-root mutation.",
+      "source_start_independence": "Two named authors START after source/destination guards; they do not wait for Primary assembly files. Primary may prepare only its two exact new package files concurrently. No native manifests/locks or root Assets workspace change follows."
+    },
+    "shared_api": "One scanner owner exports active_parameter_from_commas and top_level_paren_args; one model owner exports SignatureSource/ParamSpan/SignatureInfo/SignatureHelpState and signature_label_runs with existing shapes/results. Primary alone composes src/lib.rs. Helpers and tests have one owning module; no model/scanner copies or host backedge.",
+    "host_retained": "Original signature_help.rs remains read-only, including from_code_nav229, signature_from_code_nav_symbol319, render_signature_popup480, signature_help_node_id598, AccessKit/focus/popup lifecycle and five CodeSymbolNavProjection-dependent fallback tests. panel.rs and lsp_client.rs read-only. Separate later pinned host adoption must replace panel5300 foreign-inherent impl by a real host converter/wrapper under its own exact grant; no smuggled panel edit or foreign impl in source package.",
+    "behavior_conservation": "Preserve existing parsing/depth/literal/comparison/generic semantics, overload selection/clamping, ParameterLabel Simple/LabelOffsets and repeated-name spans, Unicode-safe label slicing, documentation handling, malformed-input no-panic behavior, anchor_byte/source/error contracts and existing public results. Extraction does not authorize algorithm rewrite or new controller. Original MT047 trigger/manual shortcut/dismissal/focus/LSP/fallback/active-parameter/Unicode/AccessKit/runtime/GUI acceptance remains required.",
+    "start_guards": "T1 personally refreshes only exact guarded native source, target absence and ordinary non-link parent components before exclusive new scanner/model writes. Preserve peers; stop only affected drift/conflict. No native-writer custody/all-team ACK/naming GO/old-monolith compile required for absent source paths. Actual denied model routes and lifecycle4 captured-input freeze remain untouched.",
+    "review": "Existing T1 distinct NEVERAUTHOR and dependency checker inspect actual source diffs, conserved original functions/tests, API imports/dependencies/borrow and host edges. Direct current supplemental Codecheck01a14d52-fa57-73a3-a4ad-1bf70f4084b8 or additional01a14e9d-4db3-7542-a0d3-3181753e06bc reviews actual diff before expensive proof. No review-as-runtime acceptance.",
+    "limits": "Only two assigned new author Rust files and Primary two assembly files. No product/GOV edits by source authors, native source/callers, locks/index/shared root/Git/Cargo/metadata/test/GUI/probe/runtime/process actions, new tests solely to occupy authors, finite-budget reset or new proof allowance. Original three-WP scope/pins/history and independent verdicts retained.",
+    "next_queue": "Actual scanner/model source -> resolve team/direct-Codecheck findings -> Primary exact assembly/dependency closure -> separately governed own standalone proof/coherent publication/independent canonical remote/result confirmation -> DISTINCT pinned host conversion/adoption. T1 leader may supply concise package README only after code and exact scoped doc ownership; no new audit/census instead of code.",
+    "acceptance": "NOT_ACCEPTED_SOURCE_ONLY",
+    "owning_component_proof_allocation_20261018": {
+      "decision_id": "WP012-MT047-SIGNATURE-HELP-OWNING12-PROOF-20261018",
+      "status": "CONDITIONALLY_ALLOCATED_NOT_STARTED",
+      "authority": "Current Operator implementation and Master continuous exact necessary-scope delegation through Central. Actual component source and assembly reviews are clear. Sole Primary may execute this new owning-component queue when exact conditions pass without another routine GO. Earlier source-child zero budgets remain historical and unchanged.",
+      "owner": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+      "independent_reader": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+      "repository": "../../.assets",
+      "branch": "codex/handpick",
+      "package_root": "Notes/handshake_signature_help",
+      "source_guards": [
+        {
+          "path": "Notes/handshake_signature_help/Cargo.toml",
+          "bytes": 143,
+          "sha256": "44900688e68fb2822b3243a37bc5c3ffa181d993464c5c957171c6eb8bd37a4c"
+        },
+        {
+          "path": "Notes/handshake_signature_help/README.md",
+          "bytes": 2433,
+          "sha256": "2cfc9b67d4b328cd9047a4f04f95383d63126a6fb635ec26aa3e734514b62c84"
+        },
+        {
+          "path": "Notes/handshake_signature_help/src/lib.rs",
+          "bytes": 206,
+          "sha256": "16c3d275abca7ffe377fbf4d3be082ea82abed312901820b240ece5d01a630ef"
+        },
+        {
+          "path": "Notes/handshake_signature_help/src/scanner.rs",
+          "bytes": 10431,
+          "sha256": "cc5499138e21c5afb62d900d4470ad4198c8bf9d685f3fbb8420802751d03646"
+        },
+        {
+          "path": "Notes/handshake_signature_help/src/model.rs",
+          "bytes": 20170,
+          "sha256": "76bb295d0e4bad30b9df341661b234d7a24f39a88b237dd573a1abc83434c3b5"
+        }
+      ],
+      "source_reviews": "Reuse the retained actual team NEVERAUTHOR, dependency and direct Codecheck component-plus-assembly clearance supplied by Central, bound to these unchanged exact source guards. No repeated closed review. A changed generated lock/dependency graph gets its own bounded actual review.",
+      "budget": {
+        "owning_root_lock_generation": {
+          "limit": 1,
+          "consumed": 0
+        },
+        "owning_existing_tests_attempt": {
+          "limit": 1,
+          "consumed": 0
+        },
+        "normal_coherent_source_and_lock_checkpoint_push": {
+          "limit": 1,
+          "consumed": 0
+        },
+        "independent_immutable_source_and_lock_reread": {
+          "limit": 1,
+          "consumed": 0
+        },
+        "independent_actual_result_reread": {
+          "limit": 1,
+          "consumed": 0
+        }
+      },
+      "lock": {
+        "write_path": "Notes/handshake_signature_help/Cargo.lock",
+        "before": "ABSENT on scoped current read; Primary must freshly confirm ordinary owning workspace and exact lock absence immediately before invocation",
+        "argv": [
+          "generate-lockfile",
+          "--manifest-path",
+          "Notes/handshake_signature_help/Cargo.toml"
+        ],
+        "network": "Normal existing network/config/cache only; no assumed offline cache, route/actor/tool workaround, config override or lock overwrite. If lock exists or resolver fails, retain actual state and consumed budget; do not replay.",
+        "review": "Actual generated identities/versions/source pins/checksums/features/registry graph need team dependency/NEVERAUTHOR and direct current Codecheck review before the test. Unexpected resolution stops for exact diagnosis; do not repair source or loosen dependencies under this allocation."
+      },
+      "command": {
+        "argv": [
+          "test",
+          "--manifest-path",
+          "Notes/handshake_signature_help/Cargo.toml",
+          "--locked",
+          "--lib",
+          "-j",
+          "1"
+        ],
+        "cwd": "../../.assets",
+        "extra_check_metadata_list_attempts": 0
+      },
+      "expected_test_suites": [
+        {
+          "source_path": "Notes/handshake_signature_help/src/scanner.rs",
+          "count": 5,
+          "names": [
+            "active_parameter_counts_top_level_commas",
+            "active_parameter_ignores_nested_calls",
+            "active_parameter_ignores_brackets_braces_and_generics",
+            "active_parameter_ignores_string_and_char_literals",
+            "comparison_less_than_is_not_a_generic"
+          ]
+        },
+        {
+          "source_path": "Notes/handshake_signature_help/src/model.rs",
+          "count": 7,
+          "names": [
+            "label_runs_emphasize_the_active_parameter",
+            "simple_label_form_resolves_repeated_names_to_distinct_spans",
+            "from_lsp_parses_active_parameter_and_both_label_forms",
+            "from_lsp_empty_signatures_is_none",
+            "from_lsp_clamps_out_of_range_indices_without_panic",
+            "label_offsets_out_of_bounds_does_not_panic",
+            "overload_cycling_wraps_and_clamps_active_parameter"
+          ]
+        }
+      ],
+      "expected_result": {
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "filtered_out": 0,
+        "required": "All expected unique existing test names must execute in their actual owning targets. Empty doc-test targets supply no acceptance count. No filter, substitute test or zero-match pass."
+      },
+      "session_plan": {
+        "path": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-047/phase2-signature-help-owning-proof/gameplan.yaml",
+        "bytes": 4554,
+        "sha256": "8f9799a0712c34e25380879a82492da8e5ed85936ad0eca0a7fc583c68b3867e",
+        "scope": "session",
+        "assignment": "WP-KERNEL-012-MT-047-SIGNATURE-HELP-OWNING-PROOF",
+        "role": "builder",
+        "confirm_binding_repo": "../../../../../.assets",
+        "binding_verification": "Computed from the plan parent and resolved to the inspected ordinary Assets repository, following actual MT089 public-controller pattern",
+        "selection": "Primary selects this exact external session plan for the actual owning Assets action through the public controller, with honest builder role. No Product gameplan/pointer or HANDPICK overwrite, role/env/context suppression, hidden confirmation or false successful outcome.",
+        "moments": {
+          "resume": "on_resume",
+          "lock": "before_dispatch",
+          "tests": "before_round",
+          "publication": "before_submit"
+        },
+        "confirmed_by_helper": false,
+        "preparation": "Public init/add/retire/validate/show only. Primary personally confirms current facts and runs public check for each owning moment before the expensive action. No confirmation has been supplied by this helper."
+      },
+      "artifact_root": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-047/phase2-signature-help-owning-proof",
+      "profile_owner": "Sole Primary binds new profile/caller/config in this owning artifact root; no profile facts are certified by this allocation",
+      "mutable_target": "../Handshake_Artifacts/handshake-cargo-target/wp012-sig",
+      "path_proposal": "New target absent on scoped read; proposed root95/TMP99 length only. Primary binds actual generated-name/path limits and cache/TMP constructors before use; no global relocation or cleanup.",
+      "preparation": "Freeze only captured own source files, actual future lock/registry/config/toolchain/child env and owned mutable target/cache inputs. Preserve unrelated work. Primary personally binds actual toolchain binary, honest task/selection, fresh resource/physical ownership, disjoint new target/profile/TMP and >=50GiB disk with normal32/5/2 scheduling while hardware permits. No foreign process stop, timeout wrapper or all-kit/old-monolith predecessor.",
+      "execution": "One normal root lock generation, changed lock/dependency direct review, then one exact owning test invocation. Capture actual argv/PID/birth/tool/config/profile/resource provenance, complete stdout/stderr/numeric exit, unique names/counts and before/after input guards. A failed operation consumes its applicable finite allowance; record actual failure cause and partial state, then seek the smallest evidence-based decision without identical replay or counter reset.",
+      "publication": {
+        "selected_paths": [
+          "Notes/handshake_signature_help/Cargo.toml",
+          "Notes/handshake_signature_help/README.md",
+          "Notes/handshake_signature_help/src/lib.rs",
+          "Notes/handshake_signature_help/src/scanner.rs",
+          "Notes/handshake_signature_help/src/model.rs",
+          "Notes/handshake_signature_help/Cargo.lock"
+        ],
+        "method": "After actual successful stable owning result, one normal exact-path coherent source-plus-one-lock commit/push on existing Assets branch, preserving every peer index/source change. Verify actual parent/tree/pathset/filtered blobs and newline representation after hooks, before push. No global add, index root edit, force/amend/stash/reset/new branch/worktree.",
+        "independent": "One immutable source+lock canonical reread and one actual full result/log/provenance reread by existing independent reader. Bind final source/lock guards to the executed inputs and canonical commit; no blanket raw equality or acceptance from a self-authored status."
+      },
+      "limits": "No source or manifest edits/new tests, Product host edits, Assets index/shared roots, metadata/list/extra check/test runs, genuine GUI/process/runtime/auth/grant action, protected-parent acquisition or old denied action retry. Normal owned Cargo cache and this scoped proof output are permitted. Only the named new root lock is a Product write before publication.",
+      "proof_strength": "Owning scanner/model/LSP component behavior only. Existing foreign inherent code-nav converter and host rendering stay in their original host scope. Genuine GUI/Argus/native and full original MT047/WP acceptance remain unproved; no MT189 or T2 denied action renewal.",
+      "next": "Actual owning proof plus coherent canonical publication and both independent rereads precede a distinct exact pinned host-adoption allocation through the existing leader. Retain full original WP/MT/spec/pins/proof and spent/denied scopes; do not claim original acceptance from these component tests."
+    }
+  },
+  "phase2_signature_help_pinned_host_adoption_20261018": {
+    "decision_id": "WP012-MT047-SIGNATURE-HELP-PINNED-HOST-ADOPTION-20261018",
+    "status": "SOURCE_BOUND_PERSONAL_ACK_AND_FRESH_GUARDS_REQUIRED",
+    "authority": "Current Root/Master source-first component delegation and exact Central host-adoption admission. This DISTINCT host child consumes the completed immutable canonical component; no additional routine GO after actual personal custody/guards.",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "source_leader": "01a14c72-1989-7ed2-aedc-326199f80ed4",
+    "canonical_dependency": {
+      "repository": "https://github.com/Nuntissura/assets.git",
+      "revision": "558844d5b81abe30651f94d193ac0bf76165b9cd",
+      "package": "handshake_signature_help",
+      "package_path": "Notes/handshake_signature_help",
+      "source_proof": "Central retained actual owning12 scanner5/model7 numeric0,error[],drift[] receipt1437; coherent six-path source+lock publication558844d5; BOTH immutable canonical and actual result independent reads complete9822ba/d4df04. Canonical model465 CRLF normalization qualification retained; no blanket raw equality claim.",
+      "acceptance_limit": "Component proof only; original native host acceptance remains OPEN."
+    },
+    "source_author": "T1 navigation_coder (/root/navigation_coder), sole actual B author for these three native paths",
+    "source_paths": [
+      {
+        "path": "src/frontend/handshake_native/src/code_editor/signature_help.rs",
+        "bytes": 51205,
+        "sha256": "79aad23d8441124f965bcb58e6b2c59339b9d2b98f0155e448938a3cd1115e08",
+        "scope": "Reexport canonical state/types/scanner/label functions; retain native render_signature_popup480, signature_help_node_id598, constants/AccessKit and backend signature_from_code_nav_symbol319. Replace host-bound inherent from_code_nav229 with public FREE host function using actual canonical fields/clamp; no foreign inherent impl. Update five existing inline fallback calls970/994/1012/1036/1046 and same-file docs. Preserve EVERY fallback assertion. Remove only twelve pure inline cases mapped to verified canonical own12; no zero-test-PASS or host GUI claim."
+      },
+      {
+        "path": "src/frontend/handshake_native/src/code_editor/panel.rs",
+        "bytes": 851305,
+        "sha256": "eded47a0a4feaf1c5c79e448ab7b7811b33268669ca099f4dc566970d5b7f3fc",
+        "scope": "ONLY exact associated caller at5300 to new public free host converter. Preserve panel outside that one call line exactly."
+      },
+      {
+        "path": "src/frontend/handshake_native/tests/test_signature_help.rs",
+        "bytes": 38528,
+        "sha256": "69bc0addf3401887a30d200d64ce1fc3b58e1b8267427141606460e93fc11c98",
+        "scope": "ONLY exact associated caller241 to free host converter. Preserve fallback assertions and all other eleven native integration-test semantics."
+      }
+    ],
+    "callsite_basis": "T1 actual scoped search retained only seven associated calls: five inline and the two explicitly admitted foreign callers. No wider panel/test scope implied.",
+    "primary_assembly": {
+      "owner": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+      "sole_path": "src/frontend/handshake_native/Cargo.toml",
+      "before": {
+        "bytes": 37486,
+        "sha256": "01cf880368d2f87895357ff15c2abef33a016e017ab13e61592b77e622d3271f"
+      },
+      "change": "Primary alone adds actual package handshake_signature_help Git dependency exact revision558844d5b81abe30651f94d193ac0bf76165b9cd. Context92e assembly is separate batch under same sole manifest writer; coordinate actual shared manifest guard without author overlap.",
+      "limits": "No run, resolver, lock generation or Git grant. Resolver allowance0; future affected-input capture refresh only after actual changed inputs."
+    },
+    "source_budget": {
+      "limit": 1,
+      "consumed": 0
+    },
+    "activation": "T1 obtains actual B personal ACK and fresh three exact source guards/exclusive file custody before SOURCESTART. Current known source writers are Core-only and disjoint; do not require all-old-owner ACK. Any ACTUAL current writer/capture conflict or policy denial stops only that path; no reroute/bypass. A Context outcome belongs separate MT175 and disjoint files.",
+    "review": "After substantive actual source diff, team NEVERAUTHOR and dependency review plus direct current Codecheck inspect changed source, preserved native behavior and exact outside-call boundaries before expensive proof.",
+    "preserved": "Original WP/MT/spec pins and full original trigger/focus/parameter/Unicode/runtime/native/GUI/Argus/accessibility/independent acceptance remain unchanged and OPEN. Actual GUI A denial, MT190 and all other holds retained. No fake component test substitute for host proof.",
+    "limits": "Only the three explicit B paths and Primary-only one manifest binding; no Assets source edits, other source/manifest/lock edits, compiler/Cargo/test/runtime/metadata/Git grant, schema changes, original pin/spec waiver or budget reset. Preserve peers; v6 Master-only.",
+    "next": "Normal B source START through T1 immediately after saved binding and actual personal guard/custody ACK, without another Root GO; actual source outcome/changed guards pending. Primary assembles exact pin separately; later proof requires separate actual permission and refreshed affected captured inputs.",
+    "recorded_at_utc": "2026-10-18T13:45:16.232Z"
   }
 }

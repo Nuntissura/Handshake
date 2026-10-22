@@ -1,0 +1,344 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-025",
+  "created_at_utc": "2026-10-16T03:11:53.155417Z",
+  "updated_at_utc": null,
+  "identity": {
+    "mt_id": "MT-025",
+    "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+    "title": "handshake_job_admission standalone_source",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "Formalize the existing independently reread immutable standalone source contract; source publication recorded, full acceptance remains pending.",
+    "requirement_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-001",
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-002",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-003",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-004",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/three_original_integration_target_restoration_source_admission_20261015/job_admission_six_new_path_source_admission_20261015"
+    ],
+    "acceptance_refs": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-025.json#/lifecycle",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/execution/source_adoption"
+    ],
+    "materialized_acceptance": [
+      {
+        "claim": "Recorded six-file source/review/publication/pin scope only",
+        "status": "RECORDED_SOURCE_ONLY",
+        "evidence_refs": [
+          ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/three_original_integration_target_restoration_source_admission_20261015/job_admission_six_new_path_source_admission_20261015",
+          ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/reviewed_two_leaf_source_publication_20261015",
+          ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase02-successor-handoff-v6.json#/reviewed_two_leaf_source_publication_be0cc01_20261015"
+        ]
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": null,
+    "tier_reason": "Use current packet declared role profile ROLE_MODEL_PROFILE_CATALOG_V1; governance/source formalization introduces no model selection or override.",
+    "sized_for_declared_tier": false,
+    "escalate_to_tier_on_blocker": null
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 0,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 0,
+      "confirm": 0
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "allowance_granted": false,
+    "preservation": "No new costly attempt/probe/confirm allowance; original standing budgets and consumed counts not reset."
+  },
+  "execution": {
+    "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "module_change_stage": "standalone_source",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [],
+    "allowed_write_paths": [],
+    "forbidden_write_paths": [
+      "all product source/build/config/lock paths",
+      "all proof execution/artifact outputs"
+    ],
+    "stop_conditions": [
+      "No new product source write or execution authority.",
+      "Source pins/identity mismatch requires exact disposition; preserve peers."
+    ],
+    "sourcewrite_authorized": false,
+    "execution_authorized": false,
+    "proof_started": false,
+    "allowance_granted": false
+  },
+  "proof": {
+    "parent_proof_refs": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/three_original_integration_target_restoration_source_admission_20261015/job_admission_six_new_path_source_admission_20261015",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/reviewed_two_leaf_source_publication_20261015",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase02-successor-handoff-v6.json#/reviewed_two_leaf_source_publication_be0cc01_20261015"
+    ],
+    "checks": [
+      {
+        "check_id": "WP1-MT025-RECORDED-CANONICAL-SOURCE-PIN-REUSE",
+        "claim_refs": [
+          ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-025.json#/canonical_module"
+        ],
+        "command_or_method": "Read already recorded independent canonical GitHub commit/tree and six remote Base64-decoded hash/byte observations. References only; no new invocation.",
+        "expected": "Exact six source pins at immutable be0 revision; no inference of execution or compatibility.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase02-successor-handoff-v6.json#/reviewed_two_leaf_source_publication_be0cc01_20261015",
+          "Primary7a824b EXIT0 remote six-pin reread;locald9fd9b;origin51d673"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "declared_owning_tests": {
+      "count": 19,
+      "status": "UNRUN_NOT_COMPILED_NOT_NONZERO_SELECTION",
+      "acceptance": "Standalone operation/host compatibility/runtime/authentication/task/persistence/independent IV remain OPEN.",
+      "source_bound_ownership": {
+        "package": "handshake_job_admission",
+        "manifest": "src/backend/handshake_job_admission/Cargo.toml",
+        "target": {
+          "kind": "LIB",
+          "source": "src/backend/handshake_job_admission/src/lib.rs",
+          "declaration": "Implicit default LIB target; no explicit [lib] or [[test]]."
+        },
+        "module_prefixes": [
+          {
+            "prefix": "identity::tests::",
+            "source_test_declarations": 2
+          },
+          {
+            "prefix": "codec::tests::",
+            "source_test_declarations": 5
+          },
+          {
+            "prefix": "basis::tests::",
+            "source_test_declarations": 9
+          },
+          {
+            "prefix": "submission::tests::",
+            "source_test_declarations": 3
+          }
+        ],
+        "total_source_test_declarations": 19,
+        "selection": "Unfiltered leaf LIB source-declared selection covers these nineteen declarations; actual Cargo discovery/nonzero selection NOT OBSERVED.",
+        "filter_limit": "Do not use --exact with these module-prefix filters; it would match zero full test names. No new invocation prescribed or allowance granted.",
+        "evidence": "MC actual owning-source observations exec635924/3c758c/020ff7; source-bound declaration evidence only.",
+        "preservation": "All nineteen remain UNRUN_NOT_COMPILED_NOT_NONZERO_SELECTION. Leaf supplements only; original Core operator_chat_capture_surreal_tests integration selector/original16/native/manual/Argus/runtime/IV unchanged. This navigation precision is not a predecessor or reason to hold already released Core-edge source."
+      }
+    }
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-025.json",
+    "microtask_projection": null,
+    "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "NOT_REQUESTED",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Existing handshake_job_admission six-file standalone source formalization only; no new implementation or runtime PASS.",
+    "allowed_paths": [
+      "src/backend/handshake_job_admission/Cargo.toml",
+      "src/backend/handshake_job_admission/src/lib.rs",
+      "src/backend/handshake_job_admission/src/identity.rs",
+      "src/backend/handshake_job_admission/src/submission.rs",
+      "src/backend/handshake_job_admission/src/basis.rs",
+      "src/backend/handshake_job_admission/src/codec.rs"
+    ],
+    "path_qualification": "Reference scope only; execution.allowed_write_paths is empty.",
+    "forbidden_paths": [
+      "Core host implementation",
+      "other module internals",
+      "all locks/schema/configs/artifact outputs"
+    ],
+    "acceptance_criteria": [
+      "Exact canonical repository/path/revision/tree/six raw source pins recorded and independently reread.",
+      "Source review/publication scope resolved only by existing evidence; nineteen source tests unrun and full standalone/release/host/IV acceptance pending.",
+      "No waiver or rerun of original three-WP assertions/budgets."
+    ],
+    "proof_targets": [
+      {
+        "kind": "RECORDED_CANONICAL_SOURCE_CONTRACT",
+        "ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase02-successor-handoff-v6.json#/reviewed_two_leaf_source_publication_be0cc01_20261015",
+        "execution_authorized": false
+      }
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Pure reusable source-contract formalization of already published data/codec/state primitives; no new GUI/manual behavior or model-facing workflow. Reuse existing source docs/contracts; no extra projection/tool artifact or acceptance waiver."
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Pure reusable source-contract formalization of already published data/codec/state primitives; no new GUI/manual behavior or model-facing workflow. Reuse existing source docs/contracts; no extra projection/tool artifact or acceptance waiver."
+  },
+  "resource_privacy_obligation": {
+    "required": false,
+    "applicable": false,
+    "resources_touched": [],
+    "identity_and_scope_contexts": [],
+    "enforcement_boundaries": [],
+    "same_project_private_resource_cases": [],
+    "cross_account_negative_cases": [],
+    "derived_resource_non_widening_cases": [],
+    "revocation_and_context_switch_cases": [],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Pure identity/basis/state integrity is not an authenticator or resource access. Actual Core auth/privacy enforcement and original negative proofs stay in host MT017."
+  },
+  "hbr_obligations": [
+    "HBR-MODULE-LIFECYCLE-003",
+    "HBR-MODULE-LIFECYCLE-004",
+    "HBR-MODULE-LIFECYCLE-007"
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "SOURCE_RECORDED_ACCEPTANCE_PENDING"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Source-only publication mislabeled as operation/compatibility proof.",
+      "Mutable path dependency could drift from immutable six-file pin.",
+      "Unrelated MT017 work accidentally gated by source formalization."
+    ],
+    "minimum_controls": [
+      "Keep lifecycle/validator pending and all new execution budgets zero.",
+      "Host checks exact local six-file pins before manifest source write.",
+      "Adoption applies only the single Core manifest edge, no global dependencies or path override."
+    ]
+  },
+  "context_capsule": {
+    "module_maintenance_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-001",
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-002",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-003",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-004",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/three_original_integration_target_restoration_source_admission_20261015/job_admission_six_new_path_source_admission_20261015"
+    ]
+  },
+  "canonical_module": {
+    "module_id": "handshake_job_admission",
+    "canonical_source_repository": "https://github.com/Nuntissura/Handshake.git",
+    "canonical_source_path": "src/backend/handshake_job_admission",
+    "source_commit": "be0cc01c4780832829f429eede44f5971e8c2e0f",
+    "source_tree": "40b366733aca8abdf412f67107d21e30542e8736",
+    "package_version": "0.1.0",
+    "version_qualification": "Package source version only; not published released artifact/compatibility proof.",
+    "exact_source_pins": [
+      {
+        "path": "src/backend/handshake_job_admission/Cargo.toml",
+        "bytes": 361,
+        "sha256": "f470db04b0b2a55587727d27cf8e770179702ea0be8c73ca6a5786ed44ec1b42"
+      },
+      {
+        "path": "src/backend/handshake_job_admission/src/lib.rs",
+        "bytes": 352,
+        "sha256": "c18fb2c4a147de3606bd2ad50de626635fa970599c938d5ee88052b180d5a349"
+      },
+      {
+        "path": "src/backend/handshake_job_admission/src/identity.rs",
+        "bytes": 3077,
+        "sha256": "a0fc451e67908851b74de3c15552f84eac6e1fccd91f41dd91156e84729b6687"
+      },
+      {
+        "path": "src/backend/handshake_job_admission/src/submission.rs",
+        "bytes": 11157,
+        "sha256": "ea3bc602fe1d540c906d994d3db7e7de5ac33d8cc554918882927184d7ff65e7"
+      },
+      {
+        "path": "src/backend/handshake_job_admission/src/basis.rs",
+        "bytes": 21261,
+        "sha256": "9077ad673c0504232a31a6dbbb037047c593d73acc8657888cb397521af56885"
+      },
+      {
+        "path": "src/backend/handshake_job_admission/src/codec.rs",
+        "bytes": 3335,
+        "sha256": "ab15f3ade211470af8efcae3ea68ad05663ec0f8ca0930ae8372233aabf54430"
+      }
+    ]
+  },
+  "source_evidence": {
+    "original_source_admission_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/three_original_integration_target_restoration_source_admission_20261015/job_admission_six_new_path_source_admission_20261015",
+    "reviewed_release_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/reviewed_two_leaf_source_publication_20261015",
+    "published_source_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase02-successor-handoff-v6.json#/reviewed_two_leaf_source_publication_be0cc01_20261015",
+    "source_authorship": "Two substantive authors, separate nonauthor, DIRECT codecheck source-clear; pure integrity only.",
+    "remote_revalidation": "Current Primary independent7a824b EXIT0 verifies GitHub commit/tree and all SIX Base64-decoded raw file bytes/hash match saved pins plus locald9fd9b; configured origin51d673. Existing normal push/fresh remote HEAD+tree/exact11 preserved.",
+    "qualification": "Evidence/provenance only, not execution-dependency cycle, completed release artifact or full MT025 acceptance."
+  },
+  "status": "SOURCE_RECORDED_ACCEPTANCE_PENDING",
+  "preserved_original_obligations": {
+    "refs": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/reviewed_two_leaf_source_publication_20261015",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/scope"
+    ],
+    "original_16_commands_semantic_sha256": "fc87a0ef0116276547fddd5b018c3aec0435c44a371a53a1a9a17de7a532b860",
+    "scope": "All three-WP pins/SIX16/assertion floors/failures/finite budgets/independent IV, genuine165 before166/immutable164 and nineteen owning source tests remain mandatory; not waived."
+  },
+  "sourcewrite_authorized": false,
+  "execution_authorized": false,
+  "proof_started": false,
+  "allowance_granted": false
+}
