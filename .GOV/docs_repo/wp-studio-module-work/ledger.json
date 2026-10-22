@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-22T18:15:14Z",
+ "updated_at": "2026-10-22T19:22:25Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9650,6 +9650,23 @@
    ],
    "verdicts": [],
    "note": "Lightroom export gap: CFA-preserving lossless DNG 1.4 writer (uncompressed 16-bit or lossless JPEG SOF3), IFD0 preview + colour/calibration tags + XMP (700) + Exif subset, raw SubIFD with CFA/black/white/active area/crop; every written file is read back and compared; 3 CC0 corpus DNGs round-trip equal (samples and tags). 294/294 over develop, interop-tiff, harness, harness-view (viewer). Gaps: recipe XMP only via --dng-xmp FILE (harness has no interop-lrcat edge: lead decision: approve a feature-gated edge harness -> interop-lrcat for the CLI to generate the crs: packet itself, steward adds at the next sync; a write_sidecar -> DNG -> read_sidecar test goes into interop-lrcat tests); not carried from source DNGs: opcode lists, masked areas, hue-sat maps, default user crop; strips only; no deflate/lossy DNG. Lightroom parity UNVERIFIED; Adobe DNG Converter output compared by tag profile only. R38 judges."
+  },
+  {
+   "lane_id": "SMB-AE-RENDER-QUEUE-2",
+   "crate": "hsk-studio-harness-view (timeline_export render_queue.rs, composition.rs) + hsk-studio-composite (scale_scene, render_scene_with_output) + hsk-studio-folio (composition_work_areas)",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "blocked_on": null,
+   "owner": "builder (Sonnet, lead dispatch 2026-10-22)",
+   "lane_file": "builders/lanes/hsk-studio-ae-render-queue-2.json",
+   "candidate": "e3953de",
+   "commits": [
+    "5211e9b Folio composition_work_areas; composite scale_scene + render_scene_with_output",
+    "443f1fb render queue settings: resolution divisors, 8/16/32 bpc, spans (whole/work area/custom), per-layer frame blending, draft = best with typed note, OutputPost::apply_rgba straight/premultiplied",
+    "427dda3 + e3953de test fixes"
+   ],
+   "verdicts": [],
+   "note": "AE-22: render queue honours resolution, bit depth, spans, frame blending and alpha laws (13 new tests; 469/469 over folio, composite, harness-view, harness, package, session before the last rebase, which pulled only tiff/dng changes). Still refused by design: fields/3:2 pulldown (no field path, no encoder field flags), rgb_alpha output codec (no reel encoder carries alpha), wireframe, effects-off, frame-rate conversion, non-BT.709 output. Spec gaps recorded: matte colour for premultiplied output, composition frame-blending master switch, 8/16 bpc quantisation and reduced-size rounding rules, draft switch. Finding for the motion lane: shape-layer streams in a nested composition do not follow the nested source time (frame blending proven at scene level + synthetic renderer test only). AE parity UNVERIFIED (no D5 case). R38 judges."
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

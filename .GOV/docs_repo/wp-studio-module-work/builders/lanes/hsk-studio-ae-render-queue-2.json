@@ -1,0 +1,40 @@
+{
+  "crate": "hsk-studio-harness-view (timeline_export render_queue.rs, composition.rs), hsk-studio-composite (additive hooks), hsk-studio-folio (motion_records.rs work area), tests in hsk-studio-harness",
+  "lane": "SMB-AE-RENDER-QUEUE-2",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed 5211e9b, 443f1fb, 427dda3, e3953de (guarded push; origin 71253a3..e3953de); READY_FOR_VALIDATION on e3953de. Bundled run before the final rebase: 469 passed, 0 failed (folio, composite, harness-view, harness, package, session); the final rebase pulled only tiff/dng changes",
+  "spec_basis": {
+    "STU-MOT-121": "render settings table: resolution current_settings|full|half|third|quarter|custom (explicit divisor pair); quality; color_depth current_settings|8|16|32; frame_blending current_settings|on_for_checked_layers|off_for_all_layers; field_render off|upper|lower; pulldown_3_2; time_span length_of_comp|work_area_only|custom",
+    "STU-MOT-007a": "frame blending off|frame_mix|pixel_motion, one engine with two entry points",
+    "STU-MOT-122": "output module channels RGB|alpha|RGB+alpha, color premultiplied|straight",
+    "STU-COL-120": "32-bit floating point, linear-light, unbounded; reduced tool set reported per operation",
+    "STU-MOT-020": "the work area shares the composition time base"
+  },
+  "capabilities_done": [
+    "folio: StudioMotionRecords.composition_work_areas (composition_id, start_tick, end_tick), validated (dangling, duplicate, 0<=start<end<=duration), omitted when empty",
+    "composite (additive): scale_scene (layer matrices followed by the reduced-size scale, matte layers included) and render_scene_with_output (OutputStage on the frame and every precomposition execution)",
+    "harness-view composition.rs: RenderOptions{divisor,depth}, RenderDepth Float|Bits8|Bits16|Bits32 (8 = WorkingDepth::Eight + 255-level quantise, 16 = unit-range float pipeline + 65535-level quantise, 32 = Extended range unquantised), FrameRenderer::with_options/size, OutputPost::apply_rgba (RGB colour straight|premultiplied + straight alpha)",
+    "harness-view render_queue.rs: render_settings (resolution half/third/quarter/custom, depth 8/16/32 and current_settings = document bits_per_channel, draft noted render_quality_draft_is_best), item_span with work area and range check (render_span_range), apply_frame_blending_switch (off_for_all_layers forces every layer off; current/on_for_checked use each layer's own Folio frame_blending which composite renders), render_queue_build / session_render_queue_build returning RenderNote list, old entry points kept"
+  ],
+  "still_refused": [
+    "field_render upper/lower and pulldown_3_2 (render_fields): no reel encoder (VC-3, AV1) writes field flags, so interlaced output could not be signalled; composite has no field render path. GAP, not faked",
+    "channels rgb_alpha (output_alpha_codec): no reel encoder carries alpha; OutputPost::apply_rgba is the frame it would take",
+    "wireframe quality, effects all_off, frame-rate conversion, non-BT.709 output space, post-render actions, project links (unchanged, out of this lane)"
+  ],
+  "spec_gaps": [
+    "STU-MOT-122 has no matte-colour field for premultiplied output; premultiplied stays over black",
+    "STU-MOT-121 frame_blending has no composition master switch in Folio; current_settings and on_for_checked_layers are therefore the same (each layer's own switch)",
+    "no spec text for 8/16 bpc quantisation or for the reduced-resolution size rounding; ceil(side/divisor) and round-half-up levels are Studio readings; 16 bpc is binary32 + final 16-bit quantise (After Effects 15-bit+1 not modelled)",
+    "composition work area had no Folio record although STU-MOT-020/121 name it; added composition_work_areas; absent = whole composition (noted)",
+    "composite has no draft quality switch (STU-MOT-007 per-layer quality not lowered): draft renders as best with a typed note",
+    "motion shape-layer streams inside a NESTED composition did not follow the nested source time in an end-to-end probe (frame blending proof therefore uses scene-level and synthetic renderer tests); not investigated, belongs to the motion lane"
+  ],
+  "tests": {
+    "new": "crates/hsk-studio-harness/tests/render_queue_settings.rs (13): reduced resolutions, hostile divisors, bit-depth levels, 32-bit values above 1, alpha equality laws, spans incl. boundaries and hostile spans, work area record validation, queue end-to-end work area at half resolution 16 bpc into a DNxHR file, notes, still-refused settings, frame-blending switch reaching composite layers, frame-blended layer rendered by the queue renderer",
+    "changed": "render_queue_records.rs unsupported_render_settings_are_refused_before_rendering (work_area_only now renders the whole composition; custom span past the end is refused render_span_range)",
+    "bundled_argv": "lane-check.sh --owner smb-ae-render-queue-2 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-composite -p hsk-studio-harness-view -p hsk-studio-harness -p hsk-studio-package -p hsk-studio-session --features hsk-studio-composite/motion,hsk-studio-harness/media --no-fail-fast"
+  },
+  "oracle": "After Effects parity of every setting is UNVERIFIED (NO_ORACLE_CASE for AE-22)",
+  "notes": "first bundled run: 450/457 passed; 6 failures were this lane's test fixture (rect position is the centre) and a stale refusal assertion, fixed; 1 failure hsk-studio-package externals every_folio_reference_property_is_classified came from the roto lane (StudioRotoStroke.path) and was fixed upstream (origin 2 lines in externals.rs).",
+  "updated_at": "2026-10-22T00:00:00Z"
+}
