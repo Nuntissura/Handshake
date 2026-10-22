@@ -1,0 +1,35 @@
+{
+  "path_base": "product_worktree_cwd",
+  "env": {
+    "HANDSHAKE_LLM_PROVIDER": "local_runtime",
+    "HANDSHAKE_LOCAL_MODEL_PATH": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/completion-input-smollm2-135m-instruct-12fd25f/model.safetensors",
+    "HANDSHAKE_LOCAL_MODEL_SHA256": "5af571cbf074e6d21a03528d2330792e532ca608f24ac70a143f6b369968ab8c",
+    "HANDSHAKE_LOCAL_MODEL_BINDING": "candle"
+  },
+  "artifacts": [
+    {
+      "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/completion-input-smollm2-135m-instruct-12fd25f/model.safetensors",
+      "bytes": 269060552,
+      "sha256": "5af571cbf074e6d21a03528d2330792e532ca608f24ac70a143f6b369968ab8c",
+      "sha256_provenance": "publisher_git_lfs_pointer",
+      "source_revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+      "source_url": "https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct/resolve/12fd25f77366fa6b3b4b768ec3050bf629380bac/model.safetensors"
+    },
+    {
+      "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/completion-input-smollm2-135m-instruct-12fd25f/config.json",
+      "bytes": 861,
+      "sha256": "8eb740e8bbe4cff95ea7b4588d17a2432deb16e8075bc5828ff7ba9be94d982a",
+      "sha256_provenance": "local_sha256",
+      "source_revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+      "source_url": "https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct/resolve/12fd25f77366fa6b3b4b768ec3050bf629380bac/config.json"
+    },
+    {
+      "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/completion-input-smollm2-135m-instruct-12fd25f/tokenizer.json",
+      "bytes": 2104556,
+      "sha256": "9ca9acddb6525a194ec8ac7a87f24fbba7232a9a15ffa1af0c1224fcd888e47c",
+      "sha256_provenance": "local_sha256",
+      "source_revision": "12fd25f77366fa6b3b4b768ec3050bf629380bac",
+      "source_url": "https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct/resolve/12fd25f77366fa6b3b4b768ec3050bf629380bac/tokenizer.json"
+    }
+  ]
+}
