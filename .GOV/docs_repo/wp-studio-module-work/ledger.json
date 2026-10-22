@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-22T15:30:42Z",
+ "updated_at": "2026-10-22T18:15:14Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9631,6 +9631,25 @@
    ],
    "verdicts": [],
    "note": "Photoshop top gap 1: fill layers import as records and render on CPU (435/435 over interop-psd, folio, composite, package, render-cpu). Fixture evidence: psd-tools solid-color-fill/gradient-fill/pattern-fill (+ layers-minimal twins) import; shape layers and noise gradients stay preserved/refused by design. Gaps: shape layers preserved; dither, align_with_layer=false, non-50 midpoints, clipped fills refused at lowering; gradient scale 10..150; Gray/Lab/CMYK unmapped; no export of edited fills; render-gpu not exercised; whole-PSD-to-pixels fixture test needs a render-cpu dev-dep on folio (lead decision: approved as dev-only under the B1 pattern, acyclic; steward adds the dev edge; test in a follow-up slice). Photoshop pixel parity UNVERIFIED (no D5 fill case). R38 judges."
+  },
+  {
+   "lane_id": "SMB-DEVELOP-DNG-WRITER",
+   "crate": "hsk-studio-develop + hsk-studio-interop-tiff (+ harness cli / harness-view DevelopExport::Dng hunks)",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "blocked_on": null,
+   "owner": "builder (Sonnet, lead dispatch 2026-10-22)",
+   "lane_file": "builders/lanes/hsk-studio-develop-dng-writer.json",
+   "candidate": "71253a3",
+   "commits": [
+    "64804d9 interop-tiff write_container (generic classic-TIFF writer with child IFDs, byte budget before allocation)",
+    "44f2a50 develop dng_write.rs + ljpeg_enc.rs: DngExportSettings, dng_from_raw, develop_to_dng, exif_subset, reduce_preview",
+    "a3efdab harness CLI --dng [--dng-compression none|ljpeg] [--dng-preview] [--dng-xmp FILE] [--dng-allow-dropped]; DevelopExport::Dng",
+    "5b1f0ab ljpeg category-16 fix",
+    "71253a3 harness-view cleanup"
+   ],
+   "verdicts": [],
+   "note": "Lightroom export gap: CFA-preserving lossless DNG 1.4 writer (uncompressed 16-bit or lossless JPEG SOF3), IFD0 preview + colour/calibration tags + XMP (700) + Exif subset, raw SubIFD with CFA/black/white/active area/crop; every written file is read back and compared; 3 CC0 corpus DNGs round-trip equal (samples and tags). 294/294 over develop, interop-tiff, harness, harness-view (viewer). Gaps: recipe XMP only via --dng-xmp FILE (harness has no interop-lrcat edge: lead decision: approve a feature-gated edge harness -> interop-lrcat for the CLI to generate the crs: packet itself, steward adds at the next sync; a write_sidecar -> DNG -> read_sidecar test goes into interop-lrcat tests); not carried from source DNGs: opcode lists, masked areas, hue-sat maps, default user crop; strips only; no deflate/lossy DNG. Lightroom parity UNVERIFIED; Adobe DNG Converter output compared by tag profile only. R38 judges."
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
