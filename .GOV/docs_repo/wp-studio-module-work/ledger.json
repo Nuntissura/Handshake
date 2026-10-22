@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-22T06:29:27Z",
+ "updated_at": "2026-10-22T06:46:10Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9141,13 +9141,18 @@
   {
    "lane_id": "SMB-CRATE-SEAM-SPLITS-2",
    "crate": "interop-fig, web",
-   "phase": "build",
-   "status": "BLOCKED",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-seam-2-20261020",
-   "commits": [],
+   "commits": [
+    "31b35b0 interop-fig split into hsk-studio-interop-fig-base + hsk-studio-interop-fig-native + facade (rebased onto 9c48de8, blur_kernel mapping preserved)",
+    "077fe0c web split into hsk-studio-web-core + hsk-studio-web-assets + facade; bundled check 318/318"
+   ],
    "verdicts": [],
    "lane_file": "builders/lanes/hsk-studio-crate-seam-splits-2.json",
-   "note": "not pushed: web split 67a7496 untested; fig split fef312e local only"
+   "note": "not pushed: web split 67a7496 untested; fig split fef312e local only | 2026-10-22 pushed after rebase (no conflicts); steward owes: registry pins/APPROVED/probe/lock for the 4 new members, .config duplicate-fingerprints D16 path and machine-paths path repoints; R37 judges",
+   "candidate": "077fe0c",
+   "blocked_on": null
   },
   {
    "lane_id": "STUDIO-R36",
