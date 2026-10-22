@@ -200,5 +200,71 @@
       "correction": "Fixture has exactly2matching versions; assert2and latest round-trip version. Corrected source and independent review; runtime rerun pending.",
       "process_stop": "Approved PIDs had already exited when rechecked; no process was stopped."
     }
-  }
+  },
+    "story_result_aware_atomic_event_source_admission_20261015": {
+      "decision_id": "WP012-CKC-MT059-STORY-RESULT-AWARE-ATOMIC-EVENT-SOURCE-ADMISSION-20261015",
+      "status": "SOURCE_ONLY_IMPLEMENTATION_RELEASED_EXECUTION_HELD",
+      "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+      "product_worktree": "../wtc-WP-KERNEL-012",
+      "authority": "Root personally read current MT059 scope/common/HBR-INT-001: every mutation emits atelier event in SAME transaction. Original shared forbidden paths remain for ordinary lane writers; ONLY this exact PRIMARY_PERSONALLY shared-helper exception is admitted.",
+      "source_counterexample": "Distinct-confirmed inspected documents guarded APPEND domain write/conversion747–777 THEN separate record_event779, with no shared transaction in that path. Source counterexample/caller map reused, NOT observed runtime partial commit. Observer API independent, not predecessor.",
+      "assignments": [
+        {
+          "only_path": "src/backend/handshake_core/src/atelier/documents.rs",
+          "writer": "/root/producer_interfaces",
+          "thread": "01a13d28-328e-7032-9738-484653109f5f",
+          "leader": "01a13d27-c380-7833-9eab-781378e2db92",
+          "before_sha256": "0a0dc0f4d4bfaf7d0a5090d7832140c4db4fe43fc6e8d47de3f97cd611b7c909",
+          "before_bytes": 38946,
+          "planned_after_sha256": "54afd1d953025bc5daf92ceb8e72b8fc2eb7aae7586718aea95d2f91d487593c",
+          "planned_after_bytes": 39140,
+          "line_endings": "LF",
+          "exact_delta": "ONLY original2112-byte span747–793 replaced by2306 bytes per exact NAV/Primary retained literal. Original APPEND SQL441–478 and EVERY other byte unchanged."
+        },
+        {
+          "only_path": "src/backend/handshake_core/src/atelier/mod.rs",
+          "writer": "PRIMARY_PERSONALLY",
+          "thread": "01a13d2a-fbcb-7ce2-b8e7-9dcb7ce2984a",
+          "before_sha256": "9f9f0f13494cebf000106146a59781bd6b9e6ad194faf7548d8e080515783785",
+          "before_bytes": 88178,
+          "planned_after_sha256": "0b36449ccb58ba94fbfbdf17e83a3b84eace25996cf14dc463e97fe5d500dd25",
+          "planned_after_bytes": 92974,
+          "line_endings": "LF",
+          "exact_delta": "SINGLE4796-byte method insertion before existing prepare_event documentation. Insertion SHA256 e231125353b12e0ea7a9e9d71b3aa8509aa1e5481e5e1071ac9f83533f35137e; no other byte change."
+        }
+      ],
+      "ownership_and_guards": "Historical functional owner UNKNOWN retained. NAV author no inflight/unfinished/unreturned patch; Diagnostics read-only/no lease; Primary accepted prospective personal shared writer. Saved NEW prospective whole-file assignments ONLY named exact scopes. Fresh matching guards/no known specific competing writer before EACH write; drift stops only affected path, preserve peers/no ghost ACK/global-free claim/reset/revert/process stop.",
+      "actual_preflight": {
+        "distinct_checker": "/root/dependency_preflight",
+        "thread": "01a13d28-6607-7a60-ba00-e9efeda858c9",
+        "scope": "ACTUAL full formatted helper plus caller/current baselines/controller signatures reviewed: no concrete static composition blocker. Primary integration_dependencies narrow helper review consistent.",
+        "byte_evidence_limit": "Helper posthash/inverse computed by Primary in memory, NOT distinct independent whole-posthash. Documents inverse independently NAV plus Primary replayed. No duplicate byte-proposal-review gate. Actual physical post/inverse/current-diff checks remain mandatory. Exact literals already held Primary/NAV and DIRECT Root; kernel creates no product code."
+      },
+      "helper_signature": "crate-private write_with_result_event<R,T,D,F>(&self,statement:&'static str,domain:D,event_family:&str,aggregate_type:&str,aggregate_id:&str,map_result:F)->AtelierResult<T>",
+      "helper_bounds": "R:surrealdb::types::SurrealValue + Send + 'static; T:Send+'static; D:existing SurrealValue+Send+'static; F:FnOnce(Option<R>)->AtelierResult<(T,serde_json::Value)>+Send+'static. TWO literal callback branches preserve HRTB lifetimes.",
+      "transaction_authority": "Account branch EXISTING with_authenticated_transaction; root EXISTING with_transaction ONLY original unscoped path. Capture/restore original RecordUserScope/account authority/optional Loom receipt/Atelier actor; clone authority_store to prevent borrow move. No account/root bypass or new transaction framework.",
+      "same_controller_flow": "SAME ctx.query_first(original APPEND statement,D direct original bindings) -> consume actual typed Option row ONCE/map BOTH TryInto BEFORE event preparation -> derive actual version sequence/parent/body ref plus normalized title/tag count -> canonical prepare_event full-payload hash/safe_payload/nested ledger -> SAME ctx guarded RECORD_EVENT_STATEMENT using prepared.bindings.clone().with_domain(NoDomain{}) -> require recorded row or Err BEFORE controller commit. Missing row/conversion/ledger errors must not commit domain; original controller rollback/error semantics retained.",
+      "postcommit": "AFTER controller await exactly ONCE finish_event(prepared,Some(recorded)). Postcommit FlightRecorder failure is NOT DB rollback; no automatic retry/DB-RAM atomicity claim.",
+      "caller_semantics": "Existing CHARACTER_DOCUMENT_VERSION_APPENDED=atelier.character_document.version_appended, fixed aggregate atelier_character_document, requested actual document UUID. Exact payload version_id/version_seq/parent_version_id/title/tag_count/body_raw_text_ref. Original NotFound/Conflict stale-head mapping, outside-error current-head lookup, return(doc,version), expected-parent guards retained; no extra SELECT positive path/SQL shadow/prequery guess.",
+      "readonly_witnesses": [
+        {
+          "path": "src/backend/handshake_core/src/storage/surreal.rs",
+          "sha256": "9b27b95c30b86b42ceb3997710998922aba7db087fb3f44788078fd9c295362f",
+          "bytes": 129162
+        },
+        {
+          "path": "event_ledger.rs",
+          "full_path_status": "NOT_VERIFIED_FROM_HANDOFF",
+          "sha256": "9f6de3a26f1037dc54a0cb7f195f49015f2459101133d9449ceb1639fd578367",
+          "bytes": 79883
+        }
+      ],
+      "retained_callers": "Actual StorySave11749/11781/11794 -> BackendClient20037/20013 -> existing API1545/Create1552/actor1553/as_account1556/thread lease1559/store1568/stale4091595; original API tests927/982/1006 unchanged. Existing disjoint API/test units separate, no other caller grant.",
+      "assembled_review": "After actual physical writes require own plus DISTINCT full assembled source/callers/dependencies/failure/type/borrow/lifetime/ownership/hash-agreement review and exact posts/inverses; resolve findings then leader/Primary DIRECT codecheck01a13d18-8ae0-7642-a76f-04cf3836ea3a before publication. Source grant is NOT compile/runtime/atomicity PASS.",
+      "preservation": "Original MT059 HBR-INT-001 same transaction/postcommit/payload/actor/causation/kernel/FlightRecorder/readback plus all128/full MT012/065/066 actual tables/events/exports/registration/manual/schema165 before166/immutable164/once-batch/full three-WP scope/pins/history/budgets/independent IV retained. Existing status/proof commands unchanged.",
+      "execution_authorized": false,
+      "proof_started": false,
+      "allowance_granted": false,
+      "limits": "No other SQL/controller/storage/API/manifest/lock/Git/Cargo/test/actual SQL/runtime/OS/metadata/probe/artifact/finite allowance. ONLY two exact source assignments; kernel no product inspection/write. Root independent read before START."
+    }
 }

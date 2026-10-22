@@ -532,5 +532,513 @@
         ]
       }
     ]
+  },
+  "phase2_swarm_lane_diagnostics_source_extension_20261018": {
+  "decision_id": "WP1-MT008-PHASE2-SWARM-LANE-DIAGNOSTICS-SOURCE-20261018",
+  "status": "SOURCE_SIX_PUBLISHED_INDEPENDENTLY_REREAD_FOCUSED_STATIC_CHECK_EXIT0_RUNTIME_UNRUN",
+  "authority": "Master01a14c5c explicit exact engineering address/source-boundary delegation after scoped spec/contract lookup and buddy consultation; Operator Phase2 existing-code extraction. Central exact admission under continuous source duty, no extra Root/human GO or whole-team ACK.",
+  "governance_writer": "Central01a14c69-82fc-7422-b422-73fc827aada4",
+  "leader": "01a14c7c-816f-7d43-a716-a4931c3e8c7a",
+  "repository": "../../.assets",
+  "branch": "codex/handpick",
+  "new_source_root": "hskernel/handshake_swarm_lane_diagnostics",
+  "address_meaning": "New engineering source address explicitly selected by Master, not a claim of an existing crate or new product/viewer taxonomy. Preserve existing swarm_lane_diagnostics module/DTO/serde/author IDs, native_swarm_lane_diagnostics contract and SwarmLaneDiagnostics pane names; distinct from handshake_internal_diagnostics.",
+  "owning_contracts": [
+    "Original MT008 scope/acceptance/native egui/Argus/negative/live backend obligations remain unchanged.",
+    "MT017 AC-5 pinned serialized producer/deserializer requirement remains unchanged.",
+    "WP012 MT175 source_import_binding/source_paths/61 and allowed/write59 retain original imported-source custody; later native facade/UI adoption remains separately bound there."
+  ],
+  "origin": {
+    "worktree": "../wtc-WP-KERNEL-012",
+    "branch": "feat/WP-KERNEL-012",
+    "path": "src/frontend/handshake_native/src/swarm_lane_diagnostics.rs",
+    "sha256": "1e602725beb6195faba13da777dd3f064aa90be107a54f82029bd1daa86da594",
+    "bytes": 76096,
+    "custody": "Read-only original reference; no native/Core/facade write grant."
+  },
+  "fresh_preflight_evidence": "Leader personally verified exact origin guard, ordinary hskernel parent and destination ABSENT; Central independently matched origin guard and absent destination/ordinary nonreparse parents974a97 EXIT0. Repeat affected facts immediately before first write; changed guard/collision/conflict stops affected write without overwrite.",
+  "allowed_files": [
+    "Cargo.toml",
+    "src/lib.rs",
+    "src/model.rs",
+    "src/decode.rs",
+    "README.md",
+    "src/validation.rs"
+  ],
+  "assignments": [
+    {
+      "writer": "/root/execution_coder",
+      "exclusive_files": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "src/model.rs",
+        "src/decode.rs",
+        "README.md"
+      ],
+      "outcome": "Preserve all portable DTO declarations/serde shapes and existing pure constants; move exact decoder and own isolated package assembly/public root exports/manual. Dependencies only std, serde with existing derive behavior and serde_json; no new host/GUI dependency.",
+      "next_queue": "Finish complete DTO/decoder/public API conservation and package manual, then resolve actual team/direct Codecheck findings in these exclusive files."
+    },
+    {
+      "writer": "/root/entry_coder",
+      "exclusive_files": [
+        "src/validation.rs"
+      ],
+      "outcome": "Move actual validator and necessary token/register_author_id/author formatter closure; retain exact collision/unusable-ID rejection and all original wire/privacy/author-ID laws. Preserve public function names/root exports and private helper behavior.",
+      "next_queue": "Complete actual validator dependency/API closure and resolve findings in this file; subsequent native facade migration remains separately admitted pinned host adoption."
+    }
+  ],
+  "source_boundary": "Portable DTO/constants/decoder/validator closure only. Origin verified public decoder decode_projection_for_native_surface and validator validate_projection_for_native_surface; all original DTO/public pure API identities retained. Required token/register_author_id/authorformatters included so validator does not silently lose collision/unusable-ID checks. Cell/transport/PaneFactory/egui rendering/host callback behavior remain at original host.",
+  "test_conservation": "Actual origin contains no cfg(test)/#[test] declarations, so no pure-test count is invented. Existing composition/native/backend/Argus tests and selectors remain with their owning targets and are not moved or weakened here. Necessary new focused source tests may be inline only within each writer own admitted Rust file and must be reported as authored UNRUN. Zero-owning-test checks never replace original runtime acceptance.",
+  "review": "Reuse existing T4 actual distinct NEVERAUTHOR and dependency specialists; leader binds their exact current names in actual handback without repeating a census. Inspect actual assembled six-file diff and supplied real callers/imports/features/ownership/lifetimes/type closure. Leader communicates DIRECTLY with supplemental Codecheck01a14d52 under continuous exact-source review extension; real findings resolved before expensive Cargo. No repeated closed source audit.",
+  "deliberation": "Root selected actual portable closure after contract/spec/buddy review; T4 supplied exact source guards/file split and engaged Diagnostics on this cut. No separate Diagnostics consensus or all-team ACK gate is invented; actual missing source dependency or technical finding is routed directly through these owners and resolved before handoff.",
+  "publication_and_proof": "After actual complete quiescent source output plus team/direct review, record final six guards and separately admit exact normal source checkpoint/push/independent immutable reread through current Primary. Only then allocate minimum focused owning source proof under existing finite-budget/preparation policy. Source publication plus actual focused owning proof plus independent canonical reread precede distinct pinned host adoption; no per-package Root relay.",
+  "next_host_queue": "Native facade/reexports/UI real caller migration remains separate later MT175 pinned adoption after canonical source proof; original genuine fixture invocation deadline supplier remains UNKNOWN and auth diagnostics.read producer gap stays OPEN. Neither is invented as a predecessor for this pure source extraction.",
+  "limits": "Only six NEW package paths and immediate ordinary subdirectories. No native/Core/facade/shared root/index/lock edits, private auth/profile/grant changes, protected/spent provider/body acquisition, original MT026/T2 denied action retry, worker Git/Cargo/metadata/runtime/process action or source acceptance. Preserve all original three-WP scope, pins, proof and independent verdicts.",
+  "source_output": {
+    "guards": [
+      {
+        "path": "hskernel/handshake_swarm_lane_diagnostics/Cargo.toml",
+        "bytes": 197,
+        "sha256": "3902384c4b5f5a17abf26b3b8b632903f33c8257d905eb6ef9fb5896c4642b6d"
+      },
+      {
+        "path": "hskernel/handshake_swarm_lane_diagnostics/src/lib.rs",
+        "bytes": 135,
+        "sha256": "cec25f7228bbfb3e269da77de361452c6f318d38c9c0971c465f6ce903f51aa6"
+      },
+      {
+        "path": "hskernel/handshake_swarm_lane_diagnostics/src/model.rs",
+        "bytes": 15038,
+        "sha256": "3e5f640e448a0f82735f13cf9b3dc2c1920d9517042be4411f28b8c3df8cc749"
+      },
+      {
+        "path": "hskernel/handshake_swarm_lane_diagnostics/src/decode.rs",
+        "bytes": 2662,
+        "sha256": "7497507d5b1ca048a2a7e49d70112606aba834f75a70427303c2cd2696cdd61e"
+      },
+      {
+        "path": "hskernel/handshake_swarm_lane_diagnostics/src/validation.rs",
+        "bytes": 32373,
+        "sha256": "9b9ff63d5507b34bc679e5c134f4b31423faa86d80e318c8a5ba3e6a189dfa79"
+      },
+      {
+        "path": "hskernel/handshake_swarm_lane_diagnostics/README.md",
+        "bytes": 2886,
+        "sha256": "5f3d9831b670c898f7815fe5ccda004760e4af11b3d3385a10cca30f682582db"
+      }
+    ],
+    "source_authors": [
+      "/root/execution_coder",
+      "/root/entry_coder"
+    ],
+    "quiescence": "Both actual authors personally report no pending/inflight/unfinished writes; Central fresh final six guards and read-only host origin unchanged verified before admission.",
+    "actual_reviewers": {
+      "neverauthor": "/root/neverauthor_checker",
+      "dependency": "/root/dependency_checker",
+      "direct_supplemental": "01a14d52-fa57-73a3-a4ad-1bf70f4084b8"
+    },
+    "baseline_conservation": "Actual NEVERAUTHOR normalized full origin slice equality, imports only; direct Codecheck personally inspected all six actual files/API/private helper closure without reacquiring original.",
+    "dependency_history": "Baseline dependency leaf initially NOT_ESTABLISHED after empty outputs; preserved as history, no fabricated verdict. Owner supplied retained complete raw text, same distinct dependency checker actually inspected it and later append text; final bounded closure clear. Direct supplemental actual file dependency review also clear. No policy denial inferred from empty outputs or third original read attempted.",
+    "test_delta": "Eight inline pure-component declarations: DTO1, decoder4, validator3. Model first11248/decode831/validation30940 bytes independently match original standalone production prefixes; all changes append cfg(test) only. Shared explicitly synthetic pure-unit fixture/reference behavior; no real backend/auth/canonical production payload evidence.",
+    "test_delta_review": "DIRECT supplemental actual append/prefix read14d736 EXIT0 NO_FINDING; same NEVERAUTHOR prefix and dependency append inspection clear; unchanged Cargo/lib/README review reused.",
+    "proof": "All eight declarations UNRUN; no compiler/runtime/GUI/native/host/full original acceptance."
+  },
+  "source_publication_allocation_20261018": {
+    "decision_id": "WP1-MT008-SWARM-LANE-DIAGNOSTICS-SIX-SOURCE-PUBLICATION-20261018",
+    "status": "COMPLETE_ACTUAL_SIX_SOURCE_PUBLICATION_AND_INDEPENDENT_IMMUTABLE_REREAD",
+    "authority": "Master continuous ordinary exact source publication delegation through Central, following exact saved engineering address/source admission. Separate from locally rejected MT005 preparation mutation; no retry or bypass of that action.",
+    "publisher_thread": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+    "repository": "../../.assets",
+    "branch": "codex/handpick",
+    "paths": [
+      {
+        "path": "hskernel/handshake_swarm_lane_diagnostics/Cargo.toml",
+        "bytes": 197,
+        "sha256": "3902384c4b5f5a17abf26b3b8b632903f33c8257d905eb6ef9fb5896c4642b6d"
+      },
+      {
+        "path": "hskernel/handshake_swarm_lane_diagnostics/src/lib.rs",
+        "bytes": 135,
+        "sha256": "cec25f7228bbfb3e269da77de361452c6f318d38c9c0971c465f6ce903f51aa6"
+      },
+      {
+        "path": "hskernel/handshake_swarm_lane_diagnostics/src/model.rs",
+        "bytes": 15038,
+        "sha256": "3e5f640e448a0f82735f13cf9b3dc2c1920d9517042be4411f28b8c3df8cc749"
+      },
+      {
+        "path": "hskernel/handshake_swarm_lane_diagnostics/src/decode.rs",
+        "bytes": 2662,
+        "sha256": "7497507d5b1ca048a2a7e49d70112606aba834f75a70427303c2cd2696cdd61e"
+      },
+      {
+        "path": "hskernel/handshake_swarm_lane_diagnostics/src/validation.rs",
+        "bytes": 32373,
+        "sha256": "9b9ff63d5507b34bc679e5c134f4b31423faa86d80e318c8a5ba3e6a189dfa79"
+      },
+      {
+        "path": "hskernel/handshake_swarm_lane_diagnostics/README.md",
+        "bytes": 2886,
+        "sha256": "5f3d9831b670c898f7815fe5ccda004760e4af11b3d3385a10cca30f682582db"
+      }
+    ],
+    "budget": {
+      "normal_exact_six_path_source_checkpoint_push": 1,
+      "independent_immutable_source_reread": 1
+    },
+    "preconditions": [
+      "Fresh declared branch/HEAD/matching remote and current exact six source guards/index/no actual competing writer or captured inputs; preserve all peer source/index/untracked work.",
+      "Normal exact six-path source selection and hooks; post-hook actual commit parent/tree/pathset/selected blob identity equals bound input before push. Known newline filtering must be explicitly verified; no blanket raw equality."
+    ],
+    "execution": "Only normal exact source checkpoint and declared-branch push, then publisher DIRECT existing IV one immutable commit/tree/parent/pathset/blob/raw-guard reread. No source changes, shared roots, locks, compilation, runtime, host adoption, new branches/worktrees/stash/reset/amend/force or acceptance.",
+    "next": "After actual source push plus independent canonical reread, already conditional owning static allocation may bind fresh source/config/lock inputs. No additional Root/human GO.",
+    "actual_result": {
+      "recorded_at_utc": "2026-10-18T06:29:03.302259+00:00",
+      "artifact": "..\\Handshake_Artifacts\\WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1\\MT-008\\phase2-diagnostics-source-publication\\publication-result.json",
+      "artifact_sha256": "651eb23578c126c2b05cdec5374e1634b7a8c9e2c05570815ecadee67228841a",
+      "commit": "0138d98b5ae9a8bd4c5579f02e803b3172c6885e",
+      "tree": "a5905f63a1d49793cf69f3239832793b104f2ccf",
+      "parent": "79a40282461da0ff67e739f59812d07c72579ea0",
+      "post_hook_verified": true,
+      "remote_confirmed": true,
+      "source_rows": [
+        {
+          "path": "hskernel/handshake_swarm_lane_diagnostics/Cargo.toml",
+          "bytes": 197,
+          "sha256": "3902384c4b5f5a17abf26b3b8b632903f33c8257d905eb6ef9fb5896c4642b6d",
+          "blob": "46506908a759a06777e76885c6d7882096186e75",
+          "mode": "100644"
+        },
+        {
+          "path": "hskernel/handshake_swarm_lane_diagnostics/src/lib.rs",
+          "bytes": 135,
+          "sha256": "cec25f7228bbfb3e269da77de361452c6f318d38c9c0971c465f6ce903f51aa6",
+          "blob": "1da3d0a4de186c52c501d140df5141172fc3cafd",
+          "mode": "100644"
+        },
+        {
+          "path": "hskernel/handshake_swarm_lane_diagnostics/src/model.rs",
+          "bytes": 15038,
+          "sha256": "3e5f640e448a0f82735f13cf9b3dc2c1920d9517042be4411f28b8c3df8cc749",
+          "blob": "9fed444889c211daef21dc9956a56594646a65cb",
+          "mode": "100644"
+        },
+        {
+          "path": "hskernel/handshake_swarm_lane_diagnostics/src/decode.rs",
+          "bytes": 2662,
+          "sha256": "7497507d5b1ca048a2a7e49d70112606aba834f75a70427303c2cd2696cdd61e",
+          "blob": "73d037375d8caeeab235e6509d259c524ccdd415",
+          "mode": "100644"
+        },
+        {
+          "path": "hskernel/handshake_swarm_lane_diagnostics/src/validation.rs",
+          "bytes": 32373,
+          "sha256": "9b9ff63d5507b34bc679e5c134f4b31423faa86d80e318c8a5ba3e6a189dfa79",
+          "blob": "3dd84836d95839b77c0618e80d390376a1621998",
+          "mode": "100644"
+        },
+        {
+          "path": "hskernel/handshake_swarm_lane_diagnostics/README.md",
+          "bytes": 2886,
+          "sha256": "5f3d9831b670c898f7815fe5ccda004760e4af11b3d3385a10cca30f682582db",
+          "blob": "7c323f0ba3fe7f8e391c75502ee342360a0086ad",
+          "mode": "100644"
+        }
+      ],
+      "independent_reread": {
+        "status": "COMPLETE_DIRECT_INDEPENDENT_IMMUTABLE_SIX_SOURCE_REREAD",
+        "owner": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+        "pathset": "Exact six added paths; all prior blobs unchanged; all mode100644/GitSHA1 identities verified.",
+        "representations": "Four raw exact; decode.rs and validation.rs CRLF-to-LF only; all six normalized exact. No blanket raw-equality claim.",
+        "filtered_remote_guards": {
+          "src/decode.rs": {
+            "bytes": 2648,
+            "sha256": "6c10d32144231ed5cf0aa81475d8177f18e23c83a929660b3c5001123cbd6e8f"
+          },
+          "src/validation.rs": {
+            "bytes": 31480,
+            "sha256": "5fe45cbe210d2fc8dfa82ff8fe367258ae1e77019d52768cfb1596d14e9a2c2d"
+          }
+        }
+      },
+      "budget_consumed": {
+        "normal_exact_six_path_source_checkpoint_push": 1,
+        "independent_immutable_source_reread": 1
+      }
+    }
+  },
+  "continuous_source_proof_allocation_20261018": {
+    "decision_id": "WP1-MT008-SWARM-LANE-DIAGNOSTICS-OWNING-STATIC-PROOF-20261018",
+    "status": "COMPLETE_FOCUSED_LOCKED_STATIC_CHECK_EXIT0_LOCK_PUBLICATION_AND_INDEPENDENT_IMMUTABLE_REREAD",
+    "authority": "Existing Master continuous published-package focused proof delegation; new stable package unit, no old/spent/denied action renewal.",
+    "owner_thread": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+    "package": "hskernel/handshake_swarm_lane_diagnostics",
+    "budget": {
+      "own_package_lock_generation": 1,
+      "focused_locked_static_check_with_test_targets": 1,
+      "normal_lock_only_checkpoint_push": 1,
+      "independent_immutable_lock_reread": 1
+    },
+    "target": "Own manifest locked check, test targets enabled, one build job; compilation only and eight authored declarations remain unexecuted.",
+    "requirements": [
+      "Actual source publication plus independent immutable readback precede capture. Fresh full package/config/registry binding and normal existing gameplan/hardware/physical ownership.",
+      "Direct actual changed-lock/manifest/cache/input review before one focused check; reuse valid unchanged source reviews. Inputs frozen only during actual owned operation.",
+      "Actual PID/birth/argv/scheduling/output/exit and no-drift postbinding; owning MT008 external package artifacts with canonical compatible cache. No overlapping mutable targets or Git owner.",
+      "Normal exact lock-only push and one direct IV immutable reread after numeric successful closure; preserve each prior artifact and finite allowance."
+    ],
+    "limits": "No runtime execution, host/native/Core/facade adoption or original acceptance. Genuine independent own-package behavior proof remains a separate admission before later caller adoption; zero tests never acceptance. MT005 rejected metadata action and MT189 denied method remain untouched.",
+    "actual_result": {
+      "recorded_at_utc": "2026-10-18T06:29:03.302259+00:00",
+      "artifact": "..\\Handshake_Artifacts\\WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1\\MT-008\\phase2-diagnostics-source-primary\\static-proof.json",
+      "artifact_sha256": "da2240bd94fba8f2580139c2c58e81eb04d91116ac90440a4b60dcf9effb8eed",
+      "proof": {
+        "action": "HANDSHAKE_SWARM_LANE_DIAGNOSTICS_STANDALONE_STATIC_PROOF",
+        "package": "hskernel/handshake_swarm_lane_diagnostics",
+        "source_parent_commit": "0138d98b5ae9a8bd4c5579f02e803b3172c6885e",
+        "source_rows": 6,
+        "source_drift": [],
+        "lock_bytes": 2689,
+        "lock_sha256": "f905a64ce3bd80748c19d535f4811ff6814bc2b5d5698981f6058959b531e36c",
+        "command": [
+          "check",
+          "--manifest-path",
+          "hskernel/handshake_swarm_lane_diagnostics/Cargo.toml",
+          "--locked",
+          "--tests",
+          "-j",
+          "1"
+        ],
+        "process_id": 20448,
+        "process_birth_utc": "2026-10-18T06:25:42.7993829Z",
+        "exit_code": 0,
+        "scheduling_observation": {
+          "pid": 20448,
+          "handle_open": true,
+          "cpu": 32,
+          "memory_query_ok": true,
+          "memory": 5,
+          "io_status": 0,
+          "io": 2
+        },
+        "runtime_tests_executed": false,
+        "host_acceptance": false,
+        "completed_at_utc": "2026-10-18T06:25:45.7391171Z",
+        "published_commit": "2813dc1768ddd2a4e1843abded1a228f22eeba8e",
+        "published_tree": "4cee8c15ee8d81c6af15cd2f5e0829b346ab54d9",
+        "lock_git_blob": "346861b4b41432fffc6ff675f449aff5ba54828b",
+        "remote_confirmed": true,
+        "sole_delta": [
+          "hskernel/handshake_swarm_lane_diagnostics/Cargo.lock"
+        ]
+      },
+      "changed_lock_review": "DIRECT supplemental Codecheck01a14d52 personally inspected full actual lock, manifest, prior cache tuples and exact six-before/with-lock source rows; no finding; preceding source/test-append reviews reused.",
+      "preparation_history": "Primary actual initial confirmation-note controller974424 exit1 before Cargo/lock (note exceeds120 chars), then documented same-plan note correction; corrected333796 console empty, no blind rerun; actual owned lock process49100 birth2026-10-18T06:21:25.9503013Z exit0 independently read. Distinct from MT005 actual denied mutation; no MT005 action retried.",
+      "independent_lock_reread": {
+        "status": "COMPLETE_DIRECT_CANONICAL_IMMUTABLE_LOCK_ONLY_REREAD",
+        "owner": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+        "commit": "2813dc1768ddd2a4e1843abded1a228f22eeba8e",
+        "tree": "4cee8c15ee8d81c6af15cd2f5e0829b346ab54d9",
+        "sole_parent": "0138d98b5ae9a8bd4c5579f02e803b3172c6885e",
+        "pathset": "Exact one added Cargo.lock; all prior0138 blobs unchanged; recursive trees not truncated; source six canonical reads reused.",
+        "blob": "346861b4b41432fffc6ff675f449aff5ba54828b",
+        "bytes": 2689,
+        "sha256": "f905a64ce3bd80748c19d535f4811ff6814bc2b5d5698981f6058959b531e36c",
+        "parsed_nodes": "12 total:11 registry plus one local diagnostics root"
+      },
+      "budget_consumed": {
+        "own_package_lock_generation": 1,
+        "focused_locked_static_check_with_test_targets": 1,
+        "normal_lock_only_checkpoint_push": 1,
+        "independent_immutable_lock_reread": 1
+      },
+      "limits": "Eight source test declarations compiled only, all runtime behavior UNRUN. No backend/auth/GUI/host acceptance or original MT008 verdict. Prior MT005/MT189 actual denied methods remain unchanged; no new behavior allowance follows."
+    }
+  }
+,
+    "independent_owning_behavior_proof_allocation_20261018": {
+      "decision_id": "WP1-MT008-DIAGNOSTICS-INDEPENDENT-OWNING-BEHAVIOR-PROOF-20261018",
+      "status": "COMPLETE_OWNING8_PASSED_INDEPENDENT_ACTUAL_RESULT_READ_ORIGINAL_ACCEPTANCE_OPEN",
+      "authority": "Master01a14c5c explicit distinct one-attempt owning-library behavior allocation to Central; no additional GO. Separate from old/spent/denied operations and all original acceptance remains.",
+      "executor": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+      "independent_result_reader": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+      "repository": "../../.assets",
+      "branch": "codex/handpick",
+      "canonical_source_commit": "2813dc1768ddd2a4e1843abded1a228f22eeba8e",
+      "canonical_source_tree": "4cee8c15ee8d81c6af15cd2f5e0829b346ab54d9",
+      "source_guards": [
+        {
+          "path": "hskernel/handshake_swarm_lane_diagnostics/Cargo.toml",
+          "bytes": 197,
+          "sha256": "3902384c4b5f5a17abf26b3b8b632903f33c8257d905eb6ef9fb5896c4642b6d"
+        },
+        {
+          "path": "hskernel/handshake_swarm_lane_diagnostics/src/lib.rs",
+          "bytes": 135,
+          "sha256": "cec25f7228bbfb3e269da77de361452c6f318d38c9c0971c465f6ce903f51aa6"
+        },
+        {
+          "path": "hskernel/handshake_swarm_lane_diagnostics/src/model.rs",
+          "bytes": 15038,
+          "sha256": "3e5f640e448a0f82735f13cf9b3dc2c1920d9517042be4411f28b8c3df8cc749"
+        },
+        {
+          "path": "hskernel/handshake_swarm_lane_diagnostics/src/decode.rs",
+          "bytes": 2662,
+          "sha256": "7497507d5b1ca048a2a7e49d70112606aba834f75a70427303c2cd2696cdd61e"
+        },
+        {
+          "path": "hskernel/handshake_swarm_lane_diagnostics/src/validation.rs",
+          "bytes": 32373,
+          "sha256": "9b9ff63d5507b34bc679e5c134f4b31423faa86d80e318c8a5ba3e6a189dfa79"
+        },
+        {
+          "path": "hskernel/handshake_swarm_lane_diagnostics/README.md",
+          "bytes": 2886,
+          "sha256": "5f3d9831b670c898f7815fe5ccda004760e4af11b3d3385a10cca30f682582db"
+        }
+      ],
+      "lock": {
+        "path": "hskernel/handshake_swarm_lane_diagnostics/Cargo.lock",
+        "bytes": 2689,
+        "sha256": "f905a64ce3bd80748c19d535f4811ff6814bc2b5d5698981f6058959b531e36c",
+        "blob": "346861b4b41432fffc6ff675f449aff5ba54828b"
+      },
+      "command": {
+        "executable": "Verified direct Cargo1.97.1-x86_64-pc-windows-msvc from owning host profile",
+        "cwd": "../../.assets",
+        "argv": [
+          "test",
+          "--manifest-path",
+          "hskernel/handshake_swarm_lane_diagnostics/Cargo.toml",
+          "--locked",
+          "--lib",
+          "-j",
+          "1"
+        ]
+      },
+      "budget": {
+        "owning_library_behavior_attempts": {
+          "limit": 1,
+          "consumed": 1
+        },
+        "independent_actual_result_reread": {
+          "limit": 1,
+          "consumed": 1
+        }
+      },
+      "expected_tests": [
+        "model::tests::projection_dto_preserves_complete_json_round_trip",
+        "decode::tests::decoder_accepts_complete_valid_projection",
+        "decode::tests::decoder_rejects_extra_wire_field_without_silent_loss",
+        "decode::tests::decoder_rejects_missing_required_run",
+        "decode::tests::decoder_preserves_schema_validation_error",
+        "validation::tests::valid_unit_projection_is_accepted",
+        "validation::tests::missing_resource_scope_is_rejected",
+        "validation::tests::sanitized_mt_author_id_collision_is_rejected"
+      ],
+      "expected_result": {
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0,
+        "filtered_out": 0
+      },
+      "artifact_root": "../Handshake_Artifacts/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-008/phase2-diagnostics-behavior-primary",
+      "mutable_target": "../Handshake_Artifacts/handshake-cargo-target/wp1-mt008-behavior",
+      "compatible_cargo_home": "../Handshake_Artifacts/WP-KERNEL-012/MT-189/phase2-notes-source-primary/cargo-home",
+      "preparation_inputs": {
+        "host_profile": {
+          "bytes": 9299,
+          "sha256": "2ab3ee52c49e5fe2c0c447489162507660b370e2fec29bfb0600f9aec233fe13"
+        },
+        "inputs_before_behavior": {
+          "bytes": 2103,
+          "sha256": "9e1a94fd88c98f17ca71a66ad6570dbec50760244ed096dbb709b8d38894dc47"
+        },
+        "observed": "Central directly opened both actual JSON files d52bb7 EXIT0; preparation-only state does not reserve slot or prove execution."
+      },
+      "preparation": "Primary may finish normal task-owned gameplan selection through public controller and update only its own external preparation descriptors, binding actual source/config/cache/resources and current exclusive mutable target/cache ownership immediately before launch. Preserve unrelated active selectors and actual contexts; never false-confirm another role or bypass a rejected operation. Use current matching authority host profile: incremental0, dev/test line-tables-only, one job, compilation normal32/5/2, disk floor50GiB, no outer Cargo timeout. Existing valid static/reviews/registry/source+lock independent reads are reused.",
+      "execution": "Record consumed attempt and actual PID/birth/argv/output/numeric exit, observed compilation-family scheduling and post-run no-drift guards. Run exactly the eight named library tests once; missing/zero/ignored/filtered tests cannot pass. Only captured affected inputs freeze during actual owned operation; unrelated source continues. Independent reader opens actual canonical result and names/count/exit/guards, separate from authors.",
+      "limits": "No Cargo metadata/check/list/duplicate suite, Git/lock mutation, host/native adoption, real producer/auth/GUI/backend/Argus/runtime-original acceptance or denied-action retry. Synthetic component behavior proof remains distinct from original acceptance.",
+      "next": "Actual8-pass/no-drift plus independent result reread releases separately saved MT175 exact two-file native diagnostics adoption through T4 without another routine GO. On failure diagnose exact output and obtain only justified changed-input repair allocation; do not blindly rerun.",
+      "allocation_before_run": {
+        "status": "ALLOCATED_NOT_STARTED",
+        "budget": {
+          "owning_library_behavior_attempts": {
+            "limit": 1,
+            "consumed": 0
+          },
+          "independent_actual_result_reread": {
+            "limit": 1,
+            "consumed": 0
+          }
+        }
+      },
+      "actual_result": {
+        "artifact": "..\\Handshake_Artifacts\\WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1\\MT-008\\phase2-diagnostics-behavior-primary\\behavior-result.json",
+        "bytes": 2485,
+        "sha256": "de876387417b2629312212ccba13dfce61c1c3a398d7507981ccd40388fca3c0",
+        "result": {
+          "action": "MT008_OWNING_LIBRARY_BEHAVIOR",
+          "owner": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+          "status": "EXITED",
+          "attempt_consumed": 1,
+          "source_pin": "2813dc1768ddd2a4e1843abded1a228f22eeba8e",
+          "executable": "C:/Users/iljas/.rustup/toolchains/1.97.1-x86_64-pc-windows-msvc/bin/cargo.exe",
+          "argv": [
+            "test",
+            "--manifest-path",
+            "hskernel/handshake_swarm_lane_diagnostics/Cargo.toml",
+            "--locked",
+            "--lib",
+            "-j",
+            "1"
+          ],
+          "cwd": "C:/Projects/LLM Projects/.assets",
+          "target": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\handshake-cargo-target\\wp1-mt008-behavior",
+          "cargo_home": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-189\\phase2-notes-source-primary\\cargo-home",
+          "stdout": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1\\MT-008\\phase2-diagnostics-behavior-primary\\behavior.stdout.log",
+          "stderr": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1\\MT-008\\phase2-diagnostics-behavior-primary\\behavior.stderr.log",
+          "profile_sha256": "40e92b42c2e864c8ce654f95e20c500bbe0fd63de5aa450408e6bdc9029e1dec",
+          "inputs_sha256": "9e1a94fd88c98f17ca71a66ad6570dbec50760244ed096dbb709b8d38894dc47",
+          "process_id": 66552,
+          "process_birth_utc": "2026-10-18T11:19:43.4779375Z",
+          "exit_code": 0,
+          "failures": [],
+          "started_at_utc": "2026-10-18T11:19:43.2145910Z",
+          "tests": [
+            "validation::tests::missing_resource_scope_is_rejected",
+            "validation::tests::valid_unit_projection_is_accepted",
+            "validation::tests::sanitized_mt_author_id_collision_is_rejected",
+            "decode::tests::decoder_rejects_missing_required_run",
+            "decode::tests::decoder_rejects_extra_wire_field_without_silent_loss",
+            "decode::tests::decoder_preserves_schema_validation_error",
+            "decode::tests::decoder_accepts_complete_valid_projection",
+            "model::tests::projection_dto_preserves_complete_json_round_trip"
+          ],
+          "counts": {
+            "passed": 8,
+            "filtered_out": 0,
+            "measured": 0,
+            "failed": 0,
+            "ignored": 0
+          },
+          "input_drift": [],
+          "scheduling_observation": {
+            "pid": 66552,
+            "handle_open": true,
+            "cpu": 32,
+            "memory_query_ok": true,
+            "memory": 5,
+            "io_status": 0,
+            "io": 2
+          },
+          "completed_at_utc": "2026-10-18T11:19:58.9847410Z"
+        },
+        "independent_reader": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+        "independent_verdict": "Complete actual canonical result/full stdout+stderr/resource/profile/input/caller/STARTING/exe-under-target read, exact eight unique allocated test names and8/0/0/0 numeric0; source6+lock7rawguards match; no rerun. Executor Primary/kernel_builder, independent result read only, not validator-executed whole original MT/HBR/backend/auth/native/Argus acceptance.",
+        "preparation_history": "Both59cfc8PSregex and5ab25eJSreplacement-token failures before test; corrected literal assembly+syntax parse and GP008009 before one actual attempt; source/profile/caller/pathproof reused. Actual full momentPASS9/9.",
+        "host_continuation": "Root specific conditional MT175 exact2source grant now separately saved825c027e.../765238 at phase2_native_diagnostics_pinned_adoption_20261018, T4 SOURCE START instructed; independent result reader issues no generic host grant."
+      }
+    }
   }
 }

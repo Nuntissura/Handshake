@@ -1,0 +1,13 @@
+kind: gameplan_confirmations
+confirmations:
+- {id: GP-002, head: 654411c4c1357d58478d8dfa7dc93bf0643a631b, at: '2026-10-18T10:39:15Z', by: builder, note: '041250: seven guards match, 2813 ancestor, branch and live remote654411; prior reviews/static/IV reused'}
+- {id: GP-003, head: 654411c4c1357d58478d8dfa7dc93bf0643a631b, at: '2026-10-18T10:39:15Z', by: builder, note: '041250: seven guards match, 2813 ancestor, branch and live remote654411; prior reviews/static/IV reused'}
+- {id: GP-007, head: 654411c4c1357d58478d8dfa7dc93bf0643a631b, at: '2026-10-18T10:39:15Z', by: builder, note: '041250: seven guards match, 2813 ancestor, branch and live remote654411; prior reviews/static/IV reused'}
+- {id: GP-006, head: 5cd174f81193dacf914b25c0e6055b5946338c7c, at: '2026-10-18T11:06:18Z', by: builder, note: 'Caller6487/profile40e92: exact8 lib/direct1.97.1 child env; Process.WaitForExit no timeout; normal session yield'}
+- {id: GP-008, head: 5cd174f81193dacf914b25c0e6055b5946338c7c, at: '2026-10-18T11:19:38Z', by: builder, note: '96e5df syntax0 and262ff0 actual extraction1054: literal regex; prefix-literal-tail assembly, no replacement tokens'}
+- {id: GP-009, head: 5cd174f81193dacf914b25c0e6055b5946338c7c, at: '2026-10-18T11:19:38Z', by: builder, note: '96e5df syntax0 and262ff0 actual extraction1054: literal regex; prefix-literal-tail assembly, no replacement tokens'}
+- {id: GP-002, head: 5cd174f81193dacf914b25c0e6055b5946338c7c, at: '2026-10-18T11:19:41Z', by: builder, note: Seven guards retained; exact disjoint publications preserve2813; current scoped remote and review/static/IV reuse}
+- {id: GP-003, head: 5cd174f81193dacf914b25c0e6055b5946338c7c, at: '2026-10-18T11:19:41Z', by: builder, note: Seven guards retained; exact disjoint publications preserve2813; current scoped remote and review/static/IV reuse}
+- {id: GP-007, head: 5cd174f81193dacf914b25c0e6055b5946338c7c, at: '2026-10-18T11:19:41Z', by: builder, note: Seven guards retained; exact disjoint publications preserve2813; current scoped remote and review/static/IV reuse}
+- {id: GP-004, head: 5cd174f81193dacf914b25c0e6055b5946338c7c, at: '2026-10-18T11:19:41Z', by: builder, note: 'Current C slot idle, private target/cache owned, disk50GiB+, launcher normal32/5/2; one owning run'}
+- {id: GP-005, head: 5cd174f81193dacf914b25c0e6055b5946338c7c, at: '2026-10-18T11:19:41Z', by: builder, note: 'Dx95a3c5/d2e28d: codegen259<260, exePDB169, target104 TMP108; compatible dependency proof reused'}

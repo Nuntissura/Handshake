@@ -445,4 +445,146 @@
     "status_change": "none",
     "recorded_at_utc": "2026-09-23T09:50:35.693Z"
   }
+,
+  "phase2_wikilink_semantics_source_extension_20261018": {
+    "status": "SOURCE_ONLY_ADMITTED_NOT_STARTED",
+    "authority": "Live Operator Phase2 parallel implementation instruction and Master01a14c5c current exact-source engineering delegation to Central/current owning leaders; no further routine Root GO",
+    "governance_writer": "01a14c69-82fc-7422-b422-73fc827aada4",
+    "source_repository": "../../.assets",
+    "source_branch": "codex/handpick",
+    "origin_repository": "../wtc-WP-KERNEL-012",
+    "origin_branch": "feat/WP-KERNEL-012",
+    "preservation": "Original MT/WP/spec scope, acceptance, source pins, historical verdicts and unresolved full original proof remain unchanged. This child grants only new standalone source placement, not acceptance or host adoption.",
+    "custody": "Existing leaders bind personal exclusive scopes, fresh reference guards and ordinary absent destinations immediately before CreateNew writes. No overwrite/revert of peers, no foreign-custody absence claim. Source originals stay read-only.",
+    "review": "Existing distinct NEVERAUTHOR and dependency checker inspect actual assembled source/API/import/feature/caller closure. Leader contacts supplemental Codecheck01a14d52-fa57-73a3-a4ad-1bf70f4084b8 directly for actual diff review before expensive Cargo. Reuse unchanged valid proof; no repeated census.",
+    "primary_boundary": "Primary01a14c6a-749a-7cd0-a789-0a5c97c47f36 alone assembles new Cargo.toml and owns locks, Git, compiler and resource launch. Rust source authors need not wait for manifest assembly to start their disjoint source files.",
+    "budgets": {
+      "cargo": 0,
+      "metadata": 0,
+      "tests": 0,
+      "git": 0,
+      "publication": 0
+    },
+    "limits": "No original source/native/backend/index/shared-root/lock edits, runtime/process execution, test invocation, auth/grant/capability change, denied-action retry or alternate route. No new branches/worktrees/backups.",
+    "next": "Actual quiescent source handback plus team/dependency/direct Codecheck, then distinct finite owning proof/publication allocation and independent immutable reread; only then separate pinned host adoption. No old-monolith/all-kit prerequisite.",
+    "decision_id": "WP012-MT015-PHASE2-WIKILINK-SEMANTICS-STANDALONE-SOURCE-20261018",
+    "leader": "01a14c73-3519-7351-bbf7-6e4ce30e5b6d",
+    "new_source_root": "Notes/handshake_wikilink_semantics",
+    "package_identity": "handshake_wikilink_semantics",
+    "reference_root": "src/frontend/handshake_wikilink_semantics",
+    "owning_contracts": [
+      "MT-015 original wikilinks/hsLink node acceptance",
+      "MT-057 original parser/resolver and backend/GUI/manual proof",
+      "MT-011 canonical rich-document model dependency remains unresolved"
+    ],
+    "files": [
+      {
+        "path": "src/lib.rs",
+        "bytes": 34,
+        "sha256": "d2191bd10f3f78840d7c3ec874141b58be4b3b243871c38c0a950283c7e1a305",
+        "writer": "/root/coder_document",
+        "outcome": "Carry existing parser/resolver module exports unchanged",
+        "next_queue": "Assemble own parser exports then actual findings"
+      },
+      {
+        "path": "src/parser.rs",
+        "bytes": 21112,
+        "sha256": "f933314ad689673ad53d4a764c62c1d4ce45faea9eaaa83e6a49ac72dd0c4897",
+        "writer": "/root/coder_document",
+        "outcome": "Carry actual existing parser implementation and13 tests unchanged, preserving HsLink node conversion, ref kinds/labels/unknown behavior",
+        "next_queue": "Resolve actual parser/API conservation findings"
+      },
+      {
+        "path": "src/resolver.rs",
+        "bytes": 22371,
+        "sha256": "e8981381953fcb06236f90144a8521b9e83854202044668f1cf64e35d056601b",
+        "writer": "/root/coder_actions",
+        "outcome": "Carry actual resolver implementation and13 tests unchanged, preserving existing state/closure behavior without fabricating producers",
+        "next_queue": "Resolve actual resolver/dependency review findings"
+      }
+    ],
+    "manual": {
+      "path": "README.md",
+      "writer": "/root/coder_actions",
+      "when": "After actual source",
+      "scope": "Concise package purpose/use and explicit canonical model dependency unresolved; source-only no build/runtime claim"
+    },
+    "manifest_reference": {
+      "bytes": 218,
+      "sha256": "19afaec01c29772124d3926deb856b7166ed7eacfe358f5356fb3385afacca09",
+      "requirements": "Primary retains existing identity, regex1 and actual HsLink model dependency; do not invent model home or copy/rehost model types"
+    },
+    "dependency_hold": "Canonical HsLink model source remains absent. Unchanged parser/resolver source authoring in this new admitted subtree is permitted independently; complete source-proof/publication readiness, Cargo manifest model binding, compile and host adoption remain HELD until actual canonical model source/proof exists.",
+    "tests": "Preserve existing13 parser+13 resolver tests once each. All remain UNRUN; source review is not compiler/GUI/backend/original acceptance.",
+    "local_denials": "No model/type extraction, rejected model/formatting/test mutation, alternate model package/backedge or workaround. Only unrelated unchanged wiki semantics source placement.",
+    "source_output": {
+      "recorded_at_utc": "2026-10-18T10:48:11.3101533Z",
+      "status": "SOURCE_AUTHORED_QUIESCENT_STATIC_CONSERVATION_REVIEW_CLEAR_NOT_ACCEPTED",
+      "source_root": "Notes/handshake_wikilink_semantics",
+      "guards": [
+        {
+          "path": "src/lib.rs",
+          "bytes": 34,
+          "sha256": "d2191bd10f3f78840d7c3ec874141b58be4b3b243871c38c0a950283c7e1a305",
+          "writer": "/root/coder_document"
+        },
+        {
+          "path": "src/parser.rs",
+          "bytes": 21112,
+          "sha256": "f933314ad689673ad53d4a764c62c1d4ce45faea9eaaa83e6a49ac72dd0c4897",
+          "writer": "/root/coder_document"
+        },
+        {
+          "path": "src/resolver.rs",
+          "bytes": 22371,
+          "sha256": "e8981381953fcb06236f90144a8521b9e83854202044668f1cf64e35d056601b",
+          "writer": "/root/coder_actions"
+        },
+        {
+          "path": "README.md",
+          "bytes": 1619,
+          "sha256": "28347b93b9f57dddffd829ce33f9d653de896c1e2d79a9177c680d67637cf31c",
+          "writer": "/root/coder_actions"
+        }
+      ],
+      "conservation": "All three Rust files are byte-identical to the bound original references; parser13 and resolver13 existing tests are retained once. README explicitly preserves the unresolved canonical model and host boundaries.",
+      "quiescence": "Both named implementation writers personally handed back completed source and no pending or inflight source writes through the existing leader.",
+      "team_review": {
+        "neverauthor": "/root/neverauthor_checker",
+        "dependency": "/root/dependency_checker",
+        "result": "Actual assembled three Rust files and README inspected; no scoped source-conservation defect. Model and manifest closure remain unresolved."
+      },
+      "direct_codecheck": {
+        "reviewer": "01a14d52-fa57-73a3-a4ad-1bf70f4084b8",
+        "reader_output_chunks": [
+          "740a5c",
+          "d256b2"
+        ],
+        "result": "Direct supplemental actual source/manual inspection: no scoped conservation finding; all four guards match. Source review only.",
+        "leader_result_turn": "01a14e9b-6f0e-7371-a301-68916f0847ce"
+      },
+      "source_observation": "Dispatcher independently reread the four authored file guards before this evidence-only record; original source and other package inputs were not modified.",
+      "tests": {
+        "declarations": 26,
+        "executed": false,
+        "result": "UNRUN"
+      },
+      "outstanding": [
+        "Canonical rich-document model source absent",
+        "No Cargo manifest or resolved model binding in this source package",
+        "Executable source proof HELD",
+        "Complete source publication and independent immutable reread HELD",
+        "Host adoption HELD"
+      ],
+      "acceptance": "NOT_ACCEPTED",
+      "budgets_consumed": {
+        "cargo": 0,
+        "metadata": 0,
+        "tests": 0,
+        "git": 0,
+        "publication": 0
+      },
+      "preservation": "This source_output evidence child changes no existing admission status, original requirement, prior proof, acceptance, budget, denial, model source or host custody."
+    }
+  }
 }

@@ -1105,7 +1105,34 @@
         "binding": "Original retained verbatim; execute only if owning consumed behaviour requires and live config/target/command validity reconciled",
         "original_command_defect_refs": []
       }
-    ]
+    ],
+    "moved_component_unit_selectors_20261015": {
+      "binding_id": "WP012-MOVED-COMPONENT-UNIT-SELECTORS-20261015",
+      "status": "DECLARATION_MAPPING_CLEAR_NOT_RUN",
+      "execution_authorized": false,
+      "proof_executed": false,
+      "acceptance_changed": false,
+      "final_candidate": "PENDING",
+      "evidence": {
+        "independent_reviewer_chat": "01a13d23-ceed-72b0-b045-21c4826a4154",
+        "central_proof_helper": "01a13d28-6497-7291-9bcf-b05a01bd02b8",
+        "observation": "Actual independent inspection of current four leaf manifests/test declarations and exact owning tests; same helper output. Read-only, no runs."
+      },
+      "limits": "Only exact moved unit-selector ownership rebind; no argv/finite allowance. Zero matched tests INVALID, never PASS. Original three-WP/MT criteria and proof outside exact moves retained; historical consumed_source_checks verbatim with current conditional validity, no old-proof rewrite.",
+      "moved_unit_owner": {
+        "manifest": "src/backend/handshake_contact_sheet/Cargo.toml",
+        "target_kind": "lib",
+        "declared_features": [],
+        "selectors": [
+          "tests::contact_sheet_layout_changes_with_rows_columns_and_dpi",
+          "tests::contact_sheet_receipt_preserves_lineage_and_omitted_items",
+          "tests::contact_sheet_rejects_out_of_range_layout_inputs",
+          "tests::contact_sheet_accepts_local_source_refs_as_lineage"
+        ]
+      },
+      "original_scope": "Original CKC018 scope/proof/import criteria preserved.",
+      "retained_proof": "Old core atelier_contact_sheet_tests integration plus native client/parser/manual/Argus/real image export/persistence/auth original targets remain required and are NOT covered by four leaf units."
+    }
   },
   "authority_files": {
     "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
@@ -3033,6 +3060,13 @@
         "owner_record": "MT-172.json#/implementation_record/canonical_adoption_wire_validation/current_watcher_independent_os_observation",
         "metadata": "CORE_INVALIDATED_REQUIRED_FEATURE; no resolver/build run; native-dev/watcher invalidations retained"
       }
+    },
+    "contact_sheet_crate_extraction_20261015": {
+      "decision_id": "WP012-CONTACT-SHEET-CRATE-EXTRACTION-20261015",
+      "status": "SOURCE_ONLY_IMPLEMENTATION_RELEASED",
+      "assignment_ref": "packet.json#/swarm_production_20261014/coordination/contact_sheet_crate_extraction_20261015",
+      "owner_chat": "01a13d23-bee7-73a1-a9ac-e0b50db5ca93",
+      "limits": "Exact canonical source assignment and final owning proof rebind only; original acceptance remains OPEN, no execution grant."
     }
   }
 }

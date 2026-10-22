@@ -1,0 +1,19 @@
+schema_version: handshake.gameplan.v1
+template_version: 1
+kind: gameplan
+instance_policy:
+  omit_empty_optional_fields: true
+  policy_lives_in_rule_refs_not_instance_fields: true
+  schema_ref: repo-governance/schemas/gameplan.schema.yaml
+rule_refs: []
+writing: 'no prose; terse fragments; determinism > grammar; verb object [op value]'
+precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; correct the step'
+scope: wp
+assignment: WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1
+parent: null
+generation: 2
+confirm_binding:
+  repo: ../../.assets
+expensive_actions: []
+steps:
+- {id: GP-001, role: any, at: any, do: verify owning MT008 contract exists, check: {type: file, path: .GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-008.json, exists: true}, source: CX-GP-001, state: active}

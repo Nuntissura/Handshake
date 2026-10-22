@@ -153,5 +153,160 @@
       "MT-063",
       "MT-066"
     ]
-  }
+  },
+    "modular_moodboard_two_producer_source_admission_20261015": {
+      "decision_id": "WP012-CKC-MOODBOARD-TWO-PRODUCER-SOURCE-ADMISSION-20261015",
+      "status": "SOURCE_ONLY_IMPLEMENTATION_RELEASED_EXECUTION_HELD",
+      "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+      "authority": "Direct human real-crate split across the retained three WPs; packet adaptive ADAPT006/007. This exact new two-file source admission preserves original CKC MT012 scope and all retained acceptance.",
+      "adopted_leaf": {
+        "package": "handshake_ckc_moodboard",
+        "root": "src/backend/handshake_ckc_moodboard",
+        "product_worktree": "../wtc-WP-KERNEL-012"
+      },
+      "actual_proposal": {
+        "leader_chat": "01a13d27-c380-7833-9eab-781378e2db92",
+        "turn": "01a14070-9d2d-7130-8f98-225f6858bce1",
+        "outgoing_root_reference": "exec5ff113b9",
+        "completion_reference": "exec1bf77f45",
+        "root_personally_opened_full_proposal": true
+      },
+      "assignments": [
+        {
+          "writer": "/root/producer_interfaces",
+          "thread": "01a13d28-328e-7032-9738-484653109f5f",
+          "new_only_path": "src/backend/handshake_ckc_moodboard/src/schema.rs",
+          "scope": "Existing moodboards schema span354–701: uuid/point/size/flags/style/full schema compile and validation including first-five error formatting. validate_against_schema pub(crate); other helpers private. Schema consumes root constants."
+        },
+        {
+          "writer": "/root/consumer_error_provenance",
+          "thread": "01a13d28-4c8d-7ca2-8dc2-274edd77a29d",
+          "new_only_path": "src/backend/handshake_ckc_moodboard/src/model.rs",
+          "scope": "Existing moodboards spans197–352 and703–839: all14 models plus trim/parser/duplicate/layer/connector/folder/guide/history checks. Public parse_and_validate_moodboard(&str)->Result<(Value,MoodboardDocument),String> and require_non_empty_trimmed(&str,&str)->Result<String,String>. Model consumes schema."
+        }
+      ],
+      "distinct_nonauthor_checker": {
+        "role": "/root/dependency_preflight",
+        "thread": "01a13d28-6607-7a60-ba00-e9efeda858c9"
+      },
+      "observed_source_bindings": {
+        "source_path": "src/backend/handshake_core/src/atelier/moodboards.rs",
+        "source_sha256": "5cd27f2fd4abfacaf40915684fce4719da17e220b4ccc485718c5804064ee1fb",
+        "retained_test_path": "src/backend/handshake_core/tests/atelier_core_data_tests.rs",
+        "retained_test_sha256": "cb94d43eaffb6017c78a7197d8adf5b351aac3f4c46f14efca43cd873954c213",
+        "new_schema_path": "ABSENT",
+        "new_model_path": "ABSENT",
+        "kernel_readback": "Exact supplied source/test hashes matched and both new producer paths absent before this admission."
+      },
+      "fresh_write_guards": "Each named producer owns only its exact new file. Fresh absent-path guard before EACH write and no actual conflicting writer; stop/report only the exact affected conflict or drift. Preserve peers; do not infer global free ownership or revert others.",
+      "behavior_preservation": "Move exact14 types, hsk.atelier.moodboard@1/version1, existing schema/model algorithms and original error text/order/first-five formatting/negative behavior. No new cycle law or Core upward dependency. No source-proof acceptance from this record.",
+      "host_boundary": "Host current holder UNKNOWN; no old-host write, retirement, new lib/Cargo/CoreCargo, lock or export authority. All such integration remains future Primary-personally exact guarded admission. New two producers may progress independently of untouched old-host ownership. Store/auth/OCC/stale pins/persistence/hashes/receipts/operations/export/rendering/UI/current native references remain Core; existing host tests and callers retained once.",
+      "review_and_handoff": "Actual assembled changed source/callers/failure/type/ownership/dependency/borrow/lifetime checks by distinct nonauthor, repair actual findings, then NAV leader DIRECT codecheck01a13d18-8ae0-7642-a76f-04cf3836ea3a. Review is source-only, not compiler/runtime or independent original acceptance.",
+      "preservation": "Original MT012 story/moodboard/ref/Argus and Surreal reproof059–063/066 remain required; existing top-level/lifecycle statuses unchanged. Preserve full three-WP scope/pins/acceptance, schema165 before166, immutable164, Assets freeze and all proof budgets. No Assets copy/adoption or absence claim.",
+      "execution_authorized": false,
+      "proof_started": false,
+      "allowance_granted": false,
+      "limits": "Only the two NEW producer source files. No Git, Cargo, tests, metadata, actual SQL, runtime, process, slot or finite allowance; no other source, kernel, artifact or confirmation writes by authors.",
+        "prospective_primary_whole_host_ownership_20261015": {
+          "decision_id": "WP012-CKC-MT012-PRIMARY-HOST-OWNERSHIP-20261015",
+          "status": "PROSPECTIVE_PRIMARY_OWNERSHIP_ASSIGNED_PHYSICAL_WIRING_HELD",
+          "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+          "authority_refs": [
+            "WP012 packet adaptive ADAPT001/002/005/006",
+            "packet.json#/swarm_production_20261014/coordination/operator_crate_sequencing_20261015/ownership"
+          ],
+          "sole_future_physical_writer": "PRIMARY_PERSONALLY",
+          "writer_chat": "01a13d2a-fbcb-7ce2-b8e7-9dcb7ce2984a",
+          "whole_host_path": "src/backend/handshake_core/src/atelier/moodboards.rs",
+          "expected_before_sha256": "5cd27f2fd4abfacaf40915684fce4719da17e220b4ccc485718c5804064ee1fb",
+          "historical_ownership": "Prior historical overall owner UNKNOWN remains history. This establishes only a prospective EXACT whole-host lease, no global-free claim, unverified-holder transfer or retroactive permission.",
+          "actual_functional_team_handoff": {
+            "leader_chat": "01a13d27-c380-7833-9eab-781378e2db92",
+            "team": "NAV",
+            "root_received_direct_handoff_and_central_corroboration": true,
+            "report": "Relevant functional team explicitly reports NO admitted current whole-host lease, unreturned write or unfinished patch. Respective NEW2 done/quiescent plus distinct checker reports old hash unchanged. This does not prove globally unowned."
+          },
+          "before_eventual_write": "Primary fresh full exact preimage plus Central actual current assignments/quiescence and no known competing unfinished writer required. Discovered known claim/conflict/hash drift stops ONLY affected host, preserving peers; no foreign-writer stop/reset/revert. Do not require endless historical-owner ACK lookup when no binding/conflict exists.",
+          "physical_permission": "OWNERSHIP ONLY. Physical wiring remains UNGRANTED until complete actual current literal FOUR-path patch plus distinct checker and Root saved scope. Initial old-host no-write hold superseded solely for prospective ownership, not physical body permission. All manifest/lib/export/lock holds unchanged; Primary in-memory planning may proceed.",
+          "specific_preservation": "Preserve full moodboard behavior/tests/schema/model/error order and native/current host references. Preserve actual CoreCargo64e4 Win32 feature plus all peer changes.",
+          "original_obligations": "Full original behavior/tests, all three-WP scope/proofs/pins/independent verdicts and spent budgets remain unchanged; no acceptance or source-application claim.",
+          "physical_wiring_authorized": false,
+          "execution_authorized": false,
+          "proof_started": false,
+          "allowance_granted": false,
+          "limits": "No other path/source/Git/Cargo/tests/metadata/actual SQL/runtime/OS/process/slot/finite allowance. Kernel ownership child only; no product inspection or write."
+        },
+        "primary_shared_four_source_wiring_20261015": {
+          "decision_id": "WP012-CKC-MT012-PRIMARY-SHARED4-WIRING-20261015",
+          "status": "SOURCE_ONLY_SHARED4_IMPLEMENTATION_RELEASED_EXECUTION_HELD",
+          "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+          "physical_writer": "PRIMARY_PERSONALLY",
+          "writer_chat": "01a13d2a-fbcb-7ce2-b8e7-9dcb7ce2984a",
+          "product_worktree": "../wtc-WP-KERNEL-012",
+          "actual_plan_source": {
+            "primary_turn": "01a14082-e65a-7593-9396-e3b3497a4d52",
+            "outgoing_execution": "exec-23333d31-2bd8-4c64-a526-ebe0a4e87187",
+            "root_opened_full_plan": true,
+            "kernel_retrieved_exact_retained_files_and_recipe": true
+          },
+          "files": [
+            {
+              "path": "src/backend/handshake_ckc_moodboard/Cargo.toml",
+              "current": "ABSENT",
+              "new_sha256": "bfb9201ee8077e22073bd1017d94103d96f1e89e1f6a8d3f39fd706db91c8757",
+              "new_bytes": 382,
+              "line_endings": "LF onefinalLF",
+              "literal": "[workspace]\n\n[package]\nname = \"handshake_ckc_moodboard\"\nversion = \"0.1.0\"\nedition = \"2021\"\npublish = false\n\n[dependencies]\nserde = { version = \"1\", features = [\"derive\"] }\nserde_json = \"1\"\nuuid = { version = \"1\", features = [\"v4\", \"v7\", \"fast-rng\", \"serde\"] }\nchrono = { version = \"0.4\", features = [\"serde\", \"clock\"] }\njsonschema = { version = \"0.17\", features = [\"draft202012\"] }\n"
+            },
+            {
+              "path": "src/backend/handshake_ckc_moodboard/src/lib.rs",
+              "current": "ABSENT",
+              "new_sha256": "48178e5945cf195b9f083d171e467f384cf9a6d854c32ab473d904c3ebdc7603",
+              "new_bytes": 479,
+              "line_endings": "LF onefinalLF",
+              "literal": "mod model;\nmod schema;\n\npub const MOODBOARD_SCHEMA_ID: &str = \"hsk.atelier.moodboard@1\";\npub const MOODBOARD_SCHEMA_VERSION: i64 = 1;\n\npub use model::{\n    MoodboardDocument, MoodboardCanvas, MoodboardPoint, MoodboardSize, MoodboardLayer, MoodboardImageElement, MoodboardTextElement, MoodboardShapeElement, MoodboardConnector, MoodboardFolder, MoodboardGuide, MoodboardFlags, MoodboardStyle, MoodboardHistoryEntry,\n    parse_and_validate_moodboard, require_non_empty_trimmed,\n};\n"
+            },
+            {
+              "path": "src/backend/handshake_core/Cargo.toml",
+              "current_sha256": "64e4f201474b5640d0d831225b4504d0a133d59a2bb70ec03fa942cb0d6a8361",
+              "current_bytes": 29918,
+              "new_sha256": "c84f265696b5bf60e7e8cec71b07efa24e0eaa865a111e0c848cfa7935a62c3e",
+              "new_bytes": 29984,
+              "exact_delta": "Insert ONLY complete LF line handshake_ckc_moodboard = { path = \"../handshake_ckc_moodboard\" } immediately after existing handshake_ckc_sheet_template edge; preserve ALL other bytes including Win32_System_IO. Remove that one line -> entire64e4 preimage."
+            },
+            {
+              "path": "src/backend/handshake_core/src/atelier/moodboards.rs",
+              "current_sha256": "5cd27f2fd4abfacaf40915684fce4719da17e220b4ccc485718c5804064ee1fb",
+              "new_sha256": "e1d31f9b4085f005300c6b815a104e7ef7e3b81412389dff0db0fc529f4ecf7b",
+              "new_bytes": 36738,
+              "line_endings": "LF",
+              "exact_recipe": "Against original guarded lines: retain1–196; replace197–839inclusive with exact two wrappers below plus ONE additional blankline; retain840–EOF EXACT. Remove literal unused imports below. Replace original MOODBOARD_SCHEMA_ID+VERSION two-line constant block with exact reexports/private-version import below. No other byte/test/API/store/auth/OCC/operation/export/receipt changes.",
+              "wrappers_literal": "fn require_non_empty_trimmed(field: &str, value: &str) -> AtelierResult<String> {\n    handshake_ckc_moodboard::require_non_empty_trimmed(field, value)\n        .map_err(AtelierError::Validation)\n}\n\nfn parse_and_validate_moodboard(raw_json_text: &str) -> AtelierResult<(Value, MoodboardDocument)> {\n    handshake_ckc_moodboard::parse_and_validate_moodboard(raw_json_text)\n        .map_err(AtelierError::Validation)\n}\n",
+              "removed_import_literals": [
+                "use std::collections::{BTreeMap, HashSet};\n\n",
+                "use jsonschema::{Draft, JSONSchema};\n"
+              ],
+              "replacement_constants_literal": "pub use handshake_ckc_moodboard::{\n    MoodboardDocument, MoodboardCanvas, MoodboardPoint, MoodboardSize, MoodboardLayer, MoodboardImageElement, MoodboardTextElement, MoodboardShapeElement, MoodboardConnector, MoodboardFolder, MoodboardGuide, MoodboardFlags, MoodboardStyle, MoodboardHistoryEntry, MOODBOARD_SCHEMA_ID,\n};\nuse handshake_ckc_moodboard::MOODBOARD_SCHEMA_VERSION;\n",
+              "inverse": "Restore only original197–839 span/imports/constants; entire5cd27 reproduced. Actual helper reproduced exact targete1d31, suffix840EOF exact."
+            }
+          ],
+          "actual_producer_handoff": {
+            "schema": "ecce63cdcbdeb148583694015364aacbb0c84756f3f62d836703062215b1be6a",
+            "model": "0453987138b9cef85d63300be21d9ceb1d47f714b31b6bcd489aab2b76d04553",
+            "own_distinct": "CLEAR",
+            "direct_codecheck": "NO_INTRODUCED_BLOCKING_STATIC_FINDING",
+            "review_reference": "exec-3a68d756-0a1f-4e52-bcd7-624601c5d7fa / turn01a14082-d92b-79d2-8200-52953a494f44"
+          },
+          "actual_primary_preparation": "READONLY preparer reproduced all4 exact postimages in memory from current actual guards and verified actual producer APIs. No dependency/API blocker; originalJSONSchema defaults ON/14types/ownedString Validation mapping/privateversion seam preserved. Current Core/API/host tests stay original; no repeated producer/source semantic audit.",
+          "current_ownership": "Existing prospective ownership child establishes only future Primary exact whole-host owner, preserving past UNKNOWN/no global free claim. This child NOW supersedes initial physical hold ONLY for these exact FOUR guarded paths; earlier proposal lack-of-permission wording remains historical, not current override.",
+          "physical_source_permission": "Primary PERSONALLY may implement only exact retained files/literals/recipe/postimages after saved scope and fresh guards. Planned postimages and in-memory reproduction are NOT observed physical writes.",
+          "fresh_guards": "Fresh full FOUR preimages/absence plus Central actual current assignments and no known competing unfinished writer before physical write. Mismatch/conflict stops ONLY affected path; report changed binding and exact rebase preserving every peer byte including Core Win32_System_IO. No global freeze/past free claim/reset/foreign-writer stop.",
+          "assembled_review": "Require actual posts and inverses plus own and DISTINCT NONAUTHOR assembled FOUR plus producer/Core/API/tests/type/lifetime/dependency/error-negative checks, resolve findings, then leader DIRECT codecheck01a13d18-8ae0-7642-a76f-04cf3836ea3a before publication/integration proof. Reuse already clear producer source comparisons, not compiled proof.",
+          "preservation": "Original tests remain HOST once; all store/auth/OCC/stale pins/receipts/export/native behavior and JSONSchema defaults ON preserved. No new feature law. Original MT012/042/059–063/066/all three-WP scope/pins/proofs/schema165 before166/immutable164/history/budgets remain required. Only affected manifest/resolver proof invalidated; reuse unchanged remainder of147 semantic contexts without repeating them.",
+          "execution_authorized": false,
+          "proof_started": false,
+          "allowance_granted": false,
+          "limits": "No lock mutation, Cargo/tests/metadata/resolver/actual SQL/runtime/OS/Git/process/slot/finite allowance/policy or final-candidate acceptance. No kernel product inspection/write; no other paths or artifacts."
+        }
+    }
 }

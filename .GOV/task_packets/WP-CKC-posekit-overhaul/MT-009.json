@@ -139,5 +139,186 @@
       "MT-063",
       "MT-066"
     ]
-  }
-}
+  },
+    "modular_sheet_parser_two_producer_source_admission_20261015": {
+      "decision_id": "WP012-CKC-MT009-SHEET-PARSER-TWO-PRODUCER-SOURCE-ADMISSION-20261015",
+      "status": "SOURCE_ONLY_NEW2_IMPLEMENTATION_RELEASED_EXECUTION_HELD",
+      "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+      "adopted_leaf": {
+        "name": "handshake_ckc_sheet_parser",
+        "root": "src/backend/handshake_ckc_sheet_parser",
+        "product_worktree": "../wtc-WP-KERNEL-012"
+      },
+      "leader_chat": "01a13d27-c380-7833-9eab-781378e2db92",
+      "assignments": [
+        {
+          "writer": "/root/producer_interfaces",
+          "thread": "01a13d28-328e-7032-9738-484653109f5f",
+          "new_only_path": "src/backend/handshake_ckc_sheet_parser/src/types.rs",
+          "planned_sha256": "ef386336a38950b36352571f37a4e6edb1ec2b92906a4fdaf59cbfbbd0c1a7e9",
+          "planned_bytes": 13116,
+          "scope": "Exact original AST/inference/descriptor/type parsing blocks and ONLY scoped visibility adaptations in retained A recipe. Whole algorithms/API unchanged; no global field-name replacement."
+        },
+        {
+          "writer": "/root/consumer_error_provenance",
+          "thread": "01a13d28-4c8d-7ca2-8dc2-274edd77a29d",
+          "new_only_path": "src/backend/handshake_ckc_sheet_parser/src/parser.rs",
+          "planned_sha256": "f8e3b8190e91b63b77e95d5cd6d2f16b9d22df9eee108075d381a800f0b784ab",
+          "planned_bytes": 14738,
+          "scope": "Exact original FIVE parser/hash/line/descriptor blocks and adopted visibility/whole-struct boundary in retained B recipe. Public parse_sheet_template_ast returns Result<SheetTemplateAst,String>; two result adaptations/four original Validation messages unchanged."
+        }
+      ],
+      "distinct_nonauthor": {
+        "role": "/root/dependency_preflight",
+        "thread": "01a13d28-6607-7a60-ba00-e9efeda858c9"
+      },
+      "source_basis": {
+        "path": "src/backend/handshake_core/src/atelier/sheet.rs",
+        "expected_sha256": "fb0e52e7758ca7bfb5aed8953425a3980f1b0c3641063f46a5a42a5da64d5f0d",
+        "fresh_guard": "Fresh exact whole original source guard plus NEW file ABSENCE/no actual competing writer before each write. Drift/conflict holds only affected path, preserve peers; no global free ownership inference or new ACK gate."
+      },
+      "retained_exact_producer_recipes": [
+        {
+          "execution": "exec-fcb4608f-8a58-4086-8e89-3ad30ee30af1",
+          "exact_retained_recipe": "Retained EXACT Atypes recipe ONLY(no newread/compute): sourcefb0e52e7758ca7bfb5aed8953425a3980f1b0c3641063f46a5a42a5da64d5f0d112908B. OriginalReadAllLineswithoutterminators; blocks[132..240],[959..966],[1213..1332],[1497..1674]ZERO-basedinclusive =133–241/960–967/1214–1333/1498–1675. EACHblockjoinliteralLF+appendONE LF. PrefixEXACT `use std::collections::HashSet;\\n\\nuse serde::{Deserialize, Serialize};\\n\\n`. Concatenateprefix+ASTblock+adaptedInference+adaptedDescriptor+adaptedParse NOextraseparators. FinallyTrimEnd(LF)+ONE LF UTF8noBOM. ONLYinInferenceblock literals: `struct FieldTypeInference {`->`pub(crate) struct FieldTypeInference {`; `    field_type:`->`    pub(crate) field_type:`; samefieldprefixreplacementONLYfor optional,allowed_special_values,protected,editable_roles. ONLYDescriptorblock: `fn descriptor_inner(`->`pub fn descriptor_inner(`; `fn split_descriptor_tokens(`->`pub fn split_descriptor_tokens(`; `fn editable_roles_from_token(`->`pub fn editable_roles_from_token(`. ONLYParseblock `fn parse_field_type(`->`pub(crate) fn parse_field_type(`. ASTZEROchanges/allotherhelpersZEROchanges. Result ef386336a38950b36352571f37a4e6edb1ec2b92906a4fdaf59cbfbbd0c1a7e913116B/singleLF. ReverseonlynamedvisibilitybeforeEOFtrim recoversoriginalblocks2862+184+4004+5908B exactly. Bcompleteparserrecipependingretainedhandoff. PREPONLYno sourcegrant/writes."
+        },
+        {
+          "execution": "exec-70e1b58b-40a9-44a7-9b18-0fb4053ab73b",
+          "exact_retained_recipe": "Retained COMPLETEBparser recipe(no newread/compute): originalsheetfb0e112908LF splitLF; inclusive968–971,976–1120,1185–1213,1334–1420,1676–1828; eachrangejoinLF thenjoin5partsONE LF. HeaderEXACT `use sha2::{Digest, Sha256};\\n\\nuse crate::types::{\\n    parse_field_type, ParsedSheetFieldType, SheetBlockInstance, SheetBlockInstanceField,\\n    SheetBlockSchema, SheetTemplateAst, SheetTemplateField, SheetTemplateSection, SheetUnmappedLine,\\n};\\n\\n`. Bodyliteralvispairs: pub(crate) fn {sha256_hex,sheet_field_id_from_line,sheet_line_looks_like_field,parse_sheet_template_ast}->pub fn SAME each; fn split_field_line->pub fn split_field_line; fn split_block_instance_field_line->pub fn same; allotherfunctionsprivate. BodyResults AtelierResult<SheetTemplateAst>->Result<SheetTemplateAst, String>; AtelierResult<()>->Result<(), String> ONLYdescriptorvalidatorinthisbody. WHOLEstructliteral OLD `struct ParsedBlockInstanceFieldLine {\\n    root_field_id: String,\\n    instance_id: String,\\n    ordinal: usize,\\n    field_id: String,\\n    label: String,\\n    descriptor: String,\\n}` NEW `pub struct ParsedBlockInstanceFieldLine {\\n    pub root_field_id: String,\\n    pub instance_id: String,\\n    pub ordinal: usize,\\n    pub field_id: String,\\n    label: String,\\n    descriptor: String,\\n}`. NOTblindfieldnamereplace(functionargcollision). ExactlyFOURmarkers `super::AtelierError::Validation(`: balanced-parentheseslocatematchingOUTER`)`, replaceWHOLEconstructorcallwithargumentcontentsBYTEEXACT. All4format!reasons empty_descriptor/descriptor_must_start_with_angle/unclosed_descriptor/unbalanced_descriptor_angles commonprefix `structured_parse_error: line_number={line_number} field_id={field_id} reason=`; NOothererrorchange. Outputheader+transformedbody.TrimEnd(CR,LF)+ONE LF UTF8noBOM ->f8e3b8190e91b63b77e95d5cd6d2f16b9d22df9eee108075d381a800f0b784ab14738B. Storedreverse-positionliteraleditproof recoversALL5concatenatedoriginalrangesEXACT. Bthirdmessageprecisemultilinehost5callspatternfollowsifprovided. PREPONLY/no sourcegrant."
+        }
+      ],
+      "recipe_authority": "Retained proposal PREPONLY/no-source-grant wording inside exact recipe strings is historical proposal posture; THIS child now releases ONLY named NEW2 under exact scope. No worker host/manifest authority follows from recipe mentioning future adapters.",
+      "actual_primary_preparation": {
+        "reference": "NAV turn01a140d3-1519-7e01-9cdc-d5b1fb0d8303 outgoingexec-fc062be1-3b79-4bd2-aa2b-ebf6c8bc4bf8",
+        "evidence": "Primary independently reproduced both producer planned posts and shared proposals IN MEMORY from actual fb0e source, exact scoped visibility/whole-block struct/two Results/four balanced Validation unwraps; no source writes/compiled proof."
+      },
+      "host_tests_and_boundaries": "ALL12 original host tests unchanged at SHA24df6240d910b35180a0d01ac3cd75996cd6f47e4f44768123c5f9b4983fc6d0. Real store/history/authorization remain HOST. Preserve original four Validation messages/error order; no behavior change/Core upward edge/extra dependencies.",
+      "shared_hold": "Primary future Cargo/lib/CoreCargo/whole-host retirement source remains HELD SEPARATELY pending actual NEW2 handback and fresh exact Root grant. Initial extra-LF preparation corrected BEFORE writes; final d347738070db63f030c7eb99f05578fdcd1d8c321f6ced834edaa7ef14b7a331 is ONLY prospective whole-host plan, not observed write or permission. No worker old-host edits/retirement.",
+      "review": "Own plus DISTINCT actual assembled changed source/callers/errors/types/borrow/lifetime/dependencies/API and fixture-conservation review, repair findings then leader DIRECT codecheck01a13d18-8ae0-7642-a76f-04cf3836ea3a before publication. No invented prerequisite or duplicate preparation audit.",
+      "preservation": "All original MT009 character/sheet/version/typed refs/native/Argus/Surreal reproof059–063/066/full three-WP scope/acceptance/pins/history/budgets/independent verdicts retained. Original status unchanged.",
+      "execution_authorized": false,
+      "proof_started": false,
+      "allowance_granted": false,
+      "limits": "ONLY TWO NEW producer sources. No worker manifests/locks/host/tests/Git/Cargo/test/actual SQL/runtime/metadata/probe/execution allowance or other files. Kernel record only; no product inspection or edits.",
+        "primary_shared_four_source_wiring_20261015": {
+          "decision_id": "WP012-CKC-MT009-PRIMARY-SHARED4-SHEET-PARSER-WIRING-20261015",
+          "status": "SOURCE_ONLY_SHARED4_IMPLEMENTATION_RELEASED_EXECUTION_HELD",
+          "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+          "physical_writer": "PRIMARY_PERSONALLY",
+          "writer_chat": "01a13d2a-fbcb-7ce2-b8e7-9dcb7ce2984a",
+          "product_worktree": "../wtc-WP-KERNEL-012",
+          "files": [
+            {
+              "path": "src/backend/handshake_ckc_sheet_parser/Cargo.toml",
+              "current": "ABSENT",
+              "planned_sha256": "38f30639adec0793d91a8580961d6ee28637d581df573e265dd7ddfa76c99f91",
+              "planned_bytes": 189,
+              "line_endings": "LF",
+              "literal": "[workspace]\n\n[package]\nname = \"handshake_ckc_sheet_parser\"\nversion = \"0.1.0\"\nedition = \"2021\"\npublish = false\n\n[dependencies]\nserde = { version = \"1\", features = [\"derive\"] }\nsha2 = \"0.10\"\n"
+            },
+            {
+              "path": "src/backend/handshake_ckc_sheet_parser/src/lib.rs",
+              "current": "ABSENT",
+              "planned_sha256": "c06829b1512c25ea6a1d53d82d65150ad0acab572df9236dcbcedfdc1e7ef9de",
+              "planned_bytes": 493,
+              "line_endings": "LF",
+              "literal": "mod parser;\nmod types;\n\npub use parser::{\n    parse_sheet_template_ast, sha256_hex, sheet_field_id_from_line, sheet_line_looks_like_field,\n    split_field_line, split_block_instance_field_line, ParsedBlockInstanceFieldLine,\n};\npub use types::{\n    SheetTemplateAst, SheetTemplateSection, SheetBlockSchema, SheetBlockInstance,\n    SheetBlockInstanceField, SheetTemplateField, SheetUnmappedLine, ParsedSheetFieldType,\n    descriptor_inner, split_descriptor_tokens, editable_roles_from_token,\n};\n"
+            },
+            {
+              "path": "src/backend/handshake_core/Cargo.toml",
+              "before_sha256": "c84f265696b5bf60e7e8cec71b07efa24e0eaa865a111e0c848cfa7935a62c3e",
+              "before_bytes": 29984,
+              "planned_sha256": "95bb0e81d90598093c66a156b9e075592738a9ef1ff18b0f9d3e364b485dce29",
+              "planned_bytes": 30056,
+              "line_endings": "LF",
+              "exact_delta": "ONLY72-byte dependency line after complete Moodboard edge; preserve every other byte.",
+              "dependency_line": "handshake_ckc_sheet_parser = { path = \"../handshake_ckc_sheet_parser\" }\n"
+            },
+            {
+              "path": "src/backend/handshake_core/src/atelier/sheet.rs",
+              "before_sha256": "fb0e52e7758ca7bfb5aed8953425a3980f1b0c3641063f46a5a42a5da64d5f0d",
+              "before_bytes": 112908,
+              "planned_sha256": "d347738070db63f030c7eb99f05578fdcd1d8c321f6ced834edaa7ef14b7a331",
+              "planned_bytes": 85991,
+              "line_endings": "LF",
+              "retained_exact_recipe": "4 WHOLEoldsheet.rs fb0e112908 ->proposedd347738070db63f030c7eb99f05578fdcd1d8c321f6ced834edaa7ef14b7a33185991LF. EXACTrecipe splitORIGonLFpreservingterminalempty; OMITinclusiveoriginal133–241/960–971/976–1120/1185–1333/1334–1420/1498–1828; retainALLotherlinesEXACT. Removeonlyliteral 'use sha2::{Digest, Sha256};\\n'. Replace 'use uuid::Uuid;\\n' with itself+ONEblankLF+followingliteralimports+LF:\npub use handshake_ckc_sheet_parser::{\n    SheetTemplateAst, SheetTemplateSection, SheetBlockSchema, SheetBlockInstance,\n    SheetBlockInstanceField, SheetTemplateField, SheetUnmappedLine, ParsedSheetFieldType,\n};\npub(crate) use handshake_ckc_sheet_parser::{\n    parse_sheet_template_ast, sha256_hex, sheet_field_id_from_line, sheet_line_looks_like_field,\n};\nuse handshake_ckc_sheet_parser::{\n    descriptor_inner, split_descriptor_tokens, editable_roles_from_token,\n    split_field_line, split_block_instance_field_line,\n};\nThen firstoldsingleline 'parse_sheet_template_ast(&raw_text, template_id, source_path)?;' -> 'parse_sheet_template_ast(&raw_text, template_id, source_path).map_err(AtelierError::Validation)?;'.\nFOURotheroriginalmultilineASTcalls2407/2565/2816/2821 retainALLargs/indentation,replaceeachfinal ')?;' -> ').map_err(AtelierError::Validation)?;' (assertcount4). Fiveexistingcallstotal2319/2407/2565/2816/2821. Preserveexistingatelier/mod.rs pubuse self::sheet namespace; NOmod.rschangerequired. Primaryindependentlyreproduceentireposthashbeforeeventualwrite; no authorityfromplan. No workeroldfileretirement.\n"
+            }
+          ],
+          "retained_literal_source": {
+            "NAV_turn": "01a140bf-3388-7e91-8342-a386bac5e816",
+            "outgoing_execution": "exec-9e26fbf2-38b1-4935-b686-7e62b64d9837",
+            "scope": "Exact new Cargo/lib and host recipe extracted from actual retained NAV handoff; not reconstructed API. Historical future/no-authority wording inside recipe is superseded ONLY by THIS exact four-path source grant."
+          },
+          "whole_host_ownership": "Root prospectively assigns ONLY whole original sheet.rs to Primary for exact partial migration. Historical writer UNKNOWN is not global-free claim. Primary own-team no outstanding lease/readiness previously ACKed; no duplicate ACK gate. Concrete competing claim holds only affected host.",
+          "fresh_guards": "Fresh exact FOUR preimages/NEW absence/no actual conflict before EACH physical write. Preserve peer Core changes: drift requires minimal recomposition from CURRENT input with exact changed-delta handback, never overwrite/reset/revert peers. No global freeze.",
+          "host_recipe_boundary": "Omit ONLY original133–241/960–971/976–1120/1185–1333/1334–1420/1498–1828; remove old sha2 import; exact scoped leaf reexports/imports after uuid. FIVE original2319/2407/2565/2816/2821 parse calls retain arguments and map_err(AtelierError::Validation)?. Retain every other byte and host value/projection/source-fingerprint/line-map/UUID/storage/history/authority/EventLedger behavior.",
+          "actual_producers": {
+            "types_sha256": "ef386336a38950b36352571f37a4e6edb1ec2b92906a4fdaf59cbfbbd0c1a7e9",
+            "parser_sha256": "f8e3b8190e91b63b77e95d5cd6d2f16b9d22df9eee108075d381a800f0b784ab",
+            "actual_status": "Physical NEW2 handback and own plus DISTINCT full-recipe/source checks COMPLETE; leader DIRECT external pending. Resolve actual external/assembled findings before publication; no duplicate preparation or old compile predecessor."
+          },
+          "inverse_and_prep": "Same retained corrected exact recipe independently replayed by Primary; actual physical postimages/inverses/current diff required. Initial42a48 extra-LF preparation corrected BEFORE writes and is NOT valid plan; final d347 only prospective planned host until actual writes.",
+          "tests_preserved": "ALL12 existing host tests at SHA24df6240d910b35180a0d01ac3cd75996cd6f47e4f44768123c5f9b4983fc6d0 BYTE unchanged once. Host real storage/history/auth remain; no child test substitute.",
+          "review": "Actual posts/inverses plus own/DISTINCT assembled producer/shared/caller/type/error/borrow/lifetime/dependency/assertion conservation, repair findings then leader/Primary DIRECT codecheck01a13d18-8ae0-7642-a76f-04cf3836ea3a before source publication.",
+          "preservation": "Original three-WP/MT acceptance/pins/history/budgets/schema165 before166/immutable164/independent verdict remain. Initial shared hold superseded ONLY exact four paths here; original three-target manifest append is separate HELD proposal, not included.",
+          "execution_authorized": false,
+          "proof_started": false,
+          "allowance_granted": false,
+          "limits": "No atelier/mod/API/test/lock/workspace/other file permission. No Cargo/tests/metadata/actual SQL/runtime/probes/budget/Git/artifact/confirmation action. Kernel record only, no product inspection/write."
+        },
+        "source_publication_20261015": {
+          "decision_id": "WP012-CKC-MT009-SHEET-PARSER-SOURCE-PUBLICATION-20261015",
+          "status": "SOURCE_CHECKPOINT_PUBLISHED_UNCOMPILED_NOT_ACCEPTED_WITH_KNOWN_SOURCEGRAPH_GAP",
+          "commit": "60e5fec6c00cb13bc887a8dc0a3438c2af2af8bc",
+          "tree": "6a56d3b5e7ec8d64e07b0a8a49b8ada3b9e09f49",
+          "parent_commit": "9d8a07937e76923f05fd273146e8dc02ca0b8164",
+          "exact_path_sha256_pairs": [
+            [
+              "src/backend/handshake_ckc_sheet_parser/Cargo.toml",
+              "38f30639adec0793d91a8580961d6ee28637d581df573e265dd7ddfa76c99f91"
+            ],
+            [
+              "src/backend/handshake_ckc_sheet_parser/src/lib.rs",
+              "c06829b1512c25ea6a1d53d82d65150ad0acab572df9236dcbcedfdc1e7ef9de"
+            ],
+            [
+              "src/backend/handshake_ckc_sheet_parser/src/types.rs",
+              "ef386336a38950b36352571f37a4e6edb1ec2b92906a4fdaf59cbfbbd0c1a7e9"
+            ],
+            [
+              "src/backend/handshake_ckc_sheet_parser/src/parser.rs",
+              "f8e3b8190e91b63b77e95d5cd6d2f16b9d22df9eee108075d381a800f0b784ab"
+            ],
+            [
+              "src/backend/handshake_core/Cargo.toml",
+              "13b8f92c3e3dc71248cfbbb5042f0a9d8dd2d6280096f9684a3d01a394bd0465"
+            ],
+            [
+              "src/backend/handshake_core/src/atelier/sheet.rs",
+              "d347738070db63f030c7eb99f05578fdcd1d8c321f6ced834edaa7ef14b7a331"
+            ]
+          ],
+          "actual_publication_evidence": {
+            "normal_push_execution": "exec-774fd5ba-f819-4970-a596-6346e7289ba4",
+            "normal_push_exit_code": 0,
+            "normal_push_transition": "9d8a07937 ->60e5fec6",
+            "fresh_postpush_execution": "exec-5c895b62-9994-4cea-a3ff-ba9157e684ac",
+            "fresh_postpush_exit_code": 0,
+            "root_actually_opened": "Actual Primary outputs: fresh remote==HEAD/exact SIX/tree/scoped SIX clean/raw guards/index EMPTY. Not Root/helper Git invocation."
+          },
+          "actual_source_review": "Final assembled own plus DISTINCT plus DIRECT external source NO FINDING handback received. No compiler/metadata/graph-lock/runtime/SQL/Surreal/native/event/full three-WP/independent IV proof.",
+          "known_sourcegraph_gap": "Included Core13b8 contains THREE [[test]] declarations, but THREE corresponding source files are UNTRACKED/UNPUBLISHED in actual status. Do NOT call this coherent or reproducible compiler candidate. UNCOMPILED label does NOT resolve the sourcegraph gap.",
+          "timing": "Primary published BEFORE Root buddy hold recommendation returned. No retroactive hold/grant or rollback history claim.",
+          "continuation_disposition": "Central instructed to form NEXT coherent reviewed batch including actual THREE original sources AFTER their actual source checks; full-suite acceptance still OPEN. Never publish unreviewed files/drop peer declarations/reset/revert/invent new compile gate/global freeze. This records disposition, not new Git/action permission.",
+          "peer_preservation": "Runtime8 plus GUI/AC9/THREE dirty sources preserved. No whole-worktree clean/finalfreeze inference, cleanup or source rollback.",
+          "preservation": "Original MT009 full host12 tests/Surreal API/native/Argus/version/event/history/auth/provenance/full three-WP scope/pins/budgets/schema165 before166/immutable164/independent proof remain OPEN and unchanged.",
+          "execution_authorized": false,
+          "proof_started": false,
+          "allowance_granted": false,
+          "limits": "Observation only; NOT new Git grant or acceptance. No actions/Cargo/tests/metadata/actual SQL/runtime/OS/probes/artifacts/budget/product or other kernel changes."
+        }
+    }
+,
+"original_all12_partial_input_identity_admission_20261017":{"decision_id":"CKC-MT009-EIGHT-INPUT-IDENTITIES-20261017","recorded_at_utc":"2026-10-17T08:38:58.757Z","state":"READONLY_PARTIAL_BASELINE_RELEASED_START_HELD","purpose":"One partial CURRENT byte-identity batch of exactly eight declared inputs. This does not complete the original all12 acceptance floor or authorize owning runtime execution.","actor":{"chat":"01a1468b-5371-7111-99ce-4f5840702f16","role":"PERSONAL Primary8b READONLY sole producer","limit":1,"consumed":0,"status":"NOT_STARTED","automatic_retry":false},"inputs":["src/backend/handshake_ckc_sheet_parser/Cargo.toml","src/backend/handshake_ckc_sheet_parser/src/lib.rs","src/backend/handshake_ckc_sheet_parser/src/types.rs","src/backend/handshake_ckc_sheet_parser/src/parser.rs","src/backend/handshake_core/Cargo.toml","src/backend/handshake_core/src/atelier/sheet.rs","src/backend/handshake_core/tests/atelier_surreal_support/mod.rs","src/backend/handshake_core/tests/atelier_sheet_parser_tests.rs"],"input_provenance":"First six are MT009 declared authority; last two are actual NAV retained Core-relative literal paths, not SHA guesses.","method_reference":{"chat":"01a1468b-5371-7111-99ce-4f5840702f16","turn":"01a14900-9c17-7621-8e49-425e9d5f997f","send_command":"exec-c80b0e9f-172c-43f2-9340-de3cd3e3826d","property":"arguments.prompt structured PROPOSEDCALL.cmd","utf8_bytes":5631,"ascii_characters":5631,"sha256":"6b2204c2f742a59f14bf4230ccf4d79531d386bf6ec5132ae2e366f64b61e390","executed_decision_label":"MT009-EIGHT-PATH-PARTIAL-CURRENT-IDENTITY-BASELINE","equality":"Executed literal MUST remain byte-identical, including existing decision label; no binding change. Resolve exact held literal and hash before START, no reconstruction or unavailable-artifact fallback.","root_inspection":"Root raw-first opened actual structured JSON and entire5631-byte method; pure hash command9234d3 EXIT0 verified exact identity, no HTML entities. Reference only, no body duplicate.","tool":"exec_command","workdir":"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel","tty":false,"max_output_tokens":10000},"capture":{"per_file_bytes":1048576,"aggregate_bytes":8388608,"full_metadata_report_utf8_bytes":16384,"requirements":"Exactly eight dated NONATOMIC ordinary-file/all-parent checks and same-buffer bounded FileStream byte identities, actual row SHA/length/time. No body decode or body output. Historical hashes in the exact method are comparison-only; differences are data, not mandatory old-pin STOP. No CURRENT preimage equivalence assertion."},"method_check":"Existing workflow helper performs one cheap actual-method check. START remains held until actual no-concrete-finding handback; no new source/code checker or runtime gate.","start":"Root WHOLE saved node plus exact method-reference guard; Central WHOLE; Primary personal exact literal, wrapper and node acceptance with no pending duplicate; then SEPARATE Central START.","stop":"Missing, nonordinary, read error, cap, partial output or exit/END failure consumes the one attempt and STOP. No expansion, alternative, automatic retry, fallback or rebind.","authority_limits":"No listing, recursion, mutations, source lease, custody transfer, slot, compile, test, metadata/resource/runner/config action, Git or process stop. This ordinary read supplies no full graph, freeze, configuration, lock, tool, resource closure or current source lease.","independent_acceptance":{"existing_iv_chat":"01a13d23-ceed-72b0-b045-21c4826a4154","rule":"Original all12 independent acceptance remains later and unchanged; no new runtime allowance."},"history":"Preserve every original MT009 unit, original all12 floor, MT059 owner-isolated target/cleanup future binding, history PostgreSQL not Surreal PASS, runtime numeric history UNKNOWN rather than zero, old custody and all holds. No borrowed budget or runtime execution. Distinct MT009 partial baseline, not recovery/retry/alternate transport of MT023 OS206.",
+"method_disposal_correction_20261017":{"decision_id":"CKC-MT009-EIGHT-INPUT-METHOD-DISPOSAL-CORRECTION-20261017","recorded_at_utc":"2026-10-17T08:41:59.245Z","state":"CORRECTED_METHOD_RELEASED_START_HELD","supersession":"Supersedes ONLY the original5631-byte method reference/hash6b2204c2f742a59f14bf4230ccf4d79531d386bf6ec5132ae2e366f64b61e390 for future START. That old method is not approved for START; its historical record is preserved.","concrete_finding":"stream.Dispose() throwing skipped memory.Dispose().","correction":{"before":"}finally{if($null -ne $stream){$stream.Dispose()};$memory.Dispose()}","after":"}finally{try{if($null -ne $stream){$stream.Dispose()}}finally{$memory.Dispose()}}","root_actual_single_replacement_equality":true,"all_other_characters_and_wrapper_unchanged":true},"effective_method_reference":{"chat":"01a1468b-5371-7111-99ce-4f5840702f16","turn":"01a14904-bc0b-7550-8fd2-a4c86bd97aab","send_command":"exec-9213bcc1-2f60-485e-b907-8010e1341fda","property":"arguments.prompt structured JSON.cmd","utf8_bytes":5644,"ascii_characters":5644,"sha256":"99c0c63f69bba71fa0991d0945c2b259cc4319da4aa85d6e887fe16c1670ffa4","root_inspection":"ONE raw-first read3 opened actual FULL corrected literal; programmatic single replacement and all-other-character equality TRUE. Pure literal hash2d9404 EXIT0.","rule":"Resolve and accept exact corrected held literal/hash before START, no reconstruction or unavailable-artifact fallback; no inline payload duplicate."},"review":"Unchanged method review reused; existing concrete disposal finding corrected. No additional review gate.","end_contract":"Existing JSON complete_batch_end:true plus numeric_exit plus outer exit is sufficient; no additional literal marker requirement.","allocation":{"actor_chat":"01a1468b-5371-7111-99ce-4f5840702f16","limit":1,"consumed":0,"status":"UNUSED_NOT_STARTED","new_allowance":false,"reset":false},"start":"Root WHOLE effective parent plus correction and corrected method reference; Central WHOLE; Primary personal exact corrected literal hash/wrapper/node acceptance with no pending duplicate; then SEPARATE Central START.","preservation":"All eight input paths, caps, purpose, actor, wrapper and budget remain unchanged. Preserve ENTIRE parent/history/original method; ac709d empty save return and canonical reconcile9eba35 EXIT0 proved original saved state, no save retry. No source/runtime/Git/custody, slot/compiler/test execution grant. No other file changes."},
+"qualified_terminal_result_20261017":{"result_id":"CKC-MT009-EIGHT-INPUT-IDENTITIES-QUALIFIED-TERMINAL-20261017","recorded_at_utc":"2026-10-17T08:45:47.967Z","state":"QUALIFIED_PARTIAL_CURRENT_RAW_IDENTITY_BASELINE_COMPLETE","actual":{"primary_turn":"01a14908-8027-7923-980b-a9a1dee678d8","command":"exec-d26b0f66-641a-4813-b339-0d8e94f9ee8d","chunk":"789c1b","outer_exit":0,"duration_ms":175,"tool_output_truncated":false,"producer_truncated":false,"json_numeric_exit":0,"complete_batch_end":true,"root_inspection":"ONE raw-first retained read3 opened actual WHOLE output. Pure in-memory quoted-command tokenization recovers exact5644-byte corrected command, comparison TRUE; not execution or normalization.","corrected_literal_equality":true,"exact_eight_path_array_equality":true,"aggregate_and_caps_equality":true,"central_inspection":"Independently WHOLE actual eight rows, sum, caps and outcomes confirmed."},"predecessors":{"root_whole":"1750d5","central_whole":"2c6635","primary_personal":"42e95b; accepted exact corrected5644-byte/hash method, no pending duplicate","start":"SEPARATE Central START after predecessors"},"allocation":{"limit":1,"consumed":1,"remaining":0,"pending":"NONE","new_allowance":false,"retry":false,"projection":"Parent1/0 remains historical; this terminal consumption supersedes only its pending projection, no reset."},"observation_window":{"start_utc":"2026-10-17T08:44:22.4656492Z","end_utc":"2026-10-17T08:44:22.5676167Z","atomic":false},"rows":[{"path":"src/backend/handshake_ckc_sheet_parser/Cargo.toml","bytes":189,"sha256":"38f30639adec0793d91a8580961d6ee28637d581df573e265dd7ddfa76c99f91","state":"COMPLETE","ordinary_file_and_all_parents":true},{"path":"src/backend/handshake_ckc_sheet_parser/src/lib.rs","bytes":493,"sha256":"c06829b1512c25ea6a1d53d82d65150ad0acab572df9236dcbcedfdc1e7ef9de","state":"COMPLETE","ordinary_file_and_all_parents":true},{"path":"src/backend/handshake_ckc_sheet_parser/src/types.rs","bytes":13116,"sha256":"ef386336a38950b36352571f37a4e6edb1ec2b92906a4fdaf59cbfbbd0c1a7e9","state":"COMPLETE","ordinary_file_and_all_parents":true},{"path":"src/backend/handshake_ckc_sheet_parser/src/parser.rs","bytes":14738,"sha256":"f8e3b8190e91b63b77e95d5cd6d2f16b9d22df9eee108075d381a800f0b784ab","state":"COMPLETE","ordinary_file_and_all_parents":true},{"path":"src/backend/handshake_core/Cargo.toml","bytes":30652,"sha256":"d31c4e738ee314114a0139a6deaefdd8fb070f8ae657d820dd5477a55ad44223","state":"COMPLETE","ordinary_file_and_all_parents":true},{"path":"src/backend/handshake_core/src/atelier/sheet.rs","bytes":85991,"sha256":"d347738070db63f030c7eb99f05578fdcd1d8c321f6ced834edaa7ef14b7a331","state":"COMPLETE","ordinary_file_and_all_parents":true},{"path":"src/backend/handshake_core/tests/atelier_surreal_support/mod.rs","bytes":8812,"sha256":"22a87e23bbfccd656ed442646d3f5389f3ba1fdbfb7b6b6eeadfb69e79488e4d","state":"COMPLETE","ordinary_file_and_all_parents":true},{"path":"src/backend/handshake_core/tests/atelier_sheet_parser_tests.rs","bytes":81266,"sha256":"24df6240d910b35180a0d01ac3cd75996cd6f47e4f44768123c5f9b4983fc6d0","state":"COMPLETE","ordinary_file_and_all_parents":true}],"aggregate_bytes":235257,"historical_comparison":"Leaf four and sheet match historical values; Core manifest matches NAVd31c4e738ee314114a0139a6deaefdd8fb070f8ae657d820dd5477a55ad44223/30652 and differs from old MT00913b8 value. Difference is data only, not a defect or STOP. Harness/test match NAV hash and size. No other historical currentness asserted.","qualification":"Qualified partial raw byte-identity baseline ONLY, dated NONATOMIC. No full graph/configuration/lock/tool/resource closure, candidate freeze, current lease, custody, slot, compile or original all12 runtime PASS.","preservation":"Preserve every prior raw unit/history, original method defect and correction, empty-save/canonical reconciliation, all original three-WP acceptance, spent budgets and holds. No new allowance, source/Git/query/runtime/custody authority."}}}

@@ -1,0 +1,7 @@
+kind: gameplan_confirmations
+confirmations:
+- {id: GP-001, head: a118e58a2afaad6009567e046422828c99277aa0, at: '2026-10-19T07:21:18Z', note: MT007 current contract and final handoff read; statuses reconciled; no half-written own publication record}
+- {id: GP-002, head: a118e58a2afaad6009567e046422828c99277aa0, at: '2026-10-19T07:21:18Z', note: MT007 current contract and final handoff read; statuses reconciled; no half-written own publication record}
+- {id: GP-003, head: a118e58a2afaad6009567e046422828c99277aa0, at: '2026-10-19T07:21:18Z', note: MT007 current contract and final handoff read; statuses reconciled; no half-written own publication record}
+- {id: GP-008, head: 300786014f0092cb2842abcf03bde4005f5777d1, at: '2026-10-19T08:03:46Z', note: DirectCC a12501/881e2f/3ba09d/52651a scoped method-plan-input review NO_ACTIONABLE}
+- {id: GP-009, head: 300786014f0092cb2842abcf03bde4005f5777d1, at: '2026-10-19T08:03:48Z', note: 'CIM3b91b2 2026-10-19T08:03:37.2229433Z compiler0; actual method rechecks before Start'}

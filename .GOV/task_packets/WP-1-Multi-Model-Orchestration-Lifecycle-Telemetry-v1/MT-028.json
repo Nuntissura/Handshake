@@ -1,0 +1,543 @@
+{
+  "source_publication_observation_20261016": {
+    "status": "VERIFIED_SOURCE_PUBLICATION_AND_DEPENDENCY_IDENTITY_ONLY",
+    "owning_publication_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/reviewed_producer_task_policy_source_publication_20261016/actual_publication",
+    "independent_verification_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/reviewed_producer_task_policy_source_publication_20261016/actual_publication/independent_canonical_verification_20261016",
+    "independent_verifier_turn": "01a14588-994e-7150-a39b-ad30dd783ad1",
+    "canonical": {
+      "commit": "73ca13f65706c8b67c498edc30f4f3ebf4a952e0",
+      "parent": "2e84894bacc9516f4cd273da681ca68542c86206",
+      "tree": "eb3f2b6d7a67291b3b5a8c8d614ad21f13cda526"
+    },
+    "scope": "Exact FOUR handshake_producer_task_policy source paths plus BOTH unchanged ResourceScope dependency identities independently reconciled against already bound guards.",
+    "declared_tests": 27,
+    "test_status": "UNRUN_UNCOMPILED_NONZERO_SELECTION_NOT_OBSERVED",
+    "history": "Old NOT_OBSERVED publication values preserved by owning MT017 actual_publication history; original source contract/source-use projection/577404/custody succession remain unchanged.",
+    "root_boundary": "Root read actual independent IV verdict; IV performed canonical raw verification. No claim Root fetched/hashed underlying MCP byte bodies.",
+    "limits": "Source publication and dependency identity only; no lifecycle completion/owning behavioral proof/maintenance completion/pinned host adoption/runtime/MT acceptance/slot/capture closure or new allowance."
+  },
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-028",
+  "created_at_utc": "2026-10-16T09:14:38.8866975Z",
+  "updated_at_utc": null,
+  "identity": {
+    "mt_id": "MT-028",
+    "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+    "title": "handshake_producer_task_policy standalone_source",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "Implement the exact frozen standalone requested-task snapshot/retry and per-source task-policy data algorithms, with owning behavioral proof and canonical source publication before distinct pinned host adoption.",
+    "requirement_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-001",
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-002",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-003",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-004",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/swarm_production_20261014/coordination/resource_scope_crate_extraction_20261015",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/ac9_current_surreal_two_author_source_admission_20261015"
+    ],
+    "acceptance_refs": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-028.json#/scope/acceptance_criteria",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/execution/producer_task_policy_host_adoption"
+    ],
+    "materialized_acceptance": []
+  },
+  "model_routing": {
+    "model_tier": "CURRENT_ASSIGNED_ACTUAL_TEAM_NO_MODEL_OVERRIDE",
+    "tier_reason": "Existing accepted Composition A/B plus same distinct neverauthor and selected prospective Primary for exact Cargo/lib only.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "qualification": "Template counter structure does not grant any finite execution allowance or reset prior counters. Every test/build/Cargo/metadata invocation remains held."
+  },
+  "execution": {
+    "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "module_change_stage": "standalone_source",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [],
+    "allowed_write_paths": [
+      "src/backend/handshake_producer_task_policy/Cargo.toml",
+      "src/backend/handshake_producer_task_policy/src/lib.rs",
+      "src/backend/handshake_producer_task_policy/src/task.rs",
+      "src/backend/handshake_producer_task_policy/src/policy.rs"
+    ],
+    "forbidden_write_paths": [
+      "All other product/governance/config/lock/workspace/schema/artifact paths",
+      "Core/AppState/JobAdmission/MT027 imports or concrete host/authentication/database/runtime effects"
+    ],
+    "stop_conditions": [
+      "Before EACH CreateNew require fresh package/file absence and no actual conflicting unfinished writer; no overwrite, affected drift stops only affected path and preserves peers.",
+      "No write before Root independent FULL saved contract readback, Central independent FULL read and official SOURCE START with actual author receipt.",
+      "Dependency source/API drift or additional dependency/feature/path request returns exact changed proposal before affected use; no fetch/probe/invocation."
+    ],
+    "sourcewrite_authorized": true,
+    "execution_authorized": false,
+    "proof_started": false,
+    "allowance_granted": false
+  },
+  "proof": {
+    "parent_proof_refs": [
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/swarm_production_20261014/coordination/resource_scope_crate_extraction_20261015",
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-001",
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-002",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-003",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-004",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007"
+    ],
+    "checks": [
+      {
+        "check_id": "WP1-MT028-OWNING-TASK-AND-POLICY-BEHAVIOR",
+        "claim_refs": [
+          ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-028.json#/semantic_contract"
+        ],
+        "command_or_method": null,
+        "expected": "Own substantive requested-task/retry and per-source policy-data behavioral tests preserve exact frozen algorithm and negative floor; synthetic positive data is not actual authorization/receipt/runtime proof.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Actual A/B algorithms and inline owning test declarations",
+          "Own plus same NEVERAUTHOR assembled review then leader DIRECT Codecheck",
+          "Later separately admitted nonzero owning behavioral proof",
+          "Canonical normal source publication plus independent actual immutable four-file pins before host adoption"
+        ],
+        "status": "UNRUN_UNCOMPILED_NOT_NONZERO_SELECTION",
+        "execution_authorized": false
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "actual_command": null,
+    "actual_selection": null,
+    "finite_allowance": null,
+    "tool_bindings": null,
+    "canary_binding": null,
+    "lock_binding": null,
+    "execution_status": "HELD",
+    "owning_dependency_floor": "Dependency owning standalone proof/publication acceptance/maintenance-contract completion remain REQUIRED/OPEN, not fabricated PASS or preimplemented API predecessor to this source-authoring slice."
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-028.json",
+    "microtask_projection": null,
+    "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "NOT_REQUIRED_TYPED_AUTHORITY",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "NEW standalone pure requested immutable task/retry and per-source policy DATA algorithms; exact four source paths only, no host authority/effects.",
+    "allowed_paths": [
+      "src/backend/handshake_producer_task_policy/Cargo.toml",
+      "src/backend/handshake_producer_task_policy/src/lib.rs",
+      "src/backend/handshake_producer_task_policy/src/task.rs",
+      "src/backend/handshake_producer_task_policy/src/policy.rs"
+    ],
+    "forbidden_paths": [
+      "Every path outside the four new files",
+      "Core adapters/auth/current policy acquisition/grant verification/decision persistence/ACK/observer/cleanup/runtime ownership",
+      "Manifests outside this new Cargo, any lock/workspace/schema/DDL/Git/config/proof/artifact mutation"
+    ],
+    "acceptance_criteria": [
+      "Implement the FULL frozen task/policy type, visibility, algorithm, error and owning-test contract reproduced verbatim under semantic_contract; no shallow facade, optional/default parent decoder or lossy field reduction.",
+      "A owns task.rs requested immutable snapshot/retry; B owns policy.rs per-source evaluation and REQUIRED-NULLABLE parent_grant decoder; B->A only, no A->B import/circular facade.",
+      "Whole task revision EXACT1:i64; actual supplied operation/job namespace capture stays immutable; preserve full ordered duplicates/strings/scopes/basis bytes/JSON/SHA without hash/codec/clock/authentication claims.",
+      "Reuse exact existing ExactResourceScopeAttribution dependency/source guards and Account-owned extraction contract; no copied five-field mechanic or new policy/current permission inference.",
+      "Own plus SAME distinct NEVERAUTHOR both algorithms and leader DIRECT effective Codecheck on actual assembled stable source, repair actual findings.",
+      "Owning nonzero behavioral proof and canonical standalone publication/independent immutable four-file source pins plus maintenance before distinct pinned host adoption; no invocation authorized now.",
+      "Retain all original three-WP/SIX/original16/native/manual/Argus/pins/failures/budgets/independent acceptance, genuine165 measure/pin/confirm before166 and immutable164; MT026 held lifecycle incident unchanged."
+    ],
+    "proof_targets": [
+      {
+        "kind": "OWNING_INLINE_TASK_BEHAVIOR",
+        "manifest": "src/backend/handshake_producer_task_policy/Cargo.toml",
+        "source": "src/backend/handshake_producer_task_policy/src/task.rs",
+        "actual_target_selection": null,
+        "command": null,
+        "status": "NOT_AUTHORED_OR_EXECUTED_PROOF_BY_ADMISSION",
+        "execution_authorized": false
+      },
+      {
+        "kind": "OWNING_INLINE_POLICY_BEHAVIOR",
+        "manifest": "src/backend/handshake_producer_task_policy/Cargo.toml",
+        "source": "src/backend/handshake_producer_task_policy/src/policy.rs",
+        "actual_target_selection": null,
+        "command": null,
+        "status": "NOT_AUTHORED_OR_EXECUTED_PROOF_BY_ADMISSION",
+        "execution_authorized": false
+      }
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Pure non-UI data mechanics only; original host/native/Argus acceptance retained."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [
+      "Public data contract/error/integrity-only boundary and maintenance documentation within admitted source"
+    ],
+    "not_applicable_reason": "No new operator-facing feature/route; original host manual requirements retained."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "UNTRUSTED supplied requested task/scope/grant/policy audit data only"
+    ],
+    "identity_and_scope_contexts": [
+      "Original job five and producer five retained; only owner/accountSpace/workspace crossjoin, actor/session may differ"
+    ],
+    "enforcement_boundaries": [
+      "Pure deterministic equality/projection only; current auth/full chain/canonical rights verification stays Account host"
+    ],
+    "same_project_private_resource_cases": [],
+    "cross_account_negative_cases": [],
+    "derived_resource_non_widening_cases": [
+      "Per-source whole resource/singleton pair, no union/cartesian amplification"
+    ],
+    "revocation_and_context_switch_cases": [
+      "Declared fact states are data, not current observation"
+    ],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [],
+    "expected_evidence": [
+      "Exact frozen negative tests and no Allow/authenticated boolean/trusted receipt",
+      "Full ordered provenance and source identity preservation"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-003",
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-004",
+    ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007"
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": "Composition A/B plus selected prospective Primary exact Cargo/lib only",
+    "wp_validator_session": "01a13d23-ceed-72b0-b045-21c4826a4154",
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "ready_for_validation_or_blocked"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DETERMINISTIC_CONTRACT_MIGRATION_V1",
+    "risks": [
+      "Missing parent field silently treated as explicit root",
+      "Raw declared policy/snapshot evidence mistaken for current entitlement",
+      "Lost full chain/order/signed revision or resource/capability crossproduct",
+      "Additional leaf behavior uses clock/hash/UUID mint or Core backedge"
+    ],
+    "minimum_controls": [
+      "B-owned required-nullable field decoder rejects missing before Option",
+      "Exact frozen lossless types/algorithms/errors/negative tests",
+      "B->A only and no extra files/dependencies",
+      "Own/NEVERAUTHOR/direct assembled source review and later independent proof"
+    ]
+  },
+  "context_capsule": {
+    "module_maintenance_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-001",
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-002",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-003",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-004",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/swarm_production_20261014/coordination/resource_scope_crate_extraction_20261015",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/execution/producer_task_policy_host_adoption"
+    ],
+    "owning_original_scope_refs": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/ac9_current_surreal_two_author_source_admission_20261015",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/swarm_production_20261014/coordination/operator_crate_sequencing_20261015"
+    ]
+  },
+  "canonical_module": {
+    "module_id": "handshake_producer_task_policy",
+    "canonical_source_repository": "https://github.com/Nuntissura/Handshake.git",
+    "canonical_source_path": "src/backend/handshake_producer_task_policy",
+    "package_version": "0.1.0",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "source_commit": null,
+    "source_tree": null,
+    "exact_source_pins": null,
+    "publication_status": "NOT_OBSERVED",
+    "source_contract_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-028.json",
+    "distinct_host_adoption_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/execution/producer_task_policy_host_adoption",
+    "maintenance": "These explicit source/public API/error/behavioral proof/owner and source-before-host fields establish the prospective module maintenance contract; no completed release or compatibility inferred."
+  },
+  "assignments": [
+    {
+      "writer": "PRIMARY_PERSONALLY",
+      "writer_thread": "01a143ef-a88b-7b40-aecb-cad547863ad0",
+      "new_only_paths": [
+        "src/backend/handshake_producer_task_policy/Cargo.toml",
+        "src/backend/handshake_producer_task_policy/src/lib.rs"
+      ],
+      "scope": "Exact unchanged manifest and public task/policy module declarations only; no global Primary ownership selection."
+    },
+    {
+      "writer": "/root/composition_service_contracts",
+      "writer_thread": "01a13d24-3611-7703-ab04-d9f8ecf7d4f1",
+      "new_only_paths": [
+        "src/backend/handshake_producer_task_policy/src/task.rs"
+      ],
+      "scope": "Full requested operation/basis/bindings/private snapshot constructor/accessor/exact retry algorithm/errors and inline owning cases."
+    },
+    {
+      "writer": "/root/composition_fault_recovery",
+      "writer_thread": "01a13d24-4b26-7191-a684-abfdc670e0ff",
+      "new_only_paths": [
+        "src/backend/handshake_producer_task_policy/src/policy.rs"
+      ],
+      "scope": "Full policy raw DTOs, required-nullable parent decoder, private data decision/per-source algorithm/error classification and inline owning cases; B->A only."
+    }
+  ],
+  "ownership": {
+    "frozen_publication_custody_successor_20261016": {
+      "decision_id": "WP1-MT028-FROZEN-PUBLICATION-CUSTODY-SUCCESSOR-20261016",
+      "status": "PROSPECTIVE_SOURCE_WRITE_ASSIGNMENTS_CLOSED_FROZEN_PUBLICATION_CUSTODY_ONLY",
+      "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+      "historical_completion_evidence": {
+        "root_inspection": "Root independently FULL read actual completed old Composition handoff and actual A/B completed source evidence.",
+        "old_composition": {
+          "chat": "01a13d23-3c68-7850-81a4-1c53f34395b5",
+          "completed_turn": "01a14406-e47a-7533-a022-5d14e2553953",
+          "outgoing_root": "exec-2d76c796-e8df-49f1-bd9a-cb79b2a17835",
+          "central_reference_prefix_as_supplied": "9e686dad",
+          "result": "All FOUR current source guards; A/B stable/quiescent/no pending AT source handoff. B timeout AFTER stable postimage caused no source change/new lease."
+        },
+        "author_a": {
+          "completed_turn": "01a14415-92c6-71f1-a4cd-4b255b750ac9",
+          "result": "task279bec/16871 stable and quiescent at actual handback."
+        },
+        "author_b": {
+          "completed_turn": "01a14434-6bba-76d3-a40c-efbfa9e09050",
+          "result": "Assembled review closed; test-name mapping ONLY, no source change; final policy38aa/28378."
+        }
+      },
+      "source_write_disposition": "Root NOW PROSPECTIVELY CLOSES/REVOKES ONLY original MT028 A composition_service_contracts task.rs and B composition_fault_recovery policy.rs SOURCE-WRITE assignments, based on completed stable source handoffs. Preserve original authorship/full assignment/history bytewise. No session/process stop or claim old current state is known.",
+      "successor": {
+        "chat": "01a1457a-b577-7fc3-8bfb-7a0aef7775ca",
+        "completed_first_turn": "01a1457a-ba33-7771-9fdc-0699ca7d291e",
+        "ack": "Actual PERSONAL prospective READONLY publication-custody ACK, no pending/active/inflight/unfinished/unreturned patch FROM successor; zero helpers. NOT an attestation of old actors' current state.",
+        "custody": "ONLY frozen publication custody for ALL FOUR MT028 paths. NO source-edit/Git/compiler/other lease permission."
+      },
+      "unknown_and_delivery_boundary": "Old actual CURRENT state remains UNKNOWN. TWO actual normal old-chat deliveries failed Cannot steer without active id; no third send. No invented fresh old ACK/global-free/physical closure claim.",
+      "primary_preservation": "Primary01a143ef-a88b-7b40-aecb-cad547863ad0 remains SOLE Cargo/lib/global-manifest/Git/compiler owner. Successor custody grants none of those physical permissions. Future source edits require a NEW exact Root grant.",
+      "publication_disposition_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/reviewed_producer_task_policy_source_publication_20261016/publication_custody_successor_disposition_20261016",
+      "authority_freeze": {
+        "files": [
+          ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json",
+          ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-028.json"
+        ],
+        "state": "FREEZE_AFTER_FINAL_GOVERNANCE_HANDBACK",
+        "release_condition": "Root receives actual Source-publication numeric result AND explicitly unfreezes these authority files. No automatic unfreeze or further helper edits before both conditions; avoids captured-authority race."
+      },
+      "sourcewrite_authorized": false,
+      "git_execution_authorized": false,
+      "compiler_execution_authorized": false,
+      "execution_authorized": false,
+      "proof_started": false,
+      "allowance_granted": false,
+      "limits": "Ownership/custody coordination only. Original source/dep guards/requirements,27 UNRUN declarations/577404 history/all original three-WP acceptance/pins/budgets/holds unchanged."
+    },
+    "leader_thread": "01a13d23-3c68-7850-81a4-1c53f34395b5",
+    "official_start_route": "01a13d26-44a3-72b2-afd2-4528075ddcaa",
+    "distinct_neverauthor": "/root/composition_dependencies",
+    "checker_thread": "01a13d24-2483-7b31-890e-f47d4bf2ea6c",
+    "actual_personal_readiness": "Actual A task.rs/B policy.rs accepted prospective exclusive scope, no pending/active/inflight/unfinished/unreturned patch. SAME distinct NEVERAUTHOR personally accepted both full algorithms/nullable amendment/no authored code or pending claim; no remaining consistency finding. New prospective Primary completed personal Cargo/lib ACK/no pending writes.",
+    "specific_primary_supersession": {
+      "old_prospective_writer": "01a1421b-fbee-75d1-a35a-29a962dea250",
+      "new_prospective_writer": "01a143ef-a88b-7b40-aecb-cad547863ad0",
+      "only_paths": [
+        "src/backend/handshake_producer_task_policy/Cargo.toml",
+        "src/backend/handshake_producer_task_policy/src/lib.rs"
+      ],
+      "effect": "Root expressly supersedes ONLY old prospective Cargo/lib claim on these absent new MT028 paths. All other source/Git/compiler/shared-manifest/lock/global role leases remain unchanged; no ownership transfer from chat creation/ACK alone."
+    },
+    "absence_evidence": [
+      "Composition e82214 exact four files ABSENT; backend parent from a129b5",
+      "New prospective Primary actual completed turn01a143f0-490a-7c23-a767-e55c8f91e142: all four freshly ABSENT/no pending writes"
+    ],
+    "qualification": "Reported actual scope/readiness/absence observations, not this writer product inspection/global-free/physical START."
+  },
+  "primary_exact_literals": [
+    {
+      "path": "src/backend/handshake_producer_task_policy/Cargo.toml",
+      "literal": "[package]\nname = \"handshake_producer_task_policy\"\nversion = \"0.1.0\"\nedition = \"2021\"\npublish = false\n\n[workspace]\n\n[dependencies]\nhandshake_resource_scope = { path = \"../handshake_resource_scope\" }\nserde = { version = \"1\", features = [\"derive\"] }\nserde_json = \"1\"\nthiserror = \"2.0.17\"\nuuid = { version = \"1\", features = [\"serde\"] }\n",
+      "encoding": "UTF8 LF/no BOM/one final LF"
+    },
+    {
+      "path": "src/backend/handshake_producer_task_policy/src/lib.rs",
+      "literal": "pub mod task;\npub mod policy;\n",
+      "encoding": "UTF8 LF/no BOM/one final LF"
+    }
+  ],
+  "dependency_source_reuse": {
+    "source_use_successor_observation_20261016": {
+      "module": "handshake_resource_scope",
+      "status": "SOURCE_USE_SUCCESSOR_BOUND_OWNING_PROOF_AND_ADOPTION_OPEN",
+      "canonical_repository": "https://github.com/Nuntissura/Handshake.git",
+      "source_use_successor_commit": "4be1b4f8c0ade75ce6461ad260c93bedf0e5ac56",
+      "source_use_successor_tree": "79680a55ce17d1a362f53b248fd0dc300d2b4ac5",
+      "exact_dependency_guards": [
+        {
+          "path": "src/backend/handshake_resource_scope/Cargo.toml",
+          "sha256": "ee4977d873367dc802e9e8b29f79597e9551e56a15f407ac10eba2096b7a0dba",
+          "bytes": 264
+        },
+        {
+          "path": "src/backend/handshake_resource_scope/src/lib.rs",
+          "sha256": "23f24c2990f7c980e015904ba933f473b5091a78b51c9051e37ae20d7494f4dd",
+          "bytes": 26807
+        }
+      ],
+      "independent_evidence": {
+        "verifier": "01a13d23-ceed-72b0-b045-21c4826a4154",
+        "turn_prefix_as_supplied": "01a1455a",
+        "direct_root_read": "exec-84704f9f-a0be-4cdb-b602-19d8811c46f6",
+        "typed_verdict": "PARTIAL_IDENTITY_ACQUIRED_WITH_CANONICAL_404_STOP",
+        "successor_result": "Root reports actual independent IV canonical verification of BOTH exact dependency raw guards at4be1 successor. Source-use identity only; no owning proof acceptance.",
+        "root_boundary": "Root FULL read independent typed evidence; underlying MCP byte bodies were not exposed to Root. Independent IV, not Root, verified canonical bytes."
+      },
+      "historical_reference_preserved": {
+        "commit": "5779928c7ea3a50b78303807e97c0c8ad8aa6d7a",
+        "tree": "40057fee59bc246e1f61f2587a7b11a4e75cee0f",
+        "observed_at_utc": "2026-10-16T15:35:25Z",
+        "result": "TWO exact-path canonical404/NO_BYTES. Original recorded fields remain unchanged history; not canonical byte proof.",
+        "boundary": "STOP at those404s; no retry, alternate endpoint or historical rewrite."
+      },
+      "fresh_local_requirement": "Primary verifies BOTH full raw dependency hashes/byte sizes before MT028 publication; mismatch stops affected action.",
+      "source_use_only": "Projection selects successor4be1 for this MT028 source-use/publication boundary only. Dependency owning standalone proof/maintenance completion/distinct pinned host adoption remain REQUIRED/OPEN; no release compatibility or behavioral acceptance.",
+      "execution_authorized": false,
+      "proof_started": false,
+      "allowance_granted": false
+    },
+    "module_id": "handshake_resource_scope",
+    "package_version": "0.1.0",
+    "literal": "handshake_resource_scope = { path = \"../handshake_resource_scope\" }",
+    "owning_source_contract_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/swarm_production_20261014/coordination/resource_scope_crate_extraction_20261015",
+    "accountable_owner": "Account under existing resource_scope_crate_extraction_20261015, verified Root/MC856318; not anonymous",
+    "canonical_source_repository": "https://github.com/Nuntissura/Handshake.git",
+    "published_source_commit": "5779928c7ea3a50b78303807e97c0c8ad8aa6d7a",
+    "published_source_tree": "40057fee59bc246e1f61f2587a7b11a4e75cee0f",
+    "current_local_source_guards": [
+      {
+        "path": "src/backend/handshake_resource_scope/Cargo.toml",
+        "sha256": "ee4977d873367dc802e9e8b29f79597e9551e56a15f407ac10eba2096b7a0dba"
+      },
+      {
+        "path": "src/backend/handshake_resource_scope/src/lib.rs",
+        "sha256": "23f24c2990f7c980e015904ba933f473b5091a78b51c9051e37ae20d7494f4dd"
+      }
+    ],
+    "public_contract": "Existing directly exported ExactResourceScopeAttribution with actual five typed UUID dimensions and serde/equality; no assumed ResourceKind/Action in dependency.",
+    "retained_owning_proof_refs": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-002.json",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-006.json"
+    ],
+    "proof_ref_qualification": "Retained MT002 v6 proof-target supersession and MT006 proof_targets remain required; exact existing evidence/ownership is bound by owning_source_contract_ref from Root's FULL extraction read. Contract-root refs avoid inventing an uninspected nested pointer. No proof execution/PASS asserted.",
+    "source_authoring_decision": "Root SELECTS source-only dependent pure crate authoring from exact local API/source guards and actual owning extraction/source publication references. Existing extraction explicitly permits source implementation while compile/runtime unpassed; fresh Primary pin/feature binding before host integration. No dedicated accepted maintenance contract/standalone proof PASS prerequisite imposed on this authoring slice.",
+    "outstanding_required_floor": "Owning dependency standalone proof/publication acceptance/maintenance-contract completion and distinct source-first/pinned adoption remain REQUIRED/OPEN later, no waiver/READY_FOR_VALIDATION/current release compatibility claim.",
+    "uuid_qualification": "Dependency v7 feature is permitted; no UUID minting applies to THIS new leaf's behavior, not to an invented feature ban across dependency graph."
+  },
+  "semantic_contract": {
+    "status": "NEW_FROZEN_SOURCE_DESIGN_NOT_PREEXISTING_IMPLEMENTATION_OR_PROOF",
+    "semantic_authority": "The intact frozen source input and exact sections below are cumulative; Root counterfields select new prospective Primary and guarded source-only dependency reuse without changing task/policy semantics.",
+    "trust_boundary": "ALLsuppliedDTO/maps/refs/policystates/grants/basis/SHAS UNTRUSTEDDATA. Publiccheckedconstructors integrityONLY, nevercurrentauth/serverissuer/entitlement/trustedreceipt. Hostcapturesactualcurrentfacts, verifiesfullchain/currentness andmakesactualdurabledecisionACK. Pureexpires_at_utc HOST-final clippedactualsession/grant/policydecisionexpiry DECLARATION, noTTL/currentclock. No oldJobkeeper/H/readslot/finalizer use.",
+    "task_public_types_algorithms_errors": "ResourceKind::{Workspace}, ResourceAction::{Read}, ToolOperation::{ObserveOriginalAdmittedJobCreation}, snake_case serde NEWleafenums.\nRequestedOperationTuple{resource_kind:ResourceKind,external_resource_ref:String,action:ResourceAction,capability:String,tool_operation:ToolOperation}.\nOriginalJobCreationBasis{canonical_json:serde_json::Value,canonical_bytes:Vec<u8>,declared_sha256:String}.\nRequestedTaskBindings{producer_operation_id:Uuid,original_job_id:Uuid,original_initial_trace_id:Uuid,reserved_workflow_run_id:Option<Uuid>,producer_launch_ref:String,selection_ref:String,run_ref:String,lane_ref:String,trace_ref:String,cause_ref:String,context_ref:String,original_job_scope:handshake_resource_scope::ExactResourceScopeAttribution,original_job_creation_basis:OriginalJobCreationBasis}.\nRequestedTaskSnapshot PRIVATEfields task_id:Uuid,task_revision:i64,producer_scope:ExactResourceScopeAttribution,bindings:RequestedTaskBindings,operations:Vec<RequestedOperationTuple>; Debug/PartialEq/Eq/Serialize, NOClone/Deserialize.\npub fn new(task_id:Uuid,task_revision:i64,producer_scope:ExactResourceScopeAttribution,bindings:RequestedTaskBindings,operations:Vec<RequestedOperationTuple>)->Result<Self,TaskError>.\nChecksrevisionEXACT1(selectedNEWcapturesemantics), nonemptyoperations+requiredrefs/basisbytes, lowerhex64declaredSHA SHAPEONLY; exactWorkspace/Read/fs.read/ObserveOriginalAdmittedJobCreation/external_ref==original_job_scope.workspace_id. PreservesFULLorder/duplicates/strings; no union/sort/dedup/crossproduct/UUIDmint. task_id independentsuppliedUUID, notjob-IDalias/hashcoercion. BasisJSON+bytes+SHAlosslesslyretained/compared, no owncodec/hashrelationshipclaim.\nReadonly task_id()->Uuid,task_revision()->i64,producer_scope()->&ExactResourceScopeAttribution,bindings()->&RequestedTaskBindings,operations()->&[RequestedOperationTuple].\nRawtuple/bindings/basisDTOmaystrictDeserialize denyunknown; SnapshotNODECODER.\npub fn compare_retry(&RequestedTaskSnapshot,&RequestedTaskSnapshot)->Result<ExactTaskRetry,TaskError>. NamespaceSAMEproducerop+originaljob ONLY, different=>DifferentTaskIdentity; SAMEop/job ANYWHOLEsnapshotdifference incltask_id/revision/bothown5/allbindings/FULLorderedtuples/JSONbytesSHA=>ImmutableTaskConflict{task_id:original}; exactEq=>unitExactTaskRetry INTEGRITYONLY. NEWrevision1 firstimmutablecaptureop/jobnamespace NOTJobDBrevision/default/hashcast; no increment/rebind/recapture/newUUID.\nTaskError::{InvalidField{field:&'static str},UnsupportedOperation{index:usize},InvalidRevision{revision:i64},DifferentTaskIdentity,ImmutableTaskConflict{task_id:Uuid}}.",
+    "policy_public_types_algorithms_errors": "DeclaredFactState::{Present,Revoked,Expired,Missing} snake_case RAWstate.\nServerOperationMapping{tool_operation:ToolOperation,resource_kind:ResourceKind,action:ResourceAction,capability:String,handler_ref:String,mapping_ref:String,mapping_revision:i64,policy_ref:String,policy_revision:i64}.\nGrantLink{grant_ref:String,grant_revision:i64}.\nDelegationEdge{grant_ref:String,grant_revision:i64,parent_grant:Option<GrantLink>,parent_principal_ref:String,child_principal_ref:String,resource_kind:ResourceKind,external_resource_ref:String,action:ResourceAction,capability:String,policy_ref:String,policy_revision:i64,state:DeclaredFactState,full_provenance:Value}.\nSourceGrantFacts{source_grant_ref:String,source_grant_revision:i64,source_policy_ref:String,source_policy_revision:i64,resource_kind:ResourceKind,external_resource_ref:String,action:ResourceAction,capability:String,source_principal_ref:String,target_principal_ref:String,state:DeclaredFactState,chain:Vec<DelegationEdge>,full_provenance:Value}.\nRawDTOsDebug/Clone/PartialEq/Eq/Serialize/Deserialize denyunknown. parent_grant REQUIREDNULLABLE: B-ownedPRIVATEfielddecoder MUSTrejectMISSING beforeOption; explicitnull ONLYdeclaredroot. NotA/host-onlyrule. EACHsource+EACHedge REQUIREDfull_provenance retainsALLcompleteoriginalpolicy/revocation/session/grant/orderedfullchain/broadergrantsets, no defaults/sort/truncate/coercion; projectedgrantrevisioni64.\nTaskPolicyFacts{task:RequestedTaskSnapshot,handler_ref:String,mapping_ref:String,mapping_revision:i64,policy_ref:String,policy_revision:i64,expires_at_utc:String,full_snapshot_sha256:String,original_basis_sha256:String,policy_state:DeclaredFactState,mappings:Vec<ServerOperationMapping>,source_grants:Vec<SourceGrantFacts>}; Debug/PartialEq/Eq/SerializeONLY, NOClone/Deserialize/reconstructedSnapshot.\nPerSourceDecisionEdge{pub operation_index:usize,pub source_grant_index:usize,pub mapping_index:usize}; Debug/PartialEq/Eq/Serialize dataindices.\nProducerTaskDecisionData PRIVATE {facts:TaskPolicyFacts,edges:Vec<PerSourceDecisionEdge>}, Debug/PartialEq/Eq/SerializeONLY/no publicctor/Clone/Deserialize. readonlytask()->&RequestedTaskSnapshot delegatesfacts.task; facts()->&TaskPolicyFacts; edges()->&[PerSourceDecisionEdge].\nEXACT pub fn evaluate_task_policy(task:&RequestedTaskSnapshot,facts:TaskPolicyFacts)->Result<ProducerTaskDecisionData,PolicyError>. CONSUMESfacts, movesALLunchangedtoresult; noSnapshotclone/DTOroundtrip. Hosttrueadmission/custody retainedoutsideonrawdataerror.\nALGORITHM actualsubstantive:\n1 wholefacts.task==task; preservebothfive-scopes, crossjoin ONLYowneraccount+Space+workspace(originalactor/sessionMAYDIFFER); eachtupleexactoriginalworkspace+closedsupportedpair.\n2 nonblankrefs preserved; bothSHA lowerhex64, original_basis_sha256==taskbasis.declaredSHA; fullsnapshotSHA SHAPEONLY, noverifyhash; expiryStringnonblank noUTCparse. policyPresentrequired; missing/revoked/expiredtypedunavailable.\n3 foreachORDEREDtuple EXACTONEmapping matchesoperation/kind/action/cap+handler/mappingref-rev/policyref-revequalfacts; missing/ambiguityerrors, no dedup.\n4 eachsource matches>=1WHOLErequestedresource/SINGLEpair; extraneous/duplicatesourceidentityreject, no merge; source+allchainstatesPresent.\n5 nonemptycomparisonchain root->CURRENTSELECTEDparentgrant; FIRSTparentNoneDECLAREDroot, subsequentSomeexactpreviousgrantref/rev+principaladjacency. LASTgrantref/rev==SourceGrantFacts selectedCURRENTsource(NOTroot). LASTparentprincipal==source_principal_ref, LASTchild==target_principal_ref==producer_scope.actor_principal_id canonicalstring. Sourcepolicy==LASTpolicy; differentancestorpoliciespreserved. EveryhopSAMEwholeResource/SINGLEpair. Fullactualbroadergrantsets/path/provenance unchanged; AccountMUSTindependentlyverifyprojectionmatchescanonicalroot/fullchain/rights/currentnessbeforeseal. DeclaredrootNOTauthentication. NOnewchildgrantID/ref/edge.\n6 >=1individuallymatchedsourceperoperation, outputtripletsoperationorderTHENsourceorder/exactmappingindex. NoCartesianunion/flatten/dedup, onecurrentselectedsource/resource/pairperedge.\nPolicyError::{InvalidField{field:&'static str},TaskBindingMismatch,MissingMapping{operation_index:usize},AmbiguousMapping{operation_index:usize},PolicyUnavailable{state:DeclaredFactState},MissingSourceGrant{operation_index:usize},ExtraneousSourceGrant{source_grant_index:usize},GrantUnavailable{source_grant_index:usize,edge_index:Option<usize>,state:DeclaredFactState},GrantBindingMismatch{source_grant_index:usize,edge_index:Option<usize>,field:&'static str}}.\nDataRejectionKind::{Unknown,Denied}; declared_kind()->DataRejectionKind maps missingmapping/source and missingpolicy/grant=>Unknown; explicitrevoked/expired/structuralmismatch/ambiguity/invalid/extraneous=>Denied. DATArejectionONLY notactualauthdenial/clock/receipt.\nPUBLICnames exactlyabove through task/policy modules. No Allow/currentauthenticatedboolean ortrustedleafreceipt.",
+    "owning_inline_test_contract": "MEANINGFULOWNING inlineTESTDECLARATIONS(notauthored/run): A fullorderedpreservation/revision1/SHAshape/noUUIDalias; exactretryvs taskid/revision/basis/order/bothscopeconflicts; differentop/job. B acceptedonecurrentselectedsource singlepairindices; wholeprovenance+distinctancestorpolicy preserved; missingmappingUnknown/ambiguousDenied/missingpolicyUnknown/revokedpolicyDenied; changedfulltask/originalworkspaceDenied; missinggrantUnknown; revokedsource/middleedgeDenied; missingparentdecodeRejected; brokenparentgrant/reversedterminal/principaladjacency/terminalactorDenied; resource-capcrossproductDenied; extraneoussourceDenied; declaredhashSHAPEnotcodec; expiryDATA notclock. SyntheticdataPositiveNEVERactualauth/policy/receipt/runtimeproof.",
+    "later_host_boundary": "serviceactualservermapping/currentpolicyacquisition+projection; AccountSAMEauth/credentials/fullcurrentgrants/profile/chain/fence/originalowner/pending/readback custody/protectednewobserver; U2existingmodel_lane NEWtool_policy_decision appendPENDING/observedcommit/separateprotectedcanonicalread/privateBORROWEDACKfinalizer; originalownerWHOLEinputs+frozenexpectedfullbytes acrossErr/panic/Unknown; AllowRAWplan|Deny(originalcapture,typedcause), DenyACKauditnotpermission/readsuccess. PermissiondecisionFIRST->actualappend+independentreceipt->AccountfreshintersectionPLANpermit->observermayUnknown; no oldJobreadslot/keeper. Sourcegrantslaterdistinctactualsourcepins. MT027capturedfilesFROZEN/MT026HOLD/schema164immutable/actual165->solepin->independentconfirmBEFORE166 preserved.",
+    "implementation_discretion": "Public type names/signatures/data shapes/algorithms/errors/serde visibility and exact owning test semantics remain frozen; internal implementation choices within this contract belong to actual authors, not a prewritten algorithm predecessor. No Core adapters/auth/hash/clock/UUID minting/new policy behavior.",
+    "frozen_intact_input": "COMPOSITION FINAL MT028 STANDALONE SOURCE INPUT — ONE FROZEN FULL CONTRACT for MC soleadmissionmerge. Root SELECTED home/revision/ordering; NOTsavedgrant/START. RelayedthroughCentral nativeMCroute because directMCapp rejects multiagentv2. No competingpacket/fileauthor.\nHOME selected src/backend/handshake_producer_task_policy@0.1.0 in C:/Projects/LLM Projects/handshake-desktop/wtc-WP-KERNEL-012. ProspectiveWP1MT028, NOTWP012MT027/PUREMT027/heldhostadoption/MT026. Sourcefirststandalonepublication+independentsourceproof/pins BEFOREdistinctprivateCoreadoption.\nPERSONALAUTHORROWS actualnativefollowups:\nA /root/composition_service_contracts prospectiveEXCLUSIVE src/task.rs accepted, quiescent/no active/inflight/unfinished/unreturnedpatch; oldAPI5e8/integration2ca untouched.\nB /root/composition_fault_recovery prospectiveEXCLUSIVE src/policy.rs accepted, quiescent/no pending/inflight/unfinished/unreturnedpatch; existingCoreoperator_chat.rs338c1ee40544434b52d3aa49c9d0f21146075183fd594e3ac1136892747afae8/151946 unchanged/lease retained only, NOTMT028hostwrite.\nPrimary01a1421b-fbee-75d1-a35a-29a962dea250 PERSONALexclusiveCargo.toml+src/lib.rs prospectiveaccepted/no pending.\nSAME /root/composition_dependencies PERSONALseparateNEVERAUTHOR BOTHtask.rs/policy.rs accepted, no authoredproductcode/writerclaim/pending/inflight/unfinished/unreturnedpatch. FULLINTACTjointcontractreviewcompleted: ACCEPTABLE FOR SOURCE-ADMISSION PREPARATION, NOremainingconsistencyfinding after B-owned requirednullabledecoder rule below. No tools/Core/MT027re-audit/execution incheckerreview.\nFresh Compositione82214 actualFOURpaths Cargo.toml/src/lib.rs/src/task.rs/src/policy.rs ALLABSENT; backendparentverifieda129b5. Absencenotlease. Precreatefreshguards/CreateNew underfuturesavedcontract/START. No sourcescreated.\nPrimarymanifestproposal acceptedresponsibility/deps, exactfinalmechanicalliteralforPrimaryconfirmation:\n[package]\nname = \"handshake_producer_task_policy\"\nversion = \"0.1.0\"\nedition = \"2021\"\npublish = false\n\n[workspace]\n\n[dependencies]\nhandshake_resource_scope = { path = \"../handshake_resource_scope\" }\nserde = { version = \"1\", features = [\"derive\"] }\nserde_json = \"1\"\nthiserror = \"2.0.17\"\nuuid = { version = \"1\", features = [\"serde\"] }\n\nFINALauthoragreedlib:\npub mod task;\npub mod policy;\nUTF8LFonefinalLF. Noreexports/aliases/helpers/extrafiles. B->AONLY; AnoBimports.\nDEPENDENCYfit Primaryactual8d85ca/b91223/97c271: existingresource_scope owns typedfiveattribution/UUIDs only, reuse ExactResourceScopeAttribution directly. Routingpolicy/Roleauthority/capregistry/jobmodule notcohesiveowner. NOclaimedresource_scopeResourceKind/Action. Leaf ownenum below NEWclosedDATAvocabulary, notCorealias; actualCoreadapters laterEXHAUSTIVELOSScanonicalas_str/unsupportedreject/no lowercase/default. NOCore/job/MT027/DB/runtime/time/sha2/hashcodec/UUIDmint edge. Actualresource_scope source/pin/maintenancecompatibility refs requestedPrimary viaCentral; notsuppliedtoComposition, mark UNVERIFIED ratherthaninventrevision. MC/Primary fill authoritativeexistingref, no newprobe/compile request.\n\nTRUST: ALLsuppliedDTO/maps/refs/policystates/grants/basis/SHAS UNTRUSTEDDATA. Publiccheckedconstructors integrityONLY, nevercurrentauth/serverissuer/entitlement/trustedreceipt. Hostcapturesactualcurrentfacts, verifiesfullchain/currentness andmakesactualdurabledecisionACK. Pureexpires_at_utc HOST-final clippedactualsession/grant/policydecisionexpiry DECLARATION, noTTL/currentclock. No oldJobkeeper/H/readslot/finalizer use.\n\nTASK PUBLICDATA exact:\nResourceKind::{Workspace}, ResourceAction::{Read}, ToolOperation::{ObserveOriginalAdmittedJobCreation}, snake_case serde NEWleafenums.\nRequestedOperationTuple{resource_kind:ResourceKind,external_resource_ref:String,action:ResourceAction,capability:String,tool_operation:ToolOperation}.\nOriginalJobCreationBasis{canonical_json:serde_json::Value,canonical_bytes:Vec<u8>,declared_sha256:String}.\nRequestedTaskBindings{producer_operation_id:Uuid,original_job_id:Uuid,original_initial_trace_id:Uuid,reserved_workflow_run_id:Option<Uuid>,producer_launch_ref:String,selection_ref:String,run_ref:String,lane_ref:String,trace_ref:String,cause_ref:String,context_ref:String,original_job_scope:handshake_resource_scope::ExactResourceScopeAttribution,original_job_creation_basis:OriginalJobCreationBasis}.\nRequestedTaskSnapshot PRIVATEfields task_id:Uuid,task_revision:i64,producer_scope:ExactResourceScopeAttribution,bindings:RequestedTaskBindings,operations:Vec<RequestedOperationTuple>; Debug/PartialEq/Eq/Serialize, NOClone/Deserialize.\npub fn new(task_id:Uuid,task_revision:i64,producer_scope:ExactResourceScopeAttribution,bindings:RequestedTaskBindings,operations:Vec<RequestedOperationTuple>)->Result<Self,TaskError>.\nChecksrevisionEXACT1(selectedNEWcapturesemantics), nonemptyoperations+requiredrefs/basisbytes, lowerhex64declaredSHA SHAPEONLY; exactWorkspace/Read/fs.read/ObserveOriginalAdmittedJobCreation/external_ref==original_job_scope.workspace_id. PreservesFULLorder/duplicates/strings; no union/sort/dedup/crossproduct/UUIDmint. task_id independentsuppliedUUID, notjob-IDalias/hashcoercion. BasisJSON+bytes+SHAlosslesslyretained/compared, no owncodec/hashrelationshipclaim.\nReadonly task_id()->Uuid,task_revision()->i64,producer_scope()->&ExactResourceScopeAttribution,bindings()->&RequestedTaskBindings,operations()->&[RequestedOperationTuple].\nRawtuple/bindings/basisDTOmaystrictDeserialize denyunknown; SnapshotNODECODER.\npub fn compare_retry(&RequestedTaskSnapshot,&RequestedTaskSnapshot)->Result<ExactTaskRetry,TaskError>. NamespaceSAMEproducerop+originaljob ONLY, different=>DifferentTaskIdentity; SAMEop/job ANYWHOLEsnapshotdifference incltask_id/revision/bothown5/allbindings/FULLorderedtuples/JSONbytesSHA=>ImmutableTaskConflict{task_id:original}; exactEq=>unitExactTaskRetry INTEGRITYONLY. NEWrevision1 firstimmutablecaptureop/jobnamespace NOTJobDBrevision/default/hashcast; no increment/rebind/recapture/newUUID.\nTaskError::{InvalidField{field:&'static str},UnsupportedOperation{index:usize},InvalidRevision{revision:i64},DifferentTaskIdentity,ImmutableTaskConflict{task_id:Uuid}}.\n\nPOLICY PUBLICDATA exact:\nDeclaredFactState::{Present,Revoked,Expired,Missing} snake_case RAWstate.\nServerOperationMapping{tool_operation:ToolOperation,resource_kind:ResourceKind,action:ResourceAction,capability:String,handler_ref:String,mapping_ref:String,mapping_revision:i64,policy_ref:String,policy_revision:i64}.\nGrantLink{grant_ref:String,grant_revision:i64}.\nDelegationEdge{grant_ref:String,grant_revision:i64,parent_grant:Option<GrantLink>,parent_principal_ref:String,child_principal_ref:String,resource_kind:ResourceKind,external_resource_ref:String,action:ResourceAction,capability:String,policy_ref:String,policy_revision:i64,state:DeclaredFactState,full_provenance:Value}.\nSourceGrantFacts{source_grant_ref:String,source_grant_revision:i64,source_policy_ref:String,source_policy_revision:i64,resource_kind:ResourceKind,external_resource_ref:String,action:ResourceAction,capability:String,source_principal_ref:String,target_principal_ref:String,state:DeclaredFactState,chain:Vec<DelegationEdge>,full_provenance:Value}.\nRawDTOsDebug/Clone/PartialEq/Eq/Serialize/Deserialize denyunknown. parent_grant REQUIREDNULLABLE: B-ownedPRIVATEfielddecoder MUSTrejectMISSING beforeOption; explicitnull ONLYdeclaredroot. NotA/host-onlyrule. EACHsource+EACHedge REQUIREDfull_provenance retainsALLcompleteoriginalpolicy/revocation/session/grant/orderedfullchain/broadergrantsets, no defaults/sort/truncate/coercion; projectedgrantrevisioni64.\nTaskPolicyFacts{task:RequestedTaskSnapshot,handler_ref:String,mapping_ref:String,mapping_revision:i64,policy_ref:String,policy_revision:i64,expires_at_utc:String,full_snapshot_sha256:String,original_basis_sha256:String,policy_state:DeclaredFactState,mappings:Vec<ServerOperationMapping>,source_grants:Vec<SourceGrantFacts>}; Debug/PartialEq/Eq/SerializeONLY, NOClone/Deserialize/reconstructedSnapshot.\nPerSourceDecisionEdge{pub operation_index:usize,pub source_grant_index:usize,pub mapping_index:usize}; Debug/PartialEq/Eq/Serialize dataindices.\nProducerTaskDecisionData PRIVATE {facts:TaskPolicyFacts,edges:Vec<PerSourceDecisionEdge>}, Debug/PartialEq/Eq/SerializeONLY/no publicctor/Clone/Deserialize. readonlytask()->&RequestedTaskSnapshot delegatesfacts.task; facts()->&TaskPolicyFacts; edges()->&[PerSourceDecisionEdge].\nEXACT pub fn evaluate_task_policy(task:&RequestedTaskSnapshot,facts:TaskPolicyFacts)->Result<ProducerTaskDecisionData,PolicyError>. CONSUMESfacts, movesALLunchangedtoresult; noSnapshotclone/DTOroundtrip. Hosttrueadmission/custody retainedoutsideonrawdataerror.\nALGORITHM actualsubstantive:\n1 wholefacts.task==task; preservebothfive-scopes, crossjoin ONLYowneraccount+Space+workspace(originalactor/sessionMAYDIFFER); eachtupleexactoriginalworkspace+closedsupportedpair.\n2 nonblankrefs preserved; bothSHA lowerhex64, original_basis_sha256==taskbasis.declaredSHA; fullsnapshotSHA SHAPEONLY, noverifyhash; expiryStringnonblank noUTCparse. policyPresentrequired; missing/revoked/expiredtypedunavailable.\n3 foreachORDEREDtuple EXACTONEmapping matchesoperation/kind/action/cap+handler/mappingref-rev/policyref-revequalfacts; missing/ambiguityerrors, no dedup.\n4 eachsource matches>=1WHOLErequestedresource/SINGLEpair; extraneous/duplicatesourceidentityreject, no merge; source+allchainstatesPresent.\n5 nonemptycomparisonchain root->CURRENTSELECTEDparentgrant; FIRSTparentNoneDECLAREDroot, subsequentSomeexactpreviousgrantref/rev+principaladjacency. LASTgrantref/rev==SourceGrantFacts selectedCURRENTsource(NOTroot). LASTparentprincipal==source_principal_ref, LASTchild==target_principal_ref==producer_scope.actor_principal_id canonicalstring. Sourcepolicy==LASTpolicy; differentancestorpoliciespreserved. EveryhopSAMEwholeResource/SINGLEpair. Fullactualbroadergrantsets/path/provenance unchanged; AccountMUSTindependentlyverifyprojectionmatchescanonicalroot/fullchain/rights/currentnessbeforeseal. DeclaredrootNOTauthentication. NOnewchildgrantID/ref/edge.\n6 >=1individuallymatchedsourceperoperation, outputtripletsoperationorderTHENsourceorder/exactmappingindex. NoCartesianunion/flatten/dedup, onecurrentselectedsource/resource/pairperedge.\nPolicyError::{InvalidField{field:&'static str},TaskBindingMismatch,MissingMapping{operation_index:usize},AmbiguousMapping{operation_index:usize},PolicyUnavailable{state:DeclaredFactState},MissingSourceGrant{operation_index:usize},ExtraneousSourceGrant{source_grant_index:usize},GrantUnavailable{source_grant_index:usize,edge_index:Option<usize>,state:DeclaredFactState},GrantBindingMismatch{source_grant_index:usize,edge_index:Option<usize>,field:&'static str}}.\nDataRejectionKind::{Unknown,Denied}; declared_kind()->DataRejectionKind maps missingmapping/source and missingpolicy/grant=>Unknown; explicitrevoked/expired/structuralmismatch/ambiguity/invalid/extraneous=>Denied. DATArejectionONLY notactualauthdenial/clock/receipt.\nPUBLICnames exactlyabove through task/policy modules. No Allow/currentauthenticatedboolean ortrustedleafreceipt.\n\nMEANINGFULOWNING inlineTESTDECLARATIONS(notauthored/run): A fullorderedpreservation/revision1/SHAshape/noUUIDalias; exactretryvs taskid/revision/basis/order/bothscopeconflicts; differentop/job. B acceptedonecurrentselectedsource singlepairindices; wholeprovenance+distinctancestorpolicy preserved; missingmappingUnknown/ambiguousDenied/missingpolicyUnknown/revokedpolicyDenied; changedfulltask/originalworkspaceDenied; missinggrantUnknown; revokedsource/middleedgeDenied; missingparentdecodeRejected; brokenparentgrant/reversedterminal/principaladjacency/terminalactorDenied; resource-capcrossproductDenied; extraneoussourceDenied; declaredhashSHAPEnotcodec; expiryDATA notclock. SyntheticdataPositiveNEVERactualauth/policy/receipt/runtimeproof.\nFINALreviewsameNEVERAUTHOR fullpacket+requirednullableamendment nofinding. AccountPERSONALauthor+separatechecker fullterminalorientation/revision/order/minimalprivateadapter/losslessCoretags ACK CLOSED; providerU2+distinctchecker newdecisionappend/readback/custodyDESIGN ACK CLOSED separately, notMT028puregate.\nLATERHOST boundaries (notMT028adoptionpermission): serviceactualservermapping/currentpolicyacquisition+projection; AccountSAMEauth/credentials/fullcurrentgrants/profile/chain/fence/originalowner/pending/readback custody/protectednewobserver; U2existingmodel_lane NEWtool_policy_decision appendPENDING/observedcommit/separateprotectedcanonicalread/privateBORROWEDACKfinalizer; originalownerWHOLEinputs+frozenexpectedfullbytes acrossErr/panic/Unknown; AllowRAWplan|Deny(originalcapture,typedcause), DenyACKauditnotpermission/readsuccess. PermissiondecisionFIRST->actualappend+independentreceipt->AccountfreshintersectionPLANpermit->observermayUnknown; no oldJobreadslot/keeper. Sourcegrantslaterdistinctactualsourcepins. MT027capturedfilesFROZEN/MT026HOLD/schema164immutable/actual165->solepin->independentconfirmBEFORE166 preserved.\nNO SOURCEGRANT/START/code/Git/Cargo/tests/runtime/SQL/metadata/process/artifact/kernelchanges here. MCsolemergedadmission; RootsaveFULL+CentralofficialSTART precedecreations. Remainingexternalcounterfields: PrimaryconfirmexactCargo+pubmodlib and actualresource_scope pinnedsource/maintenancecompatibility refs (notinvented). No semantic/type/author/checker/home/revisioncounterfield remainsfromComposition.",
+    "root_counterfield_precedence": "Earlier input's old prospective Primary and resource_scope refs awaiting supply are superseded ONLY by ownership.specific_primary_supersession and dependency_source_reuse above, actual new Primary unchanged Cargo/lib confirmation. All source algorithms/type/error/test text unchanged."
+  },
+  "proposal_provenance": {
+    "composition_thread": "01a13d23-3c68-7850-81a4-1c53f34395b5",
+    "turn": "01a143d9-b5c1-74f1-b786-c35ee7dbdb98",
+    "outgoing_tool": "exec-2fac45a4-a051-4f3a-926c-f3300f8ca3e2",
+    "prompt_prefix": "COMPOSITION FINAL MT028 STANDALONE SOURCE INPUT",
+    "payload_chars": 13376,
+    "actual_read": "Writer retrieved intact actual outgoing through supported read_thread, not reconstructed summary/truncated proposal.",
+    "new_primary_thread": "01a143ef-a88b-7b40-aecb-cad547863ad0",
+    "new_primary_turn": "01a143f0-490a-7c23-a767-e55c8f91e142",
+    "new_primary_final_message": "msg_0598e0d39c4f552d016ad1e925cb048191af33cb185207c049",
+    "new_primary_final_text": "PERSONAL PROSPECTIVE ACK: I accept exclusive future responsibility for `handshake_producer_task_policy/Cargo.toml` and `src/lib.rs`. The supplied manifest is acceptable unchanged. Exact library:\n\n```rust\npub mod task;\npub mod policy;\n```\n\nBoth use UTF-8, LF, one final newline. No pending writes or patches from this session. All four proposed paths freshly observed absent. This ACK transfers no lease or execution authority.\n\nHandshake (Product): existing `handshake_resource_scope@0.1.0` directly exports `ExactResourceScopeAttribution` with the required five typed dimensions and serde/equality support. Fresh source hashes match MT017’s recorded dependency guards:\n\n- Cargo: `ee4977d873367dc802e9e8b29f79597e9551e56a15f407ac10eba2096b7a0dba`\n- lib: `23f24c2990f7c980e015904ba933f473b5091a78b51c9051e37ae20d7494f4dd`\n\nWP012 `resource_scope_crate_extraction_20261015` records owning assignments, source commit `5779928c7ea3a50b78303807e97c0c8ad8aa6d7a`, tree `40057fee59bc246e1f61f2587a7b11a4e75cee0f`, retained proof targets and unchanged host acceptance. Its status is source-only, not standalone proof PASS. The dependency itself enables UUID v7; therefore no UUID minting applies to the proposed leaf’s behavior, not the entire dependency graph.\n\nMinimal unresolved field: no inspected record establishes completed standalone dependency proof/publication acceptance or a dedicated resource-scope maintenance contract. Existing source guards are verified; those stronger claims remain UNVERIFIED.\n\nRepo Governance: NONE changed. Root/Central delivery is blocked because this session exposes no thread messaging tool. No Cargo, tests, Git mutations, runtime operations or file writes occurred."
+  },
+  "design_acknowledgments": "Full intact Composition A/B+SAME NEVERAUTHOR preparation review closed after B required-nullable decoder amendment. Account personal author/separate checker terminal orientation/revision/order/minimal private adapter/lossless Core tags ACK closed; providerU2+distinct decision append/readback/custody DESIGN ACK separate. These are design/data ACKs, not implemented auth/decision/receipt/runtime evidence.",
+  "review": {
+    "required": "Actual own+SAME distinct NEVERAUTHOR full assembled A/B changed source/required nullable decode/ordered facts/chain orientation/resource mapping/lifetimes/dependencies/errors/negative cases, then Composition leader DIRECT current Codecheck01a1423a-88bf-7ce0-8944-ca8f214f1fe4; repair actionable findings, no review-of-review.",
+    "source_verdict": "NOT_OBSERVED",
+    "publication": "Source proof and canonical normal source publication with independent immutable revision/four raw pins required before distinct host adoption. No product Git permission granted here."
+  },
+  "start": "HELD until Root independent FULL MT028/packet/MT017 readback then Central independent FULL read and separate official SOURCE START/actual author receipts; fresh CreateNew absence guards before each path.",
+  "preserved_original_obligations": {
+    "original_16_commands_semantic_sha256": "fc87a0ef0116276547fddd5b018c3aec0435c44a371a53a1a9a17de7a532b860",
+    "requirements": "Preserve ALL original WP012/CKC/WP1 scope, SIX/original16/native/manual/Argus/independent IV, source pins and historical failures/spent budgets. Genuine165 measurement -> sole measured pin -> independent confirm before166;164 immutable. MT026 preserved/unreleased/no START; this independent pure association unit does not retry, rename, replace or cure that lifecycle action."
+  },
+  "status": "SOURCE_ONLY_FOUR_PATH_IMPLEMENTATION_ADMITTED_AWAITING_SEPARATE_CENTRAL_START_EXECUTION_HELD",
+  "sourcewrite_authorized": true,
+  "execution_authorized": false,
+  "proof_started": false,
+  "allowance_granted": false,
+  "limits": "Only four new source files, exact inline meaningful owning test declarations and focused static changed-source checks. No Core/adapters/host-adoption writes, other manifest/member/workspace/config/lock/schema/DDL/Git/build/Cargo/tests/metadata/actual SQL/runtime/process/probes/artifact/slot/finite permission. No MT026 lifecycle retry/rename/replacement/cure."
+}

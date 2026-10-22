@@ -1,0 +1,637 @@
+{
+  "notes_kit_grouping_ref": {"decision_id": "WP012-NOTES-KIT-GROUPING-20261018", "authority": "MT-189.json#/notes_kit_grouping_correction_20261018", "precedence": "Notes is one kit with multiple internal crates; prior per-crate separate asset/destination assumption is superseded. Preserve distinct source/adoption proof and original acceptance; no physical migration or rejected-action retry inferred."},
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "created_at_utc": "2026-10-18T00:00:00Z",
+  "operator_authority": {
+    "decision": "Direct Operator2026-10-18 five-team modularization and approved blocker scope expansion after team deliberation",
+    "handoff_ref": "WP-KERNEL-012-phase02-successor-handoff-v6.json#/operator_team_refresh_and_modular_delivery_20261018",
+    "deliberation": "Actual repo/WP012 comparison, Central+Team1/2+Assets source-home/interface proposals, Root create-assets skill/live remote/index/manifests and official Cargo research inspected."
+  },
+  "authority_files": {
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "role": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+    "packet": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "spec": ".GOV/spec/SPEC_CURRENT.md"
+  },
+  "context_capsule": {
+    "original_mt_refs": [
+      "MT-011",
+      "MT-012",
+      "MT-013",
+      "MT-018",
+      "MT-020",
+      "MT-035",
+      "MT-077"
+    ],
+    "module_maintenance_refs": [
+      "MT-191.json#/execution/module_maintenance"
+    ],
+    "pin_policy": "Original in-flight WP012896f4e15/v02.206 and all adopted amendments/source-WP pins/acceptance/history remain. New source/adoption work follows explicitly adopted current module lifecycle; no old verdict rewritten."
+  },
+  "lifecycle": {
+    "status": "PASS_V1",
+    "blocked_on": null,
+    "claimed_by": null,
+    "completed_by": "01a15322-1723-7f23-b8dc-9dc278dcaea3",
+    "validator_verdict": "PASS_V1"
+  },
+  "preservation": "All original WP012/CKC/WP1 obligations, native/manual/Argus/privacy/FlightRecorder/diagnostics, source pins, historical failures/spent budgets and independent acceptance remain. No new branch/worktree/backup, foreign process disruption or actual denied-action bypass.",
+  "mt_id": "MT-191",
+  "title": "Standalone canonical handshake_rich_document_model",
+  "closure_unit": {
+    "outcome": "Real independently reusable source package with behavior tests, source proof, normal canonical publication and independent remote reread, then immutable release binding for separate host adoption.",
+    "materialized_acceptance": [
+      "Existing model and scanner behavior/tests retained at public API; all11 existing scanner tests relocate once, not duplicate shared self-tests.",
+      "No GUI/save/auth policy moves into reusable core; model public API remains compatible for parallel formatting authoring.",
+      "No file-only wrapper or duplicate implementation counted as modularization.",
+      "README documents public API, model use, input/output, dependencies, errors/limitations, recovery and host boundary.",
+      "Canonical assets-index.yaml entry matches actual manifest/API/docs, preserving partial coverage and Cabinet/Peak.",
+      "Independent source proof/publication/canonical remote reread names exact immutable revision and source input digest. No host integration acceptance inferred."
+    ]
+  },
+  "scope": {
+    "base_scope": [
+      "Bootstrap existing model API/closure and move pure regex/BlockNode scanner plus its11 existing meaningful pure tests into owning model. Retain GUI/auth/save policy in host."
+    ],
+    "allowed_write_paths": [
+      "../../.assets/Notes/handshake_rich_document_model/"
+    ],
+    "reference_only_paths": [
+      "src/frontend/handshake_rich_document_model/",
+      "src/frontend/handshake_native/src/rich_editor/find_replace/scanner.rs"
+    ],
+    "forbidden_paths": [
+      "Handshake product source/manifests/locks",
+      "other Assets folders",
+      "new nested Git repository/workspace",
+      "host adoption before source proof/publication/reread"
+    ]
+  },
+  "execution": {
+    "module_change_stage": "standalone_source",
+    "product_worktree": "../../.assets",
+    "source_repository": "https://github.com/Nuntissura/assets.git",
+    "declared_existing_branch": "codex/handpick",
+    "module_maintenance": {
+      "module_id": "handshake_rich_document_model",
+      "canonical_repository": "https://github.com/Nuntissura/assets.git",
+      "canonical_path": "Notes/handshake_rich_document_model",
+      "maintainer": "01a14c73-3519-7351-bbf7-6e4ce30e5b6d",
+      "public_api": "Existing BlockNode/model/selection/history/transform public API plus reusable pure find scanner. Preserve existing model API used by formatting.",
+      "dependency_direction": "Preserve existing ropey1.6, serde1 derive, serde_json1, thiserror2; add regex1 for actual pure scanner. No egui/auth/storage/runtime dependency.",
+      "inputs": [
+        "src/frontend/handshake_rich_document_model/",
+        "src/frontend/handshake_native/src/rich_editor/find_replace/scanner.rs"
+      ],
+      "outputs": [
+        "Notes/handshake_rich_document_model/Cargo.toml",
+        "Notes/handshake_rich_document_model/README.md",
+        "public source and owning behavior tests",
+        "immutable source revision/proof/independent reread"
+      ],
+      "gui_boundary": "Native GUI rendering/styling/framework event decode remains host; reusable core logic exposes state/actions/results. No egui core dependency.",
+      "recovery": "Preserve previous host implementation/pin until separate adoption; new package has no authority over host auth/storage/controller/fixture."
+    },
+    "assignments": [
+      {
+        "actor": "/root/coder_document",
+        "files": [
+          "Cargo.toml",
+          "Cargo.lock",
+          "README.md",
+          "src/lib.rs",
+          "src/doc_json.rs",
+          "src/edit_state.rs",
+          "src/history.rs",
+          "src/node.rs",
+          "src/position.rs",
+          "src/rope_text.rs",
+          "src/schema.rs",
+          "src/selection.rs",
+          "src/transform.rs",
+          "src/find_scan.rs"
+        ],
+        "outcome": "Bootstrap existing model API/closure and move pure regex/BlockNode scanner plus its11 existing meaningful pure tests into owning model. Retain GUI/auth/save policy in host."
+      }
+    ],
+    "assembly": "coder_document is sole new package manifest/lib/baseline assembly writer. Team1 leader alone owns shared Assets index update for ALL three entries after collecting actual manifests; Team2 never writes shared index.",
+    "index_owner": "Team1 leader01a14c72-1989-7ed2-aedc-326199f80ed4 is SOLE writer of ../../.assets/assets-index.yaml for all three entries; preserve schema assets.index.v1, partial coverage and existing Cabinet/Peak. No unrelated index/catalog work.",
+    "ownership": "New target folders were inspected ABSENT. Source writers obtain actual before-write guards/ordinary path checks and preserve any newly observed work. This grants only new package paths; no old host source lease transfer. One writer per shared manifest/lib/index.",
+    "parallel_authoring": "Text source and rich source packages are disjoint. Model and formatting may be authored in parallel using existing stable model API; dependency correctness is checked on actual assembled source before proof, not an authoring predecessor.",
+    "source_write_authorized": true,
+    "start": "Central routes this exact contract and separately issues SOURCE START to named team writers/assembly owner after current guards. Actual source patches plus meaningful existing public API tests/docs required; no placeholder-only deliverable. No additional human GO or whole-parent committee.",
+    "review": "Team NEVERAUTHOR/dependency specialists inspect actual API/imports/features/manifests/tests and source diff; direct Codecheck team review BEFORE expensive Cargo. Findings resolved on actual changes, no repeated closed reviews.",
+    "tests_or_compiler_authorized": false,
+    "git_execution_authorized": false,
+    "proof_start": "Required commands below define acceptance, NOT immediate run allowance. Root/Primary assigns exact source-proof owner/gameplan/artifact root and reviewed stable source before any compile/test/publication; existing compiler/finite holds are not bypassed.",
+    "source_adoption": {
+      "host_mt": "MT-192",
+      "host_write_predecessor": "Independent source behavior proof, normal canonical GitHub publication and independent remote reread at same immutable revision; no source-source serial authoring gate."
+    }
+  },
+  "validation": {
+    "required_source_commands": [
+      "cargo check --manifest-path Notes/handshake_rich_document_model/Cargo.toml --locked --tests -j 1",
+      "cargo test --manifest-path Notes/handshake_rich_document_model/Cargo.toml --locked -j 1"
+    ],
+    "working_directory": "Verified canonical Assets repository root",
+    "requirements": "Use only meaningful owning tests, nonzero actual results, exact source digest/lock/feature inputs, existing required gameplan and verified artifact paths. New package lock generation belongs assigned sole source manifest/proof owner, not worker Cargo.",
+    "independent_acceptance_owner": "01a14c66-e01c-7551-9ee0-b913f2d6b277 or exact independently assigned source validator; implementers never self-accept",
+    "proof_records": [
+      {
+        "verdict": "PASS_V1",
+        "scope": "MT-191 standalone source package only; no MT-192 host, Native/runtime, whole-WP or Phase2 acceptance",
+        "validated_by": "01a15322-1723-7f23-b8dc-9dc278dcaea3",
+        "validated_at_utc": "2026-10-20T01:11:29.033970+00:00",
+        "source_revision": "a118e58a2afaad6009567e046422828c99277aa0",
+        "source_tree": "5214886792cbbf6ff41e96637ebf0c087aa34e71",
+        "reused_evidence_refs": [
+          "#/owning_component_execution_allocation_20261018/source_review",
+          "#/owning_component_execution_allocation_20261018/source_check_actual_result_20261018",
+          "#/owning_component_execution_allocation_20261018/coherent_publication_actual_result_20261018",
+          "#/owning_component_execution_allocation_20261018/immutable_candidate_actual_verdict_20261018",
+          "#/owning_component_execution_allocation_20261018/corrected_capture_actual_closure_verdict_20261019"
+        ],
+        "owning_behavior": {
+          "passed": 50,
+          "failed": 0,
+          "cargo_exit": 0,
+          "outer_exit": 0,
+          "input_drift": 0,
+          "control_drift": 0,
+          "result_sha256": "15c792bda1abed114e2d446e6fc65e8f839b040e9cd37941a966b778ee662b47"
+        },
+        "independent_index_observation": {
+          "observer": "01a15693-ebe1-7631-aaa6-69ddb43866fe",
+          "tool_call": "exec-9e717775-8e23-49cf-9a6e-10bf7e97543f",
+          "method": "github.fetch_file canonical INDEX-only read; observer is not index author",
+          "repository": "Nuntissura/assets",
+          "path": "assets-index.yaml",
+          "revision": "9e0bfc395be67af42ec6815529033668d11cae42",
+          "blob": "68c2de22c7b1547455b78e42ecb4990360841397",
+          "observed": "NOTES-ASSET-001 path Notes; existing model README/manual, Cargo.toml manifest and lib.rs API; role logic; depends_on []; partial coverage; Cabinet/Peak/text-mechanics entries preserved",
+          "evidence_boundary": "Independent observer handback and completed tool-call provenance inspected by current IV; no second index/model GET performed here"
+        },
+        "preservation": "Existing historical failures, allocations and proof producers unchanged; no compiler/test rerun, new allowance or host execution grant."
+      }
+    ]
+  },
+  "research_basis": {
+    "sources": [
+      "https://doc.rust-lang.org/cargo/reference/resolver.html#feature-resolver-version-2",
+      "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#integration-tests",
+      "https://doc.rust-lang.org/cargo/reference/workspaces.html"
+    ],
+    "selected": "Existing exact crate identities as contained standalone source; narrow production dependencies and owning tests; GUI/host policy stay host.",
+    "rejected": "Resolver-only fix, separate test files as dependency isolation, root workspace/nested repo creation, duplicated TextBuffer mechanics, host-first fork.",
+    "risks_and_controls": "UTF16/byte and cursor ownership drift=>retain exact existing semantics/API tests; heavy feature leaks=>inspect actual manifests/callers; index conflict=>single writer; host divergence=>source proof/publication/reread before immutable adoption. No measured build speedup claimed."
+  },
+  "canonical_source_placement_correction_20261018": {
+    "decision_id": "WP012-NOTES-RICHDOC-MODEL-CANONICAL-SOURCE-20261018",
+    "authority": "Direct Master01a14c5c-837c-7951-89fc-56e8deadc554 decision, buddy consulted on verified14f98f0 contradictions; relayed verbatim by Central to this sole scoped contract writer",
+    "kit_root": "../../.assets/Notes",
+    "new_unstarted_source_root": "../../.assets/Notes/handshake_rich_document_model",
+    "package_and_api": "SAME existing handshake_rich_document_model package/public API and narrow dependencies; no rename or substitute implementation",
+    "source_and_manifest_lib_assembly_owner": "/root/coder_document",
+    "supersession": "Current Notes correction006 now binds the verified existing Notes kit assembly root. Supersede only the stale unstarted top-level model destination and align current allowed path/canonical_path/manifest+README outputs/required-source-command path fields. Original read-only host references remain unchanged. No generic Primary conflict or historical writer transfer is implied.",
+    "old_source_dispatch": "WITHDRAWN_NEVER_EXECUTED: only the stale-top original SOURCE dispatch. Historical command/DATA evidence is preserved, not rewritten.",
+    "classifier_evidence_preserved": "Original5751 DATA-proof identity, oldBLOCK1/1, finalcase1/1,17GREEN and independent0440e4 remain completed classifier evidence. They do not validate the changed source command/path. Hook repair is independently verified; no new classifier case, B clearance or source-permission reset follows this placement correction.",
+    "normal_source_start": "After this minimum save and fresh ordinary parents, exact new destination absence and original reference guards, SAME coder_document performs the path-aligned NORMAL SOURCE action under existing scope. Preserve same author/tool/controller, actual normal hook and honest preparation; no source-payload encoding or env/role/selector alteration. No additional Root/human GO, directory census or all-Notes predecessor. Any actual new rejection remains binding and local. Then inspect actual source through the existing team/dependency/NEVERAUTHOR and direct Codecheck workflow.",
+    "limits": "Placement correction only. Preserve unmoved historical text-mechanics and top-formatting partials/history, all denied commands/results and original acceptance. No migration, deletion, per-crate asset entry, Assets index, compiler/test/Git or host-adoption action is granted here.",
+    "notes_decision_ref": "MT-189.json#/notes_kit_grouping_correction_20261018/canonical_model_source_placement_20261018"
+  },
+  "owning_component_execution_allocation_20261018": {
+    "decision_id": "WP012-MT191-MODEL-OWNING-COMPONENT-EXECUTION-20261018",
+    "status": "INDEPENDENT_ORIGINAL_BEHAVIOR_AND_OWNED_CLOSURE_VERIFIED",
+    "authority": "Current Operator pace/scope delegation and Root-approved distinct MT191 finite owning unit under CX-EXEC-014/KB-CAD-001. Central assigns this exclusive current MT191 record window and supersedes any earlier prospective natural-counter write instruction for this save. No T2 personal NONE/global-free claim or new ACK prerequisite is made.",
+    "repository": "../../.assets",
+    "branch": "codex/handpick",
+    "package_root": "Notes/handshake_rich_document_model",
+    "source_placement_ref": "#/canonical_source_placement_correction_20261018",
+    "source_guards": [
+      {
+        "path": "Notes/handshake_rich_document_model/Cargo.toml",
+        "bytes": 226,
+        "sha256": "94237a2ef396cb5b90d97f066b7d0dadea01dde7d8d27f36deae53377411cbcc"
+      },
+      {
+        "path": "Notes/handshake_rich_document_model/README.md",
+        "bytes": 3541,
+        "sha256": "041fb1dafd5130c4823ac3aa37b9dcc751640f6756d44c9fa02911442562d2f9"
+      },
+      {
+        "path": "Notes/handshake_rich_document_model/src/lib.rs",
+        "bytes": 2664,
+        "sha256": "574c8d969f3e02e876d79e8490a8277f3c15450c839df234e8744f9ecbc77da0"
+      },
+      {
+        "path": "Notes/handshake_rich_document_model/src/doc_json.rs",
+        "bytes": 29423,
+        "sha256": "4e2c1890ec8bc90e35fcb25fe10e5257d6316d53078a659c0512de040fec7191"
+      },
+      {
+        "path": "Notes/handshake_rich_document_model/src/edit_state.rs",
+        "bytes": 1863,
+        "sha256": "60f3ce7dc710b35defd0cf0347c492f6a42e119f4ca8e5020c7785e81dc17d4f"
+      },
+      {
+        "path": "Notes/handshake_rich_document_model/src/history.rs",
+        "bytes": 8837,
+        "sha256": "168f7f8b2e93d1327d7647d72670bf1c7f606ed405a68a8ad3052e6562aa410c"
+      },
+      {
+        "path": "Notes/handshake_rich_document_model/src/node.rs",
+        "bytes": 23216,
+        "sha256": "de4e3f18f7d98b2ea08c7d18bc760b237e4f5025b16a3891d032d0d16615cc42"
+      },
+      {
+        "path": "Notes/handshake_rich_document_model/src/position.rs",
+        "bytes": 8196,
+        "sha256": "3f594c7484b25b0a09896c10a43c80cd3faba3b0ba3acb3be945457c1aab7222"
+      },
+      {
+        "path": "Notes/handshake_rich_document_model/src/rope_text.rs",
+        "bytes": 5715,
+        "sha256": "e1128921fe64f476496b9e12fd82e77adbd70247c592ef49486c88bd5a192fa5"
+      },
+      {
+        "path": "Notes/handshake_rich_document_model/src/schema.rs",
+        "bytes": 10238,
+        "sha256": "e0b571a83a8fc21b2e4b11368ccb15e95ea7bd0485586b18a74e09abf210e808"
+      },
+      {
+        "path": "Notes/handshake_rich_document_model/src/selection.rs",
+        "bytes": 2686,
+        "sha256": "760d50472afb8e5d6d10f86a195bd5d59f62e18f3f7036cbc7bc9dc9635c263a"
+      },
+      {
+        "path": "Notes/handshake_rich_document_model/src/transform.rs",
+        "bytes": 38632,
+        "sha256": "52df443698da3604b89013d485e53311664dcaa51cafb90b2041860628a6552e"
+      },
+      {
+        "path": "Notes/handshake_rich_document_model/src/find_scan.rs",
+        "bytes": 24325,
+        "sha256": "337bb9fea4c75f6a05172427ea55c84ce6a0a6528f3924fb788ca67fc7b7463b"
+      }
+    ],
+    "source_review": "Actual completed13-source-only component and assembly clearance retained: nine baseline copies byte-equal, full scanner inverse, team NEVERAUTHOR/dependency and direct Codecheck077198/373c9b/95fb77. This scoped guard read is not a compiler or runtime verdict; reuse unchanged actual reviews.",
+    "layout_observation": "Current226-byte manifest has no [workspace]; owning lock and Notes/Assets root Cargo manifests are absent. Do not invent or add a workspace. Primary verifies actual graph/config/parent closure before resolver invocation.",
+    "budget": {
+      "primary_absent_lock_generation": {
+        "limit": 1,
+        "consumed": 1
+      },
+      "primary_original_source_check": {
+        "limit": 1,
+        "consumed": 1
+      },
+      "primary_coherent_source_and_lock_publication": {
+        "limit": 1,
+        "consumed": 1
+      },
+      "independent_immutable_checked_candidate_reread": {
+        "limit": 1,
+        "consumed": 1
+      },
+      "independent_original_behavior_test": {
+        "limit": 1,
+        "consumed": 1
+      },
+      "independent_actual_result_guard_reread": {
+        "limit": 1,
+        "consumed": 1
+      }
+    },
+    "actors": {
+      "static_lock_check_publication": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+      "immutable_candidate_reader": "/root/mt191_immutable_validator",
+      "original_behavior_executor": "/root/mt191_behavior_executor",
+      "actual_result_guard_reader": "Current Master01a14c5c-837c-7951-89fc-56e8deadc554 or its legitimately named independent NEVERAUTHOR result reader",
+      "boundary": "The behavior executor must be properly independent of the source implementer. Primary is not the behavior executor unless an actual specific existing exception is cited, never inferred. The actual result/guard reread uses independent authoritative evidence, not the source implementer's self-verdict."
+    },
+    "sequence": [
+      {
+        "id": "MT191-OWN-LOCK",
+        "actor": "Primary",
+        "argv": [
+          "generate-lockfile",
+          "--manifest-path",
+          "Notes/handshake_rich_document_model/Cargo.toml"
+        ],
+        "sole_product_write": "Notes/handshake_rich_document_model/Cargo.lock",
+        "before": "Fresh actual lock absence, exact13 guards, normal preparation and real custody. If lock exists or inputs differ, stop for exact diagnosis; no rebuild/overwrite permission."
+      },
+      {
+        "id": "MT191-OWN-LOCK-REVIEW",
+        "actor": "Existing team dependency and distinct NEVERAUTHOR checkers, then current direct Codecheck01a14f46",
+        "requirement": "Inspect actual generated lock identities/versions/pins/checksums/features and closed manifest/registry dependency graph before either compiler run. Retain source13 unchanged. Resolve unexpected deltas through exact existing source authority, not under a generic dependency upgrade."
+      },
+      {
+        "id": "MT191-OWN-CHECK",
+        "actor": "Primary",
+        "argv": [
+          "check",
+          "--manifest-path",
+          "Notes/handshake_rich_document_model/Cargo.toml",
+          "--locked",
+          "--tests",
+          "-j",
+          "1"
+        ],
+        "requirement": "One original required source check on stable reviewed closed inputs. Compilation of tests does not execute or accept behavior."
+      },
+      {
+        "id": "MT191-OWN-PUBLISH",
+        "actor": "Primary",
+        "method": "One normal coherent explicit14-path source13 plus owning Cargo.lock commit/push on existing Assets branch. Preserve all peers and verify actual post-hook parent/tree/pathset/filtered blobs/newline representation before push. No global index/catalog edit or blanket raw equality."
+      },
+      {
+        "id": "MT191-OWN-IMMUTABLE-REREAD",
+        "actor": "Independent validator",
+        "requirement": "One actual canonical immutable commit/tree/selected14-path reread binds the actually checked source+lock candidate BEFORE the expensive behavior invocation. Do not treat publisher status as independent proof."
+      },
+      {
+        "id": "MT191-OWN-BEHAVIOR",
+        "actor": "Proper independent validator",
+        "argv": [
+          "test",
+          "--manifest-path",
+          "Notes/handshake_rich_document_model/Cargo.toml",
+          "--locked",
+          "-j",
+          "1"
+        ],
+        "requirement": "One ORIGINAL unfiltered behavior command, all50 exact expected library names and actual Cargo doc targets. Use actual normal hook, honest original validator scope and genuine preparation. No Primary-implementer self-execution or inferred exception."
+      },
+      {
+        "id": "MT191-OWN-RESULT-REREAD",
+        "actor": "Independent authoritative result/guard reader",
+        "requirement": "One full actual result/stdout/stderr/numeric exit/name/count/doc-target/captured-guard reread tied to the canonical tested revision. Missing, zero, filtered, unexpected ignored/skipped, failed or drifted required results cannot pass."
+      }
+    ],
+    "publication_paths": [
+      "Notes/handshake_rich_document_model/Cargo.toml",
+      "Notes/handshake_rich_document_model/README.md",
+      "Notes/handshake_rich_document_model/src/lib.rs",
+      "Notes/handshake_rich_document_model/src/doc_json.rs",
+      "Notes/handshake_rich_document_model/src/edit_state.rs",
+      "Notes/handshake_rich_document_model/src/history.rs",
+      "Notes/handshake_rich_document_model/src/node.rs",
+      "Notes/handshake_rich_document_model/src/position.rs",
+      "Notes/handshake_rich_document_model/src/rope_text.rs",
+      "Notes/handshake_rich_document_model/src/schema.rs",
+      "Notes/handshake_rich_document_model/src/selection.rs",
+      "Notes/handshake_rich_document_model/src/transform.rs",
+      "Notes/handshake_rich_document_model/src/find_scan.rs",
+      "Notes/handshake_rich_document_model/Cargo.lock"
+    ],
+    "expected_library_test_names": [
+      "doc_json::tests::round_trip_equals_original",
+      "doc_json::tests::schema_version_is_rich_document_v1",
+      "doc_json::tests::content_json_is_bare_doc_with_no_schema_version",
+      "doc_json::tests::json_shape_matches_tiptap",
+      "doc_json::tests::link_href_survives_round_trip",
+      "doc_json::tests::hs_link_node_payload_survives_round_trip",
+      "doc_json::tests::transclusion_node_payload_survives_round_trip",
+      "doc_json::tests::transclusion_missing_ref_value_errors",
+      "doc_json::tests::unknown_attr_survives_round_trip",
+      "doc_json::tests::unknown_node_type_errors",
+      "doc_json::tests::table_header_node_deserializes_from_real_backend_shape",
+      "history::tests::three_pushes_three_undos_restore_original",
+      "history::tests::redo_after_undo",
+      "history::tests::cap_drops_oldest_at_201",
+      "history::tests::new_push_truncates_redo_tail",
+      "position::tests::resolve_within_first_leaf",
+      "position::tests::resolve_crosses_into_second_leaf",
+      "position::tests::resolve_past_end_clamps_to_last_leaf",
+      "position::tests::round_trip_all_offsets",
+      "position::tests::resolve_empty_doc_is_none",
+      "position::tests::resolve_empty_paragraph_addresses_the_leaf",
+      "rope_text::tests::insert_and_remove_round_trip",
+      "rope_text::tests::out_of_range_insert_clamps_to_append",
+      "rope_text::tests::inverted_and_oob_remove_is_noop",
+      "schema::tests::paragraph_holds_text_not_blocks",
+      "schema::tests::doc_holds_blocks_not_text",
+      "schema::tests::code_block_forbids_marks",
+      "schema::tests::validate_node_rejects_text_in_doc",
+      "schema::tests::validate_node_rejects_atom_with_children",
+      "selection::tests::caret_is_collapsed",
+      "selection::tests::range_is_not_collapsed",
+      "selection::tests::node_selection_is_never_collapsed",
+      "transform::tests::insert_text_then_inverse_round_trips",
+      "transform::tests::schema_violation_rolls_back",
+      "transform::tests::split_then_merge_inverse",
+      "transform::tests::insert_inline_atom_is_undoable",
+      "transform::tests::delete_inline_atom_is_undoable_and_lossless",
+      "transform::tests::inline_atom_into_non_inline_block_rolls_back",
+      "transform::tests::split_paragraph_creates_sibling",
+      "find_scan::tests::empty_query_is_empty_scan",
+      "find_scan::tests::finds_all_occurrences_of_foo_across_paragraphs_and_code",
+      "find_scan::tests::case_insensitive_matches_mixed_case",
+      "find_scan::tests::whole_word_skips_foobar",
+      "find_scan::tests::regex_mode_matches_pattern",
+      "find_scan::tests::literal_mode_escapes_regex_metachars",
+      "find_scan::tests::invalid_regex_returns_typed_error",
+      "find_scan::tests::catastrophic_backtracking_pattern_does_not_hang",
+      "find_scan::tests::cap_truncates_at_max_matches",
+      "find_scan::tests::char_ranges_are_char_not_byte_for_multibyte_text",
+      "find_scan::tests::matches_carry_the_leaf_node_path"
+    ],
+    "expected_library_result": {
+      "passed": 50,
+      "failed": 0,
+      "ignored": 0,
+      "filtered_out": 0,
+      "source_modules": 8,
+      "scanner_tests": 11
+    },
+    "doc_targets": "No executable doctest fence was observed in retained source review; normal cargo test must still report actual Cargo doc targets. Empty doc targets provide no substitute count and no extra list/no-run campaign is allowed.",
+    "artifact_root": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-191/model-owning-proof",
+    "mutable_target": "../Handshake_Artifacts/handshake-cargo-target/wp012-mt191",
+    "preparation": "Only Primary creates ordinary scoped external preparation under this new root/target; neither existed at the scoped read. Use the existing public session gameplan/controller, actual current resources, toolchain/config/child environment/full closed graph and actual compatible warm target. Preserve current global Product/HANDPICK plan pointers. Freeze only actual captured inputs, retain complete stdout/stderr, actual numeric exit/PID/birth/source+lock postbindings and owned process/target closure. Before independent behavior, bind its real authorized execution ownership and compatible target/config under the proper validator scope; no role/env spoofing, source payload encoding, wrapper route or false confirmation. This save alone does not START a test.",
+    "failure_policy": "Each actual invocation consumes its applicable new finite1 allowance, including failure. Preserve the exact full original result/cause and partial state. No unchanged replay, relabel/reset, extra metadata/list/build/no-run/check/test campaign or alternate actor/tool/route after denial. Distinguish compiler, process/method and policy failures honestly.",
+    "limits": "This allocation does not authorize source changes/new tests, registry upgrades, Notes/Assets root manifests, index/per-crate asset catalog, pointer/trust/config/network changes, unrelated filesystem or process control. Preserve original MT189/5751/8974 and all spent/denied scopes, old T2B/MT190/native CreateProcess holds as their actual local restrictions. The8974 legitimate closure clears no unrelated CreateProcess case. No source-proof wait on MT189 session-method/old monolith/other kits is introduced; reuse a compatible verified method only where actual facts establish it.",
+    "acceptance": "Source13+lock publication and static Cargo check are not runtime PASS. Owning independent behavior/source proof, canonical publication and independent rereads precede DISTINCT pinned host adoption, which is not granted here. Original full model/native/GUI/Argus/WP acceptance, source custody and historical proof remain unchanged.",
+    "lock_generation_actual_result_20261018": {
+      "evidence_source": "Actual Primary completion delivered directly to Central and assigned to this record owner; no helper Product or proof operation.",
+      "actor": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+      "result_refs": [
+        "6b8751",
+        "fbba23"
+      ],
+      "numeric_exit": 0,
+      "pid": 48940,
+      "process_birth_utc": "2026-10-18T17:39:12.9165751Z",
+      "completed_utc": "2026-10-18T17:39:13.5468948Z",
+      "actual_lock_generation_invocations": 1,
+      "budget_disposition": "primary_absent_lock_generation 1/1 SPENT; all five other allocations remain unused 1/0.",
+      "lock": {
+        "path": "Notes/handshake_rich_document_model/Cargo.lock",
+        "bytes": 4788,
+        "sha256": "76cbc44d8e698265e29de4622a6c8bccc303d5b226fdeedceae11f616ad72139",
+        "registry_packages": 20,
+        "own_root_packages": 1,
+        "git_dependencies": 0
+      },
+      "failures": [],
+      "input_drift": [],
+      "source_binding": "Primary reports all original13 source guards unchanged. Original50 names and acceptance remain retained.",
+      "prelaunch_caller_errors": [
+        {
+          "result_ref": "4a4db1",
+          "cause": "Wrong owner field",
+          "phase": "Before Cargo, PID, output or allowance consumption",
+          "cargo_invocations": 0
+        },
+        {
+          "result_ref": "c64f06",
+          "cause": "JoinPath rooted rows",
+          "phase": "Before Cargo, PID, output or allowance consumption",
+          "cargo_invocations": 0
+        }
+      ],
+      "actual_preparation_correction": "actors.static_lock_check_publication and relative30 rows; causal GP014/GP015 steps already recorded in the existing public gameplan.",
+      "reported_identity_prefixes": {
+        "source_profile": "09cca295",
+        "caller": "84d3eb8f",
+        "captured_inputs": "5291c9ba",
+        "qualification": "Prefixes only, not full SHA256 claims."
+      },
+      "reported_path_lengths": {
+        "target": 97,
+        "tmp": 101,
+        "cache": 122
+      },
+      "artifact_root": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-191/model-owning-proof",
+      "next": "Existing team dependency and distinct NEVERAUTHOR checkers plus CURRENT direct Codecheck01a14f46 inspect the actual generated lock and closed graph before Primary consumes the one original locked tests source-check allocation.",
+      "proof_boundary": "Resolver result only. No source check, publication, independent behavior, runtime acceptance or host adoption is claimed by this result."
+    },
+    "source_check_actual_result_20261018": {
+      "evidence_source": "Actual Primary static source-check completion delivered directly to Central and assigned to this record owner; no helper Product or proof operation.",
+      "actor": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+      "result_refs": [
+        "0a264a",
+        "94c916"
+      ],
+      "numeric_exit": 0,
+      "pid": 12508,
+      "process_birth_utc": "2026-10-18T17:59:20.0717381Z",
+      "completed_utc": "2026-10-18T17:59:40.9317511Z",
+      "argv": [
+        "check",
+        "--manifest-path",
+        "Notes/handshake_rich_document_model/Cargo.toml",
+        "--locked",
+        "--tests",
+        "-j",
+        "1"
+      ],
+      "actual_source_check_invocations": 1,
+      "budget_disposition": "primary_original_source_check 1/1 SPENT; primary_absent_lock_generation remains 1/1 SPENT; four publication/independent allocations remain unused 1/0.",
+      "prerequisite_review": {
+        "direct_codecheck_result_refs": [
+          "c9eb55",
+          "8e22d9"
+        ],
+        "team": "Existing T2 named dependency and distinct NEVERAUTHOR generated-lock reviews consumed before the check; Source13 review reused unchanged."
+      },
+      "reported_preparation": {
+        "normal_profile": "32/5/2",
+        "public_preparation_passed": 12,
+        "public_preparation_required": 12,
+        "captured_input_rows": 975
+      },
+      "failures": [],
+      "input_drift": [],
+      "source_binding": "Primary reports Source13 stable and owning lock unchanged at4788 bytes / SHA25676cbc44d8e698265e29de4622a6c8bccc303d5b226fdeedceae11f616ad72139. Original50 expected names remain retained.",
+      "behavior_tests_executed": 0,
+      "next": "Primary uses the existing allocated coherent14-path Source13 plus lock publication; then independent canonical checked-candidate reread, proper independent unfiltered50-test behavior plus actual doc targets, and independent actual-result guard reread. Existing owners and authority remain unchanged.",
+      "proof_boundary": "Successful static cargo check including compilation of tests only. No tests ran; no50-test, runtime, full acceptance, publication or host-adoption success is inferred."
+    },
+    "coherent_publication_actual_result_20261018": {
+      "evidence_source": "Actual Primary coherent14-path commit/push completion delivered directly to Central and assigned to this record owner; helper ran no Product, Git or proof operation.",
+      "actor": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+      "result_ref": "f2f6ff",
+      "commit": "a118e58a2afaad6009567e046422828c99277aa0",
+      "tree": "5214886792cbbf6ff41e96637ebf0c087aa34e71",
+      "parent": "00cb5f5b5ad18094699d65638ff2e2016cbe9f29",
+      "remote_confirmation": "Primary reports normal push remote-confirmed.",
+      "publication_invocations": 1,
+      "budget_disposition": "primary_coherent_source_and_lock_publication 1/1 SPENT; existing lock/check remain 1/1 SPENT; all three independent allocations remain unused 1/0.",
+      "posthook_before_push": "Primary verified exact14 Source13 plus lock paths, staged tree, stage0 filtered blobs and raw guards before push.",
+      "newline_qualification": {
+        "crlf_normalization_warnings": 11,
+        "disposition": "All11 warnings retained; raw working-file guards do not establish byte identity with normalized canonical Git blobs. No raw/canonical byte-equality claim."
+      },
+      "lock": {
+        "path": "Notes/handshake_rich_document_model/Cargo.lock",
+        "raw_bytes": 4788,
+        "raw_sha256": "76cbc44d8e698265e29de4622a6c8bccc303d5b226fdeedceae11f616ad72139",
+        "canonical_blob": "0021019b1f12021cbaae31b8bc016e25a9abf7c6"
+      },
+      "full_publication_evidence": "Existing allocation artifact_root + /publication/publication-result.json retains actual14 guards/blobs; helper did not reacquire or run publication artifacts.",
+      "independent_canonical_request_delivery": {
+        "reported_status": "APP_SEND_FAILED_NOT_STARTED",
+        "reported_error": "Cannotsteerwithoutactive turnID",
+        "allocation_consumed": 0,
+        "boundary": "Request messaging proves neither independent START nor completion. Central is routing the actual delivery failure to Master."
+      },
+      "next": "Existing independent owner must actually reread the immutable checked canonical candidate; proper independent unfiltered50-test behavior plus actual doc targets and independent full result/guards follow under the existing allocations.",
+      "proof_boundary": "Actual source/lock publication only. Independent canonical reread, behavior tests, full acceptance, runtime PASS and distinct pinned host adoption are not claimed."
+    },
+    "immutable_candidate_reader_binding_20261018": {
+      "authority": "Root explicit final prospective immutable-reader assignment through the current Central record-owner window.",
+      "actor": "/root/mt191_immutable_validator",
+      "previous_reader": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+      "candidate_commit": "a118e58a2afaad6009567e046422828c99277aa0",
+      "candidate_tree": "5214886792cbbf6ff41e96637ebf0c087aa34e71",
+      "exact_paths_ref": "#/owning_component_execution_allocation_20261018/publication_paths",
+      "exact_published_path_count": 14,
+      "disposition": "Prospective NEVERAUTHOR immutable canonical checked-candidate reread only; Root starts the actual native validator after this save. No START or completion is asserted by this binding.",
+      "allowance": "Existing independent_immutable_checked_candidate_reread remains limit1/consumed0 until the actual validator operation; no new or reset budget.",
+      "preservation": "Failed normal e01c request deliveries and zero-consumption history remain unchanged. Original later independent50 behavior executor and actual-result reader remain unchanged; no tests, source check, republication, runtime acceptance or host adoption is granted."
+    },
+    "immutable_candidate_actual_verdict_20261018": {
+      "evidence_source": "Master exact instruction records the actual independent canonical GET verdict from /root/mt191_immutable_validator; this helper performed no Product, Git or proof operation.",
+      "actor": "/root/mt191_immutable_validator",
+      "verdict": "VERIFIED_CANONICAL_CHECKED_CANDIDATE",
+      "actual_start_utc": "2026-10-18T18:36:58Z",
+      "completed_utc": "2026-10-18T18:40:32Z",
+      "actual_canonical_read_operations": 1,
+      "budget_disposition": "independent_immutable_checked_candidate_reread 1/1 SPENT; original behavior and final-result reread each remain limit1/consumed0. Prior lock/check/publication allowances remain spent1/1.",
+      "commit": "a118e58a2afaad6009567e046422828c99277aa0",
+      "tree": "5214886792cbbf6ff41e96637ebf0c087aa34e71",
+      "parent": "00cb5f5b5ad18094699d65638ff2e2016cbe9f29",
+      "module_tree": "d9500b1c1be54a1b7095cdefe9deb6419485cd3a",
+      "exact_path_count": 14,
+      "path_set_ref": "#/owning_component_execution_allocation_20261018/publication_paths",
+      "verified_surfaces": "All14 actual immutable contents, modes, blobs, GitSHA1 identities and sizes matched publication and MT/source guards under the recorded newline normalization qualification.",
+      "newline_qualification": "Eleven CRLF normalizations retained and qualified; no raw-working-file/canonical-blob byte-identity claim.",
+      "surrounding_tree_conservation": {
+        "root_entries": 13,
+        "notes_entries": 9,
+        "conserved": true,
+        "module_absent_in_parent": true
+      },
+      "no_reruns": "No compiler or behavior rerun; no later actual-result reread consumed by this canonical operation.",
+      "proof_boundary": "Independent canonical checked-candidate binding only. No50-test behavior, doc-target result, runtime acceptance, final-result verdict or host-adoption success follows from this record.",
+      "next": "Prepare the original UNUSED independent behavior unit with the existing exact unfiltered selector, original allowance and properly independent executor, honest INITIAL role/public plan and qualified existing private-capture pattern. Actual behavior execution and its independent final-result reread remain separate."
+    },
+    "original_behavior_executor_binding_20261018": {
+      "authority": "Root assigned the actual existing native NEVERAUTHOR /root/mt191_behavior_executor to the original unused MT191 behavior unit; this is prospective actor binding only.",
+      "actor": "/root/mt191_behavior_executor",
+      "previous_actor": "Independent validator01a14c66-e01c-7551-9ee0-b913f2d6b277 or legitimately named NEVERAUTHOR validator under original execution rules",
+      "existing_unit_ref": "#/owning_component_execution_allocation_20261018/sequence/5",
+      "allowance": "Existing independent_original_behavior_test limit1/consumed0 unchanged; no new or renewed allocation.",
+      "disposition": "No actual Source or test START is implied. The independent executor inspects only the actual small method delta, then uses the qualified INITIAL native IV harness once Primary preparation is complete; the original exact argv and all50 expected names remain unchanged.",
+      "separation": "Executor owns no Product, runner, profile, publisher or governance writes. The separate final independent result/guard reader and original routing history remain unchanged. Root delivers its descriptor through the native parent, not an app send to the native agent ID."
+    },
+    "closure_capture_classification_repair_disposition_20261018": {"decision_id":"WP012-MT191-CLOSURE-CAPTURE-CLASSIFIER-REPAIR-20261018","authority":"Root prospective actual capture/repair dependency resolution under direct Operator full-control delegation after existing buddy recommendation","actual_behavior":{"executor":"/root/mt191_behavior_executor","limit":1,"consumed":1,"unique_expected_passed":50,"failed":0,"ignored":0,"filtered":0,"doc_targets":1,"doc_tests":0,"cargo_pid":47672,"cargo_birth_utc":"2026-10-18T20:32:02.6393218Z","cargo_exit":0,"native_cli_pid":22684,"native_cli_birth_utc":"2026-10-18T20:31:14.9624170Z","native_cli_exit":0,"native_cli_completed_utc":"2026-10-18T20:32:59.1858921Z","captured_inputs":1039,"input_drift":[],"control_guards":9,"control_drift":[]},"independent_actual_reader":{"actor":"/root/mt191_immutable_validator","started_utc":"2026-10-18T20:40:25Z","completed_utc":"2026-10-18T20:45:36Z","limit":1,"consumed":1,"verdict":"QUALIFIED_VERIFIED_RESULTS_AND_BINDINGS_CLOSURE_HELD","gap":"Existing capture proves Cargo-parent closure and native CLI settlement only. No post-settlement owned-target process observation retained. Residual activity and absence both unproven. No historical full-child census required."},"retained_denial":{"artifact":"iv-behavior/mt191-executor-post-capture-blocked-packet.json","bytes":13278,"sha256":"a575b06416c734820239be629cacfe66e8290e67e7ef236052d7ed5f7cf1eef3","command_bytes":2715,"command_sha256":"e1aa154e819e38e0f8b76e9ec74b791ff4263de4c498ccd58aacd57f9afd1360","disposition":"Actual PreToolUse rejection before shell. Original compound remains stopped, with no retry/split/alternate actor/tool/selector/encoding."},"hold_disposition":"Release ONLY the prospective handler/tests stability hold for this exact post-capture classification repair. Preserve historical captured handler137186/692cb8cba989cad05e612bf623a9875982ffc58bb5b36a7fe5408bb502c5b97d and tests161375/be254bc75189a967df6ab51a294c887cdacb01934023c2e1710e5f59cf826699, actual exits0 and execution-era unchanged postbindings. New repair neither erases valid prior results nor proves closure.","repair_owner":"Existing sole Diagnostics author01a14c66-cf2a-7463-b60d-4e8e596c6887; delegated /root/skill_patch_owner coordinates exact diagnosis and independent affected review","repair_unit":{"id":"GP-MT191-POST-CAPTURE-DATAFLOW-20261018","source":{"limit":1,"consumed":1},"red":{"limit":1,"consumed":1},"green":{"limit":1,"consumed":1},"registered_exact_data_proof":{"limit":1,"consumed":1},"independent_affected_review":{"limit":1,"consumed":1},"scope":"Existing global classifier and owning focused regression target only. Exact retained request is DATA. Reproduce observed classification; implement a general sound typed CIM-record-to-JSON consumer rule only when justified, preserving real executable/unknown-consumer negatives. No packet whitelist, execution masking, weakened stop guard, hook/config/trust/plan selection change or false confirmation."},"return_to_capture":"COMPLETED ONCE through the normal hook using corrected2774/8221, actual shell200f44 exit0. Original unsafe2715/e1aa stays stopped. All corrected-method capture/proof/read units are spent; no original50 rerun, fresh CIM, process action, other-case clearance or new allowance follows.","acceptance":"Both original behavior and independent result-read allocations are spent1/1. Full scoped acceptance remains HELD for actual owned-target closure; no host/runtime/WP/Phase2 acceptance.", "corrected_fail_closed_capture_method_20261018":{"decision_id":"WP012-MT191-CORRECTED-FAIL-CLOSED-CLOSURE-CAPTURE-20261018","authority":"Root exact prospective correctness remediation after SAME Diagnostics evidence-based incomplete escalation and existing buddy recommendation; direct Operator autonomous blocker-resolution delegation","diagnosis":"Original2715/e1aa assigns File.Open(CreateNew) before try, without local null initialization or initial Stop. A throwing assignment can leave an ambient receiver for later Write/Dispose. No such event is claimed to have happened. This actual unknown-consumer path must remain blocked; the classifier is not required to bless it.","diagnostic_provenance":"SAME Dx01a14c66-cf2a-7463-b60d-4e8e596c6887 actual completed turn01a150df; official PowerShell error/null and System.IO.FileMode documentation inspected by Dx; /root/global_case_checker independently reconciles the narrow cause","old_attempt_preserved":{"source_fixture":{"limit":1,"consumed":1,"bytes":165421,"sha256":"0fb2262036040c33d5cb1aa59529e16c2bfc8669142987cfcf4da9f2e1618711"},"red":{"limit":1,"consumed":1,"exit":1,"tests":1,"seconds":0.004},"handler":"137186/692cb8cba989cad05e612bf623a9875982ffc58bb5b36a7fe5408bb502c5b97d unchanged","result_artifact":"hook-mt191-post-capture-proof-result.json","result_bytes":26474,"result_sha256":"4ddc9f9d243677464f5a5d2e9aacd7375135d5811e416a9f77d85f1d26d6dfd0","status":"ORIGINAL_UNSAFE_LITERAL_STOPPED; its earlier false-positive assumption is superseded by actual receiver-lifetime diagnosis, no retroactive compliant/pass claim"},"same_executor_preparation":{"actor":"/root/mt191_behavior_executor","limit":1,"consumed":1,"scope":"Prepare and retain the COMPLETE original capture request with ONLY real fail-closed error-boundary corrections: explicit local Stop behavior before throwing work, locally initialized null stream, File.Open inside guarded try/finally with null-safe disposal. Preserve all original result/log reads, CIM observation/filter/birth/target identities, full JSON evidence and owned-current closure semantics, same tool/actor/provided options/selector. No split, alternative transport, wrapper, encoding, output truncation, weaker observation or process stop. Retain exact actual new request/cmd bytes/hash BEFORE any await; account for every changed span against retained e1aa. Preparation is not execution."},"classifier_remediation":{"owner":"SAME existing Diagnostics sole author coordinated by /root/skill_patch_owner","source_unit":{"limit":1,"consumed":1},"new_literal_red_if_still_blocked":{"limit":1,"consumed":1},"scope":"Independently inspect corrected actual literal first. If existing classifier already soundly supports it, reuse existing code and prove exact data without unnecessary source patch. Otherwise general sound typed dataflow recognition only after failing corrected-literal reproduction, preserved real executable/unknown-consumer/stop boundaries and original unsafe literal as negative. New source outcome includes fixture correction and necessary handler edits, not a one-edit quota. No packet whitelist or hook/config/trust/plan-selection changes.","existing_unused_proof_units":"Rebind ONLY original still-unused green1/0, registered_exact_data_proof1/0 and independent_affected_review1/0 to actual corrected method/source. These are not renewed or duplicated; old consumed source/RED remain1/1. Add actual receiver-lifetime cause through existing public preparation before next attempt."},"one_actual_corrected_capture":{"actor":"/root/mt191_behavior_executor","limit":1,"consumed":1,"condition":"Actual corrected complete literal, minimum source if needed, focused proof, registered exact DATA and independent affected verdict establish legitimate corrected method through NORMAL hook. Then SAME executor runs this one full corrected capture. Original unsafe e1aa is never retried/cleared; no behavior test rerun or false closure."},"independent_closure_artifact_reread":{"actor":"Current Root or legitimately named original independent result reader","limit":1,"consumed":1,"scope":"Only actual new complete closure artifact and request/result/identity/guard fidelity. Reuse original50-test independent verdict; no new process observation, body acquisition or repetition of spent final-result read."},"preservation":"Original50/50, both retained-handle exits0,1039inputs/no drift and9execution-era controls remain valid historical proof. Full scoped acceptance stays HELD until actual current owned-target closure is proven. Report any residual identity; never stop foreign process. No runtime/WP/Phase2/host acceptance, budget reset or source-wide freeze."}}
+  ,
+    "corrected_capture_actual_closure_verdict_20261019": {"decision_id": "WP012-MT191-CORRECTED-CAPTURE-CLOSURE-VERDICT-20261019", "status": "VERIFIED_OWNING_COMPONENT_PROOF_ONLY", "candidate": {"commit": "a118e58a2afaad6009567e046422828c99277aa0", "tree": "5214886792cbbf6ff41e96637ebf0c087aa34e71", "package": "Notes/handshake_rich_document_model"}, "classification": {"handler_bytes": 146688, "handler_sha256": "ecf0b034f21d762370eb7d60159c9f1c852f90f69211e3aedcf4452f6e63475d", "tests_bytes": 171808, "tests_sha256": "369a18694eafbff6fd211b7ccbee7f42c11df21d7a4221535c502e91b0f33245", "green_tests": 29, "green_exit": 0, "registered_exact_data_exit": 0, "registered_data_output": "EMPTY", "independent_verdict": "VERIFIED_FOR_CORRECTED_CAPTURE_CLASSIFICATION", "independent_refs": ["22df24", "c138cc"], "proof_bytes": 43281, "proof_sha256": "b9acf33790c42a8cb632d9e608a6fa88c980aed497ca8ca85b50ad9988d81a24"}, "actual_corrected_capture": {"actor": "/root/mt191_behavior_executor", "tool_result": "200f44", "shell_exit": 0, "command_bytes": 2774, "command_sha256": "8221ba8c8b6aa2d405af00e605663b48496624bcd6970f8c2aef841ff9dd1251", "artifact_root": "../Handshake_Artifacts/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-191/model-owning-proof/iv-behavior", "closure_file": "executor-current-owned-closure.json", "closure_bytes": 3762, "closure_sha256": "72272eb54c6b63c92e9d77668b57d60370713d3efad2aaa9dea3dc94ca761055", "closure_at_utc": "2026-10-18T22:20:56.5906412Z", "preawait_file": "mt191-corrected-capture-actual-preawait.json", "preawait_bytes": 5739, "preawait_sha256": "af528eb92feae55b8fa448a1288ce47979c4ec725157ff89d5719e21a6e64fef", "result_file": "mt191-corrected-capture-actual-result.json", "result_bytes": 34104, "result_sha256": "15c792bda1abed114e2d446e6fc65e8f839b040e9cd37941a966b778ee662b47", "six_captured_controls_pre_post_equal": true}, "independent_closure_read": {"actor": "/root", "limit": 1, "consumed": 1, "canonical_read_refs": ["f4f0c7", "544ccf"], "verdict": "VERIFIED_FOR_CURRENT_OBSERVED_OWNED_CLOSURE", "original_pid_or_parent_matches": 0, "compiler_floor": 0, "target_matches": 1, "self_capture": {"pid": 39544, "parent": 33632, "birth": "2026-10-19T00:20:55.677436+02:00", "name": "pwsh.exe", "attribution": "Full CommandLine contains the exact frozen corrected capture command; that same owned invocation subsequently returned numeric0. Target set honestly reported as one, not assumed empty."}, "scope": "Closure artifact plus retained request/result/identity/guard bindings only. First display truncated; bounded assertions completed the same read outcome. Original test files were not reread, no fresh process observation/historical or unseen-child census."}, "original_proof_reused": {"library_passed": 50, "failed": 0, "ignored": 0, "filtered": 0, "doc_targets": 1, "doc_tests": 0, "cargo_exit": 0, "outer_cli_exit": 0, "inputs": 1039, "input_drift": 0, "execution_era_controls": 9, "control_drift": 0, "original_test_rerun": false, "spent_original_result_read_repeated": false}, "historical_allocation_status": "CANONICAL_CANDIDATE_VERIFIED_INDEPENDENT_BEHAVIOR_PENDING", "historical_return_to_capture": "After actual changed-source focused proof and independent affected review establish legitimate classification repair, SAME original executor may perform the original complete closure capture through its normal route. No behavior rerun, counter reset or assumed empty process set. Retain observed current attributable identities; report any residual process without unauthorized stop.", "preservation": "Prior rejections, unsafe literal, execution-era guards/results, all spent allowances and canonical source preserved. No MT192/other-case clearance, host Source START, runtime/GUI/whole-WP/Phase2 acceptance, Git/compiler custody transfer or new allowance. DISTINCT pinned host adoption remains separate."}
+  }
+}

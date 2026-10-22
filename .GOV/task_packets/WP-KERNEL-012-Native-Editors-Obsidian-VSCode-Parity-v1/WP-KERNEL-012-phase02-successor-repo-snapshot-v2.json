@@ -1,0 +1,203 @@
+{
+  "schema_id": "handshake.phase_successor_repo_snapshot.v1",
+  "file_id": "WP012-PHASE02-SUCCESSOR-REPO-SNAPSHOT-V2",
+  "file_kind": "bounded_repo_snapshot",
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "phase_id": "PHASE-02",
+  "captured_started_at_utc": "2026-10-22T17:01:15.168135Z",
+  "captured_completed_at_utc": "2026-10-22T17:24:29Z",
+  "capture_scope": "Two canonical active repositories: current branch/HEAD/tree; exact scoped dirty paths and named authority/state/source hashes. Current Product acceptance facts are owning Codeleader/Primary/Codecheck/original-IV observations, not a new technical audit.",
+  "snapshot_limit": "Bounded observation, not a full-byte backup, complete dirty inventory, accepted candidate or atomic freeze. Final closeout binds only already-held owner handbacks and final v6, including the single later Core attempt3 start report; no subsequent live-state chasing or globally live outcome claim. Product work continues; re-read affected inputs before acting. Historical source repositories/pins are not rescanned or repinned. Snapshot is not a second editable status authority.",
+  "generated_handoff_files_not_in_inventory": [
+    "WP-KERNEL-012-phase02-successor-repo-snapshot-v2.json"
+  ],
+  "repositories": [
+    {
+      "id": "GOV_KERNEL",
+      "path": ".",
+      "branch": "gov_kernel",
+      "head": "b98e0558fba2b194ca40fe17cac13f1c2acac8f0",
+      "tree": "c14630e4e85d45144b4fe8052ee5e24225da7e5e",
+      "dirty_count": 5,
+      "dirty_inventory": [
+        " M .GOV/roles_shared/records/TASK_BOARD.md",
+        " M .GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json",
+        " M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-174.json",
+        " M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase02-successor-handoff-v6.json",
+        " M .GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+      ],
+      "dirty_inventory_scope": "Exact listed current-state/source paths only; not total repository dirt.",
+      "scoped_paths": [
+        ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+        ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-174.json",
+        ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json",
+        ".GOV/roles_shared/records/TASK_BOARD.md",
+        ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase02-successor-handoff-v6.json"
+      ],
+      "dirty_inventory_sha256": "169c8276758513adf9c0e1e5c2a0ad38dcdebadb7c6488efe9b6f642b9767709",
+      "inventory_format": "git status --porcelain=v1 --untracked-files=all -- <exact scoped paths>"
+    },
+    {
+      "id": "WP012_PRODUCT",
+      "path": "../wtc-WP-KERNEL-012",
+      "branch": "feat/WP-KERNEL-012",
+      "head": "791e666350ce03875f4bd2dff9396f09646964a7",
+      "tree": "c5afa4c5fd1b7be0ae73e81ca022ed688b946c47",
+      "dirty_count": 5,
+      "dirty_inventory": [
+        " M src/backend/handshake_core/Cargo.lock",
+        " M src/backend/handshake_core/Cargo.toml",
+        " M src/backend/handshake_core/src/api/authority.rs",
+        " M src/backend/handshake_core/tests/kernel_crdt_snapshot_surreal_tests.rs",
+        " M src/backend/handshake_core/tests/operator_chat_capture_surreal_tests.rs"
+      ],
+      "dirty_inventory_scope": "Exact listed current-state/source paths only; not total repository dirt.",
+      "scoped_paths": [
+        "src/backend/handshake_core/src/api/authority.rs",
+        "src/backend/handshake_core/tests/kernel_crdt_snapshot_surreal_tests.rs",
+        "src/backend/handshake_core/tests/operator_chat_capture_surreal_tests.rs",
+        "src/backend/handshake_core/Cargo.toml",
+        "src/backend/handshake_core/Cargo.lock"
+      ],
+      "dirty_inventory_sha256": "36566938b1e2506502876d4fae95ee3ae17dfd3be14d63834b7e9794ca6243d5",
+      "inventory_format": "git status --porcelain=v1 --untracked-files=all -- <exact scoped paths>"
+    }
+  ],
+  "current_spec": {
+    "entrypoint_type": "indexed_manifest",
+    "entrypoint_path": ".GOV/spec/master-spec-v02.220/indexed-spec-manifest.json",
+    "resolver_index_path": ".GOV/spec/master-spec-v02.220/INDEX.json",
+    "version": "v02.220",
+    "previous_version": "v02.219",
+    "source_baseline_path": ".GOV/spec/Handshake_Master_Spec_v02.182.md",
+    "active_bundle_root_path": ".GOV/spec/master-spec-v02.220",
+    "archive_root_path": ".GOV/spec/spec_archive",
+    "changelog_path": ".GOV/spec/master-spec-v02.220/spec-changelog.jsonl"
+  },
+  "governance_hashes": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "80bdf12c5846a8b5c2871aef301cf9613e69f802e05335a24017b52c0a244e53",
+      "bytes": 32799
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "d9451fa2d8490a4ed5600ea91454b70219219f5c26aa22ccb37daf3d836cadf2",
+      "bytes": 32802
+    },
+    {
+      "path": ".GOV/codex/Handshake_Codex_v1.4.md",
+      "sha256": "dc3d41ea7f984c36946059a00fe77ce74c4c4e7ae10a3c0e115d49f4ee357060",
+      "bytes": 43600
+    },
+    {
+      "path": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+      "sha256": "b9ddf51732254b227c5e6bcff0a5f61d091ba91f5028b6604f982b5a123803c3",
+      "bytes": 23245
+    },
+    {
+      "path": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      "sha256": "8cd676718a80a73b4033e673292950baf2f50d47d79ac91bc0b9d5b7c2240035",
+      "bytes": 107266
+    },
+    {
+      "path": ".GOV/spec/SPEC_CURRENT.md",
+      "sha256": "dc4e865934d15624a6a4c2ccfd20d287bf3d2a90e8f9bb976de9c803cea2d8f8",
+      "bytes": 1280
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+      "sha256": "b2b4a2889499da8efdf7d45637bd5e54bebcb17a2fc9e0016975ef2c3b01a131",
+      "bytes": 1199165
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-174.json",
+      "sha256": "46e8e46cad1810b110e14875a4029a41acb36ec73ee7fc350ed61383ae65f826",
+      "bytes": 820387
+    },
+    {
+      "path": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json",
+      "sha256": "db3d182760a5127e391f10d1924d88948364028f75cd669ec008a22739b3983d",
+      "bytes": 1233797
+    },
+    {
+      "path": ".GOV/roles_shared/records/TASK_BOARD.md",
+      "sha256": "00e441a63fd51f82043c9be79b954ba9b29fa4cbd5353e7f3a191eb72e947c4c",
+      "bytes": 26746
+    },
+    {
+      "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase02-successor-handoff-v6.json",
+      "sha256": "305510495d9dc2d12f5c159431b6f4466cbc24b414c60ff123d28c1464e59ba4",
+      "bytes": 693066
+    }
+  ],
+  "product_hashes": [
+    {
+      "path": "src/backend/handshake_core/src/api/authority.rs",
+      "sha256": "2617c8d722d206a54b8b120fe6b76dd96149350b18a9a0d8a9283b61b1cfbf0a",
+      "bytes": 115398
+    },
+    {
+      "path": "src/backend/handshake_core/tests/kernel_crdt_snapshot_surreal_tests.rs",
+      "sha256": "91f292dc8bbbca7ab7662b794772d777d20a6e9d47bab9888d560040c5d3acc1",
+      "bytes": 34694
+    },
+    {
+      "path": "src/backend/handshake_core/tests/operator_chat_capture_surreal_tests.rs",
+      "sha256": "40fb90e3ebccf64d564c1a197f3d9968cbb59b0046837e23f70ecfc49566bb7d",
+      "bytes": 46351
+    },
+    {
+      "path": "src/backend/handshake_core/Cargo.toml",
+      "sha256": "cf13b893dffc74fdce7d0173388ee5a32f2ad1170b6c293fc5d41fadf97f873f",
+      "bytes": 31598
+    },
+    {
+      "path": "src/backend/handshake_core/Cargo.lock",
+      "sha256": "a507b3a253ac53072b9e54ed4ea44810eda66b32918966ec51e1193ef657919f",
+      "bytes": 240537
+    }
+  ],
+  "host_profile": {
+    "path": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-durable-capture-20261021-01/schema166-b-stack32m-host-profile-01.json",
+    "sha256": "61cf1b2ae4889684c6f8403f1d60ad9d651b36a1e77ccdeded5fd6b99e8e082e",
+    "bytes": 9386,
+    "observation_only": "Current prior capture profile hash; no runtime preparation or new compile admission certified."
+  },
+  "source_drift": [
+    {
+      "id": "PRIOR_SNAPSHOT_RETAINED",
+      "previous_snapshot_ref": "WP-KERNEL-012-phase02-successor-repo-snapshot-v1.json",
+      "disposition": "Historical Oct10 snapshot retained unchanged. CKC/WP1/Handpick source pins and drift are retained there and in source contracts; no new source scan or repin."
+    },
+    {
+      "id": "CURRENT_STATE_AUTHORITY",
+      "state_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_state_snapshot_refresh_20261022",
+      "workflow_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_prechecker_codecheck_refresh_20261022",
+      "handoff_ref": "WP-KERNEL-012-phase02-successor-handoff-v6.json#/operator_team_precheck_refresh_20261022",
+      "disposition": "v6 remains packet-selected restart authority; numeric v7 revision2 remains an unpromoted draft."
+    },
+    {
+      "id": "CURRENT_PROOF_QUALIFICATION",
+      "capture_state": "FAILED_WHOLE_THREE_CAPTURE_NOT_MT_VERDICT",
+      "runtime_verdict": "NOT_ISSUED",
+      "source_state": "SAVED_INDEPENDENT_SOURCE_CLEAR_ONLY",
+      "chat_runtime_state": "ORIGINAL_WHOLE_TWO_UNRUN_ALLOWANCE_UNSPENT",
+      "chat_compile_state": "PREPARED_METADATA_REVIEW_CLEAR_CARGO_LAUNCH_PROOF_NOT_HELD",
+      "model_input_state": "ATTEMPT2_FAILED_ATTEMPT3_OWNER_REPORTED_STARTED_UNQUALIFIED",
+      "disposition": "No MT/WP/Phase2 acceptance promotion. Snapshot pool spent; original Chat whole-two unspent. Preparation and three metadata reviews clear only; actual compiler outcome and genuine final model qualification remain pending at the bounded cutoff."
+    },
+    {
+      "id": "TEAM_ALLOCATION_OBSERVATION",
+      "accepted_allocation_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_prechecker_codecheck_refresh_20261022/allocation",
+      "actual_assignment": "Primary authored/SAVE01a15e8a with Codeleader native diagnostics_runtime nonauthor prechecker; Core173 author01a15614 with Codeleader01a15c29 root nonauthor prechecker; independent Codecheck01a15ea5; original runtime IV01a15322.",
+      "reviewer_assignment": "Three actual distinct read-only Codecheck reviewers completed NEW prepared Chat metadata review with no actionable finding. All inherit the same model; closed source reviews were reused.",
+      "reviewers": [
+        "/root/chat_norun_build_fields",
+        "/root/chat_norun_lineage_fields",
+        "/root/chat_norun_lifecycle_fields"
+      ],
+      "disposition": "Actual author/nonauthor/independent-reviewer/IV assignments are recorded; no model-diversity claim. Metadata review is not compiler/runtime PASS."
+    }
+  ]
+}

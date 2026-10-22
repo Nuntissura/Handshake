@@ -1,0 +1,218 @@
+{
+  "notes_kit_grouping_ref": {"decision_id": "WP012-NOTES-KIT-GROUPING-20261018", "authority": "MT-189.json#/notes_kit_grouping_correction_20261018", "precedence": "Notes is one kit with multiple internal crates; prior per-crate separate asset/destination assumption is superseded. Preserve distinct source/adoption proof and original acceptance; no physical migration or rejected-action retry inferred."},
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "created_at_utc": "2026-10-18T00:00:00Z",
+  "operator_authority": {
+    "decision": "Direct Operator2026-10-18 five-team modularization and approved blocker scope expansion after team deliberation",
+    "handoff_ref": "WP-KERNEL-012-phase02-successor-handoff-v6.json#/operator_team_refresh_and_modular_delivery_20261018",
+    "deliberation": "Actual repo/WP012 comparison, Central+Team1/2+Assets source-home/interface proposals, Root create-assets skill/live remote/index/manifests and official Cargo research inspected."
+  },
+  "authority_files": {
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "role": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+    "packet": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "spec": ".GOV/spec/SPEC_CURRENT.md"
+  },
+  "context_capsule": {
+    "original_mt_refs": [
+      "MT-011",
+      "MT-012",
+      "MT-013",
+      "MT-018",
+      "MT-020",
+      "MT-035",
+      "MT-077"
+    ],
+    "module_maintenance_refs": [
+      "MT-193.json#/execution/module_maintenance"
+    ],
+    "pin_policy": "Original in-flight WP012896f4e15/v02.206 and all adopted amendments/source-WP pins/acceptance/history remain. New source/adoption work follows explicitly adopted current module lifecycle; no old verdict rewritten."
+  },
+  "lifecycle": {
+    "status": "PASS_V1",
+    "blocked_on": null,
+    "claimed_by": null,
+    "completed_by": "01a15322-1723-7f23-b8dc-9dc278dcaea3",
+    "validator_verdict": "PASS_V1"
+  },
+  "preservation": "All original WP012/CKC/WP1 obligations, native/manual/Argus/privacy/FlightRecorder/diagnostics, source pins, historical failures/spent budgets and independent acceptance remain. No new branch/worktree/backup, foreign process disruption or actual denied-action bypass.",
+  "mt_id": "MT-193",
+  "title": "Standalone canonical handshake_rich_formatting",
+  "closure_unit": {
+    "outcome": "Real independently reusable source package with behavior tests, source proof, normal canonical publication and independent remote reread, then immutable release binding for separate host adoption.",
+    "materialized_acceptance": [
+      "Pure action mutation and existing meaningful tests exercise real action behavior; no GUI-framework dependency in core.",
+      "MergeBackward/grapheme host callbacks preserve host behavior, single undo and descending codeblock tests remain required at adoption.",
+      "A/B source authoring may run in parallel against unchanged model API; proof binds compatible actual model revision before publication/adoption.",
+      "README documents public API, model use, input/output, dependencies, errors/limitations, recovery and host boundary.",
+      "Canonical assets-index.yaml entry matches actual manifest/API/docs, preserving partial coverage and Cabinet/Peak.",
+      "Independent source proof/publication/canonical remote reread names exact immutable revision and source input digest. No host integration acceptance inferred."
+    ]
+  },
+  "scope": {
+    "base_scope": [
+      "Bootstrap existing formatting logic and extract framework-independent EditContext/EditAction/apply_action. Keep egui/keymap/GUI decode in host; use explicit host callbacks for MergeBackward/graphemes."
+    ],
+    "allowed_write_paths": [
+      "../../.assets/handshake_rich_formatting/"
+    ],
+    "reference_only_paths": [
+      "src/frontend/handshake_rich_formatting/",
+      "src/frontend/handshake_native/src/rich_editor/renderer/input_handler.rs"
+    ],
+    "forbidden_paths": [
+      "Handshake product source/manifests/locks",
+      "other Assets folders",
+      "new nested Git repository/workspace",
+      "host adoption before source proof/publication/reread"
+    ]
+  },
+  "execution": {
+    "module_change_stage": "standalone_source",
+    "product_worktree": "../../.assets",
+    "source_repository": "https://github.com/Nuntissura/assets.git",
+    "declared_existing_branch": "codex/handpick",
+    "module_maintenance": {
+      "module_id": "handshake_rich_formatting",
+      "canonical_repository": "https://github.com/Nuntissura/assets.git",
+      "canonical_path": "handshake_rich_formatting",
+      "maintainer": "01a14c73-3519-7351-bbf7-6e4ce30e5b6d",
+      "public_api": "Existing formatting commands/list/table plus reusable EditContext/EditAction/action transition API with explicit host callbacks.",
+      "dependency_direction": "Preserve serde_json1/thiserror2 and relative ../handshake_rich_document_model dependency. No egui core dependency, no root workspace/submodule/new Git repository.",
+      "inputs": [
+        "src/frontend/handshake_rich_formatting/",
+        "src/frontend/handshake_native/src/rich_editor/renderer/input_handler.rs"
+      ],
+      "outputs": [
+        "handshake_rich_formatting/Cargo.toml",
+        "handshake_rich_formatting/README.md",
+        "public source and owning behavior tests",
+        "immutable source revision/proof/independent reread"
+      ],
+      "gui_boundary": "Native GUI rendering/styling/framework event decode remains host; reusable core logic exposes state/actions/results. No egui core dependency.",
+      "recovery": "Preserve previous host implementation/pin until separate adoption; new package has no authority over host auth/storage/controller/fixture."
+    },
+    "assignments": [
+      {
+        "actor": "/root/coder_actions",
+        "files": [
+          "Cargo.toml",
+          "Cargo.lock",
+          "README.md",
+          "src/lib.rs",
+          "src/commands.rs",
+          "src/list_table.rs",
+          "src/commands/tests.rs",
+          "src/actions.rs"
+        ],
+        "outcome": "Bootstrap existing formatting logic and extract framework-independent EditContext/EditAction/apply_action. Keep egui/keymap/GUI decode in host; use explicit host callbacks for MergeBackward/graphemes."
+      }
+    ],
+    "assembly": "coder_actions sole new package manifest/lib/baseline assembly writer, disjoint from model author. Team1 leader alone updates shared Assets index.",
+    "index_owner": "Team1 leader01a14c72-1989-7ed2-aedc-326199f80ed4 is SOLE writer of ../../.assets/assets-index.yaml for all three entries; preserve schema assets.index.v1, partial coverage and existing Cabinet/Peak. No unrelated index/catalog work.",
+    "ownership": "New target folders were inspected ABSENT. Source writers obtain actual before-write guards/ordinary path checks and preserve any newly observed work. This grants only new package paths; no old host source lease transfer. One writer per shared manifest/lib/index.",
+    "parallel_authoring": "Text source and rich source packages are disjoint. Model and formatting may be authored in parallel using existing stable model API; dependency correctness is checked on actual assembled source before proof, not an authoring predecessor.",
+    "source_write_authorized": true,
+    "start": "Central routes this exact contract and separately issues SOURCE START to named team writers/assembly owner after current guards. Actual source patches plus meaningful existing public API tests/docs required; no placeholder-only deliverable. No additional human GO or whole-parent committee.",
+    "review": "Team NEVERAUTHOR/dependency specialists inspect actual API/imports/features/manifests/tests and source diff; direct Codecheck team review BEFORE expensive Cargo. Findings resolved on actual changes, no repeated closed reviews.",
+    "tests_or_compiler_authorized": false,
+    "git_execution_authorized": false,
+    "proof_start": "Required commands below define acceptance, NOT immediate run allowance. Root/Primary assigns exact source-proof owner/gameplan/artifact root and reviewed stable source before any compile/test/publication; existing compiler/finite holds are not bypassed.",
+    "source_adoption": {
+      "host_mt": "MT-194",
+      "host_write_predecessor": "Independent source behavior proof, normal canonical GitHub publication and independent remote reread at same immutable revision; no source-source serial authoring gate."
+    }
+  },
+  "validation": {
+    "required_source_commands": [
+      "cargo check --manifest-path handshake_rich_formatting/Cargo.toml --locked --tests -j 1",
+      "cargo test --manifest-path handshake_rich_formatting/Cargo.toml --locked -j 1"
+    ],
+    "working_directory": "Verified canonical Assets repository root",
+    "requirements": "Use only meaningful owning tests, nonzero actual results, exact source digest/lock/feature inputs, existing required gameplan and verified artifact paths. New package lock generation belongs assigned sole source manifest/proof owner, not worker Cargo.",
+    "independent_acceptance_owner": "01a14c66-e01c-7551-9ee0-b913f2d6b277 or exact independently assigned source validator; implementers never self-accept",
+    "proof_records": [
+      {
+        "verdict": "PASS_V1",
+        "scope": "MT-193 standalone source package only; no MT-194 host, Native/runtime, whole-WP or Phase2 acceptance",
+        "validated_by": "01a15322-1723-7f23-b8dc-9dc278dcaea3",
+        "validated_at_utc": "2026-10-20T02:51:33.286107+00:00",
+        "tested_revision": "c168e699d3bb4507ee3ee7d08095f739ba0d2379",
+        "accepted_publication_revision": "7511afa4059905a747b61b72876b6fda605fc904",
+        "model_revision": "a118e58a2afaad6009567e046422828c99277aa0",
+        "lock_sha256": "01c6a763f48683bea760786a813b05667ce13c9bf790369b66fdc51d5d28cb49",
+        "artifact_root": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-193\\iv-01a15322",
+        "source_check": {
+          "artifact": "check-01.exit.json",
+          "pid": 43464,
+          "exit_code": 0,
+          "argv": [
+            "C:\\Users\\iljas\\.rustup\\toolchains\\1.97.1-x86_64-pc-windows-msvc\\bin\\cargo.exe",
+            "check",
+            "--manifest-path",
+            "handshake_rich_formatting/Cargo.toml",
+            "--locked",
+            "--tests",
+            "-j",
+            "1"
+          ],
+          "log_sha256": "63c0ce66f915594f365c5df2835b2df135747a24f27092fd80f7a5b21b1bed88"
+        },
+        "owning_behavior": {
+          "artifact": "test-01.exit.json",
+          "pid": 60360,
+          "exit_code": 0,
+          "argv": [
+            "C:\\Users\\iljas\\.rustup\\toolchains\\1.97.1-x86_64-pc-windows-msvc\\bin\\cargo.exe",
+            "test",
+            "--manifest-path",
+            "handshake_rich_formatting/Cargo.toml",
+            "--locked",
+            "-j",
+            "1"
+          ],
+          "passed": 25,
+          "failed": 0,
+          "ignored": 0,
+          "filtered": 0,
+          "doc_targets": 1,
+          "doc_tests": 0,
+          "direct_apply_action_tests": 3,
+          "log_sha256": "4d3bb962fa39f738841dfd7a33daffa6b968f535a454fc89cac777bebe14c7d1",
+          "input_drift": []
+        },
+        "independent_remote_closure": {
+          "actor": "01a15322-1723-7f23-b8dc-9dc278dcaea3",
+          "repository": "Nuntissura/assets",
+          "readme_path": "handshake_rich_formatting/README.md",
+          "readme_blob": "7e8b8b86fb074a4d85025219850179d7e3516f6e",
+          "method": "Independent canonical GitHub fetch_file full README and compare_commits c168e699..7511afa",
+          "observed_delta": "One commit; only README.md added,103 lines; engine/tests/manifest/lock unchanged",
+          "manual_review": "Purpose/dependencies/public APIs/inputs/outputs/errors/limits/recovery and host responsibilities checked against actual source",
+          "index_evidence": {
+            "independent_observer": "01a15693-ebe1-7631-aaa6-69ddb43866fe",
+            "revision": "d5298e2b9b3ffb2700bb068ba5ef979a0fb467a0",
+            "blob": "23e0c34ad4b30d8f35eec698eda9c5e6cc6f985d",
+            "finding": "NOTES-ASSET-001 formatting manifest/API logic entry depends on model; partial coverage,model/Cabinet/Peak/text entries conserved; unchanged by README-only publication"
+          }
+        },
+        "reuse": "Original locked check/test each ran once; no rerun after README-only addition; model50PASS reused without rerun",
+        "preparation": "Existing integration_validator before_round35/35 before each execution; before_verdict1/1; only verified existing confirmations refreshed under live human instruction",
+        "boundary": "Host grapheme/merge/single-undo/descending codeblock and original independent runtime acceptance remain at distinct adoption; no execution grant or counter reset."
+      }
+    ]
+  },
+  "research_basis": {
+    "sources": [
+      "https://doc.rust-lang.org/cargo/reference/resolver.html#feature-resolver-version-2",
+      "https://doc.rust-lang.org/cargo/reference/cargo-targets.html#integration-tests",
+      "https://doc.rust-lang.org/cargo/reference/workspaces.html"
+    ],
+    "selected": "Existing exact crate identities as contained standalone source; narrow production dependencies and owning tests; GUI/host policy stay host.",
+    "rejected": "Resolver-only fix, separate test files as dependency isolation, root workspace/nested repo creation, duplicated TextBuffer mechanics, host-first fork.",
+    "risks_and_controls": "UTF16/byte and cursor ownership drift=>retain exact existing semantics/API tests; heavy feature leaks=>inspect actual manifests/callers; index conflict=>single writer; host divergence=>source proof/publication/reread before immutable adoption. No measured build speedup claimed."
+  }
+}

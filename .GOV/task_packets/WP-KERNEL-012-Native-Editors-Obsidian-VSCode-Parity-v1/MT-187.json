@@ -1,4 +1,67 @@
 {
+  "recovery_execute_source_order_exception_20261018": {
+    "decision_id": "WP012-MT187-RECOVERY-EXECUTE-SOURCE-ORDER-20261018",
+    "authority": "Current Master ACTUAL decision approved after exact authority read and buddy consultation, under packet operator_adaptive_delivery_delegation_20261014/scope_expansion and operator_absence_full_control_20261016 instruction units002/003/005. Central delegated this helper only the minimum MT187 sibling and exact packet predecessor cross-reference; actual exclusive packet/MT187 writer window granted by Master with no other pending writer.",
+    "status": "PROSPECTIVE_THREE_PATH_SOURCE_EXCEPTION_NAV_RELEASE_AND_FRESH_GUARDS_REQUIRED",
+    "scope_precedence": "Expressly supersedes ONLY the source-authoring ordering in admission_constraints.hard_predecessor, implementation_authorized_now=false, execution.release_state and matching stop conditions for the exact three paths below. Original fields and false/blocked history remain unchanged as historical/general admission; this new prospective exception is the sole source-only override. It does not release dependent execution, proof or acceptance, or any other source scope.",
+    "packet_cross_reference": "packet.json#/auth_mapping_r2_adoption_20261011/registry_producer_dependency_admission/predecessor",
+    "repository": "../wtc-WP-KERNEL-012",
+    "branch": "feat/WP-KERNEL-012",
+    "leader": "01a14c7d-500b-7770-a841-68387c45f114",
+    "assignments": [
+      {"actor": "/root/implementation_a", "actual_thread": "01a14c7e-2452-7871-962d-d8e11a1a7412", "path": "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs", "observed_bytes": 735351, "observed_sha256": "f869d1f2990896d079096a753cacece2a03cf568762e8a3acb65954249eb54b9", "outcome": "Bind existing explicit recover_run_after_restart, recovery read dependencies and actual orphan/recovery writes to genuine Workspace/Update exact model_lane.recovery.execute using the existing authenticated three-controller chain, original operation and run/lane fences; preserve replay/checkpoint/idempotency/attribution and read-only GET semantics"},
+      {"actor": "/root/implementation_b", "actual_thread": "01a14c7e-3c1c-7071-bf5d-6944102fd366", "path": "src/backend/handshake_core/src/storage/surreal/model_lane.rs", "observed_bytes": 556433, "observed_sha256": "c4c378a09e8878e3815267685332de4abc3a8f71a585c36a73171698e2d5a7db", "outcome": "Implement matching RecoveryExecute/as_str recovery_execute/accepts_original provider purpose and exact original authentication/purpose/subject/grant/version continuity through the existing protected operation controller, never a parallel controller or enum-only fix"},
+      {"actor": "/root/implementation_b", "actual_thread": "01a14c7e-3c1c-7071-bf5d-6944102fd366", "path": "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql", "observed_bytes": 149583, "observed_sha256": "4ffee807411b897d9c61068e3489f146e7b6630434c9c80a007f3c8852d4b383", "outcome": "Bind exact RecoveryExecute operation predicates to existing Workspace/Update/model_lane.recovery.execute while preserving private descendants, token fences, denial/nonmutation, canonical Unknown/revocation ordering and NavigationRead GET projection"}
+    ],
+    "evidenced_failure": "Actual bounded source inspection found recovery_fenced opening surreal_read_scope while expired lease path calls record_orphan_recovery_event; provider purpose enum/as_str/accepts_original and Surreal operation matrix have no RecoveryExecute. These are existing MT187 AC1-AC5 requirements, not a new auth law.",
+    "custody_before_start": "Named NAV owners personally release ONLY their completed exact three paths before T5 writes; fresh T5 personal ordinary-file/ancestor/full guard and exact source path acceptance required before SOURCE START. Do not infer global freedom, fabricate relinquishment or treat prospective admission as actual handback. Actual writer/captured-input conflict or unexplained drift stops only affected path preserving all peer work. Historical MT172/173 ownership arrays stay unchanged; exact prospective transfer requires actual named release.",
+    "source_boundary": "Source authoring ONLY these three named files. No product tests, resource_authority/capabilities, Palmistry/shared watcher or global schema.rs/schema.surql, T3 A/B, T4 caller, Cargo manifests/locks/index/Git changes. A separately coordinated NAV facade adoption/removal map and minimum MT010 child remain distinct/unstarted; no silent adoption scope here.",
+    "semantic_floor": "Preserve all original WP012-MT-187-AC1-AC5: existing with_context_bundle_transaction -> supervise_context_operation -> execute_context_operation, genuine original Workspace/Update exact capability, authenticated context and run/lane token recheck before commit/protected publication, original replay/checkpoint/CRDT/consent/cancel/crash/orphan negatives, stable operation/envelope/canonical Unknown reread before retry, real revocation race and nonmutating GET NavigationRead. No fabricated registry, session, grant, policy, receipt, capability or proof; no new controller/endpoint/checker/resource kind/action.",
+    "schema_dependency": "B's dedicated model_lane_schema source delta grants no generated global schema pin/lineage change. Existing T3 global-schema ownership and actual165 measure -> sole measured pin -> independent confirmation before166, immutable164 and affected original runtime proof remain. Return any actual generated-pin dependency to its owning scope; no silent global edit.",
+    "review": "Existing distinct team NEVERAUTHOR and dependency checker inspect actual changed three-file source/callers/provider/predicates/types/borrow/lifetimes/fences/Unknown. Then direct new T5 Codecheck01a14f62-c30a-7113-bf78-f0b630b432ab with two NEVERAUTHOR readers inspects actual new diff; no duplicate unchanged F10 review. Review is advisory source evidence, never runtime acceptance.",
+    "retained_execution_prerequisite": "MT185 actual governed registry publication remains PENDING and mandatory for dependent execution/acceptance: independent canonical registry read/hash, authentic publication Flight Recorder witness,37 retained originals and exactly2 approved additions. Actual authenticated POST/jobs capability_registry_build, GET/jobs/:id and scoped GET/flight_recorder require genuine deployed executable/session/channel/grants/policy and independent evidence. Fixtures/manually active registry/synthetic events/manual publication cannot substitute.",
+    "retained_proof": "All original MT187 acceptance/checks/composed authentic HTTP, parent/native/schema/runtime proof and independent verdicts remain required. This source-only exception neither proves nor waives MT185, MT186 or MT187. Preserve all original three-WP scope/pins/failures/denials/spent budgets and current implementation/proof_authorized false/blocked records outside this sibling.",
+    "start": "After actual MT187 sibling plus exact packet predecessor cross-reference save/parse/outside-inverse/readback, Central routes T5 actual SOURCE START only after named NAV personal path releases and fresh T5 guards. No another Root/human GO. Count actual source writes as source progress only; no authoring/dispatch/ACK is runtime proof.",
+    "rejection_handling": "If an actual policy rejection occurs, retain exact request/result and halt affected action. No change of actor/tool/encoding/route to bypass it. Distinct MT175 lock-save policy denial is not a global all-file write hold and is not retried by this source decision.",
+    "source_write_authorized": true,
+    "execution_runtime_cargo_tests_metadata_git_authorized": false,
+    "new_registry_grant_policy_controller_endpoint_authorized": false,
+    "run_allowance_or_counter_reset": false,
+    "acceptance": "NOT_ACCEPTED"
+  },
+  "account_private_http_source_amendment_20261016": {
+    "decision_id": "WP012-MT187-ACCOUNT-PRIVATE-HTTP-SOURCE-20261016",
+    "status": "EXACT_TWO_PATH_SOURCE_AMENDMENT_ONLY_EXECUTION_AND_ORIGINAL_DEPENDENCIES_HELD",
+    "recorded_at_utc": "2026-10-16T10:13:49.7023011Z",
+    "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+    "source_contract_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/execution/producer_requested_task_current_policy_source_20261016",
+    "authority_refs": [
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/auth_mapping_r2_adoption_20261011",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-187.json#/scope/acceptance_criteria"
+    ],
+    "selected_source_paths": [
+      "src/backend/handshake_core/src/storage/surreal/resource_authority.rs",
+      "src/backend/handshake_core/src/storage/surreal/resource_authority/producer_authority_tests.rs"
+    ],
+    "source_scope": "ONLY new private Account producer-source facts capture/revalidation + cfg(test) SAME-real-ownedprepare committed-phase observation latch + exact private owning module declaration and ONE genuine helper/full HTTP R2 test module. Full selected contract, guards, owners, tests, channel binding and custody/isolation requirements are authoritative in source_contract_ref.",
+    "specific_source_exception": "Override older path/preexisting-fixture/future-run-ID source holds ONLY for this exact two-path authoring and R2-008–011 private HTTP test source. No genuine-context/proof predecessor is waived for execution, no new endpoint/controller, no broad MT187 blocked source/status activation.",
+    "original_fields_unchanged": "Original execution.allowed_write_paths/release_state/depends_on/stop_conditions, lifecycle, original AC1–AC5/checks/runtime/genuine-context/attempt history/finite allowances remain raw-byte unchanged. This narrow source exception is not an execution release or new recovery policy.",
+    "test_selector": "workspace_activation_observation_http_preserves_original_uuid_prepared_unknown_applied_and_scope_nonmutation",
+    "source_test_qualification": "Source names/declarations only, not compiled/discovered/nonzero/PASS. Genuine public setup/login->session->workspace, actual process-bound channel/native descriptor/protected Mounted publication/full canonical provider reread and before-after original UUID/Prepared Unknown/Applied/reopen/denial/nonmutation required.",
+    "excluded_alternates": "Shared decoder remains separate PROSPECTIVE MountedB source only, ungranted here. External tests/workspace_activation_observation_http_surreal_tests.rs CONDITIONAL_ALTERNATE_UNSELECTED; uncreated producer_source_tests.rs replaced, no duplicate.",
+    "future_execution_requirement": "Same original complete fixture retained; actual logout/vault/runtime drain/ledger/lease/exact-scope zero rows before backend close. Actual stage raw-token/HMAC/current OS-birth/channel provenance and exact Core-LIB process/selector isolation or actual common env-mutator serialization MUST be bound before any run. Local mutex alone is insufficient; none of these bindings/flags/env/execution created here.",
+    "source_start": "Root independent FULL both saved nodes then Central independent FULL read and SEPARATE official SOURCE START/actual A/B receipt, fresh exact existing-file hash/new-file absence guards.",
+    "preserved_original_obligations": {
+      "original_16_commands_semantic_sha256": "fc87a0ef0116276547fddd5b018c3aec0435c44a371a53a1a9a17de7a532b860",
+      "requirements": "ALL original WP012/CKC/WP1 scope/SIX/original16/full128/native/manual/Argus/source pins/failures/spent budgets and independent IV retained. Genuine165 measurement -> sole measured pin -> independent confirm before166;164 immutable. MT026 LOCAL_POLICY_HOLD unchanged; this source-only amendment does not retry/cure/replace it."
+    },
+    "sourcewrite_authorized": true,
+    "execution_authorized": false,
+    "proof_started": false,
+    "allowance_granted": false,
+    "limits": "Only source authoring exception references; no runtime proof/new allowance/slot/Git/test/build/Cargo/metadata/actual SQL/process/OSprobe/artifact/schema/config/lock/member/other path permission."
+  },
   "schema_id": "hsk.microtask_contract@1",
   "schema_version": "microtask_contract_v1",
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -472,5 +535,690 @@
     "implementation_lease_granted": false,
     "proof_execution_granted": false,
     "new_attempt_allowance_granted": false
-  }
+  },
+  "genuine_producer_preparation_policy_selection_20261016": {
+  "decision_id": "WP012-MT187-GENUINE-PRODUCER-PREPARATION-POLICY-SELECTION-20261016",
+  "status": "SELECTED_ENGINEERING_PREPARATION_NOT_SOURCE_ADMISSION",
+  "decision_owner": "01a13d30-1e08-70f3-801d-357858d025be",
+  "authority_basis": [
+    "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016",
+    "MT-187.json#/scope/acceptance_criteria"
+  ],
+  "purpose": "Root engineering selections already successfully delivered Central, resolving preparation inputs before exact source admissions. Proposed new identifiers/operations are not preexisting API or Spec-law claims. No source START, new path grant, finite allowance or execution.",
+  "member_enrollment": {
+    "decision_id": "WP012-MT187-MEMBER-ENROLLMENT-PREPARATION-SELECTION-20261016",
+    "scope": "Metadata-only ONE NEW Member LocalAccount + ONE human Principal + ONE NEW private AccessSpace per enrollment.",
+    "authorization": "Current administrator metadata exact ResourceGrant/capability/profile/Create/server intent/fence plus fresh SAME-account password reauthentication. No role-only authority, Owner/Admin mint, self-escalation, backfill, content grant or session return.",
+    "proposed_identifiers": {
+      "resource_kind": "AccountAdministration",
+      "capability": "account.identity.enroll",
+      "action": "Create",
+      "purpose": "identity_enrollment",
+      "qualification": "NEW engineering proposals; exact kind/registry/events/schema/owners remain supplier inputs, not existing Spec claims."
+    },
+    "invitation": "One-use purpose-bound hashed invite. expires_at <= min(issue_time + 60 seconds, current enrolling session expiry, administrator grant expiry if present, policy bound).",
+    "redemption": "Recipient chooses password; canonical redemption/password-enabled mapping followed by normal existing password login and session exchange. Constant invalid/expired/revoked/disabled denial.",
+    "idempotency_and_custody": "Original UUID/exact descriptor idempotency; Unknown retains original custody.",
+    "revocation": "Separately EXPLICIT capability/action plus administrator metadata grant; never implicit Create. Exact compatible typed action and path owner supplied BEFORE source grant.",
+    "profile": "Staged NEW MemberEnrollment navigation.read-only profile is a proposed least profile; no content authority.",
+    "open_floor": "Own-resource200/run eligibility/isolated same-account Principal and Space axes REMAIN OPEN for separate genuine producers; not waived.",
+      "explicit_revocation_and_fixed_profile_preparation_amendment_20261016": {
+  "decision_id": "WP012-MT187-MEMBER-REVOKE-FIXED-PROFILE-PREPARATION-SELECTION-20261016",
+  "status": "SELECTED_NEW_BOUNDED_ENGINEERING_POLICY_NO_SOURCE_ADMISSION",
+  "decision_owner": "01a13d30-1e08-70f3-801d-357858d025be",
+  "evidence": "Actual Account row confirms existing ResourceAction::Update and public POST/workspaces CURRENT session/principal capability intersection fs.write plus diagnostics.read own positives. Prior navigation-only eligibility proposal is insufficient.",
+  "revocation": {
+    "capability": "account.identity.enrollment.revoke",
+    "action": "EXISTING ResourceAction::Update",
+    "purpose": "identity_enrollment_revocation",
+    "authorization": "CURRENT authenticated administrator metadata exact ResourceGrant/profile/action/fence; Enroll/Create capability does NOT authorize revoke.",
+    "scope": "Exact enrollment target active -> revoked CAS ONLY. Consumed enrollment never reactivates/redeems. Account disable after redemption is outside this operation."
+  },
+  "fixed_profile": {
+    "amendment": "Explicitly supersedes old staged navigation-only fixed MemberEnrollment profile proposal ONLY with fixed eligibility model_lane.navigation.read, fs.write, diagnostics.read.",
+    "capabilities": [
+      "model_lane.navigation.read",
+      "fs.write",
+      "diagnostics.read"
+    ],
+    "purpose": "Verified PUBLIC own empty-workspace creation and authorized diagnostic positives.",
+    "boundaries": "No arbitrary capability/profile arrays, Owner/Admin capability or role escalation, existing-content grant or session return. CURRENT Principal/session capability intersection and normal exact resource grants remain required PER OPERATION. New eligibility never means existing content access.",
+    "own_resource_producer": "Existing PUBLIC POST/workspaces selected; no new content endpoint needed just for own creation."
+  },
+  "fixed_assignment_permission": {
+    "capability": "account.identity.member_profile.assign",
+    "resource_kind": "AccountAdministration",
+    "action": "Update",
+    "purpose": "member_profile_assignment",
+    "scope": "Exact fixed MemberEnrollment profile ONLY on SAME staged NEW Member under SAME original enrollment operation UUID. Existing enroll/Create or role label does NOT authorize assignment.",
+    "authorization": "CURRENT enroller exact metadata ResourceGrant/profile/action permission for THIS fixed assignment, SAME canonical reauthentication/fence/ordered server-intent capture and precommit checks.",
+    "eligibility_law": "Do NOT assume enroller owns all content capabilities. This permitted fixed assignment is EXPLICIT NEW policy, not unrestricted delegation. No general profile mutation/old Member edit/backfill.",
+    "first_owner_dependency": "Genuine first-Owner NEW administrator-resource/capability/profile issuance must explicitly carry these new rights under exact source admission. No raw seed or role-default authority."
+  },
+  "selected_flow": "ONE new Member account/Principal/private AccessSpace; recipient redeems through normal password/session and existing public own-workspace producer.",
+  "open_original_floors": "Foreign combined identity cases are NOT independent axes. Same-account isolated Principal/Space cases, run publisher and full HTTP expiry/revocation floors remain OPEN, all original scope retained.",
+  "supplier_boundary": "Actual ResourceKind/capability/kernelEvent/schema FULL paths/current holders/prospective authors/checkers/fresh guards/source ABIs remain UNADMITTED. SQL and Rust eventual166 together only AFTER genuine165 measure/sole pin/independent confirm;164 immutable.",
+  "preservation": "Valid Account A63fc/B3ffa reviews, all original three-WP/SIX/16/full128/pins/history/spent budgets/independent IV/MT026 and global A holds retained. All prior raw values unchanged.",
+  "sourcewrite_authorized": false,
+  "execution_authorized": false,
+  "proof_started": false,
+  "allowance_granted": false,
+  "limits": "Preparation policy only; no schema/baseline/source/runtime execution permission or other file change.",
+      "canonical_capability_id_binding": {
+  "evidence": "Actual Central bounded canonical-registry read6ef78a EXIT0, capabilities.rs SHA prefix8229a045...: line13 model_lane.navigation.read, line46 diagnostics.read, line104 fs.write. Actual personal Account turn01a144b6 confirms same. Prefix is attributed evidence, not a full-file guard.",
+  "exact_ids": [
+    "model_lane.navigation.read",
+    "fs.write",
+    "diagnostics.read"
+  ],
+  "scope": "Spelling correction only; no alias/new capability/eligibility or source/execution grant."
 }
+}
+  },
+  "runtime_checkpoint_publication": {
+    "decision_id": "WP012-MT187-RUNTIME-CHECKPOINT-PUBLICATION-PREPARATION-SELECTION-20261016",
+    "proposed_binding": {
+      "resource_kind": "Workspace",
+      "action": "Create",
+      "capability": "model_lane.runtime_checkpoint.publish",
+      "purpose": "runtime_checkpoint_publish",
+      "qualification": "Dedicated NEW bounded publication/read law; not existing permission or reuse/widening of RecoveryCheckpointRecord/NavigationRead/RecoveryExecute."
+    },
+    "scope": "Exact single genuine run/lane/incarnation immutable checkpoint plus real lease-observation appends; no content-message mutation/default child grant/seed/role authorization/new POST.",
+    "validation": "CLOSED exact canonical run/lane/message/payload/ledger/checkpoint/lease linkage and idempotency validation; SAME-purpose independent canonical readback; CURRENT five/exact grant/profile/authentication before and after plus final synchronous expiry.",
+    "revision": "Actual incarnation plus monotonic revision. Full-body equal original-command retry. Reduce latest actual revision before expiry/terminal/orphan; equal-revision divergence is an integrity error.",
+    "retention": "Preserve legacy unlinked semantics/record bytes/original UUID intent plus actual write handle/cached canonical result/committed prefix across FlightRecorder failure/cancel/Unknown. No second keeper/controller.",
+    "owner_install": "Mandatory original owner installation BEFORE first poll/effect; cached actual result BEFORE waiter return. Copies are DATA only; opaque Weak control is not authority.",
+    "required_atomicity": "Actual atomic linearization preventing r1 commit after r2 renewal/terminal remains REQUIRED supplier design. Snapshot/precommit recheck alone NOT accepted.",
+    "missing_suppliers": "Full SEVEN paths with exact owners/new-behavior ACKs/guards/checkers, capability/registry/event/schema scope and concrete provided-transaction/settlement/gate ABI remain UNSUPPLIED. These are contract inputs, not future runtime-value gates.",
+    "transport_boundary": "Retained U2 unsupported native child dispatch must not retry/bypass. Read-only parent readiness only for verified transport unreachability; no automatic writer transfer.",
+      "durable_claim_fence_preparation_amendment_20261016": {
+  "decision_id": "WP012-MT187-DURABLE-CLAIM-FENCE-PREPARATION-SELECTION-20261016",
+  "status": "SELECTED_NEW_BOUNDED_ENGINEERING_POLICY_NO_SOURCE_ADMISSION",
+  "decision_owner": "01a13d30-1e08-70f3-801d-357858d025be",
+  "counterexample": "Actual new Runtime/Composition counterexample: append-only checkpoint/lease plus local reservation cannot exclude stale r1 after r2, restart or a second coordinator.",
+  "scope_amendment": "Explicitly supersedes prior immutable-appends-only preparation scope ONLY to add canonical ORIGINAL claim-domain private fence-row creation/update. All prior text remains historical/raw unchanged.",
+  "atomic_fence": "REAL conditional mutation of SAME stable fence row in SAME Surreal transaction as checkpoint/lease/event appends; not SELECT/no-op. ALL acquisition/renewal/terminal/takeover competitors condition on current expected incarnation plus revision/cursor and exactly one row. r2 first => r1 conflict/reject; r1 first permits later actual r2. Locks/volatile claim-only proxies are not canonical serialization proof.",
+  "authorization": "Initial fence-row CREATE and subsequent UPDATE EACH require EXPLICIT correct Workspace action, CURRENT exact grant/profile/capability model_lane.runtime_checkpoint.publish/purpose runtime_checkpoint_publish and fixed server intent. Create does NOT imply Update. No blanket mutable runtime/content-metadata authority.",
+  "unadmitted": "Actual registration/fence key/schema/table permissions/current writer source remain UNADMITTED.",
+  "key_and_scope": "Stable key binds immutable ORIGINAL claim-domain five-ID tuple retained across incarnations plus canonical original run/lane/domain IDs. Independently validate CURRENT authorizer five against original canonical run/lane. Bounded first implementation EXPLICITLY REJECTS cross-five replacement; other original cross-scope/same-account axes remain separately OPEN, not waived. No current-authorizer-five-derived parallel row, purpose-parallel row or generation-key row.",
+  "aba_and_counters": "No deletion/recreate/reset ABA. Retain tombstone/history; checked monotonic counters with no wrap. Coordination-fence revision/token, real lease/incarnation revision and message cursor are DISTINCT.",
+  "existing_outcome_first": "Exact original operation UUID plus FULL immutable intent/canonical row/event/transaction equality may reconcile historical r1 after r2 under CURRENT bounded read law ONLY. No fence rotation/lease resurrection/checkpoint advance/current-authority claim/new effects. Same operation with mismatch -> typed conflict.",
+  "new_effect_branch": "ONLY genuinely absent NEW-effect branch validates current claim/cursor and conditionally rotates fence with SAME new appends atomically. Unsettled original write plus NotFound remains Unknown; no automatic resubmission/new UUID/resampling.",
+  "restart_custody": "FULL intent plus settlement/reconciliation durability MUST match any claimed restart guarantee. Volatile frame/result does NOT survive process death. Require independently canonical original intent/operation recovery OR explicitly unsupported crash boundary; no synthetic reconstruction.",
+  "supplier_boundary": "Future generated API values are not authoring gates; concrete owner/gate/supplier contract remains required before exact source admission.",
+  "proof_limit": "Real Surreal3.2 kv-rocksdb/kv-mem conflict/rollback/denial/reopen proof UNEXECUTED; separate finite authority required. Official documentation is not proof of this implementation.",
+  "preservation": "Rest of preparation scope and all original three-WP/SIX/16/full128/IV/pins/history/budgets, genuine165 measurement -> sole measured pin -> independent confirm before166, immutable164, MT026/local and global A holds retained.",
+  "sourcewrite_authorized": false,
+  "execution_authorized": false,
+  "proof_started": false,
+  "allowance_granted": false
+}
+  },
+  "preservation": "All original three-WP/SIX/original16/full128/manual/Argus/independent IV/source-before-pinned-host/pins/budgets/history and existing two-file source grant unchanged. Genuine165 measure -> sole measured pin -> independent confirm BEFORE166;164 immutable. MT026 local and global A holds retained.",
+  "sourcewrite_authorized": false,
+  "execution_authorized": false,
+  "proof_started": false,
+  "allowance_granted": false,
+  "limits": "Preparation selections only. No product writes/source START/new path grant/finite/metadata/run or other contract changes."
+}
+,
+"supplementary_public_decoder_read_preparation_20261016": {
+  "decision_id": "WP012-MT187-SUPPLEMENTARY-PUBLIC-DECODER-READ-PREPARATION-20261016",
+  "recorded_at_utc": "2026-10-16T21:51:46.920913+00:00",
+  "status": "BOUNDED_READ_PREPARATION_JOINT_ORGANIZATION_SELECTED_SOURCE_HELD",
+  "authority": "Root after buddy endorsement: exact supplementary public-decoder READ preparation and actual cross-team organization option ONLY, no new source grant.",
+  "selected_joint_organization": {
+    "shape": "Supplementary ONE-FILE Mounted contribution integrated into EXISTING Account-led multi-author original test bundle, contingent on actual leaders ACK before any future source write.",
+    "mounted_disjoint_scope": "ONE actual prospective personal writer mounted_readiness: public shared parser/serializer semantic cases ONLY.",
+    "account_disjoint_scope": "Existing AccountB private HTTP/genuine producer_authority_tests.rs integration/recovery case file remains ACCOUNT ONLY. Existing AccountA/B substantive coding/source amendments unchanged.",
+    "staffing_truth": "No lease transfer/counting AccountB as Mounted second coder/claim Mounted itself has TWO coders/invented second file. Original global multiple-useful-real-disjoint-coders intent preserved at JOINT bundle level; anyone-file cannot satisfy whole real team must be stated truthfully. Labels/read prep are not coding.",
+    "before_source_admission": "Actual Account+Mounted leaders organizational acceptance, personal writer ACK/current guards/exclusive prospective partition and distinct actual NEVERAUTHOR dependency_caller_preflight/current Codecheck nonduplicate privacy/caller review REQUIRED. No source START until exact Root source release."
+  },
+  "responsible_read_supplier": {
+    "leader": "Canonical Mounted leader01a13d28-2056-7690-a728-4c391336fd22 personally, or actual existing helper within exact scope; source ownership unchanged.",
+    "route": "Root FULL saved child/hash then normal Central dispatch. Read preparation may start without source-write authority.",
+    "actual_result": "NOT_STARTED"
+  },
+  "exact_current_read_scope": {
+    "worktree": "../wtc-WP-KERNEL-012",
+    "component_root": "src/shared/handshake_account_activation",
+    "metadata_only": "Exact component root/src/tests/nearest ordinary parent presence/type/reparse metadata ONLY; no recursive hunt or reparse traversal.",
+    "prospective_test": {
+      "path": "src/shared/handshake_account_activation/tests/observation_outcome_decoder.rs",
+      "allowed": "Presence/type/absence ONLY. If unexpectedly existing, STOP/report; NO content/body read or overwrite."
+    },
+    "library": {
+      "path": "src/shared/handshake_account_activation/src/lib.rs",
+      "retained_expected_sha256": "6838f044635d45500e2986164b69ad9ae840be0f3c20582fe04638cf0102282d",
+      "expected_length": null,
+      "length_state": "NOT_CAPTURED; return ACTUAL fresh length, do not invent expected size.",
+      "method": "ONE same whole-byte buffer SHA256+length before ANY decode. Hash compare only; mismatch STOP, no new library body inspection.",
+      "reuse": "Reuse prior public DTO/parser/serializer review ONLY on matching hash; do not rerun closed review."
+    },
+    "manifest": {
+      "path": "src/shared/handshake_account_activation/Cargo.toml",
+      "initial_expected_guard": "UNKNOWN; report FIRST actual ordinary type/presence+same-buffer full SHA256/length.",
+      "content_scope": "Current relevant test-target/dependency/dev-dependency sections ONLY. No source or lock write."
+    },
+    "direct_dependencies": "Direct caller/dev-dependency checks only from named scope plus existing OWNED materials. Any additional ACTUAL physical path must be presented through native MC BEFORE expanded read."
+  },
+  "required_output": "Complete bounded <=16000-character report/truncatedfalse: actual parent/test absence or type, library+manifest source guards/current manifest test/dependency facts, exact source-case partition/current exclusive personal prospective ACK and nonduplicate privacy DIRECT Codecheck assessment. No silent clipping/automatic acquisition retry.",
+  "known_natural_public_cases": [
+    "schema/tag/null/required-field rejection",
+    "original UUID+five-identity ACK/witness mismatch",
+    "Applied versus Unresolved independent of CurrentUnavailable",
+    "serializer never fabricates witness/result",
+    "nullable expiry"
+  ],
+  "proof_boundary": "Natural PUBLIC parser law ONLY, not full HTTP/native/reclaim proof or genuine credential/grant authority. Source declarations/organizational choice are not compiled/tested/runtime accepted.",
+  "exclusions": [
+    "workspace/root lock/Git/Cargo metadata/solver/tool version/build/test/runtime/SQL",
+    "Primary configuration/external root/new file",
+    "unexpected existing candidate body/recursive search/reparse traversal",
+    "Core/frontend source grant or Account private path modification"
+  ],
+  "preservation": "Existing account_private_http_source_amendment_20261016 and AccountA/B source ownership/writer paths/whole execution release_state untouched. Genuine auth/runtime/cleanup/originalAC3/5/R2/genuine165 measurement->sole pin->independent confirm BEFORE166/immutable164/MT026/Member2/Primary/all three-WP budgets remain. No source or runtime permission inferred from consumer cases.",
+  "bounded_read_preparation_authorized": "CONDITIONAL_ON_ROOT_FULL_NORMAL_CENTRAL_MOUNTED_DISPATCH",
+  "source_write_authorized": false,
+  "Account_source_scope_modified": false,
+  "source_lease_transfer_authorized": false,
+  "new_file_creation_authorized": false,
+  "build_or_test_or_runtime_authorized": false,
+  "git_mutation_authorized": false,
+  "proof_started": false,
+  "finite_allowance_granted": false
+,
+"exact_private_test_overlap_inventory_read_20261017": {
+  "decision_id": "WP012-MT187-EXACT-PRIVATE-TEST-OVERLAP-INVENTORY-READ-20261017",
+  "recorded_at_utc": "2026-10-16T22:27:14.351193+00:00",
+  "status": "EXACT_INVENTORY_READ_CONDITIONAL_MOUNTED_SOURCE_HELD_NONDUPLICATION_UNKNOWN",
+  "authority": "Root after buddy approval of actual specific missing-input read. No new source grant or Account ownership transfer.",
+  "organization_and_reuse": {
+    "leaders": "Account+Mounted joint-organization ACK CLOSED, as actually supplied by Root.",
+    "prior_public_DTO_guard": "6838.../10331 retained/read evidence reused, no new public body read.",
+    "prior_manifest_guard": "2845.../241 retained/read evidence reused; full unknown hash not invented.",
+    "gap": "AccountB categories alone insufficient for PRECISE overlap inventory. DIRECT current Codecheck exact test names/asserted parse-serialize coverage NOT_EXPOSED; nonduplication UNKNOWN. Privacy acceptable AS DESCRIBED, not full source clearance."
+  },
+  "same_existing_supplier": {
+    "author": "/root/account_backend_adapter SAME AccountB",
+    "leader": "01a13d1f-cb1b-7903-8ae5-2b416ce20b1f",
+    "ownership": "Existing private writer retained, no transfer/new writer/second Mounted coder.",
+    "limit": 1,
+    "consumed": 0,
+    "actual_state": "NOT_STARTED"
+  },
+  "exact_guarded_read": {
+    "worktree": "../wtc-WP-KERNEL-012",
+    "path": "src/backend/handshake_core/src/storage/surreal/resource_authority/producer_authority_tests.rs",
+    "expected_sha256": "3ffa1b99746f853b0c663926f930279da750e83f83715f151bbbdf3030a4b658",
+    "expected_bytes": 36206,
+    "saved_literal_provenance": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/execution/producer_requested_task_current_policy_source_20261016/assignments/1/path",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/root_independent_readback_source_release_20261016/exact_source_release/new_only_path"
+    ],
+    "before_decode": "Ordinary/nonreparse presence then ONE ReadAllBytes buffer SHA256+length MATCH before decode. Mismatch STOP/report, no alternate path/read.",
+    "extraction": "ONLY exact test names and public DTO parse/serialize calls/assertions/context actually needed for named overlap categories. NO bulk test body or unrelated private inputs.",
+    "coverage_categories": [
+      "schema/tag/null/required fields",
+      "original UUID/five identity IDs",
+      "ACK/witness/result pairs",
+      "Applied/Unresolved independent of CurrentUnavailable",
+      "nullable expiry",
+      "rejected witness-result combinations"
+    ],
+    "output": "Complete <=16000-character inventory INCLUDING guard metadata. Overflow/error ENTIRE inventory WITHHELD/STOP; no clipping/retry. Zero/missing findings qualify inspected scope ONLY."
+  },
+  "delivery_and_assessment": "After Root FULL saved child/hash and normal Central dispatch to SAME owner before ONE read, exact inventory DIRECT Mounted plus EFFECTIVE current Codecheck01a1423a-88bf-7ce0-8944-ca8f214f1fe4; NOT historical01a13d18. Root receives concise source-admission blocker only.",
+  "future_source_boundary": "Existing private Account scope/source grant unchanged. Mounted SOURCE HELD until actual nonduplicate case partition/personal ACK/current Codecheck assessment then separate exact future grant. Reuse prior closed review; no repeated broad review/fake second Mounted coder.",
+  "exclusions": [
+    "new tests/source edit/reconstruction/bulk body/broad review",
+    "other path/dependency probe/Git/Cargo/metadata/runtime/SQL",
+    "auth creation/lease transfer/finite action"
+  ],
+  "preservation": "All parent original AC3/5/R2/auth/runtime/cleanup/three-WP proof/pins/budgets/Member2/MT026/Primary/genuine165 pin-confirm BEFORE166/immutable164 holds unchanged. Exact metadata inventory is not behavior/runtime proof.",
+  "inventory_read_authorized": "CONDITIONAL_ON_ROOT_FULL_NORMAL_CENTRAL_SAME_ACCOUNT_B_DISPATCH",
+  "source_write_authorized": false,
+  "source_ownership_transfer_authorized": false,
+  "new_public_DTO_read_authorized": false,
+  "new_test_creation_authorized": false,
+  "git_mutation_authorized": false,
+  "compiler_or_runtime_authorized": false,
+  "proof_started": false,
+  "finite_allowance_granted": false
+},
+"public_decoder_one_file_source_admission_20261017": {
+  "decision_id": "WP012-MT187-MOUNTED-PUBLIC-DECODER-ONE-FILE-SOURCE-20261017",
+  "recorded_at_utc": "2026-10-16T22:57:38.753953+00:00",
+  "status": "SOURCE_IMPLEMENTATION_RELEASED_CONDITIONAL_SEPARATE_CENTRAL_START_EXECUTION_HELD",
+  "authority": "Root after buddy approval selects exact bounded Mounted contribution within existing Account-led multi-author joint bundle. Parent source-held flags/history retained; this child supersedes ONLY exact file/minimum directory source hold.",
+  "organization_and_assessment": {
+    "leaders": "Original Account+Mounted joint organization CLOSED by direct leaders.",
+    "personal_ack": "Prospective writer FULL scope and SAME distinct nonauthor /root/dependency_caller_preflight actual ACKs received, final effective current Codecheck reduced partition accepted.",
+    "inventory": "Actual Account private inventory3ffa.../36206 acquired1of1; current Codecheck assessment reports no further precise inventory gap.",
+    "truth_boundary": "Proposal privacy/overlap assessment ONLY; NOT verified new tests/nonduplication PASS/runtime proof. AccountA/B private scope unchanged, no fake Mounted second coder or writer transfer."
+  },
+  "exact_assignment": {
+    "worktree": "../wtc-WP-KERNEL-012",
+    "sole_prospective_writer": "/root/mounted_readiness",
+    "canonical_leader": "01a13d28-2056-7690-a728-4c391336fd22",
+    "source_path": "src/shared/handshake_account_activation/tests/observation_outcome_decoder.rs",
+    "minimum_directory": "src/shared/handshake_account_activation/tests ONLY if still ABSENT",
+    "other_write_paths": []
+  },
+  "mandatory_personal_precreation": {
+    "route": "Root FULL saved child/hash, normal Central official Mounted SOURCE START, then PERSONAL fresh guards BEFORE first creation. Save/dispatch not author write proof.",
+    "type_and_absence": "Exact ordinary/nonreparse parent+tests directory+candidate absence check. Candidate expected ABSENT. Unexpected existence/type/reparse/conflict STOP; no overwrite/alternate path.",
+    "same_buffer_expected_guards": [
+      {
+        "path": "src/shared/handshake_account_activation/src/lib.rs",
+        "sha256": "6838f044635d45500e2986164b69ad9ae840be0f3c20582fe04638cf0102282d",
+        "bytes": 10331
+      },
+      {
+        "path": "src/shared/handshake_account_activation/Cargo.toml",
+        "sha256": "284504323a5a319c3258ec4e7560bf7b8319650fd8d7630245c2a56051acc1a3",
+        "bytes": 241
+      }
+    ],
+    "read_method": "Ordinary exact files only, ONE byte buffer each for raw SHA256+length MATCH; no decode/body-review redo required. Reuse closed public API review/owned retained materials. Any new needed physical read must MC-present BEFORE expansion.",
+    "drift": "Mismatch STOP/report, no alternate/retry/peer overwrite. Subsequent own source changes guard last OWN postimage, not old preimage or peer changes."
+  },
+  "bounded_source_cases": [
+    "Reviewed PUBLIC malformed schema/tag/null/required-field rejection",
+    "Original UUID/five-identity/ACK/witness mismatch rejection",
+    "Incompatible outcome/readiness/result/witness ONLY where actual existing PUBLIC contract defines rejection, no invented law",
+    "Serializer roundtrip/no fabricated witness-result/nullable expiry"
+  ],
+  "case_limits": "Minimal valid baseline ONLY needed for negative/serializer assertions. Preserve existing positive private HTTP/lifecycle matrix. No new category/property/fuzz/harness/private export/helper change/credentials/auth/settlement/custody/native/genuine-HTTP claim.",
+  "explicit_forbidden_source": "NO DTO library/manifest/lock/new dependency/other-file edit; directory permission only minimum missing tests directory for exact new file.",
+  "actual_delta_review": "Own changed code/affected caller/failure/type inspection, SAME distinct NEVERAUTHOR /root/dependency_caller_preflight actual diff review, then DIRECT EFFECTIVE Codecheck01a1423a-88bf-7ce0-8944-ca8f214f1fe4. Return actual source output/guards/quiescence; no fake completed/compiled/run tests.",
+  "execution_boundary": "SOURCE ONLY. No Git/Cargo/test execution/metadata/SQL runtime/probe/native/compiler/finite grant/acceptance. Separate original owning proof required, no declaration or static review substitute.",
+  "preservation": "All original three-WP scope/proof/pins/genuine165 measure->sole pin->independent confirm BEFORE166/immutable164/MT026/Member2/Primary/Assets unchanged. Existing Account private amendment/whole release_state/owners untouched.",
+  "source_write_authorized": true,
+  "source_start": "CONDITIONAL_ON_ROOT_FULL_NORMAL_CENTRAL_MOUNTED_START_PERSONAL_FRESH_GUARDS",
+  "other_file_write_authorized": false,
+  "source_ownership_transfer_authorized": false,
+  "Git_or_publication_authorized": false,
+  "Cargo_or_test_execution_authorized": false,
+  "metadata_or_SQL_runtime_authorized": false,
+  "native_or_probe_or_compiler_authorized": false,
+  "proof_started": false,
+  "finite_allowance_granted": false,
+  "acceptance_claimed": false
+,
+"first_source_output_supplier_reported_20261017": {
+  "decision_id": "WP012-MT187-MOUNTED-FIRST-SOURCE-OUTPUT-SUPPLIER-REPORT-20261017",
+  "recorded_at_utc": "2026-10-16T23:07:54.072390+00:00",
+  "status": "SOURCE_OUTPUT_REPORTED_EXTERNAL_REVIEW_PENDING_PROOF_UNRUN",
+  "evidence": "Direct Central+Mounted actual first-output reports; ATTRIBUTED author/leader/SAME NEVERAUTHOR, NOT Root product inspection or global nonduplication PASS.",
+  "source_postimage": {
+    "path": "src/shared/handshake_account_activation/tests/observation_outcome_decoder.rs",
+    "sha256": "27eeb82a41a9173be4095347c55336d48263fa4e082ad894ae587ffe39581b01",
+    "bytes": 9836,
+    "lines": 232
+  },
+  "reported_custody_and_guards": "Sole personal writer QUIESCENT. Personal fresh DTO+manifest guards MATCH and candidate ABSENT before creation; only minimum tests directory+exact file created.",
+  "reported_source_review": "SAME distinct NEVERAUTHOR guarded actual diff/read: no blocking SOURCE finding. Leader read actual file with same guard.",
+  "test_declarations": 7,
+  "test_execution": "UNCOMPILED/UNRUN; no passing/auth/runtime proof.",
+  "external_review": "DIRECT effective Codecheck01a1423a-88bf-7ce0-8944-ca8f214f1fe4 actual request delivery SUCCESS; external review/findings PENDING.",
+  "preservation": "Exact private Account owners/joint bundle/all original proof floors and holds preserved. No new permission, Git/run/finite grant or acceptance.",
+  "new_source_permission": false,
+  "Git_or_run_or_finite_authorized": false,
+  "runtime_or_acceptance_claimed": false
+,
+"external_codecheck_source_disposition_20261017": {
+  "decision_id": "WP012-MT187-MOUNTED-EXTERNAL-CODECHECK-SOURCE-DISPOSITION-20261017",
+  "recorded_at_utc": "2026-10-16T23:10:20.516527+00:00",
+  "status": "SOURCE_IMPLEMENTED_INDEPENDENT_STATIC_REVIEW_NO_ACTIONABLE_DEFECT_PROOF_UNRUN",
+  "evidence": "Actual DIRECT effective Codecheck01a1423a-88bf-7ce0-8944-ca8f214f1fe4 final received by Root and confirmed by Mounted/Central. Reviewer PERSONAL inspection ATTRIBUTED, NOT Root product inspection.",
+  "matched_source": {
+    "path": "src/shared/handshake_account_activation/tests/observation_outcome_decoder.rs",
+    "sha256": "27eeb82a41a9173be4095347c55336d48263fa4e082ad894ae587ffe39581b01",
+    "bytes": 9836,
+    "lines": 232,
+    "declared_tests": 7
+  },
+  "reviewer_inspection": {
+    "actual_file": "PERSONAL ordinary/nonreparse whole guard and FULL232-line inspection f3a5ee.",
+    "operative_authority": "Admission child98fb.../58983 inspected d9cead.",
+    "compatibility_inputs": "Public type/error/serde/nullable compatibility against supplied RETAINED exact DTO6838.../10331 prior parser/types/validator/serialization excerpts with continuity. NOT new physical DTO/manifest read.",
+    "verdict": "NO ACTIONABLE BOUNDED SOURCE DEFECT; no repair requested."
+  },
+  "own_and_same_review": "Own/SAME distinct NEVERAUTHOR/leader guarded actual diff/read no-finding complete. Writer QUIESCENT; only minimum directory+exact file created.",
+  "scope_boundary": "Reduced PUBLIC negative/serializer partition respected; Account private owners unchanged, existing joint bundle retained.",
+  "proof_boundary": "SEVEN declarations UNRUN/UNCOMPILED. NO test PASS/global nonduplication/genuine auth/settlement/custody/native/full MT187 acceptance.",
+  "history_precedence": "Prior PENDING external observation retained as dated history; this child supersedes ONLY current external static-source disposition.",
+  "preservation": "All original three-WP proof floors/budgets/165 measure-pin-independent-confirm BEFORE166/immutable164/MT026/Member2/Primary/Assets holds unchanged.",
+  "Git_or_publication_authorized": false,
+  "runtime_or_compiler_or_test_execution_authorized": false,
+  "finite_allowance_granted": false,
+  "other_source_grant_authorized": false,
+  "acceptance_claimed": false
+}}}},
+"genuine_factory_interface_read_preparation_20261017": {
+  "decision_id": "WP012-MT187-GENUINE-FACTORY-INTERFACE-READ-PREPARATION-20261017",
+  "recorded_at_utc": "2026-10-16T23:06:47.129603+00:00",
+  "status": "READ_PREPARATION_RELEASED_CONDITIONAL_ROOT_FULL_CENTRAL_START_SOURCE_HELD",
+  "authority": "Root after buddy approval selects new bounded current interface acquisition; existing private Account/Mounted source and proof holds unchanged.",
+  "actor": "PERSONAL canonical Composition READONLY successor01a146ca-3d98-7051-9c71-896db2e9d740 or named existing contract helper under that leader.",
+  "worktree": "../wtc-WP-KERNEL-012",
+  "exact_paths": [
+    {
+      "path": "src/backend/handshake_core/src/swarm_orchestration/factory.rs",
+      "retained_expected_guard": "NOT_RECORDED_FIRST_CURRENT_ACQUISITION_ALLOWED",
+      "limit": 1,
+      "consumed": 0,
+      "actual_state": "NOT_STARTED"
+    },
+    {
+      "path": "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs",
+      "retained_expected_guard": "NOT_RECORDED_FIRST_CURRENT_ACQUISITION_ALLOWED",
+      "limit": 1,
+      "consumed": 0,
+      "actual_state": "NOT_STARTED"
+    }
+  ],
+  "locator_provenance": "Actual retained Runtime-parent locator, NOT Root product-source inspection.",
+  "mandatory_method": "Each exact path ordinary/nonreparse presence, ONE ReadAllBytes buffer; capture raw SHA256+length BEFORE decode; decode SAME buffer only. Absence/type/reparse/error STOP, no alternate path/retry.",
+  "bounded_content": [
+    "ModelSessionFactory::create signature and LiveSession immediate interface declarations",
+    "ProductionModelSessionFactory builder build_scoped_operator_chat_launch_service_with_sandbox_registry_and_lifecycle",
+    "Direct builder/Create-dispatch injection call bindings and minimum immediate declarations exposing auth/controller/storage/lifecycle wiring"
+  ],
+  "output_boundary": "Complete report <=16000 characters INCLUDING actual two guards and line anchors; no silent clipping/automatic retry/guessed signature/fake genuine IDs. No whole-implementation bulk, credential values, other module reads or discovery. Any immediately needed new physical dependency: report actual path+why BEFORE expansion.",
+  "ownership_history": {
+    "production_factory.rs": "WP012 packet#/swarm_cli_only_catalog_repair_20261014 SOURCE owner01a13ad0-0422-7df1-af8b-5741e13d2551 renewed whole factory/API operator-chat; current custody/pending UNKNOWN.",
+    "factory.rs": "Current owner UNKNOWN, not free.",
+    "other": "Read-only snapshot transfers NO lease/ownership. U2 model_lane.rs available personal lease unchanged; old operator_chat whole-file custody held UNKNOWN."
+  },
+  "held_input_boundary": "Current MT017e6b.../691395 exact seven committed-provider read paths CoreCargo/lib/crdt/surreal-store/capabilities/kernel/resource_scope EXCLUDE BOTH factories. This is not held-seven payload reacquisition/bypass or Member2/Palmistry action.",
+  "technical_handoff": "Actual result DIRECT Context/Account/effective current Codecheck technical input; Root concise exact needed decisions. Source/genuine fixture IDs/runtime are not predecessors to signature authoring; no invented arguments/grants/fake auth/store/setup.",
+  "start": "Root FULL saved node/hash and normal Central official Composition READ START BEFORE acquisition; save is not actual read START.",
+  "exclusions": "No source write/Git/manifest/lock/Cargo/metadata/tool-version/probe/native/process/SQL/runtime/finite/adoption/acceptance action.",
+  "preservation": "All original three-WP scopes/history/proof floors/pins/genuine165 measure->sole pin->independent confirm BEFORE166/immutable164 and all existing holds retained.",
+  "source_write_authorized": false,
+  "execution_or_runtime_authorized": false,
+  "finite_allowance_granted": false,
+  "acceptance_claimed": false
+,
+"terminal_supplied_read_result_20261017": {
+  "decision_id": "WP012-MT187-GENUINE-FACTORY-INTERFACE-TERMINAL-READ-RESULT-20261017",
+  "recorded_at_utc": "2026-10-16T23:43:24.151468+00:00",
+  "status": "TERMINAL_EXIT0_BOUNDED_INTERFACE_READ_COMPLETE_SUPPLIER_REPORTED",
+  "evidence": "New Composition PERSONAL supplied terminal read, ordinary SAME-buffer guards BEFORE decode; DIRECT Context/Account/current Codecheck handoff. Supplier inspection attributed, NOT helper product inspection.",
+  "actual_files": [
+    {
+      "path": "src/backend/handshake_core/src/swarm_orchestration/factory.rs",
+      "sha256": "d81d18502740bd40134b21ca906c12d00269e9e6265130baa81c19e7728b8827",
+      "bytes": 10283,
+      "limit": 1,
+      "consumed": 1,
+      "remaining": 0
+    },
+    {
+      "path": "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs",
+      "sha256": "d609d9c740d839b1c247589d01ebd4a8c03c38b5ef76be766207d67efd8d1a6d",
+      "bytes": 275851,
+      "limit": 1,
+      "consumed": 1,
+      "remaining": 0
+    }
+  ],
+  "capture": {
+    "exit_code": 0,
+    "extraction_characters": 13428,
+    "report_characters": 7225,
+    "complete": true
+  },
+  "scope": "ABI/wiring examined ONLY; scoped lifecycle/attribution is NOT auth.",
+  "unproved": "Genuine RecordUserScope/Create/RunCreate authorization and ALL run/checkpoint/lease/recovery/orphan/ledger/Unknown custody NOT PROVEN.",
+  "prospective_dependency": "coordinator.rs historicala3607a/331742 is prospective dependency ONLY, NOT fresh and NOT read-granted.",
+  "history_precedence": "Original0 prospective counters remain history; each acquisition current SPENT1of1. No reread/lease transfer/old writer or remaining budget change.",
+  "preservation": "All parent exclusions/original scope/proof floors/three-WP pins/budgets/165 measure-pin-independent-confirm BEFORE166/immutable164 and holds unchanged.",
+  "new_read_or_source_or_Git_or_execution_authorized": false,
+  "finite_allowance_granted": false,
+  "acceptance_claimed": false
+},
+"coordinator_binding_body_read_preparation_20261017": {
+  "decision_id": "WP012-MT187-COORDINATOR-BINDING-BODY-READ-PREPARATION-20261017",
+  "recorded_at_utc": "2026-10-17T00:01:30.931815+00:00",
+  "status": "READ_PREPARATION_RELEASED_CONDITIONAL_ROOT_FULL_CENTRAL_START_SOURCE_HELD",
+  "authority": "Root+buddy select exact coordinator windows; same delegated task resumed after workspace-routing discovery timeout, no prior child/write or allowance consumed by that routing failure.",
+  "actor": "PERSONAL new Composition01a146ca-3d98-7051-9c71-896db2e9d740 READONLY",
+  "acquisition": {
+    "limit": 1,
+    "consumed": 0,
+    "actual_state": "NOT_STARTED",
+    "worktree": "../wtc-WP-KERNEL-012",
+    "exact_path": "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs",
+    "historical_expected_sha256": "a3607a095961659dc826ed943f4113dff9eff6c948691ca5bd1772b8a074d381",
+    "historical_expected_bytes": 331742,
+    "guard": "Ordinary/nonreparse ONE byte buffer SHA256+length MATCH BEFORE SAME-buffer decode. Mismatch STOP metadata ONLY, no changed-guard body expansion.",
+    "fixed_inclusive_windows": [
+      [
+        395,
+        405
+      ],
+      [
+        2255,
+        2315
+      ],
+      [
+        2510,
+        2575
+      ]
+    ],
+    "retained_locator_provenance": "Runtime parent01a1413e direct handback: field400/spawn declaration2255/factory call2552. Current binding only if exact guard MATCH.",
+    "presence_checks": "Validate expected Inner.factory / spawn_session_with_generation / factory create within respective windows. Missing expected binding STOP/report new dependency, no scan expansion.",
+    "report": "Full guard+ranges+ALL windows+suffix constructed IN MEMORY; complete<=16000 characters. Any overflow/error/guard mismatch ENTIRE body WITHHELD, STOP no retry. Explicit Console Out WriteLine+Flush success exit0 / Error bounded STOP+Flush failure exit1. Structured wrapper max_output_tokens10000.",
+    "start": "Root FULL saved node/hash then normal Central Composition START BEFORE acquisition."
+  },
+  "interpretation": "Smaller disjoint windows avoid321-line payload. NOT complete function/cancel/settlement/auth/read-law proof. Unknown missing dependencies return actual names ONLY.",
+  "custody": "Current writer/pending/quiescence UNKNOWN. Old prospective U1/native01a1413e-e4a5 preserved. Matching read snapshot neither requires nor claims exclusive lease; no source write/transfer.",
+  "handoff": "Technical actual result DIRECT Composition/Context/Account/effective current Codecheck; Root concise actual binding/dependency decision.",
+  "exclusions": "No factory reread/other physical path/SQL/new API/Git/compiler/slot/run/finite action.",
+  "preservation": "All original holds/history/budgets/three-WP scope/pins/165 measure-pin-independent-confirm BEFORE166/immutable164 retained.",
+  "source_or_lease_transfer_authorized": false,
+  "runtime_or_Git_or_compiler_authorized": false,
+  "finite_allowance_granted": false,
+  "proof_or_acceptance_claimed": false
+,
+"cancellation_continuation_read_preparation_20261017": {
+  "decision_id": "WP012-MT187-CANCELLATION-CONTINUATION-READ-PREPARATION-20261017",
+  "recorded_at_utc": "2026-10-17T00:09:39.745949+00:00",
+  "status": "READ_PREPARATION_RELEASED_CONDITIONAL_ROOT_FULL_CENTRAL_START",
+  "prior_read_result": {
+    "chunk": "9171bd",
+    "exit_code": 0,
+    "complete_characters": 10761,
+    "guard": "a3607a.../331742 MATCH",
+    "all_three_windows": "COMPLETE",
+    "limit": 1,
+    "consumed": 1,
+    "remaining": 0,
+    "delivery": "DIRECT Account+Codecheck delivered; Context CannotSteer, NO retry. Peer retrieval via Context parent PENDING.",
+    "observed": "field403/spawn2255-2258/create2552/pending_spawns lease2531-2543/select cancel2556/timeout2571/tuple2572; window2575 ends INSIDE error string.",
+    "boundary": "No full settlement/auth proof. Omitted2316-2509 UNREAD."
+  },
+  "new_read": {
+    "actor": "SAME PERSONAL Composition01a146ca-3d98-7051-9c71-896db2e9d740 READONLY",
+    "limit": 1,
+    "consumed": 0,
+    "actual_state": "NOT_STARTED",
+    "exact_path": "../wtc-WP-KERNEL-012/src/backend/handshake_core/src/swarm_orchestration/coordinator.rs",
+    "expected_sha256": "a3607a095961659dc826ed943f4113dff9eff6c948691ca5bd1772b8a074d381",
+    "expected_bytes": 331742,
+    "guard": "Ordinary/nonreparse ONE buffer SHA256+length MATCH BEFORE SAME-buffer decode.",
+    "fixed_inclusive_lines": [
+      2576,
+      2675
+    ],
+    "method": "Complete guard+range/body/suffix IN MEMORY <=16000 characters before body emission. Error/drift/overflow ENTIRE body WITHHELD STOP/no retry/no other window/path. Explicit Console Out WriteLine+Flush success0/Error bounded STOP+Flush failure1.",
+    "start": "Root FULL saved node/hash then normal Central Composition START first."
+  },
+  "interpretation": "Partial continuation ONLY; actual missing dependencies returned DIRECT peers. No guessed record_run/auth/lease mechanism/source/API/SQL proof.",
+  "preservation": "Current writer UNKNOWN retained; original proof/history/budgets/holds unchanged. No extra physical read/source/Git/run/finite permission.",
+  "source_or_Git_or_runtime_authorized": false,
+  "finite_allowance_granted": false,
+  "acceptance_claimed": false
+}},
+"context_readonly_input_receiver_successor_20261017": {
+  "decision_id": "WP012-MT187-CONTEXT-READONLY-INPUT-RECEIVER-SUCCESSOR-20261017",
+  "recorded_at_utc": "2026-10-17T00:14:23.007870+00:00",
+  "status": "INPUT_MANAGEMENT_ROUTE_SELECTED_CONDITIONAL_ROOT_FULL_CENTRAL_HANDOFF",
+  "selected_route": {
+    "chat_id": "01a14733-1e88-76c2-b62c-5ce4aca60449",
+    "title": "WP012-Context-readonly-input-receiver-successor",
+    "creation": "Central created ONCE local/kernel projectb9bfc431.",
+    "scope": "CANONICAL INPUT-MANAGEMENT MESSAGE ROUTE ONLY, replacing unavailable old delivery route; no source activation."
+  },
+  "bounded_route_evidence": "Actual v6fcfdec8e805.../367135 current_authorized_team/primary_additional_coder_teams/1 and team_chat_refresh/old_to_new/9 contain only old Context01a13d20. Bounded recent50+all pinned exposed no existing new route, NOT global absence.",
+  "old_route_state": "Normal Composition+Central deliveries CannotSteer. Root actual old Context latest01a14705-ef5e COMPLETED/errornull/IDLE, no Operator STOP. No owner-death/quiescence inference; old chat/helpers/source writers/leases/captured inputs/pending UNKNOWN retained.",
+  "actual_readiness": {
+    "ACK": "Root received DIRECT new Context startup ACK and independently read startup01a14733-241e-74f2-b3aa-7689d7ef5216 governance/old-chat read commands+ACK.",
+    "consumed": "Kernel AGENTS/CLAUDE/compact Codex/coder protocol/v6 Context refs/MT187 closure factory-coordinator constraints/MT017 source-policy node. Detailed MT017 still being consumed.",
+    "retained_inputs": "Actual old Context+U2+Composition9171bd+Account805a21 retrieved. BOUNDED records, not FULL history. Earlier factory ABI chat record still to retrieve, NO product read."
+  },
+  "allowed_input_work": "ALREADY PRODUCED chats/artifacts/governance ONLY: factory ABI+current-auth+full snapshot binding map/exact physical gaps; DIRECT technical Account/Composition/effective current Codecheck, concise Root/Central. Useful distinct native helpers only actual input tasks if needed, no busywork.",
+  "start": "Root FULL saved record/hash then normal Central receiver handoff START. Creation/ACK alone NOT source activation.",
+  "actual_composition_continuation": {
+    "chunk": "a01c85",
+    "exit_code": 0,
+    "complete_characters": 8135,
+    "guard": "a360.../331742 MATCH",
+    "inclusive_lines": [
+      2576,
+      2675
+    ],
+    "limit": 1,
+    "consumed": 1,
+    "remaining": 0,
+    "delivery": "DIRECT Account delivered; current Codecheck CannotSteer, NO retry.",
+    "boundary": "2675 opens normal Ok-adoption tail UNREAD. rollback_unregistered_after_factory_create/take_pending_checkout_lease definition locators NOT EXPOSED, no new read grant."
+  },
+  "exclusions": "No new product read/hash/index/source/new review/new API/controller design/default auth/grants/SQL/Git/compiler/slot/process/run/lease/custody transfer or closed-source-review repeat.",
+  "preservation": "All three-WP scopes/history/proof/pins/budgets/165 measure-pin-independent-confirm BEFORE166/immutable164 and existing holds retained.",
+  "new_product_read_or_source_authorized": false,
+  "lease_or_operational_custody_transfer_authorized": false,
+  "runtime_or_Git_or_compiler_authorized": false,
+  "finite_allowance_granted": false,
+  "acceptance_claimed": false
+},
+"codecheck_readonly_artifact_receiver_successor_20261017": {
+  "decision_id": "WP012-MT187-CODECHECK-READONLY-ARTIFACT-RECEIVER-SUCCESSOR-20261017",
+  "recorded_at_utc": "2026-10-17T00:25:44.251814+00:00",
+  "status": "TECHNICAL_INPUT_REVIEW_ROUTE_SELECTED_CONDITIONAL_ROOT_FULL_CENTRAL_HANDOFF",
+  "selected_route": {
+    "chat_id": "01a14735-b80b-7423-8cd7-e279a3241404",
+    "title": "WP012-Codecheck-readonly-technical-review-successor",
+    "creation": "Actual Central created ONCE local/kernel projectb9bfc431.",
+    "scope": "Canonical TECHNICAL-INPUT-REVIEW MESSAGE route ONLY for already produced guarded CHAT artifacts."
+  },
+  "bounded_route_evidence": "Actual ABS v6 readb2838f complete8e805.../367135 #/team_chat_refresh_20261015/codecheck_replacement_coordination_20261016 names ONLY01a1423a effective. Bounded recent50+all pinned exposed no newer route, NOT global absence.",
+  "old_route_state": "Actual old GUI+Runtime+Composition body deliveries CannotSteer. Runtime/Central initial success claims explicitly RETRACTED after actualisError true; NO new old-Codecheck receipt/verdict. Root actual old Codecheck latest01a1472f-e4ba COMPLETED/errornull/IDLE/no Operator STOP, waiting artifact not owner death.",
+  "valid_prior_reviews": "Closed GUI A71ae/Runtime B834cf/Mounted27ee source reviews remain valid for unchanged inputs.",
+  "actual_readiness": {
+    "completed_startup": "01a1473d-4dae-7022-bd4f-4fcf9a89301b",
+    "root_inspection": "Root independently read actual startup tools and received DIRECT full-scope ACK.",
+    "consumed": "Kernel AGENTS/CLAUDE/compact Codex/WP_VALIDATOR_PROTOCOL/v6 scope-pins+old route/MT187 factory-coordinator-cancel/CKC MT023 EOF-mount/EXACT CKC MT060 actual_declaration_body_read_preparation_20261017.",
+    "resolution": "Initially ambiguous WP012 MT060 correctly rejected; exact CKC target resolved through MT023 backend_independent_unit_ref. Root fresh CKC55b2.../63749 FULL9deec2 confirms node.",
+    "activity": "NO product read/hash/index/authorship/write/Git/build/test/SQL/runtime/process/pending command."
+  },
+  "selected_existing_inputs": [
+    "Runtime a733bd BOTH794-874/1210-1290, current mod0b36449c.../92974",
+    "GUI c481cd EOF and separately admitted1451-1485 ONLY when actual available",
+    "Composition9171bd+a01c85 actual window bindings"
+  ],
+  "exact_input_parent_refs": [
+    "CKC MT060#/album_atomicity_pagination_current_residual_preparation_20261016/bounded_cursor_pagination_source_admission_20261017/provided_transaction_helper_declaration_index_20261017/actual_declaration_body_read_preparation_20261017",
+    "CKC MT023#/splitview_current_residual_preparation_20261016/exact_test_selector_index_read_preparation_20261017/actual_candidate_test_body_read_preparation_20261017/explicit_console_emission_read_renewal_20261017/explicitly_eof_bounded_read_20261017/app_mount_boundary_read_preparation_20261017",
+    "MT187#/genuine_factory_interface_read_preparation_20261017/coordinator_binding_body_read_preparation_20261017/cancellation_continuation_read_preparation_20261017"
+  ],
+  "allowed_work": "Technical DIRECT owners<->new reviewer; Root/Central concise blockers/readiness. Useful distinct NEVERAUTHOR native checkers ONLY actual disjoint new-input reviews; no repeated closed reviews.",
+  "start": "Root FULL saved record/hash then normal Central handoff START first. Creation/ACK not source or operational activation.",
+  "preservation": "All old Codecheck chat/helpers/results/source leases/captured UNKNOWN/three-WP scopes/history/proof/budgets/pins/165 measure-pin-independent-confirm BEFORE166/immutable164 and holds retained.",
+  "exclusions": "No fresh product read/new code/API/auth law/proof/acceptance/operational custody/compiler/slot/Git/finite action.",
+  "new_product_read_or_source_authorized": false,
+  "operational_or_lease_custody_transfer_authorized": false,
+  "compiler_runtime_Git_or_finite_authorized": false,
+  "acceptance_claimed": false
+,
+"delivery_successor_20261017": {
+    "operator_subagent_handoff_workflow_20261017": {
+  "decision_id": "WP012-CODECHECK-SUBAGENT-HANDOFF-WORKFLOW-20261017",
+  "recorded_at_utc": "2026-10-17T18:25:01.0241473Z",
+  "authority": "Explicit live Operator instruction in chat01a14735-b80b-7423-8cd7-e279a3241404",
+  "operator_quote": "why are you not using sub agents? start using them to help you, update the handoff workflow so this is recorded",
+  "scope": "Current Codecheck read-only artifact-review route and its successor handoffs; preserve selected route and existing admission boundaries",
+  "instruction_units": [
+    {
+      "id": "CC-HELPER-001",
+      "requirement": "Use useful read-only subagents for available distinct admitted artifact-review work; no fixed helper count or invented work."
+    },
+    {
+      "id": "CC-HELPER-002",
+      "requirement": "Assign each helper an explicit disjoint responsibility and exact supplied artifact scope; state that other agents work concurrently and preserve their edits and claims."
+    },
+    {
+      "id": "CC-HELPER-003",
+      "requirement": "Record helper identity, responsibility, artifact/version provenance, FULL versus excerpt/truncated receipt, inspected ranges, findings and unresolved inputs in each technical handoff."
+    },
+    {
+      "id": "CC-HELPER-004",
+      "requirement": "Helpers remain NEVERAUTHOR; no new product acquisition, source or governance edits, Git, build/test, SQL/runtime/process actions, custody transfer, finite allowance or acceptance authority follows from delegation."
+    },
+    {
+      "id": "CC-HELPER-005",
+      "requirement": "Do not duplicate closed reviews; parent reconciles helper evidence, personally inspects required final inputs and owns synthesis and direct technical-owner communication."
+    },
+    {
+      "id": "CC-HELPER-006",
+      "requirement": "Carry this Operator instruction and helper responsibilities, actual receipt limits and unresolved inputs into successor handoffs without changing route, scope, pins, budgets or policy stops."
+    }
+  ],
+  "started_helpers": [
+    {
+      "identity": "/root/handoff_scope_review",
+      "responsibility": "Read-only review of this narrow handoff policy and authority boundaries"
+    },
+    {
+      "identity": "/root/pending_input_review",
+      "responsibility": "Read-only disjoint pending-artifact work split and receipt constraints"
+    }
+  ],
+  "prospective_work_split": [
+    "Runtime: assess newly supplied complete supplier bodies only after actual receipt; manifest alone is not body inspection.",
+    "GUI: assess newly supplied Posekit activation/preview/layout interface inputs; preserve completed excerpt and closed source reviews."
+  ],
+  "source_or_execution_or_custody_or_acceptance_authorized": false
+},
+  "decision_id": "WP012-CODECHECK-CHAT-ARTIFACT-DELIVERY-SUCCESSOR-20261017",
+  "recorded_at_utc": "2026-10-17T01:28:14.634989+00:00",
+  "status": "CHAT_ARTIFACT_DELIVERY_ROUTE_SELECTED_CONDITIONAL_ROOT_FULL_PERSONAL_TASK",
+  "selected_route": "01a14776-e0b5-7683-a6f8-9146d5149924",
+  "precedence": "THIS dated child/selected_route is canonical CURRENT route. Parent selected_route01a14735 is HISTORICAL after this selection; all prior facts/verdicts/bytes preserved. No global identity substitution.",
+  "delivery_evidence": "THREE distinct essential normal task deliveries to former01a14735 failed CannotSteerWithoutActiveTurn: GUI complementary body, Central CHAT-only recovery, Runtime supplier body. Confirmed delivery-unreachability, not idle/silence inference.",
+  "old_state": "Central independently observed former latest01a14774-8dc6-7932-8f81-709ec815a64c COMPLETED/excerpt-only; no active product custody claimed.",
+  "creation": "Central deduplicated and created EXACT ONE same-purpose startup-only NONAUTHOR CHAT receiver in existing kernel project; no branch/worktree/model change.",
+  "actual_startup": {
+    "turn": "01a14776-e3b5-7670-aef0-f7392d9fbe58",
+    "state": "COMPLETED/errornull ACK",
+    "Root_inspection": "Root independently read actual startup.",
+    "consumed": "AGENTS/CLAUDE/Codex/WP_VALIDATOR/v6 scopes/pins/route and MT187 named nodes actual0da60cf.../81268.",
+    "acceptance": "NONAUTHOR CHAT-ARTIFACT ONLY. Own pending commands/writes NONE; no product/source/Git/Cargo/SQL/process/GOV mutation or custody transfer.",
+    "bodies": "PENDING NOT_INSPECTED; no review inferred."
+  },
+  "bounded_future_work": "AFTER Root FULL saved node/hash and normal Central PERSONAL task: GUI existingf903ea282-line input needs COMPLETE receipt; old excerpt review retained, exact complement recoverable from GUI leader FAILED-SEND ARGUMENT, no product reacquisition. Runtime8792-character actual supplier-body artifact retained in leader FAILED-SEND ARGUMENT; leader/SAME actual receipt, independent review OPEN. Source leaders communicate DIRECT new receiver; Root/Central concise readiness/route only, no technical-body relay.",
+  "review_reuse": "NO repeated closed A71ae/B834cf/Mounted27ee reviews.",
+  "exclusions": "No retry of failed original sends/new product read/index/hash/source/API/auth/Git/compiler/slot/run/finite/adoption/acceptance.",
+  "preservation": "Old source/process/captured-input/global custody remains actual owners/UNKNOWN. Every original three-WP requirement/history/budget/policy stop retained. Root FULL release precedes actual receiver review.",
+  "new_product_read_source_or_execution_authorized": false,
+  "custody_transfer_authorized": false,
+  "finite_allowance_granted": false,
+  "review_or_acceptance_claimed": false
+}},
+"fixed_partial_coordinator_context_read_admission_20261017":{"decision_id":"WP012-MT187-FIXED-PARTIAL-COORDINATOR-CONTEXT-READ-20261017","recorded_at_utc":"2026-10-17T05:42:29.6398782Z","status":"EXACT_METHOD_SAVED_CAPTURE_HELD_FOR_ROOT_FULL_AND_SEPARATE_CENTRAL_START","actor":{"chat":"01a146ca-3d98-7051-9c71-896db2e9d740","role":"PERSONAL Composition READONLY; NOT source owner transfer","capture_limit":1,"capture_consumed":0},"target":{"path":"../wtc-WP-KERNEL-012/src/backend/handshake_core/src/swarm_orchestration/coordinator.rs","sha256":"a3607a095961659dc826ed943f4113dff9eff6c948691ca5bd1772b8a074d381","bytes":331742},"invocation":{"tool":"exec_command","cmd":"$ErrorActionPreference='Stop'\n$guardMeta='NOT_ACQUIRED'\n$emissionAttempted=$false\ntry {\n$p=[IO.Path]::GetFullPath((Join-Path (Get-Location) '../wtc-WP-KERNEL-012/src/backend/handshake_core/src/swarm_orchestration/coordinator.rs'))\n$i=Get-Item -LiteralPath $p -Force\nif($i.PSIsContainer -or (($i.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)){throw 'nonordinary/reparse target'}\n$b=[IO.File]::ReadAllBytes($p)\n$h=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($b)).ToLowerInvariant()\n$guardMeta='PATH '+$p+' SHA256 '+$h+' BYTES '+$b.Length\nif($h -cne 'a3607a095961659dc826ed943f4113dff9eff6c948691ca5bd1772b8a074d381' -or $b.Length -ne 331742){throw 'guard mismatch; no decode/body'}\n$s=[Text.UTF8Encoding]::new($false,$true).GetString($b)\n$lines=$s -split '\\r?\\n'\nif($lines.Length -lt 2755){throw 'missing fixed normal context window'}\nif($lines[2673].Trim() -cne 'match create_result {' -or $lines[2674].Trim() -cne 'Ok(live) => {'){throw 'known normal adoption boundary literal mismatch'}\n$rx=[regex]::new('^\\s*(?:pub(?:\\([^)]*\\))?\\s+)?(?:async\\s+)?fn\\s+(take_pending_checkout_lease|rollback_unregistered_after_factory_create)\\s*\\(', [Text.RegularExpressions.RegexOptions]::CultureInvariant)\n$headers=[Collections.Generic.List[object]]::new()\nfor($k=0;$k -lt $lines.Length;$k++){$matchResult=$rx.Match($lines[$k]);if($matchResult.Success){$headers.Add([pscustomobject]@{Name=$matchResult.Groups[1].Value;Line=$k+1})}}\n$parts=[Collections.Generic.List[string]]::new()\n$parts.Add($guardMeta)\n$parts.Add('PROPOSAL_METHOD fixed partial windows; textual candidates only; no syntactic/full-body/auth/settlement proof')\n$windows=[Collections.Generic.List[object]]::new()\nforeach($name in @('take_pending_checkout_lease','rollback_unregistered_after_factory_create')){\n$candidates=@($headers|Where-Object {$_.Name -ceq $name})\nif($candidates.Count -ne 1){throw ('candidate count '+$name+'='+$candidates.Count)}\n$at=[int]$candidates[0].Line\nif(($at-4) -lt 1 -or ($at+54) -gt $lines.Length){throw 'helper context window beyond file bounds'}\n$parts.Add('TEXT_HEADER_CANDIDATE '+$name+' LINE '+$at+' IMPL_RECEIVER_NOT_ESTABLISHED')\n$windows.Add([pscustomobject]@{Label=$name;Start=$at-4;End=$at+54})\n}\n$windows.Add([pscustomobject]@{Label='normal_Ok_live_context';Start=2676;End=2755})\n$selected=[Collections.Generic.SortedSet[int]]::new()\nforeach($w in $windows){$parts.Add('SELECTED_WINDOW '+$w.Label+' '+$w.Start+'-'+$w.End+' PARTIAL_CONTEXT_ONLY END_NOT_SEMANTIC');for($n=$w.Start;$n -le $w.End;$n++){[void]$selected.Add($n)}}\n$closed=@(@(395,405),@(2255,2315),@(2510,2675))\nforeach($r in $closed){$parts.Add('REUSED_CLOSED_EXCLUDED '+$r[0]+'-'+$r[1]);for($n=$r[0];$n -le $r[1];$n++){[void]$selected.Remove($n)}}\n$hits=[Collections.Generic.List[string]]::new()\nfor($k=0;$k -lt $lines.Length;$k++){$offset=0;while($offset -lt $lines[$k].Length){$at=$lines[$k].IndexOf('record_run',$offset,[StringComparison]::Ordinal);if($at -lt 0){break};$hits.Add('TEXT_HIT_ONLY record_run LINE '+($k+1)+' COLUMN '+($at+1)+' CALL_AND_ENCLOSING_METHOD_NOT_ESTABLISHED');if($hits.Count -gt 20){throw 'record_run literal hit cap exceeded'};$offset=$at+10}}\n$parts.Add('RECORD_RUN_LITERAL_HITS '+$hits.Count+' NOT_AUTH_OR_GLOBAL_ABSENCE_PROOF')\nforeach($hit in $hits){$parts.Add($hit)}\nif($selected.Count -gt 198){throw 'selected body line cap exceeded'}\n$parts.Add('BODY_BEGIN fixed local context only; all selected nonclosed lines follow; line anchors identify disjoint segments')\n$emittedBodyCount=0\nforeach($n in $selected){$parts.Add(('{0}: {1}' -f $n,$lines[$n-1]));$emittedBodyCount++}\nif($emittedBodyCount -ne $selected.Count){throw 'selected-minus-closed body emission count mismatch'}\n$parts.Add('BODY_END ALL_SELECTED_NONCLOSED_LINES_COMPLETE; FULL_HELPER_FUNCTION_ARM_ENDS_NOT_PROVEN')\n$parts.Add('TERMINAL GUARD_MATCH ONE_BUFFER SAME_BUFFER_DECODE; new allowance1/1 consumed; currentwriter/pendingUNKNOWN; no lease/source/runtime/acceptance')\n$core=$parts -join [Environment]::NewLine\n$count=0\n$stable=$false\nfor($v=0;$v -lt 8;$v++){$out=$core+[Environment]::NewLine+'COUNTS SOURCE_LINES '+$selected.Count+' SERIALIZED_CHARS_WITH_FINAL_NEWLINE '+$count;$actual=$out.Length+[Environment]::NewLine.Length;if($actual -eq $count){$stable=$true;break};$count=$actual}\nif(-not $stable){throw 'report count did not stabilize'}\nif(($out.Length+[Environment]::NewLine.Length) -ne $count -or $count -gt 16000){throw ('serialized report cap/count failure chars='+$count+' lines='+$selected.Count)}\n$emissionAttempted=$true\n[Console]::Out.WriteLine($out)\n[Console]::Out.Flush()\nexit 0\n} catch {\n$failureLabel=if($emissionAttempted){'TRANSPORT_FAILURE_BODY_MAY_BE_PARTIAL'}else{'STOP ENTIRE_BODY_WITHHELD'}\n$err=$failureLabel+' '+$guardMeta+' ERROR '+$_.Exception.Message\nif(($err.Length+[Environment]::NewLine.Length) -gt 1500){$err=$failureLabel+' bounded metadata overflow'}\nif(($err.Length+[Environment]::NewLine.Length) -gt 1500){$err='TRANSPORT_FAILURE metadata unavailable'}\n[Console]::Error.WriteLine($err)\n[Console]::Error.Flush()\nexit 1\n}","literal_characters":5052,"workdir":"C:/Projects/LLM Projects/handshake-desktop/wt-gov-kernel","tty":false,"max_output_tokens":10000,"shell_override_or_env_or_probe":false},"selection":"Exact unique TEXTUAL header candidate per take_pending_checkout_lease/rollback_unregistered_after_factory_create; eachL-4..L+54 inclusive59lines. Fixed2676-2755 inclusive80lines. Samebuffer2674/2675 anchors asserted without reemission. Deduct closed395-405/2255-2315/2510-2675; dedup<=198source lines. record_run<=20literal-hit metadata ONLY. Partial context NOT complete helper/arm/function/auth/settlement/runtime; no parser/end inference.","caps":"Complete assembled report<=16000.NETcharacters INCLUDING newline/metadata/suffix/stabilized count before body; error<=1500characters includingnewline. Character caps not tooltoken limit; check actual completeoutput+numericexit/truncation.","start":"Root independentlyFULL savednode then CentralFULL then actorPERSONALFULL+accept EXACT saved invocation then separate CentralSTART. Routine wrapper fields Root-bound; no missing pre-save personalACK inference/additional pre-save gate.","inspectors":[{"actor":"Context01a14733-1e88-76c2-b62c-5ce4aca60449","retained_actual_artifact_inspection_limit":1,"consumed":0},{"actor":"Current Codecheck01a14776-e0b5-7683-a6f8-9146d5149924","retained_actual_artifact_inspection_limit":1,"consumed":0}],"inspection":"Only after actual successful/completed capture turn+command IDs resolved; NO second physical read. DIRECT technical input; no freshsource claim from review.","method_provenance":"Composition actual5052body source turn01a14850-7a81-7e62-a0d2-eed4393952fc/sendexec-331d06a8-bd99-4550-8776-cff68656e8ed. Root retainedrawFIRST then opened EXACT5052cmd/no literal HTML entities/no speculative decode. CurrentCCcompleted01a14853-9a90-7f12-87b5-6234a0a514b6 final emissionflag/newlinecap delta NO_NEW_CONCRETE_FINDING; Context final5052qualification resolvescount/transport/no furtherfinding per DIRECTCompositionreceipt. STATIC attributed method reviews ONLY, not execution/source/currentownership validation; no repeat method/closed reviews.","stop":"Boundary/guard/count/error/transport/truncation/missingexit-or-END STOP; no retry/reconstruction/reemit/alternatepath/automaticcontinuation. One invocation consumes1 whetherSTOP/FULL.","history":"Reuse oldclosed9171bd+a01c85 spans/no staleNOT_STARTED replay. Supersedes ONLY earlier UNADMITTED360line/24000/Rustparser-method proposal, NOT oldscopehistory. Currentwriter/pendingUNKNOWN; no lease/custody transfer.","permission_boundary":"ONLY exact finite READ admission; no currentRepoState refresh/parser/tool/install/otherGOVedit/Git/SQL/API/sourcewrite/Cargo/runtime/finite compiler/proof permission. All3WP floors/165before166/164/MT026/Member2/Palmistry/hookpolicySTOP/budgets/history/sourcegrant holds preserved.",
+"capture_and_inspector_retrieval_result_20261017":{"decision_id":"WP012-MT187-CAPTURE-RESULT-AND-CONTEXT-VALID-FETCH-20261017","recorded_at_utc":"2026-10-17T05:49:10.7804773Z","capture":{"predecessors":"Composition personalFULLb2bec6 accepted exact5052 invocation/unused1/0; CentralindependentFULLa34a59 then distinctSTART.","turn":"01a14865-4268-7ab0-8134-3fafc7c60c05","command":"exec-207b966b-d6bf-48ba-a92c-4dde295b1d30","chunk":"3592ae","exit":0,"session":"NONE","identity_resolution":"Central actual metadata-only read resolved completed identities.","reported_guard_sha256":"a3607a095961659dc826ed943f4113dff9eff6c948691ca5bd1772b8a074d381","bytes":331742,"reported_source_lines":198,"reported_chars_including_newline":11116,"completion":"BODY_END+TERMINAL+COUNTS/untruncated","textual_candidates":[{"header_line":6057,"window":[6053,6111]},{"header_line":5852,"window":[5848,5906]}],"normal_window":[2676,2755],"record_run_literal_hits":0,"limit":1,"consumed":1,"remaining":0,"qualification":"Composition own report; zero literal hits NOT global absence/authproof. No reemit/reconstruction/retry; parent exact invocation/guard unchanged."},"current_codecheck":{"actor":"01a14776-e0b5-7683-a6f8-9146d5149924","turn":"01a14866-1abd-7110-8518-8d616ee7930d","final_message":"msg_0ac8ba411e06f573016ad30be88e908191bee798532b3419a3","inspection_limit":1,"inspection_consumed":1,"receipt":"FULL exactexec207b EXIT0/truncatedfalse/198lines/11116chars/guard/allEND/counts; no concrete bounded defect.","transport":"Peer outbound blocked prior app restriction, NO retry. Composition personally consumed exact existing CCfinal through ONE retainedread_thread; actualDIRECTreceipt. No recapture/reviewcommission/Root-Central technical body relay."},"remaining":"teardown_orphan_with_capacity/try_insert_loading_with_memory_handoff implementations and mid-terminate2755 missing; no complete helpers/arm/auth/currentRecordUserScope/settlement/runtime claim. Currentwriter/pending UNKNOWN. Results attributed, NOT Root product inspection.","context_failed_fetch":{"actor":"01a14733-1e88-76c2-b62c-5ce4aca60449","turn":"01a14866-193e-7e73-a999-8b4a1a64c4ff","command":"exec-79c7e389-ce44-4e9c-bbff-cc2bcc2a912b","args":{"threadId":"01a146ca-3d98-7051-9c71-896db2e9d740","turnLimit":8,"includeOutputs":true,"maxOutputCharsPerItem":24000},"root_verified":"ONE actual failure metadata read+raw retention: exact arguments/statusfailed/duration52ms. Original error BODY NOT_EXPOSED to Root by read_thread.","attributed_error":"DIRECT Context/Composition/Central reported isErrortrue: maxOutputCharsPerItem: Too big: expected number to be <=20000","classification":"Reported ARGUMENT VALIDATION constraint; no policy/approval rejection reported/cleared/bypassed.","fetch_limit":1,"fetch_consumed":1,"successful_artifact_inspection":0,"receipt":"NO artifact returned/inspected/verdict. Original spent retrieval preserved/no rerun; capture/CCresults not invalidated."},"distinct_valid_fetch":{"actor":"SAME PERSONAL Context01a14733-1e88-76c2-b62c-5ce4aca60449","tool":"read_thread","args":{"threadId":"01a146ca-3d98-7051-9c71-896db2e9d740","turnLimit":8,"includeOutputs":true,"maxOutputCharsPerItem":20000},"fetch_limit":1,"fetch_consumed":0,"state":"NOT_STARTED_HELD_ROOT_FULL_CENTRAL_FULL_CONTEXT_FULL_AND_SEPARATE_START","exact_target":{"completed_turn":"01a14865-4268-7ab0-8134-3fafc7c60c05","command":"exec-207b966b-d6bf-48ba-a92c-4dde295b1d30","chunk":"3592ae"},"protocol":"Retain ENTIRE RAW toolresult FIRST before parse/filter; locate ONLY exact completed turn+command+COMPLETE output. Inspect exact wholeartifact ONLY if included/untruncated with numericexit+actualcounts/guards/END; no assumption wrappers allfit or11116<20000 provesFULL.","stop":"Absent/notreturned/partial/truncated/unsupported/policyerror STOP; no pagination/fallback/wholewrapper emission/retry/reconstruction/reemit/alternate route-tool-actor.","accounting":"Invocation spends distinctfetch1/1 regardless success. Actual Context artifact inspection0->1 ONLY after complete actual inspection; no reviewbudget reset.","delivery":"Technical findings DIRECTComposition/currentpeer via permitted existingroute, no blockedmessaging retry; concise Root/Centralreceipt.","start":"RootFULL savednode->CentralFULL->ContextpersonalFULL->CentralDISTINCTSTART; no execution by save."},"preservation":"Original budgets/history/pins/floors/holds unchanged. No physical source/hash/query/method recapture/new review/new source/code/Git/compiler/runtime/finite allowance/acceptance/custody grant.",
+"context_valid_fetch_and_input_receipt_result_20261017":{"observation_id":"WP012-MT187-CONTEXT-VALID-FETCH-COMPLETE-20261017","recorded_at_utc":"2026-10-17T05:53:52.4041737Z","evidence":"Root actual wait_threads COMPLETED Contextturn01a14869-8065-74a0-a8c6-e920e7a03231/finalmsg_0f363d349ce44a4a016ad30ce295b881919ded607b4fecac19.","state":"CONTEXT_CORRECTED_FETCH_AND_COMPLETE_INPUT_RECEIPT_FULL","corrected_fetch":{"limit":1,"consumed":1,"remaining":0},"actual_context_artifact_inspection":{"limit":1,"consumed":1,"remaining":0},"exact_artifact":{"composition_turn":"01a14865-4268-7ab0-8134-3fafc7c60c05","command":"exec-207b966b-d6bf-48ba-a92c-4dde295b1d30","chunk":"3592ae","exit":0,"truncated":false,"source_lines":198,"chars_including_crlf":11116,"sha256":"a3607a095961659dc826ed943f4113dff9eff6c948691ca5bd1772b8a074d381","bytes":331742,"ends":"BODY_END/TERMINAL/COUNTS"},"assessment":"No concrete bounded defect. DIRECTContext findings deliveredComposition+CC/Central; Composition DIRECTACK personalconsumption of Contextfinal. BothCC+Context retainedartifactFULL now complete.","history":"Earlier24000failedfetch1/1NOartifact/inspection0 HISTORY preserved. Correctedvalidfetch changes actualinspection0->1 ONLY; no reset. Capture1/1+CCinspection1/1+correctedfetch1/1+Contextinspection1/1 currentremaining0.","qualification":"Both SOURCE INPUT inspections FULL, NOT fullhelpers/normalarm/auth/currentRecordUserScope/settlement/runtime/PASS. teardown_orphan_with_capacity/try_insert_loading_with_memory_handoff implementations and normal2755 midterminate remain missing.","next":"AfterRootFULL Central may askComposition/peers ONE exact minimal next dependency counterfield from actualinput/retainedfacts; no autoexpansion.","new_allowance_source_body_physical_reacquisition_review_git_compiler_or_custody_grant":false}}}}}

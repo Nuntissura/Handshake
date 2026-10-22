@@ -1,0 +1,169 @@
+{
+  "notes_kit_grouping_ref": {"decision_id": "WP012-NOTES-KIT-GROUPING-20261018", "authority": "MT-189.json#/notes_kit_grouping_correction_20261018", "precedence": "Notes is one kit with multiple internal crates; prior per-crate separate asset/destination assumption is superseded. Preserve distinct source/adoption proof and original acceptance; no physical migration or host-write release inferred."},
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "created_at_utc": "2026-10-18T00:00:00Z",
+  "operator_authority": {
+    "decision": "Direct Operator2026-10-18 five-team modularization and approved blocker scope expansion after team deliberation",
+    "handoff_ref": "WP-KERNEL-012-phase02-successor-handoff-v6.json#/operator_team_refresh_and_modular_delivery_20261018",
+    "deliberation": "Actual repo/WP012 comparison, Central+Team1/2+Assets source-home/interface proposals, Root create-assets skill/live remote/index/manifests and official Cargo research inspected."
+  },
+  "authority_files": {
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "role": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+    "packet": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "spec": ".GOV/spec/SPEC_CURRENT.md"
+  },
+  "context_capsule": {
+    "original_mt_refs": [
+      "MT-011",
+      "MT-012",
+      "MT-013",
+      "MT-018",
+      "MT-020",
+      "MT-035",
+      "MT-077"
+    ],
+    "module_maintenance_refs": [
+      "MT-191.json#/execution/module_maintenance"
+    ],
+    "pin_policy": "Original in-flight WP012896f4e15/v02.206 and all adopted amendments/source-WP pins/acceptance/history remain. New source/adoption work follows explicitly adopted current module lifecycle; no old verdict rewritten."
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "MT-192 scanner adapter and Primary host dependency pin implementation; affected host proof remains pending",
+    "claimed_by": null,
+    "completed_by": null,
+    "validator_verdict": null
+  },
+  "preservation": "All original WP012/CKC/WP1 obligations, native/manual/Argus/privacy/FlightRecorder/diagnostics, source pins, historical failures/spent budgets and independent acceptance remain. No new branch/worktree/backup, foreign process disruption or actual denied-action bypass.",
+  "mt_id": "MT-192",
+  "title": "Pinned host adoption of handshake_rich_document_model",
+  "closure_unit": {
+    "outcome": "Host consumes proven immutable canonical source through exact existing editor adapters while preserving original native behavior and independent acceptance.",
+    "materialized_acceptance": [
+      "Existing model and scanner behavior/tests retained at public API; all11 existing scanner tests relocate once, not duplicate shared self-tests.",
+      "No GUI/save/auth policy moves into reusable core; model public API remains compatible for parallel formatting authoring.",
+      "No file-only wrapper or duplicate implementation counted as modularization.",
+      "Host dependency resolves exact independently reread source revision and compatible dependency pins; no divergent host copy or stale local override.",
+      "Original owning MT/native integration/manual/Argus/protected persistence and independent proof floors remain required."
+    ]
+  },
+  "scope": {
+    "allowed_write_paths": [
+      "src/frontend/handshake_native/src/rich_editor/find_replace/scanner.rs",
+      "src/frontend/handshake_native/Cargo.toml",
+      "src/frontend/handshake_native/Cargo.lock",
+      "src/frontend/handshake_rich_formatting/Cargo.toml",
+      "src/frontend/handshake_wikilink_semantics/Cargo.toml"
+    ],
+    "forbidden_paths": [
+      "source asset internals",
+      "app.rs",
+      "main.rs",
+      "backend_client.rs",
+      "panel.rs",
+      "root exports/manifests/locks without exact sole-owner pin disposition"
+    ]
+  },
+  "execution": {
+    "module_change_stage": "host_adoption",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "depends_on": [
+      "MT-191"
+    ],
+    "source_adoption": {
+      "source_mt": "MT-191",
+      "canonical_repository": "https://github.com/Nuntissura/assets.git",
+      "canonical_path": "Notes/handshake_rich_document_model",
+      "immutable_revision": "a118e58a2afaad6009567e046422828c99277aa0",
+      "source_proof_ref": "MT-191.json#/owning_component_execution_allocation_20261018/corrected_capture_actual_closure_verdict_20261019",
+      "independent_remote_reread_ref": "MT-191.json#/owning_component_execution_allocation_20261018/immutable_candidate_actual_verdict_20261018",
+      "host_pin_status": "SOURCE_PREDECESSORS_VERIFIED; EXACT_PIN_BOUND_FOR_PRIMARY_HOST_ADOPTION",
+      "publication_ref": "MT-191.json#/owning_component_execution_allocation_20261018/coherent_publication_actual_result_20261018"
+    },
+    "module_maintenance": {
+      "source_contract_ref": "MT-191.json#/execution/module_maintenance",
+      "host_adapter_paths": [
+        "src/frontend/handshake_native/src/rich_editor/find_replace/scanner.rs"
+      ],
+      "maintainer": "01a14c73-3519-7351-bbf7-6e4ce30e5b6d"
+    },
+    "ownership": "The sole scanner writer is /root/mt192_scanner_coder under fresh leader 01a155c7-be77-7fe1-a5f7-89312de043d8. Current Master and coding leader withdrew the former prospective Team2 /root/coder_document assignment and all future STARTs to it after four actual failed START deliveries, zero delivered STARTs and its last held no-pending-writes/commands/captures state. This replaces failed coordination transport, not a Product denial or proof limit. The fresh writer acknowledged HOLD with no edits/commands/proof/Git; /root/mt192_neverauthor is the distinct nonauthor and /root/mt192_dependency_checker retains dependency review. Independent source guard reread before the scanner lease update matched scanner.rs SHA256 4ae7f5e8e2de475125f9f5521b07290fe8fb8d992046586160a5a10a6aa9fa23; no global-free claim is made. Physical Primary 01a14c6a-749a-7cd0-a789-0a5c97c47f36 retains shared exports/Git/compiler and manifest/lock custody outside this exact exception: /root/shared_model_pin_integrator under fresh Primary CONTROL 01a155cc-64d5-7fd3-8aaf-1b6d7453d8ab is the sole writer of the four explicitly allowed Cargo.toml/Cargo.lock paths for coherent model revision a118e58a2afaad6009567e046422828c99277aa0. Prior prospective writes to those four files are withdrawn by current Master/coding control. Preserve existing native manifest/lock dirt and all unrelated content; bounded owner guards, absent index.lock and zero targeted processes are not a global-free claim. This integration binding is recorded after the three manifests already contain that exact model revision, not retroactively before those edits and not as coherent integration PASS. Current coding leader 01a1559c-3910-7cd2-af41-e2319643eeb1 dispatches implementation through each named leader after its writer reads this saved lease.",
+    "source_write_authorized": true,
+    "start": "After the fresh writer reads this current saved lease, current coding leader may START /root/mt192_scanner_coder through leader 01a155c7-be77-7fe1-a5f7-89312de043d8 on scanner.rs only: consume the eight canonical find_scan exports, delete the eleven relocated pure tests once, and preserve multi_para_doc plus test_replace_all_single_undo. The previous prospective Team2 writer may not start from delayed messages. Separately, /root/shared_model_pin_integrator under Primary CONTROL 01a155cc-64d5-7fd3-8aaf-1b6d7453d8ab owns only the four allowed manifest/lock paths to bind the same immutable model revision while preserving existing dirt. Primary's actual handback reports that Cargo.lock was already manually edited as guarded SOURCE using the canonical model manifest and existing native dependency graph, including the exact Git source and existing registry regex 1.12.4; current lock SHA256 d7a0c90683c528e972f445af21f37bb1cb4cb17b200860363d87c1103467dc84 was independently reread for this disposition. That already-written manual source delta remains UNVALIDATED; it is not a Cargo/resolver result or acceptance evidence, and this record does not retroactively date its binding before the edit. No Cargo invocation or lock generation is granted here. No further manual lock fabrication is authorized; actual normal Cargo lock/manifest resolution remains PENDING before coherent dependency acceptance. Ongoing source work and scoped diff review do not wait for that acceptance. Source predecessors remain bound to the existing independent records. The coherent dependency binding is required before affected host compilation. No source proof rerun, Git/compiler grant, runtime PASS or original acceptance clearance is implied.",
+    "tests_or_compiler_authorized": false,
+    "git_execution_authorized": false,
+    "changed_input_metadata_verification_20261019": {
+      "operation_id": "WP012-MT192-LOCKED-MODEL-GRAPH-20261019",
+      "authority": "Current Master scoped delegation under the direct Operator instruction to finish Phase2. This is one genuinely changed-input four-file model-pin graph verification, not reuse or renewal of exhausted MT186/MT175 metadata or resolver cases.",
+      "executor": "01a155cc-64d5-7fd3-8aaf-1b6d7453d8ab",
+      "executor_role": "kernel_builder",
+      "state": "NOT_STARTED",
+      "allocation": {
+        "limit": 1,
+        "consumed": 0,
+        "count_when": "First actual selected Cargo metadata process launch, including failure; no retry or old counter reset. Preparation and controller checks alone do not consume it."
+      },
+      "command": {
+        "executable_provenance": {
+          "observed_machine_path": "C:/Users/iljas/.rustup/toolchains/1.97.1-x86_64-pc-windows-msvc/bin/cargo.exe",
+          "sha256": "ddfbad20b31b918d3439d070945ec59bbfe037a6ec0ab5b584459e69c8b37d1b",
+          "version": "1.97.1",
+          "scope": "Observed machine-local selected tool identity, not a portable hardcoded installation requirement. Rebind and verify the same declared tool identity after relocation."
+        },
+        "arguments": ["metadata", "--locked", "--format-version", "1", "--manifest-path", "src/frontend/handshake_native/Cargo.toml"],
+        "cwd_ref": "execution.product_worktree"
+      },
+      "input_guards": [
+        {"path": "src/frontend/handshake_native/Cargo.toml", "bytes": 37806, "sha256": "c14ecd89323af9c177400d76cea3ee5e0f981d687eb62060f0e4275e46889ab6"},
+        {"path": "src/frontend/handshake_native/Cargo.lock", "bytes": 156222, "sha256": "d7a0c90683c528e972f445af21f37bb1cb4cb17b200860363d87c1103467dc84"},
+        {"path": "src/frontend/handshake_rich_formatting/Cargo.toml", "bytes": 293, "sha256": "f35f68027d888ab732949c8cad0032b479c7304568e7d110b53e3b7fed89a8be"},
+        {"path": "src/frontend/handshake_wikilink_semantics/Cargo.toml", "bytes": 275, "sha256": "abf90d7c8ec76bad6d052ca1bda8609aa6976b70c5e3f41beb86a294b7269206"}
+      ],
+      "artifact_paths": {
+        "base": "../Handshake_Artifacts/handshake-tool/WP-KERNEL-012/MT-192/locked-model-graph",
+        "tool_temp": "../Handshake_Artifacts/handshake-tool/WP-KERNEL-012/MT-192/locked-model-graph/tmp",
+        "target": "../Handshake_Artifacts/handshake-tool/WP-KERNEL-012/MT-192/locked-model-graph/target",
+        "stdout": "../Handshake_Artifacts/handshake-tool/WP-KERNEL-012/MT-192/locked-model-graph/metadata.stdout.json",
+        "stderr": "../Handshake_Artifacts/handshake-tool/WP-KERNEL-012/MT-192/locked-model-graph/metadata.stderr.log",
+        "result": "../Handshake_Artifacts/handshake-tool/WP-KERNEL-012/MT-192/locked-model-graph/result.json",
+        "captures": "../Handshake_Artifacts/handshake-tool/WP-KERNEL-012/MT-192/locked-model-graph/captures"
+      },
+      "environment": {
+        "TMP_and_TEMP": "Resolve artifact_paths.tool_temp for this owned operation only",
+        "CARGO_TARGET_DIR": "Resolve artifact_paths.target; metadata grants no compilation",
+        "CARGO_HOME": "Leave unset and use the actual ordinary default Cargo home. Observed C:/Users/iljas/.cargo has ordinary registry state and no Git cache before this operation; this is machine provenance, not a portable path mandate.",
+        "GAMEPLAN_ROLE": "kernel_builder",
+        "GAMEPLAN_PATH": "Resolve HANDSHAKE_GOV_ROOT plus the kernel-relative gameplan path below; process scope only"
+      },
+      "cache_and_network": "Allow ordinary Cargo-owned locking and content-cache writes plus normal declared-dependency reads/network needed by this exact full metadata graph. No special old MT171 8dot3 cache, capture inheritance, credentials/config/trust change, alternate registry or cache repair.",
+      "gameplan": {
+        "kernel_path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplans/MT-192.yaml",
+        "parent": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/gameplan.yaml",
+        "required_checks": ["before_round", "before_dispatch"],
+        "readiness": "Actual executor must satisfy inherited applicable global/kernel_builder checks and the metadata-specific checks through the normal controller before launch. No shared active-pointer rewrite or blanket foreign-state confirmation."
+      },
+      "capture_and_result": "Retain complete UTF8 stdout/stderr, exact argv/environment bindings, numeric exit, owned process closure and four input pre/post guards. Check actual graph identities against the exact existing model pin and shared model identity; a graph result is source/dependency evidence only. Missing/partial output or input drift is not success.",
+      "limits": "No --no-deps substitution, compile, tests, Product execution, Git mutation, lockfile write, automatic retry or reset of any other case. Existing tests_or_compiler_authorized and git_execution_authorized remain false. MT189 rejected DATA request remains stopped in its own scope and role; this metadata role/path cannot replay it."
+    },
+    "review": "Direct independent Codecheck of actual adapter/diff/dependency resolution before expensive Cargo; original independent runtime/native acceptance remains.",
+    "rollback": "Prior immutable host dependency revision plus matching adapter implementation as one coherent reviewed rollback; no branch reset/reseed or abandoned source history."
+  },
+  "validation": {
+    "original_acceptance_refs": [
+      "MT-011",
+      "MT-012",
+      "MT-013",
+      "MT-018",
+      "MT-020",
+      "MT-035",
+      "MT-077"
+    ],
+    "requirements": "Use original owning MT proof targets/feature sets and existing strategic shared compiler boundary on stable pinned host inputs; no extra worker build or repeat unchanged green183/184 proof.",
+    "proof_records": []
+  }
+}

@@ -1,0 +1,377 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+  "mt_id": "MT-026",
+  "created_at_utc": "2026-10-16T04:32:42.616922Z",
+  "updated_at_utc": null,
+  "identity": {
+    "mt_id": "MT-026",
+    "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1",
+    "title": "handshake_workflow_lifecycle standalone_source",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "Implement the real closed generic lifecycle primitive in four standalone source files; full source/owning behavioral proof/review/canonical publication and immutable pins before distinct host adoption.",
+    "requirement_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-001",
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-002",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/three_original_integration_target_restoration_source_admission_20261015/workflow_lifecycle_primitive_placement_selection_20261016"
+    ],
+    "acceptance_refs": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-026.json#/scope/acceptance_criteria",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/execution/workflow_lifecycle_host_adoption"
+    ],
+    "materialized_acceptance": []
+  },
+  "model_routing": {
+    "model_tier": null,
+    "tier_reason": "Use current packet ROLE_MODEL_PROFILE_CATALOG_V1 and existing assigned roles; no override/new model selection.",
+    "sized_for_declared_tier": false,
+    "escalate_to_tier_on_blocker": null
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 0,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 0,
+      "confirm": 0
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "allowance_granted": false,
+    "preservation": "No new costly invocation/probe/confirm allowance or old counter reset."
+  },
+  "execution": {
+    "lane": "KERNEL_BUILDER_FOLDED_NO_ACP",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [],
+    "allowed_write_paths": [
+      "src/backend/handshake_workflow_lifecycle/Cargo.toml",
+      "src/backend/handshake_workflow_lifecycle/src/lib.rs",
+      "src/backend/handshake_workflow_lifecycle/src/execution.rs",
+      "src/backend/handshake_workflow_lifecycle/src/entry.rs"
+    ],
+    "forbidden_write_paths": [
+      "Every path outside the exact four source paths",
+      "Core/host concrete types/backedges/authentication/schema/locks/artifacts"
+    ],
+    "stop_conditions": [
+      "Fresh required path absence/current no conflicting unfinished writer before each create; no overwrite, drift stops affected path only, preserve peers.",
+      "No source START until Root full readback and Central independent full read plus separate official START and actual per-path read receipt.",
+      "Any needed dependency/feature delta returns exact proposal BEFORE implementation."
+    ],
+    "module_change_stage": "standalone_source",
+    "sourcewrite_authorized": true,
+    "execution_authorized": false,
+    "proof_started": false,
+    "allowance_granted": false
+  },
+  "proof": {
+    "parent_proof_refs": [
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/three_original_integration_target_restoration_source_admission_20261015/workflow_lifecycle_primitive_placement_selection_20261016"
+    ],
+    "checks": [
+      {
+        "check_id": "WP1-MT026-REAL-OWNING-BEHAVIOR-AND-SOURCE-REVIEW",
+        "claim_refs": [
+          ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-026.json#/source_contract"
+        ],
+        "command_or_method": "Actual owning inline behavioral tests and assembled source/caller/API/dependency/borrow/type/lifetime/cancel/panic/poison/failure/conservation review; exact build/test method and finite authority must be separately bound before invocation.",
+        "expected": "Both real algorithms, truthful ownership/failure behavior, independent nonauthor review then leader DIRECT effective Codecheck, actual canonical publication and all four immutable pins before adoption.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Actual source and owning behavior proof",
+          "Actual independent review",
+          "Canonical normal publication/immutable commit/tree/all four file pins/maintenance"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "declared_owning_tests": {
+      "status": "NOT_OBSERVED_NOT_COMPILED_NOT_RUN",
+      "count": null,
+      "target": "Owning inline module behavioral tests only; actual target/selection/nonzero discovery and invocation method NOT_BOUND",
+      "execution": [
+        "Borrow/cancel/expiry retain SAME resources/driver/ORIGINAL deadline",
+        "Poll/cancel panic retains actual holders/payload; no repoll",
+        "Returned cache exact once; no driver reentry",
+        "Actual Drop sentinels, separate finalizer, no Send requirement"
+      ],
+      "entry": [
+        "Map Entry drop plus pin keeps ACTUAL P/T live",
+        "In-place claim conservation; repeated/wrong/expired owner denial",
+        "WHOLE incoming rejection and WHOLE prior return",
+        "Live pins deny terminal take; zero pins take once/Taken",
+        "Guard references cannot escape; poison Unknown retains"
+      ],
+      "proof_boundary": "Actual inline owning tests COMPILE/RUN proof REQUIRED before acceptance/pinned host adoption, not source implementation predecessor. Build method/own lock/artifact environment/finite allowance later owning MT/Primary/IV binding BEFORE run. No guessed count/discovery/run/PASS or invented command. Source written UNRUN is not completion."
+    }
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-026.json",
+    "microtask_projection": null,
+    "packet_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "NOT_REQUESTED",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING"
+  },
+  "scope": {
+    "summary": "Real standalone generic owned execution and actual-resource entry pin mechanics; exact closed four-file source implementation only.",
+    "allowed_paths": [
+      "src/backend/handshake_workflow_lifecycle/Cargo.toml",
+      "src/backend/handshake_workflow_lifecycle/src/lib.rs",
+      "src/backend/handshake_workflow_lifecycle/src/execution.rs",
+      "src/backend/handshake_workflow_lifecycle/src/entry.rs"
+    ],
+    "forbidden_paths": [
+      "All other files and host concrete-services backedges",
+      "Core/AppState/JobAdmission/SessionRegistry/SurrealDB/EventLedger/authentication",
+      "Manifests outside this standalone Cargo, locks/workspace membership/schema/DDL/Git/run/artifact outputs"
+    ],
+    "acceptance_criteria": [
+      "Implement BOTH exact closed algorithms/API contracts; no empty crate/count proxy/deferred split/Core backedge.",
+      "Implement owning inline behavioral tests; compile/run proof required before acceptance/adoption, no invocation authorized here.",
+      "Own plus NEVER-author assembled independent source review, then leader DIRECT effective Codecheck; repair actual findings.",
+      "Canonical normal publication with immutable actual commit/tree and all FOUR matched raw source pins plus maintenance before distinct pinned host adoption.",
+      "Preserve all original three-WP acceptance, SIX/16/native/manual/Argus/IV/pins/spent budgets/schema boundary."
+    ],
+    "proof_targets": [
+      {
+        "kind": "OWNING_INLINE_BEHAVIORAL_TESTS",
+        "manifest": "src/backend/handshake_workflow_lifecycle/Cargo.toml",
+        "module_sources": [
+          "src/backend/handshake_workflow_lifecycle/src/execution.rs",
+          "src/backend/handshake_workflow_lifecycle/src/entry.rs"
+        ],
+        "actual_target_selection": null,
+        "command": null,
+        "status": "NOT_OBSERVED_NOT_RUN",
+        "execution_authorized": false
+      }
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Only this pure generic resource/future/entry mechanics has no authentication or new GUI/manual feature. Full original host/native/manual/Argus/privacy obligations remain mandatory and are not waived."
+  },
+  "user_manual_obligation": {
+    "required": false,
+    "same_change_update_required": false,
+    "manual_version_bump_required": false,
+    "target_entries": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Only this pure generic resource/future/entry mechanics has no authentication or new GUI/manual feature. Full original host/native/manual/Argus/privacy obligations remain mandatory and are not waived."
+  },
+  "resource_privacy_obligation": {
+    "required": false,
+    "applicable": false,
+    "resources_touched": [],
+    "identity_and_scope_contexts": [],
+    "enforcement_boundaries": [],
+    "same_project_private_resource_cases": [],
+    "cross_account_negative_cases": [],
+    "derived_resource_non_widening_cases": [],
+    "revocation_and_context_switch_cases": [],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Only this pure generic resource/future/entry mechanics has no authentication or new GUI/manual feature. Full original host/native/manual/Argus/privacy obligations remain mandatory and are not waived."
+  },
+  "hbr_obligations": [
+    "HBR-MODULE-LIFECYCLE-007"
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "SOURCE_ONLY_AWAITING_SEPARATE_CENTRAL_START"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "OWNED_LIFECYCLE_PRIMITIVE_SOURCE",
+    "risks": [
+      "Counter-only pins or escaped guard references lose actual resources.",
+      "Panic/expiry/cancel repolls poisoned driver or drops original holders.",
+      "Generic status falsely presented as host closure/authentication."
+    ],
+    "minimum_controls": [
+      "Typed pin retains actual SAME P/T; guard-borrow references, poison Unknown.",
+      "Original deadline and cached result/actual unwind payload retained; no driver reentry.",
+      "Full host adapter obligations held; actual tests/review/publication/pins before adoption."
+    ]
+  },
+  "status": "SOURCE_ONLY_AWAITING_SEPARATE_CENTRAL_START",
+  "sourcewrite_authorized": true,
+  "execution_authorized": false,
+  "proof_started": false,
+  "allowance_granted": false,
+  "context_capsule": {
+    "module_maintenance_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-001",
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-MODULE-LIFECYCLE-002",
+      ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007",
+      ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/three_original_integration_target_restoration_source_admission_20261015/workflow_lifecycle_primitive_placement_selection_20261016"
+    ]
+  },
+  "canonical_module": {
+    "module_id": "handshake_workflow_lifecycle",
+    "canonical_source_repository": "https://github.com/Nuntissura/Handshake.git",
+    "canonical_source_path": "src/backend/handshake_workflow_lifecycle",
+    "package_version": "0.1.0",
+    "edition": "2021",
+    "publish": false,
+    "own_workspace": true,
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "source_commit": null,
+    "source_tree": null,
+    "exact_source_pins": null,
+    "source_publication_status": "NOT_OBSERVED"
+  },
+  "source_contract": {
+    "decision_id": "WP012-WP1-MT026-WORKFLOW-LIFECYCLE-FOUR-PATH-SOURCE-20261016",
+    "decision_owner": "01a13d30-1e08-70f3-801d-357858d025be",
+    "selected_placement_ref": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/three_original_integration_target_restoration_source_admission_20261015/workflow_lifecycle_primitive_placement_selection_20261016",
+    "primary_exact_future_literals": {
+      "Cargo.toml": "[package]\nname = \"handshake_workflow_lifecycle\"\nversion = \"0.1.0\"\nedition = \"2021\"\npublish = false\n\n[workspace]\n\n[dependencies]\ntokio = { version = \"1\", features = [\"rt\", \"sync\", \"time\"] }\nfutures-util = \"0.3\"\n",
+      "src/lib.rs": "pub mod execution;\npub mod entry;\n\npub use execution::{ExecutionDriver, OwnedExecution, ExecutionObservation, ExecutionAdvanceError};\npub use entry::{Entry, EntryPin, EntryPayloadGuard, EntryPayloadRef, DispatchDisposition, EntryError, EntryUpdateRejected};\n"
+    },
+    "execution_rs": {
+      "public_source_contract": [
+        "pub trait ExecutionDriver<R> { type Output; type Error; fn poll_advance(self: Pin<&mut Self>, resources: Pin<&mut R>, cx: &mut Context<'_>) -> Poll<Result<Self::Output, Self::Error>>; fn request_cancel(self: Pin<&mut Self>, resources: Pin<&mut R>); }",
+        "pub struct OwnedExecution<R, D: ExecutionDriver<R>> { /* ALL PRIVATE */ }",
+        "impl<R, D: ExecutionDriver<R>> OwnedExecution<R, D> { pub fn new(resources: R, driver: D, original_deadline: tokio::time::Instant) -> Self; pub fn original_deadline(&self) -> tokio::time::Instant; pub fn request_cancel(&mut self) -> Result<(), ExecutionAdvanceError>; pub async fn advance_until(&mut self) -> Result<ExecutionObservation<'_, D::Output, D::Error>, ExecutionAdvanceError>; pub fn observation(&self) -> ExecutionObservation<'_, D::Output, D::Error>; }",
+        "pub enum ExecutionObservation<'a, O, E> { Pending, Returned(&'a Result<O, E>), PanickedUnknown }",
+        "pub enum ExecutionAdvanceError { Deadline, PanickedUnknown }"
+      ],
+      "algorithm": [
+        "SAME separately Pin<Box<R>> and Pin<Box<D>>, stored ORIGINAL Instant, cached OWNED result/cancel state/ACTUAL private unwind payload. No Send bound/resource extraction/Clone/raw task exposure/Drop cleanup.",
+        "EVERY poll AND cancel BORROW stored holders inside catch. Panic retains R/D plus actual payload permanently UNKNOWN; NEVER driver reentry. Returned caches exact owned result; NEVER driver reentry. Cancel after return no-op; cancel after panic returns PanickedUnknown.",
+        "Borrowed advance uses timeout_at(STORED original Instant, borrowed poll progress). Expiry/cancellation retains SAME driver/resources; no setter/reset.",
+        "Host separates execution and finalizer owners. Driver result/typed flags are NOT product finalization proof. Actual host resources persist BEFORE effects/await/nested unwind; generic crate cannot restore unwound locals."
+      ]
+    },
+    "entry_rs": {
+      "public_source_contract": [
+        "Entry<P,T>::new(payload:P)->Self",
+        "Entry<P,T>::claim_existing(&self,owner:&Arc<()>)->Result<EntryPin<P,T>,EntryError>",
+        "Entry<P,T>::pin(&self,owner:&Arc<()>)->Result<EntryPin<P,T>,EntryError>",
+        "Entry<P,T>::payload(&self)->Result<EntryPayloadGuard<'_,P,T>,EntryError>",
+        "Entry<P,T>::observe(&self,owner:&Arc<()>,incoming:T,terminal:bool)->Result<Option<T>,EntryUpdateRejected<T>>",
+        "Entry<P,T>::take_terminal(&mut self,owner:&Arc<()>)->Result<(P,Option<T>),EntryError>",
+        "EntryPin<P,T>::payload(&self)->Result<EntryPayloadGuard<'_,P,T>,EntryError>",
+        "EntryPayloadGuard<'_,P,T>::view(&self)->EntryPayloadRef<'_,P,T>",
+        "EntryPayloadGuard<'_,P,T>::dispatch_disposition(&self)->DispatchDisposition",
+        "EntryUpdateRejected<T>::into_parts(self)->(EntryError,T)",
+        "pub enum EntryPayloadRef<'a,P,T> { Present { payload:&'a P, observation:Option<&'a T> }, Taken }",
+        "pub enum DispatchDisposition { Unmanaged, Owned, Terminal, Taken, Unknown }",
+        "pub enum EntryError { OwnerMismatch, AlreadyOwned, NotTerminal, Pinned, Taken, Unknown }"
+      ],
+      "algorithm": [
+        "NONClone Entry and NONClone TYPED EntryPin<P,T> share SAME PRIVATE Arc<Mutex<EntryInner<P,T>>> with ACTUAL original Option<P>/latest Option<T>/phase/owner Weak<()>. PIN RETAINS ACTUAL P/T if canonical map Entry removed/dropped/unwound, NOT counter-only identity.",
+        "No exposed inner Arc/Weak upgrade route/second map/keeper/controller. Actual MutexGuard readonly references tied to GUARD BORROW; no mutable payload/callback API/await/callback under lock. Poison -> Unknown retains actual custody, no into_inner/take/requeue.",
+        "claim_existing in-place ONLY unmanaged nonterminal -> Owned preserving P and actual identity; repeated claim rejects. pin matching LIVE owner only; wrong owner rejects; expired owner sticky Unknown, NO takeover. Arc<()> is process-local identity ONLY, NOT authentication/token mint.",
+        "Host actual lineage/entry/stored deadline checked under SAME existing dispatch lock. observe SUCCESS returns WHOLE previous T, REJECT returns WHOLE incoming T; NEVER silently drop generic T under lock/overwrite Terminal. Host retains returned previous T in SAME capsule cache BEFORE effects/await. terminal bool host-observation input NOT closure proof.",
+        "take_terminal matching LIVE owner + Terminal + ZERO pins under SAME inner lock serializing pin creation/private Arc strong_count 1 moves WHOLE (P,Option<T>) and marks Taken. Drop access/reference ownership ONLY, no async cleanup/terminal claim.",
+        "Earlier counter-only pins/unguarded-reference design RETRACTED; replaced by actual resource design. Review implementation, not design as proof."
+      ]
+    },
+    "dependencies": "std plus tokio=\"1\" features ONLY rt,sync,time and futures-util=\"0.3\". No implicit macros/process/IO/multithread/signal/serde/auth/ID policy/FFI/platform/SQL. Exact needed feature delta BEFORE write.",
+    "boundary": "Generic host resource/payload/future/outcomes and genuine entry pin mechanics ONLY; no map/scheduler/dispatch/model/session/auth/DB/capture/native/LLM law or concrete Core backedge. No source implementation/runtime proof from design."
+  },
+  "source_assignments": {
+    "leader": "01a142de-f403-7881-9b33-8d2dd4f12b81",
+    "leases": [
+      {
+        "lease_id": "WP1-MT026-CARGO-LIB",
+        "paths": [
+          "src/backend/handshake_workflow_lifecycle/Cargo.toml",
+          "src/backend/handshake_workflow_lifecycle/src/lib.rs"
+        ],
+        "writer": "PRIMARY_PERSONALLY",
+        "chat_id": "01a1421b-fbee-75d1-a35a-29a962dea250",
+        "scope": "Only Cargo/lib, no helper/algorithm authorship"
+      },
+      {
+        "lease_id": "WP1-MT026-EXECUTION",
+        "paths": [
+          "src/backend/handshake_workflow_lifecycle/src/execution.rs"
+        ],
+        "writer": "/root/runtime_owner_contract_successor",
+        "chat_id": null,
+        "scope": "Actual coding author A; canonical native name only, app UUID NOT_EXPOSED"
+      },
+      {
+        "lease_id": "WP1-MT026-ENTRY",
+        "paths": [
+          "src/backend/handshake_workflow_lifecycle/src/entry.rs"
+        ],
+        "writer": "/root/runtime_entry_coding_author",
+        "chat_id": null,
+        "scope": "Actual DISTINCT coding author B; canonical native name only, app UUID NOT_EXPOSED"
+      }
+    ],
+    "independent_checker": {
+      "canonical_native_name": "/root/runtime_owner_design_checker",
+      "chat_id": null,
+      "role": "NEVER AUTHOR; actual assembled primitive plus future caller boundaries"
+    },
+    "acknowledgements": "All personal ACKs received. Actual two coding authors A and DISTINCT B; checker not counted as coder. Canonical native names only where app UUID NOT_EXPOSED; no invented UUID gate.",
+    "absence_evidence": "All FOUR Test-Path false by actual Runtime parent and Primary5d8f29; B entry independently. Absence is not ownership/permission; fresh required absence/no actual conflict before create.",
+    "review": "Own plus NEVER-author actual assembled source/callers/API/dependencies/borrow/type/lifetime/cancel/panic/poison/failure/conservation review BEFORE leader DIRECT effective Codecheck01a1423a-88bf-7ce0-8944-ca8f214f1fe4. Static review not compiler/runtime/acceptance.",
+    "start": "Root FULL contract/hash + MT017 held binding + packet delta, then Central independent FULL and SEPARATE official SOURCE START BOTH actual Runtime authors and Primary. Each actual writer reads its path grant before write. Creation/dispatch labels are not coding. No actual START recorded.",
+    "git": "Primary normal Git publication only when actually authorized/integrated batch under existing Git role; no new command permission from this source contract."
+  },
+  "preserved_original_obligations": {
+    "original_16_commands_semantic_sha256": "fc87a0ef0116276547fddd5b018c3aec0435c44a371a53a1a9a17de7a532b860",
+    "requirements": "Full original three-WP/SIX/16/native/manual/Argus/independent IV/19 job UNRUN/pins/spent budgets preserved. Genuine165 real measurement -> sole measured pin -> independent confirm before166; immutable164. No old counters reset or original host obligations waived."
+  }
+}

@@ -1,0 +1,38 @@
+kind: gameplan_confirmations
+confirmations:
+- {id: GP-003, head: 9339227c05a813600db1fa4cdb71b9b9988d5992, at: '2026-10-18T02:01:11Z', note: 9339227;18 guards match; no compiler processes; lock-only no wrapper; effective-env inspected; no pending records}
+- {id: GP-007, head: 9339227c05a813600db1fa4cdb71b9b9988d5992, at: '2026-10-18T02:01:11Z', note: 9339227;18 guards match; no compiler processes; lock-only no wrapper; effective-env inspected; no pending records}
+- {id: GP-008, head: 9339227c05a813600db1fa4cdb71b9b9988d5992, at: '2026-10-18T02:01:11Z', note: 9339227;18 guards match; no compiler processes; lock-only no wrapper; effective-env inspected; no pending records}
+- {id: GP-009, head: 9339227c05a813600db1fa4cdb71b9b9988d5992, at: '2026-10-18T02:01:11Z', note: 9339227;18 guards match; no compiler processes; lock-only no wrapper; effective-env inspected; no pending records}
+- {id: GP-010, head: 9339227c05a813600db1fa4cdb71b9b9988d5992, at: '2026-10-18T02:01:11Z', note: 9339227;18 guards match; no compiler processes; lock-only no wrapper; effective-env inspected; no pending records}
+- {id: GP-011, head: 9339227c05a813600db1fa4cdb71b9b9988d5992, at: '2026-10-18T02:01:11Z', note: 9339227;18 guards match; no compiler processes; lock-only no wrapper; effective-env inspected; no pending records}
+- {id: GP-012, head: 9339227c05a813600db1fa4cdb71b9b9988d5992, at: '2026-10-18T02:01:11Z', note: 9339227;18 guards match; no compiler processes; lock-only no wrapper; effective-env inspected; no pending records}
+- {id: GP-005, head: 9339227c05a813600db1fa4cdb71b9b9988d5992, at: '2026-10-18T02:01:11Z', note: Lock generation only; no compiler target; sparse index paths below260; compilation rechecks after lock review}
+- {id: GP-016, head: 9339227c05a813600db1fa4cdb71b9b9988d5992, at: '2026-10-18T02:01:12Z', note: All confirmation notes now <=120 chars}
+- {id: GP-010, head: 070225584228143e8454a19fe7b86123f5d3b486, at: '2026-10-18T03:06:32Z', by: integration_validator, note: 'Read MT189 dispatch, source proof, state and plan; no half-written IV records'}
+- {id: GP-011, head: 070225584228143e8454a19fe7b86123f5d3b486, at: '2026-10-18T03:06:32Z', by: integration_validator, note: 'Read MT189 dispatch, source proof, state and plan; no half-written IV records'}
+- {id: GP-012, head: 070225584228143e8454a19fe7b86123f5d3b486, at: '2026-10-18T03:06:32Z', by: integration_validator, note: 'Read MT189 dispatch, source proof, state and plan; no half-written IV records'}
+- {id: GP-003, head: 070225584228143e8454a19fe7b86123f5d3b486, at: '2026-10-18T03:06:32Z', by: integration_validator, note: 0702255; no build jobs; primary max205 IV shorter; exact unwrapped command; x64 scoped env; notes under120}
+- {id: GP-005, head: 070225584228143e8454a19fe7b86123f5d3b486, at: '2026-10-18T03:06:32Z', by: integration_validator, note: 0702255; no build jobs; primary max205 IV shorter; exact unwrapped command; x64 scoped env; notes under120}
+- {id: GP-007, head: 070225584228143e8454a19fe7b86123f5d3b486, at: '2026-10-18T03:06:32Z', by: integration_validator, note: 0702255; no build jobs; primary max205 IV shorter; exact unwrapped command; x64 scoped env; notes under120}
+- {id: GP-008, head: 070225584228143e8454a19fe7b86123f5d3b486, at: '2026-10-18T03:06:32Z', by: integration_validator, note: 0702255; no build jobs; primary max205 IV shorter; exact unwrapped command; x64 scoped env; notes under120}
+- {id: GP-009, head: 070225584228143e8454a19fe7b86123f5d3b486, at: '2026-10-18T03:06:32Z', by: integration_validator, note: 0702255; no build jobs; primary max205 IV shorter; exact unwrapped command; x64 scoped env; notes under120}
+- {id: GP-016, head: 070225584228143e8454a19fe7b86123f5d3b486, at: '2026-10-18T03:06:32Z', by: integration_validator, note: 0702255; no build jobs; primary max205 IV shorter; exact unwrapped command; x64 scoped env; notes under120}
+- {id: GP-010, head: 00cb5f5b5ad18094699d65638ff2e2016cbe9f29, at: '2026-10-18T15:54:26Z', by: integration_validator, note: 'Current saved source, blockers and gen7 reread; Root records complete; harmless method only'}
+- {id: GP-011, head: 00cb5f5b5ad18094699d65638ff2e2016cbe9f29, at: '2026-10-18T15:54:26Z', by: integration_validator, note: 'Current saved source, blockers and gen7 reread; Root records complete; harmless method only'}
+- {id: GP-012, head: 00cb5f5b5ad18094699d65638ff2e2016cbe9f29, at: '2026-10-18T15:54:26Z', by: integration_validator, note: 'Current saved source, blockers and gen7 reread; Root records complete; harmless method only'}
+- {id: GP-003, head: a118e58a2afaad6009567e046422828c99277aa0, at: '2026-10-18T18:06:35Z', by: builder, note: Notes NEW16/13; HEADa118e58; idle disk355GB normal32/5/2; targets139/tmp136 bounded; env+guards; no timeout; 3deps}
+- {id: GP-005, head: a118e58a2afaad6009567e046422828c99277aa0, at: '2026-10-18T18:06:35Z', by: builder, note: Notes NEW16/13; HEADa118e58; idle disk355GB normal32/5/2; targets139/tmp136 bounded; env+guards; no timeout; 3deps}
+- {id: GP-007, head: a118e58a2afaad6009567e046422828c99277aa0, at: '2026-10-18T18:06:35Z', by: builder, note: Notes NEW16/13; HEADa118e58; idle disk355GB normal32/5/2; targets139/tmp136 bounded; env+guards; no timeout; 3deps}
+- {id: GP-008, head: a118e58a2afaad6009567e046422828c99277aa0, at: '2026-10-18T18:06:35Z', by: builder, note: Notes NEW16/13; HEADa118e58; idle disk355GB normal32/5/2; targets139/tmp136 bounded; env+guards; no timeout; 3deps}
+- {id: GP-009, head: a118e58a2afaad6009567e046422828c99277aa0, at: '2026-10-18T18:06:35Z', by: builder, note: Notes NEW16/13; HEADa118e58; idle disk355GB normal32/5/2; targets139/tmp136 bounded; env+guards; no timeout; 3deps}
+- {id: GP-010, head: a118e58a2afaad6009567e046422828c99277aa0, at: '2026-10-18T18:06:35Z', by: builder, note: Notes NEW16/13; HEADa118e58; idle disk355GB normal32/5/2; targets139/tmp136 bounded; env+guards; no timeout; 3deps}
+- {id: GP-011, head: a118e58a2afaad6009567e046422828c99277aa0, at: '2026-10-18T18:06:35Z', by: builder, note: Notes NEW16/13; HEADa118e58; idle disk355GB normal32/5/2; targets139/tmp136 bounded; env+guards; no timeout; 3deps}
+- {id: GP-012, head: a118e58a2afaad6009567e046422828c99277aa0, at: '2026-10-18T18:06:35Z', by: builder, note: Notes NEW16/13; HEADa118e58; idle disk355GB normal32/5/2; targets139/tmp136 bounded; env+guards; no timeout; 3deps}
+- {id: GP-016, head: a118e58a2afaad6009567e046422828c99277aa0, at: '2026-10-18T18:06:35Z', by: builder, note: Notes NEW16/13; HEADa118e58; idle disk355GB normal32/5/2; targets139/tmp136 bounded; env+guards; no timeout; 3deps}
+- {id: GP-003, head: 7511afa4059905a747b61b72876b6fda605fc904, at: '2026-10-20T10:49:41Z', note: Compiler process floor zero; Core99684 closed101; Primary owns next native preparation slot}
+- {id: GP-005, head: 7511afa4059905a747b61b72876b6fda605fc904, at: '2026-10-20T10:49:41Z', note: 'Projected reference extraction max210 chars; target root100; native preparation only, no compiler'}
+- {id: GP-007, head: 7511afa4059905a747b61b72876b6fda605fc904, at: '2026-10-20T10:49:42Z', note: Inspected retained outer and inner; WaitForExit without timeout or kill; exact original selector retained}
+- {id: GP-008, head: 7511afa4059905a747b61b72876b6fda605fc904, at: '2026-10-20T10:49:42Z', note: Assets HEAD and origin/codex/handpick both7511afa4059905a747b61b72876b6fda605fc904; source17 pinned}
+- {id: GP-009, head: 7511afa4059905a747b61b72876b6fda605fc904, at: '2026-10-20T10:49:42Z', note: 'Inspected pinned ENV93084 and outer prestart role, plan, distinct TEMP and live User host scope'}
+- {id: GP-016, head: 7511afa4059905a747b61b72876b6fda605fc904, at: '2026-10-20T10:49:42Z', note: All six current confirmation notes are <=120 characters}

@@ -142,4 +142,51 @@
   },
   "validator_verdict": "NOT_APPLICABLE_DEFERRED",
   "updated_at_utc": "2026-07-08T15:42:54Z"
-}
+,
+"selected_residual_preparation_activation_20261016": {
+  "decision_id": "CKC-MT056-ORIGINAL-RESIDUAL-PREPARATION-MAPPING-20261016",
+  "recorded_at_utc": "2026-10-16T21:29:30.710041+00:00",
+  "tracker_disposition": "Existing MT056 global DEFERRED status and all original findings/remediations/ref history RETAINED. Select only named per-finding current mapping ACTIVE_IN_PREPARATION under EXISTING owning MT023/MT060; no new duplicate MT/global activation or acceptance rewrite.",
+  "units": [
+    {
+      "unit_id": "CKC-MT023-SPLITVIEW-CURRENT-RESIDUAL-PREPARATION-20261016",
+      "finding_id": "POSEKIT_SPLITVIEW_OVERFLOW",
+      "original_finding_ref": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-056.json#/findings/7",
+      "original_finding_ordinal": 8,
+      "existing_owner_ref": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-023.json#/splitview_current_residual_preparation_20261016"
+    },
+    {
+      "unit_id": "CKC-MT060-ALBUM-ATOMICITY-PAGINATION-CURRENT-RESIDUAL-PREPARATION-20261016",
+      "finding_ids": [
+        "F10",
+        "F1_F2_F3"
+      ],
+      "original_finding_refs": [
+        ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-056.json#/findings/0",
+        ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-056.json#/findings/1"
+      ],
+      "existing_owner_ref": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-060.json#/album_atomicity_pagination_current_residual_preparation_20261016",
+      "original_proof_floor": "F5_F9 remains original MT060 genuinely overlapping concurrency/>LIST_CAP200 proof obligation, not a new extra unit."
+    }
+  ],
+  "F8": "EXCLUDED; no trust-boundary/threat-model change. Other historical findings retained, not silently activated by these two selections.",
+  "future_source_boundary": "Future exact per-finding source delta/original AC materialized only after actual current owner handback and separate guarded Root source admission.",
+  "shared_preparation_contract": {
+    "status": "ORIGINAL_FINDING_PREPARATION_SELECTED_SOURCE_AND_EXECUTION_HELD",
+    "authority": "Root actual LIVE human correction01a1467f-5d66-7ca0-a9df-22c1e5bb2df3: more parallel teams/new chats if unreachable/read handoff, standing full control. Root current v6 bounded cf482f workflow refresh read at8e805891/367135. Original residual reconciliation ONLY, not extraction redo/new WP/F8/blanket source START.",
+    "assigned_current_product_worktree": "../wtc-WP-KERNEL-012",
+    "assigned_current_product_branch": "feat/WP-KERNEL-012",
+    "start": "After Root FULL three saved nodes/hashes and normal Central FULL, dispatch useful exact source-input work immediately; no Account/old compile/repo remote equality predecessor. Save/reader START is NOT code progress.",
+    "read_discipline": "Exact named files ONLY. Before EACH bounded body read verify literal path presence/type and CURRENT WHOLE buffer SHA256+byte length; report absence/type change/mismatch, never guess another path. Output bounded actual relevant definitions/differences/findings/current guard metadata, no bulk dump/unrelated audit.",
+    "expanded_scope": "Any actual immediate physical dependency/new file/schema/shared root must be PRESENTED through native MC BEFORE expanded read or source admission; no blanket hunt.",
+    "ownership": "Preparation is not source permission or lease transfer. Actual personal writers, per-file disjoint responsibility/current guards/exclusive custody/no pending conflicts required before future writes. Existing retained authors/claims preserved, others UNKNOWN.",
+    "review_route": "Technical teams DIRECT to effective Codecheck01a1423a-88bf-7ce0-8944-ca8f214f1fe4 after actual residual/source proposal; Root receives concise ownership/admission decisions. Distinct NEVERAUTHOR checker, no author-as-checker.",
+    "limits": "No product write/test/probe/UI launch/Cargo/compiler/metadata/SQL/run/Git/manifest/lock/schema/DDL/slot/finite grant. Legacy api/atelier.rs/api/mod.rs/atelier/mod.rs/migrations/PG/sqlx/SQLite and frontend/backend cross-scope forbidden. No invented preimplementation runtime-ID gates.",
+    "parallelism": "TWO units independent from Account AND each other; no duplicate roster pass. Existing useful disjoint helpers within FOUR including leader permitted for source-input preparation; report actual outputs, not labels/source START as coding. If already fixed, retain valid source/proof and do NOT redo.",
+    "preservation": "One writer per path/all three-WP pins/Primary sole manifests-locks-Git-compiler/Member2/MT026/globalA/genuine165 measure->sole pin->independent confirm BEFORE166/immutable164/original independent acceptance retained. No original proof-budget reset.",
+    "source_write_authorized": false,
+    "compiler_or_runtime_authorized": false,
+    "finite_allowance_granted": false,
+    "publication_authorized": false
+  }
+}}

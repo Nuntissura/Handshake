@@ -2051,5 +2051,159 @@
     "backend_build_profile": "dev + allow-listed dependency opt-level override (see decision)",
     "verdict_labelling": "every verdict records the backend build profile",
     "earlier_verdicts_note": "earlier timing verdicts (including the timeout-driven FAIL/inconclusive verdicts recorded before this decision) remain as measured on the unoptimized dev-profile backend engine; they are not rewritten, and a verdict under the override is a new, separately labelled measurement"
-  }
+  },
+    "lsp_wire_two_producer_source_admission_20261015": {
+      "decision_id": "WP012-MT008-LSP-WIRE-TWO-PRODUCER-SOURCE-ADMISSION-20261015",
+      "status": "SOURCE_ONLY_IMPLEMENTATION_RELEASED_EXECUTION_HELD",
+      "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+      "authority_refs": [
+        "packet.json#/swarm_production_20261014/coordination/operator_crate_sequencing_20261015",
+        "MT-008.json#/scope/acceptance_criteria AC001–008",
+        "MT-008.json#/scope/proof_targets PT001–007"
+      ],
+      "adopted_leaf": {
+        "name": "handshake_lsp_wire",
+        "root": "src/frontend/handshake_lsp_wire",
+        "product_worktree": "../wtc-WP-KERNEL-012"
+      },
+      "actual_authority_evidence": {
+        "proposal_turn": "01a14070-9716-7ae3-99dd-dcc256aec8a3",
+        "outgoing_reference": "exec40c473d7-03e3-418f-a51b-7e4e2777a746",
+        "root_opened_proposal_and_actual_subagent_activity_staffing": true,
+        "leader_chat": "01a13d23-507b-7fa2-b94e-31d57ff26584"
+      },
+      "assignments": [
+        {
+          "writer": "/root/manual_component_readiness",
+          "thread": "01a13d24-0249-7940-abdd-ab3efab3e27e",
+          "new_only_path": "src/frontend/handshake_lsp_wire/src/protocol.rs",
+          "scope": "Canonical JsonRpcResponse, CompletionItem, HoverResult, Diagnostic, PublishedDiagnostics and existing position/completion/hover/marked-string/diagnostic-severity normalizers. Exact TWO synchronous fixtures published_diagnostics_map_zero_based_lines_and_severity and hover_contents_flatten_markup_and_scalar."
+        },
+        {
+          "writer": "/root/layout_restore_test_writer",
+          "thread": "01a13d88-49b4-78c1-a634-9725feef9ecb",
+          "new_only_path": "src/frontend/handshake_lsp_wire/src/framing.rs",
+          "scope": "Three MAX_LSP constants, read_one_frame, read_header_line_bounded, write_message, read_loop, route_message, numeric_id; exact bounds/header/EOF/error/response-ID/poison recovery. No invented framing fixtures."
+        }
+      ],
+      "distinct_nonauthor_checker": {
+        "writer": "/root/dependency_readiness",
+        "thread": "01a13d23-dbcc-7c80-9470-4571519fa1b2"
+      },
+      "source_basis": {
+        "path": "src/frontend/handshake_native/src/code_editor/lsp_client.rs",
+        "sha256": "2dadffa54942ff8e1dfc439ad451b9ea6b275f865a02dda36eb59f56c1e25a5d",
+        "existing_native_external_test_sha256": "2c392de729eb13add45f7a1321fd8489a60cfb022ce26759c3c0b8b3977759bf",
+        "binding": "Root supplied exact source/test preimages; kernel writer did not inspect product."
+      },
+      "write_guards": "Fresh exact original source guard plus ABSENT guard and no actual conflicting writer before EACH NEW file write. Stop/report only affected path on mismatch, preserve peers. No extra Root ACK, old candidate compiler or publication gate.",
+      "visibility_and_dependencies": "Exactly FIVE explicit public seams: JsonRpcResponse enum; position_params, completion_item_from_lsp, hover_contents_to_string; read_one_frame. Existing write_message/read_loop/constants remain public; internal router and other helpers private. Preserve std, tokio io-util+sync, serde_json1 and lsp-types0.95 semantics; no child native/Core/GUI/process upward edge. No feature or manifest grant.",
+      "host_boundary": "Native host process/discovery/spawn/supervision/lazy initialization/generation/Palmistry child watch/liveness/register/document sync/formatting types/client stay unchanged. Old file remains include_str! invariant. No old-host/export/Cargo/lib/nativeCargo/lock write or retirement now. Future Primary-personally guarded four-path integration only after actual holder resolution.",
+      "fixture_conservation": "Copy TWO existing fixtures into producer staging ONLY; Primary must remove exact old TWO in later separately admitted integration so owning fixtures execute once. Existing external stdio/mock/process/live proof and remaining THREE host fixtures unmodified; no duplicate execution or new harness.",
+      "original_failure_preserved": "FAIL_V9 LIVE_HOVER_TOOLTIP_NOT_OPENED/test331 cause remains UNVERIFIED; PC00801 zero-match is NOT_RUN. Extraction does not repair, diagnose or accept that failure. Original AC001–008/PT001–007 and full three-WP scope/pins/native/runtime/independent verdict requirements remain.",
+      "review": "Distinct actual assembled source/callers/failure/type/lifetime/ownership/dependency and fixture-conservation review, resolve findings, then leader DIRECT codecheck01a13d18-8ae0-7642-a76f-04cf3836ea3a before publication. No source-proof or original acceptance from assignment.",
+      "execution_authorized": false,
+      "proof_started": false,
+      "allowance_granted": false,
+      "limits": "Only TWO NEW producer source paths. No Git/build/tests/Cargo/metadata/runtime/SQL engine/OS/process/slot/finite allowance/new policy. No other product/kernel/artifact/confirmation writes; existing lifecycle/status/history and all pins/budgets unchanged.",
+        "prospective_primary_whole_host_ownership_20261015": {
+          "decision_id": "WP012-MT008-PRIMARY-HOST-OWNERSHIP-20261015",
+          "status": "PROSPECTIVE_PRIMARY_OWNERSHIP_ASSIGNED_PHYSICAL_WIRING_HELD",
+          "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+          "authority_refs": [
+            "WP012 packet adaptive ADAPT001/002/005/006",
+            "packet.json#/swarm_production_20261014/coordination/operator_crate_sequencing_20261015/ownership"
+          ],
+          "sole_future_physical_writer": "PRIMARY_PERSONALLY",
+          "writer_chat": "01a13d2a-fbcb-7ce2-b8e7-9dcb7ce2984a",
+          "whole_host_path": "src/frontend/handshake_native/src/code_editor/lsp_client.rs",
+          "expected_before_sha256": "2dadffa54942ff8e1dfc439ad451b9ea6b275f865a02dda36eb59f56c1e25a5d",
+          "historical_ownership": "Prior historical overall owner UNKNOWN remains history. This establishes only a prospective EXACT whole-host lease, no global-free claim, unverified-holder transfer or retroactive permission.",
+          "actual_functional_team_handoff": {
+            "leader_chat": "01a13d23-507b-7fa2-b94e-31d57ff26584",
+            "team": "Native",
+            "root_received_direct_handoff_and_central_corroboration": true,
+            "report": "Relevant functional team explicitly reports NO admitted current whole-host lease, unreturned write or unfinished patch. Respective NEW2 done/quiescent plus distinct checker reports old hash unchanged. This does not prove globally unowned."
+          },
+          "before_eventual_write": "Primary fresh full exact preimage plus Central actual current assignments/quiescence and no known competing unfinished writer required. Discovered known claim/conflict/hash drift stops ONLY affected host, preserving peers; no foreign-writer stop/reset/revert. Do not require endless historical-owner ACK lookup when no binding/conflict exists.",
+          "physical_permission": "OWNERSHIP ONLY. Physical wiring remains UNGRANTED until complete actual current literal FOUR-path patch plus distinct checker and Root saved scope. Initial old-host no-write hold superseded solely for prospective ownership, not physical body permission. All manifest/lib/export/lock holds unchanged; Primary in-memory planning may proceed.",
+          "specific_preservation": "Preserve two LSP pure fixtures once, all remaining native fixtures/process/client/include_str! invariants and live-hover failure/proof. Preserve NativeCargo peer edges.",
+          "original_obligations": "Full original behavior/tests, all three-WP scope/proofs/pins/independent verdicts and spent budgets remain unchanged; no acceptance or source-application claim.",
+          "physical_wiring_authorized": false,
+          "execution_authorized": false,
+          "proof_started": false,
+          "allowance_granted": false,
+          "limits": "No other path/source/Git/Cargo/tests/metadata/actual SQL/runtime/OS/process/slot/finite allowance. Kernel ownership child only; no product inspection or write."
+        },
+        "primary_shared_four_source_wiring_20261015": {
+          "decision_id": "WP012-MT008-PRIMARY-SHARED4-WIRING-20261015",
+          "status": "SOURCE_ONLY_SHARED4_IMPLEMENTATION_RELEASED_EXECUTION_HELD",
+          "decision_owner_chat": "01a13d30-1e08-70f3-801d-357858d025be",
+          "physical_writer": "PRIMARY_PERSONALLY",
+          "writer_chat": "01a13d2a-fbcb-7ce2-b8e7-9dcb7ce2984a",
+          "product_worktree": "../wtc-WP-KERNEL-012",
+          "actual_plan_source": {
+            "primary_turn": "01a14082-e65a-7593-9396-e3b3497a4d52",
+            "outgoing_execution": "exec-ba22391c-be7b-4581-9fbe-9212f64cddc8",
+            "root_opened_full_plan": true,
+            "kernel_reused_exact_retained_files_and_recipe": true
+          },
+          "files": [
+            {
+              "path": "src/frontend/handshake_lsp_wire/Cargo.toml",
+              "current": "ABSENT",
+              "new_sha256": "da86815435577f37e6dd640c58c2eeb4bdfadb71e37cfeae3b739302a31baa7d",
+              "new_bytes": 212,
+              "line_endings": "LF onefinalLF",
+              "literal": "[workspace]\n\n[package]\nname = \"handshake_lsp_wire\"\nversion = \"0.1.0\"\nedition = \"2021\"\npublish = false\n\n[dependencies]\nlsp-types = \"0.95\"\nserde_json = \"1\"\ntokio = { version = \"1\", features = [\"io-util\", \"sync\"] }\n"
+            },
+            {
+              "path": "src/frontend/handshake_lsp_wire/src/lib.rs",
+              "current": "ABSENT",
+              "new_sha256": "979b17c1ee54ec2a387a0976b2424b326cb922bc515a5929aa5b5e5158e56117",
+              "new_bytes": 35,
+              "line_endings": "LF onefinalLF",
+              "literal": "pub mod protocol;\npub mod framing;\n"
+            },
+            {
+              "path": "src/frontend/handshake_native/Cargo.toml",
+              "current_sha256": "27bbc0fa179bcc37358630357cc679975564da00d76e3876b8c2b00f59a54605",
+              "current_bytes": 37420,
+              "new_sha256": "b9a50aeb8504ca20f70c5079f15379305051b39a625cf9eb17638794b044c532",
+              "new_bytes": 37476,
+              "exact_delta": "Insert ONLY complete LF line handshake_lsp_wire = { path = \"../handshake_lsp_wire\" } immediately after existing gutter edge. All other current peer edges/bytes preserved; removing only line restores entire27bbc."
+            },
+            {
+              "path": "src/frontend/handshake_native/src/code_editor/lsp_client.rs",
+              "current_sha256": "2dadffa54942ff8e1dfc439ad451b9ea6b275f865a02dda36eb59f56c1e25a5d",
+              "new_sha256": "bce7c987b7be39a85f65f07c44efab1ef82e3447600a72731fb1a1c18f5d901e",
+              "new_bytes": 85533,
+              "line_endings": "CRLF,1800lines",
+              "exact_recipe": "Against guarded ORIGINAL line numbers: delete63–68(framing docs/constants),108–160(response models/JsonRpcResponse),1809–2083(normalizers/singleframe/transport),2106–2165(EXACT TWO moved protocol fixtures). Delete entire tokio::io import literal below. Replace49–53 with exact import/reexport block below using CRLF. Preserve EVERY other byte/client/process/discovery/supervision/lifecycle/generation/Palmistry/document-sync/formatting/hostfixture.",
+              "removed_literal": "use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};\r\n",
+              "replacement_imports_literal_lf_then_encode_crlf": "use lsp_types::{\n    CompletionResponse, GotoDefinitionResponse, Hover, Location, Position, ServerCapabilities,\n    SignatureHelp, TextDocumentIdentifier, Url,\n};\n\npub use handshake_lsp_wire::framing::{\n    MAX_LSP_CONTENT_BYTES, MAX_LSP_HEADER_BYTES, MAX_LSP_HEADER_LINE_BYTES,\n};\npub use handshake_lsp_wire::protocol::{\n    published_diagnostics_from_lsp, HoverResult, LspCompletionItem, LspDiagnostic, PublishedDiagnostics,\n};\nuse handshake_lsp_wire::framing::{self as transport, read_one_frame};\nuse handshake_lsp_wire::protocol::{\n    completion_item_from_lsp, hover_contents_to_string, position_params, JsonRpcResponse,\n};\n",
+              "inverse": "Restoring only original removed spans/import+original lsp_types49–53 reproduces entire2dad preimage. Actual helper reproduced exactbce7 target."
+            }
+          ],
+          "old_host_before_bytes": 102114,
+          "actual_producer_bindings": {
+            "protocol_sha256": "a22cdf7f0fa7f1047500060482f222c517b0fda459b29da4b8173c580c42eb0c",
+            "framing_sha256": "f99477eb5e5d2237b5dc3bf786aec1efabe91063958b9c14fffcb6ad65360ced",
+            "own_and_distinct": "CLEAR",
+            "direct_external": "COMPLETE_NO_INTRODUCED_BLOCKING_STATIC_FINDING",
+            "external_turn": "01a14082-d92b-79d2-8200-52953a494f44",
+            "historical_disposition": "Earlier plan producer-review PENDING wording remains historical and superseded ONLY by this completed review fact."
+          },
+          "actual_primary_preparation": "READONLY existing helper reproduced all4exactpostimages/inverses from actual guards, verified actualcompleteproducerAPI; no second producerreview or compiler/runtime claim. No files/artifacts written.",
+          "ownership_and_supersession": "Existing prospective ownership child resolves exact future Primary owner, preserving past UNKNOWN/no global-free claim. This child NOW supersedes ONLY initial FOUR-path physical hold for exact retained guarded scope; earlier plan no-write wording remains history, not current override.",
+          "fresh_guards": "Fresh all FOUR preimages/absence plus Central actual current assignments and no known competing unfinished writer before physical write. Mismatch stops only affected path; report changed binding and precise rebase preserving peers. No endless ACK lookup or peer overwrite/reset/foreign-writer stop. Planned postimages are not observed writes.",
+          "fixture_and_host_preservation": "Original TWO protocol fixtures move to leaf owner ONCE; retain THREE host fixtures, external test SHA2c392de729eb13add45f7a1321fd8489a60cfb022ce26759c3c0b8b3977759bf and physical old-file include_str! invariant. code_editor/mod.rs4fb43d476507053c2546d940ee096763e29893de317eb2912b8d3a83c578a8c7 unchanged. Preserve every other process/discovery/client/lifecycle/generation/Palmistry/sync/formatting byte. Existing FIVE public seams already adopted; no further public host widening/wrappers/new alias module.",
+          "assembled_review": "Require actual postimages/inverses plus own and DISTINCT NONAUTHOR assembled FOUR plus producers/callers/dependencies/type/borrow/error/lifetime/fixture-conservation checks; resolve findings then Primary leader DIRECT codecheck01a13d18-8ae0-7642-a76f-04cf3836ea3a before publication. Reuse complete NEW2 source reviews.",
+          "original_acceptance": "Original FAIL_V9 hover cause UNVERIFIED, PC00801 zero-match NOT_RUN remain. All original live AC/PT/backend/AccessKit/native/full three-WP acceptance/pins/schema165 before166/immutable164/spent budgets/history retained. Affected manifest proof only invalidated; no unchanged147 semantic redo or final-candidate acceptance.",
+          "execution_authorized": false,
+          "proof_started": false,
+          "allowance_granted": false,
+          "limits": "No lock mutation/Cargo/build/tests/metadata/resolver/actual SQL/runtime/OS/Git/process/slot/finite allowance/policy or final candidate claim. Source FOUR paths only; no product inspection by kernel writer or other edits."
+        }
+    }
 }

@@ -1,4 +1,94 @@
 {
+  "assets_navigation_pinned_host_adoption_20261018": {
+    "actual_source_outcome_20261018": {
+      "actual_facade_source_execution_data": {
+        "tool": "mcp__node_repl__js",
+        "title": "Guard and write scoped navigation facade adoption",
+        "isError": false,
+        "actual_result": "Returned posthash/bytes/inverseExact=true after writeFile and byte-equality reread",
+        "sha256": "27d2a85da4032dd7fd2424ecaf9e7f84cde26f4f2e421486f34913969f2d40d0",
+        "bytes": 739073,
+        "shell_exit_code": "NOT_APPLICABLE_NO_SHELL_SOURCE_WRITE",
+        "chunk_or_cell_id": "NOT_APPLICABLE_NONE_EXPOSED",
+        "outer_result": "functions.exec Script completed; wall0.2 seconds",
+        "verification": "Parent independent b675cc six-literal inverse exact; direct Codecheck independent inverse complete",
+        "provenance": "New exact retained execution data supplied directly by Central after the initial natural record; no new source acquisition or inferred EXIT0"
+      },
+      "status": "SOURCE_IMPLEMENTED_DIRECT_CODECHECK_CLEAR_MEMORYPACK_AND_HOST_PROOF_OPEN",
+      "observation_basis": "Current Central reports actual SAME A source completion, actual Primary manifest assembly and team/direct Codecheck results. Initially the exact source execution data was not supplied; the retained node_repl write receipt is now recorded above. No shell exit code or exposed chunk/cell ID exists for that source write; do not invent EXIT0 or a source chunk",
+      "facade": {"actor": "/root/implementation_a", "path": "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs", "bytes": 739073, "sha256": "27d2a85da4032dd7fd2424ecaf9e7f84cde26f4f2e421486f34913969f2d40d0", "actual_outcome": "Actual typed Source carries genuine six validated artifact aliases and micro_task_id after current private Yjs/hash/selector and final visible_receipt checks; no new public API, package removal or duplicate portable implementation", "inverse": "Parent actual six-literal facade inverse b675cc exactly restores737602/SHA5dcba5b44ed3eef7bdfa98faac3a33a19cbf6174eba9bf06a34030b5c4b97a48, including entire Recovery header and private glue"},
+      "manifest": {"actor": "PRIMARY_PERSONALLY", "path": "src/backend/handshake_core/Cargo.toml", "bytes": 30802, "sha256": "a93646e85f6050336ec5e9a06bcaeacf42a4c6ce80adb3293220ebd1048dd392", "source_revision": "00cb5f5b5ad18094699d65638ff2e2016cbe9f29", "evidence": "Actual Primary cefa8b EXIT0 exact Core dependency source replacement", "inverse": "Parent manifest inverse fa8818 exactly restores30747/SHAe2e6ecd6e59af8286d1f6c34c2e6b146f14d18cd1a7595c7fd371a058668d2d7"},
+      "source_review": {"team": "Actual team NEVERAUTHOR and parent distinct dependency review COMPLETE NO_ACTIONABLE", "direct_codecheck": "Current01a14f62-c30a-7113-bf78-f0b630b432ab actual two NEVERAUTHOR readers plus lead NO_CONCRETE_NEW_SOURCE_FINDING", "independent_scope": "Direct Codecheck independently inversed six facade hunks and one manifest line to exactly the same preimage guards, and read current source/callers/bounded provider identity4179-4200 including kind/run/aggregate/event/sequence checks. Actual canonical From tuple defaults None and wrong-kind guard reviewed", "qualification": "NAV delta only. Valid unchanged earlier F10/Recovery proof reused without re-audit. Advisory source findings are not compiler/runtime/host acceptance"},
+      "memory_pack_gap": "Genuine private child source plus real descendant grant proof remains ABSENT/OPEN. Run token or hash alone is insufficient; current None is truthful omission, not feature completion. No dummy values, always-None acceptance claim or fabricated descendant permission",
+      "quiescence": "Both source authors personally report quiescent. No Cargo, tests, Git, lock, package removal or protected parent read occurred in this unit",
+      "remaining_acceptance": "All lock/compiler/runtime and original seventeen direct plus six API/manual/Argus/privacy, MemoryPack, RecoveryExecute/MT185 genuine Flight Recorder, native/schema and full independent acceptance remain OPEN. Prior standalone six tests and independent source/result rereads remain valid for unchanged inputs; no reruns or budget transfer",
+      "new_proof_or_run_allowance": false,
+      "acceptance": "NOT_ACCEPTED"
+    },
+    "decision_id": "WP1-MT010-MODEL-LANE-NAVIGATION-PINNED-HOST-SOURCE-ADOPTION-20261018",
+    "status": "SOURCE_IMPLEMENTED_DIRECT_CODECHECK_CLEAR_MEMORYPACK_AND_HOST_PROOF_OPEN",
+    "authority": "Current Root approved actual NAV pinned host source unit and SAME T5 A facade lease extension under existing Operator/Central delegation. Root and NAV leader explicitly report no pending/inflight MT010 writer and grant this helper narrow exclusive MT010 window until save/readback/handback. No new NAV writer, all-team ACK or routine Root/human GO.",
+    "module_change_stage": "host_adoption",
+    "product_repository": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "source_predecessor": {
+      "repository": "https://github.com/Nuntissura/assets.git",
+      "source_path": "hskernel/handshake_model_lane_navigation",
+      "package": "handshake_model_lane_navigation",
+      "revision": "00cb5f5b5ad18094699d65638ff2e2016cbe9f29",
+      "tree": "1d7ae1b67c5520f7ac72bb6551317c9dbba2babf",
+      "parent_locator": "558844 retained prefix only, not an invented full parent SHA",
+      "qualification": "Root confirms actual owning6 all passed exit0, six expected unique tests and zero failed/ignored/filtered, full507 inputs no drift; both independent actual3c3b1c/66a358 rereads verified exact four source3+lock publication and outside canonical conservation. All five original proof actions consumed1/1; no rerun or reset",
+      "representation": "Only lib source68 CRLF-to-LF: working14138/d4e57d9 retained SHA prefix, canonical14070/SHA65fbe011c646066b3fdaa0a5b7100a5a80c4b99a3816c96674bd7fe31ed952f5; other three raw exact including lock2688/789d9196 retained prefix. Do not invent full working/lock hashes or blanket raw equality",
+      "source_contract_refs": ["#/assets_navigation_source_20261018", "#/assets_navigation_source_handback_20261018"],
+      "not_proven": "No seventeen direct store plus six API, Flight Recorder, MemoryPack, RecoveryExecute, Core adapter, Native Argus/GUI or full host acceptance"
+    },
+    "same_facade_writer_extension": {
+      "leader": "01a14c7d-500b-7770-a841-68387c45f114",
+      "actor": "/root/implementation_a",
+      "actual_thread": "01a14c7e-2452-7871-962d-d8e11a1a7412",
+      "only_path": "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs",
+      "observed_bytes": 737602,
+      "observed_sha256": "5dcba5b44ed3eef7bdfa98faac3a33a19cbf6174eba9bf06a34030b5c4b97a48",
+      "actual_custody": "Root personally confirms fresh hash-only ordinary-file/all-ancestor match; SAME A has no own pending/inflight/unreturned writes, commands, proof capture or process; no global freedom claim. Original NAV host owner personally released exact completed facade path and has no future writer. Preserve existing Recovery header6973/source fix and every unrelated byte",
+      "mt187_cross_reference": "../WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-187.json#/recovery_execute_source_order_exception_20261018",
+      "scope_relation": "This explicitly extends the SAME existing T5 A whole-facade lease for ONE distinct NAV adoption source outcome. It does not reset MT187 source units, grant another writer, mutate MT187 or convey acceptance. Fresh personal guard immediately before source action; actual drift/conflict stops only affected path"
+    },
+    "host_source_outcome": "Rewire portable navigation types and assembler to immutable canonical package, and consume the ACTUAL validated typed witness values that the old tuple path discarded. Remove only moved portable duplicate bodies if the actual current owned facade map proves they remain. SAME A may inspect ONLY current owned import/reexport declarations, actual navigation_selected_source builder and necessary private witness branches for coherent source. Full current reexport list is NOT_RETAINED; inspect it rather than inventing exports or other callers",
+    "canonical_api": {
+      "ModelLaneNavigationSource": {"record_kind": "String", "source": "Scalar", "error_code": "Option<String>", "memory_pack": "Option<MemoryPack>", "artifact_aliases": "Option<ArtifactAliases>", "micro_task_id": "Option<String>"},
+      "MemoryPack": "Actual reference/hash fields; only genuine validated host witness supplies them",
+      "ArtifactAliases": ["artifact_ref", "artifact_binding_id", "artifact_manifest_ref", "artifact_payload_ref", "artifact_sha256", "content_hash"],
+      "run": "Canonical run has optional MemoryPack",
+      "assembler": "IntoIterator plus Into<Source>, legacy tuple conversion retains absence/legacy wire semantics; presence is not descendant authorization"
+    },
+    "host_owned_security_and_validation": "KEEP private Core provider/schema/authentication, real record and receipt checks, full five-tuple/hash, shared MemoryPack validator, artifact decoded Value plus canonical_json_bytes plus Dexterity SHA and all six aliases AFTER Yjs validation, runtime require_token/result barrier, exact-child omission404 and visible ambiguity. Run memory claim/token SHA alone confers NO descendant permission. Emit Some only with genuine private child source and actual grant proof; otherwise truthful omission/local gap. Never dummy witness values, always-None completion as a fix, URI-as-auth, new CloudConsentDenial canonical export or new persisted projection",
+    "unchanged_host_boundaries": "Existing api/model_lane_navigation.rs eight authenticated handlers still return Json<Projection> unchanged. No additional Core caller/lib paths are established or granted. No framework/algorithm rewrite, endpoint, authentication/grant/policy/resource-kind or result law change",
+    "primary_manifest_assembly": {
+      "owner": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+      "writer": "PRIMARY_PERSONALLY",
+      "only_path": "src/backend/handshake_core/Cargo.toml",
+      "observed_bytes": 30747,
+      "observed_sha256": "e2e6ecd6e59af8286d1f6c34c2e6b146f14d18cd1a7595c7fd371a058668d2d7",
+      "observed_line": 184,
+      "existing_declaration": "handshake_model_lane_navigation = { path = \"../handshake_model_lane_navigation\" }",
+      "actual_helper_observation": "Ordinary manifest/all ancestors, whole raw hash before strict UTF8, exactly one existing dependency declaration; no source body or other manifest selection",
+      "exact_change": "Replace ONLY this existing path source with Git https://github.com/Nuntissura/assets.git rev00cb5f5b5ad18094699d65638ff2e2016cbe9f29 for SAME actual handshake_model_lane_navigation package/key. Preserve every other manifest byte, feature and dependency. No absent-key addition is needed by this observed manifest",
+      "prestart": "Primary personally freshly guards exact current file and actual capture/own writer quiescence before source START; helper observation is not proxy confirmation. If current capture includes Core manifest, hold ONLY this delta until lawful capture reconciliation; A uncaptured facade source continues. No all-manifest/lock/compiler/Git custody transfer"
+    },
+    "source_outcome_allocations": {
+      "same_A_navigation_facade_adoption": {"limit": 1, "consumed": 1, "count_when": "Actual separate adoption source START and implementation; not governance save or dispatch, no MT187 counter reset"},
+      "primary_exact_core_manifest_assembly": {"limit": 1, "consumed": 1, "count_when": "Actual separately owned exact existing dependency source replacement"}
+    },
+    "retained_old_product_package": "src/backend/handshake_model_lane_navigation removal is a BOUNDARY, NOT a source grant. Any later retirement requires exact source conservation, selected tracked paths and Primary custody allocation; preserve directories and all unrelated/untracked files. No cleanup/removal now",
+    "review_and_proof": "Existing T5 distinct NEVERAUTHOR and dependency checker inspect actual new source/type/witness/provider and manifest compatibility, then direct current T5 Codecheck01a14f62-c30a-7113-bf78-f0b630b432ab with two NEVERAUTHOR readers reviews actual changed source. Do not rerun old six component tests or repeat unchanged F10 review. Source adoption is not runtime PASS. All original seventeen direct plus six API, manual/Argus, canonical grant/hash negatives, MemoryPack/artifact privacy, RecoveryExecute/MT185 authenticated Flight Recorder and full independent acceptance remain OPEN",
+    "start": "After saved exact MT010 child parse/outside-inverse/readback and immediate writer-window handback, Central routes SAME A source START and separate Primary manifest assembly after EACH actual personal guard. No new Root GO or whole-kit source freeze. Return actual source output/current guard and actual local conflict or missing definition, never invented source completion",
+    "preservation": "Preserve every old MT010 field/ID/status/verdict/source proof/history, actual prior Native Graph CreateProcess denial and all current peer writes. This new source adoption does not clear/retry/bypass that denial. No source proof/publication redo or per-crate asset index entry",
+    "limits": "Product source scope ONLY the one facade and separately owned one Core manifest dependency source. No tests/Cargo/metadata/check/build/compiler/locks/publication/Git/index, new branch/worktree/backup/force/reset/stash/process/host acceptance or finite run grant. No other Product or Kernel/v6/Spec writes",
+    "source_write_authorized": true,
+    "runtime_cargo_tests_git_locks_or_counter_reset_authorized": false,
+    "acceptance": "NOT_ACCEPTED"
+  },
   "schema_id": "hsk.microtask_contract@1",
   "schema_version": "microtask_contract_v1",
   "contract_authority": "PRIMARY_MACHINE_READABLE",
@@ -575,4 +665,175 @@
       }
     ]
   }
+,
+  "assets_navigation_source_20261018": {
+  "decision_id": "WP1-MT010-MODEL-LANE-NAVIGATION-ASSETS-SOURCE-20261018",
+  "authority": "Direct Master2026-10-18 canonical source home selection and WP012-NAV-OPTIONAL-TYPED-WITNESS-REPRESENTATION-20261018",
+  "state": "SOURCE_ONLY_IMPLEMENTATION_RELEASED",
+  "packet_source_ref": "../WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/swarm_production_20261014/coordination/model_lane_navigation_component_extraction_20261015",
+  "canonical_source": "../../.assets/hskernel/handshake_model_lane_navigation",
+  "source_guards": {
+    "src/backend/handshake_model_lane_navigation/Cargo.toml": "9dcc8d1580ff9f152cf7cb50d11f5a0898559eb48eef67e0d1c4b7d076e06a2f",
+    "src/backend/handshake_model_lane_navigation/src/lib.rs": "ba905135da8116e13b3b1963fafbdbd9ede2ed6e6093c17eb81630b48d620b16"
+  },
+  "existing_lineage": "packet source publication2a4dfdcade121f6855728675411546fca8f423fc, guarded source is two-file package, no preexisting inline tests",
+  "ownership": {
+    "checks": "Separate NEVERAUTHOR and dependency, direct Codecheck actual source before expensive Cargo",
+    "assembly_and_lib": "/root/provider: canonical src/lib.rs only",
+    "behavior_tests": "/root/host: canonical tests/navigation_witnesses.rs only",
+    "manifests_locks_git_publication": "Primary only", "manifest_allocation": { "owner": "Primary personally", "path": "../../.assets/hskernel/handshake_model_lane_navigation/Cargo.toml", "expected": "ABSENT at source START; verify again before save", "shape": "Preserve standalone [workspace]; [package] name handshake_model_lane_navigation version0.1.0 edition2021 publish=false; [dependencies] serde version1 features derive; [dev-dependencies] serde_json version1 for admitted actual public serialization/assembly component tests. No rootAssetsworkspace/index/newrepo/lock/Git/execution permission." }
+  },
+  "public_signatures": "Run optional memory_pack:Option<ModelLaneNavigationMemoryPack{reference:String,hash:String}>; Artifact wrapper flattened source:ModelLaneNavigationScalar and optional aliases:ModelLaneNavigationArtifactAliases{artifact_ref,artifact_binding_id,artifact_manifest_ref,artifact_payload_ref,artifact_sha256,content_hash:String}; MtRuntimeStatus wrapper flattened source and optional micro_task_id:String. New ModelLaneNavigationSource{record_kind,source,error_code,memory_pack,artifact_aliases,micro_task_id}; From existing scalar tuple and single generic assemble_navigation_projection<I,S> where I:IntoIterator<Item=S>,S:Into<ModelLaneNavigationSource>. Optional public fields serde default+skipNone; original @2tag/scalar keys/header/routes/lookup/evidence retained.",
+  "test_scope": "Component tests actual public assembly/serde missing-null-None/flatten key collisions/exact values and hash casing/old tuple/evidence sorting. No component fixture proves private authorization or original host API acceptance.",
+  "preserved": "No auth in leaf; host supplies genuine full canonical/hash/receipt/descendant-authorized semantically validated witnesses. Run claim alone cannot populate MemoryPack descendant. No placeholder acceptance, raw public payload, URI auth, recovery execution/new endpoint/tag. Keep old Product package READ_ONLY until independently published/re-read source then separately authorized pinned host adoption/removal. No newrepo/worktree/rootAssetsworkspace/index; no source-author Cargo/Git/runtime/manifest writes.",
+  "original_acceptance": "All17direct+6API/UserManual/liveArgus/positive-negative/ambiguity/hash requirements retained OPEN. Representation migration only per exact new Root decision; no blanket assertion flips or privateproof substitution.",
+    "owning_component_proof_allocation_20261018": {
+      "decision_id": "WP1-MT010-NAVIGATION-OWNING6-PROOF-20261018",
+      "status": "CONDITIONALLY_ALLOCATED_NOT_STARTED",
+      "authority": "Current Operator implementation and Master standing source-first component proof delegation through Central. New finite component scope only; no renewal of old budgets, denials or original acceptance. Sole Primary executes when exact holds pass without another routine GO.",
+      "owner": "01a14c6a-749a-7cd0-a789-0a5c97c47f36",
+      "independent_reader": "01a14c66-e01c-7551-9ee0-b913f2d6b277",
+      "repository": "../../.assets",
+      "branch": "codex/handpick",
+      "package_root": "hskernel/handshake_model_lane_navigation",
+      "source_guards": [
+        {
+          "path": "hskernel/handshake_model_lane_navigation/Cargo.toml",
+          "bytes": 217,
+          "sha256": "45ee568929a3c46613317adf54aefaa28a90674de7348c56f667498c573f1ef5"
+        },
+        {
+          "path": "hskernel/handshake_model_lane_navigation/src/lib.rs",
+          "sha256": "d4e57d9d273605cc87ca568c85a2f2069811c64af4745198a8d97bca4b024160",
+          "bytes": 14138
+        },
+        {
+          "path": "hskernel/handshake_model_lane_navigation/tests/navigation_witnesses.rs",
+          "bytes": 6417,
+          "sha256": "099cc7479536b040663f5c162eca08025fcc4575fa80683ed28d9a71cce66c44"
+        }
+      ],
+      "holds": "Final actual source3 direct current Codecheck remains pending at allocation. Retain cleared team NEVERAUTHOR/dependency reviews only for unchanged inputs. Primary must personally admit current physical resources, toolchain, profile, target/cache/TMP and public gameplan preparation. No execution claimed or started by this allocation.",
+      "budget": {
+        "owning_root_lock_generation": {
+          "limit": 1,
+          "consumed": 0
+        },
+        "owning_existing_tests_attempt": {
+          "limit": 1,
+          "consumed": 0
+        },
+        "normal_coherent_source_and_lock_checkpoint_push": {
+          "limit": 1,
+          "consumed": 0
+        },
+        "independent_immutable_source_and_lock_reread": {
+          "limit": 1,
+          "consumed": 0
+        },
+        "independent_actual_result_reread": {
+          "limit": 1,
+          "consumed": 0
+        }
+      },
+      "lock": {
+        "write_path": "hskernel/handshake_model_lane_navigation/Cargo.lock",
+        "before": "ABSENT on current scoped read. Primary freshly verifies exact absence, ordinary parents and current source guards before operation.",
+        "argv": [
+          "generate-lockfile",
+          "--manifest-path",
+          "hskernel/handshake_model_lane_navigation/Cargo.toml"
+        ],
+        "network": "Normal existing network/config/cache only. No assumed offline cache, lock overwrite, route/actor/tool/config workaround. Failed resolver consumes allowance; retain partial state.",
+        "review": "Actual generated identities/versions/source pins/checksums/features/registry graph require team dependency/NEVERAUTHOR and direct current Codecheck review before test. Unexpected resolution requires exact diagnosis; no source repair or dependency loosening here."
+      },
+      "command": {
+        "argv": [
+          "test",
+          "--manifest-path",
+          "hskernel/handshake_model_lane_navigation/Cargo.toml",
+          "--locked",
+          "--test",
+          "navigation_witnesses",
+          "-j",
+          "1"
+        ],
+        "cwd": "../../.assets",
+        "extra_check_metadata_list_attempts": 0
+      },
+      "expected_test_suites": [
+        {
+          "source_path": "hskernel/handshake_model_lane_navigation/tests/navigation_witnesses.rs",
+          "count": 6,
+          "names": [
+            "legacy_tuple_assembly_preserves_scalar_wire_and_omits_witnesses",
+            "optional_witnesses_decode_missing_and_null_and_serialize_absence",
+            "assembly_retains_exact_host_supplied_witness_values",
+            "flattened_scalar_duplicate_fields_are_rejected",
+            "witnesses_cannot_be_assigned_to_another_record_kind",
+            "assembly_sorts_and_deduplicates_source_evidence_and_error_codes"
+          ]
+        }
+      ],
+      "expected_result": {
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "filtered_out": 0,
+        "required": "All six unique existing names execute in their actual owning target; no filter, substitute, zero-match pass or manufactured tests."
+      },
+      "session_plan": {
+        "path": "../Handshake_Artifacts/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-010/assets-navigation-owning-proof/gameplan.yaml",
+        "bytes": 3887,
+        "sha256": "3eae00a8439d433c5fdc2830a9be419095672b624fb18d54530fb5d1ca9e18a1",
+        "scope": "session",
+        "assignment": "WP1-MT010-NAVIGATION-OWNING6-PROOF",
+        "role": "builder",
+        "confirm_binding_repo": "../../../../../.assets",
+        "binding_verification": "Resolved from plan parent to inspected actual ordinary Assets repository.",
+        "selection": "Primary selects exact external public session plan honestly as kernel_builder/builder for owning Assets actions. No Product/shared plan or selected-pointer overwrite, role/env/context suppression or hidden confirmation.",
+        "moments": {
+          "resume": "on_resume",
+          "lock": "before_dispatch",
+          "tests": "before_round",
+          "publication": "before_submit"
+        },
+        "confirmed_by_helper": false,
+        "activated_by_helper": false,
+        "preparation": "Public init/add/validate only by helper. Primary personally confirms actual facts and uses public check at each owning moment before costly action."
+      },
+      "artifact_root": "../Handshake_Artifacts/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-010/assets-navigation-owning-proof",
+      "mutable_target": "../Handshake_Artifacts/handshake-cargo-target/wp1-nav",
+      "preparation": "Target absent on scoped read; path proposal only. Primary binds actual generated-name/path bounds, profile/toolchain/config, owned disjoint target/cache/TMP, fresh physical ownership, disk>=50GiB and permitted normal32/5/2 scheduling. Freeze only actual captured inputs; preserve peers. No foreign process stop, timeout wrapper, old-monolith prerequisite or profile facts certified here.",
+      "execution": "One ordinary lock generation, actual changed-lock review, then one exact owning test invocation. Capture actual argv/PID/birth/tool/config/profile/resource provenance, full stdout/stderr/numeric exit, unique names/counts and before/after guards. Failure consumes applicable allowance; retain actual cause/state, no identical replay or reset.",
+      "publication": {
+        "selected_paths": [
+          "hskernel/handshake_model_lane_navigation/Cargo.toml",
+          "hskernel/handshake_model_lane_navigation/src/lib.rs",
+          "hskernel/handshake_model_lane_navigation/tests/navigation_witnesses.rs",
+          "hskernel/handshake_model_lane_navigation/Cargo.lock"
+        ],
+        "method": "Only after stable actual successful owning result, one normal exact-path coherent source3-plus-one-lock checkpoint/push on existing Assets branch. Preserve peer index/source changes. Verify parent/tree/pathset/filtered blobs/newline representation after hooks before push. No global add, shared index root edit, force/amend/stash/reset/new branch/worktree.",
+        "independent": "Existing independent reader gets one immutable canonical source3+lock reread and one actual full result/log/provenance reread, binding executed inputs to canonical commit. No acceptance from self-authored status or blanket raw equality."
+      },
+      "limits": "No source/manifest edits/new tests, host Product edits, shared Assets roots/index, metadata/list/extra check/test runs, GUI/runtime/auth/grant actions, protected-parent acquisition or denied action retry. Normal owned Cargo cache and scoped proof output permitted. Only named absent lock is a Product write before publication.",
+      "proof_strength": "Six owning assembly/serde representation tests only; no genuine MemoryPack lineage, FlightRecorder UUID/receipt/readgrant, RecoveryExecute, Core adapter/native Argus or host runtime proof. Original17 direct+6API/UserManual/liveArgus/FR/MemoryPack/positive-negative/ambiguity/hash/denied/full independent acceptance remain OPEN.",
+      "next": "Owning proof, coherent canonical publication and both independent rereads precede DISTINCT exact pinned host adoption/removal allocation. Preserve original contracts, immutable schemas, pins, spent limits and denials."
+    }
+}
+,
+  "assets_navigation_source_handback_20261018": {
+  "state": "CANONICAL_SOURCE_TESTS_SAVED_NOT_EXECUTED_NOT_PUBLISHED",
+  "source_ref": "assets_navigation_source_20261018",
+  "files": {
+    "../../.assets/hskernel/handshake_model_lane_navigation/Cargo.toml": "45ee568929a3c46613317adf54aefaa28a90674de7348c56f667498c573f1ef5",
+    "../../.assets/hskernel/handshake_model_lane_navigation/src/lib.rs": "d4e57d9d273605cc87ca568c85a2f2069811c64af4745198a8d97bca4b024160",
+    "../../.assets/hskernel/handshake_model_lane_navigation/tests/navigation_witnesses.rs": "099cc7479536b040663f5c162eca08025fcc4575fa80683ed28d9a71cce66c44"
+  },
+  "review": "NEVERAUTHOR found missing generic bounds; fixed and reread final. Separate dependency actual source/manifest/tests review no concrete finding. Direct Codecheck01a14d52-fa57-73a3-a4ad-1bf70f4084b8 pending. Six component tests authored and inspected, NOT_RUN.",
+  "actual": "Optional typed memory/artifact aliases/microtask representation supports supplied Some witnesses and legacy typed scalar tuple Into, preserving @2 tag and old flattened wire keys when absent. Leaf acquires no authorization. Old Product source personally reread unchanged ba905135da8116e13b3b1963fafbdbd9ede2ed6e6093c17eb81630b48d620b16; not a second editable producer.",
+  "compatibility": "Rust Run constructor adds field; artifact/runtime Vec wrappers change source API. Actual Core caller explicit tuple Vec inference matches generic bounds; unknown callers/untyped empty inference not certified. Serde default/skipNone/flatten duplicate behavior tests remain unexecuted.",
+  "next_owner": "Primary owns admitted focused ownproof resources/Cargo/locks/source publication plus independent canonical reread; only afterward distinct exact Core dependency pin and caller adoption/removal. No source-author execution/Git/host mutation authorized by this handback.",
+  "remaining": "Actual MemoryPack descendant canonical lineage/grants, authentic ModelLane->FlightRecorder UUID/receipt/readgrant source absent in inspected inputs; original RecoveryExecute separate. All17direct+6API/UserManual/liveArgus/hash/denied/ambiguity/full independent acceptance remain OPEN."
+}
 }
