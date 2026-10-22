@@ -1,0 +1,39 @@
+{
+  "crate": "hsk-studio-interop-psd",
+  "lane": "SMB-PS-FILL-LAYERS",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "3 slices pushed (c7daeb6..3b88879) on origin/codex/handshake-studio-assets; one bundled clippy + whole suites of interop-psd, folio, composite, package, render-cpu green (435 passed) at 3b88879 after the final rebase",
+  "commits": [
+    {"sha": "c7daeb6", "subject": "folio (SMB-PS-FILL-LAYERS slice 1): fill-layer records (solid, gradient, pattern)", "status": "READY_FOR_VALIDATION"},
+    {"sha": "a4cd70b", "subject": "interop-psd (SMB-PS-FILL-LAYERS slice 2): SoCo, GdFl, PtFl import as fill layers", "status": "READY_FOR_VALIDATION"},
+    {"sha": "9204fdf", "subject": "composite + render-cpu (SMB-PS-FILL-LAYERS slice 3): fill layers render", "status": "READY_FOR_VALIDATION"},
+    {"sha": "7d69cc2", "subject": "render-cpu tests: chunk size type", "status": "READY_FOR_VALIDATION"},
+    {"sha": "3b88879", "subject": "folio: allow the size difference of the fill variants", "status": "READY_FOR_VALIDATION"}
+  ],
+  "capabilities_done": [
+    "folio StudioRasterLayerRecord.fill_layer (serde default, skipped when absent): StudioFillLayer {bounds, fill: Solid | Gradient | Pattern}; a fill-kind layer is a graph image source whose payload names its own record under the swatch, gradient or pattern schema; validated in both directions; package externals classifier gains StudioFill.link_with_layer (rule 4b)",
+    "interop-psd SoCo, GdFl, PtFl descriptors map to those records (all gradient styles, angle, scale, reverse, dither, align, offset, colour+transparency stop merge, pattern id to minted pattern tile); block bytes stay in the document and export is unchanged; shape layers (fill + vmsk/vsms), noise gradients, non-RGB colours, out-of-range values, unknown fields stay preserved or reported with fixed codes",
+    "composite: solid fill = Solid node with the layer's mode/opacity/fill; gradient and pattern fill = opaque Solid shape, plan layer Normal with fill opacity 0, one GradientOverlay/PatternOverlay effect carrying the layer mode and fill opacity (pigment gradient and pattern maths, stop opacities multiply the matte); evaluation gives the step the record extent; typed refusals fill_record_missing, fill_layer_as_root, effect_gradient_dither, effect_gradient_not_aligned_with_layer, effect_gradient_midpoint, effect_parameter, pattern_overlay_unresolved, effect_colour_profile"
+  ],
+  "tests": {
+    "argv": "lane-check.sh --owner smb-ps-fill-layers --disk d -- cargo nextest run -p hsk-studio-interop-psd -p hsk-studio-folio -p hsk-studio-composite -p hsk-studio-package -p hsk-studio-render-cpu --no-fail-fast",
+    "exit": 0,
+    "sha": "3b88879",
+    "passed": 435,
+    "failed": 0,
+    "new_tests": {"folio/fill_layer_records": 5, "interop-psd/fill_layer_import": 8, "composite/fill_layer_lowering": 5, "render-cpu/cpu_fill_layers": 2, "package/externals": "classifier updated"}
+  },
+  "blockers": [],
+  "bg_pids": [],
+  "next": "validation of c7daeb6..3b88879",
+  "updated_at": "2026-10-22T16:00:00Z",
+  "notes": {
+    "worktree": "wt-studio-lanes/smb-ps-fill-layers, branch lane/smb-ps-fill-layers, STUDIO_OWNER=smb-ps-fill-layers, STUDIO_BUILD_DISK=d",
+    "spec_basis": "STU-RAS-007 ('fill: Whole-scope re-editable fill: solid color (StudioSwatch), gradient (StudioGradient), or pattern (StudioPattern)'); STU-RAS-025 ('Gradients and patterns authored here are the same StudioGradient/StudioPattern primitives used by fill layers and effects'); STU-RAS-160 (raster gradient geometry linear|radial|angle|reflected|diamond, reverse, dither, align_with_layer, angle -180..180, scale, offset); STU-RAS-161 (pattern tile model); STU-DOC-001 (layer kinds incl. fill); STU-IO-006 row 1 (.psd layers preserved, unrepresentable baked with receipt)",
+    "fixtures": "psd-tools layers/solid-color-fill.psd (22772), layers-minimal/solid-color-fill.psd (22662), layers/gradient-fill.psd (24138, Color to Transparent, angle 90), layers-minimal/gradient-fill.psd (23370), layers/pattern-fill.psd (62934, Metallic Flecks 128x128), layers-minimal/pattern-fill.psd (58494); shape-layer.psd (24146) and gradient-styles.psd (156939, 20 shape-layer gradients) pinned as preserved shape layers; noise-gradient-rgb.psd pinned as refused",
+    "parity_rows": "PS-02 (parity-photoshop.json, full layer-kind set): fill kind PARTIAL -> import + CPU render proven vs pigment reference; top_gaps[0] fill layers: solid, gradient, pattern now import and lower (gradient styles linear, radial, angle, reflected, diamond via the existing gradient overlay maths). PS-19 (raster gradient tool, bucket) unchanged. Photoshop pixel parity UNVERIFIED: no D5 case covers fill layers (d5-photoshop-compare-20261016.json has none)",
+    "gaps": "shape layers (fill + vector mask) stay preserved (path not applied); gradient dither and align_with_layer=false refused at lowering; non-50 midpoints refused at lowering and flattened to 50 on import when transparency exists; noise gradients and separate transparency lists not stored (merged); foreground/background colour stops map their stored colour; fill as render root refused for gradient/pattern, clipped gradient/pattern fill refused (effects on clipped layers); gradient scale outside 10..150 refused (engine domain); Lab/CMYK/grayscale documents and colours unmapped; pattern scale interpolation is nearest (pigment); edits to a fill record are not exported to the PSD block (export keeps the original bytes); render-gpu not exercised (no GPU test added; GPU path for overlays is whatever gpu_pattern_overlay/gpu_layer_styles_2 prove); no end-to-end PSD to render test because render-cpu has no folio edge (lead decision needed for a folio dev-dependency); package asset collection of the fill pattern_tile follows the generic TileRef walk (not separately tested)",
+    "choice": "Gradient content is the StudioGradientStop list beside the STU-RAS-160 raster controls, not the vector StudioGradient (linear+radial geometry and affine cannot hold angle, reflected, diamond); fill payload schema is swatch/gradient/pattern with object_id = own layer id (accord has no fill schema)"
+  },
+  "verdicts": []
+}

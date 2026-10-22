@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-22T13:22:49Z",
+ "updated_at": "2026-10-22T15:30:42Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9612,6 +9612,25 @@
     "reopened": 291,
     "reused_pass": 0
    }
+  },
+  {
+   "lane_id": "SMB-PS-FILL-LAYERS",
+   "crate": "hsk-studio-interop-psd + hsk-studio-folio (raster fill-layer record) + hsk-studio-composite (+ render-cpu test, package classifier entry)",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "blocked_on": null,
+   "owner": "builder (Sonnet, lead dispatch 2026-10-22)",
+   "lane_file": "builders/lanes/hsk-studio-ps-fill-layers.json",
+   "candidate": "3b88879",
+   "commits": [
+    "c7daeb6 folio StudioRasterLayerRecord.fill_layer {bounds, fill: Solid|Gradient|Pattern}; package classifier StudioFill.link_with_layer",
+    "a4cd70b interop-psd SoCo/GdFl/PtFl import with preserved bytes and typed losses",
+    "9204fdf composite lowering (solid -> Solid node; gradient/pattern -> overlay effect) + render-cpu cpu_fill_layers test",
+    "7d69cc2 render-cpu test chunk type fix",
+    "3b88879 clippy allow"
+   ],
+   "verdicts": [],
+   "note": "Photoshop top gap 1: fill layers import as records and render on CPU (435/435 over interop-psd, folio, composite, package, render-cpu). Fixture evidence: psd-tools solid-color-fill/gradient-fill/pattern-fill (+ layers-minimal twins) import; shape layers and noise gradients stay preserved/refused by design. Gaps: shape layers preserved; dither, align_with_layer=false, non-50 midpoints, clipped fills refused at lowering; gradient scale 10..150; Gray/Lab/CMYK unmapped; no export of edited fills; render-gpu not exercised; whole-PSD-to-pixels fixture test needs a render-cpu dev-dep on folio (lead decision: approved as dev-only under the B1 pattern, acyclic; steward adds the dev edge; test in a follow-up slice). Photoshop pixel parity UNVERIFIED (no D5 fill case). R38 judges."
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
