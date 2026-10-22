@@ -2,12 +2,34 @@
   "crate": "hsk-studio-folio (composition time_remap / frame_blending / roto records), hsk-studio-composite (temporal adapter lowering, scene contents FrameBlended / Rotoscoped, roto pipeline), hsk-studio-pigment (select_tools::roto admission, roto_refine refine stage); renderer proof files in hsk-studio-render-cpu/render-gpu tests (decision B1)",
   "lane": "SMB-AE-ROTO-WIRING",
   "status": "READY_FOR_VALIDATION",
-  "phase": "pushed 8ab5155..1674fd9 (guarded push 2026-10-22T07:48:02Z); READY_FOR_VALIDATION on 1674fd9",
+  "phase": "R37 remediation pushed 1d139a6..2d2eaee (2026-10-22T13:09:52Z); READY_FOR_VALIDATION on 2d2eaee",
   "commits": [
-    {"sha": "0c6b978", "subject": "Studio AE-10/AE-18: Folio time_remap, frame_blending and assisted-roto records (SMB-AE-ROTO-WIRING slice 1)", "pushed": true},
-    {"sha": "5958475", "subject": "Studio AE-18: roto refine stage with unknown-bounded chatter and whole-run admission (SMB-AE-ROTO-WIRING slice 2)", "pushed": true},
-    {"sha": "026c3f6", "subject": "Studio AE-10/AE-18: composite lowers time remap, frame blending and the roto matte pipeline (SMB-AE-ROTO-WIRING slice 3)", "pushed": true},
-    {"sha": "1674fd9", "subject": "Studio AE-18: name the roto capsule type (clippy type_complexity; SMB-AE-ROTO-WIRING slice 3 fix)", "pushed": true}
+    {
+      "sha": "0c6b978",
+      "subject": "Studio AE-10/AE-18: Folio time_remap, frame_blending and assisted-roto records (SMB-AE-ROTO-WIRING slice 1)",
+      "pushed": true
+    },
+    {
+      "sha": "5958475",
+      "subject": "Studio AE-18: roto refine stage with unknown-bounded chatter and whole-run admission (SMB-AE-ROTO-WIRING slice 2)",
+      "pushed": true
+    },
+    {
+      "sha": "026c3f6",
+      "subject": "Studio AE-10/AE-18: composite lowers time remap, frame blending and the roto matte pipeline (SMB-AE-ROTO-WIRING slice 3)",
+      "pushed": true
+    },
+    {
+      "sha": "1674fd9",
+      "subject": "Studio AE-18: name the roto capsule type (clippy type_complexity; SMB-AE-ROTO-WIRING slice 3 fix)",
+      "pushed": true
+    },
+    {
+      "sha": "2d2eaee",
+      "subject": "Classify StudioRoto stroke path geometry in package CLASSIFIED table (R37 remediation)",
+      "pushed": true,
+      "pushed_as": "2d2eaeeaa62b684a90420a29dac9ff4bdb1008e4"
+    }
   ],
   "capabilities_done": [
     "slice 1 folio composition (submodule composition/roto.rs): StudioCompositionLayer gains time_remap (StudioKeyedValue, 1 component, source seconds, keyframe rules, out-of-range kept and clamped at evaluation), frame_blending (StudioFrameBlending off|frame_mix|pixel_motion), roto (StudioAssistedRoto: engine classic|learned, append-only strokes frame/polarity/diameter/path, edge_strokes, spans base/in/out/forward/backward, StudioRotoParameters = the 22 non-engine rows of the STU-CMP-034 table with every unknown-bounded numeric Option<f64> stored as given, enums closed, the STU-RAS-121 refine controls as StudioEdgeRefinementControls, freeze snapshot StudioRotoFreeze). All serde default + skip-if-default: records without them are byte-identical (test). Commands add_stroke (opens a span over the free run of the source), remove_span, freeze/unfreeze; propagation_inputs + canonical_bytes (cache key; matte/refine controls excluded); time_remap_enabled (motion's enable keys). Typed refusals InvalidField/BudgetExceeded with record paths; integer arithmetic denied.",
@@ -16,31 +38,18 @@
     "slice 3 composite roto: CompositionTemporalSource::propagate_roto renders the source frames of every span, admits the run before allocation (source bytes, stroke rasterisation work, pigment roto_sequence_admission), segments per span (stroke capsules -> roto_base; frame-by-frame roto_propagate forward/backward per span directions; corrective strokes on later frames join the matte and carry on; empty prediction = lost, reported, recoverable by a corrective fg stroke), caches the segmentation (RotoSegmentation keyed by SHA-256 of canonical inputs + every source frame; freeze uses the snapshot so new strokes/propagation controls do not change it), then the matte stage (fine_tune_matte: matte_feather/contrast/shift_edge via the STU-RAS-121 engine at zero band + matte_reduce_chatter) and the refine stage (edge strokes / refine_edge_base_radius band; STU-RAS-121 controls + refine_reduce_chatter when fine_tune_refine_edge_matte). with_roto attaches the mattes; the scene path wraps the frame in new SceneContent::Rotoscoped (alpha x coverage, decontaminated colours; exactness roto_matte Approximate). Lost frame -> Source roto_frame_lost; no attached mattes -> composition_roto_not_propagated; engine learned -> Source model_unavailable:roto-learned-propagation; receipt lists per-frame state/engine/band/corrected/refined, not_modelled rows and engine working values."
   ],
   "tests": {
-    "argv": "cd <lane>/handshake-studio-assets && bash <GOV>/tools/lane-check.sh --owner smb-ae-roto-wiring --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-composite -p hsk-studio-pigment -p hsk-studio-motion -p hsk-studio-render-cpu -p hsk-studio-render-gpu --features hsk-studio-composite/motion --no-fail-fast (dispatch command plus render-cpu/render-gpu because new test files landed there, rule 4a; clippy over the 6 crates + 19 dependents)",
+    "argv": "cd <lane>/handshake-studio-assets && bash <GOV>/tools/lane-check.sh --owner smb-ae-roto-wiring --disk d -- cargo nextest run -p hsk-studio-package -p hsk-studio-folio --no-fail-fast",
     "exit": 0,
-    "sha": "1674fd9",
-    "passed": 673,
+    "sha": "2d2eaee",
+    "passed": 133,
     "failed": 0,
-    "runs": "run1 on 9c48de8 base: 670/670, one clippy type_complexity warning in roto.rs (fixed 1674fd9); run2 after rebase on 45f04b2 with --no-capture: 670/670, clippy clean (measured values below); run3 after rebase on 8ab5155 (folio typestyle changes from SMB-LAYOUT-COMPOSER-WIRING): 673/673, clippy clean, exit 0",
-    "new_tests": [
-      "folio roto_records_contract::records_are_serde_default_round_trip_and_keep_unknown_bounded_values",
-      "folio roto_records_contract::hostile_records_are_refused_typed",
-      "folio roto_records_contract::strokes_open_spans_and_freeze_snapshots_the_propagation_inputs",
-      "folio roto_records_contract::enabling_time_remap_builds_the_identity_keys",
-      "composite [motion] composition_roto::time_remap_records_lower_and_frame_blending_renders",
-      "composite [motion] composition_roto::roto_records_propagate_into_the_matte_pipeline",
-      "composite [motion] composition_roto::lost_frames_are_reported_and_corrective_strokes_recover_them",
-      "composite [motion] composition_roto::freeze_locks_segmentation_and_matte_controls_stay_live",
-      "composite [motion] composition_roto::refine_stage_consumes_the_edge_refinement_engine",
-      "render-cpu composition_roto_frames::roto_and_frame_blend_frames_match_the_oracle_on_every_chunking",
-      "render-gpu composition_roto_frames::gpu_roto_and_frame_blend_frames_match_the_shared_oracle"
-    ]
+    "detail": "hsk-studio-package 35 passed, hsk-studio-folio 98 passed; externals::every_folio_reference_property_is_classified passes"
   },
   "blockers": [],
   "lock_wait_s": 1500,
   "bg_pids": [],
   "next": "validator round (R37 queue). Follow-ups for the lead: F-R36-3 alignment (sites below), harness render_queue still refuses frame blending (not this lane's paths), GUI.",
-  "updated_at": "2026-10-22T07:50:00Z",
+  "updated_at": "2026-10-22T13:10:00Z",
   "notes": {
     "spec_basis": {
       "STU-CMP-034": "\"Strokes, spans, base frames, the engine choice and every parameter value of the table below are DOCUMENT STATE under the ownership rules of [STU-CMP-002] and [STU-CMP-003]; the propagated mattes are a cache, never authority, and a reopened document MUST reproduce them from that state.\" Item 2 propagation forward/backward with corrective strokes; item 3 \"a `lost` frame is reported as such ... and is NEVER silently filled\"; item 4 \"`learned` ... when no model is installed it is a typed refusal `model_unavailable` naming the model lane, never a silent fallback to `classic`\"; item 5 \"The per-frame matte is a matte source of the pipeline of [STU-CMP-033] and enters it at the REFINE stage ... MUST consume the unified edge-refinement surface of [STU-RAS-121] ... MUST NOT define a second edge-refinement record\"; item 6 freeze; item 8 \"admitted against declared limits BEFORE any allocation\"; table: numeric controls \"MUST ship as `unknown` per [STU-RAS-106], MUST NOT be clamped\".",
@@ -76,9 +85,65 @@
       "Roto and frame blending only on precomposition layers (the composition model has no footage source); roto + frame blending on one layer refused composition_roto_frame_blending; collapsed precompositions refuse blending/roto.",
       "harness render_queue still refuses frame blending ('frame blending is not built'): harness is not this lane's path.",
       "Unmodelled table rows listed above; render-gpu runs the frame renders on the GPU but the blend/matte host step is shared (CPU maths)."
-    ]
+    ],
+    "remediation_R37": {
+      "failure": "hsk-studio-package externals::every_folio_reference_property_is_classified: 130 found vs 128 classified; extras StudioRotoEdgeStroke.path and StudioRotoStroke.path (roto.rs, added by 0c6b978)",
+      "classification": "Added both to CLASSIFIED in crates/hsk-studio-package/tests/externals.rs as \"internal: value (stroke geometry points, not a file reference)\", in sorted position, same class family as StudioShapeStream.path / StudioColourTarget.path",
+      "why": "Fields hold Vec<[f64;2]> drawn stroke points, not external references. Not renamed: keeps Folio record and serde wire unchanged; no test weakening, no wildcard.",
+      "rule_4b": "hsk-studio-package and hsk-studio-folio whole suites run; only the package test file changed; folio untouched since 1674fd9"
+    }
   },
   "verdicts": [
-    {"decision": "failed", "verdict": "FAIL_V1", "status_change": "FAIL_V1", "included_by": "READY claim in candidate", "prior_status": "READY_FOR_VALIDATION", "failures": [{"test": "hsk-studio-package::externals::every_folio_reference_property_is_classified", "unit": "default", "file_line": "crates/hsk-studio-package/tests/externals.rs:440", "failure_kind": "product", "failure_class": "unclassified_folio_reference_property", "evidence": "assert_eq found vs CLASSIFIED: found has 130 entries, CLASSIFIED 128; extra = StudioRotoEdgeStroke.path, StudioRotoStroke.path (fields added by 0c6b978 folio src/composition/roto.rs:149/:159, name matches the 'path' reference vocabulary); test passed at R36 (a105766); no other lane touched folio roto records or package; the lane's proof run did not include package, a reverse dependent of folio", "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37/junit.xml"}], "remediation": {"failed_acceptance_refs": ["CX-VAL-001 every required check passes", "brief rule 4a whole suites of changed crates and dependents"], "failed_checks": ["package externals every_folio_reference_property_is_classified (default unit)"], "artifact_refs": ["results/R37/junit.xml"], "affected_code_refs": ["crates/hsk-studio-package/tests/externals.rs:440 CLASSIFIED", "crates/hsk-studio-folio/src/composition/roto.rs:149,159"], "repair_direction": "classify StudioRotoStroke.path / StudioRotoEdgeStroke.path (internal stroke geometry) in package CLASSIFIED; run package suites"}, "blocker": null, "not_proven": ["motion d5_ae_oracle::ae02_spatial_position (default): d5_ae_oracle::ae02_spatial_position AE-02 two_keys_spatial_tangents_set reason=variant absent from corpus (session script passed 2-element tangents to 3-D Position; script fixed, AE rerun pending)", "render-gpu gpu_extended_envelope::gpu_overflow_in_envelope_operations_and_on_the_shared_texture_is_typed (default): shared-texture overflow needs --features shared-device", "render-gpu gpu_extended_envelope::gpu_overflow_in_envelope_operations_and_on_the_shared_texture_is_typed (features:hsk-studio-render-gpu+test-faults): shared-texture overflow needs --features shared-device"], "note": "Own new tests passed (folio roto_records_contract, composite [motion] composition_roto, render-cpu/gpu composition_roto_frames); FAIL from the dependent package externals classification test (0c6b978 new 'path' fields). units of composite/folio/motion/pigment/render-cpu/render-gpu: 14 crate units + default; all build 0 / run 0; default passed composite 90, folio 98, motion 28, pigment 216, render-cpu 112, render-gpu 84", "idempotency_key": "STUDIO-R37:SMB-AE-ROTO-WIRING:1d139a6990f5:FAIL_V1", "claim_scope": "0c6b978 5958475 026c3f6 1674fd9; judged against STU-CMP-034 v02.217 (chatter-bound mismatch = spec/code alignment item per lead, not a refusal ground)", "round": "STUDIO-R37", "lane": "SMB-AE-ROTO-WIRING", "candidate": "1d139a6990f55b77c1ce09c1dc7a5c2f47c324f4", "tree": "3c2b5fe1ce168053e16b0f682b9b728a0441c9fc", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37", "started_at": "2026-10-22T09:20:11Z", "completed_at": "2026-10-22T13:00:58Z"}
+    {
+      "decision": "failed",
+      "verdict": "FAIL_V1",
+      "status_change": "FAIL_V1",
+      "included_by": "READY claim in candidate",
+      "prior_status": "READY_FOR_VALIDATION",
+      "failures": [
+        {
+          "test": "hsk-studio-package::externals::every_folio_reference_property_is_classified",
+          "unit": "default",
+          "file_line": "crates/hsk-studio-package/tests/externals.rs:440",
+          "failure_kind": "product",
+          "failure_class": "unclassified_folio_reference_property",
+          "evidence": "assert_eq found vs CLASSIFIED: found has 130 entries, CLASSIFIED 128; extra = StudioRotoEdgeStroke.path, StudioRotoStroke.path (fields added by 0c6b978 folio src/composition/roto.rs:149/:159, name matches the 'path' reference vocabulary); test passed at R36 (a105766); no other lane touched folio roto records or package; the lane's proof run did not include package, a reverse dependent of folio",
+          "artifact_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37/junit.xml"
+        }
+      ],
+      "remediation": {
+        "failed_acceptance_refs": [
+          "CX-VAL-001 every required check passes",
+          "brief rule 4a whole suites of changed crates and dependents"
+        ],
+        "failed_checks": [
+          "package externals every_folio_reference_property_is_classified (default unit)"
+        ],
+        "artifact_refs": [
+          "results/R37/junit.xml"
+        ],
+        "affected_code_refs": [
+          "crates/hsk-studio-package/tests/externals.rs:440 CLASSIFIED",
+          "crates/hsk-studio-folio/src/composition/roto.rs:149,159"
+        ],
+        "repair_direction": "classify StudioRotoStroke.path / StudioRotoEdgeStroke.path (internal stroke geometry) in package CLASSIFIED; run package suites"
+      },
+      "blocker": null,
+      "not_proven": [
+        "motion d5_ae_oracle::ae02_spatial_position (default): d5_ae_oracle::ae02_spatial_position AE-02 two_keys_spatial_tangents_set reason=variant absent from corpus (session script passed 2-element tangents to 3-D Position; script fixed, AE rerun pending)",
+        "render-gpu gpu_extended_envelope::gpu_overflow_in_envelope_operations_and_on_the_shared_texture_is_typed (default): shared-texture overflow needs --features shared-device",
+        "render-gpu gpu_extended_envelope::gpu_overflow_in_envelope_operations_and_on_the_shared_texture_is_typed (features:hsk-studio-render-gpu+test-faults): shared-texture overflow needs --features shared-device"
+      ],
+      "note": "Own new tests passed (folio roto_records_contract, composite [motion] composition_roto, render-cpu/gpu composition_roto_frames); FAIL from the dependent package externals classification test (0c6b978 new 'path' fields). units of composite/folio/motion/pigment/render-cpu/render-gpu: 14 crate units + default; all build 0 / run 0; default passed composite 90, folio 98, motion 28, pigment 216, render-cpu 112, render-gpu 84",
+      "idempotency_key": "STUDIO-R37:SMB-AE-ROTO-WIRING:1d139a6990f5:FAIL_V1",
+      "claim_scope": "0c6b978 5958475 026c3f6 1674fd9; judged against STU-CMP-034 v02.217 (chatter-bound mismatch = spec/code alignment item per lead, not a refusal ground)",
+      "round": "STUDIO-R37",
+      "lane": "SMB-AE-ROTO-WIRING",
+      "candidate": "1d139a6990f55b77c1ce09c1dc7a5c2f47c324f4",
+      "tree": "3c2b5fe1ce168053e16b0f682b9b728a0441c9fc",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37",
+      "started_at": "2026-10-22T09:20:11Z",
+      "completed_at": "2026-10-22T13:00:58Z"
+    }
   ]
 }
