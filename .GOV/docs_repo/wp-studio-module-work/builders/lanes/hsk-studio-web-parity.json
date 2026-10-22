@@ -2015,6 +2015,7 @@
    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
    "started_at": "2026-10-14T22:55:24Z",
    "completed_at": "2026-10-14T23:36:18Z"
-  }
+  },
+    {"decision": "passed", "verdict": "PASS_V4", "status_change": "PASS_V4", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V3", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (root_inputs_changed (Cargo.toml/Cargo.lock workspace manifest, .config/nextest.toml test entrypoint, tools/run-round.sh); crates unchanged with closure: web).  units of web: 1 crate units + default; all build 0 / run 0; default passed web 138", "idempotency_key": "STUDIO-R36:SMB-WEB-PARITY:a10576683c7a:PASS_V4", "claim_scope": null, "round": "STUDIO-R36", "lane": "SMB-WEB-PARITY", "candidate": "a10576683c7a76b3da37e6ec4794652c3e903bbd", "tree": "27fb1f13e97fbaecd9e4b61428e53bcab50a3169", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R36", "started_at": "2026-10-21T17:26:59Z", "completed_at": "2026-10-22T05:34:45Z"}
  ]
 }

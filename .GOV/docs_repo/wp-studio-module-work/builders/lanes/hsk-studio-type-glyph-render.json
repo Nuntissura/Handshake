@@ -89,6 +89,7 @@
    "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R28",
    "started_at": "2026-10-14T22:55:24Z",
    "completed_at": "2026-10-14T23:36:18Z"
-  }
+  },
+    {"decision": "passed", "verdict": "PASS_V3", "status_change": "PASS_V3", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V2", "failures": [], "remediation": null, "blocker": null, "not_proven": ["type glyph_render::run_raster_digest_and_mixed_scripts (default): cross-host raster identity (STU-TYP-131) needs a second host running this digest", "type glyph_render::run_raster_digest_and_mixed_scripts (features:hsk-studio-type+harfrust): cross-host raster identity (STU-TYP-131) needs a second host running this digest"], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: type).  units of type: 3 crate units + default; all build 0 / run 0; default passed type 49", "idempotency_key": "STUDIO-R36:SMB-TYPE-GLYPH-RENDER:a10576683c7a:PASS_V3", "claim_scope": null, "round": "STUDIO-R36", "lane": "SMB-TYPE-GLYPH-RENDER", "candidate": "a10576683c7a76b3da37e6ec4794652c3e903bbd", "tree": "27fb1f13e97fbaecd9e4b61428e53bcab50a3169", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R36", "started_at": "2026-10-21T17:26:59Z", "completed_at": "2026-10-22T05:34:45Z"}
  ]
 }
