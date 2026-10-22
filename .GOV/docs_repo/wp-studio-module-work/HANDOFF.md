@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-HANDOFF
 file_kind: handoff
-updated_at: 2026-10-22T06:35:07Z
+updated_at: 2026-10-22T13:00:00Z
 wp: WP-KERNEL-STUDIO
 authority: Handshake Codex, KERNEL_BUILDER_PROTOCOL, START_LOG.md, ledger.json, validation/*, builders/briefs/wave-parity-2-common.md, workflow/workflow-v3.json (this file is a projection; they win on conflict)
 ---
@@ -69,7 +69,7 @@ DO NOT:
 - Running agents (dispatched 2026-10-22 after R36, origin tip 9c48de8, each in its own wt-studio-lanes/<lane> worktree, building on D:): SMB-CRATE-SEAM-SPLITS-2 finish (rebase fig/web splits onto 9c48de8, test the web split, push), SMB-HARNESS-SHELL-1 (menu bar, file dialogs, every PASS-judged viewer surface reachable from the window, RUN-UI.md), SMB-LAYOUT-COMPOSER-WIRING (Folio paragraph-style composer/hyphenation/justification fields, layout reflow uses the Adobe-parity composers, IDML import maps them), SMB-AE-ROTO-WIRING (Folio time_remap/frame_blending/roto records, composite frame-blending operator, roto matte in the pipeline per STU-CMP-034), SMB-DEVELOP-EXPORT-TIFF (TIFF writer in interop-tiff, develop TIFF/DNG export, CLI option). R37 (scoped, CX-VAL-011) freezes at 8 READY lanes or 8 h after the R36 freeze (17:27Z on 2026-10-21): READY now: PARITY-1, PARITY-2. Lead items queued: STU-CMP-034 bound revision (F-R36-3) batched with the roto lane's spec gaps into the next spec version; the parameter-table microtask (packet upkeep).
 - DXF/EPS: the dxf and stet dependencies were rejected (dxf hard-depends on `image`, designated to the harness only; stet embeds URW fonts that Artifex publishes under AGPL only) and remediated on the same lane at a105766 (own DXF reader adapted from the MIT dxf crate, EPS interpreter route removed with a typed refusal; DSC/preview read and EPSF export kept). Steward sync attempt 3: already in sync at a105766, probe 85/85, licence gate OK. OPERATOR ITEM: an EPS/PostScript conversion path.
 - Lead error 2026-10-21: the approved cleanup deleted the cargo registry .crate cache on an inventory misclassification; repaired with `cargo fetch --locked` (root lock and the clap-gain fixture lock, both unchanged). The cleanup script now refuses `.cargo/registry`.
-- Cleanup state: C: lane incremental dirs still to delete (skipped on a shape guard, guard fixed); D: studio-team-dev incremental deleted, studio-round incremental partly deleted (paused for R36), the other D: items pending; re-run the script after R36 (idempotent, logs in the session scratchpad cleanup-20261021/).
+- Cleanup: COMPLETE 2026-10-22 12:58Z (all approved SAFE_CHEAP items deleted, about 371 GiB; registry cache kept). C: build area 140.76 GiB, still 0.76 GiB over the 140 GiB guard: builders fall back to D: until the Operator approves removing finished lanes' C: targets (about 41 GiB) or raises the guard.
 - Known regression candidate for R36: harness fig_paints_2 bold text p99 5.700324 > pinned 5.698 at 6585ff0; suspects 30ea18e, 3d5fbda, then a95f819, d69a277, f588e45 (pigment/render-cpu).
 - Lane-record drift (ledger is authority): lane files for AE-ROTO-TIMEREMAP, DXF-EPS-IMPORT, TYPE-FF-LIGATURE, PS-ORACLE-PARITY-2 still show null/BLOCKED and pre-rebase shas; ACCORD-COMPOSITION-PREFIX cites "see git log"; AU-WAVEFORM-EDITOR cites 8411820 (pre-rebase copy of 557ac06).
 - Spec: v02.216. The Operator-requested roto spec update (v02.217 specifying assisted rotoscoping; STU-CMP-034/STU-CMP-100 still declare it a gap) is NOT done.
