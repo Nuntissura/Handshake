@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-22T07:27:29Z",
+ "updated_at": "2026-10-22T07:49:51Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9228,6 +9228,24 @@
    ],
    "verdicts": [],
    "note": "InDesign top gap 1 (parity-indesign.json): Adobe-parity composers now reachable through the document model and IDML import. Bundled run 225/225 (folio, layout, interop-layout whole suites; D5 ID tests ran with the host Arial present); 15 new tests incl. adversarial XML. Still default/lost: IDML Justification, fonts, size, leading, indents; no IDML export; hyphen_weight and hyphenate_across_columns stored without effect; [No paragraph style] paragraphs get the root settings as an approximated loss. UNVERIFIED: hyphen width estimate font size/3, single-word LeftAlign/CenterAlign/RightAlign values, World-Ready/Japanese composer values. Spec gaps for the lead: no FirstFit value, no H&J defaults, use_auto_leading merged with line_height Auto, 'longer than' vs 'at least' for min word length, no local-override storage contract, composer registry/balance-ragged/nine-value justification not stored. R37 judges."
+  },
+  {
+   "lane_id": "SMB-AE-ROTO-WIRING",
+   "crate": "hsk-studio-folio (composition/time/roto records) + hsk-studio-composite + hsk-studio-pigment (frame_blend, roto, roto_refine) + hsk-studio-motion (+ new render-cpu/gpu test files, B1)",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "blocked_on": null,
+   "owner": "builder (Opus, lead dispatch 2026-10-22)",
+   "lane_file": "builders/lanes/hsk-studio-ae-roto-wiring.json",
+   "candidate": "1674fd9",
+   "commits": [
+    "0c6b978 Folio per-layer time_remap, frame_blending, roto records (strokes, edge strokes, spans, engine, STU-CMP-034 table rows unclamped, STU-RAS-121 refine controls, freeze snapshot)",
+    "5958475 pigment refine_roto_stage + roto_sequence_admission",
+    "026c3f6 composite: time_remap lowered automatically; frame_mix/pixel_motion render frames A/B and blend; propagate_roto -> with_roto (Rotoscoped scene content); lost -> roto_frame_lost; learned -> model_unavailable",
+    "1674fd9 clippy"
+   ],
+   "verdicts": [],
+   "note": "AE-10/AE-18 wiring per STU-CMP-034 v02.217: time remap + frame blending render through composite (CPU/GPU/composite digests identical, zero difference vs the pigment oracle); roto matte in the pipeline with admission before allocation, segmentation cached by input digest, freeze snapshot; IoU 1.0 on 8 test frames, lost reported on frames 5-7. 673/673 over 6 crates + clippy over 19 dependents; 11 new tests; GPU test ran on the adapter. F-R36-3: the 0..=100 chatter check stays at roto_refine.rs:142 (pinned by tests/roto_refine.rs:115); the new refine path takes any finite value; engine-domain refusals at refine.rs:115-123, roto.rs:152/156 (lead aligns spec and code in the next spec version). Gaps: no GUI, no learned model, no spans UI, freeze covers every span (Folio has no work area), roto/frame blending only on precomposition layers, harness render_queue still refuses frame blending; AE parity UNVERIFIED (D5). R37 judges."
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

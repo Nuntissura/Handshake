@@ -1,0 +1,81 @@
+{
+  "crate": "hsk-studio-folio (composition time_remap / frame_blending / roto records), hsk-studio-composite (temporal adapter lowering, scene contents FrameBlended / Rotoscoped, roto pipeline), hsk-studio-pigment (select_tools::roto admission, roto_refine refine stage); renderer proof files in hsk-studio-render-cpu/render-gpu tests (decision B1)",
+  "lane": "SMB-AE-ROTO-WIRING",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed 8ab5155..1674fd9 (guarded push 2026-10-22T07:48:02Z); READY_FOR_VALIDATION on 1674fd9",
+  "commits": [
+    {"sha": "0c6b978", "subject": "Studio AE-10/AE-18: Folio time_remap, frame_blending and assisted-roto records (SMB-AE-ROTO-WIRING slice 1)", "pushed": true},
+    {"sha": "5958475", "subject": "Studio AE-18: roto refine stage with unknown-bounded chatter and whole-run admission (SMB-AE-ROTO-WIRING slice 2)", "pushed": true},
+    {"sha": "026c3f6", "subject": "Studio AE-10/AE-18: composite lowers time remap, frame blending and the roto matte pipeline (SMB-AE-ROTO-WIRING slice 3)", "pushed": true},
+    {"sha": "1674fd9", "subject": "Studio AE-18: name the roto capsule type (clippy type_complexity; SMB-AE-ROTO-WIRING slice 3 fix)", "pushed": true}
+  ],
+  "capabilities_done": [
+    "slice 1 folio composition (submodule composition/roto.rs): StudioCompositionLayer gains time_remap (StudioKeyedValue, 1 component, source seconds, keyframe rules, out-of-range kept and clamped at evaluation), frame_blending (StudioFrameBlending off|frame_mix|pixel_motion), roto (StudioAssistedRoto: engine classic|learned, append-only strokes frame/polarity/diameter/path, edge_strokes, spans base/in/out/forward/backward, StudioRotoParameters = the 22 non-engine rows of the STU-CMP-034 table with every unknown-bounded numeric Option<f64> stored as given, enums closed, the STU-RAS-121 refine controls as StudioEdgeRefinementControls, freeze snapshot StudioRotoFreeze). All serde default + skip-if-default: records without them are byte-identical (test). Commands add_stroke (opens a span over the free run of the source), remove_span, freeze/unfreeze; propagation_inputs + canonical_bytes (cache key; matte/refine controls excluded); time_remap_enabled (motion's enable keys). Typed refusals InvalidField/BudgetExceeded with record paths; integer arithmetic denied.",
+    "slice 2 pigment: roto_refine::refine_roto_stage (per-frame band: radius / painted trimap / pass-through; chatter percent used as given, finite only) over the shared refine_frames body; refine_roto_sequence unchanged in behaviour (keeps its 0..=100 check). roto::roto_sequence_admission (frame count, per-frame working set, aggregate output bytes incl. refine passes, aggregate flow work incl. chatter) before allocation.",
+    "slice 3 composite: the Folio time_remap record lowers to motion TimeRemap over the nested composition's SourceTiming (caller with_time_remap overrides); remapped / frame-blended / rotoscoped precomposition layers are frame sampled via motion frame_sample (off = floor frame, held at last frame); weight > 0 with frame_mix / pixel_motion -> new SceneContent::FrameBlended (frames A/B rendered by the backend, pigment frame_mix / pixel_motion on the host, exactness key frame_blend Approximate; samples outside [0,1] refused frame_blend_out_of_domain, never clamped). Stretch-only layers without remap/blending/roto keep exact-tick sampling (existing digests unchanged).",
+    "slice 3 composite roto: CompositionTemporalSource::propagate_roto renders the source frames of every span, admits the run before allocation (source bytes, stroke rasterisation work, pigment roto_sequence_admission), segments per span (stroke capsules -> roto_base; frame-by-frame roto_propagate forward/backward per span directions; corrective strokes on later frames join the matte and carry on; empty prediction = lost, reported, recoverable by a corrective fg stroke), caches the segmentation (RotoSegmentation keyed by SHA-256 of canonical inputs + every source frame; freeze uses the snapshot so new strokes/propagation controls do not change it), then the matte stage (fine_tune_matte: matte_feather/contrast/shift_edge via the STU-RAS-121 engine at zero band + matte_reduce_chatter) and the refine stage (edge strokes / refine_edge_base_radius band; STU-RAS-121 controls + refine_reduce_chatter when fine_tune_refine_edge_matte). with_roto attaches the mattes; the scene path wraps the frame in new SceneContent::Rotoscoped (alpha x coverage, decontaminated colours; exactness roto_matte Approximate). Lost frame -> Source roto_frame_lost; no attached mattes -> composition_roto_not_propagated; engine learned -> Source model_unavailable:roto-learned-propagation; receipt lists per-frame state/engine/band/corrected/refined, not_modelled rows and engine working values."
+  ],
+  "tests": {
+    "argv": "cd <lane>/handshake-studio-assets && bash <GOV>/tools/lane-check.sh --owner smb-ae-roto-wiring --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-composite -p hsk-studio-pigment -p hsk-studio-motion -p hsk-studio-render-cpu -p hsk-studio-render-gpu --features hsk-studio-composite/motion --no-fail-fast (dispatch command plus render-cpu/render-gpu because new test files landed there, rule 4a; clippy over the 6 crates + 19 dependents)",
+    "exit": 0,
+    "sha": "1674fd9",
+    "passed": 673,
+    "failed": 0,
+    "runs": "run1 on 9c48de8 base: 670/670, one clippy type_complexity warning in roto.rs (fixed 1674fd9); run2 after rebase on 45f04b2 with --no-capture: 670/670, clippy clean (measured values below); run3 after rebase on 8ab5155 (folio typestyle changes from SMB-LAYOUT-COMPOSER-WIRING): 673/673, clippy clean, exit 0",
+    "new_tests": [
+      "folio roto_records_contract::records_are_serde_default_round_trip_and_keep_unknown_bounded_values",
+      "folio roto_records_contract::hostile_records_are_refused_typed",
+      "folio roto_records_contract::strokes_open_spans_and_freeze_snapshots_the_propagation_inputs",
+      "folio roto_records_contract::enabling_time_remap_builds_the_identity_keys",
+      "composite [motion] composition_roto::time_remap_records_lower_and_frame_blending_renders",
+      "composite [motion] composition_roto::roto_records_propagate_into_the_matte_pipeline",
+      "composite [motion] composition_roto::lost_frames_are_reported_and_corrective_strokes_recover_them",
+      "composite [motion] composition_roto::freeze_locks_segmentation_and_matte_controls_stay_live",
+      "composite [motion] composition_roto::refine_stage_consumes_the_edge_refinement_engine",
+      "render-cpu composition_roto_frames::roto_and_frame_blend_frames_match_the_oracle_on_every_chunking",
+      "render-gpu composition_roto_frames::gpu_roto_and_frame_blend_frames_match_the_shared_oracle"
+    ]
+  },
+  "blockers": [],
+  "lock_wait_s": 1500,
+  "bg_pids": [],
+  "next": "validator round (R37 queue). Follow-ups for the lead: F-R36-3 alignment (sites below), harness render_queue still refuses frame blending (not this lane's paths), GUI.",
+  "updated_at": "2026-10-22T07:50:00Z",
+  "notes": {
+    "spec_basis": {
+      "STU-CMP-034": "\"Strokes, spans, base frames, the engine choice and every parameter value of the table below are DOCUMENT STATE under the ownership rules of [STU-CMP-002] and [STU-CMP-003]; the propagated mattes are a cache, never authority, and a reopened document MUST reproduce them from that state.\" Item 2 propagation forward/backward with corrective strokes; item 3 \"a `lost` frame is reported as such ... and is NEVER silently filled\"; item 4 \"`learned` ... when no model is installed it is a typed refusal `model_unavailable` naming the model lane, never a silent fallback to `classic`\"; item 5 \"The per-frame matte is a matte source of the pipeline of [STU-CMP-033] and enters it at the REFINE stage ... MUST consume the unified edge-refinement surface of [STU-RAS-121] ... MUST NOT define a second edge-refinement record\"; item 6 freeze; item 8 \"admitted against declared limits BEFORE any allocation\"; table: numeric controls \"MUST ship as `unknown` per [STU-RAS-106], MUST NOT be clamped\".",
+      "STU-CMP-100": "RESOLVED -- assisted rotoscoping. Specified by [STU-CMP-034] in v02.217.",
+      "STU-MOT-045": "\"Enabling it on a footage or composition layer creates a `time_remap` property whose value AT a composition time is the SOURCE time to sample\"; contracts 1-7 (enable identity, ordinary property, flat = freeze / decreasing = reverse, out point unbounded, clamp not error, frame blending between frames, one mechanism).",
+      "STU-MOT-007a": "\"The frame-blending enumeration is normative: `off`, `frame_mix`, `pixel_motion`.\" ... \"MUST be one implementation with two entry points\".",
+      "STU-CMP-033": "\"A key is a MATTE PIPELINE ... refine (choke, spread, feather, edge-blur, hole-fill) ... Studio MUST NOT ship a single opaque 'key' operation that hides these stages\".",
+      "STU-RAS-121": "\"One surface -- not two -- owns matte and edge refinement\"; six numeric controls \"MUST ship as `unknown` per [STU-RAS-106] and MUST NOT be clamped\".",
+      "STU-CMP-002/003": "ownership (time-based compositing owned by 14.27, property tree by 14.26); \"No sidecar authority\".",
+      "STU-CMP-075a": "\"it MUST produce identical output for identical parameters and seed ... MUST NOT show a different result than playing forwards\" (classic engine deterministic, test second run identical; no parallelism across frames)."
+    },
+    "cache_contract": "Propagated mattes are composite's RotoSegmentation / RotoMattes values (temporal::composition::roto), keyed by inputs_digest = SHA-256(canonical propagation inputs from Folio StudioRotoPropagationInputs::canonical_bytes + colour/alpha SHA-256 of every rendered source frame). A host keeps them in its render cache outside Folio and outside the document and passes the segmentation back to propagate_roto (reused when the digest matches); a missing/stale cache is recomputed from the records. Freeze persists only as the record's snapshot (stroke_count prefix, spans, engine, parameters), so a reopened document reproduces the frozen segmentation deterministically.",
+    "measured (run2, --no-capture)": {
+      "roto IoU vs the moving square": "1.0000 on all 8 frames (base 3, propagated 0-2, 4-7); lost frames when the square leaves at frame 5: [5, 6, 7]",
+      "frame blending through records -> adapter -> Ref executor vs pigment oracle": "max |delta| 0 for frame_mix and pixel_motion at outer frames 1, 5, 11 (half-speed remap, weight 0.5)",
+      "CPU = GPU = composite": "digests identical across backends, e.g. frame_mix/0-1@0.5 4b3069ce9d60...a81a (composite Ref path, render-cpu and render-gpu), pixel_motion/0-1@0.5 b7829484...a407, roto/3/decontaminated 09f8d276...6217; every case max |delta| vs oracle 0, CPU identical for chunk/thread variants; GPU test ran on the adapter (16.9 s, not NOT_PROVEN)"
+    },
+    "F-R36-3 (lead: align spec and code)": {
+      "kept (a test depends on it)": "crates/hsk-studio-pigment/src/select_tools/roto_refine.rs:142 refine_roto_sequence refuses reduce_chatter outside 0..=100 (tool_out_of_range), pinned by crates/hsk-studio-pigment/tests/roto_refine.rs:115 (reduce_chatter 150 -> tool_out_of_range); doc lines roto_refine.rs:22 and :52 still say percent 0..=100.",
+      "new path does not clamp or range-check": "refine_roto_stage (roto_refine.rs) uses any finite chatter as given; composite feeds matte_reduce_chatter / refine_reduce_chatter through it (test freeze_locks_segmentation_and_matte_controls_stay_live runs chatter 150).",
+      "engine-domain refusals (not clamps) the unknown-bounded rows can hit": "crates/hsk-studio-pigment/src/select_tools/refine.rs:115-123 (shared STU-RAS-121 engine, not this lane's file) refuses negative radius/smooth/feather/decontamination_amount -> tool_out_of_range; crates/hsk-studio-pigment/src/select_tools/roto.rs:152 refuses negative band (search_radius) and :156 refuses band/base margin above 1e9 (Overflow). Folio stores all of them as given.",
+      "engine naming": "pigment RotoEngine::{GraphCut, Learned} vs spec classic/learned: composite maps classic -> GraphCut; Folio uses the spec names."
+    },
+    "studio_readings_unverified": "After Effects parity UNVERIFIED (D5) for: frame sampling of a remapped precomposition (floor frame for off), Frame Mix / Pixel Motion formulas, Roto Brush segmentation/propagation, corrective-stroke merge rule ((matte | fg) & !bg), refine band from refine-edge strokes widened by 2 x refine_edge_base_radius, outside-span frames shown unmatted, matte stage before refine (the refine engine thresholds its input at 0.5, so only the matte stage's boundary shift reaches a refined frame). Class Approximate throughout.",
+    "absent numerics": "Not applied (identity) except engine working values reported in RotoReceipt.engine_working_values: search_radius absent -> pigment's 3 px band; refine/decontamination_amount absent with decontamination on -> the shared engine's 100 %.",
+    "not modelled (listed in the receipt when set)": "quality, motion_threshold, motion_damping, edge_detection, use_alternate_colour_estimation, use_motion_blur, extend_where_smoothed, decontamination_increase_radius; view rows are preview-only.",
+    "files_outside_listed_paths": "crates/hsk-studio-render-cpu/tests/composition_roto_frames.rs and crates/hsk-studio-render-gpu/tests/composition_roto_frames.rs: NEW test files only (decision B1 cross-renderer proof, as the dispatch asked for render-cpu/gpu digests); no existing renderer file edited. Composite literal sites updated for the new layer fields: camera_solve.rs, tests corner_pin.rs, mask_paths.rs, track_apply.rs, tracker_commands.rs (3 lines each). No folio paragraph/character style file touched; folio lib.rs untouched (submodule declared inside composition.rs).",
+    "git_notes": "Lane worktree wt-studio-lanes/smb-ae-roto-wiring, branch lane/smb-ae-roto-wiring. Before the second rebase the working Cargo.lock held cargo-generated entries for the new interop-fig-base/-native members (steward-owned); saved to the scratchpad as cargo-lock-run2.diff and restored with git checkout -- Cargo.lock (regenerated by cargo, left uncommitted). No stash/reset/clean. No new dependencies, no new module edges, no gameplan action, no hook block.",
+    "gaps_left": [
+      "No GUI (stroke painting, span view, views of item 7).",
+      "No learned model (engine learned refuses model_unavailable:roto-learned-propagation).",
+      "Freeze covers every span (Folio stores no work area); spans UI / steerable command surface of item 9 not wired beyond the Folio record commands.",
+      "Roto and frame blending only on precomposition layers (the composition model has no footage source); roto + frame blending on one layer refused composition_roto_frame_blending; collapsed precompositions refuse blending/roto.",
+      "harness render_queue still refuses frame blending ('frame blending is not built'): harness is not this lane's path.",
+      "Unmodelled table rows listed above; render-gpu runs the frame renders on the GPU but the blend/matte host step is shared (CPU maths)."
+    ]
+  }
+}
