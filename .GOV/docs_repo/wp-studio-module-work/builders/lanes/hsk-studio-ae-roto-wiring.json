@@ -2,7 +2,7 @@
   "crate": "hsk-studio-folio (composition time_remap / frame_blending / roto records), hsk-studio-composite (temporal adapter lowering, scene contents FrameBlended / Rotoscoped, roto pipeline), hsk-studio-pigment (select_tools::roto admission, roto_refine refine stage); renderer proof files in hsk-studio-render-cpu/render-gpu tests (decision B1)",
   "lane": "SMB-AE-ROTO-WIRING",
   "status": "READY_FOR_VALIDATION",
-  "phase": "R37 remediation pushed 1d139a6..2d2eaee (2026-10-22T13:09:52Z); READY_FOR_VALIDATION on 2d2eaee",
+  "phase": "F-R36-3 alignment to v02.218 pushed 2d2eaee..d9de925 (2026-10-22T13:21:57Z); READY_FOR_VALIDATION on d9de925",
   "commits": [
     {
       "sha": "0c6b978",
@@ -29,6 +29,17 @@
       "subject": "Classify StudioRoto stroke path geometry in package CLASSIFIED table (R37 remediation)",
       "pushed": true,
       "pushed_as": "2d2eaeeaa62b684a90420a29dac9ff4bdb1008e4"
+    },
+    {
+      "sha": "9140dae",
+      "subject": "Studio AE-18: roto engine variant GraphCut -> Classic; chatter controls refuse outside 0..=100 on both stages; docs cite STU-CMP-034 v02.218 (F-R36-3)",
+      "pushed": true
+    },
+    {
+      "sha": "d9de925",
+      "subject": "Studio AE-18: refuse an out-of-range chatter control before any stage runs (SMB-AE-ROTO-WIRING alignment fix)",
+      "pushed": true,
+      "pushed_as": "d9de925cbc98dbd5bd2cc0e5e88e5cf5dd5f0fd7"
     }
   ],
   "capabilities_done": [
@@ -38,18 +49,18 @@
     "slice 3 composite roto: CompositionTemporalSource::propagate_roto renders the source frames of every span, admits the run before allocation (source bytes, stroke rasterisation work, pigment roto_sequence_admission), segments per span (stroke capsules -> roto_base; frame-by-frame roto_propagate forward/backward per span directions; corrective strokes on later frames join the matte and carry on; empty prediction = lost, reported, recoverable by a corrective fg stroke), caches the segmentation (RotoSegmentation keyed by SHA-256 of canonical inputs + every source frame; freeze uses the snapshot so new strokes/propagation controls do not change it), then the matte stage (fine_tune_matte: matte_feather/contrast/shift_edge via the STU-RAS-121 engine at zero band + matte_reduce_chatter) and the refine stage (edge strokes / refine_edge_base_radius band; STU-RAS-121 controls + refine_reduce_chatter when fine_tune_refine_edge_matte). with_roto attaches the mattes; the scene path wraps the frame in new SceneContent::Rotoscoped (alpha x coverage, decontaminated colours; exactness roto_matte Approximate). Lost frame -> Source roto_frame_lost; no attached mattes -> composition_roto_not_propagated; engine learned -> Source model_unavailable:roto-learned-propagation; receipt lists per-frame state/engine/band/corrected/refined, not_modelled rows and engine working values."
   ],
   "tests": {
-    "argv": "cd <lane>/handshake-studio-assets && bash <GOV>/tools/lane-check.sh --owner smb-ae-roto-wiring --disk d -- cargo nextest run -p hsk-studio-package -p hsk-studio-folio --no-fail-fast",
+    "argv": "cd <lane>/handshake-studio-assets && bash <GOV>/tools/lane-check.sh --owner smb-ae-roto-wiring --disk d -- cargo nextest run -p hsk-studio-pigment -p hsk-studio-folio -p hsk-studio-composite -p hsk-studio-package --features hsk-studio-composite/motion --no-fail-fast",
     "exit": 0,
-    "sha": "2d2eaee",
-    "passed": 133,
+    "sha": "d9de925",
+    "passed": 486,
     "failed": 0,
-    "detail": "hsk-studio-package 35 passed, hsk-studio-folio 98 passed; externals::every_folio_reference_property_is_classified passes"
+    "detail": "run 1 (9140dae): 485 passed, 1 failed (new composite refusal test: refine_reduce_chatter without an active refine stage was not refused); fixed in d9de925; run 2: 486 passed 0 failed. New tests: pigment roto_refine::refine_roto_stage_bounds_chatter_to_zero_through_one_hundred, composite composition_roto::chatter_controls_refuse_outside_zero_to_one_hundred_on_both_stages"
   },
   "blockers": [],
   "lock_wait_s": 1500,
   "bg_pids": [],
   "next": "validator round (R37 queue). Follow-ups for the lead: F-R36-3 alignment (sites below), harness render_queue still refuses frame blending (not this lane's paths), GUI.",
-  "updated_at": "2026-10-22T13:10:00Z",
+  "updated_at": "2026-10-22T13:22:12Z",
   "notes": {
     "spec_basis": {
       "STU-CMP-034": "\"Strokes, spans, base frames, the engine choice and every parameter value of the table below are DOCUMENT STATE under the ownership rules of [STU-CMP-002] and [STU-CMP-003]; the propagated mattes are a cache, never authority, and a reopened document MUST reproduce them from that state.\" Item 2 propagation forward/backward with corrective strokes; item 3 \"a `lost` frame is reported as such ... and is NEVER silently filled\"; item 4 \"`learned` ... when no model is installed it is a typed refusal `model_unavailable` naming the model lane, never a silent fallback to `classic`\"; item 5 \"The per-frame matte is a matte source of the pipeline of [STU-CMP-033] and enters it at the REFINE stage ... MUST consume the unified edge-refinement surface of [STU-RAS-121] ... MUST NOT define a second edge-refinement record\"; item 6 freeze; item 8 \"admitted against declared limits BEFORE any allocation\"; table: numeric controls \"MUST ship as `unknown` per [STU-RAS-106], MUST NOT be clamped\".",
@@ -91,6 +102,18 @@
       "classification": "Added both to CLASSIFIED in crates/hsk-studio-package/tests/externals.rs as \"internal: value (stroke geometry points, not a file reference)\", in sorted position, same class family as StudioShapeStream.path / StudioColourTarget.path",
       "why": "Fields hold Vec<[f64;2]> drawn stroke points, not external references. Not renamed: keeps Folio record and serde wire unchanged; no test weakening, no wildcard.",
       "rule_4b": "hsk-studio-package and hsk-studio-folio whole suites run; only the package test file changed; folio untouched since 1674fd9"
+    },
+    "alignment_v02_218": {
+      "rename": "pigment select_tools::roto::RotoEngine::GraphCut -> Classic (spec classic); Learned kept. Folio StudioRotoEngine already used Classic/Learned with wire classic/learned and composite mapped by default options, so no Folio wire change and NO serde alias was added (no committed fixture or document uses a graph_cut wire name). GraphCutOptions (quick select) untouched.",
+      "bound_sites": [
+        "pigment roto_refine.rs refine_roto_sequence (matte path, existing 0..=100 check, test tests/roto_refine.rs:115 kept)",
+        "pigment roto_refine.rs refine_roto_stage (new path: now refuses non-finite and outside 0..=100 with tool_out_of_range)",
+        "composite temporal/composition/roto.rs propagate_roto: matte_reduce_chatter and refine_reduce_chatter checked up front, before admission and whichever stage consumes them, refusing Source tool_out_of_range"
+      ],
+      "tests": "refusal at 100.5 and -1 and acceptance at 0 and 100 on refine_roto_stage, refine_roto_sequence, and composite matte and refine chatter; composite freeze test now uses chatter 100 instead of 150",
+      "unbounded_kept": "every other numeric control stays unbounded and unclamped; engine-domain refusals (refine.rs negative radius etc., roto.rs negative or >1e9 band) unchanged; Folio still stores any finite chatter as given (roto_records_contract pins 150 and -1 stored), the evaluator refuses",
+      "docs": "module docs of pigment roto.rs, roto_refine.rs, folio composition/roto.rs, composite temporal/composition/roto.rs cite STU-CMP-034 v02.218; retired declared-gap text removed (STU-CMP-100 RESOLVED)",
+      "rule_4b": "no Folio record field added or renamed (docs only); hsk-studio-package suite ran anyway in the bundle"
     }
   },
   "verdicts": [

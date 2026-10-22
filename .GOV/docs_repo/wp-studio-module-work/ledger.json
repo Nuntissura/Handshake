@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-22T13:11:17Z",
+ "updated_at": "2026-10-22T13:22:49Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9555,18 +9555,20 @@
    "blocked_on": null,
    "owner": "builder (Opus, lead dispatch 2026-10-22)",
    "lane_file": "builders/lanes/hsk-studio-ae-roto-wiring.json",
-   "candidate": "2d2eaee",
+   "candidate": "d9de925",
    "commits": [
     "0c6b978 Folio per-layer time_remap, frame_blending, roto records (strokes, edge strokes, spans, engine, STU-CMP-034 table rows unclamped, STU-RAS-121 refine controls, freeze snapshot)",
     "5958475 pigment refine_roto_stage + roto_sequence_admission",
     "026c3f6 composite: time_remap lowered automatically; frame_mix/pixel_motion render frames A/B and blend; propagate_roto -> with_roto (Rotoscoped scene content); lost -> roto_frame_lost; learned -> model_unavailable",
     "1674fd9 clippy",
-    "2d2eaee R37 remediation: package externals CLASSIFIED gains StudioRotoStroke.path and StudioRotoEdgeStroke.path (internal value: stroke geometry); package 35 + folio 98 green"
+    "2d2eaee R37 remediation: package externals CLASSIFIED gains StudioRotoStroke.path and StudioRotoEdgeStroke.path (internal value: stroke geometry); package 35 + folio 98 green",
+    "9140dae alignment to STU-CMP-034 v02.218: RotoEngine::GraphCut -> Classic (no wire change), chatter 0..=100 refusal on the new refine stage and up front in composite propagate_roto, docs cite v02.218",
+    "d9de925 refine_reduce_chatter refused even without an active refine stage (own test fix); 486/486"
    ],
    "verdicts": [
     "STUDIO-R37 FAIL_V1 @1d139a6 (externals::every_folio_reference_property_is_classified crates/hsk-studio-package/tests/externals.rs:440; classify StudioRotoStroke.path / StudioRotoEdgeStroke.path (internal stroke geometry) in package CLASSIFIED; run package suites; NOT_PROVEN lines: 3, see round-R37.json)"
    ],
-   "note": "AE-10/AE-18 wiring per STU-CMP-034 v02.217: time remap + frame blending render through composite (CPU/GPU/composite digests identical, zero difference vs the pigment oracle); roto matte in the pipeline with admission before allocation, segmentation cached by input digest, freeze snapshot; IoU 1.0 on 8 test frames, lost reported on frames 5-7. 673/673 over 6 crates + clippy over 19 dependents; 11 new tests; GPU test ran on the adapter. F-R36-3: the 0..=100 chatter check stays at roto_refine.rs:142 (pinned by tests/roto_refine.rs:115); the new refine path takes any finite value; engine-domain refusals at refine.rs:115-123, roto.rs:152/156 (lead aligns spec and code in the next spec version). Gaps: no GUI, no learned model, no spans UI, freeze covers every span (Folio has no work area), roto/frame blending only on precomposition layers, harness render_queue still refuses frame blending; AE parity UNVERIFIED (D5). R37 judges. | R37 FAIL_V1 remediated 2026-10-22 (classifier), READY on 2d2eaee; alignment slice to v02.218 (engine classic, chatter bounds on both paths, docs) dispatched on the same lane; R38 judges",
+   "note": "AE-10/AE-18 wiring per STU-CMP-034 v02.217: time remap + frame blending render through composite (CPU/GPU/composite digests identical, zero difference vs the pigment oracle); roto matte in the pipeline with admission before allocation, segmentation cached by input digest, freeze snapshot; IoU 1.0 on 8 test frames, lost reported on frames 5-7. 673/673 over 6 crates + clippy over 19 dependents; 11 new tests; GPU test ran on the adapter. F-R36-3: the 0..=100 chatter check stays at roto_refine.rs:142 (pinned by tests/roto_refine.rs:115); the new refine path takes any finite value; engine-domain refusals at refine.rs:115-123, roto.rs:152/156 (lead aligns spec and code in the next spec version). Gaps: no GUI, no learned model, no spans UI, freeze covers every span (Folio has no work area), roto/frame blending only on precomposition layers, harness render_queue still refuses frame blending; AE parity UNVERIFIED (D5). R37 judges. | R37 FAIL_V1 remediated 2026-10-22 (classifier), READY on 2d2eaee; alignment slice to v02.218 (engine classic, chatter bounds on both paths, docs) dispatched on the same lane; R38 judges | v02.218 alignment pushed d9de925 (F-R36-3 closed in code); READY on d9de925",
    "remediation": {
     "failed_acceptance_refs": [
      "CX-VAL-001 every required check passes",
