@@ -10016,6 +10016,90 @@
     "runtime_acceptance": "Independent validator pending; no acceptance claimed"
   },
   "remediation_record": {
+    "session_authentication_compile_capture_recovery_20261023": {
+      "id": "WP012-MT174-AUTH-COMPILE-CAPTURE-RECOVERY-20261023",
+      "recorded_at_utc": "2026-10-22T23:47:00.921118+00:00",
+      "state": "BOUND_PENDING_FINAL_NONAUTHOR_REVIEW_PRECHECKS_AND_EXCLUSIVE_CUSTODY",
+      "authority_refs": [
+        ".GOV/codex/Handshake_Codex_v1.4.md#CX-EXEC-014",
+        ".GOV/codex/Handshake_Codex_v1.4.md#CX-EXEC-003",
+        ".GOV/codex/Handshake_Codex_v1.4.md#CX-EXEC-003A",
+        ".GOV/codex/Handshake_Codex_v1.4.md#CX-VERIFY-002",
+        ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md#KB-STATE-001",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/scope_expansion"
+      ],
+      "scope": "One changed-method recovery of the affected implementer compile-only proof. No Product change, runtime launch, new proof budget, acceptance verdict or automatic rerun.",
+      "predecessor": {
+        "output_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-local-session-auth-no-run-20261023-01",
+        "inspection_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-local-session-auth-no-run-20261023-01/interrupted-capture-inspection-01.json",
+        "status": "INCOMPLETE_CAPTURE_NO_TERMINAL_OUTCOME",
+        "tool_session": 58884,
+        "tool_session_observation": "No longer available according to the actual Primary handback.",
+        "log_bytes": 198568,
+        "log_sha256": "f2d356efc3ba94de5687b0a2e4ee165b6fe5b9dc25f88e76b7d95150219a2c54",
+        "missing_terminal_records": [
+          "cargo-exit.json",
+          "normalizer-exit.json",
+          "normalizer-capture-errors.json",
+          "result.json"
+        ],
+        "source_count": 7598,
+        "source_drift": [],
+        "control_drift": [],
+        "own_head_unchanged": true,
+        "own_index_unchanged": true,
+        "inventory_unchanged": false,
+        "drain": "Primary reports its owned roots and descendants drained. A recovery launch still requires present exclusive Cargo custody.",
+        "classification": "Actual cause NOT_ESTABLISHED. This is neither an unused dispatch, an observed Cargo failure, a compile PASS nor an HTTP403 result."
+      },
+      "recovery_hypothesis": {
+        "kind": "EXECUTION_EVIDENCE_HYPOTHESIS_NOT_ESTABLISHED_CAUSE",
+        "hypothesis": "Sole tool-handle or parent-dependent terminal evidence may have been lost. Change the execution host so terminal capture can survive loss of the interactive tool handle. No producer defect or underlying Cargo failure is established.",
+        "changed_method": "Primary-owned manual one-shot Windows Task Scheduler task using S4U on a non-interactive desktop under the same limited user, priority4. No triggers, wake, restart or network requirement. ExecutionTimeLimit is one hour.",
+        "task_name": "Handshake-MT174-Auth-NoRun-20261023-02",
+        "actual_registration_local_s4u_access_and_run": "UNPROVEN",
+        "one_shot_boundary": "Only one manual recovery start is permitted by this record. IgnoreNew prevents overlapping instances, not a later manual run. No automatic rerun. A one-hour forced termination supplies no Cargo result or descendant-drain proof."
+      },
+      "unchanged_inputs": {
+        "commit": "b4dbdda5667e6aea78da73e73b80cd6daa393ae9",
+        "source_path": "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+        "source_sha256": "b5b22e5d033ea5e8963a06faa9c111a0facf5927b7ac1820d4fc6d458fc39c26",
+        "input_map_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-durable-capture-20261021-01/local-session-auth-no-run-expected-inputs-01.json",
+        "input_map_sha256": "c525212a16710d5cccf73bfc7df7cacf7ea6fef1c6bc4ab9e630d3ad25cab6ed",
+        "profile_sha256": "61cf1b2ae4889684c6f8403f1d60ad9d651b36a1e77ccdeded5fd6b99e8e082e",
+        "normalizer_sha256": "866976ad8302495cf6b94bb314c7738a91b39e2cce1b7e2ba3e1d34a11efcc14",
+        "argv_and_environment": "Exact config02 argv retains --no-run before --, original selector, x64 Rust1.97.1, canonical warm target and jobs1. Source, toolchain and assertions are unchanged."
+      },
+      "prepared_artifacts": {
+        "config_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-durable-capture-20261021-01/local-session-auth-no-run-config-02.json",
+        "config_sha256": "d6cc0a7c2345ed2aac36bd6053dd3399c97538f723e9b1e020e1d42952ea512d",
+        "producer_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-durable-capture-20261021-01/local-session-auth-no-run-private-capture-02.py",
+        "producer_sha256": "4c9396a52d01d4589db28983adf5c0fc401d7869ac9251177344c3ab1fdef4dc",
+        "task_xml_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-durable-capture-20261021-01/local-session-auth-no-run-task-02.xml",
+        "task_xml_sha256": "4d4e3b71cb89297a9c90747c36a6f3fd6bffeb44f8beea548b244641b6209eaf",
+        "output_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-local-session-auth-no-run-20261023-02"
+      },
+      "ownership_and_admission": {
+        "compiler_registration_start_and_owned_cleanup": "Primary 01a15e8a-2b54-79a0-91a2-7304d67cbddc",
+        "technical_scope_binding": "Code Dev Leader 01a15c29-11d3-7ae0-be4e-804a86c28a5d",
+        "http_probe_and_runtime_verdict": "Original independent IV 01a15322-1723-7f23-b8dc-9dc278dcaea3",
+        "review_observation": "Primary reports Diagnostics static and quiet S4U review clear. Final independent Codecheck quiet-execution refresh remains pending at this record. No complete final clearance is inferred.",
+        "required_before_start": "Final nonauthor Codecheck of the prepared recovery, current launch prechecks and actual exclusive Cargo custody. Registration, S4U local-cache access and task execution must be observed, not assumed."
+      },
+      "required_terminal_proof": {
+        "scheduler": "Bind actual TaskLastResult to exact task name, this run and its start/end observations, with task non-running. TaskLastResult alone does not prove Cargo success.",
+        "capture": "Require actual numeric Cargo and normalizer exits, complete raw log, error records and terminal result. Never fabricate an exit or promote missing evidence to PASS.",
+        "guards": "Reconcile full source and controls, worktree/branch topology and ref observations, own HEAD/index, and all postguards. Preserve the predecessor inventory mismatch rather than describing it as unchanged.",
+        "drain": "Independently verify the owned ancestry and all descendants drained, then explicitly return custody. Scheduler non-running or forced task termination does not replace this proof."
+      },
+      "original_runtime_accounting_preserved": {
+        "probe_ref": "MT-174.json#/remediation_record/session_reauthentication_diagnostic_probe_20261023",
+        "existing_http_probe_unconsumed": 1,
+        "automatic_confirmations": 0,
+        "boundary": "This compile-only recovery consumes no HTTP probe and grants no new HTTP pool. Preserve every spent Snapshot and Chat attempt, original proof limits, lifecycle and acceptance."
+      },
+      "requirements_lifecycle_and_verdict_unchanged": true
+    },
     "session_reauthentication_diagnostic_probe_20261023": {
       "id": "WP012-MT174-SESSION-REAUTH-PROBE-20261023",
       "recorded_at_utc": "2026-10-22T22:32:25Z",

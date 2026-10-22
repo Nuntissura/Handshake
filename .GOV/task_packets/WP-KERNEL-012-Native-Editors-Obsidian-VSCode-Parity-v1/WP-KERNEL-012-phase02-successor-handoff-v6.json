@@ -1,4 +1,100 @@
 {
+  "current_team_workflow_ref": "#/operator_code_dev_leader_team_workflow_20261023",
+  "operator_code_dev_leader_team_workflow_20261023": {
+    "decision_id": "WP012-CODE-DEV-LEADER-TEAM-WORKFLOW-20261023",
+    "revision": 1,
+    "recorded_at_utc": "2026-10-22T23:04:34.744331+00:00",
+    "authority": "Direct Operator instruction in Code Dev Leader chat 01a15c29-11d3-7ae0-be4e-804a86c28a5d on 2026-10-23.",
+    "scope": "Operator coordination workflow only. No Product requirement, MT lifecycle, proof allowance, acceptance verdict or packet authority changes.",
+    "precedence": "For team staffing, Code Dev Leader duties, tick cadence and direct communication, this instruction supersedes older optional-staffing and routine parent-relay observations in this handoff. Historical rosters, work, reviews and custody remain intact. Existing current_workflow_ref and packet authority remain unchanged.",
+    "rules": [
+      {
+        "rule_id": "WP012-TEAM-WORKFLOW-20261023-001",
+        "requirement": "The Code Dev Leader coordinates and delegates implementation to separate teams, creating a new team when needed and for each new module or surface."
+      },
+      {
+        "rule_id": "WP012-TEAM-WORKFLOW-20261023-002",
+        "requirement": "Each team leader has its own subagents: two coders, one code checker that reviews the work front to back, and one dependency checker."
+      },
+      {
+        "rule_id": "WP012-TEAM-WORKFLOW-20261023-003",
+        "requirement": "The Code Dev Leader uses team leaders for implementation rather than its own implementation subagent. The Operator explicitly requested a subagent for this handoff edit."
+      },
+      {
+        "rule_id": "WP012-TEAM-WORKFLOW-20261023-004",
+        "requirement": "Every ten minutes, the Code Dev Leader checks all teams for actual deliverable progress, responsiveness and blockers against their assigned work."
+      },
+      {
+        "rule_id": "WP012-TEAM-WORKFLOW-20261023-005",
+        "requirement": "On each tick, the Code Dev Leader steers teams, assigns concrete useful tasks and creates needed teams so authorized disjoint work proceeds in parallel."
+      },
+      {
+        "rule_id": "WP012-TEAM-WORKFLOW-20261023-006",
+        "requirement": "For evidenced unresponsive teams, the Code Dev Leader creates takeover teams that resume the original scope and preserve existing work. Silence does not release source or resource custody."
+      },
+      {
+        "rule_id": "WP012-TEAM-WORKFLOW-20261023-007",
+        "requirement": "Teams may sit idle only during Cargo builds. Even during Cargo builds, the Code Dev Leader seeks useful independent work that respects the actual source freeze and resource ownership."
+      },
+      {
+        "rule_id": "WP012-TEAM-WORKFLOW-20261023-008",
+        "requirement": "Teams communicate directly with each other and with Diagnostics and Codecheck about concrete findings, dependencies, repairs and review handoffs. Routine messages do not pass through the Code Dev Leader."
+      },
+      {
+        "rule_id": "WP012-TEAM-WORKFLOW-20261023-009",
+        "requirement": "If Diagnostics or Codecheck teams are unresponsive, the Code Dev Leader asks the Master Dev Leader for fresh Diagnostics or Codecheck teams as needed."
+      },
+      {
+        "rule_id": "WP012-TEAM-WORKFLOW-20261023-010",
+        "requirement": "Replacement Codecheck teams have their own subagents that review the work through different lenses. Verify actual reviewer identities and results before claiming a roster or review result."
+      },
+      {
+        "rule_id": "WP012-TEAM-WORKFLOW-20261023-011",
+        "requirement": "The two coders receive disjoint owned write scopes. Team creation does not transfer existing writers, authorize overlapping edits or authorize duplicate Cargo jobs."
+      },
+      {
+        "rule_id": "WP012-TEAM-WORKFLOW-20261023-012",
+        "requirement": "Teams preserve explicit Operator stops, original WP and MT acceptance, spent proof allowances, independent validation and process ownership."
+      },
+      {
+        "rule_id": "WP012-TEAM-WORKFLOW-20261023-013",
+        "requirement": "Canonical reusable source is implemented, validated, published and independently reread before dependent host adoption consumes its immutable revision. Teams preserve in-flight host pins."
+      },
+      {
+        "rule_id": "WP012-TEAM-WORKFLOW-20261023-014",
+        "requirement": "The tick remains active while work is authorized. Unchanged, non-actionable observations stay quiet to the Operator while useful coordination continues. The tick does not resume a stopped lane."
+      }
+    ],
+    "coordination_tick": {
+      "automation_id": "code-dev-leader-team-coordination",
+      "status": "ACTIVE",
+      "interval_minutes": 10,
+      "target": "Code Dev Leader chat 01a15c29-11d3-7ae0-be4e-804a86c28a5d",
+      "observation_basis": "Actual official automation handback supplied by Code Dev Leader. This record does not itself create or verify scheduler execution."
+    },
+    "new_team_observations": [
+      {
+        "team": "Dexterity asset delivery",
+        "leader_chat": "01a165da-6123-7e93-b767-0cc1a984e54c"
+      },
+      {
+        "team": "Engine profiles Settings and dispatch team",
+        "leader_chat": "01a165da-ecdb-7a40-8504-6918286033ee"
+      }
+    ],
+    "new_team_roster_boundary": {
+      "required_subagent_roles": [
+        "coder_1",
+        "coder_2",
+        "end_to_end_code_checker",
+        "dependency_checker"
+      ],
+      "subagent_spawn_status": "NOT_VERIFIED",
+      "observation_basis": "Actual leader creation handbacks supplied by Code Dev Leader. No spawned roster, source handoff, publication or proof result is inferred."
+    },
+    "affected_review_scope": "This new coordination record has no prior review clearance. Older reviews retain their original unchanged scope and do not approve this addition. No blanket review invalidation or new Product review prerequisite is created.",
+    "preservation": "v6 remains the packet-selected handoff. v7 remains an unpromoted draft. Existing current-team observations and all unrelated fields remain intact."
+  },
   "current_authorized_team_ref": "#/operator_team_precheck_refresh_20261022/current_team",
   "current_workflow_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_prechecker_codecheck_refresh_20261022",
   "current_repository_snapshot_ref": "WP-KERNEL-012-phase02-successor-repo-snapshot-v2.json",
