@@ -56,5 +56,8 @@
     "d5": "existing D5 ID ledgers unchanged in run2 (ID-01 79/80, ID-02 9/12, ID-03 4/6, ID-04 1/1, ff 1/1 MATCH; expected-mismatch list untouched)",
     "cargo_lock": "build modified Cargo.lock (50 lines, lock entries of steward-pending crates); saved to the session scratchpad and restored to HEAD before rebase; never committed",
     "folio_shared_crate": "edited only src/typestyle.rs and a new tests/type_style_composition.rs in folio (text domain); no composition/time/roto file touched"
-  }
+  },
+  "verdicts": [
+    {"decision": "passed", "verdict": "PASS_V1", "status_change": "PASS_V1", "included_by": "READY claim in candidate", "prior_status": "READY_FOR_VALIDATION", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "composer_wiring, type_style_composition, idml_composition and d5_id_oracle passed; settings resolve based_on root first then local override (styles.rs). units of folio/interop-layout/layout: 3 crate units + default; all build 0 / run 0; default passed folio 98, interop-layout 47, layout 84", "idempotency_key": "STUDIO-R37:SMB-LAYOUT-COMPOSER-WIRING:1d139a6990f5:PASS_V1", "claim_scope": "d09e3e6 a187176 c3b7fbc c2055c7 8ab5155; judged against STU-TYP-135/146-151/201 as quoted by the lane", "round": "STUDIO-R37", "lane": "SMB-LAYOUT-COMPOSER-WIRING", "candidate": "1d139a6990f55b77c1ce09c1dc7a5c2f47c324f4", "tree": "3c2b5fe1ce168053e16b0f682b9b728a0441c9fc", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37", "started_at": "2026-10-22T09:20:11Z", "completed_at": "2026-10-22T13:00:58Z"}
+  ]
 }
