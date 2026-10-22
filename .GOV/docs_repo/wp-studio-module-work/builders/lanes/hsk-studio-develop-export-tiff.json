@@ -1,0 +1,57 @@
+{
+ "crate": "hsk-studio-develop",
+ "lane": "SMB-DEVELOP-EXPORT-TIFF",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed 09a5b29 on codex/handshake-studio-assets: interop-tiff big-endian + metadata, develop TIFF export, develop --tiff CLI",
+ "commits": [
+  {
+   "sha": "0ad3ca4",
+   "subject": "interop-tiff slice 1: big-endian output and ASCII metadata (encode_with)"
+  },
+  {
+   "sha": "d585939",
+   "subject": "develop slice 2: TIFF export module (settings record, ICC colour-space check, read-back)"
+  },
+  {
+   "sha": "ea51228",
+   "subject": "harness slice 3: develop --tiff CLI export (harness-view DevelopExport::Tiff + cli.rs)"
+  },
+  {
+   "sha": "09a5b29",
+   "subject": "interop-tiff: fix big-endian entry count width (the pushed tip; earlier shas are the rebased forms)"
+  }
+ ],
+ "capabilities_done": [
+  "interop-tiff already wrote TIFF (None/LZW/Deflate/PackBits, predictor, 8/16/32, ICC 34675, BigTIFF, resolution, orientation); added encode_with(EncodeRequest, EncodeOptions{byte_order, metadata}): big-endian output (samples stored big-endian before compression, predictor on logical values, container fields swapped by endian.rs) and ASCII Software/ImageDescription/Artist/Copyright (64 KiB cap); encode() unchanged",
+  "develop::export: TiffExportSettings {depth 8|16, compression None|LZW|ZIP, predictor, colour_space, byte_order, big_tiff, dpi, metadata}; tiff_from_output / develop_to_tiff; embedded ICC colorants and para-3 TRC checked against the named space (sRGB, Display P3); file decoded back and compared before return",
+  "refusals: colour_space_profile_missing (adobe_rgb_1998, prophoto_rgb: no profile in corpus, no transfer stage), profile_colour_space_mismatch (colorants_differ, transfer_is_not_srgb_curve), predictor_requires_compression, invalid_resolution, depth_mismatch, dims_overflow, invalid_dimensions, metadata_not_ascii, limit_metadata_bytes, export_verify_failed",
+  "CLI: develop SOURCE OUT --tiff [--depth 8|16] [--compression none|lzw|zip] [--predictor] [--byte-order le|be] [--bigtiff] [--dpi N] [--colour-space srgb|display-p3|adobe-rgb|prophoto]"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-develop -p hsk-studio-interop-tiff -p hsk-studio-harness --features hsk-studio-harness/viewer --no-fail-fast -E 'not test(psd_tools_sweep)' (lane-check, disk d)",
+  "exit": 0,
+  "sha": "09a5b29 (run on the pre-rebase tree; the rebase only brought interop-fig and web)",
+  "passed": 264,
+  "failed": 0,
+  "new": "interop-tiff tests/tiff_write_order.rs 4; develop tests/develop_export_tiff.rs 5 (corpus DNG case ran: 27s); harness tests/viewer_develop_tiff.rs 2"
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Validator: judge 09a5b29. Lead: harness-core needed no change; the CLI lives in hsk-studio-harness (cli.rs) and the export in hsk-studio-harness-view (view/develop.rs), small hunks edited there (another lane owns harness-view GUI). Gaps: DNG export (develop has no DNG writer), resize and sharpen-for-output (no develop stage), Adobe RGB / ProPhoto (no corpus profile).",
+ "updated_at": "2026-10-22T00:00:00Z",
+ "notes": {
+  "spec_basis": "module 14: [STU-COL-132] Embed on export: every export recipe carries an explicit profile-embedding selection (dont_include, include_all, include_source, include_destination, leave_unchanged), default include_destination; [STU-COL-129]; [STU-IO-136] still-image enumerated value domains (TIFF compression None/LZW/ZIP); [STU-COL-004].",
+  "deps": "no new crates.io dependency, no dep-requests line, no new module edge (develop -> interop-tiff already declared)",
+  "parity": "Lightroom Classic export equivalence UNVERIFIED (no oracle, D5)",
+  "gaps": [
+   "DNG export: develop reads DNG; no DNG writer exists (only a test-side TIFF/DNG builder in tests/develop_dng.rs)",
+   "resize / sharpen-for-output: no develop stage",
+   "Adobe RGB and ProPhoto: no profile in the corpus, no matching transfer curve",
+   "viewer panel button for TIFF: later lane (no GUI here)",
+   "STU-COL-132 embedding selection: this export always embeds the rendered (destination) profile; no dont_include / include_source / leave_unchanged option yet"
+  ],
+  "fix_in_run": "first bundled run failed 5 big-endian tests (entry count width bug in endian.rs); fixed in one commit, one re-run 264/264"
+ },
+ "verdicts": []
+}

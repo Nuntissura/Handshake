@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-22T06:46:10Z",
+ "updated_at": "2026-10-22T06:57:49Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9174,6 +9174,24 @@
     "ready_inputs": 19,
     "reopened": 274
    }
+  },
+  {
+   "lane_id": "SMB-DEVELOP-EXPORT-TIFF",
+   "crate": "hsk-studio-develop + hsk-studio-interop-tiff (+ harness cli/develop export hunks)",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "blocked_on": null,
+   "owner": "builder (Sonnet, lead dispatch 2026-10-22)",
+   "lane_file": "builders/lanes/hsk-studio-develop-export-tiff.json",
+   "candidate": "09a5b29",
+   "commits": [
+    "0ad3ca4 interop-tiff encode_with: big-endian + ASCII metadata tags",
+    "d585939 develop export.rs: TiffExportSettings, develop_to_tiff/tiff_from_output with ICC check and decode-back",
+    "ea51228 harness cli --tiff flags",
+    "09a5b29 fix big-endian entry-count width"
+   ],
+   "verdicts": [],
+   "note": "Lightroom export parity gap (LR top gap 4): TIFF export 8/16-bit, None/LZW/ZIP(+predictor), LE/BE, BigTIFF, dpi, metadata, sRGB/Display P3 with embedded profile; typed refusals incl. colour_space_profile_missing (adobe_rgb_1998/prophoto_rgb: no profile in corpus). Missing: DNG writer, resize/output sharpening, STU-COL-132 embed selection. Bundled run 264/264 (pre-rebase tree; rebase brought interop-fig/web only). Lead-accepted scope exception: small hunks in harness cli.rs and harness-view view/develop.rs (DevelopExport::Tiff). Lightroom parity UNVERIFIED (no oracle). R37 judges."
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
