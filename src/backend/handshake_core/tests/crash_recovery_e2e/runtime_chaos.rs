@@ -930,7 +930,7 @@ mod full_main_shutdown_acceptance {
     };
 
     const MAX_BYTES: usize = 65_536;
-    const APPROVED_CONFIG_SHA256: &str = "71700f65e37ccc0db1b6465035a033d3228ea441b295aada1b38b274f070ac17";
+    // Historical unavailable config binding: 71700f65e37ccc0db1b6465035a033d3228ea441b295aada1b38b274f070ac17.
 
     fn incomplete(reason: &str) -> io::Error {
         io::Error::new(io::ErrorKind::InvalidData, format!("MT188_INCOMPLETE: {reason}"))
@@ -947,6 +947,162 @@ mod full_main_shutdown_acceptance {
         path: String,
         headers: BTreeMap<String, String>,
         json: Option<Value>,
+        #[serde(default)]
+        capture: BTreeMap<BootstrapField, String>,
+        #[serde(default)]
+        bindings: RequestBindings,
+        #[serde(default)]
+        session_match: Option<SessionMatch>,
+    }
+
+    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+    #[serde(rename_all = "snake_case")]
+    enum BootstrapField {
+        AuthCredential, SessionToken, OwnerAccountId, ActorPrincipalId,
+        AuthenticatedSessionId, AccessSpaceId, WorkspaceId,
+        RootJobId, ChildJobId, RootSessionId, OwnerSessionId,
+    }
+
+    #[derive(Clone, Copy, Deserialize)]
+    #[serde(rename_all = "snake_case")]
+    enum SessionMatch { Root, Child }
+
+    type BootstrapValues = BTreeMap<BootstrapField, String>;
+
+    #[derive(Clone, Default, Deserialize)]
+    #[serde(default, deny_unknown_fields)]
+    struct RequestBindings {
+        headers: BTreeMap<String, BootstrapField>,
+        json: BTreeMap<String, BootstrapField>,
+        path: BTreeMap<String, BootstrapField>,
+    }
+
+    fn binding_value(values: &BootstrapValues, field: BootstrapField) -> io::Result<&str> {
+        values.get(&field).map(String::as_str)
+            .ok_or_else(|| incomplete("required genuine bootstrap field is absent"))
+    }
+
+    fn capture_response(captures: &BTreeMap<BootstrapField, String>, response: &Value,
+        values: &mut BootstrapValues) -> io::Result<()> {
+        for (&field, pointer) in captures {
+            if !pointer.starts_with('/') { return Err(incomplete("bootstrap capture requires a JSON pointer")); }
+            let value = response.pointer(pointer).and_then(Value::as_str)
+                .filter(|value| !value.is_empty() && value.len() <= MAX_BYTES)
+                .ok_or_else(|| incomplete("bootstrap response field is absent or invalid"))?;
+            if values.get(&field).is_some_and(|existing| existing != value) {
+                return Err(incomplete("bootstrap field changed after binding"));
+            }
+            values.insert(field, value.to_owned());
+        }
+        Ok(())
+    }
+
+    fn capture_bootstrap(request: &GenuineRequest, response: &Value, values: &mut BootstrapValues) -> io::Result<()> {
+        for (field, pointer) in &request.capture {
+            match field {
+                BootstrapField::RootSessionId | BootstrapField::OwnerSessionId =>
+                    return Err(incomplete("governed session IDs require exact inventory correlation")),
+                BootstrapField::RootJobId | BootstrapField::ChildJobId
+                    if !matches!(request.method, Method::Post)
+                        || !matches!(request.path.as_str(), "/jobs" | "/api/jobs") || pointer != "/job_id" =>
+                    return Err(incomplete("job identity must come from the actual job creation response")),
+                _ => {},
+            }
+            if matches!(field, BootstrapField::RootJobId | BootstrapField::ChildJobId) {
+                let id = response.get("job_id").and_then(Value::as_str)
+                    .and_then(|value| uuid::Uuid::parse_str(value).ok())
+                    .filter(|id| !id.is_nil());
+                if id.is_none() { return Err(incomplete("actual job response has no valid job identity")); }
+            }
+        }
+        capture_response(&request.capture, response, values)?;
+        let Some(selection) = request.session_match else { return Ok(()); };
+        if !matches!(request.method, Method::Get)
+            || !matches!(request.path.as_str(), "/operator-chat/models" | "/api/operator-chat/models") {
+            return Err(incomplete("session correlation requires the actual model inventory"));
+        }
+        let rows = response.get("sessions").and_then(Value::as_array)
+            .ok_or_else(|| incomplete("model inventory session rows are absent"))?;
+        let (job_field, session_field) = match selection {
+            SessionMatch::Root => (BootstrapField::RootJobId, BootstrapField::RootSessionId),
+            SessionMatch::Child => (BootstrapField::ChildJobId, BootstrapField::OwnerSessionId),
+        };
+        let job_id = binding_value(values, job_field)?;
+        let mut matches = rows.iter().filter(|row| row.get("job_id").and_then(Value::as_str) == Some(job_id));
+        let row = matches.next().ok_or_else(|| incomplete("actual job has no inventory session"))?;
+        if matches.next().is_some() { return Err(incomplete("actual job has ambiguous inventory sessions")); }
+        match selection {
+            SessionMatch::Root if row.get("parent_session_id") != Some(&Value::Null) =>
+                return Err(incomplete("actual root session has a parent")),
+            SessionMatch::Child => {
+                let root = binding_value(values, BootstrapField::RootSessionId)?;
+                let root_job = binding_value(values, BootstrapField::RootJobId)?;
+                if job_id == root_job || row.get("parent_session_id").and_then(Value::as_str) != Some(root)
+                    || row.get("status").and_then(Value::as_str) != Some("available")
+                    || rows.iter().filter(|candidate| candidate.get("session_id").and_then(Value::as_str) == Some(root)
+                        && candidate.get("job_id").and_then(Value::as_str) == Some(root_job)
+                        && candidate.get("parent_session_id") == Some(&Value::Null)).count() != 1 {
+                    return Err(incomplete("actual child and active registered parent are not proven"));
+                }
+            },
+            _ => {},
+        }
+        let captures = BTreeMap::from([(session_field, "/session_id".to_owned())]);
+        capture_response(&captures, row, values)
+    }
+
+    fn encode_path_value(value: &str) -> String {
+        use std::fmt::Write;
+        let mut encoded = String::new();
+        for byte in value.bytes() {
+            if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
+                encoded.push(char::from(byte));
+            } else { write!(&mut encoded, "%{byte:02X}").expect("writing into String"); }
+        }
+        encoded
+    }
+
+    fn bind_request(mut request: GenuineRequest, values: &BootstrapValues) -> io::Result<GenuineRequest> {
+        for (header, field) in &request.bindings.headers {
+            if !request.headers.contains_key(header) { return Err(incomplete("bound header slot is absent")); }
+            request.headers.insert(header.clone(), binding_value(values, *field)?.to_owned());
+        }
+        for (pointer, field) in &request.bindings.json {
+            if !pointer.starts_with('/') { return Err(incomplete("bound JSON slot requires a JSON pointer")); }
+            let slot = request.json.as_mut().and_then(|json| json.pointer_mut(pointer))
+                .filter(|slot| slot.is_string()).ok_or_else(|| incomplete("bound JSON string slot is absent"))?;
+            *slot = Value::String(binding_value(values, *field)?.to_owned());
+        }
+        for (marker, field) in &request.bindings.path {
+            if marker.len() < 3 || !marker.starts_with('{') || !marker.ends_with('}')
+                || !marker[1..marker.len()-1].bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+                || request.path.matches(marker.as_str()).count() != 1 {
+                return Err(incomplete("bound path slot is invalid or ambiguous"));
+            }
+            if matches!(field, BootstrapField::AuthCredential | BootstrapField::SessionToken) {
+                return Err(incomplete("credentials cannot be bound into request paths"));
+            }
+            request.path = request.path.replacen(marker,
+                &encode_path_value(binding_value(values, *field)?), 1);
+        }
+        request.bindings = RequestBindings::default();
+        Ok(request)
+    }
+
+    fn resolve_scope(case: &GenuineCase, values: &BootstrapValues) -> io::Result<ExactResourceScopeAttribution> {
+        let scope = match &case.original_scope {
+            Some(scope) => scope.clone(),
+            None => serde_json::from_value(serde_json::json!({
+                "owner_account_id": binding_value(values, BootstrapField::OwnerAccountId)?,
+                "actor_principal_id": binding_value(values, BootstrapField::ActorPrincipalId)?,
+                "authenticated_session_id": binding_value(values, BootstrapField::AuthenticatedSessionId)?,
+                "access_space_id": binding_value(values, BootstrapField::AccessSpaceId)?,
+                "workspace_id": binding_value(values, BootstrapField::WorkspaceId)?,
+            })).map_err(|_| incomplete("bootstrap scope has an invalid shape"))?,
+        };
+        ProductLocalResourceScope::from_exact(scope.clone())
+            .map_err(|_| incomplete("genuine bootstrap scope is incomplete"))?;
+        Ok(scope)
     }
 
     #[derive(Deserialize)]
@@ -965,13 +1121,14 @@ mod full_main_shutdown_acceptance {
         output_directory: PathBuf,
         data_directory: PathBuf,
         approval_configuration: PathBuf,
+        approval_configuration_sha256: String,
         executable_sha256: String,
         listen_addr: String,
         deadline_unix_ms: u64,
         bootstrap_requests: Vec<GenuineRequest>,
         context_read: GenuineRequest,
         context_projection: ScopeProjection,
-        original_scope: ExactResourceScopeAttribution,
+        original_scope: Option<ExactResourceScopeAttribution>,
         launch: GenuineRequest,
         launch_instance_pointer: String,
         launch_run_pointer: String,
@@ -1093,10 +1250,18 @@ mod full_main_shutdown_acceptance {
         for filename in ["mt188-main-stderr.log", "mt188-main-listener.json"] {
             if case.output_directory.join(filename).exists() { return Err(incomplete("case outputs already exist; preserve them and supply an unused owned case directory")); }
         }
+        if case.approval_configuration_sha256.len() != 64
+            || !case.approval_configuration_sha256.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return Err(incomplete("case requires an independently frozen registry configuration SHA256"));
+        }
         let hash = format!("{:x}", Sha256::digest(std::fs::read(&case.approval_configuration)?));
-        if hash != APPROVED_CONFIG_SHA256 { return Err(incomplete("existing approved registry configuration hash differs from its original binding")); }
-        ProductLocalResourceScope::from_exact(case.original_scope.clone())
-            .map_err(|_| incomplete("supplied scope is not a complete genuine account/Principal/session/Space/workspace tuple"))?;
+        if !hash.eq_ignore_ascii_case(&case.approval_configuration_sha256) {
+            return Err(incomplete("registry configuration bytes differ from the frozen case binding"));
+        }
+        if let Some(scope) = &case.original_scope {
+            ProductLocalResourceScope::from_exact(scope.clone())
+                .map_err(|_| incomplete("supplied scope is not a complete genuine account/Principal/session/Space/workspace tuple"))?;
+        }
         if !matches!(case.context_read.method, Method::Get)
             || !matches!(case.canonical_flight_recorder_read.method, Method::Get)
             || !matches!(case.launch.method, Method::Post) {
@@ -1141,8 +1306,8 @@ mod full_main_shutdown_acceptance {
         serde_json::from_slice(&bytes).map_err(|_| incomplete("product did not return a JSON receipt"))
     }
 
-    fn validate_context(response: &Value, case: &GenuineCase) -> io::Result<()> {
-        let expected = serde_json::to_value(&case.original_scope).map_err(|_| incomplete("scope serialization"))?;
+    fn validate_context(response: &Value, case: &GenuineCase, scope: &ExactResourceScopeAttribution) -> io::Result<()> {
+        let expected = serde_json::to_value(scope).map_err(|_| incomplete("scope serialization"))?;
         for (field, pointer) in [
             ("owner_account_id", &case.context_projection.owner_account_id),
             ("actor_principal_id", &case.context_projection.actor_principal_id),
@@ -1152,7 +1317,7 @@ mod full_main_shutdown_acceptance {
         ] {
             let value = expected.get(field).ok_or_else(|| incomplete("canonical scope field is missing"))?;
             if pointer.is_empty() || response.pointer(pointer) != Some(value) {
-                return Err(incomplete("actual authenticated product context does not match the immutable supplied original scope"));
+                return Err(incomplete("actual authenticated product context does not match the resolved original scope"));
             }
         }
         Ok(())
@@ -1297,17 +1462,20 @@ mod full_main_shutdown_acceptance {
         *client = Some(reqwest::Client::builder().redirect(reqwest::redirect::Policy::none())
             .build().map_err(|_| incomplete("HTTP client initialization"))?);
         let client = client.as_ref().ok_or_else(|| incomplete("HTTP client was not retained"))?;
+        let mut values = BootstrapValues::new();
         for request in &case.bootstrap_requests {
-            send(&client, &base, request.clone(), until).await?;
+            let response = send(client, &base, bind_request(request.clone(), &values)?, until).await?;
+            capture_bootstrap(request, &response, &mut values)?;
         }
-        let context = send(&client, &base, case.context_read.clone(), until).await?;
-        validate_context(&context, case)?;
+        let original_scope = resolve_scope(case, &values)?;
+        let context = send(client, &base, bind_request(case.context_read.clone(), &values)?, until).await?;
+        validate_context(&context, case, &original_scope)?;
         child.request(ProofAction::ObserveAllocation {
-            scope: case.original_scope.clone(), deadline_unix_ms: case.deadline_unix_ms,
+            scope: original_scope.clone(), deadline_unix_ms: case.deadline_unix_ms,
         })?;
         let launch_client = (*client).clone();
         let launch_base = base.clone();
-        let launch_request = case.launch.clone();
+        let launch_request = bind_request(case.launch.clone(), &values)?;
         launch.0 = Some(tokio::spawn(async move {
             send(&launch_client, &launch_base, launch_request, until).await
         }));
@@ -1315,7 +1483,7 @@ mod full_main_shutdown_acceptance {
             ProofObservation::AllocationPending { allocation } => allocation,
             _ => return Err(incomplete("actual producer allocation was not observed")),
         };
-        if serde_json::to_value(&allocation.scope).ok() != serde_json::to_value(&case.original_scope).ok()
+        if serde_json::to_value(&allocation.scope).ok() != serde_json::to_value(&original_scope).ok()
             || allocation.instance_id.is_empty() || allocation.parent_session_id.is_empty()
             || allocation.run_id.is_empty() || allocation.lane_id.is_empty() || allocation.trace_id.is_empty() {
             return Err(incomplete("actual allocation lacks the original scope or genuine producer identities"));
@@ -1346,7 +1514,7 @@ mod full_main_shutdown_acceptance {
             _ => return Err(incomplete("no subsequent genuine healthy recorder INSERT was observed")),
         };
         if inject_insert_fault && healthy_event == target_event { return Err(incomplete("failed target cannot substitute for a subsequent healthy event")); }
-        let mut read = case.canonical_flight_recorder_read.clone();
+        let mut read = bind_request(case.canonical_flight_recorder_read.clone(), &values)?;
         read.path = read.path.replace("{event_id}", &healthy_event.to_string())
             .replace("{trace_id}", &allocation.trace_id);
         let canonical = send(&client, &base, read, until).await?;

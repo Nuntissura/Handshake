@@ -12,6 +12,7 @@ pub mod consent_gate;
 pub mod official_cli_bridge;
 pub mod openai_byok;
 pub mod secrets_vault;
+pub(crate) mod member_enrollment;
 
 /// MT-125 remediation: per-session, per-lane consent context threaded
 /// into a cloud lane adapter so it can enforce the operator

@@ -319,13 +319,12 @@ impl CloudEscalationGuard {
     }
 }
 
-#[async_trait]
-impl LlmClient for CloudEscalationGuard {
-    async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+impl CloudEscalationGuard {
+    fn validate_completion_request(&self, req: &CompletionRequest) -> Result<(), LlmError> {
         // Local models are trusted and not subject to cloud escalation consent enforcement.
         // Cloud tier invocations MUST include explicit consent artifacts.
         if self.inner.profile().model_tier == ModelTier::Local {
-            return self.inner.completion(req).await;
+            return Ok(());
         }
 
         if self.policy.governance_mode == RuntimeGovernanceMode::Locked {
@@ -348,7 +347,20 @@ impl LlmClient for CloudEscalationGuard {
 
         bundle.validate_for_payload_sha256(computed_sha256.as_str(), resolved_model_id.as_str())?;
 
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl LlmClient for CloudEscalationGuard {
+    async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        self.validate_completion_request(&req)?;
         self.inner.completion(req).await
+    }
+
+    async fn completion_with_control(&self, req: CompletionRequest, control: super::LlmInvocationControl) -> Result<CompletionResponse, LlmError> {
+        self.validate_completion_request(&req)?;
+        self.inner.completion_with_control(req, control).await
     }
 
     async fn swap_model(

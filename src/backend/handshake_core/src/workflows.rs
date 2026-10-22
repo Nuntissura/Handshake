@@ -125,6 +125,8 @@ pub enum WorkflowError {
     SurrealStorage(#[from] crate::storage::surreal::SurrealStorageError),
     #[error("LLM error: {0}")]
     Llm(#[from] LlmError),
+    #[error(transparent)]
+    OwnedModelRun(OperatorChatOwnedFailure),
     #[error("Terminal error: {0}")]
     Terminal(String),
     #[error("Capability error: {0}")]
@@ -541,6 +543,73 @@ pub struct MultiModelSession {
     pub last_swap_event: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum RegistrySessionKey { PendingJob(Uuid), Session(String) }
+
+enum RegistrySessionSlot {
+    PendingAdmission { operation_id: Uuid, job_id: Uuid, parent_session_id: Option<String> },
+    Observed(ModelSession),
+    Unknown { retained: Box<RegistrySessionSlot>, incoming: ModelSession },
+}
+
+type RegistryEntry = handshake_workflow_lifecycle::Entry<Arc<RwLock<RegistrySessionSlot>>, ()>;
+type RegistryEntryPin = handshake_workflow_lifecycle::EntryPin<Arc<RwLock<RegistrySessionSlot>>, ()>;
+
+struct RegistryModelSession {
+    entry: RegistryEntry,
+    observation: std::sync::Weak<RwLock<RegistrySessionSlot>>,
+    owner: Option<std::sync::Weak<()>>,
+    invocation: Option<OperatorChatOwnedRunAccess>,
+}
+
+impl std::fmt::Debug for RegistryModelSession {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RegistryModelSession").field("owned", &self.owner.is_some()).finish()
+    }
+}
+
+impl RegistryModelSession {
+    fn new(slot: RegistrySessionSlot) -> Self {
+        let actual = Arc::new(RwLock::new(slot));
+        Self { observation: Arc::downgrade(&actual), entry: RegistryEntry::new(actual), owner: None, invocation: None }
+    }
+
+    fn disposition(&self) -> handshake_workflow_lifecycle::DispatchDisposition {
+        match self.entry.payload() {
+            Ok(guard) => guard.dispatch_disposition(),
+            Err(_) => handshake_workflow_lifecycle::DispatchDisposition::Unknown,
+        }
+    }
+
+    fn claim(&mut self, owner: &Arc<()>) -> Result<RegistryEntryPin, handshake_workflow_lifecycle::EntryError> {
+        if let Some(existing) = &self.owner {
+            let existing = existing.upgrade().ok_or(handshake_workflow_lifecycle::EntryError::Unknown)?;
+            if !Arc::ptr_eq(&existing, owner) { return Err(handshake_workflow_lifecycle::EntryError::OwnerMismatch); }
+            return self.entry.pin(owner).map_err(|_| handshake_workflow_lifecycle::EntryError::Unknown);
+        }
+        let pin = self.entry.claim_existing(owner).map_err(|_| handshake_workflow_lifecycle::EntryError::AlreadyOwned)?;
+        self.owner = Some(Arc::downgrade(owner));
+        Ok(pin)
+    }
+
+    async fn observed(&self) -> Option<ModelSession> {
+        let actual = self.observation.upgrade()?;
+        let guard = actual.read().await;
+        match &*guard { RegistrySessionSlot::Observed(session) => Some(session.clone()), _ => None }
+    }
+}
+
+#[derive(Debug)]
+struct RegistryMultiModelSession {
+    session_id: String,
+    active_sessions: HashMap<RegistrySessionKey, RegistryModelSession>,
+    routing_policy: RoutingPolicy,
+    spawn_limits: SpawnLimits,
+    scheduler_config: SessionSchedulerConfig,
+    last_swap_event: Option<String>,
+}
+
+
 #[derive(Debug, Clone)]
 pub struct SessionRegistry {
     inner: Arc<RwLock<SessionRegistryInner>>,
@@ -571,25 +640,688 @@ impl OperatorChatAdmissionOwner {
     }
 }
 
+type OperatorChatCompletionResult = Result<Result<crate::llm::CompletionResponse, LlmError>, tokio::task::JoinError>;
+
+enum OperatorChatCapture {
+    NotAttempted,
+    Captured(MergeBackArtifact),
+    Failed(std::io::Error),
+}
+
+#[derive(Debug)]
+struct OperatorChatAllocationMismatch {
+    expected: SessionWorktreeAllocation,
+    current: Option<SessionWorktreeAllocation>,
+}
+
+struct OperatorChatFinalizerCache {
+    job_id: Uuid,
+    repo_root: Option<PathBuf>,
+    worktree_path: Option<Option<PathBuf>>,
+    expected_allocation: Option<SessionWorktreeAllocation>,
+    capture: OperatorChatCapture,
+    terminal_session: Option<ModelSession>,
+    result: Option<Result<(), WorkflowError>>,
+    started: bool,
+    panic: Option<Box<dyn std::any::Any + Send>>,
+    cleanup_started: bool,
+    cleanup_result: Option<std::io::Result<()>>,
+    allocation_clear_started: bool,
+    allocation_clear_task: Option<tokio::task::JoinHandle<Result<SessionWorktreeAllocation, OperatorChatAllocationMismatch>>>,
+    allocation_clear_error: Option<tokio::task::JoinError>,
+    cleared_allocation: Option<Result<SessionWorktreeAllocation, OperatorChatAllocationMismatch>>,
+}
+impl OperatorChatFinalizerCache {
+    fn new(job_id: Uuid) -> Self {
+        Self { job_id, repo_root: None, worktree_path: None, expected_allocation: None, capture: OperatorChatCapture::NotAttempted,
+            terminal_session: None, result: None, started: false, panic: None, cleanup_started: false,
+            cleanup_result: None, allocation_clear_started: false, allocation_clear_task: None, allocation_clear_error: None, cleared_allocation: None }
+    }
+}
+
+struct OperatorChatOwnedJob {
+    job_id: Uuid,
+    submission_reserved: bool,
+    setup_task: Option<tokio::task::JoinHandle<Result<(), WorkflowError>>>,
+    setup_result: Option<Result<Result<(), WorkflowError>, tokio::task::JoinError>>,
+    workflow_task: Option<tokio::task::JoinHandle<Result<WorkflowRun, WorkflowError>>>,
+    workflow_result: Option<Result<Result<WorkflowRun, WorkflowError>, tokio::task::JoinError>>,
+    completion_task: Option<tokio::task::JoinHandle<Result<crate::llm::CompletionResponse, LlmError>>>,
+    completion_result: Option<Arc<OperatorChatCompletionResult>>,
+    completion_control: Option<crate::llm::LlmInvocationControl>,
+    control_cancel_attempted: bool,
+    cancel_panic: Option<Box<dyn std::any::Any + Send>>,
+    drain_panic: Option<Box<dyn std::any::Any + Send>>,
+    drain: Option<crate::llm::InvocationDrainOutcome>,
+    drain_history: Vec<crate::llm::InvocationDrainOutcome>,
+    cancellation_task: Option<tokio::task::JoinHandle<Result<(Uuid, ModelRunMetadata), WorkflowError>>>,
+    cancellation_result: Option<Result<Result<(Uuid, ModelRunMetadata), WorkflowError>, tokio::task::JoinError>>,
+    workflow_run: Option<WorkflowRun>,
+    node: Option<crate::storage::WorkflowNodeExecution>,
+    completed_run: Option<WorkflowRun>,
+    finalizer: Arc<Mutex<OperatorChatFinalizerCache>>,
+    stored_message: Option<crate::storage::SessionMessage>,
+    session_update: Option<ModelSession>,
+}
+
+impl OperatorChatOwnedJob {
+    fn new(job_id: Uuid) -> Self {
+        Self { job_id, submission_reserved: false, setup_task: None, setup_result: None, workflow_task: None,
+            workflow_result: None, completion_task: None, completion_result: None,
+            completion_control: None, control_cancel_attempted: false,
+            cancel_panic: None, drain_panic: None, drain: None, drain_history: Vec::new(), cancellation_task: None, cancellation_result: None, workflow_run: None,
+            node: None, completed_run: None, finalizer: Arc::new(Mutex::new(OperatorChatFinalizerCache::new(job_id))), stored_message: None, session_update: None }
+    }
+}
+
+struct OperatorChatEngineResources {
+    original_deadline: Instant,
+    jobs: Vec<OperatorChatOwnedJob>,
+    cancel_requested: bool,
+    cancel_reason: Option<String>,
+    unknown: bool,
+}
+
+#[derive(Debug)]
+struct OperatorChatEngineDriver;
+
+impl handshake_workflow_lifecycle::ExecutionDriver<Arc<Mutex<OperatorChatEngineResources>>> for OperatorChatEngineDriver {
+    type Output = ();
+    type Error = WorkflowReserveError;
+
+    fn poll_advance(
+        self: Pin<&mut Self>,
+        resources: Pin<&mut Arc<Mutex<OperatorChatEngineResources>>>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), WorkflowReserveError>> {
+        poll_operator_chat_tasks(resources.get_mut(), cx)
+    }
+
+    fn request_cancel(self: Pin<&mut Self>, resources: Pin<&mut Arc<Mutex<OperatorChatEngineResources>>>) {
+        cancel_operator_chat_invocations(resources.get_mut());
+    }
+}
+
+fn poll_operator_chat_tasks(
+    engine: &Arc<Mutex<OperatorChatEngineResources>>,
+    cx: &mut std::task::Context<'_>,
+) -> std::task::Poll<Result<(), WorkflowReserveError>> {
+    let mut resources = match engine.lock() {
+        Ok(resources) => resources,
+        Err(_) => return std::task::Poll::Ready(Err(WorkflowReserveError::RegistryUnknown)),
+    };
+    let mut pending = false;
+    let cancel_requested = resources.cancel_requested;
+    for job in &mut resources.jobs {
+        if !job.submission_reserved { continue; }
+        if let Some(task) = job.setup_task.as_mut() {
+            match Future::poll(Pin::new(task), cx) {
+                std::task::Poll::Pending => pending = true,
+                std::task::Poll::Ready(result) => { job.setup_result = Some(result); job.setup_task = None; }
+            }
+        }
+        if let Some(task) = job.workflow_task.as_mut() {
+            match Future::poll(Pin::new(task), cx) {
+                std::task::Poll::Pending => pending = true,
+                std::task::Poll::Ready(result) => { job.workflow_result = Some(result); job.workflow_task = None; }
+            }
+        }
+        if job.setup_result.is_none() && !cancel_requested { pending = true; }
+    }
+    if pending { return std::task::Poll::Pending; }
+    if resources.unknown || resources.jobs.iter().filter(|job| job.submission_reserved).any(|job|
+        !(job.setup_task.is_none() && job.setup_result.is_none() && cancel_requested && matches!(job.cancellation_result.as_ref(), Some(Ok(Ok(_)))))
+        && (!matches!(job.setup_result.as_ref(), Some(Ok(Ok(()))))
+        || !matches!(job.workflow_result.as_ref(), Some(Ok(Ok(_))))))
+    { return std::task::Poll::Ready(Err(WorkflowReserveError::RegistryUnknown)); }
+    std::task::Poll::Ready(Ok(()))
+}
+
+fn cancel_operator_chat_invocations(engine: &Arc<Mutex<OperatorChatEngineResources>>) {
+    let (controls, aborts) = {
+        let mut resources = match engine.lock() { Ok(resources) => resources, Err(poisoned) => poisoned.into_inner() };
+        resources.cancel_requested = true;
+        resources.cancel_reason.get_or_insert_with(|| "operator_chat_cancelled".to_owned());
+        let mut controls = Vec::new();
+        let mut aborts = Vec::new();
+        for (slot, job) in resources.jobs.iter_mut().enumerate() {
+            if !job.control_cancel_attempted {
+                if let Some(control) = &job.completion_control {
+                    controls.push((slot, control.clone()));
+                    job.control_cancel_attempted = true;
+                }
+            }
+            if let Some(task) = &job.completion_task { aborts.push(task.abort_handle()); }
+        }
+        (controls, aborts)
+    };
+    for (slot, control) in controls {
+        if let Err(payload) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| control.cancel())) {
+            let mut resources = match engine.lock() { Ok(resources) => resources, Err(poisoned) => poisoned.into_inner() };
+            resources.unknown = true;
+            resources.jobs[slot].cancel_panic = Some(payload);
+        }
+    }
+    for abort in aborts { abort.abort(); }
+}
+
+#[derive(Clone)]
+struct OperatorChatOwnedRunAccess {
+    engine: std::sync::Weak<Mutex<OperatorChatEngineResources>>,
+    slot: usize,
+    job_id: Uuid,
+}
+
+tokio::task_local! { static OPERATOR_CHAT_OWNED_RUN: OperatorChatOwnedRunAccess; }
+
+impl OperatorChatOwnedRunAccess {
+    async fn finalizer_invocation_settled(&self) -> bool {
+        let Some(engine) = self.engine.upgrade() else { return false };
+        let control = {
+            let resources = match engine.lock() { Ok(resources) => resources, Err(_) => return false };
+            let Some(job) = resources.jobs.get(self.slot).filter(|job| job.job_id == self.job_id) else { return false };
+            if job.drain_panic.is_some() || job.completion_task.is_some() { return false; }
+            if matches!(job.drain.as_ref(), Some(crate::llm::InvocationDrainOutcome::NeverSubmitted)
+                | Some(crate::llm::InvocationDrainOutcome::LocalResourcesSettled { .. })) { return true; }
+            job.completion_control.clone()
+        };
+        let Some(control) = control else {
+            let resources = match engine.lock() { Ok(resources) => resources, Err(_) => return false };
+            let job = &resources.jobs[self.slot];
+            return job.completion_task.is_none() && job.completion_result.is_none();
+        };
+        let outcome = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(control.drain())).await;
+        let mut resources = match engine.lock() { Ok(resources) => resources, Err(poisoned) => poisoned.into_inner() };
+        let job = &mut resources.jobs[self.slot];
+        match outcome {
+            Ok(outcome) => {
+                let settled = matches!(&outcome, crate::llm::InvocationDrainOutcome::NeverSubmitted
+                    | crate::llm::InvocationDrainOutcome::LocalResourcesSettled { .. });
+                job.drain_history.reserve(1);
+                if let Some(previous) = job.drain.replace(outcome) { job.drain_history.push(previous); }
+                settled
+            }
+            Err(payload) => { job.drain_panic = Some(payload); resources.unknown = true; false }
+        }
+    }
+
+    fn finalizer(&self) -> Result<Arc<Mutex<OperatorChatFinalizerCache>>, WorkflowError> {
+        let engine = self.engine.upgrade().ok_or_else(|| WorkflowError::Terminal("operator chat engine owner unavailable".to_owned()))?;
+        let resources = engine.lock().map_err(|_| WorkflowError::Terminal("operator chat engine resources unknown".to_owned()))?;
+        let job = resources.jobs.get(self.slot).filter(|job| job.job_id == self.job_id)
+            .ok_or_else(|| WorkflowError::Terminal("operator chat invocation owner mismatch".to_owned()))?;
+        Ok(job.finalizer.clone())
+    }
+
+    fn check_cancelled(&self) -> Result<(), WorkflowError> {
+        let engine = self.engine.upgrade().ok_or_else(|| WorkflowError::Terminal("operator chat invocation custody unknown".to_owned()))?;
+        let resources = engine.lock().map_err(|_| WorkflowError::Terminal("operator chat invocation custody unknown".to_owned()))?;
+        if resources.cancel_requested { Err(WorkflowError::Terminal("operator chat invocation cancelled before dispatch".to_owned())) } else { Ok(()) }
+    }
+
+    fn cache(&self, update: impl FnOnce(&mut OperatorChatOwnedJob)) -> Result<(), WorkflowError> {
+        let engine = self.engine.upgrade().ok_or_else(|| WorkflowError::Terminal("operator chat engine owner unavailable".to_owned()))?;
+        let mut resources = engine.lock().map_err(|_| WorkflowError::Terminal("operator chat engine resources unknown".to_owned()))?;
+        let job = resources.jobs.get_mut(self.slot).filter(|job| job.job_id == self.job_id)
+            .ok_or_else(|| WorkflowError::Terminal("operator chat invocation owner mismatch".to_owned()))?;
+        update(job);
+        Ok(())
+    }
+
+    async fn completion(&self, client: Arc<dyn crate::llm::LlmClient>, request: CompletionRequest)
+        -> Result<Arc<OperatorChatCompletionResult>, WorkflowError>
+    {
+        let engine = self.engine.upgrade().ok_or_else(|| WorkflowError::Terminal("operator chat engine owner unavailable".to_owned()))?;
+        let deadline = {
+            let resources = engine.lock().map_err(|_| WorkflowError::Terminal("operator chat engine resources unknown".to_owned()))?;
+            let job = resources.jobs.get(self.slot).filter(|job| job.job_id == self.job_id)
+                .ok_or_else(|| WorkflowError::Terminal("operator chat invocation owner mismatch".to_owned()))?;
+            if let Some(result) = &job.completion_result { return Ok(result.clone()); }
+            resources.original_deadline
+        };
+        let (future, control) = client.owned_completion(request, deadline).into_parts();
+        let cancel = {
+            let mut resources = engine.lock().map_err(|_| WorkflowError::Terminal("operator chat engine resources unknown".to_owned()))?;
+            let cancel = resources.cancel_requested;
+            let job = &mut resources.jobs[self.slot];
+            if job.completion_control.is_some() || job.completion_task.is_some() || job.completion_result.is_some() {
+                return Err(WorkflowError::Terminal("operator chat completion already started".to_owned()));
+            }
+            job.completion_control = Some(control.clone());
+            job.completion_task = Some(tokio::spawn(future));
+            cancel
+        };
+        if cancel { cancel_operator_chat_invocations(&engine); }
+        std::future::poll_fn(|cx| {
+            let mut resources = match engine.lock() {
+                Ok(resources) => resources,
+                Err(_) => return std::task::Poll::Ready(Err(WorkflowError::Terminal("operator chat engine resources unknown".to_owned()))),
+            };
+            let job = &mut resources.jobs[self.slot];
+            if let Some(result) = &job.completion_result { return std::task::Poll::Ready(Ok(result.clone())); }
+            let Some(task) = job.completion_task.as_mut() else {
+                return std::task::Poll::Ready(Err(WorkflowError::Terminal("operator chat completion handle unavailable".to_owned())));
+            };
+            match Future::poll(Pin::new(task), cx) {
+                std::task::Poll::Pending => std::task::Poll::Pending,
+                std::task::Poll::Ready(result) => {
+                    let result = Arc::new(result);
+                    job.completion_result = Some(result.clone());
+                    job.completion_task = None;
+                    std::task::Poll::Ready(Ok(result))
+                }
+            }
+        }).await
+    }
+}
+
+enum OperatorChatOwnedFailureKind {
+    Completion(Arc<OperatorChatCompletionResult>),
+    Finalizer(Arc<Mutex<OperatorChatFinalizerCache>>),
+}
+pub struct OperatorChatOwnedFailure(OperatorChatOwnedFailureKind);
+impl OperatorChatOwnedFailure {
+    fn completion(result: Arc<OperatorChatCompletionResult>) -> Self { Self(OperatorChatOwnedFailureKind::Completion(result)) }
+    fn finalizer(cache: Arc<Mutex<OperatorChatFinalizerCache>>) -> Self { Self(OperatorChatOwnedFailureKind::Finalizer(cache)) }
+}
+impl std::fmt::Debug for OperatorChatOwnedFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let phase = match &self.0 { OperatorChatOwnedFailureKind::Completion(_) => "completion", OperatorChatOwnedFailureKind::Finalizer(_) => "finalizer" };
+        f.debug_struct("OperatorChatOwnedFailure").field("phase", &phase).finish_non_exhaustive()
+    }
+}
+impl std::fmt::Display for OperatorChatOwnedFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.0 {
+            OperatorChatOwnedFailureKind::Completion(result) => match result.as_ref() {
+                Ok(Err(error)) => write!(f, "LLM error: {error}"),
+                Err(error) => write!(f, "Terminal error: completion task did not return: {error}"),
+                Ok(Ok(_)) => f.write_str("Terminal error: completion error observation is inconsistent"),
+            },
+            OperatorChatOwnedFailureKind::Finalizer(cache) => {
+                let cache = match cache.lock() { Ok(cache) => cache, Err(_) => return f.write_str("Terminal error: finalizer resources unknown") };
+                if let Some(Err(error)) = &cache.result { return std::fmt::Display::fmt(error, f); }
+                if let OperatorChatCapture::Failed(error) = &cache.capture { return write!(f, "Terminal error: merge-back capture failed: {error}"); }
+                if let Some(Err(error)) = &cache.cleanup_result { return write!(f, "Terminal error: worktree cleanup failed: {error}"); }
+                f.write_str("Terminal error: finalizer resources unknown")
+            }
+        }
+    }
+}
+impl std::error::Error for OperatorChatOwnedFailure {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match &self.0 {
+            OperatorChatOwnedFailureKind::Completion(result) => match result.as_ref() { Ok(Err(error)) => Some(error), Err(error) => Some(error), Ok(Ok(_)) => None },
+            OperatorChatOwnedFailureKind::Finalizer(_) => None,
+        }
+    }
+}
+
+impl OwnedOperatorChatEngineOwner {
+    fn start_owned_jobs(&mut self) -> Result<(), WorkflowReserveError> {
+        if !matches!(self.reservation_phase, WorkflowReservationPhase::FirstReserved | WorkflowReservationPhase::SecondBound | WorkflowReservationPhase::Reserved) {
+            return Err(WorkflowReserveError::RegistryUnknown);
+        }
+        if Instant::now() >= self.original_deadline { return Err(WorkflowReserveError::Deadline); }
+        let submitted_slots = if matches!(self.reservation_phase, WorkflowReservationPhase::Reserved) { 2 } else { 1 };
+        let engine = self.engine.upgrade().ok_or(WorkflowReserveError::RegistryUnknown)?;
+        {
+            let mut resources = engine.lock().map_err(|_| WorkflowReserveError::RegistryUnknown)?;
+            if resources.cancel_requested { return Err(WorkflowReserveError::RegistryUnknown); }
+            let deadline = resources.original_deadline;
+            for (slot, job) in resources.jobs.iter_mut().take(submitted_slots).enumerate() {
+                if job.setup_task.is_some() || job.setup_result.is_some() { continue; }
+                let state = self.state.as_ref().clone();
+                let job_id = job.job_id;
+                let access = OperatorChatOwnedRunAccess { engine: self.engine.clone(), slot, job_id };
+                job.setup_task = Some(tokio::spawn(OPERATOR_CHAT_OWNED_RUN.scope(access, async move {
+                    let _dispatch = tokio::time::timeout_at(deadline, state.session_registry.dispatch_lock.clone().lock_owned()).await
+                        .map_err(|_| WorkflowError::Terminal("operator chat original deadline expired".to_owned()))?;
+                    OPERATOR_CHAT_OWNED_RUN.with(|access| access.check_cancelled())?;
+                    let job = state.storage.get_ai_job(job_id.to_string().as_str()).await?;
+                    if job.job_id != job_id || !matches!(job.job_kind, JobKind::ModelRun) || !matches!(job.state, JobState::Queued) {
+                        return Err(WorkflowError::Terminal("operator chat reserved job is not queued".to_owned()));
+                    }
+                    if Instant::now() >= deadline { return Err(WorkflowError::Terminal("operator chat original deadline expired".to_owned())); }
+                    let actual = state.session_registry.get_model_session_by_job_id(&state, job_id).await?;
+                    let metadata = parse_model_run_metadata(&job)?;
+                    if actual.job_id != Some(job_id) || actual.session_id != metadata.session_id
+                        || actual.parent_session_id != metadata.parent_session_id || actual.spawn_depth != metadata.spawn_depth {
+                        return Err(WorkflowError::Terminal("operator chat canonical session lineage mismatch".to_owned()));
+                    }
+                    if Instant::now() >= deadline { return Err(WorkflowError::Terminal("operator chat original deadline expired".to_owned())); }
+                    OPERATOR_CHAT_OWNED_RUN.with(|access| access.check_cancelled())?;
+                    dispatch_model_run_job(&state, job).await
+                })));
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) async fn advance_until(&mut self) -> Result<(), WorkflowReserveError> {
+        if !matches!(self.reservation_phase, WorkflowReservationPhase::Reserved) { return Err(WorkflowReserveError::RegistryUnknown); }
+        self.start_owned_jobs()?;
+        match self.execution.advance_until().await {
+            Ok(handshake_workflow_lifecycle::ExecutionObservation::Returned(Ok(()))) => Ok(()),
+            Ok(handshake_workflow_lifecycle::ExecutionObservation::Returned(Err(_))) => Err(WorkflowReserveError::RegistryUnknown),
+            Ok(handshake_workflow_lifecycle::ExecutionObservation::PanickedUnknown)
+            | Err(handshake_workflow_lifecycle::ExecutionAdvanceError::PanickedUnknown) => Err(WorkflowReserveError::PanickedUnknown),
+            Err(handshake_workflow_lifecycle::ExecutionAdvanceError::Deadline) => Err(WorkflowReserveError::Deadline),
+            Ok(handshake_workflow_lifecycle::ExecutionObservation::Pending) => Err(WorkflowReserveError::RegistryUnknown),
+        }
+    }
+
+    pub(crate) fn request_cancel(&mut self) -> Result<(), WorkflowReserveError> {
+        let result = self.execution.request_cancel();
+        let engine = self.engine.upgrade().ok_or(WorkflowReserveError::RegistryUnknown)?;
+        cancel_operator_chat_invocations(&engine);
+        if result.is_err() { return Err(WorkflowReserveError::PanickedUnknown); }
+        let resources = engine.lock().map_err(|_| WorkflowReserveError::RegistryUnknown)?;
+        if resources.unknown { Err(WorkflowReserveError::PanickedUnknown) } else { Ok(()) }
+    }
+
+    pub(crate) async fn drain(&mut self) -> Result<(), WorkflowReserveError> {
+        let cancel_result = self.request_cancel();
+        let engine = self.engine.upgrade().ok_or(WorkflowReserveError::RegistryUnknown)?;
+        {
+            let mut resources = engine.lock().map_err(|_| WorkflowReserveError::RegistryUnknown)?;
+            for job in &mut resources.jobs {
+                if job.submission_reserved && job.cancellation_task.is_none() && job.cancellation_result.is_none() {
+                    let state = self.state.as_ref().clone();
+                    let job_id = job.job_id;
+                    job.cancellation_task = Some(tokio::spawn(async move {
+                        let current = state.storage.get_ai_job(job_id.to_string().as_str()).await?;
+                        if matches!(current.state, JobState::Completed | JobState::Failed | JobState::Cancelled | JobState::Poisoned) {
+                            return Ok((derive_trace_id(&current, None), parse_model_run_metadata(&current)?));
+                        }
+                        cancel_model_run_job_no_cascade(&state, job_id, "operator", "operator_chat_cancelled").await
+                    }));
+                }
+            }
+        }
+        std::future::poll_fn(|cx| {
+            let mut resources = match engine.lock() { Ok(resources) => resources, Err(poisoned) => poisoned.into_inner() };
+            let mut pending = false;
+            for job in &mut resources.jobs {
+                if let Some(task) = job.cancellation_task.as_mut() {
+                    match Future::poll(Pin::new(task), cx) {
+                        std::task::Poll::Pending => pending = true,
+                        std::task::Poll::Ready(result) => { job.cancellation_result = Some(result); job.cancellation_task = None; }
+                    }
+                }
+            }
+            if pending { std::task::Poll::Pending } else { std::task::Poll::Ready(()) }
+        }).await;
+        if let Some(task) = self.parent_read_task.as_mut() {
+            let result = task.await;
+            self.parent_read_result = Some(result);
+            self.parent_read_task = None;
+        }
+        if let Some(task) = self.second_read_task.as_mut() {
+            let result = task.await;
+            self.second_read_result = Some(result);
+            self.second_read_task = None;
+        }
+        // The original deadline is not reset. Joining retained outer tasks is cleanup,
+        // while provider drain separately reports actual resource settlement times.
+        let task_result = std::future::poll_fn(|cx| poll_operator_chat_tasks(&engine, cx)).await;
+        let slot_count = engine.lock().map_err(|_| WorkflowReserveError::RegistryUnknown)?.jobs.len();
+        for slot in 0..slot_count {
+            // A workflow panic can leave its completion handle retained. Only after
+            // that workflow has joined may cleanup become the handle's sole poller.
+            std::future::poll_fn(|cx| {
+                let mut resources = match engine.lock() { Ok(resources) => resources, Err(poisoned) => poisoned.into_inner() };
+                let job = &mut resources.jobs[slot];
+                if let Some(task) = job.completion_task.as_mut() {
+                    match Future::poll(Pin::new(task), cx) {
+                        std::task::Poll::Pending => return std::task::Poll::Pending,
+                        std::task::Poll::Ready(result) => { job.completion_result = Some(Arc::new(result)); job.completion_task = None; }
+                    }
+                }
+                std::task::Poll::Ready(())
+            }).await;
+            let control = {
+                let resources = engine.lock().map_err(|_| WorkflowReserveError::RegistryUnknown)?;
+                let job = &resources.jobs[slot];
+                if job.drain_panic.is_some() { return Err(WorkflowReserveError::PanickedUnknown); }
+                if matches!(job.drain.as_ref(), Some(crate::llm::InvocationDrainOutcome::NeverSubmitted)
+                    | Some(crate::llm::InvocationDrainOutcome::LocalResourcesSettled { .. })) { None } else { job.completion_control.clone() }
+            };
+            if let Some(control) = control {
+                let observed = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(control.drain())).await;
+                let mut resources = engine.lock().map_err(|_| WorkflowReserveError::RegistryUnknown)?;
+                match observed {
+                    Ok(outcome) => {
+                        let job = &mut resources.jobs[slot];
+                        job.drain_history.reserve(1);
+                        if let Some(previous) = job.drain.replace(outcome) { job.drain_history.push(previous); }
+                    }
+                    Err(payload) => { resources.unknown = true; resources.jobs[slot].drain_panic = Some(payload); }
+                }
+            }
+        }
+        let finalizers = {
+            let resources = engine.lock().map_err(|_| WorkflowReserveError::RegistryUnknown)?;
+            resources.jobs.iter().filter(|job| job.completion_control.is_none() || matches!(job.drain.as_ref(),
+                Some(crate::llm::InvocationDrainOutcome::NeverSubmitted)
+                | Some(crate::llm::InvocationDrainOutcome::LocalResourcesSettled { .. })))
+                .map(|job| job.finalizer.clone()).collect::<Vec<_>>()
+        };
+        for cache in finalizers { finish_operator_chat_worktree_cleanup(self.state.as_ref(), &cache).await; }
+        let resources = engine.lock().map_err(|_| WorkflowReserveError::RegistryUnknown)?;
+        for job in &resources.jobs {
+            let cache = job.finalizer.lock().map_err(|_| WorkflowReserveError::RegistryUnknown)?;
+            if cache.panic.is_some() || cache.allocation_clear_error.is_some()
+                || (matches!(cache.worktree_path.as_ref(), Some(Some(_)))
+                    && (!matches!(cache.cleanup_result.as_ref(), Some(Ok(()))) || !matches!(cache.cleared_allocation.as_ref(), Some(Ok(_))))) {
+                return Err(WorkflowReserveError::RegistryUnknown);
+            }
+        }
+        if resources.unknown || resources.jobs.iter().any(|job| (job.submission_reserved && !matches!(job.cancellation_result.as_ref(), Some(Ok(Ok(_))))) || job.drain_panic.is_some()
+            || (job.completion_control.is_some() && !matches!(job.drain.as_ref(),
+                Some(crate::llm::InvocationDrainOutcome::NeverSubmitted)
+                | Some(crate::llm::InvocationDrainOutcome::LocalResourcesSettled { .. })))) {
+            return Err(WorkflowReserveError::RegistryUnknown);
+        }
+        cancel_result?;
+        task_result
+    }
+}
+
+pub(crate) struct OperatorChatParentObservation {
+    _entry: RegistryEntryPin,
+    observed: ModelSession,
+}
+impl OperatorChatParentObservation {
+    pub(crate) fn session_id(&self) -> &str { &self.observed.session_id }
+    pub(crate) fn spawn_depth(&self) -> i32 { self.observed.spawn_depth }
+    pub(crate) fn is_active(&self) -> bool { matches!(self.observed.state, ModelSessionState::Active) }
+}
+
+impl OwnedOperatorChatEngineOwner {
+    pub(crate) fn from_first_owner(first: crate::swarm_orchestration::operator_chat::OperatorChatFirstOwnerRef<'_>) -> Self {
+        let resources = Arc::new(Mutex::new(OperatorChatEngineResources {
+            original_deadline: first.original_deadline(),
+            jobs: vec![OperatorChatOwnedJob::new(first.first_admission().job_id())],
+            cancel_requested: false, cancel_reason: None, unknown: false,
+        }));
+        let engine = Arc::downgrade(&resources);
+        let execution = handshake_workflow_lifecycle::OwnedExecution::new(resources, OperatorChatEngineDriver, first.original_deadline());
+        Self {
+            state: first.state().clone(), registry: first.registry().clone(),
+            first: OperatorChatAdmissionOwner::capture(first.first_admission()), second: None,
+            original_deadline: first.original_deadline(), registry_owner: Arc::new(()), registry_pins: Vec::new(),
+            reservation_phase: WorkflowReservationPhase::New, reserve_storage_error: None, reserve_panic: None, drop_panic: None,
+            parent_read_task: None, parent_read_result: None, second_binding: None,
+            second_read_task: None, second_read_result: None, engine, execution,
+        }
+    }
+
+    pub(crate) fn matches_first_owner(&self, first: crate::swarm_orchestration::operator_chat::OperatorChatFirstOwnerRef<'_>) -> bool {
+        self.matches_first_owner_ref(&first)
+    }
+
+    fn matches_first_owner_ref(&self, first: &crate::swarm_orchestration::operator_chat::OperatorChatFirstOwnerRef<'_>) -> bool {
+        Arc::ptr_eq(&self.state, first.state()) && Arc::ptr_eq(&self.registry, first.registry())
+            && Arc::ptr_eq(&first.state().session_registry, first.registry())
+            && self.first.matches(first.first_admission()) && self.original_deadline == first.original_deadline()
+    }
+
+    pub(crate) async fn first_parent_observation(
+        &mut self,
+        first: crate::swarm_orchestration::operator_chat::OperatorChatFirstOwnerRef<'_>,
+    ) -> Result<OperatorChatParentObservation, WorkflowReserveError> {
+        if !self.matches_first_owner(first) { return Err(WorkflowReserveError::OwnerMismatch); }
+        if !matches!(self.reservation_phase, WorkflowReservationPhase::FirstReserved) { return Err(WorkflowReserveError::RegistryUnknown); }
+        self.start_owned_jobs()?;
+        if self.parent_read_task.is_none() && self.parent_read_result.is_none() {
+            let state = self.state.clone();
+            let job_id = self.first.job_id;
+            let deadline = self.original_deadline;
+            self.parent_read_task = Some(tokio::spawn(async move {
+                tokio::time::timeout_at(deadline, async {
+                    loop {
+                        let actual = state.storage.get_model_session_by_job_id(job_id).await?;
+                        if actual.job_id != Some(job_id) { return Err(WorkflowError::Terminal("operator chat first session job mismatch".to_owned())); }
+                        match actual.state {
+                            ModelSessionState::Active => return Ok(actual),
+                            ModelSessionState::Completed | ModelSessionState::Failed | ModelSessionState::Cancelled =>
+                                return Err(WorkflowError::Terminal("operator chat parent is already terminal".to_owned())),
+                            _ => sleep(Duration::from_millis(10)).await,
+                        }
+                    }
+                }).await.map_err(|_| WorkflowError::Terminal("operator chat original deadline expired".to_owned()))?
+            }));
+        }
+        if let Some(task) = self.parent_read_task.as_mut() {
+            let result = task.await;
+            self.parent_read_result = Some(result);
+            self.parent_read_task = None;
+        }
+        if Instant::now() >= self.original_deadline { return Err(WorkflowReserveError::Deadline); }
+        let observed = match self.parent_read_result.as_ref() {
+            Some(Ok(Ok(actual))) => actual.clone(),
+            Some(Err(_)) => return Err(WorkflowReserveError::PanickedUnknown),
+            _ => return Err(WorkflowReserveError::RegistryUnknown),
+        };
+        let mut inner = self.registry.inner.write().await;
+        let entry = inner.multi_model_session.active_sessions.get_mut(&RegistrySessionKey::Session(observed.session_id.clone()))
+            .ok_or(WorkflowReserveError::RegistryUnknown)?;
+        if entry.disposition() != handshake_workflow_lifecycle::DispatchDisposition::Owned { return Err(WorkflowReserveError::RegistryUnknown); }
+        let current = entry.observed().await.ok_or(WorkflowReserveError::RegistryUnknown)?;
+        if current.job_id != Some(self.first.job_id) || current.session_id != observed.session_id
+            || !matches!(current.state, ModelSessionState::Active) { return Err(WorkflowReserveError::RegistryUnknown); }
+        let pin = entry.claim(&self.registry_owner).map_err(|_| WorkflowReserveError::OwnerMismatch)?;
+        Ok(OperatorChatParentObservation { _entry: pin, observed: current })
+    }
+
+    pub(crate) async fn extend_second_owner(
+        &mut self,
+        first: crate::swarm_orchestration::operator_chat::OperatorChatFirstOwnerRef<'_>,
+        second: &crate::jobs::JobAdmission,
+    ) -> Result<(), WorkflowReserveError> {
+        if !self.matches_first_owner(first) { return Err(WorkflowReserveError::OwnerMismatch); }
+        if let Some(existing) = &self.second {
+            return if existing.matches(second) { Ok(()) } else { Err(WorkflowReserveError::OwnerMismatch) };
+        }
+        if !matches!(self.reservation_phase, WorkflowReservationPhase::FirstReserved) { return Err(WorkflowReserveError::RegistryUnknown); }
+        if Instant::now() >= self.original_deadline { return Err(WorkflowReserveError::Deadline); }
+        if second.job_id() == self.first.job_id || !second.can_submit()
+            || !matches!(&second.command().input().job_kind, JobKind::ModelRun) { return Err(WorkflowReserveError::OwnerMismatch); }
+        if let Some(pending) = &self.second_binding {
+            if !pending.matches(second) { return Err(WorkflowReserveError::OwnerMismatch); }
+        } else {
+            self.second_binding = Some(OperatorChatAdmissionOwner::capture(second));
+        }
+        if self.second_read_task.is_none() && self.second_read_result.is_none() {
+            let inputs = second.command().input().job_inputs.as_ref();
+            let parent = inputs.and_then(|value| value.get("parent_session_id")).and_then(Value::as_str).map(str::trim).map(str::to_owned);
+            let depth = inputs.and_then(|value| value.get("spawn_depth")).and_then(Value::as_i64).and_then(|value| i32::try_from(value).ok());
+            let state = self.state.clone();
+            let job_id = self.first.job_id;
+            let deadline = self.original_deadline;
+            self.second_read_task = Some(tokio::spawn(async move {
+                tokio::time::timeout_at(deadline, async {
+                    let actual = state.storage.get_model_session_by_job_id(job_id).await?;
+                    if actual.job_id != Some(job_id) || !matches!(actual.state, ModelSessionState::Active)
+                        || parent.as_deref() != Some(actual.session_id.as_str())
+                        || !matches!((depth, actual.spawn_depth.checked_add(1)), (Some(actual), Some(expected)) if actual == expected) {
+                        return Err(WorkflowError::Terminal("operator chat child canonical parent lineage mismatch".to_owned()));
+                    }
+                    Ok(actual)
+                }).await.map_err(|_| WorkflowError::Terminal("operator chat original deadline expired".to_owned()))?
+            }));
+        }
+        if let Some(task) = self.second_read_task.as_mut() {
+            let result = task.await;
+            self.second_read_result = Some(result);
+            self.second_read_task = None;
+        }
+        match self.second_read_result.as_ref() {
+            Some(Ok(Ok(_))) => {},
+            Some(Err(_)) => return Err(WorkflowReserveError::PanickedUnknown),
+            _ => return Err(WorkflowReserveError::RegistryUnknown),
+        }
+        if Instant::now() >= self.original_deadline { return Err(WorkflowReserveError::Deadline); }
+        let engine = self.engine.upgrade().ok_or(WorkflowReserveError::RegistryUnknown)?;
+        let mut resources = engine.lock().map_err(|_| WorkflowReserveError::RegistryUnknown)?;
+        if resources.cancel_requested || resources.jobs.len() != 1 { return Err(WorkflowReserveError::RegistryUnknown); }
+        resources.jobs.push(OperatorChatOwnedJob::new(second.job_id()));
+        self.second = self.second_binding.take();
+        self.reservation_phase = WorkflowReservationPhase::SecondBound;
+        Ok(())
+    }
+}
+
 #[must_use = "retain the original engine owner while its operation is unsettled"]
 pub(crate) struct OwnedOperatorChatEngineOwner {
     state: Arc<AppState>,
     registry: Arc<SessionRegistry>,
     first: OperatorChatAdmissionOwner,
-    second: OperatorChatAdmissionOwner,
+    second: Option<OperatorChatAdmissionOwner>,
     original_deadline: Instant,
+    registry_owner: Arc<()>,
+    registry_pins: Vec<RegistryEntryPin>,
+    reservation_phase: WorkflowReservationPhase,
+    reserve_storage_error: Option<StorageError>,
+    reserve_panic: Option<Box<dyn std::any::Any + Send>>,
+    drop_panic: Option<Box<dyn std::any::Any + Send>>,
+    parent_read_task: Option<tokio::task::JoinHandle<Result<ModelSession, WorkflowError>>>,
+    parent_read_result: Option<Result<Result<ModelSession, WorkflowError>, tokio::task::JoinError>>,
+    second_binding: Option<OperatorChatAdmissionOwner>,
+    second_read_task: Option<tokio::task::JoinHandle<Result<ModelSession, WorkflowError>>>,
+    second_read_result: Option<Result<Result<ModelSession, WorkflowError>, tokio::task::JoinError>>,
+    engine: std::sync::Weak<Mutex<OperatorChatEngineResources>>,
+    execution: handshake_workflow_lifecycle::OwnedExecution<Arc<Mutex<OperatorChatEngineResources>>, OperatorChatEngineDriver>,
 }
 
 impl OwnedOperatorChatEngineOwner {
     pub(crate) fn from_initial_owners(
         owners: crate::swarm_orchestration::operator_chat::OperatorChatInitialOwnersRef<'_>,
     ) -> Self {
+        let resources = Arc::new(Mutex::new(OperatorChatEngineResources {
+            original_deadline: owners.original_deadline(),
+            jobs: vec![OperatorChatOwnedJob::new(owners.first_admission().job_id()), OperatorChatOwnedJob::new(owners.second_admission().job_id())],
+            cancel_requested: false, cancel_reason: None, unknown: false,
+        }));
+        let engine = Arc::downgrade(&resources);
+        let execution = handshake_workflow_lifecycle::OwnedExecution::new(resources, OperatorChatEngineDriver, owners.original_deadline());
         Self {
             state: owners.state().clone(),
             registry: owners.registry().clone(),
             first: OperatorChatAdmissionOwner::capture(owners.first_admission()),
-            second: OperatorChatAdmissionOwner::capture(owners.second_admission()),
+            second: Some(OperatorChatAdmissionOwner::capture(owners.second_admission())),
             original_deadline: owners.original_deadline(),
+            registry_owner: Arc::new(()),
+            registry_pins: Vec::new(),
+            reservation_phase: WorkflowReservationPhase::New,
+            reserve_storage_error: None,
+            reserve_panic: None,
+            drop_panic: None,
+            parent_read_task: None, parent_read_result: None, second_binding: None,
+            second_read_task: None, second_read_result: None,
+            engine,
+            execution,
         }
     }
 
@@ -605,14 +1337,168 @@ impl OwnedOperatorChatEngineOwner {
             && Arc::ptr_eq(&self.registry, registry)
             && Arc::ptr_eq(&state.session_registry, registry)
             && self.first.matches(first)
-            && self.second.matches(second)
+            && self.second.as_ref().map(|owner| owner.matches(second)).unwrap_or(false)
             && self.original_deadline == original_deadline
     }
 }
 
 #[derive(Debug)]
+pub(crate) enum WorkflowReserveError {
+    OwnerNotInstalled, OwnerMismatch, Deadline, AlreadyConsumed, RegistryUnknown, PanickedUnknown,
+}
+
+enum WorkflowReservationPhase { New, Acquiring, FirstReserved, SecondBound, Reserved, Unknown }
+
+pub(crate) struct WorkflowSubmissionAccess<'capsule> {
+    _dispatch: tokio::sync::OwnedMutexGuard<()>,
+    _capsule: &'capsule mut OwnedOperatorChatEngineOwner,
+}
+
+impl Drop for OwnedOperatorChatEngineOwner {
+    fn drop(&mut self) {
+        // Drop can request cancellation, but cannot join or certify settlement.
+        // Callers retain the original operation on Unknown and use borrowed drain.
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ = self.request_cancel();
+            if let Some(engine) = self.engine.upgrade() {
+                let mut resources = match engine.lock() { Ok(resources) => resources, Err(poisoned) => poisoned.into_inner() };
+                resources.unknown = true;
+                for job in &mut resources.jobs {
+                    if let Some(task) = &job.completion_task { task.abort(); }
+                    if let Some(task) = &job.setup_task { task.abort(); }
+                    if let Some(task) = &job.workflow_task { task.abort(); }
+                }
+            }
+            if let Some(task) = &self.parent_read_task { task.abort(); }
+            if let Some(task) = &self.second_read_task { task.abort(); }
+        }));
+        if let Err(payload) = result { self.drop_panic = Some(payload); }
+    }
+}
+
+fn operator_chat_pending_admission(admission: &crate::jobs::JobAdmission) -> Result<(Uuid, Uuid, Option<String>), WorkflowReserveError> {
+    if !admission.can_submit() { return Err(WorkflowReserveError::AlreadyConsumed); }
+    if !matches!(&admission.command().input().job_kind, JobKind::ModelRun) { return Err(WorkflowReserveError::OwnerMismatch); }
+    let parent = admission.command().input().job_inputs.as_ref()
+        .and_then(Value::as_object).and_then(|map| map.get("parent_session_id"))
+        .and_then(Value::as_str).map(str::trim).filter(|value| !value.is_empty()).map(str::to_owned);
+    Ok((admission.operation_id(), admission.job_id(), parent))
+}
+
+impl OwnedOperatorChatEngineOwner {
+    pub(crate) async fn reserve_initial_submission<'capsule>(
+        &'capsule mut self,
+        initial: crate::swarm_orchestration::operator_chat::OperatorChatInitialOwnersRef<'_>,
+    ) -> Result<WorkflowSubmissionAccess<'capsule>, WorkflowReserveError> {
+        if !self.matches_initial_owners(initial.state(), initial.registry(), initial.first_admission(), initial.second_admission(), initial.original_deadline()) {
+            return Err(WorkflowReserveError::OwnerMismatch);
+        }
+        if !matches!(self.reservation_phase, WorkflowReservationPhase::New) { return Err(WorkflowReserveError::AlreadyConsumed); }
+        if initial.first_admission().job_id() == initial.second_admission().job_id() { return Err(WorkflowReserveError::OwnerMismatch); }
+        let pending = vec![operator_chat_pending_admission(initial.first_admission())?, operator_chat_pending_admission(initial.second_admission())?];
+        self.reserve_pending_admissions(pending, WorkflowReservationPhase::Reserved).await
+    }
+
+    pub(crate) async fn reserve_first_submission<'capsule>(
+        &'capsule mut self,
+        first: crate::swarm_orchestration::operator_chat::OperatorChatFirstOwnerRef<'_>,
+    ) -> Result<WorkflowSubmissionAccess<'capsule>, WorkflowReserveError> {
+        if !self.matches_first_owner_ref(&first) || self.second.is_some() { return Err(WorkflowReserveError::OwnerMismatch); }
+        if !matches!(self.reservation_phase, WorkflowReservationPhase::New) { return Err(WorkflowReserveError::AlreadyConsumed); }
+        let pending = vec![operator_chat_pending_admission(first.first_admission())?];
+        self.reserve_pending_admissions(pending, WorkflowReservationPhase::FirstReserved).await
+    }
+
+    pub(crate) async fn reserve_second_submission<'capsule>(
+        &'capsule mut self,
+        initial: crate::swarm_orchestration::operator_chat::OperatorChatInitialOwnersRef<'_>,
+    ) -> Result<WorkflowSubmissionAccess<'capsule>, WorkflowReserveError> {
+        if !self.matches_initial_owners(initial.state(), initial.registry(), initial.first_admission(), initial.second_admission(), initial.original_deadline()) {
+            return Err(WorkflowReserveError::OwnerMismatch);
+        }
+        if !matches!(self.reservation_phase, WorkflowReservationPhase::SecondBound) { return Err(WorkflowReserveError::AlreadyConsumed); }
+        let pending = vec![operator_chat_pending_admission(initial.second_admission())?];
+        self.reserve_pending_admissions(pending, WorkflowReservationPhase::Reserved).await
+    }
+
+    async fn reserve_pending_admissions<'capsule>(
+        &'capsule mut self,
+        pending: Vec<(Uuid, Uuid, Option<String>)>,
+        success_phase: WorkflowReservationPhase,
+    ) -> Result<WorkflowSubmissionAccess<'capsule>, WorkflowReserveError> {
+        self.reservation_phase = WorkflowReservationPhase::Acquiring;
+        let deadline = self.original_deadline;
+        let registry = self.registry.clone();
+        let state = self.state.clone();
+        let guarded = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
+            let dispatch = registry.dispatch_lock.clone().lock_owned().await;
+            for (_, _, parent) in &pending {
+                if let Some(parent) = parent {
+                    match state.storage.get_model_session(parent).await {
+                        Ok(actual) => {
+                            if !matches!(actual.state, ModelSessionState::Active) { return Err(WorkflowReserveError::RegistryUnknown); }
+                            registry.upsert_session(actual).await;
+                        }
+                        Err(error) => { self.reserve_storage_error = Some(error); return Err(WorkflowReserveError::RegistryUnknown); }
+                    }
+                }
+            }
+            let mut inner = registry.inner.write().await;
+            self.registry_pins.reserve(pending.len() * 2);
+            for (operation_id, job_id, parent) in pending {
+                if inner.session_id_by_job_id.contains_key(&job_id)
+                    || inner.multi_model_session.active_sessions.contains_key(&RegistrySessionKey::PendingJob(job_id))
+                { return Err(WorkflowReserveError::AlreadyConsumed); }
+                if let Some(parent) = &parent {
+                    let parent_entry = inner.multi_model_session.active_sessions
+                        .get_mut(&RegistrySessionKey::Session(parent.clone()))
+                        .ok_or(WorkflowReserveError::RegistryUnknown)?;
+                    let observed_parent = parent_entry.observed().await.ok_or(WorkflowReserveError::RegistryUnknown)?;
+                    if observed_parent.session_id != *parent || !matches!(observed_parent.state, ModelSessionState::Active) {
+                        return Err(WorkflowReserveError::RegistryUnknown);
+                    }
+                    let pin = parent_entry.claim(&self.registry_owner)
+                        .map_err(|_| WorkflowReserveError::OwnerMismatch)?;
+                    self.registry_pins.push(pin);
+                }
+                let mut entry = RegistryModelSession::new(RegistrySessionSlot::PendingAdmission {
+                    operation_id, job_id, parent_session_id: parent,
+                });
+                entry.invocation = Some(OperatorChatOwnedRunAccess {
+                    engine: self.engine.clone(),
+                    slot: if job_id == self.first.job_id { 0 } else { 1 },
+                    job_id,
+                });
+                let pin = entry.claim(&self.registry_owner).map_err(|_| WorkflowReserveError::RegistryUnknown)?;
+                self.registry_pins.push(pin);
+                inner.multi_model_session.active_sessions.insert(RegistrySessionKey::PendingJob(job_id), entry);
+                let engine = self.engine.upgrade().ok_or(WorkflowReserveError::RegistryUnknown)?;
+                let mut resources = engine.lock().map_err(|_| WorkflowReserveError::RegistryUnknown)?;
+                let job = resources.jobs.iter_mut().find(|job| job.job_id == job_id).ok_or(WorkflowReserveError::OwnerMismatch)?;
+                job.submission_reserved = true;
+            }
+            drop(inner);
+            Ok(dispatch)
+        }));
+        match tokio::time::timeout_at(deadline, guarded).await {
+            Ok(Ok(Ok(dispatch))) => {
+                self.reservation_phase = success_phase;
+                Ok(WorkflowSubmissionAccess { _dispatch: dispatch, _capsule: self })
+            }
+            Ok(Ok(Err(error))) => { self.reservation_phase = WorkflowReservationPhase::Unknown; Err(error) }
+            Ok(Err(payload)) => {
+                self.reserve_panic = Some(payload);
+                self.reservation_phase = WorkflowReservationPhase::Unknown;
+                Err(WorkflowReserveError::PanickedUnknown)
+            }
+            Err(_) => { self.reservation_phase = WorkflowReservationPhase::Unknown; Err(WorkflowReserveError::Deadline) }
+        }
+    }
+}
+
+#[derive(Debug)]
 struct SessionRegistryInner {
-    multi_model_session: MultiModelSession,
+    multi_model_session: RegistryMultiModelSession,
     children_by_parent: HashMap<String, HashSet<String>>,
     session_id_by_job_id: HashMap<Uuid, String>,
     worktree_registry: SessionWorktreeRegistry,
@@ -623,7 +1509,7 @@ impl SessionRegistry {
     pub fn new(scheduler_config: SessionSchedulerConfig) -> Self {
         let spawn_limits = SpawnLimits::from_scheduler_config(&scheduler_config);
         let routing_policy = RoutingPolicy::default();
-        let multi_model_session = MultiModelSession {
+        let multi_model_session = RegistryMultiModelSession {
             session_id: "registry-global".to_string(),
             active_sessions: HashMap::new(),
             routing_policy,
@@ -672,21 +1558,27 @@ impl SessionRegistry {
 
     pub async fn active_children_for_parent(&self, parent_session_id: &str) -> usize {
         let inner = self.inner.read().await;
-        inner
-            .children_by_parent
-            .get(parent_session_id)
-            .map(|children| {
-                children
-                    .iter()
-                    .filter(|child_id| {
-                        inner
-                            .multi_model_session
-                            .active_sessions
-                            .contains_key(child_id.as_str())
-                    })
-                    .count()
-            })
-            .unwrap_or(0)
+        let mut count = inner.children_by_parent.get(parent_session_id).map(|children| {
+            children.iter().filter(|child_id| inner.multi_model_session.active_sessions
+                .contains_key(&RegistrySessionKey::Session(child_id.to_string()))).count()
+        }).unwrap_or(0);
+        for (key, row) in &inner.multi_model_session.active_sessions {
+            if !matches!(key, RegistrySessionKey::PendingJob(_)) { continue; }
+            let Some(actual) = row.observation.upgrade() else { continue; };
+            let actual = actual.read().await;
+            let mut slot = &*actual;
+            loop {
+                match slot {
+                    RegistrySessionSlot::Unknown { retained, .. } => slot = retained.as_ref(),
+                    RegistrySessionSlot::PendingAdmission { parent_session_id: Some(parent), .. } => {
+                        if parent == parent_session_id { count += 1; }
+                        break;
+                    }
+                    _ => break,
+                }
+            }
+        }
+        count
     }
 
     pub async fn children_for_parent(&self, parent_session_id: &str) -> Vec<String> {
@@ -700,44 +1592,67 @@ impl SessionRegistry {
 
     pub async fn snapshot(&self) -> MultiModelSession {
         let inner = self.inner.read().await;
-        inner.multi_model_session.clone()
+        let source = &inner.multi_model_session;
+        let mut active_sessions = HashMap::new();
+        for row in source.active_sessions.values() {
+            if let Some(session) = row.observed().await {
+                if !matches!(session.state, ModelSessionState::Completed | ModelSessionState::Failed | ModelSessionState::Cancelled) {
+                    active_sessions.insert(session.session_id.clone(), session);
+                }
+            }
+        }
+        MultiModelSession { session_id: source.session_id.clone(), active_sessions,
+            routing_policy: source.routing_policy.clone(), spawn_limits: source.spawn_limits.clone(),
+            scheduler_config: source.scheduler_config.clone(), last_swap_event: source.last_swap_event.clone() }
     }
-
+    
     pub async fn upsert_session(&self, session: ModelSession) {
         let mut inner = self.inner.write().await;
-        let session_id = session.session_id.clone();
-
-        // Maintain indices
-        if let Some(job_id) = session.job_id {
-            inner
-                .session_id_by_job_id
-                .insert(job_id, session.session_id.clone());
-        }
-        if let Some(parent) = session.parent_session_id.as_deref() {
-            inner
-                .children_by_parent
-                .entry(parent.to_string())
-                .or_default()
-                .insert(session.session_id.clone());
-        }
-
-        // Track active sessions only (per spec language).
-        if matches!(
-            session.state,
-            ModelSessionState::Completed | ModelSessionState::Failed | ModelSessionState::Cancelled
-        ) {
-            inner
-                .multi_model_session
-                .active_sessions
-                .remove(&session_id);
+        let observed_key = RegistrySessionKey::Session(session.session_id.clone());
+        let pending_key = session.job_id.map(RegistrySessionKey::PendingJob);
+        let existing_key = if inner.multi_model_session.active_sessions.contains_key(&observed_key) {
+            Some(observed_key.clone())
         } else {
-            inner
-                .multi_model_session
-                .active_sessions
-                .insert(session_id, session);
+            pending_key.filter(|key| inner.multi_model_session.active_sessions.contains_key(key))
+        };
+        let terminal = matches!(session.state, ModelSessionState::Completed | ModelSessionState::Failed | ModelSessionState::Cancelled);
+        if let Some(key) = existing_key {
+            let row = &inner.multi_model_session.active_sessions[&key];
+            let Some(actual) = row.observation.upgrade() else { return; };
+            let mut actual = actual.write().await;
+            let unmanaged = row.disposition() == handshake_workflow_lifecycle::DispatchDisposition::Unmanaged;
+            let matches = unmanaged || match &*actual {
+                RegistrySessionSlot::PendingAdmission { job_id, parent_session_id, .. } =>
+                    session.job_id == Some(*job_id) && session.parent_session_id == *parent_session_id,
+                RegistrySessionSlot::Observed(previous) => previous.session_id == session.session_id
+                    && previous.job_id == session.job_id && previous.parent_session_id == session.parent_session_id,
+                RegistrySessionSlot::Unknown { .. } => false,
+            };
+            if !matches {
+                let retained = std::mem::replace(&mut *actual, RegistrySessionSlot::Observed(session.clone()));
+                *actual = RegistrySessionSlot::Unknown { retained: Box::new(retained), incoming: session };
+                return;
+            }
+            *actual = RegistrySessionSlot::Observed(session.clone());
+            drop(actual);
+            if terminal && unmanaged {
+                inner.multi_model_session.active_sessions.remove(&key);
+            } else if key != observed_key {
+                // Existing capacity is reused; there is no intervening await after removal.
+                let row = inner.multi_model_session.active_sessions.remove(&key).expect("same locked entry");
+                inner.multi_model_session.active_sessions.insert(observed_key, row);
+            }
+        } else if !terminal {
+            inner.multi_model_session.active_sessions.insert(observed_key, RegistryModelSession::new(RegistrySessionSlot::Observed(session.clone())));
+        }
+        if let Some(job_id) = session.job_id {
+            inner.session_id_by_job_id.insert(job_id, session.session_id.clone());
+        }
+        if let Some(parent) = session.parent_session_id.as_ref() {
+            inner.children_by_parent.entry(parent.clone()).or_default().insert(session.session_id.clone());
         }
     }
-
+    
     pub async fn register_session_worktree_allocation(
         &self,
         allocation: SessionWorktreeAllocation,
@@ -764,60 +1679,46 @@ impl SessionRegistry {
         inner.worktree_registry.remove(session_id)
     }
 
-    pub async fn get_model_session(
+    async fn clear_session_worktree_allocation_if_expected(
         &self,
-        state: &AppState,
-        session_id: &str,
-    ) -> Result<ModelSession, StorageError> {
-        if let Some(found) = self
-            .inner
-            .read()
-            .await
-            .multi_model_session
-            .active_sessions
-            .get(session_id)
-            .cloned()
-        {
-            return Ok(found);
+        expected: SessionWorktreeAllocation,
+    ) -> Result<SessionWorktreeAllocation, OperatorChatAllocationMismatch> {
+        let mut inner = self.inner.write().await;
+        let current = inner.worktree_registry.get(&expected.session_id)
+            .map(|path| SessionWorktreeAllocation::new(expected.session_id.clone(), path.clone()));
+        if current.as_ref() != Some(&expected) {
+            return Err(OperatorChatAllocationMismatch { expected, current });
         }
+        inner.worktree_registry.remove(&expected.session_id)
+            .ok_or(OperatorChatAllocationMismatch { expected, current: None })
+    }
 
-        // Hydrate from storage on cache-miss; registry remains the scheduler/UI read surface.
+    pub async fn get_model_session(&self, state: &AppState, session_id: &str) -> Result<ModelSession, StorageError> {
+        {
+            let inner = self.inner.read().await;
+            if let Some(row) = inner.multi_model_session.active_sessions.get(&RegistrySessionKey::Session(session_id.to_owned())) {
+                if let Some(session) = row.observed().await { return Ok(session); }
+            }
+        }
         let session = state.storage.get_model_session(session_id).await?;
         self.upsert_session(session.clone()).await;
         Ok(session)
     }
-
-    pub async fn get_model_session_by_job_id(
-        &self,
-        state: &AppState,
-        job_id: Uuid,
-    ) -> Result<ModelSession, StorageError> {
-        if let Some(session_id) = self
-            .inner
-            .read()
-            .await
-            .session_id_by_job_id
-            .get(&job_id)
-            .cloned()
+    
+    pub async fn get_model_session_by_job_id(&self, state: &AppState, job_id: Uuid) -> Result<ModelSession, StorageError> {
         {
-            if let Some(found) = self
-                .inner
-                .read()
-                .await
-                .multi_model_session
-                .active_sessions
-                .get(&session_id)
-                .cloned()
-            {
-                return Ok(found);
+            let inner = self.inner.read().await;
+            if let Some(session_id) = inner.session_id_by_job_id.get(&job_id) {
+                if let Some(row) = inner.multi_model_session.active_sessions.get(&RegistrySessionKey::Session(session_id.clone())) {
+                    if let Some(session) = row.observed().await { return Ok(session); }
+                }
             }
         }
-
         let session = state.storage.get_model_session_by_job_id(job_id).await?;
         self.upsert_session(session.clone()).await;
         Ok(session)
     }
-
+    
     pub async fn try_acquire_rate_limit(
         &self,
         provider: &str,
@@ -8619,6 +9520,9 @@ async fn dispatch_model_run_job(state: &AppState, job: AiJob) -> Result<(), Work
             .create_workflow_run(job.job_id, JobState::Running, Some(now))
             .await?
     };
+    if let Ok(access) = OPERATOR_CHAT_OWNED_RUN.try_with(Clone::clone) {
+        access.cache(|slot| slot.workflow_run = Some(workflow_run.clone()))?;
+    }
     state
         .storage
         .heartbeat_workflow(workflow_run.id, now)
@@ -8636,6 +9540,10 @@ async fn dispatch_model_run_job(state: &AppState, job: AiJob) -> Result<(), Work
             started_at: now,
         })
         .await?;
+
+    if let Ok(access) = OPERATOR_CHAT_OWNED_RUN.try_with(Clone::clone) {
+        access.cache(|slot| slot.node = Some(node_exec.clone()))?;
+    }
 
     state
         .storage
@@ -8659,6 +9567,9 @@ async fn dispatch_model_run_job(state: &AppState, job: AiJob) -> Result<(), Work
             Some(job.job_id),
         )
         .await?;
+    if let Ok(access) = OPERATOR_CHAT_OWNED_RUN.try_with(Clone::clone) {
+        access.cache(|slot| slot.session_update = Some(session.clone()))?;
+    }
     state.session_registry.upsert_session(session).await;
     emit_session_state_change_event(
         state,
@@ -8671,6 +9582,25 @@ async fn dispatch_model_run_job(state: &AppState, job: AiJob) -> Result<(), Work
     .await?;
 
     emit_session_scheduler_dispatch_event(state, trace_id, &job, &metadata, queue_wait_ms).await?;
+
+    if let Ok(access) = OPERATOR_CHAT_OWNED_RUN.try_with(Clone::clone) {
+        access.cache(|slot| {
+            slot.workflow_run = Some(workflow_run.clone());
+            slot.node = Some(node_exec.clone());
+        })?;
+        let state_for_run = state.clone();
+        let scoped_access = access.clone();
+        let engine = access.engine.upgrade().ok_or_else(|| WorkflowError::Terminal("operator chat engine owner unavailable".to_owned()))?;
+        let mut resources = engine.lock().map_err(|_| WorkflowError::Terminal("operator chat engine resources unknown".to_owned()))?;
+        let slot = &mut resources.jobs[access.slot];
+        if slot.workflow_task.is_some() || slot.workflow_result.is_some() {
+            return Err(WorkflowError::Terminal("operator chat workflow already started".to_owned()));
+        }
+        slot.workflow_task = Some(tokio::spawn(OPERATOR_CHAT_OWNED_RUN.scope(scoped_access, async move {
+            run_and_finalize_workflow_job(state_for_run, job, workflow_run, node_exec, trace_id, None, None).await
+        })));
+        return Ok(());
+    }
 
     let state_for_run = state.clone();
     let state_for_failure = state.clone();
@@ -8703,7 +9633,19 @@ async fn run_model_run_dispatch_loop(state: AppState) -> Result<(), WorkflowErro
 
     loop {
         let queued = list_queued_model_run_jobs(&state).await?;
-        let Some(next_job) = queued.into_iter().next() else {
+        let next_job = {
+            let inner = state.session_registry.inner.read().await;
+            queued.into_iter().find(|job| {
+                let observed = inner.session_id_by_job_id.get(&job.job_id)
+                    .map(|session_id| RegistrySessionKey::Session(session_id.clone()));
+                let row = observed.as_ref()
+                    .and_then(|key| inner.multi_model_session.active_sessions.get(key))
+                    .or_else(|| inner.multi_model_session.active_sessions.get(&RegistrySessionKey::PendingJob(job.job_id)));
+                row.map(|row| row.disposition() == handshake_workflow_lifecycle::DispatchDisposition::Unmanaged)
+                    .unwrap_or(true)
+            })
+        };
+        let Some(next_job) = next_job else {
             break;
         };
         if matches!(
@@ -8860,6 +9802,9 @@ async fn persist_model_run_session_state(
             Some(job.job_id),
         )
         .await?;
+    if let Ok(access) = OPERATOR_CHAT_OWNED_RUN.try_with(Clone::clone) {
+        access.cache(|slot| slot.session_update = Some(session.clone()))?;
+    }
     state.session_registry.upsert_session(session).await;
     Ok(())
 }
@@ -8870,6 +9815,9 @@ async fn run_model_run_job(
     trace_id: Uuid,
 ) -> Result<RunJobOutcome, WorkflowError> {
     let metadata = parse_model_run_metadata(job)?;
+    if OPERATOR_CHAT_OWNED_RUN.try_with(|_| ()).is_ok() {
+        return run_model_run_job_inner(state, job, trace_id, metadata).await;
+    }
     let timeout_duration = model_run_timeout_duration(metadata.timeout_ms);
     match tokio::time::timeout(
         timeout_duration,
@@ -9212,7 +10160,23 @@ async fn run_model_run_job_inner(
         });
     }
 
-    let completion = match state.llm_client.completion(request).await {
+    let completion_result = if let Ok(access) = OPERATOR_CHAT_OWNED_RUN.try_with(Clone::clone) {
+        let retained = access.completion(state.llm_client.clone(), request).await?;
+        match retained.as_ref() {
+            Ok(Ok(result)) => Ok(result.clone()),
+            Ok(Err(LlmError::RateLimit)) => Err(LlmError::RateLimit),
+            Err(error) if error.is_cancelled() => {
+                let engine = access.engine.upgrade().ok_or_else(|| WorkflowError::Terminal("operator chat invocation custody unknown".to_owned()))?;
+                let reason = engine.lock().map_err(|_| WorkflowError::Terminal("operator chat invocation custody unknown".to_owned()))?
+                    .cancel_reason.clone().unwrap_or_else(|| "operator_chat_cancelled".to_owned());
+                return Ok(RunJobOutcome { state: JobState::Cancelled, status_reason: reason.clone(), output: None, error_message: Some(reason) });
+            }
+            _ => return Err(WorkflowError::OwnedModelRun(OperatorChatOwnedFailure::completion(retained))),
+        }
+    } else {
+        state.llm_client.completion(request).await
+    };
+    let completion = match completion_result {
         Ok(result) => result,
         Err(LlmError::RateLimit) => {
             emit_session_scheduler_rate_limited_event(
@@ -9254,6 +10218,9 @@ async fn run_model_run_job_inner(
             attachments: Vec::new(),
         })
         .await?;
+    if let Ok(access) = OPERATOR_CHAT_OWNED_RUN.try_with(Clone::clone) {
+        access.cache(|slot| slot.stored_message = Some(stored_message.clone()))?;
+    }
     emit_session_message_event(state, trace_id, job, &metadata.session_id, &stored_message).await?;
 
     let output = json!({
@@ -9312,6 +10279,102 @@ async fn finalize_model_run_after_terminal(
     trace_id: Uuid,
     output_payload: Option<&Value>,
 ) -> Result<(), WorkflowError> {
+    let access = OPERATOR_CHAT_OWNED_RUN.try_with(Clone::clone).ok();
+    let Some(access) = access else {
+        return finalize_model_run_after_terminal_inner(state, job, final_status, status_reason, trace_id, output_payload).await;
+    };
+    let cache = access.finalizer()?;
+    {
+        let mut retained = cache.lock().map_err(|_| WorkflowError::Terminal("operator chat finalizer resources unknown".to_owned()))?;
+        if retained.started { return Err(WorkflowError::OwnedModelRun(OperatorChatOwnedFailure::finalizer(cache.clone()))); }
+        retained.started = true;
+    }
+    let result = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(
+        finalize_model_run_after_terminal_inner(state, job, final_status, status_reason, trace_id, output_payload),
+    )).await;
+    {
+        let mut retained = match cache.lock() { Ok(retained) => retained, Err(poisoned) => poisoned.into_inner() };
+        match result {
+            Ok(result) => retained.result = Some(result),
+            Err(payload) => retained.panic = Some(payload),
+        }
+    }
+    if access.finalizer_invocation_settled().await {
+        finish_operator_chat_worktree_cleanup(state, &cache).await;
+    }
+    let failed = {
+        let retained = match cache.lock() { Ok(retained) => retained, Err(_) => return Err(WorkflowError::OwnedModelRun(OperatorChatOwnedFailure::finalizer(cache.clone()))) };
+        retained.panic.is_some() || !matches!(retained.result.as_ref(), Some(Ok(())))
+            || matches!(retained.cleanup_result.as_ref(), Some(Err(_)))
+            || (matches!(retained.worktree_path.as_ref(), Some(Some(_)))
+                && (!matches!(retained.cleanup_result.as_ref(), Some(Ok(()))) || !matches!(retained.cleared_allocation.as_ref(), Some(Ok(_)))))
+    };
+    if failed { Err(WorkflowError::OwnedModelRun(OperatorChatOwnedFailure::finalizer(cache))) } else { Ok(()) }
+}
+
+async fn finish_operator_chat_worktree_cleanup(state: &AppState, cache: &Arc<Mutex<OperatorChatFinalizerCache>>) {
+    let action = {
+        let mut retained = match cache.lock() { Ok(retained) => retained, Err(_) => return };
+        if retained.panic.is_some() { return; }
+        let copied = match (&retained.capture, &retained.terminal_session) {
+            (OperatorChatCapture::Captured(artifact), Some(session)) => session.merge_back_artifact.as_ref() == Some(artifact),
+            (OperatorChatCapture::NotAttempted, Some(_)) => matches!(retained.worktree_path.as_ref(), Some(None)),
+            _ => false,
+        };
+        let terminal = retained.terminal_session.as_ref().map(|session| session.job_id == Some(retained.job_id)
+            && matches!(session.state, ModelSessionState::Completed | ModelSessionState::Failed | ModelSessionState::Cancelled | ModelSessionState::Blocked)).unwrap_or(false);
+        if !copied || !terminal { return; }
+        if retained.cleanup_started { None } else {
+            let (Some(repo), Some(Some(path))) = (&retained.repo_root, &retained.worktree_path) else { return };
+            let action = (repo.clone(), path.clone());
+            retained.cleanup_started = true;
+            Some(action)
+        }
+    };
+    if let Some(action) = action {
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| cleanup_session_worktree(&action.0, &action.1)));
+        let mut retained = match cache.lock() { Ok(retained) => retained, Err(poisoned) => poisoned.into_inner() };
+        match result {
+            Ok(result) => retained.cleanup_result = Some(result),
+            Err(payload) => { retained.panic = Some(payload); return; }
+        }
+    }
+    {
+        let mut retained = match cache.lock() { Ok(retained) => retained, Err(_) => return };
+        if !matches!(retained.cleanup_result.as_ref(), Some(Ok(()))) || retained.allocation_clear_error.is_some() { return; }
+        if !retained.allocation_clear_started {
+            let expected = match &retained.expected_allocation { Some(expected) => expected.clone(), None => return };
+            let registry = state.session_registry.clone();
+            retained.allocation_clear_task = Some(tokio::spawn(async move {
+                registry.clear_session_worktree_allocation_if_expected(expected).await
+            }));
+            retained.allocation_clear_started = true;
+        }
+    }
+    std::future::poll_fn(|cx| {
+        let mut retained = match cache.lock() { Ok(retained) => retained, Err(_) => return std::task::Poll::Ready(()) };
+        if let Some(task) = retained.allocation_clear_task.as_mut() {
+            match Future::poll(Pin::new(task), cx) {
+                std::task::Poll::Pending => return std::task::Poll::Pending,
+                std::task::Poll::Ready(result) => {
+                    match result { Ok(allocation) => retained.cleared_allocation = Some(allocation), Err(error) => retained.allocation_clear_error = Some(error) }
+                    retained.allocation_clear_task = None;
+                }
+            }
+        }
+        std::task::Poll::Ready(())
+    }).await;
+}
+
+async fn finalize_model_run_after_terminal_inner(
+    state: &AppState,
+    job: &AiJob,
+    final_status: &JobState,
+    status_reason: &str,
+    trace_id: Uuid,
+    output_payload: Option<&Value>,
+) -> Result<(), WorkflowError> {
+    let finalizer_cache = OPERATOR_CHAT_OWNED_RUN.try_with(Clone::clone).ok().map(|access| access.finalizer()).transpose()?;
     let metadata = parse_model_run_metadata(job)?;
     let mut session_state = match final_status {
         JobState::Completed | JobState::CompletedWithIssues => ModelSessionState::Completed,
@@ -9330,14 +10393,20 @@ async fn finalize_model_run_after_terminal(
 
     let repo_root =
         repo_root_from_manifest_dir().map_err(|e| WorkflowError::Terminal(e.to_string()))?;
+    if let Some(cache) = &finalizer_cache {
+        cache.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).repo_root = Some(repo_root.clone());
+    }
     let worktree_registry = state.session_registry.snapshot_worktree_registry().await;
     let mut merge_back_artifact = None;
     let mut worktree_path_for_cleanup = None;
-    if let Some(worktree_path) = state
-        .session_registry
-        .get_session_worktree_path(&metadata.session_id)
-        .await
-    {
+    let actual_worktree_path = state.session_registry.get_session_worktree_path(&metadata.session_id).await;
+    if let Some(cache) = &finalizer_cache {
+        let mut retained = cache.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        retained.expected_allocation = actual_worktree_path.as_ref()
+            .map(|path| SessionWorktreeAllocation::new(metadata.session_id.clone(), path.clone()));
+        retained.worktree_path = Some(actual_worktree_path.clone());
+    }
+    if let Some(worktree_path) = actual_worktree_path {
         worktree_path_for_cleanup = Some(worktree_path.clone());
         let workspace_denial = evaluate_session_safety_gates(
             metadata.session_id.as_str(),
@@ -9392,17 +10461,22 @@ async fn finalize_model_run_after_terminal(
         } else {
             match collect_merge_back_artifact(&worktree_path, metadata.session_id.as_str()) {
                 Ok(artifact) => {
-                    if artifact.has_conflicts() {
-                        session_state = ModelSessionState::Blocked;
-                    }
+                    let artifact = if let Some(cache) = &finalizer_cache {
+                        let mut retained = cache.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+                        retained.capture = OperatorChatCapture::Captured(artifact);
+                        match &retained.capture { OperatorChatCapture::Captured(actual) => actual.clone(), _ => unreachable!("capture just retained") }
+                    } else { artifact };
+                    if artifact.has_conflicts() { session_state = ModelSessionState::Blocked; }
                     merge_back_artifact = Some(artifact);
                 }
                 Err(err) => {
-                    tracing::warn!(
-                        "collect_merge_back_artifact failed for session_id={}: {}",
-                        metadata.session_id,
-                        err,
-                    );
+                    if let Some(cache) = &finalizer_cache {
+                        cache.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).capture = OperatorChatCapture::Failed(err);
+                        session_state = ModelSessionState::Blocked;
+                        tracing::warn!("collect_merge_back_artifact failed for owned session_id={}; original error retained", metadata.session_id);
+                    } else {
+                        tracing::warn!("collect_merge_back_artifact failed for session_id={}: {}", metadata.session_id, err);
+                    }
                 }
             }
         }
@@ -9428,6 +10502,9 @@ async fn finalize_model_run_after_terminal(
             merge_back_artifact,
         )
         .await?;
+    if let Some(cache) = &finalizer_cache {
+        cache.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).terminal_session = Some(session.clone());
+    }
     state.session_registry.upsert_session(session).await;
     emit_session_state_change_event(
         state,
@@ -9522,6 +10599,7 @@ async fn finalize_model_run_after_terminal(
     }
 
     kick_model_run_dispatcher(state.clone());
+    if finalizer_cache.is_some() { return Ok(()); }
     if let Some(worktree_path) = worktree_path_for_cleanup {
         if let Err(err) = cleanup_session_worktree(&repo_root, &worktree_path) {
             tracing::warn!(
@@ -9565,6 +10643,28 @@ async fn cancel_model_run_job_no_cascade(
         return Err(WorkflowError::Terminal(
             "cancel_model_run_job only supports job_kind=model_run".to_string(),
         ));
+    }
+    let invocation = {
+        let inner = state.session_registry.inner.read().await;
+        let observed = inner.session_id_by_job_id.get(&job_id).map(|id| RegistrySessionKey::Session(id.clone()));
+        observed.as_ref().and_then(|key| inner.multi_model_session.active_sessions.get(key))
+            .or_else(|| inner.multi_model_session.active_sessions.get(&RegistrySessionKey::PendingJob(job_id)))
+            .and_then(|row| row.invocation.clone())
+    };
+    let owned_invocation = invocation.is_some();
+    if let Some(access) = invocation {
+        let engine = access.engine.upgrade().ok_or_else(|| WorkflowError::Terminal("operator chat invocation custody unknown".to_owned()))?;
+        {
+            let mut resources = engine.lock().map_err(|_| WorkflowError::Terminal("operator chat invocation custody unknown".to_owned()))?;
+            resources.cancel_reason = Some(reason.to_owned());
+        }
+        cancel_operator_chat_invocations(&engine);
+    }
+    let _dispatch = if owned_invocation {
+        Some(state.session_registry.dispatch_lock.clone().lock_owned().await)
+    } else { None };
+    if owned_invocation {
+        job = state.storage.get_ai_job(job_id.to_string().as_str()).await?;
     }
     let trace_id = derive_trace_id(&job, None);
 
@@ -10275,6 +11375,10 @@ async fn run_and_finalize_workflow_job_inner(
         .storage
         .update_workflow_run_status(workflow_run.id, final_status.clone(), error_message.clone())
         .await?;
+
+    if let Ok(access) = OPERATOR_CHAT_OWNED_RUN.try_with(Clone::clone) {
+        access.cache(|slot| slot.completed_run = Some(completed_run.clone()))?;
+    }
 
     if matches!(job.job_kind, JobKind::ModelRun) {
         finalize_model_run_after_terminal(

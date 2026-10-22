@@ -10,6 +10,7 @@ use futures::FutureExt;
 use handshake_core::api::{authority, stage, workspaces};
 use handshake_core::capabilities::CapabilityRegistry;
 use handshake_core::storage::Database;
+use handshake_core::storage::surreal::SurrealDatabase;
 use handshake_core::swarm_orchestration::resource_scope::{
     AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, ExactResourceScopeAttribution,
     OwnerAccountId, ResourceScope, WorkspaceScopeRef,
@@ -105,17 +106,25 @@ struct PublicFixture {
 
 impl PublicFixture {
     async fn create() -> Self {
+        static TRACING: std::sync::Once = std::sync::Once::new();
+        TRACING.call_once(|| {
+            tracing_subscriber::fmt()
+                .with_env_filter("handshake_core::resource_authority=error,handshake_core::local_account_vault=error")
+                .with_writer(std::io::stderr)
+                .try_init()
+                .expect("install public session failure diagnostics");
+        });
         let root = surreal_test_store_support::canonical_artifacts_root_for_proof()
             .expect("verified artifact root");
-        let owner = root.join("WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1")
-            .join("MT-017").join("failure-boundary-readiness").join("kernel-crdt-snapshot");
+        let owner = root.join("WP-KERNEL-012")
+            .join("MT-174").join("snapshot");
         assert!(owner.starts_with(&root), "owned output stays below the verified root");
         std::fs::create_dir_all(&owner).expect("create only the assigned artifact descendant");
         let isolated = IsolatedSurrealTestStore::create_in(&owner).await.expect("own isolated durable store");
         let channel = NativeChannel::create(&owner);
         let capabilities = Arc::new(CapabilityRegistry::new());
         capabilities.profile_by_id("Operator").expect("canonical Operator capabilities");
-        let database: Arc<dyn Database> = Arc::new(isolated.storage().clone());
+        let database: Arc<dyn Database> = Arc::new(SurrealDatabase::new(isolated.storage().clone()));
         let bootstrap = AccountBootstrapState::new(
             database.clone(), isolated.storage().clone(), capabilities.clone(),
         );
@@ -249,7 +258,7 @@ impl PublicFixture {
         self.isolated.reopen().await.expect("all derived clones dropped before same-store reopen");
         assert_eq!(identity, (self.isolated.store_path().to_owned(), self.isolated.namespace().to_owned(),
             self.isolated.database().to_owned()));
-        let database: Arc<dyn Database> = Arc::new(self.isolated.storage().clone());
+        let database: Arc<dyn Database> = Arc::new(SurrealDatabase::new(self.isolated.storage().clone()));
         self.bootstrap = Some(AccountBootstrapState::new(database.clone(), self.isolated.storage().clone(),
             self.capabilities.clone()));
         self.database = Some(database);
@@ -350,7 +359,7 @@ fn real_model_and_operator_yjs_bytes_converge_under_order_and_duplicate_delivery
             let independently_decoded = Doc::new();
             apply(&independently_decoded, &update.bytes);
             assert_eq!(independently_decoded.transact().state_vector().encode_v1(), update.vector);
-            assert_eq!(independently_decoded.transact().state_vector().get(&update.client_id), update.text.len() as u32);
+            assert_eq!(independently_decoded.transact().state_vector().get(&yrs::ClientID::new(update.client_id)), update.text.len() as u32);
             apply(&document, &update.bytes);
             let before_duplicate = document.transact().state_vector().encode_v1();
             apply(&document, &update.bytes);

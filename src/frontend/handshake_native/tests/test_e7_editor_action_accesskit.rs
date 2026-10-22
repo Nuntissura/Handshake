@@ -710,44 +710,184 @@ fn ac01_rich_root_click_activates_the_live_editor() {
     );
 }
 
-// ── AC-041-08: language-picker gap is present-but-disabled (typed limitation, not a mock no-op) ───
+// ── AC-041-08: canonical language action follows the host's actual target ───────────────────────
 
 #[test]
-fn ac08_language_picker_gap_is_disabled_not_mocked() {
-    let (_panel, _registry, mut harness) = code_harness();
+fn ac08_language_picker_opens_statusbar_and_applies_selection() {
+    use egui_kittest::kittest::Queryable;
+    use handshake_native::code_editor::language_mode::{DetectionSource, LanguageId};
+    use handshake_native::interop::InteractionBus;
+    use handshake_native::top_menu_bar::{
+        EditorMetaSegmentState, EditorSegment, EditorSegmentAction, EditorStatusSegments,
+    };
+
+    let panel = Arc::new(CodeEditorPanel::new("fn main() {}\n", "rs"));
+    let other = Arc::new(CodeEditorPanel::new("other()\n", "rs"));
+    panel.set_host_render_pane_id(Some(Arc::from("e7-code-owner")));
+    other.set_host_render_pane_id(Some(Arc::from("e7-code-other")));
+    let registry = Arc::new(Mutex::new(EditorActionRegistry::new()));
+    panel.install_editor_action_registry(Arc::clone(&registry), 0);
+    // The shell's selected document is independent of its bus focus owner.
+    let active = Arc::new(Mutex::new(None::<Arc<CodeEditorPanel>>));
+    let active_ui = Arc::clone(&active);
+    let panel_ui = Arc::clone(&panel);
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(800.0, 320.0))
+        .build_ui(move |ui| {
+            let owner = active_ui.lock().unwrap().clone();
+            CodeEditorPanel::sync_language_picker_target(ui.ctx(), owner.as_ref());
+            let state = owner.as_ref().map(|panel| EditorMetaSegmentState::from_panel(panel));
+            egui::TopBottomPanel::bottom("e7_language_statusbar").show(ui.ctx(), |ui| {
+                ui.horizontal(|ui| {
+                    if let Some(EditorSegmentAction::SetLanguage(language)) =
+                        EditorStatusSegments::new(state.clone()).show(ui)
+                    {
+                        if let Some(owner) = owner.as_ref() {
+                            assert!(owner.apply_language_picker_selection(ui.ctx(), language));
+                        }
+                    }
+                });
+            });
+            panel_ui.show(ui);
+        });
+    let bus = InteractionBus::get_or_init(&harness.ctx);
+    InteractionBus::with_try_lock(&bus, |bus| bus.set_focus_owner(Arc::from("e7-non-code")))
+        .expect("bus");
     harness.run();
     harness.run();
-    let root = harness.root();
-    // The node IS present (discoverable) but DISABLED (a dispatch is rejected, never a silent no-op).
-    let node = find_node(&root, "editor.code.language-picker-open")
-        .expect("AC-041-08: language-picker-open node is present (discoverable)");
-    assert!(
-        node.disabled,
-        "AC-041-08: editor.code.language-picker-open is a typed gap -> present but DISABLED"
-    );
-    println!("AC-041-08: language-picker-open present-but-disabled (typed gap, no mock no-op)");
+    let node = find_node(&harness.root(), "editor.code.language-picker-open").expect("action");
+    assert!(node.disabled, "non-Code host focus fails closed");
+    harness.event(click_event(node.node_id));
+    harness.run();
+    assert!(find_node(&harness.root(), "status-bar-language-mode-picker").is_none());
+
+    *active.lock().unwrap() = Some(Arc::clone(&other));
+    InteractionBus::with_try_lock(&bus, |bus| bus.set_focus_owner(Arc::from("e7-code-other")))
+        .expect("bus");
+    harness.run();
+    harness.run();
+    let node = find_node(&harness.root(), "editor.code.language-picker-open").expect("action");
+    assert!(node.disabled, "another active Code pane cannot own this action");
+    harness.event(click_event(node.node_id));
+    harness.run();
+    assert!(find_node(&harness.root(), "status-bar-language-mode-picker").is_none());
+    assert_ne!(other.resolved_language().source, DetectionSource::UserOverride);
+
+    *active.lock().unwrap() = Some(Arc::clone(&panel));
+    InteractionBus::with_try_lock(&bus, |bus| bus.set_focus_owner(Arc::from("e7-code-owner")))
+        .expect("bus");
+    harness.run();
+    harness.run();
+    let node = find_node(&harness.root(), "editor.code.language-picker-open").expect("action");
+    assert!(!node.disabled);
+    harness.event(click_event(node.node_id));
+    harness.run();
+    harness.run();
+    assert!(find_node(&harness.root(), "status-bar-language-mode-picker").is_some());
+    // A document/focus switch cancels the opening origin instead of retargeting its selection.
+    *active.lock().unwrap() = Some(Arc::clone(&other));
+    InteractionBus::with_try_lock(&bus, |bus| bus.set_focus_owner(Arc::from("e7-code-other")))
+        .expect("bus");
+    harness.run();
+    assert!(find_node(&harness.root(), "status-bar-language-mode-picker").is_none());
+    assert!(!other.apply_language_picker_selection(&harness.ctx, LanguageId::new("javascript")));
+    assert_ne!(panel.resolved_language().source, DetectionSource::UserOverride);
+    assert_ne!(other.resolved_language().source, DetectionSource::UserOverride);
+
+    *active.lock().unwrap() = Some(Arc::clone(&panel));
+    InteractionBus::with_try_lock(&bus, |bus| bus.set_focus_owner(Arc::from("e7-code-owner")))
+        .expect("bus");
+    harness.run();
+    harness.run();
+    let node = find_node(&harness.root(), "editor.code.language-picker-open").expect("action");
+    harness.event(click_event(node.node_id));
+    harness.run();
+    harness.run();
+    harness.get_by_label("JavaScript").click();
+    harness.run();
+    harness.run();
+    assert_eq!(panel.resolved_language().source, DetectionSource::UserOverride);
+    assert_eq!(panel.resolved_language().detected.as_str(), "javascript");
+    assert_ne!(other.resolved_language().source, DetectionSource::UserOverride);
+    // Ordinary statusbar opens have no per-pane action origin and still use the live host owner.
+    let popup = EditorStatusSegments::picker_popup_id(EditorSegment::LanguageMode);
+    egui::Popup::open_id(&harness.ctx, popup);
+    harness.run();
+    harness.run();
+    harness.get_by_label("Python").click();
+    harness.run();
+    harness.run();
+    assert_eq!(panel.resolved_language().detected.as_str(), "python");
 }
 
-// ── AC-041-08: format gap is present-but-disabled (NOT aliased to IndentLine while enabled) ───────
+// ── AC-041-08: format tracks the live provider and dispatches through AccessKit ─────────────────
 
 #[test]
-fn ac08_format_gap_is_disabled_not_aliased_to_indent() {
-    let (_panel, _registry, mut harness) = code_harness();
+fn ac08_format_tracks_live_formatter_and_dispatches_document() {
+    use handshake_native::code_editor::lsp_client::LspClient;
+
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2).enable_all().build().expect("runtime");
+    let _guard = rt.enter();
+    let (panel, _registry, mut harness) = code_harness();
     harness.run();
     harness.run();
-    let root = harness.root();
-    // IN-041-03 specifies `format` = "format document via LSP or built-in formatter". CodeEditorAction
-    // has NO Format variant (only IndentLine), so `format` is a TYPED gap: present (discoverable) but
-    // DISABLED, exactly like language-picker — never a silent alias to IndentLine while enabled
-    // (that would be the mock-in-disguise AC-041-08 forbids).
-    let node = find_node(&root, "editor.code.format")
-        .expect("AC-041-08: format node is present (discoverable)");
-    assert!(
-        node.disabled,
-        "AC-041-08: editor.code.format is a typed gap (no native format-document action) -> present \
-         but DISABLED, not aliased to IndentLine while enabled"
-    );
-    println!("AC-041-08: editor.code.format present-but-disabled (typed gap, not a silent IndentLine alias)");
+    assert!(!panel.formatter_available(), "no formatter attached");
+    let before = panel.buffer().to_string();
+    let node = find_node(&harness.root(), "editor.code.format")
+        .expect("format node present");
+    assert!(node.disabled, "no formatter -> disabled");
+    harness.event(click_event(node.node_id));
+    harness.run();
+    harness.run();
+    assert_eq!(panel.buffer().to_string(), before, "no formatter -> no edit");
+
+    panel.set_file_path("/tmp/e7_accesskit_format.rs");
+    let client = LspClient::disabled();
+    client.set_formatting_capability_for_test(true, true);
+    let mut server = client.install_test_transport();
+    panel.set_lsp_client(Arc::new(client));
+    panel.set_runtime(rt.handle().clone());
+    let server_panel = Arc::clone(&panel);
+    let formatted = "fn main() {\n    let formatted = 2;\n}\n";
+    let reply = rt.spawn(async move {
+        let lsp = server_panel.lsp_client();
+        let request = lsp.read_test_request().await.expect("framed format request");
+        assert_eq!(request["method"], "textDocument/formatting");
+        let response = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": request.get("id").cloned().expect("request id"),
+            "result": [{
+                "range": {
+                    "start": { "line": 0, "character": 0 },
+                    "end": { "line": 3, "character": 0 }
+                },
+                "newText": formatted
+            }]
+        });
+        use tokio::io::AsyncWriteExt;
+        server.write_all(&LspClient::frame_message_for_test(&response)).await.expect("reply");
+        server.flush().await.expect("flush");
+    });
+    harness.run();
+    harness.run();
+    assert!(panel.formatter_available(), "running transport advertises formatting");
+    let node = find_node(&harness.root(), "editor.code.format").expect("format node");
+    assert!(!node.disabled, "live formatter enables canonical action");
+    harness.event(click_event(node.node_id));
+    for _ in 0..40 {
+        harness.run();
+        if panel.buffer().to_string() == formatted {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    assert_eq!(panel.buffer().to_string(), formatted,
+        "AccessKit format applies the LSP reply, not an IndentLine alias");
+    rt.block_on(async {
+        tokio::time::timeout(std::time::Duration::from_secs(5), reply)
+            .await.expect("reply completed").expect("server task");
+    });
 }
 
 // ── must-fix #3/#4: dispatch editor.code.find-toggle-case via AccessKit -> the option FLIPS ────────

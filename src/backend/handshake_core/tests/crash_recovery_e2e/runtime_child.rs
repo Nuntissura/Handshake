@@ -847,7 +847,7 @@ mod full_main_shutdown {
 
     #[cfg(windows)]
     fn cancel_owned_thread(task: &JoinHandle<()>) -> io::Result<()> {
-        use std::os::windows::thread::JoinHandleExt;
+        use std::os::windows::io::AsRawHandle;
         use windows_sys::Win32::{Foundation::ERROR_NOT_FOUND, System::IO::CancelSynchronousIo};
         if task.is_finished() { return Ok(()); }
         if unsafe { CancelSynchronousIo(task.as_raw_handle()) } != 0 { return Ok(()); }

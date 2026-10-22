@@ -42,7 +42,9 @@ async fn run_session_vault_operation<T: Send + 'static>(
     .map_err(|error| {
         #[cfg(test)]
         eprintln!("LOCAL_ACCOUNT_TEST_FAILURE phase=vault_worker error={error}");
-        let _ = error;
+        tracing::error!(target: "handshake_core::resource_authority",
+            phase = "vault_worker", cancelled = error.is_cancelled(), panicked = error.is_panic(),
+            "local_authority_session_bootstrap_failed");
         constant_denial()
     })
 }
@@ -400,14 +402,730 @@ fn account_routes(
     state: AccountBootstrapState,
     activation: Option<tokio::sync::mpsc::Sender<WorkspaceActivationRequest>>,
 ) -> Router {
-    Router::new()
+    let router = Router::new()
         .route("/authority/setup", get(setup_status).post(setup_owner))
         .route("/authority/login", post(login_owner))
         .route("/authority/session", get(current_session).post(session_operation))
         .route("/authority/workspaces/{workspace_id}/activation/{operation_id}", get(workspace_activation_observation))
         .route("/authority/logout", post(logout))
-        .layer(axum::Extension(activation))
-        .with_state(state)
+        ;
+    #[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+    let router = router
+        .route("/authority/member-enrollments", post(issue_member_enrollment))
+        .route("/authority/member-enrollments/:operation_id", get(observe_member_enrollment))
+        .route("/authority/member-enrollments/:operation_id/redeem", post(redeem_member_enrollment))
+        .route("/authority/member-enrollments/:operation_id/revoke", post(revoke_member_enrollment))
+        .route("/authority/member-enrollment-administrator/confirmation", post(confirm_first_owner_administration));
+    router.layer(axum::Extension(activation)).with_state(state)
+}
+
+
+// NEW authority.rs input boundary for the four selected enrollment routes.
+// No route is mounted by this candidate. Account's server-current constructors,
+// canonical recipient descriptor lookup and Update revocation are dependencies.
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberEnrollmentSecret(zeroize::Zeroizing<String>);
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl<'de> serde::Deserialize<'de> for MemberEnrollmentSecret {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = <String as serde::Deserialize>::deserialize(deserializer)?;
+        Ok(Self(zeroize::Zeroizing::new(value)))
+    }
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberEnrollmentSecret {
+    fn into_zeroizing(self) -> zeroize::Zeroizing<String> {
+        self.0
+    }
+
+    fn into_owned(self) -> String {
+        let mut value = self.0;
+        std::mem::take(&mut *value)
+    }
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MemberEnrollmentIssueRequest {
+    // Untrusted candidate operation UUID. Account admits the immutable
+    // original once and compares complete selectors and credentials on replay.
+    request_id: uuid::Uuid,
+    account_name: String,
+    workspace_id: String,
+    administrator_resource: String,
+    current_password: MemberEnrollmentSecret,
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MemberEnrollmentRedeemRequest {
+    invitation_secret: MemberEnrollmentSecret,
+    password: MemberEnrollmentSecret,
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MemberEnrollmentRevokeRequest {
+    request_id: uuid::Uuid,
+    workspace_id: String,
+    administrator_resource: String,
+    current_password: MemberEnrollmentSecret,
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+fn member_enrollment_request<T>(
+    request: Result<axum::Json<T>, axum::extract::rejection::JsonRejection>,
+) -> Result<T, (axum::http::StatusCode, axum::Json<serde_json::Value>)> {
+    match request {
+        Ok(axum::Json(request)) => Ok(request),
+        // Never display/debug/log decoder errors or reflect submitted values.
+        Err(_) => Err(constant_denial()),
+    }
+}
+
+// NEW retained HTTP caller owner for api::authority.rs.
+// One instance per actual storage owner, supplied as a mandatory Extension.
+// No public auth constructor, caller proof map, new credential or global registry.
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+mod member_enrollment_http_owner {
+    use super::*;
+    use crate::model_runtime::cloud::member_enrollment as invitation;
+    use crate::storage::surreal::{SurrealStorage, resource_authority as account};
+    use std::{collections::HashMap, future::Future, sync::{Arc, Mutex, OnceLock}};
+
+    pub(crate) enum WorkerFailure<E> { Outcome(E), Join(tokio::task::JoinError), Unobserved }
+    struct WorkerState<T, E> {
+        handle: Option<tokio::task::JoinHandle<Result<T, E>>>,
+        outcome: Option<Arc<Result<T, WorkerFailure<E>>>>,
+    }
+    pub(crate) struct Worker<T, E> { state: tokio::sync::Mutex<WorkerState<T, E>> }
+    impl<T: Send + Sync + 'static, E: Send + Sync + 'static> Worker<T, E> {
+        fn unstarted() -> Self {
+            Self { state: tokio::sync::Mutex::new(WorkerState { handle: None, outcome: None }) }
+        }
+        fn start(&self, future: impl Future<Output = Result<T, E>> + Send + 'static) {
+            let mut state = self.state.try_lock().expect("new retained HTTP worker");
+            assert!(state.handle.is_none() && state.outcome.is_none());
+            state.handle = Some(tokio::spawn(future));
+        }
+        pub(crate) async fn wait(&self) -> Arc<Result<T, WorkerFailure<E>>> {
+            let mut state = self.state.lock().await;
+            if let Some(outcome) = &state.outcome { return outcome.clone(); }
+            let outcome = match state.handle.as_mut() {
+                Some(handle) => match handle.await {
+                    Ok(Ok(value)) => Ok(value),
+                    Ok(Err(error)) => Err(WorkerFailure::Outcome(error)),
+                    Err(error) => Err(WorkerFailure::Join(error)),
+                },
+                None => Err(WorkerFailure::Unobserved),
+            };
+            state.handle.take();
+            let outcome = Arc::new(outcome);
+            state.outcome = Some(outcome.clone());
+            outcome
+        }
+    }
+
+    struct IssueInput {
+        operation: uuid::Uuid,
+        account_name: String,
+        workspace: String,
+        administrator_resource: String,
+        credentials: account::RoleAuthorityAuthInput,
+        password: zeroize::Zeroizing<String>,
+    }
+    impl IssueInput {
+        fn selectors(&self) -> account::MemberInvitationIssueSelectors {
+            account::MemberInvitationIssueSelectors {
+                operation_id: self.operation, account_name: self.account_name.clone(),
+                workspace_id: self.workspace.clone(), administrator_resource: self.administrator_resource.clone(),
+            }
+        }
+    }
+    pub(crate) enum IssueFailure {
+        Capture(account::MemberInvitationIssueSeedError),
+        Admission(account::MemberInvitationIssueBoundaryError),
+        DifferentOriginal { retained: invitation::Ticket },
+        RegistryPoisoned { retained: invitation::Ticket },
+    }
+    pub(crate) struct IssueFrame {
+        input: IssueInput,
+        seed: Arc<account::MemberInvitationIssueSeed>,
+        pub(crate) worker: Worker<invitation::Ticket, IssueFailure>,
+        submission: OnceLock<invitation::OriginalSubmission>,
+        delivery: OnceLock<Result<Arc<account::MemberInvitationDeliveryFrame>, Arc<invitation::AccountError>>>,
+    }
+    impl IssueFrame {
+        pub(crate) fn operation_id(&self) -> uuid::Uuid { self.input.operation }
+        fn matches(&self, storage: &SurrealStorage, input: &IssueInput) -> bool {
+            self.seed.matches_redelivery(storage, &input.selectors(), &input.credentials)
+                && self.input.password.as_str() == input.password.as_str()
+        }
+        async fn issue(self: Arc<Self>, owner: Arc<MemberEnrollmentHttpRuntime>)
+            -> Result<invitation::Ticket, IssueFailure> {
+            let captured = owner.storage.capture_member_invitation_submission(
+                self.seed.clone(), owner.registry.clone(),
+            ).await.map_err(IssueFailure::Capture)?;
+            let original = captured.original().clone();
+            let _ = self.submission.set(original.clone());
+            let ticket = owner.storage.admit_original_member_invitation(
+                &owner.lifecycle, owner.registry.clone(), self.input.credentials.clone(),
+                original, self.input.password.as_str().to_owned(),
+            ).await.map_err(IssueFailure::Admission)?;
+            owner.note_issued(&self, &ticket)?;
+            Ok(ticket)
+        }
+    }
+
+    pub(crate) enum ReadOutput {
+        Issuer(account::MemberInvitationMetadata),
+        RevokeMetadata(account::MemberRevocationMetadata),
+        RevokeReceipt(account::MemberRevocationObserved),
+    }
+    pub(crate) enum ReadFailure {
+        Issuer(invitation::AccountError),
+        Authority(account::ResourceAuthorityError),
+        Deadline,
+    }
+    enum ReadInput {
+        Issuer { operation: uuid::Uuid, credentials: account::RoleAuthorityAuthInput },
+        RevokeMetadata { operation: uuid::Uuid, workspace: String, administrator_resource: String,
+            credentials: account::RoleAuthorityAuthInput },
+        RevokeReceipt { operation: uuid::Uuid, request: uuid::Uuid, workspace: String,
+            administrator_resource: String, credentials: account::RoleAuthorityAuthInput },
+    }
+    pub(crate) struct ReadFrame {
+        input: ReadInput,
+        deadline: tokio::time::Instant,
+        pub(crate) worker: Worker<ReadOutput, ReadFailure>,
+    }
+    impl ReadFrame {
+        async fn read(self: Arc<Self>, owner: Arc<MemberEnrollmentHttpRuntime>)
+            -> Result<ReadOutput, ReadFailure> {
+            if tokio::time::Instant::now() >= self.deadline { return Err(ReadFailure::Deadline); }
+            SurrealStorage::with_operation_deadline(self.deadline.into_std(), async {
+                match &self.input {
+                    ReadInput::Issuer { operation, credentials } =>
+                        owner.storage.current_member_invitation_metadata(
+                            *operation, owner.registry.clone(), credentials.clone(), self.deadline,
+                        ).await.map(ReadOutput::Issuer).map_err(ReadFailure::Issuer),
+                    ReadInput::RevokeMetadata { operation, workspace, administrator_resource, credentials } =>
+                        owner.storage.current_member_revocation_metadata(
+                            &owner.registry, credentials.clone(), *operation, workspace, administrator_resource,
+                        ).await.map(ReadOutput::RevokeMetadata).map_err(ReadFailure::Authority),
+                    ReadInput::RevokeReceipt { operation, request, workspace, administrator_resource, credentials } =>
+                        owner.storage.observe_server_member_revocation(
+                            &owner.registry, credentials.clone(), *request, *operation, workspace, administrator_resource,
+                        ).await.map(ReadOutput::RevokeReceipt).map_err(ReadFailure::Authority),
+                }
+            }).await
+        }
+    }
+
+    enum RejectionReason { Closing, Poisoned, DifferentOriginal, Seed(invitation::AccountError), Deadline }
+    enum RejectedInput { Issue(IssueInput), Read(ReadInput) }
+    pub(crate) struct Rejected { _input: RejectedInput, _reason: RejectionReason }
+    struct Admissions {
+        closing: bool,
+        issues: HashMap<uuid::Uuid, Arc<IssueFrame>>,
+        submissions: Vec<Arc<IssueFrame>>,
+        reads: Vec<Arc<ReadFrame>>,
+        deliveries: Vec<Arc<account::MemberInvitationDeliveryFrame>>,
+        rejected: Vec<Arc<Rejected>>,
+    }
+    pub(crate) struct MemberEnrollmentHttpRuntime {
+        storage: SurrealStorage,
+        registry: Arc<crate::capabilities::CapabilityRegistry>,
+        lifecycle: Arc<invitation::InvitationLifecycle>,
+        admission: Mutex<Admissions>,
+    }
+    pub(crate) struct MemberEnrollmentHttpShutdownInventory {
+        pub(crate) healthy: bool,
+        pub(crate) issues: Vec<Arc<IssueFrame>>,
+        pub(crate) reads: Vec<Arc<ReadFrame>>,
+        pub(crate) deliveries: Vec<Arc<account::MemberInvitationDeliveryFrame>>,
+    }
+    impl MemberEnrollmentHttpRuntime {
+        pub(crate) fn new(storage: SurrealStorage,
+            registry: Arc<crate::capabilities::CapabilityRegistry>,
+            lifecycle: Arc<invitation::InvitationLifecycle>) -> Arc<Self> {
+            Arc::new(Self { storage, registry, lifecycle, admission: Mutex::new(Admissions {
+                closing: false, issues: HashMap::new(), submissions: Vec::new(), reads: Vec::new(),
+                deliveries: Vec::new(), rejected: Vec::new(),
+            }) })
+        }
+        pub(crate) fn begin_shutdown(&self) -> MemberEnrollmentHttpShutdownInventory {
+            let (mut gate, healthy) = match self.admission.lock() {
+                Ok(gate) => (gate, true), Err(poisoned) => (poisoned.into_inner(), false),
+            };
+            gate.closing = true;
+            MemberEnrollmentHttpShutdownInventory {
+                healthy, issues: gate.submissions.clone(),
+                reads: gate.reads.clone(), deliveries: gate.deliveries.clone(),
+            }
+        }
+        pub(super) fn registry(&self) -> Arc<crate::capabilities::CapabilityRegistry> {
+            self.registry.clone()
+        }
+        pub(super) fn begin_issue(self: &Arc<Self>, request: MemberEnrollmentIssueRequest,
+            credentials: account::RoleAuthorityAuthInput) -> Result<Arc<IssueFrame>, Arc<Rejected>> {
+            let input = IssueInput {
+                operation: request.request_id, account_name: request.account_name, workspace: request.workspace_id,
+                administrator_resource: request.administrator_resource, credentials,
+                password: request.current_password.into_zeroizing(),
+            };
+            let (mut gate, poisoned) = match self.admission.lock() {
+                Ok(gate) => (gate, false), Err(poisoned) => (poisoned.into_inner(), true),
+            };
+            let reason = if poisoned { Some(RejectionReason::Poisoned) }
+                else if gate.closing { Some(RejectionReason::Closing) }
+                else { None };
+            if let Some(reason) = reason {
+                gate.closing |= poisoned;
+                let rejected = Arc::new(Rejected { _input: RejectedInput::Issue(input), _reason: reason });
+                gate.rejected.push(rejected.clone()); return Err(rejected);
+            }
+            if let Some(frame) = gate.issues.get(&input.operation) {
+                if frame.matches(&self.storage, &input) { return Ok(frame.clone()); }
+                let rejected = Arc::new(Rejected {
+                    _input: RejectedInput::Issue(input), _reason: RejectionReason::DifferentOriginal,
+                });
+                gate.rejected.push(rejected.clone()); return Err(rejected);
+            }
+            if let Some(frame) = gate.submissions.iter().find(|frame| frame.matches(&self.storage, &input)) {
+                return Ok(frame.clone());
+            }
+            let seed = match account::MemberInvitationIssueSeed::new(
+                &self.storage, input.selectors(), input.credentials.clone(),
+            ) {
+                Ok(seed) => seed,
+                Err(error) => {
+                    let rejected = Arc::new(Rejected {
+                        _input: RejectedInput::Issue(input), _reason: RejectionReason::Seed(error),
+                    });
+                    gate.rejected.push(rejected.clone()); return Err(rejected);
+                }
+            };
+            let frame = Arc::new(IssueFrame {
+                input, seed, worker: Worker::unstarted(), submission: OnceLock::new(), delivery: OnceLock::new(),
+            });
+            gate.submissions.push(frame.clone());
+            // The strong original frame is registered before the first worker poll.
+            frame.worker.start(frame.clone().issue(self.clone()));
+            Ok(frame)
+        }
+
+        fn note_issued(&self, frame: &Arc<IssueFrame>, ticket: &invitation::Ticket)
+            -> Result<(), IssueFailure> {
+            let mut gate = match self.admission.lock() {
+                Ok(gate) => gate,
+                Err(poisoned) => {
+                    poisoned.into_inner().closing = true;
+                    return Err(IssueFailure::RegistryPoisoned { retained: ticket.clone() });
+                }
+            };
+            if !gate.submissions.iter().any(|old| Arc::ptr_eq(old, frame)) {
+                return Err(IssueFailure::DifferentOriginal { retained: ticket.clone() });
+            }
+            if let Some(original) = gate.issues.get(&frame.operation_id()) {
+                if !Arc::ptr_eq(original, frame) {
+                    return Err(IssueFailure::DifferentOriginal { retained: ticket.clone() });
+                }
+            } else {
+                // Only genuine Account admission can promote a canonical issue.
+                // Unauthenticated/failed submissions never claim this UUID.
+                gate.issues.insert(frame.operation_id(), frame.clone());
+            }
+            Ok(())
+        }
+
+        fn begin_read(self: &Arc<Self>, input: ReadInput) -> Result<Arc<ReadFrame>, Arc<Rejected>> {
+            let (mut gate, poisoned) = match self.admission.lock() {
+                Ok(gate) => (gate, false), Err(poisoned) => (poisoned.into_inner(), true),
+            };
+            let budget = self.storage.config().statement_timeout().min(std::time::Duration::from_secs(60));
+            let deadline = tokio::time::Instant::now().checked_add(budget);
+            let reason = if poisoned { Some(RejectionReason::Poisoned) }
+                else if gate.closing { Some(RejectionReason::Closing) }
+                else if deadline.is_none() { Some(RejectionReason::Deadline) } else { None };
+            if let Some(reason) = reason {
+                gate.closing |= poisoned;
+                let rejected = Arc::new(Rejected { _input: RejectedInput::Read(input), _reason: reason });
+                gate.rejected.push(rejected.clone()); return Err(rejected);
+            }
+            let frame = Arc::new(ReadFrame {
+                input, deadline: deadline.expect("checked HTTP read deadline"), worker: Worker::unstarted(),
+            });
+            gate.reads.push(frame.clone());
+            frame.worker.start(frame.clone().read(self.clone()));
+            Ok(frame)
+        }
+        pub(super) fn issuer_metadata(self: &Arc<Self>, operation: uuid::Uuid,
+            credentials: account::RoleAuthorityAuthInput) -> Result<Arc<ReadFrame>, Arc<Rejected>> {
+            self.begin_read(ReadInput::Issuer { operation, credentials })
+        }
+        pub(super) fn revoke_metadata(self: &Arc<Self>, operation: uuid::Uuid, workspace: String,
+            administrator_resource: String, credentials: account::RoleAuthorityAuthInput)
+            -> Result<Arc<ReadFrame>, Arc<Rejected>> {
+            self.begin_read(ReadInput::RevokeMetadata { operation, workspace, administrator_resource, credentials })
+        }
+        pub(super) fn revoke_receipt(self: &Arc<Self>, operation: uuid::Uuid, request: uuid::Uuid,
+            workspace: String, administrator_resource: String, credentials: account::RoleAuthorityAuthInput)
+            -> Result<Arc<ReadFrame>, Arc<Rejected>> {
+            self.begin_read(ReadInput::RevokeReceipt { operation, request, workspace, administrator_resource, credentials })
+        }
+        pub(super) fn delivery(&self, frame: &Arc<IssueFrame>)
+            -> Option<Result<Arc<account::MemberInvitationDeliveryFrame>, Arc<invitation::AccountError>>> {
+            let mut gate = self.admission.lock().ok()?;
+            if gate.closing || !gate.issues.get(&frame.operation_id()).is_some_and(|old| Arc::ptr_eq(old, frame)) {
+                return None;
+            }
+            let original = frame.submission.get()?;
+            let delivery = frame.delivery.get_or_init(|| account::MemberInvitationDeliveryFrame::start(
+                &self.storage, self.registry.clone(), frame.input.credentials.clone(),
+                frame.operation_id(), original.original_deadline,
+            ).map_err(Arc::new));
+            match delivery {
+                Ok(delivery) => {
+                    if !gate.deliveries.iter().any(|old| Arc::ptr_eq(old, delivery)) {
+                        gate.deliveries.push(delivery.clone());
+                    }
+                    Some(Ok(delivery.clone()))
+                }
+                Err(error) => Some(Err(error.clone())),
+            }
+        }
+    }
+    pub(crate) struct MemberEnrollmentHttpShutdownReport {
+        pub(crate) complete: bool,
+        _issues: Vec<Arc<Result<invitation::Ticket, WorkerFailure<IssueFailure>>>>,
+        _reads: Vec<Arc<Result<ReadOutput, WorkerFailure<ReadFailure>>>>,
+        _deliveries: Vec<Result<(), Arc<tokio::task::JoinError>>>,
+    }
+    impl MemberEnrollmentHttpShutdownInventory {
+        pub(crate) async fn drain(&self) -> Arc<MemberEnrollmentHttpShutdownReport> {
+            let mut complete = self.healthy;
+            let mut issues = Vec::with_capacity(self.issues.len());
+            for issue in &self.issues {
+                let outcome = issue.worker.wait().await;
+                complete &= outcome.as_ref().is_ok();
+                issues.push(outcome);
+            }
+            let mut reads = Vec::with_capacity(self.reads.len());
+            for read in &self.reads {
+                let outcome = read.worker.wait().await;
+                complete &= outcome.as_ref().is_ok();
+                reads.push(outcome);
+            }
+            let mut deliveries = Vec::with_capacity(self.deliveries.len());
+            for delivery in &self.deliveries {
+                // This joins the retained recovery worker; never publish a
+                // secret or run fresh delivery authorization during shutdown.
+                let outcome = delivery.drain_worker().await.clone();
+                complete &= outcome.is_ok();
+                deliveries.push(outcome);
+            }
+            Arc::new(MemberEnrollmentHttpShutdownReport {
+                complete, _issues: issues, _reads: reads, _deliveries: deliveries,
+            })
+        }
+    }
+
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) use member_enrollment_http_owner::{
+    MemberEnrollmentHttpRuntime, MemberEnrollmentHttpShutdownInventory, MemberEnrollmentHttpShutdownReport,
+};
+
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+fn member_enrollment_credentials(headers: &axum::http::HeaderMap)
+    -> Result<crate::storage::surreal::resource_authority::RoleAuthorityAuthInput,
+        (axum::http::StatusCode, axum::Json<serde_json::Value>)> {
+    let channel = match crate::api::stage::capture_channel_binding(headers) {
+        Ok(channel) => channel, Err(_) => return Err(constant_denial()),
+    };
+    let token = headers.get(HSK_HEADER_SESSION_TOKEN).and_then(|value| value.to_str().ok())
+        .filter(|value| value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit()));
+    let Some(token) = token else { return Err(constant_denial()); };
+    Ok(crate::storage::surreal::resource_authority::RoleAuthorityAuthInput::new(
+        token.to_owned(), channel.binding_hash,
+    ))
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+#[derive(serde::Serialize)]
+struct MemberEnrollmentMetadataResponse {
+    operation_id: uuid::Uuid,
+    account_id: String,
+    principal_id: String,
+    access_space_id: String,
+    account_name: String,
+    status: String,
+    vault_state: String,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl From<&crate::storage::surreal::resource_authority::MemberInvitationMetadata>
+    for MemberEnrollmentMetadataResponse {
+    fn from(value: &crate::storage::surreal::resource_authority::MemberInvitationMetadata) -> Self {
+        Self { operation_id: value.operation_id, account_id: value.account_id.clone(),
+            principal_id: value.principal_id.clone(), access_space_id: value.access_space_id.clone(),
+            account_name: value.account_name.clone(), status: value.status.clone(), vault_state: value.vault_state.clone() }
+    }
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+async fn observe_member_enrollment(
+    owner: Option<axum::Extension<std::sync::Arc<MemberEnrollmentHttpRuntime>>>,
+    path: Result<axum::extract::Path<uuid::Uuid>, axum::extract::rejection::PathRejection>,
+    headers: axum::http::HeaderMap,
+) -> Result<axum::Json<MemberEnrollmentMetadataResponse>,
+    (axum::http::StatusCode, axum::Json<serde_json::Value>)> {
+    let Some(axum::Extension(owner)) = owner else { return Err(constant_denial()); };
+    let axum::extract::Path(operation) = match path {
+        Ok(path) => path, Err(_) => return Err(constant_denial()),
+    };
+    let credentials = match member_enrollment_credentials(&headers) {
+        Ok(credentials) => credentials, Err(denial) => return Err(denial),
+    };
+    let frame = match owner.issuer_metadata(operation, credentials) {
+        Ok(frame) => frame, Err(_retained) => return Err(constant_denial()),
+    };
+    let result = frame.worker.wait().await;
+    match result.as_ref() {
+        Ok(member_enrollment_http_owner::ReadOutput::Issuer(metadata)) => Ok(axum::Json(metadata.into())),
+        _ => Err(constant_denial()),
+    }
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberEnrollmentIssuedResponse {
+    operation_id: uuid::Uuid,
+    delivery: crate::storage::surreal::resource_authority::MemberInvitationDelivery,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl serde::Serialize for MemberEnrollmentIssuedResponse {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        use serde::ser::SerializeStruct;
+        let expiry = self.delivery.descriptor().expires_at();
+        let mut value = serializer.serialize_struct("MemberEnrollmentIssuedResponse", 4)?;
+        value.serialize_field("operation_id", &self.operation_id)?;
+        value.serialize_field("invitation_secret", self.delivery.recipient_token())?;
+        value.serialize_field("expires_at_unix_seconds", &expiry.unix_seconds())?;
+        value.serialize_field("expires_at_nanoseconds", &expiry.nanoseconds())?;
+        value.end()
+    }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+#[derive(serde::Serialize)]
+#[serde(untagged)]
+enum MemberEnrollmentIssueResponse {
+    Metadata(MemberEnrollmentMetadataResponse),
+    Issued(MemberEnrollmentIssuedResponse),
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+async fn issue_member_enrollment(
+    owner: Option<axum::Extension<std::sync::Arc<MemberEnrollmentHttpRuntime>>>,
+    headers: axum::http::HeaderMap,
+    request: Result<axum::Json<MemberEnrollmentIssueRequest>, axum::extract::rejection::JsonRejection>,
+) -> Result<(axum::http::StatusCode, axum::Json<MemberEnrollmentIssueResponse>),
+    (axum::http::StatusCode, axum::Json<serde_json::Value>)> {
+    use crate::model_runtime::cloud::member_enrollment::CustodyObservation;
+    let Some(axum::Extension(owner)) = owner else { return Err(constant_denial()); };
+    let request = match member_enrollment_request(request) {
+        Ok(request) => request, Err(denial) => return Err(denial),
+    };
+    let credentials = match member_enrollment_credentials(&headers) {
+        Ok(credentials) => credentials, Err(denial) => return Err(denial),
+    };
+    let frame = match owner.begin_issue(request, credentials.clone()) {
+        Ok(frame) => frame, Err(_retained) => return Err(constant_denial()),
+    };
+    let admitted = frame.worker.wait().await;
+    let ticket = match admitted.as_ref() {
+        Ok(ticket) => ticket, Err(_retained) => return Err(constant_denial()),
+    };
+    let custody = ticket.drain().await;
+    let metadata_frame = match owner.issuer_metadata(frame.operation_id(), credentials) {
+        Ok(frame) => frame, Err(_retained) => return Err(constant_denial()),
+    };
+    let metadata_result = metadata_frame.worker.wait().await;
+    let metadata = match metadata_result.as_ref() {
+        Ok(member_enrollment_http_owner::ReadOutput::Issuer(metadata)) => metadata,
+        _ => return Err(constant_denial()),
+    };
+    match custody.observation {
+        CustodyObservation::Unknown { .. } => Ok((axum::http::StatusCode::ACCEPTED,
+            axum::Json(MemberEnrollmentIssueResponse::Metadata(metadata.into())))),
+        CustodyObservation::Completed(_) => {
+            let delivery_frame = match owner.delivery(&frame) {
+                Some(Ok(frame)) => frame, _ => return Err(constant_denial()),
+            };
+            let delivery = match delivery_frame.deliver().await {
+                Ok(delivery) => delivery, Err(_retained) => return Err(constant_denial()),
+            };
+            Ok((axum::http::StatusCode::OK, axum::Json(MemberEnrollmentIssueResponse::Issued(
+                MemberEnrollmentIssuedResponse { operation_id: frame.operation_id(), delivery },
+            ))))
+        }
+    }
+}
+
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+#[derive(serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+enum MemberEnrollmentRedemptionObservation {
+    ConsumedNow,
+    SameAttemptAlreadyConsumed,
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+#[derive(serde::Serialize)]
+struct MemberEnrollmentRedemptionResponse {
+    operation_id: uuid::Uuid,
+    outcome: MemberEnrollmentRedemptionObservation,
+}
+
+// Handler candidate only. Coherent four-route registration is separate.
+// Actual runtime Extension is mandatory; never create/reload a per-request owner.
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+async fn redeem_member_enrollment(
+    runtime: Option<axum::Extension<std::sync::Arc<
+        crate::storage::surreal::resource_authority::MemberRecipientRedemptionRuntime,
+    >>>,
+    path: Result<axum::extract::Path<uuid::Uuid>, axum::extract::rejection::PathRejection>,
+    request: Result<axum::Json<MemberEnrollmentRedeemRequest>, axum::extract::rejection::JsonRejection>,
+) -> Result<
+    (axum::http::StatusCode, axum::Json<MemberEnrollmentRedemptionResponse>),
+    (axum::http::StatusCode, axum::Json<serde_json::Value>),
+> {
+    use crate::storage::surreal::resource_authority::MemberRecipientOutcome;
+    let Some(axum::Extension(runtime)) = runtime else {
+        return Err(constant_denial());
+    };
+    let axum::extract::Path(operation_id) = match path {
+        Ok(path) => path,
+        Err(_) => return Err(constant_denial()),
+    };
+    let request = match member_enrollment_request(request) {
+        Ok(request) => request,
+        Err(denial) => return Err(denial),
+    };
+    let retained = match runtime.begin_operation(
+        operation_id, request.invitation_secret.into_zeroizing(), request.password.into_owned(),
+    ) {
+        Ok(retained) => retained,
+        // This is a borrowed projection of an Arc also retained by the runtime.
+        // The complete rejected input/error remains in the same runtime owner.
+        Err(_retained_rejection) => return Err(constant_denial()),
+    };
+    let admitted = retained.wait().await;
+    let controller = match admitted.as_ref() {
+        Ok(controller) => controller,
+        // The original request still owns the actual preparation/admission/join
+        // outcome. No error payload is removed, formatted, logged or reissued.
+        Err(_retained_failure) => return Err(constant_denial()),
+    };
+    let completed = controller.wait().await;
+    let outcome = match completed.as_ref() {
+        Ok(MemberRecipientOutcome::ConsumedNow) =>
+            MemberEnrollmentRedemptionObservation::ConsumedNow,
+        Ok(MemberRecipientOutcome::SameAttemptAlreadyConsumed) =>
+            MemberEnrollmentRedemptionObservation::SameAttemptAlreadyConsumed,
+        // Includes genuine unknown settlement. Denial asserts neither rollback
+        // nor retry permission; the same controller retains the whole outcome.
+        Err(_retained_failure) => return Err(constant_denial()),
+    };
+    Ok((axum::http::StatusCode::OK, axum::Json(MemberEnrollmentRedemptionResponse {
+        operation_id, outcome,
+    })))
+}
+
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+#[derive(serde::Serialize)]
+struct MemberEnrollmentRevocationResponse {
+    operation_id: uuid::Uuid,
+    request_id: uuid::Uuid,
+    event_id: String,
+    event_sequence: i64,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+async fn revoke_member_enrollment(
+    owner: Option<axum::Extension<std::sync::Arc<MemberEnrollmentHttpRuntime>>>,
+    revocations: Option<axum::Extension<std::sync::Arc<
+        crate::storage::surreal::resource_authority::MemberRevocationRuntime,
+    >>>,
+    headers: axum::http::HeaderMap,
+    path: Result<axum::extract::Path<uuid::Uuid>, axum::extract::rejection::PathRejection>,
+    request: Result<axum::Json<MemberEnrollmentRevokeRequest>, axum::extract::rejection::JsonRejection>,
+) -> Result<axum::Json<MemberEnrollmentRevocationResponse>,
+    (axum::http::StatusCode, axum::Json<serde_json::Value>)> {
+    use crate::storage::surreal::resource_authority::MemberRevocationServerInput;
+    let Some(axum::Extension(owner)) = owner else { return Err(constant_denial()); };
+    let Some(axum::Extension(revocations)) = revocations else { return Err(constant_denial()); };
+    let axum::extract::Path(operation) = match path {
+        Ok(path) => path, Err(_) => return Err(constant_denial()),
+    };
+    let request = match member_enrollment_request(request) {
+        Ok(request) => request, Err(denial) => return Err(denial),
+    };
+    let credentials = match member_enrollment_credentials(&headers) {
+        Ok(credentials) => credentials, Err(denial) => return Err(denial),
+    };
+    let metadata = match owner.revoke_metadata(operation, request.workspace_id.clone(),
+        request.administrator_resource.clone(), credentials.clone()) {
+        Ok(frame) => frame, Err(_retained) => return Err(constant_denial()),
+    };
+    let current = metadata.worker.wait().await;
+    let status = match current.as_ref() {
+        Ok(member_enrollment_http_owner::ReadOutput::RevokeMetadata(value)) => value.status(),
+        _ => return Err(constant_denial()),
+    };
+    if status == "active" {
+        let seed = match revocations.begin(owner.registry(), MemberRevocationServerInput {
+            request_selector: request.request_id, enrollment_operation_id: operation,
+            workspace: request.workspace_id.clone(), administrator_resource: request.administrator_resource.clone(),
+            credentials: credentials.clone(), password: request.current_password.into_zeroizing(),
+        }) {
+            Ok(seed) => seed, Err(_retained) => return Err(constant_denial()),
+        };
+        let prepared = seed.wait().await;
+        let controller = match prepared.as_ref() {
+            Ok(controller) => controller, Err(_retained) => return Err(constant_denial()),
+        };
+        let result = controller.wait().await;
+        if result.as_ref().is_err() { return Err(constant_denial()); }
+    } else if status != "revoked" {
+        return Err(constant_denial());
+    }
+    // Every outward observation uses current Update authorization. The
+    // canonical receipt read also handles an already-revoked original on restart.
+    let frame = match owner.revoke_receipt(operation, request.request_id, request.workspace_id,
+        request.administrator_resource, credentials) {
+        Ok(frame) => frame, Err(_retained) => return Err(constant_denial()),
+    };
+    let result = frame.worker.wait().await;
+    match result.as_ref() {
+        Ok(member_enrollment_http_owner::ReadOutput::RevokeReceipt(value)) => Ok(axum::Json(
+            MemberEnrollmentRevocationResponse {
+                operation_id: value.enrollment_operation_id(), request_id: value.request_id(),
+                event_id: value.event_id().to_owned(), event_sequence: value.event_sequence(),
+            },
+        )),
+        _ => Err(constant_denial()),
+    }
 }
 
 #[cfg(all(test, feature = "duckdb-flight-recorder", feature = "os-keychain"))]
@@ -1080,6 +1798,106 @@ struct PasswordLogin {
     password: String,
 }
 
+// Account-selected fixed confirmation caller; real controller implementation
+// and atomic bootstrap/registration proof remain required before adoption.
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+#[derive(serde::Deserialize)]
+#[serde(tag = "mode", rename_all = "snake_case", deny_unknown_fields)]
+enum FirstOwnerAdministrationLifetimeSelection {
+    // An empty struct variant enforces unknown-field rejection in Serde 1.0.228.
+    NoExpiry {},
+    ExpiresAt { expires_at: chrono::DateTime<chrono::Utc> },
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FirstOwnerAdministrationConfirmationBody {
+    operation_id: uuid::Uuid,
+    first_workspace_operation_id: uuid::Uuid,
+    parent_workspace_external_id: String,
+    lifetime: FirstOwnerAdministrationLifetimeSelection,
+    password: MemberEnrollmentSecret,
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct FirstOwnerAdministrationConfirmationResponse {
+    outcome: std::sync::Arc<Result<
+        crate::storage::surreal::resource_authority::IssuedSessionCredential,
+        crate::storage::surreal::local_accounts::FirstOwnerAdministrationConfirmationFailure,
+    >>,
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl serde::Serialize for FirstOwnerAdministrationConfirmationResponse {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        match self.outcome.as_ref() {
+            // Serialize the actual immutable canonical credential by borrow.
+            // No caller-provided IDs, profile, grants or nonce are constructed.
+            Ok(credential) => serde::Serialize::serialize(credential, serializer),
+            Err(_) => Err(<S::Error as serde::ser::Error>::custom("confirmation denied")),
+        }
+    }
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+async fn confirm_first_owner_administration(
+    State(state): State<AccountBootstrapState>,
+    headers: HeaderMap,
+    request: Result<Json<FirstOwnerAdministrationConfirmationBody>, axum::extract::rejection::JsonRejection>,
+) -> Result<Json<FirstOwnerAdministrationConfirmationResponse>, (StatusCode, Json<Value>)> {
+    use crate::storage::surreal::local_accounts::{
+        FirstOwnerAdministrationConfirmationLifetime as Lifetime,
+        FirstOwnerAdministrationConfirmationObservation as Observation,
+        FirstOwnerAdministrationConfirmationRequest,
+    };
+    let request = match member_enrollment_request(request) {
+        Ok(request) => request,
+        Err(denial) => return Err(denial),
+    };
+    let authenticated = match authenticated_session_credentials_bootstrap(&state, &headers).await {
+        Ok(authenticated) => authenticated,
+        Err(denial) => return Err(denial),
+    };
+    let lifetime = match request.lifetime {
+        FirstOwnerAdministrationLifetimeSelection::NoExpiry {} => Lifetime::NoExpiry,
+        FirstOwnerAdministrationLifetimeSelection::ExpiresAt { expires_at } =>
+            Lifetime::ExpiresAt { expires_at },
+    };
+    let operation = state.surreal.begin_first_owner_administration_confirmation(
+        FirstOwnerAdministrationConfirmationRequest {
+            operation_id: request.operation_id,
+            first_workspace_operation_id: request.first_workspace_operation_id,
+            parent_workspace_external_id: request.parent_workspace_external_id,
+            lifetime,
+            // This genuine session read is still data. Account freshly
+            // reauthenticates and compares the prospective origin in its frame.
+            actor: authenticated.context,
+            session_token: zeroize::Zeroizing::new(authenticated.session_token),
+            channel_hash: authenticated.channel_binding_hash,
+            password: request.password.into_zeroizing(),
+        },
+    );
+    match operation.wait().await {
+        Observation::Complete(outcome) => {
+            if outcome.as_ref().is_err() { return Err(constant_denial()); }
+            Ok(Json(FirstOwnerAdministrationConfirmationResponse { outcome }))
+        }
+        // The original controller retains the whole join failure and every
+        // uncertain engine result. This response grants no retry authority.
+        Observation::Join(_retained_join) => Err(constant_denial()),
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TargetedPasswordLogin {
+    account_name: String,
+    password: String,
+    target: Option<crate::storage::surreal::local_accounts::LocalAccountLoginTarget>,
+}
+
 async fn setup_status(
     State(state): State<AccountBootstrapState>,
     headers: HeaderMap,
@@ -1156,15 +1974,22 @@ async fn setup_owner(
 async fn login_owner(
     State(state): State<AccountBootstrapState>,
     headers: HeaderMap,
-    Json(input): Json<PasswordLogin>,
+    request: Result<Json<TargetedPasswordLogin>, axum::extract::rejection::JsonRejection>,
 ) -> Result<
     Json<crate::storage::surreal::resource_authority::IssuedSessionCredential>,
     (StatusCode, Json<Value>),
 > {
     crate::api::stage::capture_channel_binding(&headers).map_err(|_| constant_denial())?;
+    let input = match request {
+        Ok(Json(input)) => input,
+        Err(_) => return Err(constant_denial()),
+    };
+    let target = input.target.unwrap_or(
+        crate::storage::surreal::local_accounts::LocalAccountLoginTarget::Default,
+    );
     match state
         .surreal
-        .login_local_owner(&input.account_name, input.password)
+        .login_local_account_target(&input.account_name, input.password, target)
         .await
     {
         Ok(credential) => Ok(Json(credential)),
@@ -1403,7 +2228,9 @@ async fn record_login_event(
         .map_err(|error| {
             #[cfg(test)]
             eprintln!("LOCAL_ACCOUNT_TEST_FAILURE phase=login_audit_identity error={error}");
-            let _ = error;
+            tracing::error!(target: "handshake_core::resource_authority",
+                phase = "login_event_identity", cause = session_authority_error_kind(&error),
+                "local_authority_session_bootstrap_failed");
             constant_denial()
         })?;
     let event = crate::storage::surreal::local_accounts::account_event(
@@ -1413,7 +2240,12 @@ async fn record_login_event(
         context.policy_version,
         context.delegation_chain,
     )
-    .map_err(|_| constant_denial())?;
+    .map_err(|error| {
+        tracing::error!(target: "handshake_core::resource_authority",
+            phase = "login_event_build", cause = session_authority_error_kind(&error),
+            "local_authority_session_bootstrap_failed");
+        constant_denial()
+    })?;
     state
         .storage
         .append_kernel_event(event)
@@ -1421,7 +2253,10 @@ async fn record_login_event(
         .map_err(|error| {
             #[cfg(test)]
             eprintln!("LOCAL_ACCOUNT_TEST_FAILURE phase=login_audit_append error={error}");
-            let _ = error;
+            tracing::error!(target: "handshake_core::resource_authority",
+                phase = "login_event_append", cause_type = std::any::type_name_of_val(&error),
+                cause = ?std::mem::discriminant(&error),
+                "local_authority_session_bootstrap_failed");
             constant_denial()
         })?;
     Ok(())
@@ -1461,7 +2296,12 @@ async fn store_session_secret(
             config.namespace(),
             config.database(),
         ))
-        .map_err(|_| constant_denial())?;
+        .map_err(|_| {
+            tracing::error!(target: "handshake_core::resource_authority",
+                phase = "vault_namespace", cause = "serialization",
+                "local_authority_session_bootstrap_failed");
+            constant_denial()
+        })?;
         let installation = hex::encode(Sha256::digest(identity));
         let namespace = format!("handshake-local-accounts-{installation}");
         #[cfg(test)]
@@ -1513,6 +2353,9 @@ async fn store_session_secret(
     #[cfg(not(feature = "os-keychain"))]
     {
         let _ = (state, session_id, token);
+        tracing::error!(target: "handshake_core::resource_authority",
+            phase = "session_vault", cause = "os_keychain_feature_disabled",
+            "local_authority_session_bootstrap_failed");
         Err(constant_denial())
     }
 }
@@ -1596,13 +2439,29 @@ pub(crate) async fn authorize_request(
     })
 }
 
+fn session_authority_error_kind(
+    error: &crate::storage::surreal::resource_authority::ResourceAuthorityError,
+) -> &'static str {
+    use crate::storage::surreal::resource_authority::ResourceAuthorityError;
+    match error {
+        ResourceAuthorityError::Storage(_) => "Storage",
+        ResourceAuthorityError::InvalidInput(_) => "InvalidInput",
+        ResourceAuthorityError::Denied { .. } => "Denied",
+        ResourceAuthorityError::Entropy(_) => "Entropy",
+    }
+}
+
 async fn exchange_local_session(
     State(state): State<AccountBootstrapState>,
     headers: HeaderMap,
     Json(exchange): Json<LocalSessionExchange>,
 ) -> Result<Json<LocalSessionResponse>, (StatusCode, Json<Value>)> {
-    let channel =
-        crate::api::stage::capture_channel_binding(&headers).map_err(|_| constant_denial())?;
+    let channel = crate::api::stage::capture_channel_binding(&headers).map_err(|error| {
+        tracing::error!(target: "handshake_core::resource_authority",
+            phase = "channel_binding", cause = ?error,
+            "local_authority_session_bootstrap_failed");
+        constant_denial()
+    })?;
     // Own completion before consuming the credential or creating durable authority.
     tokio::spawn(async move {
         let session = state
@@ -1621,7 +2480,7 @@ async fn exchange_local_session(
                 eprintln!("LOCAL_ACCOUNT_TEST_FAILURE phase=session_exchange error={error}");
                 tracing::error!(
                     target: "handshake_core::resource_authority",
-                    error = %error,
+                    phase = "credential_exchange", cause = session_authority_error_kind(&error),
                     "local_authority_session_bootstrap_failed"
                 );
                 constant_denial()
@@ -1652,7 +2511,12 @@ async fn exchange_local_session(
         }))
     })
     .await
-    .map_err(|_| constant_denial())?
+    .map_err(|error| {
+        tracing::error!(target: "handshake_core::resource_authority",
+            phase = "session_worker", cancelled = error.is_cancelled(), panicked = error.is_panic(),
+            "local_authority_session_bootstrap_failed");
+        constant_denial()
+    })?
 }
 
 #[cfg(test)]

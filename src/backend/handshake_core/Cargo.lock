@@ -3352,9 +3352,11 @@ dependencies = [
  "handshake_document",
  "handshake_document_surreal",
  "handshake_job_admission",
+ "handshake_member_enrollment",
  "handshake_model_lane_navigation",
  "handshake_model_lane_routing",
  "handshake_openpose_render",
+ "handshake_producer_association",
  "handshake_prompt_feedback",
  "handshake_resource_scope",
  "handshake_role_authority",
@@ -3364,6 +3366,7 @@ dependencies = [
  "handshake_swarm_event_ids",
  "handshake_swarm_routing_policy",
  "handshake_swarm_schedule",
+ "handshake_workflow_lifecycle",
  "hex",
  "hmac",
  "icalendar",
@@ -3463,6 +3466,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "handshake_member_enrollment"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/Handshake.git?rev=74d130af75b2735351005d240dc7f793f2433961#74d130af75b2735351005d240dc7f793f2433961"
+dependencies = [
+ "uuid",
+]
+
+[[package]]
 name = "handshake_model_lane_navigation"
 version = "0.1.0"
 source = "git+https://github.com/Nuntissura/assets.git?rev=00cb5f5b5ad18094699d65638ff2e2016cbe9f29#00cb5f5b5ad18094699d65638ff2e2016cbe9f29"
@@ -3484,6 +3495,18 @@ version = "0.1.0"
 dependencies = [
  "image",
  "serde_json",
+]
+
+[[package]]
+name = "handshake_producer_association"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/Handshake.git?rev=74d130af75b2735351005d240dc7f793f2433961#74d130af75b2735351005d240dc7f793f2433961"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.20",
+ "uuid",
 ]
 
 [[package]]
@@ -3569,6 +3592,14 @@ dependencies = [
  "chrono",
  "icalendar",
  "tokio-cron-scheduler",
+]
+
+[[package]]
+name = "handshake_workflow_lifecycle"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "tokio",
 ]
 
 [[package]]

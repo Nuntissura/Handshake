@@ -8,8 +8,9 @@ use crate::process_ledger::{
 };
 use crate::storage::tests::{embedded_test_backend, EmbeddedTestBackend};
 use crate::AccountBootstrapState;
+use crate::model_runtime::cloud::secrets_vault::{OsKeychainSecretsVault, SecretsVault, SecretsVaultError};
 use crate::swarm_orchestration::resource_scope::{AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId, ResourceScope, WorkspaceScopeRef};
-use crate::swarm_orchestration::model_lane::{ModelLaneLocusBinding, ModelLaneRecoveryState, ModelLaneRunRecord, ModelLaneStore, NewModelLaneRun};
+use crate::swarm_orchestration::model_lane::{ModelLaneLocusBinding, ModelLaneRecoveryState, ModelLaneRunCanonicalSet, ModelLaneRunRecord, ModelLaneStore, NewModelLaneRun};
 use futures::FutureExt;
 use serde_json::{json, Value};
 use std::{ffi::OsString, future::Future, panic::AssertUnwindSafe, pin::Pin, sync::Arc, time::Duration};
@@ -31,7 +32,7 @@ struct Fixture {
     previous_binding: Option<OsString>,
     binding_installed: bool,
     session: Option<Value>,
-    extra_sessions: Vec<String>,
+    extra_sessions: Vec<(String, String)>,
     logged_out_sessions: Vec<String>,
     session_exchange_uncertain: bool,
     workspace: Option<String>,
@@ -47,10 +48,17 @@ struct Fixture {
     producer_run: Option<ProducerRunRecovery>,
 }
 
+type ProducerRunInvocation = Pin<Box<dyn Future<Output = ProducerRunCompletion>>>;
+
 struct ProducerRunRecovery {
     capture: Arc<ProducerSourceFactsCapture>,
     expected: NewModelLaneRun,
-    committed: Option<ModelLaneRunRecord>,
+    baseline: ModelLaneRunCanonicalSet,
+    canonical: Option<ModelLaneRunCanonicalSet>,
+    invocation: Option<ProducerRunInvocation>,
+    outcome: Option<ProducerRunCompletion>,
+    transaction_acknowledged: bool,
+    panic_payload: Option<Box<dyn std::any::Any + Send>>,
 }
 
 #[derive(surrealdb::types::SurrealValue)]
@@ -153,7 +161,8 @@ impl Fixture {
         })).await?;
         assert_eq!(status, StatusCode::OK, "{issued}");
         let token = field(&issued, "session_token")?.to_owned();
-        self.extra_sessions.push(token.clone());
+        let session_id = field(&issued, "session_id")?.to_owned();
+        self.extra_sessions.push((token.clone(), session_id));
         self.session_exchange_uncertain = false;
         assert_ne!(field(&issued, "session_id")?, field(self.session.as_ref().unwrap(), "session_id")?);
         self.bootstrap.surreal.authenticate_local_session(&token, &self.channel_hash()).await?;
@@ -176,7 +185,11 @@ impl Fixture {
                     }),
                 })
             },
-        ).await.map_err(|error| format!("canonical authenticated read: {error:?}").into())
+        ).await.map_err(|error| match error {
+            ActivationObservationError::Authentication => "canonical authenticated read: authentication failed".into(),
+            ActivationObservationError::NotFound => "canonical authenticated read: activation not found".into(),
+            ActivationObservationError::Unavailable => "canonical authenticated read: activation unavailable".into(),
+        })
     }
     async fn start_runtime(&mut self, request: &crate::api::authority::WorkspaceActivationRequest) -> TestResult {
         let exact = request.scope().exact();
@@ -230,40 +243,182 @@ impl Fixture {
         ))
     }
 
-    fn observe_producer_run_result(
+    async fn start_producer_run(
         &mut self,
-        result: Result<ModelLaneRunRecord, ProducerRunFailure>,
-    ) -> Result<ModelLaneRunRecord, ProducerRunFailure> {
-        if let Err(failure) = &result {
-            let original_callback = matches!(
-                &failure.origin, ProducerRunFailureOrigin::OriginalCallback(_),
-            );
-            let same_operation = self.producer_run.as_ref().is_some_and(|recovery| {
-                recovery.capture.operation_id == failure.original_operation_id
-            });
-            if original_callback && same_operation { self.producer_run = None; }
+        capture: Arc<ProducerSourceFactsCapture>,
+        expected: NewModelLaneRun,
+    ) -> TestResult {
+        if self.producer_run.is_some() {
+            return Err("original producer operation still owns the fixture".into());
         }
-        result
+        let store = self.producer_store(&capture, 0)?;
+        let storage = self.bootstrap.surreal.clone();
+        let baseline = storage.replay_producer_source_run(&capture, 1, &store, &expected).await?;
+        if baseline.run.is_some() {
+            return Err("original producer run already exists before its Create invocation".into());
+        }
+        let worker_capture = Arc::clone(&capture);
+        let input = expected.clone();
+        let invocation = Box::pin(async move {
+            storage.record_producer_source_run(&worker_capture, 0, store, input).await
+        });
+        // Own the original future and fence before its first poll. A canceled
+        // borrowing phase leaves both here for the same fixture's cleanup.
+        self.producer_run = Some(ProducerRunRecovery {
+            capture, expected, baseline, canonical: None, invocation: Some(invocation), outcome: None,
+            transaction_acknowledged: false, panic_payload: None,
+        });
+        Ok(())
+    }
+
+    async fn await_producer_run(&mut self) -> TestResult {
+        let recovery = self.producer_run.as_mut().ok_or("missing original producer operation")?;
+        if recovery.panic_payload.is_some() {
+            return Err("original producer invocation panicked; retain complete fixture".into());
+        }
+        if let Some(invocation) = recovery.invocation.as_mut() {
+            let result = AssertUnwindSafe(invocation).catch_unwind().await;
+            // No await separates receipt of the original outcome from custody.
+            // A caught panic consumes this invocation too; never poll it again.
+            match result {
+                Ok(outcome) => recovery.outcome = Some(outcome),
+                Err(payload) => recovery.panic_payload = Some(payload),
+            }
+            recovery.invocation = None;
+            if recovery.panic_payload.is_some() {
+                return Err("original producer invocation panicked; retain complete fixture".into());
+            }
+        }
+        Ok(())
+    }
+
+    fn compare_producer_canonical_set(
+        recovery: &ProducerRunRecovery,
+        observed: &ModelLaneRunCanonicalSet,
+        committed: Option<&ModelLaneRunRecord>,
+    ) {
+        let baseline = &recovery.baseline;
+        // This fixture creates only Runs. Nonzero runtime families, including
+        // any lease state or orphan, cannot be accepted as unchanged cleanup.
+        assert_eq!([
+            baseline.lanes.len(), baseline.messages.len(), baseline.checkpoints.len(),
+            baseline.recovery_events.len(), baseline.leases.len(),
+        ], [0; 5], "original scope baseline has unresolved runtime records; retain complete fixture");
+        assert_eq!([
+            observed.lanes.len(), observed.messages.len(), observed.checkpoints.len(),
+            observed.recovery_events.len(), observed.leases.len(),
+        ], [0; 5], "original scope has unresolved runtime records; retain complete fixture");
+        match committed {
+            Some(committed) => {
+                let run = observed.run.as_ref().expect("committed original run is missing");
+                assert_eq!(run.inner, recovery.expected);
+                assert_eq!(run, committed);
+                assert!(!run.event_ledger_event_id.is_empty());
+            }
+            None => assert!(observed.run.is_none(), "failed invocation has an observed target run; retain complete fixture"),
+        }
+        // Every full raw row in all six families remains in these snapshots,
+        // including unmatched rows and every lease state. Remove only the one
+        // genuine returned Run when comparing a successful Create's delta.
+        let target_rows = observed.scope_records.iter().filter(|(kind, row)| {
+            committed.is_some() && kind.as_str() == "run"
+                && row.aggregate_id == recovery.expected.run_id && row.run_id == recovery.expected.run_id
+        }).collect::<Vec<_>>();
+        assert_eq!(target_rows.len(), usize::from(committed.is_some()));
+        if let Some(committed) = committed {
+            assert_eq!(target_rows[0].1.event_id, committed.event_ledger_event_id);
+            assert_eq!(target_rows[0].1.event_seq, committed.event_ledger_seq);
+        }
+        let prior_rows = observed.scope_records.iter().filter(|row| !target_rows.contains(row)).collect::<Vec<_>>();
+        assert_eq!(prior_rows.len(), baseline.scope_records.len());
+        for row in &baseline.scope_records {
+            assert_eq!(prior_rows.iter().filter(|candidate| **candidate == row).count(),
+                baseline.scope_records.iter().filter(|candidate| *candidate == row).count(),
+                "canonical scope records changed outside the original Create delta");
+        }
+        assert_eq!(observed.other_runs.len(), baseline.other_runs.len());
+        assert_eq!(observed.lanes.len(), baseline.lanes.len());
+        assert_eq!(observed.messages.len(), baseline.messages.len());
+        assert_eq!(observed.checkpoints.len(), baseline.checkpoints.len());
+        assert_eq!(observed.recovery_events.len(), baseline.recovery_events.len());
+        assert_eq!(observed.leases.len(), baseline.leases.len());
+        let expected_event = committed.map(|run| run.event_ledger_event_id.as_str());
+        let new_events = observed.ordered_ledger.iter().filter(|entry| Some(entry.event_id.as_str()) == expected_event)
+            .collect::<Vec<_>>();
+        assert_eq!(new_events.len(), usize::from(committed.is_some()));
+        if let Some(committed) = committed { assert_eq!(new_events[0].event_seq, committed.event_ledger_seq); }
+        let before_ledger = baseline.ordered_ledger.iter().map(|entry| (
+            entry.event_id.as_str(), entry.event_seq, entry.event_stream_version, entry.transaction_seq,
+            entry.aggregate_id.as_str(), entry.run_id.as_str(), entry.session_run_id.as_str(),
+            entry.kernel_task_run_id.as_str(), entry.payload_hash.as_str(), entry.event_payload_json.as_str(),
+        )).collect::<Vec<_>>();
+        let after_ledger = observed.ordered_ledger.iter().filter(|entry| Some(entry.event_id.as_str()) != expected_event)
+            .map(|entry| (
+                entry.event_id.as_str(), entry.event_seq, entry.event_stream_version, entry.transaction_seq,
+                entry.aggregate_id.as_str(), entry.run_id.as_str(), entry.session_run_id.as_str(),
+                entry.kernel_task_run_id.as_str(), entry.payload_hash.as_str(), entry.event_payload_json.as_str(),
+            )).collect::<Vec<_>>();
+        assert_eq!(after_ledger, before_ledger, "complete ordered canonical ledger changed outside original Create");
     }
 
     async fn reconcile_producer_run(&mut self) -> TestResult {
-        let Some(recovery) = self.producer_run.as_ref() else { return Ok(()); };
-        if self.bootstrap.surreal.transaction_settlement_pending(recovery.capture.operation_id) {
-            return Err("original producer Create settlement is pending; retain complete fixture".into());
-        }
+        if self.producer_run.is_none() { return Ok(()); }
+        self.await_producer_run().await?;
+        let recovery = self.producer_run.as_ref().unwrap();
         let store = self.producer_store(&recovery.capture, 1)?;
-        let replay = self.bootstrap.surreal.replay_producer_source_run(
-            &recovery.capture, 1, &store, &recovery.expected.run_id,
+        let observed = self.bootstrap.surreal.replay_producer_source_run(
+            &recovery.capture, 1, &store, &recovery.expected,
         ).await?;
-        assert_eq!(replay.run.inner, recovery.expected);
-        assert!(!replay.run.event_ledger_event_id.is_empty());
-        assert!(replay.lanes.is_empty() && replay.messages.is_empty());
-        if let Some(committed) = &recovery.committed { assert_eq!(&replay.run, committed); }
+        self.producer_run.as_mut().unwrap().canonical = Some(observed);
+        let recovery = self.producer_run.as_ref().unwrap();
+        let completion = recovery.outcome.as_ref()
+            .ok_or("original producer outcome is unknown; retain complete fixture")?;
+        let committed = match &completion.result {
+            Ok(committed) => Some(committed),
+            Err(failure) => {
+                if failure.original_operation_id != recovery.capture.operation_id {
+                    return Err("producer outcome differs from original operation; retain complete fixture".into());
+                }
+                None
+            }
+        };
+        Self::compare_producer_canonical_set(recovery, recovery.canonical.as_ref().unwrap(), committed);
+        let recovery = self.producer_run.as_mut().unwrap();
+        let completion = recovery.outcome.as_mut().unwrap();
+        // This consumes only the matching original transaction finalization
+        // proof. Callback origin, cancel success, or absence cannot substitute.
+        if !recovery.transaction_acknowledged {
+            if !self.bootstrap.surreal.acknowledge_producer_run_completion(&recovery.capture, completion)? {
+                return Err("original producer finalization is unproved; retain complete fixture".into());
+            }
+            // Record the actual consumed-proof step before any later phase.
+            recovery.transaction_acknowledged = true;
+        }
         if self.bootstrap.surreal.transaction_settlement_pending(recovery.capture.operation_id) {
-            return Err("original producer Create remains unsettled after canonical replay".into());
+            return Err("original producer Create remains unsettled after proof acknowledgment".into());
         }
         self.producer_run = None;
         Ok(())
+    }
+
+    fn assert_session_vault_absent(&self, session_id: &str) -> TestResult {
+        let config = self.bootstrap.surreal.config();
+        let identity = serde_json::to_vec(&(
+            config.path().to_string_lossy(), config.namespace(), config.database(),
+        ))?;
+        let installation = hex::encode(Sha256::digest(identity));
+        let vault = OsKeychainSecretsVault::new(format!("handshake-local-accounts-{installation}"));
+        match vault.get(session_id) {
+            Err(SecretsVaultError::NoSecretForLane(key)) if key == session_id => Ok(()),
+            Ok(secret) => {
+                drop(secret);
+                Err("original session credential remains in OS vault; retain complete fixture".into())
+            }
+            Err(SecretsVaultError::KeychainBackend(_)) => {
+                Err("OS keychain read failed; credential absence is unverified".into())
+            }
+            Err(_) => Err("original session credential absence is unverified".into()),
+        }
     }
 
     async fn cleanup(&mut self) -> TestResult {
@@ -295,14 +450,19 @@ impl Fixture {
         }
         self.reconcile_producer_run().await?;
         if self.session.is_some() {
-            let tokens = self.extra_sessions.iter().cloned()
-                .chain(std::iter::once(self.token().to_owned())).collect::<Vec<_>>();
-            for token in tokens {
-                if self.logged_out_sessions.contains(&token) { continue; }
-                let (status, value) = self.http("POST", "/authority/logout", Some(&token), Value::Null).await?;
-                assert_eq!(status, StatusCode::OK, "{value}");
-                // Only the observed successful endpoint confirms revoke plus vault cleanup.
-                self.logged_out_sessions.push(token);
+            let sessions = self.extra_sessions.iter().cloned()
+                .chain(std::iter::once((self.token().to_owned(),
+                    field(self.session.as_ref().unwrap(), "session_id")?.to_owned())))
+                .collect::<Vec<_>>();
+            for (token, session_id) in sessions {
+                if !self.logged_out_sessions.contains(&token) {
+                    let (status, value) = self.http("POST", "/authority/logout", Some(&token), Value::Null).await?;
+                    assert_eq!(status, StatusCode::OK, "{value}");
+                    // Preserve successful logout before the independent OS read.
+                    self.logged_out_sessions.push(token);
+                }
+                // Recheck even previously logged-out sessions on every retry.
+                self.assert_session_vault_absent(&session_id)?;
             }
         }
         *self.mounted.write().await = None;
@@ -337,23 +497,51 @@ impl Fixture {
     }
 }
 
-fn run_case(body: impl for<'a> FnOnce(&'a mut Fixture) -> Case<'a>) -> TestResult {
-    // This synchronous test frame, not a cancelable async phase, owns every handle.
-    let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
-    let mut fixture = runtime.block_on(Fixture::open())?;
-    let result = runtime.block_on(AssertUnwindSafe(async {
-        fixture.authenticate().await?;
-        body(&mut fixture).await
-    }).catch_unwind());
-    loop {
-        let cleanup = runtime.block_on(AssertUnwindSafe(fixture.cleanup()).catch_unwind());
-        if matches!(&cleanup, Ok(Ok(()))) { break; }
-        // Unknown is not cleanup. Keep this accessible original frame and drive
-        // its existing handles/canonical read again; never recreate or detach it.
-        eprintln!("original fixture remains pending: {:?}",
-            cleanup.as_ref().map(|v| v.as_ref().map_err(ToString::to_string)).map_err(|_| "cleanup panic"));
-        std::thread::sleep(BOUND);
+struct OriginalFixtureFrame {
+    runtime: tokio::runtime::Runtime,
+    fixture: Fixture,
+    finalized: bool,
+}
+
+impl OriginalFixtureFrame {
+    fn finalize(&mut self) {
+        while !self.finalized {
+            let cleanup = std::panic::catch_unwind(AssertUnwindSafe(|| {
+                self.runtime.block_on(AssertUnwindSafe(self.fixture.cleanup()).catch_unwind())
+            }));
+            if matches!(&cleanup, Ok(Ok(Ok(())))) {
+                self.finalized = true;
+                break;
+            }
+            // Diagnostics must not unwind past the owner of unresolved state.
+            let _ = std::panic::catch_unwind(AssertUnwindSafe(|| {
+                match &cleanup {
+                    Ok(Ok(Err(error))) => eprintln!("original fixture remains pending: {error}"),
+                    _ => eprintln!("original fixture remains pending after cleanup panic"),
+                }
+            }));
+            std::thread::sleep(BOUND);
+        }
     }
+}
+
+impl Drop for OriginalFixtureFrame {
+    fn drop(&mut self) {
+        // Any exit hands the SAME fixture and runtime to actual finalization;
+        // unresolved state never falls through to field destructors.
+        self.finalize();
+    }
+}
+
+fn run_case(body: impl for<'a> FnOnce(&'a mut Fixture) -> Case<'a>) -> TestResult {
+    let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
+    let fixture = runtime.block_on(Fixture::open())?;
+    let mut owner = OriginalFixtureFrame { runtime, fixture, finalized: false };
+    let result = owner.runtime.block_on(AssertUnwindSafe(async {
+        owner.fixture.authenticate().await?;
+        body(&mut owner.fixture).await
+    }).catch_unwind());
+    owner.finalize();
     match result {
         Ok(result) => result,
         Err(payload) => std::panic::resume_unwind(payload),
@@ -457,18 +645,61 @@ fn producer_source_capture_keeps_ordered_real_grants_and_rejects_invalid_pairs()
             procedural_review_status: "pending".into(), truncation_warning_ref: None,
             rejection_reason_refs: Vec::new(),
         };
+        let storage = fixture.bootstrap.surreal.clone();
         let store = fixture.producer_store(&current, 0)?;
-        fixture.producer_run = Some(ProducerRunRecovery {
-            capture: Arc::clone(&current), expected: expected.clone(), committed: None,
-        });
-        let result = fixture.bootstrap.surreal.record_producer_source_run(
-            &current, 0, store, expected.clone(),
-        ).await;
-        let stored = fixture.observe_producer_run_result(result)?;
+        let (authority, subject) = storage.producer_source_run_authority(
+            &current, 0, &store, ResourceAction::Create,
+        ).await?;
+        let decision = &current.sources[0].decision;
+        let scope = crate::storage::surreal::ModelLaneScope {
+            owner_account_id: decision.account_id.clone(),
+            actor_principal_id: decision.principal_id.clone(),
+            authenticated_session_id: decision.session_id.clone(),
+            access_space_id: decision.access_space_id.clone(),
+            workspace_id: second.clone(),
+        };
+        let provider = crate::storage::surreal::model_lane::SurrealModelLaneStore::initialize(
+            storage.clone(),
+        ).await?;
+        assert!(provider.observe_current_context_guards().is_none());
+        let callback_provider = provider.clone();
+        crate::storage::surreal::with_model_lane_subject(subject, storage.with_record_user_scope(
+            authority,
+            provider.with_context_bundle_transaction(
+                crate::storage::surreal::ContextCoordinationPurpose::RunCreate,
+                expected.run_id.clone(), expected.lane_ids.clone(), scope,
+                move || {
+                    let constructed = callback_provider.observe_current_context_guards()
+                        .expect("production guards must precede callback future construction");
+                    assert!(constructed.belongs_to(&callback_provider));
+                    async move {
+                        let polled = callback_provider.observe_current_context_guards()
+                            .expect("production guards must remain installed at first poll");
+                        assert!(polled.belongs_to(&callback_provider));
+                        assert!(constructed.same_guards_and_owner(&polled));
+                        drop(polled);
+                        drop(constructed);
+                        Ok::<(), SurrealStorageError>(())
+                    }
+                },
+            ),
+        )).await?;
+        assert!(provider.observe_current_context_guards().is_none());
+        fixture.start_producer_run(Arc::clone(&current), expected.clone()).await?;
+        drop(current);
+        fixture.await_producer_run().await?;
+        let completion = fixture.producer_run.as_ref().unwrap().outcome.as_ref()
+            .ok_or("original producer Create outcome is unknown")?;
+        let stored = match &completion.result {
+            Ok(stored) => stored,
+            Err(failure) => {
+                let message = format!("original producer Create failed: {failure}");
+                fixture.reconcile_producer_run().await?;
+                return Err(message.into());
+            }
+        };
         assert_eq!(stored.inner, expected);
         assert!(!stored.event_ledger_event_id.is_empty());
-        fixture.producer_run.as_mut().unwrap().committed = Some(stored);
-        drop(current);
         fixture.reconcile_producer_run().await?;
 
         let failed_operation = Uuid::now_v7();
@@ -483,23 +714,23 @@ fn producer_source_capture_keeps_ordered_real_grants_and_rejects_invalid_pairs()
         invalid.run_id = failed_operation.to_string();
         invalid.idempotency_key = failed_operation.to_string();
         invalid.candidate_model_ids.clear();
-        let store = fixture.producer_store(&failed_capture, 0)?;
-        fixture.producer_run = Some(ProducerRunRecovery {
-            capture: Arc::clone(&failed_capture), expected: invalid.clone(), committed: None,
-        });
-        let failure = fixture.bootstrap.surreal.record_producer_source_run(
-            &failed_capture, 0, store, invalid,
-        ).await.expect_err("empty model candidates must fail inside the genuine Create callback");
-        assert_eq!(failure.original_operation_id, failed_capture.operation_id);
+        fixture.start_producer_run(Arc::clone(&failed_capture), invalid).await?;
+        drop(failed_capture);
+        fixture.await_producer_run().await?;
+        let recovery = fixture.producer_run.as_ref().unwrap();
+        let completion = recovery.outcome.as_ref().ok_or("missing original callback outcome")?;
+        let failure = completion.result.as_ref()
+            .expect_err("empty model candidates must fail inside the genuine Create callback");
+        assert_eq!(failure.original_operation_id, recovery.capture.operation_id);
         assert!(matches!(
             &failure.origin,
             ProducerRunFailureOrigin::OriginalCallback(
                 crate::swarm_orchestration::model_lane::ModelLaneError::InvalidInput(message),
             ) if message == "candidate_model_ids must contain at least one model id"
         ));
-        assert!(fixture.observe_producer_run_result(Err(failure)).is_err());
-        assert!(fixture.producer_run.is_none(), "same-operation callback failure retained its capture");
-        drop(failed_capture);
+        fixture.reconcile_producer_run().await?;
+        assert!(fixture.producer_run.is_none(),
+            "proved original rollback retained its transaction obligation");
         Ok(())
     }))
 }

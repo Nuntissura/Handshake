@@ -816,7 +816,7 @@ async fn mt259_preview_generate_job_builds_pyramid_and_receipt_carries_tiers() {
     .await
     .expect("create job");
     let job_id = job.job_id.to_string();
-    handshake_core::workflows::start_workflow_for_job(&state, job)
+    handshake_core::workflows::start_workflow_for_job(&state, job, None)
         .await
         .expect("start workflow");
 

@@ -238,7 +238,7 @@ fn signature_help_graceful_fallback_and_no_panic() {
     // active_parameter computed locally from the comma count (the fallback path). Even though the
     // local comma count says "the cursor is on argument 1", the REAL backend symbol exposes no
     // parameters, so the popup degrades to the bare call-target name with no active-parameter run.
-    let state = SignatureHelpState::from_code_nav(&real_symbol, 10, 1)
+    let state = handshake_native::code_editor::signature_help::from_code_nav(&real_symbol, 10, 1)
         .expect("AC-003: a real code-nav symbol still yields a (bare-name) fallback signature");
     assert_eq!(state.source, SignatureSource::CodeNavFallback);
     let sig = state.active().unwrap();

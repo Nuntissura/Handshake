@@ -317,7 +317,7 @@ impl SurrealDataContext<'_> {
     }
 }
 
-#[derive(SurrealValue)]
+#[derive(Clone, SurrealValue)]
 struct MemorySurfaceBinding {
     kind: String,
     resource: RecordId,
@@ -325,145 +325,13 @@ struct MemorySurfaceBinding {
 }
 
 impl SurrealStorage {
-    /// Creates only a fresh server-generated source and its exact grants in one broker transaction.
     pub async fn create_account_workspace(
         &self,
         context: &super::local_accounts::LocalSessionContext,
         scope: &super::resource_authority::RecordUserScope,
         workspace: NewWorkspace,
     ) -> Result<Workspace, super::resource_authority::ResourceAuthorityError> {
-        use super::resource_authority::ResourceAuthorityError;
-        let started = std::time::Instant::now();
-        let id = scope
-            .workspace_id
-            .clone()
-            .ok_or(ResourceAuthorityError::InvalidInput(
-                "workspace create scope missing",
-            ))?;
-        if scope.action != super::resource_authority::ResourceAction::Create
-            || scope.capability_id != "fs.write"
-            || scope.session_id != context.session_id
-            || scope.grant_id.is_some()
-        {
-            return Err(ResourceAuthorityError::InvalidInput(
-                "workspace create scope mismatch",
-            ));
-        }
-        let resource_id = scope.resource_id.clone();
-        let metadata = self
-            .inner
-            .guard
-            .validate_write(&WriteContext::human(Some(context.actor_id.clone())), &id)
-            .await
-            .map_err(|_| {
-                tracing::warn!(
-                    target: "handshake_core",
-                    elapsed_ms = started.elapsed().as_millis(),
-                    "workspace create write guard denied"
-                );
-                ResourceAuthorityError::Denied {
-                    decision_id: Uuid::now_v7().to_string(),
-                }
-            })?;
-        tracing::info!(
-            target: "handshake_core",
-            elapsed_ms = started.elapsed().as_millis(),
-            "workspace create write guard completed"
-        );
-        let account = RecordId::new("local_accounts", context.identity.account_id.clone());
-        let principal = RecordId::new("principals", context.identity.principal_id.clone());
-        let space = RecordId::new("access_spaces", context.identity.access_space_id.clone());
-        let session = RecordId::new("authenticated_sessions", context.session_id.clone());
-        let actor = context.actor_id.clone();
-        let created = self.with_record_user_scope(scope.clone(), self.with_data_operation(move |database| Box::pin(async move {
-            let broker = database.client;
-            let mut result = broker.query(r#"
-BEGIN TRANSACTION;
-LET $live = $auth;
-LET $granted = IF $live.delegated_capabilities CONTAINS '*' AND $live.principal_id.delegated_capabilities CONTAINS '*' { $capabilities } ELSE { array::filter($capabilities, |$capability| ($live.delegated_capabilities CONTAINS '*' OR $live.delegated_capabilities CONTAINS $capability) AND ($live.principal_id.delegated_capabilities CONTAINS '*' OR $live.principal_id.delegated_capabilities CONTAINS $capability)) };
-CREATE $workspace SET created_in_session_id = $account_session, name = $name, last_actor_id = $actor, last_actor_kind = 'HUMAN', edit_event_id = $edit RETURN NONE;
-CREATE $resource SET resource_kind = 'workspace', external_resource_id = $external, owner_account_id = $account,
-    created_by_principal_id = $principal, created_in_session_id = $account_session, access_space_id = $space,
-    creator_grant_id = $workspace_grant, parent_resource_id = NONE, schema_version = 1, lifecycle_state = 'active', policy_version = $live.policy_version,
-    classification = 'account_private', storage_locator_hash = crypto::sha256('workspace:' + $external), created_at = time::now(), updated_at = time::now() RETURN NONE;
-CREATE $fr SET resource_kind = 'flight_recorder', external_resource_id = $external, owner_account_id = $account,
-    created_by_principal_id = $principal, created_in_session_id = $account_session, access_space_id = $space,
-    creator_grant_id = $fr_grant, parent_resource_id = $resource, schema_version = 1, lifecycle_state = 'active', policy_version = $live.policy_version,
-    classification = 'account_private', storage_locator_hash = crypto::sha256('flight_recorder:' + $external), created_at = time::now(), updated_at = time::now() RETURN NONE;
-IF array::len((CREATE $workspace_grant SET account_id = $account, principal_id = $principal, access_space_id = $space,
-    resource_id = $resource, actions = ['create','read','update','delete'], capability_ids = $granted,
-    delegation_chain = $live.delegation_chain, status = 'active', grant_version = 1, policy_version = $live.policy_version,
-    expires_at = NONE, revoked_at = NONE, created_at = time::now(), updated_at = time::now() RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
-IF array::len((CREATE $fr_grant SET account_id = $account, principal_id = $principal, access_space_id = $space,
-    resource_id = $fr, actions = ['create','read'], capability_ids = ['fr.read','fr.ingest.runtime_chat','fr.ingest.native_editor'],
-    delegation_chain = $live.delegation_chain, status = 'active', grant_version = 1, policy_version = $live.policy_version,
-    expires_at = NONE, revoked_at = NONE, created_at = time::now(), updated_at = time::now() RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
-FOR $surface IN $memory_surfaces {
-    LET $memory_resource = $surface.resource;
-    LET $memory_grant = $surface.grant;
-    CREATE $memory_resource SET resource_kind = $surface.kind, external_resource_id = $external, owner_account_id = $account,
-        created_by_principal_id = $principal, created_in_session_id = $account_session, access_space_id = $space,
-        creator_grant_id = $memory_grant, parent_resource_id = $resource, schema_version = 1, lifecycle_state = 'active', policy_version = $live.policy_version,
-        classification = 'account_private', storage_locator_hash = crypto::sha256($surface.kind + ':' + $external), created_at = time::now(), updated_at = time::now() RETURN NONE;
-    IF array::len((CREATE $memory_grant SET account_id = $account, principal_id = $principal, access_space_id = $space,
-        resource_id = $memory_resource, actions = ['create','read','update','delete'],
-        capability_ids = array::filter(['memory.read','memory.propose','memory.review','memory.commit','fs.write'], |$capability| $granted CONTAINS $capability),
-        delegation_chain = $live.delegation_chain, status = 'active', grant_version = 1, policy_version = $live.policy_version,
-        expires_at = NONE, revoked_at = NONE, created_at = time::now(), updated_at = time::now() RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
-};
-IF array::len(UPDATE $account_session SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
-IF array::len(UPDATE $account SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
-IF array::len(UPDATE $principal SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
-IF array::len(UPDATE $space SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
-IF array::len(SELECT VALUE id FROM $workspace) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
-SELECT * FROM ONLY $workspace;
-COMMIT TRANSACTION;
-"#).bind(("account_session", session)).bind(("account", account)).bind(("principal", principal)).bind(("space", space))
-                .bind(("workspace", RecordId::new("workspaces", id.clone())))
-                .bind(("external", id)).bind(("name", workspace.name)).bind(("actor", actor))
-                .bind(("edit", metadata.edit_event_id.to_string()))
-                .bind(("resource", RecordId::new("protected_resources", resource_id)))
-                .bind(("fr", RecordId::new("protected_resources", Uuid::now_v7().to_string())))
-                .bind(("workspace_grant", RecordId::new("resource_grants", Uuid::now_v7().to_string())))
-                .bind(("fr_grant", RecordId::new("resource_grants", Uuid::now_v7().to_string())))
-                .bind(("capabilities", vec!["fs.read", "fs.write", "model_lane.navigation.read", "fr.read", "fr.ingest.runtime_chat", "fr.ingest.native_editor", "memory.read", "memory.propose", "memory.review", "memory.commit"]))
-                // MT-109 C2: the workspace owner's memory surfaces (Master Spec 02:2776 record-user
-                // permissions), provisioned with the workspace instead of only by test fixtures.
-                .bind(("memory_surfaces", ["memory_pack", "memory_proposal", "memory_commit_report", "memory_item", "memory_item_count"]
-                    .into_iter()
-                    .map(|kind| MemorySurfaceBinding {
-                        kind: kind.to_owned(),
-                        resource: RecordId::new("protected_resources", Uuid::now_v7().to_string()),
-                        grant: RecordId::new("resource_grants", Uuid::now_v7().to_string()),
-                    })
-                    .collect::<Vec<_>>()))
-                .await?;
-            let mut errors = result.take_errors().into_iter().collect::<Vec<_>>();
-            errors.sort_by_key(|(statement_index, _)| *statement_index);
-            if !errors.is_empty() {
-                let meaningful = errors.iter().position(|(_, error)| !error.to_string().to_ascii_lowercase().contains("query was not executed due to a failed transaction")).unwrap_or(0);
-                let (statement_index, error) = errors.swap_remove(meaningful);
-                #[cfg(test)] eprintln!("workspace-create transactionfailed statement_index={statement_index} error={error}");
-                #[cfg(not(test))] let _ = statement_index;
-                return Err(error.into());
-            }
-            // BEGIN(0) .. memory surfaces(8) .. workspace read(14).
-            let created: Option<WorkspaceRecord> = result.take(14)?;
-            created.ok_or(SurrealStorageError::InvalidWorkspaceRecord { reason: "atomic workspace create returned no row" })?.try_into()
-        }))).await;
-        match &created {
-            Ok(_) => tracing::info!(
-                target: "handshake_core",
-                elapsed_ms = started.elapsed().as_millis(),
-                "workspace create record-user signin and transaction completed"
-            ),
-            Err(_) => tracing::warn!(
-                target: "handshake_core",
-                elapsed_ms = started.elapsed().as_millis(),
-                "workspace create record-user signin or transaction failed"
-            ),
-        }
-        created.map_err(Into::into)
+        self.begin_account_workspace_creation(context, scope, workspace).await?.workspace().await
     }
 
     pub(crate) async fn delete_account_workspace(
@@ -832,3 +700,614 @@ mod cascade_guard_tests {
         }
     }
 }
+
+
+
+use std::sync::Arc;
+use super::resource_authority::{CanonicalResourceLocator, RecordUserScope, ResourceAction, ResourceAuthorityError};
+
+#[derive(Clone, SurrealValue)]
+struct WorkspaceCreationBindings {
+    account_session: RecordId,
+    account: RecordId,
+    principal: RecordId,
+    space: RecordId,
+    workspace: RecordId,
+    external: String,
+    name: String,
+    actor: String,
+    edit: String,
+    resource: RecordId,
+    fr: RecordId,
+    workspace_grant: RecordId,
+    fr_grant: RecordId,
+    capabilities: Vec<String>,
+    memory_surfaces: Vec<MemorySurfaceBinding>,
+    operation_id: String,
+    channel_hash: String,
+    deadline: Datetime,
+    first_owner_workspace_receipt_read: bool,
+}
+#[derive(Clone, PartialEq, Eq, SurrealValue)]
+struct FirstOwnerWorkspaceReceipt {
+    setup_operation_id: String,
+    account: RecordId,
+    operator_principal: RecordId,
+    space: RecordId,
+    setup_receipt: RecordId,
+    setup_policy_version: i64,
+    created_at: Datetime,
+    first_workspace_operation_id: String,
+    first_workspace: RecordId,
+    first_workspace_resource: RecordId,
+    first_workspace_grant: RecordId,
+    first_workspace_session: RecordId,
+    first_workspace_channel_hash: String,
+    first_workspace_name: String,
+    first_workspace_deadline: Datetime,
+    first_workspace_policy_version: i64,
+    first_workspace_receipt_nonce: i64,
+    first_workspace_original: surrealdb::types::Object,
+}
+struct FirstOwnerWorkspaceOriginal {
+    storage: SurrealStorage,
+    scope: RecordUserScope,
+    context: super::local_accounts::LocalSessionContext,
+    operation_id: Uuid,
+    bindings: WorkspaceCreationBindings,
+    deadline: std::time::Instant,
+    cancellation: Arc<super::ContextOperationCancellation>,
+    expected: std::sync::OnceLock<Option<FirstOwnerWorkspaceReceipt>>,
+}
+struct FirstOwnerWorkspaceProofSource {
+    storage: SurrealStorage,
+    context: super::local_accounts::LocalSessionContext,
+    operation_id: Uuid,
+    bindings: WorkspaceCreationBindings,
+    deadline: Option<std::time::Instant>,
+}
+pub(super) struct FirstOwnerWorkspaceCreationWitness {
+    original: Arc<FirstOwnerWorkspaceProofSource>,
+    receipt: FirstOwnerWorkspaceReceipt,
+    parent: CanonicalResourceLocator,
+}
+impl FirstOwnerWorkspaceCreationWitness {
+    pub(super) fn parent_workspace(&self) -> &CanonicalResourceLocator { &self.parent }
+    pub(super) fn parent_workspace_external_id(&self) -> &str { &self.original.bindings.external }
+    pub(super) fn setup_operation_id(&self) -> Uuid {
+        Uuid::parse_str(&self.receipt.setup_operation_id).expect("producer checked setup operation")
+    }
+    pub(super) fn operation_id(&self) -> Uuid { self.original.operation_id }
+    pub(super) fn original_deadline(&self) -> Option<std::time::Instant> { self.original.deadline }
+    pub(super) fn original_utc_deadline(&self) -> &Datetime { &self.original.bindings.deadline }
+    pub(super) async fn require_current_in_transaction(
+        &self, tx: &super::SurrealTransactionContext<'_>, storage: &SurrealStorage,
+        session: &super::local_accounts::LocalSessionContext, channel_hash: &str,
+    ) -> Result<(), ResourceAuthorityError> {
+        let original = &self.original;
+        if !Arc::ptr_eq(&storage.inner, &original.storage.inner)
+            || session.identity.account_id != original.context.identity.account_id
+            || session.identity.principal_id != original.context.identity.principal_id
+            || session.identity.access_space_id != original.context.identity.access_space_id
+            || session.session_id != original.context.session_id
+            || channel_hash != original.bindings.channel_hash
+        { return Err(workspace_creation_denied()); }
+        let rows: Vec<FirstOwnerWorkspaceReceipt> = tx.query_values_at(
+            FIRST_OWNER_WORKSPACE_READ_STRICT, original.bindings.clone(), 0,
+        ).await?;
+        if rows.as_slice() != [self.receipt.clone()] { return Err(workspace_creation_denied()); }
+        Ok(())
+    }
+}
+pub(super) struct WorkspaceCreationSuccess {
+    workspace: Workspace,
+    witness: Option<Arc<FirstOwnerWorkspaceCreationWitness>>,
+}
+pub(super) enum FirstOwnerWorkspaceFailure {
+    Operation(ResourceAuthorityError),
+}
+impl From<SurrealStorageError> for FirstOwnerWorkspaceFailure {
+    fn from(error: SurrealStorageError) -> Self { Self::Operation(error.into()) }
+}
+impl From<ResourceAuthorityError> for FirstOwnerWorkspaceFailure {
+    fn from(error: ResourceAuthorityError) -> Self { Self::Operation(error) }
+}
+#[derive(Clone)]
+pub(super) enum FirstOwnerWorkspaceObservation {
+    Complete(Arc<Result<WorkspaceCreationSuccess, FirstOwnerWorkspaceFailure>>),
+    Join(Arc<tokio::task::JoinError>),
+}
+enum FirstOwnerWorkspaceState {
+    Starting,
+    Running(tokio::task::JoinHandle<Result<WorkspaceCreationSuccess, FirstOwnerWorkspaceFailure>>),
+    Observed(FirstOwnerWorkspaceObservation),
+}
+pub(super) struct FirstOwnerWorkspaceCreationOperation {
+    original: Arc<FirstOwnerWorkspaceOriginal>,
+    state: tokio::sync::Mutex<FirstOwnerWorkspaceState>,
+}
+fn workspace_creation_denied() -> ResourceAuthorityError {
+    ResourceAuthorityError::InvalidInput("first owner workspace creation denied")
+}
+impl FirstOwnerWorkspaceCreationOperation {
+    pub(super) async fn wait(&self) -> FirstOwnerWorkspaceObservation {
+        let mut state = self.state.lock().await;
+        if let FirstOwnerWorkspaceState::Running(handle) = &mut *state {
+            let observed = match handle.await {
+                Ok(value) => FirstOwnerWorkspaceObservation::Complete(Arc::new(value)),
+                Err(error) => FirstOwnerWorkspaceObservation::Join(Arc::new(error)),
+            };
+            *state = FirstOwnerWorkspaceState::Observed(observed);
+        }
+        match &*state {
+            FirstOwnerWorkspaceState::Observed(value) => value.clone(),
+            _ => unreachable!("workspace worker published before observation"),
+        }
+    }
+    async fn workspace(&self) -> Result<Workspace, ResourceAuthorityError> {
+        match self.wait().await {
+            FirstOwnerWorkspaceObservation::Complete(result) => match result.as_ref() {
+                Ok(success) => Ok(success.workspace.clone()),
+                Err(_) => Err(SurrealStorageError::TransactionSettlementPending {
+                    operation_id: self.original.operation_id,
+                }.into()),
+            },
+            _ => Err(SurrealStorageError::TransactionSettlementPending {
+                operation_id: self.original.operation_id,
+            }.into()),
+        }
+    }
+    pub(super) async fn drain(&self) -> Result<(), ResourceAuthorityError> {
+        self.workspace().await.map(|_| ())
+    }
+}
+impl SurrealStorage {
+    pub(super) async fn begin_account_workspace_creation(
+        &self, context: &super::local_accounts::LocalSessionContext,
+        scope: &RecordUserScope, workspace: NewWorkspace,
+    ) -> Result<Arc<FirstOwnerWorkspaceCreationOperation>, ResourceAuthorityError> {
+        let id = scope.workspace_id.clone().ok_or_else(workspace_creation_denied)?;
+        let operation_id = Uuid::parse_str(&id).map_err(|_| workspace_creation_denied())?;
+        if scope.action != ResourceAction::Create || scope.capability_id != "fs.write"
+            || scope.session_id != context.session_id || scope.grant_id.is_some()
+        { return Err(workspace_creation_denied()); }
+        {
+            let retained = self.inner.transaction_settlements.lock().map_err(|_| workspace_creation_denied())?;
+            if let Some(entry) = retained.get(&operation_id) {
+                return match entry {
+                    Some(super::AuthenticatedTransactionRetention::FirstOwnerWorkspace(owner))
+                        if owner.original.scope.session_token == scope.session_token
+                        && owner.original.scope.channel_binding_hash == scope.channel_binding_hash
+                        && owner.original.scope.resource_id == scope.resource_id
+                        && owner.original.scope.session_id == scope.session_id
+                        && owner.original.scope.workspace_id == scope.workspace_id
+                        && owner.original.bindings.name == workspace.name
+                        && owner.original.context.identity.account_id == context.identity.account_id
+                        && owner.original.context.identity.principal_id == context.identity.principal_id
+                        && owner.original.context.identity.access_space_id == context.identity.access_space_id
+                        => Ok(owner.clone()),
+                    _ => Err(workspace_creation_denied()),
+                };
+            }
+        }
+        let channel_hash = scope.channel_binding_hash.clone().ok_or_else(workspace_creation_denied)?;
+        let deadline = std::time::Instant::now() + self.effective_statement_timeout();
+        let utc_deadline = chrono::Utc::now() + chrono::Duration::from_std(
+            deadline.saturating_duration_since(std::time::Instant::now()),
+        ).map_err(|_| workspace_creation_denied())?;
+        let metadata = self.inner.guard.validate_write(
+            &WriteContext::human(Some(context.actor_id.clone())), &id,
+        ).await.map_err(|_| workspace_creation_denied())?;
+        let bindings = WorkspaceCreationBindings {
+            account_session: RecordId::new("authenticated_sessions", context.session_id.clone()),
+            account: RecordId::new("local_accounts", context.identity.account_id.clone()),
+            principal: RecordId::new("principals", context.identity.principal_id.clone()),
+            space: RecordId::new("access_spaces", context.identity.access_space_id.clone()),
+            workspace: RecordId::new("workspaces", id.clone()), external: id,
+            name: workspace.name, actor: context.actor_id.clone(), edit: metadata.edit_event_id.to_string(),
+            resource: RecordId::new("protected_resources", scope.resource_id.clone()),
+            fr: RecordId::new("protected_resources", Uuid::now_v7().to_string()),
+            workspace_grant: RecordId::new("resource_grants", Uuid::now_v7().to_string()),
+            fr_grant: RecordId::new("resource_grants", Uuid::now_v7().to_string()),
+            capabilities: ["fs.read", "fs.write", "model_lane.navigation.read", "fr.read", "fr.ingest.runtime_chat", "fr.ingest.native_editor", "memory.read", "memory.propose", "memory.review", "memory.commit"].into_iter().map(str::to_owned).collect(),
+            memory_surfaces: ["memory_pack", "memory_proposal", "memory_commit_report", "memory_item", "memory_item_count"].into_iter().map(|kind| MemorySurfaceBinding {
+                kind: kind.to_owned(), resource: RecordId::new("protected_resources", Uuid::now_v7().to_string()),
+                grant: RecordId::new("resource_grants", Uuid::now_v7().to_string()),
+            }).collect(), operation_id: operation_id.to_string(), channel_hash, deadline: utc_deadline.into(), first_owner_workspace_receipt_read: false,
+        };
+        validate_workspace_original_shape(&bindings)?;
+        let original = Arc::new(FirstOwnerWorkspaceOriginal {
+            storage: self.clone(), scope: scope.clone(), context: context.clone(), operation_id,
+            bindings, deadline, cancellation: super::ContextOperationCancellation::new(),
+            expected: std::sync::OnceLock::new(),
+        });
+        let operation = Arc::new(FirstOwnerWorkspaceCreationOperation {
+            original: original.clone(), state: tokio::sync::Mutex::new(FirstOwnerWorkspaceState::Starting),
+        });
+        {
+            let admission = self.inner.member_login_admission.lock().map_err(|_| workspace_creation_denied())?;
+            if !*admission { return Err(SurrealStorageError::Closed.into()); }
+            self.reserve_transaction_settlement(operation_id, Some(
+                super::AuthenticatedTransactionRetention::FirstOwnerWorkspace(operation.clone()),
+            ))?;
+            let mut state = operation.state.try_lock().map_err(|_| workspace_creation_denied())?;
+            *state = FirstOwnerWorkspaceState::Running(tokio::spawn(async move {
+                original.storage.clone().run_first_owner_workspace_creation(original).await
+            }));
+            drop(state);
+            drop(admission);
+        }
+        Ok(operation)
+    }
+    async fn run_first_owner_workspace_creation(
+        &self, original: Arc<FirstOwnerWorkspaceOriginal>,
+    ) -> Result<WorkspaceCreationSuccess, FirstOwnerWorkspaceFailure> {
+        let write = original.bindings.clone();
+        let captured = original.clone();
+        self.transaction_worker::<(), FirstOwnerWorkspaceFailure, _>(
+            super::TransactionInvocation::Authenticated {
+                scope: original.scope.clone(), deadline: original.deadline, operation_id: original.operation_id,
+            }, Some(original.operation_id), Some(original.cancellation.clone()),
+            super::TransactionSettlementMode::Mutation,
+            move |tx| Box::pin(async move {
+                let accounts: Vec<WorkspaceApplicability> = tx.query_values_at(
+                    FIRST_OWNER_WORKSPACE_APPLICABILITY, write.clone(), 0,
+                ).await?;
+                let [account] = accounts.as_slice() else { return Err(workspace_creation_denied().into()); };
+                if account.id != write.account { return Err(workspace_creation_denied().into()); }
+                let mut first_claim = false;
+                if let Some(origin) = &account.first_owner_administration_origin {
+                    if *origin != RecordId::new("first_owner_administration_origins", "primary") {
+                        return Err(workspace_creation_denied().into());
+                    }
+                    let origins: Vec<FirstOwnerWorkspaceOriginState> = tx.query_values_at(
+                        FIRST_OWNER_WORKSPACE_ORIGIN_STATE, write.clone(), 0,
+                    ).await?;
+                    let [origin] = origins.as_slice() else { return Err(workspace_creation_denied().into()); };
+                    if origin.account != write.account || origin.operator_principal != write.principal
+                        || origin.space != write.space || origin.purpose != "prospective_first_owner_administration"
+                        || origin.version != 1 { return Err(workspace_creation_denied().into()); }
+                    match origin.first_workspace_state.as_str() {
+                        "unclaimed" if origin.first_workspace_original.is_none() => first_claim = true,
+                        "created" => {
+                            let stored = decode_workspace_original(origin.first_workspace_original.as_ref()
+                                .ok_or_else(workspace_creation_denied)?)?;
+                            let prior: Vec<FirstOwnerWorkspaceReceipt> = tx.query_values_at(
+                                FIRST_OWNER_WORKSPACE_READ, stored.receipt_read(), 0,
+                            ).await?;
+                            if prior.len() != 1 { return Err(workspace_creation_denied().into()); }
+                        }
+                        _ => return Err(workspace_creation_denied().into()),
+                    }
+                }
+                let response = tx.transaction.query(FIRST_OWNER_WORKSPACE_CREATE)
+                    .bind(super::original_operation_bindings(write.clone().into_value()))
+                    .bind(("first_claim", first_claim)).await.map_err(SurrealStorageError::from)?;
+                response.check().map_err(SurrealStorageError::from)?;
+                let expected = if first_claim {
+                    let receipts: Vec<FirstOwnerWorkspaceReceipt> = tx.query_values_at(
+                        FIRST_OWNER_WORKSPACE_READ, write.receipt_read(), 0,
+                    ).await?;
+                    let [receipt] = receipts.as_slice() else { return Err(workspace_creation_denied().into()); };
+                    if receipt.first_workspace_original.clone().into_value() != write.clone().into_value() {
+                        return Err(workspace_creation_denied().into());
+                    }
+                    Some(receipt.clone())
+                } else { None };
+                captured.expected.set(expected).map_err(|_| workspace_creation_denied())?;
+                Ok(())
+            }),
+        ).await?;
+        let read = original.bindings.clone();
+        let expected_receipt = original.expected.get().ok_or_else(workspace_creation_denied)?.is_some();
+        let (workspace, receipt) = self.with_record_user_scope(original.scope.clone(),
+            self.with_data_operation(move |db| Box::pin(async move {
+                let rows: Vec<WorkspaceRecord> = db.query_values_at(
+                    "SELECT * FROM $workspace;", read.clone(), 0,
+                ).await?;
+                let [workspace] = rows.as_slice() else {
+                    return Err(SurrealStorageError::InvalidWorkspaceRecord { reason: "workspace canonical read missing" });
+                };
+                let workspace = Workspace {
+                    id: read.external.clone(), name: workspace.name.clone(),
+                    created_at: workspace.created_at.clone().into_inner(), updated_at: workspace.updated_at.clone().into_inner(),
+                };
+                let receipt: Vec<FirstOwnerWorkspaceReceipt> = if expected_receipt {
+                    db.query_values_at(FIRST_OWNER_WORKSPACE_READ, read.receipt_read(), 0).await?
+                } else { Vec::new() };
+                Ok((workspace, receipt))
+            })),
+        ).await?;
+        if receipt.as_slice() != original.expected.get().and_then(Option::as_ref).map(std::slice::from_ref).unwrap_or(&[]) { return Err(workspace_creation_denied().into()); }
+        let witness = if let [receipt] = receipt.as_slice() {
+            Uuid::parse_str(&receipt.setup_operation_id).map_err(|_| workspace_creation_denied())?;
+            Some(Arc::new(FirstOwnerWorkspaceCreationWitness {
+                original: Arc::new(FirstOwnerWorkspaceProofSource {
+                    storage: original.storage.clone(), context: original.context.clone(),
+                    operation_id: original.operation_id, bindings: original.bindings.clone(),
+                    deadline: Some(original.deadline),
+                }), receipt: receipt.clone(),
+                parent: CanonicalResourceLocator {
+                    id: original.bindings.resource.clone(), external_resource_id: original.bindings.external.clone(),
+                    owner_account_id: original.bindings.account.clone(), access_space_id: original.bindings.space.clone(),
+                    parent_resource_id: None, lifecycle_state: "active".to_owned(),
+                    policy_version: receipt.first_workspace_policy_version,
+                },
+            }))
+        } else if receipt.is_empty() { None } else { return Err(workspace_creation_denied().into()); };
+        Ok(WorkspaceCreationSuccess { workspace, witness })
+    }
+    pub(super) async fn first_owner_workspace_creation_witness(
+        &self, operation_id: Uuid,
+    ) -> Result<Arc<FirstOwnerWorkspaceCreationWitness>, ResourceAuthorityError> {
+        let operation = {
+            let retained = self.inner.transaction_settlements.lock().map_err(|_| workspace_creation_denied())?;
+            match retained.get(&operation_id) {
+                Some(Some(super::AuthenticatedTransactionRetention::FirstOwnerWorkspace(owner))) => owner.clone(),
+                Some(Some(super::AuthenticatedTransactionRetention::FirstOwnerWorkspaceRecovery(witness))) => return Ok(witness.clone()),
+                _ => return Err(workspace_creation_denied()),
+            }
+        };
+        match operation.wait().await {
+            FirstOwnerWorkspaceObservation::Complete(result) => match result.as_ref() {
+                Ok(success) => success.witness.clone().ok_or_else(workspace_creation_denied),
+                Err(_) => Err(workspace_creation_denied()),
+            },
+            _ => Err(workspace_creation_denied()),
+        }
+    }
+    pub(crate) async fn drain_first_owner_workspace_operations(&self) -> Result<(), ResourceAuthorityError> {
+        self.close_member_login_admission()?;
+        let owners: Vec<_> = {
+            let retained = self.inner.transaction_settlements.lock().map_err(|_| workspace_creation_denied())?;
+            retained.values().filter_map(|entry| match entry {
+                Some(super::AuthenticatedTransactionRetention::FirstOwnerWorkspace(owner)) => Some(owner.clone()),
+                _ => None,
+            }).collect()
+        };
+        let mut first_error = None;
+        for owner in owners {
+            if let Err(error) = owner.drain().await { if first_error.is_none() { first_error = Some(error); } }
+        }
+        first_error.map_or(Ok(()), Err)
+    }
+}
+
+const FIRST_OWNER_WORKSPACE_CREATE: &str = r#"
+IF $first_claim {
+    IF array::len(SELECT VALUE id FROM protected_resources WHERE resource_kind = 'workspace'
+        AND owner_account_id = $account LIMIT 1) != 0 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+    IF array::len(UPDATE first_owner_administration_origins:primary SET
+        first_workspace_state = 'created', first_workspace_operation_id = $operation_id,
+        first_workspace = $workspace, first_workspace_resource = $resource,
+        first_workspace_grant = $workspace_grant, first_workspace_session = $account_session,
+        first_workspace_channel_hash = $channel_hash, first_workspace_name = $name,
+        first_workspace_deadline = $deadline, first_workspace_policy_version = $auth.policy_version,
+        first_workspace_receipt_nonce = 1,
+        first_workspace_original = { account_session: $account_session, account: $account,
+          principal: $principal, space: $space, workspace: $workspace, external: $external,
+          name: $name, actor: $actor, edit: $edit, resource: $resource, fr: $fr,
+          workspace_grant: $workspace_grant, fr_grant: $fr_grant, capabilities: $capabilities,
+          memory_surfaces: $memory_surfaces, operation_id: $operation_id, channel_hash: $channel_hash,
+          deadline: $deadline, first_owner_workspace_receipt_read: false }
+        WHERE first_workspace_state = 'unclaimed' AND first_workspace_receipt_nonce = 0
+        AND first_workspace_original = NONE AND account = $account
+        AND operator_principal = $principal AND space = $space
+        RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+};
+LET $live = $auth;
+LET $granted = IF $live.delegated_capabilities CONTAINS '*' AND $live.principal_id.delegated_capabilities CONTAINS '*' { $capabilities } ELSE { array::filter($capabilities, |$capability| ($live.delegated_capabilities CONTAINS '*' OR $live.delegated_capabilities CONTAINS $capability) AND ($live.principal_id.delegated_capabilities CONTAINS '*' OR $live.principal_id.delegated_capabilities CONTAINS $capability)) };
+CREATE $workspace SET created_in_session_id = $account_session, name = $name, last_actor_id = $actor, last_actor_kind = 'HUMAN', edit_event_id = $edit RETURN NONE;
+CREATE $resource SET resource_kind = 'workspace', external_resource_id = $external, owner_account_id = $account,
+    created_by_principal_id = $principal, created_in_session_id = $account_session, access_space_id = $space,
+    creator_grant_id = $workspace_grant, parent_resource_id = NONE, schema_version = 1, lifecycle_state = 'active', policy_version = $live.policy_version,
+    classification = 'account_private', storage_locator_hash = crypto::sha256('workspace:' + $external), created_at = time::now(), updated_at = time::now() RETURN NONE;
+CREATE $fr SET resource_kind = 'flight_recorder', external_resource_id = $external, owner_account_id = $account,
+    created_by_principal_id = $principal, created_in_session_id = $account_session, access_space_id = $space,
+    creator_grant_id = $fr_grant, parent_resource_id = $resource, schema_version = 1, lifecycle_state = 'active', policy_version = $live.policy_version,
+    classification = 'account_private', storage_locator_hash = crypto::sha256('flight_recorder:' + $external), created_at = time::now(), updated_at = time::now() RETURN NONE;
+IF array::len((CREATE $workspace_grant SET account_id = $account, principal_id = $principal, access_space_id = $space,
+    resource_id = $resource, actions = ['create','read','update','delete'], capability_ids = $granted,
+    delegation_chain = $live.delegation_chain, status = 'active', grant_version = 1, policy_version = $live.policy_version,
+    expires_at = NONE, revoked_at = NONE, created_at = time::now(), updated_at = time::now() RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+IF array::len((CREATE $fr_grant SET account_id = $account, principal_id = $principal, access_space_id = $space,
+    resource_id = $fr, actions = ['create','read'], capability_ids = ['fr.read','fr.ingest.runtime_chat','fr.ingest.native_editor'],
+    delegation_chain = $live.delegation_chain, status = 'active', grant_version = 1, policy_version = $live.policy_version,
+    expires_at = NONE, revoked_at = NONE, created_at = time::now(), updated_at = time::now() RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+FOR $surface IN $memory_surfaces {
+    LET $memory_resource = $surface.resource;
+    LET $memory_grant = $surface.grant;
+    CREATE $memory_resource SET resource_kind = $surface.kind, external_resource_id = $external, owner_account_id = $account,
+        created_by_principal_id = $principal, created_in_session_id = $account_session, access_space_id = $space,
+        creator_grant_id = $memory_grant, parent_resource_id = $resource, schema_version = 1, lifecycle_state = 'active', policy_version = $live.policy_version,
+        classification = 'account_private', storage_locator_hash = crypto::sha256($surface.kind + ':' + $external), created_at = time::now(), updated_at = time::now() RETURN NONE;
+    IF array::len((CREATE $memory_grant SET account_id = $account, principal_id = $principal, access_space_id = $space,
+        resource_id = $memory_resource, actions = ['create','read','update','delete'],
+        capability_ids = array::filter(['memory.read','memory.propose','memory.review','memory.commit','fs.write'], |$capability| $granted CONTAINS $capability),
+        delegation_chain = $live.delegation_chain, status = 'active', grant_version = 1, policy_version = $live.policy_version,
+        expires_at = NONE, revoked_at = NONE, created_at = time::now(), updated_at = time::now() RETURN VALUE id)) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+};
+IF array::len(UPDATE $account_session SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+IF array::len(UPDATE $account SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+IF array::len(UPDATE $principal SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+IF array::len(UPDATE $space SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+IF array::len(SELECT VALUE id FROM $workspace) != 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; };
+
+
+"#;
+const FIRST_OWNER_WORKSPACE_READ: &str = r#"
+SELECT setup_operation_id, account, operator_principal, space, setup_receipt, setup_policy_version, created_at,
+ first_workspace_operation_id, first_workspace, first_workspace_resource, first_workspace_grant,
+ first_workspace_session, first_workspace_channel_hash, first_workspace_name, first_workspace_deadline,
+ first_workspace_policy_version, first_workspace_receipt_nonce, first_workspace_original
+FROM first_owner_administration_origins:primary
+WHERE first_workspace_operation_id = $operation_id AND first_workspace = $workspace
+ AND first_workspace_resource = $resource AND first_workspace_grant = $workspace_grant
+ AND first_workspace_session = $account_session AND first_workspace_channel_hash = $channel_hash
+ AND first_workspace_name = $name AND first_workspace_deadline = $deadline;
+"#;
+
+const FIRST_OWNER_WORKSPACE_READ_STRICT: &str = r#"
+SELECT setup_operation_id, account, operator_principal, space, setup_receipt, setup_policy_version, created_at,
+ first_workspace_operation_id, first_workspace, first_workspace_resource, first_workspace_grant,
+ first_workspace_session, first_workspace_channel_hash, first_workspace_name, first_workspace_deadline,
+ first_workspace_policy_version, first_workspace_receipt_nonce, first_workspace_original
+FROM first_owner_administration_origins:primary
+WHERE fn::wp012_first_owner_workspace_receipt($this, $operation_id, $workspace, $resource,
+ $workspace_grant, $account_session, $channel_hash, $name, $deadline);
+"#;
+
+#[derive(SurrealValue)]
+struct WorkspaceApplicability {
+    id: RecordId,
+    first_owner_administration_origin: Option<RecordId>,
+}
+#[derive(SurrealValue)]
+struct FirstOwnerWorkspaceOriginState {
+    account: RecordId,
+    operator_principal: RecordId,
+    space: RecordId,
+    purpose: String,
+    version: i64,
+    first_workspace_state: String,
+    first_workspace_original: Option<surrealdb::types::Object>,
+}
+impl WorkspaceCreationBindings {
+    fn receipt_read(&self) -> Self {
+        let mut read = self.clone();
+        read.first_owner_workspace_receipt_read = true;
+        read
+    }
+}
+fn decode_workspace_original(value: &surrealdb::types::Object) -> Result<WorkspaceCreationBindings, ResourceAuthorityError> {
+    let raw = value.clone().into_value();
+    let original = WorkspaceCreationBindings::from_value(raw.clone()).map_err(|_| workspace_creation_denied())?;
+    if original.clone().into_value() != raw || original.first_owner_workspace_receipt_read {
+        return Err(workspace_creation_denied());
+    }
+    Ok(original)
+}
+const FIRST_OWNER_WORKSPACE_APPLICABILITY: &str = r#"
+SELECT id, first_owner_administration_origin FROM local_accounts
+ WHERE id = $account AND id = $auth.account_id AND $auth.id = $account_session
+ AND $auth.principal_id = $principal AND $auth.access_space_id = $space
+ AND fn::mt109_live_session();
+"#;
+const FIRST_OWNER_WORKSPACE_ORIGIN_STATE: &str = r#"
+SELECT account, operator_principal, space, purpose, version, first_workspace_state, first_workspace_original
+ FROM first_owner_administration_origins:primary;
+"#;
+
+
+#[derive(SurrealValue)]
+struct FirstOwnerWorkspaceRecoveryRead {
+    operation_id: String,
+    account: RecordId,
+    principal: RecordId,
+    space: RecordId,
+    session: RecordId,
+    channel_hash: String,
+}
+impl SurrealStorage {
+    pub(super) async fn recover_first_owner_workspace_creation_witness(
+        &self, transaction: &super::SurrealTransactionContext<'_>,
+        session: &super::local_accounts::LocalSessionContext, channel_hash: &str, operation_id: Uuid,
+    ) -> Result<Arc<FirstOwnerWorkspaceCreationWitness>, ResourceAuthorityError> {
+        // A failed, Unknown, live or already-recovered owner must use the original getter.
+        // Only a truly absent retained original permits reading the durable prospective receipt.
+        {
+            let retained = self.inner.transaction_settlements.lock().map_err(|_| workspace_creation_denied())?;
+            if retained.contains_key(&operation_id) { return Err(workspace_creation_denied()); }
+        }
+        let rows: Vec<FirstOwnerWorkspaceReceipt> = transaction.query_values_at(
+            FIRST_OWNER_WORKSPACE_RECOVERY_READ, FirstOwnerWorkspaceRecoveryRead {
+                operation_id: operation_id.to_string(),
+                account: RecordId::new("local_accounts", session.identity.account_id.clone()),
+                principal: RecordId::new("principals", session.identity.principal_id.clone()),
+                space: RecordId::new("access_spaces", session.identity.access_space_id.clone()),
+                session: RecordId::new("authenticated_sessions", session.session_id.clone()),
+                channel_hash: channel_hash.to_owned(),
+            }, 0,
+        ).await?;
+        let [receipt] = rows.as_slice() else { return Err(workspace_creation_denied()); };
+        let bindings = decode_workspace_original(&receipt.first_workspace_original)?;
+        validate_workspace_original_shape(&bindings)?;
+        Uuid::parse_str(&receipt.setup_operation_id).map_err(|_| workspace_creation_denied())?;
+        if bindings.operation_id != operation_id.to_string()
+            || bindings.account != RecordId::new("local_accounts", session.identity.account_id.clone())
+            || bindings.principal != RecordId::new("principals", session.identity.principal_id.clone())
+            || bindings.space != RecordId::new("access_spaces", session.identity.access_space_id.clone())
+            || bindings.account_session != RecordId::new("authenticated_sessions", session.session_id.clone())
+            || bindings.channel_hash != channel_hash || bindings.actor != session.actor_id
+        { return Err(workspace_creation_denied()); }
+        let canonical: Vec<FirstOwnerWorkspaceReceipt> = transaction.query_values_at(
+            FIRST_OWNER_WORKSPACE_READ_STRICT, bindings.clone(), 0,
+        ).await?;
+        if canonical.as_slice() != std::slice::from_ref(receipt) { return Err(workspace_creation_denied()); }
+        let witness = Arc::new(FirstOwnerWorkspaceCreationWitness {
+            original: Arc::new(FirstOwnerWorkspaceProofSource {
+                storage: self.clone(), context: session.clone(), operation_id,
+                bindings: bindings.clone(), deadline: None,
+            }), receipt: receipt.clone(),
+            parent: CanonicalResourceLocator {
+                id: bindings.resource, external_resource_id: bindings.external,
+                owner_account_id: bindings.account, access_space_id: bindings.space,
+                parent_resource_id: None, lifecycle_state: "active".to_owned(),
+                policy_version: receipt.first_workspace_policy_version,
+            },
+        });
+        // Atomic publication also rejects an original owner that appeared during canonical read.
+        // No SDK mutation, UUID, execution deadline, password or session token is produced here.
+        let admission = self.inner.member_login_admission.lock().map_err(|_| workspace_creation_denied())?;
+        if !*admission { return Err(SurrealStorageError::Closed.into()); }
+        self.reserve_transaction_settlement(operation_id, Some(
+            super::AuthenticatedTransactionRetention::FirstOwnerWorkspaceRecovery(witness.clone()),
+        ))?;
+        drop(admission);
+        Ok(witness)
+    }
+}
+fn validate_workspace_original_shape(original: &WorkspaceCreationBindings) -> Result<(), ResourceAuthorityError> {
+    let expected_capabilities: Vec<String> = ["fs.read", "fs.write", "model_lane.navigation.read", "fr.read",
+        "fr.ingest.runtime_chat", "fr.ingest.native_editor", "memory.read", "memory.propose", "memory.review", "memory.commit"]
+        .into_iter().map(str::to_owned).collect();
+    if original.capabilities != expected_capabilities || original.first_owner_workspace_receipt_read
+        || original.workspace != RecordId::new("workspaces", original.external.clone())
+        || original.operation_id != original.external
+        || Uuid::parse_str(&original.operation_id).is_err() || Uuid::parse_str(&original.edit).is_err()
+        || original.channel_hash.is_empty() || original.name.is_empty()
+        || original.account.table.as_str() != "local_accounts" || original.principal.table.as_str() != "principals"
+        || original.space.table.as_str() != "access_spaces" || original.account_session.table.as_str() != "authenticated_sessions"
+        || original.resource.table.as_str() != "protected_resources" || original.fr.table.as_str() != "protected_resources"
+        || original.workspace_grant.table.as_str() != "resource_grants" || original.fr_grant.table.as_str() != "resource_grants"
+        || original.memory_surfaces.len() != 5
+    { return Err(workspace_creation_denied()); }
+    let mut resources = vec![original.resource.clone(), original.fr.clone()];
+    let mut grants = vec![original.workspace_grant.clone(), original.fr_grant.clone()];
+    for (surface, expected) in original.memory_surfaces.iter().zip(
+        ["memory_pack", "memory_proposal", "memory_commit_report", "memory_item", "memory_item_count"],
+    ) {
+        if surface.kind != expected || surface.resource.table.as_str() != "protected_resources"
+            || surface.grant.table.as_str() != "resource_grants"
+            || resources.contains(&surface.resource) || grants.contains(&surface.grant)
+        { return Err(workspace_creation_denied()); }
+        resources.push(surface.resource.clone()); grants.push(surface.grant.clone());
+    }
+    if original.resource == original.fr || original.workspace_grant == original.fr_grant {
+        return Err(workspace_creation_denied());
+    }
+    Ok(())
+}
+const FIRST_OWNER_WORKSPACE_RECOVERY_READ: &str = r#"
+SELECT setup_operation_id, account, operator_principal, space, setup_receipt, setup_policy_version, created_at,
+ first_workspace_operation_id, first_workspace, first_workspace_resource, first_workspace_grant,
+ first_workspace_session, first_workspace_channel_hash, first_workspace_name, first_workspace_deadline,
+ first_workspace_policy_version, first_workspace_receipt_nonce, first_workspace_original
+FROM first_owner_administration_origins:primary
+ WHERE purpose = 'prospective_first_owner_administration' AND version = 1
+ AND account = $account AND operator_principal = $principal AND space = $space
+ AND account.first_owner_administration_origin = first_owner_administration_origins:primary
+ AND first_workspace_state = 'created' AND first_workspace_receipt_nonce = 1
+ AND first_workspace_operation_id = $operation_id AND first_workspace_original != NONE
+ AND first_workspace_session = $session AND first_workspace_channel_hash = $channel_hash;
+"#;

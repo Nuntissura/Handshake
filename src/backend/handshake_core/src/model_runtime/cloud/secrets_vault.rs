@@ -550,3 +550,239 @@ mod tests {
         }
     }
 }
+
+use crate::storage::surreal::{
+    MemberRecipientCredentialProvisionState as RecipientProvisionState,
+    SurrealStorage,
+    SurrealStorageError,
+};
+
+pub(crate) const MEMBER_ENROLLMENT_RECIPIENT_KEY_ID: &str =
+    "member-enrollment-recipient-v1";
+pub(crate) const MEMBER_ENROLLMENT_RECIPIENT_PURPOSE: &str = "identity_enrollment";
+const MEMBER_ENROLLMENT_RECIPIENT_VAULT_REF: &str =
+    "server/member-enrollment-recipient/admission-v1";
+const MEMBER_ENROLLMENT_RECIPIENT_VERIFIER_DOMAIN: &[u8] =
+    b"handshake-member-enrollment-recipient-admission-v1|";
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum MemberRecipientCredentialError {
+    #[error("recipient credential OS keychain support unavailable")]
+    KeychainUnavailable,
+    #[error("recipient credential storage identity encoding failed")]
+    Encoding(#[from] serde_json::Error),
+    #[error("recipient credential purpose lock unavailable")]
+    Lock(#[source] std::io::Error),
+    #[error("recipient credential provisioning query failed")]
+    Storage(#[from] SurrealStorageError),
+    #[error("recipient credential vault operation failed")]
+    Vault(#[from] SecretsVaultError),
+    #[error("recipient credential entropy unavailable")]
+    Entropy,
+    #[error("recipient credential canonical state differs")]
+    CanonicalStateMismatch,
+    #[error("recipient credential state is unknown; regeneration prohibited")]
+    UnknownNoRegeneration,
+    #[error("recipient credential secret exists without matching provisioning state")]
+    UnboundVaultEntry,
+    #[error("recipient credential vault secret has invalid encoding")]
+    InvalidSecretEncoding,
+    #[error("recipient credential verifier differs")]
+    VerifierMismatch,
+    #[error("recipient credential write readback differs")]
+    VaultReadbackMismatch,
+}
+
+pub(crate) struct MemberEnrollmentRecipientCredential {
+    secret_hex: Zeroizing<String>,
+    verifier_hex: String,
+    _purpose_lock: std::fs::File,
+}
+
+impl MemberEnrollmentRecipientCredential {
+    pub(crate) fn key_id(&self) -> &str {
+        MEMBER_ENROLLMENT_RECIPIENT_KEY_ID
+    }
+
+    pub(crate) fn verifier_hex(&self) -> &str {
+        &self.verifier_hex
+    }
+
+    pub(crate) fn with_signin_secret<R>(&self, use_secret: impl FnOnce(&str) -> R) -> R {
+        use_secret(self.secret_hex.as_str())
+    }
+}
+
+#[cfg(feature = "os-keychain")]
+fn recipient_credential_verifier(secret: &str) -> Result<String, MemberRecipientCredentialError> {
+    use sha2::Digest;
+    if secret.len() != 64
+        || !secret.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(MemberRecipientCredentialError::InvalidSecretEncoding);
+    }
+    let mut digest = sha2::Sha256::new();
+    digest.update(MEMBER_ENROLLMENT_RECIPIENT_VERIFIER_DOMAIN);
+    digest.update(MEMBER_ENROLLMENT_RECIPIENT_KEY_ID.as_bytes());
+    digest.update(b"|");
+    digest.update(secret.as_bytes());
+    Ok(hex::encode(digest.finalize()))
+}
+
+#[cfg(feature = "os-keychain")]
+fn recipient_vault_secret(
+    vault: &OsKeychainSecretsVault,
+) -> Result<Option<Zeroizing<String>>, MemberRecipientCredentialError> {
+    match vault.get(MEMBER_ENROLLMENT_RECIPIENT_VAULT_REF) {
+        Ok(value) => Ok(Some(value)),
+        Err(SecretsVaultError::NoSecretForLane(missing))
+            if missing == MEMBER_ENROLLMENT_RECIPIENT_VAULT_REF => Ok(None),
+        Err(error) => Err(MemberRecipientCredentialError::Vault(error)),
+    }
+}
+
+#[cfg(feature = "os-keychain")]
+fn recipient_credential_vault(
+    storage: &SurrealStorage,
+) -> Result<(OsKeychainSecretsVault, std::fs::File), MemberRecipientCredentialError> {
+    use sha2::Digest;
+    let config = storage.config();
+    let identity = serde_json::to_vec(&(
+        config.path().to_string_lossy(),
+        config.namespace(),
+        config.database(),
+    ))?;
+    let installation = hex::encode(sha2::Sha256::digest(identity));
+    let storage_parent = config.path().parent().ok_or_else(|| {
+        MemberRecipientCredentialError::Lock(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "recipient credential storage parent unavailable",
+        ))
+    })?;
+    let parent = std::fs::canonicalize(storage_parent)
+        .map_err(MemberRecipientCredentialError::Lock)?;
+    let lock_path = parent.join(format!("member-enrollment-recipient-{installation}.lock"));
+    match std::fs::symlink_metadata(&lock_path) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
+            return Err(MemberRecipientCredentialError::Lock(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "recipient credential lock must be an ordinary file",
+            )));
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(MemberRecipientCredentialError::Lock(error)),
+    }
+    let mut options = std::fs::OpenOptions::new();
+    options.read(true).write(true).create(true).truncate(false);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let purpose_lock = options.open(lock_path).map_err(MemberRecipientCredentialError::Lock)?;
+    fs2::FileExt::try_lock_exclusive(&purpose_lock)
+        .map_err(MemberRecipientCredentialError::Lock)?;
+    let vault = OsKeychainSecretsVault::new(
+        format!("handshake-member-enrollment-recipient-{installation}"),
+    );
+    Ok((vault, purpose_lock))
+}
+
+#[cfg(feature = "os-keychain")]
+async fn bind_recipient_credential(
+    storage: &SurrealStorage,
+    verifier_hex: &str,
+) -> Result<(), MemberRecipientCredentialError> {
+    match storage.member_recipient_provision_bind_verified(verifier_hex).await? {
+        RecipientProvisionState::Ready { verifier_hex: actual } if actual == verifier_hex => Ok(()),
+        _ => Err(MemberRecipientCredentialError::CanonicalStateMismatch),
+    }
+}
+
+#[cfg(feature = "os-keychain")]
+async fn create_reserved_recipient_secret(
+    storage: &SurrealStorage,
+    vault: &OsKeychainSecretsVault,
+) -> Result<(Zeroizing<String>, String), MemberRecipientCredentialError> {
+    if recipient_vault_secret(vault)?.is_some() {
+        return Err(MemberRecipientCredentialError::UnboundVaultEntry);
+    }
+    let mut raw = Zeroizing::new([0_u8; 32]);
+    getrandom::getrandom(&mut raw[..]).map_err(|_| MemberRecipientCredentialError::Entropy)?;
+    let secret_hex = Zeroizing::new(hex::encode(&raw[..]));
+    let verifier_hex = recipient_credential_verifier(secret_hex.as_str())?;
+    let expected = RecipientProvisionState::Reserved;
+    match storage.member_recipient_provision_mark_write_started(&expected, &verifier_hex).await? {
+        RecipientProvisionState::WriteStarted { verifier_hex: actual }
+            if actual == verifier_hex => {}
+        _ => return Err(MemberRecipientCredentialError::CanonicalStateMismatch),
+    }
+    vault.put(MEMBER_ENROLLMENT_RECIPIENT_VAULT_REF, secret_hex.as_str())?;
+    let readback = recipient_vault_secret(vault)?
+        .ok_or(MemberRecipientCredentialError::UnknownNoRegeneration)?;
+    let readback_verifier = recipient_credential_verifier(readback.as_str())?;
+    let mut difference = 0_u8;
+    for (actual, expected) in readback.bytes().zip(secret_hex.bytes()) {
+        difference |= actual ^ expected;
+    }
+    if difference != 0 || readback_verifier != verifier_hex {
+        return Err(MemberRecipientCredentialError::VaultReadbackMismatch);
+    }
+    bind_recipient_credential(storage, &verifier_hex).await?;
+    Ok((readback, verifier_hex))
+}
+
+#[cfg(feature = "os-keychain")]
+pub(crate) async fn load_member_enrollment_recipient_credential(
+    storage: &SurrealStorage,
+) -> Result<Arc<MemberEnrollmentRecipientCredential>, MemberRecipientCredentialError> {
+    let (vault, purpose_lock) = recipient_credential_vault(storage)?;
+    let state = storage.member_recipient_provision_observe().await?;
+    let stored = recipient_vault_secret(&vault)?;
+    let (secret_hex, verifier_hex) = match (state, stored) {
+        (RecipientProvisionState::Absent, None) => {
+            match storage.member_recipient_provision_reserve().await? {
+                RecipientProvisionState::Reserved => {}
+                _ => return Err(MemberRecipientCredentialError::CanonicalStateMismatch),
+            }
+            create_reserved_recipient_secret(storage, &vault).await?
+        }
+        (RecipientProvisionState::Reserved, None) => {
+            create_reserved_recipient_secret(storage, &vault).await?
+        }
+        (RecipientProvisionState::Absent | RecipientProvisionState::Reserved, Some(_)) => {
+            return Err(MemberRecipientCredentialError::UnboundVaultEntry);
+        }
+        (RecipientProvisionState::WriteStarted { .. } | RecipientProvisionState::Ready { .. }, None) => {
+            return Err(MemberRecipientCredentialError::UnknownNoRegeneration);
+        }
+        (RecipientProvisionState::WriteStarted { verifier_hex: expected }, Some(secret)) => {
+            let actual = recipient_credential_verifier(secret.as_str())?;
+            if actual != expected {
+                return Err(MemberRecipientCredentialError::VerifierMismatch);
+            }
+            bind_recipient_credential(storage, &actual).await?;
+            (secret, actual)
+        }
+        (RecipientProvisionState::Ready { verifier_hex: expected }, Some(secret)) => {
+            let actual = recipient_credential_verifier(secret.as_str())?;
+            if actual != expected {
+                return Err(MemberRecipientCredentialError::VerifierMismatch);
+            }
+            (secret, actual)
+        }
+    };
+    Ok(Arc::new(MemberEnrollmentRecipientCredential {
+        secret_hex,
+        verifier_hex,
+        _purpose_lock: purpose_lock,
+    }))
+}
+
+#[cfg(not(feature = "os-keychain"))]
+pub(crate) async fn load_member_enrollment_recipient_credential(
+    _storage: &SurrealStorage,
+) -> Result<Arc<MemberEnrollmentRecipientCredential>, MemberRecipientCredentialError> {
+    Err(MemberRecipientCredentialError::KeychainUnavailable)
+}

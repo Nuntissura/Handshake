@@ -871,10 +871,11 @@ impl LocalModelRuntimeLlmClient {
         &self,
         req: &CompletionRequest,
         model_id: ModelId,
+        control: Option<&super::LlmInvocationControl>,
     ) -> Result<CompletionResponse, LlmError> {
         let started = Instant::now();
         let runtime = self.router.resolve(model_id)?;
-        let cancel = CancellationToken::new();
+        let cancel = control.map(super::LlmInvocationControl::token).unwrap_or_default();
         let _active_request = self.register_active_request(model_id, cancel.clone());
         let generate_request = self.request_to_generate_request(req, model_id, cancel);
         // MT-144: wire MemoryCapsule injection into the ModelRuntime generate
@@ -883,6 +884,7 @@ impl LocalModelRuntimeLlmClient {
         // FR-EVT-CAPSULE-INJECTED is emitted inside `inject_for_call` itself.
         let (generate_request, _capsule_receipt) =
             self.apply_capsule_injection(req, generate_request)?;
+        if let Some(control) = control { control.mark_dispatch(super::InvocationResourceKind::Native); }
         let mut stream = runtime.generate(generate_request);
         let mut text = String::new();
         let mut completion_tokens = 0_u32;
@@ -962,14 +964,16 @@ impl LocalModelRuntimeLlmClient {
     }
 }
 
-#[async_trait]
-impl LlmClient for LocalModelRuntimeLlmClient {
-    async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+impl LocalModelRuntimeLlmClient {
+    async fn completion_inner(&self, req: CompletionRequest, control: Option<&super::LlmInvocationControl>) -> Result<CompletionResponse, LlmError> {
         let Some(model_id) = Self::parse_local_model_id(&req.model_id)? else {
             // Non-UUIDv7 id: delegate to the wrapped client, which emits its own
             // Flight Recorder event (the default fallback is a recorder-wired
             // DisabledLlmClient). Do NOT emit here — that would double-count.
-            return self.fallback.completion(req).await;
+            return match control {
+                Some(control) => self.fallback.completion_with_control(req, control.clone()).await,
+                None => self.fallback.completion(req).await,
+            };
         };
 
         // Spec §4.2.3.2(3): EVERY call on the local path emits a Flight Recorder
@@ -977,7 +981,7 @@ impl LlmClient for LocalModelRuntimeLlmClient {
         // `run_local_completion`; every error branch (runtime resolve, capsule
         // injection, stream error, budget-exceeded) emits a zeroed-usage
         // `llm_inference` error event here, at CALL TIME (never at construction).
-        match self.run_local_completion(&req, model_id).await {
+        match self.run_local_completion(&req, model_id, control).await {
             Ok(response) => Ok(response),
             Err(err) => {
                 emit_llm_call_error_event(
@@ -991,6 +995,17 @@ impl LlmClient for LocalModelRuntimeLlmClient {
                 Err(err)
             }
         }
+    }
+}
+
+#[async_trait]
+impl LlmClient for LocalModelRuntimeLlmClient {
+    async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        self.completion_inner(req, None).await
+    }
+
+    async fn completion_with_control(&self, req: CompletionRequest, control: super::LlmInvocationControl) -> Result<CompletionResponse, LlmError> {
+        self.completion_inner(req, Some(&control)).await
     }
 
     /// MT-003 (WP-1) HIGH regression guard 2: wire `LlmClient::embedding()` to

@@ -3952,12 +3952,29 @@ impl SwarmCoordinator {
         &self,
         authorization: crate::storage::surreal::resource_authority::AuthenticatedValidatorLaunchSeal,
     ) -> SwarmResult<Arc<ValidatorProducerKey>> {
-        let denied = || SwarmError::LedgerFailed("authenticated validator launch binding differs from live registry".into());
+        self.register_authenticated_validator_producer_arc(Arc::new(authorization)).await
+            .map_err(|failure| match failure {
+                ValidatorProducerRegistrationFailure::Runtime(error) => error,
+                // Preserve old OWNED legacy ABI/public error behavior only.
+                // The new Arc path below returns the actual raw Authority error.
+                ValidatorProducerRegistrationFailure::Authority(_) => SwarmError::LedgerFailed(
+                    "authenticated validator launch binding differs from live registry".into(),
+                ),
+            })
+    }
+    pub(crate) async fn register_authenticated_validator_producer_arc(
+        &self,
+        authorization: Arc<crate::storage::surreal::resource_authority::AuthenticatedValidatorLaunchSeal>,
+    ) -> Result<Arc<ValidatorProducerKey>, ValidatorProducerRegistrationFailure> {
+        let denied = || ValidatorProducerRegistrationFailure::Runtime(SwarmError::LedgerFailed(
+            "authenticated validator launch binding differs from live registry".into(),
+        ));
         let store = self.inner.model_lane_store.as_ref().ok_or_else(denied)?;
         if store.access().exact_read_scope() != Some(authorization.delegating_scope()) {
             return Err(denied());
         }
-        authorization.revalidate(store.surreal_storage()).await.map_err(|_| denied())?;
+        authorization.revalidate(store.surreal_storage()).await
+            .map_err(ValidatorProducerRegistrationFailure::Authority)?;
         let registered = authorization.registered_instance();
         if !std::sync::Weak::ptr_eq(&registered.owner, &Arc::downgrade(&self.inner)) {
             return Err(denied());
@@ -3981,7 +3998,7 @@ impl SwarmCoordinator {
         }
         let producer = Arc::new(ValidatorProducerKey {
             registration_ref: Uuid::now_v7().to_string(), registered: registered.clone(),
-            authorization: Arc::new(authorization),
+            authorization,
         });
         handle.lease.expires_at = handle.lease.expires_at.min(*producer.authorization.expires_at());
         handle.validator_producer = Some(producer.clone());
@@ -7741,4 +7758,9 @@ async fn reap_expired(inner: &Arc<Inner>) {
         let mut breaker = inner.breaker.lock().expect("breaker poisoned");
         breaker.prune_settled(std::time::Instant::now());
     }
+}
+
+pub(crate) enum ValidatorProducerRegistrationFailure {
+    Runtime(SwarmError),
+    Authority(crate::storage::surreal::resource_authority::ResourceAuthorityError),
 }

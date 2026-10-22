@@ -1405,6 +1405,424 @@ DEFINE FIELD OVERWRITE payload ON kernel_event_ledger TYPE object FLEXIBLE
 DEFINE FIELD OVERWRITE payload.* ON kernel_event_ledger TYPE any
     PERMISSIONS FOR select WHERE ($wp012_original_purpose != 'navigation_read' AND ($wp012_original_purpose != 'recovery_checkpoint_record' OR $this.aggregate_type IN ['run', 'lane', 'recovery_checkpoint']));
 
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_record_identity($row: object, $issuer: object) {
+    IF $row.record_kind NOT IN ['role_evidence', 'validator_designation']
+        OR $row.owner_account_id != $issuer.owner_account_id
+        OR $row.actor_principal_id != $issuer.actor_principal_id
+        OR $row.authenticated_session_id != $issuer.authenticated_session_id
+        OR $row.access_space_id != $issuer.access_space_id OR $row.workspace_id != $issuer.workspace_id { RETURN false; };
+    LET $record = encoding::json::decode($row.record_json);
+    LET $body = IF $row.record_kind = 'role_evidence' { $record.body } ELSE { $record.request };
+    LET $identity = IF $row.record_kind = 'role_evidence' { $body.action.idempotency_key } ELSE { $body.action.action_id };
+    IF !type::is_string($identity) OR string::trim($identity) = ''
+        OR $body.scope != $issuer OR $row.aggregate_id != $body.action.action_id
+        OR $row.idempotency_key != $body.action.idempotency_key OR $row.run_id != $body.run.run_id
+        OR record::id($row.id) != crypto::sha256(string::join([
+            'handshake.model-lane.authority.v1', $row.record_kind, $identity,
+            $issuer.owner_account_id, $issuer.actor_principal_id, $issuer.authenticated_session_id,
+            $issuer.access_space_id, $issuer.workspace_id], '\u0000')) { RETURN false; };
+    LET $ledger = $row.event_ledger_event_id;
+    IF $ledger = NONE OR $row.event_id != record::id($ledger) OR $ledger.event_id != $row.event_id
+        OR $row.event_seq <= 0 OR $row.event_seq != $ledger.event_sequence
+        OR $row.transaction_seq != $row.event_seq OR $row.event_stream_version != 1
+        OR $ledger.event_type != 'MODEL_LANE_AUTHORITY_RECORDED' OR $ledger.source_component != 'model_lane'
+        OR $ledger.aggregate_type != $row.record_kind OR $ledger.aggregate_id != $row.aggregate_id
+        OR $ledger.kernel_task_run_id != $row.run_id OR $ledger.idempotency_key != $row.event_id
+        OR $ledger.actor_kind != 'principal' OR $ledger.actor_id != $issuer.actor_principal_id
+        OR $ledger.owner_account_id != $issuer.owner_account_id
+        OR $ledger.actor_principal_id != $issuer.actor_principal_id
+        OR $ledger.authenticated_session_id != $issuer.authenticated_session_id
+        OR $ledger.access_space_id != $issuer.access_space_id OR $ledger.workspace_id != $issuer.workspace_id
+        OR $ledger.authority_session_id != type::record('authenticated_sessions', $issuer.authenticated_session_id)
+        OR $ledger.wsids != [$issuer.workspace_id]
+        OR $ledger.payload.record_kind != $row.record_kind OR $ledger.payload.run_id != $row.run_id
+        OR $ledger.payload.event_stream_version != $row.event_stream_version
+        OR $ledger.payload.event_payload_json != $row.record_json
+        OR $ledger.payload_hash != crypto::sha256($row.record_json) { RETURN false; };
+    IF $row.record_kind = 'role_evidence' {
+        RETURN $record.event.event_id = $row.event_id AND $record.event.event_seq = $row.event_seq
+            AND $record.event.transaction_seq = $row.transaction_seq
+            AND $record.event.stream_id = $ledger.session_run_id
+            AND $ledger.session_run_id = 'role-authority:' + $row.run_id;
+    };
+    RETURN $record.event_ledger_stream_id = $body.run.run_id AND $ledger.session_run_id = $body.run.run_id;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_consumption_identity($row: object) {
+    IF $row.record_kind != 'role_evidence_consumption' { RETURN false; };
+    LET $body = encoding::json::decode($row.record_json);
+    LET $scope = $body.issuer_scope;
+    LET $operation = <string>$body.operation_id;
+    LET $key = crypto::sha256(string::join(['handshake.model-lane.authority.v1',
+        'role_evidence_consumption', $operation, $scope.owner_account_id, $scope.actor_principal_id,
+        $scope.authenticated_session_id, $scope.access_space_id, $scope.workspace_id], '\u0000'));
+    LET $ledger = $row.event_ledger_event_id;
+    RETURN $body.schema_id = 'handshake.role-evidence-consumption@1'
+        AND type::is_string($body.operation_id) AND string::is_uuid($operation)
+        AND $row.aggregate_id = $operation AND $row.idempotency_key = $operation
+        AND record::id($row.id) = $key AND $row.event_id = 'evt-' + $key
+        AND $row.owner_account_id = $scope.owner_account_id AND $row.actor_principal_id = $scope.actor_principal_id
+        AND $row.authenticated_session_id = $scope.authenticated_session_id
+        AND $row.access_space_id = $scope.access_space_id AND $row.workspace_id = $scope.workspace_id
+        AND $row.run_id = $body.run.run_id AND $row.event_seq > 0
+        AND $row.transaction_seq = $row.event_seq AND $row.event_stream_version = 1
+        AND $ledger != NONE AND record::id($ledger) = $row.event_id AND $ledger.event_id = $row.event_id
+        AND $ledger.event_sequence = $row.event_seq AND $ledger.event_version = 'kernel_event_v1'
+        AND $ledger.source_component = 'model_lane' AND $ledger.event_type = 'MODEL_LANE_AUTHORITY_RECORDED'
+        AND $ledger.aggregate_type = $row.record_kind AND $ledger.aggregate_id = $operation
+        AND $ledger.kernel_task_run_id = $row.run_id AND $ledger.idempotency_key = $row.event_id
+        AND $ledger.actor_kind = 'principal' AND $ledger.actor_id = $scope.actor_principal_id
+        AND $ledger.owner_account_id = $scope.owner_account_id AND $ledger.actor_principal_id = $scope.actor_principal_id
+        AND $ledger.authenticated_session_id = $scope.authenticated_session_id
+        AND $ledger.access_space_id = $scope.access_space_id AND $ledger.workspace_id = $scope.workspace_id
+        AND $ledger.authority_session_id = type::record('authenticated_sessions', $scope.authenticated_session_id)
+        AND $ledger.wsids = [$scope.workspace_id] AND $ledger.payload.record_kind = $row.record_kind
+        AND $ledger.payload.run_id = $row.run_id AND $ledger.payload.event_stream_version = 1
+        AND $ledger.payload.event_payload_json = $row.record_json
+        AND $ledger.payload_hash = crypto::sha256($row.record_json);
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_read_authority($basis: object, $scope: object) {
+    LET $session = type::record('authenticated_sessions', $basis.session_id);
+    LET $grant = type::record('resource_grants', $basis.grant_id);
+    LET $resource = type::record('protected_resources', $basis.resource_id);
+    RETURN $basis.action = 'read' AND $basis.capability_id = 'fs.read'
+        AND $basis.session_id = $scope.authenticated_session_id AND fn::mt109_session_live($session)
+        AND record::id($session.account_id) = $scope.owner_account_id
+        AND record::id($session.principal_id) = $scope.actor_principal_id
+        AND record::id($session.access_space_id) = $scope.access_space_id
+        AND ($session.delegated_capabilities CONTAINS '*' OR $session.delegated_capabilities CONTAINS 'fs.read')
+        AND ($session.principal_id.delegated_capabilities CONTAINS '*' OR $session.principal_id.delegated_capabilities CONTAINS 'fs.read')
+        AND $resource.resource_kind = 'workspace' AND $resource.external_resource_id = $scope.workspace_id
+        AND $resource.owner_account_id = $session.account_id AND $resource.access_space_id = $session.access_space_id
+        AND $resource.lifecycle_state = 'active' AND $resource.created_by_principal_id.status = 'enabled'
+        AND $grant.account_id = $session.account_id AND $grant.principal_id = $session.principal_id
+        AND $grant.access_space_id = $session.access_space_id AND $grant.resource_id = $resource
+        AND $grant.status = 'active' AND $grant.revoked_at = NONE
+        AND ($grant.expires_at = NONE OR $grant.expires_at > time::now())
+        AND $grant.grant_version = $basis.grant_version AND $grant.delegation_chain = $session.delegation_chain
+        AND $grant.actions CONTAINS 'read' AND $grant.capability_ids CONTAINS 'fs.read'
+        AND $resource.policy_version <= $grant.policy_version AND $grant.policy_version <= $session.policy_version;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_source_identity($row: object) {
+    IF $row.record_kind NOT IN ['context_artifact', 'message', 'lane']
+        OR !type::is_string($row.aggregate_id) OR string::trim($row.aggregate_id) = ''
+        OR !type::is_string($row.run_id) OR string::trim($row.run_id) = ''
+        OR !type::is_string($row.idempotency_key) OR string::trim($row.idempotency_key) = '' { RETURN false; };
+    LET $key = crypto::sha256(string::join([
+        'handshake.model-lane.authority.v1', $row.record_kind, $row.aggregate_id,
+        $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id,
+        $row.access_space_id, $row.workspace_id], '\u0000'));
+    IF record::id($row.id) != $key { RETURN false; };
+    LET $ledger = $row.event_ledger_event_id;
+    IF $ledger.authority_session_id != type::record('authenticated_sessions', $row.authenticated_session_id) { RETURN false; };
+    IF $ledger = NONE OR $row.event_id != record::id($ledger)
+        OR $ledger.event_id != $row.event_id OR $row.event_seq != $ledger.event_sequence
+        OR $row.transaction_seq != $row.event_seq OR $row.event_stream_version != 1
+        OR $ledger.source_component != 'model_lane'
+        OR !($ledger.event_type = 'MODEL_LANE_AUTHORITY_RECORDED' OR ($row.record_kind = 'message' AND $ledger.event_type = 'MODEL_LANE_MESSAGE_RECORDED'))
+        OR $ledger.aggregate_type != $row.record_kind OR $ledger.aggregate_id != $row.aggregate_id
+        OR $ledger.kernel_task_run_id != $row.run_id OR $ledger.payload.record_kind != $row.record_kind
+        OR $ledger.payload.run_id != $row.run_id OR $ledger.payload.event_stream_version != 1
+        OR $ledger.owner_account_id != $row.owner_account_id OR $ledger.actor_principal_id != $row.actor_principal_id
+        OR $ledger.authenticated_session_id != $row.authenticated_session_id OR $ledger.access_space_id != $row.access_space_id
+        OR $ledger.workspace_id != $row.workspace_id
+        OR crypto::sha256($ledger.payload.event_payload_json) != $ledger.payload_hash { RETURN false; };
+    LET $payload = encoding::json::decode($ledger.payload.event_payload_json);
+    LET $record = encoding::json::decode($row.record_json);
+    LET $body = IF $row.record_kind = 'message' { $record.inner } ELSE { $record };
+    RETURN $payload.dexterity_kernel = 'Dexterity' AND $payload.owner_account_id = $row.owner_account_id
+        AND $payload.actor_principal_id = $row.actor_principal_id
+        AND $payload.authenticated_session_id = $row.authenticated_session_id
+        AND $payload.access_space_id = $row.access_space_id AND $payload.workspace_id = $row.workspace_id
+        AND $payload.record = $record AND $body.run_id = $row.run_id
+        AND type::is_string($body.event_ledger_stream_id) AND string::trim($body.event_ledger_stream_id) != ''
+        AND $ledger.session_run_id = $body.event_ledger_stream_id;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_read_authority_snapshot($expected: object, $basis: object, $scope: object) {
+    IF $expected = NONE OR $expected.grant_id != type::record('resource_grants', $basis.grant_id)
+        OR $expected.resource_id != type::record('protected_resources', $basis.resource_id)
+        OR $expected.session_id != type::record('authenticated_sessions', $basis.session_id)
+        OR $expected.grant_version != $basis.grant_version
+        OR !fn::wp012_model_lane_role_read_authority($basis, $scope) { RETURN false; };
+    LET $grant = $expected.grant_id;
+    LET $session = $expected.session_id;
+    LET $current = {
+        grant_id: $grant, resource_id: $grant.resource_id, account_id: $grant.account_id,
+        principal_id: $grant.principal_id, actor_kind: $grant.principal_id.actor_kind,
+        actor_id: $grant.principal_id.actor_id, session_id: $session, access_space_id: $grant.access_space_id,
+        grant_version: $grant.grant_version,
+        policy_versions: [$grant.policy_version, $grant.resource_id.policy_version, $grant.account_id.policy_version,
+            $grant.principal_id.policy_version, $grant.access_space_id.policy_version, $session.policy_version],
+        revocation_epochs: [$grant.account_id.revocation_epoch, $grant.principal_id.revocation_epoch,
+            $grant.access_space_id.revocation_epoch, $session.account_revocation_epoch,
+            $session.principal_revocation_epoch, $session.space_revocation_epoch],
+        actions: $grant.actions, capability_ids: $grant.capability_ids, delegation_chain: $grant.delegation_chain,
+        session_capabilities: $session.delegated_capabilities,
+        principal_capabilities: $grant.principal_id.delegated_capabilities,
+        capability_profile_id: $grant.principal_id.capability_profile_id,
+        statuses: [$grant.status, $grant.resource_id.lifecycle_state, $grant.account_id.status,
+            $grant.principal_id.status, $grant.access_space_id.status],
+        resource_kind: $grant.resource_id.resource_kind, grant_expires_at: $grant.expires_at,
+        session_expires_at: $session.expires_at
+    };
+    RETURN $current = $expected;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_consumption_authority($body: object) {
+    LET $owner = $body.issuer_scope;
+    LET $child = $body.exact_consumer_scope;
+    LET $session = type::record('authenticated_sessions', $child.authenticated_session_id);
+    IF $owner.owner_account_id != $child.owner_account_id OR $owner.access_space_id != $child.access_space_id
+        OR $owner.workspace_id != $child.workspace_id
+        OR $body.owner_read.resource_id != $body.child_read.resource_id
+        OR $session.parent_session_id != type::record('authenticated_sessions', $owner.authenticated_session_id)
+        OR !($session.ancestor_session_ids CONTAINS type::record('authenticated_sessions', $owner.authenticated_session_id))
+        OR $body.producer.producer_registered_principal != $child.actor_principal_id
+        OR !type::is_string($body.producer.producer_registration_ref) OR string::trim($body.producer.producer_registration_ref) = ''
+        OR !type::is_string($body.producer.producer_instance_ref) OR string::trim($body.producer.producer_instance_ref) = ''
+        OR $body.producer.producer_spawn_generation <= 0
+        OR !fn::wp012_model_lane_role_read_authority($body.owner_read, $owner)
+        OR !fn::wp012_model_lane_role_read_authority($body.child_read, $child) { RETURN false; };
+    LET $edges = array::filter($session.delegation_grant_edges, |$edge| {
+        $edge.child_grant_id = type::record('resource_grants', $body.child_read.grant_id)
+        AND $edge.parent_grant_id = type::record('resource_grants', $body.owner_read.grant_id)
+    });
+    IF array::len($edges) != 1 OR !string::starts_with($body.designation_ref, 'eventledger://validator-designation/') { RETURN false; };
+    LET $designation_event = string::replace($body.designation_ref, 'eventledger://validator-designation/', '');
+    LET $designations = SELECT * FROM model_lane_authority
+        WHERE record_kind = 'validator_designation' AND event_id = $designation_event LIMIT 2;
+    IF array::len($designations) != 1 OR !fn::wp012_model_lane_role_record_identity($designations[0], $owner) { RETURN false; };
+    LET $designation = encoding::json::decode($designations[0].record_json).request;
+    RETURN $designation.runner = $body.producer AND $designation.run = $body.run
+        AND $designation.subject = $body.subject AND $designation.expected = $body.expected;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_target_capture($row: object) {
+    LET $capture = $wp012_role_evidence_capture;
+    IF $capture = NONE OR $capture.record_kind NOT IN ['role_evidence', 'validator_designation']
+        OR $row.record_kind != $capture.record_kind OR $row.event_id != $capture.event_id
+        OR !type::is_string($capture.operation_id) OR !string::is_uuid($capture.operation_id)
+        OR !type::is_string($capture.consumer_operation_id) OR !string::is_uuid($capture.consumer_operation_id)
+        OR $capture.issuer_scope.owner_account_id != record::id($auth.account_id)
+        OR $capture.issuer_scope.actor_principal_id != record::id($auth.principal_id)
+        OR $capture.issuer_scope.authenticated_session_id != record::id($auth.id)
+        OR $capture.issuer_scope.access_space_id != record::id($auth.access_space_id)
+        OR $capture.issuer_scope.workspace_id != $row.workspace_id OR !fn::mt109_live_session()
+        OR !fn::wp012_model_lane_role_record_identity($row, $capture.issuer_scope) { RETURN false; };
+    LET $owner = $capture.expected_owner_read;
+    LET $owner_basis = { grant_id: <string>record::id($owner.grant_id), grant_version: $owner.grant_version,
+        resource_id: <string>record::id($owner.resource_id), session_id: <string>record::id($owner.session_id),
+        capability_id: 'fs.read', action: 'read' };
+    IF !fn::wp012_model_lane_role_read_authority_snapshot($owner, $owner_basis, $capture.issuer_scope)
+        OR $capture.exact_consumer_scope.owner_account_id != $capture.issuer_scope.owner_account_id
+        OR $capture.exact_consumer_scope.access_space_id != $capture.issuer_scope.access_space_id
+        OR $capture.exact_consumer_scope.workspace_id != $capture.issuer_scope.workspace_id
+        OR !fn::wp012_model_lane_role_creation_read_snapshots({
+            issuer_scope: $capture.exact_consumer_scope,
+            expected_owner_read: $capture.expected_owner_read,
+            expected_child_read: $capture.expected_child_read
+        }) { RETURN false; };
+    LET $selection = encoding::json::decode($capture.selection_json);
+    IF $row.run_id != $selection.run.run_id
+        OR $selection.producer.producer_registered_principal != $capture.exact_consumer_scope.actor_principal_id
+        OR !type::is_string($selection.producer.producer_registration_ref)
+        OR string::trim($selection.producer.producer_registration_ref) = ''
+        OR !type::is_string($selection.producer.producer_instance_ref)
+        OR string::trim($selection.producer.producer_instance_ref) = ''
+        OR $selection.producer.producer_spawn_generation <= 0 { RETURN false; };
+    LET $record = encoding::json::decode($row.record_json);
+    IF $row.record_kind = 'role_evidence' {
+        RETURN $capture.operator_ref = 'eventledger://role-authority/' + $row.event_id
+            AND $record.body.run = $selection.run AND $record.body.subject = $selection.subject
+            AND $record.body.expected = $selection.expected AND $record.body.purpose = $selection.purpose;
+    };
+    RETURN $capture.designation_ref = 'eventledger://validator-designation/' + $row.event_id
+        AND $record.request.run = $selection.run AND $record.request.subject = $selection.subject
+        AND $record.request.expected = $selection.expected AND $record.request.runner = $selection.producer;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_consume($row: object) {
+    LET $selection = $wp012_role_evidence_consume;
+    IF $selection = NONE OR !type::is_string($selection.consumer_operation_id)
+        OR !fn::mt109_live_session() { RETURN false; };
+    LET $bindings = SELECT * FROM model_lane_authority
+        WHERE record_kind = 'role_evidence_consumption' AND event_id = $selection.binding_event_id LIMIT 2;
+    IF array::len($bindings) != 1 OR !fn::wp012_model_lane_role_consumption_identity($bindings[0]) { RETURN false; };
+    LET $binding = $bindings[0];
+    LET $body = encoding::json::decode($binding.record_json);
+    LET $owner = $body.issuer_scope;
+    LET $child = $body.exact_consumer_scope;
+    IF $body.consumer_operation_id != $selection.consumer_operation_id
+        OR !fn::wp012_model_lane_role_read_authority_snapshot($selection.expected_child_read, $body.child_read, $body.exact_consumer_scope)
+        OR !fn::wp012_model_lane_role_read_authority_snapshot($selection.expected_owner_read, $body.owner_read, $body.issuer_scope)
+        OR $child.owner_account_id != record::id($auth.account_id)
+        OR $child.actor_principal_id != record::id($auth.principal_id)
+        OR $child.authenticated_session_id != record::id($auth.id)
+        OR $child.access_space_id != record::id($auth.access_space_id)
+        OR $owner.owner_account_id != $child.owner_account_id OR $owner.access_space_id != $child.access_space_id
+        OR $owner.workspace_id != $child.workspace_id OR $row.workspace_id != $child.workspace_id
+        OR $body.producer.producer_registered_principal != $child.actor_principal_id
+        OR $body.owner_read.resource_id != $body.child_read.resource_id
+        OR $auth.parent_session_id != type::record('authenticated_sessions', $owner.authenticated_session_id)
+        OR !($auth.ancestor_session_ids CONTAINS type::record('authenticated_sessions', $owner.authenticated_session_id))
+        OR !fn::wp012_model_lane_role_read_authority($body.owner_read, $owner)
+        OR !fn::wp012_model_lane_role_read_authority($body.child_read, $child) { RETURN false; };
+    LET $edges = array::filter($auth.delegation_grant_edges, |$edge| {
+        $edge.child_grant_id = type::record('resource_grants', $body.child_read.grant_id)
+        AND $edge.parent_grant_id = type::record('resource_grants', $body.owner_read.grant_id)
+    });
+    IF array::len($edges) != 1 OR !string::starts_with($body.designation_ref, 'eventledger://validator-designation/') { RETURN false; };
+    LET $designation_event = string::replace($body.designation_ref, 'eventledger://validator-designation/', '');
+    LET $designations = SELECT * FROM model_lane_authority
+        WHERE record_kind = 'validator_designation' AND event_id = $designation_event LIMIT 2;
+    IF array::len($designations) != 1 OR !fn::wp012_model_lane_role_record_identity($designations[0], $owner) { RETURN false; };
+    LET $designation = encoding::json::decode($designations[0].record_json).request;
+    IF $designation.runner != $body.producer OR $designation.run != $body.run
+        OR $designation.subject != $body.subject OR $designation.expected != $body.expected { RETURN false; };
+    IF $row.id = $binding.id { RETURN $row.event_id = $selection.binding_event_id; };
+    LET $targets = array::filter($body.targets, |$target| {
+        $target.record_kind = $row.record_kind AND $target.record_id = <string>record::id($row.id)
+        AND $target.event_id = $row.event_id AND $target.record_sha256 = crypto::sha256($row.record_json)
+    });
+    IF array::len($targets) != 1 OR $row.run_id != $body.run.run_id { RETURN false; };
+    LET $target = $targets[0];
+    IF $row.owner_account_id != $target.issuer_scope.owner_account_id
+        OR $row.actor_principal_id != $target.issuer_scope.actor_principal_id
+        OR $row.authenticated_session_id != $target.issuer_scope.authenticated_session_id
+        OR $row.access_space_id != $target.issuer_scope.access_space_id
+        OR $row.workspace_id != $target.issuer_scope.workspace_id
+        OR $target.issuer_scope.owner_account_id != $owner.owner_account_id
+        OR $target.issuer_scope.access_space_id != $owner.access_space_id
+        OR $target.issuer_scope.workspace_id != $owner.workspace_id { RETURN false; };
+    IF $row.record_kind IN ['role_evidence', 'validator_designation'] {
+        IF !fn::wp012_model_lane_role_record_identity($row, $target.issuer_scope) { RETURN false; };
+        IF $row.record_kind = 'role_evidence' {
+            LET $receipt = encoding::json::decode($row.record_json).body;
+            RETURN $row.event_id = $selection.evidence_event_id AND $receipt.run = $body.run
+                AND $receipt.subject = $body.subject AND $receipt.expected = $body.expected AND $receipt.purpose = $body.purpose;
+        };
+        RETURN $row.event_id = $designation_event;
+    };
+    RETURN fn::wp012_model_lane_role_source_identity($row);
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_creation_read_snapshots($creation: object) {
+    LET $child = $creation.expected_child_read;
+    LET $owner = $creation.expected_owner_read;
+    IF $child = NONE OR $owner = NONE { RETURN false; };
+    LET $child_basis = { grant_id: <string>record::id($child.grant_id), grant_version: $child.grant_version,
+        resource_id: <string>record::id($child.resource_id), session_id: <string>record::id($child.session_id),
+        action: 'read', capability_id: 'fs.read' };
+    LET $owner_basis = { grant_id: <string>record::id($owner.grant_id), grant_version: $owner.grant_version,
+        resource_id: <string>record::id($owner.resource_id), session_id: <string>record::id($owner.session_id),
+        action: 'read', capability_id: 'fs.read' };
+    LET $owner_scope = { owner_account_id: <string>record::id($owner.account_id),
+        actor_principal_id: <string>record::id($owner.principal_id), authenticated_session_id: <string>record::id($owner.session_id),
+        access_space_id: <string>record::id($owner.access_space_id), workspace_id: $creation.issuer_scope.workspace_id };
+    IF $child.resource_id != $owner.resource_id OR $child.session_id.parent_session_id != $owner.session_id
+        OR !fn::wp012_model_lane_role_read_authority_snapshot($child, $child_basis, $creation.issuer_scope)
+        OR !fn::wp012_model_lane_role_read_authority_snapshot($owner, $owner_basis, $owner_scope) { RETURN false; };
+    RETURN array::len(array::filter($child.session_id.delegation_grant_edges, |$edge| {
+        $edge.child_grant_id = $child.grant_id AND $edge.parent_grant_id = $owner.grant_id
+    })) = 1;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_create($row: object) {
+    LET $creation = $wp012_role_evidence_create;
+    IF $creation = NONE OR $row.record_kind NOT IN ['role_evidence', 'validator_designation', 'role_evidence_consumption']
+        OR $creation.record_kind != $row.record_kind OR $creation.record_id != <string>record::id($row.id)
+        OR $creation.event_id != $row.event_id OR $creation.record_sha256 != crypto::sha256($row.record_json)
+        OR $creation.issuer_scope.owner_account_id != record::id($auth.account_id)
+        OR $creation.issuer_scope.actor_principal_id != record::id($auth.principal_id)
+        OR $creation.issuer_scope.authenticated_session_id != record::id($auth.id)
+        OR $creation.issuer_scope.access_space_id != record::id($auth.access_space_id)
+        OR $creation.issuer_scope.workspace_id != $row.workspace_id OR !fn::mt109_live_session()
+        OR $wp012_original_workspace != $row.workspace_id OR $wp012_original_session != record::id($auth.id)
+        OR $wp012_original_action != 'create' OR $wp012_original_capability != 'fs.write' { RETURN false; };
+    LET $resource = type::record('protected_resources', $wp012_original_resource);
+    LET $grant = type::record('resource_grants', $wp012_original_grant);
+    IF fn::wp012_model_lane_resource_domain($resource, $row.workspace_id, 'workspace', $row.workspace_id) = NONE
+        OR !fn::wp012_model_lane_original_grant($resource, $grant, 'fs.write', 'create') { RETURN false; };
+    LET $record = encoding::json::decode($row.record_json);
+    IF $row.record_kind = 'role_evidence_consumption' {
+        RETURN $record.operation_id = $creation.operation_id
+            AND fn::wp012_model_lane_role_consumption_identity($row)
+            AND fn::wp012_model_lane_role_consumption_authority($record)
+            AND fn::wp012_model_lane_role_read_authority_snapshot($creation.expected_child_read, $record.child_read, $record.exact_consumer_scope)
+            AND fn::wp012_model_lane_role_read_authority_snapshot($creation.expected_owner_read, $record.owner_read, $record.issuer_scope);
+    };
+    IF $auth.authentication_strength = 'local_delegated_opaque'
+        AND !fn::wp012_model_lane_role_creation_read_snapshots($creation) { RETURN false; };
+    IF !fn::wp012_model_lane_role_record_identity($row, $creation.issuer_scope) { RETURN false; };
+    RETURN IF $row.record_kind = 'validator_designation' { $record.request.operation_id = $creation.operation_id }
+        ELSE { $row.event_ledger_event_id.payload.issuance_operation_id = $creation.operation_id };
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_ledger_create($row: object) {
+    LET $creation = $wp012_role_evidence_create;
+    IF $creation = NONE OR $row.aggregate_type NOT IN ['role_evidence', 'validator_designation', 'role_evidence_consumption']
+        OR $creation.record_kind != $row.aggregate_type OR $creation.event_id != $row.event_id
+        OR $creation.record_sha256 != crypto::sha256($row.payload.event_payload_json)
+        OR $row.payload_hash != $creation.record_sha256
+        OR $row.source_component != 'model_lane' OR $row.event_type != 'MODEL_LANE_AUTHORITY_RECORDED'
+        OR $row.event_version != 'kernel_event_v1' OR $row.event_sequence <= 0
+        OR record::id($row.id) != $row.event_id OR $row.idempotency_key != $row.event_id
+        OR $row.payload.record_kind != $row.aggregate_type OR $row.payload.run_id != $row.kernel_task_run_id
+        OR $row.payload.event_stream_version != 1 OR $row.actor_kind != 'principal'
+        OR $row.actor_id != record::id($auth.principal_id)
+        OR $row.owner_account_id != record::id($auth.account_id)
+        OR $row.actor_principal_id != record::id($auth.principal_id)
+        OR $row.authenticated_session_id != record::id($auth.id)
+        OR $row.access_space_id != record::id($auth.access_space_id)
+        OR $creation.issuer_scope.owner_account_id != $row.owner_account_id
+        OR $creation.issuer_scope.actor_principal_id != $row.actor_principal_id
+        OR $creation.issuer_scope.authenticated_session_id != $row.authenticated_session_id
+        OR $creation.issuer_scope.access_space_id != $row.access_space_id
+        OR $creation.issuer_scope.workspace_id != $row.workspace_id
+        OR $row.wsids != [$row.workspace_id] OR $wp012_original_workspace != $row.workspace_id
+        OR $wp012_original_session != record::id($auth.id) OR $row.authority_session_id != $auth.id
+        OR $wp012_original_action != 'create' OR $wp012_original_capability != 'fs.write'
+        OR $row.authority_action != 'create' OR $row.authority_capability_id != 'fs.write'
+        OR $row.authority_resource_id != type::record('protected_resources', $wp012_original_resource)
+        OR $row.authority_grant_id != type::record('resource_grants', $wp012_original_grant)
+        OR fn::wp012_model_lane_resource_domain($row.authority_resource_id, $row.workspace_id, 'workspace', $row.workspace_id) = NONE
+        OR !fn::wp012_model_lane_original_grant($row.authority_resource_id, $row.authority_grant_id, 'fs.write', 'create') { RETURN false; };
+    LET $record = encoding::json::decode($row.payload.event_payload_json);
+    LET $body = IF $row.aggregate_type = 'role_evidence' { $record.body }
+        ELSE IF $row.aggregate_type = 'validator_designation' { $record.request } ELSE { $record };
+    LET $scope = IF $row.aggregate_type = 'role_evidence_consumption' { $body.issuer_scope } ELSE { $body.scope };
+    LET $identity = IF $row.aggregate_type = 'role_evidence' { $body.action.idempotency_key }
+        ELSE IF $row.aggregate_type = 'validator_designation' { $body.action.action_id } ELSE { <string>$body.operation_id };
+    IF $scope != $creation.issuer_scope OR !type::is_string($identity) OR string::trim($identity) = ''
+        OR $row.kernel_task_run_id != $body.run.run_id
+        OR $creation.record_id != crypto::sha256(string::join([
+            'handshake.model-lane.authority.v1', $row.aggregate_type, $identity,
+            $scope.owner_account_id, $scope.actor_principal_id, $scope.authenticated_session_id,
+            $scope.access_space_id, $scope.workspace_id], '\u0000')) { RETURN false; };
+    IF $row.aggregate_type = 'role_evidence_consumption' {
+        RETURN $body.schema_id = 'handshake.role-evidence-consumption@1'
+            AND $body.operation_id = $creation.operation_id AND $row.aggregate_id = <string>$body.operation_id
+            AND $row.event_id = 'evt-' + $creation.record_id
+            AND fn::wp012_model_lane_role_consumption_authority($body)
+            AND fn::wp012_model_lane_role_read_authority_snapshot($creation.expected_child_read, $body.child_read, $body.exact_consumer_scope)
+            AND fn::wp012_model_lane_role_read_authority_snapshot($creation.expected_owner_read, $body.owner_read, $body.issuer_scope);
+    };
+    IF $row.aggregate_id != $body.action.action_id { RETURN false; };
+    IF $auth.authentication_strength = 'local_delegated_opaque'
+        AND !fn::wp012_model_lane_role_creation_read_snapshots($creation) { RETURN false; };
+    IF $row.aggregate_type = 'validator_designation' {
+        RETURN $body.operation_id = $creation.operation_id AND $record.event_ledger_stream_id = $body.run.run_id
+            AND $row.session_run_id = $body.run.run_id;
+    };
+    RETURN $row.payload.issuance_operation_id = $creation.operation_id
+        AND $record.event.event_id = $row.event_id AND $record.event.event_seq = $row.event_sequence
+        AND $record.event.transaction_seq = $row.event_sequence AND $record.event.stream_id = $row.session_run_id
+        AND $row.session_run_id = 'role-authority:' + $body.run.run_id;
+};
+
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_source_access($row: object, $write: bool) {
     IF $wp012_original_purpose = 'navigation_read' {
         IF $write OR $navigation_selection = NONE OR !fn::wp012_model_lane_original_operation($row) { RETURN false; };
@@ -1533,11 +1951,170 @@ DEFINE EVENT OVERWRITE model_lane_recovery_order_fence ON TABLE model_lane_recov
         };
     };
 
+-- NEW Source027 candidate. Requires Account-owned private guard-scoped
+-- wp012_validator_association binding, overwritten after ordinary bindings.
+-- Required closed fields: operation_id, record_id, event_id, original_stream,
+-- record_json, outer_json, original_scope, child_scope,
+-- expected_child_create, expected_child_read.
+-- No current product binding/admission or runtime proof is claimed.
+
+DEFINE FUNCTION OVERWRITE fn::wp012_validator_association_snapshot($expected: object, $action: string, $capability: string) {
+    IF $expected = NONE OR $expected.session_id != $auth.id
+        OR $expected.account_id != $auth.account_id OR $expected.principal_id != $auth.principal_id
+        OR $expected.access_space_id != $auth.access_space_id OR $expected.resource_kind != 'workspace'
+        OR !fn::wp012_model_lane_original_grant($expected.resource_id, $expected.grant_id, $capability, $action) { RETURN false; };
+    LET $grant = $expected.grant_id;
+    LET $session = $expected.session_id;
+    LET $current = {
+        grant_id: $grant, resource_id: $grant.resource_id, account_id: $grant.account_id,
+        principal_id: $grant.principal_id, actor_kind: $grant.principal_id.actor_kind,
+        actor_id: $grant.principal_id.actor_id, session_id: $session, access_space_id: $grant.access_space_id,
+        grant_version: $grant.grant_version,
+        policy_versions: [$grant.policy_version, $grant.resource_id.policy_version, $grant.account_id.policy_version,
+            $grant.principal_id.policy_version, $grant.access_space_id.policy_version, $session.policy_version],
+        revocation_epochs: [$grant.account_id.revocation_epoch, $grant.principal_id.revocation_epoch,
+            $grant.access_space_id.revocation_epoch, $session.account_revocation_epoch,
+            $session.principal_revocation_epoch, $session.space_revocation_epoch],
+        actions: $grant.actions, capability_ids: $grant.capability_ids, delegation_chain: $grant.delegation_chain,
+        session_capabilities: $session.delegated_capabilities,
+        principal_capabilities: $grant.principal_id.delegated_capabilities,
+        capability_profile_id: $grant.principal_id.capability_profile_id,
+        statuses: [$grant.status, $grant.resource_id.lifecycle_state, $grant.account_id.status,
+            $grant.principal_id.status, $grant.access_space_id.status],
+        resource_kind: $grant.resource_id.resource_kind, grant_expires_at: $grant.expires_at,
+        session_expires_at: $session.expires_at
+    };
+    RETURN $current = $expected;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_validator_association_authority($write: bool) {
+    LET $binding = $wp012_validator_association;
+    IF $binding = NONE OR !type::is_object($binding)
+        OR array::sort(object::keys($binding)) != ['child_scope', 'event_id', 'expected_child_create',
+            'expected_child_read', 'operation_id', 'original_scope', 'original_stream', 'outer_json',
+            'record_id', 'record_json']
+        OR !type::is_string($binding.operation_id) OR !string::is_uuid($binding.operation_id)
+        OR !type::is_string($binding.event_id) OR string::trim($binding.event_id) = ''
+        OR !type::is_string($binding.original_stream) OR string::trim($binding.original_stream) = ''
+        OR !fn::mt109_live_session() { RETURN false; };
+    LET $child = $binding.child_scope;
+    LET $original = $binding.original_scope;
+    IF $child.owner_account_id != record::id($auth.account_id)
+        OR $child.actor_principal_id != record::id($auth.principal_id)
+        OR $child.authenticated_session_id != record::id($auth.id)
+        OR $child.access_space_id != record::id($auth.access_space_id)
+        OR $child.owner_account_id != $original.owner_account_id
+        OR $child.access_space_id != $original.access_space_id
+        OR $child.workspace_id != $original.workspace_id
+        OR $auth.parent_session_id != type::record('authenticated_sessions', $original.authenticated_session_id)
+        OR !($auth.ancestor_session_ids CONTAINS $auth.parent_session_id)
+        OR $wp012_original_workspace != $child.workspace_id
+        OR $wp012_original_session != $child.authenticated_session_id
+        OR !fn::wp012_validator_association_snapshot($binding.expected_child_create, 'create', 'fs.write')
+        OR !fn::wp012_validator_association_snapshot($binding.expected_child_read, 'read', 'fs.read')
+        OR $binding.expected_child_create.resource_id != $binding.expected_child_read.resource_id
+        OR $binding.expected_child_create.resource_id != type::record('protected_resources', $wp012_original_resource)
+        OR fn::wp012_model_lane_resource_domain($binding.expected_child_create.resource_id,
+            $child.workspace_id, 'workspace', $child.workspace_id) = NONE { RETURN false; };
+    LET $current_create = $wp012_original_action = 'create' AND $wp012_original_capability = 'fs.write'
+        AND type::record('resource_grants', $wp012_original_grant) = $binding.expected_child_create.grant_id;
+    LET $current_read = $wp012_original_action = 'read' AND $wp012_original_capability = 'fs.read'
+        AND type::record('resource_grants', $wp012_original_grant) = $binding.expected_child_read.grant_id;
+    IF ($write AND !$current_create) OR (!$write AND !($current_create OR $current_read)) { RETURN false; };
+    LET $record = encoding::json::decode($binding.record_json);
+    LET $body = $record.association;
+    LET $outer = encoding::json::decode($binding.outer_json);
+    LET $payload = encoding::json::decode($outer.event_payload_json);
+    LET $key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'producer_association',
+        $binding.operation_id, $original.owner_account_id, $original.actor_principal_id,
+        $original.authenticated_session_id, $original.access_space_id, $original.workspace_id], '\u0000'));
+    RETURN $binding.record_id = $key AND $body.format_version = 1
+        AND <string>$body.original_operation_id = $binding.operation_id
+        AND $body.original_issuer = $original AND $body.child_scope = $child
+        AND $record.run_id = $body.run.run_id AND $record.event_ledger_stream_id = $binding.original_stream
+        AND $body.cleanup.child_principal_id = $child.actor_principal_id
+        AND $body.cleanup.child_session_id = $child.authenticated_session_id
+        AND $body.cleanup.full_canonical_cleanup_inventory.original_association_event_id = $binding.event_id
+        AND array::sort(object::keys($record)) = ['association', 'event_ledger_stream_id', 'run_id']
+        AND array::sort(object::keys($outer)) = ['event_payload_json', 'event_stream_version',
+            'issuance_operation_id', 'record_kind', 'run_id']
+        AND $outer.record_kind = 'producer_association' AND $outer.event_stream_version = 1
+        AND <string>$outer.issuance_operation_id = $binding.operation_id AND $outer.run_id = $record.run_id
+        AND array::sort(object::keys($payload)) = ['access_space_id', 'actor_principal_id',
+            'authenticated_session_id', 'causation_ref', 'dexterity_kernel', 'original_operation_id',
+            'owner_account_id', 'record', 'request_id', 'trace_id', 'workspace_id']
+        AND $payload.dexterity_kernel = 'Dexterity' AND $payload.record = $record
+        AND <string>$payload.original_operation_id = $binding.operation_id
+        AND $payload.request_id = $body.request_id AND $payload.causation_ref = $body.causation_ref
+        AND $payload.trace_id = $body.run.trace_id
+        AND $payload.owner_account_id = $original.owner_account_id
+        AND $payload.actor_principal_id = $original.actor_principal_id
+        AND $payload.authenticated_session_id = $original.authenticated_session_id
+        AND $payload.access_space_id = $original.access_space_id AND $payload.workspace_id = $original.workspace_id;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_validator_association_ledger($row: object, $write: bool) {
+    IF !fn::wp012_validator_association_authority($write) { RETURN false; };
+    LET $binding = $wp012_validator_association;
+    LET $scope = $binding.original_scope;
+    LET $record = encoding::json::decode($binding.record_json);
+    LET $outer = encoding::json::decode($binding.outer_json);
+    RETURN $row.aggregate_type = 'producer_association' AND $row.aggregate_id = $binding.operation_id
+        AND $row.event_id = $binding.event_id AND record::id($row.id) = $binding.event_id
+        AND $row.event_type = 'MODEL_LANE_AUTHORITY_RECORDED' AND $row.event_version = 'kernel_event_v1'
+        AND $row.idempotency_key = $binding.event_id AND $row.source_component = 'model_lane'
+        AND $row.kernel_task_run_id = $record.run_id AND $row.session_run_id = $binding.original_stream
+        AND $row.event_sequence > 0 AND $row.actor_kind = 'principal'
+        AND $row.actor_id = $scope.actor_principal_id AND $row.wsids = [$scope.workspace_id]
+        AND $row.owner_account_id = $scope.owner_account_id AND $row.actor_principal_id = $scope.actor_principal_id
+        AND $row.authenticated_session_id = $scope.authenticated_session_id
+        AND $row.access_space_id = $scope.access_space_id AND $row.workspace_id = $scope.workspace_id
+        AND $row.authority_session_id = $auth.id
+        AND $row.authority_resource_id = $binding.expected_child_create.resource_id
+        AND $row.authority_grant_id = $binding.expected_child_create.grant_id
+        AND $row.authority_action = 'create' AND $row.authority_capability_id = 'fs.write'
+        AND $row.payload = $outer AND $row.payload_hash = crypto::sha256($outer.event_payload_json);
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_validator_association_record($row: object, $write: bool) {
+    IF !fn::wp012_validator_association_authority($write) { RETURN false; };
+    LET $binding = $wp012_validator_association;
+    LET $scope = $binding.original_scope;
+    LET $record = encoding::json::decode($binding.record_json);
+    LET $ledger = $row.event_ledger_event_id;
+    RETURN $row.record_kind = 'producer_association' AND record::id($row.id) = $binding.record_id
+        AND $row.aggregate_id = $binding.operation_id AND $row.idempotency_key = $record.association.idempotency_key
+        AND $row.run_id = $record.run_id AND $row.record_json = $binding.record_json
+        AND $row.owner_account_id = $scope.owner_account_id AND $row.actor_principal_id = $scope.actor_principal_id
+        AND $row.authenticated_session_id = $scope.authenticated_session_id
+        AND $row.access_space_id = $scope.access_space_id AND $row.workspace_id = $scope.workspace_id
+        AND $row.event_id = $binding.event_id AND $ledger = type::record('kernel_event_ledger', $binding.event_id)
+        AND fn::wp012_validator_association_ledger($ledger, false)
+        AND $row.event_seq = $ledger.event_sequence AND $row.transaction_seq = $row.event_seq
+        AND $row.event_stream_version = 1;
+};
+
 DEFINE TABLE OVERWRITE model_lane_authority SCHEMAFULL
-    PERMISSIONS FOR select WHERE fn::wp012_model_lane_source_access($this, false) AND (IF $wp012_original_purpose = 'navigation_read' { fn::wp012_model_lane_navigation_identity($this) } ELSE { fn::wp012_model_lane_source_identity($this) })
-    FOR create WHERE ($wp012_original_action = 'create'
+    PERMISSIONS FOR select WHERE IF record_kind = 'producer_association' {
+        fn::wp012_validator_association_record($this, false)
+    } ELSE IF $wp012_role_evidence_capture != NONE {
+        fn::wp012_model_lane_role_target_capture($this)
+    } ELSE IF $wp012_role_evidence_consume != NONE {
+        fn::wp012_model_lane_role_consume($this)
+    } ELSE IF $wp012_role_evidence_create != NONE AND record_kind IN ['role_evidence', 'validator_designation', 'role_evidence_consumption'] {
+        fn::wp012_model_lane_role_create($this)
+    } ELSE {
+        fn::wp012_model_lane_source_access($this, false) AND (IF $wp012_original_purpose = 'navigation_read' { fn::wp012_model_lane_navigation_identity($this) } ELSE { fn::wp012_model_lane_source_identity($this) })
+    }
+    FOR create WHERE IF record_kind = 'producer_association' {
+        fn::wp012_validator_association_record($this, true)
+    } ELSE IF record_kind IN ['role_evidence', 'validator_designation', 'role_evidence_consumption'] {
+        fn::wp012_model_lane_role_create($this)
+    } ELSE {
+        ($wp012_original_action = 'create'
             OR ($wp012_original_purpose = 'recovery_execute' AND $wp012_original_action = 'update'))
         AND fn::wp012_model_lane_source_access($this, true) AND fn::wp012_model_lane_source_identity($this)
+    }
     FOR update, delete NONE;
 
 -- This producer branch preserves the original Document Update grant; it is not general content Read.

@@ -165,7 +165,10 @@ test = false
 
 [dependencies]
 handshake-account-activation = { path = "../../shared/handshake_account_activation" }
+handshake_member_enrollment = { git = "https://github.com/Nuntissura/Handshake.git", rev = "74d130af75b2735351005d240dc7f793f2433961" }
+handshake_producer_association = { git = "https://github.com/Nuntissura/Handshake.git", rev = "74d130af75b2735351005d240dc7f793f2433961" }
 handshake_runtime_instance = { path = "../handshake_runtime_instance" }
+handshake_workflow_lifecycle = { path = "../handshake_workflow_lifecycle" }
 handshake_model_lane_routing = { path = "../handshake_model_lane_routing" }
 handshake_resource_scope = { path = "../handshake_resource_scope" }
 handshake_document_surreal = { path = "../handshake_document_surreal" }
@@ -881,3 +884,8 @@ required-features = ["test-utils", "surreal-test-support"]
 name = "operator_chat_capture_surreal_tests"
 path = "tests/operator_chat_capture_surreal_tests.rs"
 required-features = ["test-utils", "surreal-test-support"]
+
+[[test]]
+name = "model_lane_promotion_surreal_tests"
+path = "tests/model_lane_promotion_surreal_tests.rs"
+required-features = ["app-runtime", "test-utils", "surreal-test-support", "os-keychain"]

@@ -14,11 +14,26 @@ use surrealdb::types::{
 use tokio::sync::Mutex;
 
 use super::{
-    SurrealAdminContext, SurrealStorage, SurrealStorageError, DEFAULT_DATABASE, DEFAULT_NAMESPACE,
+    SurrealAdminContext, SurrealStorage, SurrealStorageConfig, SurrealStorageError, DEFAULT_DATABASE, DEFAULT_NAMESPACE,
 };
 
 pub const SCHEMA_VERSION: &str = "wp-kernel-012-surreal-v1";
-pub const SCHEMA_REVISION: i64 = 165;
+pub const SCHEMA_REVISION: i64 = 166;
+
+// Exact revision-165 predecessor. Source/catalog provenance reconciles with the
+// independently measured BASE and FINAL catalogs in schema-measure-current-10.log.
+const PRE_MEMBER_ENROLLMENT_REVISION: i64 = 165;
+const PRE_MEMBER_BASE_GENERATED_SHA256: &str = "e87ef6a18335d959d931a04a6725aac8c5e8e1a9784a04e31f6eeec3cfdbb352";
+const PRE_MEMBER_BASE_CATALOG_SHA256: &str = "a5e6b2232f86120dd5c1b52feef6c42683febd87ef6f3bb24a115cc791f8297e";
+const PRE_MEMBER_BASE_INFO_SHA256: &str = "fdc2e9b5ca5a0528dbead4dda761afc8d00f9e182cb3f9d532ad37d4f40c30d9";
+const PRE_MEMBER_PRODUCTION_GENERATED_SHA256: &str = "0577a316fae35ac6ff6681d4e5f1388f598a5e29caa700506688d4184572fab1";
+const PRE_MEMBER_PRODUCTION_SOURCE_SHA256: &str = "bccaa4934b18ffed0f38185d832ab1e4e4ea38a140c4d4e29032f851c063e375";
+const PRE_MEMBER_PRODUCTION_CATALOG_SHA256: &str = "0b815d25caf3674451f1bdf1756ddc754650a8a6d6106aa0cc5195bc7fb4c336";
+const PRE_MEMBER_PRODUCTION_INFO_SHA256: &str = "965b07b820ea16cd9854144f39fbbeb251fe5d2810d19ecc6dea966beca1d27c";
+const PRE_MEMBER_PRODUCTION_FIELDS: usize = 4470;
+const PRE_MEMBER_PRODUCTION_INDEXES: usize = 930;
+
+
 
 const PRE_ARGUS_RECEIPT_REVISION: i64 = 164;
 const PRE_ARGUS_RECEIPT_GENERATED_SHA256: &str =
@@ -1966,23 +1981,22 @@ fn authority_nonce_stage_correction_statements() -> String {
     let mut statements = String::new();
     for (table, _) in AUTHORITY_NONCE_IMMUTABLE_FIELDS {
         let declaration = format!("DEFINE TABLE OVERWRITE {table} ");
-        let start = SCHEMA
-            .find(&declaration)
-            .expect("authority table declaration must exist");
-        let end = SCHEMA[start..]
-            .find("\nDEFINE FIELD OVERWRITE ")
-            .map(|offset| start + offset)
-            .expect("authority table declaration must precede fields");
+        let start = SCHEMA.find(&declaration).expect("authority table must exist");
+        let end = surql_statement_end(SCHEMA, start).expect("authority table must terminate");
         statements.push_str(&SCHEMA[start..end]);
         statements.push('\n');
     }
-    statements.push_str(AUTHORITY_NONCE_EVENT_STATEMENTS);
-    let mut spans = BTreeMap::new();
-    schema_statements_enclosing(
-        "DEFINE EVENT OVERWRITE mt109_authenticated_session_authorization_touch ON TABLE authenticated_sessions",
-        &mut spans,
-    );
-    for (start, end) in spans {
+    for event in [
+        "mt109_local_account_authorization_touch",
+        "mt109_principal_authorization_touch",
+        "mt109_access_space_authorization_touch",
+        "mt109_authenticated_session_authorization_touch",
+        "mt109_protected_resource_authorization_touch",
+        "mt109_resource_grant_authorization_touch",
+    ] {
+        let declaration = format!("DEFINE EVENT OVERWRITE {event} ");
+        let start = SCHEMA.find(&declaration).expect("authority nonce event must exist");
+        let end = surql_statement_end(SCHEMA, start).expect("authority nonce event must terminate");
         statements.push_str(&SCHEMA[start..end]);
         statements.push('\n');
     }
@@ -3064,12 +3078,10 @@ fn restore_pre_argus_receipt_schema(mut source: String) -> String {
 }
 
 fn argus_receipt_upgrade_statements() -> String {
-    let mut spans = BTreeMap::new();
-    for (current, _) in ARGUS_RECEIPT_SCHEMA_DELTAS {
-        assert_eq!(SCHEMA.matches(current).count(), 1, "Argus delta must match the canonical definition");
-        assert!(schema_statements_enclosing(current, &mut spans) > 0,
-            "Argus delta must have a complete OVERWRITE statement");
-    }
+    let spans = canonical_upgrade_spans(SCHEMA, &[
+        "DEFINE TABLE OVERWRITE kernel_event_ledger ",
+        "DEFINE FUNCTION OVERWRITE fn::mt109_ledger_receipt(",
+    ]);
     assert_eq!(spans.len(), 2, "Argus successor must emit only its two changed definitions");
     let mut statements = String::new();
     for (start, end) in spans {
@@ -3078,6 +3090,292 @@ fn argus_receipt_upgrade_statements() -> String {
     }
     statements
 }
+
+const PRE_ARGUS_CURRENT_BASE_HEADERS: &[&str] = &[
+    "DEFINE TABLE OVERWRITE documents ",
+    "DEFINE FIELD OVERWRITE workspace_id ON TABLE documents",
+    "DEFINE FIELD OVERWRITE title ON TABLE documents",
+    "DEFINE FIELD OVERWRITE last_job_id ON TABLE documents",
+    "DEFINE FIELD OVERWRITE last_workflow_id ON TABLE documents",
+    "DEFINE FIELD OVERWRITE last_actor_id ON TABLE documents",
+    "DEFINE FIELD OVERWRITE edit_event_id ON TABLE documents",
+    "DEFINE FIELD OVERWRITE last_actor_kind ON TABLE documents",
+    "DEFINE FIELD OVERWRITE created_at ON TABLE documents",
+    "DEFINE FIELD OVERWRITE updated_at ON TABLE documents",
+    "DEFINE TABLE OVERWRITE blocks ",
+    "DEFINE FIELD OVERWRITE document_id ON TABLE blocks",
+    "DEFINE FIELD OVERWRITE kind ON TABLE blocks",
+    "DEFINE FIELD OVERWRITE sequence ON TABLE blocks",
+    "DEFINE FIELD OVERWRITE raw_content ON TABLE blocks",
+    "DEFINE FIELD OVERWRITE display_content ON TABLE blocks",
+    "DEFINE FIELD OVERWRITE derived_content ON TABLE blocks",
+    "DEFINE FIELD OVERWRITE derived_content.* ON TABLE blocks",
+    "DEFINE FIELD OVERWRITE last_job_id ON TABLE blocks",
+    "DEFINE FIELD OVERWRITE last_workflow_id ON TABLE blocks",
+    "DEFINE FIELD OVERWRITE last_actor_id ON TABLE blocks",
+    "DEFINE FIELD OVERWRITE edit_event_id ON TABLE blocks",
+    "DEFINE FIELD OVERWRITE last_actor_kind ON TABLE blocks",
+    "DEFINE FIELD OVERWRITE sensitivity ON TABLE blocks",
+    "DEFINE FIELD OVERWRITE exportable ON TABLE blocks",
+    "DEFINE FIELD OVERWRITE created_at ON TABLE blocks",
+    "DEFINE FIELD OVERWRITE updated_at ON TABLE blocks",
+    "DEFINE TABLE OVERWRITE kernel_event_ledger ",
+    "DEFINE TABLE OVERWRITE kernel_process_lifecycle ",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_membership(",
+    "DEFINE TABLE OVERWRITE fems_memory_packs ",
+    "DEFINE FIELD OVERWRITE pack ON TABLE fems_memory_packs",
+    "DEFINE FIELD OVERWRITE pack.* ON TABLE fems_memory_packs",
+    "DEFINE FIELD OVERWRITE navigation_memory_pack_id ON TABLE fems_memory_packs",
+    "DEFINE FIELD OVERWRITE navigation_memory_pack_hash ON TABLE fems_memory_packs",
+    "DEFINE FIELD OVERWRITE navigation_memory_source_membership ON TABLE fems_memory_packs",
+    "DEFINE FIELD OVERWRITE navigation_memory_source_membership.*.* ON TABLE fems_memory_packs",
+    "DEFINE TABLE OVERWRITE authenticated_sessions ",
+    "DEFINE FIELD OVERWRITE parent_session_id ON TABLE authenticated_sessions",
+    "DEFINE FIELD OVERWRITE ancestor_session_ids ON TABLE authenticated_sessions",
+    "DEFINE FIELD OVERWRITE delegation_grant_edges ON TABLE authenticated_sessions",
+    "DEFINE FIELD OVERWRITE delegation_grant_edges.* ON TABLE authenticated_sessions",
+    "DEFINE FIELD OVERWRITE delegation_grant_edges.*.child_grant_id ON TABLE authenticated_sessions",
+    "DEFINE FIELD OVERWRITE delegation_grant_edges.*.parent_grant_id ON TABLE authenticated_sessions",
+    "DEFINE TABLE OVERWRITE protected_resources ",
+    "DEFINE FIELD OVERWRITE external_resource_id ON TABLE protected_resources",
+    "DEFINE FIELD OVERWRITE storage_locator_hash ON TABLE protected_resources",
+    "DEFINE TABLE OVERWRITE resource_grants ",
+    "DEFINE EVENT OVERWRITE mt109_authenticated_session_authorization_touch ON TABLE authenticated_sessions",
+    "DEFINE FUNCTION OVERWRITE fn::mt109_session_row_live(",
+    "DEFINE FUNCTION OVERWRITE fn::mt109_session_lineage_live(",
+    "DEFINE FUNCTION OVERWRITE fn::mt109_session_live(",
+    "DEFINE FUNCTION OVERWRITE fn::mt109_live_session(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_grant(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_record(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_custodian(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_read_grant(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_read_custodian(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_read_verifier(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_read_receipt(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_record_read(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_verifier(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_optional(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_start_matches(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_start(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_admission_manifest(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_admission_row(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_receipt(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_adoption(",
+    "DEFINE FUNCTION OVERWRITE fn::mt109_ledger_receipt(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_ledger_read(",
+    "DEFINE FIELD OVERWRITE authority_parent_resource_id ON TABLE kernel_event_ledger",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_artifact_workspace_create(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_artifact_resource_create(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_artifact_resource_read(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_artifact_publication_association(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_artifact_publication_create(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_artifact_publication_read(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_artifact_publication_full_read(",
+    "DEFINE TABLE OVERWRITE artifact_publication ",
+    "DEFINE FIELD OVERWRITE artifact_id ON TABLE artifact_publication",
+    "DEFINE FIELD OVERWRITE artifact_resource_id ON TABLE artifact_publication",
+    "DEFINE FIELD OVERWRITE workspace_external_id ON TABLE artifact_publication",
+    "DEFINE FIELD OVERWRITE workspace_resource_id ON TABLE artifact_publication",
+    "DEFINE FIELD OVERWRITE manifest_json ON TABLE artifact_publication",
+    "DEFINE FIELD OVERWRITE manifest_sha256 ON TABLE artifact_publication",
+    "DEFINE FIELD OVERWRITE producer_operation_id ON TABLE artifact_publication",
+    "DEFINE FIELD OVERWRITE registration_version ON TABLE artifact_publication",
+    "DEFINE INDEX OVERWRITE artifact_publication_artifact_unique ON TABLE artifact_publication",
+];
+const PRE_ARGUS_CURRENT_MODEL_LANE_HEADERS: &[&str] = &[
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_operation_matrix(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_context_coordination_envelope(",
+    "DEFINE FIELD OVERWRITE authority_purpose ON model_lane_context_coordination",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_original_operation(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_canonical_record_identity(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_match(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_message_lane_input(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_source_input(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_source_input_access(",
+    "DEFINE FIELD OVERWRITE navigation_source_input.failstate_code ON model_lane_authority",
+    "DEFINE FIELD OVERWRITE navigation_source_input.error_code ON model_lane_authority",
+    "DEFINE FIELD OVERWRITE navigation_source_input.mt_status_id ON model_lane_authority",
+    "DEFINE FIELD OVERWRITE navigation_source_input.micro_task_id ON model_lane_authority",
+    "DEFINE FIELD OVERWRITE navigation_source_input.memory_pack_ref ON model_lane_authority",
+    "DEFINE FIELD OVERWRITE navigation_source_input.memory_pack_hash ON model_lane_authority",
+    "DEFINE FIELD OVERWRITE navigation_source_input.artifact ON model_lane_authority",
+    "DEFINE FIELD OVERWRITE navigation_source_input.artifact.source_kind ON model_lane_authority",
+    "DEFINE FIELD OVERWRITE navigation_source_input.artifact.run_id ON model_lane_authority",
+    "DEFINE FIELD OVERWRITE navigation_source_input.artifact.artifact_binding_id ON model_lane_authority",
+    "DEFINE FIELD OVERWRITE navigation_source_input.artifact.source_event_id ON model_lane_authority",
+    "DEFINE FIELD OVERWRITE navigation_source_input.artifact.artifact_ref ON model_lane_authority",
+    "DEFINE FIELD OVERWRITE navigation_source_input.artifact.artifact_manifest_ref ON model_lane_authority",
+    "DEFINE FIELD OVERWRITE navigation_source_input.artifact.artifact_payload_ref ON model_lane_authority",
+    "DEFINE FIELD OVERWRITE navigation_source_input.artifact.artifact_sha256 ON model_lane_authority",
+    "DEFINE FIELD OVERWRITE navigation_source_input.artifact.content_hash ON model_lane_authority",
+    "DEFINE FIELD OVERWRITE navigation_source_input.artifact.payload_json ON model_lane_authority",
+    "DEFINE FIELD OVERWRITE navigation_source_input.artifact.source_event_seq ON model_lane_authority",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_runs(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_metadata_access(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_metadata(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_block_metadata_access(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_document_metadata_access(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_document_links(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_artifact_metadata_access(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_artifact_metadata(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_artifact_publications(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_raw_access(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_memory_packs(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_consulted_grant(",
+    "DEFINE FIELD OVERWRITE grant_version ON TABLE resource_grants",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_record_identity(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_consumption_identity(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_read_authority(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_source_identity(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_read_authority_snapshot(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_consumption_authority(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_target_capture(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_consume(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_creation_read_snapshots(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_create(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_ledger_create(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_source_access(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_source_identity(",
+    "DEFINE TABLE OVERWRITE model_lane_recovery_order ",
+    "DEFINE EVENT OVERWRITE model_lane_recovery_order_fence ON TABLE model_lane_recovery_order",
+    "DEFINE TABLE OVERWRITE model_lane_authority ",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_crdt_dependency_access(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_crdt_lease_access(",
+];
+const PRE_ARGUS_CURRENT_PALMISTRY_HEADERS: &[&str] = &[
+    "DEFINE TABLE OVERWRITE palmistry_durable_verifier ",
+    "DEFINE TABLE OVERWRITE palmistry_watcher_custodian ",
+    "DEFINE FIELD OVERWRITE registration_operation_id ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE process_uuid ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE diagnostic_session_id ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE launch_nonce ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE parent_pid ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE watcher_pid ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE parent_creation_time_100ns ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE watcher_creation_time_100ns ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE executable_sha256 ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE verifying_key_hex ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE original_started_at ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE original_start_hash ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE verifier_record_id ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE owner_account_id ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE actor_principal_id ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE authenticated_session_id ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE access_space_id ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE workspace_id ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE authority_resource_id ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE authority_parent_resource_id ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE original_start ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE original_start.* ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE signed_native_registration_evidence ON TABLE palmistry_watcher_custodian",
+    "DEFINE FIELD OVERWRITE signed_native_registration_evidence.* ON TABLE palmistry_watcher_custodian",
+    "DEFINE INDEX OVERWRITE palmistry_watcher_custodian_identity_unique ON TABLE palmistry_watcher_custodian",
+    "DEFINE INDEX OVERWRITE palmistry_watcher_custodian_registration_unique ON TABLE palmistry_watcher_custodian",
+    "DEFINE TABLE OVERWRITE palmistry_watcher_adoption ",
+    "DEFINE FIELD OVERWRITE operation_id ON TABLE palmistry_watcher_adoption",
+    "DEFINE FIELD OVERWRITE process_uuid ON TABLE palmistry_watcher_adoption",
+    "DEFINE FIELD OVERWRITE diagnostic_session_id ON TABLE palmistry_watcher_adoption",
+    "DEFINE FIELD OVERWRITE launch_nonce ON TABLE palmistry_watcher_adoption",
+    "DEFINE FIELD OVERWRITE original_started_at ON TABLE palmistry_watcher_adoption",
+    "DEFINE FIELD OVERWRITE original_custodian ON TABLE palmistry_watcher_adoption",
+    "DEFINE FIELD OVERWRITE verifier ON TABLE palmistry_watcher_adoption",
+    "DEFINE FIELD OVERWRITE event_ledger_event_id ON TABLE palmistry_watcher_adoption",
+    "DEFINE FIELD OVERWRITE input_hash ON TABLE palmistry_watcher_adoption",
+    "DEFINE FIELD OVERWRITE owner_account_id ON TABLE palmistry_watcher_adoption",
+    "DEFINE FIELD OVERWRITE actor_principal_id ON TABLE palmistry_watcher_adoption",
+    "DEFINE FIELD OVERWRITE authenticated_session_id ON TABLE palmistry_watcher_adoption",
+    "DEFINE FIELD OVERWRITE access_space_id ON TABLE palmistry_watcher_adoption",
+    "DEFINE FIELD OVERWRITE workspace_id ON TABLE palmistry_watcher_adoption",
+    "DEFINE FIELD OVERWRITE authority_resource_id ON TABLE palmistry_watcher_adoption",
+    "DEFINE FIELD OVERWRITE authority_parent_resource_id ON TABLE palmistry_watcher_adoption",
+    "DEFINE FIELD OVERWRITE authority_grant_id ON TABLE palmistry_watcher_adoption",
+    "DEFINE FIELD OVERWRITE authority_session_id ON TABLE palmistry_watcher_adoption",
+    "DEFINE FIELD OVERWRITE authority_capability_id ON TABLE palmistry_watcher_adoption",
+    "DEFINE FIELD OVERWRITE authority_action ON TABLE palmistry_watcher_adoption",
+    "DEFINE INDEX OVERWRITE palmistry_watcher_adoption_operation_unique ON TABLE palmistry_watcher_adoption",
+    "DEFINE FIELD OVERWRITE start_record_id ON TABLE palmistry_watcher_adoption",
+    "DEFINE TABLE OVERWRITE palmistry_watcher_admission_config ",
+    "DEFINE FIELD OVERWRITE key_version ON TABLE palmistry_watcher_admission_config",
+    "DEFINE FIELD OVERWRITE admission_verifier ON TABLE palmistry_watcher_admission_config",
+    "DEFINE FIELD OVERWRITE installer_verifier ON TABLE palmistry_watcher_admission_config",
+    "DEFINE FIELD OVERWRITE not_after ON TABLE palmistry_watcher_admission_config",
+    "DEFINE FIELD OVERWRITE revoked_at ON TABLE palmistry_watcher_admission_config",
+    "DEFINE INDEX OVERWRITE palmistry_watcher_admission_config_version ON TABLE palmistry_watcher_admission_config",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_admission_signin_scope(",
+    "DEFINE ACCESS OVERWRITE palmistry_watcher_admission ",
+    "DEFINE ACCESS OVERWRITE palmistry_watcher_permit_installer ",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_admission_permit_current(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_admission_actual_identity(",
+    "DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_admission_install(",
+    "DEFINE TABLE OVERWRITE palmistry_watcher_operation_permit ",
+    "DEFINE FIELD OVERWRITE operation_id ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE purpose ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE state ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE a_access ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE a_auth ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE a_token_id ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE a_jti ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE key_version ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE expires_at ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE manifest_hash ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE manifest ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE manifest.* ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE owner_account_id ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE actor_principal_id ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE authenticated_session_id ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE access_space_id ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE workspace_id ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE authority_resource_id ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE authority_parent_resource_id ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE authority_grant_id ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE authority_session_id ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE authority_capability_id ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE authority_action ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE FIELD OVERWRITE grant_version ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE INDEX OVERWRITE palmistry_watcher_operation_permit_once ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE INDEX OVERWRITE palmistry_watcher_operation_permit_identity ON TABLE palmistry_watcher_operation_permit",
+    "DEFINE EVENT OVERWRITE palmistry_watcher_operation_permit_immutable ON TABLE palmistry_watcher_operation_permit",
+];
+
+fn canonical_upgrade_spans(source: &str, headers: &[&str]) -> BTreeMap<usize, usize> {
+    let mut spans = BTreeMap::new();
+    for header in headers {
+        assert_eq!(source.matches(header).count(), 1, "upgrade identity must occur exactly once: {header}");
+        let start = unique_line_offset(source, header).expect("unique canonical upgrade identity");
+        assert!(start == 0 || source.as_bytes()[start - 1] == b'\n', "upgrade identity must start a declaration: {header}");
+        let end = surql_statement_end(source, start).expect("complete canonical upgrade statement");
+        assert!(source[start..end].starts_with("DEFINE ") && header.contains(" OVERWRITE "));
+        assert!(spans.insert(start, end).is_none(), "duplicate selected upgrade statement: {header}");
+    }
+    assert_eq!(spans.len(), headers.len());
+    spans
+}
+
+fn pre_argus_current_upgrade_statements(production: bool) -> String {
+    let required_argus = canonical_upgrade_spans(SCHEMA, &[
+        "DEFINE TABLE OVERWRITE kernel_event_ledger ",
+        "DEFINE FUNCTION OVERWRITE fn::mt109_ledger_receipt(",
+    ]);
+    assert_eq!(required_argus.len(), 2, "Argus requires its exact two canonical identities");
+    let mut source_sets = vec![(SCHEMA, PRE_ARGUS_CURRENT_BASE_HEADERS)];
+    if production {
+        source_sets.push((include_str!("model_lane_schema.surql"), PRE_ARGUS_CURRENT_MODEL_LANE_HEADERS));
+        source_sets.push((include_str!("palmistry_schema.surql"), PRE_ARGUS_CURRENT_PALMISTRY_HEADERS));
+    }
+    let mut result = String::new();
+    let mut count = 0;
+    for (index, (source, headers)) in source_sets.into_iter().enumerate() {
+        let spans = canonical_upgrade_spans(source, headers);
+        if index == 0 {
+            for (start, end) in &required_argus { assert_eq!(spans.get(start), Some(end)); }
+        }
+        for (start, end) in spans { result.push_str(&source[start..end]); result.push('\n'); count += 1; }
+    }
+    assert_eq!(count, if production { 239 } else { 89 });
+    result.push_str(&member_enrollment_upgrade_statements());
+    result
+}
+
 
 // Imported declarations are shared by every supported predecessor, including
 // the newer lineages which do not consume the revision-160 delta emitter.
@@ -3155,11 +3453,228 @@ fn imported_schema_upgrade_spans() -> BTreeMap<usize, usize> {
     for line in SCHEMA[start..end].lines().filter(|line| line.starts_with("DEFINE ")) {
         assert!(schema_statements_enclosing(line, &mut spans) > 0);
     }
+    // Replay the complete current shared cohort after legacy definitions, including
+    // changed navigation guards and declarations outside the imported transaction.
+    spans.extend(canonical_upgrade_spans(SCHEMA, PRE_ARGUS_CURRENT_BASE_HEADERS));
     spans
 }
 
 // Apply the imported closure last, within the original guarded transaction.
 // Retire the old global collection key outside the DEFINE-only delta emitter.
+// Select final canonical Member and shared Source027 declarations after legacy upgrades.
+// Catalog revision selection and independently measured INFO pins remain caller-owned.
+const MEMBER_CREDENTIAL_REVISION_BASELINE: &str = r###"DEFINE FIELD OVERWRITE credential_revision ON TABLE local_accounts TYPE option<int> DEFAULT NONE
+    PERMISSIONS FOR select WHERE fn::mt109_live_session() AND id = $auth.account_id
+    FOR create WHERE $value = 0 FOR update NONE;
+UPDATE local_accounts SET credential_revision = IF password_verifier = NONE { 0 } ELSE { 1 }
+    WHERE credential_revision = NONE RETURN NONE;
+IF array::len(SELECT VALUE id FROM local_accounts
+    WHERE credential_revision = NONE OR credential_revision < 0
+        OR (password_verifier != NONE AND credential_revision = 0) LIMIT 1) != 0 {
+    THROW 'HSK-CREDENTIAL-REVISION-BASELINE';
+};
+DEFINE FIELD OVERWRITE credential_revision ON TABLE local_accounts TYPE int DEFAULT 0 ASSERT $value >= 0
+    PERMISSIONS FOR select WHERE fn::mt109_live_session() AND id = $auth.account_id
+    FOR create WHERE $value = 0 FOR update NONE;
+"###;
+
+fn member_revision166_model_lane_upgrade_statements() -> String {
+    let source = include_str!("model_lane_schema.surql");
+    let spans = canonical_upgrade_spans(source, &[
+        "DEFINE FUNCTION OVERWRITE fn::wp012_validator_association_snapshot(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_validator_association_authority(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_validator_association_ledger(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_validator_association_record(",
+        "DEFINE TABLE OVERWRITE model_lane_authority ",
+    ]);
+    let mut statements = String::new();
+    for (start, end) in spans {
+        statements.push_str(&source[start..end]);
+        statements.push('\n');
+    }
+    statements
+}
+
+fn member_enrollment_upgrade_statements() -> String {
+    let spans = canonical_upgrade_spans(SCHEMA, &[
+        "DEFINE TABLE OVERWRITE kernel_event_ledger ",
+        "DEFINE TABLE OVERWRITE local_accounts ",
+        "DEFINE FIELD OVERWRITE account_key ON TABLE local_accounts ",
+        "DEFINE FIELD OVERWRITE password_verifier ON TABLE local_accounts ",
+        "DEFINE TABLE OVERWRITE principals ",
+        "DEFINE FIELD OVERWRITE principal_key ON TABLE principals ",
+        "DEFINE TABLE OVERWRITE access_spaces ",
+        "DEFINE TABLE OVERWRITE authenticated_sessions ",
+        "DEFINE TABLE OVERWRITE protected_resources ",
+        "DEFINE FIELD OVERWRITE external_resource_id ON TABLE protected_resources ",
+        "DEFINE TABLE OVERWRITE resource_grants ",
+        "DEFINE EVENT OVERWRITE mt109_local_account_authorization_touch ON TABLE local_accounts\n",
+        "DEFINE EVENT OVERWRITE mt109_principal_authorization_touch ON TABLE principals\n",
+        "DEFINE EVENT OVERWRITE mt109_access_space_authorization_touch ON TABLE access_spaces\n",
+        "DEFINE TABLE OVERWRITE member_enrollments ",
+        "DEFINE FIELD OVERWRITE operation_id ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE descriptor_hex ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE descriptor_sha256 ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE account_id ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE principal_id ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE access_space_id ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE account_name ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE token_digest ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE purpose ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE issued_at ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE expires_at ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE status ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE password_verifier ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE redemption_attempt_id ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE consumed_at ON TABLE member_enrollments ",
+        "DEFINE INDEX OVERWRITE member_enrollments_operation_unique ON TABLE member_enrollments ",
+        "DEFINE INDEX OVERWRITE member_enrollments_account_unique ON TABLE member_enrollments ",
+        "DEFINE INDEX OVERWRITE member_enrollments_principal_unique ON TABLE member_enrollments ",
+        "DEFINE INDEX OVERWRITE member_enrollments_space_unique ON TABLE member_enrollments ",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_admin_metadata(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_parent_metadata(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_source_current(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_issue_current(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_original_read(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_target_metadata(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_account_shape(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_principal_shape(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_space_shape(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_target_create(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_activate(",
+        "DEFINE FIELD OVERWRITE issue ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE member_enrollment_origin ON TABLE local_accounts ",
+        "DEFINE FIELD OVERWRITE member_enrollment_origin ON TABLE principals ",
+        "DEFINE FIELD OVERWRITE member_enrollment_origin ON TABLE access_spaces ",
+        "DEFINE FIELD OVERWRITE account_administration_lifetime ON TABLE protected_resources",
+        "DEFINE FIELD OVERWRITE account_administration_lifetime.mode ON TABLE protected_resources",
+        "DEFINE FIELD OVERWRITE account_administration_lifetime.expires_at ON TABLE protected_resources",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_vault_hex(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_vault_digest(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_vault_uuid(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_vault_shape(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_vault_current(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_vault_immutable(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_vault_update(",
+        "DEFINE FIELD OVERWRITE original_request_hex ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE original_request_sha256 ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE vault_namespace ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE vault_reference ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE vault_issue_revision ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE vault_issue_state ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE vault_claim_id ON TABLE member_enrollments ",
+        "DEFINE EVENT OVERWRITE wp012_member_vault_phase_guard ON TABLE member_enrollments\n",
+        "DEFINE FIELD OVERWRITE credential_revision ON TABLE local_accounts ",
+        "DEFINE EVENT OVERWRITE wp012_local_account_credential_revision ON TABLE local_accounts\n",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_actor(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_auth_row(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_without(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_metadata(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_source_current(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_issuer_current(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_targets_staged(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_staged(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_permit_shape(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_permit_read(",
+        "DEFINE FIELD OVERWRITE attempt ON TABLE member_enrollment_redemption_permits ",
+        "DEFINE FIELD OVERWRITE key_id ON TABLE member_enrollment_redemption_permits ",
+        "DEFINE FIELD OVERWRITE a_auth ON TABLE member_enrollment_redemption_permits ",
+        "DEFINE FIELD OVERWRITE a_jti ON TABLE member_enrollment_redemption_permits ",
+        "DEFINE FIELD OVERWRITE state ON TABLE member_enrollment_redemption_permits ",
+        "DEFINE FIELD OVERWRITE original ON TABLE member_enrollment_redemption_permits ",
+        "DEFINE FIELD OVERWRITE account_before ON TABLE member_enrollment_redemption_permits ",
+        "DEFINE FIELD OVERWRITE principal_before ON TABLE member_enrollment_redemption_permits ",
+        "DEFINE FIELD OVERWRITE space_before ON TABLE member_enrollment_redemption_permits ",
+        "DEFINE FIELD OVERWRITE phc ON TABLE member_enrollment_redemption_permits ",
+        "DEFINE FIELD OVERWRITE prior_revision ON TABLE member_enrollment_redemption_permits ",
+        "DEFINE INDEX OVERWRITE member_recipient_one_attempt_per_original ON TABLE member_enrollment_redemption_permits ",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_bound_permit(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_redemption_identity_read(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_redemption_password_read(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_revision_read(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_redemption_identity_update(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_consume(",
+        "DEFINE ACCESS OVERWRITE member_enrollment_recipient_inspection ",
+        "DEFINE ACCESS OVERWRITE member_enrollment_recipient_installer ",
+        "DEFINE ACCESS OVERWRITE member_enrollment_recipient ",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_permit_create(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_complete(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_permit_update(",
+        "DEFINE EVENT OVERWRITE wp012_member_redemption_permit_guard ON TABLE member_enrollment_redemption_permits\n",
+        "DEFINE TABLE OVERWRITE member_enrollment_redemption_permits ",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_revoke_read(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_revoke_metadata(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_revoke_update(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_revoke_receipt(",
+        "DEFINE FIELD OVERWRITE revocation_request_id ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE revocation_request_hex ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE revocation_source ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE revocation_source.* ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE revoker_credential_revision ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE revoked_at ON TABLE member_enrollments ",
+        "DEFINE FIELD OVERWRITE member_login_binding ON TABLE session_exchange_credentials",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_member_login_binding_current(",
+        "DEFINE TABLE OVERWRITE member_enrollment_recipient_auth_config ",
+        "DEFINE FIELD OVERWRITE key_id ON TABLE member_enrollment_recipient_auth_config ",
+        "DEFINE FIELD OVERWRITE state ON TABLE member_enrollment_recipient_auth_config ",
+        "DEFINE FIELD OVERWRITE verifier_hex ON TABLE member_enrollment_recipient_auth_config ",
+        "DEFINE EVENT OVERWRITE member_recipient_provision_guard ON TABLE member_enrollment_recipient_auth_config\n",
+        "DEFINE FIELD OVERWRITE first_owner_administration_origin ON TABLE local_accounts",
+        "DEFINE EVENT OVERWRITE first_owner_administration_origin_immutable ON TABLE local_accounts",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_actor(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_claim(",
+        "DEFINE TABLE OVERWRITE first_owner_administration_origins ",
+        "DEFINE FUNCTION OVERWRITE fn::mt120_workspace_create(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_receipt(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_source(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_sources(",
+        "DEFINE FIELD OVERWRITE setup_operation_id ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE account ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE operator_principal ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE space ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE purpose ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE version ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE setup_receipt ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE setup_policy_version ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE created_at ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE first_workspace_state ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE first_workspace_receipt_nonce ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE first_workspace_operation_id ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE first_workspace ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE first_workspace_resource ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE first_workspace_grant ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE first_workspace_session ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE first_workspace_channel_hash ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE first_workspace_name ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE first_workspace_deadline ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE first_workspace_policy_version ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE first_workspace_original ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE confirmation_state ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE confirmation_operation_id ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE confirmation_actor_session ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE confirmation_channel_hash ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE confirmation_policy_version ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE administrator_principal ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE administration_resource ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE enroll_grant ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE revoke_grant ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE assign_grant ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE administration_lifetime ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE confirmation_receipt ON TABLE first_owner_administration_origins",
+        "DEFINE FIELD OVERWRITE administrator_login_binding ON TABLE session_exchange_credentials",
+        "DEFINE FIELD OVERWRITE administrator_login_binding ON TABLE authenticated_sessions",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_administrator_login_binding_current(",
+        "DEFINE FUNCTION OVERWRITE fn::wp012_administrator_login_snapshot(",
+    ]);
+    assert_eq!(spans.len(), 168);
+    let mut statements = String::from(MEMBER_CREDENTIAL_REVISION_BASELINE);
+    for (start, end) in spans {
+        statements.push_str(&SCHEMA[start..end]);
+        statements.push('\n');
+    }
+    statements
+}
+
 fn complete_imported_schema_upgrade(mut upgrade: String) -> String {
     let mut imported = String::from(
         "REMOVE INDEX IF EXISTS uq_atelier_collection_1 ON TABLE atelier_collection;\n",
@@ -3174,6 +3689,7 @@ fn complete_imported_schema_upgrade(mut upgrade: String) -> String {
         imported.push_str(statement);
         imported.push('\n');
     }
+    imported.push_str(&member_enrollment_upgrade_statements());
     const STATE_UPDATE: &str = "UPDATE ONLY handshake_schema_state:primary SET";
     assert_eq!(upgrade.matches(STATE_UPDATE).count(), 1,
         "supported upgrade must have one guarded final state update");
@@ -4239,7 +4755,7 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // Existing collection subtype count also drifted (57 observed source nestings, 56 declared).
 // Live INFO, shared/module catalog ownership and compatible reopen lineage remain unmeasured.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "9f3169f66b4453302f9fc840aad331ba0f1c15e2f981f16f8cf7844711d843dc";
+    "86d70b003a031c84163076b8c99bc8ca957696302907ce88b4723c617a5a944f";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -4267,7 +4783,7 @@ pub const GENERATED_SURREALQL_SHA256: &str =
 // (previous 50d3244b292a63e7928a04ce9fc9f7c575580531f20167441b6e802cdfc27a8e); statically derived
 // with the compiled_schema_catalog_entries algorithm (reproduces the previous pin on the unchanged source).
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "df6e8ffaf451c5b6583483c3e6067c616d7a8e7ffcf30eb20b8879ff883fbff4";
+    "4ee81364add186ee33453775fcc2d0a1885906205aa2ee328d9a7055c7c67a0d";
 // MT-142 re-pin: the seed gained the rich_document_title_anchors registry row (63 rows).
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75";
@@ -4351,7 +4867,8 @@ pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
 // fn::mt120_workspace_delete changed and protected_resources gained protected_resources_parent_idx;
 // MT-170 CURRENT schema-info pin; fresh-Mem canonical measurement on c1f8d7cd.
 // Revision 165 awaits independent BASE INFO measurement and confirmation.
-pub const EXPECTED_SCHEMA_INFO_SHA256: &str = "";
+// Revision166 measured by the owning test; independent confirmation remains required.
+pub const EXPECTED_SCHEMA_INFO_SHA256: &str = "6f3dfff2786829ca4c54d54680b763289cb17deaf82867ab1fe1d87cdaac4116";
 // MT-141 R9 re-pin: atelier_media_source_provenance_ref.asset_id definition changed (previous
 // value 25cd85bc8267363891ef9bcece05b2e41b4aa0762e8384f86f4a1563e1d43585, MT-150).
 // MT-141 re-pin (second hop): the atelier catalog gained atelier_saved_search_retrieval_projection
@@ -4737,40 +5254,40 @@ const DATABASE_STRUCTURE_CATEGORIES: [&str; 12] = [
 // alias assertion); no REFERENCE field.
 // MT-150 re-pin: loom_edges.event_ledger_event_id (+1 field, +1 REFERENCE field, +1 explicit
 // record::exists assertion) and idx_loom_edges_event (+1 named index); no new table.
-const TABLE_DEFINITION_COUNT: usize = 306;
+const TABLE_DEFINITION_COUNT: usize = 311;
 // MT-141 V2-R2 re-pin: +2 fields (knowledge_crdt_ai_edit_proposals.applied_update_id /
 // applied_update_sha256); pin_order and the quick-switcher kind unions changed in place.
 // MT-158 re-pin: +2 fields (mt_iterations.owner_account_id, dependencies.owner_account_id; D-154-3
 // extension).
-const SOURCE_FIELD_DEFINITION_COUNT: usize = 3569;
-const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 251;
-const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 181;
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 3673;
+const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 253;
+const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 189;
 const INTENTIONAL_UNION_ANY_FIELD_DEFINITIONS: [&str; 2] = [
     "DEFINE FIELD OVERWRITE capability_grants ON TABLE atelier_transcript_receipt TYPE any DEFAULT [];",
     "DEFINE FIELD OVERWRITE decisions ON TABLE knowledge_retrieval_traces TYPE any DEFAULT [];",
 ];
 const AUTHORED_FIELD_DEFINITION_COUNT: usize =
     SOURCE_FIELD_DEFINITION_COUNT + FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT;
-// SurrealDB 3.2 persists one `field.*` subtype definition per non-Any typed collection nesting
-// level. Structured INFO reads the full persisted field catalog, so these engine-generated
-// definitions are part of the exact live schema even though they are not authored DEFINE lines.
-// Connected admission: engine-derived count and INFO/Atelier/Loom pins remain pending independent measurement.
-const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 58;
+// SurrealDB 3.2 reuses an existing (table, field path) for a collection subtype.
+// The canonical 61 generated identities include one already authored wildcard:
+// authenticated_sessions.delegation_grant_edges.*. Only 60 add catalog fields.
+// Independent166 INFO remains unmeasured.
+const ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT: usize = 60;
 const FIELD_DEFINITION_COUNT: usize =
     AUTHORED_FIELD_DEFINITION_COUNT + ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT;
 // MT-168: +1 index (protected_resources_parent_idx).
-const INDEX_DEFINITION_COUNT: usize = 853;
-const EVENT_DEFINITION_COUNT: usize = 42;
+const INDEX_DEFINITION_COUNT: usize = 859;
+const EVENT_DEFINITION_COUNT: usize = 47;
 const VIEW_DEFINITION_COUNT: usize = 2;
 const SEQUENCE_DEFINITION_COUNT: usize = 2;
-const ACCESS_DEFINITION_COUNT: usize = 1;
+const ACCESS_DEFINITION_COUNT: usize = 4;
 // MT-158 re-pin: +1 function (fn::mt158_dependency_graph_scope).
 // MT-159: +2 functions (fn::mt159_locus_key_id, fn::mt159_locus_key_is_own).
 // MT-166: +1 function (fn::mt166_resource_select_grant).
-const FUNCTION_DEFINITION_COUNT: usize = 65;
-const SOURCE_TABLE_COUNT: usize = 303;
+const FUNCTION_DEFINITION_COUNT: usize = 142;
+const SOURCE_TABLE_COUNT: usize = 308;
 const SOURCE_VIEW_COUNT: usize = 2;
-const SOURCE_NAMED_INDEX_COUNT: usize = 581;
+const SOURCE_NAMED_INDEX_COUNT: usize = 587;
 const SURREAL_PRIMARY_KEY_INDEX_COUNT: usize = 271;
 const SURREAL_BOOTSTRAP_STATE_TABLE_COUNT: usize = 1;
 const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
@@ -4780,7 +5297,7 @@ const SURREAL_BOOTSTRAP_STATE_INDEX_COUNT: usize = 1;
 #[cfg(test)]
 const REFERENCE_FIELD_COUNT: usize = 423;
 const EXPLICIT_REFERENCE_EXISTENCE_ASSERTION_COUNT: usize = 418;
-const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 242;
+const RECORD_ID_ALIAS_ASSERTION_COUNT: usize = 244;
 
 static BOOTSTRAP_MUTEX: Mutex<()> = Mutex::const_new(());
 
@@ -5498,6 +6015,10 @@ async fn bootstrap_mt137_test_schema_slice(
 }
 
 const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
+    "first_owner_administration_origins",
+    "member_enrollments",
+    "member_enrollment_redemption_permits",
+    "member_enrollment_recipient_auth_config",
     "access_spaces",
     "adapter_checkpoint",
     "ai_bronze_records",
@@ -5506,6 +6027,7 @@ const TABLE_NAMES: [&str; TABLE_DEFINITION_COUNT] = [
     "ai_job_mcp_fields",
     "ai_jobs",
     "ai_silver_records",
+    "artifact_publication",
     "assets",
     "atelier_action_receipt",
     "atelier_ai_tag_suggestion",
@@ -5893,11 +6415,28 @@ struct PredecessorUpgradeBindings {
 }
 
 impl SchemaState {
-    fn is_exact_pre_argus_receipt(&self, production: bool) -> bool {
+    fn is_exact_pre_member_enrollment(&self, production: bool, config: &SurrealStorageConfig) -> bool {
+        self.version == SCHEMA_VERSION
+            && self.revision == PRE_MEMBER_ENROLLMENT_REVISION
+            && self.target_revision == PRE_MEMBER_ENROLLMENT_REVISION
+            && self.namespace == config.namespace() && self.database == config.database()
+            && self.apply_state == "complete"
+            && self.source_manifest_sha256 == if production {
+                PRE_MEMBER_PRODUCTION_SOURCE_SHA256
+            } else { SCHEMA_LINEAGE_SHA256 }
+            && self.generated_surql_sha256 == if production {
+                PRE_MEMBER_PRODUCTION_GENERATED_SHA256
+            } else { PRE_MEMBER_BASE_GENERATED_SHA256 }
+            && self.info_fingerprint_sha256 == if production {
+                PRE_MEMBER_PRODUCTION_INFO_SHA256
+            } else { PRE_MEMBER_BASE_INFO_SHA256 }
+    }
+
+    fn is_exact_pre_argus_receipt(&self, production: bool, config: &SurrealStorageConfig) -> bool {
         self.version == SCHEMA_VERSION
             && self.revision == PRE_ARGUS_RECEIPT_REVISION
             && self.target_revision == PRE_ARGUS_RECEIPT_REVISION
-            && self.namespace == DEFAULT_NAMESPACE && self.database == DEFAULT_DATABASE
+            && self.namespace == config.namespace() && self.database == config.database()
             && self.apply_state == "complete"
             && self.source_manifest_sha256 == if production {
                 PRE_ARGUS_PRODUCTION_SOURCE_SHA256
@@ -5910,139 +6449,139 @@ impl SchemaState {
             } else { PRE_ARGUS_RECEIPT_INFO_SHA256 }
     }
 
-    fn has_stable_v1_identity(&self) -> bool {
+    fn has_stable_v1_identity(&self, config: &SurrealStorageConfig) -> bool {
         self.version == SCHEMA_VERSION
             && self.revision == SCHEMA_REVISION
             && self.target_revision == SCHEMA_REVISION
-            && self.namespace == DEFAULT_NAMESPACE
-            && self.database == DEFAULT_DATABASE
+            && self.namespace == config.namespace()
+            && self.database == config.database()
             && self.source_manifest_sha256 == SCHEMA_LINEAGE_SHA256
     }
 
-    fn is_schema_applied_current(&self) -> bool {
-        self.has_stable_v1_identity()
+    fn is_schema_applied_current(&self, config: &SurrealStorageConfig) -> bool {
+        self.has_stable_v1_identity(config)
             && self.generated_surql_sha256 == GENERATED_SURREALQL_SHA256
             && self.apply_state == "schema_applied"
             && self.info_fingerprint_sha256 == PENDING_SCHEMA_INFO_SHA256
     }
 
-    fn is_exact_current(&self) -> bool {
-        self.has_stable_v1_identity()
+    fn is_exact_current(&self, config: &SurrealStorageConfig) -> bool {
+        self.has_stable_v1_identity(config)
             && self.generated_surql_sha256 == GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == EXPECTED_SCHEMA_INFO_SHA256
     }
 
-    fn is_exact_pre_mt168_lookup_revision(&self) -> bool {
+    fn is_exact_pre_mt168_lookup_revision(&self, config: &SurrealStorageConfig) -> bool {
         self.version == SCHEMA_VERSION
             && self.revision == PRE_MT168_LOOKUP_REVISION
             && self.target_revision == PRE_MT168_LOOKUP_REVISION
-            && self.namespace == DEFAULT_NAMESPACE
-            && self.database == DEFAULT_DATABASE
+            && self.namespace == config.namespace()
+            && self.database == config.database()
             && self.source_manifest_sha256 == SCHEMA_LINEAGE_SHA256
             && self.generated_surql_sha256 == PRE_MT168_LOOKUP_GENERATED_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_MT168_LOOKUP_INFO_SHA256
     }
 
-    fn has_pre_mt170_identity_revision(&self) -> bool {
+    fn has_pre_mt170_identity_revision(&self, config: &SurrealStorageConfig) -> bool {
         self.version == SCHEMA_VERSION
             && self.revision == PRE_MT170_IDENTITY_REVISION
             && self.target_revision == PRE_MT170_IDENTITY_REVISION
-            && self.namespace == DEFAULT_NAMESPACE
-            && self.database == DEFAULT_DATABASE
+            && self.namespace == config.namespace()
+            && self.database == config.database()
             && self.source_manifest_sha256 == SCHEMA_LINEAGE_SHA256
     }
 
-    fn is_exact_pre_mt170_identity_revision(&self) -> bool {
-        self.has_pre_mt170_identity_revision()
+    fn is_exact_pre_mt170_identity_revision(&self, config: &SurrealStorageConfig) -> bool {
+        self.has_pre_mt170_identity_revision(config)
             && self.generated_surql_sha256 == PRE_MT170_IDENTITY_GENERATED_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_MT170_IDENTITY_INFO_SHA256
     }
 
-    fn has_pre_indexed_grant_identity(&self) -> bool {
+    fn has_pre_indexed_grant_identity(&self, config: &SurrealStorageConfig) -> bool {
         self.version == SCHEMA_VERSION
             && self.revision == PRE_INDEXED_GRANT_REVISION
             && self.target_revision == PRE_INDEXED_GRANT_REVISION
-            && self.namespace == DEFAULT_NAMESPACE
-            && self.database == DEFAULT_DATABASE
+            && self.namespace == config.namespace()
+            && self.database == config.database()
             && self.source_manifest_sha256 == SCHEMA_LINEAGE_SHA256
     }
 
-    fn is_exact_pre_indexed_grant_current(&self) -> bool {
-        self.has_pre_indexed_grant_identity()
+    fn is_exact_pre_indexed_grant_current(&self, config: &SurrealStorageConfig) -> bool {
+        self.has_pre_indexed_grant_identity(config)
             && self.generated_surql_sha256 == PRE_INDEXED_GRANT_GENERATED_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_INDEXED_GRANT_INFO_SHA256
     }
 
-    fn has_pre_document_grant_identity(&self) -> bool {
+    fn has_pre_document_grant_identity(&self, config: &SurrealStorageConfig) -> bool {
         self.version == SCHEMA_VERSION
             && self.revision == PRE_DOCUMENT_GRANT_REVISION
             && self.target_revision == PRE_DOCUMENT_GRANT_REVISION
-            && self.namespace == DEFAULT_NAMESPACE
-            && self.database == DEFAULT_DATABASE
+            && self.namespace == config.namespace()
+            && self.database == config.database()
             && self.source_manifest_sha256 == SCHEMA_LINEAGE_SHA256
     }
 
-    fn is_exact_pre_document_grant_current(&self) -> bool {
-        self.has_pre_document_grant_identity()
+    fn is_exact_pre_document_grant_current(&self, config: &SurrealStorageConfig) -> bool {
+        self.has_pre_document_grant_identity(config)
             && self.generated_surql_sha256 == PRE_DOCUMENT_GRANT_GENERATED_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_DOCUMENT_GRANT_INFO_SHA256
     }
 
-    fn has_pre_standalone_loom_update_identity(&self) -> bool {
+    fn has_pre_standalone_loom_update_identity(&self, config: &SurrealStorageConfig) -> bool {
         self.version == SCHEMA_VERSION
             && self.revision == PRE_STANDALONE_LOOM_UPDATE_REVISION
             && self.target_revision == PRE_STANDALONE_LOOM_UPDATE_REVISION
-            && self.namespace == DEFAULT_NAMESPACE
-            && self.database == DEFAULT_DATABASE
+            && self.namespace == config.namespace()
+            && self.database == config.database()
             && self.source_manifest_sha256 == SCHEMA_LINEAGE_SHA256
     }
 
-    fn is_exact_pre_standalone_loom_update_current(&self) -> bool {
-        self.has_pre_standalone_loom_update_identity()
+    fn is_exact_pre_standalone_loom_update_current(&self, config: &SurrealStorageConfig) -> bool {
+        self.has_pre_standalone_loom_update_identity(config)
             && self.generated_surql_sha256 == PRE_STANDALONE_LOOM_UPDATE_GENERATED_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_STANDALONE_LOOM_UPDATE_INFO_SHA256
     }
 
-    fn has_pre_canvas_receipt_identity(&self) -> bool {
+    fn has_pre_canvas_receipt_identity(&self, config: &SurrealStorageConfig) -> bool {
         self.version == SCHEMA_VERSION
             && self.revision == PRE_CANVAS_RECEIPT_REVISION
             && self.target_revision == PRE_CANVAS_RECEIPT_REVISION
-            && self.namespace == DEFAULT_NAMESPACE
-            && self.database == DEFAULT_DATABASE
+            && self.namespace == config.namespace()
+            && self.database == config.database()
             && self.source_manifest_sha256 == SCHEMA_LINEAGE_SHA256
     }
 
-    fn is_exact_pre_canvas_receipt_current(&self) -> bool {
-        self.has_pre_canvas_receipt_identity()
+    fn is_exact_pre_canvas_receipt_current(&self, config: &SurrealStorageConfig) -> bool {
+        self.has_pre_canvas_receipt_identity(config)
             && self.generated_surql_sha256 == PRE_CANVAS_RECEIPT_GENERATED_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_CANVAS_RECEIPT_INFO_SHA256
     }
 
-    fn has_pre_account_setup_identity(&self) -> bool {
+    fn has_pre_account_setup_identity(&self, config: &SurrealStorageConfig) -> bool {
         self.version == SCHEMA_VERSION
             && self.revision == PRE_ACCOUNT_SETUP_REVISION
             && self.target_revision == PRE_ACCOUNT_SETUP_REVISION
-            && self.namespace == DEFAULT_NAMESPACE
-            && self.database == DEFAULT_DATABASE
+            && self.namespace == config.namespace()
+            && self.database == config.database()
             && self.source_manifest_sha256 == SCHEMA_LINEAGE_SHA256
     }
 
-    fn is_exact_pre_account_setup(&self) -> bool {
-        self.has_pre_account_setup_identity()
+    fn is_exact_pre_account_setup(&self, config: &SurrealStorageConfig) -> bool {
+        self.has_pre_account_setup_identity(config)
             && self.generated_surql_sha256 == PRE_ACCOUNT_SETUP_GENERATED_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_ACCOUNT_SETUP_INFO_SHA256
     }
 
-    fn is_exact_pre_mt109_current(&self) -> bool {
-        self.has_pre_account_setup_identity()
+    fn is_exact_pre_mt109_current(&self, config: &SurrealStorageConfig) -> bool {
+        self.has_pre_account_setup_identity(config)
             && self.generated_surql_sha256 == PRE_MT109_GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_MT109_SCHEMA_INFO_SHA256
@@ -6050,8 +6589,8 @@ impl SchemaState {
 
     /// Exact MT-109 current lineage (revision 157 with the authority surface, before the
     /// MT-150 `loom_edges.event_ledger_event_id` receipt binding).
-    fn is_exact_pre_mt150_current(&self) -> bool {
-        self.has_pre_account_setup_identity()
+    fn is_exact_pre_mt150_current(&self, config: &SurrealStorageConfig) -> bool {
+        self.has_pre_account_setup_identity(config)
             && self.generated_surql_sha256 == PRE_MT150_GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_MT150_SCHEMA_INFO_SHA256
@@ -6059,23 +6598,23 @@ impl SchemaState {
 
     /// Exact MT-150 current lineage (revision 157 with the loom_edges receipt binding, before
     /// the MT-141 R9 provenance-ref constraint moved onto `asset_id`).
-    fn is_exact_pre_mt141_current(&self) -> bool {
-        self.has_pre_account_setup_identity()
+    fn is_exact_pre_mt141_current(&self, config: &SurrealStorageConfig) -> bool {
+        self.has_pre_account_setup_identity(config)
             && self.generated_surql_sha256 == PRE_MT141_GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_MT141_SCHEMA_INFO_SHA256
     }
 
-    fn is_exact_supported_predecessor(&self) -> bool {
-        self.has_pre_account_setup_identity()
+    fn is_exact_supported_predecessor(&self, config: &SurrealStorageConfig) -> bool {
+        self.has_pre_account_setup_identity(config)
             && self.generated_surql_sha256 == PREDECESSOR_GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PREDECESSOR_SCHEMA_INFO_SHA256
     }
 
     /// Exact pre-MT-142 current lineage (revision 157 without the title-anchor table).
-    fn is_exact_pre_mt142_current(&self) -> bool {
-        self.has_pre_account_setup_identity()
+    fn is_exact_pre_mt142_current(&self, config: &SurrealStorageConfig) -> bool {
+        self.has_pre_account_setup_identity(config)
             && self.generated_surql_sha256 == PRE_MT142_GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_MT142_SCHEMA_INFO_SHA256
@@ -6083,8 +6622,8 @@ impl SchemaState {
 
     /// Exact MT-142 current lineage (revision 157 with the title-anchor table, before the
     /// MT-151 journal key and graph anchors).
-    fn is_exact_pre_mt151_current(&self) -> bool {
-        self.has_pre_account_setup_identity()
+    fn is_exact_pre_mt151_current(&self, config: &SurrealStorageConfig) -> bool {
+        self.has_pre_account_setup_identity(config)
             && self.generated_surql_sha256 == PRE_MT151_GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_MT151_SCHEMA_INFO_SHA256
@@ -6092,8 +6631,8 @@ impl SchemaState {
 
     /// Exact MT-151 current lineage (revision 157 with journal_key and graph anchors, before
     /// the MT-152 FEMS workspace write anchors).
-    fn is_exact_pre_mt152_current(&self) -> bool {
-        self.has_pre_account_setup_identity()
+    fn is_exact_pre_mt152_current(&self, config: &SurrealStorageConfig) -> bool {
+        self.has_pre_account_setup_identity(config)
             && self.generated_surql_sha256 == PRE_MT152_GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
             && self.info_fingerprint_sha256 == PRE_MT152_SCHEMA_INFO_SHA256
@@ -6477,7 +7016,8 @@ async fn definitions_committed_without_receipt(
 // Only an independently observed whole engine catalog can populate this pin.
 // Source/catalog digests below are provenance, never substitutes for INFO.
 // Revision 165 awaits independent FINAL INFO measurement and confirmation.
-const EXPECTED_PRODUCTION_SCHEMA_PIN: Option<(&str, usize, usize)> = None;
+// Revision166 FINAL measured by the owning test; independent confirmation remains required.
+const EXPECTED_PRODUCTION_SCHEMA_PIN: Option<(&str, usize, usize)> = Some(("0115112c2aaa1e277d2add3da50a0f4dc7e2aebfe8b878fd81fd481a4f2d8a19", 4557, 935));
 
 fn production_schema_sources() -> Vec<(&'static str, &'static str)> {
     vec![
@@ -6548,10 +7088,10 @@ fn production_catalog_sha256() -> Result<String, SurrealStorageError> {
         .map_err(SurrealStorageError::TransactionWorker)
 }
 
-fn has_production_identity(state: &SchemaState) -> bool {
+fn has_production_identity(state: &SchemaState, config: &SurrealStorageConfig) -> bool {
     state.version == SCHEMA_VERSION && state.revision == SCHEMA_REVISION
         && state.target_revision == SCHEMA_REVISION
-        && state.namespace == DEFAULT_NAMESPACE && state.database == DEFAULT_DATABASE
+        && state.namespace == config.namespace() && state.database == config.database()
         && state.source_manifest_sha256 == production_source_sha256()
 }
 
@@ -6593,7 +7133,15 @@ async fn production_reopen_report(storage: &SurrealStorage) -> Result<Option<Sch
         let mut response = database.query(format!("SELECT * FROM ONLY {BOOTSTRAP_STATE_ID};")).await?;
         let state: Option<SchemaState> = response.take(0)?;
         let Some(mut state) = state else { return Ok(None); };
-        if state.is_exact_pre_argus_receipt(true) {
+        if state.is_exact_pre_member_enrollment(true, &database.config) {
+            verify_compiled_manifest(&database).await?;
+            let observed = upgrade_pre_member_enrollment(&database, &state, true).await?;
+            let complete = read_context_and_state(&database).await?
+                .ok_or_else(|| SurrealStorageError::TransactionWorker("Member production successor receipt missing".to_owned()))?;
+            return Ok(Some(build_schema_report(complete, observed,
+                SchemaBootstrapOutcome::UpgradedSupportedPredecessor, 10)));
+        }
+        if state.is_exact_pre_argus_receipt(true, &database.config) {
             verify_compiled_manifest(&database).await?;
             let observed = upgrade_pre_argus_receipt(&database, &state, true).await?;
             let complete = read_context_and_state(&database).await?
@@ -6601,7 +7149,7 @@ async fn production_reopen_report(storage: &SurrealStorage) -> Result<Option<Sch
             return Ok(Some(build_schema_report(complete, observed,
                 SchemaBootstrapOutcome::UpgradedSupportedPredecessor, 10)));
         }
-        if !has_production_identity(&state) { return Ok(None); }
+        if !has_production_identity(&state, &database.config) { return Ok(None); }
         let observed = inspect_production_schema(&database).await?;
         verify_production_module_receipts(&database).await?;
         // Resume only an already complete, independently pinned FINAL catalog.
@@ -6617,7 +7165,7 @@ async fn production_reopen_report(storage: &SurrealStorage) -> Result<Option<Sch
             state = read_context_and_state(&database).await?
                 .ok_or_else(|| SurrealStorageError::TransactionWorker("production finalized receipt missing".to_owned()))?;
         }
-        if !has_production_identity(&state) || state.generated_surql_sha256 != production_generated_sha256() || state.apply_state != "complete"
+        if !has_production_identity(&state, &database.config) || state.generated_surql_sha256 != production_generated_sha256() || state.apply_state != "complete"
             || state.info_fingerprint_sha256 != observed.info_fingerprint_sha256 {
             return fail_closed(&database, "HANDSHAKE_SURREAL_PRODUCTION_RECEIPT_MISMATCH".to_owned()).await;
         }
@@ -6628,7 +7176,7 @@ async fn production_reopen_report(storage: &SurrealStorage) -> Result<Option<Sch
 pub(super) async fn begin_production_schema(storage: &SurrealStorage) -> Result<(), SurrealStorageError> {
     storage.with_admin_operation(|database| Box::pin(async move {
         let state = read_context_and_state(&database).await?;
-        if !state.as_ref().is_some_and(SchemaState::is_exact_current) {
+        if !state.as_ref().is_some_and(|state| state.is_exact_current(&database.config)) {
             return fail_closed(&database, "HANDSHAKE_SURREAL_PRODUCTION_BASE_RECEIPT_MISMATCH".to_owned()).await;
         }
         let observed = inspect_schema(&database).await?;
@@ -6646,7 +7194,7 @@ UPDATE ONLY handshake_schema_state:primary SET source_manifest_sha256 = $source,
 COMMIT TRANSACTION;
 "#, ProductionBeginBindings {
             schema_version: SCHEMA_VERSION.to_owned(), schema_revision: SCHEMA_REVISION,
-            namespace: DEFAULT_NAMESPACE.to_owned(), database: DEFAULT_DATABASE.to_owned(),
+            namespace: database.config.namespace().to_owned(), database: database.config.database().to_owned(),
             base_source: SCHEMA_LINEAGE_SHA256.to_owned(), base_generated: GENERATED_SURREALQL_SHA256.to_owned(),
             base_info: EXPECTED_SCHEMA_INFO_SHA256.to_owned(), source: production_source_sha256(),
             catalog: production_generated_sha256(), pending: PENDING_SCHEMA_INFO_SHA256.to_owned(),
@@ -6666,7 +7214,7 @@ pub(super) async fn finish_production_schema(storage: &SurrealStorage, outcome: 
     storage.with_admin_operation(move |database| Box::pin(async move {
         let state = read_context_and_state(&database).await?
             .ok_or_else(|| SurrealStorageError::TransactionWorker("production receipt missing".to_owned()))?;
-        if !has_production_identity(&state) || state.generated_surql_sha256 != production_generated_sha256()
+        if !has_production_identity(&state, &database.config) || state.generated_surql_sha256 != production_generated_sha256()
             || state.apply_state != "schema_applied" || state.info_fingerprint_sha256 != PENDING_SCHEMA_INFO_SHA256 {
             return fail_closed(&database, "HANDSHAKE_SURREAL_PRODUCTION_PENDING_RECEIPT_MISMATCH".to_owned()).await;
         }
@@ -6680,7 +7228,7 @@ pub(super) async fn finish_production_schema(storage: &SurrealStorage, outcome: 
         }).await?;
         let complete = read_context_and_state(&database).await?
             .ok_or_else(|| SurrealStorageError::TransactionWorker("production finalized receipt missing".to_owned()))?;
-        if complete.apply_state != "complete" || !has_production_identity(&complete)
+        if complete.apply_state != "complete" || !has_production_identity(&complete, &database.config)
             || complete.generated_surql_sha256 != state.generated_surql_sha256
             || complete.info_fingerprint_sha256 != observed.info_fingerprint_sha256 {
             return fail_closed(&database, "HANDSHAKE_SURREAL_PRODUCTION_FINALIZED_RECEIPT_MISMATCH".to_owned()).await;
@@ -6750,8 +7298,8 @@ async fn bootstrap_schema_unbounded(
                 let bindings = || BootstrapBindings {
                     schema_version: SCHEMA_VERSION.to_owned(),
                     schema_revision: SCHEMA_REVISION,
-                    namespace: DEFAULT_NAMESPACE.to_owned(),
-                    database: DEFAULT_DATABASE.to_owned(),
+                    namespace: database.config.namespace().to_owned(),
+                    database: database.config.database().to_owned(),
                     source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
                     generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
                 };
@@ -6782,7 +7330,7 @@ async fn bootstrap_schema_unbounded(
                             .await?;
                         database.query_bound(script.indexes_and_rest, bindings()).await?;
                         let applied_state = match read_context_and_state(&database).await? {
-                            Some(state) if state.is_schema_applied_current() => state,
+                            Some(state) if state.is_schema_applied_current(&database.config) => state,
                             Some(state) => {
                                 return fail_closed(
                                     &database,
@@ -6812,7 +7360,7 @@ async fn bootstrap_schema_unbounded(
                         verified_observed = Some(observed);
                         SchemaBootstrapOutcome::InstalledFresh
                     }
-                    Some(state) if state.is_schema_applied_current() => {
+                    Some(state) if state.is_schema_applied_current(&database.config) => {
                         ensure_knowledge_schema_registry(&database).await?;
                         let observed = inspect_schema(&database).await?;
                         verify_expected_info_fingerprint(&database, &observed).await?;
@@ -6825,78 +7373,82 @@ async fn bootstrap_schema_unbounded(
                         verified_observed = Some(observed);
                         SchemaBootstrapOutcome::ResumedCurrentApply
                     }
-                    Some(state) if state.is_exact_current() => {
+                    Some(state) if state.is_exact_current(&database.config) => {
                         ensure_knowledge_schema_registry(&database).await?;
                         SchemaBootstrapOutcome::ReusedExactCurrent
                     }
-                    Some(state) if state.is_exact_pre_argus_receipt(false) => {
+                    Some(state) if state.is_exact_pre_member_enrollment(false, &database.config) => {
+                        verified_observed = Some(upgrade_pre_member_enrollment(&database, &state, false).await?);
+                        SchemaBootstrapOutcome::UpgradedSupportedPredecessor
+                    }
+                    Some(state) if state.is_exact_pre_argus_receipt(false, &database.config) => {
                         verified_observed = Some(upgrade_pre_argus_receipt(&database, &state, false).await?);
                         SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
-                    Some(state) if state.is_exact_pre_mt168_lookup_revision() => {
+                    Some(state) if state.is_exact_pre_mt168_lookup_revision(&database.config) => {
                         verified_observed =
                             Some(upgrade_pre_mt168_lookup_revision(&database, &state).await?);
                         SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
-                    Some(state) if state.is_exact_pre_mt170_identity_revision() => {
+                    Some(state) if state.is_exact_pre_mt170_identity_revision(&database.config) => {
                         verified_observed =
                             Some(upgrade_pre_mt170_identity_revision(&database, &state).await?);
                         SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
-                    Some(state) if state.is_exact_pre_indexed_grant_current() => {
+                    Some(state) if state.is_exact_pre_indexed_grant_current(&database.config) => {
                         verified_observed =
                             Some(upgrade_pre_indexed_grant_current(&database, &state).await?);
                         SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
-                    Some(state) if state.is_exact_pre_document_grant_current() => {
+                    Some(state) if state.is_exact_pre_document_grant_current(&database.config) => {
                         verified_observed =
                             Some(upgrade_pre_document_grant_current(&database, &state).await?);
                         SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
-                    Some(state) if state.is_exact_pre_standalone_loom_update_current() => {
+                    Some(state) if state.is_exact_pre_standalone_loom_update_current(&database.config) => {
                         verified_observed =
                             Some(upgrade_pre_standalone_loom_update_current(&database, &state).await?);
                         SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
-                    Some(state) if state.is_exact_pre_canvas_receipt_current() => {
+                    Some(state) if state.is_exact_pre_canvas_receipt_current(&database.config) => {
                         verified_observed =
                             Some(upgrade_pre_canvas_receipt_current(&database, &state).await?);
                         SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
-                    Some(state) if state.is_exact_pre_account_setup() => {
+                    Some(state) if state.is_exact_pre_account_setup(&database.config) => {
                         verified_observed = Some(upgrade_pre_account_setup(&database, &state).await?);
                         SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
-                    Some(state) if state.is_exact_pre_mt141_current() => {
+                    Some(state) if state.is_exact_pre_mt141_current(&database.config) => {
                         verified_observed =
                             Some(upgrade_pre_mt141_current(&database, &state).await?);
                         SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
-                    Some(state) if state.is_exact_pre_mt150_current() => {
+                    Some(state) if state.is_exact_pre_mt150_current(&database.config) => {
                         verified_observed =
                             Some(upgrade_pre_mt150_current(&database, &state).await?);
                         SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
-                    Some(state) if state.is_exact_pre_mt109_current() => {
+                    Some(state) if state.is_exact_pre_mt109_current(&database.config) => {
                         verified_observed = Some(upgrade_pre_mt109_current(&database, &state).await?);
                         SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
-                    Some(state) if state.is_exact_supported_predecessor() => {
+                    Some(state) if state.is_exact_supported_predecessor(&database.config) => {
                         verified_observed =
                             Some(upgrade_supported_predecessor(&database, &state).await?);
                         SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
-                    Some(state) if state.is_exact_pre_mt142_current() => {
+                    Some(state) if state.is_exact_pre_mt142_current(&database.config) => {
                         verified_observed =
                             Some(upgrade_pre_mt142_current(&database, &state).await?);
                         SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
-                    Some(state) if state.is_exact_pre_mt151_current() => {
+                    Some(state) if state.is_exact_pre_mt151_current(&database.config) => {
                         verified_observed =
                             Some(upgrade_pre_mt151_current(&database, &state).await?);
                         SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
-                    Some(state) if state.is_exact_pre_mt152_current() => {
+                    Some(state) if state.is_exact_pre_mt152_current(&database.config) => {
                         verified_observed =
                             Some(upgrade_pre_mt152_current(&database, &state).await?);
                         SchemaBootstrapOutcome::UpgradedSupportedPredecessor
@@ -6913,7 +7465,7 @@ async fn bootstrap_schema_unbounded(
                 };
 
                 let state = match read_context_and_state(&database).await? {
-                    Some(state) if state.is_exact_current() => state,
+                    Some(state) if state.is_exact_current(&database.config) => state,
                     Some(state) => {
                         return fail_closed(
                             &database,
@@ -7199,12 +7751,30 @@ fn sha256_hex(bytes: &[u8]) -> String {
 }
 
 #[cfg(test)]
+fn generated_collection_subtype_field_identities(
+    schema: &str,
+) -> (BTreeSet<(String, String)>, BTreeSet<(String, String)>) {
+    let mut authored = BTreeSet::new();
+    let mut generated = BTreeSet::new();
+    for line in schema.lines().filter(|line| line.starts_with("DEFINE FIELD OVERWRITE ")) {
+        let tokens = line.split_whitespace().collect::<Vec<_>>();
+        let ["DEFINE", "FIELD", "OVERWRITE", field, "ON", "TABLE", table, ..] = tokens.as_slice() else {
+            panic!("unsupported canonical field identity: {line}");
+        };
+        authored.insert(((*table).to_owned(), (*field).to_owned()));
+        let mut subtype = (*field).to_owned();
+        for _ in 0..line.matches("array<").count() + line.matches("set<").count() {
+            subtype.push_str(".*");
+            generated.insert(((*table).to_owned(), subtype.clone()));
+        }
+    }
+    (authored, generated)
+}
+
+#[cfg(test)]
 fn generated_collection_subtype_field_count(schema: &str) -> usize {
-    schema
-        .lines()
-        .filter(|line| line.starts_with("DEFINE FIELD OVERWRITE "))
-        .map(|line| line.matches("array<").count() + line.matches("set<").count())
-        .sum()
+    let (authored, generated) = generated_collection_subtype_field_identities(schema);
+    generated.difference(&authored).count()
 }
 
 async fn verify_compiled_manifest(
@@ -7276,10 +7846,10 @@ async fn read_context_and_state(
             .await;
         }
     };
-    if namespace != DEFAULT_NAMESPACE || selected_database != DEFAULT_DATABASE {
+    if namespace != database.config.namespace() || selected_database != database.config.database() {
         return Err(SurrealStorageError::ContextMismatch {
-            expected_namespace: DEFAULT_NAMESPACE.to_owned(),
-            expected_database: DEFAULT_DATABASE.to_owned(),
+            expected_namespace: database.config.namespace().to_owned(),
+            expected_database: database.config.database().to_owned(),
             actual_namespace: namespace,
             actual_database: selected_database,
         });
@@ -7334,7 +7904,7 @@ async fn upgrade_supported_predecessor(
     database: &SurrealAdminContext<'_>,
     predecessor_state: &SchemaState,
 ) -> Result<ObservedSchema, SurrealStorageError> {
-    if !predecessor_state.is_exact_supported_predecessor() {
+    if !predecessor_state.is_exact_supported_predecessor(&database.config) {
         return fail_closed(
             database,
             "HANDSHAKE_SURREAL_PREDECESSOR_UPGRADE_PRECONDITION_FAILED".to_owned(),
@@ -7415,8 +7985,8 @@ COMMIT TRANSACTION;
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
                 predecessor_revision: PRE_ACCOUNT_SETUP_REVISION,
-                namespace: DEFAULT_NAMESPACE.to_owned(),
-                database: DEFAULT_DATABASE.to_owned(),
+                namespace: database.config.namespace().to_owned(),
+                database: database.config.database().to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
                 predecessor_generated_surql_sha256: PREDECESSOR_GENERATED_SURREALQL_SHA256
                     .to_owned(),
@@ -7429,7 +7999,7 @@ COMMIT TRANSACTION;
         .await?;
 
     let upgraded = match read_context_and_state(database).await? {
-        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) if state.is_schema_applied_current(&database.config) => state,
         Some(state) => {
             return fail_closed(
                 database,
@@ -7450,7 +8020,7 @@ COMMIT TRANSACTION;
     verify_expected_info_fingerprint(database, &observed).await?;
     finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
     match read_context_and_state(database).await? {
-        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) if state.is_exact_current(&database.config) => Ok(observed),
         Some(state) => {
             fail_closed(
                 database,
@@ -7502,8 +8072,8 @@ COMMIT TRANSACTION;\n"
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
                 predecessor_revision: PRE_ACCOUNT_SETUP_REVISION,
-                namespace: DEFAULT_NAMESPACE.to_owned(),
-                database: DEFAULT_DATABASE.to_owned(),
+                namespace: database.config.namespace().to_owned(),
+                database: database.config.database().to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
                 predecessor_generated_surql_sha256: predecessor_generated_surql_sha256.to_owned(),
                 predecessor_info_fingerprint_sha256: predecessor_info_fingerprint_sha256.to_owned(),
@@ -7583,8 +8153,8 @@ COMMIT TRANSACTION;\n"
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
                 predecessor_revision: PRE_ACCOUNT_SETUP_REVISION,
-                namespace: DEFAULT_NAMESPACE.to_owned(),
-                database: DEFAULT_DATABASE.to_owned(),
+                namespace: database.config.namespace().to_owned(),
+                database: database.config.database().to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
                 predecessor_generated_surql_sha256: predecessor_generated_surql_sha256.to_owned(),
                 predecessor_info_fingerprint_sha256: predecessor_info_fingerprint_sha256.to_owned(),
@@ -7661,7 +8231,7 @@ async fn upgrade_pre_mt142_current(
     database: &SurrealAdminContext<'_>,
     previous_state: &SchemaState,
 ) -> Result<ObservedSchema, SurrealStorageError> {
-    if !previous_state.is_exact_pre_mt142_current() {
+    if !previous_state.is_exact_pre_mt142_current(&database.config) {
         return fail_closed(
             database,
             "HANDSHAKE_SURREAL_PRE_MT142_UPGRADE_PRECONDITION_FAILED".to_owned(),
@@ -7718,8 +8288,8 @@ COMMIT TRANSACTION;\n"
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
                 predecessor_revision: PRE_ACCOUNT_SETUP_REVISION,
-                namespace: DEFAULT_NAMESPACE.to_owned(),
-                database: DEFAULT_DATABASE.to_owned(),
+                namespace: database.config.namespace().to_owned(),
+                database: database.config.database().to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
                 predecessor_generated_surql_sha256: PRE_MT142_GENERATED_SURREALQL_SHA256.to_owned(),
                 predecessor_info_fingerprint_sha256: PRE_MT142_SCHEMA_INFO_SHA256.to_owned(),
@@ -7731,7 +8301,7 @@ COMMIT TRANSACTION;\n"
         .await?;
 
     let upgraded = match read_context_and_state(database).await? {
-        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) if state.is_schema_applied_current(&database.config) => state,
         Some(state) => {
             return fail_closed(
                 database,
@@ -7752,7 +8322,7 @@ COMMIT TRANSACTION;\n"
     verify_expected_info_fingerprint(database, &observed).await?;
     finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
     match read_context_and_state(database).await? {
-        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) if state.is_exact_current(&database.config) => Ok(observed),
         Some(state) => {
             fail_closed(
                 database,
@@ -7779,7 +8349,7 @@ async fn upgrade_pre_mt151_current(
     database: &SurrealAdminContext<'_>,
     previous_state: &SchemaState,
 ) -> Result<ObservedSchema, SurrealStorageError> {
-    if !previous_state.is_exact_pre_mt151_current() {
+    if !previous_state.is_exact_pre_mt151_current(&database.config) {
         return fail_closed(
             database,
             "HANDSHAKE_SURREAL_PRE_MT151_UPGRADE_PRECONDITION_FAILED".to_owned(),
@@ -7835,8 +8405,8 @@ COMMIT TRANSACTION;\n"
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
                 predecessor_revision: PRE_ACCOUNT_SETUP_REVISION,
-                namespace: DEFAULT_NAMESPACE.to_owned(),
-                database: DEFAULT_DATABASE.to_owned(),
+                namespace: database.config.namespace().to_owned(),
+                database: database.config.database().to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
                 predecessor_generated_surql_sha256: PRE_MT151_GENERATED_SURREALQL_SHA256.to_owned(),
                 predecessor_info_fingerprint_sha256: PRE_MT151_SCHEMA_INFO_SHA256.to_owned(),
@@ -7848,7 +8418,7 @@ COMMIT TRANSACTION;\n"
         .await?;
 
     let upgraded = match read_context_and_state(database).await? {
-        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) if state.is_schema_applied_current(&database.config) => state,
         Some(state) => {
             return fail_closed(
                 database,
@@ -7869,7 +8439,7 @@ COMMIT TRANSACTION;\n"
     verify_expected_info_fingerprint(database, &observed).await?;
     finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
     match read_context_and_state(database).await? {
-        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) if state.is_exact_current(&database.config) => Ok(observed),
         Some(state) => {
             fail_closed(
                 database,
@@ -7895,7 +8465,7 @@ async fn upgrade_pre_mt152_current(
     database: &SurrealAdminContext<'_>,
     previous_state: &SchemaState,
 ) -> Result<ObservedSchema, SurrealStorageError> {
-    if !previous_state.is_exact_pre_mt152_current() {
+    if !previous_state.is_exact_pre_mt152_current(&database.config) {
         return fail_closed(
             database,
             "HANDSHAKE_SURREAL_PRE_MT152_UPGRADE_PRECONDITION_FAILED".to_owned(),
@@ -7944,8 +8514,8 @@ COMMIT TRANSACTION;\n"
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
                 predecessor_revision: PRE_ACCOUNT_SETUP_REVISION,
-                namespace: DEFAULT_NAMESPACE.to_owned(),
-                database: DEFAULT_DATABASE.to_owned(),
+                namespace: database.config.namespace().to_owned(),
+                database: database.config.database().to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
                 predecessor_generated_surql_sha256: PRE_MT152_GENERATED_SURREALQL_SHA256.to_owned(),
                 predecessor_info_fingerprint_sha256: PRE_MT152_SCHEMA_INFO_SHA256.to_owned(),
@@ -7957,7 +8527,7 @@ COMMIT TRANSACTION;\n"
         .await?;
 
     let upgraded = match read_context_and_state(database).await? {
-        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) if state.is_schema_applied_current(&database.config) => state,
         Some(state) => {
             return fail_closed(
                 database,
@@ -7978,7 +8548,7 @@ COMMIT TRANSACTION;\n"
     verify_expected_info_fingerprint(database, &observed).await?;
     finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
     match read_context_and_state(database).await? {
-        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) if state.is_exact_current(&database.config) => Ok(observed),
         Some(state) => {
             fail_closed(
                 database,
@@ -8004,7 +8574,7 @@ async fn upgrade_pre_mt150_current(
     database: &SurrealAdminContext<'_>,
     previous_state: &SchemaState,
 ) -> Result<ObservedSchema, SurrealStorageError> {
-    if !previous_state.is_exact_pre_mt150_current() {
+    if !previous_state.is_exact_pre_mt150_current(&database.config) {
         return fail_closed(
             database,
             "HANDSHAKE_SURREAL_PRE_MT150_UPGRADE_PRECONDITION_FAILED".to_owned(),
@@ -8048,8 +8618,8 @@ COMMIT TRANSACTION;\n"
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
                 predecessor_revision: PRE_ACCOUNT_SETUP_REVISION,
-                namespace: DEFAULT_NAMESPACE.to_owned(),
-                database: DEFAULT_DATABASE.to_owned(),
+                namespace: database.config.namespace().to_owned(),
+                database: database.config.database().to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
                 predecessor_generated_surql_sha256: PRE_MT150_GENERATED_SURREALQL_SHA256.to_owned(),
                 predecessor_info_fingerprint_sha256: PRE_MT150_SCHEMA_INFO_SHA256.to_owned(),
@@ -8061,7 +8631,7 @@ COMMIT TRANSACTION;\n"
         .await?;
 
     let upgraded = match read_context_and_state(database).await? {
-        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) if state.is_schema_applied_current(&database.config) => state,
         Some(state) => {
             return fail_closed(
                 database,
@@ -8082,7 +8652,7 @@ COMMIT TRANSACTION;\n"
     verify_expected_info_fingerprint(database, &observed).await?;
     finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
     match read_context_and_state(database).await? {
-        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) if state.is_exact_current(&database.config) => Ok(observed),
         Some(state) => {
             fail_closed(
                 database,
@@ -8108,7 +8678,7 @@ async fn upgrade_pre_mt141_current(
     database: &SurrealAdminContext<'_>,
     previous_state: &SchemaState,
 ) -> Result<ObservedSchema, SurrealStorageError> {
-    if !previous_state.is_exact_pre_mt141_current() {
+    if !previous_state.is_exact_pre_mt141_current(&database.config) {
         return fail_closed(
             database,
             "HANDSHAKE_SURREAL_PRE_MT141_UPGRADE_PRECONDITION_FAILED".to_owned(),
@@ -8151,8 +8721,8 @@ COMMIT TRANSACTION;\n"
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
                 predecessor_revision: PRE_ACCOUNT_SETUP_REVISION,
-                namespace: DEFAULT_NAMESPACE.to_owned(),
-                database: DEFAULT_DATABASE.to_owned(),
+                namespace: database.config.namespace().to_owned(),
+                database: database.config.database().to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
                 predecessor_generated_surql_sha256: PRE_MT141_GENERATED_SURREALQL_SHA256.to_owned(),
                 predecessor_info_fingerprint_sha256: PRE_MT141_SCHEMA_INFO_SHA256.to_owned(),
@@ -8164,7 +8734,7 @@ COMMIT TRANSACTION;\n"
         .await?;
 
     let upgraded = match read_context_and_state(database).await? {
-        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) if state.is_schema_applied_current(&database.config) => state,
         Some(state) => {
             return fail_closed(
                 database,
@@ -8185,7 +8755,7 @@ COMMIT TRANSACTION;\n"
     verify_expected_info_fingerprint(database, &observed).await?;
     finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
     match read_context_and_state(database).await? {
-        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) if state.is_exact_current(&database.config) => Ok(observed),
         Some(state) => {
             fail_closed(
                 database,
@@ -8212,12 +8782,98 @@ struct ArgusSuccessorBindings {
     source: String, generated: String, pending_info: String,
 }
 
+async fn upgrade_pre_member_enrollment(
+    database: &SurrealAdminContext<'_>,
+    previous_state: &SchemaState,
+    production: bool,
+) -> Result<ObservedSchema, SurrealStorageError> {
+    if !previous_state.is_exact_pre_member_enrollment(production, &database.config) {
+        return fail_closed(database, "HANDSHAKE_SURREAL_PRE_MEMBER_PRECONDITION_FAILED".to_owned()).await;
+    }
+    let predecessor = read_schema_catalog(database).await?;
+    if predecessor.info_fingerprint_sha256 != previous_state.info_fingerprint_sha256
+        || (production && (predecessor.fields_defined != PRE_MEMBER_PRODUCTION_FIELDS
+            || predecessor.indexes_defined != PRE_MEMBER_PRODUCTION_INDEXES)) {
+        return fail_closed(database, format!(
+            "HANDSHAKE_SURREAL_PRE_MEMBER_CATALOG_MISMATCH: observed={}; fields={}; indexes={}",
+            predecessor.info_fingerprint_sha256, predecessor.fields_defined, predecessor.indexes_defined)).await;
+    }
+    if production {
+        verify_production_module_receipts(database).await?;
+    }
+    if EXPECTED_SCHEMA_INFO_SHA256.is_empty()
+        || (production && EXPECTED_PRODUCTION_SCHEMA_PIN.is_none()) {
+        return fail_closed(database, "HANDSHAKE_SURREAL_MEMBER_SUCCESSOR_INFO_UNMEASURED".to_owned()).await;
+    }
+    let source = if production { production_source_sha256() } else { SCHEMA_LINEAGE_SHA256.to_owned() };
+    let generated = if production { production_generated_sha256() } else { GENERATED_SURREALQL_SHA256.to_owned() };
+    let upgrade = format!(r#"
+BEGIN TRANSACTION;
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;
+IF $current = NONE OR $current.version != $version
+ OR $current.revision != $previous_revision OR $current.target_revision != $previous_revision
+ OR $current.namespace != $namespace OR $current.database != $database
+ OR $current.source_manifest_sha256 != $previous_source
+ OR $current.generated_surql_sha256 != $previous_generated
+ OR $current.info_fingerprint_sha256 != $previous_info OR $current.apply_state != 'complete'
+{{ THROW 'HANDSHAKE_SURREAL_PRE_MEMBER_STATE_CHANGED'; }};
+{}
+{}
+UPDATE ONLY handshake_schema_state:primary SET revision = $revision, target_revision = $revision,
+ source_manifest_sha256 = $source, generated_surql_sha256 = $generated,
+ info_fingerprint_sha256 = $pending_info, apply_state = 'schema_applied', updated_at = time::now();
+COMMIT TRANSACTION;
+"#, member_enrollment_upgrade_statements(),
+        if production { member_revision166_model_lane_upgrade_statements() } else { String::new() });
+    let SurrealValueData::Object(bindings) = SurrealValue::into_value(ArgusSuccessorBindings {
+        version: SCHEMA_VERSION.to_owned(), previous_revision: PRE_MEMBER_ENROLLMENT_REVISION,
+        revision: SCHEMA_REVISION, namespace: database.config.namespace().to_owned(), database: database.config.database().to_owned(),
+        previous_source: previous_state.source_manifest_sha256.clone(),
+        previous_generated: previous_state.generated_surql_sha256.clone(), previous_info: previous_state.info_fingerprint_sha256.clone(),
+        source: source.clone(), generated: generated.clone(), pending_info: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+    }) else {
+        return Err(SurrealStorageError::TransactionWorker("Member successor bindings must be an object".to_owned()));
+    };
+    database.query_bound(upgrade, bindings).await?;
+    let pending = read_context_and_state(database).await?
+        .ok_or_else(|| SurrealStorageError::TransactionWorker("Member successor pending receipt missing".to_owned()))?;
+    let pending_identity = if production { has_production_identity(&pending, &database.config) } else { pending.has_stable_v1_identity(&database.config) };
+    if !pending_identity || pending.generated_surql_sha256 != generated
+        || pending.apply_state != "schema_applied" || pending.info_fingerprint_sha256 != PENDING_SCHEMA_INFO_SHA256 {
+        return fail_closed(database, "HANDSHAKE_SURREAL_MEMBER_SUCCESSOR_PENDING_MISMATCH".to_owned()).await;
+    }
+    let observed = if production {
+        verify_production_module_receipts(database).await?;
+        inspect_production_schema(database).await?
+    } else {
+        ensure_knowledge_schema_registry(database).await?;
+        let observed = inspect_schema(database).await?;
+        verify_expected_info_fingerprint(database, &observed).await?;
+        observed
+    };
+    finalize_schema_state_bound(database, FinalizeBindings {
+        schema_version: SCHEMA_VERSION.to_owned(), schema_revision: SCHEMA_REVISION,
+        namespace: database.config.namespace().to_owned(), database: database.config.database().to_owned(),
+        source_manifest_sha256: source, generated_surql_sha256: generated.clone(),
+        pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+        info_fingerprint_sha256: observed.info_fingerprint_sha256.clone(),
+    }).await?;
+    let complete = read_context_and_state(database).await?
+        .ok_or_else(|| SurrealStorageError::TransactionWorker("Member successor complete receipt missing".to_owned()))?;
+    let complete_identity = if production { has_production_identity(&complete, &database.config) } else { complete.has_stable_v1_identity(&database.config) };
+    if !complete_identity || complete.generated_surql_sha256 != generated
+        || complete.apply_state != "complete" || complete.info_fingerprint_sha256 != observed.info_fingerprint_sha256 {
+        return fail_closed(database, "HANDSHAKE_SURREAL_MEMBER_SUCCESSOR_COMPLETE_MISMATCH".to_owned()).await;
+    }
+    Ok(observed)
+}
+
 async fn upgrade_pre_argus_receipt(
     database: &SurrealAdminContext<'_>,
     previous_state: &SchemaState,
     production: bool,
 ) -> Result<ObservedSchema, SurrealStorageError> {
-    if !previous_state.is_exact_pre_argus_receipt(production) {
+    if !previous_state.is_exact_pre_argus_receipt(production, &database.config) {
         return fail_closed(database, "HANDSHAKE_SURREAL_PRE_ARGUS_PRECONDITION_FAILED".to_owned()).await;
     }
     let predecessor = read_schema_catalog(database).await?;
@@ -8228,7 +8884,15 @@ async fn upgrade_pre_argus_receipt(
             "HANDSHAKE_SURREAL_PRE_ARGUS_CATALOG_MISMATCH: observed={}; fields={}; indexes={}",
             predecessor.info_fingerprint_sha256, predecessor.fields_defined, predecessor.indexes_defined)).await;
     }
-    if production { verify_production_module_receipts(database).await?; }
+    let model_lane_upgrade = if production {
+        super::cloud_model_lane::verify_schema_receipt(database).await?;
+        super::palmistry::verify_schema_receipt(database).await?;
+        super::swarm_outbox::verify_schema_receipt(database).await?;
+        super::workspace_settings::verify_schema_receipt(database).await?;
+        Some(super::model_lane::prepare_model_lane_schema_upgrade(database).await?)
+    } else {
+        None
+    };
     if EXPECTED_SCHEMA_INFO_SHA256.is_empty()
         || (production && EXPECTED_PRODUCTION_SCHEMA_PIN.is_none()) {
         return fail_closed(database, "HANDSHAKE_SURREAL_ARGUS_SUCCESSOR_INFO_UNMEASURED".to_owned()).await;
@@ -8246,21 +8910,31 @@ IF $current = NONE OR $current.version != $version
  OR $current.info_fingerprint_sha256 != $previous_info OR $current.apply_state != 'complete'
 {{ THROW 'HANDSHAKE_SURREAL_PRE_ARGUS_STATE_CHANGED'; }};
 {}
+{}
 UPDATE ONLY handshake_schema_state:primary SET revision = $revision, target_revision = $revision,
  source_manifest_sha256 = $source, generated_surql_sha256 = $generated,
  info_fingerprint_sha256 = $pending_info, apply_state = 'schema_applied', updated_at = time::now();
 COMMIT TRANSACTION;
-"#, argus_receipt_upgrade_statements());
-    database.query_bound(upgrade, ArgusSuccessorBindings {
+"#, pre_argus_current_upgrade_statements(production),
+        format!("{}\n{}",
+            model_lane_upgrade.as_ref().map(|prepared| prepared.sql_fragment()).unwrap_or(""),
+            if production { member_revision166_model_lane_upgrade_statements() } else { String::new() }));
+    let SurrealValueData::Object(mut bindings) = SurrealValue::into_value(ArgusSuccessorBindings {
         version: SCHEMA_VERSION.to_owned(), previous_revision: PRE_ARGUS_RECEIPT_REVISION,
-        revision: SCHEMA_REVISION, namespace: DEFAULT_NAMESPACE.to_owned(), database: DEFAULT_DATABASE.to_owned(),
+        revision: SCHEMA_REVISION, namespace: database.config.namespace().to_owned(), database: database.config.database().to_owned(),
         previous_source: previous_state.source_manifest_sha256.clone(),
         previous_generated: previous_state.generated_surql_sha256.clone(), previous_info: previous_state.info_fingerprint_sha256.clone(),
         source: source.clone(), generated: generated.clone(), pending_info: PENDING_SCHEMA_INFO_SHA256.to_owned(),
-    }).await?;
+    }) else {
+        return Err(SurrealStorageError::TransactionWorker("Argus successor bindings must be an object".to_owned()));
+    };
+    if let Some(prepared) = model_lane_upgrade {
+        prepared.append_native_bindings(&mut bindings);
+    }
+    database.query_bound(upgrade, bindings).await?;
     let pending = read_context_and_state(database).await?
         .ok_or_else(|| SurrealStorageError::TransactionWorker("Argus successor pending receipt missing".to_owned()))?;
-    let pending_identity = if production { has_production_identity(&pending) } else { pending.has_stable_v1_identity() };
+    let pending_identity = if production { has_production_identity(&pending, &database.config) } else { pending.has_stable_v1_identity(&database.config) };
     if !pending_identity || pending.generated_surql_sha256 != generated
         || pending.apply_state != "schema_applied" || pending.info_fingerprint_sha256 != PENDING_SCHEMA_INFO_SHA256 {
         return fail_closed(database, "HANDSHAKE_SURREAL_ARGUS_SUCCESSOR_PENDING_MISMATCH".to_owned()).await;
@@ -8276,14 +8950,14 @@ COMMIT TRANSACTION;
     };
     finalize_schema_state_bound(database, FinalizeBindings {
         schema_version: SCHEMA_VERSION.to_owned(), schema_revision: SCHEMA_REVISION,
-        namespace: DEFAULT_NAMESPACE.to_owned(), database: DEFAULT_DATABASE.to_owned(),
+        namespace: database.config.namespace().to_owned(), database: database.config.database().to_owned(),
         source_manifest_sha256: source, generated_surql_sha256: generated.clone(),
         pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
         info_fingerprint_sha256: observed.info_fingerprint_sha256.clone(),
     }).await?;
     let complete = read_context_and_state(database).await?
         .ok_or_else(|| SurrealStorageError::TransactionWorker("Argus successor complete receipt missing".to_owned()))?;
-    let complete_identity = if production { has_production_identity(&complete) } else { complete.has_stable_v1_identity() };
+    let complete_identity = if production { has_production_identity(&complete, &database.config) } else { complete.has_stable_v1_identity(&database.config) };
     if !complete_identity || complete.generated_surql_sha256 != generated
         || complete.apply_state != "complete" || complete.info_fingerprint_sha256 != observed.info_fingerprint_sha256 {
         return fail_closed(database, "HANDSHAKE_SURREAL_ARGUS_SUCCESSOR_COMPLETE_MISMATCH".to_owned()).await;
@@ -8296,7 +8970,7 @@ async fn upgrade_pre_mt168_lookup_revision(
     database: &SurrealAdminContext<'_>,
     previous_state: &SchemaState,
 ) -> Result<ObservedSchema, SurrealStorageError> {
-    if !previous_state.is_exact_pre_mt168_lookup_revision() {
+    if !previous_state.is_exact_pre_mt168_lookup_revision(&database.config) {
         return fail_closed(
             database,
             "HANDSHAKE_SURREAL_PRE_MT168_LOOKUP_PRECONDITION_FAILED".to_owned(),
@@ -8355,8 +9029,8 @@ COMMIT TRANSACTION;\n"
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
                 predecessor_revision: PRE_MT168_LOOKUP_REVISION,
-                namespace: DEFAULT_NAMESPACE.to_owned(),
-                database: DEFAULT_DATABASE.to_owned(),
+                namespace: database.config.namespace().to_owned(),
+                database: database.config.database().to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
                 predecessor_generated_surql_sha256: PRE_MT168_LOOKUP_GENERATED_SHA256.to_owned(),
                 predecessor_info_fingerprint_sha256: PRE_MT168_LOOKUP_INFO_SHA256.to_owned(),
@@ -8368,7 +9042,7 @@ COMMIT TRANSACTION;\n"
         .await?;
 
     let upgraded = match read_context_and_state(database).await? {
-        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) if state.is_schema_applied_current(&database.config) => state,
         Some(state) => {
             return fail_closed(
                 database,
@@ -8389,7 +9063,7 @@ COMMIT TRANSACTION;\n"
     verify_expected_info_fingerprint(database, &observed).await?;
     finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
     match read_context_and_state(database).await? {
-        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) if state.is_exact_current(&database.config) => Ok(observed),
         Some(state) => {
             fail_closed(
                 database,
@@ -8413,7 +9087,7 @@ async fn upgrade_pre_mt170_identity_revision(
     database: &SurrealAdminContext<'_>,
     previous_state: &SchemaState,
 ) -> Result<ObservedSchema, SurrealStorageError> {
-    if !previous_state.is_exact_pre_mt170_identity_revision() {
+    if !previous_state.is_exact_pre_mt170_identity_revision(&database.config) {
         return fail_closed(
             database,
             "HANDSHAKE_SURREAL_PRE_MT170_IDENTITY_PRECONDITION_FAILED".to_owned(),
@@ -8465,8 +9139,8 @@ COMMIT TRANSACTION;\n"
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
                 predecessor_revision: PRE_MT170_IDENTITY_REVISION,
-                namespace: DEFAULT_NAMESPACE.to_owned(),
-                database: DEFAULT_DATABASE.to_owned(),
+                namespace: database.config.namespace().to_owned(),
+                database: database.config.database().to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
                 predecessor_generated_surql_sha256: PRE_MT170_IDENTITY_GENERATED_SHA256.to_owned(),
                 predecessor_info_fingerprint_sha256: PRE_MT170_IDENTITY_INFO_SHA256.to_owned(),
@@ -8478,7 +9152,7 @@ COMMIT TRANSACTION;\n"
         .await?;
 
     let upgraded = match read_context_and_state(database).await? {
-        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) if state.is_schema_applied_current(&database.config) => state,
         Some(state) => {
             return fail_closed(
                 database,
@@ -8499,7 +9173,7 @@ COMMIT TRANSACTION;\n"
     verify_expected_info_fingerprint(database, &observed).await?;
     finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
     match read_context_and_state(database).await? {
-        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) if state.is_exact_current(&database.config) => Ok(observed),
         Some(state) => {
             fail_closed(
                 database,
@@ -8523,7 +9197,7 @@ async fn upgrade_pre_indexed_grant_current(
     database: &SurrealAdminContext<'_>,
     previous_state: &SchemaState,
 ) -> Result<ObservedSchema, SurrealStorageError> {
-    if !previous_state.is_exact_pre_indexed_grant_current() {
+    if !previous_state.is_exact_pre_indexed_grant_current(&database.config) {
         return fail_closed(
             database,
             "HANDSHAKE_SURREAL_PRE_INDEXED_GRANT_PRECONDITION_FAILED".to_owned(),
@@ -8575,8 +9249,8 @@ COMMIT TRANSACTION;\n"
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
                 predecessor_revision: PRE_INDEXED_GRANT_REVISION,
-                namespace: DEFAULT_NAMESPACE.to_owned(),
-                database: DEFAULT_DATABASE.to_owned(),
+                namespace: database.config.namespace().to_owned(),
+                database: database.config.database().to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
                 predecessor_generated_surql_sha256: PRE_INDEXED_GRANT_GENERATED_SHA256.to_owned(),
                 predecessor_info_fingerprint_sha256: PRE_INDEXED_GRANT_INFO_SHA256.to_owned(),
@@ -8588,7 +9262,7 @@ COMMIT TRANSACTION;\n"
         .await?;
 
     let upgraded = match read_context_and_state(database).await? {
-        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) if state.is_schema_applied_current(&database.config) => state,
         Some(state) => {
             return fail_closed(
                 database,
@@ -8609,7 +9283,7 @@ COMMIT TRANSACTION;\n"
     verify_expected_info_fingerprint(database, &observed).await?;
     finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
     match read_context_and_state(database).await? {
-        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) if state.is_exact_current(&database.config) => Ok(observed),
         Some(state) => {
             fail_closed(
                 database,
@@ -8633,7 +9307,7 @@ async fn upgrade_pre_document_grant_current(
     database: &SurrealAdminContext<'_>,
     previous_state: &SchemaState,
 ) -> Result<ObservedSchema, SurrealStorageError> {
-    if !previous_state.is_exact_pre_document_grant_current() {
+    if !previous_state.is_exact_pre_document_grant_current(&database.config) {
         return fail_closed(
             database,
             "HANDSHAKE_SURREAL_PRE_DOCUMENT_GRANT_PRECONDITION_FAILED".to_owned(),
@@ -8685,8 +9359,8 @@ COMMIT TRANSACTION;\n"
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
                 predecessor_revision: PRE_DOCUMENT_GRANT_REVISION,
-                namespace: DEFAULT_NAMESPACE.to_owned(),
-                database: DEFAULT_DATABASE.to_owned(),
+                namespace: database.config.namespace().to_owned(),
+                database: database.config.database().to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
                 predecessor_generated_surql_sha256: PRE_DOCUMENT_GRANT_GENERATED_SHA256.to_owned(),
                 predecessor_info_fingerprint_sha256: PRE_DOCUMENT_GRANT_INFO_SHA256.to_owned(),
@@ -8698,7 +9372,7 @@ COMMIT TRANSACTION;\n"
         .await?;
 
     let upgraded = match read_context_and_state(database).await? {
-        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) if state.is_schema_applied_current(&database.config) => state,
         Some(state) => {
             return fail_closed(
                 database,
@@ -8719,7 +9393,7 @@ COMMIT TRANSACTION;\n"
     verify_expected_info_fingerprint(database, &observed).await?;
     finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
     match read_context_and_state(database).await? {
-        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) if state.is_exact_current(&database.config) => Ok(observed),
         Some(state) => {
             fail_closed(
                 database,
@@ -8744,7 +9418,7 @@ async fn upgrade_pre_standalone_loom_update_current(
     database: &SurrealAdminContext<'_>,
     previous_state: &SchemaState,
 ) -> Result<ObservedSchema, SurrealStorageError> {
-    if !previous_state.is_exact_pre_standalone_loom_update_current() {
+    if !previous_state.is_exact_pre_standalone_loom_update_current(&database.config) {
         return fail_closed(
             database,
             "HANDSHAKE_SURREAL_PRE_STANDALONE_LOOM_UPDATE_PRECONDITION_FAILED".to_owned(),
@@ -8798,8 +9472,8 @@ COMMIT TRANSACTION;\n"
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
                 predecessor_revision: PRE_STANDALONE_LOOM_UPDATE_REVISION,
-                namespace: DEFAULT_NAMESPACE.to_owned(),
-                database: DEFAULT_DATABASE.to_owned(),
+                namespace: database.config.namespace().to_owned(),
+                database: database.config.database().to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
                 predecessor_generated_surql_sha256: PRE_STANDALONE_LOOM_UPDATE_GENERATED_SHA256
                     .to_owned(),
@@ -8813,7 +9487,7 @@ COMMIT TRANSACTION;\n"
         .await?;
 
     let upgraded = match read_context_and_state(database).await? {
-        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) if state.is_schema_applied_current(&database.config) => state,
         Some(state) => {
             return fail_closed(
                 database,
@@ -8834,7 +9508,7 @@ COMMIT TRANSACTION;\n"
     verify_expected_info_fingerprint(database, &observed).await?;
     finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
     match read_context_and_state(database).await? {
-        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) if state.is_exact_current(&database.config) => Ok(observed),
         Some(state) => {
             fail_closed(
                 database,
@@ -8861,7 +9535,7 @@ async fn upgrade_pre_canvas_receipt_current(
     database: &SurrealAdminContext<'_>,
     previous_state: &SchemaState,
 ) -> Result<ObservedSchema, SurrealStorageError> {
-    if !previous_state.is_exact_pre_canvas_receipt_current() {
+    if !previous_state.is_exact_pre_canvas_receipt_current(&database.config) {
         return fail_closed(
             database,
             "HANDSHAKE_SURREAL_PRE_CANVAS_RECEIPT_UPGRADE_PRECONDITION_FAILED".to_owned(),
@@ -8917,8 +9591,8 @@ COMMIT TRANSACTION;\n"
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
                 predecessor_revision: PRE_CANVAS_RECEIPT_REVISION,
-                namespace: DEFAULT_NAMESPACE.to_owned(),
-                database: DEFAULT_DATABASE.to_owned(),
+                namespace: database.config.namespace().to_owned(),
+                database: database.config.database().to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
                 predecessor_generated_surql_sha256: PRE_CANVAS_RECEIPT_GENERATED_SHA256.to_owned(),
                 predecessor_info_fingerprint_sha256: PRE_CANVAS_RECEIPT_INFO_SHA256.to_owned(),
@@ -8930,7 +9604,7 @@ COMMIT TRANSACTION;\n"
         .await?;
 
     let upgraded = match read_context_and_state(database).await? {
-        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) if state.is_schema_applied_current(&database.config) => state,
         Some(state) => {
             return fail_closed(
                 database,
@@ -8951,7 +9625,7 @@ COMMIT TRANSACTION;\n"
     verify_expected_info_fingerprint(database, &observed).await?;
     finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
     match read_context_and_state(database).await? {
-        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) if state.is_exact_current(&database.config) => Ok(observed),
         Some(state) => {
             fail_closed(
                 database,
@@ -8975,7 +9649,7 @@ async fn upgrade_pre_account_setup(
     database: &SurrealAdminContext<'_>,
     previous_state: &SchemaState,
 ) -> Result<ObservedSchema, SurrealStorageError> {
-    if !previous_state.is_exact_pre_account_setup() {
+    if !previous_state.is_exact_pre_account_setup(&database.config) {
         return fail_closed(
             database,
             "HANDSHAKE_SURREAL_PRE_ACCOUNT_SETUP_UPGRADE_PRECONDITION_FAILED".to_owned(),
@@ -9018,8 +9692,8 @@ COMMIT TRANSACTION;\n"
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
                 predecessor_revision: PRE_ACCOUNT_SETUP_REVISION,
-                namespace: DEFAULT_NAMESPACE.to_owned(),
-                database: DEFAULT_DATABASE.to_owned(),
+                namespace: database.config.namespace().to_owned(),
+                database: database.config.database().to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
                 predecessor_generated_surql_sha256: PRE_ACCOUNT_SETUP_GENERATED_SHA256.to_owned(),
                 predecessor_info_fingerprint_sha256: PRE_ACCOUNT_SETUP_INFO_SHA256.to_owned(),
@@ -9031,7 +9705,7 @@ COMMIT TRANSACTION;\n"
         .await?;
 
     let upgraded = match read_context_and_state(database).await? {
-        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) if state.is_schema_applied_current(&database.config) => state,
         Some(state) => {
             return fail_closed(
                 database,
@@ -9052,7 +9726,7 @@ COMMIT TRANSACTION;\n"
     verify_expected_info_fingerprint(database, &observed).await?;
     finalize_schema_state(database, &upgraded, &observed.info_fingerprint_sha256).await?;
     match read_context_and_state(database).await? {
-        Some(state) if state.is_exact_current() => Ok(observed),
+        Some(state) if state.is_exact_current(&database.config) => Ok(observed),
         Some(state) => {
             fail_closed(
                 database,
@@ -9072,13 +9746,13 @@ COMMIT TRANSACTION;\n"
     }
 }
 
-fn mt109_authority_upgrade_bindings() -> PredecessorUpgradeBindings {
+fn mt109_authority_upgrade_bindings(config: &SurrealStorageConfig) -> PredecessorUpgradeBindings {
     PredecessorUpgradeBindings {
         schema_version: SCHEMA_VERSION.to_owned(),
         schema_revision: SCHEMA_REVISION,
         predecessor_revision: PRE_ACCOUNT_SETUP_REVISION,
-        namespace: DEFAULT_NAMESPACE.to_owned(),
-        database: DEFAULT_DATABASE.to_owned(),
+        namespace: config.namespace().to_owned(),
+        database: config.database().to_owned(),
         source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
         predecessor_generated_surql_sha256: PRE_MT109_GENERATED_SURREALQL_SHA256.to_owned(),
         predecessor_info_fingerprint_sha256: PRE_MT109_SCHEMA_INFO_SHA256.to_owned(),
@@ -9123,7 +9797,7 @@ async fn upgrade_pre_mt109_current(
     database: &SurrealAdminContext<'_>,
     previous_state: &SchemaState,
 ) -> Result<ObservedSchema, SurrealStorageError> {
-    if !previous_state.is_exact_pre_mt109_current() {
+    if !previous_state.is_exact_pre_mt109_current(&database.config) {
         return fail_closed(
             database,
             "HANDSHAKE_SURREAL_PRE_MT109_UPGRADE_PRECONDITION_FAILED".to_owned(),
@@ -9151,11 +9825,11 @@ async fn upgrade_pre_mt109_current(
     database
         .query_bound(
             mt109_authority_upgrade_query().as_str(),
-            mt109_authority_upgrade_bindings(),
+            mt109_authority_upgrade_bindings(&database.config),
         )
         .await?;
     let applied = match read_context_and_state(database).await? {
-        Some(state) if state.is_schema_applied_current() => state,
+        Some(state) if state.is_schema_applied_current(&database.config) => state,
         other => {
             return fail_closed(
                 database,
@@ -9176,7 +9850,7 @@ async fn finalize_schema_state(
     applied_state: &SchemaState,
     info_fingerprint_sha256: &str,
 ) -> Result<(), SurrealStorageError> {
-    if !applied_state.is_schema_applied_current() || info_fingerprint_sha256.len() != 64 {
+    if !applied_state.is_schema_applied_current(&database.config) || info_fingerprint_sha256.len() != 64 {
         return fail_closed(
             database,
             "HANDSHAKE_SURREAL_SCHEMA_FINALIZE_PRECONDITION_FAILED".to_owned(),
@@ -9186,8 +9860,8 @@ async fn finalize_schema_state(
     finalize_schema_state_bound(database, FinalizeBindings {
                 schema_version: SCHEMA_VERSION.to_owned(),
                 schema_revision: SCHEMA_REVISION,
-                namespace: DEFAULT_NAMESPACE.to_owned(),
-                database: DEFAULT_DATABASE.to_owned(),
+                namespace: database.config.namespace().to_owned(),
+                database: database.config.database().to_owned(),
                 source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(),
                 generated_surql_sha256: GENERATED_SURREALQL_SHA256.to_owned(),
                 pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
@@ -9374,6 +10048,27 @@ async fn read_schema_catalog(
             Err(reason) => return fail_closed(database, reason).await,
         };
         table_info_by_name.insert(table.clone(), table_info);
+    }
+
+    #[cfg(test)]
+    for (table, field) in [
+        ("fems_memory_packs", "navigation_memory_source_membership.*"),
+        ("authenticated_sessions", "ancestor_session_ids.*"),
+    ] {
+        let observed = table_info_by_name.get(table).and_then(|value| {
+            let SurrealValueData::Object(info) = value else {
+                return None;
+            };
+            let Some(SurrealValueData::Array(fields)) = info.get("fields") else {
+                return None;
+            };
+            fields
+                .iter()
+                .find(|entry| info_entry_name(entry) == Some(field))
+        });
+        eprintln!(
+            "MT139_ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD table={table} field={field} observed={observed:?}"
+        );
     }
 
     Ok(ObservedSchema {
@@ -9730,7 +10425,7 @@ mod tests {
             .use_ns(DEFAULT_NAMESPACE)
             .use_db(DEFAULT_DATABASE)
             .await?;
-        let database = SurrealAdminContext { client: &client };
+        let database = SurrealAdminContext { client: &client, config: SurrealStorageConfig::for_data_dir(std::env::temp_dir()).expect("default memory catalog context") };
         database.query(statement).await?;
         inspect_atelier_catalog_fingerprint(&database, expected_tables, expected_sequences).await
     }
@@ -9751,7 +10446,7 @@ mod tests {
             .use_ns(DEFAULT_NAMESPACE)
             .use_db(DEFAULT_DATABASE)
             .await?;
-        let database = SurrealAdminContext { client: &client };
+        let database = SurrealAdminContext { client: &client, config: SurrealStorageConfig::for_data_dir(std::env::temp_dir()).expect("default memory catalog context") };
         database
             .query(format!(
                 "BEGIN TRANSACTION;\n{}\nCOMMIT TRANSACTION;",
@@ -10255,7 +10950,7 @@ mod tests {
             .use_db(DEFAULT_DATABASE)
             .await
             .expect("select memory context");
-        let database = SurrealAdminContext { client: &client };
+        let database = SurrealAdminContext { client: &client, config: SurrealStorageConfig::for_data_dir(std::env::temp_dir()).expect("default memory catalog context") };
         database
             .query_bound(
                 SCHEMA,
@@ -10426,10 +11121,10 @@ mod tests {
                 assert_eq!(before_catalog, if with_authority { PRE_MT109_AUTHORITY_INFO_SHA256 } else { PRE_MT109_SCHEMA_INFO_SHA256 });
                 let mut malformed = before_state.clone();
                 malformed.target_revision -= 1;
-                assert!(!malformed.is_exact_pre_mt109_current());
+                assert!(!malformed.is_exact_pre_mt109_current(storage.config()));
                 malformed = before_state.clone();
                 malformed.apply_state = "unknown".to_owned();
-                assert!(!malformed.is_exact_pre_mt109_current());
+                assert!(!malformed.is_exact_pre_mt109_current(storage.config()));
                 for (field, assignments) in [("forward-revision", "revision = 158, target_revision = 158"), ("lower-revision", "revision = 156, target_revision = 156"), ("old-incomplete", "apply_state = 'schema_applied'")] {
                     storage.with_admin_operation(move |database| Box::pin(async move {
                         database.query(format!("UPDATE handshake_schema_state:primary SET {assignments};")).await?;
@@ -10502,7 +11197,7 @@ mod tests {
                 let rollback_errors = rollback.with_admin_operation(|database| Box::pin(async move {
                     let injected = mt109_authority_upgrade_query().replace("UPDATE ONLY handshake_schema_state:primary SET", "THROW 'MT109_INJECTED_AUTHORITY_ROLLBACK'; UPDATE ONLY handshake_schema_state:primary SET");
                     let mut result = database.client.query(injected)
-                        .bind(SurrealValue::into_value(mt109_authority_upgrade_bindings())).await?;
+                        .bind(SurrealValue::into_value(mt109_authority_upgrade_bindings(&database.config))).await?;
                     let mut errors = result.take_errors().into_iter().map(|(index, error)| (index, error.to_string())).collect::<Vec<_>>();
                     errors.sort_by_key(|(index, _)| *index);
                     Ok(errors)
@@ -10644,7 +11339,7 @@ mod tests {
                 .use_db(DEFAULT_DATABASE)
                 .await
                 .expect("select bounded context");
-            let database = SurrealAdminContext { client: &client };
+            let database = SurrealAdminContext { client: &client, config: SurrealStorageConfig::for_data_dir(std::env::temp_dir()).expect("default memory catalog context") };
             database
                 .query(loom_receipt_test_schema_ddl())
                 .await
@@ -10703,7 +11398,7 @@ mod tests {
                     .use_db(DEFAULT_DATABASE)
                     .await
                     .expect("select catalog context");
-                let database = SurrealAdminContext { client: &client };
+                let database = SurrealAdminContext { client: &client, config: SurrealStorageConfig::for_data_dir(std::env::temp_dir()).expect("default memory catalog context") };
                 database
                     .query_bound(
                         if current { SCHEMA } else { PRE_MT109_SCHEMA },
@@ -10771,7 +11466,7 @@ mod tests {
             .use_db(DEFAULT_DATABASE)
             .await
             .expect("select memory context");
-        let database = SurrealAdminContext { client: &client };
+        let database = SurrealAdminContext { client: &client, config: SurrealStorageConfig::for_data_dir(std::env::temp_dir()).expect("default memory catalog context") };
         let schema_result: Result<(), SurrealStorageError> = async {
             let mut response = database.client.query(SCHEMA)
                 .bind(SurrealValue::into_value(BootstrapBindings {
@@ -11504,28 +12199,82 @@ mod tests {
             SCHEMA.matches(" FLEXIBLE").count(),
             FLEXIBLE_FIELD_DEFINITION_COUNT
         );
+        let field_definitions = SCHEMA.match_indices("DEFINE FIELD OVERWRITE ")
+            .filter(|(start, _)| *start == 0 || SCHEMA.as_bytes()[*start - 1] == b'\n')
+            .map(|(start, _)| {
+                let end = surql_statement_end(SCHEMA, start)
+                    .expect("canonical field definition must terminate");
+                &SCHEMA[start..end]
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(field_definitions.len(), AUTHORED_FIELD_DEFINITION_COUNT);
+        let producer_bound_flexible_roots = BTreeMap::from([
+            (("member_enrollments", "issue"), r###"DEFINE FIELD OVERWRITE issue ON TABLE member_enrollments TYPE object FLEXIBLE READONLY;"###),
+            (("session_exchange_credentials", "member_login_binding"), r###"DEFINE FIELD OVERWRITE member_login_binding ON TABLE session_exchange_credentials
+ TYPE option<object> FLEXIBLE PERMISSIONS NONE;"###),
+            (("first_owner_administration_origins", "first_workspace_original"), r###"DEFINE FIELD OVERWRITE first_workspace_original ON TABLE first_owner_administration_origins TYPE option<object> FLEXIBLE PERMISSIONS FOR select FULL FOR create NONE FOR update FULL;"###),
+            (("first_owner_administration_origins", "administration_lifetime"), r###"DEFINE FIELD OVERWRITE administration_lifetime ON TABLE first_owner_administration_origins TYPE option<object> FLEXIBLE PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;"###),
+            (("session_exchange_credentials", "administrator_login_binding"), r###"DEFINE FIELD OVERWRITE administrator_login_binding ON TABLE session_exchange_credentials TYPE option<object> FLEXIBLE PERMISSIONS NONE;"###),
+            (("authenticated_sessions", "administrator_login_binding"), r###"DEFINE FIELD OVERWRITE administrator_login_binding ON TABLE authenticated_sessions TYPE option<object> FLEXIBLE PERMISSIONS NONE;"###),
+        ]);
+        let guarded_flexible_roots = BTreeMap::from([
+            (("blocks", "derived_content"), (r###"DEFINE FIELD OVERWRITE derived_content ON TABLE blocks TYPE object FLEXIBLE DEFAULT {} PERMISSIONS FOR select NONE;"###, r###"DEFINE FIELD OVERWRITE derived_content.* ON TABLE blocks TYPE any PERMISSIONS FOR select NONE;"###)),
+            (("fems_memory_packs", "pack"), (r###"DEFINE FIELD OVERWRITE pack ON TABLE fems_memory_packs TYPE object FLEXIBLE
+    PERMISSIONS FOR select WHERE $wp012_original_purpose != 'navigation_read' OR fn::wp012_model_lane_navigation_memory_raw_access($this, { owner_account_id: record::id($auth.account_id), actor_principal_id: record::id($auth.principal_id), authenticated_session_id: record::id($auth.id), access_space_id: record::id($auth.access_space_id), workspace_id: $wp012_original_workspace }, $navigation_selection);"###, r###"DEFINE FIELD OVERWRITE pack.* ON TABLE fems_memory_packs TYPE any
+    PERMISSIONS FOR select WHERE $wp012_original_purpose != 'navigation_read' OR fn::wp012_model_lane_navigation_memory_raw_access($this, { owner_account_id: record::id($auth.account_id), actor_principal_id: record::id($auth.principal_id), authenticated_session_id: record::id($auth.id), access_space_id: record::id($auth.access_space_id), workspace_id: $wp012_original_workspace }, $navigation_selection);"###)),
+            (("fems_memory_packs", "navigation_memory_source_membership"), (r###"DEFINE FIELD OVERWRITE navigation_memory_source_membership ON TABLE fems_memory_packs TYPE array<object> FLEXIBLE
+    VALUE fn::wp012_model_lane_navigation_memory_membership($this.pack)
+    ASSERT $value = fn::wp012_model_lane_navigation_memory_membership($this.pack)
+    PERMISSIONS FOR select WHERE fn::wp012_model_lane_navigation_memory_metadata_access($this);"###, r###"DEFINE FIELD OVERWRITE navigation_memory_source_membership.*.* ON TABLE fems_memory_packs TYPE any PERMISSIONS FOR select WHERE fn::wp012_model_lane_navigation_memory_metadata_access($this);"###)),
+        ]);
+        let mut seen_producer_bound_roots = BTreeSet::new();
+        let mut seen_guarded_roots = BTreeSet::new();
         let mut expected_type_any_wildcards = std::collections::BTreeSet::new();
-        for definition in SCHEMA.lines().filter(|line| {
-            line.starts_with("DEFINE FIELD OVERWRITE ") && line.contains(" FLEXIBLE")
-        }) {
+        for definition in field_definitions.iter().copied().filter(|definition| definition.contains(" FLEXIBLE")) {
             let parts = definition.split_whitespace().collect::<Vec<_>>();
             let field = parts[3];
             let table = parts[6];
+            let identity = (table, field);
+            if let Some(expected_parent) = producer_bound_flexible_roots.get(&identity) {
+                assert_eq!(definition, *expected_parent, "producer-bound FLEXIBLE field changed: {table}.{field}");
+                assert!(seen_producer_bound_roots.insert(identity));
+                let descendant_prefix = format!("{field}.");
+                assert!(!field_definitions.iter().any(|candidate| {
+                    let tokens = candidate.split_whitespace().collect::<Vec<_>>();
+                    tokens[6] == table && tokens[3].starts_with(&descendant_prefix)
+                        && candidate.contains("TYPE any")
+                }), "producer-bound FLEXIBLE field gained TYPE any: {table}.{field}");
+                continue;
+            }
             let collection_depth =
                 definition.matches("array<").count() + definition.matches("set<").count();
-            let wildcard = format!(
-                "DEFINE FIELD OVERWRITE {field}{} ON TABLE {table} TYPE any;",
-                ".*".repeat(collection_depth + 1)
-            );
+            let wildcard = if let Some((expected_parent, expected_wildcard)) = guarded_flexible_roots.get(&identity) {
+                assert_eq!(definition, *expected_parent, "guarded FLEXIBLE parent changed: {table}.{field}");
+                assert!(seen_guarded_roots.insert(identity));
+                (*expected_wildcard).to_owned()
+            } else {
+                format!(
+                    "DEFINE FIELD OVERWRITE {field}{} ON TABLE {table} TYPE any;",
+                    ".*".repeat(collection_depth + 1)
+                )
+            };
             assert!(
                 expected_type_any_wildcards.insert(wildcard.clone()),
                 "duplicate expected SCHEMAFULL wildcard: {wildcard}"
             );
             assert!(
-                SCHEMA.lines().any(|line| line == wildcard),
+                field_definitions.iter().any(|definition| *definition == wildcard),
                 "missing SCHEMAFULL wildcard for {table}.{field}: {wildcard}"
             );
         }
+        assert_eq!(
+            seen_producer_bound_roots,
+            producer_bound_flexible_roots.keys().copied().collect::<BTreeSet<_>>()
+        );
+        assert_eq!(
+            seen_guarded_roots,
+            guarded_flexible_roots.keys().copied().collect::<BTreeSet<_>>()
+        );
         for definition in SCHEMA.lines().filter(|line| {
             line.starts_with("DEFINE FIELD OVERWRITE ")
                 && (line.contains(" TYPE array;")
@@ -11568,9 +12317,10 @@ mod tests {
             expected_type_any_wildcards.len(),
             FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT
         );
-        let type_any_definitions = SCHEMA
-            .lines()
-            .filter(|line| line.contains("TYPE any"))
+        let type_any_definitions = field_definitions
+            .iter()
+            .copied()
+            .filter(|definition| definition.contains("TYPE any"))
             .collect::<Vec<_>>();
         assert_eq!(
             type_any_definitions.len(),
@@ -11589,6 +12339,25 @@ mod tests {
         assert!(
             expected_type_any_wildcards.is_empty(),
             "missing expected TYPE any wildcards: {expected_type_any_wildcards:?}"
+        );
+        let (authored_subtype_fields, generated_subtype_fields) =
+            generated_collection_subtype_field_identities(SCHEMA);
+        assert_eq!(authored_subtype_fields.len(), AUTHORED_FIELD_DEFINITION_COUNT);
+        assert_eq!(generated_subtype_fields.len(), 61);
+        let authored_subtype_overlap = generated_subtype_fields
+            .intersection(&authored_subtype_fields)
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            authored_subtype_overlap,
+            BTreeSet::from([(
+                "authenticated_sessions".to_owned(),
+                "delegation_grant_edges.*".to_owned(),
+            )])
+        );
+        assert_eq!(
+            authored_subtype_fields.union(&generated_subtype_fields).count(),
+            FIELD_DEFINITION_COUNT
         );
         assert_eq!(
             generated_collection_subtype_field_count(SCHEMA),
@@ -11650,7 +12419,10 @@ mod tests {
             "atelier_story_beat",
         ] {
             assert!(SCHEMA.contains(&format!(
-                "DEFINE TABLE OVERWRITE {required_table} SCHEMAFULL PERMISSIONS NONE;"
+                "DEFINE TABLE OVERWRITE {required_table} SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_account_row(owner_account_id, 'fs.read') FOR create, update, delete WHERE fn::mt154_account_row(owner_account_id, 'fs.write');"
+            )));
+            assert!(SCHEMA.contains(&format!(
+                "DEFINE FIELD OVERWRITE owner_account_id ON TABLE {required_table} TYPE option<record<local_accounts>> DEFAULT $auth.account_id READONLY;"
             )));
         }
         assert!(SCHEMA.contains(
@@ -11921,7 +12693,7 @@ mod tests {
                     let state = read_context_and_state(&database)
                         .await?
                         .expect("upgraded state survives reopen");
-                    assert!(state.is_exact_current());
+                    assert!(state.is_exact_current(&database.config));
                     ensure_knowledge_schema_registry(&database).await?;
                     let mut sentinel = database
                         .query("RETURN workspaces:mt139_predecessor.name;")
@@ -12111,7 +12883,7 @@ mod tests {
                     let state = read_context_and_state(&database)
                         .await?
                         .expect("upgraded state survives reopen");
-                    assert!(state.is_exact_current());
+                    assert!(state.is_exact_current(&database.config));
                     let mut sentinel = database.query("RETURN workspaces:mt151_pin.name;").await?;
                     let name: Option<String> = sentinel.take(0)?;
                     assert_eq!(name.as_deref(), Some("sentinel"));
@@ -12420,36 +13192,124 @@ mod tests {
     /// comments) is emitted.
     #[test]
     fn schema_delta_upgrade_statements_re_emit_every_mt154_delta() {
-        let previous = restore_pre_argus_receipt_schema(SCHEMA.to_owned());
-        let previous_sources = production_schema_sources().into_iter().map(|(name, source)| {
-            (name.to_owned(), if name == "shared" { previous.clone() } else { source.to_owned() })
-        }).collect::<Vec<_>>();
+        #[derive(serde::Deserialize)]
+        struct FrozenSource { name: String, sql: String, sha256: String }
+        #[derive(serde::Deserialize)]
+        struct Frozen164 { source_commit: String, sources: Vec<FrozenSource> }
+
+        fn declarations(source: &str) -> BTreeMap<String, String> {
+            let mut result = BTreeMap::new();
+            let mut consumed = 0;
+            for (start, _) in source.match_indices("DEFINE ") {
+                if start < consumed { continue; }
+                if start != 0 && !matches!(source.as_bytes()[start - 1], b'\n' | b';') { continue; }
+                let end = surql_statement_end(source, start).expect("complete declaration");
+                consumed = end;
+                let statement = &source[start..end];
+                let tokens = statement.split_whitespace().collect::<Vec<_>>();
+                let kind = tokens[1];
+                let mut rest = &tokens[2..];
+                if rest.starts_with(&["OVERWRITE"]) { rest = &rest[1..]; }
+                else if rest.starts_with(&["IF", "NOT", "EXISTS"]) { rest = &rest[3..]; }
+                let name = rest[0].trim_end_matches(';');
+                let identity = match kind {
+                    "FIELD" | "INDEX" | "EVENT" => {
+                        assert_eq!(rest[1], "ON");
+                        let table = if rest[2] == "TABLE" { rest[3] } else { rest[2] };
+                        format!("{}:{}:{name}", kind.to_ascii_lowercase(), table.trim_end_matches(';'))
+                    }
+                    "FUNCTION" => format!("function:{}", declarative_function_name(name).unwrap()),
+                    "TABLE" | "SEQUENCE" | "ACCESS" | "ANALYZER" | "PARAM" =>
+                        format!("{}:{name}", kind.to_ascii_lowercase()),
+                    _ => panic!("unsupported declaration kind: {kind}"),
+                };
+                assert!(result.insert(identity.clone(), statement.to_owned()).is_none(),
+                    "duplicate declaration in one source: {identity}");
+            }
+            result
+        }
+
+        let frozen: Frozen164 = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/schema_revision_164.json")).unwrap();
+        assert_eq!(frozen.source_commit, "f2d4fab1209d06deb4c317e9c5d4294b8acc1937");
+        assert_eq!(frozen.sources.len(), 15);
+        assert_eq!(frozen.sources[0].name, "shared");
+        for source in &frozen.sources {
+            assert_eq!(sha256_hex(source.sql.as_bytes()), source.sha256);
+        }
+        assert_eq!(sha256_hex(frozen.sources[0].sql.as_bytes()), PRE_ARGUS_RECEIPT_GENERATED_SHA256);
+        let previous_sources = frozen.sources.iter()
+            .map(|source| (source.name.as_str(), source.sql.as_str())).collect::<Vec<_>>();
         assert_eq!(sha256_hex(serde_json::to_string(&previous_sources).unwrap().as_bytes()),
-            PRE_ARGUS_PRODUCTION_GENERATED_SHA256, "historical FINAL 164 source composition changed");
-        let manifest = previous_sources.iter().map(|(name, source)|
-            (name, sha256_hex(source.as_bytes()))).collect::<Vec<_>>();
+            PRE_ARGUS_PRODUCTION_GENERATED_SHA256);
+        let manifest = frozen.sources.iter()
+            .map(|source| (source.name.as_str(), sha256_hex(source.sql.as_bytes()))).collect::<Vec<_>>();
         assert_eq!(sha256_hex(serde_json::to_string(&(
             SCHEMA_VERSION, PRE_ARGUS_RECEIPT_REVISION, SCHEMA_LINEAGE_SHA256, manifest,
-        )).unwrap().as_bytes()), PRE_ARGUS_PRODUCTION_SOURCE_SHA256,
-            "historical FINAL 164 manifest changed");
-        assert_eq!(compute_declarative_schema_catalog_sha256().unwrap(), PRE_ARGUS_RECEIPT_CATALOG_SHA256,
-            "the Argus predicate must preserve catalog identities");
-        assert_eq!(production_catalog_sha256().unwrap(), PRE_ARGUS_PRODUCTION_CATALOG_SHA256,
-            "the Argus predicate must preserve composed catalog identities");
+        )).unwrap().as_bytes()), PRE_ARGUS_PRODUCTION_SOURCE_SHA256);
+
+        for production in [false, true] {
+            let current_sources = if production { production_schema_sources() } else { vec![("shared", SCHEMA)] };
+            let previous_sources = if production { &frozen.sources[..] } else { &frozen.sources[..1] };
+            assert_eq!(current_sources.iter().map(|(name, _)| *name).collect::<Vec<_>>(),
+                previous_sources.iter().map(|source| source.name.as_str()).collect::<Vec<_>>());
+            let mut previous = BTreeMap::new();
+            let mut current = BTreeMap::new();
+            for source in previous_sources { previous.extend(declarations(&source.sql)); }
+            for (_, source) in current_sources { current.extend(declarations(source)); }
+            let mut historical_catalog = previous.keys().cloned().collect::<BTreeSet<_>>();
+            for (identity, statement) in &previous {
+                if identity.starts_with("table:") && statement.lines().next().unwrap().contains(" TYPE NORMAL AS") {
+                    historical_catalog.insert(format!("view:{}", identity.strip_prefix("table:").unwrap()));
+                }
+            }
+            assert_eq!(compute_catalog_hash(&historical_catalog.into_iter().collect::<Vec<_>>()),
+                if production { PRE_ARGUS_PRODUCTION_CATALOG_SHA256 } else { PRE_ARGUS_RECEIPT_CATALOG_SHA256 });
+            for identity in previous.keys() {
+                assert!(current.contains_key(identity), "predecessor declaration removal needs explicit migration: {identity}");
+            }
+            let statements = pre_argus_current_upgrade_statements(production);
+            let emitted = declarations(&statements);
+            assert_eq!(emitted.len(), if production { 239 } else { 89 });
+            for (identity, statement) in &current {
+                if previous.get(identity) != Some(statement) {
+                    assert_eq!(emitted.get(identity), Some(statement),
+                        "successor omits or alters changed canonical definition: {identity}");
+                }
+            }
+            for (identity, statement) in &emitted {
+                assert_eq!(current.get(identity), Some(statement),
+                    "successor emits a noncanonical definition: {identity}");
+                assert!(statement.starts_with("DEFINE ") &&
+                    statement.split('\n').next().unwrap().contains(" OVERWRITE "),
+                    "successor must emit OVERWRITE definitions only: {identity}");
+            }
+        }
+
         let successor = argus_receipt_upgrade_statements();
         assert_eq!(successor.lines().filter(|line| line.starts_with("DEFINE ")).count(), 2);
         let imported = imported_schema_upgrade_spans();
-        for (current, _) in ARGUS_RECEIPT_SCHEMA_DELTAS {
-            assert_eq!(successor.matches(current).count(), 1);
-            assert!(imported.iter().any(|(start, end)| &SCHEMA[*start..*end] == current),
-                "every older predecessor must reach the current Argus definition");
+        let argus = canonical_upgrade_spans(SCHEMA, &[
+            "DEFINE TABLE OVERWRITE kernel_event_ledger ",
+            "DEFINE FUNCTION OVERWRITE fn::mt109_ledger_receipt(",
+        ]);
+        assert_eq!(argus.len(), 2);
+        let mut expected_argus = String::new();
+        for (start, end) in &argus {
+            let canonical = &SCHEMA[*start..*end];
+            assert_eq!(successor.matches(canonical).count(), 1,
+                "successor must emit each complete current Argus definition exactly once");
+            assert_eq!(imported.get(start), Some(end),
+                "every older predecessor must emit the same complete current Argus definition");
+            expected_argus.push_str(canonical);
+            expected_argus.push('\n');
         }
+        assert_eq!(successor, expected_argus,
+            "Argus-only emitter must contain exactly its two current canonical definitions");
         for (current, _) in MT154_SCHEMA_DELTAS {
             let mut spans = BTreeMap::new();
-            assert!(
-                schema_statements_enclosing(current, &mut spans) > 0,
-                "MT-154 delta has no enclosing OVERWRITE statement in schema.surql: {current}"
-            );
+            assert!(schema_statements_enclosing(current, &mut spans) > 0,
+                "MT-154 delta has no enclosing OVERWRITE statement in schema.surql: {current}");
         }
         let statements = schema_delta_upgrade_statements();
         if SCHEMA.contains(MT154_AUTHORITY_BLOCK_BEGIN) {
@@ -12459,18 +13319,13 @@ mod tests {
         while let Some(relative) = statements[offset..].find(|c: char| !c.is_whitespace()) {
             let start = offset + relative;
             if statements[start..].starts_with("--") {
-                offset = start
-                    + statements[start..]
-                        .find('\n')
-                        .expect("comment line terminates");
+                offset = start + statements[start..].find('\n').expect("comment line terminates");
                 continue;
             }
             let end = surql_statement_end(&statements, start).expect("statement terminates");
             let first_line = statements[start..].split('\n').next().unwrap_or_default();
-            assert!(
-                first_line.starts_with("DEFINE ") && first_line.contains(" OVERWRITE "),
-                "upgrade re-emission must be OVERWRITE definitions only: {first_line}"
-            );
+            assert!(first_line.starts_with("DEFINE ") && first_line.contains(" OVERWRITE "),
+                "upgrade re-emission must be OVERWRITE definitions only: {first_line}");
             offset = end;
         }
     }
@@ -12691,7 +13546,7 @@ mod tests {
                         .await?
                         .expect("revision-162 state after exact upgrade");
                     assert_eq!(state.revision, SCHEMA_REVISION);
-                    assert!(state.is_exact_current());
+                    assert!(state.is_exact_current(&database.config));
                     let mut sentinel = database
                         .query("RETURN workspaces:revision161_sentinel.name;")
                         .await?;
@@ -12803,7 +13658,7 @@ mod tests {
                         .await?
                         .expect("revision-163 state after exact upgrade");
                     assert_eq!(state.revision, SCHEMA_REVISION);
-                    assert!(state.is_exact_current());
+                    assert!(state.is_exact_current(&database.config));
                     let mut sentinel = database
                         .query("RETURN workspaces:mt170_revision162_sentinel.name;")
                         .await?;
@@ -13014,7 +13869,7 @@ mod tests {
                         .await?
                         .expect("revision-164 state after exact upgrade");
                     assert_eq!(state.revision, SCHEMA_REVISION);
-                    assert!(state.is_exact_current());
+                    assert!(state.is_exact_current(&database.config));
                     let mut sentinel = database
                         .query("RETURN workspaces:revision163_sentinel.name;")
                         .await?;
@@ -13237,7 +14092,7 @@ mod tests {
                         .await?
                         .expect("revision-161 state after exact upgrade");
                     assert_eq!(state.revision, SCHEMA_REVISION);
-                    assert!(state.is_exact_current());
+                    assert!(state.is_exact_current(&database.config));
                     let mut sentinel = database
                         .query("RETURN workspaces:revision160_sentinel.name;")
                         .await?;
@@ -13447,7 +14302,7 @@ mod tests {
                         .await?
                         .expect("revision-160 state after exact upgrade");
                     assert_eq!(state.revision, SCHEMA_REVISION);
-                    assert!(state.is_exact_current());
+                    assert!(state.is_exact_current(&database.config));
                     let mut sentinel = database
                         .query("RETURN workspaces:revision159_sentinel.name;")
                         .await?;
@@ -14112,7 +14967,7 @@ mod tests {
                     let state = read_context_and_state(&database)
                         .await?
                         .expect("upgraded state survives reopen");
-                    assert!(state.is_exact_current());
+                    assert!(state.is_exact_current(&database.config));
                     let mut sentinel = database.query("RETURN workspaces:mt150_pin.name;").await?;
                     let name: Option<String> = sentinel.take(0)?;
                     assert_eq!(name.as_deref(), Some("sentinel"));
@@ -14239,7 +15094,7 @@ mod tests {
                     let state = read_context_and_state(&database)
                         .await?
                         .expect("upgraded state survives reopen");
-                    assert!(state.is_exact_current());
+                    assert!(state.is_exact_current(&database.config));
                     let mut sentinel = database.query("RETURN workspaces:mt152_pin.name;").await?;
                     let name: Option<String> = sentinel.take(0)?;
                     assert_eq!(name.as_deref(), Some("sentinel"));
@@ -14277,7 +15132,7 @@ mod tests {
                     let pending = read_context_and_state(&database)
                         .await?
                         .expect("schema transaction must write pending state");
-                    assert!(pending.is_schema_applied_current());
+                    assert!(pending.is_schema_applied_current(&database.config));
                     Ok(())
                 })
             })
@@ -14295,7 +15150,7 @@ mod tests {
                     let finalized = read_context_and_state(&database)
                         .await?
                         .expect("finalized state must exist");
-                    assert!(finalized.is_exact_current());
+                    assert!(finalized.is_exact_current(&database.config));
                     Ok(())
                 })
             })
@@ -14344,6 +15199,411 @@ mod tests {
             .await
             .expect("pre-existing record remains intact");
         storage.shutdown().await.expect("close store");
+    }
+
+    #[tokio::test]
+    async fn argus_revision_164_upgrade_preserves_data_and_restarts_current() {
+        use std::sync::Arc;
+        #[derive(serde::Deserialize)]
+        struct FrozenSource { name: String, sql: String, sha256: String, origin: String }
+        #[derive(serde::Deserialize)]
+        struct FrozenSeed { sql: String, sha256: String }
+        #[derive(serde::Deserialize)]
+        struct FrozenReceipt { module: String, schema_version: String, schema_revision: i64, sql: String, sha256: String }
+        #[derive(serde::Deserialize)]
+        struct FrozenInstaller { production_begin: String, finalize: String, model_lane_backfill: String, model_lane_empty_sessions: String }
+        #[derive(serde::Deserialize)]
+        struct Frozen164 { source_commit: String, sources: Vec<FrozenSource>, registry_seed: FrozenSeed, receipts: Vec<FrozenReceipt>, installer: FrozenInstaller }
+        const SOURCES_164: &[(&str, &str)] = &[
+        ("shared", "7daf5f03b36d6792575bbc40e3775f901182d975946a4b5fd14f2912c7979fd8"),
+        ("model_registry", "e68d2abce933d715798a458a7aa70e0d09752707d3226178bafb2a39005955d6"),
+        ("loom_search", "55838a2b94e7eca696de04aadf4ce5b70b9a29562f6ee01f8b0e0f1f46d8bce8"),
+        ("model_lane_state", "529bfea18e6f6c3ecedcfe8406594fac95867e9300ce978faf508869e0358450"),
+        ("model_lane", "bb5125bd05cdf768169fa44812a721c6c96298ee9878e82d99bd9021790c90f8"),
+        ("cloud_model_lane_state", "d55b974bf7a46de6b27a43b38f31b8bc99f5b2f882189203b440d3359cc18ce7"),
+        ("cloud_model_lane", "ec417603c3520794a829b2f95e03b570f371db8b2b743ddbb7c61146dfb69b77"),
+        ("process_ledger", "88fcf556e38da0e1b281ea6eb54a0a07bf22886296a67776c9a2c0e4d272a1a1"),
+        ("palmistry_state", "4ecef5ccae3e59e24161610114b995462388f3a0dfdb4f01f9b138a36f563b6f"),
+        ("palmistry", "8294ec1de8e37152a7afc3d50b4e26e4eb21692dcb084ca04effa971c967de81"),
+        ("swarm_outbox_state", "06569d29f38fce05c16c439d1a20d8ceea4c0bcb627be306f8cab388e5cd4b51"),
+        ("swarm_outbox", "1436a9b91a2ccb6907d4f8c8742090d227708392aa969212f840ff9986f1042f"),
+        ("user_manual_knowledge", "abd49a97afbda36eec818a04fc08ffd5f51f88f8ff8e42ea19fcb7e937985805"),
+        ("workspace_settings_state", "16f1ad96ee279f6b18b8fab145f457b2485669da6f5c8c562aedd789b11ccc5e"),
+        ("workspace_settings", "e04efa94b38a2749903a4dd39f1aacd54f2a86b8834ffb27ad5937cf8bcb0d0c"),
+        ];
+        let fixture: Frozen164 = serde_json::from_str(include_str!("../../../tests/fixtures/schema_revision_164.json"))
+            .expect("decode immutable revision-164 fixture");
+        assert_eq!(fixture.source_commit, "f2d4fab1209d06deb4c317e9c5d4294b8acc1937");
+        assert_eq!(fixture.sources.len(), SOURCES_164.len());
+        for (source, (name, expected_sha)) in fixture.sources.iter().zip(SOURCES_164) {
+            assert_eq!(source.name, *name);
+            assert_eq!(source.sha256, *expected_sha);
+            assert_eq!(sha256_hex(source.sql.as_bytes()), *expected_sha);
+        }
+        assert_eq!(sha256_hex(fixture.registry_seed.sql.as_bytes()), "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75");
+        assert_eq!(sha256_hex(fixture.sources[0].sql.as_bytes()), PRE_ARGUS_RECEIPT_GENERATED_SHA256);
+        let source_pairs = fixture.sources.iter().map(|s| (s.name.as_str(), s.sql.as_str())).collect::<Vec<_>>();
+        assert_eq!(sha256_hex(serde_json::to_string(&source_pairs).unwrap().as_bytes()), PRE_ARGUS_PRODUCTION_GENERATED_SHA256);
+        let manifest = fixture.sources.iter().map(|s| (s.name.as_str(), sha256_hex(s.sql.as_bytes()))).collect::<Vec<_>>();
+        assert_eq!(sha256_hex(serde_json::to_string(&(SCHEMA_VERSION, PRE_ARGUS_RECEIPT_REVISION, SCHEMA_LINEAGE_SHA256, manifest)).unwrap().as_bytes()), PRE_ARGUS_PRODUCTION_SOURCE_SHA256);
+
+        assert_eq!(sha256_hex(fixture.installer.production_begin.as_bytes()), "813abd98bfbb9834d6cd1a0cfb45bab15e5ce30af28f4af5bd69f7722e1f7aa8");
+        assert_eq!(sha256_hex(fixture.installer.finalize.as_bytes()), "8058dab573fee5f4bc128dc371926ad073b5a5669e494ec2044f93b6e623ed0b");
+        assert_eq!(sha256_hex(fixture.installer.model_lane_backfill.as_bytes()), "78bbfb97a6eee0b36ee0747d943bbb970bd52a83c568c3aea478c07e27919abb");
+        assert_eq!(sha256_hex(fixture.installer.model_lane_empty_sessions.as_bytes()), "0c8ce52ebff0e67350fca4ddf499fbc282a6ca665fbe451c4dd8a7b6f93b993e");
+        assert_eq!((&fixture.receipts[0].module, &fixture.receipts[0].schema_version, fixture.receipts[0].schema_revision), (&"model_lane".to_owned(), &"mt003-model-lane-authority-v8".to_owned(), 8));
+        assert_eq!(sha256_hex(fixture.receipts[0].sql.as_bytes()), "5ecbaed8931e03da0c5dd7cc6753dfb27bfc18f5a4990d94406678133ebacc3d");
+        assert_eq!((&fixture.receipts[1].module, &fixture.receipts[1].schema_version, fixture.receipts[1].schema_revision), (&"cloud_model_lane".to_owned(), &"mt006-cloud-authority-v1".to_owned(), 1));
+        assert_eq!(sha256_hex(fixture.receipts[1].sql.as_bytes()), "8c8868439782a7fd7421faa3b72b67c283afdfdec6553abd1e0f2cbf6e9cebce");
+        assert_eq!((&fixture.receipts[2].module, &fixture.receipts[2].schema_version, fixture.receipts[2].schema_revision), (&"palmistry".to_owned(), &"mt003-palmistry-authority-v1".to_owned(), 1));
+        assert_eq!(sha256_hex(fixture.receipts[2].sql.as_bytes()), "bcd776971e853fd075db173209b3140189af5c80e057aed19c32212ea7b011bc");
+        assert_eq!((&fixture.receipts[3].module, &fixture.receipts[3].schema_version, fixture.receipts[3].schema_revision), (&"swarm_outbox".to_owned(), &"mt003-swarm-terminal-outbox-v1".to_owned(), 1));
+        assert_eq!(sha256_hex(fixture.receipts[3].sql.as_bytes()), "38d5c12c198bb35a4a368029cf6de69309ab2b7f7c072882deef7b6cea982c6f");
+        assert_eq!((&fixture.receipts[4].module, &fixture.receipts[4].schema_version, fixture.receipts[4].schema_revision), (&"workspace_settings".to_owned(), &"mt021-workspace-settings-authority-v1".to_owned(), 1));
+        assert_eq!(sha256_hex(fixture.receipts[4].sql.as_bytes()), "bd1d138e04c757efb09187cc48a6d6ba13a3d4b962c87c7e8af7992592eb4cdd");
+        assert_eq!(fixture.receipts.len(), 5);
+        assert_eq!(fixture.registry_seed.sha256, "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75");
+        assert_eq!(fixture.receipts[0].sha256, "5ecbaed8931e03da0c5dd7cc6753dfb27bfc18f5a4990d94406678133ebacc3d");
+        assert_eq!(fixture.receipts[1].sha256, "8c8868439782a7fd7421faa3b72b67c283afdfdec6553abd1e0f2cbf6e9cebce");
+        assert_eq!(fixture.receipts[2].sha256, "bcd776971e853fd075db173209b3140189af5c80e057aed19c32212ea7b011bc");
+        assert_eq!(fixture.receipts[3].sha256, "38d5c12c198bb35a4a368029cf6de69309ab2b7f7c072882deef7b6cea982c6f");
+        assert_eq!(fixture.receipts[4].sha256, "bd1d138e04c757efb09187cc48a6d6ba13a3d4b962c87c7e8af7992592eb4cdd");
+
+        #[derive(Debug, PartialEq, SurrealValue)]
+        struct ModuleWitness { schema_version: String, schema_revision: i64, apply_state: String }
+        #[derive(SurrealValue)]
+        struct ModuleBindings { schema_version: String, schema_revision: i64 }
+        fn historical_bindings() -> BootstrapBindings {
+            BootstrapBindings { schema_version: SCHEMA_VERSION.to_owned(), schema_revision: PRE_ARGUS_RECEIPT_REVISION,
+                namespace: DEFAULT_NAMESPACE.to_owned(), database: DEFAULT_DATABASE.to_owned(),
+                source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(), generated_surql_sha256: PRE_ARGUS_RECEIPT_GENERATED_SHA256.to_owned() }
+        }
+        async fn snapshot(storage: &SurrealStorage, fixture: Arc<Frozen164>, production: bool) -> Result<Vec<SurrealValueData>, SurrealStorageError> {
+            storage.with_admin_operation(move |database| Box::pin(async move {
+                let mut sql = "SELECT * FROM ONLY handshake_schema_state:primary; SELECT * FROM knowledge_schema_registry ORDER BY id; SELECT * FROM ONLY workspaces:mt174_revision164;".to_owned();
+                if production { for receipt in &fixture.receipts {
+                    let id = receipt.sql.split_whitespace().nth(1).expect("frozen receipt identity");
+                    sql.push_str(&format!("SELECT * FROM ONLY {id};"));
+                }}
+                let mut response = database.query(sql).await?;
+                let mut values = Vec::new();
+                let statement_count = if production { 8 } else { 3 };
+                for index in 0..statement_count { values.push(response.take::<SurrealValueData>(index)?); }
+                Ok(values)
+            })).await
+        }
+        async fn materialize(storage: &SurrealStorage, fixture: Arc<Frozen164>, production: bool) -> Result<(), SurrealStorageError> {
+            storage.with_admin_operation(move |database| Box::pin(async move {
+                let script = fresh_bootstrap_script(&fixture.sources[0].sql).expect("split exact original revision 164");
+                database.query_bound(script.definitions, historical_bindings()).await?;
+                database.query_bound(script.indexes_and_rest, historical_bindings()).await?;
+                let expected_registry = expected_knowledge_schema_registry_metadata().expect("immutable seed metadata");
+                let existing_registry = read_knowledge_schema_registry_metadata(&database).await?;
+                if existing_registry != expected_registry {
+                    assert!(existing_registry.is_empty(), "original installer must not overwrite divergent registry metadata");
+                    database.query(fixture.registry_seed.sql.clone()).await?;
+                }
+                let seeded = read_knowledge_schema_registry_metadata(&database).await?;
+                assert_eq!(seeded, expected_knowledge_schema_registry_metadata().expect("unchanged registry seed metadata"));
+                let base = read_schema_catalog(&database).await?;
+                assert_eq!(base.info_fingerprint_sha256, PRE_ARGUS_RECEIPT_INFO_SHA256);
+                let pending = read_context_and_state(&database).await?.expect("original pending base state");
+                assert_eq!(pending.revision, PRE_ARGUS_RECEIPT_REVISION);
+                assert_eq!(pending.apply_state, "schema_applied");
+                assert_eq!(pending.info_fingerprint_sha256, PENDING_SCHEMA_INFO_SHA256);
+                database.query_bound(fixture.installer.finalize.clone(), FinalizeBindings {
+                    schema_version: SCHEMA_VERSION.to_owned(), schema_revision: PRE_ARGUS_RECEIPT_REVISION,
+                    namespace: DEFAULT_NAMESPACE.to_owned(), database: DEFAULT_DATABASE.to_owned(),
+                    source_manifest_sha256: SCHEMA_LINEAGE_SHA256.to_owned(), generated_surql_sha256: PRE_ARGUS_RECEIPT_GENERATED_SHA256.to_owned(),
+                    pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(), info_fingerprint_sha256: base.info_fingerprint_sha256,
+                }).await?;
+                assert!(read_context_and_state(&database).await?.expect("completed base").is_exact_pre_argus_receipt(false, &database.config));
+                if production {
+                    database.query_bound(fixture.installer.production_begin.clone(), ProductionBeginBindings {
+                        schema_version: SCHEMA_VERSION.to_owned(), schema_revision: PRE_ARGUS_RECEIPT_REVISION,
+                        namespace: DEFAULT_NAMESPACE.to_owned(), database: DEFAULT_DATABASE.to_owned(),
+                        base_source: SCHEMA_LINEAGE_SHA256.to_owned(), base_generated: PRE_ARGUS_RECEIPT_GENERATED_SHA256.to_owned(), base_info: PRE_ARGUS_RECEIPT_INFO_SHA256.to_owned(),
+                        source: PRE_ARGUS_PRODUCTION_SOURCE_SHA256.to_owned(), catalog: PRE_ARGUS_PRODUCTION_GENERATED_SHA256.to_owned(), pending: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+                    }).await?;
+                    let mut receipt_index = 0;
+                    for source in fixture.sources.iter().skip(1) {
+                        database.query(source.sql.clone()).await?;
+                        if source.name == "model_lane" {
+                            database.query(fixture.installer.model_lane_backfill.clone()).await?;
+                            let mut response = database.query(fixture.installer.model_lane_empty_sessions.clone()).await?;
+                            let sessions: Vec<SurrealValueData> = response.take(0)?;
+                            assert!(sessions.is_empty(), "original empty fixture must have no authenticated sessions");
+                        }
+                        if fixture.receipts.get(receipt_index).is_some_and(|receipt| receipt.module == source.name) {
+                            let receipt = &fixture.receipts[receipt_index];
+                            let id = receipt.sql.split_whitespace().nth(1).expect("frozen receipt identity");
+                            let mut response = database.query(format!("SELECT * FROM ONLY {id};")).await?;
+                            let before: Option<ModuleWitness> = response.take(0)?;
+                            assert!(before.is_none(), "original fixture receipt must be absent before successful DDL");
+                            database.query_bound(receipt.sql.clone(), ModuleBindings { schema_version: receipt.schema_version.clone(), schema_revision: receipt.schema_revision }).await?;
+                            let mut response = database.query(format!("SELECT * FROM ONLY {id};")).await?;
+                            let after: Option<ModuleWitness> = response.take(0)?;
+                            assert_eq!(after, Some(ModuleWitness { schema_version: receipt.schema_version.clone(), schema_revision: receipt.schema_revision, apply_state: "complete".to_owned() }));
+                            receipt_index += 1;
+                        }
+                    }
+                    assert_eq!(receipt_index, 5);
+                    let observed = read_schema_catalog(&database).await?;
+                    assert_eq!(observed.info_fingerprint_sha256, PRE_ARGUS_PRODUCTION_INFO_SHA256);
+                    assert_eq!(observed.fields_defined, PRE_ARGUS_PRODUCTION_FIELDS);
+                    assert_eq!(observed.indexes_defined, PRE_ARGUS_PRODUCTION_INDEXES);
+                    database.query_bound(fixture.installer.finalize.clone(), FinalizeBindings {
+                        schema_version: SCHEMA_VERSION.to_owned(), schema_revision: PRE_ARGUS_RECEIPT_REVISION,
+                        namespace: DEFAULT_NAMESPACE.to_owned(), database: DEFAULT_DATABASE.to_owned(),
+                        source_manifest_sha256: PRE_ARGUS_PRODUCTION_SOURCE_SHA256.to_owned(), generated_surql_sha256: PRE_ARGUS_PRODUCTION_GENERATED_SHA256.to_owned(),
+                        pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(), info_fingerprint_sha256: observed.info_fingerprint_sha256,
+                    }).await?;
+                }
+                assert!(read_context_and_state(&database).await?.expect("canonical original 164 state").is_exact_pre_argus_receipt(production, &database.config));
+                database.query("CREATE workspaces:mt174_revision164 CONTENT { name: 'retained revision-164 sentinel' };").await?;
+                Ok(())
+            })).await
+        }
+
+        type PanicPayload = Box<dyn std::any::Any + Send>;
+        type CloseResult = Result<Result<super::super::ShutdownReport, SurrealStorageError>, PanicPayload>;
+        struct Retained164Failure {
+            body: Result<Result<(), SurrealStorageError>, PanicPayload>,
+            stores: Vec<SurrealStorage>,
+            directories: Vec<tempfile::TempDir>,
+            shutdowns: Vec<CloseResult>,
+            directory_cleanup: Vec<(usize, std::io::Result<()>)>,
+        }
+
+        let fixture = Arc::new(fixture);
+        for production in [false, true] {
+            let mut directory = tempfile::Builder::new().prefix("mt174-164-transition-").tempdir().expect("temporary transition store");
+            directory.disable_cleanup(true);
+            let directories = vec![directory];
+            let mut stores: Vec<SurrealStorage> = Vec::new();
+            let body = futures::FutureExt::catch_unwind(std::panic::AssertUnwindSafe(async {
+                let storage = open_test_storage(&directories[0]).await?;
+                stores.push(storage.clone());
+                materialize(&storage, fixture.clone(), production).await?;
+                let before = snapshot(&storage, fixture.clone(), production).await?;
+                storage.shutdown().await?;
+                drop(storage);
+                let reopened = open_test_storage(&directories[0]).await?;
+                stores.push(reopened.clone());
+                assert_eq!(snapshot(&reopened, fixture.clone(), production).await?, before, "first reopen preserves original 164 state, registry, data and receipts");
+
+                reopened.with_admin_operation(move |database| Box::pin(async move {
+                    let state = read_context_and_state(&database).await?.expect("canonical on-disk 164 receipt before upgrade");
+                    assert!(state.is_exact_pre_argus_receipt(production, &database.config));
+                    let observed = read_schema_catalog(&database).await?;
+                    assert_eq!(observed.info_fingerprint_sha256, if production { PRE_ARGUS_PRODUCTION_INFO_SHA256 } else { PRE_ARGUS_RECEIPT_INFO_SHA256 });
+                    if production {
+                        assert_eq!(observed.fields_defined, PRE_ARGUS_PRODUCTION_FIELDS);
+                        assert_eq!(observed.indexes_defined, PRE_ARGUS_PRODUCTION_INDEXES);
+                    }
+                    Ok(())
+                })).await?;
+                let report = if production { super::super::bootstrap_production_schemas(&reopened).await? } else { bootstrap_schema(&reopened).await? };
+                assert_eq!(report.outcome, SchemaBootstrapOutcome::UpgradedSupportedPredecessor);
+                let expected_info = if production { EXPECTED_PRODUCTION_SCHEMA_PIN.expect("independently measured successor").0 } else { EXPECTED_SCHEMA_INFO_SHA256 };
+                assert_eq!(report.info_fingerprint_sha256, expected_info);
+                reopened.with_admin_operation(move |database| Box::pin(async move {
+                    let state = read_context_and_state(&database).await?.expect("upgraded current state");
+                    assert_eq!(state.version, SCHEMA_VERSION);
+                    assert_eq!(state.namespace, DEFAULT_NAMESPACE);
+                    assert_eq!(state.database, DEFAULT_DATABASE);
+                    assert_eq!(state.source_manifest_sha256, if production { production_source_sha256() } else { SCHEMA_LINEAGE_SHA256.to_owned() });
+                    assert_eq!(state.generated_surql_sha256, if production { production_generated_sha256() } else { GENERATED_SURREALQL_SHA256.to_owned() });
+                    assert_eq!(state.info_fingerprint_sha256, if production { EXPECTED_PRODUCTION_SCHEMA_PIN.expect("measured successor").0 } else { EXPECTED_SCHEMA_INFO_SHA256 });
+                    assert_eq!(state.revision, SCHEMA_REVISION);
+                    assert_eq!(state.target_revision, SCHEMA_REVISION);
+                    assert_eq!(state.apply_state, "complete");
+                    if production { inspect_production_schema(&database).await?; verify_production_module_receipts(&database).await?; } else { inspect_schema(&database).await?; }
+                    Ok(())
+                })).await?;
+                let after = snapshot(&reopened, fixture.clone(), production).await?;
+                assert_eq!(after[1], before[1], "upgrade preserves canonical registry rows");
+                assert_eq!(after[2], before[2], "upgrade preserves original data");
+                if production {
+                    assert_eq!(after[4..], before[4..], "upgrade preserves four unchanged module receipts");
+                    let SurrealValueData::Object(mut expected_model_receipt) = before[3].clone() else {
+                        panic!("original model-lane receipt must be a full native object");
+                    };
+                    assert_eq!(expected_model_receipt.get("schema_version"), Some(&SurrealValue::into_value("mt003-model-lane-authority-v8".to_owned())));
+                    assert_eq!(expected_model_receipt.get("schema_revision"), Some(&SurrealValue::into_value(8_i64)));
+                    expected_model_receipt.insert("schema_version".to_owned(), SurrealValue::into_value("mt003-model-lane-authority-v9".to_owned()));
+                    expected_model_receipt.insert("schema_revision".to_owned(), SurrealValue::into_value(9_i64));
+                    assert_eq!(after[3], SurrealValueData::Object(expected_model_receipt), "model-lane transition preserves primary identity and every other raw receipt field");
+                }
+                let current_catalog = reopened.with_admin_operation(|database| Box::pin(async move { Ok(read_schema_catalog(&database).await?.info_fingerprint_sha256) })).await?;
+                reopened.shutdown().await?;
+                drop(reopened);
+                let second = open_test_storage(&directories[0]).await?;
+                stores.push(second.clone());
+                let repeated = if production { super::super::bootstrap_production_schemas(&second).await? } else { bootstrap_schema(&second).await? };
+                assert!(repeated.reused_existing_schema);
+                assert_eq!(snapshot(&second, fixture.clone(), production).await?, after, "second reopen preserves current state, registry, data and receipts");
+                let repeated_catalog = second.with_admin_operation(|database| Box::pin(async move { Ok(read_schema_catalog(&database).await?.info_fingerprint_sha256) })).await?;
+                assert_eq!(repeated_catalog, current_catalog);
+                Ok::<(), SurrealStorageError>(())
+            })).await;
+
+            let mut shutdowns: Vec<CloseResult> = Vec::with_capacity(stores.len());
+            for storage in &stores {
+                shutdowns.push(futures::FutureExt::catch_unwind(
+                    std::panic::AssertUnwindSafe(storage.shutdown_with_report()),
+                ).await);
+            }
+            let released = cfg!(windows)
+                && matches!(&body, Ok(Ok(())))
+                && !stores.is_empty()
+                && shutdowns.iter().all(|result| matches!(result, Ok(Ok(_))));
+            let mut directory_cleanup = Vec::new();
+            if released {
+                for (index, directory) in directories.iter().enumerate() {
+                    directory_cleanup.push((index, std::fs::remove_dir_all(directory.path())));
+                }
+            }
+            let removed = released
+                && directory_cleanup.len() == directories.len()
+                && directory_cleanup.iter().all(|(_, result)| result.is_ok());
+            if !matches!(&body, Ok(Ok(()))) || !removed {
+                let brief = |text: &str| text.lines().next().unwrap_or("").chars().take(400).collect::<String>();
+                let print_panic = |label: &str, payload: &PanicPayload| {
+                    if let Some(message) = payload.downcast_ref::<&str>() {
+                        eprintln!("MT164 {label}: {}", brief(message));
+                    } else if let Some(message) = payload.downcast_ref::<String>() {
+                        eprintln!("MT164 {label}: {}", brief(message));
+                    } else {
+                        eprintln!("MT164 {label}: opaque non-string panic payload retained");
+                    }
+                };
+                match &body {
+                    Ok(Err(error)) => eprintln!("MT164 original proof error: {}", brief(&error.to_string())),
+                    Err(payload) => print_panic("original proof panic", payload),
+                    Ok(Ok(())) => {}
+                }
+                for (index, result) in shutdowns.iter().enumerate() {
+                    match result {
+                        Ok(Ok(report)) => eprintln!("MT164 shutdown[{index}]: drained={} cancelled={} elapsed={:?}", report.drained, report.cancelled, report.elapsed),
+                        Ok(Err(error)) => eprintln!("MT164 shutdown[{index}] error: {}", brief(&error.to_string())),
+                        Err(payload) => print_panic(&format!("shutdown[{index}] panic"), payload),
+                    }
+                }
+                for directory in &directories {
+                    eprintln!("MT164 fixture path (TempDir cleanup disabled): {}", directory.path().display());
+                }
+                for (index, result) in &directory_cleanup {
+                    if let Err(error) = result { eprintln!("MT164 directory cleanup[{index}] error: {}", brief(&error.to_string())); }
+                }
+                std::panic::panic_any(Retained164Failure {
+                    body, stores, directories, shutdowns, directory_cleanup,
+                });
+            }
+            drop(stores);
+            drop(directories);
+        }
+    }
+
+    #[tokio::test]
+    async fn bootstrap_rejects_simulated_pre_ckc_predecessor_without_mutation() {
+        const SUPPORTED_PREDECESSOR_REVISION: i64 = 157;
+        const PREDECESSOR_GENERATED_SURREALQL_SHA256: &str =
+            "c21630b082cd8c505199cc54877d12edfbfcc6069e50f77d28e5b36cb5c8fac0";
+        const PREDECESSOR_SCHEMA_INFO_SHA256: &str =
+            "6b4e5a157a3ce6ceaee9ded4d04843fc0387be1fb1fefc69a2203262cd8a1938";
+
+        // These are deliberately simulated metadata markers, not a historical catalog fixture.
+        // Revision 158 with the old hashes must not enter the revision-157 registry upgrade.
+        async fn snapshot(
+            storage: &SurrealStorage,
+        ) -> Result<Vec<SurrealValueData>, SurrealStorageError> {
+            storage
+                .with_admin_operation(|database| {
+                    Box::pin(async move {
+                        let mut response = database
+                            .query(
+                                "INFO FOR DB STRUCTURE; \
+                                 SELECT * FROM ONLY handshake_schema_state:primary; \
+                                 INFO FOR TABLE knowledge_schema_registry STRUCTURE; \
+                                 SELECT * FROM knowledge_schema_registry ORDER BY id; \
+                                 SELECT * FROM ONLY preexisting:keep;",
+                            )
+                            .await?;
+                        let mut values = Vec::new();
+                        for index in 0..5 {
+                            let value: SurrealValueData = response.take(index)?;
+                            values.push(value);
+                        }
+                        Ok(values)
+                    })
+                })
+                .await
+        }
+
+        for revision in [SUPPORTED_PREDECESSOR_REVISION, SCHEMA_REVISION] {
+            let directory = tempfile::tempdir().expect("temporary unsupported lineage store");
+            let mut original = None;
+            for reopen in 0..2 {
+                let storage = open_test_storage(&directory)
+                    .await
+                    .expect("open unsupported lineage store");
+                if reopen == 0 {
+                    storage
+                        .with_admin_operation(|database| {
+                            Box::pin(async move {
+                                database
+                                    .query(format!(
+                                        "DEFINE TABLE handshake_schema_state SCHEMALESS; \
+                                         CREATE handshake_schema_state:primary CONTENT {{ \
+                                           version: '{SCHEMA_VERSION}', revision: {revision}, \
+                                           namespace: '{DEFAULT_NAMESPACE}', database: '{DEFAULT_DATABASE}', \
+                                           source_manifest_sha256: '{SCHEMA_LINEAGE_SHA256}', \
+                                           generated_surql_sha256: '{PREDECESSOR_GENERATED_SURREALQL_SHA256}', \
+                                           info_fingerprint_sha256: '{PREDECESSOR_SCHEMA_INFO_SHA256}', \
+                                           apply_state: 'complete', target_revision: {revision} \
+                                         }}; \
+                                         DEFINE TABLE knowledge_schema_registry SCHEMAFULL; \
+                                         DEFINE FIELD migration_file ON TABLE knowledge_schema_registry TYPE string; \
+                                         CREATE knowledge_schema_registry:keep SET migration_file = 'retired-source'; \
+                                         CREATE preexisting:keep SET marker = 'untouched';"
+                                    ))
+                                    .await?;
+                                Ok(())
+                            })
+                        })
+                        .await
+                        .expect("seed explicitly simulated predecessor metadata and sentinels");
+                }
+                let before = snapshot(&storage).await.expect("snapshot before rejection");
+                let fields = parse_named_array(&before[2], "fields")
+                    .unwrap_or_else(|reason| panic!("invalid registry INFO: {reason}"));
+                assert!(fields.iter().any(|field| field == "migration_file"));
+                assert!(!fields.iter().any(|field| field == "schema_source"));
+                if let Some(original) = &original {
+                    assert_eq!(&before, original, "reopening must preserve the rejected store");
+                } else {
+                    original = Some(before.clone());
+                }
+                let error = bootstrap_schema(&storage)
+                    .await
+                    .expect_err("pre-CKC predecessor markers must fail before migration");
+                assert!(
+                    error
+                        .to_string()
+                        .contains("HANDSHAKE_SURREAL_SCHEMA_UNSUPPORTED_LINEAGE"),
+                    "revision={revision}, reopen={reopen}: {error}"
+                );
+                let after = snapshot(&storage)
+                    .await
+                    .expect("canonical reread after rejection");
+                assert_eq!(
+                    after, before,
+                    "rejection must preserve catalog, state, registry, and data"
+                );
+                storage.shutdown().await.expect("close rejected store");
+            }
+        }
     }
 
     #[tokio::test]

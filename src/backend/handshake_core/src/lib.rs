@@ -182,6 +182,8 @@ pub mod hbr;
 pub mod inspector_read;
 #[cfg(feature = "runtime-full")]
 pub mod jobs;
+#[cfg(feature = "app-runtime")]
+pub mod backend_runtime;
 pub mod kernel;
 /// WP-KERNEL-009 CodeIndexingAndNavigation (MT-097..MT-112): Tree-sitter code
 /// symbol/structure indexing over registered KnowledgeSource files, with

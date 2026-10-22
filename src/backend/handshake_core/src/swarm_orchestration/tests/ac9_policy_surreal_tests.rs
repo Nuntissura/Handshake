@@ -562,6 +562,7 @@ async fn ac9_production_rejects_unresolved_receipt_with_forged_or_cross_run_auth
     .await;
     let observations = harness
         .run_with_cleanup(|harness| Box::pin(async move {
+            harness.authenticate_workspace().await;
             let first = harness
                 .produce_gate_evidence()
                 .await
@@ -580,7 +581,40 @@ async fn ac9_production_rejects_unresolved_receipt_with_forged_or_cross_run_auth
                 "cross_run_operator_review",
                 "missing_operator",
             ] {
-                let mut candidate = harness.prepare_unresolved_receipt_candidate(&first).await;
+                let approval_retention = handshake_role_authority::domain::RetentionBinding {
+                    policy_ref: ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/ac9_current_surreal_two_author_source_admission_20261015/pure_role_authority_five_new_path_source_admission_20261015/actual_closed_handoff/exact_full_contract".into(),
+                    authority_class: "Owner".into(),
+                    replay_policy_ref: ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/ac9_current_surreal_two_author_source_admission_20261015/pure_role_authority_five_new_path_source_admission_20261015/actual_closed_handoff/exact_full_contract".into(),
+                    artifact_retention_ttl_days: None,
+                };
+                let designation_retention = handshake_role_authority::domain::RetentionBinding {
+                    policy_ref: ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/ac9_current_surreal_two_author_source_admission_20261015/pure_role_authority_five_new_path_source_admission_20261015/actual_closed_handoff/exact_full_contract".into(),
+                    authority_class: "Owner".into(),
+                    replay_policy_ref: ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/ac9_current_surreal_two_author_source_admission_20261015/pure_role_authority_five_new_path_source_admission_20261015/actual_closed_handoff/exact_full_contract".into(),
+                    artifact_retention_ttl_days: None,
+                };
+                harness.authenticate_workspace().await;
+                let requested_workspace = harness.authorization_request().external_resource_id;
+                let requested_task_snapshot = serde_json::json!({
+                    "format_version": 1,
+                    "task_id": "ac9-policy-denial-fixture-task",
+                    "claimed_revision": 7,
+                    "operations": [
+                        {"tool": "delegate_workspace_read",
+                         "resource_kind": crate::storage::surreal::resource_authority::ResourceKind::Workspace,
+                         "external_resource_id": requested_workspace.clone(),
+                         "action": crate::storage::surreal::resource_authority::ResourceAction::Read,
+                         "capability_id": "fs.read"},
+                        {"tool": "delegate_workspace_create",
+                         "resource_kind": crate::storage::surreal::resource_authority::ResourceKind::Workspace,
+                         "external_resource_id": requested_workspace,
+                         "action": crate::storage::surreal::resource_authority::ResourceAction::Create,
+                         "capability_id": "fs.write"}
+                    ]
+                });
+                let mut candidate = harness.prepare_unresolved_receipt_candidate(
+                    &first, approval_retention, designation_retention, requested_task_snapshot,
+                ).await;
                 // This baseline deliberately retains an unresolved promotion receipt.
                 // These are combined authority denials, not gate-only causal proof or
                 // a claim that a kernel event is itself a promotion-receipt object.
@@ -602,7 +636,7 @@ async fn ac9_production_rejects_unresolved_receipt_with_forged_or_cross_run_auth
                     .await
                     .expect("read actual promotion authority before negative");
                 let run_id = candidate.run_id.clone();
-                let result = harness.store().record_promotion_decision(candidate).await;
+                let result = harness.record_promotion_candidate(candidate).await;
                 let expected_denial = match &result {
                     Err(ModelLaneError::InvalidInput(message)) if case == "missing_operator" => {
                         message == "ROUTING_AUTHORITY_MISSING: stage_id=operator-decision; authority=OperatorAuthority"

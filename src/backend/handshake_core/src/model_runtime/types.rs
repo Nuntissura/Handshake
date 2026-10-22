@@ -495,6 +495,7 @@ pub struct Embedding {
 pub struct CancellationToken {
     inner: Arc<AtomicBool>,
     notify: Arc<tokio::sync::Notify>,
+    activity_observer: Option<Arc<super::activity::RuntimeActivityObserver>>,
 }
 
 impl Default for CancellationToken {
@@ -502,11 +503,22 @@ impl Default for CancellationToken {
         Self {
             inner: Arc::new(AtomicBool::new(false)),
             notify: Arc::new(tokio::sync::Notify::new()),
+            activity_observer: None,
         }
     }
 }
 
 impl CancellationToken {
+    pub(crate) fn observed(observer: Arc<super::activity::RuntimeActivityObserver>) -> Self {
+        Self { activity_observer: Some(observer), ..Self::default() }
+    }
+
+    pub(crate) fn record_activity(&self, receipt: super::activity::RuntimeActivityReceipt) {
+        if let Some(observer) = &self.activity_observer {
+            observer.record(receipt);
+        }
+    }
+
     pub fn new() -> Self {
         Self::default()
     }

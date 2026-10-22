@@ -542,14 +542,25 @@ fn alt_shift_f_kittest_reflow() {
 
     let harness_panel = Arc::clone(&panel);
     let mut harness = Harness::builder()
+        .proof_mt_id("MT-050")
         .with_size(egui::vec2(640.0, 200.0))
         .build_ui(move |ui| {
             harness_panel.show(ui);
         });
 
-    // Frame 1: arm Alt+Shift+F via the dispatch (the keymap path is proven in alt_shift_f_binds_format_document;
-    // here we exercise the dispatch -> pump -> transport -> apply end-to-end).
-    panel.dispatch_action(CodeEditorAction::FormatDocument);
+    harness.run();
+    assert_eq!(panel.buffer().to_string(), messy);
+    harness.event(egui::Event::Key {
+        key: egui::Key::F,
+        physical_key: None,
+        pressed: true,
+        repeat: false,
+        modifiers: egui::Modifiers {
+            alt: true,
+            shift: true,
+            ..Default::default()
+        },
+    });
     // Pump several frames so the request fires off-thread, the mock server answers, and the result drains.
     let mut reflowed = false;
     for _ in 0..40 {
@@ -567,32 +578,8 @@ fn alt_shift_f_kittest_reflow() {
         panel.buffer().to_string()
     );
 
-    // Best-effort screenshot to the EXTERNAL artifact root ONLY (CX-212E HARD — never repo-local).
-    match Harness::builder()
-        .with_size(egui::vec2(640.0, 200.0))
-        .wgpu()
-        .build_ui({
-            let p = Arc::clone(&panel);
-            move |ui| {
-                p.show(ui);
-            }
-        })
-        .render()
-    {
-        Ok(image) => {
-            let ext_dir = external_artifact_dir("wp-kernel-012-mt-050");
-            let _ = std::fs::create_dir_all(&ext_dir);
-            let ext_path = ext_dir.join("MT-050-format-document-reflow.png");
-            let saved = image.save(&ext_path).is_ok();
-            println!("PT-004 kittest: buffer reflowed after Alt+Shift+F; screenshot saved_ext={saved} ({})", ext_path.display());
-        }
-        Err(e) => {
-            println!(
-                "BLOCKER(non-fatal): MT-050 screenshot render unavailable (no wgpu adapter / headless GPU crash): {e}. \
-                 PT-004 reflow proof passed; the PNG is a GPU-host item."
-            );
-        }
-    }
+    harness.render_settled_proof_frame("PT-004 Alt+Shift+F reflow");
+    println!("PT-004 screenshot: {:?}", harness.last_screenshot_outcome());
 
     // CX-212E hygiene guard: the run must not have created a repo-local artifact dir.
     assert_no_local_artifact_dir();

@@ -1862,6 +1862,7 @@ dependencies = [
 [[package]]
 name = "handshake_code_structure"
 version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=ff373410b87114c077fc6a5b11cc8be7eafb811d#ff373410b87114c077fc6a5b11cc8be7eafb811d"
 dependencies = [
  "handshake_text_mechanics",
  "tree-sitter",
@@ -1884,6 +1885,7 @@ dependencies = [
 [[package]]
 name = "handshake_diff_merge"
 version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=ff373410b87114c077fc6a5b11cc8be7eafb811d#ff373410b87114c077fc6a5b11cc8be7eafb811d"
 dependencies = [
  "handshake_text_mechanics",
  "serde_json",
@@ -1902,6 +1904,7 @@ dependencies = [
 [[package]]
 name = "handshake_find_replace"
 version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=ff373410b87114c077fc6a5b11cc8be7eafb811d#ff373410b87114c077fc6a5b11cc8be7eafb811d"
 dependencies = [
  "handshake_text_mechanics",
  "regex",
@@ -1917,6 +1920,7 @@ dependencies = [
 [[package]]
 name = "handshake_gutter"
 version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=ff373410b87114c077fc6a5b11cc8be7eafb811d#ff373410b87114c077fc6a5b11cc8be7eafb811d"
 dependencies = [
  "egui",
  "handshake_text_mechanics",
@@ -1933,6 +1937,7 @@ dependencies = [
 [[package]]
 name = "handshake_lsp_wire"
 version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=61d2481b1a01d7f1d400633e983e3244662db436#61d2481b1a01d7f1d400633e983e3244662db436"
 dependencies = [
  "lsp-types",
  "serde_json",
@@ -1942,6 +1947,7 @@ dependencies = [
 [[package]]
 name = "handshake_rename"
 version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=ff373410b87114c077fc6a5b11cc8be7eafb811d#ff373410b87114c077fc6a5b11cc8be7eafb811d"
 dependencies = [
  "handshake_text_mechanics",
  "lsp-types",
@@ -1962,7 +1968,7 @@ dependencies = [
 [[package]]
 name = "handshake_rich_formatting"
 version = "0.1.0"
-source = "git+https://github.com/Nuntissura/assets.git?rev=1d66fe5d614d7e8e0e2b36d7b69ae23afdd7ed4c#1d66fe5d614d7e8e0e2b36d7b69ae23afdd7ed4c"
+source = "git+https://github.com/Nuntissura/assets.git?rev=7511afa4059905a747b61b72876b6fda605fc904#7511afa4059905a747b61b72876b6fda605fc904"
 dependencies = [
  "handshake_rich_document_model",
  "serde_json",

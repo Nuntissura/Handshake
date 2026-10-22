@@ -1240,11 +1240,14 @@ async fn grant_every_route(
             ResourceKind::MemoryItem => &memory_item.resource_id,
             ResourceKind::MemoryItemCount => &memory_item_count.resource_id,
             ResourceKind::Workspace
+            | ResourceKind::AccountAdministration
             | ResourceKind::ReconciliationQueue
             | ResourceKind::RichDocument
             | ResourceKind::KnowledgeSource
             | ResourceKind::KnowledgeCodeFile
-            | ResourceKind::LoomBlock => {
+            | ResourceKind::LoomBlock
+            | ResourceKind::PalmistryWatcher
+            | ResourceKind::Artifact => {
                 unreachable!("not an ordinary route resource")
             }
         };

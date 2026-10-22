@@ -524,6 +524,31 @@ mod tests {
     }
 
     #[test]
+    fn boundary_backspace_merges_previous_paragraph_with_single_undo() {
+        let original = BlockNode::doc(vec![
+            BlockNode::paragraph("left"),
+            BlockNode::paragraph("right"),
+        ]);
+        let mut doc = original.clone();
+        let mut sel = Selection::caret(DocPosition::new(vec![1, 0], 0));
+        let mut undo = UndoManager::new();
+        let mut ctx = ctx_at(&mut doc, &mut sel, &mut undo);
+
+        assert!(apply_action(&mut ctx, EditAction::DeleteBackward));
+        assert_eq!(ctx.doc.children.len(), 1);
+        assert_eq!(leaf_text(ctx.doc), "leftright");
+        assert_eq!(
+            *ctx.selection,
+            Selection::caret(DocPosition::new(vec![0, 0], 4))
+        );
+        assert_eq!(ctx.undo.len(), 1);
+
+        assert!(apply_action(&mut ctx, EditAction::Undo));
+        assert_eq!(*ctx.doc, original);
+        assert!(!ctx.undo.can_undo());
+    }
+
+    #[test]
     fn delete_forward_removes_right_of_caret() {
         let mut doc = doc_hello();
         let mut sel = Selection::caret(DocPosition::new(vec![0, 0], 0));

@@ -110,16 +110,16 @@ diag-test-seams = []
 [dependencies]
 handshake-account-activation = { path = "../../shared/handshake_account_activation" }
 handshake_folder_tree = { path = "../handshake_folder_tree" }
-handshake_code_structure = { path = "../handshake_code_structure" }
-handshake_diff_merge = { path = "../handshake_diff_merge" }
-handshake_find_replace = { path = "../handshake_find_replace" }
-handshake_rename = { path = "../handshake_rename" }
-handshake_gutter = { path = "../handshake_gutter" }
-handshake_lsp_wire = { path = "../handshake_lsp_wire" }
+handshake_code_structure = { git = "https://github.com/Nuntissura/assets.git", rev = "ff373410b87114c077fc6a5b11cc8be7eafb811d" }
+handshake_diff_merge = { git = "https://github.com/Nuntissura/assets.git", rev = "ff373410b87114c077fc6a5b11cc8be7eafb811d" }
+handshake_find_replace = { git = "https://github.com/Nuntissura/assets.git", rev = "ff373410b87114c077fc6a5b11cc8be7eafb811d" }
+handshake_rename = { git = "https://github.com/Nuntissura/assets.git", rev = "ff373410b87114c077fc6a5b11cc8be7eafb811d" }
+handshake_gutter = { git = "https://github.com/Nuntissura/assets.git", rev = "ff373410b87114c077fc6a5b11cc8be7eafb811d" }
+handshake_lsp_wire = { git = "https://github.com/Nuntissura/assets.git", rev = "61d2481b1a01d7f1d400633e983e3244662db436" }
 handshake_runtime_instance = { path = "../../backend/handshake_runtime_instance" }
 handshake_rich_document_model = { git = "https://github.com/Nuntissura/assets.git", rev = "a118e58a2afaad6009567e046422828c99277aa0" }
 handshake_wikilink_semantics = { path = "../handshake_wikilink_semantics" }
-handshake_rich_formatting = { git = "https://github.com/Nuntissura/assets.git", rev = "1d66fe5d614d7e8e0e2b36d7b69ae23afdd7ed4c" }
+handshake_rich_formatting = { git = "https://github.com/Nuntissura/assets.git", rev = "7511afa4059905a747b61b72876b6fda605fc904" }
 handshake_text_mechanics = { git = "https://github.com/Nuntissura/assets.git", rev = "9339227c05a813600db1fa4cdb71b9b9988d5992" }
 handshake_asset_resolver = { path = "../handshake_asset_resolver" }
 handshake_embed_views = { path = "../handshake_embed_views" }

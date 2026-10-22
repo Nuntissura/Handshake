@@ -11,10 +11,25 @@ use thiserror::Error;
 use uuid::Uuid;
 
 use super::{SurrealStorage, SurrealStorageError};
+use super::local_accounts::ConfirmedFirstOwnerAdministrationRegistration;
 
 mod artifact_publications;
 mod validator_sessions;
-pub(crate) use validator_sessions::ValidatorDelegationParent;
+pub(crate) use validator_sessions::{
+    ValidatorDelegationParent,
+    ValidatorAssociationIssuanceInput,
+    ValidatorAssociationFault,
+    ValidatorAssociationTransactionRetention,
+    ValidatorAssociationEngineObservation,
+    ValidatorAssociationWorkerPhase,
+    ValidatorAssociationIssuanceHandle,
+    ValidatorAssociationRetainedFailure,
+    ValidatorAssociationReserveRejection,
+    CurrentValidatorAssociationSeal,
+    ValidatorAssociationReadbackGuard,
+    RetainedValidatorAssociationQuery,
+    RetainedValidatorDesignationQuery,
+};
 pub(crate) use artifact_publications::RegisteredArtifactWitness;
 
 // One owning canonical grant predicate shared by public authorization and the
@@ -50,6 +65,7 @@ struct RegistryPublicationAuthority {
     resource_kind: String,
     grant_expires_at: Option<Datetime>,
     session_expires_at: Datetime,
+    administration_lifetime: Option<AdministrationLifetimeRow>,
 }
 
 #[derive(SurrealValue)]
@@ -265,7 +281,7 @@ struct RegistryPublicationBindings {
 }
 
 const REGISTRY_PUBLICATION_AUTHORITY: &str = canonical_grant_query!(
-    "SELECT id AS grant_id, resource_id, account_id, principal_id, principal_id.actor_kind AS actor_kind, principal_id.actor_id AS actor_id, $auth.id AS session_id, access_space_id, grant_version, [policy_version, resource_id.policy_version, account_id.policy_version, principal_id.policy_version, access_space_id.policy_version, $auth.id.policy_version] AS policy_versions, [account_id.revocation_epoch, principal_id.revocation_epoch, access_space_id.revocation_epoch, $auth.id.account_revocation_epoch, $auth.id.principal_revocation_epoch, $auth.id.space_revocation_epoch] AS revocation_epochs, actions, capability_ids, delegation_chain, $auth.id.delegated_capabilities AS session_capabilities, principal_id.delegated_capabilities AS principal_capabilities, principal_id.capability_profile_id AS capability_profile_id, [status, resource_id.lifecycle_state, account_id.status, principal_id.status, access_space_id.status] AS statuses, resource_id.resource_kind AS resource_kind, expires_at AS grant_expires_at, $auth.id.expires_at AS session_expires_at",
+    "SELECT id AS grant_id, resource_id, account_id, principal_id, principal_id.actor_kind AS actor_kind, principal_id.actor_id AS actor_id, $auth.id AS session_id, access_space_id, grant_version, [policy_version, resource_id.policy_version, account_id.policy_version, principal_id.policy_version, access_space_id.policy_version, $auth.id.policy_version] AS policy_versions, [account_id.revocation_epoch, principal_id.revocation_epoch, access_space_id.revocation_epoch, $auth.id.account_revocation_epoch, $auth.id.principal_revocation_epoch, $auth.id.space_revocation_epoch] AS revocation_epochs, actions, capability_ids, delegation_chain, $auth.id.delegated_capabilities AS session_capabilities, principal_id.delegated_capabilities AS principal_capabilities, principal_id.capability_profile_id AS capability_profile_id, [status, resource_id.lifecycle_state, account_id.status, principal_id.status, access_space_id.status] AS statuses, resource_id.resource_kind AS resource_kind, expires_at AS grant_expires_at, $auth.id.expires_at AS session_expires_at, resource_id.account_administration_lifetime AS administration_lifetime",
     " AND id = $original_grant AND resource_id != NONE AND resource_id.resource_kind = $kind AND resource_id.policy_version <= policy_version AND policy_version <= $auth.policy_version AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS $capability) AND $auth.id.revoked_at = NONE AND $auth.id.expires_at > time::now()",
     "2"
 );
@@ -2097,6 +2113,78 @@ fn job_admission_authority_storage_error(error: ResourceAuthorityError) -> crate
     }
 }
 
+async fn with_sealed_role_creation<T, F>(
+    record_kind: &str, record_id: &str, event_id: &str, record_sha256: &str, operation_id: Uuid,
+    issuer_scope: &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution, expected_child_read: Option<RegistryPublicationAuthority>, expected_owner_read: Option<RegistryPublicationAuthority>, retained: &std::sync::Mutex<Vec<ProtectedRoleCreationBinding>>, future: F,
+) -> Result<T, SurrealStorageError>
+where F: std::future::Future<Output = Result<T, SurrealStorageError>> {
+    if record_id.is_empty() || event_id.is_empty() || record_sha256.len() != 64 || !record_sha256.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(SurrealStorageError::TransactionAuthorityRequired);
+    }
+    let binding = ProtectedRoleCreationBinding {
+        record_kind: record_kind.to_owned(), record_id: record_id.to_owned(), event_id: event_id.to_owned(),
+        record_sha256: record_sha256.to_owned(), operation_id: operation_id.to_string(), issuer_scope: issuer_scope.into(), expected_child_read, expected_owner_read,
+    };
+    let result = PROTECTED_ROLE_CREATION_BINDING.scope(binding.clone(), future).await?;
+    let mut records = retained.lock().map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+    if records.iter().any(|prior| prior.record_kind == binding.record_kind && prior.record_id == binding.record_id && prior != &binding) {
+        return Err(SurrealStorageError::TransactionAuthorityRequired);
+    }
+    if !records.contains(&binding) { records.push(binding); }
+    Ok(result)
+}
+
+#[derive(Clone, PartialEq, Eq, SurrealValue)]
+struct ProtectedRoleScopeBinding {
+    owner_account_id: String, actor_principal_id: String, authenticated_session_id: String,
+    access_space_id: String, workspace_id: String,
+}
+impl From<&crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution> for ProtectedRoleScopeBinding {
+    fn from(scope: &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution) -> Self {
+        Self { owner_account_id: scope.owner_account_id.to_string(), actor_principal_id: scope.actor_principal_id.to_string(),
+            authenticated_session_id: scope.authenticated_session_id.to_string(), access_space_id: scope.access_space_id.to_string(),
+            workspace_id: scope.workspace_id.as_str().to_owned() }
+    }
+}
+#[derive(Clone, SurrealValue)]
+struct ProtectedRoleCaptureBinding {
+    record_kind: String,
+    event_id: String,
+    operation_id: String,
+    consumer_operation_id: String,
+    issuer_scope: ProtectedRoleScopeBinding,
+    exact_consumer_scope: ProtectedRoleScopeBinding,
+    expected_owner_read: RegistryPublicationAuthority,
+    expected_child_read: RegistryPublicationAuthority,
+    operator_ref: String,
+    designation_ref: String,
+    selection_json: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct ProtectedRoleConsumptionBinding { binding_event_id: String, evidence_event_id: String, consumer_operation_id: String, expected_child_read: Option<RegistryPublicationAuthority>, expected_owner_read: Option<RegistryPublicationAuthority> }
+#[derive(Clone, PartialEq, Eq, SurrealValue)]
+struct ProtectedRoleCreationBinding {
+    record_kind: String, record_id: String, event_id: String, record_sha256: String,
+    operation_id: String, issuer_scope: ProtectedRoleScopeBinding, expected_child_read: Option<RegistryPublicationAuthority>, expected_owner_read: Option<RegistryPublicationAuthority>,
+}
+tokio::task_local! {
+    static PROTECTED_ROLE_CONSUMPTION_BINDING: ProtectedRoleConsumptionBinding;
+    static PROTECTED_ROLE_CREATION_BINDING: ProtectedRoleCreationBinding;
+    static PROTECTED_ROLE_CAPTURE_BINDING: ProtectedRoleCaptureBinding;
+}
+pub(super) fn append_protected_role_bindings(bindings: &mut surrealdb::types::Value) {
+    if !matches!(bindings, surrealdb::types::Value::Object(_)) {
+        *bindings = surrealdb::types::Value::Object(surrealdb::types::Object::new());
+    }
+    if let surrealdb::types::Value::Object(object) = bindings {
+        object.insert("wp012_role_evidence_consume", PROTECTED_ROLE_CONSUMPTION_BINDING.try_with(Clone::clone).ok());
+        object.insert("wp012_role_evidence_create", PROTECTED_ROLE_CREATION_BINDING.try_with(Clone::clone).ok());
+        object.insert("wp012_role_evidence_capture", PROTECTED_ROLE_CAPTURE_BINDING.try_with(Clone::clone).ok());
+    }
+    append_validator_association_binding(bindings);
+}
+
 #[derive(Clone)]
 pub(crate) struct RoleAuthorityAuthInput {
     session_token: String,
@@ -2105,6 +2193,7 @@ pub(crate) struct RoleAuthorityAuthInput {
 
 pub(crate) struct WorkspaceOwnerActionPermit {
     auth: OwnedCanonicalAuthSnapshot,
+    role_evidence_read: Option<OwnedCanonicalAuthSnapshot>,
     registry: std::sync::Arc<crate::capabilities::CapabilityRegistry>,
     command: crate::swarm_orchestration::model_lane::WorkspaceOwnerActionCommand,
 }
@@ -2112,6 +2201,233 @@ pub(crate) struct WorkspaceOwnerActionPermit {
 pub(crate) struct RoleAuthorityConsumptionPermit {
     capture: RoleConsumptionCapture,
     preparation: Option<RoleAuthorityTransactionRetention>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct ProtectedRoleReadAuthority {
+    pub(crate) grant_id: String,
+    pub(crate) grant_version: i64,
+    pub(crate) resource_id: String,
+    pub(crate) session_id: String,
+    pub(crate) capability_id: String,
+    pub(crate) action: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct ProtectedRoleEvidenceTarget {
+    pub(crate) record_kind: String,
+    pub(crate) record_id: String,
+    pub(crate) event_id: String,
+    pub(crate) record_sha256: String,
+    pub(crate) issuer_scope: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct ProtectedRoleEvidenceConsumptionBody {
+    pub(crate) schema_id: String,
+    pub(crate) operation_id: Uuid,
+    pub(crate) consumer_operation_id: Uuid,
+    pub(crate) issuer_scope: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    pub(crate) exact_consumer_scope: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    pub(crate) owner_read: ProtectedRoleReadAuthority,
+    pub(crate) child_read: ProtectedRoleReadAuthority,
+    pub(crate) designation_ref: handshake_role_authority::domain::DesignationRef,
+    pub(crate) producer: crate::swarm_orchestration::model_lane::ValidatorRunnerRegistrationBinding,
+    pub(crate) run: handshake_role_authority::domain::RunBinding,
+    pub(crate) subject: handshake_role_authority::domain::ArtifactSubject,
+    pub(crate) expected: handshake_role_authority::domain::ExpectedBase,
+    pub(crate) purpose: handshake_role_authority::domain::Purpose,
+    pub(crate) targets: Vec<ProtectedRoleEvidenceTarget>,
+}
+pub(crate) struct InitialValidatorIssuance {
+    protected_publication_operation_id: Uuid,
+    protected_consumption: std::sync::OnceLock<PublishedProtectedRoleConsumption>,
+    owner_read: OwnedCanonicalAuthSnapshot,
+    child_read: OwnedCanonicalAuthSnapshot,
+    coordinator: std::sync::Arc<crate::swarm_orchestration::SwarmCoordinator>,
+    producer: std::sync::Arc<crate::swarm_orchestration::coordinator::ValidatorProducerKey>,
+    observed: crate::swarm_orchestration::coordinator::RegisteredValidatorReviewOutput,
+    operator: crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector,
+    verdict: handshake_role_authority::domain::RecordValidatorVerdict,
+    operation_id: Uuid,
+}
+
+impl std::fmt::Debug for InitialValidatorIssuance {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("InitialValidatorIssuance")
+    }
+}
+
+impl InitialValidatorIssuance {
+    pub(crate) fn operator_prior(&self) -> &crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector { &self.operator }
+    pub(crate) fn verdict(&self) -> &handshake_role_authority::domain::RecordValidatorVerdict { &self.verdict }
+    pub(crate) fn output(&self) -> &str { self.observed.output() }
+    pub(crate) fn producer_binding(&self) -> crate::swarm_orchestration::model_lane::ValidatorRunnerRegistrationBinding {
+        crate::swarm_orchestration::model_lane::ValidatorRunnerRegistrationBinding {
+            producer_registration_ref: self.producer.registration_ref().to_owned(),
+            producer_instance_ref: self.producer.instance_id().to_string(),
+            producer_spawn_generation: self.producer.spawn_generation(),
+            producer_registered_principal: self.producer.registered_principal().clone(),
+        }
+    }
+    pub(crate) fn delegating_scope(&self) -> &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution {
+        self.producer.delegating_scope()
+    }
+    async fn revalidate(&self, storage: &SurrealStorage) -> Result<(), ResourceAuthorityError> {
+        self.producer.revalidate(storage).await?;
+        let registry = &self.producer.authorization_seal().registry;
+        self.owner_read.revalidate_for_publication(storage, registry).await?;
+        self.child_read.revalidate_for_publication(storage, registry).await?;
+        self.require_current_registry()
+    }
+    fn require_current_registry(&self) -> Result<(), ResourceAuthorityError> {
+        self.coordinator.with_current_validator_producer(&self.producer, Some(self.observed.terminal()), || Ok(()))
+            .map_err(|_| ResourceAuthorityError::InvalidInput("initial Validator producer or terminal is stale"))?;
+        Ok(())
+    }
+}
+
+impl SurrealStorage {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn capture_initial_validator_issuance(
+        &self, bootstrap: &crate::AccountBootstrapState,
+        owner_credentials: RoleAuthorityAuthInput,
+        coordinator: std::sync::Arc<crate::swarm_orchestration::SwarmCoordinator>,
+        producer: std::sync::Arc<crate::swarm_orchestration::coordinator::ValidatorProducerKey>,
+        observed: crate::swarm_orchestration::coordinator::RegisteredValidatorReviewOutput,
+        operator: crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector,
+        verdict: handshake_role_authority::domain::RecordValidatorVerdict, operation_id: Uuid,
+    ) -> Result<std::sync::Arc<InitialValidatorIssuance>, ResourceAuthorityError> {
+        use handshake_role_authority::domain::{Role, Purpose};
+        let terminal = observed.terminal();
+        let artifact_bytes = serde_json::to_vec(&serde_json::Value::String(observed.output().to_owned()))
+            .map_err(|_| ResourceAuthorityError::InvalidInput("Validator output cannot be encoded as canonical artifact text"))?;
+        if operation_id.is_nil() || bootstrap.surreal.resource_access_lifecycle() != self.resource_access_lifecycle()
+            || operator.expectation.role != Role::Operator || operator.expectation.purpose != Purpose::PriorSelection
+            || operator.designation_ref.is_some() || operator.producer.is_some()
+            || operator.expectation.run != verdict.run || operator.expectation.subject != verdict.subject
+            || operator.expectation.expected != verdict.expected || verdict.purpose != Purpose::PriorSelection
+            || operator.expectation.receipt_scope.owner_account_id != verdict.scope.owner_account_id
+            || operator.expectation.receipt_scope.workspace_id != verdict.scope.workspace_id
+            || &verdict.scope != producer.exact_scope()
+            || &verdict.execution.runner_principal != producer.registered_principal()
+            || terminal.run_id() != verdict.run.run_id || terminal.session_id() != verdict.run.coordinator_session_id
+            || terminal.generated_tokens() == 0 || observed.output().is_empty()
+            || verdict.execution.invocation_ref != terminal.trace_id().to_string()
+            || verdict.execution.verdict_artifact.sha256.to_hex() != sha256_hex(&artifact_bytes)
+        { return Err(ResourceAuthorityError::InvalidInput("initial Validator execution binding differs")); }
+        handshake_role_authority::canonical::prepare_validator_verdict_declared(&verdict)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("initial Validator intent is invalid"))?;
+        let read_request = |credentials: &RoleAuthorityAuthInput| AuthorizationRequest {
+            session_token: credentials.session_token.clone(), channel_binding_hash: Some(credentials.channel_binding_hash.clone()),
+            resource_kind: ResourceKind::Workspace, external_resource_id: verdict.scope.workspace_id.as_str().to_owned(),
+            capability_id: "fs.read".to_owned(), action: ResourceAction::Read,
+        };
+        let mut owner_read = capture_owned_canonical_role_auth(self, &bootstrap.capability_registry,
+            owner_credentials.clone(), read_request(&owner_credentials)).await?;
+        owner_read.requires_workspace_owner = true;
+        owner_read.revalidate_for_publication(self, &bootstrap.capability_registry).await?;
+        let child_credentials = producer.authorization_seal().auth.credentials.clone();
+        let child_read = capture_owned_canonical_role_auth(self, &bootstrap.capability_registry,
+            child_credentials.clone(), read_request(&child_credentials)).await?;
+        if &owner_read.exact != producer.delegating_scope() || &child_read.exact != producer.exact_scope()
+            || owner_read.authority.resource_id != child_read.authority.resource_id {
+            return Err(ResourceAuthorityError::InvalidInput("protected role READ authority differs from registered Owner or child"));
+        }
+        let issuance = std::sync::Arc::new(InitialValidatorIssuance {
+            protected_publication_operation_id: Uuid::now_v7(),
+            protected_consumption: std::sync::OnceLock::new(),
+            owner_read, child_read, coordinator, producer, observed, operator, verdict, operation_id,
+        });
+        issuance.revalidate(self).await?;
+        Ok(issuance)
+    }
+
+    async fn publish_protected_role_evidence_consumption(
+        &self, bootstrap: &crate::AccountBootstrapState, issuance: std::sync::Arc<InitialValidatorIssuance>,
+    ) -> Result<(), ResourceAuthorityError> {
+        if issuance.protected_consumption.get().is_some() {
+            issuance.revalidate(self).await?;
+            return Ok(());
+        }
+        let fence = std::sync::Arc::new(self.authority_publication_read().await?);
+        issuance.revalidate(self).await?;
+        let retention = RoleAuthorityTransactionRetention {
+            owner: std::sync::Arc::new(OwnedRoleTransaction::ProtectedRoleConsumption(OwnedProtectedRoleConsumption {
+                operation_id: issuance.protected_publication_operation_id, issuance: issuance.clone(), registry: bootstrap.capability_registry.as_ref().clone(),
+                body: std::sync::OnceLock::new(),
+            })), fence,
+        };
+        let provider = super::model_lane::SurrealModelLaneStore::initialize(self.clone()).await?;
+        let worker_provider = provider.clone();
+        let worker_storage = self.clone();
+        let worker_retention = retention.clone();
+        let scope = issuance.owner_read.record_user_scope();
+        let committed = self.with_record_user_scope(scope,
+            self.with_owned_role_authenticated_transaction(retention.operation_id(), super::ContextOperationCancellation::new(), retention.clone(),
+                move |transaction| Box::pin(async move {
+                    let OwnedRoleTransaction::ProtectedRoleConsumption(capture) = worker_retention.owner.as_ref() else {
+                        return Err(ResourceAuthorityError::InvalidInput("protected role publication custody differs"));
+                    };
+                    capture.issuance.revalidate(&worker_storage).await?;
+                    capture.issuance.owner_read.revalidate_in_transaction(&transaction, &capture.registry).await?;
+                    let target_seal = ProtectedRoleEvidenceTargetReadSeal { capture, transaction: &transaction };
+                    let targets = worker_provider.capture_protected_role_evidence_targets(&transaction, &target_seal).await?;
+                    let read = |auth: &OwnedCanonicalAuthSnapshot| ProtectedRoleReadAuthority {
+                        grant_id: auth.decision.grant_id.clone(), grant_version: auth.authority.grant_version,
+                        resource_id: auth.decision.resource_id.clone(), session_id: auth.decision.session_id.clone(),
+                        capability_id: auth.capability_id.clone(), action: auth.action.as_str().to_owned(),
+                    };
+                    let issuance = &capture.issuance;
+                    capture.body.set(ProtectedRoleEvidenceConsumptionBody {
+                        schema_id: "handshake.role-evidence-consumption@1".to_owned(),
+                        operation_id: capture.operation_id, consumer_operation_id: issuance.operation_id,
+                        issuer_scope: issuance.owner_read.exact.clone(), exact_consumer_scope: issuance.child_read.exact.clone(),
+                        owner_read: read(&issuance.owner_read), child_read: read(&issuance.child_read),
+                        designation_ref: issuance.verdict.designation_ref.clone(), producer: issuance.producer_binding(),
+                        run: issuance.verdict.run.clone(), subject: issuance.verdict.subject.clone(), expected: issuance.verdict.expected.clone(),
+                        purpose: issuance.verdict.purpose.clone(), targets,
+                    }).map_err(|_| ResourceAuthorityError::InvalidInput("protected role body was already captured"))?;
+                    let seal = ProtectedRoleEvidenceCreationSeal { capture, transaction: &transaction };
+                    let committed = worker_provider.put_protected_role_evidence_consumption(&transaction, &seal).await?;
+                    capture.issuance.owner_read.revalidate_in_transaction(&transaction, &capture.registry).await?;
+                    capture.issuance.require_current_registry()?;
+                    Ok::<_, ResourceAuthorityError>(committed)
+                }),
+            ),
+        ).await?;
+        issuance.revalidate(self).await?;
+        let guard = RolePublicationGuard { owner: &retention.owner, _fence: &retention.fence };
+        let published = self.with_record_user_scope(issuance.owner_read.record_user_scope(),
+            provider.readback_protected_role_evidence_consumption(&guard, &committed)).await?;
+        let OwnedRoleTransaction::ProtectedRoleConsumption(capture) = retention.owner.as_ref() else { unreachable!() };
+        let body = capture.body.get().ok_or(ResourceAuthorityError::InvalidInput("protected body absent after commit"))?.clone();
+        issuance.revalidate(self).await?;
+        self.complete_role_publication(RoleAuthorityPublicationCompletion { operation_id: retention.operation_id(), owner: retention.owner.clone() })?;
+        issuance.protected_consumption.set(PublishedProtectedRoleConsumption {
+            body, event_id: published.binding_event_id().to_owned(),
+        }).map_err(|_| ResourceAuthorityError::InvalidInput("protected role publication already completed"))?;
+        Ok(())
+    }
+
+    pub(crate) async fn consume_initial_validator_issuance(
+        &self, bootstrap: &crate::AccountBootstrapState, issuance: std::sync::Arc<InitialValidatorIssuance>,
+        store: crate::swarm_orchestration::model_lane::ModelLaneStore,
+    ) -> crate::swarm_orchestration::model_lane::ModelLaneResult<handshake_role_authority::domain::RoleReceipt> {
+        use crate::swarm_orchestration::model_lane::{RoleConsumptionCommand, RoleConsumptionResult, ModelLaneError};
+        issuance.revalidate(self).await?;
+        self.publish_protected_role_evidence_consumption(bootstrap, issuance.clone()).await?;
+        let credentials = issuance.producer.authorization_seal().auth.credentials.clone();
+        let request = credentials.workspace_creation_request(issuance.verdict.scope.workspace_id.as_str());
+        let command = RoleConsumptionCommand::IssueInitialValidatorVerdict {
+            operation_id: issuance.operation_id, operator: issuance.operator.clone(), issuance: issuance.clone(),
+        };
+        let permit = self.capture_role_authority_consumption(bootstrap, credentials, request, command).await?;
+        match self.execute_role_consumption(permit, store).await? {
+            RoleConsumptionResult::ReviewCompletion(receipt) => Ok(receipt),
+            _ => Err(ModelLaneError::IntegrityViolation("initial Validator issuance returned another result".into())),
+        }
+    }
 }
 
 enum RoleConsumptionCapture {
@@ -2183,6 +2499,7 @@ enum OwnedRoleTransaction {
     Owner(WorkspaceOwnerActionPermit),
     Consumer(std::sync::Arc<OwnedRoleConsumption>),
     RoutingCapture(OwnedRoutingCapture),
+    ProtectedRoleConsumption(OwnedProtectedRoleConsumption),
 }
 
 struct RoutingCaptureRequest {
@@ -2200,11 +2517,32 @@ struct OwnedRoutingCapture {
 }
 
 impl OwnedRoleTransaction {
+    fn protected_owner_read_authority(&self) -> Option<RegistryPublicationAuthority> {
+        match self {
+            Self::ProtectedRoleConsumption(capture) => Some(capture.issuance.owner_read.authority.clone()),
+            _ => match self.consumer_command() {
+                Some(crate::swarm_orchestration::model_lane::RoleConsumptionCommand::IssueInitialValidatorVerdict { issuance, .. }) =>
+                    Some(issuance.owner_read.authority.clone()),
+                _ => None,
+            },
+        }
+    }
+    fn protected_child_read_authority(&self) -> Option<RegistryPublicationAuthority> {
+        match self {
+            Self::ProtectedRoleConsumption(capture) => Some(capture.issuance.child_read.authority.clone()),
+            _ => match self.consumer_command() {
+                Some(crate::swarm_orchestration::model_lane::RoleConsumptionCommand::IssueInitialValidatorVerdict { issuance, .. }) =>
+                    Some(issuance.child_read.authority.clone()),
+                _ => None,
+            },
+        }
+    }
     fn operation_id(&self) -> Uuid {
         match self {
             Self::Owner(permit) => permit.command.operation_id(),
             Self::Consumer(permit) => permit.command.operation_id(),
             Self::RoutingCapture(capture) => capture.operation_id,
+            Self::ProtectedRoleConsumption(capture) => capture.operation_id,
         }
     }
 
@@ -2213,6 +2551,7 @@ impl OwnedRoleTransaction {
             Self::Owner(permit) => &permit.auth,
             Self::Consumer(permit) => &permit.auth,
             Self::RoutingCapture(capture) => &capture.auth,
+            Self::ProtectedRoleConsumption(capture) => &capture.issuance.owner_read,
         }
     }
 
@@ -2220,7 +2559,7 @@ impl OwnedRoleTransaction {
         match self {
             Self::Consumer(capture) => Some(&capture.command),
             Self::RoutingCapture(capture) => capture.command.get(),
-            Self::Owner(_) => None,
+            Self::Owner(_) | Self::ProtectedRoleConsumption(_) => None,
         }
     }
 
@@ -2228,9 +2567,94 @@ impl OwnedRoleTransaction {
         match self {
             Self::Consumer(capture) => Some(capture.registry.as_ref()),
             Self::RoutingCapture(capture) => Some(capture.registry.as_ref()),
+            Self::ProtectedRoleConsumption(capture) => Some(&capture.registry),
             Self::Owner(_) => None,
         }
     }
+}
+
+struct PublishedProtectedRoleConsumption {
+    body: ProtectedRoleEvidenceConsumptionBody,
+    event_id: String,
+}
+
+struct OwnedProtectedRoleConsumption {
+    operation_id: Uuid,
+    issuance: std::sync::Arc<InitialValidatorIssuance>,
+    registry: crate::capabilities::CapabilityRegistry,
+    body: std::sync::OnceLock<ProtectedRoleEvidenceConsumptionBody>,
+}
+
+pub(crate) struct ProtectedRoleEvidenceTargetReadSeal<'tx> {
+    capture: &'tx OwnedProtectedRoleConsumption,
+    transaction: &'tx super::SurrealTransactionContext<'tx>,
+}
+impl ProtectedRoleEvidenceTargetReadSeal<'_> {
+    pub(crate) async fn with_protected_role_evidence_capture<T, F>(
+        &self, record_kind: &str, event_id: &str, future: F,
+    ) -> Result<T, SurrealStorageError>
+    where F: std::future::Future<Output = Result<T, SurrealStorageError>> {
+        let issuance = &self.capture.issuance;
+        let owner = &issuance.owner_read;
+        let selected_event = match record_kind {
+            "role_evidence" => issuance.operator.evidence_ref.as_str().strip_prefix("eventledger://role-authority/"),
+            "validator_designation" => issuance.verdict.designation_ref.as_str().strip_prefix("eventledger://validator-designation/"),
+            _ => None,
+        };
+        let current = super::current_record_user_scope().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let expected = owner.record_user_scope();
+        if selected_event != Some(event_id) || event_id.is_empty()
+            || !owner.requires_workspace_owner || owner.action != ResourceAction::Read || owner.capability_id != "fs.read"
+            || owner.exact != issuance.operator.expectation.receipt_scope
+            || current.session_token != expected.session_token || current.channel_binding_hash != expected.channel_binding_hash
+            || current.session_id != expected.session_id || current.resource_id != expected.resource_id
+            || current.grant_id != expected.grant_id || current.workspace_id != expected.workspace_id
+            || current.action != expected.action || current.capability_id != expected.capability_id {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        owner.require_unexpired().map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        issuance.require_current_registry().map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        let selection_json = serde_json::to_string(&serde_json::json!({
+            "run": issuance.verdict.run,
+            "subject": issuance.verdict.subject,
+            "expected": issuance.verdict.expected,
+            "purpose": issuance.verdict.purpose,
+            "producer": issuance.producer_binding(),
+        })).map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        PROTECTED_ROLE_CAPTURE_BINDING.scope(ProtectedRoleCaptureBinding {
+            record_kind: record_kind.to_owned(), event_id: event_id.to_owned(),
+            operation_id: self.capture.operation_id.to_string(), consumer_operation_id: issuance.operation_id.to_string(),
+            issuer_scope: (&owner.exact).into(), exact_consumer_scope: (&issuance.child_read.exact).into(),
+            expected_owner_read: owner.authority.clone(), expected_child_read: issuance.child_read.authority.clone(),
+            operator_ref: issuance.operator.evidence_ref.to_string(), designation_ref: issuance.verdict.designation_ref.to_string(),
+            selection_json,
+        }, future).await
+    }
+    pub(crate) fn current_scope(&self) -> &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution { &self.capture.issuance.owner_read.exact }
+    pub(crate) fn operation_id(&self) -> Uuid { self.capture.operation_id }
+    pub(crate) fn issuance(&self) -> &InitialValidatorIssuance { &self.capture.issuance }
+    pub(crate) fn matches_transaction(&self, transaction: &super::SurrealTransactionContext<'_>) -> bool { std::ptr::eq(self.transaction, transaction) }
+}
+
+pub(crate) struct ProtectedRoleEvidenceCreationSeal<'tx> {
+    capture: &'tx OwnedProtectedRoleConsumption,
+    transaction: &'tx super::SurrealTransactionContext<'tx>,
+}
+impl ProtectedRoleEvidenceCreationSeal<'_> {
+    pub(crate) async fn with_protected_role_evidence_creation<T, F>(
+        &self, record_id: &str, event_id: &str, record_sha256: &str, future: F,
+    ) -> Result<T, SurrealStorageError>
+    where F: std::future::Future<Output = Result<T, SurrealStorageError>> {
+        if record_id.is_empty() || event_id != format!("evt-{record_id}") || record_sha256.len() != 64 {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        with_sealed_role_creation("role_evidence_consumption", record_id, event_id, record_sha256,
+            self.operation_id(), self.current_scope(), Some(self.capture.issuance.child_read.authority.clone()), Some(self.capture.issuance.owner_read.authority.clone()), &self.capture.issuance.owner_read.created_role_rows, future).await
+    }
+    pub(crate) fn body(&self) -> &ProtectedRoleEvidenceConsumptionBody { self.capture.body.get().expect("creation seal follows canonical target capture") }
+    pub(crate) fn current_scope(&self) -> &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution { &self.capture.issuance.owner_read.exact }
+    pub(crate) fn operation_id(&self) -> Uuid { self.capture.operation_id }
+    pub(crate) fn matches_transaction(&self, transaction: &super::SurrealTransactionContext<'_>) -> bool { std::ptr::eq(self.transaction, transaction) }
 }
 
 enum OperatorConsumptionReadback {
@@ -2541,6 +2965,46 @@ pub(crate) struct RolePublicationGuard<'a> {
 }
 
 impl RolePublicationGuard<'_> {
+    pub(crate) fn has_protected_role_evidence_target(&self, event_id: &str) -> bool {
+        let Some(crate::swarm_orchestration::model_lane::RoleConsumptionCommand::IssueInitialValidatorVerdict { issuance, .. }) = self.owner.consumer_command() else { return false; };
+        issuance.protected_consumption.get().is_some_and(|published|
+            self.require_unexpired().is_ok()
+                && published.body.consumer_operation_id == self.operation_id()
+                && &published.body.exact_consumer_scope == self.current_scope()
+                && published.body.targets.iter().any(|target| target.event_id == event_id))
+    }
+    pub(crate) async fn with_protected_role_authority_read<T, F>(
+        &self, record_kind: &str, record_id: &str, event_id: &str, record_sha256: &str, future: F,
+    ) -> Result<T, SurrealStorageError>
+    where F: std::future::Future<Output = Result<T, SurrealStorageError>> {
+        self.require_unexpired().map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        let binding = ProtectedRoleCreationBinding {
+            record_kind: record_kind.to_owned(), record_id: record_id.to_owned(), event_id: event_id.to_owned(),
+            record_sha256: record_sha256.to_owned(), operation_id: self.operation_id().to_string(), issuer_scope: self.current_scope().into(),
+            expected_child_read: self.owner.protected_child_read_authority(), expected_owner_read: self.owner.protected_owner_read_authority(),
+        };
+        if !self.owner.auth().created_role_rows.lock().map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?.contains(&binding) {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        PROTECTED_ROLE_CREATION_BINDING.scope(binding, future).await
+    }
+    pub(crate) async fn with_protected_role_evidence_consumption<T, F>(
+        &self, evidence_event_id: &str, future: F,
+    ) -> Result<T, SurrealStorageError>
+    where F: std::future::Future<Output = Result<T, SurrealStorageError>> {
+        self.require_unexpired().map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        let Some(crate::swarm_orchestration::model_lane::RoleConsumptionCommand::IssueInitialValidatorVerdict { issuance, .. }) = self.owner.consumer_command() else {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        };
+        let published = issuance.protected_consumption.get().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        if published.body.consumer_operation_id != self.operation_id() || &published.body.exact_consumer_scope != self.current_scope()
+            || !published.body.targets.iter().any(|target| target.event_id == evidence_event_id) {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        PROTECTED_ROLE_CONSUMPTION_BINDING.scope(ProtectedRoleConsumptionBinding {
+            binding_event_id: published.event_id.clone(), evidence_event_id: evidence_event_id.to_owned(), consumer_operation_id: self.operation_id().to_string(), expected_child_read: self.owner.protected_child_read_authority(), expected_owner_read: self.owner.protected_owner_read_authority(),
+        }, future).await
+    }
     pub(crate) fn operation_id(&self) -> Uuid { self.owner.operation_id() }
 
     pub(crate) fn current_scope(&self) -> &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution {
@@ -2558,6 +3022,17 @@ pub(crate) struct OwnerIssuanceSeal<'tx> {
 }
 
 impl OwnerIssuanceSeal<'_> {
+    pub(crate) async fn with_protected_role_authority_creation<T, F>(
+        &self, record_kind: &str, record_id: &str, event_id: &str, record_sha256: &str, future: F,
+    ) -> Result<T, SurrealStorageError>
+    where F: std::future::Future<Output = Result<T, SurrealStorageError>> {
+        let permitted = match self.command() {
+            crate::swarm_orchestration::model_lane::WorkspaceOwnerActionCommand::IssueArtifactApproval(_) => record_kind == "role_evidence",
+            crate::swarm_orchestration::model_lane::WorkspaceOwnerActionCommand::IssueRunnerDesignation(_) => record_kind == "validator_designation",
+        };
+        if !permitted { return Err(SurrealStorageError::TransactionAuthorityRequired); }
+        with_sealed_role_creation(record_kind, record_id, event_id, record_sha256, self.operation_id(), self.current_scope(), None, None, &self.permit.auth.created_role_rows, future).await
+    }
     pub(crate) fn operation_id(&self) -> Uuid { self.permit.command.operation_id() }
     pub(crate) fn current_scope(&self) -> &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution {
         &self.permit.auth.exact
@@ -2592,6 +3067,45 @@ pub(crate) struct CurrentConsumerSeal<'tx> {
 }
 
 impl CurrentConsumerSeal<'_> {
+    pub(crate) async fn with_protected_role_authority_creation<T, F>(
+        &self, record_kind: &str, record_id: &str, event_id: &str, record_sha256: &str, future: F,
+    ) -> Result<T, SurrealStorageError>
+    where F: std::future::Future<Output = Result<T, SurrealStorageError>> {
+        use crate::swarm_orchestration::model_lane::RoleConsumptionCommand;
+        if record_kind != "role_evidence" || !matches!(self.command(), RoleConsumptionCommand::IssueInitialValidatorVerdict { .. }
+            | RoleConsumptionCommand::RecordReviewCompletion { .. } | RoleConsumptionCommand::AcknowledgeRoutingStage { .. }) {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        with_sealed_role_creation(record_kind, record_id, event_id, record_sha256, self.operation_id(), self.current_scope(), self.owner.protected_child_read_authority(), self.owner.protected_owner_read_authority(), &self.owner.auth().created_role_rows, future).await
+    }
+    pub(crate) fn protected_consumption_body(&self) -> Option<&ProtectedRoleEvidenceConsumptionBody> {
+        match self.command() {
+            crate::swarm_orchestration::model_lane::RoleConsumptionCommand::IssueInitialValidatorVerdict { issuance, .. } =>
+                issuance.protected_consumption.get().map(|published| &published.body),
+            _ => None,
+        }
+    }
+    pub(crate) fn protected_consumption_event_id(&self) -> Option<&str> {
+        match self.command() {
+            crate::swarm_orchestration::model_lane::RoleConsumptionCommand::IssueInitialValidatorVerdict { issuance, .. } =>
+                issuance.protected_consumption.get().map(|published| published.event_id.as_str()),
+            _ => None,
+        }
+    }
+    pub(crate) async fn with_protected_role_evidence_consumption<T, F>(
+        &self, evidence_event_id: &str, future: F,
+    ) -> Result<T, SurrealStorageError>
+    where F: std::future::Future<Output = Result<T, SurrealStorageError>> {
+        let body = self.protected_consumption_body().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        if body.consumer_operation_id != self.operation_id() || &body.exact_consumer_scope != self.current_scope()
+            || !body.targets.iter().any(|target| target.event_id == evidence_event_id) {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let binding_event_id = self.protected_consumption_event_id().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        PROTECTED_ROLE_CONSUMPTION_BINDING.scope(ProtectedRoleConsumptionBinding {
+            binding_event_id: binding_event_id.to_owned(), evidence_event_id: evidence_event_id.to_owned(), consumer_operation_id: self.operation_id().to_string(), expected_child_read: self.owner.protected_child_read_authority(), expected_owner_read: self.owner.protected_owner_read_authority(),
+        }, future).await
+    }
     pub(crate) fn operation_id(&self) -> Uuid { self.owner.operation_id() }
     pub(crate) fn current_scope(&self) -> &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution {
         &self.owner.auth().exact
@@ -2612,7 +3126,11 @@ impl SurrealStorage {
     ) -> crate::swarm_orchestration::model_lane::ModelLaneResult<crate::swarm_orchestration::model_lane::RoleConsumptionResult> {
         use crate::swarm_orchestration::model_lane::{ModelLaneError, RoleConsumptionCommand,
             RoleConsumptionResult, RoutingStageAcknowledgementIntent};
-        if store.access().exact_read_scope() != Some(permit.current_scope())
+        let store_scope = match permit.capture.command() {
+            RoleConsumptionCommand::IssueInitialValidatorVerdict { issuance, .. } => issuance.delegating_scope(),
+            _ => permit.current_scope(),
+        };
+        if store.access().exact_read_scope() != Some(store_scope)
             || store.surreal_storage().resource_access_lifecycle() != self.resource_access_lifecycle()
         {
             return Err(ModelLaneError::AuthorityDenied("Operator consumption differs from its captured command or configured owner".into()));
@@ -2636,6 +3154,15 @@ impl SurrealStorage {
                     let command = owner.consumer_command().ok_or_else(||
                         ModelLaneError::IntegrityViolation("Operator consumer command is unavailable".into()))?;
                     let readback = match command {
+                        RoleConsumptionCommand::IssueInitialValidatorVerdict { operator, issuance, .. } => {
+                            issuance.require_current_registry()?;
+                            issuance.child_read.revalidate_read_in_child_transaction(&transaction, registry).await?;
+                            let prior = worker_provider.resolve_operator_role_evidence(&transaction, &seal, operator).await?;
+                            let completed = worker_provider.put_initial_validator_verdict(&transaction, &seal, &prior, issuance).await?;
+                            issuance.child_read.revalidate_read_in_child_transaction(&transaction, registry).await?;
+                            issuance.require_current_registry()?;
+                            OperatorConsumptionReadback::Completion(completed.into_readback())
+                        },
                         RoleConsumptionCommand::ReviewInvocation { selector, .. } => {
                             let checked = worker_provider.resolve_role_evidence(
                                 &transaction, &seal, selector,
@@ -2696,6 +3223,9 @@ impl SurrealStorage {
         let registry = retention.owner.consumer_registry().ok_or_else(||
             ModelLaneError::IntegrityViolation("Operator publication registry is unavailable".into()))?;
         retention.owner.auth().revalidate_for_publication(self, registry).await?;
+        if let Some(crate::swarm_orchestration::model_lane::RoleConsumptionCommand::IssueInitialValidatorVerdict { issuance, .. }) = retention.owner.consumer_command() {
+            issuance.revalidate(self).await?;
+        }
         let guard = RolePublicationGuard { owner: &retention.owner, _fence: &retention.fence };
         let result = self.with_record_user_scope(retention.owner.auth().record_user_scope(), async {
             match &committed {
@@ -2722,6 +3252,9 @@ impl SurrealStorage {
             }
         }).await?;
         retention.owner.auth().revalidate_for_publication(self, registry).await?;
+        if let Some(crate::swarm_orchestration::model_lane::RoleConsumptionCommand::IssueInitialValidatorVerdict { issuance, .. }) = retention.owner.consumer_command() {
+            issuance.revalidate(self).await?;
+        }
         guard.require_unexpired()?;
         self.complete_role_publication(RoleAuthorityPublicationCompletion {
             operation_id, owner: retention.owner.clone(),
@@ -3025,8 +3558,28 @@ impl SurrealStorage {
             handshake_role_authority::canonical::prepare_operator(&input.approval)
                 .map_err(|_| ResourceAuthorityError::InvalidInput("invalid artifact approval command"))?;
         }
+        let role_evidence_read = if matches!(&command,
+            crate::swarm_orchestration::model_lane::WorkspaceOwnerActionCommand::IssueRunnerDesignation(_))
+        {
+            let read_request = AuthorizationRequest {
+                session_token: auth.credentials.session_token.clone(),
+                channel_binding_hash: Some(auth.credentials.channel_binding_hash.clone()),
+                resource_kind: ResourceKind::Workspace,
+                external_resource_id: auth.workspace_id.clone(),
+                capability_id: "fs.read".to_owned(), action: ResourceAction::Read,
+            };
+            let mut read = capture_owned_canonical_role_auth(
+                self, &bootstrap.capability_registry, auth.credentials.clone(), read_request,
+            ).await?;
+            if read.exact != auth.exact || read.authority.resource_id != auth.authority.resource_id {
+                return Err(ResourceAuthorityError::InvalidInput("Owner role Read authority differs from issuance scope"));
+            }
+            read.requires_workspace_owner = true;
+            read.revalidate_for_publication(self, &bootstrap.capability_registry).await?;
+            Some(read)
+        } else { None };
         Ok(WorkspaceOwnerActionPermit {
-            auth, registry: bootstrap.capability_registry.clone(), command,
+            auth, role_evidence_read, registry: bootstrap.capability_registry.clone(), command,
         })
     }
 
@@ -3043,6 +3596,15 @@ impl SurrealStorage {
         let auth = capture_owned_canonical_role_auth(
             self, &bootstrap.capability_registry, credentials, request,
         ).await?;
+        if let crate::swarm_orchestration::model_lane::RoleConsumptionCommand::IssueInitialValidatorVerdict { operation_id, operator, issuance } = &command {
+            if *operation_id != issuance.operation_id || operator.expectation != issuance.operator.expectation
+                || operator.evidence_ref != issuance.operator.evidence_ref
+                || operator.designation_ref.is_some() || operator.producer.is_some()
+                || auth.exact != issuance.verdict.scope {
+                return Err(ResourceAuthorityError::InvalidInput("initial Validator sealed consumer differs"));
+            }
+            issuance.revalidate(self).await?;
+        }
         for selector in command.evidence_selectors() {
             let issuer = &selector.expectation.receipt_scope;
             if issuer.owner_account_id != auth.exact.owner_account_id
@@ -3127,6 +3689,7 @@ struct OwnedCanonicalAuthSnapshot {
     action: ResourceAction,
     exact: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
     requires_workspace_owner: bool,
+    created_role_rows: std::sync::Mutex<Vec<ProtectedRoleCreationBinding>>,
 }
 
 impl OwnedCanonicalAuthSnapshot {
@@ -3187,6 +3750,26 @@ impl OwnedCanonicalAuthSnapshot {
             capability_id: self.capability_id.clone(),
             action: self.action,
         }
+    }
+
+    async fn revalidate_read_in_child_transaction(
+        &self, transaction: &super::SurrealTransactionContext<'_>, registry: &crate::capabilities::CapabilityRegistry,
+    ) -> Result<(), ResourceAuthorityError> {
+        let denied = || ResourceAuthorityError::Denied { decision_id: self.decision.decision_id.clone() };
+        let current = super::current_record_user_scope().ok_or_else(denied)?;
+        if self.action != ResourceAction::Read || self.capability_id != "fs.read"
+            || current.session_token != self.credentials.session_token
+            || current.channel_binding_hash.as_deref() != Some(self.credentials.channel_binding_hash.as_str())
+            || current.session_id != self.decision.session_id || current.resource_id != self.decision.resource_id
+            || current.workspace_id.as_deref() != Some(self.workspace_id.as_str())
+            || !registry.profile_can(&self.authority.capability_profile_id, "fs.read").unwrap_or(false) {
+            return Err(denied());
+        }
+        let rows: Vec<RegistryPublicationAuthority> = transaction.query_values_at(REGISTRY_PUBLICATION_AUTHORITY,
+            RegistryPublicationBindings { resource: self.authority.resource_id.clone(), original_grant: self.authority.grant_id.clone(),
+                kind: self.authority.resource_kind.clone(), action: "read".to_owned(), capability: "fs.read".to_owned() }, 0).await?;
+        if rows.as_slice() != std::slice::from_ref(&self.authority) { return Err(denied()); }
+        self.require_unexpired()
     }
 
     async fn revalidate_in_transaction(
@@ -3345,6 +3928,7 @@ async fn capture_owned_canonical_role_auth(
         action,
         exact,
         requires_workspace_owner: false,
+        created_role_rows: std::sync::Mutex::new(Vec::new()),
     };
     snapshot.require_unexpired()?;
     Ok(snapshot)
@@ -3380,6 +3964,7 @@ impl ResourceAction {
 #[serde(rename_all = "snake_case")]
 pub enum ResourceKind {
     Workspace,
+    AccountAdministration,
     RichDocument,
     KnowledgeSource,
     KnowledgeCodeFile,
@@ -3399,6 +3984,7 @@ impl ResourceKind {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Workspace => "workspace",
+            Self::AccountAdministration => "account_administration",
             Self::RichDocument => "rich_document",
             Self::KnowledgeSource => "knowledge_source",
             Self::KnowledgeCodeFile => "knowledge_code_file",
@@ -4089,7 +4675,7 @@ impl SurrealStorage {
                     .await?;
                 authority
                     .query(
-                        "LET $eligible = SELECT id FROM principals WHERE id = $principal AND account_id = $account AND status = 'enabled' AND $space.account_id = $account AND $space.status = 'active' LIMIT 1; IF array::len($eligible) = 0 { THROW 'HSK-AUTH-CREDENTIAL-IDENTITY'; }; CREATE $credential SET account_id = $account, principal_id = $principal, access_space_id = $space, token_hash = $token_hash, status = 'active', expires_at = $expires_at, revoked_at = NONE, created_at = time::now();",
+                        "LET $eligible = SELECT id FROM principals WHERE id = $principal AND account_id = $account AND status = 'enabled' AND capability_profile_id != 'MemberEnrollmentAdministrator' AND $space.account_id = $account AND $space.status = 'active' LIMIT 1; IF array::len($eligible) = 0 { THROW 'HSK-AUTH-CREDENTIAL-IDENTITY'; }; CREATE $credential SET account_id = $account, principal_id = $principal, access_space_id = $space, token_hash = $token_hash, status = 'active', expires_at = $expires_at, revoked_at = NONE, created_at = time::now();",
                     )
                     .bind(("credential", credential))
                     .bind(("account", account))
@@ -4113,80 +4699,6 @@ impl SurrealStorage {
         })
     }
 
-    pub async fn exchange_session_credential(
-        &self,
-        account_id: &str,
-        principal_id: &str,
-        access_space_id: &str,
-        credential_token: &str,
-        channel_binding_hash: &str,
-        ttl: Duration,
-    ) -> Result<IssuedSession, ResourceAuthorityError> {
-        validate_uuid(account_id)?;
-        validate_uuid(principal_id)?;
-        validate_uuid(access_space_id)?;
-        validate_nonempty(credential_token)?;
-        validate_nonempty(channel_binding_hash)?;
-        if ttl.is_zero() {
-            return Err(ResourceAuthorityError::InvalidInput(
-                "session TTL must be greater than zero",
-            ));
-        }
-        let mut secret = [0_u8; 32];
-        getrandom::getrandom(&mut secret)
-            .map_err(|error| ResourceAuthorityError::Entropy(error.to_string()))?;
-        let token = hex::encode(secret);
-        let session_token_hash = sha256_hex(token.as_bytes());
-        let credential_token_hash = sha256_hex(credential_token.as_bytes());
-        let session_id = Uuid::now_v7().to_string();
-        let now = Utc::now();
-        let expires_at = now
-            + chrono::Duration::from_std(ttl).map_err(|_| {
-                ResourceAuthorityError::InvalidInput("session TTL is outside chrono range")
-            })?;
-        let namespace = self.config().namespace().to_owned();
-        let database = self.config().database().to_owned();
-        let account = RecordId::new("local_accounts", account_id.to_owned());
-        let principal = RecordId::new("principals", principal_id.to_owned());
-        let principal_key = principal_id.to_owned();
-        let space = RecordId::new("access_spaces", access_space_id.to_owned());
-        let session = RecordId::new("authenticated_sessions", session_id.clone());
-        let channel_binding_hash = channel_binding_hash.to_owned();
-
-        self.with_lease(move |client| {
-            Box::pin(async move {
-                let authority = client.clone();
-                authority.use_ns(namespace).use_db(database).await?;
-                authority
-                    .query(
-                        "BEGIN TRANSACTION; LET $eligible = SELECT VALUE id FROM session_exchange_credentials WHERE token_hash = $credential_token_hash AND status = 'active' AND revoked_at = NONE AND expires_at > time::now() AND account_id = $account AND principal_id = $principal AND access_space_id = $space AND account_id.status = 'enabled' AND principal_id.status = 'enabled' AND access_space_id.status = 'active' AND access_space_id.account_id = account_id LIMIT 1; IF array::len($eligible) = 0 { THROW 'HSK-AUTH-CREDENTIAL-DENIED'; }; UPDATE session_exchange_credentials SET status = 'consumed' WHERE id IN $eligible; CREATE $session_record SET account_id = $account, principal_id = $principal, access_space_id = $space, token_hash = $session_token_hash, channel_binding_hash = $channel_binding_hash, authentication_strength = 'credential_exchange', delegated_capabilities = $principal.delegated_capabilities, delegation_chain = [$principal_key], account_revocation_epoch = $account.revocation_epoch, principal_revocation_epoch = $principal.revocation_epoch, space_revocation_epoch = $space.revocation_epoch, policy_version = math::max([$account.policy_version, $principal.policy_version, $space.policy_version]), issued_at = $issued_at, expires_at = $expires_at, revoked_at = NONE; COMMIT TRANSACTION;",
-                    )
-                    .bind(("credential_token_hash", credential_token_hash))
-                    .bind(("session_token_hash", session_token_hash))
-                    .bind(("session_record", session))
-                    .bind(("account", account))
-                    .bind(("principal", principal))
-                    .bind(("principal_key", principal_key))
-                    .bind(("space", space))
-                    .bind(("channel_binding_hash", channel_binding_hash))
-                    .bind(("issued_at", Datetime::from(now)))
-                    .bind(("expires_at", Datetime::from(expires_at)))
-                    .await?
-                    .check()?;
-                Ok(())
-            })
-        })
-        .await?;
-
-        Ok(IssuedSession {
-            token,
-            account_id: account_id.to_owned(),
-            principal_id: principal_id.to_owned(),
-            session_id,
-            access_space_id: access_space_id.to_owned(),
-            expires_at,
-        })
-    }
 
     pub async fn revoke_session_credential(
         &self,
@@ -4245,7 +4757,7 @@ impl SurrealStorage {
                     .await?;
                 let mut lookup = authority
                         .query(
-                            "SELECT account_id.revocation_epoch AS account_epoch, revocation_epoch AS principal_epoch, $space.revocation_epoch AS space_epoch, math::max([account_id.policy_version, policy_version, $space.policy_version]) AS policy_version, delegated_capabilities FROM $principal WHERE account_id = $account AND status = 'enabled' AND $space.account_id = $account AND $space.status = 'active';",
+                            "SELECT account_id.revocation_epoch AS account_epoch, revocation_epoch AS principal_epoch, $space.revocation_epoch AS space_epoch, math::max([account_id.policy_version, policy_version, $space.policy_version]) AS policy_version, delegated_capabilities FROM $principal WHERE account_id = $account AND status = 'enabled' AND capability_profile_id != 'MemberEnrollmentAdministrator' AND $space.account_id = $account AND $space.status = 'active';",
                     )
                     .bind(("account", account.clone()))
                     .bind(("principal", principal.clone()))
@@ -4316,6 +4828,9 @@ impl SurrealStorage {
         parent_resource_id: Option<&str>,
         classification: &str,
     ) -> Result<RegisteredResource, ResourceAuthorityError> {
+        if resource_kind == ResourceKind::AccountAdministration {
+            return Err(ResourceAuthorityError::InvalidInput("explicit authorized administration lifetime required"));
+        }
         validate_uuid(&owner.account_id)?;
         validate_uuid(&owner.principal_id)?;
         validate_uuid(&owner.access_space_id)?;
@@ -5574,3 +6089,6302 @@ fn sha256_hex(bytes: &[u8]) -> String {
 
 #[cfg(all(test, feature = "runtime-full", feature = "os-keychain"))]
 mod producer_authority_tests;
+
+// NEW Source027 private Account-to-schema binding consumer.
+// Defined in resource_authority.rs, alongside existing protected role bindings.
+// Native validator_sessions child module alone constructs it after genuine
+// same-frame child Create+Read capture and full canonical envelope attestation.
+// The existing append phase overwrites this key after every ordinary binding.
+#[derive(Clone, SurrealValue)]
+struct ProtectedValidatorAssociationBinding {
+    operation_id: String,
+    record_id: String,
+    event_id: String,
+    original_stream: String,
+    record_json: String,
+    outer_json: String,
+    original_scope: ProtectedRoleScopeBinding,
+    child_scope: ProtectedRoleScopeBinding,
+    expected_child_create: RegistryPublicationAuthority,
+    expected_child_read: RegistryPublicationAuthority,
+}
+
+tokio::task_local! {
+    static PROTECTED_VALIDATOR_ASSOCIATION_BINDING: ProtectedValidatorAssociationBinding;
+}
+
+fn append_validator_association_binding(bindings: &mut surrealdb::types::Value) {
+    if let surrealdb::types::Value::Object(object) = bindings {
+        object.insert(
+            "wp012_validator_association",
+            PROTECTED_VALIDATOR_ASSOCIATION_BINDING.try_with(Clone::clone).ok(),
+        );
+    }
+}
+
+
+
+use handshake_member_enrollment::command_plan as enrollment;
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+use crate::model_runtime::cloud::member_enrollment::{AccountError, AccountFuture, AccountOriginalController, AccountResult, AccountRevision, OriginalIssueIntent, OriginalIssueRow, OriginalIssueState, OriginalSubmission};
+
+
+// RAM DRAFT ONLY. Prospective addition to resource_authority.rs.
+// Not applied, adopted, compiled, or a provider/pin readiness claim.
+
+#[derive(Clone)]
+struct CapturedAdministrationAuthority {
+    credentials: RoleAuthorityAuthInput,
+    session: super::local_accounts::LocalSessionContext,
+    decision: AuthorizationDecision,
+    facts: RegistryPublicationAuthority,
+    exact: enrollment::IdentityScope,
+    original_scope: RecordUserScope,
+}
+struct CapturedMemberEnrollment {
+    plan: enrollment::EnrollmentPlan,
+    enroll: CapturedAdministrationAuthority,
+    assign: CapturedAdministrationAuthority,
+    lifetime: CapturedAdministrationLifetime,
+}
+struct CapturedMemberRevocation {
+    plan: enrollment::RevocationPlan,
+    current_revoker: CapturedAdministrationAuthority,
+}
+fn enrollment_time(value: &Datetime) -> Result<enrollment::Timestamp, ResourceAuthorityError> {
+    let value = value.clone().into_inner();
+    enrollment::Timestamp::new(value.timestamp(), value.timestamp_subsec_nanos())
+        .map_err(|_| ResourceAuthorityError::InvalidInput("invalid enrollment timestamp"))
+}
+fn enrollment_source(facts: &RegistryPublicationAuthority)
+    -> Result<enrollment::SourceRef, ResourceAuthorityError>
+{
+    enrollment::SourceRef::new(
+        record_key(facts.resource_id.clone())?, record_key(facts.grant_id.clone())?,
+        facts.grant_version, facts.policy_versions.clone(), facts.revocation_epochs.clone(),
+        facts.grant_expires_at.as_ref().map(enrollment_time).transpose()?,
+    ).map_err(|_| ResourceAuthorityError::InvalidInput("invalid enrollment source"))
+}
+impl SurrealStorage {
+    async fn capture_current_administration(
+        &self, registry: &crate::capabilities::CapabilityRegistry,
+        credentials: RoleAuthorityAuthInput, kind: enrollment::CommandKind,
+        administrator_resource: &str, workspace: &str,
+    ) -> Result<CapturedAdministrationAuthority, ResourceAuthorityError> {
+        // REQUIRED OWNER DEPENDENCY: prospective ResourceKind::AccountAdministration,
+        // canonical registered resource, parent-workspace link, and capability/profile gates.
+        let action = match kind.action() {
+            enrollment::AdminAction::Create => ResourceAction::Create,
+            enrollment::AdminAction::Update => ResourceAction::Update,
+        };
+        let session = self.authenticate_local_session(
+            &credentials.session_token, &credentials.channel_binding_hash,
+        ).await?;
+        let decision = self.authorize_protected_resource(AuthorizationRequest {
+            session_token: credentials.session_token.clone(),
+            channel_binding_hash: Some(credentials.channel_binding_hash.clone()),
+            capability_id: kind.capability_id().to_owned(),
+            resource_kind: ResourceKind::AccountAdministration,
+            external_resource_id: administrator_resource.to_owned(), action,
+        }).await?;
+        let denied = || ResourceAuthorityError::Denied { decision_id: decision.decision_id.clone() };
+        // Each identity axis is checked independently; never substitute Account for Principal/Space.
+        if session.identity.account_id != decision.account_id
+            || session.identity.principal_id != decision.principal_id
+            || session.session_id != decision.session_id
+            || session.identity.access_space_id != decision.access_space_id
+            || session.delegation_chain != decision.delegation_chain
+            || !registry.profile_can(&decision.capability_profile_id, kind.capability_id()).unwrap_or(false)
+        { return Err(denied()); }
+        let administration = self.canonical_resource_locator(
+            ResourceKind::AccountAdministration, administrator_resource,
+        ).await?.ok_or_else(denied)?;
+        let parent = self.canonical_resource_locator(
+            ResourceKind::Workspace, workspace,
+        ).await?.ok_or_else(denied)?;
+        if administration.id != RecordId::new("protected_resources", decision.resource_id.clone())
+            || administration.owner_account_id != RecordId::new("local_accounts", decision.account_id.clone())
+            || administration.access_space_id != RecordId::new("access_spaces", decision.access_space_id.clone())
+            || administration.lifecycle_state != "active"
+            || administration.parent_resource_id.as_ref() != Some(&parent.id)
+            || parent.owner_account_id != administration.owner_account_id
+            || parent.access_space_id != administration.access_space_id
+            || parent.lifecycle_state != "active"
+        { return Err(denied()); }
+        let original_scope = RecordUserScope {
+            grant_id: Some(decision.grant_id.clone()), workspace_id: Some(workspace.to_owned()),
+            session_token: credentials.session_token.clone(),
+            channel_binding_hash: Some(credentials.channel_binding_hash.clone()),
+            resource_id: decision.resource_id.clone(), session_id: decision.session_id.clone(),
+            capability_id: kind.capability_id().to_owned(), action,
+        };
+        let bindings = RegistryPublicationBindings {
+            resource: administration.id, original_grant: RecordId::new("resource_grants", decision.grant_id.clone()),
+            kind: ResourceKind::AccountAdministration.as_str().to_owned(),
+            action: action.as_str().to_owned(), capability: kind.capability_id().to_owned(),
+        };
+        let rows: Vec<RegistryPublicationAuthority> = self.with_record_user_scope(
+            original_scope.clone(), self.with_data_operation(move |database| {
+                Box::pin(async move { database.query_values(REGISTRY_PUBLICATION_AUTHORITY, bindings).await })
+            }),
+        ).await?;
+        let [facts] = rows.as_slice() else { return Err(denied()); };
+        if record_key(facts.account_id.clone())? != decision.account_id
+            || record_key(facts.principal_id.clone())? != decision.principal_id
+            || record_key(facts.session_id.clone())? != decision.session_id
+            || record_key(facts.access_space_id.clone())? != decision.access_space_id
+            || record_key(facts.resource_id.clone())? != decision.resource_id
+            || record_key(facts.grant_id.clone())? != decision.grant_id
+            || facts.capability_profile_id != decision.capability_profile_id
+            || facts.delegation_chain != decision.delegation_chain
+            || facts.policy_versions.first().is_none_or(|policy| parent.policy_version > *policy)
+            || facts.session_expires_at.clone().into_inner() <= Utc::now()
+            || facts.grant_expires_at.as_ref().is_some_and(|value| value.clone().into_inner() <= Utc::now())
+        { return Err(denied()); }
+        let exact = enrollment::IdentityScope::new(
+            decision.account_id.clone(), decision.principal_id.clone(), decision.session_id.clone(),
+            decision.access_space_id.clone(), workspace.to_owned(),
+        ).map_err(|_| ResourceAuthorityError::InvalidInput("invalid administration identity"))?;
+        Ok(CapturedAdministrationAuthority { credentials, session, decision, facts: facts.clone(), exact, original_scope })
+    }
+
+    async fn capture_member_enrollment_first(
+        &self, registry: &crate::capabilities::CapabilityRegistry,
+        credentials: RoleAuthorityAuthInput, plan: enrollment::EnrollmentPlan,
+        lifetime: CapturedAdministrationLifetime,
+    ) -> Result<CapturedMemberEnrollment, ResourceAuthorityError> {
+        use enrollment::CommandKind;
+        let [create, assign] = plan.intents();
+        if create.kind() != CommandKind::Enroll || assign.kind() != CommandKind::AssignFixedMemberProfile {
+            return Err(ResourceAuthorityError::InvalidInput("enrollment plan actions differ"));
+        }
+        let enroll = self.capture_current_administration(registry, credentials.clone(),
+            create.kind(), create.administrator_resource(), create.authorizer().workspace_id()).await?;
+        let assignment = self.capture_current_administration(registry, credentials,
+            assign.kind(), assign.administrator_resource(), assign.authorizer().workspace_id()).await?;
+        for (intent, captured) in [(create, &enroll), (assign, &assignment)] {
+            if intent.authorizer() != &captured.exact || intent.source() != &enrollment_source(&captured.facts)? {
+                return Err(ResourceAuthorityError::InvalidInput("initial enrollment source differs"));
+            }
+        }
+        if enroll.exact != assignment.exact
+            || enrollment_time(&enroll.facts.session_expires_at)? != plan.descriptor().session_expires_at()
+            || enrollment_time(&assignment.facts.session_expires_at)? != plan.descriptor().session_expires_at()
+        { return Err(ResourceAuthorityError::InvalidInput("enrollment session binding differs")); }
+        lifetime.require_matches_source(&enroll.facts)?;
+        lifetime.require_matches_source(&assignment.facts)?;
+        lifetime.require_initial_descriptor(plan.descriptor())?;
+        handshake_member_enrollment::invitation::validate_expiry(plan.descriptor())
+            .map_err(|_| ResourceAuthorityError::InvalidInput("enrollment deadline differs"))?;
+        Ok(CapturedMemberEnrollment { plan, enroll, assign: assignment, lifetime })
+    }
+
+    async fn capture_member_revocation_first(
+        &self, registry: &crate::capabilities::CapabilityRegistry,
+        credentials: RoleAuthorityAuthInput, plan: enrollment::RevocationPlan,
+    ) -> Result<CapturedMemberRevocation, ResourceAuthorityError> {
+        let intent = plan.intent();
+        if intent.kind() != enrollment::CommandKind::RevokeEnrollment {
+            return Err(ResourceAuthorityError::InvalidInput("revocation plan action differs"));
+        }
+        let current = self.capture_current_administration(registry, credentials,
+            intent.kind(), intent.administrator_resource(), intent.authorizer().workspace_id()).await?;
+        if current.exact != *plan.request().current_revoker()
+            || enrollment_source(&current.facts)? != *plan.request().source()
+            || plan.request().request_id() == plan.request().enrollment_operation_id()
+        { return Err(ResourceAuthorityError::InvalidInput("current revoker binding differs")); }
+        // No comparison with original_enroller: an independently authorized revoker is allowed.
+        Ok(CapturedMemberRevocation { plan, current_revoker: current })
+    }
+}
+// Transaction/publication adapter remains pending the exact provider contracts:
+// re-read EACH captured grant/five/chain under its original action in the borrowed transaction;
+// preserve immutable original intent on retry and use separate fresh current gates;
+// never call the *_first methods to reconstruct/reissue an existing intent.
+
+struct CurrentEnrollmentReplayGates {
+    enroll: CapturedAdministrationAuthority,
+    assign: CapturedAdministrationAuthority,
+    lifetime: CapturedAdministrationLifetime,
+}
+impl SurrealStorage {
+    async fn capture_member_enrollment_replay(
+        &self, registry: &crate::capabilities::CapabilityRegistry,
+        credentials: RoleAuthorityAuthInput, original: &enrollment::EnrollmentDescriptor,
+        lifetime: CapturedAdministrationLifetime,
+    ) -> Result<CurrentEnrollmentReplayGates, ResourceAuthorityError> {
+        let issuer = original.original_enroller();
+        let enroll = self.capture_current_administration(registry, credentials.clone(),
+            enrollment::CommandKind::Enroll, original.administrator_resource(), issuer.workspace_id()).await?;
+        let assign = self.capture_current_administration(registry, credentials,
+            enrollment::CommandKind::AssignFixedMemberProfile,
+            original.administrator_resource(), issuer.workspace_id()).await?;
+        for gate in [&enroll, &assign] {
+            if gate.exact.owner_account_id() != issuer.owner_account_id()
+                || gate.exact.actor_principal_id() != issuer.actor_principal_id()
+                || gate.exact.access_space_id() != issuer.access_space_id()
+                || gate.exact.workspace_id() != issuer.workspace_id()
+            { return Err(ResourceAuthorityError::InvalidInput("enrollment replay actor differs")); }
+        }
+        if enroll.exact != assign.exact {
+            return Err(ResourceAuthorityError::InvalidInput("enrollment replay current session differs"));
+        }
+        lifetime.require_matches_source(&enroll.facts)?;
+        lifetime.require_matches_source(&assign.facts)?;
+        lifetime.require_preserved_expiry(original)?;
+        // Deliberately retain the original descriptor, sources, session, issue/expiry and verifier.
+        // These gates authorize redelivery only. They cannot create a replacement descriptor/secret.
+        Ok(CurrentEnrollmentReplayGates { enroll, assign, lifetime })
+    }
+    async fn capture_member_revocation_replay(
+        &self, registry: &crate::capabilities::CapabilityRegistry,
+        credentials: RoleAuthorityAuthInput, original_request: &enrollment::RevocationRequest,
+    ) -> Result<CapturedAdministrationAuthority, ResourceAuthorityError> {
+        let actor = original_request.current_revoker();
+        let gate = self.capture_current_administration(registry, credentials,
+            enrollment::CommandKind::RevokeEnrollment,
+            original_request.administrator_resource(), actor.workspace_id()).await?;
+        if gate.exact.owner_account_id() != actor.owner_account_id()
+            || gate.exact.actor_principal_id() != actor.actor_principal_id()
+            || gate.exact.access_space_id() != actor.access_space_id()
+            || gate.exact.workspace_id() != actor.workspace_id()
+        { return Err(ResourceAuthorityError::InvalidInput("revocation replay actor differs")); }
+        // No equality with the original enroller or replacement of the committed request identity.
+        Ok(gate)
+    }
+}
+
+// RAM ONLY: required input from the AccountAdministration registration/schema owner.
+// No storage-field name, row, policy default, or provider implementation is asserted here.
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub(super) enum AdministrationLifetimeChoice {
+    NoExpiry,
+    ExpiresAt(enrollment::Timestamp),
+}
+#[derive(Clone, Eq, PartialEq)]
+struct CapturedAdministrationLifetime {
+    administration_resource_id: RecordId,
+    policy_version: i64,
+    choice: AdministrationLifetimeChoice,
+}
+impl CapturedAdministrationLifetime {
+    fn source030_bound(&self) -> Option<enrollment::Timestamp> {
+        match self.choice {
+            AdministrationLifetimeChoice::NoExpiry => None,
+            AdministrationLifetimeChoice::ExpiresAt(value) => Some(value),
+        }
+    }
+    fn require_matches_source(&self, facts: &RegistryPublicationAuthority)
+        -> Result<(), ResourceAuthorityError>
+    {
+        // The inspected projection orders policy versions: grant, resource, Account,
+        // Principal, AccessSpace, session. A missing resource-policy version is an error.
+        if self.administration_resource_id != facts.resource_id
+            || facts.policy_versions.get(1) != Some(&self.policy_version)
+        {
+            return Err(ResourceAuthorityError::InvalidInput("administration policy source differs"));
+        }
+        Ok(())
+    }
+    fn require_initial_descriptor(&self, original: &enrollment::EnrollmentDescriptor)
+        -> Result<(), ResourceAuthorityError>
+    {
+        if original.policy_expires_at() != self.source030_bound() {
+            return Err(ResourceAuthorityError::InvalidInput("enrollment policy bound differs"));
+        }
+        Ok(())
+    }
+    fn require_preserved_expiry(&self, original: &enrollment::EnrollmentDescriptor)
+        -> Result<(), ResourceAuthorityError>
+    {
+        if let AdministrationLifetimeChoice::ExpiresAt(current) = self.choice {
+            if original.expires_at() > current {
+                return Err(ResourceAuthorityError::InvalidInput("current policy no longer permits original expiry"));
+            }
+        }
+        Ok(())
+    }
+}
+// Required provider-owned service, not an implemented or existing API:
+// read_registered_administration_lifetime(
+//     tx: &SurrealTransactionContext<'_>,
+//     current_record_scope: &RecordUserScope,
+//     administration_resource_id: &RecordId,
+//     expected_policy_version: i64,
+// ) -> Result<CapturedAdministrationLifetime, ResourceAuthorityError>
+//
+// The provider constructs this value ONLY from the protected canonical registered
+// AccountAdministration resource's closed lifetime choice and actual resource identity/version.
+// Absent/malformed/unsupported/ambiguous storage values return an error, never NoExpiry.
+// The identical service runs during protected capture and again before commit;
+// equality includes resource identity, policy version, choice and exact timestamp.
+// It must use the owner-selected closed metadata path; no general resource_policies table.
+//
+
+
+// These comparison guards consume provider-returned current observations from the SAME
+// authorized borrowed transaction. They neither acquire a transaction nor mint observation authority.
+fn require_precommit_administration_pair(
+    enroll: &CapturedAdministrationAuthority, assign: &CapturedAdministrationAuthority,
+    captured_lifetime: &CapturedAdministrationLifetime,
+    current_enroll: &RegistryPublicationAuthority, current_assign: &RegistryPublicationAuthority,
+    current_lifetime: &CapturedAdministrationLifetime,
+) -> Result<(), ResourceAuthorityError> {
+    if current_enroll != &enroll.facts || current_assign != &assign.facts
+        || current_lifetime != captured_lifetime
+    {
+        return Err(ResourceAuthorityError::InvalidInput("administration precommit observation changed"));
+    }
+    current_lifetime.require_matches_source(current_enroll)?;
+    current_lifetime.require_matches_source(current_assign)?;
+    let now = Utc::now();
+    for facts in [current_enroll, current_assign] {
+        if facts.session_expires_at.clone().into_inner() <= now
+            || facts.grant_expires_at.as_ref().is_some_and(|expiry| expiry.clone().into_inner() <= now)
+        {
+            return Err(ResourceAuthorityError::InvalidInput("administration precommit authority expired"));
+        }
+    }
+    Ok(())
+}
+impl CapturedMemberEnrollment {
+    fn require_precommit(
+        &self, current_enroll: &RegistryPublicationAuthority,
+        current_assign: &RegistryPublicationAuthority,
+        current_lifetime: &CapturedAdministrationLifetime,
+    ) -> Result<(), ResourceAuthorityError> {
+        require_precommit_administration_pair(
+            &self.enroll, &self.assign, &self.lifetime,
+            current_enroll, current_assign, current_lifetime,
+        )?;
+        current_lifetime.require_initial_descriptor(self.plan.descriptor())?;
+        handshake_member_enrollment::invitation::validate_expiry(self.plan.descriptor())
+            .map_err(|_| ResourceAuthorityError::InvalidInput("enrollment precommit deadline differs"))?;
+        let now = enrollment_time(&Datetime::from(Utc::now()))?;
+        if self.plan.descriptor().expires_at() <= now {
+            return Err(ResourceAuthorityError::InvalidInput("enrollment invitation expired before first commit"));
+        }
+        Ok(())
+    }
+}
+impl CurrentEnrollmentReplayGates {
+    fn require_precommit(
+        &self, original: &enrollment::EnrollmentDescriptor,
+        current_enroll: &RegistryPublicationAuthority,
+        current_assign: &RegistryPublicationAuthority,
+        current_lifetime: &CapturedAdministrationLifetime,
+    ) -> Result<(), ResourceAuthorityError> {
+        require_precommit_administration_pair(
+            &self.enroll, &self.assign, &self.lifetime,
+            current_enroll, current_assign, current_lifetime,
+        )?;
+        current_lifetime.require_preserved_expiry(original)
+    }
+}
+
+
+// STEP2 RAM-ONLY prospective additions to resource_authority.rs.
+// ResourceKind addition: AccountAdministration.
+// ResourceKind::as_str addition: Self::AccountAdministration => "account_administration".
+// Existing register_protected_resource entrypoint retains its signature and legacy body.
+// Add this guard BEFORE that body's existing UUID allocation/with_lease:
+// if resource_kind == ResourceKind::AccountAdministration {
+//     return Err(ResourceAuthorityError::InvalidInput("explicit authorized administration lifetime required"));
+// }
+// Thus the old API never creates an Admin resource with absent/default lifetime.
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum AdministrationLifetimeRow {
+    NoExpiry,
+    ExpiresAt(Datetime),
+}
+impl AdministrationLifetimeRow {
+    fn from_explicit(choice: AdministrationLifetimeChoice) -> Result<Self, ResourceAuthorityError> {
+        match choice {
+            AdministrationLifetimeChoice::NoExpiry => Ok(Self::NoExpiry),
+            AdministrationLifetimeChoice::ExpiresAt(timestamp) => Ok(Self::ExpiresAt(Datetime::from(
+                chrono::DateTime::<Utc>::from_timestamp(timestamp.unix_seconds(), timestamp.nanoseconds())
+                    .ok_or(ResourceAuthorityError::InvalidInput("administration policy timestamp outside host range"))?
+            ))),
+        }
+    }
+    fn closed_choice(&self) -> Result<AdministrationLifetimeChoice, ResourceAuthorityError> {
+        match self {
+            Self::NoExpiry => Ok(AdministrationLifetimeChoice::NoExpiry),
+            Self::ExpiresAt(expiry) => Ok(AdministrationLifetimeChoice::ExpiresAt(enrollment_time(expiry)?)),
+        }
+    }
+}
+impl SurrealValue for AdministrationLifetimeRow {
+    fn kind_of() -> surrealdb::types::Kind {
+        <surrealdb::types::Object as SurrealValue>::kind_of()
+    }
+    fn is_value(value: &surrealdb::types::Value) -> bool {
+        Self::from_value(value.clone()).is_ok()
+    }
+    fn into_value(self) -> surrealdb::types::Value {
+        let mut object = surrealdb::types::Object::new();
+        match self {
+            Self::NoExpiry => {
+                object.insert("mode", "no_expiry".to_owned());
+            }
+            Self::ExpiresAt(expiry) => {
+                object.insert("mode", "expires_at".to_owned());
+                object.insert("expires_at", expiry);
+            }
+        }
+        object.into_value()
+    }
+    fn from_value(value: surrealdb::types::Value) -> Result<Self, surrealdb::types::Error> {
+        use surrealdb::types::Value;
+        if let Value::Object(object) = value {
+            match (object.get("mode"), object.get("expires_at"), object.len()) {
+                (Some(Value::String(mode)), None, 1) if mode == "no_expiry" => {
+                    return Ok(Self::NoExpiry);
+                }
+                (Some(Value::String(mode)), Some(Value::Datetime(expiry)), 2) if mode == "expires_at" => {
+                    return Ok(Self::ExpiresAt(expiry.clone()));
+                }
+                _ => {}
+            }
+        }
+        Err(surrealdb::types::Error::validation(
+            "administration lifetime must contain exactly mode=no_expiry or mode=expires_at with a datetime expires_at".to_owned(),
+            None,
+        ))
+    }
+}
+
+// New field on RegistryPublicationAuthority, not any Source030/policy structure:
+// administration_lifetime: Option<AdministrationLifetimeRow>,
+// Append ONLY this expression to the existing REGISTRY_PUBLICATION_AUTHORITY projection:
+// resource_id.account_administration_lifetime AS administration_lifetime
+// Keep the canonical_grant_query predicate, complete vector order and both expiry columns intact.
+// Legacy resource kinds have None metadata. None on the NEW Admin kind is an error.
+
+#[derive(Clone, Eq, PartialEq)]
+pub(super) struct AccountAdministrationRegistrationInput {
+    pub(super) external_resource_id: String,
+    pub(super) parent_workspace_external_id: String,
+    pub(super) classification: String,
+    pub(super) resource_policy_version: i64,
+    pub(super) lifetime: AdministrationLifetimeChoice,
+}
+#[derive(SurrealValue)]
+struct AdministrationRegistrationBindings {
+    resource: RecordId,
+    account: RecordId,
+    principal: RecordId,
+    session: RecordId,
+    space: RecordId,
+    parent: RecordId,
+    external: String,
+    classification: String,
+    policy_version: i64,
+    lifetime: AdministrationLifetimeRow,
+}
+#[derive(SurrealValue)]
+struct AdministrationRegistrationRow {
+    id: RecordId,
+    resource_kind: String,
+    created_by_principal_id: RecordId,
+    created_in_session_id: RecordId,
+    external_resource_id: String,
+    owner_account_id: RecordId,
+    access_space_id: RecordId,
+    parent_resource_id: RecordId,
+    policy_version: i64,
+    lifecycle_state: String,
+    classification: String,
+    account_administration_lifetime: AdministrationLifetimeRow,
+}
+
+pub(super) struct CapturedAccountAdministrationRegistrationAuthority<'tx> {
+    confirmation: ConfirmedFirstOwnerAdministrationRegistration<'tx>,
+    input: AccountAdministrationRegistrationInput,
+}
+
+impl<'tx> CapturedAccountAdministrationRegistrationAuthority<'tx> {
+    pub(super) fn from_confirmation(
+        confirmation: ConfirmedFirstOwnerAdministrationRegistration<'tx>,
+        input: AccountAdministrationRegistrationInput,
+    ) -> Result<Self, ResourceAuthorityError> {
+        confirmation.require_input(&input)?;
+        Ok(Self { confirmation, input })
+    }
+
+    fn owner(&self) -> &ProvisionedIdentity { self.confirmation.owner() }
+    fn session_id(&self) -> &str { self.confirmation.session_id() }
+    fn parent_workspace(&self) -> &CanonicalResourceLocator {
+        self.confirmation.parent_workspace()
+    }
+    fn parent_workspace_external_id(&self) -> &str {
+        self.confirmation.parent_workspace_external_id()
+    }
+
+    fn require_input(
+        &self,
+        input: &AccountAdministrationRegistrationInput,
+    ) -> Result<(), ResourceAuthorityError> {
+        if input != &self.input {
+            return Err(ResourceAuthorityError::InvalidInput(
+                "administration registration original input differs",
+            ));
+        }
+        self.confirmation.require_input(input)
+    }
+
+    fn require_original_resource(&self, resource: &RecordId) -> Result<(), ResourceAuthorityError> {
+        let key = record_key(resource.clone())?;
+        validate_uuid(&key)?;
+        if resource != &RecordId::new("protected_resources", key)
+            || resource != self.confirmation.administration_resource()
+        {
+            return Err(ResourceAuthorityError::InvalidInput(
+                "administration registration original resource differs",
+            ));
+        }
+        Ok(())
+    }
+
+    async fn require_current_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+    ) -> Result<(), ResourceAuthorityError> {
+        self.confirmation.require_input(&self.input)?;
+        self.confirmation.require_current_in_transaction(transaction).await
+    }
+}
+
+impl SurrealStorage {
+    pub(super) async fn register_account_administration_in_transaction(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        authority: &CapturedAccountAdministrationRegistrationAuthority<'_>,
+        original_resource: &RecordId,
+        input: AccountAdministrationRegistrationInput,
+    ) -> Result<RegisteredResource, ResourceAuthorityError> {
+        authority.require_current_in_transaction(transaction).await?;
+        authority.require_original_resource(original_resource)?;
+        authority.require_input(&input)?;
+        let owner = authority.owner();
+        for id in [&owner.account_id, &owner.principal_id, &owner.access_space_id] { validate_uuid(id)?; }
+        validate_uuid(authority.session_id())?;
+        validate_nonempty(&input.external_resource_id)?;
+        validate_nonempty(&input.classification)?;
+        if input.resource_policy_version < 1
+            || input.parent_workspace_external_id != authority.parent_workspace_external_id()
+        { return Err(ResourceAuthorityError::InvalidInput("administration registration binding differs")); }
+        let parent = authority.parent_workspace();
+        let account = RecordId::new("local_accounts", owner.account_id.clone());
+        let space = RecordId::new("access_spaces", owner.access_space_id.clone());
+        if parent.owner_account_id != account || parent.access_space_id != space
+            || parent.lifecycle_state != "active"
+        { return Err(ResourceAuthorityError::InvalidInput("administration parent scope differs")); }
+        let lifetime = AdministrationLifetimeRow::from_explicit(input.lifetime)?;
+        let expected_external = input.external_resource_id.clone();
+        let expected_classification = input.classification.clone();
+        let expected_policy = input.resource_policy_version;
+        let expected_parent = parent.id.clone();
+        let expected_lifetime = lifetime.clone();
+        let rows: Vec<AdministrationRegistrationRow> = transaction.query_values_at(
+            "LET $existing = SELECT VALUE id FROM protected_resources WHERE resource_kind = 'account_administration' AND external_resource_id = $external LIMIT 2; \
+             IF array::len($existing) > 1 { THROW 'HSK-403-PROTECTED-RESOURCE'; }; \
+             IF array::len($existing) = 0 { \
+                 CREATE $resource SET resource_kind = 'account_administration', external_resource_id = $external, \
+                 owner_account_id = $account, created_by_principal_id = $principal, created_in_session_id = $session, \
+                 access_space_id = $space, parent_resource_id = $parent, schema_version = 1, lifecycle_state = 'active', \
+                 policy_version = $policy_version, classification = $classification, \
+                 account_administration_lifetime = $lifetime, \
+                 storage_locator_hash = crypto::sha256('account_administration:' + $external), \
+                 created_at = time::now(), updated_at = time::now(); \
+             }; \
+             SELECT id, resource_kind, created_by_principal_id, created_in_session_id, external_resource_id, owner_account_id, access_space_id, parent_resource_id, \
+                 policy_version, lifecycle_state, classification, account_administration_lifetime \
+                 FROM protected_resources WHERE resource_kind = 'account_administration' AND external_resource_id = $external LIMIT 2;",
+            AdministrationRegistrationBindings {
+                resource: original_resource.clone(),
+                account: account.clone(), principal: RecordId::new("principals", owner.principal_id.clone()),
+                session: RecordId::new("authenticated_sessions", authority.session_id().to_owned()),
+                space: space.clone(), parent: expected_parent.clone(), external: input.external_resource_id,
+                classification: input.classification, policy_version: expected_policy, lifetime,
+            }, 3,
+        ).await?;
+        let [row] = rows.as_slice() else {
+            return Err(ResourceAuthorityError::InvalidInput("administration registration missing or ambiguous"));
+        };
+        if row.id != *original_resource || row.resource_kind != ResourceKind::AccountAdministration.as_str()
+            || row.created_by_principal_id != RecordId::new("principals", owner.principal_id.clone())
+            || row.created_in_session_id != RecordId::new("authenticated_sessions", authority.session_id().to_owned())
+            || row.external_resource_id != expected_external || row.owner_account_id != account
+            || row.access_space_id != space || row.parent_resource_id != expected_parent
+            || row.policy_version != expected_policy || row.lifecycle_state != "active"
+            || row.classification != expected_classification
+            || row.account_administration_lifetime != expected_lifetime
+        { return Err(ResourceAuthorityError::InvalidInput("immutable administration registration differs")); }
+        row.account_administration_lifetime.closed_choice()?;
+        authority.require_current_in_transaction(transaction).await?;
+        Ok(RegisteredResource {
+            resource_id: record_key(row.id.clone())?, resource_kind: ResourceKind::AccountAdministration,
+            external_resource_id: row.external_resource_id.clone(),
+        })
+    }
+
+}
+
+#[derive(Clone, PartialEq, Eq, SurrealValue)]
+struct MemberEnrollmentRow {
+    id: RecordId,
+    operation_id: String,
+    descriptor_hex: String,
+    descriptor_sha256: String,
+    account_id: RecordId,
+    principal_id: RecordId,
+    access_space_id: RecordId,
+    account_name: String,
+    token_digest: String,
+    purpose: String,
+    issued_at: Datetime,
+    expires_at: Datetime,
+    status: String,
+    password_verifier: Option<String>,
+    redemption_attempt_id: Option<String>,
+    consumed_at: Option<Datetime>,
+}
+#[derive(Clone, PartialEq, Eq, SurrealValue)]
+struct MemberTargetRow {
+    account_id: RecordId,
+    account_key: String,
+    account_role: String,
+    account_status: String,
+    password_verifier: Option<String>,
+    principal_id: RecordId,
+    principal_account: RecordId,
+    principal_kind: String,
+    actor_kind: String,
+    actor_id: String,
+    profile: String,
+    capabilities: Vec<String>,
+    principal_status: String,
+    access_space_id: RecordId,
+    space_account: RecordId,
+    space_status: String,
+}
+#[derive(Clone, SurrealValue)]
+struct MemberEnrollmentBindings {
+    enrollment: RecordId,
+    operation: String,
+    descriptor_hex: String,
+    descriptor_sha256: String,
+    account: RecordId,
+    principal: RecordId,
+    space: RecordId,
+    name: String,
+    actor: String,
+    profile: String,
+    capabilities: Vec<String>,
+    token_digest: String,
+    issued_at: Datetime,
+    expires_at: Datetime,
+}
+impl MemberEnrollmentBindings {
+    fn original(plan: &enrollment::EnrollmentPlan) -> Result<Self, ResourceAuthorityError> {
+        let descriptor = plan.descriptor();
+        for id in [descriptor.staged().account_id(), descriptor.staged().principal_id(),
+            descriptor.staged().access_space_id()] { validate_uuid(id)?; }
+        let name = descriptor.account_name();
+        if name != name.trim() || name.is_empty() || name.len() > 128 {
+            return Err(ResourceAuthorityError::InvalidInput("invalid original enrollment name"));
+        }
+        handshake_member_enrollment::invitation::validate_expiry(descriptor)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("invalid original enrollment deadline"))?;
+        let encoded = enrollment::encode_enrollment(descriptor)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("invalid original enrollment descriptor"))?;
+        let datetime = |value: enrollment::Timestamp| {
+            chrono::DateTime::<Utc>::from_timestamp(value.unix_seconds(), value.nanoseconds())
+                .map(Datetime::from)
+                .ok_or(ResourceAuthorityError::InvalidInput("enrollment timestamp outside host range"))
+        };
+        let operation = descriptor.operation_id().to_string();
+        Ok(Self {
+            enrollment: RecordId::new("member_enrollments", operation.clone()), operation,
+            descriptor_hex: hex::encode(&encoded), descriptor_sha256: sha256_hex(&encoded),
+            account: RecordId::new("local_accounts", descriptor.staged().account_id()),
+            principal: RecordId::new("principals", descriptor.staged().principal_id()),
+            space: RecordId::new("access_spaces", descriptor.staged().access_space_id()),
+            name: name.to_owned(), actor: descriptor.staged().principal_id().to_owned(),
+            profile: descriptor.profile_id().to_owned(),
+            capabilities: descriptor.capabilities().iter().map(|value| (*value).to_owned()).collect(),
+            token_digest: hex::encode(descriptor.token_digest()),
+            issued_at: datetime(descriptor.issued_at())?, expires_at: datetime(descriptor.expires_at())?,
+        })
+    }
+    fn require_original(&self, row: &MemberEnrollmentRow) -> Result<(), ResourceAuthorityError> {
+        if row.id != self.enrollment || row.operation_id != self.operation
+            || row.descriptor_hex != self.descriptor_hex || row.descriptor_sha256 != self.descriptor_sha256
+            || row.account_id != self.account || row.principal_id != self.principal
+            || row.access_space_id != self.space || row.account_name != self.name
+            || row.token_digest != self.token_digest || row.purpose != "identity_enrollment"
+            || row.issued_at != self.issued_at || row.expires_at != self.expires_at
+        { return Err(ResourceAuthorityError::InvalidInput("original enrollment differs")); }
+        Ok(())
+    }
+    fn require_target(&self, row: &MemberTargetRow, enabled: bool, verifier: Option<&str>)
+        -> Result<(), ResourceAuthorityError>
+    {
+        if row.account_id != self.account || row.account_key != self.name || row.account_role != "Member"
+            || row.principal_id != self.principal || row.principal_account != self.account
+            || row.access_space_id != self.space || row.space_account != self.account
+            || row.principal_kind != "human_account" || row.actor_kind != "operator"
+            || row.actor_id != self.actor || row.profile != self.profile || row.capabilities != self.capabilities
+            || row.account_status != if enabled { "enabled" } else { "disabled" }
+            || row.principal_status != if enabled { "enabled" } else { "disabled" }
+            || row.space_status != if enabled { "active" } else { "disabled" }
+            || row.password_verifier.as_deref() != verifier
+        { return Err(ResourceAuthorityError::InvalidInput("enrollment target readback differs")); }
+        Ok(())
+    }
+}
+
+
+enum MemberRedemptionObservation { ConsumedNow, SameAttemptAlreadyConsumed }
+
+enum MemberIssueObservation { Created, ExistingOriginal(MemberEnrollmentRow) }
+const MEMBER_TARGET_READBACK: &str = "SELECT id AS account_id, account_key, account_role, status AS account_status, password_verifier, $principal.id AS principal_id, $principal.account_id AS principal_account, $principal.principal_kind AS principal_kind, $principal.actor_kind AS actor_kind, $principal.actor_id AS actor_id, $principal.capability_profile_id AS profile, $principal.delegated_capabilities AS capabilities, $principal.status AS principal_status, $space.id AS access_space_id, $space.account_id AS space_account, $space.status AS space_status FROM $account;";
+
+#[derive(SurrealValue)]
+struct MemberEnrollmentOrigins {
+    account: RecordId,
+    principal: RecordId,
+    space: RecordId,
+}
+
+
+
+// RAM ONLY: resource_authority.rs, alongside the genuine captures/closed lifetime code.
+// Issue-only permit. No public fields, Clone, caller boolean, descriptor constructor,
+// new SDK transaction, alternate scope, root client, or recipient-auth assertion.
+#[derive(Clone, PartialEq, Eq, SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberAdministrationParent {
+    administration: RecordId,
+    owner: RecordId,
+    space: RecordId,
+    resource_policy: i64,
+    parent: RecordId,
+    parent_external: String,
+    parent_kind: String,
+    parent_state: String,
+    parent_owner: RecordId,
+    parent_space: RecordId,
+    parent_policy: i64,
+}
+#[derive(SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberAdministrationParentBindings {
+    resource: RecordId,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberAdministrationObservation {
+    enroll: RegistryPublicationAuthority,
+    assign: RegistryPublicationAuthority,
+    lifetime: CapturedAdministrationLifetime,
+    parent: MemberAdministrationParent,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberEnrollmentTransactionPermit<'borrow, 'engine> {
+    storage: &'borrow SurrealStorage,
+    transaction: &'borrow super::SurrealTransactionContext<'engine>,
+    captured: &'borrow CapturedMemberEnrollment,
+    registry: &'borrow crate::capabilities::CapabilityRegistry,
+    reauthentication: &'borrow super::local_accounts::CurrentActorPasswordReauthentication,
+    parent: MemberAdministrationParent,
+    issuer_credential_revision: i64,
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl<'borrow, 'engine> MemberEnrollmentTransactionPermit<'borrow, 'engine> {
+    // Private constructor consumes genuine capture REFERENCES and a real borrowed
+    // controller context; it cannot mint authority from an EnrollmentDescriptor.
+    async fn capture(
+        storage: &'borrow SurrealStorage,
+        transaction: &'borrow super::SurrealTransactionContext<'engine>,
+        captured: &'borrow CapturedMemberEnrollment,
+        registry: &'borrow crate::capabilities::CapabilityRegistry,
+        reauthentication: &'borrow super::local_accounts::CurrentActorPasswordReauthentication,
+    ) -> Result<Self, ResourceAuthorityError> {
+        transaction.require_authenticated_scope(storage, &captured.enroll.original_scope)?;
+        Self::require_capture_pair(captured, registry)?;
+        let observed = Self::observe(storage, transaction, captured).await?;
+        require_precommit_administration_pair(
+            &captured.enroll, &captured.assign, &captured.lifetime,
+            &observed.enroll, &observed.assign, &observed.lifetime,
+        )?;
+        observed.lifetime.require_initial_descriptor(captured.plan.descriptor())?;
+        handshake_member_enrollment::invitation::validate_expiry(captured.plan.descriptor())
+            .map_err(|_| ResourceAuthorityError::InvalidInput("invalid original enrollment deadline"))?;
+        let operation = captured.plan.descriptor().operation_id();
+        for gate in [&captured.enroll, &captured.assign] {
+            reauthentication.require_binding(
+                storage, operation, operation, &gate.session,
+                &gate.credentials.session_token, &gate.credentials.channel_binding_hash,
+                &gate.facts.policy_versions, &gate.facts.revocation_epochs,
+            )?;
+        }
+        let issuer_credential_revision = reauthentication.fenced_credential_revision_in_transaction(
+            storage, transaction, &captured.enroll.original_scope, operation, operation,
+        ).await?;
+        Ok(Self { storage, transaction, captured, registry, reauthentication,
+            parent: observed.parent, issuer_credential_revision })
+    }
+
+    fn require_same_transaction(
+        &self, transaction: &super::SurrealTransactionContext<'_>,
+    ) -> Result<(), ResourceAuthorityError> {
+        if !std::ptr::eq(self.transaction, transaction) {
+            return Err(ResourceAuthorityError::InvalidInput("enrollment transaction differs"));
+        }
+        transaction.require_authenticated_scope(self.storage, &self.captured.enroll.original_scope)?;
+        Ok(())
+    }
+
+    fn require_capture_pair(
+        captured: &CapturedMemberEnrollment,
+        registry: &crate::capabilities::CapabilityRegistry,
+    ) -> Result<(), ResourceAuthorityError> {
+        let [enroll, assign] = captured.plan.intents();
+        for (intent, gate, expected) in [
+            (enroll, &captured.enroll, enrollment::CommandKind::Enroll),
+            (assign, &captured.assign, enrollment::CommandKind::AssignFixedMemberProfile),
+        ] {
+            let action = match expected.action() {
+                enrollment::AdminAction::Create => ResourceAction::Create,
+                enrollment::AdminAction::Update => ResourceAction::Update,
+            };
+            let scope = &gate.original_scope;
+            let facts = &gate.facts;
+            if intent.kind() != expected || intent.authorizer() != &gate.exact
+                || intent.source() != &enrollment_source(facts)?
+                || intent.operation_id() != captured.plan.descriptor().operation_id()
+                || intent.enrollment_operation_id() != captured.plan.descriptor().operation_id()
+                || intent.staged() != captured.plan.descriptor().staged()
+                || intent.administrator_resource() != captured.plan.descriptor().administrator_resource()
+                || scope.action != action || scope.capability_id != expected.capability_id()
+                || scope.grant_id.as_deref() != Some(gate.decision.grant_id.as_str())
+                || scope.resource_id != gate.decision.resource_id || scope.session_id != gate.decision.session_id
+                || scope.workspace_id.as_deref() != Some(gate.exact.workspace_id())
+                || scope.session_token != gate.credentials.session_token
+                || scope.channel_binding_hash.as_deref() != Some(gate.credentials.channel_binding_hash.as_str())
+                || facts.resource_kind != ResourceKind::AccountAdministration.as_str()
+                || facts.resource_id != RecordId::new("protected_resources", gate.decision.resource_id.clone())
+                || facts.grant_id != RecordId::new("resource_grants", gate.decision.grant_id.clone())
+                || facts.account_id != RecordId::new("local_accounts", gate.exact.owner_account_id())
+                || facts.principal_id != RecordId::new("principals", gate.exact.actor_principal_id())
+                || facts.session_id != RecordId::new("authenticated_sessions", gate.exact.authenticated_session_id())
+                || facts.access_space_id != RecordId::new("access_spaces", gate.exact.access_space_id())
+                || gate.session.identity.account_id != gate.exact.owner_account_id()
+                || gate.session.identity.principal_id != gate.exact.actor_principal_id()
+                || gate.session.identity.access_space_id != gate.exact.access_space_id()
+                || gate.session.session_id != gate.exact.authenticated_session_id()
+                || facts.delegation_chain != gate.session.delegation_chain
+                || facts.capability_profile_id != gate.decision.capability_profile_id
+                || !registry.profile_can(&facts.capability_profile_id, expected.capability_id()).unwrap_or(false)
+            { return Err(ResourceAuthorityError::InvalidInput("enrollment captured action differs")); }
+            captured.lifetime.require_matches_source(facts)?;
+        }
+        let left = &captured.enroll.original_scope;
+        let right = &captured.assign.original_scope;
+        if captured.enroll.exact != captured.assign.exact
+            || left.session_token != right.session_token || left.channel_binding_hash != right.channel_binding_hash
+            || left.session_id != right.session_id || left.resource_id != right.resource_id
+            || left.workspace_id != right.workspace_id
+            || captured.enroll.facts.delegation_chain != captured.assign.facts.delegation_chain
+        { return Err(ResourceAuthorityError::InvalidInput("enrollment action identities differ")); }
+        // Grant IDs may coincide only when that same real grant independently
+        // satisfies BOTH actual action/capability queries; never infer one from the other.
+        Ok(())
+    }
+
+    async fn observe(
+        storage: &SurrealStorage, transaction: &super::SurrealTransactionContext<'_>,
+        captured: &CapturedMemberEnrollment,
+    ) -> Result<MemberAdministrationObservation, ResourceAuthorityError> {
+        transaction.require_authenticated_scope(storage, &captured.enroll.original_scope)?;
+        let mut current = Vec::with_capacity(2);
+        for (gate, kind) in [
+            (&captured.enroll, enrollment::CommandKind::Enroll),
+            (&captured.assign, enrollment::CommandKind::AssignFixedMemberProfile),
+        ] {
+            let action = match kind.action() {
+                enrollment::AdminAction::Create => ResourceAction::Create,
+                enrollment::AdminAction::Update => ResourceAction::Update,
+            };
+            // Explicit original grant+action+capability, unchanged actual record user.
+            // No nested task-local scope or claim that changing bindings admits a write.
+            let rows: Vec<RegistryPublicationAuthority> = transaction.query_values_at(
+                REGISTRY_PUBLICATION_AUTHORITY,
+                RegistryPublicationBindings {
+                    resource: gate.facts.resource_id.clone(), original_grant: gate.facts.grant_id.clone(),
+                    kind: ResourceKind::AccountAdministration.as_str().to_owned(),
+                    action: action.as_str().to_owned(), capability: kind.capability_id().to_owned(),
+                }, 0,
+            ).await?;
+            let [row] = rows.as_slice() else { return Err(ResourceAuthorityError::InvalidInput("enrollment current action denied")); };
+            if row != &gate.facts {
+                return Err(ResourceAuthorityError::InvalidInput("enrollment current action changed"));
+            }
+            current.push(row.clone());
+        }
+        let assign = current.pop().ok_or(ResourceAuthorityError::InvalidInput("assignment observation missing"))?;
+        let enroll = current.pop().ok_or(ResourceAuthorityError::InvalidInput("enrollment observation missing"))?;
+        let lifetime = |facts: &RegistryPublicationAuthority| -> Result<CapturedAdministrationLifetime, ResourceAuthorityError> {
+            let choice = facts.administration_lifetime.as_ref()
+                .ok_or(ResourceAuthorityError::InvalidInput("registered administration lifetime missing"))?.closed_choice()?;
+            let policy_version = *facts.policy_versions.get(1)
+                .ok_or(ResourceAuthorityError::InvalidInput("administration resource policy missing"))?;
+            Ok(CapturedAdministrationLifetime { administration_resource_id: facts.resource_id.clone(), policy_version, choice })
+        };
+        let current_lifetime = lifetime(&enroll)?;
+        if current_lifetime != lifetime(&assign)? || current_lifetime != captured.lifetime {
+            return Err(ResourceAuthorityError::InvalidInput("administration lifetime changed"));
+        }
+        let parents: Vec<MemberAdministrationParent> = transaction.query_values_at(
+            "SELECT id AS administration, owner_account_id AS owner, access_space_id AS space, policy_version AS resource_policy, parent_resource_id AS parent, parent_resource_id.external_resource_id AS parent_external, parent_resource_id.resource_kind AS parent_kind, parent_resource_id.lifecycle_state AS parent_state, parent_resource_id.owner_account_id AS parent_owner, parent_resource_id.access_space_id AS parent_space, parent_resource_id.policy_version AS parent_policy FROM protected_resources WHERE id = $resource AND resource_kind = 'account_administration' AND lifecycle_state = 'active' LIMIT 2;",
+            MemberAdministrationParentBindings { resource: enroll.resource_id.clone() }, 0,
+        ).await?;
+        let [parent] = parents.as_slice() else { return Err(ResourceAuthorityError::InvalidInput("administration current parent missing")); };
+        if parent.administration != enroll.resource_id || parent.owner != enroll.account_id || parent.space != enroll.access_space_id
+            || parent.resource_policy != current_lifetime.policy_version || parent.parent_kind != "workspace"
+            || parent.parent_state != "active" || parent.parent_external != captured.enroll.exact.workspace_id()
+            || parent.parent_owner != parent.owner || parent.parent_space != parent.space
+            || enroll.policy_versions.first().is_none_or(|policy| parent.parent_policy > *policy)
+            || assign.policy_versions.first().is_none_or(|policy| parent.parent_policy > *policy)
+        { return Err(ResourceAuthorityError::InvalidInput("administration current parent differs")); }
+        Ok(MemberAdministrationObservation { enroll, assign, lifetime: current_lifetime, parent: parent.clone() })
+    }
+
+    async fn recheck(
+        &self, transaction: &super::SurrealTransactionContext<'_>,
+    ) -> Result<MemberAdministrationObservation, ResourceAuthorityError> {
+        self.require_same_transaction(transaction)?;
+        Self::require_capture_pair(self.captured, self.registry)?;
+        let observed = Self::observe(self.storage, transaction, self.captured).await?;
+        if observed.parent != self.parent {
+            return Err(ResourceAuthorityError::InvalidInput("administration parent changed"));
+        }
+        require_precommit_administration_pair(
+            &self.captured.enroll, &self.captured.assign, &self.captured.lifetime,
+            &observed.enroll, &observed.assign, &observed.lifetime,
+        )?;
+        observed.lifetime.require_initial_descriptor(self.captured.plan.descriptor())?;
+        let operation = self.captured.plan.descriptor().operation_id();
+        for (gate, facts) in [(&self.captured.enroll, &observed.enroll), (&self.captured.assign, &observed.assign)] {
+            self.reauthentication.require_binding(
+                self.storage, operation, operation, &gate.session,
+                &gate.credentials.session_token, &gate.credentials.channel_binding_hash,
+                &facts.policy_versions, &facts.revocation_epochs,
+            )?;
+        }
+        let issuer_credential_revision = self.reauthentication.fenced_credential_revision_in_transaction(
+            self.storage, transaction, &self.captured.enroll.original_scope, operation, operation,
+        ).await?;
+        if issuer_credential_revision != self.issuer_credential_revision {
+            return Err(ResourceAuthorityError::InvalidInput("enrollment credential revision changed"));
+        }
+        Ok(observed)
+    }
+    async fn require_original_lookup(
+        &self, transaction: &super::SurrealTransactionContext<'_>, descriptor: &enrollment::EnrollmentDescriptor,
+    ) -> Result<(), ResourceAuthorityError> {
+        if descriptor != self.captured.plan.descriptor() {
+            return Err(ResourceAuthorityError::InvalidInput("enrollment lookup original differs"));
+        }
+        self.recheck(transaction).await.map(|_| ())
+    }
+    async fn require_first_issue(
+        &self, transaction: &super::SurrealTransactionContext<'_>, captured: &CapturedMemberEnrollment,
+    ) -> Result<(), ResourceAuthorityError> {
+        if !std::ptr::eq(captured, self.captured) {
+            return Err(ResourceAuthorityError::InvalidInput("enrollment capture custody differs"));
+        }
+        let observed = self.recheck(transaction).await?;
+        self.captured.require_precommit(&observed.enroll, &observed.assign, &observed.lifetime)
+    }
+}
+
+// Actual borrowed callback controller. It does not open/commit a transaction or
+// claim Unknown settlement. The existing owner must invoke it inside its actual
+// authenticated worker and retain the original outcome/captures across Unknown.
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl SurrealStorage {
+    async fn stage_member_enrollment_callback(
+        &self, transaction: &super::SurrealTransactionContext<'_>,
+        captured: &CapturedMemberEnrollment, registry: &crate::capabilities::CapabilityRegistry,
+        reauthentication: &super::local_accounts::CurrentActorPasswordReauthentication,
+    ) -> Result<MemberIssueObservation, ResourceAuthorityError> {
+        let permit = MemberEnrollmentTransactionPermit::capture(self, transaction, captured, registry, reauthentication).await?;
+        let observed = self.stage_member_enrollment_in_transaction(transaction, &permit, captured).await?;
+        // Precommit boundary for THIS exact transaction and original captured pair.
+        // The owning outer controller must abort on error and finalize without another effect.
+        match &observed {
+            MemberIssueObservation::Created => permit.require_first_issue(transaction, captured).await?,
+            MemberIssueObservation::ExistingOriginal(_) => permit.require_original_lookup(
+                transaction, captured.plan.descriptor(),
+            ).await?,
+        }
+        Ok(observed)
+    }
+}
+
+
+// RAM ONLY resource_authority.rs additions. NEW immutable original-row projection.
+// Values come from the genuine same-transaction permit/captures, not caller booleans.
+#[derive(Clone, PartialEq, Eq, SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberEnrollmentIssueProjection {
+    issuer_account: RecordId,
+    issuer_principal: RecordId,
+    issuer_session: RecordId,
+    issuer_space: RecordId,
+    issuer_credential_revision: i64,
+    administration_resource: RecordId,
+    workspace_resource: RecordId,
+    workspace_external: String,
+    workspace_policy: i64,
+    enroll_source: RegistryPublicationAuthority,
+    assignment_source: RegistryPublicationAuthority,
+    lifetime: AdministrationLifetimeRow,
+    policy_expires_at: Option<Datetime>,
+}
+#[derive(SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberEnrollmentIssueBindings {
+    original: MemberEnrollmentBindings,
+    issue: MemberEnrollmentIssueProjection,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberEnrollmentTransactionPermit<'_, '_> {
+    fn issue_projection(&self) -> Result<MemberEnrollmentIssueProjection, ResourceAuthorityError> {
+        self.require_same_transaction(self.transaction)?;
+        let captured = self.captured;
+        let operation = captured.plan.descriptor().operation_id();
+        for gate in [&captured.enroll, &captured.assign] {
+            let revision = self.reauthentication.bound_credential_revision(
+                self.storage, operation, operation, &gate.session,
+                &gate.credentials.session_token, &gate.credentials.channel_binding_hash,
+                &gate.facts.policy_versions, &gate.facts.revocation_epochs,
+            )?;
+            if revision != self.issuer_credential_revision {
+                return Err(ResourceAuthorityError::InvalidInput("enrollment projection credential revision differs"));
+            }
+        }
+        let policy_expires_at = captured.plan.descriptor().policy_expires_at().map(|value| {
+            chrono::DateTime::<Utc>::from_timestamp(value.unix_seconds(), value.nanoseconds())
+                .map(Datetime::from).ok_or(ResourceAuthorityError::InvalidInput("invalid original policy bound"))
+        }).transpose()?;
+        Ok(MemberEnrollmentIssueProjection {
+            issuer_account: captured.enroll.facts.account_id.clone(),
+            issuer_principal: captured.enroll.facts.principal_id.clone(),
+            issuer_session: captured.enroll.facts.session_id.clone(),
+            issuer_space: captured.enroll.facts.access_space_id.clone(),
+            issuer_credential_revision: self.issuer_credential_revision,
+            administration_resource: captured.enroll.facts.resource_id.clone(),
+            workspace_resource: self.parent.parent.clone(),
+            workspace_external: self.parent.parent_external.clone(), workspace_policy: self.parent.parent_policy,
+            enroll_source: captured.enroll.facts.clone(), assignment_source: captured.assign.facts.clone(),
+            lifetime: AdministrationLifetimeRow::from_explicit(captured.lifetime.choice)?, policy_expires_at,
+        })
+    }
+}
+
+
+// RAM ONLY Account implementation in existing resource_authority.rs.
+// Exact native ced000 ABI types are in scope; no guessed import/module path.
+// NEW Account request codec; no descriptor/digest/secret placeholder before entropy.
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+const ORIGINAL_ISSUE_REQUEST_DOMAIN: &[u8] = b"hsk.member_enrollment.original_issue_request@1\0";
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+fn original_account_fault(message: &'static str) -> AccountError {
+    Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, message))
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+fn issue_request_string(out: &mut Vec<u8>, value: &str) -> Result<(), AccountError> {
+    if value.is_empty() || value.len() > enrollment::MAX_STRING_BYTES {
+        return Err(original_account_fault("invalid original request string"));
+    }
+    let length = u32::try_from(value.len()).map_err(|error| Box::new(error) as AccountError)?;
+    out.extend_from_slice(&length.to_be_bytes()); out.extend_from_slice(value.as_bytes()); Ok(())
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+fn issue_request_time(out: &mut Vec<u8>, value: enrollment::Timestamp) {
+    out.extend_from_slice(&value.unix_seconds().to_be_bytes()); out.extend_from_slice(&value.nanoseconds().to_be_bytes());
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+fn issue_request_optional_time(out: &mut Vec<u8>, value: Option<enrollment::Timestamp>) {
+    match value { Some(value) => { out.push(1); issue_request_time(out, value); }, None => out.push(0) }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+fn issue_request_source(out: &mut Vec<u8>, source: &enrollment::SourceRef) -> Result<(), AccountError> {
+    issue_request_string(out, source.resource_id())?; issue_request_string(out, source.grant_id())?;
+    out.extend_from_slice(&source.grant_version().to_be_bytes());
+    for vector in [source.policy_versions(), source.revocation_epochs()] {
+        if vector.len() > enrollment::MAX_VECTOR_ITEMS { return Err(original_account_fault("original source vector limit")); }
+        out.extend_from_slice(&u32::try_from(vector.len()).map_err(|error| Box::new(error) as AccountError)?.to_be_bytes());
+        for value in vector { out.extend_from_slice(&value.to_be_bytes()); }
+    }
+    issue_request_optional_time(out, source.grant_expires_at()); Ok(())
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+fn encode_original_issue_request(value: &OriginalIssueIntent) -> Result<Vec<u8>, AccountError> {
+    if value.operation_id.is_nil() { return Err(original_account_fault("nil original operation")); }
+    let mut out = ORIGINAL_ISSUE_REQUEST_DOMAIN.to_vec();
+    out.extend_from_slice(value.operation_id.as_bytes());
+    for text in [
+        value.original_enroller.owner_account_id(), value.original_enroller.actor_principal_id(),
+        value.original_enroller.authenticated_session_id(), value.original_enroller.access_space_id(),
+        value.original_enroller.workspace_id(), value.staged.account_id(), value.staged.principal_id(),
+        value.staged.access_space_id(), value.account_name.as_str(), value.administrator_resource.as_str(),
+    ] { issue_request_string(&mut out, text)?; }
+    issue_request_source(&mut out, &value.enroll_source)?; issue_request_source(&mut out, &value.assignment_source)?;
+    for time in [value.issued_at, value.expires_at, value.session_expires_at] { issue_request_time(&mut out, time); }
+    issue_request_optional_time(&mut out, value.policy_expires_at);
+    for text in [&value.purpose, &value.vault_namespace, &value.vault_reference] { issue_request_string(&mut out, text)?; }
+    if out.len() > enrollment::MAX_ENCODED_BYTES { return Err(original_account_fault("original request limit")); }
+    Ok(out)
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct OriginalIssueRequestReader<'a> { bytes: &'a [u8], at: usize }
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl OriginalIssueRequestReader<'_> {
+    fn bytes(&mut self, count: usize) -> Result<&[u8], AccountError> {
+        let end = self.at.checked_add(count).ok_or_else(|| original_account_fault("original request length overflow"))?;
+        let value = self.bytes.get(self.at..end).ok_or_else(|| original_account_fault("truncated original request"))?;
+        self.at = end; Ok(value)
+    }
+    fn fixed<const N: usize>(&mut self) -> Result<[u8; N], AccountError> {
+        self.bytes(N)?.try_into().map_err(|error| Box::new(error) as AccountError)
+    }
+    fn string(&mut self) -> Result<String, AccountError> {
+        let count = u32::from_be_bytes(self.fixed()?) as usize;
+        if count == 0 || count > enrollment::MAX_STRING_BYTES { return Err(original_account_fault("invalid original string length")); }
+        String::from_utf8(self.bytes(count)?.to_vec()).map_err(|error| Box::new(error) as AccountError)
+    }
+    fn time(&mut self) -> Result<enrollment::Timestamp, AccountError> {
+        enrollment::Timestamp::new(i64::from_be_bytes(self.fixed()?), u32::from_be_bytes(self.fixed()?))
+            .map_err(|error| Box::new(error) as AccountError)
+    }
+    fn optional_time(&mut self) -> Result<Option<enrollment::Timestamp>, AccountError> {
+        match self.fixed::<1>()?[0] {
+            0 => Ok(None), 1 => self.time().map(Some), _ => Err(original_account_fault("invalid original optional time")),
+        }
+    }
+    fn vector(&mut self) -> Result<Vec<i64>, AccountError> {
+        let count = u32::from_be_bytes(self.fixed()?) as usize;
+        if count > enrollment::MAX_VECTOR_ITEMS { return Err(original_account_fault("original vector limit")); }
+        (0..count).map(|_| self.fixed().map(i64::from_be_bytes)).collect()
+    }
+    fn source(&mut self) -> Result<enrollment::SourceRef, AccountError> {
+        enrollment::SourceRef::new(self.string()?, self.string()?, i64::from_be_bytes(self.fixed()?),
+            self.vector()?, self.vector()?, self.optional_time()?).map_err(|error| Box::new(error) as AccountError)
+    }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+fn decode_original_issue_request(bytes: &[u8]) -> Result<OriginalIssueIntent, AccountError> {
+    if bytes.len() > enrollment::MAX_ENCODED_BYTES { return Err(original_account_fault("original request limit")); }
+    let mut reader = OriginalIssueRequestReader { bytes, at: 0 };
+    if reader.bytes(ORIGINAL_ISSUE_REQUEST_DOMAIN.len())? != ORIGINAL_ISSUE_REQUEST_DOMAIN {
+        return Err(original_account_fault("original request domain differs"));
+    }
+    let operation_id = Uuid::from_bytes(reader.fixed()?);
+    let original_enroller = enrollment::IdentityScope::new(reader.string()?, reader.string()?, reader.string()?,
+        reader.string()?, reader.string()?).map_err(|error| Box::new(error) as AccountError)?;
+    let staged = enrollment::StagedIdentity::new(reader.string()?, reader.string()?, reader.string()?)
+        .map_err(|error| Box::new(error) as AccountError)?;
+    let value = OriginalIssueIntent {
+        operation_id, original_enroller, staged, account_name: reader.string()?, administrator_resource: reader.string()?,
+        enroll_source: reader.source()?, assignment_source: reader.source()?,
+        issued_at: reader.time()?, expires_at: reader.time()?, session_expires_at: reader.time()?,
+        policy_expires_at: reader.optional_time()?, purpose: reader.string()?, vault_namespace: reader.string()?,
+        vault_reference: reader.string()?,
+    };
+    if reader.at != bytes.len() || encode_original_issue_request(&value)? != bytes {
+        return Err(original_account_fault("noncanonical original request"));
+    }
+    Ok(value)
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+fn original_account_revision(value: i64) -> Result<AccountRevision, AccountError> {
+    if value <= 0 { return Err(original_account_fault("invalid original row revision")); }
+    Ok(AccountRevision(value.to_be_bytes().to_vec()))
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+fn original_revision_number(value: &AccountRevision) -> Result<i64, AccountError> {
+    let bytes: [u8; 8] = value.0.as_slice().try_into().map_err(|error| Box::new(error) as AccountError)?;
+    let number = i64::from_be_bytes(bytes);
+    if number <= 0 { return Err(original_account_fault("invalid supplied original revision")); }
+    Ok(number)
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+fn original_descriptor_matches(intent: &OriginalIssueIntent, value: &enrollment::EnrollmentDescriptor) -> bool {
+    value.operation_id() == intent.operation_id && value.original_enroller() == &intent.original_enroller
+        && value.staged() == &intent.staged && value.account_name() == intent.account_name
+        && value.administrator_resource() == intent.administrator_resource
+        && value.enroll_source() == &intent.enroll_source && value.assignment_source() == &intent.assignment_source
+        && value.issued_at() == intent.issued_at && value.expires_at() == intent.expires_at
+        && value.session_expires_at() == intent.session_expires_at && value.policy_expires_at() == intent.policy_expires_at
+        && value.invitation_purpose() == intent.purpose
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+fn require_original_issue_deadline(intent: &OriginalIssueIntent) -> Result<(), AccountError> {
+    // Pre-digest input cannot call the descriptor API with a fabricated digest.
+    // This implements the same inspected Source030 bound over actual immutable inputs.
+    let mut limit = intent.issued_at.checked_add_seconds(60).map_err(|error| Box::new(error) as AccountError)?
+        .min(intent.session_expires_at);
+    for source in [&intent.enroll_source, &intent.assignment_source] {
+        if let Some(expiry) = source.grant_expires_at() { limit = limit.min(expiry); }
+    }
+    if let Some(expiry) = intent.policy_expires_at { limit = limit.min(expiry); }
+    let now = enrollment_time(&Datetime::from(Utc::now()))?;
+    if intent.issued_at > now || intent.expires_at <= now || intent.expires_at <= intent.issued_at || intent.expires_at > limit {
+        return Err(original_account_fault("original issue deadline denied"));
+    }
+    Ok(())
+}
+
+// Genuine pre-digest authority: captures actual two actions, not an invented plan.
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct OriginalAccountAuthority {
+    storage: SurrealStorage,
+    registry: std::sync::Arc<crate::capabilities::CapabilityRegistry>,
+    intent: OriginalIssueIntent,
+    original_submission: OriginalSubmission,
+    enroll: CapturedAdministrationAuthority,
+    assign: CapturedAdministrationAuthority,
+    lifetime: CapturedAdministrationLifetime,
+    parent: MemberAdministrationParent,
+    issue: MemberEnrollmentIssueProjection,
+    reauthentication: super::local_accounts::CurrentActorPasswordReauthentication,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+const ORIGINAL_ACCOUNT_PARENT_SQL: &str = "SELECT id AS administration, owner_account_id AS owner, access_space_id AS space, policy_version AS resource_policy, parent_resource_id AS parent, parent_resource_id.external_resource_id AS parent_external, parent_resource_id.resource_kind AS parent_kind, parent_resource_id.lifecycle_state AS parent_state, parent_resource_id.owner_account_id AS parent_owner, parent_resource_id.access_space_id AS parent_space, parent_resource_id.policy_version AS parent_policy FROM protected_resources WHERE id = $resource AND resource_kind = 'account_administration' AND lifecycle_state = 'active' LIMIT 2;";
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl OriginalAccountAuthority {
+    fn require_original_submission_live(&self) -> Result<(), AccountError> {
+        if self.original_submission.intent != self.intent
+            || tokio::time::Instant::now() >= self.original_submission.original_deadline {
+            return Err(original_account_fault("original submission deadline denied"));
+        }
+        Ok(())
+    }
+    fn check_original(&self) -> Result<(), AccountError> {
+        self.require_original_submission_live()?;
+        let intent = &self.intent;
+        require_original_issue_deadline(intent)?;
+        if intent.purpose != "identity_enrollment" || intent.account_name != intent.account_name.trim()
+            || intent.account_name.len() > 128
+            || intent.vault_reference != format!("invitation/identity_enrollment/{}", intent.operation_id.hyphenated())
+            || self.enroll.exact != intent.original_enroller || self.assign.exact != intent.original_enroller
+            || enrollment_source(&self.enroll.facts)? != intent.enroll_source
+            || enrollment_source(&self.assign.facts)? != intent.assignment_source
+            || enrollment_time(&self.enroll.facts.session_expires_at)? != intent.session_expires_at
+            || enrollment_time(&self.assign.facts.session_expires_at)? != intent.session_expires_at
+            || self.lifetime.source030_bound() != intent.policy_expires_at
+        { return Err(original_account_fault("original authority or immutable input differs")); }
+        let left = &self.enroll.original_scope;
+        let right = &self.assign.original_scope;
+        if left.action != ResourceAction::Create || left.capability_id != enrollment::CommandKind::Enroll.capability_id()
+            || right.action != ResourceAction::Update || right.capability_id != enrollment::CommandKind::AssignFixedMemberProfile.capability_id()
+            || left.session_token != right.session_token || left.channel_binding_hash != right.channel_binding_hash
+            || left.session_id != right.session_id || left.resource_id != right.resource_id || left.workspace_id != right.workspace_id
+        { return Err(original_account_fault("original action scope pair differs")); }
+        for (gate, kind) in [
+            (&self.enroll, enrollment::CommandKind::Enroll),
+            (&self.assign, enrollment::CommandKind::AssignFixedMemberProfile),
+        ] {
+            self.lifetime.require_matches_source(&gate.facts)?;
+            if !self.registry.profile_can(&gate.facts.capability_profile_id, kind.capability_id()).unwrap_or(false) {
+                return Err(original_account_fault("current original profile denied"));
+            }
+            let revision = self.reauthentication.bound_credential_revision(
+                &self.storage, intent.operation_id, intent.operation_id, &gate.session,
+                &gate.credentials.session_token, &gate.credentials.channel_binding_hash,
+                &gate.facts.policy_versions, &gate.facts.revocation_epochs,
+            )?;
+            if revision != self.issue.issuer_credential_revision {
+                return Err(original_account_fault("original projection credential revision differs"));
+            }
+        }
+        Ok(())
+    }
+    fn check_parent(&self, parent: &MemberAdministrationParent) -> Result<(), AccountError> {
+        if parent != &self.parent || parent.administration != self.enroll.facts.resource_id
+            || parent.owner != self.enroll.facts.account_id || parent.space != self.enroll.facts.access_space_id
+            || parent.parent_owner != parent.owner || parent.parent_space != parent.space
+            || parent.parent_kind != "workspace" || parent.parent_state != "active"
+            || parent.parent_external != self.intent.original_enroller.workspace_id()
+            || parent.resource_policy != self.lifetime.policy_version
+            || self.enroll.facts.policy_versions.first().is_none_or(|value| parent.parent_policy > *value)
+            || self.assign.facts.policy_versions.first().is_none_or(|value| parent.parent_policy > *value)
+        { return Err(original_account_fault("original current parent changed")); }
+        Ok(())
+    }
+    async fn fence(&self, tx: &super::SurrealTransactionContext<'_>) -> Result<(), AccountError> {
+        self.check_original()?;
+        tx.require_authenticated_scope(&self.storage, &self.enroll.original_scope)?;
+        let mut current = Vec::with_capacity(2);
+        for (gate, kind) in [
+            (&self.enroll, enrollment::CommandKind::Enroll),
+            (&self.assign, enrollment::CommandKind::AssignFixedMemberProfile),
+        ] {
+            let action = match kind.action() {
+                enrollment::AdminAction::Create => ResourceAction::Create,
+                enrollment::AdminAction::Update => ResourceAction::Update,
+            };
+            self.require_original_submission_live()?;
+            let rows: Vec<RegistryPublicationAuthority> = tx.query_values_at(
+                REGISTRY_PUBLICATION_AUTHORITY,
+                RegistryPublicationBindings {
+                    resource: gate.facts.resource_id.clone(), original_grant: gate.facts.grant_id.clone(),
+                    kind: ResourceKind::AccountAdministration.as_str().to_owned(),
+                    action: action.as_str().to_owned(),
+                    capability: kind.capability_id().to_owned(),
+                }, 0,
+            ).await?;
+            let [facts] = rows.as_slice() else { return Err(original_account_fault("original current grant unavailable")); };
+            if facts != &gate.facts { return Err(original_account_fault("original current grant changed")); }
+            current.push(facts.clone());
+        }
+        let assign = current.pop().ok_or_else(|| original_account_fault("assignment current facts missing"))?;
+        let enroll = current.pop().ok_or_else(|| original_account_fault("enrollment current facts missing"))?;
+        let current_lifetime = CapturedAdministrationLifetime {
+            administration_resource_id: enroll.resource_id.clone(),
+            policy_version: *enroll.policy_versions.get(1).ok_or_else(|| original_account_fault("current resource policy missing"))?,
+            choice: enroll.administration_lifetime.as_ref()
+                .ok_or_else(|| original_account_fault("current registered lifetime missing"))?.closed_choice()?,
+        };
+        for facts in [&enroll, &assign] {
+            current_lifetime.require_matches_source(facts)?;
+            let choice = facts.administration_lifetime.as_ref()
+                .ok_or_else(|| original_account_fault("original registered lifetime missing"))?.closed_choice()?;
+            if choice != current_lifetime.choice { return Err(original_account_fault("original registered lifetime sources differ")); }
+        }
+        require_precommit_administration_pair(&self.enroll, &self.assign, &self.lifetime, &enroll, &assign, &current_lifetime)?;
+        self.require_original_submission_live()?;
+        let parents: Vec<MemberAdministrationParent> = tx.query_values_at(
+            ORIGINAL_ACCOUNT_PARENT_SQL, MemberAdministrationParentBindings { resource: enroll.resource_id.clone() }, 0,
+        ).await?;
+        let [parent] = parents.as_slice() else { return Err(original_account_fault("original current parent unavailable")); };
+        self.check_parent(parent)?;
+        self.require_original_submission_live()?;
+        let revision = self.reauthentication.fenced_credential_revision_in_transaction(
+            &self.storage, tx, &self.enroll.original_scope, self.intent.operation_id, self.intent.operation_id,
+        ).await?;
+        if revision != self.issue.issuer_credential_revision {
+            return Err(original_account_fault("original fenced credential revision differs"));
+        }
+        Ok(())
+    }
+    async fn current_read_authority(&self) -> Result<(), AccountError> {
+        self.require_original_submission_live()?;
+        SurrealStorage::with_operation_deadline(
+            self.original_submission.original_deadline.into_std(),
+            async {
+                self.current_read_authority_scoped().await?;
+                self.require_original_submission_live()
+            },
+        ).await
+    }
+    async fn current_read_authority_scoped(&self) -> Result<(), AccountError> {
+        self.check_original()?;
+        self.storage.recheck_current_actor_password(
+            &self.reauthentication, &self.enroll.credentials.session_token, &self.enroll.credentials.channel_binding_hash,
+        ).await?;
+        // This read is independent of the completed mutation. It is not its
+        // atomic credential fence; fence() already supplies that same-tx write.
+        for (gate, kind) in [
+            (&self.enroll, enrollment::CommandKind::Enroll),
+            (&self.assign, enrollment::CommandKind::AssignFixedMemberProfile),
+        ] {
+            let binding = RegistryPublicationBindings {
+                resource: gate.facts.resource_id.clone(), original_grant: gate.facts.grant_id.clone(),
+                kind: ResourceKind::AccountAdministration.as_str().to_owned(),
+                action: match kind.action() { enrollment::AdminAction::Create => "create", enrollment::AdminAction::Update => "update" }.to_owned(),
+                capability: kind.capability_id().to_owned(),
+            };
+            self.require_original_submission_live()?;
+            let rows: Vec<RegistryPublicationAuthority> = self.storage.with_record_user_scope(
+                self.enroll.original_scope.clone(), self.storage.with_data_operation(move |db| Box::pin(async move {
+                    db.query_values_at(REGISTRY_PUBLICATION_AUTHORITY, binding, 0).await
+                })),
+            ).await?;
+            if rows.as_slice() != std::slice::from_ref(&gate.facts) { return Err(original_account_fault("original read grant changed")); }
+        }
+        let binding = MemberAdministrationParentBindings { resource: self.enroll.facts.resource_id.clone() };
+        self.require_original_submission_live()?;
+        let parents: Vec<MemberAdministrationParent> = self.storage.with_record_user_scope(
+            self.enroll.original_scope.clone(), self.storage.with_data_operation(move |db| Box::pin(async move {
+                db.query_values_at(ORIGINAL_ACCOUNT_PARENT_SQL, binding, 0).await
+            })),
+        ).await?;
+        let [parent] = parents.as_slice() else { return Err(original_account_fault("original read parent unavailable")); };
+        self.check_parent(parent)
+    }
+}
+
+#[derive(SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct OriginalVaultRecord {
+    id: RecordId,
+    operation_id: String,
+    original_request_hex: String,
+    original_request_sha256: String,
+    vault_namespace: String,
+    vault_reference: String,
+    vault_issue_revision: i64,
+    vault_issue_state: String,
+    vault_claim_id: Option<String>,
+    descriptor_hex: Option<String>,
+    descriptor_sha256: Option<String>,
+    token_digest: Option<String>,
+    account_id: RecordId,
+    principal_id: RecordId,
+    access_space_id: RecordId,
+    account_name: String,
+    purpose: String,
+    issued_at: Datetime,
+    expires_at: Datetime,
+    status: String,
+    issue: surrealdb::types::Object,
+}
+#[derive(Clone, SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct OriginalVaultLookup { enrollment: RecordId }
+#[derive(SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct OriginalVaultReserve {
+    enrollment: RecordId,
+    operation: String,
+    request_hex: String,
+    request_sha256: String,
+    namespace: String,
+    reference: String,
+    account: RecordId,
+    principal: RecordId,
+    space: RecordId,
+    name: String,
+    issued_at: Datetime,
+    expires_at: Datetime,
+    issue: MemberEnrollmentIssueProjection,
+}
+#[derive(SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct OriginalVaultCas {
+    enrollment: RecordId,
+    request_hex: String,
+    request_sha256: String,
+    namespace: String,
+    reference: String,
+    expected_revision: i64,
+    expected_state: String,
+    expected_claim: Option<String>,
+    expected_descriptor: Option<String>,
+    expected_descriptor_sha256: Option<String>,
+    expected_digest: Option<String>,
+    next_state: String,
+    next_claim: Option<String>,
+    next_descriptor: Option<String>,
+    next_descriptor_sha256: Option<String>,
+    next_digest: Option<String>,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+const ORIGINAL_VAULT_READ: &str = "SELECT * FROM $enrollment;";
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+const ORIGINAL_VAULT_RESERVE: &str = "CREATE $enrollment SET operation_id = $operation, original_request_hex = $request_hex, original_request_sha256 = $request_sha256, vault_namespace = $namespace, vault_reference = $reference, vault_issue_revision = 1, vault_issue_state = 'reserved', account_id = $account, principal_id = $principal, access_space_id = $space, account_name = $name, issued_at = $issued_at, expires_at = $expires_at, purpose = 'identity_enrollment', status = 'preparing', issue = $issue RETURN AFTER;";
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+const ORIGINAL_VAULT_CAS: &str = "UPDATE $enrollment SET vault_issue_revision = vault_issue_revision + 1, vault_issue_state = $next_state, vault_claim_id = $next_claim, descriptor_hex = $next_descriptor, descriptor_sha256 = $next_descriptor_sha256, token_digest = $next_digest
+    WHERE original_request_hex = $request_hex AND original_request_sha256 = $request_sha256 AND vault_namespace = $namespace AND vault_reference = $reference
+    AND vault_issue_revision = $expected_revision AND vault_issue_state = $expected_state AND vault_claim_id = $expected_claim
+    AND descriptor_hex = $expected_descriptor AND descriptor_sha256 = $expected_descriptor_sha256 AND token_digest = $expected_digest
+    AND purpose = 'identity_enrollment' AND status = 'preparing' AND issued_at <= time::now() AND expires_at > time::now() RETURN AFTER;";
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl OriginalAccountAuthority {
+    fn lookup(&self) -> OriginalVaultLookup {
+        OriginalVaultLookup { enrollment: RecordId::new("member_enrollments", self.intent.operation_id.to_string()) }
+    }
+    fn reserve_bindings(&self) -> Result<OriginalVaultReserve, AccountError> {
+        let encoded = encode_original_issue_request(&self.intent)?;
+        let datetime = |value: enrollment::Timestamp| -> Result<Datetime, AccountError> {
+            chrono::DateTime::<Utc>::from_timestamp(value.unix_seconds(), value.nanoseconds())
+                .map(Datetime::from).ok_or_else(|| original_account_fault("original timestamp outside host range"))
+        };
+        Ok(OriginalVaultReserve {
+            enrollment: self.lookup().enrollment, operation: self.intent.operation_id.to_string(),
+            request_hex: hex::encode(&encoded), request_sha256: sha256_hex(&encoded),
+            namespace: self.intent.vault_namespace.clone(), reference: self.intent.vault_reference.clone(),
+            account: RecordId::new("local_accounts", self.intent.staged.account_id()),
+            principal: RecordId::new("principals", self.intent.staged.principal_id()),
+            space: RecordId::new("access_spaces", self.intent.staged.access_space_id()),
+            name: self.intent.account_name.clone(), issued_at: datetime(self.intent.issued_at)?,
+            expires_at: datetime(self.intent.expires_at)?, issue: self.issue.clone(),
+        })
+    }
+    fn decode_row(&self, row: &OriginalVaultRecord) -> Result<OriginalIssueRow, AccountError> {
+        let encoded = hex::decode(&row.original_request_hex)?;
+        let intent = decode_original_issue_request(&encoded)?;
+        if intent != self.intent || row.original_request_sha256 != sha256_hex(&encoded)
+            || row.id != self.lookup().enrollment || row.operation_id != intent.operation_id.to_string()
+            || row.vault_namespace != intent.vault_namespace || row.vault_reference != intent.vault_reference
+            || row.account_id != RecordId::new("local_accounts", intent.staged.account_id())
+            || row.principal_id != RecordId::new("principals", intent.staged.principal_id())
+            || row.access_space_id != RecordId::new("access_spaces", intent.staged.access_space_id())
+            || row.account_name != intent.account_name
+            || row.purpose != intent.purpose || row.purpose != "identity_enrollment"
+            || enrollment_time(&row.issued_at)? != intent.issued_at || enrollment_time(&row.expires_at)? != intent.expires_at
+        { return Err(original_account_fault("canonical original row or immutable request differs")); }
+        let surrealdb::types::Value::Object(expected_issue) = self.issue.clone().into_value() else {
+            return Err(original_account_fault("invalid original source projection"));
+        };
+        if row.issue != expected_issue { return Err(original_account_fault("canonical original source projection differs")); }
+        let state = match row.vault_issue_state.as_str() {
+            "reserved" if row.vault_claim_id.is_none() && row.descriptor_hex.is_none()
+                && row.descriptor_sha256.is_none() && row.token_digest.is_none() && row.status == "preparing" => OriginalIssueState::Reserved,
+            "preparing" if row.descriptor_hex.is_none() && row.descriptor_sha256.is_none()
+                && row.token_digest.is_none() && row.status == "preparing" => {
+                let claim = Uuid::parse_str(row.vault_claim_id.as_deref().ok_or_else(|| original_account_fault("canonical preparation claim missing"))?)?;
+                if claim.is_nil() || claim == intent.operation_id { return Err(original_account_fault("canonical preparation claim invalid")); }
+                OriginalIssueState::Preparing { claim_id: claim }
+            }
+            "write_started" | "bound" => {
+                let claim = Uuid::parse_str(row.vault_claim_id.as_deref().ok_or_else(|| original_account_fault("canonical original claim missing"))?)?;
+                if claim.is_nil() || claim == intent.operation_id { return Err(original_account_fault("canonical original claim invalid")); }
+                let bytes = hex::decode(row.descriptor_hex.as_deref().ok_or_else(|| original_account_fault("canonical descriptor missing"))?)?;
+                let descriptor = enrollment::decode_enrollment(&bytes)?;
+                if enrollment::encode_enrollment(&descriptor)? != bytes || !original_descriptor_matches(&intent, &descriptor)
+                    || row.descriptor_sha256.as_deref() != Some(sha256_hex(&bytes).as_str())
+                    || row.token_digest.as_deref() != Some(hex::encode(descriptor.token_digest()).as_str())
+                { return Err(original_account_fault("canonical bound descriptor differs")); }
+                handshake_member_enrollment::invitation::validate_expiry(&descriptor)
+                    .map_err(OriginalAccountDeadlineError::boxed)?;
+                if row.vault_issue_state == "write_started" && row.status == "preparing" {
+                    OriginalIssueState::WriteStarted(descriptor)
+                } else if row.vault_issue_state == "bound" && (row.status == "preparing" || row.status == "active") {
+                    OriginalIssueState::Bound(descriptor)
+                } else { return Err(original_account_fault("canonical original invitation status denied")); }
+            }
+            _ => return Err(original_account_fault("canonical original state missing or unsupported")),
+        };
+        Ok(OriginalIssueRow { intent, revision: original_account_revision(row.vault_issue_revision)?, state })
+    }
+    async fn read_in_transaction(&self, tx: &super::SurrealTransactionContext<'_>)
+        -> Result<Option<OriginalVaultRecord>, AccountError>
+    {
+        let mut rows: Vec<OriginalVaultRecord> = tx.query_values_at(ORIGINAL_VAULT_READ, self.lookup(), 0).await?;
+        if rows.len() > 1 { return Err(original_account_fault("ambiguous canonical original")); }
+        if let Some(row) = rows.first() { self.decode_row(row)?; }
+        Ok(rows.pop())
+    }
+    async fn canonical_read(&self) -> AccountResult {
+        self.current_read_authority().await?;
+        let binding = self.lookup();
+        let mut rows: Vec<OriginalVaultRecord> = self.storage.with_record_user_scope(
+            self.enroll.original_scope.clone(), self.storage.with_data_operation(move |db| Box::pin(async move {
+                db.query_values_at(ORIGINAL_VAULT_READ, binding, 0).await
+            })),
+        ).await?;
+        if rows.len() > 1 { return Err(original_account_fault("ambiguous canonical original readback")); }
+        rows.pop().map(|row| {
+            if row.vault_issue_state == "bound" && row.status != "active" {
+                return Err(original_account_fault("canonical Bound original has no active staged targets"));
+            }
+            self.decode_row(&row)
+        }).transpose()
+    }
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+enum OriginalAccountStep {
+    Reserve(OriginalIssueIntent),
+    Claim(OriginalIssueRow, Uuid),
+    WriteStarted(OriginalIssueRow, enrollment::EnrollmentDescriptor),
+    Bind(OriginalIssueRow),
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct OriginalAccountCallGuard {
+    uncertain: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    busy: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    complete: bool,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl Drop for OriginalAccountCallGuard {
+    fn drop(&mut self) {
+        if !self.complete { self.uncertain.store(true, std::sync::atomic::Ordering::SeqCst); }
+        self.busy.store(false, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct AccountOriginalRowController {
+    authority: std::sync::Arc<OriginalAccountAuthority>,
+    uncertain: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    busy: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    owned_claim: tokio::sync::Mutex<Option<OriginalIssueRow>>,
+    cancellation: std::sync::Arc<super::ContextOperationCancellation>,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl AccountOriginalRowController {
+    fn begin(&self) -> Result<OriginalAccountCallGuard, AccountError> {
+        use std::sync::atomic::Ordering::SeqCst;
+        if self.uncertain.load(SeqCst) || self.busy.compare_exchange(false, true, SeqCst, SeqCst).is_err() {
+            return Err(original_account_fault("original account controller pending"));
+        }
+        if self.uncertain.load(SeqCst) {
+            self.busy.store(false, SeqCst);
+            return Err(original_account_fault("original account controller became pending"));
+        }
+        Ok(OriginalAccountCallGuard { uncertain: self.uncertain.clone(), busy: self.busy.clone(), complete: false })
+    }
+    async fn transition(&self, step: OriginalAccountStep) -> AccountResult {
+        self.authority.require_original_submission_live()?;
+        let mut guard = self.begin()?;
+        // Each durable phase must finish its own real transaction before the
+        // external writer can advance. Never run this inside another callback.
+        if super::PROTECTED_TRANSACTION.try_with(|_| ()).is_ok() {
+            return Err(original_account_fault("nested original account phase denied"));
+        }
+        if let OriginalAccountStep::WriteStarted(expected, _) = &step {
+            // Denial-only process custody: recovery of Preparing cannot invent a
+            // candidate. The actual DB claim/revision/current authority remain mandatory.
+            if self.owned_claim.lock().await.as_ref() != Some(expected) {
+                return Err(original_account_fault("preparation has no retained positive claim"));
+            }
+        }
+        let claimed_here = match &step { OriginalAccountStep::Claim(_, claim) => Some(*claim), _ => None };
+        let binding_original = matches!(&step, OriginalAccountStep::Bind(_));
+        let authority = self.authority.clone();
+        let worker = authority.clone();
+        let storage = authority.storage.clone();
+        let scope = authority.enroll.original_scope.clone();
+        let operation = authority.intent.operation_id;
+        let expected_after: Option<OriginalIssueRow> = SurrealStorage::with_operation_deadline(
+            authority.original_submission.original_deadline.into_std(),
+            storage.with_record_user_scope(
+            scope, storage.with_owned_authenticated_transaction::<Option<OriginalIssueRow>, AccountError, _>(
+                operation, self.cancellation.clone(), move |tx| Box::pin(async move {
+                    worker.fence(&tx).await?;
+                    worker.require_original_submission_live()?;
+                    let before = worker.read_in_transaction(&tx).await?;
+                    let after = match step {
+                        OriginalAccountStep::Reserve(intent) => {
+                            if intent != worker.intent { return Err(original_account_fault("reserve full immutable request differs")); }
+                            if let Some(row) = before {
+                                // Existing original is observed without resetting any phase.
+                                Some(worker.decode_row(&row)?)
+                            } else {
+                                // Explicit first reservation uses CREATE, never UPSERT.
+                                // Missing observe() never calls this or implies rollback.
+                                worker.require_original_submission_live()?;
+                                let rows: Vec<OriginalVaultRecord> = tx.query_values_at(
+                                    ORIGINAL_VAULT_RESERVE, worker.reserve_bindings()?, 0,
+                                ).await?;
+                                let [row] = rows.as_slice() else { return Err(original_account_fault("reservation canonical callback row unavailable")); };
+                                let decoded = worker.decode_row(row)?;
+                                if decoded.state != OriginalIssueState::Reserved || original_revision_number(&decoded.revision)? != 1 {
+                                    return Err(original_account_fault("reservation canonical state differs"));
+                                }
+                                Some(decoded)
+                            }
+                        }
+                        action => {
+                            let Some(before) = before else { return Err(original_account_fault("canonical original missing during transition")); };
+                            let actual = worker.decode_row(&before)?;
+                            let (expected, next_state, next_claim, descriptor) = match action {
+                                OriginalAccountStep::Claim(expected, claim) => {
+                                    if claim.is_nil() || claim == worker.intent.operation_id || expected.state != OriginalIssueState::Reserved {
+                                        return Err(original_account_fault("invalid original preparation claim"));
+                                    }
+                                    (expected, "preparing", Some(claim.to_string()), None)
+                                }
+                                OriginalAccountStep::WriteStarted(expected, descriptor) => {
+                                    let OriginalIssueState::Preparing { claim_id } = &expected.state else {
+                                        return Err(original_account_fault("write requires same preparation claim"));
+                                    };
+                                    if before.vault_claim_id.as_deref() != Some(claim_id.to_string().as_str())
+                                        || !original_descriptor_matches(&worker.intent, &descriptor) {
+                                        return Err(original_account_fault("write descriptor or claim differs"));
+                                    }
+                                    let claim = before.vault_claim_id.clone();
+                                    (expected, "write_started", claim, Some(descriptor))
+                                }
+                                OriginalAccountStep::Bind(expected) => {
+                                    let OriginalIssueState::WriteStarted(descriptor) = &expected.state else {
+                                        return Err(original_account_fault("bind requires original WriteStarted"));
+                                    };
+                                    let descriptor = descriptor.clone();
+                                    (expected, "bound", before.vault_claim_id.clone(), Some(descriptor))
+                                }
+                                OriginalAccountStep::Reserve(_) => unreachable!(),
+                            };
+                            if expected != actual || expected.intent != worker.intent {
+                                return Err(original_account_fault("CAS expected full original or revision differs"));
+                            }
+                            let revision = original_revision_number(&expected.revision)?;
+                            let next_revision = revision.checked_add(1).ok_or_else(|| original_account_fault("original revision exhausted"))?;
+                            let (next_descriptor, next_descriptor_sha256, next_digest) = match &descriptor {
+                                Some(value) => {
+                                    if !original_descriptor_matches(&worker.intent, value) {
+                                        return Err(original_account_fault("CAS bound descriptor changes original"));
+                                    }
+                                    handshake_member_enrollment::invitation::validate_expiry(value)
+                                        .map_err(OriginalAccountDeadlineError::boxed)?;
+                                    let bytes = enrollment::encode_enrollment(value)?;
+                                    (Some(hex::encode(&bytes)), Some(sha256_hex(&bytes)), Some(hex::encode(value.token_digest())))
+                                }
+                                None => (None, None, None),
+                            };
+                            let binds = OriginalVaultCas {
+                                enrollment: worker.lookup().enrollment, request_hex: before.original_request_hex,
+                                request_sha256: before.original_request_sha256, namespace: before.vault_namespace,
+                                reference: before.vault_reference, expected_revision: revision,
+                                expected_state: before.vault_issue_state, expected_claim: before.vault_claim_id,
+                                expected_descriptor: before.descriptor_hex, expected_descriptor_sha256: before.descriptor_sha256,
+                                expected_digest: before.token_digest, next_state: next_state.to_owned(),
+                                next_claim: next_claim.clone(), next_descriptor, next_descriptor_sha256, next_digest,
+                            };
+                            worker.require_original_submission_live()?;
+                            let rows: Vec<OriginalVaultRecord> = tx.query_values_at(ORIGINAL_VAULT_CAS, binds, 0).await?;
+                            let [row] = rows.as_slice() else { return Err(original_account_fault("canonical original CAS did not return exactly one row")); };
+                            let decoded = worker.decode_row(row)?;
+                            let expected_state = match next_state {
+                                "preparing" => OriginalIssueState::Preparing {
+                                    claim_id: Uuid::parse_str(next_claim.as_deref().ok_or_else(|| original_account_fault("next claim missing"))?)?,
+                                },
+                                "write_started" => OriginalIssueState::WriteStarted(descriptor.ok_or_else(|| original_account_fault("next descriptor missing"))?),
+                                "bound" => OriginalIssueState::Bound(descriptor.ok_or_else(|| original_account_fault("bound descriptor missing"))?),
+                                _ => return Err(original_account_fault("unsupported next original state")),
+                            };
+                            if decoded.intent != worker.intent || original_revision_number(&decoded.revision)? != next_revision || decoded.state != expected_state {
+                                return Err(original_account_fault("canonical CAS callback state differs"));
+                            }
+                            Some(decoded)
+                        }
+                    };
+                    if binding_original {
+                        let Some(bound) = &after else { return Err(original_account_fault("bound original missing before staging")); };
+                        let OriginalIssueState::Bound(descriptor) = &bound.state else {
+                            return Err(original_account_fault("original bind did not produce Bound"));
+                        };
+                        let captured = CapturedMemberEnrollment {
+                            plan: enrollment::prepare_enrollment_plan(descriptor),
+                            enroll: worker.enroll.clone(), assign: worker.assign.clone(),
+                            lifetime: worker.lifetime.clone(),
+                        };
+                        let staged = worker.storage.stage_member_enrollment_callback(
+                            &tx, &captured, &worker.registry, &worker.reauthentication,
+                        ).await?;
+                        if !matches!(staged, MemberIssueObservation::Created) {
+                            return Err(original_account_fault("bound original staging did not create its exact targets"));
+                        }
+                    }
+                    worker.fence(&tx).await?;
+                    Ok(after)
+                }),
+            ),
+            ),
+        ).await?;
+        // The existing worker awaited commit. Its ACK alone does not release a
+        // preparation or write: a new canonical query independently reconciles it.
+        let Some(expected_after) = expected_after else { return Ok(None); };
+        authority.require_original_submission_live()?;
+        let canonical = SurrealStorage::with_operation_deadline(
+            authority.original_submission.original_deadline.into_std(), authority.canonical_read(),
+        ).await?;
+        authority.require_original_submission_live()?;
+        let Some(canonical) = canonical else { return Ok(None); };
+        if canonical != expected_after { return Err(original_account_fault("postcommit canonical original differs")); }
+        if let Some(claim) = claimed_here {
+            if canonical.state != (OriginalIssueState::Preparing { claim_id: claim }) {
+                return Err(original_account_fault("positive claim readback differs"));
+            }
+            *self.owned_claim.lock().await = Some(canonical.clone());
+        }
+        guard.complete = true;
+        Ok(Some(canonical))
+    }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl AccountOriginalController for AccountOriginalRowController {
+    fn reserve_original(&self, intent: OriginalIssueIntent) -> AccountFuture<'_> {
+        Box::pin(self.transition(OriginalAccountStep::Reserve(intent)))
+    }
+    fn observe(&self, operation: Uuid) -> AccountFuture<'_> {
+        Box::pin(async move {
+            self.authority.require_original_submission_live()?;
+            let mut guard = self.begin()?;
+            if operation != self.authority.intent.operation_id {
+                return Err(original_account_fault("observe original operation differs"));
+            }
+            let observed = SurrealStorage::with_operation_deadline(
+                self.authority.original_submission.original_deadline.into_std(), self.authority.canonical_read(),
+            ).await?;
+            self.authority.require_original_submission_live()?;
+            if observed.is_some() { guard.complete = true; }
+            Ok(observed)
+        })
+    }
+    fn claim_preparation(&self, expected: OriginalIssueRow, claim_id: Uuid) -> AccountFuture<'_> {
+        Box::pin(self.transition(OriginalAccountStep::Claim(expected, claim_id)))
+    }
+    fn mark_write_started(&self, expected: OriginalIssueRow, descriptor: enrollment::EnrollmentDescriptor) -> AccountFuture<'_> {
+        Box::pin(self.transition(OriginalAccountStep::WriteStarted(expected, descriptor)))
+    }
+    fn bind_original(&self, expected: OriginalIssueRow) -> AccountFuture<'_> {
+        Box::pin(self.transition(OriginalAccountStep::Bind(expected)))
+    }
+}
+#[derive(Debug)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct OriginalAccountDeadlineError(handshake_member_enrollment::invitation::DeadlineError);
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl std::fmt::Display for OriginalAccountDeadlineError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(formatter, "{:?}", self.0) }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl std::error::Error for OriginalAccountDeadlineError {}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl OriginalAccountDeadlineError {
+    fn boxed(error: handshake_member_enrollment::invitation::DeadlineError) -> AccountError { Box::new(Self(error)) }
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl SurrealStorage {
+    // Private mounting factory. The actual OsKeychainSecretsVault namespace is
+    // read through its inspected getter; this performs no keychain I/O.
+    async fn capture_original_account_controller(
+        &self,
+        registry: std::sync::Arc<crate::capabilities::CapabilityRegistry>,
+        credentials: RoleAuthorityAuthInput,
+        original_submission: &OriginalSubmission,
+        reauthentication: super::local_accounts::CurrentActorPasswordReauthentication,
+        vault: &crate::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault,
+    ) -> Result<AccountOriginalRowController, AccountError> {
+        // Native reviewed 3dbb OriginalSubmission has these exact public fields.
+        // Retain its complete immutable value before any async authority capture;
+        // a Ticket cannot exist yet and no new deadline is constructed.
+        let original_submission = original_submission.clone();
+        let intent = original_submission.intent.clone();
+        if tokio::time::Instant::now() >= original_submission.original_deadline {
+            return Err(original_account_fault("original submission expired before capture"));
+        }
+        let exact_deadline = original_submission.original_deadline.into_std();
+        SurrealStorage::with_operation_deadline(exact_deadline, async move {
+        encode_original_issue_request(&intent)?;
+        require_original_issue_deadline(&intent)?;
+        if intent.vault_namespace != vault.service_namespace()
+            || intent.vault_reference != format!("invitation/identity_enrollment/{}", intent.operation_id.hyphenated())
+            || intent.purpose != "identity_enrollment"
+        { return Err(original_account_fault("configured original vault identity differs")); }
+        if tokio::time::Instant::now() >= original_submission.original_deadline {
+            return Err(original_account_fault("original submission expired before enrolling capture"));
+        }
+        let enroll = self.capture_current_administration(
+            &registry, credentials.clone(), enrollment::CommandKind::Enroll,
+            &intent.administrator_resource, intent.original_enroller.workspace_id(),
+        ).await?;
+        if tokio::time::Instant::now() >= original_submission.original_deadline {
+            return Err(original_account_fault("original submission expired before assignment capture"));
+        }
+        let assign = self.capture_current_administration(
+            &registry, credentials, enrollment::CommandKind::AssignFixedMemberProfile,
+            &intent.administrator_resource, intent.original_enroller.workspace_id(),
+        ).await?;
+        for id in [intent.staged.account_id(), intent.staged.principal_id(), intent.staged.access_space_id()] {
+            validate_uuid(id)?;
+        }
+        let lifetime = CapturedAdministrationLifetime {
+            administration_resource_id: enroll.facts.resource_id.clone(),
+            policy_version: *enroll.facts.policy_versions.get(1).ok_or_else(|| original_account_fault("original resource policy absent"))?,
+            choice: enroll.facts.administration_lifetime.as_ref()
+                .ok_or_else(|| original_account_fault("original registered lifetime absent"))?.closed_choice()?,
+        };
+        let binding = MemberAdministrationParentBindings { resource: enroll.facts.resource_id.clone() };
+        if tokio::time::Instant::now() >= original_submission.original_deadline {
+            return Err(original_account_fault("original submission expired before parent read"));
+        }
+        let parents: Vec<MemberAdministrationParent> = self.with_record_user_scope(
+            enroll.original_scope.clone(), self.with_data_operation(move |db| Box::pin(async move {
+                db.query_values_at(ORIGINAL_ACCOUNT_PARENT_SQL, binding, 0).await
+            })),
+        ).await?;
+        let [parent] = parents.as_slice() else { return Err(original_account_fault("original registered parent absent")); };
+        let policy_expires_at = intent.policy_expires_at.map(|time| {
+            chrono::DateTime::<Utc>::from_timestamp(time.unix_seconds(), time.nanoseconds())
+                .map(Datetime::from).ok_or_else(|| original_account_fault("original policy time outside range"))
+        }).transpose()?;
+        if tokio::time::Instant::now() >= original_submission.original_deadline {
+            return Err(original_account_fault("original submission expired before credential recheck"));
+        }
+        self.recheck_current_actor_password(
+            &reauthentication, &enroll.credentials.session_token, &enroll.credentials.channel_binding_hash,
+        ).await?;
+        let issuer_credential_revision = reauthentication.bound_credential_revision(
+            self, intent.operation_id, intent.operation_id, &enroll.session,
+            &enroll.credentials.session_token, &enroll.credentials.channel_binding_hash,
+            &enroll.facts.policy_versions, &enroll.facts.revocation_epochs,
+        )?;
+        let assignment_credential_revision = reauthentication.bound_credential_revision(
+            self, intent.operation_id, intent.operation_id, &assign.session,
+            &assign.credentials.session_token, &assign.credentials.channel_binding_hash,
+            &assign.facts.policy_versions, &assign.facts.revocation_epochs,
+        )?;
+        if assignment_credential_revision != issuer_credential_revision {
+            return Err(original_account_fault("original action credential revisions differ"));
+        }
+        let issue = MemberEnrollmentIssueProjection {
+            issuer_account: enroll.facts.account_id.clone(), issuer_principal: enroll.facts.principal_id.clone(),
+            issuer_session: enroll.facts.session_id.clone(), issuer_space: enroll.facts.access_space_id.clone(),
+            issuer_credential_revision,
+            administration_resource: enroll.facts.resource_id.clone(), workspace_resource: parent.parent.clone(),
+            workspace_external: parent.parent_external.clone(), workspace_policy: parent.parent_policy,
+            enroll_source: enroll.facts.clone(), assignment_source: assign.facts.clone(),
+            lifetime: AdministrationLifetimeRow::from_explicit(lifetime.choice)?, policy_expires_at,
+        };
+        let authority = OriginalAccountAuthority {
+            storage: self.clone(), registry, intent, original_submission, enroll, assign, lifetime, parent: parent.clone(), issue, reauthentication,
+        };
+        authority.check_original()?; authority.check_parent(&authority.parent)?;
+        authority.current_read_authority().await?;
+        Ok(AccountOriginalRowController {
+            authority: std::sync::Arc::new(authority),
+            uncertain: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            busy: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            owned_claim: tokio::sync::Mutex::new(None),
+            cancellation: super::ContextOperationCancellation::new(),
+        })
+        }).await
+    }
+}
+
+
+// resource_authority.rs, alongside the closed per-original controller factory.
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl SurrealStorage {
+    pub(crate) async fn capture_original_member_invitation_controller(
+        &self,
+        registry: std::sync::Arc<crate::capabilities::CapabilityRegistry>,
+        credentials: RoleAuthorityAuthInput,
+        original: &crate::model_runtime::cloud::member_enrollment::OriginalSubmission,
+        password: String,
+        vault: &crate::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault,
+    ) -> Result<std::sync::Arc<dyn crate::model_runtime::cloud::member_enrollment::AccountOriginalController>,
+        crate::model_runtime::cloud::member_enrollment::AccountError>
+    {
+        let original = original.clone();
+        let operation_id = original.intent.operation_id;
+        if tokio::time::Instant::now() >= original.original_deadline {
+            return Err(original_account_fault("original submission expired before password verification"));
+        }
+        SurrealStorage::with_operation_deadline(original.original_deadline.into_std(), async move {
+            // The actual issuer/session is derived from these live credentials,
+            // not a supplied Owner marker or a revision metadata value.
+            let proof = self.reauthenticate_current_actor_password(
+                operation_id, operation_id, &credentials.session_token,
+                &credentials.channel_binding_hash, password,
+            ).await?;
+            if tokio::time::Instant::now() >= original.original_deadline {
+                return Err(original_account_fault("original submission expired after password verification"));
+            }
+            let controller = self.capture_original_account_controller(
+                registry, credentials, &original, proof, vault,
+            ).await?;
+            Ok(std::sync::Arc::new(controller) as std::sync::Arc<dyn
+                crate::model_runtime::cloud::member_enrollment::AccountOriginalController>)
+        }).await
+    }
+}
+
+// New internal per-original Account issue boundary in resource_authority.rs.
+// Caller must be the existing authenticated host producer; no new endpoint.
+// Consume the actual lifecycle APIs added by Runtime188 in member_enrollment.
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) enum MemberInvitationIssueBoundaryError {
+    Authentication {
+        original: crate::model_runtime::cloud::member_enrollment::OriginalSubmission,
+        error: ResourceAuthorityError,
+    },
+    Observation {
+        error: crate::model_runtime::cloud::member_enrollment::InvitationAdmissionError<std::convert::Infallible>,
+    },
+    Capture {
+        original: crate::model_runtime::cloud::member_enrollment::OriginalSubmission,
+        error: crate::model_runtime::cloud::member_enrollment::AccountError,
+    },
+    Configuration {
+        original: crate::model_runtime::cloud::member_enrollment::OriginalSubmission,
+        error: crate::model_runtime::cloud::member_enrollment::AccountError,
+    },
+    Admission(crate::model_runtime::cloud::member_enrollment::InvitationAdmissionError<std::io::Error>),
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl SurrealStorage {
+    pub(crate) fn member_invitation_vault_namespace(
+        &self,
+    ) -> Result<String, crate::model_runtime::cloud::member_enrollment::AccountError> {
+        // Same inspected installation identity convention as existing account
+        // session vault, but a separately named invitation namespace.
+        let identity = serde_json::to_vec(&(
+            self.config().path().to_string_lossy(), self.config().namespace(), self.config().database(),
+        ))?;
+        Ok(format!("handshake-member-enrollment-invitations-{}", hex::encode(Sha256::digest(identity))))
+    }
+
+    pub(crate) async fn admit_original_member_invitation(
+        &self,
+        lifecycle: &crate::model_runtime::cloud::member_enrollment::InvitationLifecycle,
+        registry: std::sync::Arc<crate::capabilities::CapabilityRegistry>,
+        credentials: RoleAuthorityAuthInput,
+        original: crate::model_runtime::cloud::member_enrollment::OriginalSubmission,
+        password: String,
+    ) -> Result<crate::model_runtime::cloud::member_enrollment::Ticket, MemberInvitationIssueBoundaryError> {
+        use crate::model_runtime::cloud::member_enrollment::OriginalInvitationWriter;
+        use crate::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault;
+        // History observation is authenticated but never creates a worker or
+        // returns a plaintext secret, fresh capability, session or delivery proof.
+        let session = self.authenticate_local_session(
+            &credentials.session_token, &credentials.channel_binding_hash,
+        ).await.map_err(|error| MemberInvitationIssueBoundaryError::Authentication {
+            original: original.clone(), error,
+        })?;
+        let actor = &original.intent.original_enroller;
+        if session.session_id != actor.authenticated_session_id()
+            || session.identity.account_id != actor.owner_account_id()
+            || session.identity.principal_id != actor.actor_principal_id()
+            || session.identity.access_space_id != actor.access_space_id() {
+            return Err(MemberInvitationIssueBoundaryError::Authentication {
+                original, error: ResourceAuthorityError::InvalidInput("original issue actor differs"),
+            });
+        }
+        if let Some(ticket) = lifecycle.reobserve_original(original.clone())
+            .map_err(|error| MemberInvitationIssueBoundaryError::Observation { error })? {
+            // Settlement custody only. Any subsequent secret redelivery must
+            // use its separate fresh replay gates; this receipt grants none.
+            return Ok(ticket);
+        }
+        let namespace = self.member_invitation_vault_namespace().map_err(|error| {
+            MemberInvitationIssueBoundaryError::Configuration { original: original.clone(), error }
+        })?;
+        if original.intent.vault_namespace != namespace
+            || original.intent.vault_reference != format!(
+                "invitation/identity_enrollment/{}", original.intent.operation_id.hyphenated(),
+            )
+        {
+            return Err(MemberInvitationIssueBoundaryError::Configuration {
+                original, error: original_account_fault("configured invitation vault differs"),
+            });
+        }
+        let root = self.config().path().parent().ok_or_else(|| MemberInvitationIssueBoundaryError::Configuration {
+            original: original.clone(), error: original_account_fault("configured invitation root unavailable"),
+        })?.to_path_buf();
+        let vault = std::sync::Arc::new(OsKeychainSecretsVault::new(namespace));
+        let controller = self.capture_original_member_invitation_controller(
+            registry, credentials, &original, password, vault.as_ref(),
+        ).await.map_err(|error| MemberInvitationIssueBoundaryError::Capture {
+            original: original.clone(), error,
+        })?;
+        // Gate's synchronous closure creates a writer only for a NEW accepted
+        // original. It stores the real strong owner before reserve() can effect.
+        // Re-checking the same full input in the lifecycle closes capture races.
+        lifecycle.admit_original(original, move || {
+            OriginalInvitationWriter::new(&root, vault, controller)
+        }).map_err(MemberInvitationIssueBoundaryError::Admission)
+    }
+}
+// Actual current caller locations inspected: api/authority.rs has authenticated
+// session-credential helpers and /authority setup/login/session routes, but NO
+// original invitation command/endpoint. Primary owns outward native/API wiring.
+// The real caller must construct ONE full OriginalSubmission from server-current
+// captures and the namespace getter, attach the once-owned InvitationLifecycle,
+// and retain the exact original request/absolute deadline through this method.
+// This does not invent that absent route, a global dispatcher, default grant,
+// fresh operation, extra profile, new session or proof of successful issuance.
+
+
+// resource_authority.rs candidate. Requires the exact reviewed but unadopted
+// administration captures, enrollment_time/source, lifetime and c03d helpers.
+// Route owner retains ONE Arc<MemberInvitationIssueSeed> by operation UUID before
+// polling this builder. Repeated HTTP input must match that seed; never call new
+// for redelivery, failed capture, timeout or an unknown original-row observation.
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+#[derive(PartialEq, Eq)]
+pub(crate) struct MemberInvitationIssueSelectors {
+    pub(crate) operation_id: uuid::Uuid,
+    pub(crate) account_name: String,
+    pub(crate) workspace_id: String,
+    pub(crate) administrator_resource: String,
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) struct MemberInvitationIssueSeed {
+    storage: SurrealStorage,
+    selectors: MemberInvitationIssueSelectors,
+    credentials: RoleAuthorityAuthInput,
+    staged: enrollment::StagedIdentity,
+    issued_at: enrollment::Timestamp,
+    original_clock: tokio::time::Instant,
+    maximum_capture_deadline: tokio::time::Instant,
+    captured: tokio::sync::OnceCell<MemberInvitationIssueSeedCapture>,
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberInvitationIssueSeedCapture {
+    submission: crate::model_runtime::cloud::member_enrollment::OriginalSubmission,
+    registry: std::sync::Arc<crate::capabilities::CapabilityRegistry>,
+    _enroll: CapturedAdministrationAuthority,
+    _assign: CapturedAdministrationAuthority,
+    _lifetime: CapturedAdministrationLifetime,
+}
+
+// The error retains the real original seed, not reconstructed selectors or IDs.
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) struct MemberInvitationIssueSeedError {
+    pub(crate) seed: std::sync::Arc<MemberInvitationIssueSeed>,
+    pub(crate) error: crate::model_runtime::cloud::member_enrollment::AccountError,
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) struct CapturedMemberInvitationSubmission {
+    seed: std::sync::Arc<MemberInvitationIssueSeed>,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl CapturedMemberInvitationSubmission {
+    pub(crate) fn original(
+        &self,
+    ) -> &crate::model_runtime::cloud::member_enrollment::OriginalSubmission {
+        &self.seed.captured.get().expect("successful capture retains original").submission
+    }
+    pub(crate) fn seed(&self) -> &std::sync::Arc<MemberInvitationIssueSeed> { &self.seed }
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberInvitationIssueSeed {
+    // Synchronous: every staged ID and both time samples are minted once before
+    // any async capture. No invitation secret, descriptor or digest is invented.
+    pub(crate) fn new(
+        storage: &SurrealStorage,
+        selectors: MemberInvitationIssueSelectors,
+        credentials: RoleAuthorityAuthInput,
+    ) -> Result<std::sync::Arc<Self>, crate::model_runtime::cloud::member_enrollment::AccountError> {
+        if selectors.operation_id.is_nil()
+            || selectors.account_name.is_empty()
+            || selectors.account_name != selectors.account_name.trim()
+            || selectors.account_name.len() > 128
+            || selectors.workspace_id.trim().is_empty()
+            || selectors.administrator_resource.trim().is_empty()
+            || selectors.workspace_id.len() > enrollment::MAX_STRING_BYTES
+            || selectors.administrator_resource.len() > enrollment::MAX_STRING_BYTES
+            || credentials.session_token.is_empty()
+            || credentials.channel_binding_hash.is_empty()
+        {
+            return Err(original_account_fault("invalid original issue selectors"));
+        }
+        // Monotonic first is conservative relative to the paired UTC sample.
+        let original_clock = tokio::time::Instant::now();
+        let issued_at = enrollment_time(&Datetime::from(Utc::now()))?;
+        let maximum_capture_deadline = original_clock.checked_add(std::time::Duration::from_secs(60))
+            .ok_or_else(|| original_account_fault("original issue clock overflow"))?;
+        let staged = enrollment::StagedIdentity::new(
+            uuid::Uuid::now_v7().to_string(),
+            uuid::Uuid::now_v7().to_string(),
+            uuid::Uuid::now_v7().to_string(),
+        )?;
+        Ok(std::sync::Arc::new(Self {
+            storage: storage.clone(), selectors, credentials, staged, issued_at,
+            original_clock, maximum_capture_deadline, captured: tokio::sync::OnceCell::new(),
+        }))
+    }
+
+    pub(crate) fn operation_id(&self) -> uuid::Uuid { self.selectors.operation_id }
+
+    pub(crate) fn matches_redelivery(
+        &self,
+        storage: &SurrealStorage,
+        selectors: &MemberInvitationIssueSelectors,
+        credentials: &RoleAuthorityAuthInput,
+    ) -> bool {
+        std::sync::Arc::ptr_eq(&self.storage.inner, &storage.inner)
+            && &self.selectors == selectors
+            && self.credentials.session_token == credentials.session_token
+            && self.credentials.channel_binding_hash == credentials.channel_binding_hash
+    }
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl SurrealStorage {
+    pub(crate) async fn capture_member_invitation_submission(
+        &self,
+        seed: std::sync::Arc<MemberInvitationIssueSeed>,
+        registry: std::sync::Arc<crate::capabilities::CapabilityRegistry>,
+    ) -> Result<CapturedMemberInvitationSubmission, MemberInvitationIssueSeedError> {
+        let captured = async {
+            if !std::sync::Arc::ptr_eq(&self.inner, &seed.storage.inner) {
+                return Err(original_account_fault("original issue storage differs"));
+            }
+            let capture = seed.captured.get_or_try_init(|| async {
+                if tokio::time::Instant::now() >= seed.maximum_capture_deadline {
+                    return Err(original_account_fault("original issue capture expired"));
+                }
+                SurrealStorage::with_operation_deadline(seed.maximum_capture_deadline.into_std(), async {
+                    let enroll = self.capture_current_administration(
+                        &registry, seed.credentials.clone(), enrollment::CommandKind::Enroll,
+                        &seed.selectors.administrator_resource, &seed.selectors.workspace_id,
+                    ).await?;
+                    if tokio::time::Instant::now() >= seed.maximum_capture_deadline {
+                        return Err(original_account_fault("original issue assignment capture expired"));
+                    }
+                    let assign = self.capture_current_administration(
+                        &registry, seed.credentials.clone(), enrollment::CommandKind::AssignFixedMemberProfile,
+                        &seed.selectors.administrator_resource, &seed.selectors.workspace_id,
+                    ).await?;
+                    if enroll.exact != assign.exact
+                        || enroll.exact.workspace_id() != seed.selectors.workspace_id
+                        || enroll.original_scope.action != ResourceAction::Create
+                        || assign.original_scope.action != ResourceAction::Update
+                        || enroll.original_scope.capability_id != enrollment::CommandKind::Enroll.capability_id()
+                        || assign.original_scope.capability_id != enrollment::CommandKind::AssignFixedMemberProfile.capability_id()
+                        || enroll.original_scope.session_token != assign.original_scope.session_token
+                        || enroll.original_scope.channel_binding_hash != assign.original_scope.channel_binding_hash
+                        || enroll.original_scope.session_id != assign.original_scope.session_id
+                        || enroll.original_scope.resource_id != assign.original_scope.resource_id
+                        || enroll.original_scope.workspace_id != assign.original_scope.workspace_id
+                    {
+                        return Err(original_account_fault("original issue captures differ"));
+                    }
+                    let lifetime = CapturedAdministrationLifetime {
+                        administration_resource_id: enroll.facts.resource_id.clone(),
+                        policy_version: *enroll.facts.policy_versions.get(1)
+                            .ok_or_else(|| original_account_fault("original resource policy missing"))?,
+                        choice: enroll.facts.administration_lifetime.as_ref()
+                            .ok_or_else(|| original_account_fault("original lifetime missing"))?.closed_choice()?,
+                    };
+                    for gate in [&enroll, &assign] {
+                        lifetime.require_matches_source(&gate.facts)?;
+                        let choice = gate.facts.administration_lifetime.as_ref()
+                            .ok_or_else(|| original_account_fault("original lifetime missing"))?.closed_choice()?;
+                        if choice != lifetime.choice {
+                            return Err(original_account_fault("original lifetime choices differ"));
+                        }
+                    }
+                    let enroll_source = enrollment_source(&enroll.facts)?;
+                    let assignment_source = enrollment_source(&assign.facts)?;
+                    let session_expires_at = enrollment_time(&enroll.facts.session_expires_at)?;
+                    if enrollment_time(&assign.facts.session_expires_at)? != session_expires_at {
+                        return Err(original_account_fault("original session expiry differs"));
+                    }
+                    let policy_expires_at = lifetime.source030_bound();
+                    // Exactly Source030 maximum_deadline's pre-digest bound.
+                    // Calling descriptor validation here would require a fake digest.
+                    let mut expires_at = seed.issued_at.checked_add_seconds(60)?.min(session_expires_at);
+                    for source in [&enroll_source, &assignment_source] {
+                        if let Some(expiry) = source.grant_expires_at() { expires_at = expires_at.min(expiry); }
+                    }
+                    if let Some(expiry) = policy_expires_at { expires_at = expires_at.min(expiry); }
+                    if expires_at <= seed.issued_at {
+                        return Err(original_account_fault("original issue has no validity"));
+                    }
+                    let issued_utc = chrono::DateTime::<Utc>::from_timestamp(
+                        seed.issued_at.unix_seconds(), seed.issued_at.nanoseconds(),
+                    ).ok_or_else(|| original_account_fault("original issue time outside range"))?;
+                    let expires_utc = chrono::DateTime::<Utc>::from_timestamp(
+                        expires_at.unix_seconds(), expires_at.nanoseconds(),
+                    ).ok_or_else(|| original_account_fault("original expiry outside range"))?;
+                    let duration = (expires_utc - issued_utc).to_std()
+                        .map_err(|_| original_account_fault("original issue duration denied"))?;
+                    let original_deadline = seed.original_clock.checked_add(duration)
+                        .ok_or_else(|| original_account_fault("original deadline overflow"))?;
+                    if tokio::time::Instant::now() >= original_deadline {
+                        return Err(original_account_fault("original issue expired during capture"));
+                    }
+                    let intent = crate::model_runtime::cloud::member_enrollment::OriginalIssueIntent {
+                        operation_id: seed.selectors.operation_id,
+                        original_enroller: enroll.exact.clone(), staged: seed.staged.clone(),
+                        account_name: seed.selectors.account_name.clone(),
+                        administrator_resource: seed.selectors.administrator_resource.clone(),
+                        enroll_source, assignment_source, issued_at: seed.issued_at, expires_at,
+                        session_expires_at, policy_expires_at,
+                        purpose: "identity_enrollment".to_owned(),
+                        vault_namespace: self.member_invitation_vault_namespace()?,
+                        vault_reference: format!("invitation/identity_enrollment/{}", seed.selectors.operation_id.hyphenated()),
+                    };
+                    require_original_issue_deadline(&intent)?;
+                    encode_original_issue_request(&intent)?;
+                    Ok(MemberInvitationIssueSeedCapture {
+                        submission: crate::model_runtime::cloud::member_enrollment::OriginalSubmission {
+                            intent, original_deadline,
+                        },
+                        registry: registry.clone(), _enroll: enroll, _assign: assign, _lifetime: lifetime,
+                    })
+                }).await
+            }).await?;
+            if !std::sync::Arc::ptr_eq(&registry, &capture.registry) {
+                return Err(original_account_fault("original issue registry differs"));
+            }
+            Ok::<(), crate::model_runtime::cloud::member_enrollment::AccountError>(())
+        }.await;
+        match captured {
+            Ok(()) => Ok(CapturedMemberInvitationSubmission { seed }),
+            Err(error) => Err(MemberInvitationIssueSeedError { seed, error }),
+        }
+    }
+}
+// Primary/Core173 own the actual route's atomic operation-keyed ArcSeed retention,
+// full redelivery equality and retained password/response frame. No route/store is
+// supplied here. Without that owner, new() cannot safely be called on HTTP retry.
+// c03d admit_original_member_invitation receives original().clone() unchanged;
+// this capture performs no DB writes, reserve, entropy-secret or vault operation.
+
+
+// New private Source030 recipient controller. Intended in resource_authority.rs.
+// Actual selected crypto home: crate::model_runtime::cloud::member_enrollment.
+// This does not reuse a normal authenticated_session or an issuer password.
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+use crate::model_runtime::cloud::member_enrollment as recipient_crypto;
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+use crate::model_runtime::cloud::secrets_vault::MemberEnrollmentRecipientCredential;
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+use std::sync::Arc as RecipientArc;
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+use std::time::Instant as RecipientInstant;
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+use surrealdb::types::{Object as RecipientObject, Value as RecipientValue};
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRecipientPrepared {
+    storage: SurrealStorage,
+    credential: RecipientArc<MemberEnrollmentRecipientCredential>,
+    descriptor: enrollment::EnrollmentDescriptor,
+    original: MemberEnrollmentBindings,
+    canonical_original: RecipientObject,
+    account_before: RecipientObject,
+    principal_before: RecipientObject,
+    space_before: RecipientObject,
+    prior_revision: i64,
+    attempt_id: Uuid,
+    password_verifier: String,
+    proof: recipient_crypto::OwnedRecipientSecretObservation,
+    deadline: RecipientInstant,
+    canonical_client: std::sync::OnceLock<super::SurrealClient>,
+}
+#[derive(SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRecipientSignin {
+    original: RecordId,
+    key_id: String,
+    secret_hex: String,
+}
+#[derive(Clone, PartialEq, Eq, SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRecipientIdentity {
+    access: String,
+    original: RecordId,
+    jwt_access: String,
+    jwt_original: String,
+    jti: String,
+}
+#[derive(Clone, SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRecipientOriginalBinding { original: RecordId }
+#[derive(Clone, SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRecipientPermitBinding {
+    permit: RecordId,
+    attempt: String,
+    key_id: String,
+    a_auth: RecordId,
+    a_jti: String,
+    original: RecipientObject,
+    account_before: RecipientObject,
+    principal_before: RecipientObject,
+    space_before: RecipientObject,
+    prior_revision: i64,
+    phc: String,
+}
+#[derive(SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRecipientInitialSnapshot {
+    original: RecipientObject,
+    account: RecipientObject,
+    principal: RecipientObject,
+    space: RecipientObject,
+    staged: bool,
+}
+#[derive(SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRecipientFinalSnapshot {
+    original: RecipientObject,
+    account: RecipientObject,
+    principal: RecipientObject,
+    space: RecipientObject,
+    permit: RecipientObject,
+    complete: bool,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+const MEMBER_RECIPIENT_IDENTITY: &str =
+    "RETURN { access: $access, original: $auth.id, jwt_access: $token.AC, jwt_original: $token.ID, jti: $token.jti };";
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+const MEMBER_RECIPIENT_INITIAL: &str =
+    "RETURN { original: (SELECT * FROM ONLY $original),
+        account: (SELECT * FROM ONLY $original.account_id),
+        principal: (SELECT * FROM ONLY $original.principal_id),
+        space: (SELECT * FROM ONLY $original.access_space_id),
+        staged: fn::wp012_member_recipient_staged(fn::wp012_member_recipient_auth_row()) };";
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+const MEMBER_RECIPIENT_FINAL: &str =
+    "LET $p = (SELECT * FROM ONLY $permit);
+     RETURN { original: (SELECT * FROM ONLY $a_auth),
+        account: (SELECT * FROM ONLY $a_auth.account_id),
+        principal: (SELECT * FROM ONLY $a_auth.principal_id),
+        space: (SELECT * FROM ONLY $a_auth.access_space_id),
+        permit: $p, complete: fn::wp012_member_recipient_complete($p) };";
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+fn member_recipient_denied() -> ResourceAuthorityError {
+    ResourceAuthorityError::InvalidInput("invitation denied")
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+fn member_recipient_decode<T: SurrealValue>(object: RecipientObject) -> Result<T, ResourceAuthorityError> {
+    T::from_value(RecipientValue::Object(object)).map_err(|_| member_recipient_denied())
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+fn member_recipient_single<T>(rows: Vec<T>) -> Result<T, ResourceAuthorityError> {
+    let mut rows = rows;
+    if rows.len() != 1 { return Err(member_recipient_denied()); }
+    rows.pop().ok_or_else(member_recipient_denied)
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+fn member_recipient_revision(object: &RecipientObject) -> Result<i64, ResourceAuthorityError> {
+    let value = object.get("credential_revision").ok_or_else(member_recipient_denied)?.clone();
+    i64::from_value(value).map_err(|_| member_recipient_denied())
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+fn member_recipient_deadline(deadline: RecipientInstant) -> Result<(), ResourceAuthorityError> {
+    if RecipientInstant::now() >= deadline { return Err(member_recipient_denied()); }
+    Ok(())
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+fn member_recipient_require_identity(
+    identity: &MemberRecipientIdentity, original: &RecordId, access: &str,
+) -> Result<(), ResourceAuthorityError> {
+    if identity.access != access || identity.jwt_access != access
+        || &identity.original != original || identity.jwt_original != surrealdb::types::ToSql::to_sql(original)
+        || identity.jti.trim().is_empty() { return Err(member_recipient_denied()); }
+    Ok(())
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberRecipientPrepared {
+    fn permit_binding(&self, identity: &MemberRecipientIdentity) -> Result<MemberRecipientPermitBinding, ResourceAuthorityError> {
+        member_recipient_require_identity(identity, &self.original.enrollment, "member_enrollment_recipient")?;
+        self.proof.require_same_descriptor(&self.descriptor).map_err(|_| member_recipient_denied())?;
+        if self.proof.operation_id() != self.descriptor.operation_id() { return Err(member_recipient_denied()); }
+        Ok(MemberRecipientPermitBinding {
+            permit: RecordId::new("member_enrollment_redemption_permits", self.attempt_id.to_string()),
+            attempt: self.attempt_id.to_string(), key_id: self.credential.key_id().to_owned(),
+            a_auth: self.original.enrollment.clone(), a_jti: identity.jti.clone(),
+            original: self.canonical_original.clone(), account_before: self.account_before.clone(),
+            principal_before: self.principal_before.clone(), space_before: self.space_before.clone(),
+            prior_revision: self.prior_revision, phc: self.password_verifier.clone(),
+        })
+    }
+    fn require_bound_row(&self, raw: &RecipientObject) -> Result<MemberEnrollmentRow, ResourceAuthorityError> {
+        let row: MemberVaultStageRow = member_recipient_decode(raw.clone())?;
+        row.require_bound_original(&self.descriptor, &self.original)
+    }
+    fn require_final(
+        &self, snapshot: MemberRecipientFinalSnapshot, binding: &MemberRecipientPermitBinding,
+    ) -> Result<(), ResourceAuthorityError> {
+        let row = self.require_bound_row(&snapshot.original)?;
+        if !snapshot.complete || row.status != "consumed"
+            || row.redemption_attempt_id.as_deref() != Some(binding.attempt.as_str())
+            || row.password_verifier.as_deref() != Some(self.password_verifier.as_str())
+            || row.consumed_at.is_none() { return Err(member_recipient_denied()); }
+        let mut expected_original = self.canonical_original.clone();
+        for field in ["status", "password_verifier", "redemption_attempt_id", "consumed_at"] {
+            let value = snapshot.original.get(field).ok_or_else(member_recipient_denied)?.clone();
+            expected_original.insert(field, value);
+        }
+        if expected_original != snapshot.original { return Err(member_recipient_denied()); }
+        for (before, after, status, account) in [
+            (&self.account_before, &snapshot.account, "enabled", true),
+            (&self.principal_before, &snapshot.principal, "enabled", false),
+            (&self.space_before, &snapshot.space, "active", false),
+        ] {
+            let mut expected = before.clone();
+            expected.insert("status", status);
+            let old_nonce = before.get("authorization_touch_nonce").cloned().unwrap_or(0_i64.into_value());
+            let old_nonce = i64::from_value(old_nonce).map_err(|_| member_recipient_denied())?;
+            expected.insert("authorization_touch_nonce", old_nonce.checked_add(1).ok_or_else(member_recipient_denied)?);
+            let updated = after.get("updated_at").ok_or_else(member_recipient_denied)?.clone();
+            if Datetime::from_value(updated.clone()).is_err() { return Err(member_recipient_denied()); }
+            expected.insert("updated_at", updated);
+            if account {
+                expected.insert("password_verifier", self.password_verifier.clone());
+                expected.insert("credential_revision", self.prior_revision.checked_add(1).ok_or_else(member_recipient_denied)?);
+            }
+            if &expected != after { return Err(member_recipient_denied()); }
+        }
+        let mut expected_permit = match binding.clone().into_value() {
+            RecipientValue::Object(value) => value,
+            _ => return Err(member_recipient_denied()),
+        };
+        expected_permit.remove("permit");
+        expected_permit.insert("id", binding.permit.clone());
+        expected_permit.insert("state", "consumed");
+        if expected_permit != snapshot.permit { return Err(member_recipient_denied()); }
+        Ok(())
+    }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl SurrealStorage {
+    async fn member_recipient_signin(
+        &self, client: &super::SurrealClient, credential: &MemberEnrollmentRecipientCredential,
+        original: &RecordId, access: &'static str,
+    ) -> Result<MemberRecipientIdentity, ResourceAuthorityError> {
+        if !matches!(access, "member_enrollment_recipient_inspection" | "member_enrollment_recipient_installer" | "member_enrollment_recipient")
+            || credential.key_id() != "member-enrollment-recipient-v1" { return Err(member_recipient_denied()); }
+        let params = credential.with_signin_secret(|secret| MemberRecipientSignin {
+            original: original.clone(), key_id: credential.key_id().to_owned(), secret_hex: secret.to_owned(),
+        });
+        client.signin(RecordSignin {
+            namespace: self.config().namespace().to_owned(), database: self.config().database().to_owned(),
+            access: access.to_owned(), params,
+        }).await.map_err(SurrealStorageError::from)?;
+        let response = client.query(MEMBER_RECIPIENT_IDENTITY).await.map_err(SurrealStorageError::from)?;
+        let identity = member_recipient_single(super::decode_query_values(response, 0)?)?;
+        member_recipient_require_identity(&identity, original, access)?;
+        Ok(identity)
+    }
+
+    async fn prepare_member_recipient_redemption(
+        &self, credential: RecipientArc<MemberEnrollmentRecipientCredential>,
+        attempt_id: Uuid, descriptor: enrollment::EnrollmentDescriptor,
+        presented: zeroize::Zeroizing<String>, password: String, deadline: RecipientInstant,
+    ) -> Result<RecipientArc<MemberRecipientPrepared>, ResourceAuthorityError> {
+        member_recipient_deadline(deadline)?;
+        if attempt_id.is_nil() || attempt_id == descriptor.operation_id() { return Err(member_recipient_denied()); }
+        let plan = enrollment::prepare_enrollment_plan(&descriptor);
+        let original = MemberEnrollmentBindings::original(&plan)?;
+        let storage = self.clone();
+        let read_credential = credential.clone();
+        let read_original = original.enrollment.clone();
+        let read = self.with_lease(move |client| Box::pin(async move {
+            let scoped = (*client).clone();
+            let result: Result<MemberRecipientInitialSnapshot, ResourceAuthorityError> = async {
+                member_recipient_deadline(deadline)?;
+                storage.member_recipient_signin(&scoped, &read_credential, &read_original, "member_enrollment_recipient_inspection").await?;
+                member_recipient_deadline(deadline)?;
+                let response = scoped.query(MEMBER_RECIPIENT_INITIAL)
+                    .bind(MemberRecipientOriginalBinding { original: read_original }).await.map_err(SurrealStorageError::from)?;
+                member_recipient_single(super::decode_query_values(response, 0)?)
+            }.await;
+            Ok(result)
+        })).await??;
+        member_recipient_deadline(deadline)?;
+        let bound_row: MemberVaultStageRow = member_recipient_decode(read.original.clone())?;
+        let canonical = bound_row.require_bound_original(&descriptor, &original)?;
+        if !read.staged || canonical.status != "active" || canonical.password_verifier.is_some()
+            || canonical.redemption_attempt_id.is_some() || canonical.consumed_at.is_some() {
+            return Err(member_recipient_denied());
+        }
+        let prior_revision = member_recipient_revision(&read.account)?;
+        if prior_revision != 0 { return Err(member_recipient_denied()); }
+        let crypto_row = recipient_crypto::OriginalInvitationRow {
+            operation_id: descriptor.operation_id(), descriptor_hex: &canonical.descriptor_hex,
+            descriptor_sha256: &canonical.descriptor_sha256,
+            account_id: descriptor.staged().account_id(), principal_id: descriptor.staged().principal_id(),
+            access_space_id: descriptor.staged().access_space_id(), account_name: &canonical.account_name,
+            token_digest_hex: &canonical.token_digest, purpose: &canonical.purpose,
+            issued_at: enrollment_time(&canonical.issued_at)?, expires_at: enrollment_time(&canonical.expires_at)?,
+            status: &canonical.status,
+        };
+        let binding = recipient_crypto::bind_original(&descriptor, &crypto_row, &bound_row.vault_reference)
+            .map_err(|_| member_recipient_denied())?;
+        let proof = recipient_crypto::verify_presented(&binding, presented.as_str(), "identity_enrollment", descriptor.operation_id())
+            .map_err(|_| member_recipient_denied())?.into_owned();
+        drop(presented);
+        let password_verifier = super::local_accounts::new_password_verifier(password).await?;
+        member_recipient_deadline(deadline)?;
+        // No mutating SQL/vault/session/grant action occurred before this full frame.
+        Ok(RecipientArc::new(MemberRecipientPrepared {
+            storage: self.clone(), credential, descriptor, original, canonical_original: read.original,
+            account_before: read.account, principal_before: read.principal, space_before: read.space,
+            prior_revision, attempt_id, password_verifier, proof, deadline, canonical_client: std::sync::OnceLock::new(),
+        }))
+    }
+}
+
+// Private physical scope. Neither a row/digest nor a caller value can construct it.
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRecipientPhysical {
+    storage: SurrealStorage,
+    transaction: RecipientArc<surrealdb::method::Transaction<super::Db>>,
+    prepared: RecipientArc<MemberRecipientPrepared>,
+    identity: MemberRecipientIdentity,
+}
+tokio::task_local! { static MEMBER_RECIPIENT_PHYSICAL: MemberRecipientPhysical; }
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberEnrollmentRedemptionPermit<'borrow, 'engine> {
+    storage: &'borrow SurrealStorage,
+    transaction: &'borrow super::SurrealTransactionContext<'engine>,
+    prepared: &'borrow RecipientArc<MemberRecipientPrepared>,
+    identity: MemberRecipientIdentity,
+    binding: MemberRecipientPermitBinding,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl<'borrow, 'engine> MemberEnrollmentRedemptionPermit<'borrow, 'engine> {
+    async fn capture(
+        storage: &'borrow SurrealStorage, tx: &'borrow super::SurrealTransactionContext<'engine>,
+        prepared: &'borrow RecipientArc<MemberRecipientPrepared>,
+    ) -> Result<Self, ResourceAuthorityError> {
+        prepared.proof.require_same_descriptor(&prepared.descriptor).map_err(|_| member_recipient_denied())?;
+        let identity = MEMBER_RECIPIENT_PHYSICAL.try_with(|physical| {
+            if !std::sync::Arc::ptr_eq(&physical.storage.inner, &storage.inner)
+                || !std::sync::Arc::ptr_eq(&prepared.storage.inner, &storage.inner)
+                || !RecipientArc::ptr_eq(&physical.prepared, prepared)
+                || !std::ptr::eq(tx.transaction, physical.transaction.as_ref()) { return Err(member_recipient_denied()); }
+            member_recipient_require_identity(&physical.identity, &prepared.original.enrollment, "member_enrollment_recipient")?;
+            Ok(physical.identity.clone())
+        }).map_err(|_| member_recipient_denied())??;
+        let binding = prepared.permit_binding(&identity)?;
+        let permit = Self { storage, transaction: tx, prepared, identity, binding };
+        permit.require_same_physical(tx).await?;
+        Ok(permit)
+    }
+    async fn require_same_physical(&self, tx: &super::SurrealTransactionContext<'_>) -> Result<(), ResourceAuthorityError> {
+        if !std::ptr::eq(tx, self.transaction) { return Err(member_recipient_denied()); }
+        MEMBER_RECIPIENT_PHYSICAL.try_with(|physical| {
+            if !RecipientArc::ptr_eq(&physical.prepared, self.prepared)
+                || !std::sync::Arc::ptr_eq(&physical.storage.inner, &self.storage.inner)
+                || !std::ptr::eq(tx.transaction, physical.transaction.as_ref())
+                || physical.identity != self.identity { return Err(member_recipient_denied()); }
+            Ok(())
+        }).map_err(|_| member_recipient_denied())??;
+        let identity = member_recipient_single(tx.query_values_at::<MemberRecipientIdentity, _>(
+            MEMBER_RECIPIENT_IDENTITY, (), 0,
+        ).await?)?;
+        if identity != self.identity { return Err(member_recipient_denied()); }
+        Ok(())
+    }
+    async fn lookup(
+        &self, tx: &super::SurrealTransactionContext<'_>,
+    ) -> Result<MemberEnrollmentRow, ResourceAuthorityError> {
+        self.require_same_physical(tx).await?;
+        let raw = member_recipient_single(tx.query_values_at::<RecipientObject, _>(
+            "SELECT * FROM $enrollment;", self.prepared.original.clone(), 0,
+        ).await?)?;
+        self.prepared.require_bound_row(&raw)
+    }
+    async fn first_redemption(
+        &self, tx: &super::SurrealTransactionContext<'_>,
+    ) -> Result<(), ResourceAuthorityError> {
+        self.require_same_physical(tx).await?;
+        member_recipient_deadline(self.prepared.deadline)?;
+        let snapshot = member_recipient_single(tx.query_values_at::<MemberRecipientInitialSnapshot, _>(
+            MEMBER_RECIPIENT_INITIAL, MemberRecipientOriginalBinding { original: self.prepared.original.enrollment.clone() }, 0,
+        ).await?)?;
+        if !snapshot.staged || snapshot.original != self.prepared.canonical_original
+            || snapshot.account != self.prepared.account_before || snapshot.principal != self.prepared.principal_before
+            || snapshot.space != self.prepared.space_before { return Err(member_recipient_denied()); }
+        Ok(())
+    }
+}
+
+#[derive(SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRecipientInstallBinding { permit: RecordId, content: RecipientObject }
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl SurrealStorage {
+    async fn install_member_recipient_permit(
+        &self, installer: &super::SurrealClient, prepared: &MemberRecipientPrepared,
+        binding: &MemberRecipientPermitBinding,
+    ) -> Result<(), ResourceAuthorityError> {
+        member_recipient_deadline(prepared.deadline)?;
+        prepared.proof.require_same_descriptor(&prepared.descriptor).map_err(|_| member_recipient_denied())?;
+        if binding.attempt != prepared.attempt_id.to_string() || binding.original != prepared.canonical_original
+            || binding.phc != prepared.password_verifier || binding.prior_revision != prepared.prior_revision {
+            return Err(member_recipient_denied());
+        }
+        self.member_recipient_signin(installer, &prepared.credential,
+            &prepared.original.enrollment, "member_enrollment_recipient_installer").await?;
+        member_recipient_deadline(prepared.deadline)?;
+        let RecipientValue::Object(mut content) = binding.clone().into_value() else {
+            return Err(member_recipient_denied());
+        };
+        content.remove("permit");
+        content.insert("state", "prepared");
+        let response = installer.query("CREATE $permit CONTENT $content RETURN AFTER;")
+            .bind(MemberRecipientInstallBinding { permit: binding.permit.clone(), content: content.clone() })
+            .await.map_err(SurrealStorageError::from)?;
+        let actual: RecipientObject = member_recipient_single(super::decode_query_values(response, 0)?)?;
+        content.insert("id", binding.permit.clone());
+        if actual != content { return Err(member_recipient_denied()); }
+        // Permit is durable one-attempt admission, not a new invitation/session/grant.
+        // A failure/unknown here never authorizes another CREATE or another attempt.
+        Ok(())
+    }
+
+    async fn redeem_member_recipient_in_transaction(
+        &self, tx: &super::SurrealTransactionContext<'_>,
+        permit: &MemberEnrollmentRedemptionPermit<'_, '_>,
+    ) -> Result<MemberRedemptionObservation, ResourceAuthorityError> {
+        let p = permit.prepared;
+        let row = permit.lookup(tx).await?;
+        if row.status == "consumed" {
+            if row.redemption_attempt_id.as_deref() != Some(permit.binding.attempt.as_str())
+                || row.password_verifier.as_deref() != Some(p.password_verifier.as_str())
+                || row.consumed_at.is_none() { return Err(member_recipient_denied()); }
+            let final_row = member_recipient_single(tx.query_values_at::<MemberRecipientFinalSnapshot, _>(
+                MEMBER_RECIPIENT_FINAL, permit.binding.clone(), 1,
+            ).await?)?;
+            p.require_final(final_row, &permit.binding)?;
+            return Ok(MemberRedemptionObservation::SameAttemptAlreadyConsumed);
+        }
+        permit.first_redemption(tx).await?;
+        member_recipient_deadline(p.deadline)?;
+        let claimed = member_recipient_single(tx.query_values_at::<MemberEnrollmentRow, _>(
+            "UPDATE $a_auth SET status = 'consumed', password_verifier = $phc,
+                redemption_attempt_id = $attempt, consumed_at = time::now()
+             WHERE status = 'active' AND password_verifier = NONE
+                AND redemption_attempt_id = NONE AND consumed_at = NONE
+                AND vault_issue_state = 'bound' AND vault_issue_revision = 4
+                AND operation_id = $original.operation_id AND purpose = 'identity_enrollment'
+                AND issued_at <= time::now() AND expires_at > time::now()
+             RETURN AFTER;",
+            permit.binding.clone(), 0,
+        ).await?)?;
+        p.original.require_original(&claimed)?;
+        if claimed.status != "consumed" || claimed.password_verifier.as_deref() != Some(p.password_verifier.as_str())
+            || claimed.redemption_attempt_id.as_deref() != Some(permit.binding.attempt.as_str())
+            || claimed.consumed_at.is_none() { return Err(member_recipient_denied()); }
+        permit.require_same_physical(tx).await?;
+        member_recipient_deadline(p.deadline)?;
+        let accounts: Vec<RecipientObject> = tx.query_values_at(
+            "UPDATE $original.account_id SET status = 'enabled', password_verifier = $phc,
+                credential_revision = credential_revision + 1,
+                authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1, updated_at = time::now()
+             WHERE status = 'disabled' AND password_verifier = NONE AND credential_revision = $prior_revision
+                AND member_enrollment_origin = $a_auth RETURN AFTER;",
+            permit.binding.clone(), 0,
+        ).await?;
+        member_recipient_single(accounts)?;
+        permit.require_same_physical(tx).await?;
+        member_recipient_deadline(p.deadline)?;
+        let principals: Vec<RecipientObject> = tx.query_values_at(
+            "UPDATE $original.principal_id SET status = 'enabled',
+                authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1, updated_at = time::now()
+             WHERE status = 'disabled' AND account_id = $original.account_id
+                AND member_enrollment_origin = $a_auth RETURN AFTER;",
+            permit.binding.clone(), 0,
+        ).await?;
+        member_recipient_single(principals)?;
+        permit.require_same_physical(tx).await?;
+        member_recipient_deadline(p.deadline)?;
+        let spaces: Vec<RecipientObject> = tx.query_values_at(
+            "UPDATE $original.access_space_id SET status = 'active',
+                authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1, updated_at = time::now()
+             WHERE status = 'disabled' AND account_id = $original.account_id
+                AND member_enrollment_origin = $a_auth RETURN AFTER;",
+            permit.binding.clone(), 0,
+        ).await?;
+        member_recipient_single(spaces)?;
+        permit.require_same_physical(tx).await?;
+        member_recipient_deadline(p.deadline)?;
+        let consumed_permits: Vec<RecipientObject> = tx.query_values_at(
+            "UPDATE $permit SET state = 'consumed' WHERE state = 'prepared' AND attempt = $attempt
+                AND a_auth = $a_auth AND a_jti = $a_jti RETURN AFTER;",
+            permit.binding.clone(), 0,
+        ).await?;
+        member_recipient_single(consumed_permits)?;
+        let final_row = member_recipient_single(tx.query_values_at::<MemberRecipientFinalSnapshot, _>(
+            MEMBER_RECIPIENT_FINAL, permit.binding.clone(), 1,
+        ).await?)?;
+        p.require_final(final_row, &permit.binding)?;
+        permit.require_same_physical(tx).await?;
+        member_recipient_deadline(p.deadline)?;
+        Ok(MemberRedemptionObservation::ConsumedNow)
+    }
+}
+
+// Errors are retained whole, never mapped to a successful or retryable result.
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) enum MemberRecipientFailure {
+    Authority(ResourceAuthorityError),
+    Storage(SurrealStorageError),
+    Rollback { original: ResourceAuthorityError, cancel: Option<surrealdb::Error> },
+    RetainedTransaction(RecipientArc<surrealdb::method::Transaction<super::Db>>),
+    Join(tokio::task::JoinError),
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl std::fmt::Debug for MemberRecipientFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("MemberRecipientFailure(retained)")
+    }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl std::fmt::Display for MemberRecipientFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { f.write_str("invitation denied") }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl std::error::Error for MemberRecipientFailure {}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl From<ResourceAuthorityError> for MemberRecipientFailure {
+    fn from(value: ResourceAuthorityError) -> Self { Self::Authority(value) }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl From<SurrealStorageError> for MemberRecipientFailure {
+    fn from(value: SurrealStorageError) -> Self { Self::Storage(value) }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) enum MemberRecipientOutcome { ConsumedNow, SameAttemptAlreadyConsumed }
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl SurrealStorage {
+    async fn run_member_recipient_redemption(
+        &self, prepared: RecipientArc<MemberRecipientPrepared>,
+    ) -> Result<MemberRecipientOutcome, MemberRecipientFailure> {
+        if !std::sync::Arc::ptr_eq(&self.inner, &prepared.storage.inner) {
+            return Err(member_recipient_denied().into());
+        }
+        let storage = self.clone();
+        let result = self.with_lease(move |client| Box::pin(async move {
+            let result: Result<MemberRecipientOutcome, MemberRecipientFailure> = async {
+                member_recipient_deadline(prepared.deadline)?;
+                let recipient = (*client).clone();
+                let installer = (*client).clone();
+                let identity = storage.member_recipient_signin(&recipient, &prepared.credential,
+                    &prepared.original.enrollment, "member_enrollment_recipient").await?;
+                let binding = prepared.permit_binding(&identity)?;
+                prepared.canonical_client.set(recipient.clone())
+                    .map_err(|_| member_recipient_denied())?;
+                storage.install_member_recipient_permit(&installer, &prepared, &binding).await?;
+                member_recipient_deadline(prepared.deadline)?;
+                let transaction = RecipientArc::new(recipient.begin().await.map_err(SurrealStorageError::from)?);
+                let physical = MemberRecipientPhysical {
+                    storage: storage.clone(), transaction: transaction.clone(),
+                    prepared: prepared.clone(), identity,
+                };
+                let callback: Result<MemberRedemptionObservation, ResourceAuthorityError> =
+                    MEMBER_RECIPIENT_PHYSICAL.scope(physical, async {
+                        let tx = super::SurrealTransactionContext { transaction: transaction.as_ref() };
+                        let permit = MemberEnrollmentRedemptionPermit::capture(&storage, &tx, &prepared).await?;
+                        storage.redeem_member_recipient_in_transaction(&tx, &permit).await
+                    }).await;
+                // The task-local owns the only auxiliary Arc and has now dropped.
+                let transaction = RecipientArc::try_unwrap(transaction)
+                    .map_err(MemberRecipientFailure::RetainedTransaction)?;
+                let observed = match callback {
+                    Ok(observed) => observed,
+                    Err(original) => {
+                        let cancel = transaction.cancel().await.err();
+                        return Err(MemberRecipientFailure::Rollback { original, cancel });
+                    }
+                };
+                if let Err(original) = member_recipient_deadline(prepared.deadline) {
+                    let cancel = transaction.cancel().await.err();
+                    return Err(MemberRecipientFailure::Rollback { original, cancel });
+                }
+                // No outer timeout/abort/drop race around submitted engine finalization.
+                let committed_client = transaction.commit().await.map_err(SurrealStorageError::from)?;
+                let response = committed_client.query(MEMBER_RECIPIENT_FINAL)
+                    .bind(binding.clone()).await.map_err(SurrealStorageError::from)?;
+                let final_row = member_recipient_single(super::decode_query_values(response, 1)?)?;
+                prepared.require_final(final_row, &binding)?;
+                Ok(match observed {
+                    MemberRedemptionObservation::ConsumedNow => MemberRecipientOutcome::ConsumedNow,
+                    MemberRedemptionObservation::SameAttemptAlreadyConsumed => MemberRecipientOutcome::SameAttemptAlreadyConsumed,
+                })
+            }.await;
+            Ok(result)
+        })).await?;
+        result
+    }
+
+    async fn reobserve_member_recipient_redemption(
+        &self, controller: &MemberRecipientRedemptionController,
+    ) -> Result<MemberRecipientOutcome, MemberRecipientFailure> {
+        let prepared = controller.prepared.clone();
+        if !std::sync::Arc::ptr_eq(&self.inner, &prepared.storage.inner) {
+            return Err(member_recipient_denied().into());
+        }
+        let client = prepared.canonical_client.get().ok_or_else(member_recipient_denied)?.clone();
+        let storage = self.clone();
+        // Explicit side-effect-free reconciliation on the retained original JWT.
+        // No fresh key/signin/attempt/PHC, no pre-expiry outcome inferred from time.
+        let result = self.with_lease(move |_| Box::pin(async move {
+            let result: Result<MemberRecipientOutcome, MemberRecipientFailure> = async {
+                let response = client.query(MEMBER_RECIPIENT_IDENTITY).await.map_err(SurrealStorageError::from)?;
+                let identity = member_recipient_single(super::decode_query_values(response, 0)?)?;
+                let binding = prepared.permit_binding(&identity)?;
+                let response = client.query(MEMBER_RECIPIENT_FINAL).bind(binding.clone())
+                    .await.map_err(SurrealStorageError::from)?;
+                let final_row = member_recipient_single(super::decode_query_values(response, 1)?)?;
+                prepared.require_final(final_row, &binding)?;
+                let _same_storage = storage;
+                Ok(MemberRecipientOutcome::SameAttemptAlreadyConsumed)
+            }.await;
+            Ok(result)
+        })).await?;
+        result
+    }
+}
+
+// Storage-bound custody is published before the worker starts its first effect.
+// No public cancel/abort/forget API. Retain pending/unknown/raw finalization errors.
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) type MemberRecipientResult = Result<MemberRecipientOutcome, MemberRecipientFailure>;
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRecipientControllerState {
+    handle: Option<tokio::task::JoinHandle<MemberRecipientResult>>,
+    outcome: Option<RecipientArc<MemberRecipientResult>>,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) struct MemberRecipientRedemptionController {
+    prepared: RecipientArc<MemberRecipientPrepared>,
+    state: tokio::sync::Mutex<MemberRecipientControllerState>,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRecipientRejectedInput {
+    prepared: RecipientArc<MemberRecipientPrepared>,
+    reason: ResourceAuthorityError,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+type MemberRecipientInventory = std::collections::HashMap<Uuid, RecipientArc<MemberRecipientRedemptionController>>;
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+enum MemberRecipientRegistry {
+    Accepting(MemberRecipientInventory),
+    Closing(MemberRecipientInventory),
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) struct MemberRecipientRedemptionRuntime {
+    storage: SurrealStorage,
+    credential: RecipientArc<MemberEnrollmentRecipientCredential>,
+    operations: std::sync::Mutex<MemberRecipientRegistry>,
+    operation_requests: std::sync::Mutex<MemberRecipientOperationRequests>,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberRecipientRedemptionController {
+    fn start(
+        prepared: RecipientArc<MemberRecipientPrepared>, registry: &std::sync::Mutex<MemberRecipientRegistry>,
+    ) -> Result<RecipientArc<Self>, MemberRecipientRejectedInput> {
+        let key = prepared.attempt_id;
+        let mut state = registry.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let registry = match &mut *state {
+            MemberRecipientRegistry::Accepting(registry) => registry,
+            MemberRecipientRegistry::Closing(_) => return Err(MemberRecipientRejectedInput {
+                prepared, reason: member_recipient_denied(),
+            }),
+        };
+        if let Some(original) = registry.get(&key) {
+            return if RecipientArc::ptr_eq(&original.prepared, &prepared) { Ok(original.clone()) }
+                else { Err(MemberRecipientRejectedInput { prepared, reason: member_recipient_denied() }) };
+        }
+        let controller = RecipientArc::new(Self {
+            prepared: prepared.clone(),
+            state: tokio::sync::Mutex::new(MemberRecipientControllerState { handle: None, outcome: None }),
+        });
+        // This new, unpublished mutex cannot have another owner yet.
+        let Ok(mut state) = controller.state.try_lock() else {
+            return Err(MemberRecipientRejectedInput { prepared, reason: member_recipient_denied() });
+        };
+        registry.insert(key, controller.clone());
+        let storage = prepared.storage.clone();
+        state.handle = Some(tokio::spawn(async move {
+            SurrealStorage::with_operation_deadline(prepared.deadline,
+                storage.run_member_recipient_redemption(prepared.clone())).await
+        }));
+        drop(state);
+        Ok(controller)
+    }
+    pub(crate) async fn wait(&self) -> RecipientArc<MemberRecipientResult> {
+        let mut state = self.state.lock().await;
+        if let Some(outcome) = &state.outcome { return outcome.clone(); }
+        // Await by mutable borrow: cancelled waiters leave the actual JoinHandle
+        // in this retained controller. Other waiters serialize without lost wakers.
+        let outcome = match state.handle.as_mut() {
+            Some(handle) => match handle.await {
+                Ok(outcome) => outcome,
+                Err(error) => Err(MemberRecipientFailure::Join(error)),
+            },
+            None => Err(MemberRecipientFailure::Authority(member_recipient_denied())),
+        };
+        state.handle.take();
+        let outcome = RecipientArc::new(outcome);
+        state.outcome = Some(outcome.clone());
+        outcome
+    }
+}
+// Registry release, startup shutdown/store-retirement joining and actual API
+// mounting are explicit owner integrations, not granted by this candidate.
+// No sessions/grants are minted. Only normal password login consumes the final
+// canonical redeemed Member mapping; this worker returns operation state only.
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) struct MemberRecipientRedemptionRequest {
+    pub(crate) attempt_id: Uuid,
+    pub(crate) descriptor: enrollment::EnrollmentDescriptor,
+    pub(crate) presented: zeroize::Zeroizing<String>,
+    pub(crate) password: String,
+    pub(crate) original_deadline: std::time::Instant,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberRecipientRedemptionRuntime {
+    pub(crate) fn new(
+        storage: SurrealStorage, credential: RecipientArc<MemberEnrollmentRecipientCredential>,
+    ) -> Result<Self, ResourceAuthorityError> {
+        if credential.key_id() != "member-enrollment-recipient-v1" { return Err(member_recipient_denied()); }
+        Ok(Self { storage, credential, operations: std::sync::Mutex::new(MemberRecipientRegistry::Accepting(Default::default())), operation_requests: std::sync::Mutex::new(MemberRecipientOperationRequests { accepting: true, requests: Vec::new(), verified_winners: Default::default(), rejected: Vec::new() }) })
+    }
+    pub(crate) async fn begin(
+        &self, request: MemberRecipientRedemptionRequest,
+    ) -> Result<RecipientArc<MemberRecipientRedemptionController>, ResourceAuthorityError> {
+        if matches!(&*self.operations.lock().unwrap_or_else(|poisoned| poisoned.into_inner()),
+            MemberRecipientRegistry::Closing(_)) { return Err(member_recipient_denied()); }
+        let prepared = self.storage.prepare_member_recipient_redemption(
+            self.credential.clone(), request.attempt_id, request.descriptor,
+            request.presented, request.password, request.original_deadline,
+        ).await?;
+        MemberRecipientRedemptionController::start(prepared, &self.operations).map_err(|rejected| {
+            let MemberRecipientRejectedInput { prepared: _retained_input, reason } = rejected;
+            reason
+        })
+    }
+    pub(crate) async fn observe_original(
+        &self, controller: &RecipientArc<MemberRecipientRedemptionController>,
+    ) -> Result<MemberRecipientOutcome, MemberRecipientFailure> {
+        let owned = {
+            let state = self.operations.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            let inventory = match &*state {
+                MemberRecipientRegistry::Accepting(inventory) | MemberRecipientRegistry::Closing(inventory) => inventory,
+            };
+            inventory.get(&controller.prepared.attempt_id).is_some_and(|original| RecipientArc::ptr_eq(original, controller))
+        };
+        if !owned { return Err(member_recipient_denied().into()); }
+        self.storage.reobserve_member_recipient_redemption(controller).await
+    }
+    pub(crate) fn begin_shutdown(&self) -> Vec<RecipientArc<MemberRecipientRedemptionController>> {
+        self.close_operation_requests();
+        let mut state = self.operations.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let previous = std::mem::replace(&mut *state, MemberRecipientRegistry::Closing(Default::default()));
+        let inventory = match previous {
+            MemberRecipientRegistry::Accepting(inventory) | MemberRecipientRegistry::Closing(inventory) => inventory,
+        };
+        let snapshot = inventory.values().cloned().collect();
+        *state = MemberRecipientRegistry::Closing(inventory);
+        snapshot
+    }
+    pub(crate) fn retained_controllers(&self) -> Vec<RecipientArc<MemberRecipientRedemptionController>> {
+        let state = self.operations.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        match &*state {
+            MemberRecipientRegistry::Accepting(inventory) | MemberRecipientRegistry::Closing(inventory) =>
+                inventory.values().cloned().collect(),
+        }
+    }
+}
+// Startup owns ONE Arc<MemberRecipientRedemptionRuntime> through shutdown.
+// Runtime188 must drain/inspect these retained controllers BEFORE retiring storage
+// or the vault credential. No global registry, per-request credential reload,
+// implicit reset, abort or forgotten-unknown path is supplied.
+// Normal password login remains the existing login/session API after canonical
+// consumed mapping. This API returns redemption operation state only.
+
+// Operation-ID recipient entry. All caller data is retained before inspection.
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRecipientOperationRequests {
+    accepting: bool,
+    requests: Vec<RecipientArc<MemberRecipientOperationRequest>>,
+    verified_winners: std::collections::HashMap<Uuid, RecipientArc<MemberRecipientOperationRequest>>,
+    rejected: Vec<RecipientArc<MemberRecipientOperationRejected>>,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberRecipientOperationRequests {
+    fn retain_rejected(
+        &mut self, rejected: MemberRecipientOperationRejected,
+    ) -> RecipientArc<MemberRecipientOperationRejected> {
+        let rejected = RecipientArc::new(rejected);
+        self.rejected.push(rejected.clone());
+        rejected
+    }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) struct MemberRecipientOperationRejected {
+    pub(crate) operation_id: Uuid,
+    pub(crate) presented: zeroize::Zeroizing<String>,
+    pub(crate) password: zeroize::Zeroizing<String>,
+    pub(crate) reason: ResourceAuthorityError,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+enum MemberRecipientOperationFailureKind {
+    Preparation(ResourceAuthorityError),
+    Admission(MemberRecipientRejectedInput),
+    Join(tokio::task::JoinError),
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) struct MemberRecipientOperationFailure {
+    _retained: MemberRecipientOperationFailureKind,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) type MemberRecipientOperationResult = Result<
+    RecipientArc<MemberRecipientRedemptionController>, MemberRecipientOperationFailure,
+>;
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRecipientOperationState {
+    handle: Option<tokio::task::JoinHandle<MemberRecipientOperationResult>>,
+    outcome: Option<RecipientArc<MemberRecipientOperationResult>>,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) struct MemberRecipientOperationRequest {
+    operation_id: Uuid,
+    attempt_id: Uuid,
+    presented: zeroize::Zeroizing<String>,
+    password: zeroize::Zeroizing<String>,
+    original_clock: RecipientInstant,
+    sampled_utc: chrono::DateTime<Utc>,
+    maximum_deadline: RecipientInstant,
+    resolved_deadline: std::sync::OnceLock<RecipientInstant>,
+    state: tokio::sync::Mutex<MemberRecipientOperationState>,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberRecipientOperationRequest {
+    pub(crate) fn operation_id(&self) -> Uuid { self.operation_id }
+    pub(crate) fn attempt_id(&self) -> Uuid { self.attempt_id }
+    pub(crate) async fn wait(&self) -> RecipientArc<MemberRecipientOperationResult> {
+        let mut state = self.state.lock().await;
+        if let Some(outcome) = &state.outcome { return outcome.clone(); }
+        let outcome = match state.handle.as_mut() {
+            Some(handle) => match handle.await {
+                Ok(result) => result,
+                Err(error) => Err(MemberRecipientOperationFailure {
+                    _retained: MemberRecipientOperationFailureKind::Join(error),
+                }),
+            },
+            None => Err(MemberRecipientOperationFailure {
+                _retained: MemberRecipientOperationFailureKind::Preparation(member_recipient_denied()),
+            }),
+        };
+        state.handle.take();
+        let outcome = RecipientArc::new(outcome);
+        state.outcome = Some(outcome.clone());
+        outcome
+    }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberRecipientRedemptionRuntime {
+    // Synchronous retention precedes first worker poll/read/effect. Repeated
+    // original operation+full raw input returns this same request, never new IDs.
+    // Distinct unverified inputs remain distinct retained submissions, not winners.
+    pub(crate) fn begin_operation(
+        self: &RecipientArc<Self>, operation_id: Uuid,
+        presented: zeroize::Zeroizing<String>, password: String,
+    ) -> Result<RecipientArc<MemberRecipientOperationRequest>, RecipientArc<MemberRecipientOperationRejected>> {
+        let password = zeroize::Zeroizing::new(password);
+        let mut registry = self.operation_requests.lock().unwrap_or_else(|p| p.into_inner());
+        if !registry.accepting || operation_id.is_nil() {
+            return Err(registry.retain_rejected(MemberRecipientOperationRejected {
+                operation_id, presented, password, reason: member_recipient_denied(),
+            }));
+        }
+        // Unverified submissions reserve no per-operation winner. Reuse only a
+        // full identical input; a different input gets its own retained proof
+        // attempt even if an earlier input failed secret verification.
+        if let Some(request) = registry.requests.iter().find(|request| {
+            request.operation_id == operation_id
+                && request.presented.as_str() == presented.as_str()
+                && request.password.as_str() == password.as_str()
+        }) {
+            return Ok(request.clone());
+        }
+        let original_clock = RecipientInstant::now();
+        let sampled_utc = Utc::now();
+        let Some(maximum_deadline) = original_clock.checked_add(std::time::Duration::from_secs(60)) else {
+            return Err(registry.retain_rejected(MemberRecipientOperationRejected {
+                operation_id, presented, password, reason: member_recipient_denied(),
+            }));
+        };
+        let attempt_id = Uuid::now_v7();
+        if attempt_id == operation_id {
+            return Err(registry.retain_rejected(MemberRecipientOperationRejected {
+                operation_id, presented, password, reason: member_recipient_denied(),
+            }));
+        }
+        let request = RecipientArc::new(MemberRecipientOperationRequest {
+            operation_id, attempt_id, presented, password, original_clock, sampled_utc,
+            maximum_deadline, resolved_deadline: std::sync::OnceLock::new(),
+            state: tokio::sync::Mutex::new(MemberRecipientOperationState { handle: None, outcome: None }),
+        });
+        // New request is unpublished, so this mutable reference needs no await.
+        let mut state = request.state.try_lock().expect("unpublished recipient request state");
+        registry.requests.push(request.clone());
+        let runtime = self.clone();
+        let owned_request = request.clone();
+        state.handle = Some(tokio::spawn(async move {
+            runtime.prepare_operation_request(owned_request).await
+        }));
+        drop(state);
+        Ok(request)
+    }
+
+    async fn prepare_operation_request(
+        &self, request: RecipientArc<MemberRecipientOperationRequest>,
+    ) -> MemberRecipientOperationResult {
+        let prepared = async {
+            member_recipient_deadline(request.maximum_deadline)?;
+            let original = RecordId::new("member_enrollments", request.operation_id.to_string());
+            let storage = self.storage.clone();
+            let credential = self.credential.clone();
+            let read_original = original.clone();
+            let maximum_deadline = request.maximum_deadline;
+            let read = SurrealStorage::with_operation_deadline(maximum_deadline,
+                self.storage.with_lease(move |client| Box::pin(async move {
+                    let scoped = (*client).clone();
+                    let result: Result<MemberRecipientInitialSnapshot, ResourceAuthorityError> = async {
+                        member_recipient_deadline(maximum_deadline)?;
+                        storage.member_recipient_signin(&scoped, &credential, &read_original,
+                            "member_enrollment_recipient_inspection").await?;
+                        member_recipient_deadline(maximum_deadline)?;
+                        let response = scoped.query(MEMBER_RECIPIENT_INITIAL)
+                            .bind(MemberRecipientOriginalBinding { original: read_original })
+                            .await.map_err(SurrealStorageError::from)?;
+                        member_recipient_single(super::decode_query_values(response, 0)?)
+                    }.await;
+                    Ok(result)
+                }))
+            ).await??;
+            member_recipient_deadline(request.maximum_deadline)?;
+            let row: MemberVaultStageRow = member_recipient_decode(read.original)?;
+            let encoded = row.descriptor_hex.as_ref().ok_or_else(member_recipient_denied)?;
+            let bytes = hex::decode(encoded).map_err(|_| member_recipient_denied())?;
+            if row.descriptor_sha256.as_deref() != Some(sha256_hex(&bytes).as_str()) {
+                return Err(member_recipient_denied());
+            }
+            let descriptor = enrollment::decode_enrollment(&bytes).map_err(|_| member_recipient_denied())?;
+            if descriptor.operation_id() != request.operation_id || !read.staged {
+                return Err(member_recipient_denied());
+            }
+            let plan = enrollment::prepare_enrollment_plan(&descriptor);
+            let binding = MemberEnrollmentBindings::original(&plan)?;
+            if binding.enrollment != original { return Err(member_recipient_denied()); }
+            row.require_bound_original(&descriptor, &binding)?;
+            let expires = chrono::DateTime::<Utc>::from_timestamp(
+                descriptor.expires_at().unix_seconds(), descriptor.expires_at().nanoseconds(),
+            ).ok_or_else(member_recipient_denied)?;
+            let remaining = (expires - request.sampled_utc).to_std().map_err(|_| member_recipient_denied())?;
+            let deadline = request.original_clock.checked_add(remaining)
+                .ok_or_else(member_recipient_denied)?.min(request.maximum_deadline);
+            request.resolved_deadline.set(deadline).map_err(|_| member_recipient_denied())?;
+            member_recipient_deadline(deadline)?;
+            // The existing genuine prepare re-reads the same Bound original,
+            // binds its full descriptor and performs real presented-secret proof
+            // then bounded chosen-password KDF. No issuer password is involved.
+            SurrealStorage::with_operation_deadline(deadline,
+                self.storage.prepare_member_recipient_redemption(
+                    self.credential.clone(), request.attempt_id, descriptor,
+                    zeroize::Zeroizing::new(request.presented.to_string()),
+                    request.password.to_string(), deadline,
+                )
+            ).await
+        }.await.map_err(|error| MemberRecipientOperationFailure {
+            _retained: MemberRecipientOperationFailureKind::Preparation(error),
+        })?;
+        // Only the actual prepared frame contains successful canonical secret
+        // verification. Claim the per-operation winner under the SAME admission
+        // gate before controller start; no unverified input can populate it.
+        let mut registry = self.operation_requests.lock().unwrap_or_else(|p| p.into_inner());
+        if !registry.accepting {
+            return Err(MemberRecipientOperationFailure {
+                _retained: MemberRecipientOperationFailureKind::Admission(MemberRecipientRejectedInput {
+                    prepared, reason: member_recipient_denied(),
+                }),
+            });
+        }
+        if let Some(winner) = registry.verified_winners.get(&request.operation_id) {
+            if !RecipientArc::ptr_eq(winner, &request) {
+                return Err(MemberRecipientOperationFailure {
+                    _retained: MemberRecipientOperationFailureKind::Admission(MemberRecipientRejectedInput {
+                        prepared, reason: member_recipient_denied(),
+                    }),
+                });
+            }
+        } else {
+            registry.verified_winners.insert(request.operation_id, request.clone());
+        }
+        // Keep the request gate locked through controller admission. Shutdown
+        // takes this gate first, so no late admission crosses its close point.
+        // A failed/unknown/effectful winner is retained and never reset here.
+        let result = MemberRecipientRedemptionController::start(prepared, &self.operations)
+            .map_err(|rejected| MemberRecipientOperationFailure {
+                _retained: MemberRecipientOperationFailureKind::Admission(rejected),
+            });
+        drop(registry);
+        result
+    }
+
+    fn close_operation_requests(&self) {
+        self.operation_requests.lock().unwrap_or_else(|p| p.into_inner()).accepting = false;
+    }
+    pub(crate) fn retained_operation_rejections(&self) -> Vec<RecipientArc<MemberRecipientOperationRejected>> {
+        self.operation_requests.lock().unwrap_or_else(|p| p.into_inner()).rejected.clone()
+    }
+    pub(crate) fn retained_operation_requests(&self) -> Vec<RecipientArc<MemberRecipientOperationRequest>> {
+        self.operation_requests.lock().unwrap_or_else(|p| p.into_inner()).requests.clone()
+    }
+}
+// Runtime188 shutdown must wait retained_operation_requests before draining the
+// existing retained_controllers and retiring storage/credential. begin_shutdown
+// closes request admission too; an in-flight prepare rejected by closing worker
+// admission keeps its actual prepared frame in its retained request error.
+// Core173 calls ArcRuntime.begin_operation(operation_id, Zeroizing(secret), password),
+// retains the returned request and waits it. Retry uses the same runtime/op/input;
+// an error never authorizes remint/restart/forget or a different attempt.
+
+
+// External CODE candidate for resource_authority.rs. No adoption/runtime verdict.
+// Depends on the same exact administration capture/lifetime helpers as fe2b3233.
+// Only the existing owned worker may call apply_in_transaction; this type does
+// not start, detach, retry, abort, or replace a transaction.
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) struct MemberRevocationPrepared {
+    storage: SurrealStorage,
+    registry: std::sync::Arc<crate::capabilities::CapabilityRegistry>,
+    request: enrollment::RevocationRequest,
+    descriptor: enrollment::EnrollmentDescriptor,
+    gate: CapturedAdministrationAuthority,
+    parent: MemberAdministrationParent,
+    lifetime: CapturedAdministrationLifetime,
+    password: super::local_accounts::CurrentActorPasswordReauthentication,
+    credential_revision: i64,
+    deadline: tokio::time::Instant,
+}
+#[derive(Clone, SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRevocationLookup { original: RecordId }
+#[derive(Clone, PartialEq, Eq, SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRevocationSnapshot {
+    original: surrealdb::types::Object,
+    descriptor_hex: String,
+    descriptor_sha256: String,
+    token_digest: String,
+    account: RecordId,
+    principal: RecordId,
+    space: RecordId,
+    account_status: String,
+    principal_status: String,
+    space_status: String,
+    account_origin: RecordId,
+    principal_origin: RecordId,
+    space_origin: RecordId,
+}
+#[derive(SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRevocationWrite {
+    original: RecordId,
+    before: surrealdb::types::Object,
+    request_id: String,
+    request_hex: String,
+    source: RegistryPublicationAuthority,
+    revision: i64,
+    event: super::event_ledger::LedgerWrite,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+const MEMBER_REVOCATION_READ: &str = "SELECT $this AS original, descriptor_hex, descriptor_sha256, token_digest,
+ account_id AS account, principal_id AS principal, access_space_id AS space,
+ account_id.status AS account_status, principal_id.status AS principal_status, access_space_id.status AS space_status,
+ account_id.member_enrollment_origin AS account_origin, principal_id.member_enrollment_origin AS principal_origin,
+ access_space_id.member_enrollment_origin AS space_origin FROM $original;";
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+const MEMBER_REVOCATION_APPLY: &str = r#"
+LET $updated = UPDATE $original SET status = 'revoked', revocation_request_id = $request_id,
+ revocation_request_hex = $request_hex, revocation_source = $source,
+ revoker_credential_revision = $revision, revoked_at = time::now()
+ WHERE $this = $before AND status = 'active' AND vault_issue_state = 'bound' AND vault_issue_revision = 4
+ AND purpose = 'identity_enrollment' AND issued_at <= time::now() AND expires_at > time::now()
+ AND redemption_attempt_id = NONE AND consumed_at = NONE
+ AND revocation_request_id = NONE AND revocation_request_hex = NONE AND revoked_at = NONE
+ RETURN AFTER;
+IF array::len($updated) != 1 { THROW 'HSK-INVITATION-DENIED'; };
+LET $receipt = CREATE $event.record CONTENT {
+ event_id: $event.event_id, event_version: $event.event_version,
+ kernel_task_run_id: $event.kernel_task_run_id, session_run_id: $event.session_run_id,
+ aggregate_type: $event.aggregate_type, aggregate_id: $event.aggregate_id,
+ idempotency_key: $event.idempotency_key, event_type: $event.event_type,
+ actor_kind: $event.actor_kind, actor_id: $event.actor_id,
+ causation_id: $event.causation_id, correlation_id: $event.correlation_id,
+ payload_hash: $event.payload_hash, source_component: $event.source_component, payload: $event.payload,
+ wsids: $event.wsids, authority_resource_id: $event.authority_resource_id,
+ authority_session_id: $event.authority_session_id, authority_capability_id: $event.authority_capability_id,
+ authority_action: $event.authority_action, created_at: $event.created_at
+} RETURN AFTER;
+IF array::len($receipt) != 1 { THROW 'HSK-INVITATION-DENIED'; };
+SELECT id AS record, event_id, event_version, kernel_task_run_id, session_run_id, aggregate_type, aggregate_id, idempotency_key, event_type, actor_kind, actor_id, causation_id, correlation_id, payload_hash, source_component, payload, wsids, authority_resource_id, authority_session_id, authority_capability_id, authority_action, created_at FROM $event.record;
+"#;
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+fn member_revocation_denied() -> ResourceAuthorityError {
+    ResourceAuthorityError::InvalidInput("member revocation denied")
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberRevocationPrepared {
+    fn live(&self) -> Result<(), ResourceAuthorityError> {
+        if tokio::time::Instant::now() >= self.deadline { return Err(member_revocation_denied()); }
+        self.lifetime.require_preserved_expiry(&self.descriptor)?;
+        if self.lifetime.source030_bound().is_some_and(|bound|
+            enrollment_time(&Datetime::from(Utc::now())).map_or(true, |now| bound <= now)) {
+            return Err(member_revocation_denied());
+        }
+        Ok(())
+    }
+    pub(crate) fn request(&self) -> &enrollment::RevocationRequest { &self.request }
+    pub(crate) fn original_deadline(&self) -> tokio::time::Instant { self.deadline }
+    pub(super) fn original_scope(&self) -> &RecordUserScope { &self.gate.original_scope }
+    fn lookup(&self) -> MemberRevocationLookup {
+        MemberRevocationLookup { original: RecordId::new("member_enrollments", self.request.enrollment_operation_id().to_string()) }
+    }
+    fn require_parent(&self, parent: &MemberAdministrationParent) -> Result<(), ResourceAuthorityError> {
+        let facts = &self.gate.facts;
+        if parent != &self.parent || parent.administration != facts.resource_id
+            || parent.owner != facts.account_id || parent.space != facts.access_space_id
+            || parent.parent_owner != parent.owner || parent.parent_space != parent.space
+            || parent.parent_kind != "workspace" || parent.parent_state != "active"
+            || parent.parent_external != self.request.current_revoker().workspace_id()
+            || parent.resource_policy != self.lifetime.policy_version
+            || facts.policy_versions.first().is_none_or(|policy| parent.parent_policy > *policy)
+        { return Err(member_revocation_denied()); }
+        Ok(())
+    }
+    fn require_snapshot(&self, row: &MemberRevocationSnapshot) -> Result<(), ResourceAuthorityError> {
+        let bytes = enrollment::encode_enrollment(&self.descriptor).map_err(|_| member_revocation_denied())?;
+        let digest = Sha256::digest(&bytes);
+        let expected_digest: [u8; 32] = digest.into();
+        enrollment::validate_revocation_link(&self.request, &self.descriptor, &expected_digest)
+            .map_err(|_| member_revocation_denied())?;
+        if row.descriptor_hex != hex::encode(&bytes) || row.descriptor_sha256 != hex::encode(expected_digest)
+            || row.token_digest != hex::encode(self.descriptor.token_digest())
+            || row.account != RecordId::new("local_accounts", self.descriptor.staged().account_id())
+            || row.principal != RecordId::new("principals", self.descriptor.staged().principal_id())
+            || row.space != RecordId::new("access_spaces", self.descriptor.staged().access_space_id())
+            || row.account_origin != self.lookup().original || row.principal_origin != self.lookup().original
+            || row.space_origin != self.lookup().original
+            || row.account_status != "disabled" || row.principal_status != "disabled" || row.space_status != "disabled"
+        { return Err(member_revocation_denied()); }
+        let status = row.original.get("status");
+        if status != Some(&surrealdb::types::Value::String("active".into())) {
+            return Err(member_revocation_denied());
+        }
+        let now = enrollment_time(&Datetime::from(Utc::now()))?;
+        handshake_member_enrollment::invitation::evaluate_revocation(
+            &handshake_member_enrollment::invitation::InvitationSnapshot {
+                descriptor: &self.descriptor, observed_descriptor_bytes: Some(&bytes),
+                status: handshake_member_enrollment::invitation::InvitationStatus::Active,
+                account_status: handshake_member_enrollment::invitation::IdentityStatus::Disabled,
+                principal_status: handshake_member_enrollment::invitation::IdentityStatus::Disabled,
+                space_status: handshake_member_enrollment::invitation::SpaceStatus::Disabled,
+            }, &self.request, &expected_digest, now,
+        ).map_err(|_| member_revocation_denied())?;
+        Ok(())
+    }
+    async fn fence(&self, tx: &super::SurrealTransactionContext<'_>) -> Result<(), ResourceAuthorityError> {
+        self.live()?;
+        tx.require_authenticated_scope(&self.storage, &self.gate.original_scope)?;
+        let rows: Vec<RegistryPublicationAuthority> = tx.query_values_at(
+            REGISTRY_PUBLICATION_AUTHORITY, RegistryPublicationBindings {
+                resource: self.gate.facts.resource_id.clone(), original_grant: self.gate.facts.grant_id.clone(),
+                kind: ResourceKind::AccountAdministration.as_str().to_owned(),
+                action: ResourceAction::Update.as_str().to_owned(),
+                capability: enrollment::CommandKind::RevokeEnrollment.capability_id().to_owned(),
+            }, 0,
+        ).await?;
+        let [facts] = rows.as_slice() else { return Err(member_revocation_denied()); };
+        if facts != &self.gate.facts || self.gate.original_scope.action != ResourceAction::Update
+            || self.gate.original_scope.capability_id != enrollment::CommandKind::RevokeEnrollment.capability_id()
+            || !self.registry.profile_can(&facts.capability_profile_id,
+                enrollment::CommandKind::RevokeEnrollment.capability_id()).unwrap_or(false)
+        { return Err(member_revocation_denied()); }
+        self.lifetime.require_matches_source(facts)?;
+        let parents: Vec<MemberAdministrationParent> = tx.query_values_at(
+            ORIGINAL_ACCOUNT_PARENT_SQL, MemberAdministrationParentBindings { resource: facts.resource_id.clone() }, 0,
+        ).await?;
+        let [parent] = parents.as_slice() else { return Err(member_revocation_denied()); };
+        self.require_parent(parent)?;
+        let revision = self.password.fenced_credential_revision_in_transaction(
+            &self.storage, tx, &self.gate.original_scope, self.request.request_id(), self.request.enrollment_operation_id(),
+        ).await?;
+        if revision != self.credential_revision { return Err(member_revocation_denied()); }
+        self.live()
+    }
+    // Transaction owner MUST retain this complete value/result and await actual
+    // commit before publishing success. A lost observer never calls this again.
+    async fn apply_in_transaction(
+        &self, tx: &super::SurrealTransactionContext<'_>,
+    ) -> Result<MemberRevocationCommitCandidate, ResourceAuthorityError> {
+        self.fence(tx).await?;
+        let rows: Vec<MemberRevocationSnapshot> = tx.query_values_at(MEMBER_REVOCATION_READ, self.lookup(), 0).await?;
+        let [before] = rows.as_slice() else { return Err(member_revocation_denied()); };
+        self.require_snapshot(before)?;
+        let request_hex = hex::encode(enrollment::encode_revocation(&self.request).map_err(|_| member_revocation_denied())?);
+        let facts = &self.gate.facts;
+        let source_value = serde_json::json!({
+            "resource_id": self.request.source().resource_id(),
+            "grant_id": self.request.source().grant_id(),
+            "grant_version": facts.grant_version,
+            "owner_account_id": self.request.current_revoker().owner_account_id(),
+            "actor_principal_id": self.request.current_revoker().actor_principal_id(),
+            "authenticated_session_id": self.request.current_revoker().authenticated_session_id(),
+            "access_space_id": self.request.current_revoker().access_space_id(),
+            "workspace_id": self.request.current_revoker().workspace_id(),
+            "actor_kind": facts.actor_kind, "actor_id": facts.actor_id,
+            "actions": facts.actions, "capability_ids": facts.capability_ids,
+            "policy_versions": facts.policy_versions, "revocation_epochs": facts.revocation_epochs,
+            "delegation_chain": facts.delegation_chain,
+            "session_capabilities": facts.session_capabilities, "principal_capabilities": facts.principal_capabilities,
+            "capability_profile_id": facts.capability_profile_id,
+            "statuses": facts.statuses, "resource_kind": facts.resource_kind,
+        });
+        let payload = serde_json::json!({
+            "request_id": self.request.request_id().to_string(),
+            "enrollment_operation_id": self.request.enrollment_operation_id().to_string(),
+            "revocation_request_hex": request_hex,
+            "descriptor_sha256": before.descriptor_sha256,
+            "account_id": self.descriptor.staged().account_id(),
+            "principal_id": self.descriptor.staged().principal_id(),
+            "access_space_id": self.descriptor.staged().access_space_id(),
+            "action": "update", "capability_id": enrollment::CommandKind::RevokeEnrollment.capability_id(),
+            "purpose": enrollment::CommandKind::RevokeEnrollment.purpose(),
+            "profile_id": "MemberEnrollment", "source": source_value,
+        });
+        let actor = match self.gate.facts.actor_kind.as_str() {
+            "operator" => crate::kernel::KernelActor::Operator(self.gate.facts.actor_id.clone()),
+            _ => return Err(member_revocation_denied()),
+        };
+        let event = crate::kernel::NewKernelEvent::builder(
+            self.request.request_id().to_string(), self.gate.session.session_id.clone(),
+            crate::kernel::KernelEventType::MemberEnrollmentRevoked, actor,
+        ).aggregate("member_enrollment", self.request.enrollment_operation_id().to_string())
+            .idempotency_key(format!("member-enrollment-revoked:{}", self.request.request_id()))
+            .correlation_id(self.request.enrollment_operation_id().to_string())
+            .source_component("member_enrollment").payload(payload).build()
+            .map_err(|_| member_revocation_denied())?;
+        let (candidate, mut write) = super::event_ledger::prepare_event(event).map_err(|_| member_revocation_denied())?;
+        write.wsids = vec![self.request.current_revoker().workspace_id().to_owned()];
+        write.authority_resource_id = Some(self.gate.facts.resource_id.clone());
+        write.authority_session_id = Some(self.gate.facts.session_id.clone());
+        write.authority_capability_id = Some(enrollment::CommandKind::RevokeEnrollment.capability_id().to_owned());
+        write.authority_action = Some(ResourceAction::Update.as_str().to_owned());
+        self.live()?;
+        // Exactly the supplied physical transaction. No EventLedger::append()
+        // call opens a second database operation around this mutation.
+        let receipts: Vec<super::event_ledger::LedgerWrite> = tx.query_values_at(
+            MEMBER_REVOCATION_APPLY, MemberRevocationWrite {
+                original: self.lookup().original, before: before.original.clone(),
+                request_id: self.request.request_id().to_string(), request_hex,
+                source: self.gate.facts.clone(), revision: self.credential_revision, event: write.clone(),
+            }, 4,
+        ).await?;
+        let [receipt] = receipts.as_slice() else { return Err(member_revocation_denied()); };
+        if receipt.event_id != write.event_id || receipt.payload_hash != write.payload_hash
+            || receipt.idempotency_key != write.idempotency_key || receipt.payload != write.payload
+        { return Err(member_revocation_denied()); }
+        self.fence(tx).await?;
+        let binding = MemberRevocationFinalBinding { original: self.lookup().original, event: write.record.clone() };
+        let final_rows: Vec<MemberRevocationFinal> = tx.query_values_at(MEMBER_REVOCATION_FINAL, binding, 0).await?;
+        let [observed] = final_rows.as_slice() else { return Err(member_revocation_denied()); };
+        let mut expected_original = before.original.clone();
+        for key in ["status", "revocation_request_id", "revocation_request_hex", "revocation_source",
+            "revoker_credential_revision", "revoked_at"] {
+            expected_original.insert(key.to_owned(), observed.original.get(key).cloned().ok_or_else(member_revocation_denied)?);
+        }
+        if observed.original != expected_original
+            || observed.receipt.clone().into_value() != write.clone().into_value()
+            || observed.sequence <= 0
+        { return Err(member_revocation_denied()); }
+        Ok(MemberRevocationCommitCandidate { event: candidate, expected: observed.clone() })
+    }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl SurrealStorage {
+    // New bounded private constructor. Input is not an authority witness.
+    pub(crate) async fn prepare_member_revocation(
+        &self, registry: std::sync::Arc<crate::capabilities::CapabilityRegistry>,
+        credentials: RoleAuthorityAuthInput, request: enrollment::RevocationRequest,
+        descriptor: enrollment::EnrollmentDescriptor, password: String,
+        original_deadline: tokio::time::Instant,
+    ) -> Result<MemberRevocationPrepared, ResourceAuthorityError> {
+        if request.request_id().is_nil() || request.request_id() == request.enrollment_operation_id()
+            || tokio::time::Instant::now() >= original_deadline
+        { return Err(member_revocation_denied()); }
+        SurrealStorage::with_operation_deadline(original_deadline.into_std(), async move {
+            let proof = self.reauthenticate_current_actor_password(
+                request.request_id(), request.enrollment_operation_id(),
+                &credentials.session_token, &credentials.channel_binding_hash, password,
+            ).await?;
+            let gate = self.capture_current_administration(
+                &registry, credentials, enrollment::CommandKind::RevokeEnrollment,
+                request.administrator_resource(), request.current_revoker().workspace_id(),
+            ).await?;
+            if gate.exact != *request.current_revoker() || enrollment_source(&gate.facts)? != *request.source()
+                || gate.original_scope.action != ResourceAction::Update
+                || gate.original_scope.capability_id != enrollment::CommandKind::RevokeEnrollment.capability_id()
+            { return Err(member_revocation_denied()); }
+            let lifetime = CapturedAdministrationLifetime {
+                administration_resource_id: gate.facts.resource_id.clone(),
+                policy_version: *gate.facts.policy_versions.get(1).ok_or_else(member_revocation_denied)?,
+                choice: gate.facts.administration_lifetime.as_ref().ok_or_else(member_revocation_denied)?.closed_choice()?,
+            };
+            lifetime.require_matches_source(&gate.facts)?;
+            let bindings = MemberAdministrationParentBindings { resource: gate.facts.resource_id.clone() };
+            let parents: Vec<MemberAdministrationParent> = self.with_record_user_scope(
+                gate.original_scope.clone(), self.with_data_operation(move |db| Box::pin(async move {
+                    db.query_values_at(ORIGINAL_ACCOUNT_PARENT_SQL, bindings, 0).await
+                })),
+            ).await?;
+            let [parent] = parents.as_slice() else { return Err(member_revocation_denied()); };
+            self.recheck_current_actor_password(&proof, &gate.credentials.session_token, &gate.credentials.channel_binding_hash).await?;
+            let revision = proof.bound_credential_revision(
+                self, request.request_id(), request.enrollment_operation_id(), &gate.session,
+                &gate.credentials.session_token, &gate.credentials.channel_binding_hash,
+                &gate.facts.policy_versions, &gate.facts.revocation_epochs,
+            )?;
+            let result = MemberRevocationPrepared {
+                storage: self.clone(), registry, request, descriptor, gate, parent: parent.clone(),
+                lifetime, password: proof, credential_revision: revision, deadline: original_deadline,
+            };
+            result.live()?; result.require_parent(parent)?;
+            Ok(result)
+        }).await
+    }
+}
+// Current-revoker request builder and actual router/runtime mount remain external integrations.
+
+#[derive(Clone, SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRevocationFinalBinding { original: RecordId, event: RecordId }
+#[derive(Clone, SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRevocationFinal {
+    original: surrealdb::types::Object,
+    receipt: super::event_ledger::LedgerWrite,
+    sequence: i64,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+const MEMBER_REVOCATION_FINAL: &str = "SELECT $this AS original,
+    (SELECT id AS record, event_id, event_version, kernel_task_run_id, session_run_id, aggregate_type, aggregate_id, idempotency_key, event_type, actor_kind, actor_id, causation_id, correlation_id, payload_hash, source_component, payload, wsids, authority_resource_id, authority_session_id, authority_capability_id, authority_action, created_at FROM ONLY $event) AS receipt, $event.event_sequence AS sequence FROM $original;";
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRevocationCommitCandidate {
+    event: crate::kernel::KernelEvent,
+    expected: MemberRevocationFinal,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) struct MemberRevocationOutcome {
+    event: crate::kernel::KernelEvent,
+    sequence: i64,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberRevocationOutcome {
+    pub(crate) fn event(&self) -> &crate::kernel::KernelEvent { &self.event }
+    pub(crate) fn event_sequence(&self) -> i64 { self.sequence }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) enum MemberRevocationFailure {
+    Authority(ResourceAuthorityError),
+    Storage(SurrealStorageError),
+    Join(tokio::task::JoinError),
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl From<SurrealStorageError> for MemberRevocationFailure {
+    fn from(error: SurrealStorageError) -> Self { Self::Storage(error) }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl From<ResourceAuthorityError> for MemberRevocationFailure {
+    fn from(error: ResourceAuthorityError) -> Self { Self::Authority(error) }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) type MemberRevocationResult = Result<MemberRevocationOutcome, MemberRevocationFailure>;
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRevocationControllerState {
+    worker: Option<tokio::task::JoinHandle<MemberRevocationResult>>,
+    outcome: Option<std::sync::Arc<MemberRevocationResult>>,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) struct MemberRevocationController {
+    prepared: std::sync::Arc<MemberRevocationPrepared>,
+    expected: std::sync::OnceLock<MemberRevocationCommitCandidate>,
+    cancellation: std::sync::Arc<super::ContextOperationCancellation>,
+    state: tokio::sync::Mutex<MemberRevocationControllerState>,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) enum MemberRevocationAdmissionError {
+    Closing { prepared: MemberRevocationPrepared },
+    RegistryPoisoned { prepared: MemberRevocationPrepared },
+    DifferentOriginal { prepared: MemberRevocationPrepared },
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+type MemberRevocationInventory = std::collections::HashMap<Uuid, std::sync::Arc<MemberRevocationController>>;
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRevocationAdmission {
+    closing: bool,
+    inventory: MemberRevocationInventory,
+    seeds: Vec<std::sync::Arc<MemberRevocationSeedController>>,
+    verified_seeds: std::collections::HashMap<Uuid, std::sync::Arc<MemberRevocationSeedController>>,
+    rejected_seeds: Vec<std::sync::Arc<MemberRevocationSeedAdmissionError>>,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) struct MemberRevocationRuntime {
+    storage: SurrealStorage,
+    admission: std::sync::Mutex<MemberRevocationAdmission>,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberRevocationRuntime {
+    // Once per actual storage owner; host must retain through store retirement.
+    pub(crate) fn new(storage: SurrealStorage) -> Self {
+        Self { storage, admission: std::sync::Mutex::new(MemberRevocationAdmission {
+            closing: false, inventory: Default::default(), seeds: Vec::new(), verified_seeds: Default::default(), rejected_seeds: Vec::new(),
+        }) }
+    }
+    // All private authority work precedes this call. Close and insert use the
+    // same gate. A duplicate never launches another worker or consumes new proof.
+    pub(crate) fn admit(
+        &self, prepared: MemberRevocationPrepared,
+    ) -> Result<std::sync::Arc<MemberRevocationController>, MemberRevocationAdmissionError> {
+        if !std::sync::Arc::ptr_eq(&self.storage.inner, &prepared.storage.inner) {
+            return Err(MemberRevocationAdmissionError::DifferentOriginal { prepared });
+        }
+        let mut gate = match self.admission.lock() {
+            Ok(gate) => gate,
+            Err(_) => return Err(MemberRevocationAdmissionError::RegistryPoisoned { prepared }),
+        };
+        // Existing custody is accessible only by observe_original, never by
+        // replacing its password/source/deadline/prepared object on this path.
+        if gate.inventory.contains_key(&prepared.request.request_id()) {
+            return Err(MemberRevocationAdmissionError::DifferentOriginal { prepared });
+        }
+        if gate.closing { return Err(MemberRevocationAdmissionError::Closing { prepared }); }
+        let prepared = std::sync::Arc::new(prepared);
+        let controller = std::sync::Arc::new(MemberRevocationController {
+            prepared: prepared.clone(), expected: std::sync::OnceLock::new(),
+            cancellation: super::ContextOperationCancellation::new(),
+            state: tokio::sync::Mutex::new(MemberRevocationControllerState { worker: None, outcome: None }),
+        });
+        let Ok(mut state) = controller.state.try_lock() else {
+            unreachable!("new unpublished controller lock");
+        };
+        gate.inventory.insert(prepared.request.request_id(), controller.clone());
+        let owned = controller.clone();
+        state.worker = Some(tokio::spawn(async move { owned.run_once().await }));
+        drop(state);
+        Ok(controller)
+    }
+    // Internal custody lookup is not HTTP authorization or delivery permission.
+    // The outward handler must freshly authorize Update for this canonical target.
+    pub(crate) fn retained_original(
+        &self, request: &enrollment::RevocationRequest, deadline: tokio::time::Instant,
+    ) -> Option<std::sync::Arc<MemberRevocationController>> {
+        let gate = self.admission.lock().ok()?;
+        let controller = gate.inventory.get(&request.request_id())?;
+        (controller.prepared.request == *request && controller.prepared.deadline == deadline)
+            .then(|| controller.clone())
+    }
+    pub(crate) fn begin_shutdown(&self) -> Result<MemberRevocationShutdownInventory, ResourceAuthorityError> {
+        let mut gate = self.admission.lock().map_err(|_| member_revocation_denied())?;
+        gate.closing = true;
+        Ok(MemberRevocationShutdownInventory { seeds: gate.seeds.clone(), effects: gate.inventory.values().cloned().collect() })
+    }
+    pub(crate) fn retained_controllers(&self) -> Result<Vec<std::sync::Arc<MemberRevocationController>>, ResourceAuthorityError> {
+        let gate = self.admission.lock().map_err(|_| member_revocation_denied())?;
+        Ok(gate.inventory.values().cloned().collect())
+    }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberRevocationController {
+    pub(crate) fn original(&self) -> &enrollment::RevocationRequest { &self.prepared.request }
+    pub(crate) fn original_deadline(&self) -> tokio::time::Instant { self.prepared.deadline }
+    async fn run_once(self: std::sync::Arc<Self>) -> MemberRevocationResult {
+        let storage = self.prepared.storage.clone();
+        let scope = self.prepared.gate.original_scope.clone();
+        let operation = self.prepared.request.request_id();
+        let worker = self.clone();
+        // The actual owned storage API selects the finalization-await path via
+        // this retained cancellation owner. The ordinary authenticated API
+        // instead permits a timeout return before its inner worker settles.
+        // Preserve the WHOLE typed storage result and this outer JoinError;
+        // no new retention enum, timeout, abort or retry wraps finalization.
+        SurrealStorage::with_operation_deadline(
+            self.prepared.deadline.into_std(), storage.with_record_user_scope(
+                scope.clone(), storage.with_owned_authenticated_transaction::<
+                    (), MemberRevocationFailure, _>(
+                    operation, self.cancellation.clone(), move |tx| Box::pin(async move {
+                        let candidate = worker.prepared.apply_in_transaction(&tx).await?;
+                        worker.expected.set(candidate).map_err(|_| member_revocation_denied())?;
+                        Ok(())
+                    }),
+                ),
+            ),
+        ).await?;
+        // Callback retained the complete expected raw values BEFORE commit.
+        // This return awaited actual commit; a commit error leaves expected
+        // values + raw error in this controller without repeating the CAS.
+        self.canonical_reobserve().await
+    }
+    // This query has no mutation, new sign-in, grant, request, PHC or deadline.
+    // It reuses the same storage and original record-user scope. It does not
+    // rerun an active/revocation CAS after Unknown or a cancelled HTTP waiter.
+    pub(crate) async fn canonical_reobserve(&self) -> MemberRevocationResult {
+        let expected = self.expected.get().ok_or_else(member_revocation_denied)?;
+        let bindings = MemberRevocationFinalBinding {
+            original: self.prepared.lookup().original, event: expected.expected.receipt.record.clone(),
+        };
+        let rows: Vec<MemberRevocationFinal> = self.prepared.storage.with_record_user_scope(
+            self.prepared.gate.original_scope.clone(),
+            self.prepared.storage.with_data_operation(move |db| Box::pin(async move {
+                db.query_values_at(MEMBER_REVOCATION_FINAL, bindings, 0).await
+            })),
+        ).await?;
+        let [row] = rows.as_slice() else { return Err(member_revocation_denied().into()); };
+        if row.original != expected.expected.original
+            || row.receipt.clone().into_value() != expected.expected.receipt.clone().into_value()
+            || row.sequence != expected.expected.sequence || row.sequence <= 0
+        { return Err(member_revocation_denied().into()); }
+        Ok(MemberRevocationOutcome { event: expected.event.clone(), sequence: row.sequence })
+    }
+    pub(crate) async fn wait(&self) -> std::sync::Arc<MemberRevocationResult> {
+        let mut state = self.state.lock().await;
+        if let Some(outcome) = &state.outcome { return outcome.clone(); }
+        let outcome = match state.worker.as_mut() {
+            Some(worker) => match worker.await {
+                Ok(outcome) => outcome,
+                Err(error) => Err(MemberRevocationFailure::Join(error)),
+            },
+            None => Err(member_revocation_denied().into()),
+        };
+        state.worker.take();
+        let outcome = std::sync::Arc::new(outcome);
+        state.outcome = Some(outcome.clone());
+        outcome
+    }
+}
+// Host owns one Arc<MemberRevocationRuntime>, same mandatory router Extension,
+// and begin_shutdown + wait of ALL retained controllers BEFORE storage closes.
+// Every Err/JoinError/unknown keeps the runtime+storage+prepared+outcome owners.
+// No release/forget/retry API is supplied. Admission errors return whole input.
+// Actual route, current request construction and Runtime188 drain mount are
+// required integrations, not established by this CODE candidate.
+
+#[derive(SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRevocationReplayBinding { original: RecordId, event_key: String }
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+const MEMBER_REVOCATION_REPLAY: &str = "LET $events = SELECT id AS record, event_id, event_version, kernel_task_run_id, session_run_id, aggregate_type, aggregate_id, idempotency_key, event_type, actor_kind, actor_id, causation_id, correlation_id, payload_hash, source_component, payload, wsids, authority_resource_id, authority_session_id, authority_capability_id, authority_action, created_at, event_sequence FROM kernel_event_ledger
+    WHERE idempotency_key = $event_key LIMIT 2;
+    IF array::len($events) != 1 { THROW 'HSK-INVITATION-DENIED'; };
+    SELECT $this AS original, $events[0] AS receipt, $events[0].event_sequence AS sequence FROM $original;";
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) struct MemberRevocationObserved {
+    request_id: Uuid,
+    enrollment_operation_id: Uuid,
+    event_id: String,
+    sequence: i64,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberRevocationObserved {
+    pub(crate) fn request_id(&self) -> Uuid { self.request_id }
+    pub(crate) fn enrollment_operation_id(&self) -> Uuid { self.enrollment_operation_id }
+    pub(crate) fn event_id(&self) -> &str { &self.event_id }
+    pub(crate) fn event_sequence(&self) -> i64 { self.sequence }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl SurrealStorage {
+    // A restart/retry reads only the exact original request and actual event.
+    // Fresh current Update admission is independent of the old event's session.
+    // There is no KDF/nonce/mutation/new attempt on this metadata-only path.
+    pub(crate) async fn observe_member_revocation(
+        &self, registry: &crate::capabilities::CapabilityRegistry,
+        credentials: RoleAuthorityAuthInput, request: &enrollment::RevocationRequest,
+        descriptor: &enrollment::EnrollmentDescriptor,
+    ) -> Result<MemberRevocationObserved, ResourceAuthorityError> {
+        let gate = self.capture_member_revocation_replay(registry, credentials, request).await?;
+        let descriptor_bytes = enrollment::encode_enrollment(descriptor).map_err(|_| member_revocation_denied())?;
+        let descriptor_digest: [u8;32] = Sha256::digest(&descriptor_bytes).into();
+        enrollment::validate_revocation_link(request, descriptor, &descriptor_digest).map_err(|_| member_revocation_denied())?;
+        let event_key = format!("member-enrollment-revoked:{}", request.request_id());
+        let binding = MemberRevocationReplayBinding {
+            original: RecordId::new("member_enrollments", request.enrollment_operation_id().to_string()),
+            event_key: event_key.clone(),
+        };
+        let rows: Vec<MemberRevocationFinal> = self.with_record_user_scope(
+            gate.original_scope, self.with_data_operation(move |db| Box::pin(async move {
+                db.query_values_at(MEMBER_REVOCATION_REPLAY, binding, 2).await
+            })),
+        ).await?;
+        let [row] = rows.as_slice() else { return Err(member_revocation_denied()); };
+        let equals = |field: &str, value: String| {
+            row.original.get(field) == Some(&surrealdb::types::Value::String(value))
+        };
+        let request_hex = hex::encode(enrollment::encode_revocation(request).map_err(|_| member_revocation_denied())?);
+        if !equals("status", "revoked".to_owned())
+            || !equals("operation_id", request.enrollment_operation_id().to_string())
+            || !equals("revocation_request_id", request.request_id().to_string())
+            || !equals("revocation_request_hex", request_hex)
+            || !equals("descriptor_hex", hex::encode(&descriptor_bytes))
+            || !equals("descriptor_sha256", hex::encode(descriptor_digest))
+            || !equals("token_digest", hex::encode(descriptor.token_digest()))
+            || row.receipt.idempotency_key != event_key
+            || row.receipt.event_type != "MEMBER_ENROLLMENT_REVOKED"
+            || row.receipt.aggregate_type != "member_enrollment"
+            || row.receipt.aggregate_id != request.enrollment_operation_id().to_string()
+            || row.receipt.kernel_task_run_id != request.request_id().to_string()
+            || row.sequence <= 0
+        { return Err(member_revocation_denied()); }
+        Ok(MemberRevocationObserved { request_id: request.request_id(),
+            enrollment_operation_id: request.enrollment_operation_id(),
+            event_id: row.receipt.event_id.clone(), sequence: row.sequence })
+    }
+}
+
+// Server input contains selectors and credentials only. No request/descriptor,
+// current actor, SourceRef, source time, PHC or authority proof is deserialized.
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) struct MemberRevocationServerInput {
+    pub(crate) request_selector: Uuid,
+    pub(crate) enrollment_operation_id: Uuid,
+    pub(crate) workspace: String,
+    pub(crate) administrator_resource: String,
+    pub(crate) credentials: RoleAuthorityAuthInput,
+    pub(crate) password: zeroize::Zeroizing<String>,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRevocationServerSeed {
+    input: MemberRevocationServerInput,
+    registry: std::sync::Arc<crate::capabilities::CapabilityRegistry>,
+    requested_at: enrollment::Timestamp,
+    deadline: tokio::time::Instant,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberRevocationServerSeed {
+    fn matches(&self, input: &MemberRevocationServerInput,
+        registry: &std::sync::Arc<crate::capabilities::CapabilityRegistry>) -> bool {
+        self.input.request_selector == input.request_selector
+            && self.input.enrollment_operation_id == input.enrollment_operation_id
+            && self.input.workspace == input.workspace && self.input.administrator_resource == input.administrator_resource
+            && self.input.credentials.session_token == input.credentials.session_token
+            && self.input.credentials.channel_binding_hash == input.credentials.channel_binding_hash
+            && self.input.password.as_str() == input.password.as_str()
+            && std::sync::Arc::ptr_eq(&self.registry, registry)
+    }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) enum MemberRevocationSeedAdmissionError {
+    Invalid { input: MemberRevocationServerInput },
+    Closing { input: MemberRevocationServerInput },
+    RegistryPoisoned { input: MemberRevocationServerInput },
+    DifferentOriginal { input: MemberRevocationServerInput },
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) enum MemberRevocationSeedFailure {
+    Preparation(ResourceAuthorityError),
+    Admission(MemberRevocationAdmissionError),
+    Join(tokio::task::JoinError),
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) type MemberRevocationSeedResult =
+    Result<std::sync::Arc<MemberRevocationController>, MemberRevocationSeedFailure>;
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRevocationSeedState {
+    worker: Option<tokio::task::JoinHandle<MemberRevocationSeedResult>>,
+    outcome: Option<std::sync::Arc<MemberRevocationSeedResult>>,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) struct MemberRevocationSeedController {
+    seed: std::sync::Arc<MemberRevocationServerSeed>,
+    original: std::sync::OnceLock<(enrollment::RevocationRequest, enrollment::EnrollmentDescriptor)>,
+    state: tokio::sync::Mutex<MemberRevocationSeedState>,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) struct MemberRevocationShutdownInventory {
+    pub(crate) seeds: Vec<std::sync::Arc<MemberRevocationSeedController>>,
+    pub(crate) effects: Vec<std::sync::Arc<MemberRevocationController>>,
+}
+#[derive(SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberRevocationServerOriginal {
+    operation_id: String,
+    status: String,
+    descriptor_hex: String,
+    descriptor_sha256: String,
+    token_digest: String,
+    revocation_request_hex: Option<String>,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+const MEMBER_REVOCATION_SERVER_ORIGINAL: &str =
+    "SELECT operation_id, status, descriptor_hex, descriptor_sha256, token_digest, revocation_request_hex FROM $original;";
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberRevocationRuntime {
+    // This synchronous admission retains full input and samples clocks once
+    // before any async operation. Source030 only requires a distinct nonnil
+    // request UUID, so the stable untrusted selector is preserved as its ID.
+    // It is not permission or a server-derived actor/source claim.
+    pub(crate) fn begin(
+        self: &std::sync::Arc<Self>,
+        registry: std::sync::Arc<crate::capabilities::CapabilityRegistry>,
+        input: MemberRevocationServerInput,
+    ) -> Result<std::sync::Arc<MemberRevocationSeedController>, std::sync::Arc<MemberRevocationSeedAdmissionError>> {
+        let mut gate = match self.admission.lock() {
+            Ok(gate) => gate,
+            Err(poisoned) => {
+                let mut gate = poisoned.into_inner();
+                return Err(gate.retain_seed_rejection(MemberRevocationSeedAdmissionError::RegistryPoisoned { input }));
+            },
+        };
+        // Retain unverified submissions separately. A failed credential or
+        // password cannot reserve the canonical request selector.
+        if let Some(retained) = gate.seeds.iter().find(|retained| retained.seed.matches(&input, &registry)) {
+            return Ok(retained.clone());
+        }
+        if gate.closing { return Err(gate.retain_seed_rejection(MemberRevocationSeedAdmissionError::Closing { input })); }
+        if input.request_selector.is_nil() || input.enrollment_operation_id.is_nil()
+            || input.request_selector == input.enrollment_operation_id
+            || input.workspace.is_empty() || input.administrator_resource.is_empty()
+        { return Err(gate.retain_seed_rejection(MemberRevocationSeedAdmissionError::Invalid { input })); }
+        let monotonic_now = tokio::time::Instant::now();
+        let utc_now = Datetime::from(Utc::now());
+        let deadline = match super::OPERATION_DEADLINE.try_with(|deadline| tokio::time::Instant::from_std(*deadline)) {
+            Ok(existing) => existing,
+            Err(_) => match monotonic_now.checked_add(self.storage.config().statement_timeout()) {
+                Some(deadline) => deadline,
+                None => return Err(gate.retain_seed_rejection(MemberRevocationSeedAdmissionError::Invalid { input })),
+            },
+        };
+        if deadline <= monotonic_now { return Err(gate.retain_seed_rejection(MemberRevocationSeedAdmissionError::Invalid { input })); }
+        let requested_at = match enrollment_time(&utc_now) {
+            Ok(value) => value,
+            Err(_) => return Err(gate.retain_seed_rejection(MemberRevocationSeedAdmissionError::Invalid { input })),
+        };
+        let controller = std::sync::Arc::new(MemberRevocationSeedController {
+            seed: std::sync::Arc::new(MemberRevocationServerSeed { input, registry, requested_at, deadline }),
+            original: std::sync::OnceLock::new(),
+            state: tokio::sync::Mutex::new(MemberRevocationSeedState { worker: None, outcome: None }),
+        });
+        let Ok(mut state) = controller.state.try_lock() else { unreachable!("new seed lock"); };
+        gate.seeds.push(controller.clone());
+        let owner = self.clone();
+        let retained = controller.clone();
+        state.worker = Some(tokio::spawn(async move {
+            SurrealStorage::with_operation_deadline(retained.seed.deadline.into_std(),
+                owner.prepare_server_seed(retained)).await
+        }));
+        drop(state);
+        Ok(controller)
+    }
+    async fn prepare_server_seed(
+        &self, retained: std::sync::Arc<MemberRevocationSeedController>,
+    ) -> MemberRevocationSeedResult {
+        let seed = &retained.seed;
+        let input = &seed.input;
+        let result: Result<MemberRevocationPrepared, ResourceAuthorityError> = async {
+            if tokio::time::Instant::now() >= seed.deadline { return Err(member_revocation_denied()); }
+            // First actual Update authorization admits the private original read.
+            // The supplied selectors are checked AGAINST the canonical descriptor.
+            let gate = self.storage.capture_current_administration(
+                &seed.registry, input.credentials.clone(), enrollment::CommandKind::RevokeEnrollment,
+                &input.administrator_resource, &input.workspace,
+            ).await?;
+            let original = self.storage.read_member_revocation_server_original(&gate, input.enrollment_operation_id).await?;
+            let descriptor = self.storage.decode_member_revocation_server_original(
+                &original, input.enrollment_operation_id, &input.workspace, &input.administrator_resource,
+            )?;
+            let request = enrollment::RevocationRequest::new(
+                input.request_selector, input.enrollment_operation_id, descriptor.staged().clone(),
+                descriptor.administrator_resource().to_owned(),
+                Sha256::digest(enrollment::encode_enrollment(&descriptor).map_err(|_| member_revocation_denied())?).into(),
+                gate.exact, enrollment_source(&gate.facts)?, seed.requested_at,
+            ).map_err(|_| member_revocation_denied())?;
+            retained.original.set((request.clone(), descriptor.clone())).map_err(|_| member_revocation_denied())?;
+            // The one KDF is inside this existing private constructor. No second
+            // password verification, second sampled clock or replacement attempt.
+            self.storage.prepare_member_revocation(
+                seed.registry.clone(), input.credentials.clone(), request, descriptor,
+                input.password.as_str().to_owned(), seed.deadline,
+            ).await
+        }.await;
+        let prepared = result.map_err(MemberRevocationSeedFailure::Preparation)?;
+        // Only this fully prepared frame carries successful current Update and
+        // password proof. Failed untrusted submissions never claim a selector.
+        {
+            let mut gate = match self.admission.lock() {
+                Ok(gate) => gate,
+                Err(_) => return Err(MemberRevocationSeedFailure::Admission(
+                    MemberRevocationAdmissionError::RegistryPoisoned { prepared }
+                )),
+            };
+            if gate.closing {
+                return Err(MemberRevocationSeedFailure::Admission(
+                    MemberRevocationAdmissionError::Closing { prepared }
+                ));
+            }
+            if let Some(winner) = gate.verified_seeds.get(&input.request_selector) {
+                if !std::sync::Arc::ptr_eq(winner, &retained) {
+                    return Err(MemberRevocationSeedFailure::Admission(
+                        MemberRevocationAdmissionError::DifferentOriginal { prepared }
+                    ));
+                }
+            } else {
+                gate.verified_seeds.insert(input.request_selector, retained.clone());
+            }
+        }
+        // The effect admission independently rechecks the SAME closing gate.
+        // If shutdown crossed this interval, the full prepared rejection is
+        // retained by this seed; the verified winner is never reset or retried.
+        self.admit(prepared).map_err(MemberRevocationSeedFailure::Admission)
+    }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl SurrealStorage {
+    async fn read_member_revocation_server_original(
+        &self, gate: &CapturedAdministrationAuthority, operation: Uuid,
+    ) -> Result<MemberRevocationServerOriginal, ResourceAuthorityError> {
+        let binding = MemberRevocationLookup { original: RecordId::new("member_enrollments", operation.to_string()) };
+        let rows: Vec<MemberRevocationServerOriginal> = self.with_record_user_scope(
+            gate.original_scope.clone(), self.with_data_operation(move |db| Box::pin(async move {
+                db.query_values_at(MEMBER_REVOCATION_SERVER_ORIGINAL, binding, 0).await
+            })),
+        ).await?;
+        let mut rows = rows;
+        if rows.len() != 1 { return Err(member_revocation_denied()); }
+        Ok(rows.remove(0))
+    }
+    fn decode_member_revocation_server_original(
+        &self, original: &MemberRevocationServerOriginal, operation: Uuid,
+        workspace: &str, administrator_resource: &str,
+    ) -> Result<enrollment::EnrollmentDescriptor, ResourceAuthorityError> {
+        let bytes = hex::decode(&original.descriptor_hex).map_err(|_| member_revocation_denied())?;
+        let descriptor = enrollment::decode_enrollment(&bytes).map_err(|_| member_revocation_denied())?;
+        if enrollment::encode_enrollment(&descriptor).map_err(|_| member_revocation_denied())? != bytes
+            || descriptor.operation_id() != operation || original.operation_id != operation.to_string()
+            || original.descriptor_sha256 != hex::encode(Sha256::digest(&bytes))
+            || original.token_digest != hex::encode(descriptor.token_digest())
+            || descriptor.administrator_resource() != administrator_resource
+            || descriptor.original_enroller().workspace_id() != workspace
+        { return Err(member_revocation_denied()); }
+        Ok(descriptor)
+    }
+    // HTTP retry/observation supplies only selectors. Canonical request and
+    // descriptor are decoded here; the caller cannot supply private proof data.
+    pub(crate) async fn observe_server_member_revocation(
+        &self, registry: &crate::capabilities::CapabilityRegistry,
+        credentials: RoleAuthorityAuthInput, request_selector: Uuid, operation: Uuid,
+        workspace: &str, administrator_resource: &str,
+    ) -> Result<MemberRevocationObserved, ResourceAuthorityError> {
+        let gate = self.capture_current_administration(
+            registry, credentials.clone(), enrollment::CommandKind::RevokeEnrollment,
+            administrator_resource, workspace,
+        ).await?;
+        let original = self.read_member_revocation_server_original(&gate, operation).await?;
+        let descriptor = self.decode_member_revocation_server_original(&original, operation, workspace, administrator_resource)?;
+        let request_bytes = hex::decode(original.revocation_request_hex.as_deref().ok_or_else(member_revocation_denied)?)
+            .map_err(|_| member_revocation_denied())?;
+        let request = enrollment::decode_revocation(&request_bytes).map_err(|_| member_revocation_denied())?;
+        if request.request_id() != request_selector || request.enrollment_operation_id() != operation
+            || enrollment::encode_revocation(&request).map_err(|_| member_revocation_denied())? != request_bytes
+        { return Err(member_revocation_denied()); }
+        self.observe_member_revocation(registry, credentials, &request, &descriptor).await
+    }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberRevocationSeedController {
+    pub(crate) fn request_selector(&self) -> Uuid { self.seed.input.request_selector }
+    pub(crate) fn original_deadline(&self) -> tokio::time::Instant { self.seed.deadline }
+    pub(crate) async fn wait(&self) -> std::sync::Arc<MemberRevocationSeedResult> {
+        let mut state = self.state.lock().await;
+        if let Some(outcome) = &state.outcome { return outcome.clone(); }
+        let outcome = match state.worker.as_mut() {
+            Some(worker) => match worker.await {
+                Ok(outcome) => outcome,
+                Err(error) => Err(MemberRevocationSeedFailure::Join(error)),
+            },
+            None => Err(MemberRevocationSeedFailure::Preparation(member_revocation_denied())),
+        };
+        state.worker.take();
+        let outcome = std::sync::Arc::new(outcome);
+        state.outcome = Some(outcome.clone());
+        outcome
+    }
+}
+// Close -> join/retain every seed -> join/retain frozen effects -> storeclose.
+// No preparation failure loses the seed/password/credentials/raw error. There
+// is no process-global registry, caller-proof DTO or fresh budget on redelivery.
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) struct MemberRevocationMetadata {
+    operation_id: Uuid,
+    status: String,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberRevocationMetadata {
+    pub(crate) fn operation_id(&self) -> Uuid { self.operation_id }
+    pub(crate) fn status(&self) -> &str { &self.status }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl SurrealStorage {
+    // Required before publishing pending/cached seed state to an HTTP caller.
+    // This current metadata read grants no mutation or secret-delivery authority.
+    pub(crate) async fn current_member_revocation_metadata(
+        &self, registry: &crate::capabilities::CapabilityRegistry,
+        credentials: RoleAuthorityAuthInput, operation: Uuid,
+        workspace: &str, administrator_resource: &str,
+    ) -> Result<MemberRevocationMetadata, ResourceAuthorityError> {
+        let gate = self.capture_current_administration(
+            registry, credentials, enrollment::CommandKind::RevokeEnrollment,
+            administrator_resource, workspace,
+        ).await?;
+        let original = self.read_member_revocation_server_original(&gate, operation).await?;
+        self.decode_member_revocation_server_original(&original, operation, workspace, administrator_resource)?;
+        if !matches!(original.status.as_str(), "active" | "revoked" | "consumed") {
+            return Err(member_revocation_denied());
+        }
+        Ok(MemberRevocationMetadata { operation_id: operation, status: original.status })
+    }
+}
+
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberRevocationAdmission {
+    fn retain_seed_rejection(&mut self, error: MemberRevocationSeedAdmissionError)
+        -> std::sync::Arc<MemberRevocationSeedAdmissionError>
+    {
+        let retained = std::sync::Arc::new(error);
+        self.rejected_seeds.push(retained.clone());
+        retained
+    }
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberRevocationRuntime {
+    pub(crate) fn retained_seed_rejections(&self)
+        -> Vec<std::sync::Arc<MemberRevocationSeedAdmissionError>>
+    {
+        self.admission.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+            .rejected_seeds.clone()
+    }
+}
+// Current metadata and terminal observation return WHOLE Results. The existing
+// Core-owned HTTP runtime must retain those request frames and raw Results
+// before projecting a constant public response; no second metadata registry is
+// introduced here. This runtime retains every synchronous seed rejection Arc,
+// including rejected raw credentials/password/selectors, before returning it.
+
+
+// CODE candidate for storage/surreal/resource_authority.rs. No source adoption.
+// Reuses exact fe2b controller codec/row types, 4ecf capture/parent/lifetime,
+// c03d namespace helper and member_enrollment crypto-owned 4fc7.
+// GET is metadata only. Each secret publication performs fresh current gates.
+// The route owns this frame and its original absolute request deadline.
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+mod member_invitation_issuer_delivery {
+    use super::*;
+    use crate::model_runtime::cloud::member_enrollment as invitation;
+    use crate::model_runtime::cloud::secrets_vault::OsKeychainSecretsVault;
+    use std::sync::{Arc, OnceLock};
+
+    pub(crate) struct MemberInvitationMetadata {
+        pub(crate) operation_id: uuid::Uuid,
+        pub(crate) account_id: String,
+        pub(crate) principal_id: String,
+        pub(crate) access_space_id: String,
+        pub(crate) account_name: String,
+        pub(crate) status: String,
+        pub(crate) vault_state: String,
+        pub(crate) descriptor: Option<enrollment::EnrollmentDescriptor>,
+    }
+
+    #[derive(Clone, PartialEq, Eq, SurrealValue)]
+    struct IssuerOriginal {
+        original: surrealdb::types::Object,
+        id: RecordId,
+        operation_id: String,
+        original_request_hex: String,
+        original_request_sha256: String,
+        vault_namespace: String,
+        vault_reference: String,
+        vault_issue_revision: i64,
+        vault_issue_state: String,
+        descriptor_hex: Option<String>,
+        descriptor_sha256: Option<String>,
+        token_digest: Option<String>,
+        account_id: RecordId,
+        principal_id: RecordId,
+        access_space_id: RecordId,
+        account_name: String,
+        purpose: String,
+        issued_at: Datetime,
+        expires_at: Datetime,
+        status: String,
+        account_status: Option<String>,
+        principal_status: Option<String>,
+        space_status: Option<String>,
+        account_origin: Option<RecordId>,
+        principal_origin: Option<RecordId>,
+        space_origin: Option<RecordId>,
+    }
+    #[derive(Clone, SurrealValue)]
+    struct Lookup { original: RecordId }
+    const READ: &str = "SELECT $this AS original, id, operation_id, original_request_hex,
+        original_request_sha256, vault_namespace, vault_reference, vault_issue_revision,
+        vault_issue_state, descriptor_hex, descriptor_sha256, token_digest, account_id,
+        principal_id, access_space_id, account_name, purpose, issued_at, expires_at, status,
+        account_id.status AS account_status, principal_id.status AS principal_status,
+        access_space_id.status AS space_status, account_id.member_enrollment_origin AS account_origin,
+        principal_id.member_enrollment_origin AS principal_origin, access_space_id.member_enrollment_origin AS space_origin
+        FROM $original;";
+
+    struct CurrentIssuer {
+        enroll: CapturedAdministrationAuthority,
+        assign: CapturedAdministrationAuthority,
+        lifetime: CapturedAdministrationLifetime,
+        parent: MemberAdministrationParent,
+    }
+    fn denied() -> invitation::AccountError {
+        original_account_fault("current invitation issuer denied")
+    }
+    fn live(deadline: tokio::time::Instant) -> Result<(), invitation::AccountError> {
+        if tokio::time::Instant::now() >= deadline { return Err(denied()); }
+        Ok(())
+    }
+
+    impl IssuerOriginal {
+        fn decode(
+            &self, operation: uuid::Uuid, namespace: &str,
+        ) -> Result<(invitation::OriginalIssueIntent, Option<enrollment::EnrollmentDescriptor>), invitation::AccountError> {
+            let bytes = hex::decode(&self.original_request_hex)?;
+            let intent = decode_original_issue_request(&bytes)?;
+            if operation.is_nil() || intent.operation_id != operation
+                || self.id != RecordId::new("member_enrollments", operation.to_string())
+                || self.operation_id != operation.to_string()
+                || self.original_request_sha256 != sha256_hex(&bytes)
+                || self.vault_namespace != namespace || intent.vault_namespace != namespace
+                || self.vault_reference != intent.vault_reference
+                || intent.vault_reference != format!("invitation/identity_enrollment/{}", operation.hyphenated())
+                || self.account_id != RecordId::new("local_accounts", intent.staged.account_id())
+                || self.principal_id != RecordId::new("principals", intent.staged.principal_id())
+                || self.access_space_id != RecordId::new("access_spaces", intent.staged.access_space_id())
+                || self.account_name != intent.account_name || self.purpose != intent.purpose
+                || self.purpose != "identity_enrollment"
+                || enrollment_time(&self.issued_at)? != intent.issued_at
+                || enrollment_time(&self.expires_at)? != intent.expires_at
+            { return Err(denied()); }
+            let descriptor = match (&self.descriptor_hex, &self.descriptor_sha256, &self.token_digest) {
+                (None, None, None) if self.status == "preparing"
+                    && ((self.vault_issue_state == "reserved" && self.vault_issue_revision == 1)
+                    || (self.vault_issue_state == "preparing" && self.vault_issue_revision == 2)) => None,
+                (Some(encoded), Some(hash), Some(digest)) => {
+                    let encoded = hex::decode(encoded)?;
+                    let descriptor = enrollment::decode_enrollment(&encoded)?;
+                    if enrollment::encode_enrollment(&descriptor)? != encoded
+                        || !original_descriptor_matches(&intent, &descriptor)
+                        || *hash != sha256_hex(&encoded)
+                        || *digest != hex::encode(descriptor.token_digest())
+                        || !((self.vault_issue_state == "write_started" && self.vault_issue_revision == 3
+                                && self.status == "preparing")
+                            || (self.vault_issue_state == "bound" && self.vault_issue_revision == 4
+                                && ["preparing", "active", "consumed", "revoked"].contains(&self.status.as_str())))
+                    { return Err(denied()); }
+                    Some(descriptor)
+                }
+                _ => return Err(denied()),
+            };
+            Ok((intent, descriptor))
+        }
+        fn metadata(&self, descriptor: Option<enrollment::EnrollmentDescriptor>) -> Result<MemberInvitationMetadata, invitation::AccountError> {
+            Ok(MemberInvitationMetadata {
+                operation_id: uuid::Uuid::parse_str(&self.operation_id)?,
+                account_id: record_key(self.account_id.clone())?,
+                principal_id: record_key(self.principal_id.clone())?,
+                access_space_id: record_key(self.access_space_id.clone())?,
+                account_name: self.account_name.clone(), status: self.status.clone(),
+                vault_state: self.vault_issue_state.clone(), descriptor,
+            })
+        }
+    }
+
+    impl SurrealStorage {
+        // Authenticated RECORD query, never an admin query or invented scope.
+        // The first read obtains only navigation data internally. Nothing is
+        // published until the actual current dual-action capture succeeds.
+        async fn issuer_original_read(
+            &self, operation: uuid::Uuid, credentials: &RoleAuthorityAuthInput,
+            deadline: tokio::time::Instant,
+        ) -> Result<IssuerOriginal, invitation::AccountError> {
+            use surrealdb::opt::auth::Record;
+            live(deadline)?;
+            let namespace = self.config().namespace().to_owned();
+            let database = self.config().database().to_owned();
+            let token_hash = hex::encode(Sha256::digest(credentials.session_token.as_bytes()));
+            let channel_binding_hash = Some(credentials.channel_binding_hash.clone());
+            let lookup = Lookup { original: RecordId::new("member_enrollments", operation.to_string()) };
+            let rows: Vec<IssuerOriginal> = tokio::time::timeout_at(deadline,
+                self.with_lease(move |client| Box::pin(async move {
+                    let ordinary = client.clone();
+                    ordinary.use_ns(namespace.clone()).use_db(database.clone()).await?;
+                    ordinary.signin(Record {
+                        namespace, database, access: AUTHORITY_ACCESS_METHOD.to_owned(),
+                        params: SigninParams { token_hash, channel_binding_hash },
+                    }).await?;
+                    let mut response = ordinary.query(READ).bind(lookup.into_value()).await?.check()?;
+                    response.take(0).map_err(Into::into)
+                })),
+            ).await.map_err(|error| Box::new(error) as invitation::AccountError)??;
+            live(deadline)?;
+            let mut rows = rows;
+            if rows.len() != 1 { return Err(denied()); }
+            rows.pop().ok_or_else(denied)
+        }
+
+        async fn issuer_current_capture(
+            &self, registry: &crate::capabilities::CapabilityRegistry,
+            credentials: &RoleAuthorityAuthInput, intent: &invitation::OriginalIssueIntent,
+            descriptor: Option<&enrollment::EnrollmentDescriptor>, deadline: tokio::time::Instant,
+        ) -> Result<CurrentIssuer, invitation::AccountError> {
+            live(deadline)?;
+            let enroll = self.capture_current_administration(registry, credentials.clone(),
+                enrollment::CommandKind::Enroll, &intent.administrator_resource,
+                intent.original_enroller.workspace_id()).await?;
+            live(deadline)?;
+            let assign = self.capture_current_administration(registry, credentials.clone(),
+                enrollment::CommandKind::AssignFixedMemberProfile, &intent.administrator_resource,
+                intent.original_enroller.workspace_id()).await?;
+            let original_actor = &intent.original_enroller;
+            for gate in [&enroll, &assign] {
+                if gate.exact.owner_account_id() != original_actor.owner_account_id()
+                    || gate.exact.actor_principal_id() != original_actor.actor_principal_id()
+                    || gate.exact.access_space_id() != original_actor.access_space_id()
+                    || gate.exact.workspace_id() != original_actor.workspace_id()
+                { return Err(denied()); }
+            }
+            if enroll.exact != assign.exact { return Err(denied()); }
+            let lifetime = CapturedAdministrationLifetime {
+                administration_resource_id: enroll.facts.resource_id.clone(),
+                policy_version: *enroll.facts.policy_versions.get(1).ok_or_else(denied)?,
+                choice: enroll.facts.administration_lifetime.as_ref().ok_or_else(denied)?.closed_choice()?,
+            };
+            for gate in [&enroll, &assign] {
+                lifetime.require_matches_source(&gate.facts)?;
+                if gate.facts.administration_lifetime.as_ref().ok_or_else(denied)?.closed_choice()? != lifetime.choice {
+                    return Err(denied());
+                }
+            }
+            if let Some(descriptor) = descriptor { lifetime.require_preserved_expiry(descriptor)?; }
+            else if lifetime.source030_bound().is_some_and(|expiry| intent.expires_at > expiry) { return Err(denied()); }
+            live(deadline)?;
+            let binding = MemberAdministrationParentBindings { resource: enroll.facts.resource_id.clone() };
+            let parents: Vec<MemberAdministrationParent> = self.with_record_user_scope(
+                enroll.original_scope.clone(), self.with_data_operation(move |db| Box::pin(async move {
+                    db.query_values_at(ORIGINAL_ACCOUNT_PARENT_SQL, binding, 0).await
+                })),
+            ).await?;
+            let [parent] = parents.as_slice() else { return Err(denied()); };
+            if parent.administration != enroll.facts.resource_id || parent.owner != enroll.facts.account_id
+                || parent.space != enroll.facts.access_space_id || parent.parent_owner != parent.owner
+                || parent.parent_space != parent.space || parent.parent_kind != "workspace"
+                || parent.parent_state != "active" || parent.parent_external != original_actor.workspace_id()
+                || parent.resource_policy != lifetime.policy_version
+                || enroll.facts.policy_versions.first().is_none_or(|value| parent.parent_policy > *value)
+                || assign.facts.policy_versions.first().is_none_or(|value| parent.parent_policy > *value)
+            { return Err(denied()); }
+            live(deadline)?;
+            Ok(CurrentIssuer { enroll, assign, lifetime, parent: parent.clone() })
+        }
+
+        async fn issuer_current_original(
+            &self, operation: uuid::Uuid, registry: &crate::capabilities::CapabilityRegistry,
+            credentials: &RoleAuthorityAuthInput, deadline: tokio::time::Instant,
+        ) -> Result<(IssuerOriginal, Option<enrollment::EnrollmentDescriptor>), invitation::AccountError> {
+            live(deadline)?;
+            SurrealStorage::with_operation_deadline(deadline.into_std(), async {
+                let row = self.issuer_original_read(operation, credentials, deadline).await?;
+                let (intent, descriptor) = row.decode(operation, &self.member_invitation_vault_namespace()?)?;
+                let first = self.issuer_current_capture(registry, credentials, &intent, descriptor.as_ref(), deadline).await?;
+                let reread = self.issuer_original_read(operation, credentials, deadline).await?;
+                if reread != row { return Err(denied()); }
+                let second = self.issuer_current_capture(registry, credentials, &intent, descriptor.as_ref(), deadline).await?;
+                require_precommit_administration_pair(&first.enroll, &first.assign, &first.lifetime,
+                    &second.enroll.facts, &second.assign.facts, &second.lifetime)?;
+                if second.parent != first.parent || second.enroll.exact != first.enroll.exact
+                    || second.assign.exact != first.assign.exact { return Err(denied()); }
+                live(deadline)?;
+                Ok((row, descriptor))
+            }).await
+        }
+
+        pub(crate) async fn current_member_invitation_metadata(
+            &self, operation: uuid::Uuid, registry: Arc<crate::capabilities::CapabilityRegistry>,
+            credentials: RoleAuthorityAuthInput, deadline: tokio::time::Instant,
+        ) -> Result<MemberInvitationMetadata, invitation::AccountError> {
+            let (row, descriptor) = self.issuer_current_original(operation, &registry, &credentials, deadline).await?;
+            row.metadata(descriptor)
+        }
+    }
+
+    // Private retained result. It has no public plaintext getter and cannot be
+    // manufactured from a Ticket, Bound receipt, password counter or role flag.
+    struct Recovered {
+        row: IssuerOriginal,
+        descriptor: enrollment::EnrollmentDescriptor,
+        token: zeroize::Zeroizing<String>,
+    }
+    pub(crate) struct MemberInvitationDeliveryFrame {
+        storage: SurrealStorage,
+        registry: Arc<crate::capabilities::CapabilityRegistry>,
+        credentials: RoleAuthorityAuthInput,
+        operation: uuid::Uuid,
+        deadline: tokio::time::Instant,
+        result: OnceLock<Result<Recovered, invitation::AccountError>>,
+        current_errors: std::sync::Mutex<Vec<Arc<invitation::AccountError>>>,
+        worker: tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>,
+        joined: OnceLock<Result<(), Arc<tokio::task::JoinError>>>,
+    }
+    pub(crate) struct MemberInvitationDelivery {
+        token: zeroize::Zeroizing<String>,
+        descriptor: enrollment::EnrollmentDescriptor,
+    }
+    impl MemberInvitationDelivery {
+        pub(crate) fn recipient_token(&self) -> &str { self.token.as_str() }
+        pub(crate) fn descriptor(&self) -> &enrollment::EnrollmentDescriptor { &self.descriptor }
+    }
+    impl MemberInvitationDeliveryFrame {
+        fn retain_current_error(&self, error: invitation::AccountError) -> DeliveryDenied<'_> {
+            let error = Arc::new(error);
+            // Recover the collection after poisoning without losing the raw
+            // incoming error or any earlier retained outcome.
+            let mut errors = self.current_errors.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            errors.push(error.clone());
+            DeliveryDenied::Current(error)
+        }
+        // Call once at the actual route's retained request boundary. This creates
+        // no operation ID, secret, descriptor, grant or replacement deadline.
+        pub(crate) fn start(
+            storage: &SurrealStorage, registry: Arc<crate::capabilities::CapabilityRegistry>,
+            credentials: RoleAuthorityAuthInput, operation: uuid::Uuid, deadline: tokio::time::Instant,
+        ) -> Result<Arc<Self>, invitation::AccountError> {
+            live(deadline)?;
+            if operation.is_nil() { return Err(denied()); }
+            let frame = Arc::new(Self {
+                storage: storage.clone(), registry, credentials, operation, deadline,
+                result: OnceLock::new(), current_errors: std::sync::Mutex::new(Vec::new()),
+                worker: tokio::sync::Mutex::new(None), joined: OnceLock::new(),
+            });
+            let owned = frame.clone();
+            let worker = tokio::spawn(async move {
+                let outcome = owned.recover().await;
+                // A closed original result is never replaced or retried.
+                let _ = owned.result.set(outcome);
+            });
+            // Before start returns only this function and recover hold frame;
+            // recover never touches the handle slot. Publication is synchronous.
+            *frame.worker.try_lock().expect("unpublished invitation worker slot") = Some(worker);
+            Ok(frame)
+        }
+        pub(crate) fn matches_request(
+            &self, storage: &SurrealStorage, credentials: &RoleAuthorityAuthInput,
+            operation: uuid::Uuid, deadline: tokio::time::Instant,
+        ) -> bool {
+            Arc::ptr_eq(&self.storage.inner, &storage.inner) && self.operation == operation
+                && self.deadline == deadline && self.credentials.session_token == credentials.session_token
+                && self.credentials.channel_binding_hash == credentials.channel_binding_hash
+        }
+        async fn recover(&self) -> Result<Recovered, invitation::AccountError> {
+            let (row, descriptor) = self.storage.issuer_current_original(
+                self.operation, &self.registry, &self.credentials, self.deadline,
+            ).await?;
+            let descriptor = descriptor.ok_or_else(denied)?;
+            if row.vault_issue_state != "bound" || row.vault_issue_revision != 4 || row.status != "active"
+                || row.account_status.as_deref() != Some("disabled") || row.principal_status.as_deref() != Some("disabled") || row.space_status.as_deref() != Some("disabled")
+                || row.account_origin.as_ref() != Some(&row.id) || row.principal_origin.as_ref() != Some(&row.id) || row.space_origin.as_ref() != Some(&row.id) {
+                return Err(denied());
+            }
+            let crypto_row = invitation::OriginalInvitationRow {
+                operation_id: self.operation,
+                descriptor_hex: row.descriptor_hex.as_deref().ok_or_else(denied)?,
+                descriptor_sha256: row.descriptor_sha256.as_deref().ok_or_else(denied)?,
+                account_id: descriptor.staged().account_id(),
+                principal_id: descriptor.staged().principal_id(),
+                access_space_id: descriptor.staged().access_space_id(),
+                account_name: &row.account_name,
+                token_digest_hex: row.token_digest.as_deref().ok_or_else(denied)?,
+                purpose: &row.purpose, issued_at: enrollment_time(&row.issued_at)?,
+                expires_at: enrollment_time(&row.expires_at)?, status: &row.status,
+            };
+            let binding = invitation::bind_original(&descriptor, &crypto_row, &row.vault_reference)?;
+            let vault = OsKeychainSecretsVault::new(row.vault_namespace.clone());
+            live(self.deadline)?;
+            let recovered = invitation::recover_existing(&vault, &binding)
+                .map_err(|error| Box::new(RecoveryFault(error)) as invitation::AccountError)?;
+            // Whole secret remains zeroizing and privately retained. No get
+            // failure can invoke put, delete, reserve, entropy or a new original.
+            let token = zeroize::Zeroizing::new(recovered.recipient_token().to_owned());
+            drop(recovered);
+            drop(binding);
+            live(self.deadline)?;
+            Ok(Recovered { row, descriptor, token })
+        }
+        // Route shutdown drains THIS same handle. Cancellation while awaiting
+        // releases only the mutex guard; the borrowed handle stays in its slot.
+        // There is no timeout, abort, replacement task or result flattening here.
+        pub(crate) async fn drain_worker(&self) -> &Result<(), Arc<tokio::task::JoinError>> {
+            let mut slot = self.worker.lock().await;
+            if self.joined.get().is_none() {
+                let handle = slot.as_mut().expect("retained invitation worker handle");
+                let outcome = handle.await.map_err(Arc::new);
+                let _ = self.joined.set(outcome);
+                // The actual raw join outcome is retained BEFORE removal.
+                drop(slot.take());
+            }
+            self.joined.get().expect("joined invitation worker outcome")
+        }
+        pub(crate) async fn deliver(&self) -> Result<MemberInvitationDelivery, DeliveryDenied<'_>> {
+            tokio::select! {
+                outcome = self.drain_worker() => {
+                    if let Err(error) = outcome { return Err(DeliveryDenied::Worker(error.as_ref())); }
+                },
+                _ = tokio::time::sleep_until(self.deadline) => return Err(self.retain_current_error(denied())),
+            }
+            let result = self.result.get().ok_or_else(|| self.retain_current_error(denied()))?;
+            let recovered = result.as_ref().map_err(DeliveryDenied::Retained)?;
+            let (current, descriptor) = self.storage.issuer_current_original(
+                self.operation, &self.registry, &self.credentials, self.deadline,
+            ).await.map_err(|error| self.retain_current_error(error))?;
+            if current != recovered.row || descriptor.as_ref() != Some(&recovered.descriptor) {
+                return Err(self.retain_current_error(denied()));
+            }
+            let now = enrollment_time(&Datetime::from(Utc::now()))
+                .map_err(|error| self.retain_current_error(Box::new(error)))?;
+            if now < recovered.descriptor.issued_at() || now >= recovered.descriptor.expires_at() {
+                return Err(self.retain_current_error(denied()));
+            }
+            live(self.deadline).map_err(|error| self.retain_current_error(error))?;
+            Ok(MemberInvitationDelivery {
+                token: zeroize::Zeroizing::new(recovered.token.as_str().to_owned()),
+                descriptor: recovered.descriptor.clone(),
+            })
+        }
+    }
+    pub(crate) enum DeliveryDenied<'a> {
+        Retained(&'a invitation::AccountError),
+        Current(Arc<invitation::AccountError>),
+        Worker(&'a tokio::task::JoinError),
+    }
+    impl DeliveryDenied<'_> {
+        // Borrow the real retained error for internal handling; an HTTP
+        // constant projection never consumes or replaces its frame-owned copy.
+        pub(crate) fn error(&self) -> &(dyn std::error::Error + Send + Sync + 'static) {
+            match self {
+                Self::Retained(error) => error.as_ref(),
+                Self::Current(error) => error.as_ref().as_ref(),
+                Self::Worker(error) => *error,
+            }
+        }
+    }
+    #[derive(Debug)]
+    struct RecoveryFault(invitation::SecretRecoveryError);
+    impl std::fmt::Display for RecoveryFault {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { f.write_str("invitation recovery denied") }
+    }
+    impl std::error::Error for RecoveryFault {}
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+pub(crate) use member_invitation_issuer_delivery::{
+    MemberInvitationMetadata, MemberInvitationDeliveryFrame, MemberInvitationDelivery, DeliveryDenied,
+};
+
+
+// External candidate for resource_authority.rs. No source adoption or runtime proof.
+// Uses the existing configured normal-login bootstrap authority, not recipient RLS.
+#[derive(Clone, PartialEq, Eq, SurrealValue)]
+struct MemberPasswordLoginBinding {
+    enrollment: RecordId,
+    operation_id: String,
+    descriptor_hex: String,
+    descriptor_sha256: String,
+    redemption_attempt_id: String,
+    consumed_at: Datetime,
+    account: RecordId,
+    principal: RecordId,
+    space: RecordId,
+    name: String,
+    credential_revision: i64,
+    account_epoch: i64,
+    principal_epoch: i64,
+    space_epoch: i64,
+    account_policy: i64,
+    principal_policy: i64,
+    space_policy: i64,
+    profile: String,
+    capabilities: Vec<String>,
+}
+#[derive(SurrealValue)]
+struct MemberPasswordLoginQuery {
+    snapshot: super::local_accounts::MemberPasswordCredentialSnapshot,
+    principal: RecordId,
+    space: RecordId,
+}
+const MEMBER_PASSWORD_LOGIN_BINDING: &str = "
+SELECT id AS enrollment, operation_id, descriptor_hex, descriptor_sha256,
+ redemption_attempt_id, consumed_at, account_id AS account, principal_id AS principal,
+ access_space_id AS space, account_name AS name,
+ account_id.credential_revision AS credential_revision,
+ account_id.revocation_epoch AS account_epoch, principal_id.revocation_epoch AS principal_epoch,
+ access_space_id.revocation_epoch AS space_epoch,
+ account_id.policy_version AS account_policy, principal_id.policy_version AS principal_policy,
+ access_space_id.policy_version AS space_policy, principal_id.capability_profile_id AS profile,
+ principal_id.delegated_capabilities AS capabilities
+FROM member_enrollments
+WHERE account_id = $snapshot.account AND principal_id = $principal AND access_space_id = $space
+ AND account_name = $snapshot.name AND purpose = 'identity_enrollment' AND status = 'consumed'
+ AND password_verifier != NONE AND redemption_attempt_id != NONE AND consumed_at != NONE
+ AND account_id.account_key = account_name AND account_id.account_role = 'Member'
+ AND account_id.status = 'enabled' AND account_id.password_verifier = $snapshot.verifier
+ AND account_id.credential_revision = $snapshot.credential_revision
+ AND account_id.revocation_epoch = $snapshot.revocation_epoch AND account_id.policy_version = $snapshot.policy_version
+ AND principal_id.account_id = account_id AND principal_id.principal_kind = 'human_account'
+ AND principal_id.status = 'enabled' AND principal_id.capability_profile_id = 'MemberEnrollment'
+ AND principal_id.delegated_capabilities = ['model_lane.navigation.read', 'fs.write', 'diagnostics.read']
+ AND access_space_id.account_id = account_id AND access_space_id.status = 'active' LIMIT 2;
+";
+#[derive(SurrealValue)]
+struct MemberPasswordLoginWrite {
+    binding: MemberPasswordLoginBinding,
+    verifier: String,
+    credential: RecordId,
+    token_hash: String,
+    expires_at: Datetime,
+}
+const MEMBER_PASSWORD_LOGIN_WRITE: &str = "
+LET $a = UPDATE $binding.account SET auth_transition_nonce += 1
+ WHERE account_key = $binding.name AND account_role = 'Member' AND status = 'enabled'
+ AND password_verifier = $verifier AND credential_revision = $binding.credential_revision
+ AND revocation_epoch = $binding.account_epoch AND policy_version = $binding.account_policy RETURN AFTER;
+IF array::len($a) != 1 { THROW 'HSK-MEMBER-LOGIN-DENIED'; };
+LET $p = UPDATE $binding.principal SET auth_transition_nonce += 1
+ WHERE account_id = $binding.account AND principal_kind = 'human_account' AND status = 'enabled'
+ AND revocation_epoch = $binding.principal_epoch AND policy_version = $binding.principal_policy
+ AND capability_profile_id = $binding.profile AND delegated_capabilities = $binding.capabilities RETURN AFTER;
+IF array::len($p) != 1 { THROW 'HSK-MEMBER-LOGIN-DENIED'; };
+LET $s = UPDATE $binding.space SET auth_transition_nonce += 1
+ WHERE account_id = $binding.account AND status = 'active'
+ AND revocation_epoch = $binding.space_epoch AND policy_version = $binding.space_policy RETURN AFTER;
+IF array::len($s) != 1 { THROW 'HSK-MEMBER-LOGIN-DENIED'; };
+LET $m = SELECT VALUE id FROM member_enrollments WHERE id = $binding.enrollment
+ AND operation_id = $binding.operation_id AND descriptor_hex = $binding.descriptor_hex
+ AND descriptor_sha256 = $binding.descriptor_sha256 AND account_id = $binding.account
+ AND principal_id = $binding.principal AND access_space_id = $binding.space
+ AND account_name = $binding.name AND purpose = 'identity_enrollment' AND status = 'consumed'
+ AND redemption_attempt_id = $binding.redemption_attempt_id AND consumed_at = $binding.consumed_at
+ AND password_verifier != NONE LIMIT 2;
+IF array::len($m) != 1 OR record::exists($credential) OR $expires_at <= time::now()
+ { THROW 'HSK-MEMBER-LOGIN-DENIED'; };
+CREATE $credential SET account_id = $binding.account, principal_id = $binding.principal,
+ access_space_id = $binding.space, token_hash = $token_hash, status = 'active',
+ expires_at = $expires_at, revoked_at = NONE, created_at = time::now(), member_login_binding = $binding;
+";
+const MEMBER_PASSWORD_LOGIN_READBACK: &str = "
+RETURN record::exists($credential)
+ AND $credential.account_id = $binding.account AND $credential.principal_id = $binding.principal
+ AND $credential.access_space_id = $binding.space AND $credential.token_hash = $token_hash
+ AND $credential.status = 'active' AND $credential.revoked_at = NONE
+ AND $credential.expires_at = $expires_at AND $credential.expires_at > time::now()
+ AND $credential.member_login_binding = $binding;
+";
+
+struct MemberPasswordLoginAttempt {
+    storage: SurrealStorage,
+    checked: super::local_accounts::PasswordVerifiedLocalAccount,
+    credential: RecordId,
+    token: zeroize::Zeroizing<String>,
+    token_hash: String,
+    expires_at: DateTime<Utc>,
+    binding: std::sync::OnceLock<MemberPasswordLoginBinding>,
+}
+enum MemberPasswordLoginFailure {
+    Operation(ResourceAuthorityError),
+    Cancel {
+        operation: ResourceAuthorityError,
+        cancellation: Result<super::SurrealClient, surrealdb::Error>,
+    },
+    Commit(surrealdb::Error),
+    CanonicalRead(SurrealStorageError),
+    CanonicalMismatch,
+}
+enum MemberPasswordLoginObservation {
+    Complete(std::sync::Arc<Result<IssuedSessionCredential, MemberPasswordLoginFailure>>),
+    Join(std::sync::Arc<tokio::task::JoinError>),
+}
+enum MemberPasswordLoginWorkerState {
+    Starting,
+    Running(tokio::task::JoinHandle<Result<IssuedSessionCredential, MemberPasswordLoginFailure>>),
+    Observed(MemberPasswordLoginObservation),
+}
+pub(super) struct MemberPasswordLoginOperation {
+    original: std::sync::Arc<MemberPasswordLoginAttempt>,
+    state: tokio::sync::Mutex<MemberPasswordLoginWorkerState>,
+}
+impl MemberPasswordLoginOperation {
+    async fn observe(&self) -> Result<IssuedSessionCredential, ResourceAuthorityError> {
+        let mut state = self.state.lock().await;
+        if let MemberPasswordLoginWorkerState::Running(worker) = &mut *state {
+            // Borrow the retained handle. Cancelling a waiter cannot detach the worker.
+            let observed = match worker.await {
+                Ok(result) => MemberPasswordLoginObservation::Complete(std::sync::Arc::new(result)),
+                Err(error) => MemberPasswordLoginObservation::Join(std::sync::Arc::new(error)),
+            };
+            *state = MemberPasswordLoginWorkerState::Observed(observed);
+        }
+        match &*state {
+            MemberPasswordLoginWorkerState::Observed(MemberPasswordLoginObservation::Complete(result)) => {
+                match result.as_ref() {
+                    Ok(credential) => Ok(credential.clone()),
+                    Err(_) => Err(SurrealStorageError::TransactionSettlementPending {
+                        operation_id: Uuid::parse_str(&record_key(self.original.credential.clone())?)
+                            .map_err(|_| ResourceAuthorityError::InvalidInput("invalid credential operation"))?,
+                    }.into()),
+                }
+            }
+            _ => Err(SurrealStorageError::TransactionSettlementPending {
+                operation_id: Uuid::parse_str(&record_key(self.original.credential.clone())?)
+                    .map_err(|_| ResourceAuthorityError::InvalidInput("invalid credential operation"))?,
+            }.into()),
+        }
+    }
+}
+impl SurrealStorage {
+    pub(super) async fn provision_verified_member_session_credential(
+        &self,
+        checked: super::local_accounts::PasswordVerifiedLocalAccount,
+        ttl: Duration,
+    ) -> Result<IssuedSessionCredential, ResourceAuthorityError> {
+        // Existing normal login policy only. The caller cannot extend a password proof.
+        if ttl != Duration::from_secs(60) {
+            return Err(ResourceAuthorityError::InvalidInput("invalid login credential lifetime"));
+        }
+        checked.credential_snapshot(self)?;
+        let mut entropy = zeroize::Zeroizing::new([0u8; 32]);
+        getrandom::getrandom(&mut entropy[..])
+            .map_err(|error| ResourceAuthorityError::Entropy(error.to_string()))?;
+        let token = zeroize::Zeroizing::new(hex::encode(entropy.as_ref()));
+        let token_hash = sha256_hex(token.as_bytes());
+        let operation_id = Uuid::now_v7();
+        let original = std::sync::Arc::new(MemberPasswordLoginAttempt {
+            storage: self.clone(), checked,
+            credential: RecordId::new("session_exchange_credentials", operation_id.to_string()),
+            token, token_hash, expires_at: Utc::now() + chrono::Duration::seconds(60),
+            binding: std::sync::OnceLock::new(),
+        });
+        let operation = std::sync::Arc::new(MemberPasswordLoginOperation {
+            original: original.clone(),
+            state: tokio::sync::Mutex::new(MemberPasswordLoginWorkerState::Starting),
+        });
+        // Add MemberPasswordLogin(Arc<resource_authority::MemberPasswordLoginOperation>)
+        // to the existing parent AuthenticatedTransactionRetention enum.
+        {
+            let admission = self.inner.member_login_admission.lock()
+                .map_err(|_| ResourceAuthorityError::InvalidInput("login admission poisoned"))?;
+            if !*admission { return Err(SurrealStorageError::Closed.into()); }
+            self.reserve_transaction_settlement(operation_id, Some(
+                super::AuthenticatedTransactionRetention::MemberPasswordLogin(operation.clone())
+            ))?;
+            // No await between publishing the strong owner and publishing its worker.
+            let mut state = operation.state.try_lock().map_err(|_| {
+                ResourceAuthorityError::InvalidInput("unpublished login worker is locked")
+            })?;
+            let worker = tokio::spawn(async move { original.storage.clone().run_member_password_login(original).await });
+            *state = MemberPasswordLoginWorkerState::Running(worker);
+            drop(state);
+            drop(admission);
+        }
+        let result = operation.observe().await;
+        if result.is_ok() {
+            let mut retained = self.inner.transaction_settlements.lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            if matches!(retained.get(&operation_id),
+                Some(Some(super::AuthenticatedTransactionRetention::MemberPasswordLogin(current)))
+                if std::sync::Arc::ptr_eq(current, &operation))
+            { retained.remove(&operation_id); }
+        }
+        result
+    }
+
+    async fn run_member_password_login(
+        &self, original: std::sync::Arc<MemberPasswordLoginAttempt>,
+    ) -> Result<IssuedSessionCredential, MemberPasswordLoginFailure> {
+        let storage = self.clone();
+        let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
+        let retained = original.clone();
+        let result = self.with_lease(move |client| Box::pin(async move {
+            let authority = client.clone();
+            authority.use_ns(namespace).use_db(database).await?;
+            let transaction = authority.begin().await?;
+            let body: Result<MemberPasswordLoginBinding, ResourceAuthorityError> = async {
+                let tx = super::SurrealTransactionContext { transaction: &transaction };
+                let identity = storage.resolve_redeemed_member_login_in_transaction(&tx, &retained.checked).await?;
+                let snapshot = retained.checked.credential_snapshot(&storage)?;
+                let mut response = transaction.query(MEMBER_PASSWORD_LOGIN_BINDING)
+                    .bind(MemberPasswordLoginQuery {
+                        snapshot, principal: RecordId::new("principals", identity.principal_id),
+                        space: RecordId::new("access_spaces", identity.access_space_id),
+                    }).await.map_err(SurrealStorageError::from)?.check().map_err(SurrealStorageError::from)?;
+                let mut rows: Vec<MemberPasswordLoginBinding> = response.take(0).map_err(SurrealStorageError::from)?;
+                if rows.len() != 1 {
+                    return Err(ResourceAuthorityError::InvalidInput("authentication denied"));
+                }
+                let binding = rows.pop().ok_or(ResourceAuthorityError::InvalidInput("authentication denied"))?;
+                if binding.credential_revision <= 0
+                    || binding.account != RecordId::new("local_accounts", identity.account_id)
+                { return Err(ResourceAuthorityError::InvalidInput("authentication denied")); }
+                retained.binding.set(binding.clone())
+                    .map_err(|_| ResourceAuthorityError::InvalidInput("login binding already captured"))?;
+                let snapshot = retained.checked.credential_snapshot(&storage)?;
+                transaction.query(MEMBER_PASSWORD_LOGIN_WRITE).bind(MemberPasswordLoginWrite {
+                    binding: binding.clone(), verifier: snapshot.verifier,
+                    credential: retained.credential.clone(), token_hash: retained.token_hash.clone(),
+                    expires_at: Datetime::from(retained.expires_at),
+                }).await.map_err(SurrealStorageError::from)?.check().map_err(SurrealStorageError::from)?;
+                Ok(binding)
+            }.await;
+            let binding = match body {
+                Ok(binding) => binding,
+                Err(operation) => {
+                    let cancellation = transaction.cancel().await;
+                    return Ok(Err(MemberPasswordLoginFailure::Cancel { operation, cancellation }));
+                }
+            };
+            let canonical = match transaction.commit().await {
+                Ok(client) => client,
+                Err(error) => return Ok(Err(MemberPasswordLoginFailure::Commit(error))),
+            };
+            let snapshot = match retained.checked.credential_snapshot(&storage) {
+                Ok(snapshot) => snapshot,
+                Err(error) => return Ok(Err(MemberPasswordLoginFailure::Operation(error))),
+            };
+            let readback: Result<bool, SurrealStorageError> = async {
+                let mut response = canonical.query(MEMBER_PASSWORD_LOGIN_READBACK)
+                    .bind(MemberPasswordLoginWrite {
+                        binding: binding.clone(), verifier: snapshot.verifier,
+                        credential: retained.credential.clone(), token_hash: retained.token_hash.clone(),
+                        expires_at: Datetime::from(retained.expires_at),
+                    }).await?.check()?;
+                let observed: surrealdb::types::Value = response.take(0)?;
+                Ok(matches!(observed, surrealdb::types::Value::Bool(true)))
+            }.await;
+            match readback {
+                Ok(true) => Ok(Ok(IssuedSessionCredential {
+                    credential_id: record_key(retained.credential.clone())
+                        .map_err(|_| SurrealStorageError::TransactionRetentionMismatch {
+                            operation_id: Uuid::nil(),
+                        })?,
+                    token: retained.token.to_string(),
+                    account_id: record_key(binding.account).map_err(|_| SurrealStorageError::TransactionRetentionMismatch { operation_id: Uuid::nil() })?,
+                    principal_id: record_key(binding.principal).map_err(|_| SurrealStorageError::TransactionRetentionMismatch { operation_id: Uuid::nil() })?,
+                    access_space_id: record_key(binding.space).map_err(|_| SurrealStorageError::TransactionRetentionMismatch { operation_id: Uuid::nil() })?,
+                    expires_at: retained.expires_at,
+                })),
+                Ok(false) => Ok(Err(MemberPasswordLoginFailure::CanonicalMismatch)),
+                Err(error) => Ok(Err(MemberPasswordLoginFailure::CanonicalRead(error))),
+            }
+        })).await;
+        match result {
+            Ok(result) => result,
+            Err(error) => Err(MemberPasswordLoginFailure::CanonicalRead(error)),
+        }
+    }
+}
+// Parent enum insertion is a typed retention owner only. Do not send this variant
+// through transaction_worker: this private normal-login worker owns its SDK transaction.
+// Storage shutdown must await retained MemberPasswordLoginOperation::observe before close.
+// Schema: DEFINE FIELD OVERWRITE member_login_binding ON session_exchange_credentials
+// FLEXIBLE TYPE option<object> PERMISSIONS NONE;
+// No password verifier or raw password is persisted in member_login_binding.
+
+impl SurrealStorage {
+    pub(crate) async fn drain_member_password_login_operations(&self)
+        -> Result<(), ResourceAuthorityError>
+    {
+        self.close_member_login_admission()?;
+        let owners: Vec<_> = {
+            let retained = self.inner.transaction_settlements.lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            retained.values().filter_map(|entry| match entry {
+                Some(super::AuthenticatedTransactionRetention::MemberPasswordLogin(owner))
+                    => Some(owner.clone()),
+                _ => None,
+            }).collect()
+        };
+        let administrator_owners: Vec<_> = {
+            let retained = self.inner.transaction_settlements.lock().unwrap_or_else(|p| p.into_inner());
+            retained.values().filter_map(|entry| match entry {
+                Some(super::AuthenticatedTransactionRetention::AdministratorPasswordLogin(owner)) => Some(owner.clone()),
+                _ => None,
+            }).collect()
+        };
+        let (setup, workspace, confirmation) = tokio::join!(
+            self.drain_first_owner_setup_operations(), self.drain_first_owner_workspace_operations(),
+            self.drain_first_owner_administration_confirmation_operations(),
+        );
+        let mut first_error = setup.err().or(workspace.err()).or(confirmation.err());
+        for owner in administrator_owners {
+            if let Err(error) = owner.observe().await {
+                if first_error.is_none() { first_error = Some(error); }
+            }
+        }
+        for owner in owners {
+            if let Err(error) = owner.observe().await {
+                if first_error.is_none() { first_error = Some(error); }
+            }
+        }
+        match first_error { Some(error) => Err(error), None => Ok(()) }
+    }
+}
+
+
+// Additional resource_authority.rs candidate. Pair with private credential worker
+// and member-password-login-schema. Existing Owner/Admin exchange is retained below.
+#[derive(SurrealValue)]
+struct MemberExchangeEligible {
+    credential: RecordId,
+    binding: MemberPasswordLoginBinding,
+}
+#[derive(Clone, SurrealValue)]
+struct MemberExchangeQuery {
+    account: RecordId,
+    principal: RecordId,
+    space: RecordId,
+    credential_token_hash: String,
+}
+#[derive(SurrealValue)]
+struct MemberExchangeWrite {
+    input: MemberExchangeQuery,
+    credential: RecordId,
+    binding: MemberPasswordLoginBinding,
+    session: RecordId,
+    session_token_hash: String,
+    channel: String,
+    issued_at: Datetime,
+    expires_at: Datetime,
+    principal_key: String,
+}
+const MEMBER_EXCHANGE_ELIGIBLE: &str = "
+SELECT id AS credential, member_login_binding AS binding FROM session_exchange_credentials
+ WHERE account_id = $account AND principal_id = $principal AND access_space_id = $space
+ AND token_hash = $credential_token_hash AND status = 'active' AND revoked_at = NONE
+ AND expires_at > time::now() AND member_login_binding != NONE AND administrator_login_binding = NONE
+ AND member_login_binding.account = account_id AND member_login_binding.principal = principal_id
+ AND member_login_binding.space = access_space_id
+ AND fn::wp012_member_login_binding_current(member_login_binding) LIMIT 2;
+";
+const MEMBER_EXCHANGE_WRITE: &str = "
+IF !fn::wp012_member_login_binding_current($binding) { THROW 'HSK-MEMBER-EXCHANGE-DENIED'; };
+LET $a = UPDATE $binding.account SET auth_transition_nonce += 1
+ WHERE status = 'enabled' AND account_role = 'Member' AND account_key = $binding.name
+ AND credential_revision = $binding.credential_revision AND password_verifier != NONE
+ AND revocation_epoch = $binding.account_epoch AND policy_version = $binding.account_policy RETURN AFTER;
+IF array::len($a) != 1 { THROW 'HSK-MEMBER-EXCHANGE-DENIED'; };
+LET $p = UPDATE $binding.principal SET auth_transition_nonce += 1
+ WHERE account_id = $binding.account AND status = 'enabled' AND principal_kind = 'human_account'
+ AND revocation_epoch = $binding.principal_epoch AND policy_version = $binding.principal_policy
+ AND capability_profile_id = $binding.profile AND delegated_capabilities = $binding.capabilities RETURN AFTER;
+IF array::len($p) != 1 { THROW 'HSK-MEMBER-EXCHANGE-DENIED'; };
+LET $s = UPDATE $binding.space SET auth_transition_nonce += 1
+ WHERE account_id = $binding.account AND status = 'active'
+ AND revocation_epoch = $binding.space_epoch AND policy_version = $binding.space_policy RETURN AFTER;
+IF array::len($s) != 1 { THROW 'HSK-MEMBER-EXCHANGE-DENIED'; };
+LET $used = UPDATE $credential SET status = 'consumed'
+ WHERE account_id = $input.account AND principal_id = $input.principal AND access_space_id = $input.space
+ AND token_hash = $input.credential_token_hash AND status = 'active' AND revoked_at = NONE
+ AND expires_at > time::now() AND member_login_binding = $binding RETURN AFTER;
+IF array::len($used) != 1 OR record::exists($session) OR $expires_at <= time::now()
+ { THROW 'HSK-MEMBER-EXCHANGE-DENIED'; };
+CREATE $session SET account_id = $binding.account, principal_id = $binding.principal,
+ access_space_id = $binding.space, token_hash = $session_token_hash, channel_binding_hash = $channel,
+ authentication_strength = 'credential_exchange', delegated_capabilities = $binding.capabilities,
+ delegation_chain = [$principal_key], account_revocation_epoch = $binding.account_epoch,
+ principal_revocation_epoch = $binding.principal_epoch, space_revocation_epoch = $binding.space_epoch,
+ policy_version = math::max([$binding.account_policy, $binding.principal_policy, $binding.space_policy]),
+ issued_at = $issued_at, expires_at = $expires_at, revoked_at = NONE;
+";
+const MEMBER_EXCHANGE_CANONICAL: &str = "
+RETURN record::exists($session) AND $credential.status = 'consumed'
+ AND $credential.member_login_binding = $binding AND $credential.token_hash = $input.credential_token_hash
+ AND $session.account_id = $binding.account AND $session.principal_id = $binding.principal
+ AND $session.access_space_id = $binding.space AND $session.token_hash = $session_token_hash
+ AND $session.channel_binding_hash = $channel AND $session.authentication_strength = 'credential_exchange'
+ AND $session.delegated_capabilities = $binding.capabilities AND $session.delegation_chain = [$principal_key]
+ AND $session.account_revocation_epoch = $binding.account_epoch
+ AND $session.principal_revocation_epoch = $binding.principal_epoch
+ AND $session.space_revocation_epoch = $binding.space_epoch
+ AND $session.policy_version = math::max([$binding.account_policy, $binding.principal_policy, $binding.space_policy])
+ AND $session.issued_at = $issued_at AND $session.expires_at = $expires_at
+ AND $session.expires_at > time::now() AND $session.revoked_at = NONE
+ AND fn::wp012_member_login_binding_current($binding);
+";
+fn require_canonical_member_login_binding(
+    binding: &MemberPasswordLoginBinding,
+) -> Result<(), ResourceAuthorityError> {
+    let bytes = hex::decode(&binding.descriptor_hex)
+        .map_err(|_| ResourceAuthorityError::InvalidInput("authentication denied"))?;
+    let descriptor = handshake_member_enrollment::command_plan::decode_enrollment(&bytes)
+        .map_err(|_| ResourceAuthorityError::InvalidInput("authentication denied"))?;
+    let staged = descriptor.staged();
+    if sha256_hex(&bytes) != binding.descriptor_sha256
+        || descriptor.operation_id().to_string() != binding.operation_id
+        || descriptor.account_name() != binding.name
+        || binding.enrollment != RecordId::new("member_enrollments", binding.operation_id.clone())
+        || binding.account != RecordId::new("local_accounts", staged.account_id())
+        || binding.principal != RecordId::new("principals", staged.principal_id())
+        || binding.space != RecordId::new("access_spaces", staged.access_space_id())
+        || binding.credential_revision <= 0
+    { return Err(ResourceAuthorityError::InvalidInput("authentication denied")); }
+    Ok(())
+}
+struct MemberSessionExchangeAttempt {
+    storage: SurrealStorage,
+    input: MemberExchangeQuery,
+    session_id: Uuid,
+    token: zeroize::Zeroizing<String>,
+    token_hash: String,
+    credential_token: zeroize::Zeroizing<String>,
+    channel: String,
+    issued_at: DateTime<Utc>,
+    expires_at: DateTime<Utc>,
+    selected: std::sync::OnceLock<(RecordId, MemberPasswordLoginBinding)>,
+}
+enum MemberSessionExchangeFailure {
+    Operation(ResourceAuthorityError),
+    Cancel { operation: ResourceAuthorityError, cancellation: Result<super::SurrealClient, surrealdb::Error> },
+    Commit(surrealdb::Error),
+    Storage(SurrealStorageError),
+    CanonicalMismatch,
+}
+enum MemberSessionExchangeObserved {
+    Complete(std::sync::Arc<Result<IssuedSession, MemberSessionExchangeFailure>>),
+    Join(std::sync::Arc<tokio::task::JoinError>),
+}
+enum MemberSessionExchangeState {
+    Starting,
+    Running(tokio::task::JoinHandle<Result<IssuedSession, MemberSessionExchangeFailure>>),
+    Observed(MemberSessionExchangeObserved),
+}
+pub(super) struct MemberSessionExchangeOperation {
+    original: std::sync::Arc<MemberSessionExchangeAttempt>,
+    state: tokio::sync::Mutex<MemberSessionExchangeState>,
+}
+impl MemberSessionExchangeOperation {
+    async fn observe(&self) -> Result<IssuedSession, ResourceAuthorityError> {
+        let mut state = self.state.lock().await;
+        if let MemberSessionExchangeState::Running(worker) = &mut *state {
+            let observed = match worker.await {
+                Ok(result) => MemberSessionExchangeObserved::Complete(std::sync::Arc::new(result)),
+                Err(error) => MemberSessionExchangeObserved::Join(std::sync::Arc::new(error)),
+            };
+            *state = MemberSessionExchangeState::Observed(observed);
+        }
+        match &*state {
+            MemberSessionExchangeState::Observed(MemberSessionExchangeObserved::Complete(result)) => {
+                match result.as_ref() {
+                    Ok(session) => Ok(session.clone()),
+                    Err(_) => Err(SurrealStorageError::TransactionSettlementPending {
+                        operation_id: self.original.session_id,
+                    }.into()),
+                }
+            }
+            _ => Err(SurrealStorageError::TransactionSettlementPending {
+                operation_id: self.original.session_id,
+            }.into()),
+        }
+    }
+}
+impl MemberSessionExchangeAttempt {
+    fn write(&self, credential: RecordId, binding: MemberPasswordLoginBinding)
+        -> Result<MemberExchangeWrite, ResourceAuthorityError>
+    {
+        Ok(MemberExchangeWrite {
+            input: self.input.clone(), credential, binding,
+            session: RecordId::new("authenticated_sessions", self.session_id.to_string()),
+            session_token_hash: self.token_hash.clone(), channel: self.channel.clone(),
+            issued_at: Datetime::from(self.issued_at), expires_at: Datetime::from(self.expires_at),
+            principal_key: record_key(self.input.principal.clone())?,
+        })
+    }
+}
+impl SurrealStorage {
+    pub async fn exchange_session_credential(
+        &self, account_id: &str, principal_id: &str, access_space_id: &str,
+        credential_token: &str, channel_binding_hash: &str, ttl: Duration,
+    ) -> Result<IssuedSession, ResourceAuthorityError> {
+        validate_uuid(account_id)?;
+        validate_uuid(principal_id)?;
+        validate_uuid(access_space_id)?;
+        validate_nonempty(credential_token)?;
+        validate_nonempty(channel_binding_hash)?;
+        if ttl.is_zero() {
+            return Err(ResourceAuthorityError::InvalidInput("session TTL must be greater than zero"));
+        }
+        if self.administrator_credential_route(account_id, principal_id, access_space_id, credential_token).await? {
+            return self.exchange_administrator_session_credential(account_id, principal_id, access_space_id, credential_token, channel_binding_hash, ttl).await;
+        }
+        let account = RecordId::new("local_accounts", account_id.to_owned());
+        let lookup = account.clone();
+        let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
+        let role = self.with_lease(move |client| Box::pin(async move {
+            let authority = client.clone();
+            authority.use_ns(namespace).use_db(database).await?;
+            let mut response = authority.query("SELECT VALUE account_role FROM $account LIMIT 2;")
+                .bind(("account", lookup)).await?.check()?;
+            let mut roles: Vec<String> = response.take(0)?;
+            Ok(if roles.len() == 1 { roles.pop() } else { None })
+        })).await?;
+        if matches!(role.as_deref(), Some("Owner" | "Admin")) {
+            return self.exchange_non_member_session_credential(
+                account_id, principal_id, access_space_id, credential_token, channel_binding_hash, ttl,
+            ).await;
+        }
+        if role.as_deref() != Some("Member") {
+            return Err(ResourceAuthorityError::InvalidInput("authentication denied"));
+        }
+        let mut secret = zeroize::Zeroizing::new([0u8; 32]);
+        getrandom::getrandom(&mut secret[..])
+            .map_err(|error| ResourceAuthorityError::Entropy(error.to_string()))?;
+        let token = zeroize::Zeroizing::new(hex::encode(secret.as_ref()));
+        let token_hash = sha256_hex(token.as_bytes());
+        let session_id = Uuid::now_v7();
+        let issued_at = Utc::now();
+        let expires_at = issued_at + chrono::Duration::from_std(ttl)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("session TTL is outside chrono range"))?;
+        let original = std::sync::Arc::new(MemberSessionExchangeAttempt {
+            storage: self.clone(),
+            input: MemberExchangeQuery {
+                account, principal: RecordId::new("principals", principal_id.to_owned()),
+                space: RecordId::new("access_spaces", access_space_id.to_owned()),
+                credential_token_hash: sha256_hex(credential_token.as_bytes()),
+            },
+            session_id, token, token_hash,
+            credential_token: zeroize::Zeroizing::new(credential_token.to_owned()),
+            channel: channel_binding_hash.to_owned(), issued_at, expires_at,
+            selected: std::sync::OnceLock::new(),
+        });
+        let owner = std::sync::Arc::new(MemberSessionExchangeOperation {
+            original: original.clone(), state: tokio::sync::Mutex::new(MemberSessionExchangeState::Starting),
+        });
+        {
+            let mut state = owner.state.try_lock()
+                .map_err(|_| ResourceAuthorityError::InvalidInput("unpublished exchange state locked"))?;
+            let admission = self.inner.member_login_admission.lock()
+                .map_err(|_| ResourceAuthorityError::InvalidInput("login admission poisoned"))?;
+            if !*admission { return Err(SurrealStorageError::Closed.into()); }
+            self.reserve_transaction_settlement(session_id, Some(
+                super::AuthenticatedTransactionRetention::MemberSessionExchange(owner.clone())
+            ))?;
+            *state = MemberSessionExchangeState::Running(tokio::spawn(async move {
+                original.storage.clone().run_member_session_exchange(original).await
+            }));
+            drop(state);
+            drop(admission);
+        }
+        let result = owner.observe().await;
+        if result.is_ok() {
+            let mut retained = self.inner.transaction_settlements.lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            if matches!(retained.get(&session_id),
+                Some(Some(super::AuthenticatedTransactionRetention::MemberSessionExchange(current)))
+                if std::sync::Arc::ptr_eq(current, &owner))
+            { retained.remove(&session_id); }
+        }
+        result
+    }
+
+    async fn run_member_session_exchange(
+        &self, original: std::sync::Arc<MemberSessionExchangeAttempt>,
+    ) -> Result<IssuedSession, MemberSessionExchangeFailure> {
+        let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
+        let result = self.with_lease(move |client| Box::pin(async move {
+            let authority = client.clone();
+            authority.use_ns(namespace).use_db(database).await?;
+            let transaction = authority.begin().await?;
+            let body: Result<(RecordId, MemberPasswordLoginBinding), ResourceAuthorityError> = async {
+                let mut response = transaction.query(MEMBER_EXCHANGE_ELIGIBLE)
+                    .bind(original.input.clone()).await.map_err(SurrealStorageError::from)?.check().map_err(SurrealStorageError::from)?;
+                let mut rows: Vec<MemberExchangeEligible> = response.take(0).map_err(SurrealStorageError::from)?;
+                if rows.len() != 1 { return Err(ResourceAuthorityError::InvalidInput("authentication denied")); }
+                let selected = rows.pop().ok_or(ResourceAuthorityError::InvalidInput("authentication denied"))?;
+                require_canonical_member_login_binding(&selected.binding)?;
+                original.selected.set((selected.credential.clone(), selected.binding.clone()))
+                    .map_err(|_| ResourceAuthorityError::InvalidInput("exchange selection already captured"))?;
+                let write = original.write(selected.credential.clone(), selected.binding.clone())?;
+                transaction.query(MEMBER_EXCHANGE_WRITE).bind(write).await.map_err(SurrealStorageError::from)?.check().map_err(SurrealStorageError::from)?;
+                Ok((selected.credential, selected.binding))
+            }.await;
+            let (credential, binding) = match body {
+                Ok(selected) => selected,
+                Err(operation) => {
+                    let cancellation = transaction.cancel().await;
+                    return Ok(Err(MemberSessionExchangeFailure::Cancel { operation, cancellation }));
+                }
+            };
+            let canonical = match transaction.commit().await {
+                Ok(client) => client,
+                Err(error) => return Ok(Err(MemberSessionExchangeFailure::Commit(error))),
+            };
+            let write = match original.write(credential, binding.clone()) {
+                Ok(write) => write,
+                Err(error) => return Ok(Err(MemberSessionExchangeFailure::Operation(error))),
+            };
+            let read: Result<bool, SurrealStorageError> = async {
+                let mut response = canonical.query(MEMBER_EXCHANGE_CANONICAL).bind(write).await?.check()?;
+                let observed: surrealdb::types::Value = response.take(0)?;
+                Ok(matches!(observed, surrealdb::types::Value::Bool(true)))
+            }.await;
+            match read {
+                Ok(true) => {
+                    let session = (|| -> Result<IssuedSession, ResourceAuthorityError> { Ok(IssuedSession {
+                        token: original.token.to_string(), session_id: original.session_id.to_string(),
+                        account_id: record_key(binding.account)?,
+                        principal_id: record_key(binding.principal)?,
+                        access_space_id: record_key(binding.space)?,
+                        expires_at: original.expires_at,
+                    }) })();
+                    Ok(session.map_err(MemberSessionExchangeFailure::Operation))
+                }
+                Ok(false) => Ok(Err(MemberSessionExchangeFailure::CanonicalMismatch)),
+                Err(error) => Ok(Err(MemberSessionExchangeFailure::Storage(error))),
+            }
+        })).await;
+        result.map_err(MemberSessionExchangeFailure::Storage)?
+    }
+
+    pub(crate) async fn drain_member_session_exchange_operations(&self)
+        -> Result<(), ResourceAuthorityError>
+    {
+        self.close_member_login_admission()?;
+        let owners: Vec<_> = {
+            let retained = self.inner.transaction_settlements.lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            retained.values().filter_map(|entry| match entry {
+                Some(super::AuthenticatedTransactionRetention::MemberSessionExchange(owner))
+                    => Some(owner.clone()),
+                _ => None,
+            }).collect()
+        };
+        let administrator_owners: Vec<_> = {
+            let retained = self.inner.transaction_settlements.lock().unwrap_or_else(|p| p.into_inner());
+            retained.values().filter_map(|entry| match entry {
+                Some(super::AuthenticatedTransactionRetention::AdministratorSessionExchange(owner)) => Some(owner.clone()),
+                _ => None,
+            }).collect()
+        };
+        let mut first_error = None;
+        for owner in administrator_owners {
+            if let Err(error) = owner.observe().await {
+                if first_error.is_none() { first_error = Some(error); }
+            }
+        }
+        for owner in owners {
+            if let Err(error) = owner.observe().await {
+                if first_error.is_none() { first_error = Some(error); }
+            }
+        }
+        match first_error { Some(error) => Err(error), None => Ok(()) }
+    }
+}
+// Parent AuthenticatedTransactionRetention additionally receives:
+// MemberSessionExchange(Arc<resource_authority::MemberSessionExchangeOperation>).
+// Host shutdown drains BOTH Member login inventories before storage close and
+// retains the store and full startup context on an unresolved drain.
+// Legacy non-Member method below is the actual old body with ONLY a private name
+// and current non-Member role condition added. Existing Owner/Admin policy is preserved.
+
+impl SurrealStorage {
+    async fn exchange_non_member_session_credential(
+        &self,
+        account_id: &str,
+        principal_id: &str,
+        access_space_id: &str,
+        credential_token: &str,
+        channel_binding_hash: &str,
+        ttl: Duration,
+    ) -> Result<IssuedSession, ResourceAuthorityError> {
+        validate_uuid(account_id)?;
+        validate_uuid(principal_id)?;
+        validate_uuid(access_space_id)?;
+        validate_nonempty(credential_token)?;
+        validate_nonempty(channel_binding_hash)?;
+        if ttl.is_zero() {
+            return Err(ResourceAuthorityError::InvalidInput(
+                "session TTL must be greater than zero",
+            ));
+        }
+        let mut secret = [0_u8; 32];
+        getrandom::getrandom(&mut secret)
+            .map_err(|error| ResourceAuthorityError::Entropy(error.to_string()))?;
+        let token = hex::encode(secret);
+        let session_token_hash = sha256_hex(token.as_bytes());
+        let credential_token_hash = sha256_hex(credential_token.as_bytes());
+        let session_id = Uuid::now_v7().to_string();
+        let now = Utc::now();
+        let expires_at = now
+            + chrono::Duration::from_std(ttl).map_err(|_| {
+                ResourceAuthorityError::InvalidInput("session TTL is outside chrono range")
+            })?;
+        let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
+        let account = RecordId::new("local_accounts", account_id.to_owned());
+        let principal = RecordId::new("principals", principal_id.to_owned());
+        let principal_key = principal_id.to_owned();
+        let space = RecordId::new("access_spaces", access_space_id.to_owned());
+        let session = RecordId::new("authenticated_sessions", session_id.clone());
+        let channel_binding_hash = channel_binding_hash.to_owned();
+
+        self.with_lease(move |client| {
+            Box::pin(async move {
+                let authority = client.clone();
+                authority.use_ns(namespace).use_db(database).await?;
+                authority
+                    .query(
+                        "BEGIN TRANSACTION; LET $eligible = SELECT VALUE id FROM session_exchange_credentials WHERE token_hash = $credential_token_hash AND status = 'active' AND revoked_at = NONE AND expires_at > time::now() AND account_id = $account AND principal_id = $principal AND access_space_id = $space AND account_id.status = 'enabled' AND account_id.account_role IN ['Owner', 'Admin'] AND member_login_binding = NONE AND administrator_login_binding = NONE AND principal_id.capability_profile_id != 'MemberEnrollmentAdministrator' AND principal_id.status = 'enabled' AND access_space_id.status = 'active' AND access_space_id.account_id = account_id LIMIT 1; IF array::len($eligible) = 0 { THROW 'HSK-AUTH-CREDENTIAL-DENIED'; }; UPDATE session_exchange_credentials SET status = 'consumed' WHERE id IN $eligible; CREATE $session_record SET account_id = $account, principal_id = $principal, access_space_id = $space, token_hash = $session_token_hash, channel_binding_hash = $channel_binding_hash, authentication_strength = 'credential_exchange', delegated_capabilities = $principal.delegated_capabilities, delegation_chain = [$principal_key], account_revocation_epoch = $account.revocation_epoch, principal_revocation_epoch = $principal.revocation_epoch, space_revocation_epoch = $space.revocation_epoch, policy_version = math::max([$account.policy_version, $principal.policy_version, $space.policy_version]), issued_at = $issued_at, expires_at = $expires_at, revoked_at = NONE; COMMIT TRANSACTION;",
+                    )
+                    .bind(("credential_token_hash", credential_token_hash))
+                    .bind(("session_token_hash", session_token_hash))
+                    .bind(("session_record", session))
+                    .bind(("account", account))
+                    .bind(("principal", principal))
+                    .bind(("principal_key", principal_key))
+                    .bind(("space", space))
+                    .bind(("channel_binding_hash", channel_binding_hash))
+                    .bind(("issued_at", Datetime::from(now)))
+                    .bind(("expires_at", Datetime::from(expires_at)))
+                    .await?
+                    .check()?;
+                Ok(())
+            })
+        })
+        .await?;
+
+        Ok(IssuedSession {
+            token,
+            account_id: account_id.to_owned(),
+            principal_id: principal_id.to_owned(),
+            session_id,
+            access_space_id: access_space_id.to_owned(),
+            expires_at,
+        })
+    }
+
+}
+
+// A credential carrying the private Member binding cannot enter the legacy
+// exchange path after a role change. Its original revision/identity binding
+// remains mandatory; ordinary legacy Owner/Admin credentials have NONE here.
+
+
+// RAM ONLY resource_authority.rs: replacement for ONLY stage_member_enrollment_in_transaction.
+// Requires exact reviewed original-row helpers, mandatory e585 permit, a713 codec,
+// native ced000 OriginalIssueIntent and Account-owned7cbc coordinated projection.
+// No alternate original-row CREATE. A missing/unbound original fails closed.
+#[derive(SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberVaultStageRow {
+    id: RecordId,
+    operation_id: String,
+    original_request_hex: String,
+    original_request_sha256: String,
+    vault_namespace: String,
+    vault_reference: String,
+    vault_issue_revision: i64,
+    vault_issue_state: String,
+    vault_claim_id: Option<String>,
+    descriptor_hex: Option<String>,
+    descriptor_sha256: Option<String>,
+    token_digest: Option<String>,
+    account_id: RecordId,
+    principal_id: RecordId,
+    access_space_id: RecordId,
+    account_name: String,
+    purpose: String,
+    issued_at: Datetime,
+    expires_at: Datetime,
+    status: String,
+    password_verifier: Option<String>,
+    redemption_attempt_id: Option<String>,
+    consumed_at: Option<Datetime>,
+    issue: surrealdb::types::Object,
+}
+#[derive(SurrealValue)]
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+struct MemberBoundStageBindings {
+    original: MemberEnrollmentBindings,
+    request_hex: String,
+    request_sha256: String,
+    namespace: String,
+    reference: String,
+    revision: i64,
+    claim: String,
+    issue: MemberEnrollmentIssueProjection,
+}
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl MemberVaultStageRow {
+    fn require_bound_original(
+        &self,
+        descriptor: &enrollment::EnrollmentDescriptor,
+        expected: &MemberEnrollmentBindings,
+    ) -> Result<MemberEnrollmentRow, ResourceAuthorityError> {
+        let denied = || ResourceAuthorityError::InvalidInput("original bound enrollment unavailable");
+        if self.vault_issue_state != "bound" || self.vault_issue_revision != 4
+            || !matches!(self.status.as_str(), "preparing" | "active" | "consumed" | "revoked")
+            || self.purpose != "identity_enrollment"
+        { return Err(denied()); }
+        let claim = Uuid::parse_str(self.vault_claim_id.as_deref().ok_or_else(denied)?)
+            .map_err(|_| denied())?;
+        if claim.is_nil() || claim == descriptor.operation_id()
+            || self.vault_claim_id.as_deref() != Some(claim.to_string().as_str())
+            || self.vault_namespace.is_empty()
+            || self.vault_reference != format!(
+                "invitation/identity_enrollment/{}", descriptor.operation_id().hyphenated(),
+            )
+        { return Err(denied()); }
+        let request_bytes = hex::decode(&self.original_request_hex).map_err(|_| denied())?;
+        let request = decode_original_issue_request(&request_bytes).map_err(|_| denied())?;
+        let actual = OriginalIssueIntent {
+            operation_id: descriptor.operation_id(),
+            original_enroller: descriptor.original_enroller().clone(),
+            staged: descriptor.staged().clone(),
+            account_name: descriptor.account_name().to_owned(),
+            administrator_resource: descriptor.administrator_resource().to_owned(),
+            enroll_source: descriptor.enroll_source().clone(),
+            assignment_source: descriptor.assignment_source().clone(),
+            issued_at: descriptor.issued_at(), expires_at: descriptor.expires_at(),
+            session_expires_at: descriptor.session_expires_at(),
+            policy_expires_at: descriptor.policy_expires_at(),
+            purpose: descriptor.invitation_purpose().to_owned(),
+            vault_namespace: self.vault_namespace.clone(),
+            vault_reference: self.vault_reference.clone(),
+        };
+        if request != actual
+            || encode_original_issue_request(&request).map_err(|_| denied())? != request_bytes
+            || self.original_request_hex != hex::encode(&request_bytes)
+            || self.original_request_sha256 != sha256_hex(&request_bytes)
+        { return Err(denied()); }
+        let bytes = enrollment::encode_enrollment(descriptor).map_err(|_| denied())?;
+        if self.descriptor_hex.as_deref() != Some(hex::encode(&bytes).as_str())
+            || self.descriptor_sha256.as_deref() != Some(sha256_hex(&bytes).as_str())
+            || self.token_digest.as_deref() != Some(hex::encode(descriptor.token_digest()).as_str())
+        { return Err(denied()); }
+        let row = MemberEnrollmentRow {
+            id: self.id.clone(), operation_id: self.operation_id.clone(),
+            descriptor_hex: self.descriptor_hex.clone().ok_or_else(denied)?,
+            descriptor_sha256: self.descriptor_sha256.clone().ok_or_else(denied)?,
+            account_id: self.account_id.clone(), principal_id: self.principal_id.clone(),
+            access_space_id: self.access_space_id.clone(), account_name: self.account_name.clone(),
+            token_digest: self.token_digest.clone().ok_or_else(denied)?, purpose: self.purpose.clone(),
+            issued_at: self.issued_at.clone(), expires_at: self.expires_at.clone(),
+            status: self.status.clone(), password_verifier: self.password_verifier.clone(),
+            redemption_attempt_id: self.redemption_attempt_id.clone(), consumed_at: self.consumed_at.clone(),
+        };
+        expected.require_original(&row)?;
+        Ok(row)
+    }
+}
+
+#[cfg(all(feature = "runtime-full", feature = "os-keychain"))]
+impl SurrealStorage {
+    async fn stage_member_enrollment_in_transaction(
+        &self, tx: &super::SurrealTransactionContext<'_>,
+        permit: &MemberEnrollmentTransactionPermit<'_, '_>, captured: &CapturedMemberEnrollment,
+    ) -> Result<MemberIssueObservation, ResourceAuthorityError> {
+        let original = MemberEnrollmentBindings::original(&captured.plan)?;
+        permit.require_original_lookup(tx, captured.plan.descriptor()).await?;
+        let rows: Vec<MemberVaultStageRow> = tx.query_values_at(
+            "SELECT * FROM $enrollment;", original.clone(), 0,
+        ).await?;
+        let [before] = rows.as_slice() else {
+            return Err(ResourceAuthorityError::InvalidInput("original enrollment unobserved"));
+        };
+        let observed = before.require_bound_original(captured.plan.descriptor(), &original)?;
+        if observed.status != "preparing" {
+            // Read-only original reconciliation, never another create/activation.
+            // Existing active/consumed/revoked semantics remain the old caller's;
+            // this branch grants no recipient verification or fresh delivery.
+            return Ok(MemberIssueObservation::ExistingOriginal(observed));
+        }
+        if observed.password_verifier.is_some() || observed.redemption_attempt_id.is_some()
+            || observed.consumed_at.is_some()
+        {
+            return Err(ResourceAuthorityError::InvalidInput("original preparing row already redeemed"));
+        }
+        // This exact private permit rechecks actual dual actions, source facts,
+        // parent/lifetime and current KDF-bound credential nonce in THIS tx.
+        permit.require_first_issue(tx, captured).await?;
+        let issue = permit.issue_projection()?;
+        let surrealdb::types::Value::Object(expected_issue) = issue.clone().into_value() else {
+            return Err(ResourceAuthorityError::InvalidInput("invalid issue source projection"));
+        };
+        if before.issue != expected_issue {
+            return Err(ResourceAuthorityError::InvalidInput("bound original issue projection changed"));
+        }
+        let claim = before.vault_claim_id.clone()
+            .ok_or(ResourceAuthorityError::InvalidInput("bound original claim missing"))?;
+        let binding = MemberBoundStageBindings {
+            original: original.clone(),
+            request_hex: before.original_request_hex.clone(),
+            request_sha256: before.original_request_sha256.clone(),
+            namespace: before.vault_namespace.clone(), reference: before.vault_reference.clone(),
+            revision: before.vault_issue_revision, claim, issue: issue.clone(),
+        };
+        let rows: Vec<MemberEnrollmentRow> = tx.query_values_at(
+            "IF record::exists($original.account) OR record::exists($original.principal) OR record::exists($original.space) OR array::len(SELECT id FROM local_accounts WHERE account_key = $original.name LIMIT 1) != 0 { THROW 'HSK-ENROLLMENT-COLLISION'; };
+             CREATE $original.account SET account_key = $original.name, account_role = 'Member', status = 'disabled', credential_revision = 0, member_enrollment_origin = $original.enrollment, revocation_epoch = 0, policy_version = 1, created_at = time::now(), updated_at = time::now();
+             CREATE $original.principal SET principal_key = $original.actor, account_id = $original.account, principal_kind = 'human_account', actor_kind = 'operator', actor_id = $original.actor, capability_profile_id = $original.profile, delegated_capabilities = $original.capabilities, status = 'disabled', member_enrollment_origin = $original.enrollment, revocation_epoch = 0, policy_version = 1, created_at = time::now(), updated_at = time::now();
+             CREATE $original.space SET space_key = $original.actor, account_id = $original.account, name = 'Private', status = 'disabled', member_enrollment_origin = $original.enrollment, revocation_epoch = 0, policy_version = 1, created_at = time::now(), updated_at = time::now();
+             LET $activated = UPDATE $original.enrollment SET status = 'active'
+                WHERE status = 'preparing' AND vault_issue_state = 'bound' AND vault_issue_revision = $revision AND vault_claim_id = $claim
+                AND original_request_hex = $request_hex AND original_request_sha256 = $request_sha256
+                AND vault_namespace = $namespace AND vault_reference = $reference AND issue = $issue
+                AND operation_id = $original.operation AND descriptor_hex = $original.descriptor_hex
+                AND descriptor_sha256 = $original.descriptor_sha256 AND token_digest = $original.token_digest
+                AND account_id = $original.account AND principal_id = $original.principal AND access_space_id = $original.space
+                AND account_name = $original.name AND purpose = 'identity_enrollment'
+                AND issued_at = $original.issued_at AND expires_at = $original.expires_at
+                AND issued_at <= time::now() AND expires_at > time::now()
+                AND password_verifier = NONE AND redemption_attempt_id = NONE AND consumed_at = NONE RETURN AFTER;
+             IF array::len($activated) != 1 { THROW 'HSK-ENROLLMENT-ACTIVATE'; };
+             SELECT * FROM $original.enrollment;",
+            binding, 6,
+        ).await?;
+        let [row] = rows.as_slice() else {
+            return Err(ResourceAuthorityError::InvalidInput("missing activated enrollment readback"));
+        };
+        original.require_original(row)?;
+        if row.status != "active" || row.password_verifier.is_some()
+            || row.redemption_attempt_id.is_some() || row.consumed_at.is_some()
+        {
+            return Err(ResourceAuthorityError::InvalidInput("invalid activated enrollment"));
+        }
+        let targets: Vec<MemberTargetRow> = tx.query_values_at(
+            MEMBER_TARGET_READBACK, original.clone(), 0,
+        ).await?;
+        let [target] = targets.as_slice() else {
+            return Err(ResourceAuthorityError::InvalidInput("missing original staged targets"));
+        };
+        original.require_target(target, false, None)?;
+        let origins: Vec<MemberEnrollmentOrigins> = tx.query_values_at(
+            "RETURN { account: $account.member_enrollment_origin, principal: $principal.member_enrollment_origin, space: $space.member_enrollment_origin };",
+            original.clone(), 0,
+        ).await?;
+        let [origins] = origins.as_slice() else {
+            return Err(ResourceAuthorityError::InvalidInput("missing original staged origins"));
+        };
+        if origins.account != original.enrollment || origins.principal != original.enrollment
+            || origins.space != original.enrollment
+        {
+            return Err(ResourceAuthorityError::InvalidInput("staged origins differ"));
+        }
+        let final_rows: Vec<MemberVaultStageRow> = tx.query_values_at(
+            "SELECT * FROM $enrollment;", original.clone(), 0,
+        ).await?;
+        let [after] = final_rows.as_slice() else {
+            return Err(ResourceAuthorityError::InvalidInput("missing final original phase"));
+        };
+        let final_original = after.require_bound_original(captured.plan.descriptor(), &original)?;
+        if final_original.status != "active" || after.issue != expected_issue
+            || after.original_request_hex != before.original_request_hex
+            || after.original_request_sha256 != before.original_request_sha256
+            || after.vault_namespace != before.vault_namespace
+            || after.vault_reference != before.vault_reference
+            || after.vault_claim_id != before.vault_claim_id
+            || after.vault_issue_revision != before.vault_issue_revision
+        {
+            return Err(ResourceAuthorityError::InvalidInput("original phase changed during staging"));
+        }
+        // Canonical readback is still inside the SAME borrowed worker, not a
+        // commit receipt. Outer actual controller owns commit/Unknown custody.
+        permit.require_first_issue(tx, captured).await?;
+        Ok(MemberIssueObservation::Created)
+    }
+}
+// Account owns its projection producer extension: issuer_credential_revision
+// MUST come from7cbc genuine bound_credential_revision in BOTH factories, and
+// every mutation must retain exact private KDF observation/physical nonce proof.
+// This body implements no controller, no password enable, no session/grant mint.
+// Old redemption/login helpers are unchanged and their unmounted private provider
+// and nonce/permission blockers are not waived by successful original staging.
+// A missing/Reserved/Preparing/WriteStarted/corrupt row never falls back to CREATE.
+
+
+#[derive(Clone, PartialEq, Eq, SurrealValue)]
+struct AdministratorPasswordLoginBinding {
+    origin: surrealdb::types::Object,
+    administration: surrealdb::types::Object,
+    parent: surrealdb::types::Object,
+    enroll: surrealdb::types::Object,
+    revoke: surrealdb::types::Object,
+    assign: surrealdb::types::Object,
+    account: RecordId, principal: RecordId, space: RecordId, name: String,
+    credential_revision: i64,
+    account_epoch: i64, principal_epoch: i64, space_epoch: i64,
+    account_policy: i64, principal_policy: i64, space_policy: i64,
+    profile: String, capabilities: Vec<String>,
+}
+fn administrator_binding_expiry(
+    binding: &AdministratorPasswordLoginBinding, requested: DateTime<Utc>,
+) -> Result<DateTime<Utc>, ResourceAuthorityError> {
+    let denied = || ResourceAuthorityError::InvalidInput("authentication denied");
+    let mut expires = requested;
+    for grant in [&binding.enroll, &binding.revoke, &binding.assign] {
+        if let Some(value) = grant.get("expires_at") {
+            if *value != surrealdb::types::Value::None {
+                let timestamp = Datetime::from_value(value.clone()).map_err(|_| denied())?.into_inner();
+                expires = expires.min(timestamp);
+            }
+        }
+    }
+    let lifetime = binding.origin.get("administration_lifetime").ok_or_else(denied)?;
+    match AdministrationLifetimeRow::from_value(lifetime.clone()).map_err(|_| denied())? {
+        AdministrationLifetimeRow::NoExpiry => {},
+        AdministrationLifetimeRow::ExpiresAt(timestamp) => expires = expires.min(timestamp.into_inner()),
+    }
+    if expires <= Utc::now() { return Err(denied()); }
+    Ok(expires)
+}
+
+#[derive(SurrealValue)]
+struct AdministratorPasswordLoginQuery { snapshot: super::local_accounts::AdministratorPasswordCredentialSnapshot }
+const ADMINISTRATOR_PASSWORD_LOGIN_BINDING: &str = "RETURN fn::wp012_administrator_login_snapshot($snapshot);";
+#[derive(SurrealValue)]
+struct AdministratorPasswordLoginWrite { binding: AdministratorPasswordLoginBinding, verifier: String, credential: RecordId, token_hash: String, expires_at: Datetime }
+const ADMINISTRATOR_PASSWORD_LOGIN_WRITE: &str = "IF !fn::wp012_administrator_login_binding_current($binding) { THROW 'HSK-ADMINISTRATOR-LOGIN-DENIED'; };\nLET $a = UPDATE $binding.account SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 WHERE status = 'enabled' AND account_role = 'Owner' AND account_key = $binding.name AND credential_revision = $binding.credential_revision AND password_verifier != NONE AND revocation_epoch = $binding.account_epoch AND policy_version = $binding.account_policy RETURN VALUE id;\nLET $p = UPDATE $binding.principal SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 WHERE account_id = $binding.account AND principal_kind = 'human_account' AND status = 'enabled' AND revocation_epoch = $binding.principal_epoch AND policy_version = $binding.principal_policy AND capability_profile_id = $binding.profile AND delegated_capabilities = $binding.capabilities RETURN VALUE id;\nLET $s = UPDATE $binding.space SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 WHERE account_id = $binding.account AND status = 'active' AND revocation_epoch = $binding.space_epoch AND policy_version = $binding.space_policy RETURN VALUE id;\nLET $r = UPDATE $binding.administration.id SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id;\nLET $w = UPDATE $binding.parent.id SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id;\nLET $e = UPDATE $binding.enroll.id SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id;\nLET $v = UPDATE $binding.revoke.id SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id;\nLET $g = UPDATE $binding.assign.id SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id;\nIF array::len($a) != 1 OR array::len($p) != 1 OR array::len($s) != 1 OR array::len($r) != 1 OR array::len($w) != 1 OR array::len($e) != 1 OR array::len($v) != 1 OR array::len($g) != 1 OR !fn::wp012_administrator_login_binding_current($binding) { THROW 'HSK-ADMINISTRATOR-LOGIN-DENIED'; };\nIF $binding.account.password_verifier != $verifier OR record::exists($credential) OR $expires_at <= time::now() { THROW 'HSK-ADMINISTRATOR-LOGIN-DENIED'; };\nCREATE $credential SET account_id = $binding.account, principal_id = $binding.principal, access_space_id = $binding.space, token_hash = $token_hash, status = 'active', expires_at = $expires_at, revoked_at = NONE, created_at = time::now(), administrator_login_binding = $binding;\n";
+const ADMINISTRATOR_PASSWORD_LOGIN_READBACK: &str = "RETURN record::exists($credential) AND $credential.account_id = $binding.account AND $credential.principal_id = $binding.principal AND $credential.access_space_id = $binding.space AND $credential.token_hash = $token_hash AND $credential.status = 'active' AND $credential.revoked_at = NONE AND $credential.expires_at = $expires_at AND $credential.expires_at > time::now() AND $credential.administrator_login_binding = $binding AND $credential.member_login_binding = NONE AND fn::wp012_administrator_login_binding_current($binding);";
+
+struct AdministratorPasswordLoginAttempt {
+    storage: SurrealStorage,
+    checked: super::local_accounts::AdministratorPasswordVerifiedAccount,
+    credential: RecordId,
+    token: zeroize::Zeroizing<String>,
+    token_hash: String,
+    expires_at: DateTime<Utc>,
+    binding: std::sync::OnceLock<AdministratorPasswordLoginBinding>,
+}
+enum AdministratorPasswordLoginFailure {
+    Operation(ResourceAuthorityError),
+    Cancel {
+        operation: ResourceAuthorityError,
+        cancellation: Result<super::SurrealClient, surrealdb::Error>,
+    },
+    Commit(surrealdb::Error),
+    CanonicalRead(SurrealStorageError),
+    CanonicalMismatch,
+}
+enum AdministratorPasswordLoginObservation {
+    Complete(std::sync::Arc<Result<IssuedSessionCredential, AdministratorPasswordLoginFailure>>),
+    Join(std::sync::Arc<tokio::task::JoinError>),
+}
+enum AdministratorPasswordLoginWorkerState {
+    Starting,
+    Running(tokio::task::JoinHandle<Result<IssuedSessionCredential, AdministratorPasswordLoginFailure>>),
+    Observed(AdministratorPasswordLoginObservation),
+}
+pub(super) struct AdministratorPasswordLoginOperation {
+    original: std::sync::Arc<AdministratorPasswordLoginAttempt>,
+    state: tokio::sync::Mutex<AdministratorPasswordLoginWorkerState>,
+}
+impl AdministratorPasswordLoginOperation {
+    async fn observe(&self) -> Result<IssuedSessionCredential, ResourceAuthorityError> {
+        let mut state = self.state.lock().await;
+        if let AdministratorPasswordLoginWorkerState::Running(worker) = &mut *state {
+            // Borrow the retained handle. Cancelling a waiter cannot detach the worker.
+            let observed = match worker.await {
+                Ok(result) => AdministratorPasswordLoginObservation::Complete(std::sync::Arc::new(result)),
+                Err(error) => AdministratorPasswordLoginObservation::Join(std::sync::Arc::new(error)),
+            };
+            *state = AdministratorPasswordLoginWorkerState::Observed(observed);
+        }
+        match &*state {
+            AdministratorPasswordLoginWorkerState::Observed(AdministratorPasswordLoginObservation::Complete(result)) => {
+                match result.as_ref() {
+                    Ok(credential) => Ok(credential.clone()),
+                    Err(_) => Err(SurrealStorageError::TransactionSettlementPending {
+                        operation_id: Uuid::parse_str(&record_key(self.original.credential.clone())?)
+                            .map_err(|_| ResourceAuthorityError::InvalidInput("invalid credential operation"))?,
+                    }.into()),
+                }
+            }
+            _ => Err(SurrealStorageError::TransactionSettlementPending {
+                operation_id: Uuid::parse_str(&record_key(self.original.credential.clone())?)
+                    .map_err(|_| ResourceAuthorityError::InvalidInput("invalid credential operation"))?,
+            }.into()),
+        }
+    }
+}
+impl SurrealStorage {
+    pub(super) async fn provision_verified_administrator_session_credential(
+        &self,
+        checked: super::local_accounts::AdministratorPasswordVerifiedAccount,
+        ttl: Duration,
+    ) -> Result<IssuedSessionCredential, ResourceAuthorityError> {
+        // Existing normal login policy only. The caller cannot extend a password proof.
+        if ttl != Duration::from_secs(60) {
+            return Err(ResourceAuthorityError::InvalidInput("invalid login credential lifetime"));
+        }
+        checked.credential_snapshot(self)?;
+        let mut entropy = zeroize::Zeroizing::new([0u8; 32]);
+        getrandom::getrandom(&mut entropy[..])
+            .map_err(|error| ResourceAuthorityError::Entropy(error.to_string()))?;
+        let token = zeroize::Zeroizing::new(hex::encode(entropy.as_ref()));
+        let token_hash = sha256_hex(token.as_bytes());
+        let operation_id = Uuid::now_v7();
+        let original = std::sync::Arc::new(AdministratorPasswordLoginAttempt {
+            storage: self.clone(), checked,
+            credential: RecordId::new("session_exchange_credentials", operation_id.to_string()),
+            token, token_hash, expires_at: Utc::now() + chrono::Duration::seconds(60),
+            binding: std::sync::OnceLock::new(),
+        });
+        let operation = std::sync::Arc::new(AdministratorPasswordLoginOperation {
+            original: original.clone(),
+            state: tokio::sync::Mutex::new(AdministratorPasswordLoginWorkerState::Starting),
+        });
+        // Add AdministratorPasswordLogin(Arc<resource_authority::AdministratorPasswordLoginOperation>)
+        // to the existing parent AuthenticatedTransactionRetention enum.
+        {
+            let admission = self.inner.member_login_admission.lock()
+                .map_err(|_| ResourceAuthorityError::InvalidInput("login admission poisoned"))?;
+            if !*admission { return Err(SurrealStorageError::Closed.into()); }
+            self.reserve_transaction_settlement(operation_id, Some(
+                super::AuthenticatedTransactionRetention::AdministratorPasswordLogin(operation.clone())
+            ))?;
+            // No await between publishing the strong owner and publishing its worker.
+            let mut state = operation.state.try_lock().map_err(|_| {
+                ResourceAuthorityError::InvalidInput("unpublished login worker is locked")
+            })?;
+            let worker = tokio::spawn(async move { original.storage.clone().run_administrator_password_login(original).await });
+            *state = AdministratorPasswordLoginWorkerState::Running(worker);
+            drop(state);
+            drop(admission);
+        }
+        let result = operation.observe().await;
+        if result.is_ok() {
+            let mut retained = self.inner.transaction_settlements.lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            if matches!(retained.get(&operation_id),
+                Some(Some(super::AuthenticatedTransactionRetention::AdministratorPasswordLogin(current)))
+                if std::sync::Arc::ptr_eq(current, &operation))
+            { retained.remove(&operation_id); }
+        }
+        result
+    }
+
+    async fn run_administrator_password_login(
+        &self, original: std::sync::Arc<AdministratorPasswordLoginAttempt>,
+    ) -> Result<IssuedSessionCredential, AdministratorPasswordLoginFailure> {
+        let storage = self.clone();
+        let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
+        let retained = original.clone();
+        let result = self.with_lease(move |client| Box::pin(async move {
+            let authority = client.clone();
+            authority.use_ns(namespace).use_db(database).await?;
+            let transaction = authority.begin().await?;
+            let body: Result<(AdministratorPasswordLoginBinding, DateTime<Utc>), ResourceAuthorityError> = async {
+                let snapshot = retained.checked.credential_snapshot(&storage)?;
+                let mut response = transaction.query(ADMINISTRATOR_PASSWORD_LOGIN_BINDING)
+                    .bind(AdministratorPasswordLoginQuery {
+                        snapshot,
+                    }).await.map_err(SurrealStorageError::from)?.check().map_err(SurrealStorageError::from)?;
+                let mut rows: Vec<AdministratorPasswordLoginBinding> = response.take(0).map_err(SurrealStorageError::from)?;
+                if rows.len() != 1 {
+                    return Err(ResourceAuthorityError::InvalidInput("authentication denied"));
+                }
+                let binding = rows.pop().ok_or(ResourceAuthorityError::InvalidInput("authentication denied"))?;
+                if binding.credential_revision <= 0
+                    || binding.account != retained.checked.credential_snapshot(&storage)?.account
+                { return Err(ResourceAuthorityError::InvalidInput("authentication denied")); }
+                retained.binding.set(binding.clone())
+                    .map_err(|_| ResourceAuthorityError::InvalidInput("login binding already captured"))?;
+                let effective_expiry = administrator_binding_expiry(&binding, retained.expires_at)?;
+                let snapshot = retained.checked.credential_snapshot(&storage)?;
+                transaction.query(ADMINISTRATOR_PASSWORD_LOGIN_WRITE).bind(AdministratorPasswordLoginWrite {
+                    binding: binding.clone(), verifier: snapshot.verifier,
+                    credential: retained.credential.clone(), token_hash: retained.token_hash.clone(),
+                    expires_at: Datetime::from(effective_expiry),
+                }).await.map_err(SurrealStorageError::from)?.check().map_err(SurrealStorageError::from)?;
+                Ok((binding, effective_expiry))
+            }.await;
+            let (binding, effective_expiry) = match body {
+                Ok(selected) => selected,
+                Err(operation) => {
+                    let cancellation = transaction.cancel().await;
+                    return Ok(Err(AdministratorPasswordLoginFailure::Cancel { operation, cancellation }));
+                }
+            };
+            let canonical = match transaction.commit().await {
+                Ok(client) => client,
+                Err(error) => return Ok(Err(AdministratorPasswordLoginFailure::Commit(error))),
+            };
+            let snapshot = match retained.checked.credential_snapshot(&storage) {
+                Ok(snapshot) => snapshot,
+                Err(error) => return Ok(Err(AdministratorPasswordLoginFailure::Operation(error))),
+            };
+            let readback: Result<bool, SurrealStorageError> = async {
+                let mut response = canonical.query(ADMINISTRATOR_PASSWORD_LOGIN_READBACK)
+                    .bind(AdministratorPasswordLoginWrite {
+                        binding: binding.clone(), verifier: snapshot.verifier,
+                        credential: retained.credential.clone(), token_hash: retained.token_hash.clone(),
+                        expires_at: Datetime::from(effective_expiry),
+                    }).await.map_err(SurrealStorageError::from)?.check().map_err(SurrealStorageError::from)?;
+                let observed: surrealdb::types::Value = response.take(0)?;
+                Ok(matches!(observed, surrealdb::types::Value::Bool(true)))
+            }.await;
+            match readback {
+                Ok(true) => Ok(Ok(IssuedSessionCredential {
+                    credential_id: record_key(retained.credential.clone())
+                        .map_err(|_| SurrealStorageError::TransactionRetentionMismatch {
+                            operation_id: Uuid::nil(),
+                        })?,
+                    token: retained.token.to_string(),
+                    account_id: record_key(binding.account).map_err(|_| SurrealStorageError::TransactionRetentionMismatch { operation_id: Uuid::nil() })?,
+                    principal_id: record_key(binding.principal).map_err(|_| SurrealStorageError::TransactionRetentionMismatch { operation_id: Uuid::nil() })?,
+                    access_space_id: record_key(binding.space).map_err(|_| SurrealStorageError::TransactionRetentionMismatch { operation_id: Uuid::nil() })?,
+                    expires_at: effective_expiry,
+                })),
+                Ok(false) => Ok(Err(AdministratorPasswordLoginFailure::CanonicalMismatch)),
+                Err(error) => Ok(Err(AdministratorPasswordLoginFailure::CanonicalRead(error))),
+            }
+        })).await;
+        match result {
+            Ok(result) => result,
+            Err(error) => Err(AdministratorPasswordLoginFailure::CanonicalRead(error)),
+        }
+    }
+}
+// Parent enum insertion is a typed retention owner only. Do not send this variant
+// through transaction_worker: this private normal-login worker owns its SDK transaction.
+// Storage shutdown must await retained AdministratorPasswordLoginOperation::observe before close.
+// Schema: DEFINE FIELD OVERWRITE member_login_binding ON session_exchange_credentials
+// FLEXIBLE TYPE option<object> PERMISSIONS NONE;
+// No password verifier or raw password is persisted in member_login_binding.
+
+
+// Additional resource_authority.rs candidate. Pair with private credential worker
+// and member-password-login-schema. Existing Owner/Admin exchange is retained below.
+#[derive(SurrealValue)]
+struct AdministratorExchangeEligible {
+    credential: RecordId,
+    binding: AdministratorPasswordLoginBinding,
+}
+#[derive(Clone, SurrealValue)]
+struct AdministratorExchangeQuery {
+    account: RecordId,
+    principal: RecordId,
+    space: RecordId,
+    credential_token_hash: String,
+}
+#[derive(SurrealValue)]
+struct AdministratorExchangeWrite {
+    input: AdministratorExchangeQuery,
+    credential: RecordId,
+    binding: AdministratorPasswordLoginBinding,
+    session: RecordId,
+    session_token_hash: String,
+    channel: String,
+    issued_at: Datetime,
+    expires_at: Datetime,
+    principal_key: String,
+}
+const ADMINISTRATOR_EXCHANGE_ELIGIBLE: &str = "SELECT id AS credential, administrator_login_binding AS binding FROM session_exchange_credentials WHERE account_id = $account AND principal_id = $principal AND access_space_id = $space AND token_hash = $credential_token_hash AND status = 'active' AND revoked_at = NONE AND expires_at > time::now() AND member_login_binding = NONE AND administrator_login_binding != NONE AND administrator_login_binding.account = account_id AND administrator_login_binding.principal = principal_id AND administrator_login_binding.space = access_space_id AND fn::wp012_administrator_login_binding_current(administrator_login_binding) LIMIT 2;";
+const ADMINISTRATOR_EXCHANGE_WRITE: &str = "IF !fn::wp012_administrator_login_binding_current($binding) { THROW 'HSK-ADMINISTRATOR-LOGIN-DENIED'; };\nLET $a = UPDATE $binding.account SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 WHERE status = 'enabled' AND account_role = 'Owner' AND account_key = $binding.name AND credential_revision = $binding.credential_revision AND password_verifier != NONE AND revocation_epoch = $binding.account_epoch AND policy_version = $binding.account_policy RETURN VALUE id;\nLET $p = UPDATE $binding.principal SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 WHERE account_id = $binding.account AND principal_kind = 'human_account' AND status = 'enabled' AND revocation_epoch = $binding.principal_epoch AND policy_version = $binding.principal_policy AND capability_profile_id = $binding.profile AND delegated_capabilities = $binding.capabilities RETURN VALUE id;\nLET $s = UPDATE $binding.space SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 WHERE account_id = $binding.account AND status = 'active' AND revocation_epoch = $binding.space_epoch AND policy_version = $binding.space_policy RETURN VALUE id;\nLET $r = UPDATE $binding.administration.id SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id;\nLET $w = UPDATE $binding.parent.id SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id;\nLET $e = UPDATE $binding.enroll.id SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id;\nLET $v = UPDATE $binding.revoke.id SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id;\nLET $g = UPDATE $binding.assign.id SET authorization_touch_nonce = (authorization_touch_nonce ?? 0) + 1 RETURN VALUE id;\nIF array::len($a) != 1 OR array::len($p) != 1 OR array::len($s) != 1 OR array::len($r) != 1 OR array::len($w) != 1 OR array::len($e) != 1 OR array::len($v) != 1 OR array::len($g) != 1 OR !fn::wp012_administrator_login_binding_current($binding) { THROW 'HSK-ADMINISTRATOR-LOGIN-DENIED'; };\nLET $used = UPDATE $credential SET status = 'consumed' WHERE account_id = $input.account AND principal_id = $input.principal AND access_space_id = $input.space AND token_hash = $input.credential_token_hash AND status = 'active' AND revoked_at = NONE AND expires_at > time::now() AND member_login_binding = NONE AND administrator_login_binding = $binding RETURN AFTER;\nIF array::len($used) != 1 OR record::exists($session) OR $expires_at <= time::now() { THROW 'HSK-ADMINISTRATOR-EXCHANGE-DENIED'; };\nCREATE $session SET account_id = $binding.account, principal_id = $binding.principal, access_space_id = $binding.space, token_hash = $session_token_hash, channel_binding_hash = $channel, authentication_strength = 'credential_exchange', delegated_capabilities = $binding.capabilities, delegation_chain = [$principal_key], account_revocation_epoch = $binding.account_epoch, principal_revocation_epoch = $binding.principal_epoch, space_revocation_epoch = $binding.space_epoch, policy_version = math::max([$binding.account_policy,$binding.principal_policy,$binding.space_policy]), administrator_login_binding = $binding, issued_at = $issued_at, expires_at = $expires_at, revoked_at = NONE;\n";
+const ADMINISTRATOR_EXCHANGE_CANONICAL: &str = "RETURN record::exists($session) AND $credential.status = 'consumed' AND $credential.administrator_login_binding = $binding AND $credential.member_login_binding = NONE AND $credential.token_hash = $input.credential_token_hash AND $session.account_id = $binding.account AND $session.principal_id = $binding.principal AND $session.access_space_id = $binding.space AND $session.token_hash = $session_token_hash AND $session.channel_binding_hash = $channel AND $session.authentication_strength = 'credential_exchange' AND $session.delegated_capabilities = $binding.capabilities AND $session.delegation_chain = [$principal_key] AND $session.account_revocation_epoch = $binding.account_epoch AND $session.principal_revocation_epoch = $binding.principal_epoch AND $session.space_revocation_epoch = $binding.space_epoch AND $session.policy_version = math::max([$binding.account_policy,$binding.principal_policy,$binding.space_policy]) AND $session.issued_at = $issued_at AND $session.expires_at = $expires_at AND $session.expires_at > time::now() AND $session.revoked_at = NONE AND $session.administrator_login_binding = $binding AND fn::wp012_administrator_login_binding_current($binding);";
+fn require_canonical_administrator_login_binding(binding: &AdministratorPasswordLoginBinding) -> Result<(), ResourceAuthorityError> {
+ if binding.credential_revision <= 0 || binding.profile != "MemberEnrollmentAdministrator"
+  || !binding.capabilities.iter().map(String::as_str).eq(["account.identity.enroll", "account.identity.enrollment.revoke", "account.identity.member_profile.assign"]) {
+  return Err(ResourceAuthorityError::InvalidInput("authentication denied"));
+ }
+ Ok(())
+}
+struct AdministratorSessionExchangeAttempt {
+    storage: SurrealStorage,
+    input: AdministratorExchangeQuery,
+    session_id: Uuid,
+    token: zeroize::Zeroizing<String>,
+    token_hash: String,
+    credential_token: zeroize::Zeroizing<String>,
+    channel: String,
+    issued_at: DateTime<Utc>,
+    expires_at: DateTime<Utc>,
+    selected: std::sync::OnceLock<(RecordId, AdministratorPasswordLoginBinding)>,
+}
+enum AdministratorSessionExchangeFailure {
+    Operation(ResourceAuthorityError),
+    Cancel { operation: ResourceAuthorityError, cancellation: Result<super::SurrealClient, surrealdb::Error> },
+    Commit(surrealdb::Error),
+    Storage(SurrealStorageError),
+    CanonicalMismatch,
+}
+enum AdministratorSessionExchangeObserved {
+    Complete(std::sync::Arc<Result<IssuedSession, AdministratorSessionExchangeFailure>>),
+    Join(std::sync::Arc<tokio::task::JoinError>),
+}
+enum AdministratorSessionExchangeState {
+    Starting,
+    Running(tokio::task::JoinHandle<Result<IssuedSession, AdministratorSessionExchangeFailure>>),
+    Observed(AdministratorSessionExchangeObserved),
+}
+pub(super) struct AdministratorSessionExchangeOperation {
+    original: std::sync::Arc<AdministratorSessionExchangeAttempt>,
+    state: tokio::sync::Mutex<AdministratorSessionExchangeState>,
+}
+impl AdministratorSessionExchangeOperation {
+    async fn observe(&self) -> Result<IssuedSession, ResourceAuthorityError> {
+        let mut state = self.state.lock().await;
+        if let AdministratorSessionExchangeState::Running(worker) = &mut *state {
+            let observed = match worker.await {
+                Ok(result) => AdministratorSessionExchangeObserved::Complete(std::sync::Arc::new(result)),
+                Err(error) => AdministratorSessionExchangeObserved::Join(std::sync::Arc::new(error)),
+            };
+            *state = AdministratorSessionExchangeState::Observed(observed);
+        }
+        match &*state {
+            AdministratorSessionExchangeState::Observed(AdministratorSessionExchangeObserved::Complete(result)) => {
+                match result.as_ref() {
+                    Ok(session) => Ok(session.clone()),
+                    Err(_) => Err(SurrealStorageError::TransactionSettlementPending {
+                        operation_id: self.original.session_id,
+                    }.into()),
+                }
+            }
+            _ => Err(SurrealStorageError::TransactionSettlementPending {
+                operation_id: self.original.session_id,
+            }.into()),
+        }
+    }
+}
+impl AdministratorSessionExchangeAttempt {
+    fn write(&self, credential: RecordId, binding: AdministratorPasswordLoginBinding)
+        -> Result<AdministratorExchangeWrite, ResourceAuthorityError>
+    {
+        let expires_at = administrator_binding_expiry(&binding, self.expires_at)?;
+        Ok(AdministratorExchangeWrite {
+            input: self.input.clone(), credential, binding,
+            session: RecordId::new("authenticated_sessions", self.session_id.to_string()),
+            session_token_hash: self.token_hash.clone(), channel: self.channel.clone(),
+            issued_at: Datetime::from(self.issued_at), expires_at: Datetime::from(expires_at),
+            principal_key: record_key(self.input.principal.clone())?,
+        })
+    }
+}
+impl SurrealStorage {
+    async fn exchange_administrator_session_credential(
+        &self, account_id: &str, principal_id: &str, access_space_id: &str,
+        credential_token: &str, channel_binding_hash: &str, ttl: Duration,
+    ) -> Result<IssuedSession, ResourceAuthorityError> {
+        validate_uuid(account_id)?;
+        validate_uuid(principal_id)?;
+        validate_uuid(access_space_id)?;
+        validate_nonempty(credential_token)?;
+        validate_nonempty(channel_binding_hash)?;
+        if ttl.is_zero() {
+            return Err(ResourceAuthorityError::InvalidInput("session TTL must be greater than zero"));
+        }
+        let account = RecordId::new("local_accounts", account_id.to_owned());
+        let mut secret = zeroize::Zeroizing::new([0u8; 32]);
+        getrandom::getrandom(&mut secret[..])
+            .map_err(|error| ResourceAuthorityError::Entropy(error.to_string()))?;
+        let token = zeroize::Zeroizing::new(hex::encode(secret.as_ref()));
+        let token_hash = sha256_hex(token.as_bytes());
+        let session_id = Uuid::now_v7();
+        let issued_at = Utc::now();
+        let expires_at = issued_at + chrono::Duration::from_std(ttl)
+            .map_err(|_| ResourceAuthorityError::InvalidInput("session TTL is outside chrono range"))?;
+        let original = std::sync::Arc::new(AdministratorSessionExchangeAttempt {
+            storage: self.clone(),
+            input: AdministratorExchangeQuery {
+                account, principal: RecordId::new("principals", principal_id.to_owned()),
+                space: RecordId::new("access_spaces", access_space_id.to_owned()),
+                credential_token_hash: sha256_hex(credential_token.as_bytes()),
+            },
+            session_id, token, token_hash,
+            credential_token: zeroize::Zeroizing::new(credential_token.to_owned()),
+            channel: channel_binding_hash.to_owned(), issued_at, expires_at,
+            selected: std::sync::OnceLock::new(),
+        });
+        let owner = std::sync::Arc::new(AdministratorSessionExchangeOperation {
+            original: original.clone(), state: tokio::sync::Mutex::new(AdministratorSessionExchangeState::Starting),
+        });
+        {
+            let mut state = owner.state.try_lock()
+                .map_err(|_| ResourceAuthorityError::InvalidInput("unpublished exchange state locked"))?;
+            let admission = self.inner.member_login_admission.lock()
+                .map_err(|_| ResourceAuthorityError::InvalidInput("login admission poisoned"))?;
+            if !*admission { return Err(SurrealStorageError::Closed.into()); }
+            self.reserve_transaction_settlement(session_id, Some(
+                super::AuthenticatedTransactionRetention::AdministratorSessionExchange(owner.clone())
+            ))?;
+            *state = AdministratorSessionExchangeState::Running(tokio::spawn(async move {
+                original.storage.clone().run_administrator_session_exchange(original).await
+            }));
+            drop(state);
+            drop(admission);
+        }
+        let result = owner.observe().await;
+        if result.is_ok() {
+            let mut retained = self.inner.transaction_settlements.lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            if matches!(retained.get(&session_id),
+                Some(Some(super::AuthenticatedTransactionRetention::AdministratorSessionExchange(current)))
+                if std::sync::Arc::ptr_eq(current, &owner))
+            { retained.remove(&session_id); }
+        }
+        result
+    }
+
+    async fn run_administrator_session_exchange(
+        &self, original: std::sync::Arc<AdministratorSessionExchangeAttempt>,
+    ) -> Result<IssuedSession, AdministratorSessionExchangeFailure> {
+        let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
+        let result = self.with_lease(move |client| Box::pin(async move {
+            let authority = client.clone();
+            authority.use_ns(namespace).use_db(database).await?;
+            let transaction = authority.begin().await?;
+            let body: Result<(RecordId, AdministratorPasswordLoginBinding), ResourceAuthorityError> = async {
+                let mut response = transaction.query(ADMINISTRATOR_EXCHANGE_ELIGIBLE)
+                    .bind(original.input.clone()).await.map_err(SurrealStorageError::from)?.check().map_err(SurrealStorageError::from)?;
+                let mut rows: Vec<AdministratorExchangeEligible> = response.take(0).map_err(SurrealStorageError::from)?;
+                if rows.len() != 1 { return Err(ResourceAuthorityError::InvalidInput("authentication denied")); }
+                let selected = rows.pop().ok_or(ResourceAuthorityError::InvalidInput("authentication denied"))?;
+                require_canonical_administrator_login_binding(&selected.binding)?;
+                original.selected.set((selected.credential.clone(), selected.binding.clone()))
+                    .map_err(|_| ResourceAuthorityError::InvalidInput("exchange selection already captured"))?;
+                let write = original.write(selected.credential.clone(), selected.binding.clone())?;
+                transaction.query(ADMINISTRATOR_EXCHANGE_WRITE).bind(write).await.map_err(SurrealStorageError::from)?.check().map_err(SurrealStorageError::from)?;
+                Ok((selected.credential, selected.binding))
+            }.await;
+            let (credential, binding) = match body {
+                Ok(selected) => selected,
+                Err(operation) => {
+                    let cancellation = transaction.cancel().await;
+                    return Ok(Err(AdministratorSessionExchangeFailure::Cancel { operation, cancellation }));
+                }
+            };
+            let canonical = match transaction.commit().await {
+                Ok(client) => client,
+                Err(error) => return Ok(Err(AdministratorSessionExchangeFailure::Commit(error))),
+            };
+            let write = match original.write(credential, binding.clone()) {
+                Ok(write) => write,
+                Err(error) => return Ok(Err(AdministratorSessionExchangeFailure::Operation(error))),
+            };
+            let read: Result<bool, SurrealStorageError> = async {
+                let mut response = canonical.query(ADMINISTRATOR_EXCHANGE_CANONICAL).bind(write).await.map_err(SurrealStorageError::from)?.check().map_err(SurrealStorageError::from)?;
+                let observed: surrealdb::types::Value = response.take(0)?;
+                Ok(matches!(observed, surrealdb::types::Value::Bool(true)))
+            }.await;
+            match read {
+                Ok(true) => {
+                    let session = (|| -> Result<IssuedSession, ResourceAuthorityError> {
+                        let expires_at = administrator_binding_expiry(&binding, original.expires_at)?;
+                        Ok(IssuedSession {
+                        token: original.token.to_string(), session_id: original.session_id.to_string(),
+                        account_id: record_key(binding.account)?,
+                        principal_id: record_key(binding.principal)?,
+                        access_space_id: record_key(binding.space)?,
+                        expires_at,
+                    }) })();
+                    Ok(session.map_err(AdministratorSessionExchangeFailure::Operation))
+                }
+                Ok(false) => Ok(Err(AdministratorSessionExchangeFailure::CanonicalMismatch)),
+                Err(error) => Ok(Err(AdministratorSessionExchangeFailure::Storage(error))),
+            }
+        })).await;
+        result.map_err(AdministratorSessionExchangeFailure::Storage)?
+    }
+
+}
+
+impl SurrealStorage {
+    async fn administrator_credential_route(
+        &self, account_id: &str, principal_id: &str, space_id: &str, credential_token: &str,
+    ) -> Result<bool, ResourceAuthorityError> {
+        let namespace = self.config().namespace().to_owned();
+        let database = self.config().database().to_owned();
+        let query = AdministratorExchangeQuery {
+            account: RecordId::new("local_accounts", account_id.to_owned()),
+            principal: RecordId::new("principals", principal_id.to_owned()),
+            space: RecordId::new("access_spaces", space_id.to_owned()),
+            credential_token_hash: sha256_hex(credential_token.as_bytes()),
+        };
+        self.with_lease(move |client| Box::pin(async move {
+            let authority = client.clone();
+            authority.use_ns(namespace).use_db(database).await?;
+            let mut response = authority.query(
+                "LET $marked = SELECT VALUE id FROM session_exchange_credentials WHERE account_id = $account AND principal_id = $principal AND access_space_id = $space AND token_hash = $credential_token_hash AND administrator_login_binding != NONE LIMIT 2; RETURN array::len($marked) != 0 OR $principal.capability_profile_id = 'MemberEnrollmentAdministrator';"
+            ).bind(query).await?.check()?;
+            let observed: surrealdb::types::Value = response.take(1)?;
+            Ok(matches!(observed, surrealdb::types::Value::Bool(true)))
+        })).await.map_err(Into::into)
+    }
+}
+
+pub(super) struct FirstOwnerConfirmationPreparedCredential {
+    binding: AdministratorPasswordLoginBinding,
+    credential: RecordId,
+    token_hash: String,
+    expires_at: DateTime<Utc>,
+}
+impl SurrealStorage {
+    pub(super) async fn issue_first_owner_confirmation_credential_in_transaction(
+        &self, tx: &super::SurrealTransactionContext<'_>,
+        authorization: &super::local_accounts::FirstOwnerConfirmationCredentialAuthorization<'_, '_>,
+        intent: &super::local_accounts::FirstOwnerConfirmationCredentialIntent,
+    ) -> Result<FirstOwnerConfirmationPreparedCredential, ResourceAuthorityError> {
+        let snapshot = authorization.credential_snapshot(self, tx).await?;
+        let mut response = tx.transaction.query(ADMINISTRATOR_PASSWORD_LOGIN_BINDING)
+            .bind(AdministratorPasswordLoginQuery { snapshot }).await.map_err(SurrealStorageError::from)?
+            .check().map_err(SurrealStorageError::from)?;
+        let mut rows: Vec<AdministratorPasswordLoginBinding> = response.take(0).map_err(SurrealStorageError::from)?;
+        if rows.len() != 1 { return Err(ResourceAuthorityError::InvalidInput("confirmation credential denied")); }
+        let binding = rows.pop().ok_or(ResourceAuthorityError::InvalidInput("confirmation credential denied"))?;
+        authorization.require_binding(&binding.origin, &binding.account, &binding.principal, &binding.space)?;
+        let expires_at = administrator_binding_expiry(&binding, intent.requested_expires_at())?;
+        let snapshot = authorization.credential_snapshot(self, tx).await?;
+        tx.transaction.query(ADMINISTRATOR_PASSWORD_LOGIN_WRITE).bind(AdministratorPasswordLoginWrite {
+            binding: binding.clone(), verifier: snapshot.verifier, credential: intent.record().clone(),
+            token_hash: intent.token_hash().to_owned(), expires_at: Datetime::from(expires_at),
+        }).await.map_err(SurrealStorageError::from)?.check().map_err(SurrealStorageError::from)?;
+        authorization.credential_snapshot(self, tx).await?;
+        Ok(FirstOwnerConfirmationPreparedCredential {
+            binding, credential: intent.record().clone(), token_hash: intent.token_hash().to_owned(), expires_at,
+        })
+    }
+}
+impl FirstOwnerConfirmationPreparedCredential {
+    pub(super) async fn canonical_read(&self, client: &super::SurrealClient)
+        -> Result<surrealdb::types::Value, SurrealStorageError> {
+        let mut response = client.query(ADMINISTRATOR_PASSWORD_LOGIN_READBACK).bind(AdministratorPasswordLoginWrite {
+            binding: self.binding.clone(), verifier: String::new(), credential: self.credential.clone(),
+            token_hash: self.token_hash.clone(), expires_at: Datetime::from(self.expires_at),
+        }).await?.check()?;
+        Ok(response.take(0)?)
+    }
+    pub(super) fn outward(
+        &self, intent: &super::local_accounts::FirstOwnerConfirmationCredentialIntent,
+    ) -> Result<IssuedSessionCredential, ResourceAuthorityError> {
+        if &self.credential != intent.record() || self.token_hash != intent.token_hash()
+            || self.expires_at <= Utc::now() {
+            return Err(ResourceAuthorityError::InvalidInput("confirmation credential denied"));
+        }
+        Ok(IssuedSessionCredential {
+            credential_id: record_key(self.credential.clone())?, token: intent.token().to_owned(),
+            account_id: record_key(self.binding.account.clone())?,
+            principal_id: record_key(self.binding.principal.clone())?,
+            access_space_id: record_key(self.binding.space.clone())?, expires_at: self.expires_at,
+        })
+    }
+}

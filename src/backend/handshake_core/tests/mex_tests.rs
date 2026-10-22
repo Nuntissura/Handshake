@@ -879,7 +879,7 @@ async fn calendar_sync_runtime_denies_wrong_profile_without_unknown_capability()
         })
         .await
         .expect("job should create");
-    let err = start_workflow_for_job(&state, job.clone())
+    let err = start_workflow_for_job(&state, job.clone(), None)
         .await
         .expect_err("Analyst must not run calendar_sync");
     let err_text = err.to_string();
@@ -1027,7 +1027,7 @@ async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
         })
         .await?;
 
-    let workflow_run = start_workflow_for_job(&state, job.clone()).await?;
+    let workflow_run = start_workflow_for_job(&state, job.clone(), None).await?;
     let completed = state.storage.get_ai_job(&job.job_id.to_string()).await?;
     assert_eq!(completed.state.as_str(), "completed");
     let output = completed.job_outputs.expect("calendar sync output");
@@ -1295,7 +1295,7 @@ async fn calendar_sync_workflow_imports_read_only_source_and_updates_sync_state(
             })),
         })
         .await?;
-    let rejected_result = start_workflow_for_job(&state, rejected_job.clone()).await;
+    let rejected_result = start_workflow_for_job(&state, rejected_job.clone(), None).await;
     assert!(rejected_result.is_err(), "DST-gap workflow must reject");
     let rejected_events = state
         .storage

@@ -479,6 +479,7 @@ pub(crate) enum ModelLaneRecordKind {
     CloudConsentDenial,
     RoleEvidence,
     ValidatorDesignation,
+    RoleEvidenceConsumption,
 }
 
 impl ModelLaneRecordKind {
@@ -503,6 +504,7 @@ impl ModelLaneRecordKind {
             Self::CloudConsentDenial => "cloud_consent_denial",
             Self::RoleEvidence => "role_evidence",
             Self::ValidatorDesignation => "validator_designation",
+            Self::RoleEvidenceConsumption => "role_evidence_consumption",
         }
     }
 }
@@ -736,6 +738,22 @@ struct RoleEvidenceInsertBindings {
     workspace_id: String,
 }
 
+#[derive(SurrealValue)]
+struct ProtectedRoleTargetRow {
+    record_id: String,
+    record: StoredRow,
+}
+
+impl ProtectedRoleEvidenceReadback {
+    pub(crate) fn binding_event_id(&self) -> &str { &self.record.event_id }
+}
+
+pub(crate) struct ProtectedRoleEvidenceReadback {
+    operation_id: uuid::Uuid,
+    scope: ModelLaneScope,
+    record: SurrealModelLaneRecord,
+}
+
 pub(crate) struct RunnerDesignationReadback {
     operation_id: uuid::Uuid,
     scope: ModelLaneScope,
@@ -743,6 +761,20 @@ pub(crate) struct RunnerDesignationReadback {
     record: SurrealModelLaneRecord,
 }
 
+enum RoleEvidenceCreationAuthority<'a, 'tx> {
+    Owner(&'a super::resource_authority::OwnerIssuanceSeal<'tx>),
+    Consumer(&'a super::resource_authority::CurrentConsumerSeal<'tx>),
+}
+impl RoleEvidenceCreationAuthority<'_, '_> {
+    async fn with_creation<T, F>(&self, record_id: &str, event_id: &str, hash: &str, future: F)
+        -> Result<T, SurrealStorageError>
+    where F: std::future::Future<Output = Result<T, SurrealStorageError>> {
+        match self {
+            Self::Owner(seal) => seal.with_protected_role_authority_creation("role_evidence", record_id, event_id, hash, future).await,
+            Self::Consumer(seal) => seal.with_protected_role_authority_creation("role_evidence", record_id, event_id, hash, future).await,
+        }
+    }
+}
 pub(crate) struct PendingOwnerRoleEvidence {
     readback: RoleEvidenceReadback,
     verified: handshake_role_authority::domain::PureVerifiedRoleEvidence,
@@ -2893,24 +2925,52 @@ impl From<StoredSchemaRow> for SurrealModelLaneSchemaRow {
     }
 }
 
-async fn prepare_model_lane_schema_registry(
+macro_rules! model_lane_derived_schema_refresh {
+    () => { "UPDATE model_lane_authority SET navigation_source_input = fn::wp012_model_lane_navigation_source_input($this) WHERE navigation_source_input != fn::wp012_model_lane_navigation_source_input($this); UPDATE kernel_event_ledger SET navigation_semantic_input = fn::wp012_navigation_receipt_semantics($this) WHERE navigation_semantic_input != fn::wp012_navigation_receipt_semantics($this);" };
+}
+
+macro_rules! model_lane_registry_seed_write {
+    () => { "LET $id = type::record('model_lane_schema_registry', $record_id); LET $existing = SELECT * FROM ONLY $id; IF $existing = NONE { CREATE ONLY $id CONTENT $seed; } ELSE IF $existing.schema_id != $seed.schema_id OR $existing.schema_version != $seed.schema_version OR $existing.record_kind != $seed.record_kind OR $existing.table_name != $seed.table_name OR $existing.source_component != $seed.source_component OR $existing.owner_account_id != $seed.owner_account_id OR $existing.actor_principal_id != $seed.actor_principal_id OR $existing.authenticated_session_id != $seed.authenticated_session_id OR $existing.access_space_id != $seed.access_space_id OR $existing.workspace_id != $seed.workspace_id { THROW 'model-lane schema registry metadata drift'; };" };
+}
+
+#[derive(SurrealValue)]
+struct ModelLaneSchemaRegistrySeed {
+    record_id: String,
+    seed: StoredSchemaWrite,
+}
+
+#[derive(SurrealValue)]
+struct ModelLaneSchemaRegistrySource {
+    session: SchemaSessionScope,
+    workspaces: Vec<SchemaWorkspace>,
+}
+
+#[derive(SurrealValue)]
+struct ModelLaneSchemaRegistryInputs {
+    sources: Vec<ModelLaneSchemaRegistrySource>,
+    seeds: Vec<ModelLaneSchemaRegistrySeed>,
+}
+
+async fn model_lane_schema_registry_inputs(
     database: &super::SurrealAdminContext<'_>,
-) -> Result<(), SurrealStorageError> {
+) -> Result<ModelLaneSchemaRegistryInputs, SurrealStorageError> {
     // Only administrative preparation discovers persisted session/workspace tuples.
     // Runtime reads neither create missing metadata nor repair drifted metadata.
     let mut response = database.query("SELECT record::id(account_id) AS owner_account_id, record::id(principal_id) AS actor_principal_id, record::id(id) AS authenticated_session_id, record::id(access_space_id) AS access_space_id FROM authenticated_sessions;").await?;
     let sessions: Vec<SchemaSessionScope> = response.take(0)?;
+    let mut sources = Vec::with_capacity(sessions.len());
+    let mut registry_seeds = Vec::new();
     for session in sessions {
         let mut response = database.query_bound(
             "SELECT external_resource_id AS workspace_id FROM protected_resources WHERE resource_kind = 'workspace' AND owner_account_id = type::record('local_accounts', $owner_account_id) AND access_space_id = type::record('access_spaces', $access_space_id) AND lifecycle_state = 'active';",
             SchemaWorkspaceBindings { owner_account_id: session.owner_account_id.clone(), access_space_id: session.access_space_id.clone() },
         ).await?;
         let workspaces: Vec<SchemaWorkspace> = response.take(0)?;
-        for workspace in workspaces {
+        for workspace in &workspaces {
             let scope = ModelLaneScope {
                 owner_account_id: session.owner_account_id.clone(), actor_principal_id: session.actor_principal_id.clone(),
                 authenticated_session_id: session.authenticated_session_id.clone(), access_space_id: session.access_space_id.clone(),
-                workspace_id: workspace.workspace_id,
+                workspace_id: workspace.workspace_id.clone(),
             };
             validate_scope(&scope)?;
         let mut seeds = Vec::with_capacity(CANONICAL_MODEL_LANE_SCHEMAS.len());
@@ -2927,8 +2987,9 @@ async fn prepare_model_lane_schema_registry(
                 )
                 .as_bytes(),
             );
-            seeds.push((
+            seeds.push(ModelLaneSchemaRegistrySeed {
                 record_id,
+                seed:
                 StoredSchemaWrite {
                     schema_id: (*schema_id).to_owned(),
                     schema_version: *schema_version,
@@ -2941,17 +3002,110 @@ async fn prepare_model_lane_schema_registry(
                     access_space_id: scope.access_space_id.clone(),
                     workspace_id: scope.workspace_id.clone(),
                 },
-            ));
+            });
         }
-            for (record_id, seed) in seeds {
-                let mut bindings = surrealdb::types::Object::new();
-                bindings.insert("record_id", record_id);
-                bindings.insert("seed", seed);
-                database.query_bound("LET $id = type::record('model_lane_schema_registry', $record_id); LET $existing = SELECT * FROM ONLY $id; IF $existing = NONE { CREATE ONLY $id CONTENT $seed; } ELSE IF $existing.schema_id != $seed.schema_id OR $existing.schema_version != $seed.schema_version OR $existing.record_kind != $seed.record_kind OR $existing.table_name != $seed.table_name OR $existing.source_component != $seed.source_component OR $existing.owner_account_id != $seed.owner_account_id OR $existing.actor_principal_id != $seed.actor_principal_id OR $existing.authenticated_session_id != $seed.authenticated_session_id OR $existing.access_space_id != $seed.access_space_id OR $existing.workspace_id != $seed.workspace_id { THROW 'model-lane schema registry metadata drift'; };", bindings).await?;
-            }
+
+            registry_seeds.extend(seeds);
         }
+        sources.push(ModelLaneSchemaRegistrySource { session, workspaces });
+    }
+    Ok(ModelLaneSchemaRegistryInputs { sources, seeds: registry_seeds })
+}
+
+async fn prepare_model_lane_schema_registry(
+    database: &super::SurrealAdminContext<'_>,
+) -> Result<(), SurrealStorageError> {
+    for seed in model_lane_schema_registry_inputs(database).await?.seeds {
+        let mut bindings = surrealdb::types::Object::new();
+        bindings.insert("record_id", seed.record_id);
+        bindings.insert("seed", seed.seed);
+        database.query_bound(model_lane_registry_seed_write!(), bindings).await?;
     }
     Ok(())
+}
+
+#[derive(SurrealValue)]
+pub(super) struct PreparedModelLaneSchemaUpgrade {
+    model_row: surrealdb::types::Object,
+    global_row: surrealdb::types::Object,
+    registry: ModelLaneSchemaRegistryInputs,
+    schema_version: String,
+    schema_revision: i64,
+}
+
+pub(super) async fn prepare_model_lane_schema_upgrade(
+    database: &super::SurrealAdminContext<'_>,
+) -> Result<PreparedModelLaneSchemaUpgrade, SurrealStorageError> {
+    let mut bindings = surrealdb::types::Object::new();
+    bindings.insert("schema_version", RUN_MEMORY_PREVIOUS_SCHEMA_VERSION.to_owned());
+    bindings.insert("schema_revision", RUN_MEMORY_PREVIOUS_SCHEMA_REVISION);
+    let mut response = database.query_bound(
+        "SELECT * FROM model_lane_schema_state WHERE id = model_lane_schema_state:primary AND schema_version = $schema_version AND schema_revision = $schema_revision AND apply_state = 'complete';",
+        bindings,
+    ).await?;
+    let mut rows: Vec<surrealdb::types::Object> = response.take(0)?;
+    if rows.len() != 1 {
+        return Err(SurrealStorageError::InvalidModelLaneRecord {
+            reason: "model-lane schema upgrade requires the complete v8 primary receipt",
+        });
+    }
+    let model_row = rows.remove(0);
+    let mut response = database.query("SELECT * FROM ONLY handshake_schema_state:primary;").await?;
+    let global_row: Option<surrealdb::types::Object> = response.take(0)?;
+    let global_row = global_row.ok_or(SurrealStorageError::InvalidModelLaneRecord {
+        reason: "model-lane schema upgrade requires the existing global receipt",
+    })?;
+    Ok(PreparedModelLaneSchemaUpgrade {
+        model_row,
+        global_row,
+        registry: model_lane_schema_registry_inputs(database).await?,
+        schema_version: SCHEMA_VERSION.to_owned(),
+        schema_revision: SCHEMA_REVISION,
+    })
+}
+
+impl PreparedModelLaneSchemaUpgrade {
+    pub(super) fn sql_fragment(&self) -> &'static str {
+        concat!(
+            r#"
+LET $model_upgrade = $wp012_model_lane_upgrade;
+LET $model_before = SELECT * FROM ONLY model_lane_schema_state:primary;
+LET $global_before = SELECT * FROM ONLY handshake_schema_state:primary;
+IF $model_before != $model_upgrade.model_row OR $global_before != $model_upgrade.global_row {
+    THROW 'model-lane schema upgrade receipt changed';
+};
+LET $sessions = SELECT record::id(account_id) AS owner_account_id, record::id(principal_id) AS actor_principal_id, record::id(id) AS authenticated_session_id, record::id(access_space_id) AS access_space_id FROM authenticated_sessions;
+IF array::len($sessions) != array::len($model_upgrade.registry.sources) {
+    THROW 'model-lane schema upgrade session sources changed';
+};
+FOR $source IN $model_upgrade.registry.sources {
+    IF array::len($sessions[WHERE $this = $source.session]) != 1 {
+        THROW 'model-lane schema upgrade session source changed';
+    };
+    LET $workspaces = SELECT external_resource_id AS workspace_id FROM protected_resources WHERE resource_kind = 'workspace' AND owner_account_id = type::record('local_accounts', $source.session.owner_account_id) AND access_space_id = type::record('access_spaces', $source.session.access_space_id) AND lifecycle_state = 'active';
+    IF array::len($workspaces) != array::len($source.workspaces) {
+        THROW 'model-lane schema upgrade workspace sources changed';
+    };
+    FOR $workspace IN $source.workspaces {
+        IF array::len($workspaces[WHERE $this = $workspace]) != array::len($source.workspaces[WHERE $this = $workspace]) {
+            THROW 'model-lane schema upgrade workspace source changed';
+        };
+    };
+};
+"#,
+            model_lane_derived_schema_refresh!(),
+            " FOR $registry_seed IN $model_upgrade.registry.seeds { LET $record_id = $registry_seed.record_id; LET $seed = $registry_seed.seed; ",
+            model_lane_registry_seed_write!(),
+            r#"
+};
+UPDATE ONLY model_lane_schema_state:primary SET schema_version = $model_upgrade.schema_version, schema_revision = $model_upgrade.schema_revision, apply_state = 'complete';
+"#
+        )
+    }
+
+    pub(super) fn append_native_bindings(self, bindings: &mut surrealdb::types::Object) {
+        bindings.insert("wp012_model_lane_upgrade", self);
+    }
 }
 
 #[derive(SurrealValue)]
@@ -3025,7 +3179,7 @@ pub(crate) async fn bootstrap_model_lane_schema(
                 database.query(SCHEMA).await?;
                 // Re-evaluate only derived inputs on retained rows. Original canonical
                 // JSON, receipt payload/hash and event sequence are never replaced.
-                database.query("UPDATE model_lane_authority SET navigation_source_input = fn::wp012_model_lane_navigation_source_input($this) WHERE navigation_source_input != fn::wp012_model_lane_navigation_source_input($this); UPDATE kernel_event_ledger SET navigation_semantic_input = fn::wp012_navigation_receipt_semantics($this) WHERE navigation_semantic_input != fn::wp012_navigation_receipt_semantics($this);").await?;
+                database.query(model_lane_derived_schema_refresh!()).await?;
                 prepare_model_lane_schema_registry(&database).await?;
                 if advance_schema_state {
                     database
@@ -5537,7 +5691,7 @@ impl SurrealModelLaneStore {
         let prepared = canonical::prepare_operator(&request.approval)
             .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "Operator approval command integrity is invalid" })?;
         self.put_prepared_operator_evidence_in_transaction(
-            transaction, issuer.operation_id(), issuer.current_scope(), &prepared,
+            transaction, issuer.operation_id(), issuer.current_scope(), &prepared, &RoleEvidenceCreationAuthority::Owner(issuer),
         ).await
     }
 
@@ -5547,6 +5701,7 @@ impl SurrealModelLaneStore {
         operation_id: uuid::Uuid,
         current_scope: &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
         prepared: &handshake_role_authority::domain::PurePreparedRoleIntent,
+        creation: &RoleEvidenceCreationAuthority<'_, '_>,
     ) -> Result<PendingOwnerRoleEvidence, SurrealStorageError> {
         use handshake_role_authority::{canonical, domain};
         let body = prepared.body();
@@ -5627,16 +5782,19 @@ impl SurrealModelLaneStore {
             authenticated_session_id: scope.authenticated_session_id, access_space_id: scope.access_space_id,
             workspace_id: scope.workspace_id,
         };
-        let rows = transaction.query_values_at::<StoredRow, _>(
+        let creation_record_id = bindings.record_id.clone();
+        let creation_event_id = bindings.event_id.clone();
+        let creation_hash = bindings.payload_hash.clone();
+        let rows = creation.with_creation(&creation_record_id, &creation_event_id, &creation_hash, transaction.query_values_at::<StoredRow, _>(
             "LET $existing = SELECT aggregate_id, run_id, idempotency_key, record_json, event_id, event_seq, event_stream_version, transaction_seq FROM type::record('model_lane_authority', $record_id) WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id; IF array::len($existing) = 1 { RETURN $existing; } ELSE { IF array::len($existing) != 0 { THROW 'role authority identity is ambiguous'; }; LET $ledger = CREATE type::record('kernel_event_ledger', $event_id) CONTENT { event_id: $event_id, event_sequence: $event_sequence, event_version: 'kernel_event_v1', kernel_task_run_id: $run_id, session_run_id: $stream_id, aggregate_type: 'role_evidence', aggregate_id: $aggregate_id, idempotency_key: $event_id, event_type: 'MODEL_LANE_AUTHORITY_RECORDED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: $causation_id, correlation_id: $correlation_id, payload_hash: $payload_hash, source_component: 'model_lane', payload: { record_kind: 'role_evidence', run_id: $run_id, event_stream_version: 1, event_payload_json: $record_json, issuance_operation_id: $operation_id }, authority_resource_id: type::record('protected_resources', $wp012_original_resource), authority_grant_id: type::record('resource_grants', $wp012_original_grant), authority_session_id: $auth.id, authority_capability_id: $wp012_original_capability, authority_action: $wp012_original_action, wsids: [$workspace_id], owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }; IF array::len($ledger) != 1 OR $ledger[0].event_sequence != $event_sequence { THROW 'role event allocation differs'; }; RETURN CREATE type::record('model_lane_authority', $record_id) CONTENT { record_kind: 'role_evidence', aggregate_id: $aggregate_id, run_id: $run_id, idempotency_key: $idempotency_key, record_json: $record_json, search_terms: [string::concat('idempotency_key=', $idempotency_key)], event_id: $event_id, event_ledger_event_id: type::record('kernel_event_ledger', $event_id), event_seq: $event_sequence, event_stream_version: 1, transaction_seq: $event_sequence, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }; };",
             bindings, 1,
-        ).await?;
+        )).await?;
         if rows.len() != 1 {
             return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "Operator issuance returned missing or ambiguous authority" });
         }
-        let (verified, issuance_operation_id) = self.read_role_evidence_with_query(
-            &ModelLaneQuery::Transaction(transaction), &selector,
-        ).await?;
+        let query = ModelLaneQuery::Transaction(transaction);
+        let (verified, issuance_operation_id) = creation.with_creation(&creation_record_id, &creation_event_id, &creation_hash,
+            self.read_role_evidence_with_query(&query, &selector)).await?;
         handshake_role_authority::resolution::compare_retry(verified.receipt(), prepared)
             .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "Operator full-command immutable retry conflicts" })?;
         if issuance_operation_id != operation_id {
@@ -5693,7 +5851,7 @@ impl SurrealModelLaneStore {
                 reason: "Operator stage acknowledgement command integrity is invalid",
             })?;
         let pending = self.put_prepared_operator_evidence_in_transaction(
-            transaction, consumer.operation_id(), consumer.current_scope(), &prepared,
+            transaction, consumer.operation_id(), consumer.current_scope(), &prepared, &RoleEvidenceCreationAuthority::Consumer(consumer),
         ).await?;
         let PendingOwnerRoleEvidence { readback, verified } = pending;
         let checked = TxCheckedRoleEvidence {
@@ -5720,9 +5878,13 @@ impl SurrealModelLaneStore {
             || selector.expectation.receipt_scope.workspace_id != consumer.current_scope().workspace_id {
             return Err(SurrealStorageError::TransactionAuthorityRequired);
         }
-        let (verified, issuance_operation_id) = self.read_role_evidence_with_query(
-            &ModelLaneQuery::Transaction(transaction), selector,
-        ).await?;
+        let query = ModelLaneQuery::Transaction(transaction);
+        let read = self.read_role_evidence_with_query(&query, selector);
+        let (verified, issuance_operation_id) = if consumer.protected_consumption_body().is_some() {
+            let event = selector.evidence_ref.as_str().strip_prefix("eventledger://role-authority/")
+                .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+            consumer.with_protected_role_evidence_consumption(event, read).await?
+        } else { read.await? };
         Ok(TxCheckedRoleEvidence {
             transaction, operation_id: consumer.operation_id(),
             current_consumer: consumer.current_scope().clone(), selector: selector.clone(), verified, issuance_operation_id,
@@ -5730,11 +5892,189 @@ impl SurrealModelLaneStore {
         })
     }
 
+    pub(crate) async fn capture_protected_role_evidence_targets(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        seal: &super::resource_authority::ProtectedRoleEvidenceTargetReadSeal<'_>,
+    ) -> Result<Vec<super::resource_authority::ProtectedRoleEvidenceTarget>, SurrealStorageError> {
+        if !seal.matches_transaction(transaction) {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let issuance = seal.issuance();
+        let operator = issuance.operator_prior();
+        if seal.current_scope() != &operator.expectation.receipt_scope {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let query = ModelLaneQuery::Transaction(transaction);
+        let event_id = operator.evidence_ref.as_str().strip_prefix("eventledger://role-authority/")
+            .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        seal.with_protected_role_evidence_capture("role_evidence", event_id,
+            self.read_role_evidence_with_query(&query, operator)).await?;
+        let designation_event = issuance.verdict().designation_ref.as_str()
+            .strip_prefix("eventledger://validator-designation/")
+            .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let scope = role_storage_scope(seal.current_scope());
+        let mut targets = Vec::new();
+        for (kind, event, statement) in [
+            (ModelLaneRecordKind::RoleEvidence, event_id,
+             "SELECT record::id(id) AS record_id, { aggregate_id: aggregate_id, run_id: run_id, idempotency_key: idempotency_key, record_json: record_json, event_id: event_id, event_seq: event_seq, event_stream_version: event_stream_version, transaction_seq: transaction_seq } AS record FROM model_lane_authority WHERE record_kind = 'role_evidence' AND event_id = $event_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 2;"),
+            (ModelLaneRecordKind::ValidatorDesignation, designation_event,
+             "SELECT record::id(id) AS record_id, { aggregate_id: aggregate_id, run_id: run_id, idempotency_key: idempotency_key, record_json: record_json, event_id: event_id, event_seq: event_seq, event_stream_version: event_stream_version, transaction_seq: transaction_seq } AS record FROM model_lane_authority WHERE record_kind = 'validator_designation' AND event_id = $event_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 2;"),
+            (ModelLaneRecordKind::ContextArtifact, issuance.verdict().execution.execution_event.event_id.as_str(),
+             "SELECT record::id(id) AS record_id, { aggregate_id: aggregate_id, run_id: run_id, idempotency_key: idempotency_key, record_json: record_json, event_id: event_id, event_seq: event_seq, event_stream_version: event_stream_version, transaction_seq: transaction_seq } AS record FROM model_lane_authority WHERE record_kind = 'context_artifact' AND event_id = $event_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 2;"),        ] {
+            let read = async {
+            let rows = transaction.query_values_at::<ProtectedRoleTargetRow, _>(statement, RoleEvidenceLookupBindings {
+                event_id: event.to_owned(), owner_account_id: scope.owner_account_id.clone(),
+                actor_principal_id: scope.actor_principal_id.clone(), authenticated_session_id: scope.authenticated_session_id.clone(),
+                access_space_id: scope.access_space_id.clone(), workspace_id: scope.workspace_id.clone(),
+            }, 0).await?;
+            let [row] = rows.as_slice() else { return Err(SurrealStorageError::TransactionAuthorityRequired); };
+            let record: SurrealModelLaneRecord = row.record.clone().into();
+            let aggregate = if kind == ModelLaneRecordKind::RoleEvidence { &record.idempotency_key } else { &record.aggregate_id };
+            if row.record_id != stable_record_id(kind.as_str(), aggregate, &scope) || record.event_id != event {
+                return Err(SurrealStorageError::TransactionAuthorityRequired);
+            }
+            self.validate_event_link_in_transaction(transaction, kind, &record, &scope).await?;
+            Ok(super::resource_authority::ProtectedRoleEvidenceTarget {
+                record_kind: kind.as_str().to_owned(), record_id: row.record_id.clone(),
+                event_id: record.event_id.clone(), record_sha256: sha256_hex(record.record_json.as_bytes()),
+                issuer_scope: seal.current_scope().clone(),
+            })
+            };
+            let target = if matches!(kind, ModelLaneRecordKind::RoleEvidence | ModelLaneRecordKind::ValidatorDesignation) {
+                seal.with_protected_role_evidence_capture(kind.as_str(), event, read).await?
+            } else { read.await? };
+            targets.push(target);
+        }
+        let verdict = issuance.verdict();
+        let request_id = verdict.execution.request_message_ref.strip_prefix("model-lane-message://")
+            .unwrap_or(&verdict.execution.request_message_ref);
+        let request_record = self.get_in_transaction(transaction, ModelLaneRecordKind::Message, request_id, &scope).await?
+            .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let request = crate::swarm_orchestration::model_lane::surreal_message_record(request_record.clone())
+            .map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?.inner;
+        if request.run_id != verdict.run.run_id
+            || request.to_lane != crate::swarm_orchestration::model_lane::ModelLaneTarget::Lane(verdict.execution.runner_lane_id.clone()) {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let sender_record = self.get_in_transaction(transaction, ModelLaneRecordKind::Lane, &request.from_lane_id, &scope).await?
+            .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let sender: crate::swarm_orchestration::model_lane::NewModelLane = serde_json::from_str(&sender_record.record_json)
+            .map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        if sender.run_id != verdict.run.run_id || sender.kind != crate::swarm_orchestration::model_lane::ModelLaneKind::HumanOperator {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        for (kind, record) in [(ModelLaneRecordKind::Message, request_record), (ModelLaneRecordKind::Lane, sender_record)] {
+            self.validate_event_link_in_transaction(transaction, kind, &record, &scope).await?;
+            targets.push(super::resource_authority::ProtectedRoleEvidenceTarget {
+                record_kind: kind.as_str().to_owned(), record_id: stable_record_id(kind.as_str(), &record.aggregate_id, &scope),
+                event_id: record.event_id.clone(), record_sha256: sha256_hex(record.record_json.as_bytes()),
+                issuer_scope: seal.current_scope().clone(),
+            });
+        }
+        Ok(targets)
+    }
+    pub(crate) async fn put_protected_role_evidence_consumption(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        issuer: &super::resource_authority::ProtectedRoleEvidenceCreationSeal<'_>,
+    ) -> Result<ProtectedRoleEvidenceReadback, SurrealStorageError> {
+        let body = issuer.body();
+        if !issuer.matches_transaction(transaction) || issuer.current_scope() != &body.issuer_scope
+            || issuer.operation_id() != body.operation_id || body.operation_id.is_nil()
+            || body.consumer_operation_id.is_nil() || body.targets.is_empty()
+            || body.schema_id != "handshake.role-evidence-consumption@1"
+        { return Err(SurrealStorageError::TransactionAuthorityRequired); }
+        let scope = role_storage_scope(&body.issuer_scope);
+        let operation_id = body.operation_id.to_string();
+        let kind = ModelLaneRecordKind::RoleEvidenceConsumption;
+        let record_id = stable_record_id(kind.as_str(), &operation_id, &scope);
+        let event_id = format!("evt-{record_id}");
+        let record_json = serde_json::to_string(body).map_err(|_| SurrealStorageError::InvalidModelLaneRecord {
+            reason: "protected role consumption body cannot be encoded",
+        })?;
+        let bindings = WriteBindings {
+            event_ledger_stream_id: Some(body.run.run_id.clone()), record_id,
+            event_id: event_id.clone(), record_kind: kind.as_str().to_owned(),
+            aggregate_id: operation_id.clone(), run_id: body.run.run_id.clone(),
+            idempotency_key: operation_id.clone(), record_json: record_json.clone(),
+            search_terms: vec![format!("idempotency_key={operation_id}")],
+            event_payload_json: record_json.clone(), event_payload_hash: sha256_hex(record_json.as_bytes()),
+            owner_account_id: scope.owner_account_id.clone(), actor_principal_id: scope.actor_principal_id.clone(),
+            authenticated_session_id: scope.authenticated_session_id.clone(), access_space_id: scope.access_space_id.clone(),
+            workspace_id: scope.workspace_id.clone(),
+        };
+        let record_id = bindings.record_id.clone();
+        let payload_hash = bindings.event_payload_hash.clone();
+        let rows = issuer.with_protected_role_evidence_creation(&record_id, &event_id, &payload_hash,
+            transaction.query_values_at::<StoredRow, _>(DESIGNATION_INSERT_QUERY, bindings, 1)).await?;
+        let [row] = rows.as_slice() else {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "protected role consumption publication is missing or ambiguous" });
+        };
+        let record: SurrealModelLaneRecord = row.clone().into();
+        if record.record_json != record_json || record.aggregate_id != operation_id
+            || record.idempotency_key != operation_id || record.event_id != event_id
+            || record.run_id != body.run.run_id
+        { return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "protected role consumption immutable retry conflicts" }); }
+        issuer.with_protected_role_evidence_creation(&record_id, &event_id, &payload_hash,
+            self.validate_event_link_in_transaction(transaction, kind, &record, &scope)).await?;
+        Ok(ProtectedRoleEvidenceReadback { operation_id: body.operation_id, scope, record })
+    }
+
+    pub(crate) async fn readback_protected_role_evidence_consumption(
+        &self,
+        publication: &super::resource_authority::RolePublicationGuard<'_>,
+        expected: &ProtectedRoleEvidenceReadback,
+    ) -> Result<ProtectedRoleEvidenceReadback, SurrealStorageError> {
+        publication.require_unexpired().map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        if publication.operation_id() != expected.operation_id || role_storage_scope(publication.current_scope()) != expected.scope {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let scope = role_storage_scope(publication.current_scope());
+        let kind = ModelLaneRecordKind::RoleEvidenceConsumption;
+        let record_id = stable_record_id(kind.as_str(), &expected.record.aggregate_id, &scope);
+        let hash = sha256_hex(expected.record.record_json.as_bytes());
+        publication.with_protected_role_authority_read(kind.as_str(), &record_id, &expected.record.event_id, &hash, async {
+        let actual = self.get(kind, &expected.record.aggregate_id, &scope).await?
+            .ok_or(SurrealStorageError::InvalidModelLaneRecord { reason: "protected role consumption disappeared" })?;
+        if actual != expected.record {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "protected role consumption publication differs" });
+        }
+        self.validate_event_link(kind, &actual, &scope).await?;
+        publication.require_unexpired().map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        Ok(ProtectedRoleEvidenceReadback { operation_id: expected.operation_id, scope, record: actual })
+        }).await
+    }
     pub(crate) async fn put_runner_designation(
+        &self, transaction: &super::SurrealTransactionContext<'_>,
+        issuer: &super::resource_authority::OwnerIssuanceSeal<'_>,
+    ) -> Result<RunnerDesignationReadback, SurrealStorageError> {
+        self.put_runner_designation_with_event_custody(transaction, issuer, None, None).await
+    }
+
+    pub(crate) async fn put_runner_designation_with_original_event(
+        &self, transaction: &super::SurrealTransactionContext<'_>,
+        issuer: &super::resource_authority::OwnerIssuanceSeal<'_>, original_event_id: &str,
+        custody: &super::resource_authority::ValidatorAssociationTransactionRetention,
+    ) -> Result<RunnerDesignationReadback, SurrealStorageError> {
+        self.put_runner_designation_with_event_custody(transaction, issuer, Some(original_event_id), Some(custody)).await
+    }
+
+    async fn put_runner_designation_with_event_custody(
         &self,
         transaction: &super::SurrealTransactionContext<'_>,
         issuer: &super::resource_authority::OwnerIssuanceSeal<'_>,
+        original_event_id: Option<&str>,
+        custody: Option<&super::resource_authority::ValidatorAssociationTransactionRetention>,
     ) -> Result<RunnerDesignationReadback, SurrealStorageError> {
+        match (original_event_id, custody) {
+            (Some(event), Some(owner)) if !event.trim().is_empty()
+                && owner.matches_designation_issuer(issuer, event) => {},
+            (None, None) => {},
+            _ => return Err(SurrealStorageError::TransactionAuthorityRequired),
+        }
+        let event_id = original_event_id.map(str::to_owned)
+            .unwrap_or_else(|| format!("evt-model-lane-{}", uuid::Uuid::now_v7()));
         let crate::swarm_orchestration::model_lane::WorkspaceOwnerActionCommand::IssueRunnerDesignation(request) = issuer.command() else {
             return Err(SurrealStorageError::TransactionAuthorityRequired);
         };
@@ -5762,7 +6102,7 @@ impl SurrealModelLaneStore {
         let bindings = WriteBindings {
             event_ledger_stream_id: Some(request.run.run_id.clone()),
             record_id: stable_record_id(ModelLaneRecordKind::ValidatorDesignation.as_str(), &request.action.action_id, &scope),
-            event_id: format!("evt-model-lane-{}", uuid::Uuid::now_v7()),
+            event_id: event_id.clone(),
             record_kind: ModelLaneRecordKind::ValidatorDesignation.as_str().to_owned(),
             aggregate_id: request.action.action_id.clone(), run_id: request.run.run_id.clone(),
             idempotency_key: request.action.idempotency_key.clone(), record_json: record_json.clone(),
@@ -5772,16 +6112,34 @@ impl SurrealModelLaneStore {
             authenticated_session_id: scope.authenticated_session_id.clone(), access_space_id: scope.access_space_id.clone(),
             workspace_id: scope.workspace_id.clone(),
         };
-        let rows = transaction.query_values_at::<StoredRow, _>(DESIGNATION_INSERT_QUERY, bindings, 1).await?;
+        let creation_record_id = bindings.record_id.clone();
+        let creation_event_id = bindings.event_id.clone();
+        let creation_hash = bindings.event_payload_hash.clone();
+        let observation = custody.map(|owner| owner.retain_designation_query::<StoredRow>()).transpose()?;
+        let query_result = issuer.with_protected_role_authority_creation("validator_designation", &creation_record_id, &creation_event_id, &creation_hash,
+            transaction.query_values_at::<StoredRow, _>(DESIGNATION_INSERT_QUERY, bindings, 1)).await;
+        let rows = if let Some(observation) = &observation {
+            observation.retain_query(query_result);
+            observation.with_observation(|query, _| query.and_then(|result| result.as_ref().ok()).cloned())
+                .ok_or(SurrealStorageError::TransactionSettlementPending { operation_id: issuer.operation_id() })?
+        } else { query_result? };
         let [row] = rows.as_slice() else {
             return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "designation insert is missing or ambiguous" });
         };
         let record: SurrealModelLaneRecord = row.clone().into();
-        if record.record_json != record_json || record.aggregate_id != request.action.action_id
+        if original_event_id.is_some_and(|expected| record.event_id != expected)
+            || record.record_json != record_json || record.aggregate_id != request.action.action_id
             || record.idempotency_key != request.action.idempotency_key || record.run_id != request.run.run_id {
             return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "designation immutable identity conflicts" });
         }
-        self.validate_event_link_in_transaction(transaction, ModelLaneRecordKind::ValidatorDesignation, &record, &scope).await?;
+        let link_result = issuer.with_protected_role_authority_creation("validator_designation", &creation_record_id, &creation_event_id, &creation_hash,
+            self.validate_event_link_in_transaction(transaction, ModelLaneRecordKind::ValidatorDesignation, &record, &scope)).await;
+        if let Some(observation) = &observation {
+            observation.retain_link(link_result);
+            if !observation.with_observation(|_, link| matches!(link, Some(Ok(())))) {
+                return Err(SurrealStorageError::TransactionSettlementPending { operation_id: issuer.operation_id() });
+            }
+        } else { link_result?; }
         Ok(RunnerDesignationReadback { operation_id: issuer.operation_id(), scope, request: request.clone(), record })
     }
 
@@ -5794,6 +6152,9 @@ impl SurrealModelLaneStore {
         if publication.operation_id() != expected.operation_id || publication.current_scope() != &expected.request.scope {
             return Err(SurrealStorageError::TransactionAuthorityRequired);
         }
+        let record_id = stable_record_id(ModelLaneRecordKind::ValidatorDesignation.as_str(), &expected.record.aggregate_id, &expected.scope);
+        let hash = sha256_hex(expected.record.record_json.as_bytes());
+        publication.with_protected_role_authority_read("validator_designation", &record_id, &expected.record.event_id, &hash, async {
         let record = self.get(ModelLaneRecordKind::ValidatorDesignation, &expected.record.aggregate_id, &expected.scope).await?
             .ok_or(SurrealStorageError::InvalidModelLaneRecord { reason: "canonical designation disappeared" })?;
         if record != expected.record {
@@ -5810,6 +6171,7 @@ impl SurrealModelLaneStore {
                 transaction_seq: u64::try_from(record.transaction_seq).map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "designation transaction sequence is invalid" })?,
             },
         })
+        }).await
     }
 
     async fn validate_validator_designation(
@@ -5855,6 +6217,127 @@ impl SurrealModelLaneStore {
             ModelLaneQuery::Storage(_) => self.validate_event_link(ModelLaneRecordKind::ValidatorDesignation, &record, &role_storage_scope(&request.scope)).await?,
         }
         Ok(())
+    }
+
+    async fn read_initial_validator_parent_record(
+        &self, transaction: &super::SurrealTransactionContext<'_>,
+        consumer: &super::resource_authority::CurrentConsumerSeal<'_>,
+        kind: ModelLaneRecordKind, aggregate_id: &str, scope: &ModelLaneScope,
+    ) -> Result<SurrealModelLaneRecord, SurrealStorageError> {
+        let body = consumer.protected_consumption_body().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let record_id = stable_record_id(kind.as_str(), aggregate_id, scope);
+        let target = body.targets.iter().find(|target| target.record_kind == kind.as_str()
+            && target.record_id == record_id && role_storage_scope(&target.issuer_scope) == *scope)
+            .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        consumer.with_protected_role_evidence_consumption(&target.event_id, async {
+            let record = self.get_in_transaction(transaction, kind, aggregate_id, scope).await?
+                .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+            if record.event_id != target.event_id || sha256_hex(record.record_json.as_bytes()) != target.record_sha256 {
+                return Err(SurrealStorageError::TransactionAuthorityRequired);
+            }
+            self.validate_event_link_in_transaction(transaction, kind, &record, scope).await?;
+            Ok(record)
+        }).await
+    }
+
+    async fn validate_designation_for_consumer(
+        &self, transaction: &super::SurrealTransactionContext<'_>,
+        consumer: &super::resource_authority::CurrentConsumerSeal<'_>,
+        selector: &crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector,
+        body: &handshake_role_authority::domain::RoleEvidenceBody,
+    ) -> Result<(), SurrealStorageError> {
+        let query = ModelLaneQuery::Transaction(transaction);
+        let read = self.validate_validator_designation(&query, selector, body);
+        if consumer.protected_consumption_body().is_some() {
+            let event = selector.designation_ref.as_ref().and_then(|reference|
+                reference.as_str().strip_prefix("eventledger://validator-designation/"))
+                .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+            consumer.with_protected_role_evidence_consumption(event, read).await
+        } else { read.await }
+    }
+    pub(crate) async fn put_initial_validator_verdict<'tx>(
+        &self,
+        transaction: &'tx super::SurrealTransactionContext<'tx>,
+        consumer: &super::resource_authority::CurrentConsumerSeal<'tx>,
+        operator_prior: &TxCheckedRoleEvidence<'tx>,
+        issuance: &super::resource_authority::InitialValidatorIssuance,
+    ) -> Result<TxCheckedRoleEvidence<'tx>, SurrealStorageError> {
+        use handshake_role_authority::domain::{Role, Purpose};
+        let crate::swarm_orchestration::model_lane::RoleConsumptionCommand::IssueInitialValidatorVerdict {
+            operator, issuance: captured, ..
+        } = consumer.command() else { return Err(SurrealStorageError::TransactionAuthorityRequired); };
+        operator_prior.require_matches(transaction, consumer.operation_id(), operator)?;
+        let verdict = issuance.verdict();
+        let prior = &operator_prior.receipt().body;
+        if !std::ptr::eq(captured.as_ref(), issuance) || !consumer.matches_transaction(transaction)
+            || consumer.current_scope() != &verdict.scope || prior.role != Role::Operator
+            || prior.purpose != Purpose::PriorSelection || operator.designation_ref.is_some() || operator.producer.is_some()
+            || prior.run != verdict.run || prior.subject != verdict.subject || prior.expected != verdict.expected
+        { return Err(SurrealStorageError::TransactionAuthorityRequired); }
+        let scope = role_storage_scope(issuance.delegating_scope());
+        let event = &verdict.execution.execution_event;
+        let rows: Vec<StoredRow> = consumer.with_protected_role_evidence_consumption(&event.event_id, transaction.query_values_at(
+            "SELECT aggregate_id, run_id, idempotency_key, record_json, event_id, event_seq, event_stream_version, transaction_seq FROM model_lane_authority WHERE record_kind = 'context_artifact' AND event_id = $event_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 2;",
+            RoleEvidenceLookupBindings {
+                event_id: event.event_id.clone(), owner_account_id: scope.owner_account_id.clone(),
+                actor_principal_id: scope.actor_principal_id.clone(), authenticated_session_id: scope.authenticated_session_id.clone(),
+                access_space_id: scope.access_space_id.clone(), workspace_id: scope.workspace_id.clone(),
+            }, 0,
+        )).await?;
+        let [output] = rows.as_slice() else { return Err(SurrealStorageError::TransactionAuthorityRequired); };
+        let output: SurrealModelLaneRecord = output.clone().into();
+        consumer.with_protected_role_evidence_consumption(&event.event_id,
+            self.validate_event_link_in_transaction(transaction, ModelLaneRecordKind::ContextArtifact, &output, &scope)).await?;
+        let value: serde_json::Value = serde_json::from_str(&output.record_json)
+            .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "Validator output artifact is malformed" })?;
+        if output.run_id != verdict.run.run_id
+            || value.get("artifact_kind").and_then(serde_json::Value::as_str) != Some("validator_review_output")
+            || u64::try_from(output.event_seq).ok() != Some(event.event_seq)
+            || u64::try_from(output.transaction_seq).ok() != Some(event.transaction_seq)
+            || value.get("event_ledger_stream_id").and_then(serde_json::Value::as_str) != Some(event.stream_id.as_str())
+            || value.get("artifact_ref").and_then(serde_json::Value::as_str) != Some(verdict.execution.verdict_artifact.artifact_ref.as_str())
+            || value.get("artifact_sha256").and_then(serde_json::Value::as_str) != Some(verdict.execution.verdict_artifact.sha256.to_hex().as_str())
+            || value.get("content_hash").and_then(serde_json::Value::as_str) != Some(verdict.execution.verdict_artifact.sha256.to_hex().as_str())
+            || value.get("payload_json").and_then(serde_json::Value::as_str) != Some(issuance.output())
+            || verdict.execution.verdict_artifact.version != output.event_stream_version.to_string()
+            || value.get("artifact_payload_ref").and_then(serde_json::Value::as_str) != Some(verdict.execution.verdict_artifact.artifact_ref.as_str())
+            || value.get("artifact_manifest_ref").and_then(serde_json::Value::as_str) != Some(format!("artifact-store://validator-review/{}/manifest", consumer.operation_id()).as_str())
+        { return Err(SurrealStorageError::TransactionAuthorityRequired); }
+        let request_id = verdict.execution.request_message_ref.strip_prefix("model-lane-message://")
+            .unwrap_or(&verdict.execution.request_message_ref);
+        let request = self.read_initial_validator_parent_record(transaction, consumer, ModelLaneRecordKind::Message, request_id, &scope).await?;
+        let request = crate::swarm_orchestration::model_lane::surreal_message_record(request.clone())
+            .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "Validator request message is malformed" })?.inner;
+        if request.run_id != verdict.run.run_id
+            || request.to_lane != crate::swarm_orchestration::model_lane::ModelLaneTarget::Lane(verdict.execution.runner_lane_id.clone())
+        { return Err(SurrealStorageError::TransactionAuthorityRequired); }
+        let sender = self.read_initial_validator_parent_record(transaction, consumer, ModelLaneRecordKind::Lane, &request.from_lane_id, &scope).await?;
+        let sender: crate::swarm_orchestration::model_lane::NewModelLane = serde_json::from_str(&sender.record_json)
+            .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "Validator Operator sender lane is malformed" })?;
+        if sender.run_id != verdict.run.run_id || sender.kind != crate::swarm_orchestration::model_lane::ModelLaneKind::HumanOperator {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let prepared = handshake_role_authority::canonical::prepare_validator_verdict_declared(verdict)
+            .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "initial Validator verdict is invalid" })?;
+        let mut selector = crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector {
+            evidence_ref: operator.evidence_ref.clone(),
+            expectation: handshake_role_authority::domain::ResolutionExpectation {
+                receipt_scope: verdict.scope.clone(), role: Role::Validator, run: verdict.run.clone(),
+                subject: verdict.subject.clone(), purpose: verdict.purpose.clone(), expected: verdict.expected.clone(),
+            },
+            designation_ref: Some(verdict.designation_ref.clone()), producer: Some(issuance.producer_binding()),
+        };
+        self.validate_designation_for_consumer(transaction, consumer, &selector, prepared.body()).await?;
+        let PendingOwnerRoleEvidence { mut readback, verified } = self.put_prepared_operator_evidence_in_transaction(
+            transaction, consumer.operation_id(), consumer.current_scope(), &prepared, &RoleEvidenceCreationAuthority::Consumer(consumer),
+        ).await?;
+        selector.evidence_ref = readback.selector.evidence_ref;
+        readback.selector = selector;
+        Ok(TxCheckedRoleEvidence {
+            transaction, operation_id: readback.operation_id, current_consumer: readback.current_consumer,
+            selector: readback.selector, verified, issuance_operation_id: readback.issuance_operation_id,
+            command: consumer.command().clone(),
+        })
     }
 
     pub(crate) async fn put_validator_verdict<'tx>(
@@ -5931,9 +6414,9 @@ impl SurrealModelLaneStore {
             designation_ref: prepared.body().designation.clone(), producer: prior_selector.producer.clone(),
         };
         // The canonical Owner designation must bind the actual runner before recording any verdict.
-        self.validate_validator_designation(&ModelLaneQuery::Transaction(transaction), &selector, prepared.body()).await?;
+        self.validate_designation_for_consumer(transaction, consumer, &selector, prepared.body()).await?;
         let PendingOwnerRoleEvidence { mut readback, verified } = self.put_prepared_operator_evidence_in_transaction(
-            transaction, consumer.operation_id(), consumer.current_scope(), prepared,
+            transaction, consumer.operation_id(), consumer.current_scope(), prepared, &RoleEvidenceCreationAuthority::Consumer(consumer),
         ).await?;
         selector.evidence_ref = readback.selector.evidence_ref;
         readback.selector = selector;
@@ -5960,12 +6443,14 @@ impl SurrealModelLaneStore {
             || selector.expectation.receipt_scope.workspace_id != consumer.current_scope().workspace_id {
             return Err(SurrealStorageError::TransactionAuthorityRequired);
         }
-        let (verified, issuance_operation_id) = self.read_role_evidence_with_query(
-            &ModelLaneQuery::Transaction(transaction), selector,
-        ).await?;
-        self.validate_validator_designation(
-            &ModelLaneQuery::Transaction(transaction), selector, &verified.receipt().body,
-        ).await?;
+        let query = ModelLaneQuery::Transaction(transaction);
+        let read = self.read_role_evidence_with_query(&query, selector);
+        let (verified, issuance_operation_id) = if consumer.protected_consumption_body().is_some() {
+            let event = selector.evidence_ref.as_str().strip_prefix("eventledger://role-authority/")
+                .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+            consumer.with_protected_role_evidence_consumption(event, read).await?
+        } else { read.await? };
+        self.validate_designation_for_consumer(transaction, consumer, selector, &verified.receipt().body).await?;
         Ok(TxCheckedRoleEvidence {
             transaction, operation_id: consumer.operation_id(), current_consumer: consumer.current_scope().clone(),
             selector: selector.clone(), verified, issuance_operation_id, command: consumer.command().clone(),
@@ -5981,11 +6466,24 @@ impl SurrealModelLaneStore {
         if publication.operation_id() != expected.operation_id || publication.current_scope() != &expected.current_consumer {
             return Err(SurrealStorageError::TransactionAuthorityRequired);
         }
+        let scope = role_storage_scope(&expected.receipt.body.scope);
+        let record_id = stable_record_id(ModelLaneRecordKind::RoleEvidence.as_str(), &expected.receipt.body.action.idempotency_key, &scope);
+        let bytes = handshake_role_authority::canonical::canonical_receipt_bytes(&expected.receipt)
+            .map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        let hash = sha256_hex(&bytes);
+        publication.with_protected_role_authority_read("role_evidence", &record_id, &expected.receipt.event.event_id, &hash, async {
         let (verified, issuance_operation_id) = self.read_role_evidence_with_query(
             &ModelLaneQuery::Storage(&self.storage), &expected.selector,
         ).await?;
         if expected.selector.expectation.role == handshake_role_authority::domain::Role::Validator {
-            self.validate_validator_designation(&ModelLaneQuery::Storage(&self.storage), &expected.selector, &verified.receipt().body).await?;
+            let query = ModelLaneQuery::Storage(&self.storage);
+            let read = self.validate_validator_designation(&query, &expected.selector, &verified.receipt().body);
+            let event = expected.selector.designation_ref.as_ref().and_then(|reference|
+                reference.as_str().strip_prefix("eventledger://validator-designation/"))
+                .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+            if publication.has_protected_role_evidence_target(event) {
+                publication.with_protected_role_evidence_consumption(event, read).await?;
+            } else { read.await?; }
         }
         if verified.receipt() != &expected.receipt || issuance_operation_id != expected.issuance_operation_id {
             return Err(SurrealStorageError::InvalidModelLaneRecord {
@@ -5994,6 +6492,7 @@ impl SurrealModelLaneStore {
         }
         publication.require_unexpired().map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
         Ok(PublishedRoleEvidence { operation_id: expected.operation_id, receipt: verified.receipt().clone() })
+        }).await
     }
 
     pub(crate) async fn read_routing_prior_in_transaction<'tx>(
@@ -8660,3 +9159,427 @@ const DESIGNATION_INSERT_QUERY: &str = "LET $existing = (SELECT aggregate_id, ru
 fn role_storage_scope(scope: &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution) -> ModelLaneScope {
     ModelLaneScope { owner_account_id: scope.owner_account_id.to_string(), actor_principal_id: scope.actor_principal_id.to_string(), authenticated_session_id: scope.authenticated_session_id.to_string(), access_space_id: scope.access_space_id.to_string(), workspace_id: scope.workspace_id.as_str().to_owned() }
 }
+
+// RAM-only provider wire preparation. No authority is minted by these values.
+struct ValidatorAssociationEnvelope {
+    record_json: String,
+    event_payload_json: String,
+    outer_json: String,
+    event_payload_sha256: String,
+}
+
+fn validator_association_json<T: serde::Serialize + ?Sized>(
+    value: &T,
+) -> Result<String, SurrealStorageError> {
+    fn ordered(value: Value) -> Value {
+        match value {
+            Value::Array(values) => Value::Array(values.into_iter().map(ordered).collect()),
+            Value::Object(values) => {
+                let sorted: BTreeMap<_, _> = values.into_iter()
+                    .map(|(key, value)| (key, ordered(value))).collect();
+                Value::Object(sorted.into_iter().collect())
+            }
+            value => value,
+        }
+    }
+    let value = serde_json::to_value(value).map_err(|_| {
+        SurrealStorageError::InvalidModelLaneRecord {
+            reason: "producer association cannot be encoded",
+        }
+    })?;
+    serde_json::to_string(&ordered(value)).map_err(|_| {
+        SurrealStorageError::InvalidModelLaneRecord {
+            reason: "producer association cannot be encoded",
+        }
+    })
+}
+
+fn validator_association_envelope(
+    body: &handshake_producer_association::AssociationBodyV1,
+    original_stream: &str,
+) -> Result<ValidatorAssociationEnvelope, SurrealStorageError> {
+    use handshake_producer_association::{
+        AssociationEventPayloadV1, AssociationOuterV1, AssociationRecordV1,
+    };
+    let record = AssociationRecordV1 {
+        run_id: body.run.run_id.clone(),
+        event_ledger_stream_id: original_stream.to_owned(),
+        association: body.clone(),
+    };
+    let issuer = &body.original_issuer;
+    let payload = AssociationEventPayloadV1 {
+        dexterity_kernel: "Dexterity".to_owned(),
+        owner_account_id: issuer.owner_account_id.clone(),
+        actor_principal_id: issuer.actor_principal_id.clone(),
+        authenticated_session_id: issuer.authenticated_session_id.clone(),
+        access_space_id: issuer.access_space_id.clone(),
+        workspace_id: issuer.workspace_id.clone(),
+        record,
+        original_operation_id: body.original_operation_id,
+        request_id: body.request_id.clone(),
+        causation_ref: body.causation_ref.clone(),
+        trace_id: body.run.trace_id.clone(),
+    };
+    let record_json = validator_association_json(&payload.record)?;
+    let event_payload_json = validator_association_json(&payload)?;
+    let event_payload_sha256 = sha256_hex(event_payload_json.as_bytes());
+    let outer_json = validator_association_json(&AssociationOuterV1 {
+        record_kind: "producer_association".to_owned(),
+        run_id: body.run.run_id.clone(),
+        event_stream_version: 1,
+        event_payload_json: event_payload_json.clone(),
+        issuance_operation_id: body.original_operation_id,
+    })?;
+    Ok(ValidatorAssociationEnvelope {
+        record_json, event_payload_json, outer_json, event_payload_sha256,
+    })
+}
+
+#[derive(Clone, SurrealValue)]
+struct ValidatorAssociationObserved {
+    record_id: String,
+    record_kind: String,
+    aggregate_id: String,
+    run_id: String,
+    idempotency_key: String,
+    record_json: String,
+    event_id: String,
+    event_seq: i64,
+    transaction_seq: i64,
+    event_stream_version: i64,
+    ledger_record_id: String,
+    ledger_event_id: String,
+    ledger_event_sequence: i64,
+    ledger_source_component: String,
+    ledger_aggregate_type: String,
+    ledger_aggregate_id: String,
+    ledger_event_type: String,
+    ledger_event_version: String,
+    ledger_payload_sha256: String,
+    ledger_run_id: String,
+    ledger_stream_id: String,
+    outer_json: String,
+}
+
+impl ValidatorAssociationObserved {
+    fn decode(
+        &self,
+        body: &handshake_producer_association::AssociationBodyV1,
+        original_stream: &str,
+        expected_record_id: &str,
+        expected_event_id: &str,
+        expected: &handshake_producer_association::ExpectedAssociationInventoryV1,
+    ) -> Result<handshake_producer_association::CheckedProducerAssociation, SurrealStorageError> {
+        let denied = || SurrealStorageError::InvalidModelLaneRecord {
+            reason: "producer association canonical identity or event link differs",
+        };
+        if self.record_kind != "producer_association"
+            || self.aggregate_id != body.original_operation_id.to_string()
+            || self.idempotency_key != body.idempotency_key
+            || self.run_id != body.run.run_id
+            || self.ledger_run_id != body.run.run_id
+            || self.ledger_stream_id != original_stream
+            || self.event_id != expected_event_id
+        { return Err(denied()); }
+        let links = handshake_producer_association::AssociationLinksV1 {
+            record_id: self.record_id.clone(),
+            row_event_id: self.event_id.clone(),
+            row_event_seq: self.event_seq,
+            row_transaction_seq: self.transaction_seq,
+            row_event_stream_version: u32::try_from(self.event_stream_version).map_err(|_| denied())?,
+            ledger_event_id: self.ledger_event_id.clone(),
+            ledger_event_sequence: self.ledger_event_sequence,
+            ledger_record_id: self.ledger_record_id.clone(),
+            ledger_source_component: self.ledger_source_component.clone(),
+            ledger_aggregate_type: self.ledger_aggregate_type.clone(),
+            ledger_aggregate_id: self.ledger_aggregate_id.clone(),
+            ledger_event_type: self.ledger_event_type.clone(),
+            ledger_event_version: self.ledger_event_version.clone(),
+            ledger_payload_sha256: self.ledger_payload_sha256.clone(),
+        };
+        // This serializes the complete protected native outer observation.
+        // No field projection is substituted for the codec's full outer input.
+        let native_outer: Value = serde_json::from_str(&self.outer_json).map_err(|_| denied())?;
+        let outer_json = validator_association_json(&native_outer)?;
+        let checked = handshake_producer_association::decode_checked(
+            &self.record_json, &outer_json, expected_record_id, expected, &links,
+        ).map_err(|_| denied())?;
+        let encoded = handshake_producer_association::encode_checked(
+            body.clone(), original_stream, expected_record_id, expected, &links,
+        ).map_err(|_| denied())?;
+        if checked.body() != body
+            || checked.record_json() != encoded.record_json()
+            || checked.outer_json() != encoded.outer_json()
+            || checked.event_payload_json() != encoded.event_payload_json()
+            || checked.event_payload_sha256() != encoded.event_payload_sha256()
+        { return Err(denied()); }
+        Ok(checked)
+    }
+}
+
+pub(crate) struct ValidatorAssociationCommitReadback {
+    operation_id: uuid::Uuid,
+    scope: ModelLaneScope,
+    record_id: String,
+    event_id: String,
+    record_json: String,
+    outer_json: String,
+    observed: super::resource_authority::RetainedValidatorAssociationQuery<ValidatorAssociationObserved>,
+}
+
+fn validator_association_rows<R: Clone>(
+    retained: &super::resource_authority::RetainedValidatorAssociationQuery<R>,
+    operation_id: uuid::Uuid,
+) -> Result<Vec<R>, SurrealStorageError> {
+    retained.with_observation(|pre, query, post| match (pre, query, post) {
+        (Some(Ok(())), Some(Ok(rows)), Some(Ok(()))) => Ok(rows.clone()),
+        _ => Err(SurrealStorageError::TransactionSettlementPending { operation_id }),
+    })
+}
+
+fn validator_association_bindings(
+    body: &handshake_producer_association::AssociationBodyV1,
+    scope: &ModelLaneScope,
+    original_stream: &str,
+    record_id: &str,
+    event_id: &str,
+    envelope: &ValidatorAssociationEnvelope,
+) -> surrealdb::types::Object {
+    let mut bindings = surrealdb::types::Object::new();
+    bindings.insert("record_id", record_id.to_owned());
+    bindings.insert("event_id", event_id.to_owned());
+    bindings.insert("aggregate_id", body.original_operation_id.to_string());
+    bindings.insert("run_id", body.run.run_id.clone());
+    bindings.insert("event_stream_id", original_stream.to_owned());
+    bindings.insert("idempotency_key", body.idempotency_key.clone());
+    bindings.insert("record_json", envelope.record_json.clone());
+    bindings.insert("outer_json", envelope.outer_json.clone());
+    bindings.insert("payload_hash", envelope.event_payload_sha256.clone());
+    bindings.insert("owner_account_id", scope.owner_account_id.clone());
+    bindings.insert("actor_principal_id", scope.actor_principal_id.clone());
+    bindings.insert("authenticated_session_id", scope.authenticated_session_id.clone());
+    bindings.insert("access_space_id", scope.access_space_id.clone());
+    bindings.insert("workspace_id", scope.workspace_id.clone());
+    bindings
+}
+
+fn validator_association_scope_matches(
+    body: &handshake_producer_association::AssociationBodyV1,
+    scope: &ModelLaneScope,
+    operation_id: uuid::Uuid,
+) -> bool {
+    let original = &body.original_issuer;
+    !operation_id.is_nil() && body.original_operation_id == operation_id
+        && original.owner_account_id == scope.owner_account_id
+        && original.actor_principal_id == scope.actor_principal_id
+        && original.authenticated_session_id == scope.authenticated_session_id
+        && original.access_space_id == scope.access_space_id
+        && original.workspace_id == scope.workspace_id
+}
+
+impl SurrealModelLaneStore {
+    pub(crate) async fn put_validator_association(
+        &self,
+        transaction: &super::SurrealTransactionContext<'_>,
+        issuer: &super::resource_authority::CurrentValidatorAssociationSeal<'_>,
+    ) -> Result<ValidatorAssociationCommitReadback, SurrealStorageError> {
+        let operation_id = issuer.operation_id();
+        let scope = role_storage_scope(issuer.original_scope());
+        if !issuer.matches_transaction(transaction)
+            || !super::PROTECTED_TRANSACTION.try_with(|current| std::sync::Arc::ptr_eq(&current.storage.inner, &self.storage.inner)).unwrap_or(false)
+            || std::time::Instant::now() >= issuer.original_deadline()
+            || !validator_association_scope_matches(issuer.body(), &scope, operation_id)
+        { return Err(SurrealStorageError::TransactionAuthorityRequired); }
+        validate_scope(&scope)?;
+        validate_identity(&operation_id.to_string(), &issuer.body().idempotency_key)?;
+        let record_id = stable_record_id("producer_association", &operation_id.to_string(), &scope);
+        let event_id = issuer.association_event_id();
+        if event_id.is_empty() { return Err(SurrealStorageError::TransactionAuthorityRequired); }
+        let envelope = validator_association_envelope(issuer.body(), issuer.original_stream())?;
+        let inserted = issuer.query_values_at::<StoredRow, _>(
+            VALIDATOR_ASSOCIATION_INSERT_QUERY,
+            validator_association_bindings(
+                issuer.body(), &scope, issuer.original_stream(), &record_id, event_id, &envelope,
+            ), 1,
+        ).await;
+        if !issuer.matches_observation(&inserted) {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let rows = validator_association_rows(&inserted, operation_id)?;
+        let [row] = rows.as_slice() else {
+            return Err(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "producer association write returned no unique original row",
+            });
+        };
+        if row.aggregate_id != operation_id.to_string()
+            || row.run_id != issuer.body().run.run_id
+            || row.idempotency_key != issuer.body().idempotency_key
+            || row.record_json != envelope.record_json
+            || row.event_id != event_id
+        {
+            return Err(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "producer association immutable retry conflicts",
+            });
+        }
+        let observed = issuer.query_values_at::<ValidatorAssociationObserved, _>(
+            VALIDATOR_ASSOCIATION_OBSERVE_QUERY,
+            validator_association_bindings(
+                issuer.body(), &scope, issuer.original_stream(), &record_id, event_id, &envelope,
+            ), 3,
+        ).await;
+        if !issuer.matches_observation(&observed) {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let rows = validator_association_rows(&observed, operation_id)?;
+        let [row] = rows.as_slice() else {
+            return Err(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "producer association observation is missing or ambiguous",
+            });
+        };
+        let checked = row.decode(issuer.body(), issuer.original_stream(), &record_id,
+            event_id, issuer.expected_inventory())?;
+        if checked.record_json() != envelope.record_json
+            || checked.outer_json() != envelope.outer_json
+            || checked.event_payload_json() != envelope.event_payload_json
+            || checked.event_payload_sha256() != envelope.event_payload_sha256
+            || std::time::Instant::now() >= issuer.original_deadline()
+        { return Err(SurrealStorageError::TransactionAuthorityRequired); }
+        Ok(ValidatorAssociationCommitReadback {
+            operation_id, scope, record_id, event_id: event_id.to_owned(),
+            record_json: checked.record_json().to_owned(), outer_json: checked.outer_json().to_owned(),
+            observed,
+        })
+    }
+
+    pub(crate) async fn readback_validator_association(
+        &self,
+        original: &super::resource_authority::ValidatorAssociationReadbackGuard<'_>,
+        expected: &ValidatorAssociationCommitReadback,
+    ) -> Result<handshake_producer_association::CheckedProducerAssociation, SurrealStorageError> {
+        let operation_id = original.operation_id();
+        let scope = role_storage_scope(original.original_scope());
+        if !original.matches_transaction(original.transaction())
+            || !super::PROTECTED_TRANSACTION.try_with(|current| std::sync::Arc::ptr_eq(&current.storage.inner, &self.storage.inner)).unwrap_or(false)
+            || !original.matches_observation(&expected.observed)
+            || operation_id != expected.operation_id || scope != expected.scope
+            || original.association_event_id() != expected.event_id
+            || std::time::Instant::now() >= original.original_deadline()
+            || !validator_association_scope_matches(original.body(), &scope, operation_id)
+        { return Err(SurrealStorageError::TransactionAuthorityRequired); }
+        let record_id = stable_record_id("producer_association", &operation_id.to_string(), &scope);
+        if record_id != expected.record_id { return Err(SurrealStorageError::TransactionAuthorityRequired); }
+        let envelope = validator_association_envelope(original.body(), original.original_stream())?;
+        if envelope.record_json != expected.record_json || envelope.outer_json != expected.outer_json {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let observed = original.query_values_at::<ValidatorAssociationObserved, _>(
+            VALIDATOR_ASSOCIATION_OBSERVE_QUERY,
+            validator_association_bindings(
+                original.body(), &scope, original.original_stream(),
+                &record_id, original.association_event_id(), &envelope,
+            ), 3,
+        ).await;
+        if !original.matches_observation(&observed) {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let rows = validator_association_rows(&observed, operation_id)?;
+        let [row] = rows.as_slice() else {
+            return Err(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "producer association readback is missing or ambiguous",
+            });
+        };
+        let checked = row.decode(original.body(), original.original_stream(), &record_id,
+            original.association_event_id(), original.expected_inventory())?;
+        if checked.record_json() != expected.record_json
+            || checked.outer_json() != expected.outer_json
+            || std::time::Instant::now() >= original.original_deadline()
+        { return Err(SurrealStorageError::TransactionAuthorityRequired); }
+        Ok(checked)
+    }
+}
+
+const VALIDATOR_ASSOCIATION_INSERT_QUERY: &str = r#"
+LET $existing = SELECT aggregate_id, run_id, idempotency_key, record_json, event_id, event_seq, event_stream_version, transaction_seq FROM type::record('model_lane_authority', $record_id) WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;
+IF array::len($existing) > 0 {
+    RETURN $existing;
+} ELSE {
+    LET $ledger = CREATE type::record('kernel_event_ledger', $event_id) CONTENT {
+        event_id: $event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $run_id,
+        session_run_id: $event_stream_id, aggregate_type: 'producer_association',
+        aggregate_id: $aggregate_id, idempotency_key: $event_id,
+        event_type: 'MODEL_LANE_AUTHORITY_RECORDED', actor_kind: 'principal',
+        actor_id: $actor_principal_id, causation_id: NONE, correlation_id: NONE,
+        payload_hash: $payload_hash, source_component: 'model_lane',
+        payload: encoding::json::decode($outer_json),
+        authority_resource_id: type::record('protected_resources', $wp012_original_resource),
+        authority_grant_id: type::record('resource_grants', $wp012_original_grant),
+        authority_session_id: $auth.id, authority_capability_id: $wp012_original_capability,
+        authority_action: $wp012_original_action, wsids: [$workspace_id],
+        owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id,
+        authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id,
+        workspace_id: $workspace_id
+    };
+    IF array::len($ledger) != 1 { THROW 'producer association event is not unique'; };
+    LET $seq = $ledger[0].event_sequence;
+    RETURN CREATE type::record('model_lane_authority', $record_id) CONTENT {
+        record_kind: 'producer_association', aggregate_id: $aggregate_id, run_id: $run_id,
+        idempotency_key: $idempotency_key, record_json: $record_json, search_terms: [],
+        event_id: $event_id, event_ledger_event_id: type::record('kernel_event_ledger', $event_id),
+        event_seq: $seq, event_stream_version: 1, transaction_seq: $seq,
+        owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id,
+        authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id,
+        workspace_id: $workspace_id
+    };
+};
+"#;
+
+// Schema-owner compatibility of this existing reverse relation remains unresolved.
+// No new native field or copied expected key is used as an observation.
+const VALIDATOR_ASSOCIATION_OBSERVE_QUERY: &str = r#"
+LET $ledger = SELECT * FROM ONLY type::record('kernel_event_ledger', $event_id);
+LET $reverse = SELECT id FROM model_lane_authority WHERE event_ledger_event_id = $ledger.id AND record_kind = 'producer_association' AND aggregate_id = $aggregate_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 2;
+IF array::len($reverse) != 1 { THROW 'producer association ledger reverse link is not unique'; };
+SELECT record::id(id) AS record_id, record_kind, aggregate_id, run_id, idempotency_key, record_json,
+    event_id, event_seq, transaction_seq, event_stream_version,
+    record::id($reverse[0].id) AS ledger_record_id,
+    event_ledger_event_id.event_id AS ledger_event_id,
+    event_ledger_event_id.event_sequence AS ledger_event_sequence,
+    event_ledger_event_id.source_component AS ledger_source_component,
+    event_ledger_event_id.aggregate_type AS ledger_aggregate_type,
+    event_ledger_event_id.aggregate_id AS ledger_aggregate_id,
+    event_ledger_event_id.event_type AS ledger_event_type,
+    event_ledger_event_id.event_version AS ledger_event_version,
+    event_ledger_event_id.payload_hash AS ledger_payload_sha256,
+    event_ledger_event_id.kernel_task_run_id AS ledger_run_id,
+    event_ledger_event_id.session_run_id AS ledger_stream_id,
+    encoding::json::encode(event_ledger_event_id.payload) AS outer_json
+FROM type::record('model_lane_authority', $record_id)
+WHERE id = $reverse[0].id AND event_ledger_event_id = $ledger.id
+    AND event_id = $event_id AND record_kind = 'producer_association' AND aggregate_id = $aggregate_id
+    AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id
+    AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id
+    AND workspace_id = $workspace_id AND event_ledger_event_id.owner_account_id = $owner_account_id
+    AND event_ledger_event_id.actor_principal_id = $actor_principal_id
+    AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id
+    AND event_ledger_event_id.access_space_id = $access_space_id
+    AND event_ledger_event_id.workspace_id = $workspace_id LIMIT 2;
+"#;
+
+pub(super) fn validator_association_native_binding_data(
+    body: &handshake_producer_association::AssociationBodyV1,
+    original: &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    stream: &str,
+) -> Result<(String, String, String), SurrealStorageError> {
+    let scope = role_storage_scope(original);
+    if !validator_association_scope_matches(body, &scope, body.original_operation_id) {
+        return Err(SurrealStorageError::TransactionAuthorityRequired);
+    }
+    validate_scope(&scope)?;
+    validate_identity(&body.original_operation_id.to_string(), &body.idempotency_key)?;
+    let record_id = stable_record_id(
+        "producer_association", &body.original_operation_id.to_string(), &scope,
+    );
+    let envelope = validator_association_envelope(body, stream)?;
+    Ok((record_id, envelope.record_json, envelope.outer_json))
+}
+

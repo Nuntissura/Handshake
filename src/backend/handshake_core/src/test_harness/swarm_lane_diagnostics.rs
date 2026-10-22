@@ -914,7 +914,7 @@ impl DiagnosticsFixture {
             recorders: Vec::new(),
         };
         let startup = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let database: Arc<dyn Database> = Arc::new(fixture.isolated.storage().clone());
+            let database: Arc<dyn Database> = Arc::new(crate::storage::surreal::SurrealDatabase::new(fixture.isolated.storage().clone()));
             fixture.database = Some(database.clone());
             fixture.bootstrap = Some(AccountBootstrapState::new(
                 database, fixture.isolated.storage().clone(), fixture.capabilities.clone(),
@@ -1179,7 +1179,7 @@ impl DiagnosticsFixture {
         assert_eq!(self.isolated.namespace(), namespace);
         assert_eq!(self.isolated.database(), database_name);
         assert_eq!(self.isolated.store_path(), path);
-        let database: Arc<dyn Database> = Arc::new(self.isolated.storage().clone());
+        let database: Arc<dyn Database> = Arc::new(crate::storage::surreal::SurrealDatabase::new(self.isolated.storage().clone()));
         self.bootstrap = Some(AccountBootstrapState::new(
             database.clone(), self.isolated.storage().clone(), self.capabilities.clone(),
         ));
@@ -1428,7 +1428,7 @@ async fn assert_canonical_navigation_drilldowns(
     let payload = payload.expect("real CRDT authority enables canonical payload drilldown");
     assert_eq!(payload.run.as_ref().expect("payload selected run").run_id, input.run.run_id);
     assert_eq!(payload.artifacts.len(), 1);
-    assert_eq!(payload.artifacts[0].aggregate_id, input.payload.artifact_binding_id);
+    assert_eq!(payload.artifacts[0].source.aggregate_id, input.payload.artifact_binding_id);
     }
 }
 

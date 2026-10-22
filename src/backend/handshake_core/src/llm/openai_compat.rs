@@ -178,9 +178,8 @@ struct OpenAiCompatUsage {
     total_tokens: Option<u32>,
 }
 
-#[async_trait]
-impl LlmClient for OpenAiCompatAdapter {
-    async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+impl OpenAiCompatAdapter {
+    async fn completion_inner(&self, req: CompletionRequest, control: Option<&super::LlmInvocationControl>) -> Result<CompletionResponse, LlmError> {
         let started = Instant::now(); // WAIVER [CX-573E] duration/timeout bookkeeping only
 
         let model_id = if req.model_id.trim().is_empty() {
@@ -200,6 +199,7 @@ impl LlmClient for OpenAiCompatAdapter {
             builder = builder.bearer_auth(api_key.as_str());
         }
 
+        if let Some(control) = control { control.mark_dispatch(super::InvocationResourceKind::Http); }
         let response = builder.send().await.map_err(|err| {
             LlmError::ProviderError(format!("OpenAI compat request error: {err}"))
         })?;
@@ -278,6 +278,17 @@ impl LlmClient for OpenAiCompatAdapter {
             usage,
             latency_ms,
         })
+    }
+}
+
+#[async_trait]
+impl LlmClient for OpenAiCompatAdapter {
+    async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        self.completion_inner(req, None).await
+    }
+
+    async fn completion_with_control(&self, req: CompletionRequest, control: super::LlmInvocationControl) -> Result<CompletionResponse, LlmError> {
+        self.completion_inner(req, Some(&control)).await
     }
 
     fn profile(&self) -> &ModelProfile {

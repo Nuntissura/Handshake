@@ -899,6 +899,14 @@ pub enum OperatorChatError {
     Swarm(#[from] SwarmError),
     #[error("operator chat selection invalid: {0}")]
     Invalid(String),
+    #[error("validator association readback failed: {0}")]
+    ValidatorAssociationReadback(crate::storage::surreal::resource_authority::ResourceAuthorityError),
+    #[error("validator association reservation rejected")]
+    ValidatorAssociationReservation(Box<crate::storage::surreal::resource_authority::ValidatorAssociationReserveRejection>),
+    #[error("validator association retained failure")]
+    ValidatorAssociationRetained(Box<crate::storage::surreal::resource_authority::ValidatorAssociationRetainedFailure>),
+    #[error("validator association routing attempt lacks its actual canonical evidence")]
+    MissingCanonicalLaunchPlan(Box<MissingCanonicalLaunchPlan>),
 }
 
 /// Which lane kind the operator picked in the chat/launch pane.
@@ -3407,37 +3415,71 @@ impl OperatorChatLaunchService {
     pub(crate) async fn register_authenticated_validator_producer_for_designation(
         &self,
         bootstrap: &crate::AccountBootstrapState,
-        scope: &ExactResourceScopeAttribution,
         auth: crate::storage::surreal::resource_authority::RoleAuthorityAuthInput,
-        instance: ModelInstanceId,
-    ) -> Result<Arc<ValidatorProducerKey>, OperatorChatError> {
-        let denied = || OperatorChatError::Invalid("validator producer authority unavailable".into());
+        request: &super::model_lane::WorkspaceValidatorRunnerDesignationInput,
+    ) -> Result<(
+        Arc<super::coordinator::ValidatorProducerKey>,
+        crate::storage::surreal::resource_authority::ValidatorAssociationIssuanceHandle,
+    ), OperatorChatError> {
+        let denied = || OperatorChatError::Invalid(
+            "validator producer authority unavailable".into(),
+        );
         let store = self.coordinator.model_lane_store().ok_or_else(denied)?;
-        if store.surreal_storage().resource_access_lifecycle() != bootstrap.surreal.resource_access_lifecycle()
-            || store.access().exact_read_scope() != Some(scope)
-            || store.access().lifecycle_authority() != Some(&bootstrap.surreal.resource_access_lifecycle())
+        if store.surreal_storage().resource_access_lifecycle()
+                != bootstrap.surreal.resource_access_lifecycle()
+            || store.access().exact_read_scope() != Some(&request.scope)
+            || store.access().lifecycle_authority()
+                != Some(&bootstrap.surreal.resource_access_lifecycle())
         { return Err(denied()); }
-        store.access().authorize_exact_request(scope).map_err(|_| denied())?;
+        store.access().authorize_exact_request(&request.scope).map_err(|_| denied())?;
         let parent = bootstrap.surreal.authorize_validator_delegation_parent(
-            &bootstrap.capability_registry, auth, scope,
-        ).await.map_err(|_| denied())?;
-        let registered = self.coordinator.registered_validator_instance(instance)?;
-        if let Some(producer) = self.coordinator.current_validator_producer(&registered)? {
-            if producer.delegating_scope() != scope { return Err(denied()); }
-            producer.revalidate(&bootstrap.surreal).await.map_err(|_| denied())?;
-            return Ok(producer);
-        }
-        let seal = bootstrap.surreal.issue_authenticated_validator_launch(
-            &bootstrap.capability_registry, parent, &registered,
-        ).await.map_err(|_| denied())?;
-        let session_id = seal.authenticated_session_id().to_owned();
-        match self.coordinator.register_authenticated_validator_producer(seal).await {
-            Ok(producer) => Ok(producer),
-            Err(error) => {
-                bootstrap.surreal.revoke_session(&session_id).await.map_err(|_| denied())?;
-                Err(error.into())
+            &bootstrap.capability_registry, auth, &request.scope,
+        ).await.map_err(OperatorChatError::ValidatorAssociationReadback)?;
+        let registered = self.coordinator.registered_validator_instance_by_ref(
+            &request.runner.instance_ref,
+        )?;
+        if registered.spawn_generation() != request.runner.spawn_generation
+            || registered.parent_session_id() != request.run.coordinator_session_id
+        { return Err(denied()); }
+        let association = self.prepare_validator_association_invocation(
+            request, &registered,
+        ).await?;
+        let input = crate::storage::surreal::resource_authority::ValidatorAssociationIssuanceInput::new(
+            parent, registered.clone(), association, Arc::clone(&self.coordinator),
+        );
+        let mut issuance = bootstrap.surreal.reserve_validator_association_issuance(
+            &bootstrap.capability_registry, input,
+        ).map_err(|rejected| OperatorChatError::ValidatorAssociationReservation(Box::new(rejected)))?;
+        // Fresh competing designation for an already assigned runtime cannot
+        // mint another child. An exact original cached producer may reobserve.
+        if let Some(existing) = self.coordinator.current_validator_producer(&registered)
+            .map_err(|error| OperatorChatError::ValidatorAssociationRetained(Box::new(
+                issuance.retain_runtime_failure(error),
+            )))?
+        {
+            if !issuance.matches_cached_producer(existing.as_ref()) {
+                return Err(OperatorChatError::ValidatorAssociationRetained(Box::new(
+                    issuance.reject_existing_producer(),
+                )));
             }
         }
+        let seal = issuance.commit_and_readback(&bootstrap.surreal).await
+            .map_err(|failure| OperatorChatError::ValidatorAssociationRetained(Box::new(failure)))?;
+        let producer = self.coordinator.register_authenticated_validator_producer_arc(seal).await
+            .map_err(|error| OperatorChatError::ValidatorAssociationRetained(Box::new(
+                issuance.retain_registration_failure(error),
+            )))?;
+        // Final ordinary access lifecycle authorization after the last await.
+        store.access().authorize_exact_request(&request.scope).map_err(|error| {
+            OperatorChatError::ValidatorAssociationRetained(Box::new(
+                issuance.retain_scope_failure(error),
+            ))
+        })?;
+        self.coordinator.with_current_validator_producer(&producer, None, || Ok(()))
+            .map_err(|error| OperatorChatError::ValidatorAssociationRetained(Box::new(
+                issuance.retain_runtime_failure(error),
+            )))?;
+        Ok((producer, issuance))
     }
 
     #[cfg(feature = "runtime-full")]
@@ -3445,39 +3487,43 @@ impl OperatorChatLaunchService {
         &self,
         bootstrap: &crate::AccountBootstrapState,
         authentication: crate::storage::surreal::resource_authority::RoleAuthorityAuthInput,
-        mut request: super::model_lane::WorkspaceValidatorRunnerDesignationRequest,
+        input: super::model_lane::WorkspaceValidatorRunnerDesignationInput,
     ) -> Result<super::model_lane::WorkspaceValidatorRunnerDesignationRecord, OperatorChatError> {
-        use super::model_lane::WorkspaceOwnerActionCommand;
-        let denied = || OperatorChatError::Invalid("explicit validator designation authority unavailable".into());
+        let denied = || OperatorChatError::Invalid(
+            "explicit validator designation authority unavailable".into(),
+        );
         let store = self.coordinator.model_lane_store().ok_or_else(denied)?;
         let storage = &bootstrap.surreal;
         if store.surreal_storage().resource_access_lifecycle() != storage.resource_access_lifecycle()
-            || store.access().exact_read_scope() != Some(&request.scope)
+            || store.access().exact_read_scope() != Some(&input.scope)
             || store.access().lifecycle_authority() != Some(&storage.resource_access_lifecycle())
         { return Err(denied()); }
-        store.access().authorize_exact_request(&request.scope).map_err(|_| denied())?;
-        let authorization = authentication.workspace_creation_request(request.scope.workspace_id.as_str());
-        storage.capture_workspace_owner_action(
-            bootstrap, authentication.clone(), authorization.clone(),
-            WorkspaceOwnerActionCommand::IssueRunnerDesignation(request.clone()),
-        ).await.map_err(|_| denied())?;
-        let registered = self.coordinator.registered_validator_instance_by_ref(&request.runner.producer_instance_ref)?;
-        if registered.parent_session_id() != request.run.coordinator_session_id {
-            return Err(denied());
-        }
-        let producer = self.register_authenticated_validator_producer_for_designation(
-            bootstrap, &request.scope, authentication, *registered.instance_id(),
+        store.access().authorize_exact_request(&input.scope).map_err(|_| denied())?;
+        let (producer, mut issuance) = self.register_authenticated_validator_producer_for_designation(
+            bootstrap, authentication, &input,
         ).await?;
-        request.runner = super::model_lane::ValidatorRunnerRegistrationBinding {
-            producer_registration_ref: producer.registration_ref().to_owned(),
-            producer_instance_ref: producer.instance_id().to_string(),
-            producer_spawn_generation: producer.spawn_generation(),
-            producer_registered_principal: producer.registered_principal().clone(),
-        };
-        self.coordinator.with_current_validator_producer(&producer, None, || Ok(()))?;
-        let result = store.designate_validator_runner(bootstrap, authorization, request).await?;
-        producer.revalidate(storage).await.map_err(|_| denied())?;
-        self.coordinator.with_current_validator_producer(&producer, None, || Ok(()))?;
+        let request = self.complete_validator_runner_designation(&input, &producer)?;
+        self.coordinator.with_current_validator_producer(&producer, None, || Ok(()))
+            .map_err(|error| OperatorChatError::ValidatorAssociationRetained(Box::new(
+                issuance.retain_runtime_failure(error),
+            )))?;
+        let result = store.designate_validator_runner_from_original_association(
+            &mut issuance, request, std::sync::Arc::clone(&producer),
+        ).await.map_err(|failure| OperatorChatError::ValidatorAssociationRetained(Box::new(failure)))?;
+        producer.revalidate(storage).await.map_err(|error| {
+            OperatorChatError::ValidatorAssociationRetained(Box::new(
+                issuance.retain_public_authority_failure(error),
+            ))
+        })?;
+        store.access().authorize_exact_request(&input.scope).map_err(|error| {
+            OperatorChatError::ValidatorAssociationRetained(Box::new(
+                issuance.retain_scope_failure(error),
+            ))
+        })?;
+        self.coordinator.with_current_validator_producer(&producer, None, || Ok(()))
+            .map_err(|error| OperatorChatError::ValidatorAssociationRetained(Box::new(
+                issuance.retain_runtime_failure(error),
+            )))?;
         Ok(result)
     }
 
@@ -4333,5 +4379,225 @@ mod tests {
             build_spawn_request(&selection, 1),
             Err(OperatorChatError::Invalid(_))
         ));
+    }
+}
+
+pub(crate) const VALIDATOR_ASSOCIATION_CAUSATION_SEMANTICS: &str =
+    "designation_action_causes_association_issuance";
+
+pub(crate) struct ValidatorAssociationInvocation {
+    designation: super::model_lane::WorkspaceValidatorRunnerDesignationInput,
+    source: Arc<super::coordinator::BoundOperatorChatLaunch>,
+    selection_json: Value,
+    committed_launch_json: Value,
+    original_launch_json: Value,
+    canonical_run_trace_json: Value,
+    canonical_launch_plan: Option<super::routing_execution::ModelLaneRoutingExecutionState>,
+}
+
+impl ValidatorAssociationInvocation {
+    pub(crate) fn causation_semantics(&self) -> &'static str {
+        VALIDATOR_ASSOCIATION_CAUSATION_SEMANTICS
+    }
+    pub(crate) fn operation_id(&self) -> uuid::Uuid { self.designation.operation_id }
+    pub(crate) fn request_id(&self) -> &str { &self.designation.action.request_id }
+    pub(crate) fn idempotency_key(&self) -> &str { &self.designation.action.idempotency_key }
+    pub(crate) fn causation_ref(&self) -> &str { &self.designation.action.action_id }
+    pub(crate) fn designation(&self)
+        -> &super::model_lane::WorkspaceValidatorRunnerDesignationInput { &self.designation }
+    pub(crate) fn source(&self) -> &Arc<super::coordinator::BoundOperatorChatLaunch> { &self.source }
+    pub(crate) fn selection_json(&self) -> &Value { &self.selection_json }
+    pub(crate) fn committed_launch_json(&self) -> &Value { &self.committed_launch_json }
+    pub(crate) fn original_launch_json(&self) -> &Value { &self.original_launch_json }
+    pub(crate) fn canonical_run_trace_json(&self) -> &Value { &self.canonical_run_trace_json }
+    pub(crate) fn canonical_launch_plan(&self)
+        -> Option<&super::routing_execution::ModelLaneRoutingExecutionState> {
+        self.canonical_launch_plan.as_ref()
+    }
+}
+
+pub(crate) struct MissingCanonicalLaunchPlan {
+    original_request: super::model_lane::WorkspaceValidatorRunnerDesignationInput,
+    source: Arc<super::coordinator::BoundOperatorChatLaunch>,
+}
+
+impl MissingCanonicalLaunchPlan {
+    pub(crate) fn into_parts(self) -> (
+        super::model_lane::WorkspaceValidatorRunnerDesignationInput,
+        Arc<super::coordinator::BoundOperatorChatLaunch>,
+    ) {
+        (self.original_request, self.source)
+    }
+}
+
+impl std::fmt::Debug for MissingCanonicalLaunchPlan {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("MissingCanonicalLaunchPlan")
+            .field("operation_id", &self.original_request.operation_id)
+            .finish_non_exhaustive()
+    }
+}
+
+impl OperatorChatLaunchService {
+    #[cfg(feature = "runtime-full")]
+    async fn prepare_validator_association_invocation(
+    &self,
+    request: &super::model_lane::WorkspaceValidatorRunnerDesignationInput,
+    registered: &super::coordinator::RegisteredValidatorInstance,
+) -> Result<ValidatorAssociationInvocation, OperatorChatError> {
+    let denied = || OperatorChatError::Invalid("validator association source differs".into());
+    if request.runner.instance_ref != registered.instance_id().to_string()
+        || request.runner.spawn_generation != registered.spawn_generation()
+        || request.run.coordinator_session_id != registered.parent_session_id()
+    {
+        return Err(denied());
+    }
+    let source = self.original_launch_for_registered_validator(
+        &request.scope, registered,
+    ).await?;
+    let contract = source.launch_contract().ok_or_else(denied)?;
+    let committed = source.committed_request();
+    if request.run.run_id != contract.run_id
+        || request.run.trace_id != contract.trace_id
+        || request.run.coordinator_session_id != committed.parent_session_id
+        || request.run.owner_session != committed.owner_role
+        || committed.wp_id.as_deref() != Some(request.run.work_packet_id.as_str())
+        || committed.mt_id.as_deref() != Some(request.run.micro_task_id.as_str())
+        || request.run.task_board_id != contract.task_board_id
+        || request.run.locus_binding_ref != contract.locus_binding_ref
+    {
+        return Err(denied());
+    }
+    let store = self.coordinator.model_lane_store().ok_or_else(denied)?;
+    let replay = store.replay_run(&request.run.run_id).await?;
+    if replay.run.trace_id != request.run.trace_id
+        || replay.run.coordinator_session_id != request.run.coordinator_session_id
+        || replay.run.owner_session != request.run.owner_session
+        || replay.run.work_packet_id.as_deref() != Some(request.run.work_packet_id.as_str())
+        || replay.run.micro_task_id.as_deref() != Some(request.run.micro_task_id.as_str())
+        || replay.run.task_board_id.as_deref() != Some(request.run.task_board_id.as_str())
+        || replay.run.event_ledger_stream_id != contract.event_ledger_stream_id
+        || replay.run.locus_binding.as_ref().map(|locus| locus.locus_binding_ref.as_str())
+            != Some(request.run.locus_binding_ref.as_str())
+    {
+        return Err(denied());
+    }
+    let lane = replay.lanes.iter().find(|lane| lane.lane_id == contract.lane_id)
+        .ok_or_else(denied)?;
+    if lane.run_id != request.run.run_id
+        || lane.trace_id != request.run.trace_id
+        || lane.event_ledger_stream_id != contract.event_ledger_stream_id
+        || lane.restart_generation != contract.restart_generation
+        || lane.model_session_id
+            != super::model_lane::dexterity_spawn_model_session_id(committed)
+    {
+        return Err(denied());
+    }
+    let missing_plan = || OperatorChatError::MissingCanonicalLaunchPlan(Box::new(
+        MissingCanonicalLaunchPlan {
+            original_request: request.clone(),
+            source: Arc::clone(&source),
+        },
+    ));
+    // Optional actual routing provenance, never a prerequisite for a genuine
+    // direct launch. Its whole original None is retained in committed JSON.
+    let canonical_launch_plan = if let Some(attempt) = committed.routing_attempt.as_ref() {
+        let canonical_launch_plan = store.routing_execution_snapshot(&attempt.execution_id)
+            .await?.ok_or_else(missing_plan)?;
+        let stage = canonical_launch_plan.stages.get(&attempt.stage_id).ok_or_else(missing_plan)?;
+        let mut plans = canonical_launch_plan.canonical_launch_plan.iter()
+            .filter(|plan| plan.stage_id == attempt.stage_id);
+        let plan = plans.next().ok_or_else(missing_plan)?;
+        if plans.next().is_some()
+            || canonical_launch_plan.execution_id != attempt.execution_id
+            || canonical_launch_plan.run_id != request.run.run_id
+            || canonical_launch_plan.trace_id != request.run.trace_id
+            || canonical_launch_plan.run_span_id != contract.run_span_id
+            || canonical_launch_plan.coordinator_session_id != request.run.coordinator_session_id
+            || canonical_launch_plan.locus_ref != request.run.locus_binding_ref
+            || canonical_launch_plan.work_packet_id != request.run.work_packet_id
+            || canonical_launch_plan.micro_task_id.as_deref() != Some(request.run.micro_task_id.as_str())
+            || canonical_launch_plan.task_board_id != request.run.task_board_id
+            || canonical_launch_plan.owner_session != request.run.owner_session
+            || canonical_launch_plan.canonical_launch_plan_sha256 != request.run.launch_plan_hash.to_hex()
+            || stage.stage_id != attempt.stage_id
+            || stage.attempt != attempt.attempt
+            || stage.instance_id.as_deref() != Some(registered.instance_id().to_string().as_str())
+            || stage.expected_run_id != contract.run_id
+            || stage.expected_lane_id != contract.lane_id
+            || stage.lane_id.as_deref() != Some(contract.lane_id.as_str())
+            || stage.expected_model_id != committed.instance_id.model_id.to_string()
+            || stage.expected_provider != committed.provider
+            || plan.dispatch_target != stage.dispatch_target
+            || plan.lane_id.as_deref() != Some(contract.lane_id.as_str())
+            || plan.model_id.as_deref() != Some(stage.expected_model_id.as_str())
+            || plan.provider != committed.provider
+        {
+            return Err(denied());
+        }
+        Some(canonical_launch_plan)
+    } else {
+        None
+    };
+    let encode = |error: serde_json::Error| OperatorChatError::Invalid(
+        format!("validator association original input encoding failed: {error}")
+    );
+    let committed_launch_json = source.committed_launch_json().map_err(encode)?;
+    // Preserve the WHOLE actual protected replay, including messages and all
+    // existing run/lane fields; the full original requested RunBinding remains
+    // separately available in designation without a reconstructed projection.
+    let canonical_run_trace_json = serde_json::to_value(&replay).map_err(encode)?;
+    store.access().authorize_exact_request(&request.scope).map_err(|_| denied())?;
+    let current = self.coordinator.original_operator_chat_launch(registered, &request.scope)?;
+    if !Arc::ptr_eq(&source, &current) { return Err(denied()); }
+    Ok(ValidatorAssociationInvocation {
+        designation: request.clone(),
+        selection_json: source.selection_json().clone(),
+        original_launch_json: source.original_request_json().clone(),
+        committed_launch_json,
+        canonical_run_trace_json,
+        canonical_launch_plan,
+        source,
+    })
+}
+    pub(crate) fn validator_runner_runtime_selection(
+        &self, instance: super::ModelInstanceId,
+    ) -> Result<super::model_lane::ValidatorRunnerRuntimeSelection, OperatorChatError> {
+        let registered = self.coordinator.registered_validator_instance(instance)?;
+        Ok(super::model_lane::ValidatorRunnerRuntimeSelection {
+            instance_ref: registered.instance_id().to_string(),
+            spawn_generation: registered.spawn_generation(),
+        })
+    }
+    fn complete_validator_runner_designation(
+        &self,
+        input: &super::model_lane::WorkspaceValidatorRunnerDesignationInput,
+        producer: &Arc<super::coordinator::ValidatorProducerKey>,
+    ) -> Result<super::model_lane::WorkspaceValidatorRunnerDesignationRequest, OperatorChatError> {
+        if producer.instance_id().to_string() != input.runner.instance_ref
+            || producer.spawn_generation() != input.runner.spawn_generation
+            || producer.delegating_scope() != &input.scope
+        {
+            return Err(OperatorChatError::Invalid(
+                "server-issued Validator binding differs from selected runtime".into(),
+            ));
+        }
+        Ok(super::model_lane::WorkspaceValidatorRunnerDesignationRequest {
+            operation_id: input.operation_id,
+            action: input.action.clone(),
+            scope: input.scope.clone(),
+            run: input.run.clone(),
+            subject: input.subject.clone(),
+            expected: input.expected.clone(),
+            retention: input.retention.clone(),
+            // These four facts exist ONLY after genuine successful delegated
+            // child issuance/registered producer receipt. No incoming placeholder.
+            runner: super::model_lane::ValidatorRunnerRegistrationBinding {
+                producer_registration_ref: producer.registration_ref().to_owned(),
+                producer_instance_ref: producer.instance_id().to_string(),
+                producer_spawn_generation: producer.spawn_generation(),
+                producer_registered_principal: producer.registered_principal().clone(),
+            },
+        })
     }
 }

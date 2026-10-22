@@ -2603,3 +2603,1083 @@ async fn atelier_ckc_media_notes_tags_commit_all_event_families() {
     }).await.expect("authenticated account-scoped CKC test setup");
     harness.shutdown().await;
 }
+
+fn cursor_member_uuids(page: &serde_json::Value) -> Vec<Uuid> {
+    page["members"].as_array().expect("cursor members").iter()
+        .map(|row| Uuid::parse_str(row["asset_id"].as_str().expect("asset UUID string"))
+            .expect("canonical asset UUID")).collect()
+}
+
+async fn create_cursor_test_album(
+    client: &reqwest::Client, base_url: &str, character_id: Uuid, label: &str,
+) -> serde_json::Value {
+    let (status, album) = json_of(client
+        .post(format!("{base_url}/atelier/characters/{character_id}/media-albums"))
+        .json(&serde_json::json!({"name": format!("{label}-{}", Uuid::now_v7()), "sheet_version_id": null}))
+        .send().await.expect("create cursor album")).await;
+    assert_eq!(status, reqwest::StatusCode::CREATED, "{album}");
+    album
+}
+
+async fn cursor_member_page(
+    client: &reqwest::Client, base_url: &str, album_id: &str, cursor: &str, limit: Option<usize>,
+) -> serde_json::Value {
+    let request = client.get(format!("{base_url}/atelier/media-albums/{album_id}/items"))
+        .query(&[("cursor", cursor)]);
+    let request = match limit { Some(limit) => request.query(&[("limit", limit)]), None => request };
+    let (status, page) = json_of(request.send().await.expect("member cursor request")).await;
+    assert_eq!(status, reqwest::StatusCode::OK, "{page}");
+    assert_eq!(page["traversal_order"].as_str(), Some("asset_id_asc"));
+    assert!(cursor_member_uuids(&page).windows(2)
+        .all(|pair| pair[0].as_u128() < pair[1].as_u128()), "native UUID order: {page}");
+    page
+}
+
+async fn collect_cursor_members(
+    client: &reqwest::Client, base_url: &str, album_id: &str,
+    initial_cursor: &str, initial_limit: Option<usize>, max_pages: usize,
+) -> Vec<Uuid> {
+    let mut cursor = initial_cursor.to_owned();
+    let mut limit = initial_limit;
+    let mut seen = std::collections::HashSet::new();
+    let mut result = Vec::new();
+    for _ in 0..max_pages {
+        assert!(seen.insert(cursor.clone()), "continuation must advance");
+        let page = cursor_member_page(client, base_url, album_id, &cursor, limit).await;
+        let ids = cursor_member_uuids(&page);
+        assert!(ids.len() <= 200);
+        result.extend(ids);
+        if let Some(next) = page["next_cursor"].as_str() {
+            assert!(!page["members"].as_array().unwrap().is_empty());
+            cursor = next.to_owned();
+            limit = None;
+        } else {
+            assert!(page["next_cursor"].is_null());
+            return result;
+        }
+    }
+    panic!("cursor did not exhaust within the known fixture bound");
+}
+#[tokio::test]
+async fn atelier_ckc_member_cursor_is_bounded_scope_checked_and_stable_under_interleaved_mutations() {
+    let harness = AtelierSurrealHarness::create().await;
+    let owner = AccountFixture::install(&harness.storage).await;
+    let state = app_state(&harness, false);
+    atelier_api::with_account_session(&state, &owner.headers(), async {
+        let store = harness.atelier.clone();
+        let (base_url, client, server) = serve(state.clone(), &owner).await;
+        let character_id = fresh_character(&store, "cursor-member-char", "Cursor member character").await;
+        let album = create_cursor_test_album(&client, &base_url, character_id, "cursor-members").await;
+        let other_album = create_cursor_test_album(&client, &base_url, character_id, "cursor-empty").await;
+        let album_id = album["collection_id"].as_str().expect("album id").to_owned();
+        let other_id = other_album["collection_id"].as_str().expect("other album id").to_owned();
+        let mut pool = Vec::with_capacity(207);
+        for index in 0..207 {
+            pool.push(fresh_api_media_asset(&store, &format!("cursor-member-{index}")).await);
+        }
+        pool.sort_unstable_by_key(Uuid::as_u128);
+        assert_eq!(pool.iter().collect::<std::collections::HashSet<_>>().len(), 207);
+        let lower = pool[0];
+        let upper = pool[206];
+        let initial = pool[1..206].to_vec();
+        assert_eq!(initial.len(), 205);
+        let (status, linked) = json_of(client
+            .post(format!("{base_url}/atelier/media-albums/{album_id}/items"))
+            .json(&serde_json::json!({"asset_ids": &initial}))
+            .send().await.expect("link 205 cursor members")).await;
+        assert_eq!(status, reqwest::StatusCode::OK, "{linked}");
+        assert_eq!(linked["inserted"].as_u64(), Some(205));
+        assert_eq!(linked["member_count"].as_u64(), Some(205));
+        assert!(linked["next_cursor"].is_null() && linked["traversal_order"].is_null());
+
+        let full = collect_cursor_members(&client, &base_url, &album_id, "start", Some(17), 206).await;
+        assert_eq!(full, initial, "all 205 native UUID keys appear once through seek pages");
+        assert_eq!(full.iter().collect::<std::collections::HashSet<_>>().len(), 205);
+        let cap_page = cursor_member_page(&client, &base_url, &album_id, "start", Some(200)).await;
+        assert_eq!(cursor_member_uuids(&cap_page).len(), 200);
+        let cap_tail = cursor_member_page(&client, &base_url, &album_id,
+            cap_page["next_cursor"].as_str().expect("200-row page has a sentinel"), None).await;
+        assert_eq!(cursor_member_uuids(&cap_tail), initial[200..].to_vec());
+        assert!(cap_tail["next_cursor"].is_null());
+        let empty = cursor_member_page(&client, &base_url, &other_id, "start", Some(17)).await;
+        assert!(cursor_member_uuids(&empty).is_empty() && empty["next_cursor"].is_null());
+
+        let first = cursor_member_page(&client, &base_url, &album_id, "start", Some(17)).await;
+        let prefix = cursor_member_uuids(&first);
+        assert_eq!(prefix, initial[..17].to_vec());
+        let continuation = first["next_cursor"].as_str().expect("first cursor").to_owned();
+        let page_two = cursor_member_page(&client, &base_url, &album_id, &continuation, None).await;
+        let retry = cursor_member_page(&client, &base_url, &album_id, &continuation, None).await;
+        assert_eq!(page_two["limit"].as_u64(), Some(17), "omitted limit retains token binding");
+        assert_eq!(cursor_member_uuids(&retry), cursor_member_uuids(&page_two));
+        assert_eq!(retry["next_cursor"], page_two["next_cursor"], "retry does not advance its input cursor");
+        let parts: Vec<_> = continuation.split(':').collect();
+        assert_eq!(parts.len(), 5);
+        assert_eq!(parts[0], "v1");
+        assert_eq!(parts[1], "m");
+        assert_eq!(Uuid::parse_str(parts[2]).unwrap(), Uuid::parse_str(&album_id).unwrap());
+        assert_eq!(parts[3], "17");
+        assert_eq!(Uuid::parse_str(parts[4]).unwrap(), *prefix.last().unwrap(),
+            "cursor anchors the last emitted row, never the sentinel");
+        let bad_cursors = vec![
+            String::new(), "start ".to_owned(), "v2:m:bad".to_owned(),
+            continuation.replacen("v1:", "v2:", 1),
+            continuation.replacen("v1:m:", "v1:a:", 1),
+            format!("{continuation}:extra"), format!("v1:m:{album_id}:17"),
+            format!("v1:m:not-a-uuid:17:{}", prefix.last().unwrap()),
+            format!("v1:m:{album_id}:17:not-a-uuid"),
+            format!("v1:m:{other_id}:17:{}", prefix.last().unwrap()),
+            format!("v1:m:{album_id}:0:{}", prefix.last().unwrap()),
+            format!("v1:m:{album_id}:201:{}", prefix.last().unwrap()),
+            format!("v1:m:{album_id}:no-limit:{}", prefix.last().unwrap()),
+        ];
+        for bad in bad_cursors {
+            let (status, body) = json_of(client
+                .get(format!("{base_url}/atelier/media-albums/{album_id}/items"))
+                .query(&[("cursor", bad.as_str())]).send().await.expect("invalid member cursor")).await;
+            assert_eq!(status, reqwest::StatusCode::BAD_REQUEST, "cursor={bad:?}: {body}");
+        }
+        for (cursor, extra) in [
+            ("start", vec![("offset", "0")]),
+            (continuation.as_str(), vec![("offset", "1")]),
+            ("start", vec![("limit", "0")]),
+            ("start", vec![("limit", "201")]),
+            (continuation.as_str(), vec![("limit", "18")]),
+        ] {
+            let (status, body) = json_of(client
+                .get(format!("{base_url}/atelier/media-albums/{album_id}/items"))
+                .query(&[("cursor", cursor)]).query(&extra)
+                .send().await.expect("conflicting cursor query")).await;
+            assert_eq!(status, reqwest::StatusCode::BAD_REQUEST, "{cursor} {extra:?}: {body}");
+        }
+
+        // Completed writes interleave pages; this does not establish DB transaction overlap.
+        let (status, inserted) = json_of(client
+            .post(format!("{base_url}/atelier/media-albums/{album_id}/items"))
+            .json(&serde_json::json!({"asset_ids": [lower, upper]}))
+            .send().await.expect("insert both sides of cursor")).await;
+        assert_eq!(status, reqwest::StatusCode::OK, "{inserted}");
+        assert_eq!(inserted["inserted"].as_u64(), Some(2));
+        let removed_emitted = prefix[0];
+        let removed_unseen = initial[initial.len() - 2];
+        assert!(!prefix.contains(&removed_unseen));
+        for removed in [removed_emitted, removed_unseen] {
+            let (status, body) = json_of(client
+                .delete(format!("{base_url}/atelier/media-albums/{album_id}/items/{removed}"))
+                .send().await.expect("unlink cursor fixture member")).await;
+            assert_eq!(status, reqwest::StatusCode::OK, "{body}");
+            assert_eq!(body["removed"].as_u64(), Some(1));
+        }
+        let current: Vec<_> = pool.iter().copied()
+            .filter(|id| *id != removed_emitted && *id != removed_unseen).collect();
+        assert_eq!(current.len(), 205);
+        let manual_order: Vec<_> = current.iter().rev().copied().collect();
+        let reorder_items: Vec<_> = manual_order.iter().enumerate()
+            .map(|(sort_order, asset_id)| serde_json::json!({"asset_id": asset_id, "sort_order": sort_order}))
+            .collect();
+        let (status, reordered) = json_of(client
+            .patch(format!("{base_url}/atelier/media-albums/{album_id}/items/reorder"))
+            .json(&serde_json::json!({"items": reorder_items}))
+            .send().await.expect("reverse manual order during cursor traversal")).await;
+        assert_eq!(status, reqwest::StatusCode::OK, "{reordered}");
+        assert_eq!(reordered["reordered"].as_u64(), Some(205));
+        let rest = collect_cursor_members(&client, &base_url, &album_id, &continuation, None, 208).await;
+        let mut continued = prefix.clone();
+        continued.extend(rest);
+        let mut expected_continued: Vec<_> = initial.iter().copied().filter(|id| *id != removed_unseen).collect();
+        expected_continued.push(upper);
+        assert_eq!(continued, expected_continued, "insert/unlink/reorder cannot shift the immutable anchor");
+        for survivor in initial.iter().filter(|id| **id != removed_emitted && **id != removed_unseen) {
+            assert_eq!(continued.iter().filter(|id| *id == survivor).count(), 1, "continuous survivor {survivor}");
+        }
+        assert_eq!(continued.iter().filter(|id| **id == upper).count(), 1);
+        assert!(!continued.contains(&lower));
+        assert!(!continued.contains(&removed_unseen));
+        assert_eq!(continued.iter().filter(|id| **id == removed_emitted).count(), 1,
+            "emitted-unlinked item remains only in the retained prefix");
+        let restarted = collect_cursor_members(&client, &base_url, &album_id, "start", Some(17), 208).await;
+        assert_eq!(restarted, current, "fresh traversal is the exact current canonical set");
+        assert!(restarted.contains(&lower) && restarted.contains(&upper));
+        assert!(!restarted.contains(&removed_emitted) && !restarted.contains(&removed_unseen));
+        let fresh_page = cursor_member_page(&client, &base_url, &album_id, "start", Some(17)).await;
+        assert_eq!(fresh_page["members"][0]["sort_order"].as_u64(), Some(204),
+            "manual sort_order remains row data, not traversal order");
+        let (status, legacy) = json_of(client
+            .get(format!("{base_url}/atelier/media-albums/{album_id}/items"))
+            .query(&[("offset", 0), ("limit", 17)]).send().await.expect("legacy manual page")).await;
+        assert_eq!(status, reqwest::StatusCode::OK, "{legacy}");
+        assert_eq!(cursor_member_uuids(&legacy), manual_order[..17].to_vec());
+        assert!(legacy["next_cursor"].is_null() && legacy["traversal_order"].is_null());
+        server.abort();
+        let _ = server.await;
+        drop(client);
+    }).await.expect("authenticated cursor member fixture");
+    harness.shutdown().await;
+}
+fn cursor_album_key(album: &serde_json::Value) -> (chrono::DateTime<chrono::Utc>, Uuid) {
+    (chrono::DateTime::parse_from_rfc3339(album["created_at_utc"].as_str().expect("album creation time"))
+        .expect("canonical album timestamp").with_timezone(&chrono::Utc),
+     Uuid::parse_str(album["collection_id"].as_str().expect("album UUID")).expect("canonical album UUID"))
+}
+
+fn expected_cursor_album_ids(albums: &[serde_json::Value]) -> Vec<Uuid> {
+    let mut keys: Vec<_> = albums.iter().map(cursor_album_key).collect();
+    keys.sort_unstable_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.as_u128().cmp(&b.1.as_u128())));
+    keys.into_iter().map(|(_, id)| id).collect()
+}
+
+fn cursor_album_ids(page: &serde_json::Value) -> Vec<Uuid> {
+    page["albums"].as_array().expect("cursor albums").iter()
+        .map(|album| cursor_album_key(album).1).collect()
+}
+
+async fn cursor_album_page(
+    client: &reqwest::Client, base_url: &str, character_id: Uuid, cursor: &str,
+    limit: Option<usize>, member_limit: Option<usize>,
+) -> serde_json::Value {
+    let request = client.get(format!("{base_url}/atelier/characters/{character_id}/media-albums"))
+        .query(&[("cursor", cursor)]);
+    let request = match limit { Some(limit) => request.query(&[("limit", limit)]), None => request };
+    let request = match member_limit {
+        Some(limit) => request.query(&[("member_limit", limit)]), None => request,
+    };
+    let (status, page) = json_of(request.send().await.expect("album cursor request")).await;
+    assert_eq!(status, reqwest::StatusCode::OK, "{page}");
+    assert_eq!(page["traversal_order"].as_str(), Some("created_at_desc_collection_id_asc"));
+    let albums = page["albums"].as_array().expect("albums");
+    assert_eq!(cursor_album_ids(&page), expected_cursor_album_ids(albums));
+    for album in albums {
+        assert!(album["members"].as_array().expect("preview members").len()
+            <= page["member_limit"].as_u64().expect("bound preview size") as usize);
+        assert!(album["next_cursor"].is_null() && album["traversal_order"].is_null(),
+            "manual member previews are not cursor traversals");
+    }
+    page
+}
+
+async fn collect_cursor_albums(
+    client: &reqwest::Client, base_url: &str, character_id: Uuid, cursor: &str,
+    limit: Option<usize>, member_limit: Option<usize>, max_pages: usize,
+) -> Vec<Uuid> {
+    let mut cursor = cursor.to_owned();
+    let mut limit = limit;
+    let mut member_limit = member_limit;
+    let mut seen = std::collections::HashSet::new();
+    let mut result = Vec::new();
+    for _ in 0..max_pages {
+        assert!(seen.insert(cursor.clone()), "album continuation must advance");
+        let page = cursor_album_page(client, base_url, character_id, &cursor, limit, member_limit).await;
+        result.extend(cursor_album_ids(&page));
+        if let Some(next) = page["next_cursor"].as_str() {
+            assert!(!page["albums"].as_array().unwrap().is_empty());
+            cursor = next.to_owned();
+            limit = None;
+            member_limit = None;
+        } else {
+            assert!(page["next_cursor"].is_null());
+            return result;
+        }
+    }
+    panic!("album cursor did not exhaust within the known fixture bound");
+}
+
+#[tokio::test]
+async fn atelier_ckc_album_cursor_orders_timestamps_and_uuid_ties_and_binds_scope_and_limits() {
+    let harness = AtelierSurrealHarness::create().await;
+    let owner = AccountFixture::install(&harness.storage).await;
+    let state = app_state(&harness, false);
+    atelier_api::with_account_session(&state, &owner.headers(), async {
+        let store = harness.atelier.clone();
+        let (base_url, client, server) = serve(state.clone(), &owner).await;
+        let character_id = fresh_character(&store, "cursor-album-char", "Cursor album character").await;
+        let empty_character = fresh_character(&store, "cursor-empty-char", "Cursor empty character").await;
+        let mut albums = Vec::new();
+        for index in 0..5 {
+            albums.push(create_cursor_test_album(&client, &base_url, character_id,
+                &format!("cursor-album-{index}")).await);
+        }
+        let expected = expected_cursor_album_ids(&albums);
+        let populated_album_id = expected[2];
+        let populated_album_key = populated_album_id.to_string();
+        let preview_assets = [
+            fresh_api_media_asset(&store, "cursor-preview-first").await,
+            fresh_api_media_asset(&store, "cursor-preview-second").await,
+        ];
+        let (status, linked) = json_of(client
+            .post(format!("{base_url}/atelier/media-albums/{populated_album_id}/items"))
+            .json(&serde_json::json!({"asset_ids": &preview_assets}))
+            .send().await.expect("populate continuation album preview")).await;
+        assert_eq!(status, reqwest::StatusCode::OK, "{linked}");
+        assert_eq!(linked["inserted"].as_u64(), Some(2));
+        assert_eq!(linked["member_count"].as_u64(), Some(2));
+        let (status, expanded) = json_of(client
+            .get(format!("{base_url}/atelier/media-albums/{populated_album_id}/items"))
+            .query(&[("offset", 0), ("limit", 2)])
+            .send().await.expect("expand populated album members")).await;
+        assert_eq!(status, reqwest::StatusCode::OK, "{expanded}");
+        assert_eq!(expanded["member_count"].as_u64(), Some(2));
+        let expanded_ids = cursor_member_uuids(&expanded);
+        assert_eq!(expanded_ids.len(), 2);
+        assert_eq!(expanded_ids.into_iter().collect::<std::collections::HashSet<_>>(),
+            preview_assets.iter().copied().collect::<std::collections::HashSet<_>>());
+        assert!(expanded["next_cursor"].is_null() && expanded["traversal_order"].is_null());
+        let traversed = collect_cursor_albums(&client, &base_url, character_id, "start", Some(2), Some(1), 6).await;
+        assert_eq!(traversed, expected);
+        assert_eq!(traversed.iter().collect::<std::collections::HashSet<_>>().len(), 5);
+        let empty = cursor_album_page(&client, &base_url, empty_character, "start", Some(2), Some(1)).await;
+        assert!(cursor_album_ids(&empty).is_empty() && empty["next_cursor"].is_null());
+
+        let first = cursor_album_page(&client, &base_url, character_id, "start", Some(2), Some(1)).await;
+        let prefix = cursor_album_ids(&first);
+        assert_eq!(prefix, expected[..2].to_vec());
+        let continuation = first["next_cursor"].as_str().expect("first album cursor").to_owned();
+        let second = cursor_album_page(&client, &base_url, character_id, &continuation, None, None).await;
+        let retry = cursor_album_page(&client, &base_url, character_id, &continuation, None, None).await;
+        assert_eq!(second["limit"].as_u64(), Some(2));
+        assert_eq!(second["member_limit"].as_u64(), Some(1));
+        let populated_preview = second["albums"].as_array().expect("continuation albums").iter()
+            .find(|album| album["collection_id"].as_str() == Some(populated_album_key.as_str()))
+            .expect("populated album is on the continuation page");
+        assert_eq!(populated_preview["member_count"].as_u64(), Some(2));
+        let preview_ids = cursor_member_uuids(populated_preview);
+        assert_eq!(preview_ids.len(), 1, "bound member_limit truncates a genuinely populated album");
+        assert!(preview_assets.contains(&preview_ids[0]));
+        assert!(populated_preview["next_cursor"].is_null() && populated_preview["traversal_order"].is_null(),
+            "album previews remain manual previews, not member cursor traversals");
+        assert_eq!(cursor_album_ids(&second), expected[2..4].to_vec());
+        assert_eq!(cursor_album_ids(&retry), cursor_album_ids(&second));
+        assert_eq!(retry["next_cursor"], second["next_cursor"]);
+        let parts: Vec<_> = continuation.split(':').collect();
+        assert_eq!(parts.len(), 7);
+        assert_eq!(&parts[..2], &["v1", "a"]);
+        assert_eq!(Uuid::parse_str(parts[2]).unwrap(), character_id);
+        assert_eq!(parts[3], "2");
+        assert_eq!(parts[4], "1");
+        let encoded_time = String::from_utf8(hex::decode(parts[5]).expect("hex time")).expect("UTF-8 time");
+        let last_emitted = first["albums"].as_array().unwrap().last().unwrap();
+        let (last_time, last_id) = cursor_album_key(last_emitted);
+        assert_eq!(encoded_time, last_time.to_rfc3339_opts(chrono::SecondsFormat::Nanos, true));
+        assert_eq!(Uuid::parse_str(parts[6]).unwrap(), last_id, "last emitted album, not sentinel");
+        let bad_cursors = vec![
+            String::new(), "start ".to_owned(), continuation.replacen("v1:", "v2:", 1),
+            continuation.replacen("v1:a:", "v1:m:", 1), format!("{continuation}:extra"),
+            format!("v1:a:{character_id}:2:1:{}", parts[5]),
+            format!("v1:a:not-a-uuid:2:1:{}:{last_id}", parts[5]),
+            format!("v1:a:{empty_character}:2:1:{}:{last_id}", parts[5]),
+            format!("v1:a:{character_id}:2:1:{}:not-a-uuid", parts[5]),
+            format!("v1:a:{character_id}:0:1:{}:{last_id}", parts[5]),
+            format!("v1:a:{character_id}:201:1:{}:{last_id}", parts[5]),
+            format!("v1:a:{character_id}:two:1:{}:{last_id}", parts[5]),
+            format!("v1:a:{character_id}:2:0:{}:{last_id}", parts[5]),
+            format!("v1:a:{character_id}:2:201:{}:{last_id}", parts[5]),
+            format!("v1:a:{character_id}:2:one:{}:{last_id}", parts[5]),
+            format!("v1:a:{character_id}:2:1:gg:{last_id}"),
+            format!("v1:a:{character_id}:2:1:0:{last_id}"),
+            format!("v1:a:{character_id}:2:1:ff:{last_id}"),
+            format!("v1:a:{character_id}:2:1:{}:{last_id}", hex::encode(b"not-a-time")),
+            format!("v1:a:{character_id}:2:1:{}:{last_id}", hex::encode(b"2020-01-01T00:00:00+01:00")),
+        ];
+        for bad in bad_cursors {
+            let (status, body) = json_of(client
+                .get(format!("{base_url}/atelier/characters/{character_id}/media-albums"))
+                .query(&[("cursor", bad.as_str())]).send().await.expect("invalid album cursor")).await;
+            assert_eq!(status, reqwest::StatusCode::BAD_REQUEST, "cursor={bad:?}: {body}");
+        }
+        for (cursor, extra) in [
+            ("start", vec![("offset", "0")]),
+            (continuation.as_str(), vec![("offset", "1")]),
+            ("start", vec![("limit", "0")]),
+            ("start", vec![("limit", "201")]),
+            ("start", vec![("member_limit", "0")]),
+            ("start", vec![("member_limit", "201")]),
+            (continuation.as_str(), vec![("limit", "3")]),
+            (continuation.as_str(), vec![("member_limit", "2")]),
+        ] {
+            let (status, body) = json_of(client
+                .get(format!("{base_url}/atelier/characters/{character_id}/media-albums"))
+                .query(&[("cursor", cursor)]).query(&extra)
+                .send().await.expect("conflicting album cursor query")).await;
+            assert_eq!(status, reqwest::StatusCode::BAD_REQUEST, "{cursor} {extra:?}: {body}");
+        }
+
+        let later = create_cursor_test_album(&client, &base_url, character_id, "cursor-album-later").await;
+        albums.push(later);
+        let current = expected_cursor_album_ids(&albums);
+        let anchor = current.iter().position(|id| *id == last_id).expect("original anchor survives");
+        let after_insert = collect_cursor_albums(&client, &base_url, character_id,
+            &continuation, None, None, 7).await;
+        assert_eq!(after_insert, current[anchor + 1..].to_vec(),
+            "current-state seek excludes any new key before the original anchor");
+        let fresh = collect_cursor_albums(&client, &base_url, character_id, "start", Some(2), Some(1), 7).await;
+        assert_eq!(fresh, current, "fresh start includes the exact current six-album set");
+        let (status, legacy) = json_of(client
+            .get(format!("{base_url}/atelier/characters/{character_id}/media-albums"))
+            .query(&[("offset", 0), ("limit", 2), ("member_limit", 1)])
+            .send().await.expect("legacy album page")).await;
+        assert_eq!(status, reqwest::StatusCode::OK, "{legacy}");
+        assert_eq!(cursor_album_ids(&legacy), current[..2].to_vec());
+        assert!(legacy["next_cursor"].is_null() && legacy["traversal_order"].is_null());
+        server.abort();
+        let _ = server.await;
+        drop(client);
+    }).await.expect("authenticated cursor album fixture");
+    harness.shutdown().await;
+}
+type CkcTestPanic = Box<dyn std::any::Any + Send + 'static>;
+
+async fn ckc_capture_test_panic<F: std::future::Future>(
+    future: F,
+) -> Result<F::Output, CkcTestPanic> {
+    let mut future = Some(Box::pin(future));
+    std::future::poll_fn(|context| {
+        let polled = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            std::future::Future::poll(
+                future.as_mut().expect("panic-capture future already finished").as_mut(), context,
+            )
+        }));
+        match polled {
+            Ok(std::task::Poll::Pending) => std::task::Poll::Pending,
+            Ok(std::task::Poll::Ready(output)) => {
+                future.take();
+                std::task::Poll::Ready(Ok(output))
+            }
+            Err(primary) => {
+                future.take();
+                std::task::Poll::Ready(Err(primary))
+            }
+        }
+    }).await
+}
+
+async fn ckc_finish_owned_test(
+    harness: AtelierSurrealHarness,
+    server: Option<tokio::task::JoinHandle<()>>,
+    requests: Vec<tokio::task::JoinHandle<Result<reqwest::Response, reqwest::Error>>>,
+    outcome: Result<(), CkcTestPanic>,
+) {
+    for request in &requests {
+        request.abort();
+    }
+    for request in requests {
+        let _ = request.await;
+    }
+    if let Some(server) = server {
+        server.abort();
+        let _ = server.await;
+    }
+    let shutdown = ckc_capture_test_panic(harness.storage.shutdown_with_report()).await;
+    let cleanup = match shutdown {
+        Ok(Ok(report)) => {
+            if !report.drained {
+                eprintln!("CKC fixture closed after cooperative cancellation: {report:?}");
+            }
+            drop(harness);
+            Ok(())
+        }
+        Ok(result) => {
+            let failure = format!("CKC fixture drain failed; fixture retained without Drop: {result:?}");
+            eprintln!("{failure}");
+            std::mem::forget(harness);
+            Err(Box::new(failure) as CkcTestPanic)
+        }
+        Err(failure) => {
+            eprintln!("CKC fixture drain panicked; fixture retained without Drop");
+            std::mem::forget(harness);
+            Err(failure)
+        }
+    };
+    if let Err(primary) = outcome {
+        if cleanup.is_err() {
+            eprintln!("CKC cleanup also failed; preserving the original test panic");
+        }
+        std::panic::resume_unwind(primary);
+    }
+    if let Err(failure) = cleanup {
+        std::panic::resume_unwind(failure);
+    }
+}
+
+
+#[derive(Default)]
+struct AlbumMutationRejectingRecorder {
+    reject_family: std::sync::Mutex<Option<&'static str>>,
+    rejected: std::sync::atomic::AtomicUsize,
+}
+
+#[async_trait]
+impl FlightRecorder for AlbumMutationRejectingRecorder {
+    async fn record_event(&self, event: FlightRecorderEvent) -> Result<(), RecorderError> {
+        let mut reject_family = self.reject_family.lock().expect("recorder control lock");
+        if reject_family.is_some_and(|family| event.payload["event_family"] == family) {
+            *reject_family = None;
+            self.rejected.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            return Err(RecorderError::SinkError("MT060 precommit recorder rejection".to_owned()));
+        }
+        Ok(())
+    }
+
+    async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+        Ok(0)
+    }
+
+    async fn list_events(&self, _filter: EventFilter) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        Ok(Vec::new())
+    }
+}
+
+#[tokio::test]
+async fn atelier_ckc_media_membership_recorder_failure_rolls_back_membership_and_ledger() {
+    use handshake_core::atelier::collections::collections_event_family;
+
+    let harness = AtelierSurrealHarness::create().await;
+    let recorder = Arc::new(AlbumMutationRejectingRecorder::default());
+    let mut owned_server = None;
+    let outcome = ckc_capture_test_panic(async {
+    let owner = AccountFixture::install(&harness.storage).await;
+    let mut state = app_state(&harness, false);
+    state.flight_recorder = recorder.clone();
+    atelier_api::with_account_session(&state, &owner.headers(), async {
+        let store = harness.atelier.clone();
+        let character = fresh_character(&store, "mt060-fr-rollback", "Recorder rollback").await;
+        let assets = [
+            fresh_api_media_asset(&store, "mt060-fr-rollback-a").await,
+            fresh_api_media_asset(&store, "mt060-fr-rollback-b").await,
+        ];
+        let (base_url, client, server) = serve(state.clone(), &owner).await;
+        owned_server = Some(server);
+        let (status, album) = json_of(client
+            .post(format!("{base_url}/atelier/characters/{character}/media-albums"))
+            .json(&serde_json::json!({"name": format!("rollback-{}", Uuid::now_v7()), "sheet_version_id": null}))
+            .send().await.expect("create rollback album")).await;
+        assert_eq!(status, reqwest::StatusCode::CREATED, "{album}");
+        let album_id = album["collection_id"].as_str().expect("album id").to_owned();
+        let items_url = format!("{base_url}/atelier/media-albums/{album_id}/items");
+        let (status, added) = json_of(client.post(&items_url)
+            .json(&serde_json::json!({"asset_ids": assets}))
+            .send().await.expect("add rollback members")).await;
+        assert_eq!(status, reqwest::StatusCode::OK, "{added}");
+
+        for (family, method, suffix, payload) in [
+            (collections_event_family::MEDIA_ALBUM_ITEMS_REORDERED,
+             reqwest::Method::PATCH, "/reorder".to_owned(),
+             Some(serde_json::json!({"items": [
+                 {"asset_id": assets[1], "sort_order": 0},
+                 {"asset_id": assets[0], "sort_order": 1},
+             ]}))),
+            (collections_event_family::MEDIA_ALBUM_ITEM_LINK_REFS_UPDATED,
+             reqwest::Method::PATCH, format!("/{}", assets[0]),
+             Some(serde_json::json!({"source_path_ref": "atelier://folder/mt060-fr-rollback"}))),
+            (collections_event_family::MEDIA_ALBUM_ITEM_UNLINKED,
+             reqwest::Method::DELETE, format!("/{}", assets[0]), None),
+        ] {
+            let (status, before) = json_of(client.get(&items_url)
+                .send().await.expect("read before rejected mutation")).await;
+            assert_eq!(status, reqwest::StatusCode::OK, "{before}");
+            let before_events = harness.database
+                .list_kernel_events_for_aggregate("atelier_collection", &album_id)
+                .await.expect("read canonical ledger before rejected mutation");
+            let before_ids: Vec<_> = before_events.iter().map(|event| event.event_id.clone()).collect();
+            let rejected_before = recorder.rejected.load(std::sync::atomic::Ordering::SeqCst);
+            *recorder.reject_family.lock().expect("arm recorder rejection") = Some(family);
+
+            let make_request = || {
+                let request = client.request(method.clone(), format!("{items_url}{suffix}"));
+                match &payload {
+                    Some(payload) => request.json(payload),
+                    None => request,
+                }
+            };
+            let (status, rejected) = json_of(make_request().send().await
+                .expect("send mutation with rejected recorder callback")).await;
+            assert_eq!(status, reqwest::StatusCode::INTERNAL_SERVER_ERROR, "{family}: {rejected}");
+            assert_eq!(recorder.rejected.load(std::sync::atomic::Ordering::SeqCst),
+                rejected_before + 1, "the real precommit callback must have rejected {family}");
+            assert!(recorder.reject_family.lock().expect("read recorder arm").is_none());
+
+            let (status, after) = json_of(client.get(&items_url)
+                .send().await.expect("read after rejected mutation")).await;
+            assert_eq!(status, reqwest::StatusCode::OK, "{after}");
+            assert_eq!(after["members"], before["members"], "{family} membership rolled back");
+            assert_eq!(after["member_count"], before["member_count"]);
+            let after_events = harness.database
+                .list_kernel_events_for_aggregate("atelier_collection", &album_id)
+                .await.expect("read canonical ledger after rejected mutation");
+            let after_ids: Vec<_> = after_events.iter().map(|event| event.event_id.clone()).collect();
+            assert_eq!(after_ids, before_ids, "{family} canonical ledger rolled back");
+
+            let (status, committed) = json_of(make_request().send().await
+                .expect("send the same valid mutation after rejection")).await;
+            assert_eq!(status, reqwest::StatusCode::OK, "{family}: {committed}");
+            let committed_events = harness.database
+                .list_kernel_events_for_aggregate("atelier_collection", &album_id)
+                .await.expect("read canonical ledger after successful retry");
+            let new_events: Vec<_> = committed_events.iter()
+                .filter(|event| !before_ids.contains(&event.event_id))
+                .filter(|event| event.payload["event_family"] == family)
+                .collect();
+            assert_eq!(new_events.len(), 1, "one committed canonical event for {family}");
+            let (status, final_page) = json_of(client.get(&items_url)
+                .send().await.expect("read committed membership")).await;
+            assert_eq!(status, reqwest::StatusCode::OK, "{final_page}");
+            assert_ne!(final_page["members"], before["members"], "{family} membership committed");
+        }
+
+        drop(client);
+    }).await.expect("authenticated account-scoped rollback test");
+    }).await;
+    if let Ok(mut family) = recorder.reject_family.lock() {
+        *family = None;
+    }
+    ckc_finish_owned_test(harness, owned_server, Vec::new(), outcome).await;
+}
+
+
+struct AlbumMutationOverlapRecorder {
+    album_id: std::sync::Mutex<Option<String>>,
+    entered: std::sync::atomic::AtomicUsize,
+    entry: tokio::sync::Notify,
+    release: tokio::sync::Semaphore,
+}
+
+#[async_trait]
+impl FlightRecorder for AlbumMutationOverlapRecorder {
+    async fn record_event(&self, event: FlightRecorderEvent) -> Result<(), RecorderError> {
+        use handshake_core::atelier::collections::collections_event_family;
+        let selected = {
+            let album_id = self.album_id.lock().expect("overlap album lock");
+            event.payload["event_family"] == collections_event_family::MEDIA_ALBUM_ITEMS_REORDERED
+                && album_id.as_ref().is_some_and(|id| event.payload["aggregate_id"] == id.as_str())
+        };
+        if selected {
+            self.entered.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            self.entry.notify_one();
+            self.release.acquire().await
+                .map_err(|_| RecorderError::SinkError("overlap gate closed".to_owned()))?
+                .forget();
+        }
+        Ok(())
+    }
+
+    async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+        Ok(0)
+    }
+
+    async fn list_events(&self, _filter: EventFilter) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        Ok(Vec::new())
+    }
+}
+
+#[tokio::test]
+async fn atelier_ckc_media_reorders_overlap_inside_live_protected_transactions() {
+    use handshake_core::atelier::collections::collections_event_family;
+
+    let harness = AtelierSurrealHarness::create().await;
+    let recorder = Arc::new(AlbumMutationOverlapRecorder {
+        album_id: std::sync::Mutex::new(None),
+        entered: std::sync::atomic::AtomicUsize::new(0),
+        entry: tokio::sync::Notify::new(),
+        release: tokio::sync::Semaphore::new(0),
+    });
+    let mut owned_server = None;
+    let mut request_a = None;
+    let mut request_b = None;
+    let mut response_a = None;
+    let mut response_b = None;
+    let outcome = ckc_capture_test_panic(async {
+    let owner = AccountFixture::install(&harness.storage).await;
+    let mut state = app_state(&harness, false);
+    state.flight_recorder = recorder.clone();
+    atelier_api::with_account_session(&state, &owner.headers(), async {
+        let store = harness.atelier.clone();
+        let character = fresh_character(&store, "mt060-overlap", "Protected transaction overlap").await;
+        let assets = [
+            fresh_api_media_asset(&store, "mt060-overlap-a").await,
+            fresh_api_media_asset(&store, "mt060-overlap-b").await,
+        ];
+        let (base_url, client, server) = serve(state.clone(), &owner).await;
+        owned_server = Some(server);
+        let (status, album) = json_of(client
+            .post(format!("{base_url}/atelier/characters/{character}/media-albums"))
+            .json(&serde_json::json!({"name": format!("overlap-{}", Uuid::now_v7()), "sheet_version_id": null}))
+            .send().await.expect("create overlap album")).await;
+        assert_eq!(status, reqwest::StatusCode::CREATED, "{album}");
+        let album_id = album["collection_id"].as_str().expect("album id").to_owned();
+        let items_url = format!("{base_url}/atelier/media-albums/{album_id}/items");
+        let (status, added) = json_of(client.post(&items_url)
+            .json(&serde_json::json!({"asset_ids": assets}))
+            .send().await.expect("add overlap members")).await;
+        assert_eq!(status, reqwest::StatusCode::OK, "{added}");
+        let before_events = harness.database
+            .list_kernel_events_for_aggregate("atelier_collection", &album_id)
+            .await.expect("read canonical ledger before overlap");
+        let before_ids: Vec<_> = before_events.iter().map(|event| event.event_id.clone()).collect();
+        *recorder.album_id.lock().expect("arm overlap album") = Some(album_id.clone());
+        let headers_a = actor_session(&harness, &owner, "mt060-overlap-writer-a").await.headers();
+        let headers_b = actor_session(&harness, &owner, "mt060-overlap-writer-b").await.headers();
+        let spawn_reorder = |order: [Uuid; 2], headers| {
+            let client = client.clone();
+            let url = format!("{items_url}/reorder");
+            tokio::spawn(async move {
+                client.patch(url).headers(headers)
+                    .json(&serde_json::json!({"items": [
+                        {"asset_id": order[0], "sort_order": 0},
+                        {"asset_id": order[1], "sort_order": 1},
+                    ]}))
+                    .send().await
+            })
+        };
+        request_a = Some(spawn_reorder([assets[1], assets[0]], headers_a));
+        request_b = Some(spawn_reorder([assets[0], assets[1]], headers_b));
+        let overlap = tokio::time::timeout(std::time::Duration::from_secs(15), async {
+            loop {
+                let entered = recorder.entry.notified();
+                if recorder.entered.load(std::sync::atomic::Ordering::SeqCst) >= 2 {
+                    break;
+                }
+                entered.await;
+            }
+        }).await;
+        // Always release parked real callbacks before checking the witness.
+        recorder.release.add_permits(2);
+        *recorder.album_id.lock().expect("disarm overlap album") = None;
+        let responses = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            async {
+                tokio::join!(
+                    async { response_a = Some(request_a.as_mut().expect("writer a handle").await); },
+                    async { response_b = Some(request_b.as_mut().expect("writer b handle").await); },
+                );
+            },
+        ).await;
+        assert!(responses.is_ok(), "overlap requests did not settle; transaction settlement proof is blocked");
+        request_a = None;
+        request_b = None;
+        let acquired = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+            let response_a = response_a.take().ok_or("writer a result missing")?
+                .map_err(|_| "writer a task failed")?
+                .map_err(|_| "writer a HTTP failed")?;
+            let status_a = response_a.status();
+            let body_a = response_a.json::<serde_json::Value>().await
+                .map_err(|_| "writer a body read failed")?;
+            let response_b = response_b.take().ok_or("writer b result missing")?
+                .map_err(|_| "writer b task failed")?
+                .map_err(|_| "writer b HTTP failed")?;
+            let status_b = response_b.status();
+            let body_b = response_b.json::<serde_json::Value>().await
+                .map_err(|_| "writer b body read failed")?;
+            let final_response = client.get(&items_url).send().await
+                .map_err(|_| "membership observation HTTP failed")?;
+            let status = final_response.status();
+            let final_page = final_response.json::<serde_json::Value>().await
+                .map_err(|_| "membership observation body read failed")?;
+            Ok::<_, &str>((status_a, body_a, status_b, body_b, status, final_page))
+        }).await.map_err(|_| "HTTP observation timeout").and_then(|result| result);
+        drop(client);
+        let (status_a, body_a, status_b, body_b, status, final_page) =
+            acquired.expect("overlap HTTP observation failed; worker settlement proof remains required");
+        assert_eq!(status, reqwest::StatusCode::OK, "{final_page}");
+        let final_ids = member_asset_ids(&final_page);
+        assert!(final_ids == vec![assets[0].to_string(), assets[1].to_string()]
+            || final_ids == vec![assets[1].to_string(), assets[0].to_string()]);
+        let members = final_page["members"].as_array().expect("final members");
+        assert_eq!(members.len(), 2);
+        for (index, member) in members.iter().enumerate() {
+            assert_eq!(member["sort_order"], index as i64);
+            assert_eq!(member["member_updated_by"], members[0]["member_updated_by"]);
+        }
+        let committed_events = harness.database
+            .list_kernel_events_for_aggregate("atelier_collection", &album_id)
+            .await.expect("read canonical ledger after overlapping writers");
+        let committed: Vec<_> = committed_events.iter()
+            .filter(|event| !before_ids.contains(&event.event_id))
+            .filter(|event| event.payload["event_family"] == collections_event_family::MEDIA_ALBUM_ITEMS_REORDERED)
+            .collect();
+        let successful = usize::from(status_a == reqwest::StatusCode::OK)
+            + usize::from(status_b == reqwest::StatusCode::OK);
+        let unknown = usize::from(status_a == reqwest::StatusCode::SERVICE_UNAVAILABLE)
+            + usize::from(status_b == reqwest::StatusCode::SERVICE_UNAVAILABLE);
+        assert!(committed.len() >= successful && committed.len() <= successful + unknown,
+            "canonical events must cover successful writers; Unknown is not a rollback");
+        assert!(committed.iter().any(|event| {
+            let payload = &event.payload["atelier_payload"];
+            payload["requested_by"] == members[0]["member_updated_by"]
+                && payload["items"].as_array().is_some_and(|items|
+                    items.iter().all(|item| item["sort_order"].as_u64().is_some_and(|position|
+                        final_ids.get(position as usize).is_some_and(|asset_id|
+                            item["asset_id"] == asset_id.as_str()))))
+        }), "the final order and actor must match one committed canonical reorder event");
+
+        assert!(overlap.is_ok(),
+            "two real post-write precommit callbacks must overlap; spawned requests are insufficient");
+        assert!(recorder.entered.load(std::sync::atomic::Ordering::SeqCst) >= 2);
+        for (status, body) in [(status_a, &body_a), (status_b, &body_b)] {
+            assert!(status == reqwest::StatusCode::OK || status == reqwest::StatusCode::CONFLICT
+                || (status == reqwest::StatusCode::SERVICE_UNAVAILABLE
+                    && body["error"] == "album_mutation_outcome_unknown"),
+                "overlap must return a typed outcome: {status} {body}");
+        }
+        assert_eq!(unknown, 0,
+            "503 Unknown retains unresolved operation custody; independent settlement proof is blocked, no replay");
+        assert!(successful >= 1);
+    }).await.expect("authenticated account-scoped overlap test");
+    }).await;
+    recorder.release.add_permits(2);
+    if let Ok(mut album_id) = recorder.album_id.lock() {
+        *album_id = None;
+    }
+    let mut owned_requests = Vec::new();
+    if response_a.is_none() {
+        owned_requests.extend(request_a);
+    }
+    if response_b.is_none() {
+        owned_requests.extend(request_b);
+    }
+    ckc_finish_owned_test(harness, owned_server, owned_requests, outcome).await;
+}
+
+
+struct AlbumOperationProofCustody {
+    control: Arc<handshake_core::storage::surreal::AlbumMutationProofControl>,
+    operation: Option<handshake_core::storage::surreal::AlbumMutationOperationReference>,
+    started: bool,
+    acknowledged: bool,
+}
+
+async fn settle_album_operation_proofs(
+    harness: &AtelierSurrealHarness,
+    state: &AppState,
+    owner: Option<&OwnerSession>,
+    custody: &mut [AlbumOperationProofCustody],
+) -> Result<(), String> {
+    use handshake_core::storage::surreal::AlbumMutationSettlement;
+    for proof in custody.iter() {
+        proof.control.release();
+    }
+    if custody.iter().all(|proof| !proof.started || proof.acknowledged) {
+        return Ok(());
+    }
+    let owner = owner.ok_or("actual account fixture unavailable for operation cleanup")?;
+    atelier_api::with_account_session(state, &owner.headers(), async {
+        for proof in custody.iter_mut().filter(|proof| proof.started && !proof.acknowledged) {
+            if proof.operation.is_none() {
+                proof.operation = Some(tokio::time::timeout(
+                    std::time::Duration::from_secs(30), proof.control.wait_for_entry(),
+                ).await.map_err(|_| "worker entry remained unobserved during cleanup")?);
+            }
+            let settlement = tokio::time::timeout(
+                std::time::Duration::from_secs(60), proof.control.wait_for_settlement(),
+            ).await.map_err(|_| "actual worker settlement remained unobserved during cleanup")?;
+            if matches!(settlement, AlbumMutationSettlement::Pending | AlbumMutationSettlement::Unobserved) {
+                return Err(format!("actual worker is not terminal: {settlement:?}"));
+            }
+            let operation = proof.operation.as_ref().ok_or("original operation identity unavailable")?;
+            let observed = harness.storage.observe_album_membership_transaction(operation)
+                .map_err(|error| format!("same-account terminal observation failed: {error}"))?;
+            if observed.operation != *operation || observed.settlement != settlement {
+                return Err("authenticated observation differs from the actual worker settlement".to_owned());
+            }
+            if !harness.storage.acknowledge_album_membership_transaction(operation)
+                .map_err(|error| format!("same-account terminal acknowledgement failed: {error}"))? {
+                return Err("terminal operation acknowledgement was not accepted".to_owned());
+            }
+            proof.acknowledged = true;
+        }
+        Ok(())
+    }).await.map_err(|_| "could not restore the actual account scope for cleanup".to_owned())?
+}
+
+#[tokio::test]
+async fn atelier_ckc_media_original_operations_survive_pending_until_observed_settlement() {
+    use handshake_core::atelier::collections::CollectionItemReorder;
+    use handshake_core::atelier::AtelierError;
+    use handshake_core::storage::surreal::{
+        with_album_mutation_proof_control, AlbumMutationProofControl,
+        AlbumMutationSettlement, SurrealStorageError,
+    };
+
+    let harness = AtelierSurrealHarness::create().await;
+    let state = app_state(&harness, false);
+    let mut owner = None;
+    let mut owned_server = None;
+    let mut custody = Vec::<AlbumOperationProofCustody>::new();
+    let outcome = ckc_capture_test_panic(async {
+        owner = Some(AccountFixture::install(&harness.storage).await);
+        let owner = owner.as_ref().expect("installed account fixture");
+        atelier_api::with_account_session(&state, &owner.headers(), async {
+            let store = harness.atelier.clone();
+            let character = fresh_character(&store, "mt060-operation", "Original operation settlement").await;
+            let assets = [
+                fresh_api_media_asset(&store, "mt060-operation-a").await,
+                fresh_api_media_asset(&store, "mt060-operation-b").await,
+            ];
+            let (base_url, client, server) = serve(state.clone(), owner).await;
+            owned_server = Some(server);
+            let (status, album) = json_of(client
+                .post(format!("{base_url}/atelier/characters/{character}/media-albums"))
+                .json(&serde_json::json!({"name": format!("operation-{}", Uuid::now_v7()), "sheet_version_id": null}))
+                .send().await.expect("create operation proof album")).await;
+            assert_eq!(status, reqwest::StatusCode::CREATED, "{album}");
+            let album_id = album["collection_id"].as_str().expect("album identity").to_owned();
+            let collection_id = Uuid::parse_str(&album_id).expect("canonical collection UUID");
+            let items_url = format!("{base_url}/atelier/media-albums/{album_id}/items");
+            let (status, added) = json_of(client.post(&items_url)
+                .json(&serde_json::json!({"asset_ids": assets}))
+                .send().await.expect("add operation proof members")).await;
+            assert_eq!(status, reqwest::StatusCode::OK, "{added}");
+            for (force_pending, force_collision) in [(true, false), (false, false), (false, true)] {
+                let desired_assets = if force_collision { [assets[0], assets[1]] } else { [assets[1], assets[0]] };
+                let desired = [
+                    CollectionItemReorder { asset_id: desired_assets[0], sort_order: 0 },
+                    CollectionItemReorder { asset_id: desired_assets[1], sort_order: 1 },
+                ];
+                let (status, before) = json_of(client.get(&items_url)
+                    .send().await.expect("read membership before operation")).await;
+                assert_eq!(status, reqwest::StatusCode::OK, "{before}");
+                let before_events = harness.database
+                    .list_kernel_events_for_aggregate("atelier_collection", &album_id)
+                    .await.expect("read original canonical ledger");
+                let control = Arc::new(AlbumMutationProofControl::new());
+                let occupied = if force_collision {
+                    let event = before_events.first().expect("legitimate fixture supplied a canonical event").clone();
+                    control.collide_next_ledger_create_with(event.event_id.clone());
+                    Some(event)
+                } else {
+                    None
+                };
+                let proof_index = custody.len();
+                custody.push(AlbumOperationProofCustody {
+                    control: control.clone(), operation: None, started: true, acknowledged: false,
+                });
+                // This scope drives the real store/worker. HTTP tasks do not inherit this task-local control.
+                let mut mutation = Box::pin(with_album_mutation_proof_control(control.clone(),
+                    store.reorder_media_album_items(collection_id, &desired, &owner.actor_id)));
+                let operation = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+                    tokio::select! {
+                        operation = control.wait_for_entry() => operation,
+                        _ = &mut mutation => panic!("mutation completed before the actual worker pause"),
+                    }
+                }).await.expect("actual worker entered its post-callback pre-settlement pause");
+                custody[proof_index].operation = Some(operation.clone());
+                assert_ne!(operation.operation_id.to_string(), operation.event_id,
+                    "worker and canonical event identities are distinct");
+                assert!(!operation.idempotency_key.is_empty());
+                assert!(before_events.iter().all(|event| event.event_id != operation.event_id
+                    && event.idempotency_key != operation.idempotency_key),
+                    "the original operation has a fresh canonical event and idempotency key");
+                let initial = harness.storage.observe_album_membership_transaction(&operation)
+                    .expect("same-account observation of paused original operation");
+                assert_eq!(initial.operation, operation);
+                assert!(matches!(initial.settlement, AlbumMutationSettlement::Pending | AlbumMutationSettlement::Unobserved));
+                assert!(!harness.storage.acknowledge_album_membership_transaction(&operation)
+                    .expect("nonterminal acknowledgement check"));
+
+                if force_collision {
+                    use surrealdb::types::{AlreadyExistsError, ErrorDetails, RecordId, ToSql};
+                    let occupied = occupied.as_ref().expect("actual occupied canonical row");
+                    let expected_record = RecordId::new("kernel_event_ledger", occupied.event_id.clone()).to_sql();
+                    control.release();
+                    let result = tokio::time::timeout(std::time::Duration::from_secs(60), &mut mutation)
+                        .await.expect("occupied canonical CREATE returns its real database error");
+                    match result {
+                        Err(AtelierError::Database(SurrealStorageError::Database(source))) => {
+                            let mut cause = Some(&source);
+                            let mut rejected_record = None;
+                            while let Some(error) = cause {
+                                if let ErrorDetails::AlreadyExists(Some(AlreadyExistsError::Record { id })) = error.details() {
+                                    rejected_record = Some(id.clone());
+                                    break;
+                                }
+                                cause = error.cause();
+                            }
+                            assert_eq!(rejected_record.as_deref(), Some(expected_record.as_str()),
+                                "only the typed occupied canonical CREATE rejection proves the insertion fault: {source:?}");
+                        }
+                        other => panic!("expected the occupied canonical CREATE database error, got {other:?}"),
+                    }
+                } else if force_pending {
+                    let result = tokio::time::timeout(std::time::Duration::from_secs(90), &mut mutation)
+                        .await.expect("real caller deadline returns Pending without a synthetic result");
+                    match result {
+                        Err(AtelierError::Database(SurrealStorageError::AlbumMutationUnknown {
+                            operation: returned, source,
+                        })) => {
+                            assert_eq!(returned, operation, "Unknown keeps the original worker/event/key association");
+                            assert!(matches!(*source, SurrealStorageError::TransactionSettlementPending { operation_id }
+                                if operation_id == operation.operation_id));
+                        }
+                        other => panic!("expected the actual Pending worker outcome, got {other:?}"),
+                    }
+                    let pending = harness.storage.observe_album_membership_transaction(&operation)
+                        .expect("observe retained original operation after Pending response");
+                    assert!(matches!(pending.settlement, AlbumMutationSettlement::Pending | AlbumMutationSettlement::Unobserved));
+                    assert!(!harness.storage.acknowledge_album_membership_transaction(&operation)
+                        .expect("Pending must retain observation custody"));
+                    control.release();
+                } else {
+                    control.release();
+                    assert_eq!(tokio::time::timeout(std::time::Duration::from_secs(60), &mut mutation)
+                        .await.expect("released worker completes its actual commit").expect("commit reorder"), 2);
+                }
+                let settlement = tokio::time::timeout(
+                    std::time::Duration::from_secs(60), control.wait_for_settlement(),
+                ).await.expect("actual worker settlement was reported");
+                let expected = if force_pending || force_collision {
+                    AlbumMutationSettlement::CancelNoEffectObserved
+                } else {
+                    AlbumMutationSettlement::CommitObserved
+                };
+                assert_eq!(settlement, expected, "no terminal outcome is inferred from a pending-map disappearance");
+                let terminal = harness.storage.observe_album_membership_transaction(&operation)
+                    .expect("same-account terminal observation");
+                assert_eq!(terminal.operation, operation);
+                assert_eq!(terminal.settlement, settlement);
+                let after_events = harness.database
+                    .list_kernel_events_for_aggregate("atelier_collection", &album_id)
+                    .await.expect("read canonical ledger after actual terminal observation");
+                let matching: Vec<_> = after_events.iter()
+                    .filter(|event| event.event_id == operation.event_id).collect();
+                let (status, after) = json_of(client.get(&items_url)
+                    .send().await.expect("read membership after actual terminal observation")).await;
+                assert_eq!(status, reqwest::StatusCode::OK, "{after}");
+                if force_pending || force_collision {
+                    assert!(matching.is_empty(), "observed cancellation leaves no associated canonical event");
+                    assert!(after_events.iter().all(|event| event.idempotency_key != operation.idempotency_key),
+                        "observed cancellation leaves no associated canonical idempotency key");
+                    assert_eq!(after_events, before_events, "all returned canonical event fields remain unchanged");
+                    assert_eq!(after["members"], before["members"]);
+                } else {
+                    assert_eq!(matching.len(), 1, "observed commit retains its exact canonical event");
+                    assert_eq!(matching[0].idempotency_key, operation.idempotency_key,
+                        "the committed canonical event retains its original operation association");
+                    assert_eq!(member_asset_ids(&after), [assets[1].to_string(), assets[0].to_string()]);
+                    assert_eq!(matching[0].payload["atelier_payload"]["requested_by"], owner.actor_id);
+                }
+                assert!(harness.storage.acknowledge_album_membership_transaction(&operation)
+                    .expect("acknowledge only the observed original terminal operation"));
+                custody[proof_index].acknowledged = true;
+            }
+            drop(client);
+        }).await.expect("actual authenticated operation proof scope");
+    }).await;
+    let cleanup = ckc_capture_test_panic(settle_album_operation_proofs(
+        &harness, &state, owner.as_deref(), &mut custody,
+    )).await;
+    let cleanup_error = match cleanup {
+        Ok(Ok(())) => None,
+        Ok(Err(error)) => Some(Box::new(error) as CkcTestPanic),
+        Err(error) => Some(error),
+    };
+    if let Some(error) = cleanup_error {
+        if let Some(server) = owned_server {
+            server.abort();
+            let _ = server.await;
+        }
+        eprintln!("Original album operation remains unobserved; retaining fixture without engine shutdown or Drop");
+        std::mem::forget(harness);
+        match outcome {
+            Err(primary) => std::panic::resume_unwind(primary),
+            Ok(()) => std::panic::resume_unwind(error),
+        }
+    }
+    ckc_finish_owned_test(harness, owned_server, Vec::new(), outcome).await;
+}

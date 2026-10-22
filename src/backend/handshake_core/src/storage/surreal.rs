@@ -17,7 +17,7 @@ use sha2::Digest;
 use surrealdb::{
     engine::local::{Db, RocksDb},
     opt::{auth::Record as RecordSignin, Config as EngineConfig},
-    types::SurrealValue,
+    types::{SurrealValue, Value},
     Surreal,
 };
 use thiserror::Error;
@@ -37,6 +37,7 @@ mod user_manual_knowledge;
 pub(crate) mod workspace_activation_outcome;
 mod workspace_settings;
 
+mod first_owner_bootstrap_transaction;
 mod ai_job_store;
 mod ai_ready_store;
 mod block_view_store;
@@ -1293,6 +1294,7 @@ fn original_operation_bindings(mut bindings: surrealdb::types::Value) -> surreal
             object.insert("wp012_fences", proofs.into_iter().map(model_lane::ContextFenceProof::into_binding).collect::<Vec<_>>());
         }
     }
+    resource_authority::append_protected_role_bindings(&mut bindings);
     bindings
 }
 
@@ -1783,6 +1785,7 @@ impl SurrealDataContext<'_> {
 
 struct SurrealAdminContext<'a> {
     client: &'a SurrealClient,
+    config: SurrealStorageConfig,
 }
 
 impl SurrealAdminContext<'_> {
@@ -1945,6 +1948,14 @@ struct ActivationTransactionRetention {
 }
 
 enum AuthenticatedTransactionRetention {
+    AdministratorPasswordLogin(Arc<resource_authority::AdministratorPasswordLoginOperation>),
+    AdministratorSessionExchange(Arc<resource_authority::AdministratorSessionExchangeOperation>),
+    FirstOwnerSetup(Arc<local_accounts::FirstOwnerSetupOperation>),
+    FirstOwnerConfirmation(Arc<local_accounts::FirstOwnerAdministrationConfirmationOperation>),
+    FirstOwnerWorkspace(Arc<workspaces::FirstOwnerWorkspaceCreationOperation>),
+    FirstOwnerWorkspaceRecovery(Arc<workspaces::FirstOwnerWorkspaceCreationWitness>),
+    MemberPasswordLogin(Arc<resource_authority::MemberPasswordLoginOperation>),
+    MemberSessionExchange(Arc<resource_authority::MemberSessionExchangeOperation>),
     OriginalRunCreate(Arc<StdMutex<OriginalRunCreateRetention>>),
     WorkspaceArtifactPublication {
         original: Arc<WorkspaceArtifactPublicationOperationContext>,
@@ -1968,6 +1979,7 @@ enum AuthenticatedTransactionRetention {
         phase: JobAdmissionTransactionPhase,
         readback: Option<Arc<resource_authority::JobAdmissionReadbackTransaction>>,
     },
+    ValidatorAssociation(resource_authority::ValidatorAssociationTransactionRetention),
     Role {
         retention: resource_authority::RoleAuthorityTransactionRetention,
         phase: RoleTransactionPhase,
@@ -2027,6 +2039,7 @@ struct SurrealStorageInner {
     pending_authority_mutations: StdMutex<BTreeMap<uuid::Uuid, OwnedRwLockWriteGuard<()>>>,
     authority_pending_changed: watch::Sender<Option<uuid::Uuid>>,
     transaction_settlements: StdMutex<BTreeMap<uuid::Uuid, Option<AuthenticatedTransactionRetention>>>,
+    member_login_admission: StdMutex<bool>,
     pending_context_guards: StdMutex<BTreeMap<uuid::Uuid, Vec<model_lane::ContextCoordinationGuard>>>,
     pending_context_acquisitions: StdMutex<BTreeMap<uuid::Uuid, model_lane::PendingContextAcquisition>>,
     /// Leases held right now and the high-water mark since the last reset:
@@ -2503,6 +2516,7 @@ impl SurrealStorage {
                 pending_authority_mutations: StdMutex::new(BTreeMap::new()),
                 authority_pending_changed: watch::channel(None).0,
                 transaction_settlements: StdMutex::new(BTreeMap::new()),
+                member_login_admission: StdMutex::new(true),
                 pending_context_guards: StdMutex::new(BTreeMap::new()),
                 pending_context_acquisitions: StdMutex::new(BTreeMap::new()),
                 leases_in_flight: AtomicUsize::new(0),
@@ -2774,6 +2788,7 @@ impl SurrealStorage {
     pub(crate) async fn with_album_membership_transaction<T, E, F>(
         &self,
         operation: AlbumMutationOperationReference,
+        commit_expectation: AlbumMutationCommitExpectation,
         callback: F,
     ) -> Result<T, E>
     where
@@ -2784,10 +2799,14 @@ impl SurrealStorage {
     {
         let authority = current_record_user_scope()
             .ok_or_else(|| E::from(SurrealStorageError::TransactionAuthorityRequired))?;
+        if !commit_expectation.matches_operation_and_authority(&operation, &authority) {
+            return Err(E::from(SurrealStorageError::TransactionAuthorityRequired));
+        }
         let operation_id = operation.operation_id;
         let retention = AlbumMembershipTransactionRetention {
             operation,
             authority,
+            commit_expectation: Arc::new(commit_expectation),
             settlement: AlbumMutationSettlement::Pending,
             #[cfg(feature = "test-utils")]
             proof: ALBUM_MUTATION_PROOF_CONTROL.try_with(Clone::clone).ok(),
@@ -2819,6 +2838,51 @@ impl SurrealStorage {
             _ => Err(SurrealStorageError::TransactionAuthorityRequired),
         }
     }
+
+
+    /// Reconciles only a positive commit witness for the retained original operation.
+    /// Missing, denied, or mismatched canonical state never establishes rollback.
+    pub async fn reconcile_album_membership_transaction(
+        &self,
+        operation: &AlbumMutationOperationReference,
+    ) -> Result<AlbumMutationObservation, SurrealStorageError> {
+        let authority = current_record_user_scope().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        if PROTECTED_TRANSACTION.try_with(|_| ()).is_ok() {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let expected = {
+            let settlements = self.inner.transaction_settlements.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            let Some(Some(AuthenticatedTransactionRetention::AlbumMembership(retained))) =
+                settlements.get(&operation.operation_id) else { return Err(SurrealStorageError::TransactionAuthorityRequired); };
+            if retained.operation != *operation || !retained.matches_authority(&authority) {
+                return Err(SurrealStorageError::TransactionAuthorityRequired);
+            }
+            if retained.settlement != AlbumMutationSettlement::Unobserved {
+                return Ok(AlbumMutationObservation { operation: retained.operation.clone(), settlement: retained.settlement });
+            }
+            retained.commit_expectation.clone()
+        };
+        let bindings = expected.read_bindings();
+        let rows: Vec<AlbumMutationCommitReadback> = self.with_data_operation(move |context| Box::pin(async move {
+            context.query_values(ALBUM_MUTATION_COMMIT_READBACK, bindings).await
+        })).await?;
+        let matched = matches!(rows.as_slice(), [row] if expected.matches_readback(row));
+        let authority = current_record_user_scope().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let mut settlements = self.inner.transaction_settlements.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let Some(Some(AuthenticatedTransactionRetention::AlbumMembership(retained))) =
+            settlements.get_mut(&operation.operation_id) else { return Err(SurrealStorageError::TransactionAuthorityRequired); };
+        if retained.operation != *operation || !retained.matches_authority(&authority)
+            || !Arc::ptr_eq(&retained.commit_expectation, &expected) {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        if matched && retained.settlement == AlbumMutationSettlement::Unobserved {
+            retained.settlement = AlbumMutationSettlement::CommitObserved;
+            #[cfg(feature = "test-utils")]
+            if let Some(proof) = &retained.proof { proof.observe(retained.settlement); }
+        }
+        Ok(AlbumMutationObservation { operation: retained.operation.clone(), settlement: retained.settlement })
+    }
+
 
     pub fn acknowledge_album_membership_transaction(
         &self,
@@ -3355,6 +3419,48 @@ impl SurrealStorage {
         Ok(())
     }
 
+    pub(crate) async fn with_owned_validator_association_authenticated_transaction<T, E, F>(
+        &self,
+        operation_id: uuid::Uuid,
+        cancellation: Arc<ContextOperationCancellation>,
+        retention: resource_authority::ValidatorAssociationTransactionRetention,
+        operation: F,
+    ) -> Result<T, E>
+    where
+        T: Send + 'static,
+        E: From<SurrealStorageError> + Send + 'static,
+        F: for<'a> FnOnce(SurrealTransactionContext<'a>) -> SurrealTransactionOperation<'a, T, E>
+            + Send + 'static,
+    {
+        if retention.operation_id() != operation_id {
+            return Err(E::from(SurrealStorageError::TransactionRetentionMismatch { operation_id }));
+        }
+        let scope = current_record_user_scope()
+            .ok_or_else(|| E::from(SurrealStorageError::TransactionAuthorityRequired))?;
+        let deadline = retention.original_deadline();
+        if Instant::now() >= deadline {
+            return Err(E::from(SurrealStorageError::StatementBudgetExhausted { budget_ms: 0 }));
+        }
+        {
+            let settlements = self.inner.transaction_settlements.lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            match settlements.get(&operation_id) {
+                Some(Some(AuthenticatedTransactionRetention::ValidatorAssociation(original)))
+                    if original.matches_retention(&retention) => {
+                    original.enter_engine_once().map_err(E::from)?;
+                }
+                _ => return Err(E::from(SurrealStorageError::TransactionRetentionMismatch { operation_id })),
+            }
+        }
+        self.transaction_worker(
+            TransactionInvocation::Authenticated { scope, deadline, operation_id },
+            Some(operation_id),
+            Some(cancellation),
+            TransactionSettlementMode::Mutation,
+            operation,
+        ).await
+    }
+
     pub(crate) async fn with_owned_role_authenticated_transaction<T, E, F>(
         &self,
         operation_id: uuid::Uuid,
@@ -3613,6 +3719,15 @@ impl SurrealStorage {
             }
         }
 
+        let association_retention = if let Some(operation_id) = settlement_id {
+            let settlements = self.inner.transaction_settlements.lock().unwrap_or_else(|p| p.into_inner());
+            match settlements.get(&operation_id) {
+                Some(Some(AuthenticatedTransactionRetention::ValidatorAssociation(retention))) =>
+                    Some((retention.clone(), retention.worker_phase())),
+                _ => None,
+            }
+        } else { None };
+        let association_worker_retention = association_retention.clone();
         let runcreate_retention = if let Some(operation_id) = settlement_id {
             let settlements = self.inner.transaction_settlements.lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -3672,6 +3787,7 @@ impl SurrealStorage {
         let worker_operation = async move {
             let transaction_storage = storage.clone();
             let transaction_runcreate_retention = runcreate_retention.clone();
+            let transaction_association_retention = association_worker_retention.clone();
             let result = storage
                 .with_lease(move |client| {
                     Box::pin(async move {
@@ -3838,6 +3954,9 @@ impl SurrealStorage {
                         match outcome {
                             Some(Ok(Ok(value))) => {
                                 let mut value = Some(value);
+                                if let Some((retention, phase)) = &transaction_association_retention {
+                                    retention.retain_worker_callback_value(*phase, &mut value);
+                                }
                                 if let Some(retention) = &transaction_runcreate_retention {
                                     let mut state = retention.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
                                     if state.value.is_some() {
@@ -3905,6 +4024,9 @@ impl SurrealStorage {
                             }
                             Some(Ok(Err(error))) => {
                                 let mut error = Some(error);
+                                if let Some((retention, phase)) = &transaction_association_retention {
+                                    retention.retain_worker_callback_error(*phase, &mut error);
+                                }
                                 transaction_storage.retain_workspace_artifact_error(settlement_id, &mut error);
                                 retain_original_runcreate_error(transaction_runcreate_retention.as_ref(), &mut error);
                                 authority_mutation_submitted();
@@ -3917,7 +4039,10 @@ impl SurrealStorage {
                                 authority_mutation_settled();
                                 Ok((Err(error.unwrap_or_else(|| E::from(SurrealStorageError::TransactionSettlementPending { operation_id: settlement_id.expect("retained publication operation") }))), ActualSettlement::CancelNoEffectObserved))
                             }
-                            Some(Err(_)) => {
+                            Some(Err(panic_payload)) => {
+                                if let Some((retention, phase)) = &transaction_association_retention {
+                                    retention.retain_worker_callback_panic(*phase, panic_payload);
+                                }
                                 let mut error = Some(E::from(SurrealStorageError::TransactionCallbackPanicked));
                                 transaction_storage.retain_workspace_artifact_error(settlement_id, &mut error);
                                 retain_original_runcreate_error(transaction_runcreate_retention.as_ref(), &mut error);
@@ -4034,8 +4159,35 @@ impl SurrealStorage {
                         | ActualSettlement::JobReadbackRollbackObserved
                         | ActualSettlement::WorkspaceArtifactCanonicalReadRollbackObserved => false,
                     },
+                    Some(Some(AuthenticatedTransactionRetention::ValidatorAssociation(retention))) => {
+                        use resource_authority::ValidatorAssociationEngineObservation as Observation;
+                        let observation = match observed {
+                            ActualSettlement::Unobserved => Observation::Unobserved,
+                            ActualSettlement::CommitObserved => Observation::CommitObserved,
+                            ActualSettlement::CancelNoEffectObserved => Observation::CancelNoEffectObserved,
+                            ActualSettlement::CallbackPanicRollbackObserved => Observation::CallbackPanicRollbackObserved,
+                            ActualSettlement::CaptureReadRollbackObserved
+                            | ActualSettlement::JobReadbackRollbackObserved
+                            | ActualSettlement::WorkspaceArtifactCanonicalReadRollbackObserved =>
+                                return Err(E::from(SurrealStorageError::TransactionRetentionMismatch { operation_id })),
+                        };
+                        let Some((expected, phase)) = &association_worker_retention else {
+                            return Err(E::from(SurrealStorageError::TransactionRetentionMismatch { operation_id }));
+                        };
+                        if !retention.matches_retention(expected) {
+                            return Err(E::from(SurrealStorageError::TransactionRetentionMismatch { operation_id }));
+                        }
+                        retention.observe_worker_phase(*phase, observation).map_err(E::from)?;
+                        false
+                    }
                     Some(Some(AuthenticatedTransactionRetention::OriginalRunCreate(_))) => false,
                     // Preserve the existing Activation and unretained settlement behavior.
+                    Some(Some(AuthenticatedTransactionRetention::FirstOwnerWorkspace(_)))
+                    | Some(Some(AuthenticatedTransactionRetention::FirstOwnerWorkspaceRecovery(_)))
+                    | Some(Some(AuthenticatedTransactionRetention::FirstOwnerSetup(_)))
+                    | Some(Some(AuthenticatedTransactionRetention::FirstOwnerConfirmation(_)))
+                    | Some(Some(AuthenticatedTransactionRetention::AdministratorPasswordLogin(_)))
+                    | Some(Some(AuthenticatedTransactionRetention::AdministratorSessionExchange(_))) => false,
                     Some(_) => result.is_ok(),
                     None => false,
                 };
@@ -4047,6 +4199,12 @@ impl SurrealStorage {
                 }
             }
             let final_result = result.map_err(E::from).and_then(|(value, _)| value);
+            if let Some((retention, phase)) = &association_worker_retention {
+                retention.retain_worker_final(*phase, final_result);
+                return Err(E::from(SurrealStorageError::TransactionSettlementPending {
+                    operation_id: retention.operation_id(),
+                }));
+            }
             if let Some(retention) = &runcreate_retention {
                 let mut state = retention.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
                 state.finished = true;
@@ -4091,6 +4249,28 @@ impl SurrealStorage {
                 execution.await
             }
         });
+        if let Some((retention, phase)) = &association_retention {
+            if *phase != resource_authority::ValidatorAssociationWorkerPhase::Designation {
+                let retained_task = retention.retain_initial_worker_task(*phase, worker).map_err(E::from)?;
+                let mut owned_task = retained_task.lock().await;
+                // SAME task mutex excludes the external original-handle observer.
+                if retention.initial_worker_join_observed(*phase) {
+                    drop(cancel_sender);
+                    return Err(E::from(SurrealStorageError::TransactionSettlementPending { operation_id: retention.operation_id() }));
+                }
+                let observed = (&mut *owned_task).await;
+                retention.mark_initial_worker_join_observed(*phase);
+                let result = match observed {
+                    Ok(result) => result,
+                    Err(error) => {
+                        retention.retain_worker_join(*phase, error);
+                        Err(E::from(SurrealStorageError::TransactionSettlementPending { operation_id: retention.operation_id() }))
+                    }
+                };
+                drop(cancel_sender);
+                return result;
+            }
+        }
         if let Some((deadline, operation_id)) = read_window {
             match tokio::time::timeout_at(deadline.into(), &mut worker).await {
                 Ok(result) => {
@@ -4105,7 +4285,18 @@ impl SurrealStorage {
         } else if owned_settlement {
             // The completion supervisor retains the worker, transaction lease and
             // final guards until the actual engine outcome is observed.
-            let result = worker.await.map_err(|error| E::from(SurrealStorageError::TransactionWorker(error.to_string())))?;
+            let result = match worker.await {
+                Ok(result) => result,
+                Err(error) => {
+                    if let Some((retention, phase)) = &association_retention {
+                        retention.retain_worker_join(*phase, error);
+                        return Err(E::from(SurrealStorageError::TransactionSettlementPending {
+                            operation_id: retention.operation_id(),
+                        }));
+                    }
+                    return Err(E::from(SurrealStorageError::TransactionWorker(error.to_string())));
+                }
+            };
             drop(cancel_sender);
             result
         } else if let TransactionInvocation::Authenticated { deadline, operation_id, .. }
@@ -4180,7 +4371,8 @@ impl SurrealStorage {
         T: Send,
         F: for<'a> FnOnce(SurrealAdminContext<'a>) -> SurrealOperation<'a, T>,
     {
-        self.with_lease(|client| operation(SurrealAdminContext { client }))
+        let config = self.config().clone();
+        self.with_lease(move |client| operation(SurrealAdminContext { client, config }))
             .await
     }
 
@@ -4763,6 +4955,220 @@ mod windows_path_tests {
 }
 
 
+
+#[derive(Clone, PartialEq, SurrealValue)]
+pub(crate) struct AlbumMutationLedgerExpectation {
+    pub(crate) ledger_id: surrealdb::types::RecordId,
+    pub(crate) event_id: String,
+    pub(crate) event_version: String,
+    pub(crate) kernel_task_run_id: String,
+    pub(crate) session_run_id: String,
+    pub(crate) aggregate_type: String,
+    pub(crate) aggregate_id: String,
+    pub(crate) idempotency_key: String,
+    pub(crate) event_type: String,
+    pub(crate) actor_kind: String,
+    pub(crate) actor_id: String,
+    pub(crate) causation_id: Option<String>,
+    pub(crate) correlation_id: Option<String>,
+    pub(crate) payload_hash: String,
+    pub(crate) source_component: String,
+    pub(crate) payload: serde_json::Value,
+    pub(crate) wsids: Vec<String>,
+    pub(crate) authority_resource_id: Option<surrealdb::types::RecordId>,
+    pub(crate) authority_session_id: Option<surrealdb::types::RecordId>,
+    pub(crate) authority_capability_id: Option<String>,
+    pub(crate) authority_action: Option<String>,
+    pub(crate) created_at: surrealdb::types::Datetime,
+}
+
+#[derive(Clone, PartialEq, SurrealValue)]
+pub(crate) struct AlbumMutationAtelierExpectation {
+    pub(crate) id: surrealdb::types::RecordId,
+    pub(crate) event_id: surrealdb::types::Uuid,
+    pub(crate) event_family: String,
+    pub(crate) aggregate_type: String,
+    pub(crate) aggregate_id: String,
+    pub(crate) kernel_event_id: String,
+    pub(crate) payload: serde_json::Value,
+}
+
+#[derive(Clone, PartialEq)]
+pub(crate) struct AlbumMutationReorderItem {
+    pub(crate) member_id: surrealdb::types::RecordId,
+    pub(crate) asset_id: surrealdb::types::RecordId,
+    pub(crate) sort_order: i64,
+}
+
+#[derive(Clone, PartialEq)]
+pub(crate) enum AlbumMembershipCommitIntent {
+    Unlink {
+        collection_id: surrealdb::types::RecordId,
+        member_id: surrealdb::types::RecordId,
+        asset_id: surrealdb::types::RecordId,
+        receipt_id: surrealdb::types::RecordId,
+        actor: String,
+    },
+    LinkRefs {
+        collection_id: surrealdb::types::RecordId,
+        member_id: surrealdb::types::RecordId,
+        asset_id: surrealdb::types::RecordId,
+        source_path_ref: Option<Option<String>>,
+        source_url_ref: Option<Option<String>>,
+        actor: String,
+    },
+    Reorder {
+        collection_id: surrealdb::types::RecordId,
+        items: Vec<AlbumMutationReorderItem>,
+        actor: String,
+    },
+}
+
+#[derive(Clone, PartialEq)]
+pub(crate) struct AlbumMutationCommitExpectation {
+    pub(crate) ledger: AlbumMutationLedgerExpectation,
+    pub(crate) atelier: AlbumMutationAtelierExpectation,
+    pub(crate) membership: AlbumMembershipCommitIntent,
+}
+
+#[derive(SurrealValue)]
+struct AlbumMutationCommitReadBindings {
+    ledger_id: surrealdb::types::RecordId,
+    atelier_id: surrealdb::types::RecordId,
+    collection_id: surrealdb::types::RecordId,
+    member_ids: Vec<surrealdb::types::RecordId>,
+    full_membership: bool,
+    receipt_id: Option<surrealdb::types::RecordId>,
+    asset_id: Option<surrealdb::types::RecordId>,
+}
+
+#[derive(SurrealValue)]
+struct AlbumMutationLedgerReadback {
+    #[surreal(flatten)]
+    expected: AlbumMutationLedgerExpectation,
+    event_sequence: i64,
+}
+
+#[derive(SurrealValue)]
+struct AlbumMutationAtelierReadback {
+    #[surreal(flatten)]
+    expected: AlbumMutationAtelierExpectation,
+    kernel_event_sequence: i64,
+}
+
+#[derive(SurrealValue)]
+struct AlbumMutationMemberReadback {
+    id: surrealdb::types::RecordId,
+    collection_id: surrealdb::types::RecordId,
+    asset_id: surrealdb::types::RecordId,
+    sort_order: i64,
+    source_path_ref: Option<String>,
+    source_url_ref: Option<String>,
+    updated_by: String,
+}
+
+#[derive(SurrealValue)]
+struct AlbumMutationUnlinkReadback {
+    id: surrealdb::types::RecordId,
+    collection_id: surrealdb::types::RecordId,
+    asset_id: surrealdb::types::RecordId,
+    unlinked_by: String,
+}
+
+#[derive(SurrealValue)]
+struct AlbumMutationCommitReadback {
+    ledger: Vec<AlbumMutationLedgerReadback>,
+    atelier: Vec<AlbumMutationAtelierReadback>,
+    members: Vec<AlbumMutationMemberReadback>,
+    receipts: Vec<AlbumMutationUnlinkReadback>,
+    assets: Vec<surrealdb::types::RecordId>,
+}
+
+const ALBUM_MUTATION_COMMIT_READBACK: &str = "RETURN {
+    ledger: (SELECT id AS ledger_id, event_id, event_version, kernel_task_run_id, session_run_id,
+        aggregate_type, aggregate_id, idempotency_key, event_type, actor_kind, actor_id,
+        causation_id, correlation_id, payload_hash, source_component, payload, wsids,
+        authority_resource_id, authority_session_id, authority_capability_id, authority_action,
+        created_at, event_sequence FROM $ledger_id),
+    atelier: (SELECT id, event_id, event_family, aggregate_type, aggregate_id, kernel_event_id,
+        payload, kernel_event_sequence FROM $atelier_id),
+    members: (SELECT id, collection_id, asset_id, sort_order, source_path_ref, source_url_ref,
+        updated_by FROM atelier_collection_item
+        WHERE collection_id = $collection_id AND ($full_membership OR id IN $member_ids)),
+    receipts: (SELECT id, collection_id, asset_id, unlinked_by
+        FROM atelier_collection_item_unlink_receipt WHERE id = $receipt_id),
+    assets: (SELECT VALUE id FROM atelier_media_asset WHERE id = $asset_id)
+};";
+
+impl AlbumMutationCommitExpectation {
+    fn matches_operation_and_authority(
+        &self,
+        operation: &AlbumMutationOperationReference,
+        authority: &resource_authority::RecordUserScope,
+    ) -> bool {
+        use surrealdb::types::RecordId;
+        let Ok(collection_id) = uuid::Uuid::parse_str(&self.ledger.aggregate_id) else { return false; };
+        self.ledger.aggregate_type == "atelier_collection"
+            && self.read_bindings().collection_id == RecordId::new("atelier_collection", surrealdb::types::Uuid::from(collection_id))
+            && self.ledger.event_id == operation.event_id
+            && self.ledger.idempotency_key == operation.idempotency_key
+            && self.ledger.ledger_id == RecordId::new("kernel_event_ledger", operation.event_id.clone())
+            && self.atelier.kernel_event_id == operation.event_id
+            && self.atelier.aggregate_type == self.ledger.aggregate_type
+            && self.atelier.aggregate_id == self.ledger.aggregate_id
+            && self.ledger.authority_resource_id == Some(RecordId::new("protected_resources", authority.resource_id.clone()))
+            && self.ledger.authority_session_id == Some(RecordId::new("authenticated_sessions", authority.session_id.clone()))
+            && self.ledger.authority_capability_id.as_deref() == Some(authority.capability_id.as_str())
+            && self.ledger.authority_action.as_deref() == Some(authority.action.as_str())
+    }
+
+    fn read_bindings(&self) -> AlbumMutationCommitReadBindings {
+        let (collection_id, member_ids, full_membership, receipt_id, asset_id) = match &self.membership {
+            AlbumMembershipCommitIntent::Unlink { collection_id, member_id, receipt_id, asset_id, .. } =>
+                (collection_id.clone(), vec![member_id.clone()], false, Some(receipt_id.clone()), Some(asset_id.clone())),
+            AlbumMembershipCommitIntent::LinkRefs { collection_id, member_id, .. } =>
+                (collection_id.clone(), vec![member_id.clone()], false, None, None),
+            AlbumMembershipCommitIntent::Reorder { collection_id, items, .. } =>
+                (collection_id.clone(), items.iter().map(|item| item.member_id.clone()).collect(), true, None, None),
+        };
+        AlbumMutationCommitReadBindings {
+            ledger_id: self.ledger.ledger_id.clone(), atelier_id: self.atelier.id.clone(),
+            collection_id, member_ids, full_membership, receipt_id, asset_id,
+        }
+    }
+
+    fn matches_readback(&self, read: &AlbumMutationCommitReadback) -> bool {
+        let ([ledger], [atelier]) = (read.ledger.as_slice(), read.atelier.as_slice()) else { return false; };
+        if ledger.expected != self.ledger || atelier.expected != self.atelier
+            || ledger.event_sequence != atelier.kernel_event_sequence {
+            return false;
+        }
+        match &self.membership {
+            AlbumMembershipCommitIntent::Unlink { collection_id, asset_id, receipt_id, actor, .. } => {
+                let [receipt] = read.receipts.as_slice() else { return false; };
+                read.members.is_empty() && matches!(read.assets.as_slice(), [asset] if asset == asset_id)
+                    && &receipt.id == receipt_id && &receipt.collection_id == collection_id
+                    && &receipt.asset_id == asset_id && &receipt.unlinked_by == actor
+            }
+            AlbumMembershipCommitIntent::LinkRefs { collection_id, member_id, asset_id, source_path_ref, source_url_ref, actor } => {
+                let [member] = read.members.as_slice() else { return false; };
+                &member.id == member_id && &member.collection_id == collection_id && &member.asset_id == asset_id
+                    && &member.updated_by == actor
+                    && source_path_ref.as_ref().is_none_or(|expected| expected == &member.source_path_ref)
+                    && source_url_ref.as_ref().is_none_or(|expected| expected == &member.source_url_ref)
+            }
+            AlbumMembershipCommitIntent::Reorder { collection_id, items, actor } =>
+                read.members.len() == items.len()
+                    && items.iter().enumerate().all(|(index, item)| {
+                        !items[..index].iter().any(|prior| prior.member_id == item.member_id)
+                            && read.members.iter().any(|member| member.id == item.member_id
+                                && &member.collection_id == collection_id && member.asset_id == item.asset_id
+                                && member.sort_order == item.sort_order && &member.updated_by == actor)
+                    }),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct AlbumMutationOperationReference {
     pub operation_id: uuid::Uuid,
@@ -4805,6 +5211,7 @@ pub struct AlbumMutationObservation {
 struct AlbumMembershipTransactionRetention {
     operation: AlbumMutationOperationReference,
     authority: resource_authority::RecordUserScope,
+    commit_expectation: Arc<AlbumMutationCommitExpectation>,
     settlement: AlbumMutationSettlement,
     #[cfg(feature = "test-utils")]
     proof: Option<Arc<AlbumMutationProofControl>>,
@@ -4914,3 +5321,281 @@ impl AlbumMutationProofControl {
         }
     }
 }
+
+impl SurrealStorage {
+    pub(crate) async fn with_owned_validator_designation_authenticated_transaction<T, E, F>(
+        &self,
+        operation_id: uuid::Uuid,
+        cancellation: Arc<ContextOperationCancellation>,
+        association: resource_authority::ValidatorAssociationTransactionRetention,
+        role: resource_authority::RoleAuthorityTransactionRetention,
+        operation: F,
+    ) -> Result<T, E>
+    where
+        T: Send + 'static, E: From<SurrealStorageError> + Send + 'static,
+        F: for<'a> FnOnce(SurrealTransactionContext<'a>) -> SurrealTransactionOperation<'a, T, E> + Send + 'static,
+    {
+        if association.operation_id() != operation_id || role.operation_id() != operation_id {
+            return Err(E::from(SurrealStorageError::TransactionRetentionMismatch { operation_id }));
+        }
+        let scope = current_record_user_scope()
+            .ok_or_else(|| E::from(SurrealStorageError::TransactionAuthorityRequired))?;
+        let deadline = association.original_deadline();
+        if Instant::now() >= deadline {
+            return Err(E::from(SurrealStorageError::StatementBudgetExhausted { budget_ms: 0 }));
+        }
+        {
+            let settlements = self.inner.transaction_settlements.lock().unwrap_or_else(|p| p.into_inner());
+            match settlements.get(&operation_id) {
+                Some(Some(AuthenticatedTransactionRetention::ValidatorAssociation(original)))
+                    if original.matches_retention(&association) => original.enter_designation_engine_once(&role).map_err(E::from)?,
+                _ => return Err(E::from(SurrealStorageError::TransactionRetentionMismatch { operation_id })),
+            }
+        }
+        self.transaction_worker(
+            TransactionInvocation::Authenticated { scope, deadline, operation_id },
+            Some(operation_id), Some(cancellation), TransactionSettlementMode::Mutation, operation,
+        ).await
+    }
+    pub(crate) fn confirm_original_validator_designation(
+        &self,
+        association: &resource_authority::ValidatorAssociationTransactionRetention,
+        role: &resource_authority::RoleAuthorityTransactionRetention,
+    ) -> Result<(), SurrealStorageError> {
+        let operation_id = association.operation_id();
+        let settlements = self.inner.transaction_settlements.lock().unwrap_or_else(|p| p.into_inner());
+        match settlements.get(&operation_id) {
+            Some(Some(AuthenticatedTransactionRetention::ValidatorAssociation(original)))
+                if original.matches_retention(association) => original.confirm_designation_publication(role),
+            _ => Err(SurrealStorageError::TransactionRetentionMismatch { operation_id }),
+        }
+        // No removal/replacement. Association queries/results/role remain owned.
+    }
+}
+
+impl SurrealStorage {
+    pub(crate) async fn with_owned_validator_association_readback_transaction<T, E, F>(
+        &self, operation_id: uuid::Uuid, cancellation: Arc<ContextOperationCancellation>,
+        retention: resource_authority::ValidatorAssociationTransactionRetention, operation: F,
+    ) -> Result<T, E>
+    where T: Send + 'static, E: From<SurrealStorageError> + Send + 'static,
+        F: for<'a> FnOnce(SurrealTransactionContext<'a>) -> SurrealTransactionOperation<'a, T, E> + Send + 'static,
+    {
+        if retention.operation_id() != operation_id { return Err(E::from(SurrealStorageError::TransactionRetentionMismatch { operation_id })); }
+        let scope = current_record_user_scope().ok_or_else(|| E::from(SurrealStorageError::TransactionAuthorityRequired))?;
+        let deadline = retention.original_deadline();
+        if Instant::now() >= deadline { return Err(E::from(SurrealStorageError::StatementBudgetExhausted { budget_ms: 0 })); }
+        {
+            let settlements = self.inner.transaction_settlements.lock().unwrap_or_else(|p| p.into_inner());
+            match settlements.get(&operation_id) {
+                Some(Some(AuthenticatedTransactionRetention::ValidatorAssociation(original))) if original.matches_retention(&retention) => original.enter_initial_read_once().map_err(E::from)?,
+                _ => return Err(E::from(SurrealStorageError::TransactionRetentionMismatch { operation_id })),
+            }
+        }
+        // This read-only callback uses ONLY the actual child Read guard/static
+        // Core SELECT. Its empty transaction's real commit closes readback;
+        // it never overwrites the earlier association-write CommitObserved.
+        self.transaction_worker(TransactionInvocation::Authenticated { scope, deadline, operation_id },
+            Some(operation_id), Some(cancellation), TransactionSettlementMode::Mutation, operation).await
+    }
+}
+
+impl SurrealTransactionContext<'_> {
+pub(crate) fn require_authenticated_scope(
+    &self,
+    storage: &SurrealStorage,
+    expected: &resource_authority::RecordUserScope,
+) -> Result<(), SurrealStorageError> {
+    let same_scope = |left: &resource_authority::RecordUserScope,
+                      right: &resource_authority::RecordUserScope| {
+        left.grant_id == right.grant_id && left.workspace_id == right.workspace_id
+            && left.session_token == right.session_token
+            && left.channel_binding_hash == right.channel_binding_hash
+            && left.resource_id == right.resource_id && left.session_id == right.session_id
+            && left.capability_id == right.capability_id && left.action == right.action
+    };
+    let current = current_record_user_scope()
+        .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+    PROTECTED_TRANSACTION.try_with(|protected| {
+        if !std::ptr::eq(self.transaction, protected.transaction.as_ref())
+            || !Arc::ptr_eq(&storage.inner, &protected.storage.inner)
+            || !same_scope(&protected.authority, expected)
+            || !same_scope(&current, expected)
+        {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        Ok(())
+    }).unwrap_or_else(|_| Err(SurrealStorageError::TransactionAuthorityRequired))
+}
+}
+
+impl SurrealStorage {
+    // Both private login issuers hold this SAME gate through actual strong-owner
+    // insertion and worker-handle publication. Closing therefore precedes a
+    // stable snapshot of BOTH operation kinds. Closing never reopens admission.
+    fn close_member_login_admission(&self) -> Result<(), SurrealStorageError> {
+        let mut admission = self.inner.member_login_admission.lock()
+            .map_err(|_| SurrealStorageError::Closed)?;
+        *admission = false;
+        Ok(())
+    }
+}
+
+// New bounded startup-only provisioning methods in storage/surreal.rs.
+// Runtime redemption never calls these methods or uses an administrator client.
+pub(crate) const MEMBER_RECIPIENT_KEY_ID: &str = "member-enrollment-recipient-v1";
+const MEMBER_RECIPIENT_CONFIG_ID: &str = "primary";
+pub(crate) enum MemberRecipientCredentialProvisionState {
+    Absent,
+    Reserved,
+    WriteStarted { verifier_hex: String },
+    Ready { verifier_hex: String },
+}
+#[derive(surrealdb::types::SurrealValue)]
+struct MemberRecipientProvisionRow {
+    id: surrealdb::types::RecordId,
+    key_id: String,
+    state: String,
+    verifier_hex: Option<String>,
+}
+fn member_recipient_provision_error() -> SurrealStorageError {
+    SurrealStorageError::InvalidModelLaneRecord { reason: "recipient credential provisioning unavailable" }
+}
+fn member_recipient_verifier_shape(value: &str) -> bool {
+    value.len() == 64 && value.bytes().all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+}
+fn member_recipient_provision_decode(
+    rows: Vec<MemberRecipientProvisionRow>,
+) -> Result<MemberRecipientCredentialProvisionState, SurrealStorageError> {
+    if rows.is_empty() { return Ok(MemberRecipientCredentialProvisionState::Absent); }
+    let [row] = rows.as_slice() else { return Err(member_recipient_provision_error()); };
+    if row.id != surrealdb::types::RecordId::new("member_enrollment_recipient_auth_config", MEMBER_RECIPIENT_CONFIG_ID)
+        || row.key_id != MEMBER_RECIPIENT_KEY_ID { return Err(member_recipient_provision_error()); }
+    match (row.state.as_str(), row.verifier_hex.as_deref()) {
+        ("reserved", None) => Ok(MemberRecipientCredentialProvisionState::Reserved),
+        ("write_started", Some(value)) if member_recipient_verifier_shape(value) =>
+            Ok(MemberRecipientCredentialProvisionState::WriteStarted { verifier_hex: value.to_owned() }),
+        ("ready", Some(value)) if member_recipient_verifier_shape(value) =>
+            Ok(MemberRecipientCredentialProvisionState::Ready { verifier_hex: value.to_owned() }),
+        _ => Err(member_recipient_provision_error()),
+    }
+}
+impl SurrealStorage {
+    pub(crate) async fn member_recipient_provision_observe(
+        &self,
+    ) -> Result<MemberRecipientCredentialProvisionState, SurrealStorageError> {
+        self.with_admin_operation(|admin| Box::pin(async move {
+            let response = admin.client.query(
+                "SELECT * FROM member_enrollment_recipient_auth_config:primary;"
+            ).await?;
+            member_recipient_provision_decode(decode_query_values(response, 0)?)
+        })).await
+    }
+    pub(crate) async fn member_recipient_provision_reserve(
+        &self,
+    ) -> Result<MemberRecipientCredentialProvisionState, SurrealStorageError> {
+        // External lifecycle owner holds its real cross-process purpose lock.
+        // A conflicting CREATE fails; its caller may reobserve, never overwrite.
+        self.with_admin_operation(|admin| Box::pin(async move {
+            let response = admin.client.query(
+                "IF record::exists(member_enrollment_recipient_auth_config:primary) {
+                    SELECT * FROM member_enrollment_recipient_auth_config:primary;
+                 } ELSE {
+                    CREATE member_enrollment_recipient_auth_config:primary
+                    SET key_id = 'member-enrollment-recipient-v1', state = 'reserved', verifier_hex = NONE
+                    RETURN AFTER;
+                 };"
+            ).await?;
+            member_recipient_provision_decode(decode_query_values(response, 0)?)
+        })).await
+    }
+    pub(crate) async fn member_recipient_provision_mark_write_started(
+        &self, expected_reserved: &MemberRecipientCredentialProvisionState, verifier_hex: &str,
+    ) -> Result<MemberRecipientCredentialProvisionState, SurrealStorageError> {
+        if !matches!(expected_reserved, MemberRecipientCredentialProvisionState::Reserved)
+            || !member_recipient_verifier_shape(verifier_hex) { return Err(member_recipient_provision_error()); }
+        let verifier_hex = verifier_hex.to_owned();
+        self.with_admin_operation(move |admin| Box::pin(async move {
+            let response = admin.client.query(
+                "UPDATE member_enrollment_recipient_auth_config:primary
+                 SET state = 'write_started', verifier_hex = $verifier
+                 WHERE key_id = 'member-enrollment-recipient-v1' AND state = 'reserved' AND verifier_hex = NONE
+                 RETURN AFTER;"
+            ).bind(("verifier", verifier_hex.clone())).await?;
+            let state = member_recipient_provision_decode(decode_query_values(response, 0)?)?;
+            match &state {
+                MemberRecipientCredentialProvisionState::WriteStarted { verifier_hex: observed }
+                    if observed == &verifier_hex => Ok(state),
+                _ => Err(member_recipient_provision_error()),
+            }
+        })).await
+    }
+    pub(crate) async fn member_recipient_provision_bind_verified(
+        &self, verifier_hex: &str,
+    ) -> Result<MemberRecipientCredentialProvisionState, SurrealStorageError> {
+        if !member_recipient_verifier_shape(verifier_hex) { return Err(member_recipient_provision_error()); }
+        let verifier_hex = verifier_hex.to_owned();
+        self.with_admin_operation(move |admin| Box::pin(async move {
+            let response = admin.client.query(
+                "UPDATE member_enrollment_recipient_auth_config:primary
+                 SET state = 'ready'
+                 WHERE key_id = 'member-enrollment-recipient-v1'
+                 AND state IN ['write_started', 'ready'] AND verifier_hex = $verifier
+                 RETURN AFTER;"
+            ).bind(("verifier", verifier_hex.clone())).await?;
+            let state = member_recipient_provision_decode(decode_query_values(response, 0)?)?;
+            match &state {
+                MemberRecipientCredentialProvisionState::Ready { verifier_hex: observed }
+                    if observed == &verifier_hex => Ok(state),
+                _ => Err(member_recipient_provision_error()),
+            }
+        })).await
+    }
+}
+// Exact companion schema. Only configured storage bootstrap uses admin access.
+const MEMBER_RECIPIENT_PROVISION_SCHEMA: &str = r#"
+DEFINE TABLE OVERWRITE member_enrollment_recipient_auth_config TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE key_id ON TABLE member_enrollment_recipient_auth_config TYPE string
+    ASSERT $value = 'member-enrollment-recipient-v1';
+DEFINE FIELD OVERWRITE state ON TABLE member_enrollment_recipient_auth_config TYPE string
+    ASSERT $value IN ['reserved', 'write_started', 'ready'];
+DEFINE FIELD OVERWRITE verifier_hex ON TABLE member_enrollment_recipient_auth_config TYPE option<string>
+    ASSERT ($value = NONE AND $this.state = 'reserved')
+        OR ($this.state IN ['write_started', 'ready'] AND string::matches($value, /^[0-9a-f]{64}$/));
+DEFINE EVENT OVERWRITE member_recipient_provision_guard ON TABLE member_enrollment_recipient_auth_config
+WHEN $event IN ['CREATE', 'UPDATE', 'DELETE']
+THEN {
+    IF $auth != NONE OR $event = 'DELETE' { THROW 'HSK-RECIPIENT-PROVISION-DENIED'; };
+    IF $event = 'CREATE' {
+        IF $after.id != member_enrollment_recipient_auth_config:primary
+            OR $after.key_id != 'member-enrollment-recipient-v1'
+            OR $after.state != 'reserved' OR $after.verifier_hex != NONE {
+            THROW 'HSK-RECIPIENT-PROVISION-DENIED';
+        };
+    } ELSE {
+        IF $before.id != $after.id OR $before.key_id != $after.key_id
+            OR !(($before.state = 'reserved' AND $before.verifier_hex = NONE
+                    AND $after.state = 'write_started' AND $after.verifier_hex != NONE)
+                OR ($before.state IN ['write_started', 'ready'] AND $after.state = 'ready'
+                    AND $before.verifier_hex = $after.verifier_hex)) {
+            THROW 'HSK-RECIPIENT-PROVISION-DENIED';
+        };
+    };
+};
+"#;
+
+// New bounded startup schema installer in storage/surreal.rs.
+// Exact companion constant is in the reviewed 7957/b5ac provision code.
+impl SurrealStorage {
+    pub(crate) async fn install_member_recipient_provisioning_schema(
+        &self,
+    ) -> Result<(), SurrealStorageError> {
+        self.with_admin_operation(|admin| Box::pin(async move {
+            admin.client.query(MEMBER_RECIPIENT_PROVISION_SCHEMA).await?.check()?;
+            Ok(())
+        })).await
+    }
+}
+// This method installs only the fixed credential-provisioning declarations.
+// Full recipient/table/nonce schema remains the schema owner's pinned migration,
+// never an opportunistic per-command admin schema change.

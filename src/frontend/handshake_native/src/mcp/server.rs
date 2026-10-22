@@ -927,7 +927,7 @@ mod tests {
             attribute_each_connection: true,
             durability: Arc::new(Mutex::new(None)),
             pending_receipts: Arc::new(Mutex::new(std::collections::HashMap::new())),
-            receipt_slots: Arc::new(tokio::sync::Semaphore::new(super::action::DEFAULT_ACTION_CAPACITY)),
+            receipt_slots: Arc::new(tokio::sync::Semaphore::new(crate::mcp::action::DEFAULT_ACTION_CAPACITY)),
         }
     }
 

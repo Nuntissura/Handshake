@@ -914,8 +914,14 @@ DEFINE SEQUENCE IF NOT EXISTS kernel_event_sequence BATCH 1 START 1;
 
 -- MT109_AUTHORITY_BEGIN
 DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
-    PERMISSIONS FOR select WHERE (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids) AND (aggregate_type != 'argus_action' OR (aggregate_id = payload.action_id AND correlation_id = payload.action_id AND kernel_task_run_id = 'argus:' + payload.connection_id AND session_run_id = 'argus:' + payload.connection_id AND idempotency_key = 'argus-action-receipt:' + payload.diagnostics_session_id + ':' + payload.action_id AND authority_action = 'create' AND authority_resource_id.resource_kind = 'flight_recorder' AND owner_account_id = payload.owner_account_id AND actor_principal_id = payload.actor_principal_id AND authenticated_session_id = payload.authenticated_session_id AND access_space_id = payload.access_space_id AND workspace_id = payload.workspace_id AND authenticated_session_id = record::id(authority_session_id) AND owner_account_id = record::id(authority_session_id.account_id) AND actor_principal_id = record::id(authority_session_id.principal_id) AND access_space_id = record::id(authority_session_id.access_space_id) AND actor_kind IN ['operator', 'toolgate'] AND actor_kind = authority_session_id.principal_id.actor_kind AND actor_id = authority_session_id.principal_id.actor_id))) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_model_lane_receipt($this, false) OR fn::wp012_palmistry_watcher_receipt($this, false) OR fn::wp012_palmistry_watcher_read_receipt($this)
-                FOR create WHERE ((fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids) AND (aggregate_type != 'argus_action' OR (aggregate_id = payload.action_id AND correlation_id = payload.action_id AND kernel_task_run_id = 'argus:' + payload.connection_id AND session_run_id = 'argus:' + payload.connection_id AND idempotency_key = 'argus-action-receipt:' + payload.diagnostics_session_id + ':' + payload.action_id AND authority_action = 'create' AND authority_resource_id.resource_kind = 'flight_recorder' AND owner_account_id = payload.owner_account_id AND actor_principal_id = payload.actor_principal_id AND authenticated_session_id = payload.authenticated_session_id AND access_space_id = payload.access_space_id AND workspace_id = payload.workspace_id AND authenticated_session_id = record::id(authority_session_id) AND owner_account_id = record::id(authority_session_id.account_id) AND actor_principal_id = record::id(authority_session_id.principal_id) AND access_space_id = record::id(authority_session_id.access_space_id) AND authority_session_id = $auth.id AND owner_account_id = record::id($auth.account_id) AND actor_principal_id = record::id($auth.principal_id) AND authenticated_session_id = record::id($auth.id) AND access_space_id = record::id($auth.access_space_id) AND actor_kind IN ['operator', 'toolgate'] AND actor_kind = authority_session_id.principal_id.actor_kind AND actor_id = authority_session_id.principal_id.actor_id))) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::wp012_model_lane_receipt($this, true) OR fn::wp012_palmistry_watcher_receipt($this, true)) AND ((event_type != 'PALMISTRY_WATCHER_ADOPTED' AND aggregate_type != 'palmistry_watcher_adoption' AND !string::starts_with(event_id, 'evt-palmistry-adopt-')) OR fn::wp012_palmistry_admission_row($this, 'receipt'))
+    PERMISSIONS FOR select WHERE IF aggregate_type = 'producer_association' { fn::wp012_validator_association_ledger($this, false) } ELSE { (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids) AND (aggregate_type != 'argus_action' OR (aggregate_id = payload.action_id AND correlation_id = payload.action_id AND kernel_task_run_id = 'argus:' + payload.connection_id AND session_run_id = 'argus:' + payload.connection_id AND idempotency_key = 'argus-action-receipt:' + payload.diagnostics_session_id + ':' + payload.action_id AND authority_action = 'create' AND authority_resource_id.resource_kind = 'flight_recorder' AND owner_account_id = payload.owner_account_id AND actor_principal_id = payload.actor_principal_id AND authenticated_session_id = payload.authenticated_session_id AND access_space_id = payload.access_space_id AND workspace_id = payload.workspace_id AND authenticated_session_id = record::id(authority_session_id) AND owner_account_id = record::id(authority_session_id.account_id) AND actor_principal_id = record::id(authority_session_id.principal_id) AND access_space_id = record::id(authority_session_id.access_space_id) AND actor_kind IN ['operator', 'toolgate'] AND actor_kind = authority_session_id.principal_id.actor_kind AND actor_id = authority_session_id.principal_id.actor_id))) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_model_lane_receipt($this, false) OR fn::wp012_palmistry_watcher_receipt($this, false) OR fn::wp012_palmistry_watcher_read_receipt($this) OR fn::wp012_member_revoke_receipt($this, false) OR fn::wp012_model_lane_role_ledger_read($this) }
+                FOR create WHERE IF aggregate_type = 'producer_association' {
+                    fn::wp012_validator_association_ledger($this, true)
+                } ELSE IF aggregate_type IN ['role_evidence', 'validator_designation', 'role_evidence_consumption'] {
+                    fn::wp012_model_lane_role_ledger_create($this)
+                } ELSE {
+                    ((fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_producer(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids) AND (aggregate_type != 'argus_action' OR (aggregate_id = payload.action_id AND correlation_id = payload.action_id AND kernel_task_run_id = 'argus:' + payload.connection_id AND session_run_id = 'argus:' + payload.connection_id AND idempotency_key = 'argus-action-receipt:' + payload.diagnostics_session_id + ':' + payload.action_id AND authority_action = 'create' AND authority_resource_id.resource_kind = 'flight_recorder' AND owner_account_id = payload.owner_account_id AND actor_principal_id = payload.actor_principal_id AND authenticated_session_id = payload.authenticated_session_id AND access_space_id = payload.access_space_id AND workspace_id = payload.workspace_id AND authenticated_session_id = record::id(authority_session_id) AND owner_account_id = record::id(authority_session_id.account_id) AND actor_principal_id = record::id(authority_session_id.principal_id) AND access_space_id = record::id(authority_session_id.access_space_id) AND authority_session_id = $auth.id AND owner_account_id = record::id($auth.account_id) AND actor_principal_id = record::id($auth.principal_id) AND authenticated_session_id = record::id($auth.id) AND access_space_id = record::id($auth.access_space_id) AND actor_kind IN ['operator', 'toolgate'] AND actor_kind = authority_session_id.principal_id.actor_kind AND actor_id = authority_session_id.principal_id.actor_id))) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, true) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, true) OR fn::wp012_model_lane_receipt($this, true) OR fn::wp012_palmistry_watcher_receipt($this, true) OR fn::wp012_member_revoke_receipt($this, true)) AND ((event_type != 'PALMISTRY_WATCHER_ADOPTED' AND aggregate_type != 'palmistry_watcher_adoption' AND !string::starts_with(event_id, 'evt-palmistry-adopt-')) OR fn::wp012_palmistry_admission_row($this, 'receipt'))
+                }
                 FOR update, delete NONE;
 -- MT109_AUTHORITY_END
 DEFINE FIELD OVERWRITE event_id ON TABLE kernel_event_ledger TYPE string ASSERT $value = record::id($this.id);
@@ -5470,6 +5476,7 @@ DEFINE FIELD OVERWRITE navigation_memory_source_membership ON TABLE fems_memory_
     VALUE fn::wp012_model_lane_navigation_memory_membership($this.pack)
     ASSERT $value = fn::wp012_model_lane_navigation_memory_membership($this.pack)
     PERMISSIONS FOR select WHERE fn::wp012_model_lane_navigation_memory_metadata_access($this);
+DEFINE FIELD OVERWRITE navigation_memory_source_membership.*.* ON TABLE fems_memory_packs TYPE any PERMISSIONS FOR select WHERE fn::wp012_model_lane_navigation_memory_metadata_access($this);
 UPDATE fems_memory_packs SET navigation_memory_pack_id = pack.pack_id,
     navigation_memory_pack_hash = pack.memory_pack_hash,
     navigation_memory_source_membership = fn::wp012_model_lane_navigation_memory_membership(pack);
@@ -5803,9 +5810,11 @@ DEFINE INDEX OVERWRITE ix_kb003_promotion_receipts_decision ON TABLE kb003_promo
 
 -- MT109_AUTHORITY_BEGIN
 DEFINE TABLE OVERWRITE local_accounts TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE id = $auth.account_id FOR create NONE FOR update WHERE fn::mt109_live_session() AND id = $auth.account_id FOR delete NONE;
+  PERMISSIONS FOR select WHERE ((id = $auth.account_id) OR fn::wp012_member_target_metadata('account', $this)) OR (fn::wp012_member_redemption_identity_read('account', $this) OR fn::wp012_member_revoke_metadata('account', id)) FOR create WHERE fn::wp012_member_target_create('account', $this) FOR update WHERE (fn::mt109_live_session() AND id = $auth.account_id) OR fn::wp012_member_redemption_identity_update('account', $before, $after) FOR delete NONE;
 
-DEFINE FIELD OVERWRITE account_key ON TABLE local_accounts TYPE string ASSERT string::len($value) > 0 PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE account_key ON TABLE local_accounts TYPE string ASSERT string::len($value) > 0
+    PERMISSIONS FOR select WHERE fn::wp012_member_target_metadata('account', $this)
+    FOR create WHERE fn::wp012_member_target_create('account', $this) FOR update NONE;
 
 DEFINE FIELD OVERWRITE account_role ON TABLE local_accounts TYPE string ASSERT $value IN ['Owner', 'Admin', 'Member'];
 
@@ -5822,7 +5831,7 @@ DEFINE FIELD OVERWRITE updated_at ON TABLE local_accounts TYPE datetime;
 DEFINE INDEX OVERWRITE local_accounts_account_key_unique ON TABLE local_accounts FIELDS account_key UNIQUE;
 
 -- LOCAL_ACCOUNT_SETUP_BEGIN
-DEFINE FIELD OVERWRITE password_verifier ON TABLE local_accounts TYPE option<string> PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE password_verifier ON TABLE local_accounts TYPE option<string> PERMISSIONS FOR select WHERE fn::wp012_member_redemption_password_read($this) FOR create NONE FOR update WHERE fn::wp012_member_redemption_identity_update('account', $before, $after);
 DEFINE TABLE OVERWRITE local_account_setup TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
 DEFINE FIELD OVERWRITE account_id ON TABLE local_account_setup TYPE record<local_accounts>;
 DEFINE FIELD OVERWRITE principal_id ON TABLE local_account_setup TYPE record<principals>;
@@ -5831,9 +5840,11 @@ DEFINE FIELD OVERWRITE created_at ON TABLE local_account_setup TYPE datetime;
 -- LOCAL_ACCOUNT_SETUP_END
 
 DEFINE TABLE OVERWRITE principals TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE id = $auth.principal_id FOR create NONE FOR update WHERE fn::mt109_live_session() AND id = $auth.principal_id FOR delete NONE;
+  PERMISSIONS FOR select WHERE ((id = $auth.principal_id) OR fn::wp012_member_target_metadata('principal', $this)) OR (fn::wp012_member_redemption_identity_read('principal', $this) OR fn::wp012_member_revoke_metadata('principal', id)) FOR create WHERE fn::wp012_member_target_create('principal', $this) FOR update WHERE (fn::mt109_live_session() AND id = $auth.principal_id) OR fn::wp012_member_redemption_identity_update('principal', $before, $after) FOR delete NONE;
 
-DEFINE FIELD OVERWRITE principal_key ON TABLE principals TYPE string ASSERT string::len($value) > 0 PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE principal_key ON TABLE principals TYPE string ASSERT string::len($value) > 0
+    PERMISSIONS FOR select WHERE fn::wp012_member_target_metadata('principal', $this)
+    FOR create WHERE fn::wp012_member_target_create('principal', $this) FOR update NONE;
 
 DEFINE FIELD OVERWRITE account_id ON TABLE principals TYPE record<local_accounts>;
 
@@ -5862,7 +5873,7 @@ DEFINE INDEX OVERWRITE principals_principal_key_unique ON TABLE principals FIELD
 DEFINE INDEX OVERWRITE principals_account_idx ON TABLE principals FIELDS account_id;
 
 DEFINE TABLE OVERWRITE access_spaces TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE account_id = $auth.account_id AND id = $auth.access_space_id FOR create NONE FOR update WHERE fn::mt109_live_session() AND id = $auth.access_space_id FOR delete NONE;
+  PERMISSIONS FOR select WHERE ((account_id = $auth.account_id AND id = $auth.access_space_id) OR fn::wp012_member_target_metadata('space', $this)) OR (fn::wp012_member_redemption_identity_read('space', $this) OR fn::wp012_member_revoke_metadata('space', id)) FOR create WHERE fn::wp012_member_target_create('space', $this) FOR update WHERE (fn::mt109_live_session() AND id = $auth.access_space_id) OR fn::wp012_member_redemption_identity_update('space', $before, $after) FOR delete NONE;
 
 DEFINE FIELD OVERWRITE space_key ON TABLE access_spaces TYPE string ASSERT string::len($value) > 0 PERMISSIONS NONE;
 
@@ -5885,7 +5896,7 @@ DEFINE INDEX OVERWRITE access_spaces_key_unique ON TABLE access_spaces FIELDS sp
 DEFINE INDEX OVERWRITE access_spaces_account_idx ON TABLE access_spaces FIELDS account_id;
 
 DEFINE TABLE OVERWRITE authenticated_sessions TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE id = $auth.id AND fn::mt109_session_lineage_live(id) FOR create NONE FOR update WHERE fn::mt109_live_session() AND id = $auth.id FOR delete NONE;
+  PERMISSIONS FOR select WHERE ( id = $auth.id AND fn::mt109_session_lineage_live(id)) OR fn::wp012_member_recipient_metadata('session', id) FOR create NONE FOR update WHERE fn::mt109_live_session() AND id = $auth.id FOR delete NONE;
 
 DEFINE FIELD OVERWRITE account_id ON TABLE authenticated_sessions TYPE record<local_accounts>;
 
@@ -5952,19 +5963,19 @@ DEFINE INDEX OVERWRITE session_exchange_credentials_token_unique ON TABLE sessio
 DEFINE INDEX OVERWRITE session_exchange_credentials_principal_idx ON TABLE session_exchange_credentials FIELDS principal_id, access_space_id;
 
 DEFINE TABLE OVERWRITE protected_resources TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE (
+  PERMISSIONS FOR select WHERE ( (
     lifecycle_state = 'active'
     AND owner_account_id = $auth.account_id
     AND access_space_id = $auth.access_space_id
     AND owner_account_id.status = 'enabled'
     AND created_by_principal_id.status = 'enabled'
     AND access_space_id.status = 'active'
-    AND fn::mt166_resource_select_grant(id)) OR fn::wp012_artifact_resource_create($this),
+    AND fn::mt166_resource_select_grant(id)) OR fn::wp012_artifact_resource_create($this) OR fn::wp012_member_admin_metadata($this) OR fn::wp012_member_parent_metadata($this)) OR fn::wp012_member_recipient_metadata('resource', id),
   FOR create WHERE fn::mt120_resource_create($this) OR fn::wp012_artifact_resource_create($this) FOR update WHERE fn::mt109_live_session() AND owner_account_id = $auth.account_id AND access_space_id = $auth.access_space_id AND (fn::mt109_has_grant(resource_kind, external_resource_id, 'create', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'update', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'delete', 'fs.write') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'read', 'fs.read') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'read', 'fr.read') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'create', 'memory.propose') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'update', 'memory.propose') OR fn::mt109_has_grant(resource_kind, external_resource_id, 'delete', 'memory.propose')) FOR delete NONE;
 
 DEFINE FIELD OVERWRITE resource_kind ON TABLE protected_resources TYPE string ASSERT string::len($value) > 0;
 
-DEFINE FIELD OVERWRITE external_resource_id ON TABLE protected_resources TYPE string ASSERT string::len($value) > 0 PERMISSIONS FOR select WHERE fn::wp012_artifact_resource_create($this) OR fn::wp012_artifact_resource_read($this) FOR create WHERE fn::mt120_resource_create($this) OR fn::wp012_artifact_resource_create($this) FOR update NONE;
+DEFINE FIELD OVERWRITE external_resource_id ON TABLE protected_resources TYPE string ASSERT string::len($value) > 0 PERMISSIONS FOR select WHERE fn::wp012_artifact_resource_create($this) OR fn::wp012_artifact_resource_read($this) OR fn::wp012_member_admin_metadata($this) OR fn::wp012_member_parent_metadata($this) FOR create WHERE fn::mt120_resource_create($this) OR fn::wp012_artifact_resource_create($this) FOR update NONE;
 
 DEFINE FIELD OVERWRITE owner_account_id ON TABLE protected_resources TYPE record<local_accounts>;
 
@@ -5996,12 +6007,12 @@ DEFINE INDEX OVERWRITE protected_resources_owner_idx ON TABLE protected_resource
 DEFINE INDEX OVERWRITE protected_resources_parent_idx ON TABLE protected_resources FIELDS parent_resource_id;
 
 DEFINE TABLE OVERWRITE resource_grants TYPE NORMAL SCHEMAFULL
-  PERMISSIONS FOR select WHERE
+  PERMISSIONS FOR select WHERE (
     status = 'active'
     AND fn::mt109_live_session()
     AND account_id = $auth.account_id
     AND principal_id = $auth.principal_id
-    AND access_space_id = $auth.access_space_id,
+    AND access_space_id = $auth.access_space_id) OR fn::wp012_member_recipient_metadata('grant', id),
   FOR create WHERE fn::mt120_creator_grant($this) FOR update WHERE fn::mt109_live_session() AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now()) AND policy_version <= $auth.policy_version  AND delegation_chain = $auth.delegation_chain AND resource_id.lifecycle_state = 'active' AND resource_id.owner_account_id = $auth.account_id AND resource_id.access_space_id = $auth.access_space_id AND resource_id.created_by_principal_id.status = 'enabled' AND resource_id.policy_version <= policy_version AND ((capability_ids CONTAINS 'fs.write' AND (actions CONTAINS 'create' OR actions CONTAINS 'update' OR actions CONTAINS 'delete') AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS 'fs.write') AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS 'fs.write')) OR (capability_ids CONTAINS 'memory.propose' AND (actions CONTAINS 'create' OR actions CONTAINS 'update' OR actions CONTAINS 'delete') AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS 'memory.propose') AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS 'memory.propose')) OR (capability_ids CONTAINS 'fs.read' AND actions CONTAINS 'read' AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS 'fs.read') AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS 'fs.read')) OR (capability_ids CONTAINS 'fr.read' AND actions CONTAINS 'read' AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS 'fr.read') AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS 'fr.read'))) FOR delete NONE;
 
 DEFINE FIELD OVERWRITE account_id ON TABLE resource_grants TYPE record<local_accounts>;
@@ -6038,7 +6049,7 @@ DEFINE INDEX OVERWRITE resource_grants_exact_idx ON TABLE resource_grants FIELDS
 DEFINE EVENT OVERWRITE mt109_local_account_authorization_touch ON TABLE local_accounts
 WHEN $event = 'UPDATE' AND $auth != NONE
 THEN {
-    IF $after.authorization_touch_nonce != ($before.authorization_touch_nonce ?? 0) + 1
+    IF ($after.authorization_touch_nonce != ($before.authorization_touch_nonce ?? 0) + 1
         OR $before.account_key != $after.account_key
         OR $before.account_role != $after.account_role
         OR $before.status != $after.status
@@ -6046,14 +6057,14 @@ THEN {
         OR $before.policy_version != $after.policy_version
         OR $before.created_at != $after.created_at
         OR $before.updated_at != $after.updated_at
-        OR $before.password_verifier != $after.password_verifier {
+        OR $before.password_verifier != $after.password_verifier) AND !fn::wp012_member_redemption_identity_update('account', $before, $after) {
         THROW 'HSK-403-PROTECTED-RESOURCE';
     };
 };
 DEFINE EVENT OVERWRITE mt109_principal_authorization_touch ON TABLE principals
 WHEN $event = 'UPDATE' AND $auth != NONE
 THEN {
-    IF $after.authorization_touch_nonce != ($before.authorization_touch_nonce ?? 0) + 1
+    IF ($after.authorization_touch_nonce != ($before.authorization_touch_nonce ?? 0) + 1
         OR $before.principal_key != $after.principal_key
         OR $before.account_id != $after.account_id
         OR $before.principal_kind != $after.principal_kind
@@ -6065,14 +6076,14 @@ THEN {
         OR $before.revocation_epoch != $after.revocation_epoch
         OR $before.policy_version != $after.policy_version
         OR $before.created_at != $after.created_at
-        OR $before.updated_at != $after.updated_at {
+        OR $before.updated_at != $after.updated_at) AND !fn::wp012_member_redemption_identity_update('principal', $before, $after) {
         THROW 'HSK-403-PROTECTED-RESOURCE';
     };
 };
 DEFINE EVENT OVERWRITE mt109_access_space_authorization_touch ON TABLE access_spaces
 WHEN $event = 'UPDATE' AND $auth != NONE
 THEN {
-    IF $after.authorization_touch_nonce != ($before.authorization_touch_nonce ?? 0) + 1
+    IF ($after.authorization_touch_nonce != ($before.authorization_touch_nonce ?? 0) + 1
         OR $before.space_key != $after.space_key
         OR $before.account_id != $after.account_id
         OR $before.name != $after.name
@@ -6080,7 +6091,7 @@ THEN {
         OR $before.revocation_epoch != $after.revocation_epoch
         OR $before.policy_version != $after.policy_version
         OR $before.created_at != $after.created_at
-        OR $before.updated_at != $after.updated_at {
+        OR $before.updated_at != $after.updated_at) AND !fn::wp012_member_redemption_identity_update('space', $before, $after) {
         THROW 'HSK-403-PROTECTED-RESOURCE';
     };
 };
@@ -6880,7 +6891,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_verifier($row: object) {
 };
 
 DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_optional($actual: any, $expected: any) {
-    RETURN IF $expected = NONE OR $expected = NULL { $actual = NONE } ELSE { <string>$actual = <string>$expected };
+    RETURN IF $expected = NONE OR $expected = NULL { NONE = $actual } ELSE { <string>$actual = <string>$expected };
 };
 
 DEFINE FUNCTION OVERWRITE fn::wp012_palmistry_watcher_start_matches($row: object, $original: object) {
@@ -7271,6 +7282,1151 @@ THEN {
 };
 -- MT120_RECORD_USER_UPDATE_GUARD_EVENT_END
 
+DEFINE TABLE OVERWRITE member_enrollments TYPE NORMAL SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::wp012_member_original_read($this) OR fn::wp012_member_recipient_actor($this) OR fn::wp012_member_revoke_read($this)
+    FOR create WHERE vault_issue_state = 'reserved' AND vault_issue_revision = 1
+        AND status = 'preparing' AND fn::wp012_member_vault_current($this)
+    FOR update WHERE fn::wp012_member_vault_update($before, $after) OR fn::wp012_member_recipient_consume($before, $after) OR fn::wp012_member_revoke_update($before, $after)
+    FOR delete NONE;
+DEFINE FIELD OVERWRITE operation_id ON TABLE member_enrollments TYPE string READONLY ASSERT string::len($value) > 0;
+DEFINE FIELD OVERWRITE descriptor_hex ON TABLE member_enrollments TYPE option<string>
+    ASSERT $value = NONE OR fn::wp012_member_vault_hex($value);
+DEFINE FIELD OVERWRITE descriptor_sha256 ON TABLE member_enrollments TYPE option<string>
+    ASSERT $value = NONE OR fn::wp012_member_vault_digest($value);
+DEFINE FIELD OVERWRITE account_id ON TABLE member_enrollments TYPE record<local_accounts> READONLY;
+DEFINE FIELD OVERWRITE principal_id ON TABLE member_enrollments TYPE record<principals> READONLY;
+DEFINE FIELD OVERWRITE access_space_id ON TABLE member_enrollments TYPE record<access_spaces> READONLY;
+DEFINE FIELD OVERWRITE account_name ON TABLE member_enrollments TYPE string READONLY ASSERT string::len($value) > 0 AND $value = string::trim($value);
+DEFINE FIELD OVERWRITE token_digest ON TABLE member_enrollments TYPE option<string>
+    ASSERT $value = NONE OR fn::wp012_member_vault_digest($value)
+    PERMISSIONS FOR select WHERE fn::wp012_member_original_read($this) OR fn::wp012_member_recipient_actor($this) OR fn::wp012_member_revoke_read($this)
+    FOR create WHERE fn::wp012_member_vault_current($this) FOR update WHERE fn::wp012_member_vault_current($this) OR fn::wp012_member_recipient_consume($before, $after);
+DEFINE FIELD OVERWRITE purpose ON TABLE member_enrollments TYPE string READONLY ASSERT $value = 'identity_enrollment';
+DEFINE FIELD OVERWRITE issued_at ON TABLE member_enrollments TYPE datetime READONLY;
+DEFINE FIELD OVERWRITE expires_at ON TABLE member_enrollments TYPE datetime READONLY;
+DEFINE FIELD OVERWRITE status ON TABLE member_enrollments TYPE string
+    ASSERT $value IN ['preparing','active','consumed','revoked']
+    PERMISSIONS FOR select FULL FOR create WHERE fn::wp012_member_vault_current($this)
+    FOR update WHERE fn::wp012_member_vault_update($before,$after)
+        OR fn::wp012_member_recipient_consume($before,$after) OR fn::wp012_member_revoke_update($before,$after);
+DEFINE FIELD OVERWRITE password_verifier ON TABLE member_enrollments TYPE option<string> PERMISSIONS FOR select WHERE fn::wp012_member_recipient_actor($this) FOR create NONE FOR update WHERE fn::wp012_member_recipient_consume($before, $after);
+DEFINE FIELD OVERWRITE redemption_attempt_id ON TABLE member_enrollments TYPE option<string>;
+DEFINE FIELD OVERWRITE consumed_at ON TABLE member_enrollments TYPE option<datetime>;
+DEFINE INDEX OVERWRITE member_enrollments_operation_unique ON TABLE member_enrollments FIELDS operation_id UNIQUE;
+DEFINE INDEX OVERWRITE member_enrollments_account_unique ON TABLE member_enrollments FIELDS account_id UNIQUE;
+DEFINE INDEX OVERWRITE member_enrollments_principal_unique ON TABLE member_enrollments FIELDS principal_id UNIQUE;
+DEFINE INDEX OVERWRITE member_enrollments_space_unique ON TABLE member_enrollments FIELDS access_space_id UNIQUE;
+DEFINE FUNCTION OVERWRITE fn::wp012_member_admin_metadata($r: object) {
+    IF !fn::mt109_live_session() OR $r.resource_kind != 'account_administration'
+        OR $r.lifecycle_state != 'active' OR $r.owner_account_id != $auth.account_id
+        OR $r.access_space_id != $auth.access_space_id OR $r.created_by_principal_id.status != 'enabled' { RETURN false; };
+    IF !($auth.delegated_capabilities CONTAINS 'account.identity.enroll' OR $auth.delegated_capabilities CONTAINS '*')
+        OR !($auth.delegated_capabilities CONTAINS 'account.identity.member_profile.assign' OR $auth.delegated_capabilities CONTAINS '*')
+        OR !($auth.principal_id.delegated_capabilities CONTAINS 'account.identity.enroll' OR $auth.principal_id.delegated_capabilities CONTAINS '*')
+        OR !($auth.principal_id.delegated_capabilities CONTAINS 'account.identity.member_profile.assign' OR $auth.principal_id.delegated_capabilities CONTAINS '*') { RETURN false; };
+    LET $enroll = SELECT VALUE id FROM resource_grants WHERE resource_id = $r.id
+        AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id
+        AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now())
+        AND resource_id = $r.id AND policy_version >= $r.policy_version AND policy_version <= $auth.policy_version
+        AND delegation_chain = $auth.delegation_chain AND actions CONTAINS 'create' AND capability_ids CONTAINS 'account.identity.enroll' LIMIT 1;
+    LET $assign = SELECT VALUE id FROM resource_grants WHERE resource_id = $r.id
+        AND account_id = $auth.account_id AND principal_id = $auth.principal_id AND access_space_id = $auth.access_space_id
+        AND status = 'active' AND revoked_at = NONE AND (expires_at = NONE OR expires_at > time::now())
+        AND policy_version >= $r.policy_version AND policy_version <= $auth.policy_version
+        AND delegation_chain = $auth.delegation_chain AND actions CONTAINS 'update' AND capability_ids CONTAINS 'account.identity.member_profile.assign' LIMIT 1;
+    RETURN array::len($enroll) = 1 AND array::len($assign) = 1;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_parent_metadata($r: object) {
+    IF !fn::mt109_live_session() OR $r.resource_kind != 'workspace' OR $r.lifecycle_state != 'active'
+        OR $r.owner_account_id != $auth.account_id OR $r.access_space_id != $auth.access_space_id
+        OR $r.created_by_principal_id.status != 'enabled' { RETURN false; };
+    LET $children = SELECT VALUE id FROM protected_resources
+        WHERE resource_kind = 'account_administration' AND parent_resource_id = $r.id
+        AND owner_account_id = $auth.account_id AND access_space_id = $auth.access_space_id
+        AND lifecycle_state = 'active' LIMIT 1;
+    -- Child visibility requires the independent dual-grant metadata predicate.
+    RETURN array::len($children) = 1;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_source_current($row: object, $s: object, $action: string, $cap: string) {
+    LET $g = $s.grant_id;
+    LET $r = $row.issue.administration_resource;
+    IF $g = NONE OR $r = NONE OR record::tb($g) != 'resource_grants' OR record::tb($r) != 'protected_resources'
+        OR !record::exists($g) OR !record::exists($r) { RETURN false; };
+    RETURN $g.account_id = $auth.account_id AND $g.principal_id = $auth.principal_id
+        AND $g.access_space_id = $auth.access_space_id AND $g.resource_id = $r
+        AND $g.status = 'active' AND $g.revoked_at = NONE AND ($g.expires_at = NONE OR $g.expires_at > time::now())
+        AND $g.actions CONTAINS $action AND $g.capability_ids CONTAINS $cap
+        AND ($auth.delegated_capabilities CONTAINS $cap OR $auth.delegated_capabilities CONTAINS '*')
+        AND ($auth.principal_id.delegated_capabilities CONTAINS $cap OR $auth.principal_id.delegated_capabilities CONTAINS '*')
+        AND $g.delegation_chain = $auth.delegation_chain AND $g.policy_version >= $r.policy_version AND $g.policy_version <= $auth.policy_version
+        AND $s.resource_id = $r AND $s.account_id = $auth.account_id AND $s.principal_id = $auth.principal_id
+        AND $s.session_id = $auth.id AND $s.access_space_id = $auth.access_space_id
+        AND $s.grant_version = $g.grant_version AND $s.actions = $g.actions AND $s.capability_ids = $g.capability_ids
+        AND $s.delegation_chain = $g.delegation_chain AND $s.actor_kind = $auth.principal_id.actor_kind AND $s.actor_id = $auth.principal_id.actor_id
+        AND $s.capability_profile_id = $auth.principal_id.capability_profile_id
+        AND $s.session_capabilities = $auth.id.delegated_capabilities AND $s.principal_capabilities = $auth.principal_id.delegated_capabilities
+        AND $s.policy_versions = [$g.policy_version, $r.policy_version, $auth.account_id.policy_version, $auth.principal_id.policy_version, $auth.access_space_id.policy_version, $auth.id.policy_version]
+        AND $s.revocation_epochs = [$auth.account_id.revocation_epoch, $auth.principal_id.revocation_epoch, $auth.access_space_id.revocation_epoch, $auth.id.account_revocation_epoch, $auth.id.principal_revocation_epoch, $auth.id.space_revocation_epoch]
+        AND $s.statuses = ['active', 'active', 'enabled', 'enabled', 'active'] AND $s.resource_kind = 'account_administration'
+        AND $s.grant_expires_at = $g.expires_at AND $s.session_expires_at = $auth.id.expires_at
+        AND $s.administration_lifetime = $r.account_administration_lifetime;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_issue_current($row: object) {
+    IF !fn::mt109_live_session() OR $row.issue.issuer_account != $auth.account_id
+        OR $row.issue.issuer_principal != $auth.principal_id OR $row.issue.issuer_session != $auth.id
+        OR $row.issue.issuer_space != $auth.access_space_id OR record::tb($row.id) != 'member_enrollments'
+        OR record::id($row.id) != $row.operation_id OR record::tb($row.account_id) != 'local_accounts'
+        OR record::tb($row.principal_id) != 'principals' OR record::tb($row.access_space_id) != 'access_spaces'
+        OR $row.purpose != 'identity_enrollment' OR $row.account_id = $auth.account_id
+        OR $row.principal_id = $auth.principal_id OR $row.access_space_id = $auth.access_space_id
+        OR $row.account_name = '' OR $row.account_name != string::trim($row.account_name)
+        OR $row.issued_at > time::now() OR $row.expires_at <= time::now() OR $row.expires_at <= $row.issued_at
+        OR $row.expires_at > $row.issued_at + 60s OR $row.expires_at > $auth.id.expires_at
+        OR $row.password_verifier != NONE OR $row.redemption_attempt_id != NONE OR $row.consumed_at != NONE { RETURN false; };
+    LET $r = $row.issue.administration_resource;
+    LET $parent = $row.issue.workspace_resource;
+    IF $r = NONE OR $parent = NONE OR record::tb($r) != 'protected_resources' OR record::tb($parent) != 'protected_resources'
+        OR !record::exists($r) OR !record::exists($parent)
+        OR $r.resource_kind != 'account_administration' OR $r.lifecycle_state != 'active'
+        OR $r.owner_account_id != $auth.account_id OR $r.access_space_id != $auth.access_space_id
+        OR $r.parent_resource_id != $parent OR $parent.resource_kind != 'workspace' OR $parent.lifecycle_state != 'active'
+        OR $parent.owner_account_id != $auth.account_id OR $parent.access_space_id != $auth.access_space_id
+        OR $parent.external_resource_id != $row.issue.workspace_external
+        OR $parent.policy_version != $row.issue.workspace_policy { RETURN false; };
+    IF !fn::wp012_member_source_current($row, $row.issue.enroll_source, 'create', 'account.identity.enroll')
+        OR !fn::wp012_member_source_current($row, $row.issue.assignment_source, 'update', 'account.identity.member_profile.assign')
+        OR $parent.policy_version > $row.issue.enroll_source.policy_versions[0]
+        OR $parent.policy_version > $row.issue.assignment_source.policy_versions[0] { RETURN false; };
+    IF ($row.issue.enroll_source.grant_expires_at != NONE AND $row.expires_at > $row.issue.enroll_source.grant_expires_at)
+        OR ($row.issue.assignment_source.grant_expires_at != NONE AND $row.expires_at > $row.issue.assignment_source.grant_expires_at) { RETURN false; };
+    LET $lifetime = $r.account_administration_lifetime;
+    IF $lifetime = NONE OR $row.issue.lifetime != $lifetime { RETURN false; };
+    IF $lifetime.mode = 'no_expiry' {
+        RETURN array::sort(object::keys($lifetime)) = ['mode'] AND $row.issue.policy_expires_at = NONE;
+    };
+    RETURN $lifetime.mode = 'expires_at' AND array::sort(object::keys($lifetime)) = ['expires_at', 'mode']
+        AND type::is_datetime($lifetime.expires_at) AND $row.issue.policy_expires_at = $lifetime.expires_at
+        AND $row.expires_at <= $lifetime.expires_at;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_original_read($row: object) {
+    IF !fn::mt109_live_session() OR $row.issue.issuer_account != $auth.account_id
+        OR $row.issue.issuer_principal != $auth.principal_id OR $row.issue.issuer_space != $auth.access_space_id { RETURN false; };
+    LET $visible = SELECT VALUE id FROM protected_resources WHERE id = $row.issue.administration_resource
+        AND resource_kind = 'account_administration' AND lifecycle_state = 'active' LIMIT 1;
+    -- Read requires current real dual-grant metadata visibility; it does not
+    -- rewrite the original issuer session or grant redelivery/write authority.
+    RETURN array::len($visible) = 1;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_target_metadata($kind: string, $target: object) {
+    -- Avoid recursion when live-session/source helpers read the current issuer.
+    IF ($kind = 'account' AND $target.id = $auth.account_id)
+        OR ($kind = 'principal' AND $target.id = $auth.principal_id)
+        OR ($kind = 'space' AND $target.id = $auth.access_space_id) { RETURN false; };
+    LET $rows = SELECT * FROM member_enrollments WHERE id = $target.member_enrollment_origin
+        AND status IN ['preparing', 'active'] LIMIT 2;
+    IF array::len($rows) != 1 { RETURN false; };
+    LET $m = $rows[0];
+    RETURN ($kind = 'account' AND $target.id = $m.account_id)
+        OR ($kind = 'principal' AND $target.id = $m.principal_id AND $target.account_id = $m.account_id)
+        OR ($kind = 'space' AND $target.id = $m.access_space_id AND $target.account_id = $m.account_id);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_account_shape($r: object, $m: object) {
+    RETURN $r.id = $m.account_id AND $r.member_enrollment_origin = $m.id AND $r.account_key = $m.account_name
+        AND $r.account_role = 'Member' AND $r.status = 'disabled' AND $r.password_verifier = NONE
+        AND $r.revocation_epoch = 0 AND $r.policy_version = 1 AND ($r.authorization_touch_nonce ?? 0) = 0;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_principal_shape($r: object, $m: object) {
+    -- Fixed values copied from inspected Source030; no caller-selected profile/caps.
+    RETURN $r.id = $m.principal_id AND $r.member_enrollment_origin = $m.id AND $r.account_id = $m.account_id
+        AND $r.principal_key = record::id($m.principal_id) AND $r.principal_kind = 'human_account'
+        AND $r.actor_kind = 'operator' AND $r.actor_id = record::id($m.principal_id)
+        AND $r.capability_profile_id = 'MemberEnrollment'
+        AND $r.delegated_capabilities = ['model_lane.navigation.read', 'fs.write', 'diagnostics.read']
+        AND $r.status = 'disabled' AND $r.revocation_epoch = 0 AND $r.policy_version = 1
+        AND ($r.authorization_touch_nonce ?? 0) = 0;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_space_shape($r: object, $m: object) {
+    RETURN $r.id = $m.access_space_id AND $r.member_enrollment_origin = $m.id AND $r.account_id = $m.account_id
+        AND $r.space_key = record::id($m.principal_id) AND $r.name = 'Private' AND $r.status = 'disabled'
+        AND $r.revocation_epoch = 0 AND $r.policy_version = 1 AND ($r.authorization_touch_nonce ?? 0) = 0;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_target_create($kind: string, $target: object) {
+    LET $rows = SELECT * FROM member_enrollments WHERE id = $target.member_enrollment_origin
+        AND status = 'preparing' AND vault_issue_state = 'bound' AND vault_issue_revision = 4 LIMIT 2;
+    IF array::len($rows) != 1 { RETURN false; };
+    LET $m = $rows[0];
+    IF !fn::wp012_member_vault_current($m) { RETURN false; };
+    IF $kind = 'account' {
+        RETURN $target.credential_revision = 0 AND fn::wp012_member_account_shape($target, $m);
+    };
+    LET $accounts = SELECT * FROM local_accounts WHERE id = $m.account_id LIMIT 2;
+    IF array::len($accounts) != 1
+        OR !fn::wp012_member_account_shape($accounts[0], $m) { RETURN false; };
+    IF $kind = 'principal' { RETURN fn::wp012_member_principal_shape($target, $m); };
+    LET $principals = SELECT * FROM principals WHERE id = $m.principal_id LIMIT 2;
+    RETURN $kind = 'space' AND array::len($principals) = 1
+        AND fn::wp012_member_principal_shape($principals[0], $m) AND fn::wp012_member_space_shape($target, $m);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_activate($before: object, $after: object) {
+    IF $before.status != 'preparing' OR $after.status != 'active' OR !fn::wp012_member_issue_current($after)
+        OR $before.id != $after.id OR $before.issue != $after.issue OR $before.operation_id != $after.operation_id
+        OR $before.descriptor_hex != $after.descriptor_hex OR $before.descriptor_sha256 != $after.descriptor_sha256
+        OR $before.account_id != $after.account_id OR $before.principal_id != $after.principal_id OR $before.access_space_id != $after.access_space_id
+        OR $before.account_name != $after.account_name OR $before.token_digest != $after.token_digest OR $before.purpose != $after.purpose
+        OR $before.issued_at != $after.issued_at OR $before.expires_at != $after.expires_at
+        OR $after.password_verifier != NONE OR $after.redemption_attempt_id != NONE OR $after.consumed_at != NONE { RETURN false; };
+    LET $accounts = SELECT * FROM local_accounts WHERE id = $after.account_id LIMIT 2;
+    LET $principals = SELECT * FROM principals WHERE id = $after.principal_id LIMIT 2;
+    LET $spaces = SELECT * FROM access_spaces WHERE id = $after.access_space_id LIMIT 2;
+    RETURN array::len($accounts) = 1 AND array::len($principals) = 1 AND array::len($spaces) = 1
+        AND fn::wp012_member_account_shape($accounts[0], $after)
+        AND fn::wp012_member_principal_shape($principals[0], $after)
+        AND fn::wp012_member_space_shape($spaces[0], $after);
+};
+DEFINE FIELD OVERWRITE issue ON TABLE member_enrollments TYPE object FLEXIBLE READONLY;
+DEFINE FIELD OVERWRITE member_enrollment_origin ON TABLE local_accounts TYPE option<record<member_enrollments>> DEFAULT NONE READONLY;
+DEFINE FIELD OVERWRITE member_enrollment_origin ON TABLE principals TYPE option<record<member_enrollments>> DEFAULT NONE READONLY;
+DEFINE FIELD OVERWRITE member_enrollment_origin ON TABLE access_spaces TYPE option<record<member_enrollments>> DEFAULT NONE READONLY;
+DEFINE FIELD OVERWRITE account_administration_lifetime ON TABLE protected_resources
+    TYPE option<object> DEFAULT NONE
+    ASSERT (
+        ($this.resource_kind != 'account_administration' AND $value = NONE)
+        OR
+        ($this.resource_kind = 'account_administration' AND $value != NONE AND (
+            ($value.mode = 'no_expiry'
+                AND array::sort(object::keys($value)) = ['mode'])
+            OR
+            ($value.mode = 'expires_at' AND type::is_datetime($value.expires_at)
+                AND array::sort(object::keys($value)) = ['expires_at', 'mode'])
+        ))
+    )
+    PERMISSIONS FOR select WHERE
+        $this.resource_kind = 'account_administration'
+        AND (
+            fn::mt109_has_grant('account_administration', $this.external_resource_id, 'create', 'account.identity.enroll')
+            OR fn::mt109_has_grant('account_administration', $this.external_resource_id, 'update', 'account.identity.member_profile.assign')
+            OR fn::mt109_has_grant('account_administration', $this.external_resource_id, 'update', 'account.identity.enrollment.revoke')
+        )
+    FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE account_administration_lifetime.mode ON TABLE protected_resources
+    TYPE string ASSERT $value IN ['no_expiry', 'expires_at'];
+DEFINE FIELD OVERWRITE account_administration_lifetime.expires_at ON TABLE protected_resources
+    TYPE option<datetime>;
+DEFINE FUNCTION OVERWRITE fn::wp012_member_vault_hex($text: string) {
+    RETURN string::len($text) > 0 AND string::len($text) <= 33554432
+        AND string::len($text) % 2 = 0 AND string::matches($text, /^[0-9a-f]+$/);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_vault_digest($text: string) {
+    RETURN string::len($text) = 64 AND string::matches($text, /^[0-9a-f]{64}$/);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_vault_uuid($text: string) {
+    RETURN string::matches($text, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
+        AND $text != '00000000-0000-0000-0000-000000000000';
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_vault_shape($row: object) {
+    IF !fn::wp012_member_vault_uuid($row.operation_id)
+        OR record::tb($row.id) != 'member_enrollments' OR record::id($row.id) != $row.operation_id
+        OR !fn::wp012_member_vault_hex($row.original_request_hex)
+        OR !fn::wp012_member_vault_digest($row.original_request_sha256)
+        OR $row.vault_namespace = '' OR string::len($row.vault_namespace) > 1048576
+        OR $row.vault_reference != 'invitation/identity_enrollment/' + $row.operation_id
+        OR $row.purpose != 'identity_enrollment'
+        OR !type::is_int($row.vault_issue_revision) OR $row.vault_issue_revision <= 0
+        OR !type::is_int($row.issue.issuer_credential_revision) OR $row.issue.issuer_credential_revision <= 0
+        OR $row.password_verifier != NONE OR $row.redemption_attempt_id != NONE
+        OR $row.consumed_at != NONE { RETURN false; };
+    IF $row.vault_issue_state = 'reserved' {
+        RETURN $row.status = 'preparing' AND $row.vault_issue_revision = 1
+            AND $row.vault_claim_id = NONE AND $row.descriptor_hex = NONE
+            AND $row.descriptor_sha256 = NONE AND $row.token_digest = NONE;
+    };
+    IF $row.vault_claim_id = NONE OR !fn::wp012_member_vault_uuid($row.vault_claim_id)
+        OR $row.vault_claim_id = $row.operation_id { RETURN false; };
+    IF $row.vault_issue_state = 'preparing' {
+        RETURN $row.status = 'preparing' AND $row.vault_issue_revision = 2
+            AND $row.descriptor_hex = NONE AND $row.descriptor_sha256 = NONE AND $row.token_digest = NONE;
+    };
+    IF $row.descriptor_hex = NONE OR $row.descriptor_sha256 = NONE OR $row.token_digest = NONE
+        OR !fn::wp012_member_vault_hex($row.descriptor_hex)
+        OR !fn::wp012_member_vault_digest($row.descriptor_sha256)
+        OR !fn::wp012_member_vault_digest($row.token_digest) { RETURN false; };
+    RETURN ($row.vault_issue_state = 'write_started' AND $row.vault_issue_revision = 3 AND $row.status = 'preparing')
+        OR ($row.vault_issue_state = 'bound' AND $row.vault_issue_revision = 4 AND $row.status IN ['preparing', 'active']);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_vault_current($row: object) {
+    -- Numeric revision is only an immutable/current metadata fence. Real password
+    -- verification and SAME-transaction nonce fencing remain private Rust proof.
+    RETURN fn::wp012_member_vault_shape($row)
+        AND fn::wp012_member_issue_current($row)
+        AND $row.issue.issuer_credential_revision = $auth.account_id.credential_revision;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_vault_immutable($before: object, $after: object) {
+    RETURN [$before.id, $before.operation_id, $before.original_request_hex, $before.original_request_sha256,
+            $before.vault_namespace, $before.vault_reference, $before.issue,
+            $before.account_id, $before.principal_id, $before.access_space_id, $before.account_name,
+            $before.purpose, $before.issued_at, $before.expires_at,
+            $before.password_verifier, $before.redemption_attempt_id, $before.consumed_at]
+        = [$after.id, $after.operation_id, $after.original_request_hex, $after.original_request_sha256,
+            $after.vault_namespace, $after.vault_reference, $after.issue,
+            $after.account_id, $after.principal_id, $after.access_space_id, $after.account_name,
+            $after.purpose, $after.issued_at, $after.expires_at,
+            $after.password_verifier, $after.redemption_attempt_id, $after.consumed_at];
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_vault_update($before: object, $after: object) {
+    IF !fn::wp012_member_vault_shape($before)
+        OR !fn::wp012_member_vault_current($after)
+        OR !fn::wp012_member_vault_immutable($before, $after) { RETURN false; };
+    IF $before.status = 'preparing' AND $after.status = 'preparing'
+        AND $after.vault_issue_revision = $before.vault_issue_revision + 1 {
+        IF $before.vault_issue_state = 'reserved' AND $after.vault_issue_state = 'preparing' {
+            RETURN $before.vault_claim_id = NONE AND $after.vault_claim_id != NONE
+                AND $after.descriptor_hex = NONE AND $after.descriptor_sha256 = NONE AND $after.token_digest = NONE;
+        };
+        IF $before.vault_issue_state = 'preparing' AND $after.vault_issue_state = 'write_started' {
+            RETURN $before.vault_claim_id = $after.vault_claim_id
+                AND $before.descriptor_hex = NONE AND $before.descriptor_sha256 = NONE AND $before.token_digest = NONE
+                AND $after.descriptor_hex != NONE AND $after.descriptor_sha256 != NONE AND $after.token_digest != NONE;
+        };
+        IF $before.vault_issue_state = 'write_started' AND $after.vault_issue_state = 'bound' {
+            RETURN $before.vault_claim_id = $after.vault_claim_id
+                AND $before.descriptor_hex = $after.descriptor_hex
+                AND $before.descriptor_sha256 = $after.descriptor_sha256 AND $before.token_digest = $after.token_digest;
+        };
+        RETURN false;
+    };
+    -- Stage only: exact Bound row, same revision/claim/descriptor; existing
+    -- activation checks require all three canonical stamped DISABLED targets.
+    RETURN $before.vault_issue_state = 'bound' AND $after.vault_issue_state = 'bound'
+        AND $before.vault_issue_revision = $after.vault_issue_revision
+        AND $before.vault_claim_id = $after.vault_claim_id
+        AND $before.descriptor_hex = $after.descriptor_hex
+        AND $before.descriptor_sha256 = $after.descriptor_sha256 AND $before.token_digest = $after.token_digest
+        AND fn::wp012_member_activate($before, $after);
+};
+DEFINE FIELD OVERWRITE original_request_hex ON TABLE member_enrollments TYPE string READONLY
+    ASSERT fn::wp012_member_vault_hex($value);
+DEFINE FIELD OVERWRITE original_request_sha256 ON TABLE member_enrollments TYPE string READONLY
+    ASSERT fn::wp012_member_vault_digest($value);
+DEFINE FIELD OVERWRITE vault_namespace ON TABLE member_enrollments TYPE string READONLY
+    ASSERT string::len($value) > 0 AND string::len($value) <= 1048576;
+DEFINE FIELD OVERWRITE vault_reference ON TABLE member_enrollments TYPE string READONLY
+    ASSERT $value = 'invitation/identity_enrollment/' + $this.operation_id;
+DEFINE FIELD OVERWRITE vault_issue_revision ON TABLE member_enrollments TYPE int ASSERT $value >= 1 AND $value <= 4;
+DEFINE FIELD OVERWRITE vault_issue_state ON TABLE member_enrollments TYPE string
+    ASSERT $value IN ['reserved', 'preparing', 'write_started', 'bound'];
+DEFINE FIELD OVERWRITE vault_claim_id ON TABLE member_enrollments TYPE option<string>
+    ASSERT $value = NONE OR (fn::wp012_member_vault_uuid($value) AND $value != $this.operation_id);
+DEFINE EVENT OVERWRITE wp012_member_vault_phase_guard ON TABLE member_enrollments
+WHEN $event IN ['CREATE', 'UPDATE', 'DELETE']
+THEN {
+    IF $event = 'CREATE' {
+        IF $after.vault_issue_state != 'reserved' OR $after.vault_issue_revision != 1
+            OR !fn::wp012_member_vault_current($after) { THROW 'HSK-ENROLLMENT-RESERVE-DENIED'; };
+    } ELSE {
+        IF $event = 'DELETE' OR (!fn::wp012_member_vault_update($before, $after) AND !fn::wp012_member_recipient_consume($before, $after) AND !fn::wp012_member_revoke_update($before, $after)) {
+            THROW 'HSK-ENROLLMENT-PHASE-DENIED';
+        };
+    };
+};
+DEFINE FIELD OVERWRITE credential_revision ON TABLE local_accounts TYPE int DEFAULT 0 ASSERT $value >= 0
+    PERMISSIONS FOR select WHERE (fn::mt109_live_session() AND id = $auth.account_id) OR fn::wp012_member_recipient_revision_read($this)
+    FOR create WHERE $value = 0 FOR update WHERE fn::wp012_member_redemption_identity_update('account', $before, $after);
+DEFINE EVENT OVERWRITE wp012_local_account_credential_revision ON TABLE local_accounts
+WHEN $event IN ['CREATE', 'UPDATE']
+THEN {
+    IF $event = 'CREATE' {
+        IF ($after.password_verifier = NONE AND $after.credential_revision != 0)
+            OR ($after.password_verifier != NONE AND $after.credential_revision != 1) {
+            THROW 'HSK-CREDENTIAL-REVISION-CREATE';
+        };
+    } ELSE {
+        IF $before.credential_revision = NONE OR $before.credential_revision < 0
+            OR $after.credential_revision = NONE OR $after.credential_revision < 0 {
+            THROW 'HSK-CREDENTIAL-REVISION-MISSING';
+        };
+        IF $before.password_verifier != $after.password_verifier {
+            IF $after.credential_revision != $before.credential_revision + 1 {
+                THROW 'HSK-CREDENTIAL-REVISION-CHANGE';
+            };
+        } ELSE {
+            IF $after.credential_revision != $before.credential_revision {
+                THROW 'HSK-CREDENTIAL-REVISION-UNCHANGED';
+            };
+        };
+    };
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_actor($m: object) {
+    RETURN $access IN ['member_enrollment_recipient_inspection', 'member_enrollment_recipient_installer', 'member_enrollment_recipient']
+        AND $token.AC = $access AND $token.ID = <string>$auth.id
+        AND string::trim($token.jti) != '' AND record::tb($auth.id) = 'member_enrollments'
+        AND $m.id = $auth.id AND $m.operation_id = record::id($auth.id)
+        AND $m.purpose = 'identity_enrollment';
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_auth_row() {
+    LET $rows = SELECT * FROM member_enrollments WHERE id = $auth.id LIMIT 2;
+    IF array::len($rows) != 1 { THROW 'HSK-INVITATION-DENIED'; };
+    RETURN $rows[0];
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_without($row: object, $fields: array<string>) {
+    RETURN object::from_entries(array::filter(object::entries($row), |$entry| $entry[0] NOT IN $fields));
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_metadata($kind: string, $id: record) {
+    IF !fn::wp012_member_recipient_actor(fn::wp012_member_recipient_auth_row()) { RETURN false; };
+    LET $i = $auth.issue;
+    IF $kind = 'account' { RETURN $id IN [$auth.account_id, $i.issuer_account]; };
+    IF $kind = 'principal' { RETURN $id IN [$auth.principal_id, $i.issuer_principal]; };
+    IF $kind = 'space' { RETURN $id IN [$auth.access_space_id, $i.issuer_space]; };
+    IF $kind = 'resource' { RETURN $id IN [$i.administration_resource, $i.workspace_resource]; };
+    IF $kind = 'session' {
+        RETURN $id = $i.issuer_session OR $id IN ($i.issuer_session.ancestor_session_ids ?? []);
+    };
+    IF $kind = 'grant' {
+        RETURN $id IN [$i.enroll_source.grant_id, $i.assignment_source.grant_id]
+            OR $id IN ($i.issuer_session.delegation_grant_edges ?? []).parent_grant_id
+            OR $id IN ($i.issuer_session.delegation_grant_edges ?? []).child_grant_id;
+    };
+    RETURN false;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_source_current($row: object, $s: object, $action: string, $cap: string) {
+    LET $issuer = $row.issue.issuer_session;
+    LET $g = $s.grant_id;
+    LET $r = $row.issue.administration_resource;
+    IF $g = NONE OR $r = NONE OR record::tb($g) != 'resource_grants' OR record::tb($r) != 'protected_resources'
+        OR !record::exists($g) OR !record::exists($r) { RETURN false; };
+    RETURN $g.account_id = $issuer.account_id AND $g.principal_id = $issuer.principal_id
+        AND $g.access_space_id = $issuer.access_space_id AND $g.resource_id = $r
+        AND $g.status = 'active' AND $g.revoked_at = NONE AND ($g.expires_at = NONE OR $g.expires_at > time::now())
+        AND $g.actions CONTAINS $action AND $g.capability_ids CONTAINS $cap
+        AND ($issuer.delegated_capabilities CONTAINS $cap OR $issuer.delegated_capabilities CONTAINS '*')
+        AND ($issuer.principal_id.delegated_capabilities CONTAINS $cap OR $issuer.principal_id.delegated_capabilities CONTAINS '*')
+        AND $g.delegation_chain = $issuer.delegation_chain AND $g.policy_version >= $r.policy_version AND $g.policy_version <= $issuer.policy_version
+        AND $s.resource_id = $r AND $s.account_id = $issuer.account_id AND $s.principal_id = $issuer.principal_id
+        AND $s.session_id = $issuer AND $s.access_space_id = $issuer.access_space_id
+        AND $s.grant_version = $g.grant_version AND $s.actions = $g.actions AND $s.capability_ids = $g.capability_ids
+        AND $s.delegation_chain = $g.delegation_chain AND $s.actor_kind = $issuer.principal_id.actor_kind AND $s.actor_id = $issuer.principal_id.actor_id
+        AND $s.capability_profile_id = $issuer.principal_id.capability_profile_id
+        AND $s.session_capabilities = $issuer.delegated_capabilities AND $s.principal_capabilities = $issuer.principal_id.delegated_capabilities
+        AND $s.policy_versions = [$g.policy_version, $r.policy_version, $issuer.account_id.policy_version, $issuer.principal_id.policy_version, $issuer.access_space_id.policy_version, $issuer.policy_version]
+        AND $s.revocation_epochs = [$issuer.account_id.revocation_epoch, $issuer.principal_id.revocation_epoch, $issuer.access_space_id.revocation_epoch, $issuer.account_revocation_epoch, $issuer.principal_revocation_epoch, $issuer.space_revocation_epoch]
+        AND $s.statuses = ['active', 'active', 'enabled', 'enabled', 'active'] AND $s.resource_kind = 'account_administration'
+        AND $s.grant_expires_at = $g.expires_at AND $s.session_expires_at = $issuer.expires_at
+        AND $s.administration_lifetime = $r.account_administration_lifetime;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_issuer_current($row: object) {
+    LET $issuer = $row.issue.issuer_session;
+    IF !fn::mt109_session_lineage_live($issuer) OR $row.issue.issuer_account != $issuer.account_id
+        OR $row.issue.issuer_principal != $issuer.principal_id OR $row.issue.issuer_session != $issuer
+        OR $row.issue.issuer_space != $issuer.access_space_id OR record::tb($row.id) != 'member_enrollments'
+        OR record::id($row.id) != $row.operation_id OR record::tb($row.account_id) != 'local_accounts'
+        OR record::tb($row.principal_id) != 'principals' OR record::tb($row.access_space_id) != 'access_spaces'
+        OR $row.purpose != 'identity_enrollment' OR $row.account_id = $issuer.account_id
+        OR $row.principal_id = $issuer.principal_id OR $row.access_space_id = $issuer.access_space_id
+        OR $row.account_name = '' OR $row.account_name != string::trim($row.account_name)
+        OR $row.issued_at > time::now() OR $row.expires_at <= time::now() OR $row.expires_at <= $row.issued_at
+        OR $row.expires_at > $row.issued_at + 60s OR $row.expires_at > $issuer.expires_at
+        OR $row.issue.issuer_credential_revision != $issuer.account_id.credential_revision { RETURN false; };
+    LET $r = $row.issue.administration_resource;
+    LET $parent = $row.issue.workspace_resource;
+    IF $r = NONE OR $parent = NONE OR record::tb($r) != 'protected_resources' OR record::tb($parent) != 'protected_resources'
+        OR !record::exists($r) OR !record::exists($parent)
+        OR $r.resource_kind != 'account_administration' OR $r.lifecycle_state != 'active'
+        OR $r.owner_account_id != $issuer.account_id OR $r.access_space_id != $issuer.access_space_id
+        OR $r.parent_resource_id != $parent OR $parent.resource_kind != 'workspace' OR $parent.lifecycle_state != 'active'
+        OR $parent.owner_account_id != $issuer.account_id OR $parent.access_space_id != $issuer.access_space_id
+        OR $parent.external_resource_id != $row.issue.workspace_external
+        OR $parent.policy_version != $row.issue.workspace_policy { RETURN false; };
+    IF !fn::wp012_member_recipient_source_current($row, $row.issue.enroll_source, 'create', 'account.identity.enroll')
+        OR !fn::wp012_member_recipient_source_current($row, $row.issue.assignment_source, 'update', 'account.identity.member_profile.assign')
+        OR $parent.policy_version > $row.issue.enroll_source.policy_versions[0]
+        OR $parent.policy_version > $row.issue.assignment_source.policy_versions[0] { RETURN false; };
+    IF ($row.issue.enroll_source.grant_expires_at != NONE AND $row.expires_at > $row.issue.enroll_source.grant_expires_at)
+        OR ($row.issue.assignment_source.grant_expires_at != NONE AND $row.expires_at > $row.issue.assignment_source.grant_expires_at) { RETURN false; };
+    LET $lifetime = $r.account_administration_lifetime;
+    IF $lifetime = NONE OR $row.issue.lifetime != $lifetime { RETURN false; };
+    IF $lifetime.mode = 'no_expiry' {
+        RETURN array::sort(object::keys($lifetime)) = ['mode'] AND $row.issue.policy_expires_at = NONE;
+    };
+    RETURN $lifetime.mode = 'expires_at' AND array::sort(object::keys($lifetime)) = ['expires_at', 'mode']
+        AND type::is_datetime($lifetime.expires_at) AND $row.issue.policy_expires_at = $lifetime.expires_at
+        AND $row.expires_at <= $lifetime.expires_at;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_targets_staged($m: object) {
+    LET $a = SELECT * FROM local_accounts WHERE id = $m.account_id LIMIT 2;
+    LET $p = SELECT * FROM principals WHERE id = $m.principal_id LIMIT 2;
+    LET $s = SELECT * FROM access_spaces WHERE id = $m.access_space_id LIMIT 2;
+    RETURN array::len($a) = 1 AND array::len($p) = 1 AND array::len($s) = 1
+        AND fn::wp012_member_account_shape($a[0], $m)
+        AND fn::wp012_member_principal_shape($p[0], $m)
+        AND fn::wp012_member_space_shape($s[0], $m) AND $a[0].credential_revision = 0;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_staged($m: object) {
+    RETURN fn::wp012_member_recipient_actor($m)
+        AND $m.vault_issue_state = 'bound' AND $m.vault_issue_revision = 4
+        AND $m.vault_claim_id != NONE AND $m.status = 'active'
+        AND $m.password_verifier = NONE AND $m.redemption_attempt_id = NONE AND $m.consumed_at = NONE
+        AND fn::wp012_member_recipient_issuer_current($m)
+        AND fn::wp012_member_recipient_targets_staged($m);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_permit_shape($p: object) {
+    RETURN record::tb($p.id) = 'member_enrollment_redemption_permits'
+        AND record::id($p.id) = $p.attempt AND fn::wp012_member_vault_uuid($p.attempt)
+        AND $p.attempt != $p.original.operation_id
+        AND $p.original.id = $p.a_auth AND record::tb($p.a_auth) = 'member_enrollments'
+        AND $p.key_id = 'member-enrollment-recipient-v1' AND string::trim($p.a_jti) != ''
+        AND $p.phc != '' AND $p.prior_revision >= 0
+        AND $p.original.status = 'active' AND $p.original.password_verifier = NONE
+        AND $p.original.redemption_attempt_id = NONE AND $p.original.consumed_at = NONE
+        AND $p.account_before.id = $p.original.account_id
+        AND $p.principal_before.id = $p.original.principal_id
+        AND $p.space_before.id = $p.original.access_space_id
+        AND $p.prior_revision = $p.account_before.credential_revision
+        AND $p.state IN ['prepared', 'consumed'];
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_permit_read($p: object) {
+    RETURN fn::wp012_member_recipient_actor(fn::wp012_member_recipient_auth_row())
+        AND fn::wp012_member_recipient_permit_shape($p) AND $p.a_auth = $auth.id
+        AND ($access != 'member_enrollment_recipient' OR $p.a_jti = $token.jti);
+};
+DEFINE FIELD OVERWRITE attempt ON TABLE member_enrollment_redemption_permits TYPE string;
+DEFINE FIELD OVERWRITE key_id ON TABLE member_enrollment_redemption_permits TYPE string;
+DEFINE FIELD OVERWRITE a_auth ON TABLE member_enrollment_redemption_permits TYPE record<member_enrollments>;
+DEFINE FIELD OVERWRITE a_jti ON TABLE member_enrollment_redemption_permits TYPE string;
+DEFINE FIELD OVERWRITE state ON TABLE member_enrollment_redemption_permits TYPE string;
+DEFINE FIELD OVERWRITE original ON TABLE member_enrollment_redemption_permits TYPE object;
+DEFINE FIELD OVERWRITE account_before ON TABLE member_enrollment_redemption_permits TYPE object;
+DEFINE FIELD OVERWRITE principal_before ON TABLE member_enrollment_redemption_permits TYPE object;
+DEFINE FIELD OVERWRITE space_before ON TABLE member_enrollment_redemption_permits TYPE object;
+DEFINE FIELD OVERWRITE phc ON TABLE member_enrollment_redemption_permits TYPE string;
+DEFINE FIELD OVERWRITE prior_revision ON TABLE member_enrollment_redemption_permits TYPE int;
+DEFINE INDEX OVERWRITE member_recipient_one_attempt_per_original ON TABLE member_enrollment_redemption_permits FIELDS a_auth UNIQUE;
+DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_bound_permit() {
+    LET $rows = SELECT * FROM member_enrollment_redemption_permits
+        WHERE a_auth = $auth.id AND a_jti = $token.jti LIMIT 2;
+    IF array::len($rows) != 1 { THROW 'HSK-INVITATION-DENIED'; };
+    RETURN $rows[0];
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_redemption_identity_read($kind: string, $target: object) {
+    RETURN fn::wp012_member_recipient_metadata($kind, $target.id);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_redemption_password_read($target: object) {
+    RETURN fn::wp012_member_recipient_actor(fn::wp012_member_recipient_auth_row()) AND $target.id = $auth.account_id;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_revision_read($target: object) {
+    RETURN fn::wp012_member_recipient_metadata('account', $target.id);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_redemption_identity_update($kind: string, $before: object, $after: object) {
+    IF $access != 'member_enrollment_recipient' OR !fn::wp012_member_recipient_actor(fn::wp012_member_recipient_auth_row()) { RETURN false; };
+    LET $p = fn::wp012_member_recipient_bound_permit();
+    LET $m = fn::wp012_member_recipient_auth_row();
+    IF $p.state != 'prepared' OR $m.status != 'consumed'
+        OR $m.redemption_attempt_id != $p.attempt OR $m.password_verifier != $p.phc OR $m.consumed_at = NONE
+        OR !fn::wp012_member_recipient_issuer_current($m) { RETURN false; };
+    IF $kind = 'account' {
+        RETURN $before = $p.account_before AND $before.status = 'disabled' AND $before.password_verifier = NONE
+            AND $before.credential_revision = $p.prior_revision
+            AND $after.id = $m.account_id AND $after.member_enrollment_origin = $m.id
+            AND $after.status = 'enabled' AND $after.password_verifier = $p.phc
+            AND $after.credential_revision = $p.prior_revision + 1
+            AND $after.authorization_touch_nonce = ($before.authorization_touch_nonce ?? 0) + 1
+            AND type::is_datetime($after.updated_at) AND $after.updated_at >= $before.updated_at
+            AND fn::wp012_member_recipient_without($before, ['status', 'password_verifier', 'credential_revision', 'authorization_touch_nonce', 'updated_at'])
+                = fn::wp012_member_recipient_without($after, ['status', 'password_verifier', 'credential_revision', 'authorization_touch_nonce', 'updated_at']);
+    };
+    IF $kind = 'principal' {
+        RETURN $before = $p.principal_before AND $before.status = 'disabled'
+            AND $after.id = $m.principal_id AND $after.member_enrollment_origin = $m.id
+            AND $after.account_id = $m.account_id AND $after.status = 'enabled'
+            AND $m.account_id.status = 'enabled' AND $m.account_id.password_verifier = $p.phc
+            AND $m.account_id.credential_revision = $p.prior_revision + 1
+            AND $after.authorization_touch_nonce = ($before.authorization_touch_nonce ?? 0) + 1
+            AND type::is_datetime($after.updated_at) AND $after.updated_at >= $before.updated_at
+            AND fn::wp012_member_recipient_without($before, ['status', 'authorization_touch_nonce', 'updated_at'])
+                = fn::wp012_member_recipient_without($after, ['status', 'authorization_touch_nonce', 'updated_at']);
+    };
+    IF $kind = 'space' {
+        RETURN $before = $p.space_before AND $before.status = 'disabled'
+            AND $after.id = $m.access_space_id AND $after.member_enrollment_origin = $m.id
+            AND $after.account_id = $m.account_id AND $after.status = 'active'
+            AND $m.account_id.status = 'enabled' AND $m.account_id.password_verifier = $p.phc
+            AND $m.account_id.credential_revision = $p.prior_revision + 1 AND $m.principal_id.status = 'enabled'
+            AND $after.authorization_touch_nonce = ($before.authorization_touch_nonce ?? 0) + 1
+            AND type::is_datetime($after.updated_at) AND $after.updated_at >= $before.updated_at
+            AND fn::wp012_member_recipient_without($before, ['status', 'authorization_touch_nonce', 'updated_at'])
+                = fn::wp012_member_recipient_without($after, ['status', 'authorization_touch_nonce', 'updated_at']);
+    };
+    RETURN false;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_consume($before: object, $after: object) {
+    IF $access != 'member_enrollment_recipient' OR !fn::wp012_member_recipient_actor($before) { RETURN false; };
+    LET $p = fn::wp012_member_recipient_bound_permit();
+    RETURN $p.state = 'prepared' AND $p.original = $before
+        AND fn::wp012_member_recipient_staged($before)
+        AND $after.status = 'consumed' AND $after.password_verifier = $p.phc
+        AND $after.redemption_attempt_id = $p.attempt AND type::is_datetime($after.consumed_at)
+        AND $after.consumed_at >= $before.issued_at AND $after.consumed_at < $before.expires_at
+        AND fn::wp012_member_recipient_without($before, ['status', 'password_verifier', 'redemption_attempt_id', 'consumed_at'])
+            = fn::wp012_member_recipient_without($after, ['status', 'password_verifier', 'redemption_attempt_id', 'consumed_at']);
+};
+DEFINE ACCESS OVERWRITE member_enrollment_recipient_inspection ON DATABASE TYPE RECORD
+    SIGNIN (SELECT * FROM member_enrollments WHERE id = $original
+        AND purpose = 'identity_enrollment' AND vault_issue_state = 'bound' AND vault_issue_revision = 4
+        AND status IN ['active', 'consumed']
+        AND array::len(SELECT VALUE id FROM member_enrollment_recipient_auth_config
+            WHERE id = member_enrollment_recipient_auth_config:primary
+            AND key_id = $key_id AND state = 'ready'
+            AND verifier_hex = crypto::sha256('handshake-member-enrollment-recipient-admission-v1|' + $key_id + '|' + $secret_hex) LIMIT 2) = 1 LIMIT 1);
+DEFINE ACCESS OVERWRITE member_enrollment_recipient_installer ON DATABASE TYPE RECORD
+    SIGNIN (SELECT * FROM member_enrollments WHERE id = $original
+        AND purpose = 'identity_enrollment' AND vault_issue_state = 'bound' AND vault_issue_revision = 4
+        AND status IN ['active', 'consumed']
+        AND array::len(SELECT VALUE id FROM member_enrollment_recipient_auth_config
+            WHERE id = member_enrollment_recipient_auth_config:primary
+            AND key_id = $key_id AND state = 'ready'
+            AND verifier_hex = crypto::sha256('handshake-member-enrollment-recipient-admission-v1|' + $key_id + '|' + $secret_hex) LIMIT 2) = 1 LIMIT 1);
+DEFINE ACCESS OVERWRITE member_enrollment_recipient ON DATABASE TYPE RECORD
+    SIGNIN (SELECT * FROM member_enrollments WHERE id = $original
+        AND purpose = 'identity_enrollment' AND vault_issue_state = 'bound' AND vault_issue_revision = 4
+        AND status IN ['active', 'consumed']
+        AND array::len(SELECT VALUE id FROM member_enrollment_recipient_auth_config
+            WHERE id = member_enrollment_recipient_auth_config:primary
+            AND key_id = $key_id AND state = 'ready'
+            AND verifier_hex = crypto::sha256('handshake-member-enrollment-recipient-admission-v1|' + $key_id + '|' + $secret_hex) LIMIT 2) = 1 LIMIT 1);
+DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_permit_create($p: object) {
+    LET $a = SELECT * FROM local_accounts WHERE id = $auth.account_id LIMIT 2;
+    LET $pr = SELECT * FROM principals WHERE id = $auth.principal_id LIMIT 2;
+    LET $s = SELECT * FROM access_spaces WHERE id = $auth.access_space_id LIMIT 2;
+    RETURN array::len($a) = 1 AND array::len($pr) = 1 AND array::len($s) = 1 AND $access = 'member_enrollment_recipient_installer'
+        AND fn::wp012_member_recipient_permit_shape($p) AND $p.state = 'prepared'
+        AND $p.a_auth = $auth.id AND fn::wp012_member_recipient_staged(fn::wp012_member_recipient_auth_row())
+        AND $p.original = fn::wp012_member_recipient_auth_row() AND $p.account_before = $a[0]
+        AND $p.principal_before = $pr[0] AND $p.space_before = $s[0];
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_complete($p: object) {
+    LET $m = fn::wp012_member_recipient_auth_row();
+    LET $a = SELECT * FROM local_accounts WHERE id = $m.account_id LIMIT 2;
+    LET $pr = SELECT * FROM principals WHERE id = $m.principal_id LIMIT 2;
+    LET $s = SELECT * FROM access_spaces WHERE id = $m.access_space_id LIMIT 2;
+    RETURN array::len($a) = 1 AND array::len($pr) = 1 AND array::len($s) = 1 AND fn::wp012_member_recipient_actor($m)
+        AND $access = 'member_enrollment_recipient' AND $p.a_auth = $m.id AND $p.a_jti = $token.jti
+        AND $m.status = 'consumed' AND $m.redemption_attempt_id = $p.attempt
+        AND $m.password_verifier = $p.phc AND $m.consumed_at != NONE
+        AND $m.account_id.status = 'enabled' AND $m.account_id.password_verifier = $p.phc
+        AND $m.account_id.credential_revision = $p.prior_revision + 1
+        AND $m.principal_id.status = 'enabled' AND $m.access_space_id.status = 'active'
+        AND $m.account_id.member_enrollment_origin = $m.id
+        AND $m.principal_id.member_enrollment_origin = $m.id AND $m.access_space_id.member_enrollment_origin = $m.id
+        AND fn::wp012_member_recipient_without($p.original, ['status', 'password_verifier', 'redemption_attempt_id', 'consumed_at'])
+            = fn::wp012_member_recipient_without($m, ['status', 'password_verifier', 'redemption_attempt_id', 'consumed_at'])
+        AND fn::wp012_member_recipient_without($p.account_before, ['status', 'password_verifier', 'credential_revision', 'authorization_touch_nonce', 'updated_at'])
+            = fn::wp012_member_recipient_without($a[0], ['status', 'password_verifier', 'credential_revision', 'authorization_touch_nonce', 'updated_at'])
+        AND fn::wp012_member_recipient_without($p.principal_before, ['status', 'authorization_touch_nonce', 'updated_at'])
+            = fn::wp012_member_recipient_without($pr[0], ['status', 'authorization_touch_nonce', 'updated_at'])
+        AND fn::wp012_member_recipient_without($p.space_before, ['status', 'authorization_touch_nonce', 'updated_at'])
+            = fn::wp012_member_recipient_without($s[0], ['status', 'authorization_touch_nonce', 'updated_at']);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_recipient_permit_update($before: object, $after: object) {
+    RETURN $access = 'member_enrollment_recipient' AND fn::wp012_member_recipient_permit_read($before)
+        AND $before.state = 'prepared' AND $after.state = 'consumed'
+        AND fn::wp012_member_recipient_without($before, ['state']) = fn::wp012_member_recipient_without($after, ['state'])
+        AND fn::wp012_member_recipient_complete($after);
+};
+DEFINE EVENT OVERWRITE wp012_member_redemption_permit_guard ON TABLE member_enrollment_redemption_permits
+WHEN $event IN ['CREATE', 'UPDATE', 'DELETE']
+THEN {
+    IF ($event = 'CREATE' AND !fn::wp012_member_recipient_permit_create($after))
+        OR ($event = 'UPDATE' AND !fn::wp012_member_recipient_permit_update($before, $after))
+        OR $event = 'DELETE' { THROW 'HSK-INVITATION-DENIED'; };
+};
+DEFINE TABLE OVERWRITE member_enrollment_redemption_permits TYPE NORMAL SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::wp012_member_recipient_permit_read($this)
+    FOR create WHERE fn::wp012_member_recipient_permit_create($this)
+    FOR update WHERE fn::wp012_member_recipient_permit_update($before, $after) FOR delete NONE;
+DEFINE FUNCTION OVERWRITE fn::wp012_member_revoke_read($m: object) {
+    LET $r = $m.issue.administration_resource;
+    LET $p = $m.issue.workspace_resource;
+    RETURN fn::mt109_live_session() AND $m.purpose = 'identity_enrollment'
+        AND record::tb($m.id) = 'member_enrollments' AND record::id($m.id) = $m.operation_id
+        AND $m.issue.issuer_account = $auth.account_id AND $m.issue.issuer_space = $auth.access_space_id
+        AND $r != NONE AND $p != NONE AND $r.resource_kind = 'account_administration'
+        AND $r.lifecycle_state = 'active' AND $r.owner_account_id = $auth.account_id
+        AND $r.access_space_id = $auth.access_space_id AND $r.parent_resource_id = $p
+        AND $p.resource_kind = 'workspace' AND $p.lifecycle_state = 'active'
+        AND $p.owner_account_id = $auth.account_id AND $p.access_space_id = $auth.access_space_id
+        AND $p.external_resource_id = $m.issue.workspace_external
+        AND $p.policy_version = $m.issue.workspace_policy
+        AND ($r.account_administration_lifetime.mode = 'no_expiry'
+            OR ($r.account_administration_lifetime.mode = 'expires_at'
+                AND $r.account_administration_lifetime.expires_at > time::now()
+                AND $m.expires_at <= $r.account_administration_lifetime.expires_at))
+        AND fn::mt109_has_grant('account_administration', $r.external_resource_id,
+            'update', 'account.identity.enrollment.revoke');
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_revoke_metadata($kind: string, $id: record) {
+    IF !fn::mt109_live_session() { RETURN false; };
+    LET $rows = SELECT * FROM member_enrollments WHERE
+        ($kind = 'account' AND account_id = $id)
+        OR ($kind = 'principal' AND principal_id = $id)
+        OR ($kind = 'space' AND access_space_id = $id) LIMIT 2;
+    RETURN array::len($rows) = 1 AND fn::wp012_member_revoke_read($rows[0]);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_revoke_update($before: object, $after: object) {
+    IF !fn::wp012_member_revoke_read($before) OR !fn::wp012_member_revoke_read($after)
+        OR $before.status != 'active' OR $after.status != 'revoked'
+        OR $before.vault_issue_state != 'bound' OR $before.vault_issue_revision != 4
+        OR $before.issued_at > time::now() OR $before.expires_at <= time::now()
+        OR $before.password_verifier != NONE OR $before.redemption_attempt_id != NONE OR $before.consumed_at != NONE
+        OR $before.revocation_request_id != NONE OR $before.revocation_request_hex != NONE
+        OR $before.revocation_source != NONE OR $before.revoker_credential_revision != NONE OR $before.revoked_at != NONE
+        OR !fn::wp012_member_vault_uuid($after.revocation_request_id)
+        OR $after.revocation_request_id = $before.operation_id
+        OR !fn::wp012_member_vault_hex($after.revocation_request_hex) OR ($after.revoked_at = NONE OR $after.revoked_at > time::now() OR $after.revoked_at < $before.issued_at)
+        OR $after.revoker_credential_revision <= 0 OR $after.revoker_credential_revision != $auth.account_id.credential_revision
+        OR !fn::wp012_member_recipient_source_current(
+            { issue: { issuer_session: $auth.id, administration_resource: $before.issue.administration_resource } },
+            $after.revocation_source, 'update', 'account.identity.enrollment.revoke')
+        OR fn::wp012_member_recipient_without($before,
+            ['status','revocation_request_id','revocation_request_hex','revocation_source','revoker_credential_revision','revoked_at'])
+            != fn::wp012_member_recipient_without($after,
+            ['status','revocation_request_id','revocation_request_hex','revocation_source','revoker_credential_revision','revoked_at'])
+        { RETURN false; };
+    LET $a = SELECT * FROM local_accounts WHERE id = $before.account_id LIMIT 2;
+    LET $p = SELECT * FROM principals WHERE id = $before.principal_id LIMIT 2;
+    LET $s = SELECT * FROM access_spaces WHERE id = $before.access_space_id LIMIT 2;
+    RETURN array::len($a) = 1 AND array::len($p) = 1 AND array::len($s) = 1
+        AND $a[0].status = 'disabled' AND $p[0].status = 'disabled' AND $s[0].status = 'disabled'
+        AND $a[0].member_enrollment_origin = $before.id AND $p[0].member_enrollment_origin = $before.id
+        AND $s[0].member_enrollment_origin = $before.id
+        AND fn::wp012_member_account_shape($a[0], $before)
+        AND fn::wp012_member_principal_shape($p[0], $before)
+        AND fn::wp012_member_space_shape($s[0], $before);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_member_revoke_receipt($event: object, $write: bool) {
+    LET $rows = SELECT * FROM member_enrollments
+        WHERE id = type::record('member_enrollments', $event.aggregate_id) LIMIT 2;
+    IF array::len($rows) != 1 { RETURN false; };
+    LET $m = $rows[0];
+    RETURN fn::wp012_member_revoke_read($m) AND $m.status = 'revoked'
+        AND $event.event_type = 'MEMBER_ENROLLMENT_REVOKED' AND $event.aggregate_type = 'member_enrollment'
+        AND $event.source_component = 'member_enrollment'
+        AND $event.idempotency_key = 'member-enrollment-revoked:' + $m.revocation_request_id
+        AND $event.kernel_task_run_id = $m.revocation_request_id
+        AND $event.session_run_id = record::id($m.revocation_source.session_id)
+        AND $event.authority_resource_id = $m.issue.administration_resource
+        AND $event.authority_session_id = $m.revocation_source.session_id
+        AND $event.authority_capability_id = 'account.identity.enrollment.revoke' AND $event.authority_action = 'update'
+        AND $event.actor_kind = $m.revocation_source.actor_kind AND $event.actor_id = $m.revocation_source.actor_id
+        AND $event.wsids = [$m.issue.workspace_external]
+        AND $event.correlation_id = $m.operation_id
+        AND $event.payload = {
+            request_id: $m.revocation_request_id, enrollment_operation_id: $m.operation_id,
+            revocation_request_hex: $m.revocation_request_hex, descriptor_sha256: $m.descriptor_sha256,
+            account_id: record::id($m.account_id), principal_id: record::id($m.principal_id),
+            access_space_id: record::id($m.access_space_id), action: 'update',
+            capability_id: 'account.identity.enrollment.revoke', purpose: 'identity_enrollment_revocation',
+            profile_id: 'MemberEnrollment', source: {
+                resource_id: record::id($m.revocation_source.resource_id),
+                grant_id: record::id($m.revocation_source.grant_id), grant_version: $m.revocation_source.grant_version,
+                owner_account_id: record::id($m.revocation_source.account_id),
+                actor_principal_id: record::id($m.revocation_source.principal_id),
+                authenticated_session_id: record::id($m.revocation_source.session_id),
+                access_space_id: record::id($m.revocation_source.access_space_id),
+                workspace_id: $m.issue.workspace_external,
+                actor_kind: $m.revocation_source.actor_kind, actor_id: $m.revocation_source.actor_id,
+                actions: $m.revocation_source.actions, capability_ids: $m.revocation_source.capability_ids,
+                policy_versions: $m.revocation_source.policy_versions, revocation_epochs: $m.revocation_source.revocation_epochs,
+                delegation_chain: $m.revocation_source.delegation_chain,
+                session_capabilities: $m.revocation_source.session_capabilities,
+                principal_capabilities: $m.revocation_source.principal_capabilities,
+                capability_profile_id: $m.revocation_source.capability_profile_id,
+                statuses: $m.revocation_source.statuses, resource_kind: $m.revocation_source.resource_kind
+            }
+        }
+        AND (!$write OR ($m.revocation_source.session_id = $auth.id
+            AND $m.revoker_credential_revision = $auth.account_id.credential_revision));
+};
+DEFINE FIELD OVERWRITE revocation_request_id ON TABLE member_enrollments TYPE option<string>
+    ASSERT $value = NONE OR fn::wp012_member_vault_uuid($value)
+    PERMISSIONS FOR select FULL FOR create NONE FOR update WHERE fn::wp012_member_revoke_update($before,$after);
+DEFINE FIELD OVERWRITE revocation_request_hex ON TABLE member_enrollments TYPE option<string>
+    ASSERT $value = NONE OR fn::wp012_member_vault_hex($value)
+    PERMISSIONS FOR select FULL FOR create NONE FOR update WHERE fn::wp012_member_revoke_update($before,$after);
+DEFINE FIELD OVERWRITE revocation_source ON TABLE member_enrollments TYPE option<object> FLEXIBLE
+    PERMISSIONS FOR select FULL FOR create NONE FOR update WHERE fn::wp012_member_revoke_update($before,$after);
+DEFINE FIELD OVERWRITE revocation_source.* ON TABLE member_enrollments TYPE any;
+DEFINE FIELD OVERWRITE revoker_credential_revision ON TABLE member_enrollments TYPE option<int>
+    PERMISSIONS FOR select FULL FOR create NONE FOR update WHERE fn::wp012_member_revoke_update($before,$after);
+DEFINE FIELD OVERWRITE revoked_at ON TABLE member_enrollments TYPE option<datetime>
+    PERMISSIONS FOR select FULL FOR create NONE FOR update WHERE fn::wp012_member_revoke_update($before,$after);
+DEFINE FIELD OVERWRITE member_login_binding ON TABLE session_exchange_credentials
+ TYPE option<object> FLEXIBLE PERMISSIONS NONE;
+DEFINE FUNCTION OVERWRITE fn::wp012_member_login_binding_current($b: object) {
+ LET $a = SELECT * FROM ONLY $b.account;
+ LET $p = SELECT * FROM ONLY $b.principal;
+ LET $s = SELECT * FROM ONLY $b.space;
+ LET $m = SELECT * FROM ONLY $b.enrollment;
+ LET $unique = SELECT VALUE id FROM member_enrollments
+   WHERE account_id = $b.account AND status = 'consumed'
+   AND purpose = 'identity_enrollment' AND password_verifier != NONE
+   AND redemption_attempt_id != NONE AND consumed_at != NONE LIMIT 2;
+ RETURN $a != NONE AND $p != NONE AND $s != NONE AND $m != NONE
+  AND array::len($unique) = 1 AND $unique[0] = $b.enrollment
+  AND $a.account_role = 'Member' AND $a.account_key = $b.name AND $a.status = 'enabled'
+  AND $a.password_verifier != NONE AND $a.credential_revision > 0
+  AND $a.credential_revision = $b.credential_revision
+  AND $a.revocation_epoch = $b.account_epoch AND $a.policy_version = $b.account_policy
+  AND $p.account_id = $b.account AND $p.status = 'enabled' AND $p.principal_kind = 'human_account'
+  AND $p.revocation_epoch = $b.principal_epoch AND $p.policy_version = $b.principal_policy
+  AND $p.capability_profile_id = 'MemberEnrollment' AND $p.capability_profile_id = $b.profile
+  AND $p.delegated_capabilities = ['model_lane.navigation.read', 'fs.write', 'diagnostics.read']
+  AND $p.delegated_capabilities = $b.capabilities
+  AND $s.account_id = $b.account AND $s.status = 'active'
+  AND $s.revocation_epoch = $b.space_epoch AND $s.policy_version = $b.space_policy
+  AND $m.operation_id = $b.operation_id AND $m.descriptor_hex = $b.descriptor_hex
+  AND $m.descriptor_sha256 = $b.descriptor_sha256 AND $m.account_id = $b.account
+  AND $m.principal_id = $b.principal AND $m.access_space_id = $b.space AND $m.account_name = $b.name
+  AND $m.status = 'consumed' AND $m.purpose = 'identity_enrollment'
+  AND $m.password_verifier != NONE AND $m.redemption_attempt_id = $b.redemption_attempt_id
+  AND $m.consumed_at = $b.consumed_at;
+} PERMISSIONS NONE;
+DEFINE TABLE OVERWRITE member_enrollment_recipient_auth_config TYPE NORMAL SCHEMAFULL PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE key_id ON TABLE member_enrollment_recipient_auth_config TYPE string
+    ASSERT $value = 'member-enrollment-recipient-v1';
+DEFINE FIELD OVERWRITE state ON TABLE member_enrollment_recipient_auth_config TYPE string
+    ASSERT $value IN ['reserved', 'write_started', 'ready'];
+DEFINE FIELD OVERWRITE verifier_hex ON TABLE member_enrollment_recipient_auth_config TYPE option<string>
+    ASSERT ($value = NONE AND $this.state = 'reserved')
+        OR ($this.state IN ['write_started', 'ready'] AND string::matches($value, /^[0-9a-f]{64}$/));
+DEFINE EVENT OVERWRITE member_recipient_provision_guard ON TABLE member_enrollment_recipient_auth_config
+WHEN $event IN ['CREATE', 'UPDATE', 'DELETE']
+THEN {
+    IF $auth != NONE OR $event = 'DELETE' { THROW 'HSK-RECIPIENT-PROVISION-DENIED'; };
+    IF $event = 'CREATE' {
+        IF $after.id != member_enrollment_recipient_auth_config:primary
+            OR $after.key_id != 'member-enrollment-recipient-v1'
+            OR $after.state != 'reserved' OR $after.verifier_hex != NONE {
+            THROW 'HSK-RECIPIENT-PROVISION-DENIED';
+        };
+    } ELSE {
+        IF $before.id != $after.id OR $before.key_id != $after.key_id
+            OR !(($before.state = 'reserved' AND $before.verifier_hex = NONE
+                    AND $after.state = 'write_started' AND $after.verifier_hex != NONE)
+                OR ($before.state IN ['write_started', 'ready'] AND $after.state = 'ready'
+                    AND $before.verifier_hex = $after.verifier_hex)) {
+            THROW 'HSK-RECIPIENT-PROVISION-DENIED';
+        };
+    };
+};
+DEFINE FIELD OVERWRITE first_owner_administration_origin ON TABLE local_accounts TYPE option<record<first_owner_administration_origins>> ASSERT $value = NONE OR $value = first_owner_administration_origins:primary PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE EVENT OVERWRITE first_owner_administration_origin_immutable ON TABLE local_accounts WHEN $event = 'UPDATE' AND $before.first_owner_administration_origin != $after.first_owner_administration_origin THEN { THROW 'HSK-FIRST-OWNER-ORIGIN-IMMUTABLE'; };
+DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_actor($row: object) {
+    RETURN fn::mt109_live_session() AND $row.account = $auth.account_id
+        AND $row.operator_principal = $auth.principal_id AND $row.space = $auth.access_space_id
+        AND $row.account.first_owner_administration_origin = first_owner_administration_origins:primary
+        AND $row.purpose = 'prospective_first_owner_administration' AND $row.version = 1
+        AND $row.setup_policy_version >= 1 AND $row.setup_receipt != NONE
+        AND $auth.principal_id.capability_profile_id = 'Operator'
+        AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS 'fs.write')
+        AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS 'fs.write');
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_claim($before: object, $after: object) {
+    RETURN fn::wp012_first_owner_workspace_actor($before)
+        AND $before.first_workspace_state = 'unclaimed' AND $before.first_workspace_receipt_nonce = 0
+        AND $before.first_workspace_original = NONE
+        AND $after.first_workspace_original != NONE
+        AND $after.first_workspace_original = {
+            account_session: $account_session, account: $account, principal: $principal, space: $space,
+            workspace: $workspace, external: $external, name: $name, actor: $actor, edit: $edit,
+            resource: $resource, fr: $fr, workspace_grant: $workspace_grant, fr_grant: $fr_grant,
+            capabilities: $capabilities, memory_surfaces: $memory_surfaces,
+            operation_id: $operation_id, channel_hash: $channel_hash, deadline: $deadline,
+            first_owner_workspace_receipt_read: false
+        }
+        AND $after.first_workspace_original.account_session = $after.first_workspace_session
+        AND $after.first_workspace_original.account = $after.account
+        AND $after.first_workspace_original.principal = $after.operator_principal
+        AND $after.first_workspace_original.space = $after.space
+        AND $after.first_workspace_original.workspace = $after.first_workspace
+        AND $after.first_workspace_original.external = record::id($after.first_workspace)
+        AND $after.first_workspace_original.name = $after.first_workspace_name
+        AND $after.first_workspace_original.resource = $after.first_workspace_resource
+        AND $after.first_workspace_original.workspace_grant = $after.first_workspace_grant
+        AND $after.first_workspace_original.operation_id = $after.first_workspace_operation_id
+        AND $after.first_workspace_original.channel_hash = $after.first_workspace_channel_hash
+        AND $after.first_workspace_original.deadline = $after.first_workspace_deadline
+        AND $after.first_workspace_original.first_owner_workspace_receipt_read = false
+        AND $after.first_workspace_state = 'created' AND $after.first_workspace_receipt_nonce = 1
+        AND $before.setup_operation_id = $after.setup_operation_id AND $before.account = $after.account
+        AND $before.operator_principal = $after.operator_principal AND $before.space = $after.space
+        AND $before.purpose = $after.purpose AND $before.version = $after.version
+        AND $before.setup_receipt = $after.setup_receipt AND $before.setup_policy_version = $after.setup_policy_version
+        AND $before.confirmation_state = $after.confirmation_state
+        AND $before.created_at = $after.created_at
+        AND $after.first_workspace_operation_id = $wp012_original_workspace
+        AND $after.first_workspace = type::record('workspaces', $wp012_original_workspace)
+        AND $after.first_workspace_resource = type::record('protected_resources', $wp012_original_resource)
+        AND record::tb($after.first_workspace_grant) = 'resource_grants'
+        AND $after.first_workspace_session = $auth.id
+        AND $after.first_workspace_channel_hash = $auth.channel_binding_hash
+        AND $after.first_workspace_policy_version = $auth.policy_version
+        AND $after.first_workspace_deadline > time::now()
+        AND !record::exists($after.first_workspace) AND !record::exists($after.first_workspace_resource)
+        AND !record::exists($after.first_workspace_grant)
+        AND array::len(SELECT VALUE id FROM protected_resources WHERE resource_kind = 'workspace'
+            AND owner_account_id = $before.account LIMIT 1) = 0;
+};
+DEFINE TABLE OVERWRITE first_owner_administration_origins TYPE NORMAL SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::wp012_first_owner_workspace_actor($this)
+        AND (($first_owner_workspace_receipt_read ?? false) != true
+            OR fn::wp012_first_owner_workspace_receipt($this, first_workspace_operation_id,
+                first_workspace, first_workspace_resource, first_workspace_grant,
+                first_workspace_session, first_workspace_channel_hash, first_workspace_name,
+                first_workspace_deadline))
+    FOR create, delete NONE
+    FOR update WHERE fn::wp012_first_owner_workspace_claim($before, $after);
+DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_receipt(
+    $row: object, $operation: string, $workspace: record<workspaces>, $resource: record<protected_resources>,
+    $grant: record<resource_grants>, $session: record<authenticated_sessions>, $channel: string,
+    $name: string, $deadline: datetime
+) {
+    RETURN $row.purpose = 'prospective_first_owner_administration' AND $row.version = 1
+        AND $row.account.account_role = 'Owner'
+        AND fn::wp012_first_owner_workspace_sources($row)
+        AND $row.first_workspace_state = 'created' AND $row.first_workspace_receipt_nonce = 1
+        AND $row.first_workspace_operation_id = $operation AND $row.first_workspace = $workspace
+        AND $row.first_workspace_resource = $resource AND $row.first_workspace_grant = $grant
+        AND $row.first_workspace_session = $session AND $row.first_workspace_channel_hash = $channel
+        AND $row.first_workspace_name = $name AND $row.first_workspace_deadline = $deadline
+        AND $row.account.first_owner_administration_origin = first_owner_administration_origins:primary
+        AND $row.first_workspace_original != NONE
+        AND $workspace.edit_event_id = $row.first_workspace_original.edit
+        AND $workspace.last_actor_id = $row.first_workspace_original.actor
+        AND $workspace.last_actor_kind = 'HUMAN'
+        AND record::exists($row.setup_receipt) AND $row.setup_receipt.event_type = 'LOCAL_ACCOUNT_SETUP'
+        AND $row.setup_receipt.event_sequence > 0 AND $row.setup_receipt.created_at = $row.created_at
+        AND $row.setup_receipt.actor_kind = 'operator'
+        AND $row.setup_receipt.actor_id = record::id($row.operator_principal)
+        AND $row.setup_receipt.aggregate_type = 'local_account'
+        AND $row.setup_receipt.aggregate_id = record::id($row.account)
+        AND $row.setup_receipt.source_component = 'local_account_authority'
+        AND $row.setup_receipt.payload.schema_version = 'hsk.local_account_event@1'
+        AND $row.setup_receipt.payload.account_id = record::id($row.account)
+        AND $row.setup_receipt.payload.principal_id = record::id($row.operator_principal)
+        AND $row.setup_receipt.payload.access_space_id = record::id($row.space)
+        AND $row.setup_receipt.payload.session_id = NULL
+        AND $row.setup_receipt.payload.delegation_chain = [record::id($row.operator_principal)]
+        AND $row.setup_receipt.payload.resource_refs = [{ kind: 'local_account', id: record::id($row.account) }]
+        AND $row.setup_receipt.payload.action = 'LOCAL_ACCOUNT_SETUP'
+        AND $row.setup_receipt.payload.result = 'allow' AND $row.setup_receipt.payload.policy_version = 1
+        AND local_account_setup:primary.account_id = $row.account
+        AND local_account_setup:primary.principal_id = $row.operator_principal
+        AND local_account_setup:primary.access_space_id = $row.space
+        AND fn::mt109_session_lineage_live($session)
+        AND $session.account_id = $row.account AND $session.principal_id = $row.operator_principal
+        AND $session.access_space_id = $row.space AND $session.channel_binding_hash = $channel
+        AND $session.principal_id.capability_profile_id = 'Operator'
+        AND $row.first_workspace_policy_version = $session.policy_version
+        AND record::exists($workspace) AND $workspace.name = $name AND $workspace.created_in_session_id = $session
+        AND record::exists($resource) AND $resource.resource_kind = 'workspace'
+        AND $resource.external_resource_id = record::id($workspace)
+        AND $resource.owner_account_id = $row.account AND $resource.created_by_principal_id = $row.operator_principal
+        AND $resource.access_space_id = $row.space AND $resource.created_in_session_id = $session
+        AND $resource.parent_resource_id = NONE AND $resource.lifecycle_state = 'active'
+        AND $resource.classification = 'account_private' AND $resource.creator_grant_id = $grant
+        AND $resource.policy_version = $row.first_workspace_policy_version
+        AND record::exists($grant) AND $grant.account_id = $row.account
+        AND $grant.principal_id = $row.operator_principal AND $grant.access_space_id = $row.space
+        AND $grant.resource_id = $resource AND $grant.status = 'active' AND $grant.revoked_at = NONE
+        AND ($grant.expires_at = NONE OR $grant.expires_at > time::now())
+        AND $grant.actions CONTAINS 'create' AND $grant.actions CONTAINS 'read'
+        AND $grant.capability_ids CONTAINS 'fs.write' AND $grant.capability_ids CONTAINS 'fs.read'
+        AND $grant.delegation_chain = $session.delegation_chain
+        AND $resource.policy_version <= $grant.policy_version AND $grant.policy_version <= $session.policy_version;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_source(
+    $row: object, $resource: record<protected_resources>, $grant: record<resource_grants>,
+    $kind: string, $actions: array<string>, $capabilities: array<string>
+) {
+    LET $session = $row.first_workspace_session;
+    RETURN record::exists($resource) AND record::exists($grant)
+        AND $resource.resource_kind = $kind
+        AND $resource.external_resource_id = record::id($row.first_workspace)
+        AND $resource.owner_account_id = $row.account
+        AND $resource.created_by_principal_id = $row.operator_principal
+        AND $resource.created_in_session_id = $session AND $resource.access_space_id = $row.space
+        AND $resource.creator_grant_id = $grant AND $resource.parent_resource_id = $row.first_workspace_resource
+        AND $resource.schema_version = 1 AND $resource.lifecycle_state = 'active'
+        AND $resource.policy_version = $row.first_workspace_policy_version
+        AND $resource.classification = 'account_private'
+        AND $resource.created_at >= $row.first_workspace.created_at
+        AND $resource.created_at <= $row.first_workspace_deadline
+        AND $grant.account_id = $row.account AND $grant.principal_id = $row.operator_principal
+        AND $grant.access_space_id = $row.space AND $grant.resource_id = $resource
+        AND $grant.actions = $actions AND $grant.capability_ids = $capabilities
+        AND $grant.delegation_chain = $session.delegation_chain
+        AND $grant.status = 'active' AND $grant.revoked_at = NONE
+        AND ($grant.expires_at = NONE OR $grant.expires_at > time::now())
+        AND $grant.grant_version = 1 AND $grant.policy_version = $row.first_workspace_policy_version
+        AND $grant.created_at >= $row.first_workspace.created_at
+        AND $grant.created_at <= $row.first_workspace_deadline;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_sources($row: object) {
+    LET $o = $row.first_workspace_original;
+    IF $o = NONE OR $o.first_owner_workspace_receipt_read != false
+        OR $o != {
+            account_session: $o.account_session, account: $o.account, principal: $o.principal, space: $o.space,
+            workspace: $o.workspace, external: $o.external, name: $o.name, actor: $o.actor, edit: $o.edit,
+            resource: $o.resource, fr: $o.fr, workspace_grant: $o.workspace_grant, fr_grant: $o.fr_grant,
+            capabilities: $o.capabilities, memory_surfaces: $o.memory_surfaces,
+            operation_id: $o.operation_id, channel_hash: $o.channel_hash, deadline: $o.deadline,
+            first_owner_workspace_receipt_read: false
+        }
+        OR $o.account != $row.account OR $o.principal != $row.operator_principal OR $o.space != $row.space
+        OR $o.workspace != $row.first_workspace OR $o.resource != $row.first_workspace_resource
+        OR $o.workspace_grant != $row.first_workspace_grant OR $o.account_session != $row.first_workspace_session
+        OR $o.operation_id != $row.first_workspace_operation_id OR $o.external != record::id($row.first_workspace)
+        OR $o.channel_hash != $row.first_workspace_channel_hash OR $o.name != $row.first_workspace_name
+        OR $o.deadline != $row.first_workspace_deadline OR $o.actor != $row.operator_principal.actor_id
+        OR $row.first_workspace.created_at < $row.created_at
+        OR $row.first_workspace.created_at > $row.first_workspace_deadline
+        OR $o.capabilities != ['fs.read','fs.write','model_lane.navigation.read','fr.read',
+            'fr.ingest.runtime_chat','fr.ingest.native_editor','memory.read','memory.propose','memory.review','memory.commit']
+        OR array::len($o.memory_surfaces) != 5
+        OR array::map($o.memory_surfaces, |$surface| $surface.kind) != ['memory_pack','memory_proposal','memory_commit_report','memory_item','memory_item_count']
+        { RETURN false; };
+    LET $session = $row.first_workspace_session;
+    LET $granted = IF $session.delegated_capabilities CONTAINS '*' AND $row.operator_principal.delegated_capabilities CONTAINS '*'
+        { $o.capabilities } ELSE { array::filter($o.capabilities, |$capability|
+            ($session.delegated_capabilities CONTAINS '*' OR $session.delegated_capabilities CONTAINS $capability)
+            AND ($row.operator_principal.delegated_capabilities CONTAINS '*' OR $row.operator_principal.delegated_capabilities CONTAINS $capability)) };
+    IF $row.first_workspace_grant.capability_ids != $granted
+        OR $row.first_workspace_grant.actions != ['create','read','update','delete']
+        OR !fn::wp012_first_owner_workspace_source($row, $o.fr, $o.fr_grant,
+            'flight_recorder', ['create','read'], ['fr.read','fr.ingest.runtime_chat','fr.ingest.native_editor'])
+        { RETURN false; };
+    LET $memory_caps = array::filter(['memory.read','memory.propose','memory.review','memory.commit','fs.write'], |$capability| $granted CONTAINS $capability);
+    FOR $surface IN $o.memory_surfaces {
+        IF !fn::wp012_first_owner_workspace_source($row, $surface.resource, $surface.grant,
+            $surface.kind, ['create','read','update','delete'], $memory_caps) { RETURN false; };
+    };
+    RETURN true;
+};
+DEFINE FIELD OVERWRITE setup_operation_id ON TABLE first_owner_administration_origins TYPE string PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE account ON TABLE first_owner_administration_origins TYPE record<local_accounts> PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE operator_principal ON TABLE first_owner_administration_origins TYPE record<principals> PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE space ON TABLE first_owner_administration_origins TYPE record<access_spaces> PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE purpose ON TABLE first_owner_administration_origins TYPE string ASSERT $value = 'prospective_first_owner_administration' PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE version ON TABLE first_owner_administration_origins TYPE int ASSERT $value = 1 PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE setup_receipt ON TABLE first_owner_administration_origins TYPE record<kernel_event_ledger> PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE setup_policy_version ON TABLE first_owner_administration_origins TYPE int PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE created_at ON TABLE first_owner_administration_origins TYPE datetime PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE first_workspace_state ON TABLE first_owner_administration_origins TYPE string ASSERT $value IN ['unclaimed', 'created'] PERMISSIONS FOR select FULL FOR create NONE FOR update FULL;
+DEFINE FIELD OVERWRITE first_workspace_receipt_nonce ON TABLE first_owner_administration_origins TYPE int ASSERT $value >= 0 PERMISSIONS FOR select FULL FOR create NONE FOR update FULL;
+DEFINE FIELD OVERWRITE first_workspace_operation_id ON TABLE first_owner_administration_origins TYPE option<string> PERMISSIONS FOR select FULL FOR create NONE FOR update FULL;
+DEFINE FIELD OVERWRITE first_workspace ON TABLE first_owner_administration_origins TYPE option<record<workspaces>> PERMISSIONS FOR select FULL FOR create NONE FOR update FULL;
+DEFINE FIELD OVERWRITE first_workspace_resource ON TABLE first_owner_administration_origins TYPE option<record<protected_resources>> PERMISSIONS FOR select FULL FOR create NONE FOR update FULL;
+DEFINE FIELD OVERWRITE first_workspace_grant ON TABLE first_owner_administration_origins TYPE option<record<resource_grants>> PERMISSIONS FOR select FULL FOR create NONE FOR update FULL;
+DEFINE FIELD OVERWRITE first_workspace_session ON TABLE first_owner_administration_origins TYPE option<record<authenticated_sessions>> PERMISSIONS FOR select FULL FOR create NONE FOR update FULL;
+DEFINE FIELD OVERWRITE first_workspace_channel_hash ON TABLE first_owner_administration_origins TYPE option<string> PERMISSIONS FOR select FULL FOR create NONE FOR update FULL;
+DEFINE FIELD OVERWRITE first_workspace_name ON TABLE first_owner_administration_origins TYPE option<string> PERMISSIONS FOR select FULL FOR create NONE FOR update FULL;
+DEFINE FIELD OVERWRITE first_workspace_deadline ON TABLE first_owner_administration_origins TYPE option<datetime> PERMISSIONS FOR select FULL FOR create NONE FOR update FULL;
+DEFINE FIELD OVERWRITE first_workspace_policy_version ON TABLE first_owner_administration_origins TYPE option<int> PERMISSIONS FOR select FULL FOR create NONE FOR update FULL;
+DEFINE FIELD OVERWRITE first_workspace_original ON TABLE first_owner_administration_origins TYPE option<object> FLEXIBLE PERMISSIONS FOR select FULL FOR create NONE FOR update FULL;
+DEFINE FIELD OVERWRITE confirmation_state ON TABLE first_owner_administration_origins TYPE string ASSERT $value IN ['unconfirmed', 'confirmed'] PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE confirmation_operation_id ON TABLE first_owner_administration_origins TYPE option<string> PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE confirmation_actor_session ON TABLE first_owner_administration_origins TYPE option<record<authenticated_sessions>> PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE confirmation_channel_hash ON TABLE first_owner_administration_origins TYPE option<string> PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE confirmation_policy_version ON TABLE first_owner_administration_origins TYPE option<int> PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE administrator_principal ON TABLE first_owner_administration_origins TYPE option<record<principals>> PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE administration_resource ON TABLE first_owner_administration_origins TYPE option<record<protected_resources>> PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE enroll_grant ON TABLE first_owner_administration_origins TYPE option<record<resource_grants>> PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE revoke_grant ON TABLE first_owner_administration_origins TYPE option<record<resource_grants>> PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE assign_grant ON TABLE first_owner_administration_origins TYPE option<record<resource_grants>> PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE administration_lifetime ON TABLE first_owner_administration_origins TYPE option<object> FLEXIBLE PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE confirmation_receipt ON TABLE first_owner_administration_origins TYPE option<record<kernel_event_ledger>> PERMISSIONS FOR select FULL FOR create NONE FOR update NONE;
+DEFINE FIELD OVERWRITE administrator_login_binding ON TABLE session_exchange_credentials TYPE option<object> FLEXIBLE PERMISSIONS NONE;
+DEFINE FIELD OVERWRITE administrator_login_binding ON TABLE authenticated_sessions TYPE option<object> FLEXIBLE PERMISSIONS NONE;
+DEFINE FUNCTION OVERWRITE fn::wp012_administrator_login_binding_current($b: object) {
+ LET $o = SELECT * FROM ONLY first_owner_administration_origins:primary;
+ LET $a = SELECT * FROM ONLY $b.account;
+ LET $p = SELECT * FROM ONLY $b.principal;
+ LET $s = SELECT * FROM ONLY $b.space;
+ LET $r = SELECT * OMIT authorization_touch_nonce FROM ONLY $o.administration_resource;
+ LET $w = SELECT * OMIT authorization_touch_nonce FROM ONLY $o.first_workspace_resource;
+ LET $e = SELECT * OMIT authorization_touch_nonce FROM ONLY $o.enroll_grant;
+ LET $v = SELECT * OMIT authorization_touch_nonce FROM ONLY $o.revoke_grant;
+ LET $g = SELECT * OMIT authorization_touch_nonce FROM ONLY $o.assign_grant;
+ LET $policy = math::max([$a.policy_version, $p.policy_version, $s.policy_version]);
+ RETURN $o != NONE AND $a != NONE AND $p != NONE AND $s != NONE
+  AND $o = $b.origin AND $r = $b.administration AND $w = $b.parent
+  AND $e = $b.enroll AND $v = $b.revoke AND $g = $b.assign
+  AND $o.id = first_owner_administration_origins:primary
+  AND $o.purpose = 'prospective_first_owner_administration' AND $o.version = 1
+  AND $o.first_workspace_state = 'created' AND $o.confirmation_state = 'confirmed'
+  AND $o.account = $b.account AND $o.space = $b.space
+  AND $o.administrator_principal = $b.principal AND $o.operator_principal != $b.principal
+  AND $a.account_role = 'Owner' AND $a.account_key = $b.name AND $a.status = 'enabled'
+  AND $a.password_verifier != NONE AND $a.credential_revision > 0
+  AND $a.credential_revision = $b.credential_revision
+  AND $a.revocation_epoch = $b.account_epoch AND $a.policy_version = $b.account_policy
+  AND $p.account_id = $b.account AND $p.status = 'enabled' AND $p.principal_kind = 'human_account'
+  AND $p.revocation_epoch = $b.principal_epoch AND $p.policy_version = $b.principal_policy
+  AND $p.capability_profile_id = 'MemberEnrollmentAdministrator' AND $p.capability_profile_id = $b.profile
+  AND $p.delegated_capabilities = ['account.identity.enroll', 'account.identity.enrollment.revoke', 'account.identity.member_profile.assign']
+  AND $p.delegated_capabilities = $b.capabilities
+  AND $s.account_id = $b.account AND $s.status = 'active'
+  AND $s.revocation_epoch = $b.space_epoch AND $s.policy_version = $b.space_policy
+  AND $r.id = $o.administration_resource AND $r.resource_kind = 'account_administration'
+  AND $r.owner_account_id = $b.account AND $r.access_space_id = $b.space AND $r.lifecycle_state = 'active'
+  AND $r.parent_resource_id = $o.first_workspace_resource
+  AND $r.account_administration_lifetime = $o.administration_lifetime
+  AND (($o.administration_lifetime = {mode:'no_expiry'})
+   OR ($o.administration_lifetime.mode = 'expires_at' AND $o.administration_lifetime.expires_at > time::now()))
+  AND $w.id = $o.first_workspace_resource AND $w.resource_kind = 'workspace'
+  AND $w.external_resource_id = <string>record::id($o.first_workspace)
+  AND $w.owner_account_id = $b.account AND $w.access_space_id = $b.space AND $w.lifecycle_state = 'active'
+  AND $e.id = $o.enroll_grant AND $v.id = $o.revoke_grant AND $g.id = $o.assign_grant
+  AND $e.id != $v.id AND $e.id != $g.id AND $v.id != $g.id
+  AND $e.actions = ['create'] AND $e.capability_ids = ['account.identity.enroll']
+  AND $v.actions = ['update'] AND $v.capability_ids = ['account.identity.enrollment.revoke']
+  AND $g.actions = ['update'] AND $g.capability_ids = ['account.identity.member_profile.assign']
+  AND $e.account_id = $b.account AND $v.account_id = $b.account AND $g.account_id = $b.account
+  AND $e.principal_id = $b.principal AND $v.principal_id = $b.principal AND $g.principal_id = $b.principal
+  AND $e.access_space_id = $b.space AND $v.access_space_id = $b.space AND $g.access_space_id = $b.space
+  AND $e.resource_id = $r.id AND $v.resource_id = $r.id AND $g.resource_id = $r.id
+  AND $e.grant_version = 1 AND $v.grant_version = 1 AND $g.grant_version = 1
+  AND $e.status = 'active' AND $v.status = 'active' AND $g.status = 'active'
+  AND $e.revoked_at = NONE AND $v.revoked_at = NONE AND $g.revoked_at = NONE
+  AND ($e.expires_at = NONE OR $e.expires_at > time::now())
+  AND ($v.expires_at = NONE OR $v.expires_at > time::now())
+  AND ($g.expires_at = NONE OR $g.expires_at > time::now())
+  AND $e.delegation_chain = [<string>record::id($p.id)]
+  AND $v.delegation_chain = $e.delegation_chain AND $g.delegation_chain = $e.delegation_chain
+  AND $e.policy_version >= $r.policy_version AND $e.policy_version >= $w.policy_version AND $e.policy_version <= $policy
+  AND $v.policy_version >= $r.policy_version AND $v.policy_version >= $w.policy_version AND $v.policy_version <= $policy
+  AND $g.policy_version >= $r.policy_version AND $g.policy_version >= $w.policy_version AND $g.policy_version <= $policy;
+} PERMISSIONS NONE;
+DEFINE FUNCTION OVERWRITE fn::wp012_administrator_login_snapshot($snapshot: object) {
+ LET $o = SELECT * FROM ONLY first_owner_administration_origins:primary;
+ LET $a = SELECT * FROM ONLY $o.account;
+ LET $p = SELECT * FROM ONLY $o.administrator_principal;
+ LET $s = SELECT * FROM ONLY $o.space;
+ LET $r = SELECT * OMIT authorization_touch_nonce FROM ONLY $o.administration_resource;
+ LET $w = SELECT * OMIT authorization_touch_nonce FROM ONLY $o.first_workspace_resource;
+ LET $e = SELECT * OMIT authorization_touch_nonce FROM ONLY $o.enroll_grant;
+ LET $v = SELECT * OMIT authorization_touch_nonce FROM ONLY $o.revoke_grant;
+ LET $g = SELECT * OMIT authorization_touch_nonce FROM ONLY $o.assign_grant;
+ LET $b = {origin:$o,administration:$r,parent:$w,enroll:$e,revoke:$v,assign:$g,
+  account:$a.id,principal:$p.id,space:$s.id,name:$a.account_key,
+  credential_revision:$a.credential_revision,account_epoch:$a.revocation_epoch,
+  principal_epoch:$p.revocation_epoch,space_epoch:$s.revocation_epoch,
+  account_policy:$a.policy_version,principal_policy:$p.policy_version,space_policy:$s.policy_version,
+  profile:$p.capability_profile_id,capabilities:$p.delegated_capabilities};
+ IF $snapshot.account = $a.id AND $snapshot.name = $a.account_key
+  AND $snapshot.verifier = $a.password_verifier AND $snapshot.credential_revision = $a.credential_revision
+  AND $snapshot.revocation_epoch = $a.revocation_epoch AND $snapshot.policy_version = $a.policy_version
+  AND fn::wp012_administrator_login_binding_current($b) { RETURN [$b]; };
+ RETURN [];
+} PERMISSIONS NONE;
 UPSERT handshake_schema_state:primary SET
     version = $schema_version,
     revision = $schema_revision,
@@ -7552,11 +8708,26 @@ DEFINE FIELD OVERWRITE authorization_touch_nonce ON TABLE access_spaces TYPE int
 DEFINE FIELD OVERWRITE authorization_touch_nonce ON TABLE protected_resources TYPE int DEFAULT 0 ASSERT $value >= 0;
 DEFINE FIELD OVERWRITE authorization_touch_nonce ON TABLE resource_grants TYPE int DEFAULT 0 ASSERT $value >= 0;
 DEFINE FUNCTION OVERWRITE fn::mt120_workspace_create($session: option<record<authenticated_sessions>>) {
-    RETURN fn::mt109_live_session() AND $session = $auth.id
-        AND $auth.account_id.account_role = 'Owner'
-        AND $auth.principal_id.principal_kind = 'human_account'
-        AND ($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS 'fs.write')
-        AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS 'fs.write');
+    IF !fn::mt109_live_session() OR $session != $auth.id
+        OR $auth.account_id.account_role != 'Owner'
+        OR $auth.principal_id.principal_kind != 'human_account'
+        OR !($auth.delegated_capabilities CONTAINS '*' OR $auth.delegated_capabilities CONTAINS 'fs.write')
+        OR !($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINS 'fs.write') { RETURN false; };
+    IF $auth.account_id.first_owner_administration_origin = NONE { RETURN true; };
+    IF $auth.account_id.first_owner_administration_origin != first_owner_administration_origins:primary { RETURN false; };
+    LET $origin = (SELECT * FROM first_owner_administration_origins:primary)[0];
+    IF $origin = NONE OR $origin.account != $auth.account_id { RETURN false; };
+    IF !fn::wp012_first_owner_workspace_actor($origin) OR $origin.first_workspace_state != 'created' { RETURN false; };
+    IF record::exists($origin.first_workspace) AND record::exists($origin.first_workspace_resource)
+        AND record::exists($origin.first_workspace_grant) { RETURN true; };
+    RETURN $origin.first_workspace_operation_id = $wp012_original_workspace
+        AND $origin.first_workspace = type::record('workspaces', $wp012_original_workspace)
+        AND $origin.first_workspace_resource = type::record('protected_resources', $wp012_original_resource)
+        AND $origin.first_workspace_session = $auth.id
+        AND $origin.first_workspace_channel_hash = $auth.channel_binding_hash
+        AND $origin.first_workspace_policy_version = $auth.policy_version
+        AND $origin.first_workspace_deadline > time::now()
+        AND $origin.first_workspace_receipt_nonce = 1;
 };
 DEFINE FUNCTION OVERWRITE fn::mt120_resource_create($row: object) {
     IF !fn::mt109_live_session() OR $row.created_in_session_id != $auth.id
@@ -8612,6 +9783,31 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_crdt_receipt($row: object, $write
     RETURN $source.event_ledger_event_id = $row.id
         AND fn::wp012_model_lane_crdt_document_access($source, false, $snapshot);
 };
+DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_ledger_read($row: object) {
+    IF $row.source_component != 'model_lane' OR $row.event_type NOT IN ['MODEL_LANE_AUTHORITY_RECORDED', 'MODEL_LANE_MESSAGE_RECORDED']
+        OR ($wp012_role_evidence_consume = NONE AND $wp012_role_evidence_create = NONE AND $wp012_role_evidence_capture = NONE) { RETURN false; };
+    LET $sources = SELECT * FROM model_lane_authority
+        WHERE event_ledger_event_id = $row.id AND event_id = $row.event_id LIMIT 2;
+    IF array::len($sources) != 1 { RETURN false; };
+    LET $source = $sources[0];
+    IF $source.event_seq != $row.event_sequence OR $source.transaction_seq != $row.event_sequence
+        OR $source.event_stream_version != $row.payload.event_stream_version
+        OR $source.run_id != $row.kernel_task_run_id OR $source.run_id != $row.payload.run_id
+        OR $source.record_kind != $row.aggregate_type OR $source.record_kind != $row.payload.record_kind
+        OR $source.aggregate_id != $row.aggregate_id OR $source.owner_account_id != $row.owner_account_id
+        OR $source.actor_principal_id != $row.actor_principal_id
+        OR $source.authenticated_session_id != $row.authenticated_session_id
+        OR $source.access_space_id != $row.access_space_id OR $source.workspace_id != $row.workspace_id
+        OR $row.payload_hash != crypto::sha256($row.payload.event_payload_json) { RETURN false; };
+    RETURN IF $wp012_role_evidence_capture != NONE {
+        fn::wp012_model_lane_role_target_capture($source)
+    } ELSE IF $wp012_role_evidence_consume != NONE {
+        fn::wp012_model_lane_role_consume($source)
+    } ELSE {
+        fn::wp012_model_lane_role_create($source)
+    };
+};
+
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_receipt($row: object, $write: bool) {
     IF $row.source_component = 'model_lane_crdt'
         OR ($row.source_component = 'knowledge_crdt_ai_edit_proposal' AND $row.aggregate_type = 'knowledge_ai_edit_promotion') { RETURN fn::wp012_model_lane_crdt_receipt($row, $write); };

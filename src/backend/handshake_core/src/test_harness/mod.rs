@@ -6,6 +6,9 @@ pub mod scenarios;
 pub mod session;
 pub mod swarm;
 
+#[cfg(all(feature = "surreal-test-support", feature = "runtime-full", feature = "duckdb-flight-recorder"))]
+pub mod ac9_role_authority;
+
 pub use invariants::{
     HbrSwarmInvariantFail, HbrSwarmLoopCapReceipt, HbrSwarmLoopCounter, FR_EVT_LOOP_CAP,
     HBR_SWARM_002_LOOP_CAP, HBR_SWARM_INVARIANT_FAIL,

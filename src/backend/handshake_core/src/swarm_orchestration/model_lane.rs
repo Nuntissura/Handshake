@@ -143,6 +143,34 @@ pub struct ValidatorRunnerRegistrationBinding {
     pub producer_registered_principal: ActorPrincipalId,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ValidatorRunnerRuntimeSelection {
+    pub instance_ref: String,
+    pub spawn_generation: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WorkspaceValidatorRunnerDesignationInput {
+    pub operation_id: uuid::Uuid,
+    pub action: handshake_role_authority::domain::ActionKey,
+    pub scope: ExactResourceScopeAttribution,
+    pub run: handshake_role_authority::domain::RunBinding,
+    pub subject: handshake_role_authority::domain::ArtifactSubject,
+    pub expected: handshake_role_authority::domain::ExpectedBase,
+    pub retention: handshake_role_authority::domain::RetentionBinding,
+    pub runner: ValidatorRunnerRuntimeSelection,
+    // Actual caller-supplied data. No default, generated ID or inferred revision.
+    pub requested_task_snapshot: serde_json::Value,
+}
+
+impl WorkspaceValidatorRunnerDesignationInput {
+    pub fn requested_task_snapshot(&self) -> &serde_json::Value {
+        &self.requested_task_snapshot
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkspaceValidatorRunnerDesignationRequest {
     pub operation_id: Uuid,
@@ -288,6 +316,11 @@ impl RoutingStageAcknowledgementIntent {
 
 #[derive(Clone, Debug)]
 pub(crate) enum RoleConsumptionCommand {
+    IssueInitialValidatorVerdict {
+        operation_id: Uuid,
+        operator: RoleEvidenceConsumeSelector,
+        issuance: Arc<crate::storage::surreal::resource_authority::InitialValidatorIssuance>,
+    },
     ReviewInvocation { operation_id: Uuid, selector: RoleEvidenceConsumeSelector },
     AcknowledgeRoutingStage {
         operation_id: Uuid,
@@ -312,6 +345,7 @@ pub(crate) enum RoleConsumptionCommand {
 impl RoleConsumptionCommand {
     pub(crate) fn operation_id(&self) -> Uuid {
         match self {
+            Self::IssueInitialValidatorVerdict { operation_id, .. } => *operation_id,
             Self::ReviewInvocation { operation_id, .. }
             | Self::AcknowledgeRoutingStage { operation_id, .. }
             | Self::RecordReviewCompletion { operation_id, .. }
@@ -321,6 +355,7 @@ impl RoleConsumptionCommand {
 
     pub(crate) fn evidence_selectors(&self) -> Vec<&RoleEvidenceConsumeSelector> {
         match self {
+            Self::IssueInitialValidatorVerdict { operator, .. } => vec![operator],
             Self::ReviewInvocation { selector, .. }
             | Self::AcknowledgeRoutingStage { selector, .. }
             | Self::RecordReviewCompletion { selector, .. } => vec![selector],
@@ -2726,6 +2761,34 @@ impl ModelLaneStore {
             .await?;
         let stored_lane = self.record_lane(records.1).await?;
         Ok((stored_run, stored_lane))
+    }
+
+    pub(crate) async fn record_existing_run_launch(
+        &self, expected: &ModelLaneRunRecord, records: (NewModelLaneRun, NewModelLane),
+    ) -> ModelLaneResult<(ModelLaneRunRecord, ModelLaneRecord)> {
+        validate_run(&records.0)?;
+        validate_lane(&records.1)?;
+        validate_prepared_launch_pair(&records.0, &records.1)?;
+        let current = self.replay_run(&expected.run_id).await?.run;
+        if current != *expected || records.0.run_id != current.run_id
+            || records.0.trace_id != current.trace_id
+            || records.0.coordinator_session_id != current.coordinator_session_id
+            || records.0.owner_session != current.owner_session
+            || records.0.work_packet_id != current.work_packet_id
+            || records.0.micro_task_id != current.micro_task_id
+            || records.0.task_board_id != current.task_board_id
+            || records.0.event_ledger_stream_id != current.event_ledger_stream_id
+            || records.0.locus_binding.as_ref().map(|locus| &locus.locus_binding_ref)
+                != current.locus_binding.as_ref().map(|locus| &locus.locus_binding_ref)
+        { return Err(ModelLaneError::AuthorityDenied("existing-run runtime enrollment identity differs".into())); }
+        if is_cloud_lane(&records.1) {
+            let check = cloud_launch_check_from_records(&records.0, &records.1);
+            require_exact_cloud_launch_scope(&self.access)?;
+            self.ensure_cloud_launch_authority_surreal(&check).await?;
+            self.record_cloud_lane_surreal(records.1.clone()).await?;
+        }
+        let lane = self.record_lane(records.1).await?;
+        Ok((current, lane))
     }
 
     #[cfg(feature = "test-utils")]
@@ -8901,7 +8964,7 @@ fn routing_stable_token<T: Serialize>(value: &T) -> ModelLaneResult<String> {
         })
 }
 
-fn surreal_message_record(
+pub(crate) fn surreal_message_record(
     stored: SurrealModelLaneRecord,
 ) -> ModelLaneResult<ModelLaneMessageRecord> {
     let value: Value = serde_json::from_str(&stored.record_json)?;
@@ -16881,4 +16944,23 @@ fn validate_sha256(field: &str, value: &str) -> ModelLaneResult<()> {
     Err(ModelLaneError::InvalidInput(format!(
         "{field} must be lowercase sha256 hex"
     )))
+}
+
+impl ModelLaneStore {
+    pub(crate) async fn designate_validator_runner_from_original_association(
+    &self,
+    issuance: &mut crate::storage::surreal::resource_authority::ValidatorAssociationIssuanceHandle,
+    request: WorkspaceValidatorRunnerDesignationRequest,
+    producer: std::sync::Arc<super::coordinator::ValidatorProducerKey>,
+) -> Result<WorkspaceValidatorRunnerDesignationRecord,
+    crate::storage::surreal::resource_authority::ValidatorAssociationRetainedFailure> {
+    self.access().authorize_exact_request(&request.scope)
+        .map_err(|error| issuance.retain_scope_failure(error))?;
+    match issuance.complete_original_designation(request, producer).await? {
+        WorkspaceOwnerActionResult::RunnerDesignation { request, event, content_hash } =>
+            Ok(WorkspaceValidatorRunnerDesignationRecord { request, event, content_hash }),
+        _ => Err(issuance.retain_public_authority_failure(
+            crate::storage::surreal::resource_authority::ResourceAuthorityError::InvalidInput("association designation result kind differs"))),
+    }
+}
 }

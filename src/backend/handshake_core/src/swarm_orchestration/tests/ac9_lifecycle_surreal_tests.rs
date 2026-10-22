@@ -46,6 +46,7 @@ use crate::swarm_orchestration::routing::{ModelLaneRoutingGraph, ModelLaneRoutin
 use crate::swarm_orchestration::routing_execution::ModelLaneRoutingExecutionContext;
 
 use super::ac9_surreal_test_store_support::IsolatedSurrealTestStore;
+use crate::test_harness::ac9_role_authority::Ac9RoleAuthorityFixture;
 
 const SYNTHETIC_OPERATOR: &str = "synthetic-ac9-operator";
 
@@ -193,6 +194,7 @@ pub(super) struct Ac9Harness {
     artifact_workspace_root: PathBuf,
     native_binding: Option<NativeBindingFile>,
     authenticated: Option<Ac9AuthenticatedWorkspace>,
+    promotion_authorities: std::collections::BTreeMap<String, (uuid::Uuid, Ac9RoleAuthorityFixture)>,
 }
 
 impl Ac9Harness {
@@ -200,7 +202,7 @@ impl Ac9Harness {
         let isolated = IsolatedSurrealTestStore::create()
             .await
             .expect("allocate isolated AC9 canonical store");
-        let db: Arc<dyn Database> = Arc::new(isolated.storage().clone());
+        let db: Arc<dyn Database> = Arc::new(crate::storage::surreal::SurrealDatabase::new(isolated.storage().clone()));
         let capability_registry = Arc::new(CapabilityRegistry::new());
         let bootstrap = AccountBootstrapState::new(
             db.clone(), isolated.storage().clone(), capability_registry.clone(),
@@ -215,6 +217,7 @@ impl Ac9Harness {
             artifact_workspace_root,
             native_binding: None,
             authenticated: None,
+            promotion_authorities: std::collections::BTreeMap::new(),
         }
     }
 
@@ -228,6 +231,19 @@ impl Ac9Harness {
 
     pub(super) fn bootstrap(&self) -> &AccountBootstrapState {
         self.bootstrap.as_ref().expect("open canonical bootstrap state")
+    }
+
+    pub(super) fn authorization_request(&self) -> AuthorizationRequest {
+        let authenticated = self.authenticated.as_ref().expect("actual authenticated workspace");
+        AuthorizationRequest {
+            session_token: authenticated.session_token.clone(),
+            channel_binding_hash: Some(authenticated.channel_binding_hash.clone()),
+            capability_id: "fs.write".into(),
+            resource_kind: ResourceKind::Workspace,
+            external_resource_id: authenticated.workspace_id.clone()
+                .expect("actual workspace creation completed"),
+            action: ResourceAction::Create,
+        }
     }
 
     pub(super) fn canonical_database(&self) -> Arc<dyn Database> {
@@ -730,20 +746,15 @@ impl Ac9Harness {
     pub(super) async fn prepare_unresolved_receipt_candidate(
         &mut self,
         evidence: &Ac9GateEvidence,
+        approval_retention: handshake_role_authority::domain::RetentionBinding,
+        designation_retention: handshake_role_authority::domain::RetentionBinding,
+        requested_task_snapshot: serde_json::Value,
     ) -> NewModelLanePromotionDecision {
         self.authenticate_workspace().await;
         let label = uuid::Uuid::now_v7().simple().to_string();
         let store = self.store();
-        let authenticated = self.authenticated.as_ref().expect("actual authenticated workspace");
-        let authorization = AuthorizationRequest {
-            session_token: authenticated.session_token.clone(),
-            channel_binding_hash: Some(authenticated.channel_binding_hash.clone()),
-            capability_id: "fs.write".into(),
-            resource_kind: ResourceKind::Workspace,
-            external_resource_id: authenticated.workspace_id.clone().expect("actual workspace creation completed"),
-            action: ResourceAction::Create,
-        };
-        let (_, _, _, messages) = store.record_authenticated_creation(
+        let authorization = self.authorization_request();
+        let (run, lane, artifact, messages) = store.record_authenticated_creation(
             self.bootstrap(), authorization,
             (ac9_input_run(&label), ac9_input_lane(&label), ac9_input_artifact_binding(&label),
                 vec![ac9_input_message(&label, "proposal"), ac9_input_message(&label, "critique")]),
@@ -766,7 +777,33 @@ impl Ac9Harness {
             "canonical_gate_artifact_id": evidence.artifact.payload["artifact_id"],
             "canonical_gate_validation_id": evidence.validation.payload["validation_id"],
         });
+        let authority = Ac9RoleAuthorityFixture::produce(
+            self.bootstrap(), store.clone(), self.authorization_request(),
+            &run, &lane, &artifact, &candidate,
+            approval_retention, designation_retention, requested_task_snapshot,
+        ).await.expect("produce canonical same-run Operator and designated Validator authority");
+        assert!(self.promotion_authorities.insert(
+            run.run_id.clone(), (uuid::Uuid::now_v7(), authority),
+        ).is_none(), "one authority fixture owns each canonical candidate run");
         candidate
+    }
+
+    pub(super) async fn record_promotion_candidate(
+        &self, candidate: NewModelLanePromotionDecision,
+    ) -> crate::swarm_orchestration::model_lane::ModelLaneResult<crate::swarm_orchestration::model_lane::ModelLanePromotionDecisionRecord> {
+        let (operation_id, authority) = self.promotion_authorities.get(&candidate.run_id)
+            .expect("canonical role pair must precede promotion input mutation");
+        self.store().record_promotion_decision(
+            self.bootstrap(), self.authorization_request(), *operation_id, authority.selectors(), candidate,
+        ).await
+    }
+
+    async fn cleanup_promotion_authorities(&mut self) -> Vec<String> {
+        let mut errors = Vec::new();
+        for (_, (_, authority)) in std::mem::take(&mut self.promotion_authorities) {
+            if let Err(error) = authority.shutdown().await { errors.push(error.to_string()); }
+        }
+        errors
     }
 
     async fn logout_authenticated(&mut self) {
@@ -784,25 +821,29 @@ impl Ac9Harness {
     }
 
     pub(super) async fn reopen(&mut self) {
+        let authority_errors = self.cleanup_promotion_authorities().await;
         self.logout_authenticated().await;
         drop(self.store.take());
         self.scope = None;
         drop(self.bootstrap.take());
         drop(self.db.take());
         self.isolated.reopen().await.expect("close and reopen actual embedded store");
-        let db: Arc<dyn Database> = Arc::new(self.isolated.storage().clone());
+        let db: Arc<dyn Database> = Arc::new(crate::storage::surreal::SurrealDatabase::new(self.isolated.storage().clone()));
         self.bootstrap = Some(AccountBootstrapState::new(
             db.clone(), self.isolated.storage().clone(), self.capability_registry.clone(),
         ));
         self.db = Some(db);
+        assert!(authority_errors.is_empty(), "role producer cleanup before reopen failed: {authority_errors:?}");
     }
 
     pub(super) async fn cleanup(&mut self) {
+        let authority_errors = self.cleanup_promotion_authorities().await;
         self.logout_authenticated().await;
         drop(self.store.take());
         drop(self.bootstrap.take());
         drop(self.db.take());
         self.isolated.cleanup().await.expect("clean isolated canonical AC9 store");
+        assert!(authority_errors.is_empty(), "role producer cleanup failed: {authority_errors:?}");
     }
 
     pub(super) async fn run_with_cleanup<R>(
@@ -1160,10 +1201,43 @@ async fn ac9_production_promotion_rejects_unresolved_receipt_without_authority_m
     let mut harness = Ac9Harness::create("unresolved-receipt", artifact_workspace("unresolved-receipt")).await;
     harness.run_with_cleanup(|harness| Box::pin(async move {
         let evidence = harness.produce_gate_evidence().await.expect("produce actual canonical gate evidence");
-        let candidate = harness.prepare_unresolved_receipt_candidate(&evidence).await;
+        let approval_retention = handshake_role_authority::domain::RetentionBinding {
+            policy_ref: ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/ac9_current_surreal_two_author_source_admission_20261015/pure_role_authority_five_new_path_source_admission_20261015/actual_closed_handoff/exact_full_contract".into(),
+            authority_class: "Owner".into(),
+            replay_policy_ref: ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/ac9_current_surreal_two_author_source_admission_20261015/pure_role_authority_five_new_path_source_admission_20261015/actual_closed_handoff/exact_full_contract".into(),
+            artifact_retention_ttl_days: None,
+        };
+        let designation_retention = handshake_role_authority::domain::RetentionBinding {
+            policy_ref: ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/ac9_current_surreal_two_author_source_admission_20261015/pure_role_authority_five_new_path_source_admission_20261015/actual_closed_handoff/exact_full_contract".into(),
+            authority_class: "Owner".into(),
+            replay_policy_ref: ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/ac9_current_surreal_two_author_source_admission_20261015/pure_role_authority_five_new_path_source_admission_20261015/actual_closed_handoff/exact_full_contract".into(),
+            artifact_retention_ttl_days: None,
+        };
+        harness.authenticate_workspace().await;
+        let requested_workspace = harness.authorization_request().external_resource_id;
+        let requested_task_snapshot = serde_json::json!({
+            "format_version": 1,
+            "task_id": "ac9-unresolved-receipt-fixture-task",
+            "claimed_revision": 1,
+            "operations": [
+                {"tool": "delegate_workspace_read",
+                 "resource_kind": crate::storage::surreal::resource_authority::ResourceKind::Workspace,
+                 "external_resource_id": requested_workspace.clone(),
+                 "action": crate::storage::surreal::resource_authority::ResourceAction::Read,
+                 "capability_id": "fs.read"},
+                {"tool": "delegate_workspace_create",
+                 "resource_kind": crate::storage::surreal::resource_authority::ResourceKind::Workspace,
+                 "external_resource_id": requested_workspace,
+                 "action": crate::storage::surreal::resource_authority::ResourceAction::Create,
+                 "capability_id": "fs.write"}
+            ]
+        });
+        let candidate = harness.prepare_unresolved_receipt_candidate(
+            &evidence, approval_retention, designation_retention, requested_task_snapshot,
+        ).await;
         let before = harness.store().replay_promotion_decisions(&candidate.run_id)
             .await.expect("read canonical promotion state before negative");
-        let result = harness.store().record_promotion_decision(candidate.clone()).await;
+        let result = harness.record_promotion_candidate(candidate.clone()).await;
         let after = harness.store().replay_promotion_decisions(&candidate.run_id)
             .await.expect("read canonical promotion state after negative");
         let rejected = result.expect("unexpected writer failure is not unresolved-receipt rejection");

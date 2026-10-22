@@ -445,7 +445,7 @@ async fn scoped_designate_validator_runner(
     State(state): State<OperatorChatState>,
     scope: RequestAccountScope,
     headers: HeaderMap,
-    Json(request): Json<crate::swarm_orchestration::model_lane::WorkspaceValidatorRunnerDesignationRequest>,
+    Json(request): Json<crate::swarm_orchestration::model_lane::WorkspaceValidatorRunnerDesignationInput>,
 ) -> Result<Json<Value>, ApiError> {
     require_operator_chat_exact_scope(&state, scope.exact())?;
     #[cfg(feature = "runtime-full")]
@@ -774,6 +774,7 @@ async fn enumerate_inventory(state: &OperatorChatState) -> OperatorChatModelInve
                         && session.spawn_depth == parent.spawn_depth.saturating_add(1)
                 });
             OperatorChatSessionRow {
+                job_id: session.job_id,
                 session_id: session.session_id.clone(),
                 parent_session_id: session.parent_session_id.clone(),
                 label: format!("{} / {}", session.role, session.model_id),
@@ -1133,7 +1134,11 @@ fn launch_api_error(err: OperatorChatError) -> ApiError {
         ),
         // Fail-closed launches (absent ModelLaneStore / bypass) surface here as a
         // SwarmError::LedgerFailed — a hard 500, never a partial success.
-        OperatorChatError::Swarm(_) => (
+        OperatorChatError::Swarm(_)
+        | OperatorChatError::MissingCanonicalLaunchPlan(_)
+        | OperatorChatError::ValidatorAssociationReadback(_)
+        | OperatorChatError::ValidatorAssociationReservation(_)
+        | OperatorChatError::ValidatorAssociationRetained(_) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({"error": "launch_failed_closed"})),
         ),
@@ -1311,6 +1316,8 @@ mod client_safety_tests {
 #[cfg(feature = "runtime-full")]
 pub use paired_preparation::{
     prepare_operator_chat_operation, OperatorChatPreparationState, PreparedOperatorChatOperation,
+    prepare_operator_chat_first, prepare_operator_chat_second,
+    PreparedOperatorChatFirst, PreparedOperatorChatSecond,
 };
 
 #[cfg(feature = "runtime-full")]
@@ -1329,6 +1336,7 @@ mod paired_preparation {
     use crate::jobs::{JobAdmission, JobAdmissionError};
     use crate::swarm_orchestration::operator_chat::{
         OperatorChatAdmissionSlot, OwnedOperatorChatOperation,
+        AwaitingParent, OperatorChatSubmissionError,
     };
     use crate::AppState;
 
@@ -1418,7 +1426,150 @@ mod paired_preparation {
                 (self.first.take(), self.second.take()) else {
                     unreachable!("both private slots were checked before synchronous transfer")
                 };
-            Ok(OwnedOperatorChatOperation::begin(first, second, self.state, self.original_deadline))
+            Ok(OwnedOperatorChatOperation::prepare_with_workflow_engine_owner(first, second, self.state, self.original_deadline))
+        }
+    }
+
+
+    #[must_use = "retain the original preparation until transfer or actual settlement"]
+    pub struct PreparedOperatorChatFirst {
+        state: Arc<AppState>,
+        original_deadline: Instant,
+        first: Option<PreparationSlot>,
+    }
+
+    pub fn prepare_operator_chat_first(
+        state: Arc<AppState>,
+        headers: HeaderMap,
+        first: CreateJobRequest,
+        original_deadline: Instant,
+    ) -> PreparedOperatorChatFirst {
+        let original = Box::pin(crate::api::jobs::prepare_job_admission(state.clone(), headers, first));
+        PreparedOperatorChatFirst {
+            state, original_deadline, first: Some(PreparationSlot::Pending(original)),
+        }
+    }
+
+    impl PreparedOperatorChatFirst {
+        pub async fn prepare(&mut self) {
+            poll_original(&mut self.first, self.original_deadline).await;
+        }
+
+        pub fn preparation(&self) -> OperatorChatPreparationState<'_> {
+            self.first.as_ref().expect("original preparation remains owned before transfer").view()
+        }
+
+        pub fn into_operation(mut self) -> Result<OwnedOperatorChatOperation<AwaitingParent>, Self> {
+            if !matches!(self.first.as_ref(), Some(PreparationSlot::Prepared(_))) {
+                return Err(self);
+            }
+            let Some(PreparationSlot::Prepared(first)) = self.first.take() else {
+                unreachable!("private prepared state checked before synchronous transfer")
+            };
+            Ok(OwnedOperatorChatOperation::prepare_first_with_workflow_engine_owner(
+                first, self.state, self.original_deadline,
+            ))
+        }
+    }
+
+    #[must_use = "retain the parent operation and original second preparation on every unresolved state"]
+    pub struct PreparedOperatorChatSecond {
+        operation: OwnedOperatorChatOperation<AwaitingParent>,
+        second: Option<PreparationSlot>,
+        bound: bool,
+        extension_error: Option<OperatorChatSubmissionError>,
+        extension_panic: Option<Box<dyn Any + Send>>,
+    }
+
+    pub fn prepare_operator_chat_second(
+        operation: OwnedOperatorChatOperation<AwaitingParent>,
+        headers: HeaderMap,
+        second: CreateJobRequest,
+    ) -> PreparedOperatorChatSecond {
+        let state = operation.first_owner().state().clone();
+        let original = Box::pin(crate::api::jobs::prepare_job_admission(state, headers, second));
+        PreparedOperatorChatSecond {
+            operation, second: Some(PreparationSlot::Pending(original)),
+            bound: false, extension_error: None, extension_panic: None,
+        }
+    }
+
+    impl PreparedOperatorChatSecond {
+        pub fn operation_mut(&mut self) -> &mut OwnedOperatorChatOperation<AwaitingParent> {
+            &mut self.operation
+        }
+
+        pub fn preparation(&self) -> OperatorChatPreparationState<'_> {
+            self.second.as_ref().expect("original second preparation retained before transfer").view()
+        }
+
+        pub fn extension_error(&self) -> Option<&OperatorChatSubmissionError> {
+            self.extension_error.as_ref()
+        }
+
+        pub fn extension_panicked(&self) -> bool { self.extension_panic.is_some() }
+
+        pub async fn prepare(&mut self) {
+            if self.bound || self.extension_error.is_some() || self.extension_panic.is_some() {
+                return;
+            }
+            let deadline = self.operation.first_owner().original_deadline();
+            poll_original(&mut self.second, deadline).await;
+            let Some(PreparationSlot::Prepared(second)) = self.second.as_ref() else { return };
+            match AssertUnwindSafe(self.operation.bind_second(second)).catch_unwind().await {
+                Ok(Ok(())) => self.bound = true,
+                Ok(Err(error)) => self.extension_error = Some(error),
+                Err(payload) => self.extension_panic = Some(payload),
+            }
+        }
+    }
+
+    impl PreparedOperatorChatSecond {
+        /// Report only an observed, never-submitted child; keep every owner retained.
+        pub async fn settle_child_preparation(&mut self) -> bool {
+            if self.extension_panic.is_some() {
+                return false;
+            }
+            let deadline = self.operation.first_owner().original_deadline();
+            poll_original(&mut self.second, deadline).await;
+            let Some(PreparationSlot::Prepared(admission)) = self.second.as_mut() else {
+                return false;
+            };
+            if let Err(payload) = std::panic::catch_unwind(AssertUnwindSafe(|| {
+                admission.cancellation().cancel();
+            })) {
+                self.extension_panic = Some(payload);
+                return false;
+            }
+            match AssertUnwindSafe(admission.settle(deadline)).catch_unwind().await {
+                Ok(crate::storage::JobSubmissionSettlement::NotSubmitted) => true,
+                Ok(_) => false,
+                Err(payload) => {
+                    self.extension_panic = Some(payload);
+                    false
+                }
+            }
+        }
+
+        pub fn into_operation(mut self) -> Result<OwnedOperatorChatOperation, Self> {
+            if !self.bound || self.extension_error.is_some() || self.extension_panic.is_some()
+                || !matches!(self.second.as_ref(), Some(PreparationSlot::Prepared(_)))
+            {
+                return Err(self);
+            }
+            let Some(PreparationSlot::Prepared(second)) = self.second.take() else {
+                unreachable!("private prepared state checked before synchronous transfer")
+            };
+            match self.operation.extend_second(second) {
+                Ok(operation) => Ok(operation),
+                Err(rejected) => {
+                    let (operation, second, reason, payload) = rejected.into_parts();
+                    Err(Self {
+                        operation, second: Some(PreparationSlot::Prepared(second)),
+                        bound: self.bound, extension_error: Some(reason), extension_panic: payload,
+                    })
+                }
+            }
         }
     }
 

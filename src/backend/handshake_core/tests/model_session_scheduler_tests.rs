@@ -607,7 +607,7 @@ async fn model_run_persists_session_and_artifact_first_messages(
     )
     .await?;
 
-    let run = start_workflow_for_job(&state, job.clone()).await?;
+    let run = start_workflow_for_job(&state, job.clone(), None).await?;
     assert!(matches!(run.status, JobState::Queued | JobState::Running));
 
     let final_job = wait_for_terminal_job(&state, job.job_id, 8_000).await;
@@ -718,7 +718,7 @@ async fn trust001_external_system_role_is_downgraded_to_user_with_attribution(
     )
     .await?;
 
-    start_workflow_for_job(&state, job.clone()).await?;
+    start_workflow_for_job(&state, job.clone(), None).await?;
     let final_job = wait_for_terminal_job(&state, job.job_id, 8_000).await;
     assert_eq!(
         final_job.state,
@@ -782,7 +782,7 @@ async fn trust002_cross_session_provenance_fields_are_persisted(
     )
     .await?;
 
-    start_workflow_for_job(&state, job.clone()).await?;
+    start_workflow_for_job(&state, job.clone(), None).await?;
     let final_job = wait_for_terminal_job(&state, job.job_id, 8_000).await;
     assert_eq!(
         final_job.state,
@@ -843,7 +843,7 @@ async fn trust002_partial_provenance_is_rejected() -> Result<(), Box<dyn std::er
     )
     .await?;
 
-    let err = start_workflow_for_job(&state, job.clone())
+    let err = start_workflow_for_job(&state, job.clone(), None)
         .await
         .expect_err("expected provenance validation failure");
     assert!(
@@ -889,7 +889,7 @@ async fn model_run_cloud_consent_blocks_without_bundle() -> Result<(), Box<dyn s
     )
     .await?;
 
-    let run = start_workflow_for_job(&state, job.clone()).await?;
+    let run = start_workflow_for_job(&state, job.clone(), None).await?;
     assert!(matches!(run.status, JobState::Queued | JobState::Running));
 
     let awaiting = wait_for_state(&state, job.job_id, JobState::AwaitingUser, 8_000).await;
@@ -970,7 +970,7 @@ async fn model_run_cloud_consent_allows_with_valid_bundle() -> Result<(), Box<dy
     )
     .await?;
 
-    let run = start_workflow_for_job(&state, job.clone()).await?;
+    let run = start_workflow_for_job(&state, job.clone(), None).await?;
     assert!(matches!(run.status, JobState::Queued | JobState::Running));
 
     let final_job = wait_for_terminal_job(&state, job.job_id, 8_000).await;
@@ -1064,9 +1064,9 @@ async fn model_run_scheduler_queues_not_drop_and_dispatch_is_deterministic(
     )
     .await?;
 
-    start_workflow_for_job(&state, first.clone()).await?;
-    start_workflow_for_job(&state, second.clone()).await?;
-    start_workflow_for_job(&state, third.clone()).await?;
+    start_workflow_for_job(&state, first.clone(), None).await?;
+    start_workflow_for_job(&state, second.clone(), None).await?;
+    start_workflow_for_job(&state, third.clone(), None).await?;
 
     let done_first = wait_for_terminal_job(&state, first.job_id, 180_000).await;
     let done_second = wait_for_terminal_job(&state, second.job_id, 180_000).await;
@@ -1182,7 +1182,7 @@ async fn model_run_cancellation_is_cooperative_and_cancelled_not_failed(
     )
     .await?;
 
-    start_workflow_for_job(&state, job.clone()).await?;
+    start_workflow_for_job(&state, job.clone(), None).await?;
     wait_for_state(&state, job.job_id, JobState::Running, 5_000).await;
 
     cancel_model_run_job(
@@ -1286,7 +1286,7 @@ async fn consent_revocation_cancels_pending_model_runs_and_blocks_sessions(
     )
     .await?;
 
-    start_workflow_for_job(&state, job.clone()).await?;
+    start_workflow_for_job(&state, job.clone(), None).await?;
     wait_for_state(&state, job.job_id, JobState::Running, 5_000).await;
 
     let cancelled = revoke_consent_receipt_for_model_runs(
@@ -1359,7 +1359,7 @@ async fn session_observability_spans_bind_model_runs_and_tool_calls(
     )
     .await?;
 
-    let run = start_workflow_for_job(&state, job.clone()).await?;
+    let run = start_workflow_for_job(&state, job.clone(), None).await?;
     assert!(matches!(run.status, JobState::Queued | JobState::Running));
 
     let final_job = wait_for_terminal_job(&state, job.job_id, 8_000).await;
@@ -1857,7 +1857,7 @@ async fn model_run_spawn_request_within_contracts_is_accepted(
     )
     .await?;
 
-    start_workflow_for_job(&state, child_job).await?;
+    start_workflow_for_job(&state, child_job, None).await?;
 
     let events = state
         .flight_recorder
@@ -1932,7 +1932,7 @@ async fn model_run_spawn_request_rejected_when_depth_exceeds_max(
     )
     .await?;
 
-    let err = start_workflow_for_job(&state, child_job).await;
+    let err = start_workflow_for_job(&state, child_job, None).await;
     assert!(err.is_err());
     let message = err.expect_err("expected spawn rejection").to_string();
     assert!(message.contains("INV-SPAWN-001"));
@@ -2014,7 +2014,7 @@ async fn model_run_spawn_request_rejected_when_children_exceeds_limit(
     )
     .await?;
 
-    let err = start_workflow_for_job(&state, rejected_child_job).await;
+    let err = start_workflow_for_job(&state, rejected_child_job, None).await;
     assert!(err.is_err());
     let message = err.expect_err("expected spawn rejection").to_string();
     assert!(message.contains("INV-SPAWN-002"));
@@ -2069,7 +2069,7 @@ async fn model_run_spawn_request_rejected_when_capability_widens(
     )
     .await?;
 
-    let err = start_workflow_for_job(&state, child_job).await;
+    let err = start_workflow_for_job(&state, child_job, None).await;
     assert!(err.is_err());
     let message = err.expect_err("expected spawn rejection").to_string();
     assert!(message.contains("TRUST-003"));
@@ -2125,7 +2125,7 @@ async fn model_run_spawn_announce_back_event_is_emitted_for_parented_completion(
     )
     .await?;
 
-    start_workflow_for_job(&state, child_job.clone()).await?;
+    start_workflow_for_job(&state, child_job.clone(), None).await?;
 
     let terminal_job = wait_for_terminal_job(&state, child_job.job_id, 10_000).await;
     assert_eq!(
@@ -2240,9 +2240,9 @@ async fn model_run_cancellation_cascades_to_descendants() -> Result<(), Box<dyn 
     )
     .await?;
 
-    start_workflow_for_job(&state, parent_job.clone()).await?;
-    start_workflow_for_job(&state, child_job.clone()).await?;
-    start_workflow_for_job(&state, grandchild_job.clone()).await?;
+    start_workflow_for_job(&state, parent_job.clone(), None).await?;
+    start_workflow_for_job(&state, child_job.clone(), None).await?;
+    start_workflow_for_job(&state, grandchild_job.clone(), None).await?;
 
     cancel_model_run_job(
         &state,

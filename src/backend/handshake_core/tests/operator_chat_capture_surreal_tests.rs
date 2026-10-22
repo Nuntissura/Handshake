@@ -9,6 +9,7 @@ use axum::Router;
 use futures::FutureExt;
 use handshake_core::api::{authority, stage, workspaces};
 use handshake_core::capabilities::CapabilityRegistry;
+use handshake_core::storage::surreal::SurrealDatabase;
 use handshake_core::storage::Database;
 use handshake_core::swarm_orchestration::resource_scope::{
     AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, ExactResourceScopeAttribution,
@@ -100,17 +101,25 @@ struct PublicFixture {
 
 impl PublicFixture {
     async fn create() -> Self {
+        static TRACING: std::sync::Once = std::sync::Once::new();
+        TRACING.call_once(|| {
+            tracing_subscriber::fmt()
+                .with_env_filter("handshake_core::resource_authority=error,handshake_core::local_account_vault=error")
+                .with_writer(std::io::stderr)
+                .try_init()
+                .expect("install public session failure diagnostics");
+        });
         let root = surreal_test_store_support::canonical_artifacts_root_for_proof()
             .expect("verified artifact root");
-        let owner = root.join("WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1")
-            .join("MT-017").join("failure-boundary-readiness").join("operator-chat-capture");
+        let owner = root.join("WP-KERNEL-012")
+            .join("MT-174").join("chat");
         assert!(owner.starts_with(&root), "owned output stays below the verified root");
         std::fs::create_dir_all(&owner).expect("create only the assigned artifact descendant");
         let isolated = IsolatedSurrealTestStore::create_in(&owner).await.expect("own isolated durable store");
         let channel = NativeChannel::create(&owner);
         let capabilities = Arc::new(CapabilityRegistry::new());
         capabilities.profile_by_id("Operator").expect("canonical Operator capabilities");
-        let database: Arc<dyn Database> = Arc::new(isolated.storage().clone());
+        let database: Arc<dyn Database> = Arc::new(SurrealDatabase::new(isolated.storage().clone()));
         let bootstrap = AccountBootstrapState::new(
             database.clone(), isolated.storage().clone(), capabilities.clone(),
         );
@@ -206,7 +215,7 @@ impl PublicFixture {
         self.isolated.reopen().await.expect("all derived clones dropped before same-store reopen");
         assert_eq!(identity, (self.isolated.store_path().to_owned(), self.isolated.namespace().to_owned(),
             self.isolated.database().to_owned()));
-        let database: Arc<dyn Database> = Arc::new(self.isolated.storage().clone());
+        let database: Arc<dyn Database> = Arc::new(SurrealDatabase::new(self.isolated.storage().clone()));
         self.bootstrap = Some(AccountBootstrapState::new(database.clone(), self.isolated.storage().clone(),
             self.capabilities.clone()));
         self.database = Some(database);
@@ -278,6 +287,165 @@ use handshake_core::swarm_orchestration::production_factory::{
     CloudLaneFactoryConfig,
 };
 
+struct OriginalChatOwners {
+    fixture: PublicFixture,
+    runtime: Option<ProcessReclaimRuntime>,
+    service: Option<Arc<handshake_core::swarm_orchestration::operator_chat::OperatorChatLaunchService>>,
+    drain: Option<DurableSwarmFrDrain>,
+    recorder: Option<Arc<DuckDbFlightRecorder>>,
+    llm: Option<Arc<dyn handshake_core::llm::LlmClient>>,
+    app_state: Option<handshake_core::AppState>,
+    owned_jobs: Vec<Uuid>,
+    settlement_failures: Vec<CleanupFailure>,
+    llm_shutdown: LlmShutdownObservation,
+    staged_acquisition: Option<StagedAcquisition>,
+    parent_observation: Option<handshake_core::swarm_orchestration::operator_chat::OperatorChatParentObservation>,
+    acquisition_deadline: Option<tokio::time::Instant>,
+}
+
+enum StagedAcquisition {
+    First(handshake_core::api::operator_chat::PreparedOperatorChatFirst),
+    Parent(handshake_core::swarm_orchestration::operator_chat::OwnedOperatorChatOperation<
+        handshake_core::swarm_orchestration::operator_chat::AwaitingParent>),
+    Second(handshake_core::api::operator_chat::PreparedOperatorChatSecond),
+    Pair(handshake_core::swarm_orchestration::operator_chat::OwnedOperatorChatOperation),
+}
+
+impl StagedAcquisition {
+    async fn cancel_and_drain(&mut self, failures: &mut Vec<CleanupFailure>) -> bool {
+        let cancelled = match self {
+            Self::First(_) => return false,
+            Self::Parent(operation) => operation.request_cancel(),
+            Self::Second(preparation) => preparation.operation_mut().request_cancel(),
+            Self::Pair(operation) => operation.request_cancel(),
+        };
+        let cancellation_returned = cancelled.is_ok();
+        if let Err(error) = cancelled {
+            failures.push(CleanupFailure { stage: "staged acquisition cancellation", cause: Box::new(error) });
+        }
+        let drained = match self {
+            Self::First(_) => unreachable!("unsubmitted preparation returns before engine settlement"),
+            Self::Parent(operation) => operation.drain().await,
+            Self::Second(preparation) => preparation.operation_mut().drain().await,
+            Self::Pair(operation) => operation.drain().await,
+        };
+        let drain_returned = drained.is_ok();
+        if let Err(error) = drained {
+            failures.push(CleanupFailure { stage: "staged acquisition drain", cause: Box::new(error) });
+        }
+        let child_preparation_settled = match self {
+            Self::Second(preparation) => preparation.settle_child_preparation().await,
+            _ => true,
+        };
+        cancellation_returned && drain_returned && child_preparation_settled
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LlmShutdownObservation {
+    NotRequested,
+    NoClientAcquired,
+    ReturnedWithoutWorkerClosureProof,
+    Failed,
+    Unknown,
+}
+
+struct FixtureSessionObservation<'a> {
+    unresolved_sessions: &'a [OwnedSession],
+    failures: &'a [CleanupFailure],
+}
+
+impl OriginalChatOwners {
+    fn new(fixture: PublicFixture) -> Self {
+        Self {
+            fixture,
+            runtime: None,
+            service: None,
+            drain: None,
+            recorder: None,
+            llm: None,
+            app_state: None,
+            owned_jobs: Vec::new(),
+            settlement_failures: Vec::new(),
+            llm_shutdown: LlmShutdownObservation::NotRequested,
+            staged_acquisition: None,
+            parent_observation: None,
+            acquisition_deadline: None,
+        }
+    }
+
+    async fn observe_llm_shutdown_until(
+        &mut self,
+        deadline: tokio::time::Instant,
+    ) -> &LlmShutdownObservation {
+        if self.llm_shutdown != LlmShutdownObservation::NotRequested {
+            return &self.llm_shutdown;
+        }
+        let Some(client) = self.llm.as_ref() else {
+            self.llm_shutdown = LlmShutdownObservation::NoClientAcquired;
+            return &self.llm_shutdown;
+        };
+        match std::panic::AssertUnwindSafe(tokio::time::timeout_at(
+            deadline, client.shutdown_gracefully(),
+        )).catch_unwind().await {
+            Ok(Ok(Ok(()))) => {
+                self.llm_shutdown = LlmShutdownObservation::ReturnedWithoutWorkerClosureProof;
+            }
+            Ok(Ok(Err(error))) => {
+                self.settlement_failures.push(CleanupFailure {
+                    stage: "production LLM shutdown", cause: Box::new(error),
+                });
+                self.llm_shutdown = LlmShutdownObservation::Failed;
+            }
+            Ok(Err(error)) => {
+                self.settlement_failures.push(CleanupFailure {
+                    stage: "production LLM shutdown deadline", cause: Box::new(error),
+                });
+                self.llm_shutdown = LlmShutdownObservation::Unknown;
+            }
+            Err(cause) => {
+                self.settlement_failures.push(CleanupFailure {
+                    stage: "production LLM shutdown panic", cause,
+                });
+                self.llm_shutdown = LlmShutdownObservation::Unknown;
+            }
+        }
+        &self.llm_shutdown
+    }
+
+    async fn settle_fixture_sessions_until(
+        &mut self,
+        deadline: tokio::time::Instant,
+    ) -> FixtureSessionObservation<'_> {
+        let tokens: Vec<_> = self.fixture.sessions.iter()
+            .map(|session| session.token.clone()).collect();
+        for token in tokens {
+            if tokio::time::Instant::now() >= deadline {
+                break;
+            }
+            match std::panic::AssertUnwindSafe(tokio::time::timeout_at(
+                deadline, self.fixture.logout(&token),
+            )).catch_unwind().await {
+                Ok(Ok(())) => {},
+                Ok(Err(error)) => {
+                    self.settlement_failures.push(CleanupFailure {
+                        stage: "public logout deadline", cause: Box::new(error),
+                    });
+                }
+                Err(cause) => {
+                    self.settlement_failures.push(CleanupFailure {
+                        stage: "public logout", cause,
+                    });
+                }
+            }
+        }
+        FixtureSessionObservation {
+            unresolved_sessions: &self.fixture.sessions,
+            failures: &self.settlement_failures,
+        }
+    }
+}
+
 struct CaptureFailure {
     fixture: FixtureFailure,
     retained_drain: Option<DurableSwarmFrDrain>,
@@ -288,33 +456,21 @@ struct CaptureFailure {
     unresolved_jobs: Vec<Uuid>,
 }
 
-async fn acquire_model_session(
-    fixture: &PublicFixture,
+fn model_session_request(
     workspace: &PublicWorkspace,
-    state: &handshake_core::AppState,
     model: &handshake_core::model_runtime::ModelCatalogEntry,
-    parent: Option<&handshake_core::storage::ModelSession>,
-    owned_jobs: &mut Vec<Uuid>,
-) -> handshake_core::storage::ModelSession {
+    parent: Option<(&str, i32)>,
+) -> handshake_core::api::jobs::CreateJobRequest {
     let mut inputs = json!({"model_id": model.model_id, "backend": "local",
         "prompt": "Explain the purpose of the currently selected workspace.",
         "wp_id": "WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1", "mt_id": "MT-017"});
-    if let Some(parent) = parent {
-        inputs["parent_session_id"] = json!(parent.session_id);
-        inputs["spawn_depth"] = json!(parent.spawn_depth + 1);
+    if let Some((session_id, spawn_depth)) = parent {
+        inputs["parent_session_id"] = json!(session_id);
+        inputs["spawn_depth"] = json!(spawn_depth.checked_add(1).expect("actual parent depth must permit a child"));
     }
-    let router = handshake_core::api::jobs::routes(state.clone());
-    let (status, response) = tokio::time::timeout(Duration::from_secs(30), dispatch(&router,
-        "POST", "/jobs", &fixture.channel.token, Some(&workspace.session_token),
-        json!({"job_kind":"model_run", "protocol_id":"protocol-default",
-            "workspace_id":workspace.exact.workspace_id.as_str(), "job_inputs": inputs})))
-        .await.expect("public model-run acquisition must settle");
-    if status != StatusCode::OK { std::panic::panic_any((status.as_u16(), response)); }
-    let run: handshake_core::storage::WorkflowRun = serde_json::from_value(response)
-        .expect("typed WorkflowRun returned by the genuine job producer");
-    owned_jobs.push(run.job_id);
-    state.session_registry.get_model_session_by_job_id(state, run.job_id).await
-        .expect("hydrate only the session belonging to the returned job ID")
+    serde_json::from_value(json!({"job_kind":"model_run", "protocol_id":"protocol-default",
+        "workspace_id":workspace.exact.workspace_id.as_str(), "job_inputs": inputs}))
+        .expect("unchanged public model-run request shape")
 }
 
 #[test]
@@ -364,14 +520,11 @@ fn completed_stdout_blocks_preserve_typed_conversation_thought_tool_and_result_p
 
 #[tokio::test]
 async fn scoped_production_factory_retains_actual_scope_and_paired_durable_drain() {
-    let mut fixture = PublicFixture::create().await;
-    let mut runtime = None;
-    let mut service = None;
-    let mut drain = None;
-    let mut recorder = None;
-    let mut llm = None;
-    let mut app_state = None;
-    let mut owned_jobs = Vec::new();
+    let mut owners = OriginalChatOwners::new(PublicFixture::create().await);
+    let OriginalChatOwners {
+        fixture, runtime, service, drain, recorder, llm, app_state, owned_jobs,
+        staged_acquisition, parent_observation, acquisition_deadline, settlement_failures, ..
+    } = &mut owners;
     let result = std::panic::AssertUnwindSafe(async {
         let workspace = fixture.workspace().await;
         let storage = fixture.isolated.storage().clone();
@@ -383,14 +536,14 @@ async fn scoped_production_factory_retains_actual_scope_and_paired_durable_drain
             workspace_id: workspace.exact.workspace_id.as_str().to_owned(),
         };
         let registry = production_process_sandbox_registry_async().await.expect("production sandbox registry");
-        runtime = Some(ProcessReclaimRuntime::production(storage.clone(), reclaim, None, registry,
+        *runtime = Some(ProcessReclaimRuntime::production(storage.clone(), reclaim, None, registry,
             format!("capture-proof:{}", fixture.isolated.namespace()), Duration::from_secs(30))
             .await.expect("actual retained process-ledger runtime"));
-        recorder = Some(Arc::new(DuckDbFlightRecorder::new_on_path(
+        *recorder = Some(Arc::new(DuckDbFlightRecorder::new_on_path(
             &fixture.isolated.scope_path().join("operator-chat-flight-recorder.duckdb"), 7)
             .expect("owned durable Flight Recorder")));
         let process = runtime.as_ref().expect("retained process runtime");
-        llm = Some(handshake_core::llm::boot::resolve_default_llm_client(
+        *llm = Some(handshake_core::llm::boot::resolve_default_llm_client(
             recorder.as_ref().expect("owned recorder").clone(),
             Some(process.ledger().ledger()),
             Some(handshake_core::model_runtime::ScopedModelRegistryAuthority::new(
@@ -405,8 +558,8 @@ async fn scoped_production_factory_retains_actual_scope_and_paired_durable_drain
             process.ledger(), process.reclaim(), CloudLaneFactoryConfig::unconfigured(),
             Some(process.sandbox_registry()), storage.resource_access_lifecycle(), workspace.exact.clone(), Uuid::now_v7(),
         );
-        service = Some(actual_service);
-        drain = Some(actual_drain);
+        *service = Some(actual_service);
+        *drain = Some(actual_drain);
         let (activation_router, mut activation_receiver) = fixture.activation_router();
         let operation_id = Uuid::now_v7();
         let activation_input = json!({"operation_id": operation_id,
@@ -431,7 +584,7 @@ async fn scoped_production_factory_retains_actual_scope_and_paired_durable_drain
         ).await.expect("public activation request and publication must both settle");
         assert_eq!(activation_status, StatusCode::OK, "actual public activation acknowledgement");
         assert_eq!(acknowledgement["operation_id"], json!(operation_id));
-        service = Some(published_service);
+        *service = Some(published_service);
         let store = service.as_ref().expect("actual scoped service").coordinator().model_lane_store()
             .expect("production factory owns a ModelLane store");
         assert_eq!(store.access().exact_read_scope(), Some(&workspace.exact),
@@ -441,7 +594,7 @@ async fn scoped_production_factory_retains_actual_scope_and_paired_durable_drain
             .list().into_iter().find(|entry| entry.ready && entry.default_selectable
                 && entry.runtime_role == handshake_core::model_runtime::ModelRuntimeRole::Completion)
             .expect("a genuinely loaded completion model must be available");
-        app_state = Some(handshake_core::AppState {
+        *app_state = Some(handshake_core::AppState {
             storage: fixture.database.as_ref().expect("open database").clone(),
             surreal: storage.clone(),
             flight_recorder: recorder.as_ref().expect("actual durable recorder").clone(),
@@ -451,8 +604,73 @@ async fn scoped_production_factory_retains_actual_scope_and_paired_durable_drain
             session_registry: Arc::new(handshake_core::workflows::SessionRegistry::new_from_env()),
         });
         let state = app_state.as_ref().expect("retain actual acquisition state");
-        let parent = acquire_model_session(&fixture, &workspace, state, &selected, None, &mut owned_jobs).await;
-        let owner = acquire_model_session(&fixture, &workspace, state, &selected, Some(&parent), &mut owned_jobs).await;
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert("content-type", "application/json".parse().expect("literal content type"));
+        headers.insert("x-hsk-channel-binding-token", fixture.channel.token.parse().expect("actual channel header"));
+        headers.insert("x-hsk-session-token", workspace.session_token.parse().expect("actual session header"));
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
+        *acquisition_deadline = Some(deadline);
+        *staged_acquisition = Some(StagedAcquisition::First(
+            handshake_core::api::operator_chat::prepare_operator_chat_first(
+                Arc::new(state.clone()), headers.clone(), model_session_request(&workspace, &selected, None), deadline,
+            ),
+        ));
+        if let Some(StagedAcquisition::First(preparation)) = staged_acquisition.as_mut() {
+            preparation.prepare().await;
+        }
+        let Some(StagedAcquisition::First(preparation)) = staged_acquisition.take() else {
+            unreachable!("original first preparation is retained before synchronous transfer")
+        };
+        *staged_acquisition = Some(match preparation.into_operation() {
+            Ok(operation) => StagedAcquisition::Parent(operation),
+            Err(preparation) => StagedAcquisition::First(preparation),
+        });
+        let Some(StagedAcquisition::Parent(operation)) = staged_acquisition.as_mut() else {
+            panic!("original first preparation remains unresolved")
+        };
+        owned_jobs.push(operation.first_job_id());
+        operation.submit_first_prepared().await.expect("reserve and submit the actual parent under the original deadline");
+        *parent_observation = Some(operation.first_parent_observation().await
+            .expect("canonical parent readback and retained Active pin"));
+        let parent = parent_observation.as_ref().expect("retain actual parent observation through launch");
+        assert!(parent.is_active(), "the actual parent must remain Active");
+        let second = model_session_request(&workspace, &selected, Some((parent.session_id(), parent.spawn_depth())));
+        let Some(StagedAcquisition::Parent(operation)) = staged_acquisition.take() else {
+            unreachable!("original parent is retained before synchronous extension")
+        };
+        *staged_acquisition = Some(StagedAcquisition::Second(
+            handshake_core::api::operator_chat::prepare_operator_chat_second(operation, headers, second),
+        ));
+        if let Some(StagedAcquisition::Second(preparation)) = staged_acquisition.as_mut() {
+            preparation.prepare().await;
+        }
+        let Some(StagedAcquisition::Second(preparation)) = staged_acquisition.take() else {
+            unreachable!("original child preparation is retained before synchronous transfer")
+        };
+        *staged_acquisition = Some(match preparation.into_operation() {
+            Ok(operation) => StagedAcquisition::Pair(operation),
+            Err(preparation) => StagedAcquisition::Second(preparation),
+        });
+        let Some(StagedAcquisition::Pair(operation)) = staged_acquisition.as_mut() else {
+            panic!("original child preparation and parent remain unresolved")
+        };
+        use handshake_core::swarm_orchestration::operator_chat::{OperatorChatAdmissionSlot, OperatorChatInitialState, OperatorChatWriterResult};
+        let owner_job_id = operation.job_id(OperatorChatAdmissionSlot::Second);
+        owned_jobs.push(owner_job_id);
+        operation.submit_second_prepared().await.expect("reserve and submit the actual child under the same deadline");
+        let initial = operation.settle_initial().await;
+        for slot in [OperatorChatAdmissionSlot::First, OperatorChatAdmissionSlot::Second] {
+            let slot = || match &slot {
+                OperatorChatAdmissionSlot::First => OperatorChatAdmissionSlot::First,
+                OperatorChatAdmissionSlot::Second => OperatorChatAdmissionSlot::Second,
+            };
+            assert!(matches!(initial.state(slot()), OperatorChatInitialState::Observed));
+            assert!(initial.observation_error(slot()).is_none() && initial.rejected(slot()).is_none());
+            assert!(matches!(initial.primary(slot()), Some(OperatorChatWriterResult::WriteReturnedCreated | OperatorChatWriterResult::WriteReturnedAlreadyCreated)));
+        }
+        drop(initial);
+        let owner = state.session_registry.get_model_session_by_job_id(state, owner_job_id).await
+            .expect("hydrate only the actual admitted child job's server-issued session");
         let lineage = handshake_core::api::operator_chat::resolve_operator_chat_lineage(
             &state.session_registry, &owner.session_id,
         ).await.expect("public producer must have made both real sessions active with valid depth");
@@ -530,8 +748,34 @@ async fn scoped_production_factory_retains_actual_scope_and_paired_durable_drain
             assert_eq!(matched[0].event_id, event_id, "canonical replay must preserve the original ancillary event identity");
         }
     }).catch_unwind().await;
+    let parent_pin_released = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        drop(parent_observation.take());
+    })) {
+        Ok(()) => true,
+        Err(cause) => {
+            settlement_failures.push(CleanupFailure { stage: "actual parent observation release", cause });
+            false
+        }
+    };
+    let staged_settled = match staged_acquisition.as_mut() {
+        None => true,
+        Some(acquisition) => match std::panic::AssertUnwindSafe(acquisition.cancel_and_drain(settlement_failures))
+            .catch_unwind().await {
+                Ok(settled) => settled,
+                Err(cause) => {
+                    settlement_failures.push(CleanupFailure { stage: "staged acquisition settlement panic", cause });
+                    false
+                }
+            },
+    };
+    if !parent_pin_released || !staged_settled {
+        eprintln!("Operator Chat FAILED_INCOMPLETE: original staged owner and complete fixture retained; no dependent cleanup or frame release");
+        let _retained_primary = &result;
+        std::future::pending::<()>().await;
+    }
     drop(service.take());
     let mut failures = Vec::new();
+    failures.append(settlement_failures);
     let mut unresolved_jobs = Vec::new();
     if let Some(state) = app_state.as_ref() {
         for job_id in owned_jobs.drain(..).rev() {

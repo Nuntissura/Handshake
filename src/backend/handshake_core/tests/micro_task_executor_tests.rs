@@ -298,7 +298,7 @@ async fn run_locus_job(
         .await?;
     let job_id = job.job_id;
 
-    start_workflow_for_job(state, job).await?;
+    start_workflow_for_job(state, job, None).await?;
 
     let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
     assert!(
@@ -340,7 +340,7 @@ async fn run_locus_job_expect_validation_failure(
         .await?;
     let job_id = job.job_id;
 
-    let _ = start_workflow_for_job(state, job).await;
+    let _ = start_workflow_for_job(state, job, None).await;
 
     let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
     assert!(
@@ -591,7 +591,7 @@ async fn micro_task_executor_completes_single_mt_and_emits_events(
         .await?;
     let job_id = job.job_id;
 
-    start_workflow_for_job(&state, job).await?;
+    start_workflow_for_job(&state, job, None).await?;
 
     let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
     assert!(
@@ -700,7 +700,7 @@ async fn micro_task_executor_persists_locus_lifecycle_and_session_occupancy(
         .await?;
     let job_id = job.job_id;
 
-    start_workflow_for_job(&state, job).await?;
+    start_workflow_for_job(&state, job, None).await?;
 
     let paused_job = state.storage.get_ai_job(&job_id.to_string()).await?;
     assert!(matches!(paused_job.state, JobState::AwaitingUser));
@@ -749,7 +749,7 @@ async fn micro_task_executor_persists_locus_lifecycle_and_session_occupancy(
         .any(|e| e.event_type == FlightRecorderEventType::LocusMtIterationCompleted));
 
     let resume_job = state.storage.get_ai_job(&job_id.to_string()).await?;
-    start_workflow_for_job(&state, resume_job).await?;
+    start_workflow_for_job(&state, resume_job, None).await?;
 
     let completed_job = state.storage.get_ai_job(&job_id.to_string()).await?;
     assert!(matches!(completed_job.state, JobState::Completed));
@@ -803,117 +803,205 @@ async fn micro_task_executor_spec_router_creates_locus_work_packet_when_routing_
     let Some(state) = setup_state(llm_client).await? else {
         return Ok(());
     };
-    let trace_id = Uuid::now_v7();
-    let prompt_rel = PathBuf::from("data")
-        .join("spec_router_tests")
-        .join(format!("{}.md", Uuid::now_v7()));
-    let prompt_abs = workspace_root.join(&prompt_rel);
-    std::fs::create_dir_all(prompt_abs.parent().ok_or("prompt parent missing")?)?;
-    std::fs::write(&prompt_abs, "route this prompt into a work packet")?;
+    use axum::{body::{to_bytes, Body}, http::Request, Router};
+    use tower::ServiceExt;
 
-    let prompt_ref = ArtifactHandle::new(
-        Uuid::now_v7(),
-        prompt_rel.to_string_lossy().replace('\\', "/"),
-    );
-    let routed_wp_id = format!("WP-ROUTED-{}", Uuid::now_v7());
+    struct BindingFileGuard(Option<std::ffi::OsString>);
+    impl Drop for BindingFileGuard {
+        fn drop(&mut self) {
+            match self.0.as_ref() {
+                Some(previous) => std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", previous),
+                None => std::env::remove_var("HANDSHAKE_STAGE_BINDING_FILE"),
+            }
+        }
+    }
 
-    let job = state
-        .storage
-        .create_ai_job(NewAiJob {
-            trace_id,
-            job_kind: JobKind::SpecRouter,
-            protocol_id: "protocol-default".to_string(),
-            profile_id: "default".to_string(),
-            capability_profile_id: "Analyst".to_string(),
-            access_mode: AccessMode::AnalysisOnly,
-            safety_mode: SafetyMode::Normal,
-            entity_refs: Vec::new(),
-            planned_operations: Vec::new(),
-            status_reason: "queued".to_string(),
-            metrics: JobMetrics::zero(),
-            job_inputs: Some(json!({
-                "prompt_ref": prompt_ref,
-                "spec_intent_id": format!("spec-{}", Uuid::now_v7()),
-                "mode_override": "gov_standard",
-                "spec_prompt_pack_id": "spec_router_pack@1",
-                "workspace_id": Uuid::now_v7(),
-                "project_id": Value::Null,
-                "workflow_context": {
-                    "version_control": "Git",
-                    "repo_root": workspace_root.to_string_lossy().to_string(),
+    async fn post_json(
+        router: &Router,
+        path: &str,
+        channel: &str,
+        session: Option<&str>,
+        payload: Value,
+    ) -> Result<Value, String> {
+        let mut request = Request::builder().method("POST").uri(path)
+            .header("content-type", "application/json")
+            .header("x-hsk-channel-binding-token", channel);
+        if let Some(session) = session {
+            request = request.header("x-hsk-session-token", session);
+        }
+        let response = router.clone().oneshot(request.body(Body::from(
+            serde_json::to_vec(&payload).map_err(|error| error.to_string())?,
+        )).map_err(|error| error.to_string())?).await.map_err(|error| error.to_string())?;
+        if !response.status().is_success() {
+            return Err(format!("{path} returned {}", response.status()));
+        }
+        let bytes = to_bytes(response.into_body(), 1024 * 1024)
+            .await.map_err(|error| error.to_string())?;
+        serde_json::from_slice(&bytes).map_err(|error| error.to_string())
+    }
+
+    let binding_token = format!("{}{}", Uuid::now_v7().simple(), Uuid::now_v7().simple());
+    let binding_path = workspace_root.join("native-session-binding.json");
+    std::fs::write(&binding_path, serde_json::to_vec(
+        &handshake_core::api::stage::current_process_native_session_binding(&binding_token),
+    )?)?;
+    let _binding_guard = BindingFileGuard(std::env::var_os("HANDSHAKE_STAGE_BINDING_FILE"));
+    std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", &binding_path);
+    let router = handshake_core::api::authority::routes(state.state.clone())
+        .merge(handshake_core::api::workspaces::routes(state.state.clone()))
+        .merge(handshake_core::api::jobs::routes(state.state.clone()));
+    let session_custody = Arc::new(Mutex::new(None::<String>));
+    let task_session_custody = session_custody.clone();
+    let task_router = router.clone();
+    let task_binding = binding_token.clone();
+    let task_state = state.state.clone();
+    let task_root = workspace_root.to_path_buf();
+    let outcome = tokio::spawn(async move {
+        let state = task_state;
+        let workspace_root = task_root;
+        let login = json!({"account_name": format!("spec-router-{}", Uuid::now_v7()),
+            "password": format!("spec-router-{}", Uuid::now_v7())});
+        post_json(&task_router, "/authority/setup", &task_binding, None, login.clone()).await?;
+        let credential = post_json(&task_router, "/authority/login", &task_binding, None, login).await?;
+        let session = post_json(&task_router, "/authority/session", &task_binding, None, json!({
+            "account_id": credential["account_id"],
+            "principal_id": credential["principal_id"],
+            "access_space_id": credential["access_space_id"],
+            "authentication_token": credential["token"],
+        })).await?;
+        let task_token = session.get("session_token").and_then(Value::as_str)
+            .ok_or("session exchange returned no token")?.to_owned();
+        *task_session_custody.lock().expect("session custody mutex") = Some(task_token.clone());
+        let workspace = post_json(&task_router, "/workspaces", &task_binding, Some(&task_token),
+            json!({"name": "Spec Router positive fixture"})).await?;
+        let workspace_id = workspace.get("id").and_then(Value::as_str)
+            .ok_or("workspace creation returned no id")?.to_owned();
+        let prompt_rel = PathBuf::from("data")
+            .join("spec_router_tests")
+            .join(format!("{}.md", Uuid::now_v7()));
+        let prompt_abs = workspace_root.join(&prompt_rel);
+        std::fs::create_dir_all(prompt_abs.parent().ok_or("prompt parent missing")?)
+            .map_err(|error| error.to_string())?;
+        std::fs::write(&prompt_abs, "route this prompt into a work packet")
+            .map_err(|error| error.to_string())?;
+
+        let prompt_ref = ArtifactHandle::new(
+            Uuid::now_v7(),
+            prompt_rel.to_string_lossy().replace('\\', "/"),
+        );
+        let routed_wp_id = format!("WP-ROUTED-{}", Uuid::now_v7());
+
+        let run = post_json(&task_router, "/jobs", &task_binding, Some(&task_token), json!({
+            "job_kind": "spec_router",
+            "protocol_id": "protocol-default",
+            "workspace_id": workspace_id,
+            "job_inputs": {
+                    "prompt_ref": prompt_ref,
+                    "spec_intent_id": format!("spec-{}", Uuid::now_v7()),
+                    "mode_override": "gov_standard",
+                    "spec_prompt_pack_id": "spec_router_pack@1",
+                    "workspace_id": workspace_id,
+                    "project_id": Value::Null,
+                    "workflow_context": {
+                        "version_control": "Git",
+                        "repo_root": workspace_root.to_string_lossy().to_string(),
+                    },
+                    "wp_id": routed_wp_id,
+                    "title": "Routed Packet",
+                    "description": "Spec Router should submit locus_create_wp_v1",
+                    "task_packet_path": ".handshake/gov/task_packets/WP-ROUTED.md",
+                    "spec_session_id": "spec-session-1",
+                    "phase": "1",
+                    "routing": "GOV_STANDARD",
+                    "type": "feature",
+                    "priority": 2,
+                    "reporter": "spec_router_test",
                 },
-                "wp_id": routed_wp_id,
-                "title": "Routed Packet",
-                "description": "Spec Router should submit locus_create_wp_v1",
-                "task_packet_path": ".handshake/gov/task_packets/WP-ROUTED.md",
-                "spec_session_id": "spec-session-1",
-                "phase": "1",
-                "routing": "GOV_STANDARD",
-                "type": "feature",
-                "priority": 2,
-                "reporter": "spec_router_test",
-            })),
-        })
-        .await?;
-    let job_id = job.job_id;
+        })).await?;
+        let job_id = run.get("job_id").and_then(Value::as_str)
+            .ok_or("workflow response returned no job id")?.to_owned();
 
-    start_workflow_for_job(&state, job).await?;
+        let updated_job = state.storage.get_ai_job(&job_id.to_string()).await.map_err(|error| error.to_string())?;
+        assert!(
+            matches!(updated_job.state, JobState::Completed),
+            "spec router job must complete; state={:?} status_reason={:?} outputs={:?}",
+            updated_job.state,
+            updated_job.status_reason,
+            updated_job.job_outputs
+        );
+        assert!(
+            updated_job
+                .job_outputs
+                .as_ref()
+                .and_then(|value| value.get("spec_artifact_ref"))
+                .is_some(),
+            "spec_router output should still include spec_artifact_ref"
+        );
 
-    let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
-    assert!(
-        matches!(updated_job.state, JobState::Completed),
-        "spec router job must complete; state={:?} status_reason={:?} outputs={:?}",
-        updated_job.state,
-        updated_job.status_reason,
-        updated_job.job_outputs
-    );
-    assert!(
-        updated_job
-            .job_outputs
-            .as_ref()
-            .and_then(|value| value.get("spec_artifact_ref"))
-            .is_some(),
-        "spec_router output should still include spec_artifact_ref"
-    );
+        let wp_status = run_locus_job(
+            &state,
+            "locus_get_wp_status_v1",
+            json!({ "wp_id": routed_wp_id }),
+        )
+        .await.map_err(|error| error.to_string())?;
+        assert_eq!(
+            wp_status.get("status").and_then(Value::as_str),
+            Some("stub")
+        );
+        assert_eq!(
+            wp_status.get("task_board_status").and_then(Value::as_str),
+            Some("STUB")
+        );
 
-    let wp_status = run_locus_job(
-        &state,
-        "locus_get_wp_status_v1",
-        json!({ "wp_id": routed_wp_id }),
-    )
-    .await?;
-    assert_eq!(
-        wp_status.get("status").and_then(Value::as_str),
-        Some("stub")
-    );
-    assert_eq!(
-        wp_status.get("task_board_status").and_then(Value::as_str),
-        Some("STUB")
-    );
+        let child_jobs = state
+            .storage
+            .list_ai_jobs(AiJobListFilter::default())
+            .await.map_err(|error| error.to_string())?;
+        assert_eq!(
+            child_jobs
+                .iter()
+                .filter(|child_job| {
+                    matches!(child_job.job_kind, JobKind::LocusOperation)
+                        && child_job.protocol_id == "locus_create_wp_v1"
+                        && child_job
+                            .job_inputs
+                            .as_ref()
+                            .and_then(|inputs| inputs.get("wp_id"))
+                            .and_then(Value::as_str)
+                            == Some(routed_wp_id.as_str())
+                })
+                .count(),
+            1,
+            "spec router should dispatch exactly one locus_create_wp_v1 child job for the routed WP"
+        );
 
-    let child_jobs = state
-        .storage
-        .list_ai_jobs(AiJobListFilter::default())
-        .await?;
-    assert_eq!(
-        child_jobs
-            .iter()
-            .filter(|child_job| {
-                matches!(child_job.job_kind, JobKind::LocusOperation)
-                    && child_job.protocol_id == "locus_create_wp_v1"
-                    && child_job
-                        .job_inputs
-                        .as_ref()
-                        .and_then(|inputs| inputs.get("wp_id"))
-                        .and_then(Value::as_str)
-                        == Some(routed_wp_id.as_str())
-            })
-            .count(),
-        1,
-        "spec router should dispatch exactly one locus_create_wp_v1 child job for the routed WP"
-    );
-
-    Ok(())
+        Ok::<(), String>(())
+    }).await;
+    let session_token = session_custody.lock().expect("session custody mutex").clone();
+    let cleanup = match session_token {
+        Some(token) => post_json(&router, "/authority/logout", &binding_token,
+            Some(&token), json!({})).await.map(|_| ()),
+        None => Ok(()),
+    };
+    match outcome {
+        Err(error) => {
+            if let Err(cleanup_error) = cleanup {
+                eprintln!("SpecRouter session cleanup failed: {cleanup_error}");
+            }
+            if error.is_panic() {
+                std::panic::resume_unwind(error.into_panic())
+            } else {
+                Err(error.into())
+            }
+        }
+        Ok(Err(error)) => {
+            if let Err(cleanup_error) = cleanup {
+                eprintln!("SpecRouter session cleanup failed: {cleanup_error}");
+            }
+            Err(error.into())
+        }
+        Ok(Ok(())) => cleanup.map_err(Into::into),
+    }
 }
 
 #[tokio::test]
@@ -2422,7 +2510,7 @@ async fn micro_task_executor_escalates_and_hard_gates_after_budget_exhaustion(
         .await?;
     let job_id = job.job_id;
 
-    start_workflow_for_job(&state, job).await?;
+    start_workflow_for_job(&state, job, None).await?;
 
     let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
     assert!(matches!(updated_job.state, JobState::AwaitingUser));
@@ -2486,7 +2574,7 @@ EVIDENCE:
         .await?;
     let job_id = job.job_id;
 
-    start_workflow_for_job(&state, job).await?;
+    start_workflow_for_job(&state, job, None).await?;
 
     let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
     assert!(matches!(updated_job.state, JobState::Completed));
@@ -2667,7 +2755,7 @@ async fn micro_task_executor_emits_model_swap_events_on_model_change(
         .await?;
     let job_id = job.job_id;
 
-    start_workflow_for_job(&state, job).await?;
+    start_workflow_for_job(&state, job, None).await?;
 
     let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
     assert!(matches!(updated_job.state, JobState::Completed));
@@ -2879,7 +2967,7 @@ async fn micro_task_executor_emits_model_swap_failed_when_policy_disallows_swaps
         .await?;
     let job_id = job.job_id;
 
-    start_workflow_for_job(&state, job).await?;
+    start_workflow_for_job(&state, job, None).await?;
 
     let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
     assert!(matches!(updated_job.state, JobState::Failed));
@@ -3010,7 +3098,7 @@ async fn micro_task_executor_emits_model_swap_runtime_failure_and_rollback_when_
         .await?;
     let job_id = job.job_id;
 
-    start_workflow_for_job(&state, job).await?;
+    start_workflow_for_job(&state, job, None).await?;
 
     let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
     assert!(matches!(updated_job.state, JobState::Completed));
@@ -3145,7 +3233,7 @@ async fn micro_task_executor_emits_model_swap_timeout_and_rollback_on_runtime_ti
         .await?;
     let job_id = job.job_id;
 
-    start_workflow_for_job(&state, job).await?;
+    start_workflow_for_job(&state, job, None).await?;
 
     let updated_job = state.storage.get_ai_job(&job_id.to_string()).await?;
     assert!(matches!(updated_job.state, JobState::Completed));
@@ -3263,7 +3351,7 @@ async fn micro_task_executor_resumes_from_pause_and_emits_workflow_recovery(
         .await?;
     let job_id = job.job_id;
 
-    start_workflow_for_job(&state, job).await?;
+    start_workflow_for_job(&state, job, None).await?;
 
     let paused_job = state.storage.get_ai_job(&job_id.to_string()).await?;
     assert!(matches!(paused_job.state, JobState::AwaitingUser));
@@ -3290,7 +3378,7 @@ async fn micro_task_executor_resumes_from_pause_and_emits_workflow_recovery(
     std::fs::write(&run_ledger_path, serde_json::to_vec_pretty(&ledger)?)?;
 
     let resume_job = state.storage.get_ai_job(&job_id.to_string()).await?;
-    start_workflow_for_job(&state, resume_job).await?;
+    start_workflow_for_job(&state, resume_job, None).await?;
 
     let completed_job = state.storage.get_ai_job(&job_id.to_string()).await?;
     assert!(matches!(completed_job.state, JobState::Completed));

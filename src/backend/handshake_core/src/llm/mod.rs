@@ -23,7 +23,7 @@ use thiserror::Error;
 use unicode_normalization::UnicodeNormalization;
 use uuid::Uuid;
 
-use std::sync::{Arc, OnceLock};
+use std::{future::Future, pin::Pin, sync::{Arc, Mutex, OnceLock}, task::{Context, Poll}};
 
 use crate::flight_recorder::{
     EventFilter, FlightRecorder, FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType,
@@ -187,8 +187,201 @@ pub enum LlmInvocationEvidenceOwner {
 /// - Token budget enforcement
 /// - Flight Recorder event emission
 /// - Provider-specific API translation
+pub type LlmCompletionFuture = Pin<Box<dyn Future<Output = Result<CompletionResponse, LlmError>> + Send>>;
+
+pub struct OwnedLlmCompletion {
+    future: LlmCompletionFuture,
+    control: LlmInvocationControl,
+}
+
+impl OwnedLlmCompletion {
+    pub fn into_parts(self) -> (LlmCompletionFuture, LlmInvocationControl) {
+        (self.future, self.control)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RemoteAcknowledgement {
+    NotApplicable,
+    Unknown,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum InvocationDrainOutcome {
+    NeverSubmitted,
+    /// Caller-owned operations and observed worker resources have closed.
+    /// This is neither an OS-thread join nor a remote cancellation receipt.
+    LocalResourcesSettled {
+        remote_acknowledgement: RemoteAcknowledgement,
+        settled_at: tokio::time::Instant,
+        deadline_exceeded: bool,
+    },
+    Unknown { reason: String },
+}
+
+#[derive(Clone, Copy)]
+enum InvocationResourceKind { NeverSubmitted, Native, Http, Unknown }
+
+struct InvocationControlInner {
+    deadline: tokio::time::Instant,
+    cancel: CancellationToken,
+    observer: Arc<crate::model_runtime::activity::RuntimeActivityObserver>,
+    kind: Mutex<InvocationResourceKind>,
+    finished: tokio::sync::watch::Sender<Option<tokio::time::Instant>>,
+}
+
+#[derive(Clone)]
+pub struct LlmInvocationControl { inner: Arc<InvocationControlInner> }
+
+impl LlmInvocationControl {
+    fn new(deadline: tokio::time::Instant) -> Self {
+        let observer = Arc::new(crate::model_runtime::activity::RuntimeActivityObserver::default());
+        let (finished, _) = tokio::sync::watch::channel(None);
+        Self { inner: Arc::new(InvocationControlInner {
+            deadline, cancel: CancellationToken::observed(observer.clone()), observer,
+            kind: Mutex::new(InvocationResourceKind::NeverSubmitted), finished,
+        }) }
+    }
+
+    pub fn deadline(&self) -> tokio::time::Instant { self.inner.deadline }
+
+    pub fn cancel(&self) { self.inner.cancel.cancel(); }
+
+    fn mark_dispatch(&self, kind: InvocationResourceKind) {
+        let mut current = self.inner.kind.lock().unwrap_or_else(|error| error.into_inner());
+        *current = match *current {
+            InvocationResourceKind::NeverSubmitted => kind,
+            _ => InvocationResourceKind::Unknown,
+        };
+    }
+
+    fn token(&self) -> CancellationToken { self.inner.cancel.clone() }
+
+    pub fn resource_settlements(&self) -> Vec<(crate::model_runtime::RuntimeActivityId, Option<tokio::time::Instant>)> {
+        self.inner.observer.receipts().iter().map(|receipt| (receipt.id(), receipt.settled_at())).collect()
+    }
+
+    pub async fn drain(&self) -> InvocationDrainOutcome {
+        let mut finished = self.inner.finished.subscribe();
+        let outer_settled_at = loop {
+            if let Some(settled_at) = *finished.borrow_and_update() {
+                break settled_at;
+            }
+            if tokio::time::Instant::now() >= self.deadline() {
+                return InvocationDrainOutcome::Unknown { reason: "outer invocation destruction not observed before deadline".into() };
+            }
+            match tokio::time::timeout_at(self.deadline(), finished.changed()).await {
+                Ok(Ok(())) => {}
+                _ => {
+                    if let Some(settled_at) = *finished.borrow() { break settled_at; }
+                    return InvocationDrainOutcome::Unknown { reason: "outer invocation destruction not observed before deadline".into() };
+                }
+            }
+        };
+        let receipts = self.inner.observer.receipts();
+        let mut failure = None;
+        let mut settled_at = outer_settled_at;
+        for receipt in &receipts {
+            match receipt.wait_until(self.deadline()).await {
+                Ok(worker_settled_at) => settled_at = settled_at.max(worker_settled_at),
+                Err(reason) => failure = Some(reason),
+            }
+        }
+        if let Some(reason) = failure {
+            return InvocationDrainOutcome::Unknown { reason: reason.into() };
+        }
+        let kind = *self.inner.kind.lock().unwrap_or_else(|error| error.into_inner());
+        match (kind, receipts.len()) {
+            (InvocationResourceKind::NeverSubmitted, 0) => InvocationDrainOutcome::NeverSubmitted,
+            (InvocationResourceKind::Native, 1) => InvocationDrainOutcome::LocalResourcesSettled {
+                remote_acknowledgement: RemoteAcknowledgement::NotApplicable,
+                settled_at,
+                deadline_exceeded: settled_at > self.deadline(),
+            },
+            (InvocationResourceKind::Http, 0) => InvocationDrainOutcome::LocalResourcesSettled {
+                remote_acknowledgement: RemoteAcknowledgement::Unknown,
+                settled_at,
+                deadline_exceeded: settled_at > self.deadline(),
+            },
+            _ => InvocationDrainOutcome::Unknown { reason: "missing, multiple, or unsupported invocation resource binding".into() },
+        }
+    }
+}
+
+struct OwnedCompletionFuture {
+    future: Option<LlmCompletionFuture>,
+    control: LlmInvocationControl,
+}
+
+impl Future for OwnedCompletionFuture {
+    type Output = Result<CompletionResponse, LlmError>;
+
+    fn poll(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
+        let result = self.future.as_mut().expect("completion polled after settlement").as_mut().poll(context);
+        if result.is_ready() {
+            self.future.take();
+            self.control.cancel();
+            self.control.inner.finished.send_if_modified(|settled_at| {
+                if settled_at.is_some() { false } else { *settled_at = Some(tokio::time::Instant::now()); true }
+            });
+        }
+        result
+    }
+}
+
+impl Drop for OwnedCompletionFuture {
+    fn drop(&mut self) {
+        self.control.cancel();
+        self.future.take();
+        self.control.inner.finished.send_if_modified(|settled_at| {
+            if settled_at.is_some() { false } else { *settled_at = Some(tokio::time::Instant::now()); true }
+        });
+    }
+}
+
 #[async_trait]
 pub trait LlmClient: Send + Sync + 'static {
+    fn owned_completion(
+        self: Arc<Self>,
+        req: CompletionRequest,
+        deadline: tokio::time::Instant,
+    ) -> OwnedLlmCompletion {
+        let control = LlmInvocationControl::new(deadline);
+        let execution = control.clone();
+        let future = Box::pin(async move {
+            if execution.inner.cancel.is_cancelled() {
+                return Err(LlmError::ProviderError("invocation cancelled".to_string()));
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return Err(LlmError::ProviderError("invocation deadline expired".to_string()));
+            }
+            tokio::select! {
+                _ = execution.inner.cancel.cancelled() => {
+                    Err(LlmError::ProviderError("invocation cancelled".to_string()))
+                }
+                result = tokio::time::timeout_at(
+                    deadline, self.completion_with_control(req, execution.clone())
+                ) => match result {
+                    Ok(result) => result,
+                    Err(_) => Err(LlmError::ProviderError("invocation deadline expired".to_string())),
+                }
+            }
+        });
+        OwnedLlmCompletion {
+            future: Box::pin(OwnedCompletionFuture { future: Some(future), control: control.clone() }),
+            control,
+        }
+    }
+
+    async fn completion_with_control(
+        &self,
+        req: CompletionRequest,
+        control: LlmInvocationControl,
+    ) -> Result<CompletionResponse, LlmError> {
+        control.mark_dispatch(InvocationResourceKind::Unknown);
+        self.completion(req).await
+    }
+
     /// Executes a completion request.
     ///
     /// Returns:
@@ -772,9 +965,8 @@ async fn record_runtime_inference_event(
     }
 }
 
-#[async_trait]
-impl LlmClient for ModelRuntimeLlmClient {
-    async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+impl ModelRuntimeLlmClient {
+    async fn completion_inner(&self, req: CompletionRequest, control: Option<&LlmInvocationControl>) -> Result<CompletionResponse, LlmError> {
         use futures::StreamExt;
 
         let started = std::time::Instant::now();
@@ -826,6 +1018,7 @@ impl LlmClient for ModelRuntimeLlmClient {
             .await;
             return Err(error);
         }
+        if let Some(control) = control { control.mark_dispatch(InvocationResourceKind::Native); }
         let mut stream = self.dispatch_generate(GenerateRequest {
             id: self.model_id,
             prompt: req.prompt.clone().into(),
@@ -836,7 +1029,7 @@ impl LlmClient for ModelRuntimeLlmClient {
             lora_overrides: Vec::new(),
             steering_overrides: Vec::new(),
             kv_prefix_handle: None,
-            cancel: CancellationToken::new(),
+            cancel: control.map(LlmInvocationControl::token).unwrap_or_default(),
             max_tokens,
             stop_sequences: req.stop_sequences,
             speculative_mode: None,
@@ -906,6 +1099,17 @@ impl LlmClient for ModelRuntimeLlmClient {
             usage,
             latency_ms,
         })
+    }
+}
+
+#[async_trait]
+impl LlmClient for ModelRuntimeLlmClient {
+    async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+        self.completion_inner(req, None).await
+    }
+
+    async fn completion_with_control(&self, req: CompletionRequest, control: LlmInvocationControl) -> Result<CompletionResponse, LlmError> {
+        self.completion_inner(req, Some(&control)).await
     }
 
     fn stream_completion(self: Arc<Self>, req: GenerateRequest) -> TokenStream {
@@ -1314,6 +1518,10 @@ impl DisabledLlmClient {
 
 #[async_trait]
 impl LlmClient for DisabledLlmClient {
+    async fn completion_with_control(&self, req: CompletionRequest, _control: LlmInvocationControl) -> Result<CompletionResponse, LlmError> {
+        self.completion(req).await
+    }
+
     async fn completion(&self, req: CompletionRequest) -> Result<CompletionResponse, LlmError> {
         // Spec Â§4.2.3.2(3): emit a Flight Recorder event on this fail-closed
         // path too, at CALL TIME (here) â€” NOT at construction, which would fire

@@ -1509,6 +1509,8 @@ impl Clone for DuckDbFlightRecorder {
         Self {
             conn: self.conn.clone(),
             retention_days: self.retention_days,
+            #[cfg(all(feature = "test-utils", feature = "duckdb-flight-recorder"))]
+            proof_control: self.proof_control.clone(),
         }
     }
 }

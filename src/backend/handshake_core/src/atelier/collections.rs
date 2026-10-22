@@ -16,8 +16,12 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
-use surrealdb::types::{Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
+use surrealdb::types::{Array, Datetime, RecordId, SurrealValue, Uuid as SurrealUuid};
 use uuid::Uuid;
+use crate::storage::surreal::{
+    AlbumMembershipCommitIntent, AlbumMutationAtelierExpectation,
+    AlbumMutationCommitExpectation, AlbumMutationLedgerExpectation, AlbumMutationReorderItem,
+};
 
 use super::media::{MediaReviewMetadata, MediaSourceProvenanceRefs};
 use super::source_evidence::{normalize_optional_ckc_source_ref, CkcSourceRefKind};
@@ -2416,6 +2420,7 @@ impl AtelierStore {
         aggregate_type: &str,
         aggregate_id: &str,
         payload: serde_json::Value,
+        membership: AlbumMembershipCommitIntent,
     ) -> AtelierResult<Option<R>>
     where
         R: SurrealValue + Send + 'static,
@@ -2436,9 +2441,33 @@ impl AtelierStore {
             event_id: prepared.bindings.kernel_event_id.clone(),
             idempotency_key: prepared.bindings.idempotency_key.clone(),
         };
+        let event = &prepared.bindings;
+        let commit_expectation = AlbumMutationCommitExpectation {
+            ledger: AlbumMutationLedgerExpectation {
+                ledger_id: event.ledger_id.clone(), event_id: event.kernel_event_id.clone(),
+                event_version: event.event_version.clone(), kernel_task_run_id: event.kernel_task_run_id.clone(),
+                session_run_id: event.session_run_id.clone(), aggregate_type: event.kernel_aggregate_type.clone(),
+                aggregate_id: event.kernel_aggregate_id.clone(), idempotency_key: event.idempotency_key.clone(),
+                event_type: event.event_type.clone(), actor_kind: event.actor_kind.clone(), actor_id: event.actor_id.clone(),
+                causation_id: event.causation_id.clone(), correlation_id: event.correlation_id.clone(),
+                payload_hash: event.payload_hash.clone(), source_component: event.source_component.clone(),
+                payload: event.ledger_payload.clone(), wsids: event.wsids.clone(),
+                authority_resource_id: event.authority_resource_id.clone(), authority_session_id: event.authority_session_id.clone(),
+                authority_capability_id: event.authority_capability_id.clone(), authority_action: event.authority_action.clone(),
+                created_at: event.created_at.clone(),
+            },
+            atelier: AlbumMutationAtelierExpectation {
+                id: event.atelier_id.clone(), event_id: event.atelier_event_uuid.clone(),
+                event_family: event.event_family.clone(), aggregate_type: event.kernel_aggregate_type.clone(),
+                aggregate_id: event.kernel_aggregate_id.clone(), kernel_event_id: event.kernel_event_id.clone(),
+                payload: event.atelier_payload.clone(),
+            },
+            membership,
+        };
         let result = self.store()
             .with_album_membership_transaction::<Option<R>, AtelierError, _>(
                 operation.clone(),
+                commit_expectation,
                 move |ctx| Box::pin(async move {
                     #[cfg(feature = "test-utils")]
                     let prepared = if let Some(existing_event_id) = ledger_collision {
@@ -2585,6 +2614,12 @@ impl AtelierStore {
                     "atelier_collection",
                     &aggregate_id,
                     payload.clone(),
+                    AlbumMembershipCommitIntent::Unlink {
+                        collection_id: bindings.collection_ref.clone(),
+                        member_id: RecordId::new("atelier_collection_item", Array::from(bindings.member_key.clone())),
+                        asset_id: media_asset_record(asset_id), receipt_id: bindings.receipt_rid.clone(),
+                        actor: bindings.actor.clone(),
+                    },
                 )
             })
             .await
@@ -2676,6 +2711,14 @@ impl AtelierStore {
                     "atelier_collection",
                     &aggregate_id,
                     payload.clone(),
+                    AlbumMembershipCommitIntent::LinkRefs {
+                        collection_id: bindings.collection_ref.clone(),
+                        member_id: RecordId::new("atelier_collection_item", Array::from(bindings.member_key.clone())),
+                        asset_id: media_asset_record(asset_id),
+                        source_path_ref: bindings.set_source_path_ref.then(|| bindings.source_path_ref.clone()),
+                        source_url_ref: bindings.set_source_url_ref.then(|| bindings.source_url_ref.clone()),
+                        actor: bindings.actor.clone(),
+                    },
                 )
             })
             .await
@@ -2756,6 +2799,14 @@ impl AtelierStore {
                     "atelier_collection",
                     &aggregate_id,
                     payload.clone(),
+                    AlbumMembershipCommitIntent::Reorder {
+                        collection_id: bindings.collection_ref.clone(),
+                        items: items.iter().map(|item| AlbumMutationReorderItem {
+                            member_id: RecordId::new("atelier_collection_item", Array::from(collection_item_pair_key(collection_id, item.asset_id))),
+                            asset_id: media_asset_record(item.asset_id), sort_order: item.sort_order,
+                        }).collect(),
+                        actor: bindings.actor.clone(),
+                    },
                 )
             })
             .await

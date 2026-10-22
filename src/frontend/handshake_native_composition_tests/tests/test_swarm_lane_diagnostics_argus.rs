@@ -362,6 +362,11 @@ fn argus_keeps_last_success_visible_when_refresh_fails() {
 
 #[test]
 fn native_consumes_backend_generated_schema_v3_projection_artifact() {
+    let operation_origin = tokio::time::Instant::now();
+    let original_deadline = operation_origin
+        .checked_add(std::time::Duration::from_secs(30 * 60))
+        .expect("joint operation deadline must be representable");
+    let artifact_owner = {
     let artifact_root = std::env::var("HANDSHAKE_ARTIFACTS_DIR")
         .expect("backend diagnostics proof must provide HANDSHAKE_ARTIFACTS_DIR");
     let artifact_root = std::fs::canonicalize(artifact_root)
@@ -529,6 +534,41 @@ fn native_consumes_backend_generated_schema_v3_projection_artifact() {
         );
     }
     assert_unique_swarm_author_ids(&harness);
+        artifact_root.join("handshake-test").join("wp1-final-audit")
+    };
+    let joint_nonce = std::env::var("HANDSHAKE_MT017_NATIVE_JOINT_DIAGNOSTICS_PROOF_NONCE")
+        .expect("joint native proof requires its original producer nonce");
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("joint fixture current-thread runtime");
+    let expected_binding = std::cell::RefCell::new(None);
+    runtime.block_on(
+        handshake_core::test_harness::swarm_lane_diagnostics::with_swarm_lane_diagnostics_native_fixture(
+            handshake_core::test_harness::swarm_lane_diagnostics::FixtureInputs {
+                original_deadline,
+                artifact_owner: artifact_owner.clone(),
+            },
+            |inputs| {
+                let expected_binding = &expected_binding;
+                async move {
+                    let projection = decode_projection_for_native_surface(inputs.public_wire.clone())?;
+                    let scope = projection.resource_scope
+                        .ok_or("joint callback projection has no authorized scope")?;
+                    *expected_binding.borrow_mut() = Some((inputs.run_id.clone(), scope));
+                    assert_native_joint_fixture(inputs).await
+                }
+            },
+        ),
+    ).expect("genuine joint backend/native fixture and complete cleanup must succeed");
+    assert!(tokio::time::Instant::now() < original_deadline,
+        "joint fixture returned after its original operation deadline");
+    let (run_id, scope) = expected_binding.into_inner()
+        .expect("genuine joint callback must supply its canonical run and scope");
+    consume_joint_projection_pair(&artifact_owner, &joint_nonce, &run_id, &scope)
+        .expect("joint artifacts must match the completed genuine fixture after cleanup");
+    assert!(tokio::time::Instant::now() < original_deadline,
+        "joint artifact verification exceeded its original operation deadline");
 }
 
 #[test]

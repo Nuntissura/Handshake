@@ -64,6 +64,59 @@ pub struct RuntimeActivityTracker {
     inner: Arc<RuntimeActivityInner>,
 }
 
+#[derive(Clone)]
+pub struct RuntimeActivityReceipt {
+    inner: Arc<RuntimeActivityInner>,
+    id: RuntimeActivityId,
+    settled_at: Arc<Mutex<Option<tokio::time::Instant>>>,
+}
+
+impl RuntimeActivityReceipt {
+    pub fn id(&self) -> RuntimeActivityId { self.id }
+
+    pub fn settled_at(&self) -> Option<tokio::time::Instant> {
+        *self.settled_at.lock().unwrap_or_else(|error| error.into_inner())
+    }
+
+    pub async fn wait_until(&self, deadline: tokio::time::Instant) -> Result<tokio::time::Instant, &'static str> {
+        let mut revisions = self.inner.revisions.subscribe();
+        loop {
+            if !lock_state(&self.inner.state).active.contains_key(&self.id) {
+                return self.settled_at().ok_or("activity settlement timestamp missing");
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return Err("activity settlement deadline expired");
+            }
+            match tokio::time::timeout_at(deadline, revisions.changed()).await {
+                Ok(Ok(())) => {}
+                Ok(Err(_)) => return Err("activity notification closed"),
+                Err(_) => return self.settled_at().ok_or("activity settlement deadline expired"),
+            }
+        }
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct RuntimeActivityObserver {
+    receipts: Mutex<Vec<RuntimeActivityReceipt>>,
+}
+
+impl std::fmt::Debug for RuntimeActivityObserver {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("RuntimeActivityObserver").finish_non_exhaustive()
+    }
+}
+
+impl RuntimeActivityObserver {
+    pub(crate) fn record(&self, receipt: RuntimeActivityReceipt) {
+        self.receipts.lock().unwrap_or_else(|error| error.into_inner()).push(receipt);
+    }
+
+    pub(crate) fn receipts(&self) -> Vec<RuntimeActivityReceipt> {
+        self.receipts.lock().unwrap_or_else(|error| error.into_inner()).clone()
+    }
+}
+
 struct RuntimeActivityInner {
     state: Mutex<RuntimeActivityState>,
     revisions: watch::Sender<u64>,
@@ -121,6 +174,8 @@ impl RuntimeActivityTracker {
             .ok_or(RuntimeActivityRegistrationError::IdentifierExhausted)?;
         state.next_id = next_id;
         let id = RuntimeActivityId(next_id);
+        let observed_cancel = cancellation.clone();
+        let settled_at = Arc::new(Mutex::new(None));
         state.active.insert(
             id,
             ActiveRuntimeActivity {
@@ -133,9 +188,18 @@ impl RuntimeActivityTracker {
         drop(state);
         self.inner.revisions.send_replace(revision);
 
+        if let Some(token) = observed_cancel {
+            token.record_activity(RuntimeActivityReceipt {
+                inner: Arc::clone(&self.inner),
+                id,
+                settled_at: Arc::clone(&settled_at),
+            });
+        }
+
         Ok(RuntimeActivityGuard {
             inner: Arc::clone(&self.inner),
             id,
+            settled_at,
         })
     }
 
@@ -292,6 +356,7 @@ impl Default for RuntimeActivityTracker {
 pub struct RuntimeActivityGuard {
     inner: Arc<RuntimeActivityInner>,
     id: RuntimeActivityId,
+    settled_at: Arc<Mutex<Option<tokio::time::Instant>>>,
 }
 
 impl RuntimeActivityGuard {
@@ -306,6 +371,7 @@ impl Drop for RuntimeActivityGuard {
         if state.active.remove(&self.id).is_none() {
             return;
         }
+        *self.settled_at.lock().unwrap_or_else(|error| error.into_inner()) = Some(tokio::time::Instant::now());
         let revision = advance_revision(&mut state);
         drop(state);
         self.inner.revisions.send_replace(revision);

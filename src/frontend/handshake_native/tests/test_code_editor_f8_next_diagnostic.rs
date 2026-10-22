@@ -12,11 +12,11 @@
 //!
 //! ## Artifact hygiene (CX-212E)
 //!
-//! Every screenshot is written to the EXTERNAL `../../../../Handshake_Artifacts/handshake-test/<subdir>/`
-//! root via [`external_artifact_dir`], NEVER repo-local. [`assert_no_local_artifact_dir`] guards both
+//! Every screenshot is written to the EXTERNAL artifact root by the shared screenshot harness,
+//! NEVER repo-local. [`assert_no_local_artifact_dir`] guards both
 //! `test_output/` and `tests/screenshots/` so a stray repo-local artifact dir fails the test.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
 use egui::Key;
@@ -32,10 +32,6 @@ use handshake_native::top_menu_bar::{
     GO_BACK_AUTHOR_ID, GO_FORWARD_AUTHOR_ID, GO_NEXT_DIAGNOSTIC_AUTHOR_ID,
     GO_PREV_DIAGNOSTIC_AUTHOR_ID,
 };
-
-fn external_artifact_dir(subdir: &str) -> PathBuf {
-    Path::new("../../../../Handshake_Artifacts/handshake-test").join(subdir)
-}
 
 /// CX-212E guard: NO repo-local artifact directory may exist (checks BOTH `test_output/` and
 /// `tests/screenshots/`). Screenshots go only to the external Handshake_Artifacts root.
@@ -90,6 +86,7 @@ fn code_editor_f8_next_diagnostic() {
 
     let panel_ui = Arc::clone(&panel);
     let mut harness = Harness::builder()
+        .proof_mt_id("MT-052")
         .with_size(egui::vec2(800.0, 360.0))
         .build_ui(move |ui| {
             panel_ui.show(ui);
@@ -131,33 +128,25 @@ fn code_editor_f8_next_diagnostic() {
         "Shift+F8 steps to the previous marker (wraps to 20)"
     );
 
-    // HBR-VIS: screenshot the editor with diagnostics present. On a GPU host this saves a PNG to the
-    // EXTERNAL artifact root; absent a wgpu adapter, record an honest non-fatal note.
-    match harness.render() {
-        Ok(image) => {
-            let (w, h) = (image.width(), image.height());
-            assert!(w > 0 && h > 0, "rendered image is non-empty");
-            let ext_dir = external_artifact_dir("wp-kernel-012-mt-052");
-            let _ = std::fs::create_dir_all(&ext_dir);
-            let png_path = ext_dir.join("MT-052-f8-diagnostic-nav.png");
-            let saved = image.save(&png_path).is_ok();
-            let abs = std::fs::canonicalize(&png_path).unwrap_or(png_path.clone());
-            println!(
-                "PT-005 F8-nav screenshot: {w}x{h}, saved={saved} ({})",
-                abs.display()
-            );
-            assert!(
-                saved,
-                "PT-005: the F8-nav screenshot PNG saved to the external root"
-            );
-        }
-        Err(e) => {
-            println!(
-                "BLOCKER(non-fatal): MT-052 F8-nav screenshot render unavailable (no wgpu adapter): \
-                 {e}. The live-keymap F8 caret-move proof above passed; the PNG is a GPU-host item."
-            );
-        }
+    if let Some(image) = harness.render_settled_proof_frame("PT-005 F8-nav screenshot") {
+        let (w, h) = (image.width(), image.height());
+        assert!(w > 0 && h > 0, "rendered image is non-empty");
+        let outcome = harness
+            .last_screenshot_outcome()
+            .expect("PT-005: the screenshot has a recorded outcome");
+        assert_eq!(outcome.status, "CAPTURED");
+        assert!(
+            outcome
+                .frame_path
+                .as_deref()
+                .is_some_and(|path| Path::new(path).is_file()),
+            "PT-005: the F8-nav screenshot PNG saved to the external root"
+        );
     }
+    println!(
+        "PT-005 F8-nav screenshot: {:?}",
+        harness.last_screenshot_outcome()
+    );
     assert_no_local_artifact_dir();
 }
 
@@ -176,8 +165,9 @@ fn go_menu_editor_nav_accesskit_nodes() {
     // Drive the REAL shell so the GO menu renders through the live menu bar (the same out-of-process
     // path a swarm agent uses). Open the GO menu, then assert the four MT-052 leaf nodes are present as
     // disabled Role::MenuItem nodes with the contract-named author_ids.
-    let mut harness =
-        Harness::builder().build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), ok_app());
+    let mut harness = Harness::builder()
+        .proof_mt_id("MT-052")
+        .build_state(|ctx, a: &mut HandshakeApp| a.ui(ctx), ok_app());
     harness.run();
 
     // Open the GO menu by clicking its top-level button (the same out-of-process click path

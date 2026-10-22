@@ -15,6 +15,7 @@ use handshake_core::llm::DisabledLlmClient;
 use handshake_core::process_ledger::{acquire_embedded_runtime_instance_lease, EmbeddedRuntimeInstanceLease};
 use handshake_core::workflows::{SessionRegistry, SessionSchedulerConfig};
 use handshake_core::storage::Database;
+use handshake_core::storage::surreal::SurrealDatabase;
 use handshake_core::storage::surreal::resource_authority::{
     AuthorizationRequest, ResourceAction, ResourceKind,
 };
@@ -146,7 +147,7 @@ struct DiagnosticsFixture {
 impl DiagnosticsFixture {
     async fn create() -> Self {
         let isolated = IsolatedSurrealTestStore::create().await.expect("own canonical diagnostics store");
-        let database: Arc<dyn Database> = Arc::new(isolated.storage().clone());
+        let database: Arc<dyn Database> = Arc::new(SurrealDatabase::new(isolated.storage().clone()));
         let capabilities = Arc::new(CapabilityRegistry::new());
         capabilities.profile_by_id("Operator").expect("loaded canonical Operator profile");
         let bootstrap = AccountBootstrapState::new(
@@ -417,7 +418,7 @@ impl DiagnosticsFixture {
         assert_eq!(self.isolated.namespace(), namespace);
         assert_eq!(self.isolated.database(), database_name);
         assert_eq!(self.isolated.store_path(), path);
-        let database: Arc<dyn Database> = Arc::new(self.isolated.storage().clone());
+        let database: Arc<dyn Database> = Arc::new(SurrealDatabase::new(self.isolated.storage().clone()));
         self.bootstrap = Some(AccountBootstrapState::new(
             database.clone(), self.isolated.storage().clone(), self.capabilities.clone(),
         ));
@@ -726,7 +727,7 @@ async fn assert_canonical_navigation_drilldowns(
     let payload = payload.expect("real CRDT authority enables canonical payload drilldown");
     assert_eq!(payload.run.as_ref().expect("payload selected run").run_id, input.run.run_id);
     assert_eq!(payload.artifacts.len(), 1);
-    assert_eq!(payload.artifacts[0].aggregate_id, input.payload.artifact_binding_id);
+    assert_eq!(payload.artifacts[0].source.aggregate_id, input.payload.artifact_binding_id);
     }
 }
 
