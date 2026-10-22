@@ -19,6 +19,10 @@ _STUDIO_SSD_LANE=""
 case "${STUDIO_BUILD_DISK:-}" in
   ""|d|D|hdd) ;;
   ssd)
+    # Operator 2026-10-23: NO builds on C: while C: is being cleaned ("built there [D:], let C disk clean up run, and no
+    # builds on C"). The SSD opt-in is closed until the Operator reopens it; builders build on D: (unset STUDIO_BUILD_DISK).
+    echo "studio-env: STUDIO_BUILD_DISK=ssd refused: Operator 2026-10-23 closed the C: build slot (C: cleanup in progress); unset STUDIO_BUILD_DISK and build on D:" >&2
+    return 1
     case "/${_studio_owner}/" in
       /studio-team-dev/) ;;
       *//*|*/./*|*/../*|*\\*|*:*|*" "*)
