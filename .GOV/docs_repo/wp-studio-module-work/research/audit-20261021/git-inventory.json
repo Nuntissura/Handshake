@@ -1,0 +1,2242 @@
+{
+  "schema": "hsk.studio.audit.git_inventory@1",
+  "file_id": "git-inventory-20261021",
+  "updated_at": "2026-10-21T01:03:07Z",
+  "by": "read-only git auditor (Sonnet)",
+  "origin_tip": "e64eacd",
+  "commits_since_20261014": {
+    "total": 705,
+    "by_lane": {
+      "SMB-PS-ORACLE-PARITY-2": {
+        "count": 2,
+        "first": "8f5bbfc 2026-10-21",
+        "last": "e64eacd 2026-10-21"
+      },
+      "SMB-TYPE-FF-LIGATURE": {
+        "count": 6,
+        "first": "9b29497 2026-10-21",
+        "last": "2e0f53e 2026-10-21"
+      },
+      "SMB-DXF-EPS-IMPORT": {
+        "count": 6,
+        "first": "13b36ac 2026-10-21",
+        "last": "85b3446 2026-10-21"
+      },
+      "SMB-AE-ROTO-TIMEREMAP": {
+        "count": 4,
+        "first": "06ac8e2 2026-10-21",
+        "last": "3432d5c 2026-10-21"
+      },
+      "Steward sync": {
+        "count": 46,
+        "first": "688be58 2026-10-14",
+        "last": "8bb6f64 2026-10-20"
+      },
+      "SMB-CRATE-SEAM-SPLITS": {
+        "count": 3,
+        "first": "46d8e4d 2026-10-16",
+        "last": "12e2d46 2026-10-20"
+      },
+      "SMB-DEVELOP-LENS-PRESETS": {
+        "count": 9,
+        "first": "8d531a1 2026-10-15",
+        "last": "658aef4 2026-10-20"
+      },
+      "SMB-AU-WAVEFORM-EDITOR": {
+        "count": 5,
+        "first": "04bb6ed 2026-10-16",
+        "last": "557ac06 2026-10-20"
+      },
+      "SMB-PS-ORACLE-PARITY-1": {
+        "count": 6,
+        "first": "30ea18e 2026-10-20",
+        "last": "f9b2fd7 2026-10-20"
+      },
+      "SMB-ID-COMPOSER-PARITY": {
+        "count": 3,
+        "first": "98d70fb 2026-10-20",
+        "last": "5fa82ec 2026-10-20"
+      },
+      "SMB-PACKAGE-COMPLETENESS-2": {
+        "count": 1,
+        "first": "608dbce 2026-10-15",
+        "last": "608dbce 2026-10-15"
+      },
+      "SMB-D24A-CODEC-DEFAULTS": {
+        "count": 6,
+        "first": "18c85ac 2026-10-16",
+        "last": "3b73143 2026-10-20"
+      },
+      "SMB-AI-AE-ORACLE-FOLLOWUPS": {
+        "count": 5,
+        "first": "3a876c5 2026-10-16",
+        "last": "3602062 2026-10-20"
+      },
+      "SMB-RAW-CLEANROOM-2": {
+        "count": 1,
+        "first": "d51b0c9 2026-10-16",
+        "last": "d51b0c9 2026-10-16"
+      },
+      "SMB-AFFINITY-INTEROP-1": {
+        "count": 3,
+        "first": "9844243 2026-10-20",
+        "last": "a82a77c 2026-10-20"
+      },
+      "SMB-PS-ADJUST-STYLES-3": {
+        "count": 6,
+        "first": "5514c50 2026-10-16",
+        "last": "e303149 2026-10-16"
+      },
+      "SMB-D5-AI-ID-AE-COMPARE": {
+        "count": 3,
+        "first": "b822715 2026-10-16",
+        "last": "16d5c9e 2026-10-16"
+      },
+      "SMB-AI-TYPE-PATH-RECOLOR": {
+        "count": 4,
+        "first": "395d080 2026-10-16",
+        "last": "54865f6 2026-10-16"
+      },
+      "SMB-LR-LIBRARY-WRITE": {
+        "count": 3,
+        "first": "35bc4d7 2026-10-16",
+        "last": "75d7242 2026-10-16"
+      },
+      "SMB-D5-PS-COMPARE": {
+        "count": 1,
+        "first": "3d5fbda 2026-10-16",
+        "last": "3d5fbda 2026-10-16"
+      },
+      "SMB-AE-PARTICLES-AUDIO-PRESETS": {
+        "count": 3,
+        "first": "b7fb9a1 2026-10-16",
+        "last": "6ed1dd9 2026-10-16"
+      },
+      "SMB-PR-SOURCE-MONITOR": {
+        "count": 3,
+        "first": "c5ab9e5 2026-10-16",
+        "last": "237256f 2026-10-16"
+      },
+      "SMB-ID-PREPRESS": {
+        "count": 8,
+        "first": "19990d2 2026-10-16",
+        "last": "3195ea5 2026-10-16"
+      },
+      "SMB-RAW-CLEANROOM": {
+        "count": 1,
+        "first": "d486897 2026-10-16",
+        "last": "d486897 2026-10-16"
+      },
+      "SMB-LAYOUT-UI-2": {
+        "count": 5,
+        "first": "20fb3f4 2026-10-16",
+        "last": "895f0b7 2026-10-16"
+      },
+      "SMB-STEWARD-LOCK-RELEASE-BUG": {
+        "count": 1,
+        "first": "3e034df 2026-10-16",
+        "last": "3e034df 2026-10-16"
+      },
+      "SMB-PS-ADJUST-STYLES-2": {
+        "count": 6,
+        "first": "d2c52d5 2026-10-15",
+        "last": "ad94a03 2026-10-16"
+      },
+      "SMB-PREMIERE-COLOR-TITLES": {
+        "count": 1,
+        "first": "e48b8f5 2026-10-16",
+        "last": "e48b8f5 2026-10-16"
+      },
+      "SMB-AE-3D-3": {
+        "count": 4,
+        "first": "7bfe109 2026-10-16",
+        "last": "18f3ab4 2026-10-16"
+      },
+      "SMB-AUDITION-UI-2": {
+        "count": 2,
+        "first": "1bc8395 2026-10-16",
+        "last": "57ce0d0 2026-10-16"
+      },
+      "SMB-AE-3D-2": {
+        "count": 4,
+        "first": "f693651 2026-10-15",
+        "last": "ad7a8ff 2026-10-15"
+      },
+      "SMB-R33-FINDINGS": {
+        "count": 4,
+        "first": "905c063 2026-10-15",
+        "last": "493526c 2026-10-15"
+      },
+      "SMB-ILLUSTRATOR-INTEROP-2": {
+        "count": 8,
+        "first": "85026e2 2026-10-15",
+        "last": "39c900f 2026-10-15"
+      },
+      "SMB-AUDITION-UI": {
+        "count": 1,
+        "first": "1d4e8e5 2026-10-15",
+        "last": "1d4e8e5 2026-10-15"
+      },
+      "SMB-PACKAGE-COMPLETENESS": {
+        "count": 1,
+        "first": "6b60b22 2026-10-15",
+        "last": "6b60b22 2026-10-15"
+      },
+      "SMB-ILLUSTRATOR-INTEROP": {
+        "count": 14,
+        "first": "b647408 2026-10-15",
+        "last": "164e468 2026-10-15"
+      },
+      "SMB-LAYOUT-UI": {
+        "count": 6,
+        "first": "863fa73 2026-10-15",
+        "last": "06dc974 2026-10-15"
+      },
+      "SMB-AUDITION-SESSION-2": {
+        "count": 3,
+        "first": "2d0e685 2026-10-15",
+        "last": "da9c248 2026-10-15"
+      },
+      "SMB-PS-ADJUST-STYLES": {
+        "count": 8,
+        "first": "863ba0a 2026-10-15",
+        "last": "555f15b 2026-10-15"
+      },
+      "SMB-AE-MOTION-RECORDS-2": {
+        "count": 1,
+        "first": "00649b8 2026-10-15",
+        "last": "00649b8 2026-10-15"
+      },
+      "SMB-AE-3D": {
+        "count": 7,
+        "first": "409fa22 2026-10-15",
+        "last": "a647799 2026-10-15"
+      },
+      "SMB-PACKAGE-MASK-TILES": {
+        "count": 1,
+        "first": "8749f0a 2026-10-15",
+        "last": "8749f0a 2026-10-15"
+      },
+      "SMB-ILLUSTRATOR-TOOLS-2": {
+        "count": 4,
+        "first": "13bb770 2026-10-15",
+        "last": "18320c8 2026-10-15"
+      },
+      "SMB-AUDITION-SESSION": {
+        "count": 3,
+        "first": "c901059 2026-10-15",
+        "last": "7361387 2026-10-15"
+      },
+      "SMB-AE-MOTION-RECORDS": {
+        "count": 3,
+        "first": "a45d2c6 2026-10-15",
+        "last": "551ec63 2026-10-15"
+      },
+      "SMB-HARNESS-RENDER-RECORDS": {
+        "count": 5,
+        "first": "d8a2451 2026-10-15",
+        "last": "f448633 2026-10-15"
+      },
+      "SMB-AUDIO-IMPORT-2": {
+        "count": 2,
+        "first": "33efc32 2026-10-15",
+        "last": "03f70f1 2026-10-15"
+      },
+      "SMB-AE-MOTION-TOOLS": {
+        "count": 5,
+        "first": "9f11b2e 2026-10-15",
+        "last": "eab11ae 2026-10-15"
+      },
+      "SMB-FIG-SMART-ANIMATE-2": {
+        "count": 3,
+        "first": "cfbd732 2026-10-15",
+        "last": "286fbde 2026-10-15"
+      },
+      "SMB-PS-SMART-FILTER-WIRING": {
+        "count": 3,
+        "first": "7f29a88 2026-10-15",
+        "last": "4343b69 2026-10-15"
+      },
+      "SMB-VECTOR-STYLES": {
+        "count": 2,
+        "first": "1da1d3e 2026-10-15",
+        "last": "f326d46 2026-10-15"
+      },
+      "SMB-AE-KEY-TRACK-3": {
+        "count": 5,
+        "first": "570caaa 2026-10-15",
+        "last": "b3c2a78 2026-10-15"
+      },
+      "SMB-COMPOSITE-DOCGRAPH-2": {
+        "count": 2,
+        "first": "263ec86 2026-10-15",
+        "last": "db231fb 2026-10-15"
+      },
+      "SMB-AUDIO-IMPORT-WIRING": {
+        "count": 1,
+        "first": "29bf1c2 2026-10-15",
+        "last": "29bf1c2 2026-10-15"
+      },
+      "SMB-FIG-SMART-ANIMATE": {
+        "count": 3,
+        "first": "afcfec2 2026-10-15",
+        "last": "66c900b 2026-10-15"
+      },
+      "SMB-PS-SELECT-LIQUIFY-2": {
+        "count": 5,
+        "first": "677c45f 2026-10-15",
+        "last": "fca0c25 2026-10-15"
+      },
+      "SMB-COMPOSITE-NETWORK-ADAPTER": {
+        "count": 1,
+        "first": "5fef9fb 2026-10-15",
+        "last": "5fef9fb 2026-10-15"
+      },
+      "SMB-AUDIO-CODECS": {
+        "count": 5,
+        "first": "0a6119f 2026-10-15",
+        "last": "c9bb8d4 2026-10-15"
+      },
+      "SMB-REEL-ENCODE": {
+        "count": 4,
+        "first": "a922e2e 2026-10-15",
+        "last": "5e68969 2026-10-15"
+      },
+      "SMB-COMPOSITE-VECTOR-MASK-2": {
+        "count": 5,
+        "first": "391b9e1 2026-10-15",
+        "last": "6f6cabd 2026-10-15"
+      },
+      "SMB-AE-KEY-TRACK-2": {
+        "count": 3,
+        "first": "59b6900 2026-10-15",
+        "last": "9590d37 2026-10-15"
+      },
+      "SMB-INTEROP-IDML": {
+        "count": 1,
+        "first": "8f73db2 2026-10-15",
+        "last": "8f73db2 2026-10-15"
+      },
+      "SMB-COMPOSITE-STROKE-GEOMETRY": {
+        "count": 2,
+        "first": "7671aaf 2026-10-15",
+        "last": "6fed566 2026-10-15"
+      },
+      "SMB-DEVELOP-CAMERA-COLOUR-2": {
+        "count": 2,
+        "first": "14590e8 2026-10-15",
+        "last": "b0236e3 2026-10-15"
+      },
+      "SMB-PS-SELECT-LIQUIFY": {
+        "count": 6,
+        "first": "176aa99 2026-10-15",
+        "last": "66ddb19 2026-10-15"
+      },
+      "SMB-ILLUSTRATOR-PEN-3": {
+        "count": 5,
+        "first": "22c38ee 2026-10-15",
+        "last": "1e7afcd 2026-10-15"
+      },
+      "SMB-LAYOUT-LONGDOC-2": {
+        "count": 3,
+        "first": "8b7ba7d 2026-10-15",
+        "last": "90659d0 2026-10-15"
+      },
+      "SMB-DEVELOP-CAMERA-COLOUR": {
+        "count": 2,
+        "first": "cca35dc 2026-10-15",
+        "last": "40579f5 2026-10-15"
+      },
+      "SMB-AE-KEY-TRACK": {
+        "count": 10,
+        "first": "12bcdf5 2026-10-15",
+        "last": "901092e 2026-10-15"
+      },
+      "SMB-PULSE-PLAYBACK-2": {
+        "count": 6,
+        "first": "a107124 2026-10-15",
+        "last": "cb04bb7 2026-10-15"
+      },
+      "SMB-COMPOSITE-DOCGRAPH-MASKS": {
+        "count": 12,
+        "first": "a0b84d5 2026-10-15",
+        "last": "0be7877 2026-10-15"
+      },
+      "SMB-ILLUSTRATOR-PEN-2": {
+        "count": 5,
+        "first": "dcb9377 2026-10-15",
+        "last": "30cfb5e 2026-10-15"
+      },
+      "SMB-R31-FINDINGS": {
+        "count": 4,
+        "first": "bd0229a 2026-10-15",
+        "last": "eb569d5 2026-10-15"
+      },
+      "SMB-CKC-PORTS-ALIGN": {
+        "count": 1,
+        "first": "bc95fae 2026-10-15",
+        "last": "bc95fae 2026-10-15"
+      },
+      "SMB-LAYOUT-LONGDOC": {
+        "count": 6,
+        "first": "28320cd 2026-10-15",
+        "last": "c671093 2026-10-15"
+      },
+      "SMB-V4-01-DENY-SWEEP": {
+        "count": 1,
+        "first": "74d5cc2 2026-10-15",
+        "last": "74d5cc2 2026-10-15"
+      },
+      "SMB-HARNESS-PROTOTYPE-PLAY": {
+        "count": 1,
+        "first": "0cd4de8 2026-10-15",
+        "last": "0cd4de8 2026-10-15"
+      },
+      "SMB-CKC-PORTS": {
+        "count": 2,
+        "first": "2c32ce0 2026-10-15",
+        "last": "e726500 2026-10-15"
+      },
+      "SMB-ILLUSTRATOR-PEN": {
+        "count": 6,
+        "first": "8698329 2026-10-15",
+        "last": "a225d7a 2026-10-15"
+      },
+      "SMB-INTEROP-FIG-PROTOTYPE": {
+        "count": 2,
+        "first": "69d84c4 2026-10-15",
+        "last": "2f2e716 2026-10-15"
+      },
+      "SMB-PULSE-PLAYBACK": {
+        "count": 3,
+        "first": "42005c4 2026-10-15",
+        "last": "68b0dd4 2026-10-15"
+      },
+      "SMB-SCORE-SPECTRAL": {
+        "count": 5,
+        "first": "bc90aed 2026-10-15",
+        "last": "376064e 2026-10-15"
+      },
+      "SMB-LIGHTROOM-CATALOG": {
+        "count": 2,
+        "first": "b14e47d 2026-10-15",
+        "last": "5975475 2026-10-15"
+      },
+      "SMB-INTEROP-FIG-EXPORT": {
+        "count": 1,
+        "first": "0a3640a 2026-10-15",
+        "last": "0a3640a 2026-10-15"
+      },
+      "SMB-SCORE-EFFECTS-5": {
+        "count": 3,
+        "first": "bae2967 2026-10-15",
+        "last": "970f091 2026-10-15"
+      },
+      "SMB-DEVELOP-RAW-COMPRESSED-2": {
+        "count": 6,
+        "first": "fa6e3df 2026-10-15",
+        "last": "e7e56e5 2026-10-15"
+      },
+      "SMB-SCORE-EFFECTS-4": {
+        "count": 6,
+        "first": "a7ef7e7 2026-10-15",
+        "last": "88ccd32 2026-10-15"
+      },
+      "SMB-PRISM-VIEW-TRANSFORM-2": {
+        "count": 5,
+        "first": "75797c5 2026-10-15",
+        "last": "013f770 2026-10-15"
+      },
+      "SMB-FOLIO-TIMELINE-RECORDS": {
+        "count": 2,
+        "first": "b91bf9d 2026-10-15",
+        "last": "6f4e2f6 2026-10-15"
+      },
+      "SMB-LAYOUT-PDFX-VERAPDF": {
+        "count": 4,
+        "first": "a4fac0b 2026-10-15",
+        "last": "89dddeb 2026-10-15"
+      },
+      "SMB-DEVELOP-RAW-COMPRESSED": {
+        "count": 12,
+        "first": "1dcc906 2026-10-15",
+        "last": "c64d64a 2026-10-15"
+      },
+      "SMB-RENDER-GPU-EXTENDED-ENVELOPE": {
+        "count": 2,
+        "first": "fbc4ad7 2026-10-15",
+        "last": "d3efbe4 2026-10-15"
+      },
+      "SMB-SCORE-EFFECTS-3": {
+        "count": 9,
+        "first": "e9dccbc 2026-10-15",
+        "last": "2808f39 2026-10-15"
+      },
+      "SMB-INTEROP-FIG-PAINTS-2": {
+        "count": 2,
+        "first": "0e53adb 2026-10-15",
+        "last": "1e232f9 2026-10-15"
+      },
+      "SMB-COMPOSITE-VECTOR-MASK": {
+        "count": 5,
+        "first": "b409d6d 2026-10-15",
+        "last": "4cfcc8c 2026-10-15"
+      },
+      "SMB-PIGMENT-EXTENDED-RANGE-2": {
+        "count": 2,
+        "first": "b0cd4dc 2026-10-15",
+        "last": "b41818e 2026-10-15"
+      },
+      "SMB-PULSE-EDITING": {
+        "count": 3,
+        "first": "3da782c 2026-10-15",
+        "last": "5ab95f8 2026-10-15"
+      },
+      "SMB-PRISM-VIEW-TRANSFORM": {
+        "count": 2,
+        "first": "3afcfb8 2026-10-15",
+        "last": "0ae5819 2026-10-15"
+      },
+      "SMB-SCORE-EFFECTS-2": {
+        "count": 2,
+        "first": "d8cb160 2026-10-15",
+        "last": "e6ca990 2026-10-15"
+      },
+      "SMB-LAYOUT-PDF-EXPORT-3": {
+        "count": 2,
+        "first": "93b42a8 2026-10-15",
+        "last": "a4121eb 2026-10-15"
+      },
+      "SMB-PIGMENT-EXTENDED-RANGE": {
+        "count": 3,
+        "first": "4e69bd3 2026-10-15",
+        "last": "59092d4 2026-10-15"
+      },
+      "SMB-INTEROP-FIG-PAINTS": {
+        "count": 3,
+        "first": "b160fc3 2026-10-15",
+        "last": "e5cc397 2026-10-15"
+      },
+      "SMB-COMPOSITE-CLIP-RECORDS": {
+        "count": 7,
+        "first": "6efc033 2026-10-15",
+        "last": "4df822c 2026-10-15"
+      },
+      "SMB-PRESS-PAINT-TRANSPARENCY": {
+        "count": 1,
+        "first": "8811e78 2026-10-15",
+        "last": "8811e78 2026-10-15"
+      },
+      "SMB-HARNESS-DEVELOP-3": {
+        "count": 3,
+        "first": "718a3ad 2026-10-15",
+        "last": "fb475b0 2026-10-15"
+      },
+      "SMB-LAYOUT-PDF-EXPORT-2": {
+        "count": 6,
+        "first": "fb369b9 2026-10-15",
+        "last": "79a60d9 2026-10-15"
+      },
+      "SMB-RENDER-SCENE-DISPLAY": {
+        "count": 3,
+        "first": "86222e1 2026-10-15",
+        "last": "0231a15 2026-10-15"
+      },
+      "SMB-HARNESS-DEVELOP-2": {
+        "count": 3,
+        "first": "84c33c3 2026-10-15",
+        "last": "0052602 2026-10-15"
+      },
+      "SMB-COMPOSITE-COMPOSITION-2": {
+        "count": 5,
+        "first": "0223776 2026-10-15",
+        "last": "156689b 2026-10-15"
+      },
+      "SMB-INTEROP-FIG-INSTANCES-FRAMES": {
+        "count": 2,
+        "first": "3b665d1 2026-10-15",
+        "last": "2bbeb48 2026-10-15"
+      },
+      "SMB-HARNESS-DEVELOP-EXPORT": {
+        "count": 1,
+        "first": "4746028 2026-10-15",
+        "last": "4746028 2026-10-15"
+      },
+      "SMB-RENDER-CONTENT-AWARE": {
+        "count": 1,
+        "first": "7d2367a 2026-10-15",
+        "last": "7d2367a 2026-10-15"
+      },
+      "SMB-LAYOUT-PDF-EXPORT": {
+        "count": 3,
+        "first": "0451297 2026-10-15",
+        "last": "f97530d 2026-10-15"
+      },
+      "SMB-COMPOSITE-VECTOR-IN-GROUP": {
+        "count": 2,
+        "first": "c917333 2026-10-15",
+        "last": "5898a82 2026-10-15"
+      },
+      "SMB-PIGMENT-FILTER-DESCRIPTOR": {
+        "count": 2,
+        "first": "d111a1c 2026-10-15",
+        "last": "25d6cec 2026-10-15"
+      },
+      "SMB-RENDER-GPU-SUBMIT-FAULT": {
+        "count": 1,
+        "first": "2e52586 2026-10-15",
+        "last": "2e52586 2026-10-15"
+      },
+      "SMB-DNG-CORPUS-REPLACE": {
+        "count": 1,
+        "first": "8424d8a 2026-10-15",
+        "last": "8424d8a 2026-10-15"
+      },
+      "SMB-PIGMENT-CONTENT-AWARE-2": {
+        "count": 6,
+        "first": "fcd627d 2026-10-15",
+        "last": "809a276 2026-10-15"
+      },
+      "SMB-HARNESS-UI-3": {
+        "count": 7,
+        "first": "63af66e 2026-10-15",
+        "last": "9832c68 2026-10-15"
+      },
+      "SMB-COMPOSITE-COMPOSITION-ADAPTER": {
+        "count": 8,
+        "first": "791f865 2026-10-15",
+        "last": "1ddd686 2026-10-15"
+      },
+      "SMB-RENDER-GPU-PIPELINE-FAULT": {
+        "count": 1,
+        "first": "a2d17b0 2026-10-15",
+        "last": "a2d17b0 2026-10-15"
+      },
+      "SMB-LAYOUT-TYPESET-HARDEN": {
+        "count": 1,
+        "first": "54f8d69 2026-10-15",
+        "last": "54f8d69 2026-10-15"
+      },
+      "SMB-RENDER-FILTERS": {
+        "count": 8,
+        "first": "9698de3 2026-10-15",
+        "last": "5556fe9 2026-10-15"
+      },
+      "SMB-PIGMENT-CONTENT-AWARE": {
+        "count": 4,
+        "first": "5c2288e 2026-10-15",
+        "last": "b7880bb 2026-10-15"
+      },
+      "SMB-DEVELOP-CONTROLS-2": {
+        "count": 7,
+        "first": "d7aaa11 2026-10-15",
+        "last": "31642da 2026-10-15"
+      },
+      "SMB-SCORE-TRUEPEAK": {
+        "count": 1,
+        "first": "f025ff7 2026-10-15",
+        "last": "f025ff7 2026-10-15"
+      },
+      "SMB-PRISM-ADMITTED-WORKING-PROFILE": {
+        "count": 1,
+        "first": "6e86820 2026-10-15",
+        "last": "6e86820 2026-10-15"
+      },
+      "SMB-INTEROP-FIG-LAYER-GRAPH": {
+        "count": 12,
+        "first": "55606ee 2026-10-15",
+        "last": "0c1ae4d 2026-10-15"
+      },
+      "SMB-PRESS-PG-HARDEN": {
+        "count": 1,
+        "first": "aafcde7 2026-10-15",
+        "last": "aafcde7 2026-10-15"
+      },
+      "SMB-LAYOUT-PARENT-ADAPTER": {
+        "count": 1,
+        "first": "3d02f56 2026-10-15",
+        "last": "3d02f56 2026-10-15"
+      },
+      "SMB-NIB-VECTOR-RENDER": {
+        "count": 5,
+        "first": "5e550e2 2026-10-15",
+        "last": "201dca0 2026-10-15"
+      },
+      "SMB-FOLIO-VECTOR-IMAGE-PORT": {
+        "count": 1,
+        "first": "6e2ec80 2026-10-15",
+        "last": "6e2ec80 2026-10-15"
+      },
+      "SMB-DEVELOP-CONTROLS": {
+        "count": 5,
+        "first": "d16f10d 2026-10-15",
+        "last": "b4f0107 2026-10-15"
+      },
+      "SMB-PIGMENT-RETOUCH": {
+        "count": 4,
+        "first": "9650626 2026-10-15",
+        "last": "edc1e0b 2026-10-15"
+      },
+      "SMB-SCORE-DSP": {
+        "count": 4,
+        "first": "7f76cfd 2026-10-15",
+        "last": "917a7ac 2026-10-15"
+      },
+      "SMB-FOLIO-COMPOSITION": {
+        "count": 3,
+        "first": "ee86db7 2026-10-15",
+        "last": "9268bca 2026-10-15"
+      },
+      "SMB-LAYOUT-TYPESET": {
+        "count": 2,
+        "first": "32515b7 2026-10-15",
+        "last": "64356ff 2026-10-15"
+      },
+      "SMB-ACCORD-COMPOSITION-PREFIX": {
+        "count": 1,
+        "first": "63fce7a 2026-10-15",
+        "last": "63fce7a 2026-10-15"
+      },
+      "SMB-COMPOSITE-NEW-KINDS": {
+        "count": 8,
+        "first": "3800a14 2026-10-14",
+        "last": "46f18cd 2026-10-15"
+      },
+      "SMB-HARNESS-UI-2": {
+        "count": 1,
+        "first": "bff3713 2026-10-15",
+        "last": "bff3713 2026-10-15"
+      },
+      "SMB-UI-SUPPORT-APIS": {
+        "count": 3,
+        "first": "6762593 2026-10-14",
+        "last": "5cda0ae 2026-10-14"
+      },
+      "SMB-RENDER-GPU-SHARED-DEVICE": {
+        "count": 2,
+        "first": "9ea8594 2026-10-14",
+        "last": "2bc4120 2026-10-14"
+      },
+      "SMB-HARNESS-SWEEP-PERF": {
+        "count": 1,
+        "first": "6bac4b9 2026-10-14",
+        "last": "6bac4b9 2026-10-14"
+      },
+      "SMB-PRESS-STRUCT-STRIP": {
+        "count": 6,
+        "first": "ade85a0 2026-10-14",
+        "last": "2fd94c7 2026-10-14"
+      },
+      "SMB-FOLIO-PAINT-BLUR-STYLE": {
+        "count": 4,
+        "first": "5813f4c 2026-10-14",
+        "last": "83c99bb 2026-10-14"
+      },
+      "SMB-INTEROP-FIG-FOLIO-KINDS": {
+        "count": 2,
+        "first": "beedf31 2026-10-14",
+        "last": "f66c9f9 2026-10-14"
+      },
+      "SMB-PIGMENT-TRANSFORM": {
+        "count": 5,
+        "first": "c4ab1ff 2026-10-14",
+        "last": "b643ec2 2026-10-14"
+      },
+      "SMB-CONVERT-RASTER": {
+        "count": 2,
+        "first": "bf5d703 2026-10-14",
+        "last": "864a255 2026-10-14"
+      },
+      "SMB-COMPOSITE-TEXT": {
+        "count": 8,
+        "first": "eddc6b1 2026-10-14",
+        "last": "f63dc73 2026-10-14"
+      },
+      "SMB-IO-RASTER-COMMON": {
+        "count": 5,
+        "first": "32817d9 2026-10-14",
+        "last": "ac71845 2026-10-14"
+      },
+      "SMB-HARNESS-UI": {
+        "count": 2,
+        "first": "af69bcf 2026-10-14",
+        "last": "7ca6648 2026-10-14"
+      },
+      "SMB-INTEROP-FIG-GEOMETRY": {
+        "count": 3,
+        "first": "b24f18f 2026-10-14",
+        "last": "7c190d3 2026-10-14"
+      },
+      "SMB-CONVERT-FOLLOWUPS": {
+        "count": 5,
+        "first": "e0c3473 2026-10-14",
+        "last": "23f7c6d 2026-10-14"
+      },
+      "SMB-TYPE-GLYPH-RENDER": {
+        "count": 2,
+        "first": "07fee7f 2026-10-14",
+        "last": "bf302f4 2026-10-14"
+      },
+      "SMB-COMPOSITE-TEMPORAL": {
+        "count": 2,
+        "first": "cf0bc33 2026-10-14",
+        "last": "4ad3405 2026-10-14"
+      },
+      "SMB-REEL-BFRAME-ORDER": {
+        "count": 1,
+        "first": "4653498 2026-10-14",
+        "last": "4653498 2026-10-14"
+      },
+      "SMB-REEL-NATIVE-ENG-1": {
+        "count": 6,
+        "first": "09bba20 2026-10-14",
+        "last": "9ff2844 2026-10-14"
+      },
+      "SMB-PRESS-PROPERTIES": {
+        "count": 8,
+        "first": "9dd0fc7 2026-10-14",
+        "last": "18ebacf 2026-10-14"
+      },
+      "SMB-INTEROP-FIG-NATIVE": {
+        "count": 4,
+        "first": "aab554e 2026-10-14",
+        "last": "bc78302 2026-10-14"
+      },
+      "SMB-CONVERT-NATIVE": {
+        "count": 5,
+        "first": "a7c2fa1 2026-10-14",
+        "last": "fcd53b8 2026-10-14"
+      },
+      "SMB-INTEROP-FIG-NODES": {
+        "count": 2,
+        "first": "a55c345 2026-10-14",
+        "last": "87954e8 2026-10-14"
+      },
+      "SMB-DEVELOP-TIFF-CONSOLIDATE": {
+        "count": 2,
+        "first": "a7048ef 2026-10-14",
+        "last": "2b90bcc 2026-10-14"
+      },
+      "SMB-CONVERT-COLOUR": {
+        "count": 1,
+        "first": "3a496bb 2026-10-14",
+        "last": "3a496bb 2026-10-14"
+      },
+      "SMB-INTEROP-TIFF-CONTAINER-API": {
+        "count": 1,
+        "first": "579c117 2026-10-14",
+        "last": "579c117 2026-10-14"
+      },
+      "SMB-CONVERT-TIFF": {
+        "count": 1,
+        "first": "8398c7a 2026-10-14",
+        "last": "8398c7a 2026-10-14"
+      },
+      "SMB-INTEROP-FIG-FORMAT": {
+        "count": 1,
+        "first": "8278915 2026-10-14",
+        "last": "8278915 2026-10-14"
+      },
+      "SMB-SESSION-IMPORT-ENTRIES": {
+        "count": 1,
+        "first": "306f894 2026-10-14",
+        "last": "306f894 2026-10-14"
+      },
+      "SMB-REEL-ENG-2": {
+        "count": 4,
+        "first": "6c52e18 2026-10-14",
+        "last": "5959e88 2026-10-14"
+      },
+      "SMB-DEVELOP-RAW-ARW": {
+        "count": 2,
+        "first": "be73666 2026-10-14",
+        "last": "d62e840 2026-10-14"
+      },
+      "SMB-DEVELOP-DNG-MLV": {
+        "count": 2,
+        "first": "7e5da46 2026-10-14",
+        "last": "20b5845 2026-10-14"
+      },
+      "SMB-DEVELOP-RAW-VENDOR": {
+        "count": 2,
+        "first": "799ba57 2026-10-14",
+        "last": "241df1f 2026-10-14"
+      },
+      "SMB-WORKER-CRATE": {
+        "count": 4,
+        "first": "c34e17f 2026-10-14",
+        "last": "5c664dd 2026-10-14"
+      },
+      "SMB-ZIP-CONSOLIDATE": {
+        "count": 4,
+        "first": "d40526a 2026-10-14",
+        "last": "6a15f6d 2026-10-14"
+      }
+    },
+    "untagged": [
+      {
+        "sha": "fcb12d5",
+        "date": "2026-10-21",
+        "subject": "8-bit linear light at fill: floored scaled source (PS-B01 d8_o100_f50_LINEARLIGHT)"
+      },
+      {
+        "sha": "e67479f",
+        "date": "2026-10-21",
+        "subject": "8-bit working depth: Photoshop's 8-bit document (PS-C28 nomask, PS-C29 fill100, PS-C02 8-bit gamma 1.5)"
+      },
+      {
+        "sha": "9d20867",
+        "date": "2026-10-21",
+        "subject": "render-gpu: MixWeight above Opac's derive (compile fix of 3080e92)"
+      },
+      {
+        "sha": "f6b518d",
+        "date": "2026-10-21",
+        "subject": "pass-through group opacity: premultiplied lerp (PS-C28 opacity50_nomask)"
+      },
+      {
+        "sha": "a39d2fd",
+        "date": "2026-10-21",
+        "subject": "slice 1 re-pins: hand values to Photoshop's grow, glow knockout and unit fade"
+      },
+      {
+        "sha": "d23e33e",
+        "date": "2026-10-21",
+        "subject": "harness d5: drop the 142 fixed expectations (340 -> 482 MATCH)"
+      },
+      {
+        "sha": "3cea5ac",
+        "date": "2026-10-21",
+        "subject": "render-gpu: WGSL mirrors of the parity-2 grow, stroke, glow knockout, unit fade and Blend-If gray"
+      },
+      {
+        "sha": "6c1387c",
+        "date": "2026-10-20",
+        "subject": "develop (steward, lead RAW decision 2026-10-20): drop the dead LightCraft nefc path; NOTICE follows"
+      },
+      {
+        "sha": "6e90f71",
+        "date": "2026-10-16",
+        "subject": "develop NOTICE (steward, lead RAW decision 2026-10-16): LightCraft attribution no longer covers ORF"
+      },
+      {
+        "sha": "f1fffe3",
+        "date": "2026-10-15",
+        "subject": "pigment tests (R32 remediation): classify the selection-tool field reads the reader scan sees (Reads::Every)"
+      },
+      {
+        "sha": "c31d66c",
+        "date": "2026-10-15",
+        "subject": "press + interop-layout tests: keep the veraPDF report fixtures byte-identical (-text), so their cited sha256 holds on checkout"
+      },
+      {
+        "sha": "baf8ffc",
+        "date": "2026-10-15",
+        "subject": "nib descriptor: vector_render section (flatten, boolean, stroke, raster, edit) for no-context models"
+      },
+      {
+        "sha": "9e5c438",
+        "date": "2026-10-15",
+        "subject": "nib manifest: explicit empty features list on the i_overlay pin (WORKSPACE_RULES probe)"
+      },
+      {
+        "sha": "c4c6d4d",
+        "date": "2026-10-14",
+        "subject": "harness tests: size-balanced psd-tools sweep, 16 shards (per-test cap 120 s)"
+      },
+      {
+        "sha": "84cdc17",
+        "date": "2026-10-14",
+        "subject": "interop-psd: little-endian ImageSourceData tests (twin fixture, hostile inputs, Pillow Photoshop-CS sample)"
+      },
+      {
+        "sha": "68cba91",
+        "date": "2026-10-14",
+        "subject": "interop-psd: byte-order aware layer readers parse little-endian MIB8/46B8 ImageSourceData"
+      },
+      {
+        "sha": "1a72a40",
+        "date": "2026-10-14",
+        "subject": "Pigment brush: exact dab positions (multiply before divide)"
+      },
+      {
+        "sha": "9179368",
+        "date": "2026-10-14",
+        "subject": "Pigment brush engine slice 1: parametric tip, pressure dynamics, dab placement, stroke coverage, paint and erase helpers for masked_replace, erase-to-mask route"
+      },
+      {
+        "sha": "d48bc30",
+        "date": "2026-10-14",
+        "subject": "Pigment selection: extend combine in u32 fixed point (saturation bug); hostile test accepts Overflow or BudgetExceeded"
+      },
+      {
+        "sha": "d476434",
+        "date": "2026-10-14",
+        "subject": "Pigment selection engine sources and tests (extend combine fix: u32 fixed point)"
+      },
+      {
+        "sha": "7fe7a3a",
+        "date": "2026-10-14",
+        "subject": "Pigment selection engine: CoveragePlane, four STU-RAS-118 combine modes, rect/ellipse/polygon producers with anti-aliasing, feather, colour range, invert"
+      },
+      {
+        "sha": "7dee0e4",
+        "date": "2026-10-14",
+        "subject": "Steward: scaffold hsk-studio-interop-raster (R-OWN); serde_json float_roundtrip for folio and package"
+      },
+      {
+        "sha": "c946aa6",
+        "date": "2026-10-14",
+        "subject": "develop tests: real_dng resolves the corpus through .config/oracle-corpus.toml (no hard-coded path)"
+      },
+      {
+        "sha": "242cfeb",
+        "date": "2026-10-14",
+        "subject": "interop-tiff slice 2: palette expansion, CIELab as stored, ImageSourceData envelope, DESCRIPTOR"
+      },
+      {
+        "sha": "0824103",
+        "date": "2026-10-14",
+        "subject": "interop-tiff slice 1: bounded TIFF decode + encode with typed refusals"
+      },
+      {
+        "sha": "ad5ff38",
+        "date": "2026-10-14",
+        "subject": "Steward: scaffold hsk-studio-interop-tiff (lead decision F1)"
+      },
+      {
+        "sha": "394082f",
+        "date": "2026-10-14",
+        "subject": "Interop-media D9: timecode/drop-frame label arithmetic and tick/frame exactness collapse onto hsk-studio-pulse (path dep); PulseError mapped to typed InteropError; D9 OPEN note removed (V4-05)"
+      },
+      {
+        "sha": "815dcc6",
+        "date": "2026-10-14",
+        "subject": "Steward: scaffold hsk-studio-worker (D18 option (a), D14)"
+      },
+      {
+        "sha": "e659533",
+        "date": "2026-10-14",
+        "subject": "render-gpu probe: capture opt-out NOT_PROVEN line instead of printing it (gate_with)"
+      }
+    ]
+  },
+  "worktrees": [
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/assets-repository",
+      "branch": "(bare repo, no work tree)",
+      "head": "c6c993d",
+      "note": "bare container; not auditable for status/stash"
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-assets",
+      "branch": "codex/handshake-studio-assets",
+      "head": "8bb6f64",
+      "head_date": "2026-10-20",
+      "head_subject": "Steward sync: lock, registry pins and probe approvals for 6585ff0",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 5,
+        "paths": [
+          " M handshake-studio-assets/Cargo.lock",
+          " M handshake-studio-assets/crates/hsk-studio-harness/tests/common/mod.rs",
+          " M handshake-studio-assets/crates/hsk-studio-pigment/tests/transform.rs",
+          "?? press_desc_1da2453.json",
+          "?? press_desc_2dde832.json"
+        ]
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 25
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ae-3d-2",
+      "branch": "lane/smb-ae-3d-2",
+      "head": "ad7a8ff",
+      "head_date": "2026-10-15",
+      "head_subject": "SMB-AE-3D-2 slice 4: immersive records, equirectangular plane-to-sphere render, sphere rotate",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 120
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ae-3d-3",
+      "branch": "lane/smb-ae-3d-3",
+      "head": "18f3ab4",
+      "head_date": "2026-10-16",
+      "head_subject": "SMB-AE-3D-3 slice 4: motion blur of 3D layers across the shutter",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 111
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ae-particles-audio-presets",
+      "branch": "lane/smb-ae-particles-audio-presets",
+      "head": "6ed1dd9",
+      "head_date": "2026-10-16",
+      "head_subject": "folio + motion + composite (SMB-AE-PARTICLES-AUDIO-PRESETS slice 3): animation presets",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 74
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ae-roto-timeremap",
+      "branch": "lane/smb-ae-roto-timeremap",
+      "head": "3432d5c",
+      "head_date": "2026-10-21",
+      "head_subject": "Studio AE-10: Horn-Schunck default alpha 0.2 and 4 px coarsest level (SMB-AE-ROTO-TIMEREMAP fix)",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 21
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-affinity-interop-1",
+      "branch": "lane/smb-affinity-interop-1",
+      "head": "a82a77c",
+      "head_date": "2026-10-20",
+      "head_subject": "harness (SMB-AFFINITY-INTEROP-1 slice 3): opt-in Affinity thumbnail preview, marked lossy",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 1,
+        "paths": [
+          " M handshake-studio-assets/Cargo.lock"
+        ]
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 51
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ai-ae-oracle-followups",
+      "branch": "lane/smb-ai-ae-oracle-followups",
+      "head": "3602062",
+      "head_date": "2026-10-20",
+      "head_subject": "motion-js (SMB-AI-AE-ORACLE-FOLLOWUPS slice 4): After Effects expression globals value, time, linear()",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 45
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ai-type-path-recolor",
+      "branch": "lane/smb-ai-type-path-recolor",
+      "head": "54865f6",
+      "head_date": "2026-10-16",
+      "head_subject": "SMB-AI-TYPE-PATH-RECOLOR slice 4: separations preview for vector documents (STU-COL-212)",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 68
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-au-waveform-editor",
+      "branch": "lane/smb-au-waveform-editor",
+      "head": "557ac06",
+      "head_date": "2026-10-20",
+      "head_subject": "harness (SMB-AU-WAVEFORM-EDITOR slice 4b): hosted plugin on a waveform selection through score-plugin's isolated host (opt-in feature audio-plugin)",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 1,
+        "paths": [
+          " M handshake-studio-assets/Cargo.lock"
+        ]
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 31
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-audition-ui",
+      "branch": "lane/smb-audition-ui",
+      "head": "57ce0d0",
+      "head_date": "2026-10-16",
+      "head_subject": "harness (SMB-AUDITION-UI-2 slice 2): bus and master effect editing from the mixer panel",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 115
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-crate-seam-splits",
+      "branch": "lane/smb-crate-seam-splits",
+      "head": "12e2d46",
+      "head_date": "2026-10-20",
+      "head_subject": "harness (SMB-CRATE-SEAM-SPLITS slice 3b): split into hsk-studio-harness-core and hsk-studio-harness-view",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 28
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-crate-seam-splits-2",
+      "branch": "lane/smb-crate-seam-splits-2",
+      "head": "67a7496",
+      "head_date": "2026-10-21",
+      "head_subject": "web (SMB-CRATE-SEAM-SPLITS-2): split into hsk-studio-web-core and hsk-studio-web-assets",
+      "pushed": false,
+      "local_only_commits": [
+        {
+          "sha": "67a7496",
+          "date": "2026-10-21",
+          "subject": "web (SMB-CRATE-SEAM-SPLITS-2): split into hsk-studio-web-core and hsk-studio-web-assets",
+          "path_count": 27,
+          "paths": [
+            "handshake-studio-assets/Cargo.toml",
+            "handshake-studio-assets/crates/hsk-studio-web-assets/Cargo.toml",
+            "handshake-studio-assets/crates/hsk-studio-web-assets/src/assets.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-assets/src/assets/tests.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-assets/src/carriers.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-assets/src/carriers/tests.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-assets/src/cssurl.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-assets/src/cssurl/tests.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-assets/src/datauri.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-assets/src/datauri/tests.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-assets/src/lib.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-core/Cargo.toml",
+            "handshake-studio-assets/crates/hsk-studio-web-core/src/charref.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-core/src/css.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-core/src/dom.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-core/src/dom/construction.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-core/src/entity.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-core/src/entity_table.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-core/src/error.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-core/src/lib.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-core/src/preview.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-core/src/refresh.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-core/src/report.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-core/src/responsive.rs",
+            "handshake-studio-assets/crates/hsk-studio-web-core/src/source_dom_patch.rs",
+            "handshake-studio-assets/crates/hsk-studio-web/Cargo.toml",
+            "handshake-studio-assets/crates/hsk-studio-web/src/lib.rs"
+          ]
+        },
+        {
+          "sha": "fef312e",
+          "date": "2026-10-21",
+          "subject": "interop-fig (SMB-CRATE-SEAM-SPLITS-2): split into hsk-studio-interop-fig-base and -native",
+          "path_count": 21,
+          "paths": [
+            "handshake-studio-assets/Cargo.toml",
+            "handshake-studio-assets/crates/hsk-studio-interop-fig-base/Cargo.toml",
+            "handshake-studio-assets/crates/hsk-studio-interop-fig-base/src/container.rs",
+            "handshake-studio-assets/crates/hsk-studio-interop-fig-base/src/error.rs",
+            "handshake-studio-assets/crates/hsk-studio-interop-fig-base/src/graph.rs",
+            "handshake-studio-assets/crates/hsk-studio-interop-fig-base/src/import.rs",
+            "handshake-studio-assets/crates/hsk-studio-interop-fig-base/src/kiwi.rs",
+            "handshake-studio-assets/crates/hsk-studio-interop-fig-base/src/kiwi_value.rs",
+            "handshake-studio-assets/crates/hsk-studio-interop-fig-base/src/lib.rs",
+            "handshake-studio-assets/crates/hsk-studio-interop-fig-base/src/nodes.rs",
+            "handshake-studio-assets/crates/hsk-studio-interop-fig-base/src/semantic_decode.rs",
+            "handshake-studio-assets/crates/hsk-studio-interop-fig-base/src/version_map.rs",
+            "handshake-studio-assets/crates/hsk-studio-interop-fig-native/Cargo.toml",
+            "handshake-studio-assets/crates/hsk-studio-interop-fig-native/src/effects.rs",
+            "handshake-studio-assets/crates/hsk-studio-interop-fig-native/src/export.rs",
+            "handshake-studio-assets/crates/hsk-studio-interop-fig-native/src/geometry.rs",
+            "handshake-studio-assets/crates/hsk-studio-interop-fig-native/src/lib.rs",
+            "handshake-studio-assets/crates/hsk-studio-interop-fig-native/src/native.rs",
+            "handshake-studio-assets/crates/hsk-studio-interop-fig-native/src/text_out.rs",
+            "handshake-studio-assets/crates/hsk-studio-interop-fig/Cargo.toml",
+            "handshake-studio-assets/crates/hsk-studio-interop-fig/src/lib.rs"
+          ]
+        }
+      ],
+      "uncommitted": {
+        "count": 1,
+        "paths": [
+          " M handshake-studio-assets/Cargo.lock"
+        ]
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 26
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-d24a-codec-defaults",
+      "branch": "lane/smb-d24a-codec-defaults",
+      "head": "c91f791",
+      "head_date": "2026-10-16",
+      "head_subject": "reel-native (SMB-D24A-CODEC-DEFAULTS): learn the encoder's output-time offset from the first key unit (Microsoft H.264 encoder stamps B-frame output one frame late)",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 100
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-d5-ai-id-ae-compare",
+      "branch": "lane/smb-d5-ai-id-ae-compare",
+      "head": "16d5c9e",
+      "head_date": "2026-10-16",
+      "head_subject": "SMB-D5-AI-ID-AE-COMPARE slice 3: InDesign composer oracle comparison (ID-01..04) through IDML import, Type and layout",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 65
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-d5-ps-compare",
+      "branch": "lane/smb-d5-ps-compare",
+      "head": "3d5fbda",
+      "head_date": "2026-10-16",
+      "head_subject": "SMB-D5-PS-COMPARE slice 1: Photoshop D5 oracle comparison suite + oracle-evidenced maths fixes",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 73
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-develop-lens-presets",
+      "branch": "lane/smb-develop-lens-presets",
+      "head": "658aef4",
+      "head_date": "2026-10-20",
+      "head_subject": "harness (SMB-DEVELOP-LENS-PRESETS slice 6): viewer_develop_2 enables pin lists the four new group enables; clippy explicit_auto_deref; unused assignment in viewer_develop_lens",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 1,
+        "paths": [
+          " M handshake-studio-assets/Cargo.lock"
+        ]
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 29
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-dxf-eps-import",
+      "branch": "lane/smb-dxf-eps-import",
+      "head": "85b3446",
+      "head_date": "2026-10-21",
+      "head_subject": "interop-vector-core (SMB-DXF-EPS-IMPORT): NOTICE for ezdxf (MIT) ACI table and stet embedded resources",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 1,
+        "paths": [
+          " M handshake-studio-assets/Cargo.lock"
+        ]
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 15
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-id-composer-parity",
+      "branch": "lane/smb-id-composer-parity",
+      "head": "5fa82ec",
+      "head_date": "2026-10-20",
+      "head_subject": "SMB-ID-COMPOSER-PARITY: allow too_many_arguments on the windowed paragraph search (crate convention)",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 38
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-id-prepress",
+      "branch": "lane/smb-id-prepress",
+      "head": "3195ea5",
+      "head_date": "2026-10-16",
+      "head_subject": "SMB-ID-PREPRESS slices 4-6: test fixes (StudioRgba profile binding, closure borrow, Result alias), unused mut",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 82
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-layout-ui-2",
+      "branch": "lane/smb-layout-ui-2",
+      "head": "895f0b7",
+      "head_date": "2026-10-16",
+      "head_subject": "harness + layout (SMB-LAYOUT-UI-2 slice 5): live preflight engine and panel",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 92
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-lr-library-write",
+      "branch": "lane/smb-lr-library-write",
+      "head": "75d7242",
+      "head_date": "2026-10-16",
+      "head_subject": "develop (SMB-LR-LIBRARY-WRITE slice 3): develop records, copy/paste/sync settings, batch apply",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 72
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-package-completeness",
+      "branch": "lane/smb-package-completeness",
+      "head": "608dbce",
+      "head_date": "2026-10-15",
+      "head_subject": "folio + package + session (SMB-PACKAGE-COMPLETENESS-2 slice 1): font, audio, LUT and placed-link resolver ports; linked placed sources health-checked at open; CKC catalog asset_id on media clips and placed sources",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 42
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-pr-source-monitor",
+      "branch": "lane/smb-pr-source-monitor",
+      "head": "237256f",
+      "head_date": "2026-10-16",
+      "head_subject": "reel + harness (SMB-PR-SOURCE-MONITOR slice 4): caption streams in export (tx3g timed text, WebVTT sidecar); export presets with the D24-A OS-encode path",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 79
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-premiere-color-titles",
+      "branch": "lane/smb-premiere-color-titles",
+      "head": "e48b8f5",
+      "head_date": "2026-10-16",
+      "head_subject": "SMB-PREMIERE-COLOR-TITLES slices 1-4: clip colour grade, clip effect stack, graphic templates, captions",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 1,
+        "paths": [
+          " M handshake-studio-assets/crates/hsk-studio-composite/src/composition.rs"
+        ]
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 107
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ps-adjust-styles-2",
+      "branch": "lane/smb-ps-adjust-styles-2",
+      "head": "ad94a03",
+      "head_date": "2026-10-16",
+      "head_subject": "pigment + folio + render-cpu/gpu + composite (SMB-PS-ADJUST-STYLES-2 slice 6): pattern overlay",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 99
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ps-adjust-styles-3",
+      "branch": "lane/smb-ps-adjust-styles-3",
+      "head": "e303149",
+      "head_date": "2026-10-16",
+      "head_subject": "composite (SMB-PS-ADJUST-STYLES-3 slice 2): clip-effect filtered content carries no masks",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 55
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ps-oracle-parity-1",
+      "branch": "lane/smb-ps-oracle-parity-1",
+      "head": "f9b2fd7",
+      "head_date": "2026-10-20",
+      "head_subject": "SMB-PS-ORACLE-PARITY-1: render-gpu one blend() call per composite entry point",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 32
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ps-oracle-parity-2",
+      "branch": "lane/smb-ps-oracle-parity-2",
+      "head": "e64eacd",
+      "head_date": "2026-10-21",
+      "head_subject": "harness d5: expectations note (340 -> 489 MATCH, lane SMB-PS-ORACLE-PARITY-2)",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 0
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-r33-findings",
+      "branch": "lane/smb-r33-findings",
+      "head": "493526c",
+      "head_date": "2026-10-15",
+      "head_subject": "pulse (SMB-R33-FINDINGS F-R32-8): cite the tests for \"PresentEveryFrame never skips\"",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 121
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-r35-remediation",
+      "branch": "lane/smb-r35-remediation",
+      "head": "3b73143",
+      "head_date": "2026-10-20",
+      "head_subject": "R35 remediation: SMB-D24A-CODEC-DEFAULTS and SMB-ID-PREPRESS FAIL_V1",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 43
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-raw-cleanroom",
+      "branch": "lane/smb-raw-cleanroom",
+      "head": "d486897",
+      "head_date": "2026-10-16",
+      "head_subject": "develop (SMB-RAW-CLEANROOM slice 1): clean-room Olympus ORF two-field decoder; old src/orf.rs removed",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 2,
+        "paths": [
+          "?? handshake-studio-assets/crates/hsk-studio-develop/src/raw_cr/parity.rs",
+          "?? handshake-studio-assets/crates/hsk-studio-develop/src/raw_cr/rw2.rs"
+        ]
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 87
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-raw-cleanroom-2",
+      "branch": "lane/smb-raw-cleanroom-2",
+      "head": "d51b0c9",
+      "head_date": "2026-10-16",
+      "head_subject": "develop (SMB-RAW-CLEANROOM-2): clean-room RW2 and Huffman NEF decoders, routed; old src/rw2.rs removed",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 1,
+        "paths": [
+          " M handshake-studio-assets/Cargo.lock"
+        ]
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 50
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-steward-lock-release-bug",
+      "branch": "lane/smb-steward-lock-release-bug",
+      "head": "d44a708",
+      "head_date": "2026-10-16",
+      "head_subject": "steward: retry-guard probe (empty commit on the steward's own lane branch; not pushed)",
+      "pushed": false,
+      "local_only_commits": [
+        {
+          "sha": "d44a708",
+          "date": "2026-10-16",
+          "subject": "steward: retry-guard probe (empty commit on the steward's own lane branch; not pushed)",
+          "path_count": 0,
+          "paths": []
+        }
+      ],
+      "uncommitted": {
+        "count": 2,
+        "paths": [
+          "?? .gameplan-active.verify.1623605",
+          "?? .gameplan-active.verify.1623619"
+        ]
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 98
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-steward-notice",
+      "branch": "lane/smb-steward-notice",
+      "head": "6585ff0",
+      "head_date": "2026-10-20",
+      "head_subject": "Steward sync: lock, registry pins and probe approvals for 673f9b7",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 26
+    },
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-type-ff-ligature",
+      "branch": "lane/smb-type-ff-ligature",
+      "head": "2e0f53e",
+      "head_date": "2026-10-21",
+      "head_subject": "Type: is_multiple_of in the v2 ligature gate (clippy manual_is_multiple_of) (SMB-TYPE-FF-LIGATURE)",
+      "pushed": true,
+      "local_only_commits": [],
+      "uncommitted": {
+        "count": 0,
+        "paths": []
+      },
+      "stashes": [
+        "stash@{0}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP pigment/tests/layer_styles.rs before ff to 12e2d46",
+        "stash@{1}: autostash",
+        "stash@{2}: On lane/smb-id-composer-parity: SAFETY: Cargo.lock before rebase",
+        "stash@{3}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-20 stale 10-15 WIP session/src/source.rs before re-parent of sync onto af11aa4",
+        "stash@{4}: On lane/smb-ai-ae-oracle-followups: lane Cargo.lock",
+        "stash@{5}: On lane/smb-ps-adjust-styles-3: SAFETY: smb-ps-adjust-styles-3 build Cargo.lock before rebase",
+        "stash@{6}: On lane/smb-d5-ai-id-ae-compare: SAFETY: smb-d5-ai-id-ae-compare cargo-generated Cargo.lock before rebase 2",
+        "stash@{7}: On lane/smb-raw-cleanroom: SAFETY: cargo-regenerated Cargo.lock before rebase",
+        "stash@{8}: On lane/smb-lr-library-write: SAFETY: lane cargo-generated Cargo.lock before rebase onto 6bfcad9",
+        "stash@{9}: On lane/smb-d5-ai-id-ae-compare: SAFETY: lane cargo-generated Cargo.lock before rebase",
+        "stash@{10}: On codex/handshake-studio-assets: SAFETY: steward 2026-10-16 before ff of shared tree ca5e9c9->origin (stale 10-15 WIP conflicting with incoming commits)",
+        "stash@{11}: On codex/handshake-studio-assets: SAFETY: smb-package stale shared-tree edits 2026-10-15"
+      ],
+      "behind_origin_count": 9
+    }
+  ],
+  "lane_record_mismatches": [
+    {
+      "lane_file": ".GOV/docs_repo/wp-studio-module-work/builders/lanes/hsk-studio-accord-composition-prefix.json",
+      "lane_id": "SMB-ACCORD-COMPOSITION-PREFIX",
+      "status": "READY_FOR_VALIDATION",
+      "missing_shas": [
+        "NONSHA:see git log"
+      ]
+    },
+    {
+      "lane_file": ".GOV/docs_repo/wp-studio-module-work/builders/lanes/hsk-studio-crate-seam-splits-2.json",
+      "lane_id": "SMB-CRATE-SEAM-SPLITS-2",
+      "status": "BLOCKED",
+      "missing_shas": [
+        "fef312e",
+        "67a7496"
+      ]
+    },
+    {
+      "lane_file": ".GOV/docs_repo/wp-studio-module-work/builders/lanes/hsk-studio-dxf-eps-import.json",
+      "lane_id": "SMB-DXF-EPS-IMPORT",
+      "status": null,
+      "missing_shas": [
+        "fce2faf",
+        "69d9a8a",
+        "48e6432",
+        "26cc259",
+        "ae8d787",
+        "8a89e7b"
+      ]
+    },
+    {
+      "lane_file": ".GOV/docs_repo/wp-studio-module-work/builders/lanes/hsk-studio-ps-oracle-parity-2.json",
+      "lane_id": "SMB-PS-ORACLE-PARITY-2",
+      "status": "BLOCKED",
+      "missing_shas": [
+        "77c4972",
+        "a16f3ac",
+        "48a2c8a",
+        "eedd0e8",
+        "3080e92",
+        "0577179",
+        "41ac8c8",
+        "335c231",
+        "511560f"
+      ]
+    },
+    {
+      "lane_file": ".GOV/docs_repo/wp-studio-module-work/builders/lanes/hsk-studio-type-ff-ligature.json",
+      "lane_id": "SMB-TYPE-FF-LIGATURE",
+      "status": "BLOCKED",
+      "missing_shas": [
+        "6b8b2d7",
+        "e80d545",
+        "6674746",
+        "ae857f7",
+        "2bf8664",
+        "f9e1cad"
+      ]
+    }
+  ],
+  "lane_records_checked": 238,
+  "remote_branches": [
+    {
+      "branch": "origin/codex/handpick",
+      "tip": "7511afa",
+      "contained_in_origin_studio_branch": false
+    },
+    {
+      "branch": "origin/codex/handshake-studio-assets",
+      "tip": "e64eacd",
+      "contained_in_origin_studio_branch": true
+    },
+    {
+      "branch": "origin/lane/smb-layout-ui-2-backup",
+      "tip": "f3c2a32",
+      "contained_in_origin_studio_branch": false
+    }
+  ],
+  "since_r35": {
+    "candidate": "237256f",
+    "candidate_is_ancestor_of_tip": true,
+    "commit_count": 79,
+    "crates_touched": [
+      "hsk-studio-composite",
+      "hsk-studio-develop",
+      "hsk-studio-folio",
+      "hsk-studio-harness",
+      "hsk-studio-harness-core",
+      "hsk-studio-harness-view",
+      "hsk-studio-interop-affinity",
+      "hsk-studio-interop-layout",
+      "hsk-studio-interop-media",
+      "hsk-studio-interop-psd",
+      "hsk-studio-interop-vector",
+      "hsk-studio-interop-vector-core",
+      "hsk-studio-interop-vector-svg",
+      "hsk-studio-kernel-bindings",
+      "hsk-studio-layout",
+      "hsk-studio-motion",
+      "hsk-studio-motion-js",
+      "hsk-studio-nib",
+      "hsk-studio-package",
+      "hsk-studio-pigment",
+      "hsk-studio-prism",
+      "hsk-studio-pulse",
+      "hsk-studio-reel",
+      "hsk-studio-render-cpu",
+      "hsk-studio-render-gpu",
+      "hsk-studio-score",
+      "hsk-studio-session",
+      "hsk-studio-type"
+    ],
+    "sample_path": "handshake-studio-assets/.config/machine-paths.toml"
+  },
+  "unverified": [
+    "Whether lane-record shas missing from origin are rebase rewrites (patch-id not compared).",
+    "Lane tag parsing is regex-based on subjects; commits mentioning multiple lanes are attributed to the first token."
+  ],
+  "notes": [
+    "worktree list has 36 entries = 1 bare container (assets-repository, not auditable) + shared worktree + 34 lane worktrees (not 36 lanes).",
+    "git stash is repo-wide: all 12 stashes are shared by every worktree (listed identically per worktree); entries are SAFETY/autostash items, untouched.",
+    "Local-only commits: lane/smb-crate-seam-splits-2 holds fef312e and 67a7496 (both 2026-10-21, confirmed not in origin); lane/smb-steward-lock-release-bug holds d44a708 (empty retry-guard probe commit, 2026-10-16, 0 paths, not pushed).",
+    "Shared worktree wt-studio-assets HEAD 8bb6f64 is 25 commits behind origin tip e64eacd (pushed=true, ancestor).",
+    "ps-oracle-parity-2 lane worktree HEAD == origin tip e64eacd (behind 0).",
+    "Lane-record mismatches: shas in SMB-DXF-EPS-IMPORT, SMB-PS-ORACLE-PARITY-2, SMB-TYPE-FF-LIGATURE records exist as local objects but are not reachable from any remote branch and not ancestors of the local lane branch; same-subject commits are on origin (e.g. 85b3446 for DXF), so the records most likely cite pre-rebase shas. Patch-id equivalence NOT checked (UNVERIFIED). SMB-ACCORD-COMPOSITION-PREFIX commits[] contains text \"see git log\", no sha. SMB-CRATE-SEAM-SPLITS-2 missing shas = the 2 local-only commits.",
+    "Dirty trees: most are Cargo.lock modifications only. Real source edits: wt-studio-assets (harness tests/common/mod.rs, pigment tests/transform.rs, Cargo.lock, 2 press_desc_*.json untracked), smb-premiere-color-titles (composite/src/composition.rs modified), smb-raw-cleanroom (untracked develop/src/raw_cr/parity.rs, rw2.rs). smb-steward-lock-release-bug has 2 untracked .gameplan-active.verify.* files.",
+    "Lane tag = first SMB-* token in subject, else \"Steward sync\", else \"R35 remediation\"; remaining commits listed as untagged. first/last are sha+date of oldest/newest tagged commit.",
+    "Remote branches not contained in origin studio branch: origin/codex/handpick (7511afa), origin/lane/smb-layout-ui-2-backup (f3c2a32). No other origin/lane/* branches exist.",
+    "since_r35 crates list parsed from git diff --name-only 237256f..tip under handshake-studio-assets/crates/<name>/; range is 79 commits (candidate is an ancestor of tip)."
+  ]
+}

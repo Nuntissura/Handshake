@@ -1,7 +1,7 @@
 {
   "schema": "handshake.indexed_spec.module_resolver@1",
   "status": "current-versioned-module-resolver",
-  "updated_at": "2026-10-18T13:20:57.909851+00:00",
+  "updated_at": "2026-10-21T14:48:13+00:00",
   "authority": {
     "spec_current_path": ".GOV/spec/SPEC_CURRENT.md",
     "machine_manifest_path": ".GOV/spec/master-spec-v02.217/indexed-spec-manifest.json",
@@ -201,26 +201,26 @@
       "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
       "source_line_start": 22293,
       "source_line_end": 24051,
-      "line_count": 1992,
-      "byte_count": 137381,
-      "sha256": "b845df55f84db9817ca9128a06a8273a1435b8625d37e72ad05a0b5fc38714f1",
-      "heading_count": 117,
+      "line_count": 1978,
+      "byte_count": 135707,
+      "sha256": "6b776f370d9ce03b5a070c26b0bc137e53f37f8077dd42f75b443c97cf1fd503",
+      "heading_count": 116,
       "heading_level_counts": {
         "1": 12,
         "2": 9,
         "3": 46,
-        "4": 50
+        "4": 49
       },
       "spec_version": "v02.217",
       "bundle_id": "master-spec-v02.217",
       "metadata_schema": "handshake.indexed_spec.module@1",
       "source_baseline_version": "v02.182",
       "source_body_original_sha256": "e3019d9565e98421293edf35dda918ea27e94fd61f7906aac758d8373948763c",
-      "body_sha256": "12077b38185c534084ea43703ce80b415930a3460f6709dedc33758e7a3c3649",
-      "body_byte_count": 136849,
-      "body_line_count": 1979,
-      "file_byte_count": 137381,
-      "file_line_count": 1992
+      "body_sha256": "000df3751f995392f194338bbfe3bd87c1e58f3b19aef72afd8ea6192575aa0e",
+      "body_byte_count": 135175,
+      "body_line_count": 1965,
+      "file_byte_count": 135707,
+      "file_line_count": 1978
     },
     {
       "module_id": "06",
@@ -417,15 +417,15 @@
       "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
       "source_line_start": 62718,
       "source_line_end": 72513,
-      "line_count": 9852,
-      "byte_count": 440354,
-      "sha256": "b891407f9a68931e6d2444a0aabd0118b1971b8c0550cc03edc39c6d58c12b96",
-      "heading_count": 768,
+      "line_count": 9838,
+      "byte_count": 438243,
+      "sha256": "c994fbc0d63911c4625e1a0134fda12280cbcfceed449851a9efd31038193885",
+      "heading_count": 767,
       "heading_level_counts": {
         "1": 2,
         "2": 31,
         "3": 105,
-        "4": 194,
+        "4": 193,
         "5": 289,
         "6": 147
       },
@@ -434,11 +434,11 @@
       "metadata_schema": "handshake.indexed_spec.module@1",
       "source_baseline_version": "v02.182",
       "source_body_original_sha256": "a4bd5abced88e53f085110a960936e0be8be883b1447f5baf0b6e15a6f14866a",
-      "body_sha256": "67765037cd56aaa1daadf93989412fc8eac01e9a9b60832ca61ba33f87902d54",
-      "body_byte_count": 439807,
-      "body_line_count": 9839,
-      "file_byte_count": 440354,
-      "file_line_count": 9852
+      "body_sha256": "670930f8f25b50f4730ce89eb6a7b828b874db68c2a16fea7063ecc1bdd1dc5e",
+      "body_byte_count": 437696,
+      "body_line_count": 9825,
+      "file_byte_count": 438243,
+      "file_line_count": 9838
     },
     {
       "module_id": "12",
@@ -510,9 +510,9 @@
       "source_sha256": "1e6324f798174890d38909c8530791f7b8006fce7bddd24483a6cb0da1fcb681",
       "source_line_start": null,
       "source_line_end": null,
-      "line_count": 33322,
-      "byte_count": 3033420,
-      "sha256": "69e8b67e4ab5873663868b8edf1486043405a9a56466f5abab6f823c886f9f0e",
+      "line_count": 33411,
+      "byte_count": 3043710,
+      "sha256": "81f02061a62bd1e1aee4dada2de2b1dfb04661f7f1128037fbf012249785d25b",
       "heading_count": 528,
       "heading_level_counts": {
         "1": 7,
@@ -551,7 +551,7 @@
       "spec-modules/13-tailor-cloth-garment-engine.md",
       "spec-modules/14-studio-creative-suite.md"
     ],
-    "reconstructed_sha256": "d9623b0bdcbdc996f32a1035d5fb0da5f50df6c5ed5cd2534360c6e410a7de80",
+    "reconstructed_sha256": "5581feffd5b5a2f0edb8f455a9bd098d3eeea34b95859cbd9bc118d2ab75e90c",
     "matches_source_sha256": false,
     "byte_exact_match": false,
     "coverage": {
@@ -562,17 +562,17 @@
       "note": "Historical source ranges preserve baseline lineage; current module bytes/hash/order are validation authority, not original monolith range coverage."
     },
     "module_count": 16,
-    "reconstructed_sha1": "86392b672813dc7cb53000c57d25f055e5a5f40c",
+    "reconstructed_sha1": "165783d8a72ae4b9e0becbaa89001973d7418280",
     "note": "The bundle no longer reconstructs the v02.182 baseline byte-for-byte, and has not since the section modules began diverging from it. The hash is kept so the bundle can verify itself against its own modules.",
     "reconstruction_encoding": "ordered complete module bytes including frontmatter; no separator"
   },
   "spec_version": "v02.217",
   "bundle_id": "master-spec-v02.217",
-  "generated_at": "2026-10-18T13:20:57.909851+00:00",
-  "activated_at": "2026-10-18T13:20:57.909851+00:00",
+  "generated_at": "2026-10-11T21:06:37.343345+00:00",
+  "activated_at": "2026-10-11T21:06:37.343345+00:00",
   "authority_pointer_current_entrypoint": ".GOV/spec/master-spec-v02.217/indexed-spec-manifest.json",
   "version": "v02.217",
-  "previous_version": "v02.216",
+  "previous_version": "v02.215",
   "current_version": "v02.217",
   "active_bundle_path": ".GOV/spec/master-spec-v02.217",
   "module_root_path": ".GOV/spec/master-spec-v02.217/spec-modules",

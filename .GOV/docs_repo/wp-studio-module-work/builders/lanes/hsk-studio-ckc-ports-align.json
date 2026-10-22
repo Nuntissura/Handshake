@@ -1,0 +1,82 @@
+{
+  "crate": "hsk-studio-kernel-bindings, hsk-studio-interop-lrcat",
+  "lane": "SMB-CKC-PORTS-ALIGN",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "CKC port contract v2 aligned with Master Spec CKC entity shapes and WP-KERNEL-005 READY on bc95fae; WP-KERNEL-005 and main read only, not edited",
+  "commits": [
+    {"sha": "bc95fae", "subject": "kernel-bindings, interop-lrcat (SMB-CKC-PORTS-ALIGN): align CKC ports with the CKC contract"}
+  ],
+  "capabilities_done": [
+    "ids: AssetId and CollectionId accept only canonical lowercase UUID text (Spec 2.2.3.1 Asset.asset_id: UUID; 2.2.3.2 PhotoAsset.collections: UUID[]); from_bytes constructors; lrcat collection ids are name-based UUIDv8 (derived_uuid_bytes over source fingerprint + local id)",
+    "library metadata vocabulary = PhotoAsset (Spec 2.2.3.2): Rating newtype 0..=5 (UNRATED = 0), Flag Pick|Unflagged|Reject with wire pick|none|reject, ColorLabel with wire red|yellow|green|blue|purple, keywords, collections; MetadataChange::SetColorLabel; AssetMetadata fields asset_id, revision, rating, flag, color_label, keywords, collections (double projects collections membership)",
+    "CatalogField renamed to CKC fields with CatalogField::ckc_field(): Rating->PhotoAsset.rating, Flag->PhotoAsset.flag, ColorLabel->PhotoAsset.color_label, Keywords->PhotoAsset.keywords, Collections->PhotoAsset.collections, OriginalFilename->Asset.original_filename, CaptureTime/CameraMake/CameraModel/LensModel/FocalLength/Aperture/Iso->PhotoAsset.capture_time/camera_make/camera_model/lens_model/focal_length/aperture/iso; FileFormat, Folder, AnyText, HasAdjustments -> None (proposed); CatalogValue gains Real for focal_length/aperture (finite only)",
+    "commands: port methods renamed get / search / update_library_metadata / update_library_metadata_batch / keyword / collection / request_xmp_sidecar; COMMAND_IDS maps them (asset.get and asset.search from STU-ASSET-010, others proposed); CollectionCommand::command_id()",
+    "revision semantics: request_id -> idempotency_key; duplicate key replays the prior receipt with no second EventLedger event (STU-SDB-004; double test asserts the event count does not move); expected_revision compare-and-set at asset granularity (STU-ASSET-023); CkcReceipt carries command_id and event_ledger_event_id (STU-ARC-004, STU-ASSET-013)",
+    "batch: MetadataBatch/BatchTarget + update_library_metadata_batch: every target validated (existence, expected revision, change application, no repeated asset, <= max_batch) before any mutation, one receipt (WP-KERNEL-005 MT-014, MT-018); lrcat apply_ckc_import now sends metadata as all-or-nothing batches (plan.metadata: Vec<PlannedBatch>, rounds so no batch repeats an asset)",
+    "PROPOSED_CKC_ADDITIONS constant + DESCRIPTOR ckc_ports v2 alignment text; CKC_PORT_VERSION 2"
+  ],
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-kernel-bindings -p hsk-studio-interop-lrcat --no-fail-fast && cargo test --doc -p hsk-studio-kernel-bindings",
+    "exit": 0,
+    "sha": "bc95fae",
+    "passed": 35,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 21,
+  "bg_pids": [],
+  "next": "CKC owner decision on PROPOSED_CKC_ADDITIONS; host adapter in the integration target",
+  "updated_at": "2026-10-15T05:19:30Z",
+  "notes": {
+    "sources_read": [
+      ".GOV/task_packets/WP-KERNEL-005/packet.json (scope: 'Rebuild CastKit Codex as a Handshake-native feature', 207 MTs, code surface src/backend/handshake_core/src/atelier (core/sheet/media/intake/collections/search/exports) + kernel event bridge)",
+      "packet.md / refinement.md (grep: no field, operator or command names for rating/flag/label/keyword/collection; 'keyword', 'smart', 'xmp', 'color_label' have 0 occurrences)",
+      "MT-005, MT-014, MT-015, MT-018, MT-019, MT-034, MT-035, MT-045, MT-047 contracts (summary-level acceptance only)",
+      "Master Spec v02.216: 02-system-architecture 2.2.3.1 Asset, 2.2.3.2 PhotoAsset; 10-product-surfaces 10.10.4.5 Library/DAM Functions; 14 STU-ASSET-001..024, STU-SDB-004, STU-ARC-004, STU-AUT-127"
+    ],
+    "mapping": [
+      {"studio": "AssetId (UUID)", "ckc": "Asset.asset_id: UUID", "cite": "Spec 2.2.3.1; STU-ASSET-005 asset_id = PRIM-Asset handle"},
+      {"studio": "CollectionId (UUID)", "ckc": "PhotoAsset.collections: UUID[]; MT-034 collections/photo sets", "cite": "Spec 2.2.3.2; WP-KERNEL-005 MT-034"},
+      {"studio": "Rating(0..=5), refused out of range", "ckc": "PhotoAsset.rating: 0|1|2|3|4|5; CKC clamps 0..5", "cite": "Spec 2.2.3.2; MT-018 'ratings (0..5 clamp)'"},
+      {"studio": "Flag Pick|Unflagged|Reject wire pick|none|reject", "ckc": "PhotoAsset.flag: 'none'|'pick'|'reject' (display Flagged/Unflagged/Rejected)", "cite": "Spec 2.2.3.2; 10.10.4.5"},
+      {"studio": "ColorLabel wire red|yellow|green|blue|purple", "ckc": "PhotoAsset.color_label?", "cite": "Spec 2.2.3.2; 10.10.4.5"},
+      {"studio": "Keywords / AddKeyword / RemoveKeyword", "ckc": "PhotoAsset.keywords: string[] (CKC 'tags', bulk add/remove)", "cite": "Spec 2.2.3.2; MT-019"},
+      {"studio": "OriginalFilename, CaptureTime, CameraMake, CameraModel, LensModel, FocalLength, Aperture, Iso", "ckc": "Asset.original_filename; PhotoAsset.capture_time, camera_make, camera_model, lens_model, focal_length, aperture, iso", "cite": "Spec 2.2.3.1/2.2.3.2"},
+      {"studio": "get / search", "ckc": "asset.get / asset.search", "cite": "STU-ASSET-010"},
+      {"studio": "idempotency_key replay, expected_revision CAS, event_ledger_event_id", "ckc": "duplicate idempotency keys return the prior receipt without a second mutation or event; expected-revision precondition fails closed; authority records carry event_ledger_event_id", "cite": "STU-SDB-004, STU-ASSET-023, STU-ARC-004, STU-ASSET-013"},
+      {"studio": "update_library_metadata_batch (one receipt, all-or-nothing)", "ckc": "bulk operations with all-target-validation-before-mutation and one batch receipt; batch-safe review metadata updates", "cite": "MT-014, MT-018, MT-035"},
+      {"studio": "ContainsNone on Keywords", "ckc": "saved-search 'exclusions'", "cite": "MT-047"},
+      {"studio": "SidecarPlacement::CatalogArtifactOnly", "ckc": "AssetKind SIDECAR_XMP derived asset", "cite": "Spec 2.2.3.1 AssetKind; STU-ASSET-012/014"}
+    ],
+    "proposed_ckc_additions": [
+      {"name": "keyword hierarchy (KeywordPath)", "why": "Spec 10.10.4.5 requires hierarchical keywords but PhotoAsset.keywords is string[] and MT-019 tags are flat; KeywordPath::leaf() is the flat fallback"},
+      {"name": "keyword synonyms (catalog.keyword.define_synonyms)", "why": "Lightroom imports carry synonyms; no CKC concept"},
+      {"name": "collection sets (CollectionKind::Set, parent)", "why": "MT-034 collections are flat; Lightroom collection sets nest"},
+      {"name": "smart collections as CatalogRule trees + operators eq..ends_with", "why": "10.10.4.5 'Smart Collections: rule-based'; MT-047 saved searches are flat filters (tags/exclusions/ratings/favorite/color/scope/ViewMode) without boolean groups"},
+      {"name": "fields file_format, folder, any_text, has_adjustments", "why": "Lightroom smart-rule criteria; CKC has mime/kind, MT-027 source path, MT-045 global search, PhotoDerivedState recipes but no named rule fields"},
+      {"name": "command ids asset.update_library_metadata(_batch), catalog.collection.*, asset.write_xmp_sidecar", "why": "STU-ASSET-010 names only read commands; the CKC packet names no command ids"},
+      {"name": "PhotoAsset library-metadata revision", "why": "STU-ASSET-023 requires an asset-granularity expected revision; PhotoAsset has no revision field"}
+    ],
+    "ckc_fields_not_used_by_studio": "MT-018 favorites, frontpage, carousel, notes, review status; MT-047 favorite/scope/ViewMode; PhotoAsset gps, shutter_speed, ai_metadata (no lrcat source mapped; can be added when needed)",
+    "spec_conflicts_noted": [
+      "WP-KERNEL-005 requires runtime proof vs PostgreSQL/EventLedger while module 14 STU-SDB-004 puts EventLedger records in SurrealDB and retires PostgreSQL; not resolved here (port is storage-neutral)",
+      "Spec 2.2.3.2 flag 'none'|'pick'|'reject' vs 10.10.4.5 'Flagged, Unflagged, Rejected': wire names from 2.2.3.2, display names documented",
+      "STU-ASSET-002 says CKC lives at src/backend/handshake_core/src/atelier, 'NOT re-verified against the active development worktree'; not verified here either (main not opened)"
+    ],
+    "unverified": [
+      "the CKC host implementation's actual field names (main not inspected, per instruction)",
+      "Lightroom parity of every mapping (D5)"
+    ],
+    "breaking_changes": "kernel-bindings port v1 -> v2 renames (request_id -> idempotency_key, asset -> asset_id, collection -> collection_id, assets -> asset_ids, mutate_metadata -> update_library_metadata, Flagged/Rejected -> Pick/Reject, Rating enum -> newtype, SetLabel -> SetColorLabel, CatalogField renames, AssetFacts.file_name -> original_filename); only consumers are interop-lrcat (updated in the same commit) and the double",
+    "tests": "no new test functions; the 2 kernel-bindings unit tests and the lrcat end-to-end test gained alignment asserts (UUID ids, wire names, ckc_field, batch all-or-nothing, replay without a second event, collections projection); kernel-bindings 13 run 1 skipped + 4 doctests, lrcat 18",
+    "clippy": "clean for both crates, with and without ckc-test-double (2 pre-existing hsk-studio-observe warnings)"
+  },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "claim bc95fae: port contract v2 aligned to Spec 2.2.3.1/2.2.3.2 (UUID ids, PhotoAsset fields/domains), STU-ASSET-010 command ids, STU-SDB-004 idempotent replay, batch validate-before-mutate, PROPOSED_CKC_ADDITIONS for undefined names. Spec conflicts are queued for the Operator (lead), not judged. No stub. units of kernel-bindings/interop-lrcat: 4 crate units + default; all build 0 / run 0; default kernel-bindings 13, interop-lrcat 18", "idempotency_key": "STUDIO-R32:SMB-CKC-PORTS-ALIGN:eb569d5764a3:PASS_V1", "round": "STUDIO-R32", "lane": "SMB-CKC-PORTS-ALIGN", "candidate": "eb569d5764a3243d492c40f5fe8494782e45c882", "tree": "a232cd250db1371549353ee0c3ada8b8c0c083c4", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R32", "started_at": "2026-10-15T06:20:39Z", "completed_at": "2026-10-15T07:38:27Z"},
+  {"decision": "passed", "verdict": "PASS_V2", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed eb569d5..ef53ea7 + reverse-dependency closure, 24 crates).  units of interop-lrcat/kernel-bindings: 4 crate units + default; all build 0 / run 0; default interop-lrcat 18, kernel-bindings 13", "idempotency_key": "STUDIO-R33:SMB-CKC-PORTS-ALIGN:ef53ea781923:PASS_V2", "round": "STUDIO-R33", "lane": "SMB-CKC-PORTS-ALIGN", "candidate": "ef53ea781923c4ed859c31ac98ea21f97ab188a9", "tree": "3e6eded3fda85beaaea2739b220ff6ed9ec59f5f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R33", "started_at": "2026-10-15T08:54:16Z", "completed_at": "2026-10-15T11:44:50Z"},
+  {"decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ef53ea7..ca5e9c9 + reverse-dependency closure, 29 crates).  units of interop-lrcat/kernel-bindings: 6 crate units + default; all build 0 / run 0; default interop-lrcat 18, kernel-bindings 13", "idempotency_key": "STUDIO-R34:SMB-CKC-PORTS-ALIGN:ca5e9c92fa6b:PASS_V3", "round": "STUDIO-R34", "lane": "SMB-CKC-PORTS-ALIGN", "candidate": "ca5e9c92fa6be13b50428ea3be6571ccc1d1a511", "tree": "4afc6f85614b23faaffb0c941d9da11a7eb3259f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R34", "started_at": "2026-10-15T22:54:57Z", "completed_at": "2026-10-16T02:52:16Z"},
+  {"decision": "passed", "verdict": "PASS_V4", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ca5e9c9..237256f + reverse-dependency closure, 31 crates).  units of interop-lrcat/kernel-bindings: 6 crate units + default; all build 0 / run 0; default interop-lrcat 22, kernel-bindings 17", "idempotency_key": "STUDIO-R35:SMB-CKC-PORTS-ALIGN:237256f8792c:PASS_V4", "round": "STUDIO-R35", "lane": "SMB-CKC-PORTS-ALIGN", "candidate": "237256f8792c708b96464030d4b40f3a93e8f0e0", "tree": "f699823b8e0d0530a5f9a96df354b8b7aac8294f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R35", "started_at": "2026-10-16T07:31:56Z", "completed_at": "2026-10-20T14:11:50Z"},
+    {"decision": "passed", "verdict": "PASS_V5", "status_change": "PASS_V5", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V4", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: interop-lrcat, kernel-bindings).  units of interop-lrcat/kernel-bindings: 6 crate units + default; all build 0 / run 0; default passed interop-lrcat 22, kernel-bindings 18", "idempotency_key": "STUDIO-R36:SMB-CKC-PORTS-ALIGN:a10576683c7a:PASS_V5", "claim_scope": null, "round": "STUDIO-R36", "lane": "SMB-CKC-PORTS-ALIGN", "candidate": "a10576683c7a76b3da37e6ec4794652c3e903bbd", "tree": "27fb1f13e97fbaecd9e4b61428e53bcab50a3169", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R36", "started_at": "2026-10-21T17:26:59Z", "completed_at": "2026-10-22T05:34:45Z"},
+    {"decision": "passed", "verdict": "PASS_V6", "status_change": "PASS_V6", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V5", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: interop-lrcat, kernel-bindings).  units of interop-lrcat/kernel-bindings: 6 crate units + default; all build 0 / run 0; default passed interop-lrcat 22, kernel-bindings 18", "idempotency_key": "STUDIO-R37:SMB-CKC-PORTS-ALIGN:1d139a6990f5:PASS_V6", "claim_scope": null, "round": "STUDIO-R37", "lane": "SMB-CKC-PORTS-ALIGN", "candidate": "1d139a6990f55b77c1ce09c1dc7a5c2f47c324f4", "tree": "3c2b5fe1ce168053e16b0f682b9b728a0441c9fc", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37", "started_at": "2026-10-22T09:20:11Z", "completed_at": "2026-10-22T13:00:58Z"}
+ ]
+}

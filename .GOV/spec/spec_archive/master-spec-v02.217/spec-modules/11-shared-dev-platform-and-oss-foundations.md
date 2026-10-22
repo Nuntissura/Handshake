@@ -8,7 +8,7 @@ title: "11. Shared Dev Platform & OSS Foundations"
 source_baseline_version: "v02.182"
 source_baseline_path: ".GOV/spec/Handshake_Master_Spec_v02.182.md"
 source_body_original_sha256: "a4bd5abced88e53f085110a960936e0be8be883b1447f5baf0b6e15a6f14866a"
-body_sha256: "67765037cd56aaa1daadf93989412fc8eac01e9a9b60832ca61ba33f87902d54"
+body_sha256: "670930f8f25b50f4730ce89eb6a7b828b874db68c2a16fea7063ecc1bdd1dc5e"
 metadata_rule: "frontmatter is machine metadata; body follows after this block"
 ---
 # 11. Shared Dev Platform & OSS Foundations
@@ -3027,20 +3027,6 @@ Artifacts:
 [WP012-P2-AUTH-R2-004] Both capability IDs MUST appear in CANONICAL_CAPABILITY_IDS and only the existing Operator.profile.allowed list. Analyst, Coder and other profiles MUST NOT expand. Profile eligibility remains distinct from delegated session capabilities and persisted ResourceGrant(action/capability/resource). The mapping MUST NOT automatically provision sessions/grants, introduce wildcards or substitute fake fixtures.
 
 [WP012-P2-AUTH-R2-005] Registry entries MUST use the existing schema, unique IDs, runtime kind, section_ref11.1, required_capabilities[], gov_standard, medium risk for navigation and high risk for recovery. Registry extraction, validation, integrity checks, actual diff, human review and publication under11.1.6 remain required. Workflow version MUST be SHA256 of draft bytes; preserve the previous registry and actual Flight Recorder publish event. Operator approval of the exact two-entry diff does not itself fabricate an extraction, review or publication event. WP-KERNEL-012 retains its original v02.206 pin; only this explicitly adopted additive amendment applies, with no unrelated v02.215/v02.216 substitution or acceptance waiver.
-
-#### 11.1.6.2 Already-owned Palmistry watcher adoption [ADD v02.217]
-
-[WP012-ADOPT-001] The capability registry MUST register the dedicated capability `diagnostics.watcher.adopt_existing` for adoption of an already-owned watcher. Existing `proc.exec`, `diagnostics.read`, other capabilities and unknown-ID denial MUST remain unchanged. Existing registry extraction, integrity, exact-diff review and publication requirements in 11.1.6 MUST apply; this approval MUST NOT fabricate a registry publication or Flight Recorder event.
-
-[WP012-ADOPT-002] The protected resource MUST use `PalmistryWatcher`, the exact original watcher UUID, canonical Workspace parent and existing `Reconcile` action. Scope MUST be limited to adoption of that already-owned watcher and MUST NOT authorize spawning, executable choice or ownership transfer.
-
-[WP012-ADOPT-003] Only the existing Operator CapabilityProfile MUST receive this one capability. All other profiles MUST remain unchanged. `work_profile_id` MUST remain distinct from CapabilityProfile; implementations MUST NOT invent a profile-version field.
-
-[WP012-ADOPT-004] Eligibility MUST independently require the genuine current authenticated original custodian, current session, delegation, CapabilityProfile and policy, plus a real persisted exact-watcher grant with expiry and revocation checks. Implementations MUST NOT automatically issue a grant or introduce an Owner bypass.
-
-[WP012-ADOPT-005] Original watcher diagnostic session, nonce and OS generations MUST remain distinct from current account-session attribution. Account, Principal, session, Space and workspace attribution MUST be derived through existing authenticated canonical authority, never inferred from the watcher diagnostic session or client owner claims.
-
-[WP012-ADOPT-006] This additive mapping MUST preserve the original WP-KERNEL-012 v02.206 pin and all original positive/negative runtime and independent acceptance. Dependent source implementation MUST wait for this approved enrichment, actual ABI and exact per-file source leases; approval MUST NOT supply build, test or runtime allowance.
 
 ### 11.1.7 Cloud Escalation Consent Artifacts (ProjectionPlan + ConsentReceipt) (Normative) [ADD v02.120]
 

@@ -4,14 +4,23 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "pushed at 6e2ec80 (branch codex/handshake-studio-assets)",
   "commits": [
-    {"sha": "6e2ec80", "subject": "folio (SMB-FOLIO-VECTOR-IMAGE-PORT, SMB-FOLIO-PARENT-PAGES): image-typed vector source port; hsk.studio.parent_page_records@1"}
+    {
+      "sha": "6e2ec80",
+      "subject": "folio (SMB-FOLIO-VECTOR-IMAGE-PORT, SMB-FOLIO-PARENT-PAGES): image-typed vector source port; hsk.studio.parent_page_records@1"
+    }
   ],
   "capabilities_done": [
     "new module parentpages.rs: StudioParentPageRecords (hsk.studio.parent_page_records@1, per document, non_exhaustive) of StudioParentPage (hsk.studio.parent_page@1: document-local parent_id, name, based_on, parent_page_items {item_id, layer_id SLYR}) and StudioPageParentBinding {page_id of a document page, applied_parent optional, override_list of StudioItemOverride replace{parent_item_id, replacement_layer_id} | suppress{parent_item_id}}",
     "validate_parent_page_records: DanglingReference (layer, based_on, page, applied_parent, override of an item not on the applied parent chain, including items only a descendant holds), RenderCycle (based_on loops incl. self), DuplicateIdentity (parent, item, binding, double override of one item, a layer used twice), InvalidField (override without applied parent, document_id), BudgetExceeded and Canceled; ceilings 1024 parents, 10000 items/overrides, 10000 bindings (equal to layout limits)",
     "wire: deny_unknown_fields, empty lists and absent applied_parent not encoded, byte-identical round trip; parent_page_records_schema() draft 2020-12; StudioDocument unchanged so existing documents stay byte-identical"
   ],
-  "tests": {"argv": "cargo nextest run -p hsk-studio-folio --test vector_image_port_contract --test parent_pages_contract --test paint_blur_style_contract --no-fail-fast", "exit": 0, "sha": "6e2ec80", "passed": 9, "failed": 0},
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-folio --test vector_image_port_contract --test parent_pages_contract --test paint_blur_style_contract --no-fail-fast",
+    "exit": 0,
+    "sha": "6e2ec80",
+    "passed": 9,
+    "failed": 0
+  },
   "blockers": [],
   "bg_pids": [],
   "next": "layout adapter lane",
@@ -22,5 +31,30 @@
     "accord": "no Accord id prefix needed: parent_id is a document-local key (like composition_id, page_id); nothing to report to the lead.",
     "spec_basis": "STU-LAY-107/113 (page model; layout lists applied_parent/override_list/parent_page_items as Folio gaps); InDesign override equality UNVERIFIED (D5 oracle)",
     "proof": "same cargo check / clippy run as SMB-FOLIO-VECTOR-IMAGE-PORT"
-  }
+  },
+  "verdicts": [
+    {
+      "decision": "passed",
+      "verdict": "PASS_V1",
+      "failures": [],
+      "remediation": null,
+      "blocker": null,
+      "not_proven": [],
+      "note": "6e2ec80: hsk.studio.parent_page_records@1 (parent pages, items, overrides, page bindings) + schema + validate_parent_page_records; V4-01 deny on parentpages.rs. No stub. Lane tests 3 passed / 0 failed (/parent_pages_contract/); default folio 58; all units of folio build 0 run 0",
+      "idempotency_key": "STUDIO-R29:SMB-FOLIO-PARENT-PAGES:62c0bf666fc8:PASS_V1",
+      "round": "STUDIO-R29",
+      "lane": "SMB-FOLIO-PARENT-PAGES",
+      "candidate": "62c0bf666fc88e6ab5424e4eae46f18521c5dffe",
+      "tree": "b8c285ac064abaa57d54553f2e4ce940f6c0fb04",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+      "started_at": "2026-10-14T23:54:12Z",
+      "completed_at": "2026-10-15T00:47:07Z"
+    },
+  {"decision": "passed", "verdict": "PASS_V2", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed d9c59f8..eb569d5 + reverse-dependency closure, 28 crates).  units of folio: 1 crate units + default; all build 0 / run 0; default folio 67", "idempotency_key": "STUDIO-R32:SMB-FOLIO-PARENT-PAGES:eb569d5764a3:PASS_V2", "round": "STUDIO-R32", "lane": "SMB-FOLIO-PARENT-PAGES", "candidate": "eb569d5764a3243d492c40f5fe8494782e45c882", "tree": "a232cd250db1371549353ee0c3ada8b8c0c083c4", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R32", "started_at": "2026-10-15T06:20:39Z", "completed_at": "2026-10-15T07:38:27Z"},
+  {"decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed eb569d5..ef53ea7 + reverse-dependency closure, 24 crates).  units of folio: 1 crate units + default; all build 0 / run 0; default folio 69", "idempotency_key": "STUDIO-R33:SMB-FOLIO-PARENT-PAGES:ef53ea781923:PASS_V3", "round": "STUDIO-R33", "lane": "SMB-FOLIO-PARENT-PAGES", "candidate": "ef53ea781923c4ed859c31ac98ea21f97ab188a9", "tree": "3e6eded3fda85beaaea2739b220ff6ed9ec59f5f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R33", "started_at": "2026-10-15T08:54:16Z", "completed_at": "2026-10-15T11:44:50Z"},
+  {"decision": "passed", "verdict": "PASS_V4", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ef53ea7..ca5e9c9 + reverse-dependency closure, 29 crates).  units of folio: 1 crate units + default; all build 0 / run 0; default folio 81", "idempotency_key": "STUDIO-R34:SMB-FOLIO-PARENT-PAGES:ca5e9c92fa6b:PASS_V4", "round": "STUDIO-R34", "lane": "SMB-FOLIO-PARENT-PAGES", "candidate": "ca5e9c92fa6be13b50428ea3be6571ccc1d1a511", "tree": "4afc6f85614b23faaffb0c941d9da11a7eb3259f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R34", "started_at": "2026-10-15T22:54:57Z", "completed_at": "2026-10-16T02:52:16Z"},
+  {"decision": "passed", "verdict": "PASS_V5", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ca5e9c9..237256f + reverse-dependency closure, 31 crates).  units of folio: 1 crate units + default; all build 0 / run 0; default folio 86", "idempotency_key": "STUDIO-R35:SMB-FOLIO-PARENT-PAGES:237256f8792c:PASS_V5", "round": "STUDIO-R35", "lane": "SMB-FOLIO-PARENT-PAGES", "candidate": "237256f8792c708b96464030d4b40f3a93e8f0e0", "tree": "f699823b8e0d0530a5f9a96df354b8b7aac8294f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R35", "started_at": "2026-10-16T07:31:56Z", "completed_at": "2026-10-20T14:11:50Z"},
+    {"decision": "passed", "verdict": "PASS_V6", "status_change": "PASS_V6", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V5", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: folio).  units of folio: 1 crate units + default; all build 0 / run 0; default passed folio 91", "idempotency_key": "STUDIO-R36:SMB-FOLIO-PARENT-PAGES:a10576683c7a:PASS_V6", "claim_scope": null, "round": "STUDIO-R36", "lane": "SMB-FOLIO-PARENT-PAGES", "candidate": "a10576683c7a76b3da37e6ec4794652c3e903bbd", "tree": "27fb1f13e97fbaecd9e4b61428e53bcab50a3169", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R36", "started_at": "2026-10-21T17:26:59Z", "completed_at": "2026-10-22T05:34:45Z"},
+    {"decision": "passed", "verdict": "PASS_V7", "status_change": "PASS_V7", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V6", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: folio).  units of folio: 1 crate units + default; all build 0 / run 0; default passed folio 98", "idempotency_key": "STUDIO-R37:SMB-FOLIO-PARENT-PAGES:1d139a6990f5:PASS_V7", "claim_scope": null, "round": "STUDIO-R37", "lane": "SMB-FOLIO-PARENT-PAGES", "candidate": "1d139a6990f55b77c1ce09c1dc7a5c2f47c324f4", "tree": "3c2b5fe1ce168053e16b0f682b9b728a0441c9fc", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37", "started_at": "2026-10-22T09:20:11Z", "completed_at": "2026-10-22T13:00:58Z"}
+ ]
 }

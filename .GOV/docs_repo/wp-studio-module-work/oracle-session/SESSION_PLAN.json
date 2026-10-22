@@ -880,6 +880,30 @@
      "api_status": "NOT SCRIPTABLE with the documented DOM: omv.xml exposes one fill and one stroke per PathItem; appearance stacks need Actions/Graphic Styles (UNVERIFIED path)",
      "notes": "Deferred; needs a hand-authored .ai fixture",
      "expected_files": 0
+    },
+    {
+     "case_id": "AI-NS2",
+     "source_item_ref": "lane SMB-ILLUSTRATOR-INTEROP (interop-vector import_ai_with, Press read_vector_pages); STU-IO-186",
+     "title": "Illustrator-saved .ai fixture for the PDF-compatible import: paths, solid fills, strokes (caps, joins, dash), a linear and a radial gradient, a group, a clipping mask, two artboards, one point-text object; plus File > Export As SVG and Save a Copy as PDF of the same file for comparison",
+     "input_fixture_spec": [
+      "Two artboards 256x128 pt and 128x128 pt, RGB, document profile sRGB IEC61966-2.1",
+      "Artboard 1: red rectangle with a 4 pt blue dashed stroke (3 pt dash), a linear gradient rectangle inside a clipping mask (rectangle), a group at 50% opacity Multiply holding a green rectangle",
+      "Artboard 2: a radial gradient circle and the point text 'Studio' in a system font",
+      "Lane SMB-ILLUSTRATOR-INTEROP-2: two top-level layers 'Artwork' and 'Hidden' (Hidden switched off, holding one rectangle); one CMYK swatch fill (C0 M100 Y100 K0), one spot swatch (PANTONE 185 C at 50 % tint) and one Lab fill; an opacity mask (luminance) on one object",
+      "Save as .ai with default options (Create PDF Compatible File ON, Use Compression ON, Create Acrobat Layers ON)"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/illustrator",
+      "file_pattern": "AI-NS2__interop.ai, AI-NS2__interop.svg, AI-NS2__interop.pdf",
+      "format": ".ai (PDF compatible), SVG 1.1 (Export As, presentation attributes), PDF (Save a Copy, Illustrator Default)",
+      "bit_depth": "n/a",
+      "colour_profile": "document profile (recorded in manifest)"
+     },
+     "script": null,
+     "scriptable": "no",
+     "api_status": "Not added to hsk_oracle_illustrator.jsx in this lane (attended Operator step); the AiKind private-data markers (AIPrivateData, /Illustrator, %AI) are UNVERIFIED until this file exists",
+     "notes": "Attended D5: the importer is proven on generated drawings only; this fixture verifies the private-data markers, artboard layout and paint mapping on a real Illustrator file, and (lane SMB-ILLUSTRATOR-INTEROP-2) layers from optional content, CMYK/spot/Lab swatches, text kept as text where the embedded font lays it out, and the opacity mask (Press reports soft masks as pdf_soft_mask_not_read on import)",
+     "expected_files": 3
     }
    ],
    "scripted_cases": [
@@ -890,7 +914,8 @@
     "AI-05"
    ],
    "not_scriptable_cases": [
-    "AI-NS1"
+    "AI-NS1",
+    "AI-NS2"
    ],
    "expected_file_count": 75
   },
@@ -999,6 +1024,51 @@
      "expected_files": 1
     },
     {
+     "case_id": "ID-05",
+     "source_item_ref": "lane SMB-INTEROP-IDML (hsk-studio-interop-layout src/idml_longdoc.rs module docs, UNVERIFIED list)",
+     "title": "InDesign-written IDML of every long-document feature: names and values Studio's IDML import reads",
+     "input_fixture_spec": [
+      "one document, 2 sections (second: ContinueNumbering false, PageNumberStart 5, LowerRoman, prefix A, marker Intro)",
+      "table 3 rows (1 header, 1 body fixed 20 pt, 1 footer) x 2 columns, header cell spanning 2 columns with red fill tint 50 and a 1 pt top stroke, BreakHeaders / StrokeOrder / StartRow set to non-defaults",
+      "a footnote and an endnote in body text; footnote options (lower letters, start 2, restart per page, prefix [ suffix ], rule on 0.5 pt) and endnote options (title Notes)",
+      "TOC style mapping Heading 1 at level 1 with a tab separator",
+      "text variables: chapter number (text before 'Ch ', upper roman), custom text 'Studio', running header (paragraph style)",
+      "a placed image fitted proportionally, centred, in a 200 x 100 pt rectangle; a second one in an ellipse with crop"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/indesign",
+      "file_pattern": "ID-05__longdoc.idml, ID-05__longdoc.indd (kept as the refusal input)",
+      "format": "IDML (ExportFormat.INDESIGN_MARKUP)",
+      "bit_depth": "n/a",
+      "colour_profile": "n/a"
+     },
+     "script": null,
+     "scriptable": "yes (script pending: hsk_oracle_indesign.jsx has no ID-05 block yet)",
+     "api_status": "UNVERIFIED: the endnote body reference element (assumed Endnote@Self), TOCStyle / TOCStyleEntry attributes, TextVariable preference attributes, FootnoteOption / EndnoteOption / ChapterNumberPreference attributes, BreakHeaders / BreakFooters / SkipFirstHeader / SkipLastFooter / StrokeOrder / StartRow values, whether span-covered Cell elements are written, GraphicBounds units",
+     "notes": "Studio check: import_longdoc on the IDML must map every listed feature with no unexpected loss; each UNVERIFIED name that differs is a fix in idml_longdoc.rs",
+     "expected_files": 2
+    },
+    {
+     "case_id": "ID-06",
+     "source_item_ref": "lane SMB-INTEROP-IDML (export_folio_longdoc)",
+     "title": "InDesign opens a Studio-written long-document IDML and re-exports it",
+     "input_fixture_spec": [
+      "Studio-written IDML from tests/idml_longdoc.rs fixture via export_folio_longdoc (written to the session input dir before the run)"
+     ],
+     "expected_export": {
+      "dir": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus/adobe-session/indesign",
+      "file_pattern": "ID-06__reexport.idml, ID-06__open_report.json (open errors, missing links, overset, table / note / section / TOC / variable counts)",
+      "format": "IDML, JSON",
+      "bit_depth": "n/a",
+      "colour_profile": "n/a"
+     },
+     "script": null,
+     "scriptable": "yes (script pending)",
+     "api_status": "app.open / exportFile verified in typings; acceptance of the Studio package shape (DOMVersion 16.0, no Styles definitions) UNVERIFIED",
+     "notes": "Studio check: import_longdoc(re-export) equals import_longdoc(Studio export) on the modelled fields",
+     "expected_files": 2
+    },
+    {
      "case_id": "ID-NS1",
      "source_item_ref": "research/adobe-behavior.md section 5",
      "title": "Adobe's internal composer weights and any Knuth-Plass equivalence; inline-object text wrap forcing single-line",
@@ -1019,6 +1089,10 @@
    ],
    "not_scriptable_cases": [
     "ID-NS1"
+   ],
+   "pending_script_cases": [
+    "ID-05",
+    "ID-06"
    ],
    "expected_file_count": 102
   },
@@ -1152,7 +1226,7 @@
  ],
  "summary": {
   "cases_scripted": 46,
-  "cases_not_scriptable": 3,
+  "cases_not_scriptable": 4,
   "expected_files": 797,
   "d5_numbered_cases_1_29": "all 29 are scripted as PS-C01..PS-C29; every Action-Manager-built one is API UNVERIFIED (the first run is also the verification run; failed variants are logged and re-run with control/ps_only.txt); one sub-variant (inverted group mask in PS-C28) is not scripted",
   "unverified_notes": [

@@ -119,7 +119,7 @@ for line in open(sys.argv[1], encoding="utf-8"):
         if r.get("crate") and r.get("dep"):
             out.write(json.dumps({"crate": r["crate"], "dep": r["dep"]}) + "\n")' "$REQ" "$EX/dep-requests.deps.jsonl" || exit 5
 python -X utf8 -I tools/registry-sync.py . --write --requests "$EX/dep-requests.deps.jsonl" ${allow[@]+"${allow[@]}"} >"$EX/registry.json" || { cat "$EX/registry.json"; exit 5; }
-python -X utf8 -I -c 'import json,sys; d=json.load(open(sys.argv[1])); print("REGISTRY approved_added=%s approved_removed=%s unrequested=%s spec_defects=%s" % (d["approved_added"], d["approved_removed"], d["unrequested"], d["spec_defects"]))' "$EX/registry.json"
+python -X utf8 -I -c 'import json,sys; d=json.load(open(sys.argv[1])); print("REGISTRY approved_added=%s approved_removed=%s unrequested=%s spec_defects=%s fuzzing_only_skipped=%s" % (d["approved_added"], d["approved_removed"], d["unrequested"], d["spec_defects"], d.get("fuzzing_only_skipped", [])))' "$EX/registry.json"
 python -X utf8 -I "$TOOLS/license_gate.py" . || exit 8
 cargo metadata --locked --offline --format-version 1 >/dev/null 2>"$EX/verify.err" || { cat "$EX/verify.err"; exit 6; }
 python -X utf8 -I tools/registry-sync.py . >/dev/null || { echo "registry-sync check not clean after write"; exit 6; }
@@ -128,6 +128,8 @@ cmp -s tools/disk-build-lock.sh "$TOOLS/disk-build-lock.sh" \
 
 mkdir -p "$ART/probe"
 studio_disk_lock_run "steward-sync probe rustc" rustc --edition=2024 -O tools/workspace-probe.rs -o "$ART/probe/workspace-probe.exe" || exit 6
+# Probe self-test (fuzzing-only skip rule, lead decision 2026-10-15): both cases must hold before any selection is probed.
+"$ART/probe/workspace-probe.exe" --self-test | grep -q '"status":"ok"' || { echo "workspace-probe --self-test failed"; exit 6; }
 TREE=$(git -C "$REPO" rev-parse "$BASE^{tree}")
 python -X utf8 -I "$TOOLS/probe_provenance.py" "$W" "$BASE" "$TREE" "$EX/probe-provenance.toml" $(ls crates) >/dev/null
 # Selections: every package with no features, then every (crate, feature set) of .config/round-features.toml.
@@ -185,6 +187,15 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
   inputs_re="^$SUB/(Cargo\.toml|Cargo\.lock|rust-toolchain\.toml|crates/[^/]+/Cargo\.toml|tools/|\.config/)"
   NEW="" PARENT=""
   for attempt in 1 2 3 4 5 6 7 8; do
+    # Lanes push from their own worktrees, so origin moves while the probe waits for the disk lock (3 of 3 syncs on
+    # 2026-10-16..20 failed the push). Fast-forward the shared branch to the origin tip first (two-tree read-tree
+    # refuses if a local edit touches an incoming file); the input check below then decides re-parent vs redo.
+    git fetch -q origin "$BR" && TIP=$(git rev-parse FETCH_HEAD) && LOC=$(git rev-parse "refs/heads/$BR")
+    if [ -n "${TIP:-}" ] && [ "$TIP" != "$LOC" ] && git merge-base --is-ancestor "$LOC" "$TIP"; then
+      git -c core.fscache=false read-tree -m -u "$LOC" "$TIP" && git update-ref "refs/heads/$BR" "$TIP" "$LOC" \
+        || { echo "shared tree could not fast-forward $LOC -> origin $TIP (local edit on an incoming file?); redo"; exit 3; }
+      echo "fast-forwarded shared tree ${LOC:0:7} -> origin ${TIP:0:7}"
+    fi
     PARENT=$(git rev-parse "refs/heads/$BR")
     if [ "$PARENT" != "$BASE" ]; then
       git merge-base --is-ancestor "$BASE" "$PARENT" || { echo "tip $PARENT does not descend from $BASE; redo"; exit 3; }

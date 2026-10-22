@@ -1,0 +1,31 @@
+{
+  "schema": "hsk.studio.research@1",
+  "file_id": "SMB-ID-COMPOSER-PARITY-20261020",
+  "lane": "SMB-ID-COMPOSER-PARITY",
+  "updated_at": "2026-10-20T14:40:00Z",
+  "question": "Make Studio's text composition reproduce InDesign 21.6 line breaks and character x of the D5 oracle (ID-01..ID-04) without loosening tolerances",
+  "spec_basis": [
+    "STU-TYP-135 two-axis composition: composition_scope single_line composes each line in isolation; every_line evaluates all lines of the paragraph together, weighting break points by letter-spacing, word-spacing, glyph-scaling and hyphenation penalties for even colour",
+    "STU-TYP-140 composition determinism: the scope/engine pair plus tables fully determine break positions and inter-character spacing",
+    "14-studio-creative-suite.md justification fields: minimum <= desired <= maximum for word spacing, letter spacing and glyph scaling (distinct typed ordering error); justification enumeration includes justify.left_justified and justify.fully_justified",
+    "14-studio-creative-suite.md hyphenation storage: hyphenation, hyphenate_capitalized_words, hyphenate_words_longer_than, hyphenate_after_first, hyphenate_before_last, hyphenate_ladder_limit, hyphenation_zone"
+  ],
+  "sources": [
+    {"ref": "Knuth & Plass, Breaking Paragraphs into Lines, Software Practice and Experience 11 (1981)", "use": "box/glue/penalty model already in hsk-studio-layout breaker.rs"},
+    {"ref": "https://github.com/bramstein/typeset", "licence": "BSD-2-Clause (checked via GitHub API licence endpoint)", "use": "read for the ratio-tolerance retry structure; not adopted (TeX model, not InDesign)"},
+    {"ref": "https://patents.google.com/patent/US6510441 (Adobe, Optimal line break determination)", "use": "demerit shape (K*R^3 + H + 1)^2 + ladder + last-line length + consistency over a window of lines; adopted as the paragraph-composer model family (patent text read, no code)"},
+    {"ref": "helpx.adobe.com InDesign/InCopy Text composition pages", "use": "Single-line Composer composes one line at a time; Paragraph Composer weights breakpoints by evenness of spacing and hyphenation (fetch of the InDesign page returned 403; InCopy mirror summarised by search)"},
+    {"ref": "oracle-corpus/adobe-session/indesign ID-01..ID-04 + ID-03 IDML (HyphenationZone 36, HyphenWeight 5, SingleWordJustification FullyJustified)", "use": "acceptance surface and fitting data"}
+  ],
+  "rejected": ["GPL TeX derivatives (not read)", "Text::KnuthPlass Perl port (GPL, not read)", "hyph_en_US Hunspell/LibreOffice dictionaries (licence not evaluated, not used)"],
+  "findings": {
+    "single_line": "Rules (a)-(d) in hsk-studio-layout src/adobe_composer.rs reproduce 44/44 ID-01..03 single-line line sets in the scratch simulator; constant c in (1.203, 1.316), fitted 1.26; letter-spacing capacity adds ID-02 ls-3 (25/27 justified incl. ls); gs variants fail at one line each",
+    "paragraph": "Ragged: cubed white space + hyphen 21000 over the whole paragraph, 19/20 ID-01 ragged; justified: windowed (7 lines) cost model fitted by hill climbing, 23/26 (ID-01 leftjust 20/20, ID-04, ID-02 ws0/ws50); misses ID-02 ws100 and ID-03 para FULLY_JUSTIFIED x2",
+    "justification": "Inside limits word spacing then letter spacing; past limits shared in proportion to the ranges (ID-02 ls-3 last line: both 2.297x range); single-word lines letter-spaced (IDML SingleWordJustification FullyJustified); hyphen counts as one more letter gap",
+    "glyph_scaling_measured": "Oracle ID-02 gs variants: every advance incl. the space x g, word spacing additive ((ws-1) * space), letters and glyph scaling share by range after word spacing; past the limits words take the rest. NOT implemented (slice not started per lead RESCUE MODE)",
+    "hyphenation": "InDesign points differ from hyph-en-us Liang on every (ev-ery), differences (differenc-es) and Extraordinarily (no Extra-); added as Hyphenator::en_us_indesign exceptions; any other disagreement is a typed gap (InDesign dictionary not available)",
+    "ff": "Arial cmap U+FB00 (uniFB00) advance 1094 units = InDesign's f-f span (547 + 547); Arial GSUB has no f f -> uniFB00 rule, so InDesign maps the ff ligature through the cmap presentation form (mechanism UNVERIFIED). Studio GPOS f-f -37 gives 1101 units; this 0.041 pt moves justified ff lines (x MISMATCH on those lines). Owner hsk-studio-type (FU-ID-6), not changed"
+  },
+  "scratch_tools": "session scratchpad an/*.py (sim.py, single2_sim.py, single3_sim.py, win.py, model2.py, climb.py); fitted constants recorded in PARA_MODEL",
+  "risks": ["constants fitted to one font/paragraph: behaviour outside the oracle UNVERIFIED", "windowed DP cost grows with candidates per line (bounded by the tight floor)"]
+}

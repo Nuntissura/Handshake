@@ -5,7 +5,9 @@
 # live child not broken; T6 broken once the child is dead; T7 product library vs kernel wrapper; T8 copies identical;
 # T9 200 acquire/release cycles under 20 owner-file readers: 0 overlaps, 0 failed releases; T10 version fence both
 # ways; T11 pid reuse (start time differs) is dead, same start is alive; T12 round priority + one builder per gap;
-# T13 cargo test refused, --doc allowed; T14 one OVER_MAX_HOLD event per holder, holder not broken.
+# T13 cargo test refused, --doc allowed; T14 one OVER_MAX_HOLD event per holder, holder not broken; T15 SSD opt-in
+# (STUDIO_BUILD_DISK=ssd: lane target inside the granted C: target, SSD lock, owner attribution, 140 GiB cap guard);
+# T16 release under open readers; T17 bundled lane check (tools/lane-check.sh).
 # Usage: disk-build-lock-test.sh [SCRATCH_DIR]   (DBL_TEST_ENV / DBL_TEST_KLIB: staged copies)   Exit 0 = all PASS.
 set -u
 TOOLS=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -18,6 +20,8 @@ case "$S" in *steward/dbl-test*) rm -rf "$S" ;; *) echo "scratch must end in ste
 mkdir -p "$S/bin"
 cat >"$S/bin/cargo" <<'EOF'
 #!/usr/bin/env bash
+case "${1:-}" in locate-project|metadata) [ -n "${FAKE_REAL_CARGO:-}" ] && exec "$FAKE_REAL_CARGO" "$@" ;; esac
+[ -n "${FAKE_ARGS_LOG:-}" ] && echo "$* | token=${STUDIO_DISK_BUILD_LOCK_TOKEN:-none} | target=${CARGO_TARGET_DIR:-}" >>"$FAKE_ARGS_LOG"
 echo "${FAKE_TAG:-?} start $(date +%s%3N)" >>"$FAKE_LOG"
 sleep "${FAKE_SLEEP:-3}"
 echo "${FAKE_TAG:-?} end $(date +%s%3N)" >>"$FAKE_LOG"
@@ -108,6 +112,10 @@ else bad "T7 P $(ts P start)-$(ts P end) Q $(ts Q start) $(cat "$S/P.err")"; fi
 if cmp -s "$KLIB" "$PRODUCT_LIB"; then ok "T8 kernel and product disk-build-lock.sh identical"; else bad "T8 library copies differ"; fi
 
 # T9 two cyclers x 100 acquire/release under 20 owner-file readers: no overlap (critical-section dir), no RELEASE_FAILED.
+# Slow (about 12 min on a loaded host); DBL_TEST_SKIP=T9 skips it only when tools/disk-build-lock.sh (its sole input)
+# is unchanged since its last PASS. Under heavy host load its 20 readers can block the release rename for 10 s
+# (RELEASE_FAILED; the cycler then waits on its own token), observed 2026-10-16T02:47Z.
+if [ "${DBL_TEST_SKIP:-}" = T9 ]; then echo "SKIP T9 (DBL_TEST_SKIP)"; else
 rm -f "$L/events.log"; mkdir -p "$S/t9"
 for r in $(seq 1 20); do
   bash -c 'n=0; while [ ! -e "$2" ] && [ $n -lt 20000 ]; do { read -r x <"$1/held/owner"; } 2>/dev/null; n=$((n+1)); done' _ "$L" "$S/t9/stop" &
@@ -121,6 +129,7 @@ wait $c1 $c2
 if [ ! -s "$S/t9/err" ] && ! grep -q RELEASE_FAILED "$L/events.log" 2>/dev/null && [ ! -d "$L/held" ]; then
   ok "T9 200 cycles + 20 readers in $(( $(date +%s) - t0 ))s: 0 overlaps, 0 failed releases"
 else bad "T9 $(head -5 "$S/t9/err" 2>/dev/null) $(grep RELEASE_FAILED "$L/events.log" 2>/dev/null | head -2)"; fi
+fi
 
 # T10 version fence: (a) an @1 held refuses @2 acquirers; (b) @1 code does not break an @2 lock of a dead holder.
 mkdir -p "$L/held"; printf 'schema=hsk.studio.disk-build-lock@1\ntoken=old\npid=1\nwinpid=1\nexe=bash.exe\n' >"$L/held/owner"
@@ -181,5 +190,129 @@ wait
 n=$(grep -c OVER_MAX_HOLD "$L/events.log" 2>/dev/null || echo 0)
 [ "$n" -eq 1 ] && [ "$(ts O2 start)" -ge "$(ts O end)" ] && ! grep -q "broke stale" "$S/O2.err" "$S/O3.err" \
   && ok "T14 one OVER_MAX_HOLD event for a 6 s hold over 2 s; holder not broken" || bad "T14 events=$n $(cat "$L/events.log" 2>/dev/null)"
+# T15 SSD opt-in (STUDIO_BUILD_DISK=ssd) against a scratch SSD root: (a) default unchanged without opt-in; (b) lane
+# target inside the granted target, SSD lock; (c) bad owner and unknown disk refused at sourcing; (d) fresh over-cap
+# record: 77 before queueing, nothing run; (e) stale over-cap record: still 77, starts a detached du re-measure; once
+# it lands under cap the build runs on the SSD lock with owner=<lane>; (f) missing record: build allowed, measured;
+# (g) record over cap during the queue wait: refused after acquiring.
+SSD="$S/ssd"; LANE=studio-team-dev/steward/dbl-test/lane; REAL=${PATH#"$S/bin:"}
+t15env() { unset STUDIO_DISK_BUILD_LOCK_DIR _STUDIO_ENV_LOCK_DERIVED STUDIO_DISK_BUILD_LOCK_TOKEN; cd "$S/ws1" || return 9
+  export STUDIO_SSD_ROOT="$SSD" "$@"; PATH="$REAL"; source "$ENV" || return 9; export PATH="$S/bin:$REAL"; }
+t15() { (t15env "$@" && echo "$CARGO_TARGET_DIR|$STUDIO_DISK_BUILD_LOCK_DIR|${_STUDIO_SSD_LANE:-}"); }
+r=$(t15 STUDIO_OWNER=$LANE 2>&1)
+[[ "$r" == ?:/*"/Handshake_Artifacts/WP-KERNEL-STUDIO/$LANE/target|"?:/*"/Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock|" ]] \
+  && [[ "$r" != *"$SSD"* ]] && ok "T15a no opt-in: lane target and lock stay on D:" || bad "T15a $r"
+r=$(t15 STUDIO_OWNER=$LANE STUDIO_BUILD_DISK=ssd 2>&1)
+[ "$r" = "$SSD/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/$LANE|$SSD/.disk-build-lock|$LANE" ]   && ok "T15b ssd: lane target inside the granted target, SSD lock" || bad "T15b $r"
+r1=$(t15 STUDIO_OWNER=../x STUDIO_BUILD_DISK=ssd 2>&1); c1=$?; r2=$(t15 STUDIO_OWNER=$LANE STUDIO_BUILD_DISK=e 2>&1); c2=$?
+[ $c1 -ne 0 ] && [ $c2 -ne 0 ] && [[ "$r1" == *"plain lane owner"* ]] && [[ "$r2" == *unknown* ]]   && ok "T15c '../x' owner and STUDIO_BUILD_DISK=e refused" || bad "T15c $c1 $c2 $r1 $r2"
+REC="$SSD/WP-KERNEL-STUDIO/.studio-ssd-size"
+mkdir -p "$SSD/WP-KERNEL-STUDIO"; echo "$((150 * 1048576)) $(date +%s)" >"$REC"
+: >"$FAKE_LOG"
+(t15env STUDIO_OWNER=$LANE STUDIO_BUILD_DISK=ssd && FAKE_TAG=C1 FAKE_SLEEP=0 cargo build) 2>"$S/C1.err"; rc=$?
+[ $rc -eq 77 ] && [ -z "$(ts C1 start)" ] && grep -q "> cap 140 GiB" "$S/C1.err" && [ ! -d "$SSD/.disk-build-lock/held" ] \
+  && [ -z "$(ls -A "$SSD/.disk-build-lock/queue" 2>/dev/null)" ] && [ "$(cut -d' ' -f1 "$REC")" = $((150 * 1048576)) ] \
+  && ok "T15d fresh over-cap record: refused 77 before queueing, nothing run, no re-measure" || bad "T15d rc=$rc $(cat "$S/C1.err")"
+echo "$((150 * 1048576)) 1" >"$REC"
+(t15env STUDIO_OWNER=$LANE STUDIO_BUILD_DISK=ssd && FAKE_TAG=C2 FAKE_SLEEP=0 cargo build) 2>"$S/C2.err"; rc=$?
+for _ in $(seq 1 60); do read -r kib at <"$REC"; [ "${at:-1}" -gt 1 ] && break; sleep 0.5; done
+(t15env STUDIO_OWNER=$LANE STUDIO_BUILD_DISK=ssd || exit 9
+  FAKE_TAG=C3 FAKE_SLEEP=3 cargo build &
+  for _ in $(seq 1 40); do [ -n "$(dbl_field child_msys_pid "$SSD/.disk-build-lock/held/owner")" ] && break; sleep 0.25; done
+  cp "$SSD/.disk-build-lock/held/owner" "$S/C3.owner"; wait) 2>"$S/C3.err"
+[ $rc -eq 77 ] && [ -z "$(ts C2 start)" ] && [ "${at:-0}" -gt 1 ] && [ "${kib:-99999999}" -lt 1048576 ] && [ -n "$(ts C3 end)" ] \
+  && grep -qx "owner=$LANE" "$S/C3.owner" && [ ! -d "$REC.measuring" ] \
+  && ok "T15e stale over-cap: 77, detached re-measure ($kib KiB) landed, next build ran on the SSD lock, owner=$LANE" \
+  || bad "T15e rc=$rc kib=$kib at=$at $(cat "$S/C2.err" "$S/C3.err" "$S/C3.owner")"
+rm -f "$REC"
+(t15env STUDIO_OWNER=$LANE STUDIO_BUILD_DISK=ssd && FAKE_TAG=C4 FAKE_SLEEP=0 cargo build) 2>"$S/C4.err"; rc=$?
+for _ in $(seq 1 60); do [ -s "$REC" ] && break; sleep 0.5; done
+[ $rc -eq 0 ] && [ -n "$(ts C4 end)" ] && grep -q "size unknown" "$S/C4.err" && [ -s "$REC" ] \
+  && ok "T15f missing record: build allowed, record measured ($(cat "$REC"))" || bad "T15f rc=$rc $(cat "$S/C4.err")"
+# T15g record goes over cap while a lane waits in the queue: refused 77 once the lock is held, nothing run. Starts
+# from a fresh under-cap record (a missing one would start a detached measure that can land after the over-cap write).
+for _ in $(seq 1 60); do [ -d "$REC.measuring" ] || break; sleep 0.5; done
+echo "1 $(date +%s)" >"$REC"
+bash -c 'source "$1"; dbl_acquire "$2" builder holder "hold" t15g || exit 9; sleep 4; dbl_release' _ "$KLIB" "$SSD/.disk-build-lock" 2>/dev/null &
+hp=$!; sleep 1
+(t15env STUDIO_OWNER=$LANE STUDIO_BUILD_DISK=ssd && FAKE_TAG=C5 FAKE_SLEEP=0 cargo build) 2>"$S/C5.err" &
+cp5=$!; sleep 2; echo "$((150 * 1048576)) $(date +%s)" >"$REC"
+wait $cp5; rc=$?; wait $hp
+[ $rc -eq 77 ] && [ -z "$(ts C5 start)" ] && grep -q "> cap 140 GiB" "$S/C5.err" && [ ! -d "$SSD/.disk-build-lock/held" ] \
+  && ok "T15g over cap during the queue wait: refused 77 after acquiring, nothing run, lock released" || bad "T15g rc=$rc $(cat "$S/C5.err")"
+
+# T16 release under an open reader (Windows: an open handle on R/held/owner makes the directory rename fail; T9
+# RELEASE_FAILED 2026-10-16T02:47Z, the cycler then waited on its own token). (a) a reader holding the owner file for
+# 3 s: release retries and succeeds after it closes, no RELEASE_FAILED; (b) release window 1 s and a 4 s reader:
+# RELEASE_FAILED, then the same process's next acquire renames its own leftover (RELEASE_RECOVERED) and gets the lock.
+L16="$S/lock16"; rm -rf "$L16"
+bash -c 'source "$1"; dbl_acquire "$2" builder t16a "t16a" t16 || exit 9
+  (exec 7<"$2/held/owner"; sleep 3) & sleep 0.5; t0=$(date +%s); dbl_release; echo "released $(( $(date +%s) - t0 ))"; [ ! -d "$2/held" ]' \
+  _ "$KLIB" "$L16" >"$S/T16a.out" 2>"$S/T16a.err"; rc=$?
+[ $rc -eq 0 ] && ! grep -q RELEASE_FAILED "$S/T16a.err" "$L16/events.log" 2>/dev/null \
+  && ok "T16a open reader for 3 s: release retried, done ($(cat "$S/T16a.out") s), no RELEASE_FAILED" || bad "T16a rc=$rc $(cat "$S/T16a.out" "$S/T16a.err")"
+bash -c 'source "$1"; dbl_acquire "$2" builder t16b "t16b" t16 || exit 9; first=$DBL_TOKEN
+  (exec 7<"$2/held/owner"; sleep 4) & sleep 0.5; STUDIO_DISK_BUILD_LOCK_RELEASE_S=1 dbl_release
+  [ "$DBL_UNRELEASED" = "$first" ] || exit 8
+  t0=$(date +%s); STUDIO_DISK_BUILD_LOCK_TIMEOUT_S=30 dbl_acquire "$2" builder t16b "t16b again" t16 || exit 7
+  echo "reacquired $(( $(date +%s) - t0 ))"; [ -z "$DBL_UNRELEASED" ] || exit 6; dbl_release; [ ! -d "$2/held" ]' \
+  _ "$KLIB" "$L16" >"$S/T16b.out" 2>"$S/T16b.err"; rc=$?
+[ $rc -eq 0 ] && grep -q RELEASE_FAILED "$L16/events.log" && grep -q RELEASE_RECOVERED "$L16/events.log" \
+  && ok "T16b release failed under a 4 s reader; same process recovered its own leftover and $(cat "$S/T16b.out") s" \
+  || bad "T16b rc=$rc $(cat "$S/T16b.out" "$S/T16b.err" "$L16/events.log" 2>/dev/null)"
+
+# T17 bundled lane check (tools/lane-check.sh): (a) one lock hold (same token) runs clippy over the tested crate, then
+# its direct dependent, then the test run with ONE -E filter built from --tests, on the SSD lane target; (b) a tail
+# that is not the literal `cargo nextest run` is refused (2) before any cargo build call.
+mkdir -p "$S/wsl/a/src" "$S/wsl/b/src"; : >"$S/wsl/a/src/lib.rs"; : >"$S/wsl/b/src/lib.rs"
+printf '[workspace]\nmembers = ["a", "b"]\nresolver = "2"\n' >"$S/wsl/Cargo.toml"
+printf '[package]\nname = "dbl-a"\nversion = "0.1.0"\nedition = "2021"\n' >"$S/wsl/a/Cargo.toml"
+printf '[package]\nname = "dbl-b"\nversion = "0.1.0"\nedition = "2021"\n\n[dependencies]\ndbl-a = { path = "../a" }\n' >"$S/wsl/b/Cargo.toml"
+REALCARGO=$(PATH="$REAL" type -P cargo); LANE2=studio-team-dev/steward/dbl-test/lane2
+echo "1 $(date +%s)" >"$REC"; : >"$S/T17.args"
+(cd "$S/wsl" && unset STUDIO_DISK_BUILD_LOCK_DIR _STUDIO_ENV_LOCK_DERIVED STUDIO_DISK_BUILD_LOCK_TOKEN \
+  && STUDIO_SSD_ROOT="$SSD" FAKE_REAL_CARGO="$REALCARGO" FAKE_ARGS_LOG="$S/T17.args" FAKE_SLEEP=0 \
+  bash "$TOOLS/lane-check.sh" --owner "$LANE2" --tests alpha,beta -- cargo nextest run -p dbl-a) >"$S/T17.out" 2>&1; rc=$?
+toks=$(sed -n 's/.*| token=\([^ ]*\) |.*/\1/p' "$S/T17.args" | sort -u)
+if [ $rc -eq 0 ] && [ "$(wc -l <"$S/T17.args")" -eq 3 ] && [ "$(echo "$toks" | wc -l)" -eq 1 ] && [ "$toks" != none ] \
+  && sed -n 1p "$S/T17.args" | grep -q '^clippy -p dbl-a --tests ' && sed -n 2p "$S/T17.args" | grep -q '^clippy -p dbl-b --tests ' \
+  && sed -n 3p "$S/T17.args" | grep -q 'nextest run .*-p dbl-a -E test(alpha) | test(beta) | token' \
+  && grep -q "target=$SSD/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/$LANE2" "$S/T17.args"; then
+  ok "T17a lane-check: clippy dbl-a, clippy dependent dbl-b, one-filter test run, one lock hold, SSD lane target"
+else bad "T17a rc=$rc $(cat "$S/T17.args" "$S/T17.out")"; fi
+: >"$S/T17.args"
+(cd "$S/wsl" && STUDIO_SSD_ROOT="$SSD" FAKE_REAL_CARGO="$REALCARGO" FAKE_ARGS_LOG="$S/T17.args" \
+  bash "$TOOLS/lane-check.sh" --owner "$LANE2" -- cargo build -p dbl-a) >"$S/T17b.out" 2>&1; rc=$?
+[ $rc -eq 2 ] && [ ! -s "$S/T17.args" ] && grep -q "literal test command" "$S/T17b.out" \
+  && ok "T17b lane-check refuses a tail other than 'cargo nextest run' (2), nothing run" || bad "T17b rc=$rc $(cat "$S/T17b.out")"
+
+# T18 GPU test lock (dbl_gpu_run; SMB-STEWARD-GPU-CONTENTION): (a) render-gpu test runs from two different disk locks
+# (the two build slots) never overlap, a non-GPU test run on another disk overlaps freely; (b) a round queued after a
+# builder gets the GPU lock first; (c) inside the GPU hold a wrapped cargo call re-enters its disk lock (no wait).
+GPUL="$S/gpu-lock"; rm -rf "$GPUL" "$S/diskC" "$S/diskD" "$S/diskE"; : >"$FAKE_LOG"
+t18() { (unset _STUDIO_ENV_LOCK_DERIVED STUDIO_DISK_BUILD_LOCK_TOKEN; export STUDIO_DISK_BUILD_LOCK_DIR="$S/$1" STUDIO_GPU_TEST_LOCK_DIR="$GPUL"; shift
+  cd "$S/ws1" && PATH="$REAL" && source "$ENV" && export PATH="$S/bin:$REAL" && "$@"); }
+(t18 diskC env FAKE_TAG=GA FAKE_SLEEP=3 bash -c 'cargo nextest run -p hsk-studio-render-gpu') 2>"$S/GA.err" &
+ga=$!; sleep 1.5
+(t18 diskD env FAKE_TAG=GB FAKE_SLEEP=1 bash -c 'cargo nextest run -p hsk-studio-render-gpu') 2>"$S/GB.err" &
+gb=$!
+(t18 diskE env FAKE_TAG=GC FAKE_SLEEP=1 bash -c 'cargo nextest run -p hsk-studio-pigment') 2>"$S/GC.err" &
+gc=$!
+wait $ga $gb $gc
+[ -n "$(ts GB start)" ] && [ "$(ts GB start)" -ge "$(ts GA end)" ] && [ -n "$(ts GC start)" ] && [ "$(ts GC start)" -lt "$(ts GA end)" ] \
+  && ok "T18a GPU runs from two disks serialized (GB $(( $(ts GB start) - $(ts GA end) )) ms after GA), non-GPU run overlapped" \
+  || bad "T18a GA $(ts GA start)-$(ts GA end) GB $(ts GB start) GC $(ts GC start) $(cat "$S/GA.err" "$S/GB.err" "$S/GC.err")"
+: >"$FAKE_LOG"
+bash -c 'source "$1"; dbl_gpu_run "$2" builder holder "hold" bash -c "echo \"H start \$(date +%s%3N)\" >>\"$3\"; sleep 3; echo \"H end \$(date +%s%3N)\" >>\"$3\""' _ "$KLIB" "$GPUL" "$FAKE_LOG" 2>/dev/null &
+gh=$!; sleep 1
+(t18 diskE env FAKE_TAG=GQ FAKE_SLEEP=1 bash -c 'cargo nextest run -p hsk-studio-render-gpu') 2>"$S/GQ.err" &
+gq=$!; sleep 1
+bash -c 'source "$1"; dbl_gpu_run "$2" round round-test "round gpu" bash -c "echo \"GR start \$(date +%s%3N)\" >>\"$3\"; sleep 1; echo \"GR end \$(date +%s%3N)\" >>\"$3\""' _ "$KLIB" "$GPUL" "$FAKE_LOG" 2>"$S/GR.err" &
+gr=$!
+wait $gh $gq $gr
+order=$(for t in H GR GQ; do echo "$(ts $t start) $t"; done | sort -n | awk '{printf "%s ", $2}')
+[ "$order" = "H GR GQ " ] && ok "T18b round queued after a builder took the GPU lock first: $order" || bad "T18b order $order $(cat "$S/GQ.err" "$S/GR.err")"
+grep -q "waiting" "$S/GA.err" "$S/GC.err" 2>/dev/null && bad "T18c a GPU-locked run waited on its own disk lock" \
+  || ok "T18c wrapped runs inside the GPU hold re-entered their disk lock (no self-wait)"
 echo "RESULT fails=$fails"
 [ $fails -eq 0 ]

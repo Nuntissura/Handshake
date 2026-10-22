@@ -1,0 +1,58 @@
+{
+ "crate": "hsk-studio-press",
+ "lane": "SMB-PRESS-PAINT-TRANSPARENCY",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed; full press + interop-layout suites run once at READY",
+ "commits": [
+  {"sha": "8811e78", "subject": "press (SMB-PRESS-PAINT-TRANSPARENCY): transparency groups and soft masks in the paint device"}
+ ],
+ "capabilities_done": [
+  "paint.rs transparency groups as offscreen layers (clean-room from ISO 32000-1 11.3-11.6): basic compositing formula 11.3.3 with shape and opacity kept apart; group alpha tracked apart from the backdrop; non-isolated groups start from the backdrop (enclosing layer or opaque page) and remove its contribution at the end with the 11.4.8 formula C = Cn + (Cn - C0) x (a0/agn - a0); knockout groups composite each element against the initial backdrop weighted by its shape (11.4.6.2, premultiplied); group result composited with group opacity, group soft mask, blend mode and the clip in force",
+  "soft masks (11.6.5): ExtGState masks (applied to later draws) and group masks rendered by interpreting the mask group into a dedicated layer over /BC (luminosity: 0.30 R + 0.59 G + 0.11 B) or transparent (alpha: group alpha), then /TR; cached per mask and bounds (16)",
+  "non-separable blend modes Hue, Saturation, Color, Luminosity (11.3.5.3 Lum / ClipColor / SetLum / Sat / SetSat) replace the old Normal approximation",
+  "hostile groups: nesting deeper than MAX_GROUP_DEPTH 32 and layers over the layer memory cap (min(4 canvases x 36 bytes, 512 MiB)) are refused BEFORE allocation (Dead layer, content not drawn, WorkBudget note, pops stay balanced); a soft mask that cannot be built leaves its content undrawn (SoftMask note)",
+  "render_page passes the document's transparency-group /I and /K flags to the device (hayro-interpret 0.7.0 reports groups without them; soft-mask groups excluded); differing flags in one file -> ISO defaults + note group_flags_mixed; RenderedPage.notes",
+  "export SoftMask gains alpha (/S /Alpha), backdrop (/BC gray), transfer_exponent (/TR type-2 function) + SoftMask::luminosity; typed refusals colour_out_of_range, value_out_of_range, non_finite"
+ ],
+ "tests": {
+  "argv": "nextest run -p hsk-studio-press -p hsk-studio-interop-layout (full suites, once at READY)",
+  "exit": 0,
+  "sha": "8811e78",
+  "passed": 211,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "lane SMB-LAYOUT-PDF-EXPORT-3",
+ "updated_at": "2026-10-15T01:43:23Z",
+ "notes": {
+  "spec_basis": "ISO 32000-1 11.3 (basic compositing, blend modes), 11.4 (transparency groups: isolated 11.4.7, knockout 11.4.6.2, group compositing 11.4.8), 11.6.5 (soft masks: luminosity/alpha, BC, TR); clean-room from the standard's formulas as recalled, no third-party compositor source read; exact formula wording UNVERIFIED against the published text (D5)",
+  "tests_detail": [
+   "press tests/export.rs paint_device_renders_groups_and_soft_masks (render_page pixel oracles, hand-computed): two overlapping opaque squares in a 50 percent group = 128 everywhere incl. the overlap (old device gave 64); Multiply cyan inside an isolated group over yellow = cyan, non-isolated = green; two half-alpha squares: knockout overlap 128, non-knockout 64, single 128; luminosity mask black backdrop (white image -> black shows left, page white right), /BC 1 with a black image (inverted), /TR x^2 on 50 percent gray -> 191, alpha mask (opaque image left -> left shows); mixed group flags -> note; refusals for the new mask parameters",
+   "press tests/export.rs transparency_through_extgstate_groups_and_soft_masks: the luminosity soft mask is now proven by pixels (left black, right white; no notes), replacing the earlier NOT_PROVEN line",
+   "press src/paint.rs deep_and_huge_groups_are_refused_before_allocation: 40 pushes -> layers 33..40 Dead with no allocation, content not drawn, pops balanced, WorkBudget; 2000x2000 canvas with 1000 layer bytes left -> Dead, nothing allocated, memory restored",
+   "press src/paint.rs non_separable_blend_modes: Luminosity / Color keep luminosity 0.5 and red's hue; Saturation(red, gray) = (0.3, 0.3, 0.3)",
+   "interop-layout tests/pdf_export.rs folio_appearance_becomes_transparency_groups: the Folio layer mask now renders (red-only pixel at 25 percent kept, blue-only pixel outside the mask removed; no notes)"
+  ],
+  "limits": [
+   "group flags are per document (the interpreter's Device API carries no /I /K); a file mixing flags renders with ISO defaults and says so",
+   "knockout uses coverage as shape; antialiased edges inside knockout groups are approximate",
+   "the redaction flatten now draws soft-masked content instead of leaving it absent (region pixels are still painted after drawing; flatten suites green)"
+  ],
+  "unverified": [
+   "Acrobat parity of group/soft-mask rendering (D5 oracle)",
+   "the luminosity weights 0.30/0.59/0.11 for DeviceGray conversion of RGB mask content"
+  ],
+  "claim": "No PASS claimed; READY_FOR_VALIDATION on pushed commit 8811e78"
+ },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "claim 8811e78: paint device transparency groups as offscreen layers (ISO 32000-1 11.3.3/11.4, non-isolated backdrop removal 11.4.8, knockout), soft masks (luminosity /BC, alpha, /TR), non-separable blend modes replacing the old Normal approximation, depth/memory caps before allocation (Dead layer + WorkBudget note). Side effect: redaction flatten now draws soft-masked content (SMB-PRESS lanes re-opened under CX-VAL-009, judged here). No stub. Lane tests 48 passed / 0 failed (/pdf_export|press::export|paint/, all units). units of press/interop-layout: 2 crate units + default; all build 0 / run 0; default press 198, interop-layout 18", "idempotency_key": "STUDIO-R31:SMB-PRESS-PAINT-TRANSPARENCY:d9c59f899673:PASS_V1", "round": "STUDIO-R31", "lane": "SMB-PRESS-PAINT-TRANSPARENCY", "candidate": "d9c59f899673c4e4753dcd6d0269db87dfea0319", "tree": "135b10c9736bdfe3d024fcea9d0940506cc8c7a3", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R31", "started_at": "2026-10-15T03:03:04Z", "completed_at": "2026-10-15T04:38:10Z"},
+  {"decision": "passed", "verdict": "PASS_V2", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed d9c59f8..eb569d5 + reverse-dependency closure, 28 crates).  units of interop-layout/press: 2 crate units + default; all build 0 / run 0; default interop-layout 23, press 204", "idempotency_key": "STUDIO-R32:SMB-PRESS-PAINT-TRANSPARENCY:eb569d5764a3:PASS_V2", "round": "STUDIO-R32", "lane": "SMB-PRESS-PAINT-TRANSPARENCY", "candidate": "eb569d5764a3243d492c40f5fe8494782e45c882", "tree": "a232cd250db1371549353ee0c3ada8b8c0c083c4", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R32", "started_at": "2026-10-15T06:20:39Z", "completed_at": "2026-10-15T07:38:27Z"},
+  {"decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed eb569d5..ef53ea7 + reverse-dependency closure, 24 crates).  units of interop-layout/press: 2 crate units + default; all build 0 / run 0; default interop-layout 29, press 204", "idempotency_key": "STUDIO-R33:SMB-PRESS-PAINT-TRANSPARENCY:ef53ea781923:PASS_V3", "round": "STUDIO-R33", "lane": "SMB-PRESS-PAINT-TRANSPARENCY", "candidate": "ef53ea781923c4ed859c31ac98ea21f97ab188a9", "tree": "3e6eded3fda85beaaea2739b220ff6ed9ec59f5f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R33", "started_at": "2026-10-15T08:54:16Z", "completed_at": "2026-10-15T11:44:50Z"},
+  {"decision": "passed", "verdict": "PASS_V4", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ef53ea7..ca5e9c9 + reverse-dependency closure, 29 crates).  units of interop-layout/press: 2 crate units + default; all build 0 / run 0; default interop-layout 31, press 206", "idempotency_key": "STUDIO-R34:SMB-PRESS-PAINT-TRANSPARENCY:ca5e9c92fa6b:PASS_V4", "round": "STUDIO-R34", "lane": "SMB-PRESS-PAINT-TRANSPARENCY", "candidate": "ca5e9c92fa6be13b50428ea3be6571ccc1d1a511", "tree": "4afc6f85614b23faaffb0c941d9da11a7eb3259f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R34", "started_at": "2026-10-15T22:54:57Z", "completed_at": "2026-10-16T02:52:16Z"},
+  {"decision": "passed", "verdict": "PASS_V5", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ca5e9c9..237256f + reverse-dependency closure, 31 crates).  units of interop-layout/press: 2 crate units + default; all build 0 / run 0; default interop-layout 37, press 159", "idempotency_key": "STUDIO-R35:SMB-PRESS-PAINT-TRANSPARENCY:237256f8792c:PASS_V5", "round": "STUDIO-R35", "lane": "SMB-PRESS-PAINT-TRANSPARENCY", "candidate": "237256f8792c708b96464030d4b40f3a93e8f0e0", "tree": "f699823b8e0d0530a5f9a96df354b8b7aac8294f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R35", "started_at": "2026-10-16T07:31:56Z", "completed_at": "2026-10-20T14:11:50Z"},
+    {"decision": "passed", "verdict": "PASS_V6", "status_change": "PASS_V6", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V5", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: interop-layout).  units of interop-layout/press: 2 crate units + default; all build 0 / run 0; default passed interop-layout 42, press 159", "idempotency_key": "STUDIO-R36:SMB-PRESS-PAINT-TRANSPARENCY:a10576683c7a:PASS_V6", "claim_scope": null, "round": "STUDIO-R36", "lane": "SMB-PRESS-PAINT-TRANSPARENCY", "candidate": "a10576683c7a76b3da37e6ec4794652c3e903bbd", "tree": "27fb1f13e97fbaecd9e4b61428e53bcab50a3169", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R36", "started_at": "2026-10-21T17:26:59Z", "completed_at": "2026-10-22T05:34:45Z"},
+    {"decision": "passed", "verdict": "PASS_V7", "status_change": "PASS_V7", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V6", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: interop-layout).  units of interop-layout/press: 2 crate units + default; all build 0 / run 0; default passed interop-layout 47, press 159", "idempotency_key": "STUDIO-R37:SMB-PRESS-PAINT-TRANSPARENCY:1d139a6990f5:PASS_V7", "claim_scope": null, "round": "STUDIO-R37", "lane": "SMB-PRESS-PAINT-TRANSPARENCY", "candidate": "1d139a6990f55b77c1ce09c1dc7a5c2f47c324f4", "tree": "3c2b5fe1ce168053e16b0f682b9b728a0441c9fc", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37", "started_at": "2026-10-22T09:20:11Z", "completed_at": "2026-10-22T13:00:58Z"}
+ ]
+}

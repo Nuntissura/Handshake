@@ -1,101 +1,82 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-HANDOFF
 file_kind: handoff
-updated_at: 2026-10-14T15:03:57Z
+updated_at: 2026-10-22T13:09:48Z
 wp: WP-KERNEL-STUDIO
-latest_snapshot: snapshots/SNAPSHOT-20261012T112202Z.json
-previous_snapshots: snapshots/SNAPSHOT-20261012T095644Z.json, snapshots/SNAPSHOT-20261012T090508Z.json, snapshots/SNAPSHOT-20261012T072627Z.json, snapshots/SNAPSHOT-20261012T061647Z.json, snapshots/SNAPSHOT-20261012T051110Z.json, snapshots/SNAPSHOT-20261011T214451Z.json
-authority: ledger.json, team.json, workflow/plausible-register.json, validation/*, START_LOG.md (this file is a projection; they win on conflict)
+authority: Handshake Codex, KERNEL_BUILDER_PROTOCOL, START_LOG.md, ledger.json, validation/*, builders/briefs/wave-parity-2-common.md, workflow/workflow-v3.json (this file is a projection; they win on conflict)
 ---
 
-<topic id="takeover-prompt" status="active" summary="Prompt to paste into a fresh agent session to take over the lead">
+<topic id="takeover-prompt" status="active" summary="Prompt for the new dev leader agent">
 
 ## Takeover prompt (paste into a new session opened in `wt-gov-kernel`)
 
 ```text
-You are the lead (KERNEL_BUILDER role, coordinator only) for WP-KERNEL-STUDIO: the Studio crates built as a standalone multi-crate Rust module asset, not wired into Handshake. You write NO product code; you dispatch a team of subagents (cheap Sonnet/Haiku builders and readers, Opus for pre-reviews, diagnostics and validators) and record their results.
+You are the new DEV LEADER (KERNEL_BUILDER role, coordinator) for WP-KERNEL-STUDIO, taking over from a previous lead session. Studio is a Rust rewrite of the Adobe suite (Photoshop, Illustrator, InDesign, Lightroom Classic, Premiere, After Effects, Audition), Figma and Affinity, built as a standalone multi-crate module ("Studio Kit"). It is NOT integrated into Handshake until WP-KERNEL-012 is finished; WP-KERNEL-012 is worked on from another device and also pushes to gov_kernel.
 
-Read in this order before acting: kernel root CLAUDE.md/AGENTS.md; .GOV/codex/Handshake_Codex_v1.4.md; .GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md; then in .GOV/docs_repo/wp-studio-module-work/: HANDOFF.md, START_LOG.md (Operator instructions, repo/cargo rules, every lead decision, Operator items D1-D28), builders/DISPATCH_TEMPLATES.md (builder/validator/pre-review prompts, rules V4-01..V4-21), ledger.json (lanes, round_R* history, resume_plan = authoritative next steps), team.json, workflow/plausible-register.json, latest snapshots/SNAPSHOT-*.json. Verify every claim against these files and git; label anything unverified.
+You may use sub-agents to read, write, research and deliberate on blockers and failures. You write no product code yourself.
 
-Repos: governance = Nuntissura/Handshake branch gov_kernel (worktree wt-gov-kernel); product = Nuntissura/assets branch codex/handshake-studio-assets, subfolder handshake-studio-assets (worktree wt-studio-assets); build artifacts = sibling Handshake_Artifacts/WP-KERNEL-STUDIO/.
+READ FIRST, in this order, and follow what you read (the repo's authority wins over your own preferences):
+1. Kernel root CLAUDE.md / AGENTS.md.
+2. .GOV/codex/Handshake_Codex_v1.4.md (the CX-GP gameplan rules are RETIRED; CX-VAL-011 scoped rounds was added 2026-10-20).
+3. .GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md.
+4. In .GOV/docs_repo/wp-studio-module-work/: this HANDOFF.md; START_LOG.md (every Operator decision and lead decision; read from 2026-10-14 onward closely); builders/briefs/wave-parity-2-common.md (binding builder brief, incl. "Build strategy (Operator 2026-10-20)", rule 4a and PUSH SAFETY); builders/DISPATCH_TEMPLATES.md; workflow/workflow-v3.json (adopted by the Operator 2026-10-20); ledger.json; validation/round-R34.json and round-R35.json; research/parity-matrix-20261020.json and research/d5-*.json.
+Verify every claim against these files, git and command output. Label anything you could not verify UNVERIFIED.
 
-Hard rules: never run cargo builds/tests on C: (C: is for tool installs only); all cargo output under Handshake_Artifacts per subfolder. Never branch or force-push gov_kernel; other WPs push there too — integrate with tools/lead-kernel-push.sh (merges origin only when no path overlaps; on STOP resolve by hand). Gated git/cargo commands start with `cd` as the FIRST token into the work folder (Studio gameplan pointer; recreate .gameplan-active if missing, see HANDOFF repos topic); never bypass the gameplan hook. Only validators record verdicts; one Opus validator per round; lanes with 2 failed verdicts need a narrow Opus pre-review first (list every such lane reopened through a dependency). Never stop processes you did not start; never delete non-temp paths without Operator approval; never put the Operator's email or personal data in any request or header (V4-21). Rewrite Adobe concepts in Rust; Adobe apps are case studies only; never decompile Adobe binaries. Research online, do not guess. Commit and push gov_kernel after every progress event; refresh HANDOFF.md + a new snapshot (python tools/lead-snapshot.py) after every round.
+FIRST ASSIGNMENT (report to the Operator before starting new build work):
+A. Use sub-agents (read-only) to inspect the Studio Kit work delivered so far: product branch codex/handshake-studio-assets (repo Nuntissura/assets, subfolder handshake-studio-assets) history since 2026-10-14, the lane records in builders/lanes/, and the R34/R35 verdicts. Confirm what is pushed, what is validated (PASS in a round), what is built but not validated, and what exists only locally in lane worktrees under wt-studio-lanes/.
+B. Check feature parity of Adobe Photoshop, Lightroom Classic, Illustrator, InDesign, Premiere Pro, After Effects, Audition, Figma and Affinity against the Studio Kit, using research/parity-matrix-20261020.json only as a starting point: verify rows against the code itself, and against real-app oracle results where they exist (research/d5-*.json; Photoshop/Illustrator/InDesign/After Effects only).
+C. Report how feature complete Studio is, separately for (1) code/engine and (2) GUI (what a user can actually do in Studio's own viewer/panels), per app and overall, with the evidence level of each figure (validated / built-not-validated / partial / missing / unverified against the real app). Write the report to research/ as a dated file and give the Operator a plain-language summary in chat.
 
-State at handoff: all lanes judged through round R22 at product commit 1da2453 (110 PASS, 7 BLOCKED on Operator decisions, 4 queued). Start at ledger.json resume_plan step 0: replace the stale workflow agent; then PRIORITY 1 press lane SMB-PRESS-PROPERTIES (PLR-104: in an untagged PDF, marked-content /Alt or /ActualText of a flattened page in shared or inherited /Properties survives while the save reads proven — purge exactly or fail closed; fold PLR-105, PLR-107); then Opus narrow pre-review; then steward sync + canary + validator round R23. Do not decide Operator items (D5, D9, D13, D17, D20-D26, D28, cleanup approvals); list them when reporting. Check weekly usage before each dispatch and pace work to it.
+THEN TAKE OVER AS DEV LEADER: dispatch sub-agents that perform the work, record results, run validation rounds through the independent validator role, and push regularly. Good first candidates (you may reorder if you find more important work; say why):
+- Steward registration (one batched sync per round) for the new DXF/EPS libraries (lane SMB-DXF-EPS-IMPORT, already pushed, deps approved in START_LOG 2026-10-21) and the two crate splits interop-fig and web (lane SMB-CRATE-SEAM-SPLITS-2: committed only locally in wt-studio-lanes/smb-crate-seam-splits-2 as fef312e and 67a7496; the web split is UNTESTED; also repoint two .config paths noted in that lane file).
+- Validation round R36 (a fresh independent validator; earlier R36 attempt froze 8bb6f64 but never ran because the gameplan hook blocked it; re-freeze the current tip).
+- The Operator-requested roto spec update ("update the spec so rotoscope can be feature complete"): NOT DONE. Spec is still v02.216; STU-CMP-034/STU-CMP-100 still declare assisted rotoscoping a gap. A new spec version v02.217 must be built by the repo's own version procedure (see the v02.215 -> v02.216 commits) and committed/pushed. The already-pushed lane SMB-AE-ROTO-TIMEREMAP implements assisted roto and cannot pass validation on that slice until the spec allows it.
+
+DO:
+- Follow the Operator's instructions directly and fully. Do not send an instruction back to the Operator or ask them to re-confirm something they already decided.
+- Follow the repo's authority files. If something is missing or contradictory, propose a fallback and get Operator approval before acting on it.
+- Commit and push gov_kernel and the product branch regularly. gov_kernel: fetch, merge origin/gov_kernel only when it has new commits (never rebase, never force). Use `git -c core.fscache=false` for commits (fscache caused index write failures).
+- Guard every push: produce the sha with &&, check it is non-empty, push only that sha; never chain a push after `;`.
+- Keep at most about 5 builders plus 1 validator plus 1 steward running at once. Use fresh agents with one bounded task each; do not resume agents with very large contexts. Agents report only when finished or blocked.
+- Builders follow the brief: one bundled build per push over the whole test suites of every crate they change; commit per slice; push per green batch.
+- Report outcomes plainly, including your own and your agents' mistakes, without softening. If you or an agent breaks something, repair it immediately with a non-destructive action and tell the Operator.
+- Update HANDOFF.md at the end of every round and before any expected pause.
+
+DO NOT:
+- Do not use the gameplan skill or create, check or confirm gameplans. The Operator retired it everywhere on 2026-10-20 and the hook was removed from settings on 2026-10-21. Ignore old gameplan pointer files; if a hook still blocks a command, report it to the Operator; never reshape a command to get past it.
+- Do not delete anything (files, folders, branches, worktrees, caches, build targets) without explicit Operator approval in the same turn, except temp files your own session created. The C: build-target eviction agent was stopped: nothing may be evicted without new Operator approval.
+- Never delete or force-push any remote branch. Never run git reset --hard, git clean, or worktree removal without explicit approval.
+- Do not stop or kill processes your session did not start.
+- Do not invent new workflows, rules, tools or governance documents while the repo's authority covers the need; do not spend tokens on process instead of product.
+- Do not touch WP-KERNEL-012 files. Do not integrate Studio into Handshake.
+- Do not edit the Master Spec except for the Operator-requested roto update or another explicit Operator request.
+- Do not add any database other than SurrealDB. Permissive licences only; never read GPL/LGPL/MPL source. Never commit the proprietary Arial host font from the oracle corpus.
+- Do not build on C: outside the granted C:/HandshakeBuild/WP-KERNEL-STUDIO area (150 GB grant; it is currently over its 140 GiB guard, so builders fall back to D:).
 ```
 
 </topic>
 
-<topic id="read-first" status="active" summary="What to read before acting">
+<topic id="state" status="active" summary="Verified state on 2026-10-21">
 
-## Read first (any provider, no chat history needed)
+## State (verified 2026-10-21, takeover audit by the new lead)
 
-1. `START_LOG.md` — Operator instructions, repo rules, cargo rules, every lead decision, Operator items D1-D27.
-2. `builders/DISPATCH_TEMPLATES.md` — builder, validator and pre-review templates; workflow rules V4-01..V4-21 (V4-21: never put personal data in any request or header). Validator runs take build/test settings only from the checked-in round entry script (CX-VAL-007).
-3. `ledger.json` — every lane (status, commits, verdicts, blockers, claims); `resume_plan` = ordered next steps; `round_R*` = round history (latest `round_R22`).
-4. `team.json` — agents and what they owned (no agent is running at this handoff).
-5. `snapshots/SNAPSHOT-20261012T112202Z.json` — machine-readable point-in-time copy of all of the above plus repo heads.
-6. `validation/` — every round result (`round-R*.json`), review (`R*-review-*.json`) and pre-review (`R*-prereview-*.json`).
-
-</topic>
-
-<topic id="repos" status="active" summary="Where the code and governance live">
-
-## Repositories
-
-| What | Repo / branch | Local worktree | State at handoff |
-|---|---|---|---|
-| Governance (this folder) | `Nuntissura/Handshake` / `gov_kernel` | `wt-gov-kernel` | pushed after every commit; other WPs (WP-KERNEL-012) also push here — integrate, never branch, never force |
-| Product (35 Studio crates) | `Nuntissura/assets` / `codex/handshake-studio-assets`, subfolder `handshake-studio-assets` | `wt-studio-assets` | HEAD == origin == 1da2453 (all lanes judged through R22); uncommitted on purpose: local Cargo.lock patch bumps (not steward-reviewed) and stat-only score files |
-| Build artifacts | `Handshake_Artifacts/WP-KERNEL-STUDIO/` (sibling of the worktrees) | — | cargo targets, round exports, canary + round results, red-proof scratch trees; never build on C: |
-
-Push helper for governance: `tools/lead-kernel-push.sh <message-file> <paths...>` (commits the paths, merges `origin/gov_kernel` only when no path overlaps, pushes; never branches/forces). The kernel root `.gameplan-active` belongs to WP-KERNEL-012; run gated git/cargo commands with a leading `cd .GOV/docs_repo/wp-studio-module-work` (local Studio pointer) or from the product tree. Lead helpers (relative paths): `python tools/lead-lane-ready.py <utc-now> <LANE_ID> <team-member> <commit> "<note>"` marks a lane READY in ledger/team/journal; `python tools/lead-snapshot.py "<usage note>"` writes `snapshots/SNAPSHOT-<UTC>.json`. The Studio gameplan pointer `.gameplan-active` in this folder is local and git-excluded: if missing, recreate it with the single line `../tmp/studio-modular-authoring-gameplan.yaml` and add it to `.git/info/exclude`.
-
-</topic>
-
-<topic id="done" status="active" summary="What has been built and validated">
-
-## Done
-
-- 35 Rust crates exist as a standalone multi-crate module (not wired into Handshake); every crate builds and tests green on each canary (C27 at 1da2453: 59/59 units, only NOT_PROVEN = interop-fig D17).
-- 122 lanes: 110 PASS, 7 BLOCKED (Operator decisions), 4 queued/held, 1 done (steward).
-- Validation rounds R5-R22 complete (R4 abandoned). Latest: R22 at 1da2453 = 18 PASS, 0 FAIL (SMB-PRESS-STRUCT-ORPHANS, SMB-INTEROP-PSD-DOCS PASS_V1; PLR-096/099/101/102 closed). Before that: R21 at 2dde832 = 27 PASS, 0 FAIL (new SMB-PRESS-STRUCT-FAILCLOSED, SMB-REEL-PTS-TESTS, SMB-INTEROP-PSD-DESC-CAP PASS_V1; PLR-091..095/098 closed). Press redaction proof is now: untagged documents proven; tagged documents neutralized best-effort and reported NotProven (lead decision STRUCTURE TREE = NOT PROVEN; Operator item D28). Before that: R20 at 3930a7c = 24 PASS, 0 FAIL (new SMB-PRESS-DOCS-2, SMB-REEL-PARTIAL-PTS-2, SMB-INTEROP-PSD-LOSS-DETAIL PASS_V1; all four two-FAIL lanes re-passed; PLR-085..090 closed). Before that: R19 at fdc01f1 = 21 PASS, 0 FAIL (new SMB-PRESS-DOCS, SMB-REEL-PARTIAL-PTS, SMB-INTEROP-PSD-FOLIO-CEILING PASS_V1; reopened press, reel, reel-native, interop-psd lanes PASS; PLR-063/076/077/083/084 closed). Before that: R18 at bfa1bbf = 3 PASS, 0 FAIL — SMB-PRESS PASS_V4, SMB-PRESS-DIFFERENCES PASS_V2, SMB-NOTES-BATCH-1 PASS_V1; press 147/147 tests. Press redaction proof closed via D27 "flatten + narrow" plus the MINIMAL DRAW SET rule (START_LOG).
-- Fully passed crates (29; every lane PASS): accord, chronicle, components, composite, controls, develop, folio, harness, interop-fig, interop-layout, interop-lrcat, interop-psd, interop-vector, kernel-bindings, layout, motion, motion-js, nib, package, pigment, prism, pulse, render-cpu, score, score-device, score-plugin, session, type, web.
-- Not fully passed: press (only SMB-PRESS-GEOMETRY queued), reel + reel-native (codec lanes blocked on D22-D26), render-gpu (D20), interop-media (D9); observe has no lane yet.
-- Strongest areas: Photoshop-style layer document, compositing (CPU + GPU), adjustments/effects/Blend-If, colour management, PSD import; raw develop; PDF read/edit/redact with own strict renderer; web export with spec-exact CSS tokenizer; video indexing/AV1 worker/exact export; audio engine.
-
-</topic>
-
-<topic id="in-flight" status="active" summary="Running when this was written">
-
-## In flight at handoff
-
-- Nothing running. WEEKLY LIMIT REACHED at 2026-10-12T11:22:02Z (all-models 100%, resets 2026-10-13T11:00Z). Next session starts at `ledger.json` resume_plan step 2 (PRIORITY 1: PLR-104).
-
-</topic>
-
-<topic id="not-done" status="active" summary="What is not done">
-
-## Not done
-
-- PRIORITY 1 (gap inside the proven claim): PLR-104 — in an UNTAGGED document a marked-content /Alt or /ActualText of a flattened page in shared or inherited /Properties survives while the save reads proven; next press lane SMB-PRESS-PROPERTIES (purge exactly or fail closed) with PLR-105 and PLR-107. Then SMB-PRESS-GEOMETRY, PLR-097, PLR-100, PLR-103, PLR-106.
-- Notes residuals: config-OBU tag, exact-64 FRAME test, psd group-own-lfx2/zero-tile. SMB-FMT-SWEEP (rustfmt pass).
-- Blocked on Operator: render-gpu + round entrypoint + SMB-RENDER-GPU-ADJ/PROBE + PLR-082 (D20), interop-media (D9), ProRes/DNx/H.264 and Windows hardware decode (D22-D26).
-- 82 open items in `workflow/plausible-register.json`.
-- No app UI yet and no Handshake integration (kernel_bindings is an in-memory adapter only). Spec-catalogue coverage is not measured.
-- `.GOV/task_packets/WP-KERNEL-STUDIO/STUDIO_MODULES.json` still says PLANNED_NOT_IMPLEMENTED for all 35 crates; no other status value is defined anywhere checked, so it was not changed (ledger is live).
-
-</topic>
-
-<topic id="next" status="active" summary="Next steps in order">
-
-## Next steps
-
-Follow `ledger.json` `resume_plan` (authoritative). Short form:
-1. Weekly limit reached 2026-10-12T11:22Z; nothing running; product HEAD == origin == 1da2453, all lanes judged through R22.
-2. PRIORITY 1: press lane SMB-PRESS-PROPERTIES (PLR-104 + PLR-105 + PLR-107), Sonnet builder; then Opus narrow pre-review (SMB-PRESS is a two-FAIL lane); then steward sync + canary + 1 Opus validator round R23.
-3. Then SMB-PRESS-GEOMETRY, SMB-FMT-SWEEP, notes residuals, PLR-097/100/103/106.
-4. Push `gov_kernel` after every commit with `tools/lead-kernel-push.sh`.
+- Takeover audit written: `research/feature-completeness-20261021.json` (per-app engine and GUI completeness with evidence levels) over the eight read-only audit files in `research/audit-20261021/` (git inventory, validation state, nine parity verifications, GUI surfaces, cargo disk inventory). Read it before any new build work.
+- gov_kernel: see git log (this handoff commit). Untracked only: `refund-claim-20261021.md` at the kernel root (Operator's document, not part of the repo).
+- Product branch codex/handshake-studio-assets: tip e64eacd, 705 commits since 2026-10-14, 79 commits and 28 crates since the R35 candidate 237256f. The branch was deleted on GitHub on 2026-10-21 by an unguarded lane push, restored at 8bb6f64, then four finished lanes were rebased and pushed on top: 3432d5c (AE roto/time remap), 85b3446 (DXF/EPS import), 2e0f53e (type ff ligature / InDesign 93 of 99 oracle matches), e64eacd (Photoshop oracle parity 2, 489 of 588 matches). Patch-ids verified by the lead: the pre-rebase shas in those lane files are exact copies of the pushed commits.
+- Not pushed: SMB-CRATE-SEAM-SPLITS-2 (fef312e fig split, 67a7496 web split UNTESTED) in wt-studio-lanes/smb-crate-seam-splits-2; one empty steward probe commit d44a708 in wt-studio-lanes/smb-steward-lock-release-bug (not meant to be pushed).
+- Uncommitted source edits outside the shared tree (decision needed): wt-studio-lanes/smb-premiere-color-titles composite/src/composition.rs (PASS lane leftover); wt-studio-lanes/smb-raw-cleanroom two untracked develop/src/raw_cr drafts superseded by SMB-RAW-CLEANROOM-2. Six lane trees carry Cargo.lock-only edits (by rule).
+- Validation: last finalized round STUDIO-R36 @ a105766 (full scope, completed 2026-10-22 05:34Z): 291 PASS / 2 FAIL / 0 inconclusive; canary exit 0; union 5146 passed, 6 failed, 78 NOT_PROVEN; all 274 previously stale PASS lanes re-judged PASS; the 19 READY lanes judged (17 PASS incl. DXF-EPS remediation and AE-ROTO against STU-CMP-034 v02.217). FAIL_V1: SMB-PS-ORACLE-PARITY-2 (composite render_plan_lowering stale pin 0 vs grow fringe 0.000759) and SMB-PS-ORACLE-PARITY-1 (fig_paints_2 p99 5.700324 > 5.698 after the Photoshop tent blur kernel also rendered Figma drop shadows). Both remediated and pushed 2026-10-22: PARITY-2 9e09375 (composite pins re-derived), PARITY-1 b2b43fc + 9c48de8 (per-effect blur kernel: Figma Gaussian, Photoshop tent; fig_paints_2 back to its pin). Flaky: harness [audio-device] audio_out_plays (device underruns), no status change. Records: validation/round-R36.json. Rounds run without a rustc wrapper (sccache dropped: an unrelated Operator app exhausts local ports).
+- STUDIO-R37 @ 1d139a6 (2026-10-22 13:00Z, full scope by round-select because the steward's .config step-0 repoints count as round-entry changes; lead decision F-R37-2: they should not; steward fixes round-select.py at the next sync): 297 PASS / 1 FAIL; union 5263 passed, 1 failed, 78 NOT_PROVEN; canary C53 reused. PASS_V2 PARITY-1/-2; PASS_V1 SEAM-SPLITS-2, DEVELOP-EXPORT-TIFF, HARNESS-SHELL-1, LAYOUT-COMPOSER-WIRING. FAIL_V1 SMB-AE-ROTO-WIRING (package externals classifier: new roto stroke `path` fields unclassified; remediation running on the same lane; brief rule 4b added). Spec v02.218 published (chatter-control bounds declared, F-R36-3); code alignment (engine GraphCut -> classic, refusal on the new refine path, roto module docs) owed on the roto lane after its remediation.
+- Running agents (dispatched 2026-10-22 after R37, origin tip 1d139a6, own worktrees under wt-studio-lanes/, building on D:): SMB-AE-ROTO-WIRING remediation (package classifier), SMB-TIMELINE-UI-1 (first timeline panel: ruler, tracks, clips, playhead, trim/razor/ripple via pulse ops, snapping to edit points/markers/playhead, markers), SMB-PS-FILL-LAYERS (solid/gradient/pattern fill layers as Folio records, PSD SoCo/GdFl/PtFl import, composite lowering), SMB-DEVELOP-DNG-WRITER (DNG 1.4 writer over interop-tiff with XMP recipe, CLI --dng), SMB-AE-RENDER-QUEUE-2 (resolution, bit depth, alpha output, spans, frame blending; fields only if an engine path exists). R38 freezes at 8 READY lanes or 8 h after the R37 freeze (09:20Z). Next wave candidates: SMB-HARNESS-SHELL-2 (F-R37-3 label, layout editor save API, HELP menu, controls descriptors STU-ARC-014), Figma design editing UI, Premiere nest/transitions, Lightroom library (CKC port). Lead items: the parameter-table microtask (packet upkeep, corpus pinned to SPEC207), composer lane spec gaps staged for the Operator.
+- DXF/EPS: the dxf and stet dependencies were rejected (dxf hard-depends on `image`, designated to the harness only; stet embeds URW fonts that Artifex publishes under AGPL only) and remediated on the same lane at a105766 (own DXF reader adapted from the MIT dxf crate, EPS interpreter route removed with a typed refusal; DSC/preview read and EPSF export kept). Steward sync attempt 3: already in sync at a105766, probe 85/85, licence gate OK. OPERATOR ITEM: an EPS/PostScript conversion path.
+- Lead error 2026-10-21: the approved cleanup deleted the cargo registry .crate cache on an inventory misclassification; repaired with `cargo fetch --locked` (root lock and the clap-gain fixture lock, both unchanged). The cleanup script now refuses `.cargo/registry`.
+- Cleanup: COMPLETE 2026-10-22 12:58Z (all approved SAFE_CHEAP items deleted, about 371 GiB; registry cache kept). C: build area 140.76 GiB, still 0.76 GiB over the 140 GiB guard: builders fall back to D: until the Operator approves removing finished lanes' C: targets (about 41 GiB) or raises the guard.
+- Known regression candidate for R36: harness fig_paints_2 bold text p99 5.700324 > pinned 5.698 at 6585ff0; suspects 30ea18e, 3d5fbda, then a95f819, d69a277, f588e45 (pigment/render-cpu).
+- Lane-record drift (ledger is authority): lane files for AE-ROTO-TIMEREMAP, DXF-EPS-IMPORT, TYPE-FF-LIGATURE, PS-ORACLE-PARITY-2 still show null/BLOCKED and pre-rebase shas; ACCORD-COMPOSITION-PREFIX cites "see git log"; AU-WAVEFORM-EDITOR cites 8411820 (pre-rebase copy of 557ac06).
+- Spec: v02.216. The Operator-requested roto spec update (v02.217 specifying assisted rotoscoping; STU-CMP-034/STU-CMP-100 still declare it a gap) is NOT done.
+- Shared product worktree wt-studio-assets (HEAD 8bb6f64, 25 behind origin) has old uncommitted leftovers not made by this session (Cargo.lock patch, two stale test edits from 2026-10-15, two old press_desc JSON notes) and 12 SAFETY stashes; leave them unless the Operator decides.
+- C: build area over its 140 GiB guard; eviction stopped pending Operator approval. Measured candidates: `research/audit-20261021/cargo-disk-inventory.json`.
+- Remote branches outside the Studio branch: origin/codex/handpick (7511afa), origin/lane/smb-layout-ui-2-backup (f3c2a32).
 
 </topic>
 
@@ -103,6 +84,10 @@ Follow `ledger.json` `resume_plan` (authoritative). Short form:
 
 ## Waiting on the Operator
 
-D20 (allow a 4th verdict for render-gpu and the round entrypoint — lead recommends yes), D22-D26 (codecs/licensing/spec conflict/downloads), D9, D17 (Figma fixtures), D5 (Photoshop oracle session), D13/STU-CON-044, the repo-local 3.8 GB `handshake-studio-assets/target`, the empty `x` folder at the C: root, D21 (optional AGL download), D28 (strip the PDF structure tree on a redaction save so tagged documents can be proven, at the cost of accessibility tags — or keep NotProven), status vocabulary for `STUDIO_MODULES.json`. Details: `START_LOG.md`.
+- Eviction of idle lane build targets on C:.
+- PS-C28 mask variants (rule measured; enabling them changes another lane's refusal tests).
+- Photoshop colour setting HSK-gamma-1.0 (gamma oracle pass); Operator-attended Affinity test files; Figma .fig fixtures; Acrobat PDF/X oracle; os-encode legal check before commercial release.
+- Spec deltas to publish: press-read/press-write and interop-affinity crate notes (STU-ARC-010), STU-AUD waveform/spectral editor clauses, STU-ASSET-004 reading for the Lightroom smart-rule preview.
+- Optional: delete GitHub branch lane/smb-layout-ui-2-backup.
 
 </topic>

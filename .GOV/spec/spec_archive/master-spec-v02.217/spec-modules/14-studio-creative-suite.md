@@ -8,7 +8,7 @@ title: "14. Studio -- Unified Creative Suite"
 source_baseline_version: "v02.199"
 source_baseline_path: ".GOV/spec/Handshake_Master_Spec_v02.182.md"
 source_body_original_sha256: "81e296ec522d1058614cf2480b05bfdc0359fa2da85258a2fffc43c3ec756a15"
-body_sha256: "5424d33fb3b92de619aa75e720da630c16e7d7f4e0aa547e0323a7b0bb19a4a0"
+body_sha256: "35153628b9e53f824da76a4679fca4ffb3afbf62b85a76431be6af4446748f56"
 metadata_rule: "frontmatter is machine metadata; body follows after this block"
 ---
 # 14. Studio -- Unified Creative Suite [STU-SECTION-001]
@@ -29479,12 +29479,100 @@ entries, so the pipeline is visible, reorderable and maskable like anything else
 Studio MUST NOT ship a single opaque "key" operation that hides these stages, because every real key
 requires per-region treatment.
 
-**[STU-CMP-034] DECLARED GAP -- rotoscoping.** Mask-path animation ([STU-CMP-025]) is the manual
-rotoscoping mechanism and it is fully specified. An ASSISTED rotoscoping capability -- propagating a
-hand-drawn boundary across frames by tracking edges -- is NOT specified here. No such tool's
-parameter surface was recovered. It is a named future capability, recorded as [STU-CMP-100], and
-until it is specified an implementer builds the manual path and does not improvise a propagation
-algorithm.
+**[STU-CMP-034] ASSISTED ROTOSCOPING -- boundary propagation across frames.** Mask-path animation
+([STU-CMP-025]) remains the manual rotoscoping mechanism and is unchanged. Assisted rotoscoping is the
+capability that turns foreground and background STROKES drawn on one frame into a per-frame matte
+across a span of frames by tracking the segmentation boundary, so that a subject is isolated from a
+moving shot without a path being drawn on every frame. It is specified here, resolving [STU-CMP-100].
+The reference surface it mirrors is the Roto Brush and Refine Edge tool family of the compositing
+application it replaces; the recovered names of that surface are import keys only ([STU-SECTION-003]).
+The normative contract:
+
+1. **Strokes, base frames and spans.** A stroke is a frame-bound record with a polarity, `foreground`
+   or `background`, a brush diameter and a path; a stroke is never replaced by a later stroke, a later
+   stroke is always added. The first stroke on a frame that lies in no span makes that frame a BASE
+   FRAME and opens a SPAN that by default covers the layer duration not already covered by another
+   span. A span carries its base frame, its in and out frames and its propagation directions; it grows
+   with each stroke unless it abuts another span, its ends are resizable, it can be removed, and
+   removing the capability from the layer removes every span. Strokes, spans, base frames, the engine
+   choice and every parameter value of the table below are DOCUMENT STATE under the ownership rules of
+   [STU-CMP-002] and [STU-CMP-003]; the propagated mattes are a cache, never authority, and a reopened
+   document MUST reproduce them from that state.
+2. **Propagation.** From the base frame the segmentation propagates forward and backward within the
+   span one frame at a time. Each frame predicts its boundary from the previous frame's matte and the
+   estimated motion, then re-segments inside a search region around the predicted boundary using the
+   foreground and background models learnt from the strokes and from the previous frame. A corrective
+   stroke on any frame influences every frame in its direction within the span regardless of the order
+   in which strokes were drawn; a correction is made on the first frame where the error appears, never
+   by undoing an earlier stroke. A stroke outside every span opens a new base frame and span.
+3. **Per-frame state.** Every frame of a span carries exactly one of `base`, `propagated` or `lost`.
+   `lost` is the state of a frame whose subject left the search region or whose propagation could not
+   continue; a `lost` frame is reported as such in the span view and in the receipt and is NEVER
+   silently filled with the previous matte or with an empty matte.
+4. **Engines.** `engine` selects `classic` or `learned`. `classic` is a deterministic tracking
+   propagation that uses no learned model and MUST always be available. `learned` is a model-backed
+   propagation; when no model is installed it is a typed refusal `model_unavailable` naming the model
+   lane, never a silent fallback to `classic`. The engine is recorded with every propagated frame, and
+   every per-frame output of the `classic` engine carries the determinism obligation of
+   [STU-CMP-075a].
+5. **Matte pipeline position.** The per-frame matte is a matte source of the pipeline of
+   [STU-CMP-033] and enters it at the REFINE stage. The refine stage of assisted rotoscoping MUST
+   consume the unified edge-refinement surface of [STU-RAS-121] -- its `smooth`, `feather`,
+   `contrast`, `shift_edge`, `decontaminate_colours` and `decontamination_amount` controls with the
+   bounds declared there -- and MUST NOT define a second edge-refinement record. This clause adds
+   only the temporal controls that a still image has no use for: `refine_reduce_chatter`,
+   `use_motion_blur`, `extend_where_smoothed` and `decontamination_increase_radius`. Refine-edge
+   strokes painted on a frame designate the band in which the refinement runs, and
+   `refine_edge_base_radius` widens that band when the strokes were too narrow.
+6. **Freeze.** Freezing caches and locks the segmentation of every span of the layer within the work
+   area; frames not yet propagated are propagated first, and stopping a freeze keeps what was cached.
+   While frozen, new strokes and changes to the propagation controls do not change the result, the
+   matte controls stay live, and unfreezing recomputes. The frozen cache persists with the document
+   but remains cache under item 1.
+7. **Views.** `view_mode` selects `alpha`, `alpha_boundary` (the source with the segmentation
+   boundary outlined), `alpha_overlay` (the source with the matte tinted) or `composite` (the result
+   in the composition). The search region and the decontamination map are separately showable
+   (`view_search_region`, `view_decontamination_map`).
+8. **Admission.** Frame count, per-frame working set, aggregate output bytes and aggregate
+   motion-estimation work are admitted against declared limits BEFORE any allocation; exceeding a
+   limit is a typed refusal naming the limit, never a partial result presented as complete.
+9. **Steerability, diagnostics and proof.** Every stroke, span edit, propagation run, freeze and
+   unfreeze is a model-steerable command and emits the diagnostics of 14.27.11. Numeric parity with
+   the reference surface is proof scope under the attended oracle session, not a promise of this
+   clause; an implementation claims it only with a passing comparison test.
+
+*Derivation: parameter table, taken whole; yields 1 microtask whose acceptance criteria are its rows, one bound-set per row.*
+
+| Parameter | hard_min | hard_max | soft_min | soft_max | default | unit | precision | classification |
+|---|---|---|---|---|---|---|---|---|
+| `engine` | enum | enum | — | — | `classic` | none | — | closed set: `classic`, `learned`; `declared`; recovered import keys: Version 1.0 (classic), 2.0 and 3.0 (learned) |
+| `quality` | enum | enum | — | — | `standard` | none | — | closed set: `standard`, `best`; `declared`; effective for engines that expose an edge-detail quality step; recovered: Quality |
+| `search_radius` | unknown | unknown | unknown | unknown | unknown | pixels | 1 | radius of the region searched for the boundary from one frame to the next; all four bounds and the default undeclared by every source; recovered: Search Radius |
+| `view_search_region` | — | — | — | — | false | none | — | boolean; preview toggle; recovered: View Search Region |
+| `motion_threshold` | unknown | unknown | unknown | unknown | unknown | unknown | unknown | motion below which the search region collapses to nothing; bounds, default, unit and precision undeclared; recovered: Motion Threshold |
+| `motion_damping` | unknown | unknown | unknown | unknown | unknown | unknown | unknown | tightens the search region in slow-moving areas more than in fast ones; bounds, default, unit and precision undeclared; recovered: Motion Damping |
+| `edge_detection` | enum | enum | — | — | `balanced` | none | — | closed set: `balanced`, `favor_predicted`, `favor_current`; `declared` (the recovered label of the third member is UNVERIFIED); recovered: Edge Detection |
+| `use_alternate_colour_estimation` | — | — | — | — | false | none | — | boolean; alternative foreground/background decision; recovered: Use Alternate Color Estimation |
+| `invert_foreground_background` | — | — | — | — | false | none | — | boolean; swaps stroke polarity in the segmentation phase |
+| `fine_tune_matte` | — | — | — | — | false | none | — | boolean; gates the four matte controls that follow |
+| `matte_feather` | unknown | unknown | unknown | unknown | unknown | pixels | 1 | softness of the segmentation boundary; unit and precision as the `feather` control of [STU-RAS-121]; all four bounds and the default undeclared |
+| `matte_contrast` | unknown | unknown | unknown | unknown | unknown | percent | 1 | unit and precision as the `contrast` control of [STU-RAS-121]; all four bounds and the default undeclared |
+| `matte_shift_edge` | unknown | unknown | unknown | unknown | unknown | percent | 1 | signed, positive expands; unit and precision as the `shift_edge` control of [STU-RAS-121]; all four bounds and the default undeclared |
+| `matte_reduce_chatter` | unknown | unknown | unknown | unknown | unknown | unknown | unknown | temporal damping of the segmentation boundary; bounds, default, unit and precision undeclared; recovered: Reduce Chatter |
+| `render_refine_edge` | — | — | — | — | false | none | — | boolean; shows the refined edge on base and propagated frames |
+| `refine_edge_base_radius` | unknown | unknown | unknown | unknown | unknown | pixels | 1 | widens the refine-edge band; unit and precision `declared`; all four bounds and the default undeclared |
+| `fine_tune_refine_edge_matte` | — | — | — | — | false | none | — | boolean; gates the refine controls consumed from [STU-RAS-121] and the temporal controls that follow |
+| `refine_reduce_chatter` | unknown | unknown | unknown | unknown | unknown | unknown | unknown | weighted average of the refined matte across adjacent frames; 0 uses the current frame only; bounds, default, unit and precision undeclared; recovered: Reduce Chatter |
+| `use_motion_blur` | — | — | — | — | false | none | — | boolean; renders the matte with the layer's motion-blur settings |
+| `extend_where_smoothed` | — | — | — | — | false | none | — | boolean; effective only when `refine_reduce_chatter` is above 0 and `decontaminate_colours` is set |
+| `decontamination_increase_radius` | unknown | unknown | unknown | unknown | unknown | pixels | 1 | extra radius, in pixels, for edge-colour cleaning; all four bounds and the default undeclared; recovered: Increase Radius |
+| `view_decontamination_map` | — | — | — | — | false | none | — | boolean; preview toggle; recovered: View Map |
+| `view_mode` | enum | enum | — | — | `alpha_boundary` | none | — | closed set: `alpha`, `alpha_boundary`, `alpha_overlay`, `composite`; `declared` |
+
+The numeric controls above carry no declared hard bound, soft bound or default: the reference surface
+documents each control and its meaning but states no minimum, maximum or default, and where it states
+no unit the unit is `unknown` as well. They MUST ship as `unknown` per [STU-RAS-106], MUST NOT be
+clamped, and the soft bounds MUST NOT be back-filled from the hard bounds or from any observed spread.
 
 ---
 
@@ -29892,8 +29980,10 @@ is actually done, and a single-view viewer makes [STU-CMP-035] unusable in pract
 
 ## 14.27.10 Declared gaps
 
-**[STU-CMP-100] GAP -- assisted rotoscoping.** Per [STU-CMP-034]. Manual mask-path animation is
-specified; boundary propagation is not.
+**[STU-CMP-100] RESOLVED -- assisted rotoscoping.** Specified by [STU-CMP-034] in v02.217: strokes,
+base frames and spans, forward and backward propagation with per-frame state, `classic` and `learned`
+engines, the refine stage consumed from [STU-RAS-121], freeze, views, admission and the parameter
+table. Manual mask-path animation ([STU-CMP-025]) remains the manual path.
 
 **[STU-CMP-101] RESOLVED -- layer/node model.** [STU-CMP-092] through [STU-CMP-094] select one Folio-authored graph with lossless layer and node projections. Preserve original owner MT and imported layer semantics; actual projection/evaluation/parallel acceptance remains implementation proof, not a remaining product-choice question.
 
@@ -29948,7 +30038,7 @@ same-change current (14.22). Four obligations are specific to compositing:
 ## 14.27.12 Microtask Derivation
 
 **[STU-CMP-120] Microtask derivation index.** Applying the shared derivation convention to this
-sub-section yields exactly 145 microtasks. The correspondence is NORMATIVE and CLOSED: a microtask
+sub-section yields exactly 146 microtasks. The correspondence is NORMATIVE and CLOSED: a microtask
 corresponds to a yielding clause or to a table unit as marked, and to nothing else.
 
 Rule 0 -- derivation markers are authoritative. Every table in this sub-section carries an italic
@@ -30039,7 +30129,7 @@ sub-section is the authority ([STU-SECTION-002]).
 | Clauses in 14.27 | anchors 001 through 124, sub-lettered anchors included | 73 |
 | less the no-yield set | the 17 clauses of [STU-CMP-120a] | -17 |
 | **Rule A subtotal** | one microtask per yielding clause | **56** |
-| Parameter tables | 2 tables: the camera properties of 040 and the light properties of 045, each taken whole | 2 |
+| Parameter tables | 3 tables: the camera properties of 040, the light properties of 045 and the assisted-rotoscoping controls of 034, each taken whole | 3 |
 | Enumeration tables | 1 table: the six non-ordinary blend members of 020a | 1 |
 | Catalogue: keying and matte capabilities of 032 | one per capability | 15 |
 | Catalogue: auxiliary-channel capabilities of 050 | one per capability | 8 |
@@ -30049,15 +30139,14 @@ sub-section is the authority ([STU-SECTION-002]).
 | Catalogue: simulation capabilities of 075 | one per capability | 14 |
 | Catalogue: channel operations of 080 | one per operation | 14 |
 | Reading aids in non-yielding clauses | 2 tables: the layer/node comparison of 091 and this ledger | 0 |
-| **Rule B subtotal** | table units | **89** |
-| **Total microtasks yielded by 14.27** | rule A plus rule B | **145** |
+| **Rule B subtotal** | table units | **90** |
+| **Total microtasks yielded by 14.27** | rule A plus rule B | **146** |
 
 **[STU-CMP-123] An open item or a blocked dependency does NOT remove a microtask.** A clause that
 declares a gap, an open decision, an unrecovered enumeration, an unnamed capability or a missing
 parameter record still yields its rule-A microtask, and that microtask's FIRST acceptance row MUST
 read "the named gap is raised to the operator as a capture request and is NOT closed by an invented
-value". The clauses carrying a declared gap or open decision are [STU-CMP-034] (assisted
-rotoscoping), [STU-CMP-046] (camera and light parameter contracts), [STU-CMP-060] (renderer
+value". The clauses carrying a declared gap or open decision are [STU-CMP-046] (camera and light parameter contracts), [STU-CMP-060] (renderer
 inventory), [STU-CMP-065b] (tracker parameter records), [STU-CMP-092] (layer versus
 node), [STU-CMP-105] (the `falloff_type` and `iris_shape` member lists) and [STU-CMP-106] (the immersive
 projection-type members).

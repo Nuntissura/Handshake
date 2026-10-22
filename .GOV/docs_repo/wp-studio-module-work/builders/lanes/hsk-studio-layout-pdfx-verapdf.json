@@ -1,0 +1,79 @@
+{
+ "crate": "hsk-studio-press + hsk-studio-interop-layout",
+ "lane": "SMB-LAYOUT-PDFX-VERAPDF",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "items 1-3 pushed. Items 1-2: veraPDF 1.30.3 installed (Operator approval, START_LOG 2026-10-15) into Handshake_Artifacts/WP-KERNEL-STUDIO/tools/verapdf; PDF/A-2b passes on the press corpus and four interop-layout exports after the fix; veraPDF ships no PDF/X profile, so PDF/X-4 stays self-checked / not_proven",
+ "commits": [
+  {"sha": "a4fac0b", "subject": "press + interop-layout (SMB-LAYOUT-PDFX-VERAPDF item 3, slice 1): CFF subsetting, gradient spread/midpoints/stop opacity, clipping to text and raster bases"},
+  {"sha": "d6827c3", "subject": "press (SMB-LAYOUT-PDFX-VERAPDF item 3): tests for CFF subsetting, gradient spread/midpoint/opacity, text clipping"},
+  {"sha": "e13911d", "subject": "interop-layout (SMB-LAYOUT-PDFX-VERAPDF item 3): clip-to-text/raster test, DESCRIPTOR clip/gradient/fonts updated"},
+  {"sha": "89dddeb", "subject": "press + interop-layout (SMB-LAYOUT-PDFX-VERAPDF items 1-2): PDF/A-2b identification, veraPDF report verdict"},
+  {"sha": "c31d66c", "subject": "press + interop-layout tests: keep the veraPDF report fixtures byte-identical (-text), so their cited sha256 holds on checkout"}
+ ],
+ "capabilities_done": [
+  "press cff::subset_cid: CID-keyed CFF rebuilt with glyph ids kept (item 3)",
+  "press fill_path_gradient: Pad / Repeat / Reflect, midpoints, stop opacity (item 3)",
+  "press push_clip_text, SoftMask with several MaskImage, SoftMask::alpha (item 3)",
+  "interop-layout: Folio gradient spread / midpoint / stop opacity; clipping to text and raster bases (item 3)",
+  "press ExportOptions.pdfa2b: XMP pdfaid part 2 / conformance B; XMP extension schemas (PDF/A-2 6.6.2.3.2) for pdf:Trapped and pdfxid:GTS_PDFXVersion when PDF/X-4 is also written; a GTS_PDFA1 output intent beside GTS_PDFX sharing the same DestOutputProfile reference; Info written; typed refusals PdfARequirement(output_intent | version_1_x); XMP packet built by pdfx::xmp_packet; XMP dates keep the Info date's offset (+HH'mm' -> +HH:mm)",
+  "press ExportReceipt::with_verapdf_report(pdf, report_xml): the only way off not_proven. Accepts one veraPDF job for the same bytes (receipt sha256 = sha256(pdf), item size = pdf length), profile 'PDF/A-2b validation profile', jobEndStatus normal, isCompliant true, failedRules/failedChecks 0, batch summary 1 compliant / 0 failed; sets conformance = pdfa_2b_verapdf_passed, conformance_report_sha256, conformance_validator; ReportRefused(pdf_hash_mismatch | report_too_large | report_not_utf8 | not_one_verapdf_job | no_verapdf_version | item_size_mismatch | wrong_profile | not_compliant)",
+  "DESCRIPTOR: press api ExportReceipt::with_verapdf_report; interop-layout pdf_export pdfx4 / pdfa2b entries"
+ ],
+ "verapdf": {
+  "record": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/layout-harden/verapdf/RECORD.json",
+  "installer_url": "https://software.verapdf.org/releases/verapdf-installer.zip",
+  "installer_sha256": "b512bf24945503a33fc10738ecffc1f2dccaaf8593a448e94ee9ac86a9559a59 (matches)",
+  "signature": "UNVERIFIED: .asc signed by key 3184863278B17FE7, key not available locally and not fetched",
+  "install_dir": "Handshake_Artifacts/WP-KERNEL-STUDIO/tools/verapdf (IzPack unattended, JDK 17, user.home redirected to tools/verapdf-home; no registry / APPDATA entries found)",
+  "version": "veraPDF 1.30.3",
+  "pdfx4_profile": "not offered by veraPDF 1.30.3 (reports/verapdf-1.30.3-profiles.txt)",
+  "baseline": "studio-team-dev/layout-harden/verapdf/baseline-2b.xml: press corpus FAIL 6.2.4.3-3/-4, 6.2.10-2, 6.6.4-1, 6.6.2.3.1-1/-2 (all identification: no PDF/A intent, no pdfaid, undeclared XMP properties)",
+  "reports": [
+   {"pdf": "corpus/press-pdfx4-corpus.pdf", "pdf_sha256": "e8605a4cbcd2d845cc4a33ee58e1106653f4246cddce7ee4aa7f17ff0bc10028", "report": "reports/press-pdfx4-corpus.pdfa-2b.xml", "report_sha256": "626703968de9190cf3e9ec79c947343bd847a5f9052b0944faed9b91992f6d88", "result": "PDF/A-2b compliant"},
+   {"pdf": "corpus/layout-snapshot.pdf", "pdf_sha256": "6974310d9b51ea4b2e3b78f5dd33c9e2ff519398bb48b87198133e5971d6e92c", "report": "reports/layout-snapshot.pdfa-2b.xml", "report_sha256": "0dd5c053ed7f47383358f6dd7b75cb5d46a6c5f88b90d88bf5919fca0353ff47", "result": "PDF/A-2b compliant"},
+   {"pdf": "corpus/layout-appearance-mask.pdf", "pdf_sha256": "8ccb6876996bbb2ad8e456712f8ed9e369fb45dadbbe70bea95e5e67c9086be7", "report": "reports/layout-appearance-mask.pdfa-2b.xml", "report_sha256": "274f04b01d8a8abb162c90f00a388a41a35e0e934926d20b5cc231e3d5f0e566", "result": "PDF/A-2b compliant"},
+   {"pdf": "corpus/layout-clip-gradient.pdf", "pdf_sha256": "3405693a3cf44a39e97bbcaae250a3ab0ccbbce8466f82f3e84e88e8524934f0", "report": "reports/layout-clip-gradient.pdfa-2b.xml", "report_sha256": "fa7edad7534370e5f5b918927c1511e76d118457d6ef94374cf3b9d65ee04654", "result": "PDF/A-2b compliant"},
+   {"pdf": "corpus/layout-clip-text-raster.pdf", "pdf_sha256": "ecc3120fc1c73325842b2dd312629942c2910ddab324606c9231ecc18c0facee", "report": "reports/layout-clip-text-raster.pdfa-2b.xml", "report_sha256": "aee9c82d93da18b24e49cf3f47f747d7f8a82450352a9cdeeea52a46d56841ff", "result": "PDF/A-2b compliant"}
+  ],
+  "paths_relative_to": "Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/layout-harden/verapdf/",
+  "rerun": "HSK_STUDIO_PDF_CORPUS_DIR=<dir> cargo nextest run -p hsk-studio-press --test verapdf_corpus; same env for -p hsk-studio-interop-layout --test pdf_export; then sh studio-team-dev/layout-harden/verapdf/vera.sh -f 2b --format xml <pdf>"
+ },
+ "tests": {
+  "argv": "nextest run -p hsk-studio-press (full) + nextest run -p hsk-studio-interop-layout (full); clippy -p hsk-studio-press -p hsk-studio-interop-layout --all-targets clean",
+  "exit": 0,
+  "sha": "89dddeb (c31d66c changes only fixture attributes; staged fixture sha256 re-checked)",
+  "passed": 220,
+  "failed": 0,
+  "new": [
+   "press tests/verapdf_corpus.rs verapdf_corpus_self_checks_and_is_written_on_request: 3-page PDF/X-4 + PDF/A-2b corpus (TrueType + CFF text, ICC/device colour, images with alpha, clips, text clip, groups isolated/knockout, Luminosity/Alpha soft masks with BC/TR, Multiply/Screen/Luminosity blends, axial/radial/repeat/reflect/midpoint/opacity gradients) passes check_pdfx4 and renders without font/image warnings",
+   "press passing_verapdf_report_is_the_only_way_out_of_not_proven: corpus sha256 equals the reported bytes; the committed report sets pdfa_2b_verapdf_passed and cites 6267...6d88; edited reports (isCompliant false, failedRules 1, PDF/A-1b profile, item size, two jobs, no core version), other bytes, non-UTF-8 and oversize reports are typed refusals",
+   "press pdfa2b_identification_and_refusals: pdfaid, extension schemas, GTS_PDFA1 + GTS_PDFX intents; PDF/A-2b alone without PDF/X properties; output_intent and version_1_x refusals",
+   "press export::verdict::tests::attribute_scan",
+   "interop-layout folio_clipping_gradient_and_pdfx4: export bytes sha256 = the veraPDF-passed bytes; committed report sets pdfa_2b_verapdf_passed citing fa7e...4654"
+  ]
+ },
+ "blockers": [],
+ "lock_wait_s": 7,
+ "bg_pids": [],
+ "next": "PDF/X-4 conformance needs a PDF/X validator (veraPDF has none); validator's call whether another tool is wanted",
+ "updated_at": "2026-10-15T03:20:00Z",
+ "notes": {
+  "unverified": [
+   "veraPDF installer signature (key 3184863278B17FE7 not obtained)",
+   "PDF/X-4 rules in pdfx.rs vs ISO 15930-7 (no external PDF/X validator); the press corpus uses a synthetic CMYK prtr profile, the layout corpus an sRGB (mntr) output intent, which PDF/X-4 may not accept",
+   "Illustrator / Figma midpoint curve shape; reflect/repeat seams vs other renderers; name-keyed CFF not subset"
+  ],
+  "side_effect": "an earlier gpg --list-packets created an empty C:/Users/Ilja Smets/.gnupg (empty keyring/trustdb); left in place for the Operator to decide",
+  "conformance": "not_proven by default; pdfa_2b_verapdf_passed only via with_verapdf_report on a passing report; PDF/X-4 not proven",
+  "claim": "No PASS claimed; READY_FOR_VALIDATION on pushed commits a4fac0b, d6827c3, e13911d, 89dddeb, c31d66c"
+ },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "item 3 only (a4fac0b d6827c3 e13911d): CID-keyed CFF subsetting with kept glyph ids, gradient pad/repeat/reflect with bounded cycles (256/4096), stop midpoints and stop opacity as luminosity soft mask, clip to text (Tr 7) and to raster bases. veraPDF items 1-2 not part of this claim; conformance not_proven. No stub. Lane tests 21 passed / 0 failed (/pdf_export|press::export|cff/, all units). units of press/interop-layout: 2 crate units + default; all build 0 / run 0; default press 198, interop-layout 18", "idempotency_key": "STUDIO-R31:SMB-LAYOUT-PDFX-VERAPDF:d9c59f899673:PASS_V1", "round": "STUDIO-R31", "lane": "SMB-LAYOUT-PDFX-VERAPDF", "candidate": "d9c59f899673c4e4753dcd6d0269db87dfea0319", "tree": "135b10c9736bdfe3d024fcea9d0940506cc8c7a3", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R31", "started_at": "2026-10-15T03:03:04Z", "completed_at": "2026-10-15T04:38:10Z"},
+  {"decision": "passed", "verdict": "PASS_V2", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "items 1-2: ExportOptions.pdfa2b identification (pdfaid 2B, XMP extension schemas, GTS_PDFA1 intent sharing the DestOutputProfile), ExportReceipt::with_verapdf_report as the only way off not_proven (one compliant PDF/A-2b job for the same bytes, size-bound, report sha256 recorded); PDF/X-4 stays self-checked only (veraPDF ships no PDF/X profile). No stub. units of press/interop-layout: 2 crate units + default; all build 0 / run 0; default press 204, interop-layout 23", "idempotency_key": "STUDIO-R32:SMB-LAYOUT-PDFX-VERAPDF:eb569d5764a3:PASS_V2", "claim_scope": "items 1-2 89dddeb c31d66c (item 3 PASS_V1 in R31); fixtures normalised later by SMB-R31-FINDINGS eb569d5", "round": "STUDIO-R32", "lane": "SMB-LAYOUT-PDFX-VERAPDF", "candidate": "eb569d5764a3243d492c40f5fe8494782e45c882", "tree": "a232cd250db1371549353ee0c3ada8b8c0c083c4", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R32", "started_at": "2026-10-15T06:20:39Z", "completed_at": "2026-10-15T07:38:27Z"},
+  {"decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed eb569d5..ef53ea7 + reverse-dependency closure, 24 crates).  units of interop-layout/press: 2 crate units + default; all build 0 / run 0; default interop-layout 29, press 204", "idempotency_key": "STUDIO-R33:SMB-LAYOUT-PDFX-VERAPDF:ef53ea781923:PASS_V3", "round": "STUDIO-R33", "lane": "SMB-LAYOUT-PDFX-VERAPDF", "candidate": "ef53ea781923c4ed859c31ac98ea21f97ab188a9", "tree": "3e6eded3fda85beaaea2739b220ff6ed9ec59f5f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R33", "started_at": "2026-10-15T08:54:16Z", "completed_at": "2026-10-15T11:44:50Z"},
+  {"decision": "passed", "verdict": "PASS_V4", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ef53ea7..ca5e9c9 + reverse-dependency closure, 29 crates).  units of interop-layout/press: 2 crate units + default; all build 0 / run 0; default interop-layout 31, press 206", "idempotency_key": "STUDIO-R34:SMB-LAYOUT-PDFX-VERAPDF:ca5e9c92fa6b:PASS_V4", "round": "STUDIO-R34", "lane": "SMB-LAYOUT-PDFX-VERAPDF", "candidate": "ca5e9c92fa6be13b50428ea3be6571ccc1d1a511", "tree": "4afc6f85614b23faaffb0c941d9da11a7eb3259f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R34", "started_at": "2026-10-15T22:54:57Z", "completed_at": "2026-10-16T02:52:16Z"},
+  {"decision": "passed", "verdict": "PASS_V5", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ca5e9c9..237256f + reverse-dependency closure, 31 crates).  units of interop-layout/press: 2 crate units + default; all build 0 / run 0; default interop-layout 37, press 159", "idempotency_key": "STUDIO-R35:SMB-LAYOUT-PDFX-VERAPDF:237256f8792c:PASS_V5", "round": "STUDIO-R35", "lane": "SMB-LAYOUT-PDFX-VERAPDF", "candidate": "237256f8792c708b96464030d4b40f3a93e8f0e0", "tree": "f699823b8e0d0530a5f9a96df354b8b7aac8294f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R35", "started_at": "2026-10-16T07:31:56Z", "completed_at": "2026-10-20T14:11:50Z"},
+    {"decision": "passed", "verdict": "PASS_V6", "status_change": "PASS_V6", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V5", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: interop-layout).  units of interop-layout/press: 2 crate units + default; all build 0 / run 0; default passed interop-layout 42, press 159", "idempotency_key": "STUDIO-R36:SMB-LAYOUT-PDFX-VERAPDF:a10576683c7a:PASS_V6", "claim_scope": null, "round": "STUDIO-R36", "lane": "SMB-LAYOUT-PDFX-VERAPDF", "candidate": "a10576683c7a76b3da37e6ec4794652c3e903bbd", "tree": "27fb1f13e97fbaecd9e4b61428e53bcab50a3169", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R36", "started_at": "2026-10-21T17:26:59Z", "completed_at": "2026-10-22T05:34:45Z"},
+    {"decision": "passed", "verdict": "PASS_V7", "status_change": "PASS_V7", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V6", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: interop-layout).  units of interop-layout/press: 2 crate units + default; all build 0 / run 0; default passed interop-layout 47, press 159", "idempotency_key": "STUDIO-R37:SMB-LAYOUT-PDFX-VERAPDF:1d139a6990f5:PASS_V7", "claim_scope": null, "round": "STUDIO-R37", "lane": "SMB-LAYOUT-PDFX-VERAPDF", "candidate": "1d139a6990f55b77c1ce09c1dc7a5c2f47c324f4", "tree": "3c2b5fe1ce168053e16b0f682b9b728a0441c9fc", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37", "started_at": "2026-10-22T09:20:11Z", "completed_at": "2026-10-22T13:00:58Z"}
+ ]
+}

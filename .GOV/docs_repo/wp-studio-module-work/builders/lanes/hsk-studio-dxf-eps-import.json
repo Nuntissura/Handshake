@@ -1,0 +1,132 @@
+{
+ "crate": "hsk-studio-interop-vector-core",
+ "lane": "SMB-DXF-EPS-IMPORT",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "remediation 2026-10-21 pushed e64eacd..a105766 (fast-forward); READY_FOR_VALIDATION on a105766; awaiting steward sync + R36",
+ "commits": [
+  {
+   "sha": "fce2faf",
+   "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT slice 1): DXF import via the dxf crate, DWG typed refusal",
+   "pushed_as": "13b36ac",
+   "pushed": true
+  },
+  {
+   "sha": "69d9a8a",
+   "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT slice 2): EPS DSC/DOS-header/preview reading and EPSF 3.0 export",
+   "pushed_as": "a395928",
+   "pushed": true
+  },
+  {
+   "sha": "48e6432",
+   "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT slice 3): isolated stet EPS-to-PDF worker",
+   "pushed_as": "fca69c0",
+   "pushed": true
+  },
+  {
+   "sha": "26cc259",
+   "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT slice 3b): EPS worker memory-cap detection, test fixes",
+   "pushed_as": "c3894bd",
+   "pushed": true
+  },
+  {
+   "sha": "ae8d787",
+   "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT): DXF test counts fills by paint rows",
+   "pushed_as": "86061c0",
+   "pushed": true
+  },
+  {
+   "sha": "8a89e7b",
+   "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT): NOTICE for ezdxf (MIT) ACI table and stet embedded resources",
+   "pushed_as": "85b3446",
+   "pushed": true
+  },
+  {
+   "sha": "6cf1de4",
+   "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT remediation R1): EPS interpreter route removed for licensing",
+   "pushed_as": "6cf1de4",
+   "pushed": true
+  },
+  {
+   "sha": "65f3a04",
+   "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT remediation R2): own DXF reader adapted from MIT dxf 0.6.2, default-on",
+   "pushed_as": "65f3a04",
+   "pushed": true
+  },
+  {
+   "sha": "a105766",
+   "subject": "interop-vector-core (SMB-DXF-EPS-IMPORT remediation R2b): clippy while_let_loop in the DXF reader",
+   "pushed_as": "a105766",
+   "pushed": true
+  }
+ ],
+ "capabilities_done": [
+  "slice 1 (AF-06): feature dxf, import_dxf: ASCII and binary DXF via dxf =0.6.2 into the shared PDF-drawing Folio builder (extracted from import_ai_document as document_from_drawing, .ai behaviour unchanged): LINE, CIRCLE, ARC, ELLIPSE, LWPOLYLINE/POLYLINE with bulges (arcs as cubics), SPLINE (clamped non-rational degree 1..3 exact by Boehm knot insertion, else rational de Boor sampling, fit points as polyline), SOLID/TRACE fills, INSERT/BLOCK expansion with scale, rotation, column/row arrays, layer-0 inheritance, BYBLOCK/BYLAYER colour and weight, layers as named group layers (hidden when off), $INSUNITS / $MEASUREMENT units, ACI and true colour, lineweights; typed losses (text, dimensions, leaders, hatches/unknown entities, images, points, paper space, invisible, polyline widths, meshes, linetypes drawn solid, non-planar extrusions, unitless assumed, draw order grouped by layer, aci 7 drawn black). DWG (all builds): identify_cad, import_dwg -> VectorError::DwgUnavailable{version, route DWG_ROUTE, preserved bytes}; import_dxf on DWG refuses the same way",
+  "slice 2 (AF-07 EPS stage 1 + export): read_eps / import_eps_preview: DOS binary header (PS/WMF/TIFF sections bounds-checked), DSC header line-tokenised (BoundingBox, HiResBoundingBox, (atend) trailer, LanguageLevel, DocumentFonts/DocumentNeededResources with %%+), EPSI preview decoded to 8-bit gray, TIFF/WMF preview bytes returned; losses eps_vector_not_decoded + eps_preview_raster/missing; import_eps -> EpsVectorNotDecoded{route EPS_ROUTE, preserved}; EpsPdfConverter port + import_eps_with (PDF to the same drawing builder, loss eps_via_pdf_conversion); export_eps / export_eps_proposal: DSC EPSF 3.0 (bbox from artboard, solid fills, LanguageLevel 3 shfill linear/radial gradients via stitched type 2 functions, strokes with cap/join/miter/dash) with typed losses (opacity, blend, gradient strokes/midpoints/spread/interpolation, profiles, stroke align, hidden layers, clips, masks, patterns, non-vector layers, preview not written)",
+  "slice 3 (AF-07 EPS stage 2): feature eps: WorkerEpsConverter via hsk-studio-worker (one fresh worker per conversion, env cleared, no window, deadline + cancel, Windows Job Object memory and CPU caps, memory notice polled every 100 ms -> memory_cap, killed and reaped); feature eps-worker: bin interop-vector-eps-worker running stet =0.8.4 render_to_pdf on a 64 MiB stack thread with file/run limited to embedded resources, deletefile/renamefile/filenameforall denied, status hiding disk names, system-font loaders off, print sunk; panic exits 70. Facade hsk-studio-interop-vector forwards dxf/eps/eps-worker and re-exports the API; DESCRIPTOR native_gap names the routes. NOTICE for ezdxf and stet resources",
+  "remediation 2026-10-21 (lead decisions pre-R36): DXF import now default-on through src/dxf_reader.rs, adapted from MIT dxf 0.6.2 with NOTICE attribution (no external dependency, no `dxf` feature, no thumbnail): ASCII and binary (R12 one-byte + 255 escape, R13+ two-byte) code pairs, HEADER $INSUNITS/$MEASUREMENT, LAYER table, BLOCKS, ENTITIES; draws LINE/3DLINE, CIRCLE, ARC, ELLIPSE, LWPOLYLINE, POLYLINE+VERTEX(+SEQEND), SPLINE, SOLID, TRACE, INSERT (+ATTRIB gathering) with arrays; typed losses for TEXT/MTEXT/ATTDEF/ATTRIB, DIMENSION, LEADER, IMAGE/WIPEOUT, POINT and every other type (HATCH, 3DFACE, 3DSOLID, REGION, proxies, stray VERTEX/SEQEND). EPS: stet worker, eps/eps-worker features, worker bin and hsk-studio-worker edge removed; import_eps is a typed refusal eps_vector_not_decoded with EPS_ROUTE naming the licensing removal and the available DSC data/preview; slice 2 (DSC, DOS header, previews, EPSF 3.0 export, host EpsPdfConverter port import_eps_with) unchanged"
+ ],
+ "tests": {
+  "argv": "lane-check.sh --owner smb-dxf-eps-import --disk d -- cargo nextest run -p hsk-studio-interop-vector-core -p hsk-studio-interop-vector --no-fail-fast (clippy over core, facade and dependents harness, harness-view, interop-vector-svg; default features)",
+  "exit": 0,
+  "sha": "a105766",
+  "passed": 39,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 2704,
+ "bg_pids": [],
+ "next": "steward: pre-R36 sync (see notes.remediation_20261021.steward_facts); validator: judge a105766. Follow-ups (new lanes): EPS/PostScript conversion route (OPERATOR ITEM per lead decision), DXF text/hatch/dimension drawing, DXF/DWG export, harness import routes for .dxf/.eps/.dwg, WMF preview decoder.",
+ "updated_at": "2026-10-21T15:30:27Z",
+ "notes": {
+  "operator_basis": "START_LOG lead decision 2026-10-16 (Affinity/AF-02/06/07): DXF via dxf (MIT); DWG typed refusal (acadrust MPL, LibreDWG GPL, ODA proprietary excluded); EPS DSC/preview first, then stet (Apache-2.0 OR MIT) in an isolated capped worker producing PDF for the existing import_ai_with/PDF path; Ghostscript (AGPL) excluded; dependency age >= 2 weeks. Lead approval 2026-10-20 (message): dxf =0.6.2, stet 0.8.4 set with pins, optional edge interop-vector-core -> hsk-studio-worker, eps-worker bin, subject to the steward licence gate; NOTICE entries added.",
+  "spec_basis": [
+   "STU-IO-006 row 18: Encapsulated PostScript .eps, Vector, I·X, 'Legacy vector interchange transformed; rasterized where structure is opaque', SOX.",
+   "STU-IO-006 row 21: CAD drawing .dwg, Vector (CAD), I·X, 'CAD vector with drawing-scale support; transformed to Studio vector; non-vector CAD entities receipted', SOX. NOT MET for import: DWG is a typed refusal (no permissive reader, lead decision); export not built.",
+   "STU-IO-006 row 22: CAD interchange .dxf, Vector (CAD), I·X, 'CAD interchange transformed with drawing scale; unsupported entities receipted', SOX. Import built; DXF export not built.",
+   "STU-IO-004 (e): recovery behavior: malformed, partial, truncated inputs fail closed with a receipt (typed MalformedDxf/MalformedEps/BudgetExceeded, preserved blobs on refusals).",
+   "spec module: .GOV/spec/master-spec-v02.216/spec-modules/14-studio-creative-suite.md (SPEC_CURRENT v02.216)"
+  ],
+  "parity_rows": "research/parity-matrix-20261016.json app affinity: AF-06 DWG/DXF MISSING -> DXF import + DWG typed refusal (DWG/DXF save still MISSING); AF-07 EPS MISSING -> EPS open (preview in process; vector via isolated worker) + EPSF save. Affinity behaviour for DXF/EPS is UNVERIFIED (D5).",
+  "placement": "interop-vector-core owns the vector import formats (ai_import, pdf_port already there); new modules cad, dxf_aci, dxf_import (feature dxf), eps, eps_export, eps_worker (+ bin). interop-vector-svg untouched. Facade: features + re-exports + DESCRIPTOR text.",
+  "deps": "dep-requests.jsonl lines at 2026-10-20T23:12:20Z (dxf, stet, stet-core, stet-fonts pin, stet-graphics pin, edge to hsk-studio-worker); SendMessage report to the lead sent before any push; lead approved. stet default-features off: render (stet-render, tiny-skia fork) not in the closure. Lock entries checked on crates.io (dates, licences). Cargo.lock not committed.",
+  "clean_room": "Read (permissive): dxf-rs 0.6.2 spec XML/entity.rs for the API, stet 0.8.4 sources (lib.rs, file_store.rs, file_ops.rs, misc_ops.rs, eps.rs) for the API and the file-operator surface, ezdxf colors.py DXF_DEFAULT_COLORS (MIT, attributed in dxf_aci.rs and NOTICE). Not read: acadrust (MPL), LibreDWG (GPL), Ghostscript (AGPL).",
+  "hostile_input": "DXF: max_bytes, code-0 record pre-scan before parse (dxf_records), catch_unwind on the parser, insert depth/cycle/array caps, segment/item budgets, coordinate limit (tests/dxf_import.rs hostile_dxf_is_bounded_and_typed). EPS: preview side/area/declared-data checks before allocation, DOS section bounds/overflow, max_bytes (tests/eps_import.rs hostile_eps_is_bounded); PostScript loop -> deadline, recursion contained, 1.6 GB string bomb -> memory_cap under the 256 MiB Job cap, all workers reaped (tests/eps_worker.rs postscript_loops_and_bombs_are_contained); file operators denied (file_operators_are_denied_in_the_worker). V4-08 DSC decoys: dsc_is_line_tokenised_against_decoys.",
+  "findings_during_build": "stet tolerates program errors for EPSF input (the page is kept) and reports them for plain PostScript; the file-operator test uses plain PostScript with an error control. A Job-cap allocation failure aborts the worker via fast-fail which the crash reporter can hold past the deadline (measured: no exit within 15 s), so the host polls the Job memory notice. The shared drawing builder gives stroke-only paths NonZero winding (existing behaviour); fills are identified by style rows.",
+  "tests_by_slice": "slice 1: tests/dxf_import.rs dxf_entities_become_layered_paths_in_points, dxf_inserts_splines_and_losses, dwg_is_refused_naming_the_dxf_route, hostile_dxf_is_bounded_and_typed; unit dxf_import::tests::binary_dxf_imports_like_ascii. slice 2: tests/eps_import.rs dos_header_and_dsc_comments_are_read, epsi_preview_and_atend_boxes, dsc_is_line_tokenised_against_decoys, hostile_eps_is_bounded; facade tests/eps_export.rs proposal_exports_as_dsc_conforming_epsf. slice 3: tests/eps_worker.rs eps_converts_to_pdf_in_the_isolated_worker, postscript_loops_and_bombs_are_contained, file_operators_are_denied_in_the_worker, exported_epsf_converts_and_caps_are_typed.",
+  "runs": "run1 (48e6432): 36/39, 3 own-test failures (bulge direction expectation, EPSF error tolerance, memory abort held to deadline); run2 (26cc259): 38/39 (fill detection by winding); run3 (ae8d787): clippy clean, 39/39. Logs: Handshake_Artifacts/WP-KERNEL-STUDIO/smb-dxf-eps-import/logs/run1..3.log. 8a89e7b adds only NOTICE (no re-run needed).",
+  "gaps": "import_eps_with is proven with a recording provider, not with Press read_vector_document end to end (needs a harness-level lane; cargo builds no bins of dependencies); no harness import route for .dxf/.eps/.dwg yet; TIFF preview decode left to the host (interop-tiff), no WMF decoder; non-Windows workers have the deadline only (no memory/CPU cap); DXF text/hatch/dimensions not drawn; DXF/DWG export and EPS preview export not built.",
+  "unverified": "DOS EPS header field layout (Adobe TN 5002, not re-fetched; consistent with stet's own reader for the PS section); EPSI sample polarity (0 black) and row order; ACI palette values (ezdxf's AutoCAD 2020 table; 249-255 look atypical); unitless DXF assumed mm (metric) or inch (English); Affinity's own DXF/EPS behaviour (D5).",
+  "shared_files": "commits carry only interop-vector-core and interop-vector paths (pathspec commits); Cargo.lock not committed",
+  "pushed_as": {
+   "map_local_to_origin": {
+    "fce2faf": "13b36ac",
+    "69d9a8a": "a395928",
+    "48e6432": "fca69c0",
+    "26cc259": "c3894bd",
+    "ae8d787": "86061c0",
+    "8a89e7b": "85b3446"
+   },
+   "by": "lead 2026-10-21 record upkeep: origin/codex/handshake-studio-assets restored at 8bb6f64 after the deletion incident; this lane's commits were rebased by the lead and pushed (patch-ids verified identical); ledger status READY_FOR_VALIDATION on the pushed tip."
+  },
+  "remediation_20261021": {
+   "basis": "START_LOG lead decisions 2026-10-21 (pre-R36 steward BLOCKED on this lane's closure) and the 2026-10-14 permissive-adaptation rule; remediation dispatch 2026-10-21",
+   "removed": "dependencies dxf =0.6.2, stet =0.8.4, stet-core, stet-fonts, stet-graphics (pins), optional path dep hsk-studio-worker; features dxf, eps, eps-worker (core and facade); [[bin]] interop-vector-eps-worker (src/bin/interop-vector-eps-worker.rs); src/eps_worker.rs; tests/eps_worker.rs (4 tests); facade re-exports EPS_WORKER_PROGRAM, EpsWorkerOptions, WorkerEpsConverter; core re-exports EPS_WORKER_PANIC_EXIT/PROGRAM/PROTOCOL, eps_worker_main",
+   "adapted": "src/dxf_reader.rs from dxf 0.6.2 (MIT, Copyright (c) IxMilia; read in the local cargo registry): expected_type.rs value-type table; code_pair_iter.rs ASCII/binary readers incl. two-byte detection and 255 escape; code_pair_value.rs U+XXXX and caret escapes; drawing.rs/block.rs/entity.rs/entity_iter.rs reading order and POLYLINE/VERTEX, INSERT/ATTRIB gathering; spec/EntitiesSpec.xml, TableSpec.xml, HeaderVariablesSpec.xml field codes and defaults; color.rs sign convention (negative = layer off). Strings decoded as UTF-8 when valid, else Windows-1252. dxf_import.rs rewritten onto the reader model (geometry code unchanged).",
+   "dxf_feature_choice": "default-on: the `dxf` cargo feature is removed from core and facade (nothing external remains, fewer gates); import_dxf is always built and re-exported",
+   "fail_closed_vs_dxf_crate": "undefined group code -> MalformedDxf(group_code); unparsable number -> value; truncated pair or section -> truncated; section not closed -> endsec; LWPOLYLINE/SPLINE continuation before its x -> lwpolyline_vertex/spline_point; unknown entity types and DIMENSION without subclass marker are typed losses (the dxf crate skipped them silently); catch_unwind removed (no foreign parser)",
+   "hostile_input": "V4-01: deny(clippy::arithmetic_side_effects) on dxf_reader.rs and dxf_import.rs (checked_rem/checked_div, saturating ops; tests module allows it). V4-02: max_bytes and dxf_records pre-scan kept; new aggregates dxf_values (stored vertices/knots/weights/points <= 2*max_segments+4096) and dxf_entity_visits (<= max_segments, insert fan-out); block lookup by BTreeMap (was linear per insert); layer colour i16::MIN via saturating_abs; shorts written as huge doubles saturate (array refused). Proofs: tests/dxf_import.rs hostile_dxf_is_bounded_and_typed, adapted_reader_rejects_damage, insert_fan_out_is_bounded; unit dxf_import::tests::damaged_binary_dxf_is_typed (truncations, undefined code, missing sentinel, dxf_values cap)",
+   "eps_refusal": "EPS_ROUTE = postscript_interpreter_route_removed_for_licensing_dsc_data_from_read_eps_and_preview_from_import_eps_preview_are_available; import_eps -> VectorError::EpsVectorNotDecoded{route, preserved} (code eps_vector_not_decoded, FailureCode::Unavailable); proof tests/eps_import.rs eps_conversion_refusal_names_the_removed_interpreter_route. import_eps_with + EpsPdfConverter kept as a host-supplied port (no implementation ships; EpsConverterUnavailable/EpsConversionFailed docs rewritten).",
+   "licence_facts": "dxf 0.6.2: MIT (LICENSE.txt Copyright (c) IxMilia), hard dep image 0.25 features [bmp] (registry: image designated to harness/harness-view) -> code adapted, crate not used. stet 0.8.4: embeds the 35 URW++ base35 Type 1 fonts that Artifex publishes under AGPL only (OFL reading is stet's inference) -> rejected by the lead with stet-core/fonts/graphics; no other PostScript dependency added. ezdxf ACI table attribution (MIT) unchanged.",
+   "notice_changes": "NOTICE: stet embedded-resource section (URW fonts, CMYK ICC, Adobe CMap tables, AGL) removed; the dxf 'used through its public API' line replaced by the adaptation attribution with the full MIT text of dxf-rs; ezdxf block kept",
+   "steward_facts": "crates/hsk-studio-interop-vector-core/Cargo.toml has no registry dependency (only path deps accord, folio, nib, observe) and no features besides default=[]; facade has default=[] only. Not needed any more: round-features set for interop-vector-core ([[dxf, eps-worker]]), edge interop-vector-core -> hsk-studio-worker (--add-edge), jpeg-encoder IJG allowance in license_gate.py, any dxf/stet/image/hayro lock entries. Cargo.lock: the lane's local lock pruned itself back to the committed lock during the run (no Cargo.lock diff vs origin; not committed). Root Cargo.toml, Cargo.lock, tools/**, .config/** untouched. The six rejected dep-requests lines stay as the lead marked them; no new lines.",
+   "runs": "remediation-run1 (65f3a04): 39/39 passed, clippy warning while_let_loop in dxf_reader.rs -> fixed a105766; remediation-run2 (a105766): clippy clean for core/facade/dependents (only hsk-studio-observe's own 2 pre-existing warnings), 39/39 passed, exit 0. Logs: Handshake_Artifacts/WP-KERNEL-STUDIO/smb-dxf-eps-import/logs/remediation-run1.log, remediation-run2.log. Rebase before push was a no-op (origin still e64eacd), so no post-rebase re-run. Initial update to e64eacd done with git merge --ff-only (HEAD 85b3446 was an ancestor; rebase refused only because the lane's own uncommitted Cargo.lock was dirty).",
+   "tests_by_slice": "R1: tests/eps_import.rs eps_conversion_refusal_names_the_removed_interpreter_route (new); tests/eps_worker.rs deleted. R2: unit dxf_import::tests::binary_dxf_imports_like_ascii (rewritten: ASCII CRLF, R13+ and R12 binary of one drawing read equal and import equal), dxf_import::tests::damaged_binary_dxf_is_typed (new); tests/dxf_import.rs adapted_reader_rejects_damage, insert_fan_out_is_bounded (new); existing four dxf integration tests unchanged and passing.",
+   "gaps": "EPS vector content: no conversion route in Studio (OPERATOR ITEM: Artifex commercial font licence, a stet build without embedded fonts, a clean-room interpreter, or attended Illustrator/Acrobat conversion); DXF: text, hatches, dimensions, leaders, images, points, meshes, 3D entities not drawn (typed losses), linetypes drawn solid, thumbnail not read, non-UTF-8 strings decoded as Windows-1252 regardless of $DWGCODEPAGE; DXF/DWG export not built; harness import routes still absent. The DXF reader is not yet checked against a CAD-application-written corpus file (fixtures are generated in the tests): UNVERIFIED on real files.",
+   "v4_06": "failure class: external dependency closure outside the registry/licence policy; search regex `^(dxf|stet|stet-core|stet-fonts|stet-graphics|hsk-studio-worker)\\s*=|feature = \"(dxf|eps|eps-worker)\"|eps_worker|WorkerEpsConverter` over crates/hsk-studio-interop-vector-core/** and crates/hsk-studio-interop-vector/**: 0 code matches after a105766 (doc-text mentions of the removed stet worker in eps.rs and the facade DESCRIPTOR only, intended)"
+  }
+ },
+  "verdicts": [
+    {"decision": "passed", "verdict": "PASS_V1", "status_change": "PASS_V1", "included_by": "READY claim in candidate", "prior_status": "READY_FOR_VALIDATION", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "Remediated claim verified at a105766: interop-vector-core Cargo.toml has only accord/folio/nib/observe path deps (no dxf, stet*, image, worker; no features; no bin); src/dxf_reader.rs (963 lines, deny arithmetic_side_effects, NOTICE MIT attribution to dxf 0.6.2 and ezdxf) reads ASCII/binary DXF; import_eps always refuses VectorError::EpsVectorNotDecoded (code eps_vector_not_decoded, EPS_ROUTE, bytes preserved), read_eps keeps DSC/DOS header/EPSI preview, EPSF 3.0 export kept. Union: core 13 + facade 26 = 39 passed (dxf 8, dwg 1, eps tests passed). DXF reader behaviour on CAD-written files UNVERIFIED (lane disclosure); EPS conversion route is an Operator item. units of interop-vector/interop-vector-core: 2 crate units + default; all build 0 / run 0; default passed interop-vector 26, interop-vector-core 13", "idempotency_key": "STUDIO-R36:SMB-DXF-EPS-IMPORT:a10576683c7a:PASS_V1", "claim_scope": "remediated claim 13b36ac..a105766: stet/dxf deps, worker bin and eps features removed (6cf1de4), own DXF reader (65f3a04), clippy (a105766)", "round": "STUDIO-R36", "lane": "SMB-DXF-EPS-IMPORT", "candidate": "a10576683c7a76b3da37e6ec4794652c3e903bbd", "tree": "27fb1f13e97fbaecd9e4b61428e53bcab50a3169", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R36", "started_at": "2026-10-21T17:26:59Z", "completed_at": "2026-10-22T05:34:45Z"},
+    {"decision": "passed", "verdict": "PASS_V2", "status_change": "PASS_V2", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: interop-vector, interop-vector-core).  units of interop-vector/interop-vector-core: 2 crate units + default; all build 0 / run 0; default passed interop-vector 26, interop-vector-core 13", "idempotency_key": "STUDIO-R37:SMB-DXF-EPS-IMPORT:1d139a6990f5:PASS_V2", "claim_scope": null, "round": "STUDIO-R37", "lane": "SMB-DXF-EPS-IMPORT", "candidate": "1d139a6990f55b77c1ce09c1dc7a5c2f47c324f4", "tree": "3c2b5fe1ce168053e16b0f682b9b728a0441c9fc", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37", "started_at": "2026-10-22T09:20:11Z", "completed_at": "2026-10-22T13:00:58Z"}
+  ]
+}

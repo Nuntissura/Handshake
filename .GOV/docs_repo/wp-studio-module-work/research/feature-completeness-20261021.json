@@ -1,0 +1,161 @@
+{
+ "schema": "hsk.studio.research.feature_completeness@1",
+ "file_id": "WP-KERNEL-STUDIO-FEATURE-COMPLETENESS-20261021",
+ "updated_at": "2026-10-21T01:35:48Z",
+ "by": "lead (KERNEL_BUILDER coordinator, Claude Fable 5.1), synthesis of eight read-only audit agents; no build, test or app launch was run for this report",
+ "wp": "WP-KERNEL-STUDIO",
+ "question": "How feature complete is Studio (Rust rewrite of Photoshop, Lightroom Classic, Illustrator, InDesign, Premiere Pro, After Effects, Audition, Figma and Affinity), separately for (1) code/engine and (2) GUI, per app and overall, with the evidence level of every figure?",
+ "basis": {
+  "product_tip": "origin/codex/handshake-studio-assets @ e64eacd (repo Nuntissura/assets, workspace handshake-studio-assets/, 45 crates); verified read-only in the clean lane checkout wt-studio-lanes/smb-ps-oracle-parity-2 at e64eacd",
+  "kernel": "gov_kernel @ dc9482bd",
+  "last_finalized_round": "STUDIO-R35 @ 237256f (completed 2026-10-20T14:11Z, 256 PASS / 2 FAIL, both remediated in 3b73143); R36 never ran",
+  "spec": "SPEC_CURRENT -> v02.216 (.GOV/spec/master-spec-v02.216/spec-modules/14-studio-creative-suite.md)",
+  "starting_point": "research/parity-matrix-20261020.json (308 auditor-selected feature rows over 9 apps; its anchors were read at 6585ff0, 25 commits before the tip)",
+  "audit_inputs": [
+   "research/audit-20261021/git-inventory.json (pushed vs local vs uncommitted work)",
+   "research/audit-20261021/validation-state.json (336 ledger lanes reconciled with round-R34/R35 and lane files)",
+   "research/audit-20261021/parity-photoshop.json, parity-lightroom_classic.json, parity-illustrator.json, parity-figma.json, parity-indesign.json, parity-affinity.json, parity-premiere_pro.json, parity-after_effects.json, parity-audition.json (every matrix row re-verified against code at e64eacd, tests, lane status and oracle files)",
+   "research/audit-20261021/gui-surfaces.json (49 user-facing surfaces of the harness viewer, window reachability, per-app workflow assessment)",
+   "research/audit-20261021/cargo-disk-inventory.json (C:/D: build-output measurement; separate Operator item, not part of the completeness figures)"
+  ],
+  "lead_verifications": [
+   "patch-id comparison: the 21 pre-rebase shas cited by lane files SMB-DXF-EPS-IMPORT, SMB-PS-ORACLE-PARITY-2 and SMB-TYPE-FF-LIGATURE are exact copies of the pushed commits 13b36ac..85b3446, 8f5bbfc..e64eacd and 9b29497..2e0f53e (lead, git patch-id --stable, 2026-10-21)",
+   "Cargo.lock at e64eacd contains no entry for dxf, stet, stet-core, stet-fonts or stet-graphics although crates/hsk-studio-interop-vector-core/Cargo.toml declares them as optional pinned deps (git grep); the last lock sync is 673f9b7, before the DXF/EPS push",
+   "STU-CMP-034 and STU-CMP-100 (v02.216) declare assisted rotoscoping a gap: 'until it is specified an implementer builds the manual path and does not improvise a propagation algorithm'"
+  ]
+ },
+ "evidence_levels": {
+  "engine": {
+   "VALIDATED": "a lane with ledger status PASS_Vn covers the whole capability's commits. proof_stale=true (255 of 274 PASS lanes) means the verdict was judged at or before 237256f and the owning crate changed since; R36 must re-confirm it (CX-VAL-009). Validated never means pixel/numeric parity with the vendor app unless the oracle column says so.",
+   "BUILT_NOT_VALIDATED": "code is pushed on origin, covering lane READY_FOR_VALIDATION, no PASS verdict yet (19 lanes)",
+   "PARTIAL": "a named sub-capability is absent or a typed refusal",
+   "MISSING": "no code (the verifier cites the search that found nothing)",
+   "weights": "pct = 100 * (VALIDATED + 0.5*BUILT_NOT_VALIDATED + 0.25*PARTIAL) / rows, the matrix's own formula; rows are unweighted and the catalogue is an auditor selection (25-36 rows per app, 80 for Affinity), not the spec catalogue (6204 MT files)"
+  },
+  "oracle": {
+   "meaning": "comparison against output of the real vendor app from the D5 session (2026-10-16): Photoshop 27.11.0, Illustrator 30.8.2, InDesign 21.6, After Effects 26.5. Figma: Operator-exported .fig fixtures and their PNGs. Lightroom RAW decode: Adobe DNG Converter 18.7 output (a decode oracle, not Lightroom). Premiere, Audition, Affinity, Lightroom develop/library: no oracle, UNVERIFIED against the app.",
+   "status": "all oracle counts below are derived from the checked-in expectations / expected-mismatch files at e64eacd and the lane claims; none was re-run for this report; only the After Effects keyframe suite (SMB-D5-AI-ID-AE-COMPARE slice 1) carries a PASS verdict (R35)"
+  },
+  "gui": {
+   "PASS_JUDGED_HEADLESS": "a harness viewer test with a PASS_Vn lane draws one egui frame and checks the viewer's self-reported widget list, document pixels or an AccessKit node count; no test sends mouse or keyboard input; no egui_kittest, Argus or screenshot proof exists",
+   "READY_UNJUDGED": "surface pushed, lane READY_FOR_VALIDATION",
+   "UNTESTED / STUB_OR_REFUSAL": "surface coded without a test, or a typed refusal",
+   "reachable_in_window": "whether the surface can be opened from the desktop binary studio-harness (eframe window 1400x900, hosts exactly one Viewer) as documented in crates/hsk-studio-harness/RUN-UI.md; 16 of the 38 PASS-judged surfaces are NOT reachable there (opened only through Viewer methods in tests, or never hosted)",
+   "desktop_launch": "NOT_PROVEN: no test opens a window, no Operator launch record, rounds record 'not launched'",
+   "gui_pct": "per app: core user workflows listed by the GUI auditor; DOABLE judged = 1, DOABLE unjudged = 0.5, ENGINE_ONLY or MISSING = 0; this is a Studio-internal check, never a comparison with the vendor UI"
+  }
+ },
+ "delivered_work_state": {
+  "pushed": {
+   "origin_tip": "e64eacd",
+   "commits_since_20261014": 705,
+   "lane_tags_since_20261014": 173,
+   "untagged_commits": 29,
+   "commits_since_r35_candidate_237256f": 79,
+   "crates_changed_since_r35": 28,
+   "lane_worktrees": 34,
+   "lane_worktrees_fully_pushed": 32,
+   "last_pushes_20261021": ["3432d5c SMB-AE-ROTO-TIMEREMAP (time remap, assisted roto, refine edge)", "85b3446 SMB-DXF-EPS-IMPORT (DXF import, EPS read/export, isolated EPS worker)", "2e0f53e SMB-TYPE-FF-LIGATURE (Type v2 ligatures, InDesign composer parity: 93 of 99 oracle matches)", "e64eacd SMB-PS-ORACLE-PARITY-2 (Photoshop blend/style maths: 489 of 588 oracle matches)"],
+   "branch_incident": "codex/handshake-studio-assets was deleted on GitHub 2026-10-21 by an unguarded push and restored at 8bb6f64; nothing was lost (all 4 later lanes rebased and pushed on top; patch-ids verified)"
+  },
+  "validated": {
+   "lanes_PASS": 274,
+   "validated_at": {"237256f (R35)": 254, "dd63d21 (R28)": 17, "ca5e9c9 (R34)": 2, "507aa36 (R26)": 1},
+   "proof_stale": 255,
+   "stale_reasons": {"direct_crate_change": 231, "reverse_dependency_closure": 23, "round_entry_script_changed": 1},
+   "pass_with_fresh_proof": 19,
+   "note": "R36 must run full scope (CX-VAL-011): Cargo.lock, .config and tools/run-round.sh all changed since R35"
+  },
+  "built_not_validated": {
+   "lanes_READY_FOR_VALIDATION": 19,
+   "lanes": ["SMB-DEVELOP-LENS-PRESETS slice 6", "SMB-PACKAGE-COMPLETENESS-2", "SMB-CRATE-SEAM-SPLITS (harness split 12e2d46)", "SMB-D24A-CODEC-DEFAULTS (R35 FAIL_V1, remediation 3b73143 in claim)", "SMB-PS-ADJUST-STYLES-3", "SMB-AE-PARTICLES-AUDIO-PRESETS", "SMB-AE-ROTO-TIMEREMAP", "SMB-ID-PREPRESS (R35 FAIL_V1, remediation 3b73143 in claim)", "SMB-AI-TYPE-PATH-RECOLOR", "SMB-AU-WAVEFORM-EDITOR", "SMB-AFFINITY-INTEROP-1", "SMB-DXF-EPS-IMPORT", "SMB-D5-PS-COMPARE", "SMB-RAW-CLEANROOM-2", "SMB-PS-ORACLE-PARITY-1", "SMB-ID-COMPOSER-PARITY", "SMB-AI-AE-ORACLE-FOLLOWUPS", "SMB-TYPE-FF-LIGATURE", "SMB-PS-ORACLE-PARITY-2"],
+   "all_claimed_shas_in_origin": "yes, except two record errors: 8411820 (pre-rebase copy of 557ac06, SMB-AU-WAVEFORM-EDITOR) and 437b0210 (a gov_kernel research commit cited by mistake)"
+  },
+  "local_only": {
+   "smb-crate-seam-splits-2": "BLOCKED; fef312e (interop-fig split into fig-base/fig-native + facade) and 67a7496 (web split into web-core/web-assets + facade, UNTESTED) exist only in wt-studio-lanes/smb-crate-seam-splits-2; two .config paths must be repointed per the lane file",
+   "smb-steward-lock-release-bug": "d44a708 empty probe commit, never meant for push"
+  },
+  "uncommitted": {
+   "wt-studio-assets (shared tree, HEAD 8bb6f64, 25 behind origin)": "Cargo.lock; harness tests/common/mod.rs and pigment tests/transform.rs (stale edits from 2026-10-15); untracked press_desc_1da2453.json and press_desc_2dde832.json; 12 SAFETY stashes repo-wide. Not made by this session; left untouched pending Operator decision",
+   "smb-premiere-color-titles": "crates/hsk-studio-composite/src/composition.rs modified, uncommitted, in a PASS lane's worktree (leftover; needs inspect-and-commit or discard decision)",
+   "smb-raw-cleanroom": "untracked develop/src/raw_cr/parity.rs and raw_cr/rw2.rs (drafts superseded by SMB-RAW-CLEANROOM-2 d51b0c9; decision needed)",
+   "six lane trees": "Cargo.lock only (builders leave the lock uncommitted by rule)"
+  },
+  "record_drift": {
+   "lane_files_stale": ["hsk-studio-ae-roto-timeremap.json (status null)", "hsk-studio-dxf-eps-import.json (status null, pre-rebase shas)", "hsk-studio-type-ff-ligature.json (BLOCKED, pre-rebase shas)", "hsk-studio-ps-oracle-parity-2.json (BLOCKED, pre-rebase shas)", "hsk-studio-accord-composition-prefix.json ('see git log' instead of shas)"],
+   "ledger": "ledger.json is the authority for these lanes (READY_FOR_VALIDATION) and names the pushed tip shas; the lane files need a pushed_as mapping (lead record upkeep, queued)"
+  },
+  "remote_branches_outside_studio_branch": ["origin/codex/handpick @ 7511afa", "origin/lane/smb-layout-ui-2-backup @ f3c2a32 (Operator may delete; listed in HANDOFF)"],
+  "known_regression_candidate": "harness test fig_paints_2 bold_text_renders_with_the_inter_bold_fixture p99 5.700324 > pinned 5.698 at 6585ff0 (START_LOG 2026-10-21). interop-fig is unchanged since R35, so the cause is a dependency: suspects ranked by diff reading 30ea18e, 3d5fbda, then a95f819, d69a277, f588e45 (pigment blend/coverage maths, render-cpu). For the R36 validator to attribute; no test was run.",
+  "lockfile_gap": "Cargo.lock at e64eacd lacks dxf/stet*/… entries for the optional deps declared by interop-vector-core (SMB-DXF-EPS-IMPORT, deps approved in START_LOG 2026-10-21); a --locked round build would fail until the steward sync lands"
+ },
+ "per_app": [
+  {"app": "photoshop", "rows": 36, "engine": {"counts": {"VALIDATED": 12, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 20, "MISSING": 4}, "pct_matrix": 55.6, "pct_verified": 47.2, "verdicts": {"AGREE": 32, "LOWER": 4, "RAISE": 0}, "lowered": "PS-04, PS-06, PS-07, PS-11: Photoshop-defined sub-features typed-refused in code and exercised by the oracle as NOT_SUPPORTED (modern Brightness/Contrast, masks on pass-through groups, pass-through fill opacity, Hue/Saturation bands)"}, "oracle": "Photoshop 27.11.0, 588 variants: 489 MATCH, 9 MISMATCH, 83 NOT_SUPPORTED, 6 ORACLE_INVALID, 1 ORACLE_ABSENT (derived from expectations.json at e64eacd; lanes SMB-PS-ORACLE-PARITY-1/-2 and SMB-D5-PS-COMPARE are READY, unjudged)", "gui": {"pct_verified": 61.1, "workflows": 18, "matrix_ui_rows": 15, "doable": "open PSD/PSB/TIFF/PNG/JPEG, layers panel with structure/opacity/blend edits, rect/ellipse/lasso/wand/quick/magnetic selection, refine brush, brush, liquify, text placement, save native, PNG/JPEG export", "not_doable": "no menus or file dialogs (paths typed into a text field), no eraser/move/crop/transform/gradient/clone/heal tools, no filters, adjustment layers or layer styles UI, text tool places the literal word 'Text' only"}, "top_gaps": ["fill layers import as opaque preserve", "masks on pass-through groups, pass-through fill opacity, Blend-If on groups refused", "modern Brightness/Contrast and Hue/Saturation bands refused", "no smart-object edit/update/convert", "thin tool and command surface in the viewer"]},
+  {"app": "lightroom_classic", "rows": 35, "engine": {"counts": {"VALIDATED": 16, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 17, "MISSING": 2}, "pct_matrix": 57.9, "pct_verified": 57.9, "verdicts": {"AGREE": 35, "LOWER": 0, "RAISE": 0}, "corrections_inside_agree": "LR-02: RW2 and Huffman NEF now decode only through READY clean-room code (old decoders deleted), so 'VALIDATED decode' overstates them; LR-03: X-Trans demosaic exists (bilinear), matrix said none"}, "oracle": "no Lightroom Classic oracle: all develop/library/export behaviour UNVERIFIED against Lightroom. RAW decode: Adobe DNG Converter 18.7 oracle, RW2 8 of 8 and Huffman NEF 10 of 10 bit-exact (tests #[ignore], corpus-gated, lane READY unjudged)", "gui": {"pct_verified": 65.4, "workflows": 13, "matrix_ui_rows": 11, "doable": "open RAW/DNG, develop panel (basic, tone, colour, detail; lens/transform/effects/calibration/look controls READY), PNG/JPEG export", "not_doable": "no library/catalog browsing (CKC catalog port has only a test double), no TIFF/DNG export, no healing/red-eye, no AI masks (model_unavailable)"}, "top_gaps": ["library is a port without a catalog", "no local healing", "no AI subject/sky masks", "export PNG/JPEG only", "no lens-profile database or .lcp reader"]},
+  {"app": "illustrator", "rows": 32, "engine": {"counts": {"VALIDATED": 17, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 15, "MISSING": 0}, "pct_matrix": 62.5, "pct_verified": 64.8, "verdicts": {"AGREE": 31, "LOWER": 0, "RAISE": 1}, "raised": "AI-18 blend/opacity/isolation/knockout per object: complete in code (only SVG mix-blend-mode lost)", "matrix_errors": "matrix marks EPS MISSING: DXF/EPS import and EPSF export are on origin behind default-off features (READY); nib has Pathfinder trim/crop/merge/divide (only Outline and mix ops refused)"}, "oracle": "Illustrator 30.8.2, 75 entries: 68 MATCH, 6 MISMATCH (AI-01 miter 4/10 on 137 px exports), 1 NOT_SUPPORTED, derived from d5_ai_expected_mismatch.txt at e64eacd; pigment/render-cpu changed after the lane's last run, so AI-04/05 MATCH at the tip is unconfirmed", "gui": {"pct_verified": 47.1, "workflows": 17, "matrix_ui_rows": 13, "doable": "pen/shape/curvature/pencil/knife/shape-builder/width/reshape/blob/paint-bucket tools, fill/stroke/swatch panels, align/transform/graphic styles, make clip/mask (headless-judged)", "not_doable": "swatches, graphic styles, stroke panel, align, clipping masks, gradients and recolour are API-only in the window; .ai opens as an empty carried PDF; no SVG open as content"}, "top_gaps": ["no area type / live path text in the viewer", "no Shaper, Simplify, Make/Release Compound Path, Blend tool", "pattern fills refused by composite; gradient mesh not drawn", "no .ai writer", "no per-object overprint, arrowheads, CMYK/spot print fidelity"]},
+  {"app": "indesign", "rows": 31, "engine": {"counts": {"VALIDATED": 13, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 15, "MISSING": 3}, "pct_matrix": 54.0, "pct_verified": 54.0, "verdicts": {"AGREE": 31, "LOWER": 0, "RAISE": 0}, "biggest_finding": "the Adobe-parity composers, hyphenation and justification are not reachable from the product: the layout editor and IDML reflow compose with Composer::FirstFit and Folio style records carry no composer settings"}, "oracle": "InDesign 21.6, 99 entries: 93 MATCH, 6 MISMATCH (all line-break differences), derived from d5_id_expected_mismatch.txt at e64eacd; the suite shapes with the host's Arial (never committed) and reports NOT_PROVEN without it; lanes READY unjudged", "gui": {"pct_verified": 0.0, "workflows": 10, "matrix_ui_rows": 8, "doable": "nothing in the desktop binary: the layout editor (frames, threads, pages/parents, styles, tables, find/change, preflight) passed headless rounds but is never hosted by the window", "not_doable": "every InDesign workflow in the window; .idml does not open as content"}, "top_gaps": ["parity composers not wired into any surface or document model", "IDML import drops masters, styles, groups; .indd cannot open", "no non-Latin or vertical typography", "PDF/X-4 not proven (Acrobat Preflight oracle is an Operator item)", "auto-size, first-baseline kinds, stored text wrap refused"]},
+  {"app": "figma", "rows": 23, "engine": {"counts": {"VALIDATED": 13, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 4, "MISSING": 6}, "pct_matrix": 60.9, "pct_verified": 60.9, "verdicts": {"AGREE": 23, "LOWER": 0, "RAISE": 0}}, "oracle": "no Figma oracle. Operator fixtures: 3 .fig files render within tolerance (99.19-99.32 % of pixels within 8/255 on whole artboards; text region 91.4 %); the variants PNG is read by no test; multi-mode variables and tween frames unproven", "gui": {"pct_verified": 14.3, "workflows": 7, "matrix_ui_rows": 2, "doable": "prototype play and smart-animate (headless-judged)", "not_doable": "no design editing of .fig content in the window; .fig does not open as editable content"}, "top_gaps": ["no collaboration stack (multiplayer, comments, version history, team libraries)", "design editing UI absent", "no general font resolver; text auto-resize/vertical align typed losses", "GRID auto layout and SLOT refused", "no .fig writer, no SVG frame export"]},
+  {"app": "premiere_pro", "rows": 25, "engine": {"counts": {"VALIDATED": 11, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 12, "MISSING": 2}, "pct_matrix": 59.0, "pct_verified": 56.0, "verdicts": {"AGREE": 24, "LOWER": 1, "RAISE": 0}, "lowered": "PR-12: drop-frame timecode is real but snapping to edit points/markers/work area (STU-VID-035) is absent"}, "oracle": "no Premiere oracle. Non-vendor references only: ffmpeg/libavcodec/libopus/dav1d/ffprobe decoders, SMPTE ST 377-1 text (labels UNVERIFIED). All rows UNVERIFIED against Premiere", "gui": {"pct_verified": 0.0, "workflows": 10, "matrix_ui_rows": 4, "doable": "nothing in the desktop binary; program monitor, source monitor and 3/4-point edits exist only as Viewer methods opened by tests", "not_doable": "no timeline, track/clip, trim, snapping, transitions, titles or export UI"}, "top_gaps": ["no timeline UI at all", "no snapping/magnet, no nest", "no HEVC decode, no ProRes/AAC encode, H.264 via OS decoder only", "one transition, six effect kinds, no scopes", "no multicam, proxies or text-based editing"]},
+  {"app": "after_effects", "rows": 24, "engine": {"counts": {"VALIDATED": 10, "BUILT_NOT_VALIDATED": 2, "PARTIAL": 12, "MISSING": 0}, "pct_matrix": 63.5, "pct_verified": 58.3, "verdicts": {"AGREE": 22, "LOWER": 2, "RAISE": 0}, "lowered": "AE-07 expression globals are in a READY lane (BUILT_NOT_VALIDATED); AE-22 render queue typed-refuses 16/32 bpc, reduced resolution, draft quality, fields, frame blending, work-area spans, alpha output", "roto": "AE-18 assisted roto and AE-10 time remap/frame blending exist as READY library code in pigment/motion but nothing in composite or Folio records calls them; STU-CMP-034/STU-CMP-100 (v02.216) declare assisted rotoscoping a gap, so the lane cannot pass validation on that slice until spec v02.217 allows it"}, "oracle": "After Effects 26.5, 342 entries: 337 MATCH, 0 MISMATCH, 4 NOT_SUPPORTED, 1 NOT_PROVEN (AE-02 tangents variant, app not rerun); keyframe interpolation suite PASS_V1 in R35 (the only oracle suite with a verdict); AE-04 333/333 MATCH", "gui": {"pct_verified": 0.0, "workflows": 8, "matrix_ui_rows": 0, "doable": "nothing: no composition, timeline, keyframe or render-queue panel exists", "not_doable": "every After Effects workflow"}, "top_gaps": ["no composition/timeline UI", "no per-layer effect stack, distort/generate families", "expression library: only value, time, linear() are AE-compatible", "time remap / frame blending / roto unwired", "render queue refuses most settings"]},
+  {"app": "audition", "rows": 22, "engine": {"counts": {"VALIDATED": 16, "BUILT_NOT_VALIDATED": 2, "PARTIAL": 4, "MISSING": 0}, "pct_matrix": 84.1, "pct_verified": 81.8, "verdicts": {"AGREE": 21, "LOWER": 1, "RAISE": 0}, "lowered": "AU-12 display panel and marquee/lasso edits only in the READY waveform-editor lane"}, "oracle": "no Audition oracle. Non-vendor references: ITU-R BS.1770-4 and EBU Tech 3341 text (tones synthesised, official files NOT_PROVEN), analytic DSP responses, libavcodec/libopus/libFLAC decoders. All rows UNVERIFIED against Audition", "gui": {"pct_verified": 25.0, "workflows": 10, "matrix_ui_rows": 2, "doable": "mixer/routing editor, meters, bus keyframes, waveform + spectral editor (READY) — only in an undocumented feature build (desktop + media/audio-batch) and opened through Viewer methods", "not_doable": "no multitrack timeline/clip view, no playback transport in the opened file, no plugin UI"}, "top_gaps": ["no multitrack timeline for the user", "waveform/spectral editor and CLAP-on-selection unjudged", "VST3/AU absent, CLAP opt-in unproven", "real device I/O unproven (cpal opt-in, native streams silence only)", "no Audition oracle for any DSP result"]},
+  {"app": "affinity", "rows": 80, "engine": {"counts": {"VALIDATED": 24, "BUILT_NOT_VALIDATED": 1, "PARTIAL": 40, "MISSING": 15}, "own_code_rows": "5, all PARTIAL (interop-affinity: clean-room KA container reader, typed refusal naming the PSD/PDF/SVG export route, opt-in lossy thumbnail preview)", "inherits_rows": 75, "pct_matrix": 44.1, "pct_verified": 43.1, "verdicts": {"AGREE": 77, "LOWER": 2, "RAISE": 1}, "changed": "AF-06 MISSING -> PARTIAL (DXF import READY); AF-05 IDML import VALIDATED -> PARTIAL (no masters/styles/groups); AF-12 macros/batch PARTIAL -> MISSING (inherited rows are develop-only and audio-only)", "matrix_errors": "AF-07 says EPS missing (EPS import/EPSF export exist, feature-gated, unjudged); AF-71 says no data-merge code (it exists)"}, "oracle": "no Affinity oracle (installed Affinity 3.x has no scripting API; Operator-attended test files pending). 9 MIT .afdesign samples back only the container reader (tests #[ignore], corpus-gated). Every behaviour row UNVERIFIED against Affinity", "gui": {"pct_verified": 60.0, "workflows": 15, "matrix_ui_rows": 26, "doable": "the shared Photoshop/Illustrator/Lightroom surfaces listed above", "not_doable": "no native .af* open beyond a lossy preview; no Persona/StudioLink model; no Publisher surface (layout editor not hosted)"}, "top_gaps": ["no native Affinity document support beyond container reader + preview", "no Persona/workspace model", "pixel persona editing gaps", "no macros/batch/export persona", "Publisher output and import fidelity"]}
+ ],
+ "overall": {
+  "engine": {
+   "rows_9_apps": 308,
+   "counts_verified": {"VALIDATED": 132, "BUILT_NOT_VALIDATED": 5, "PARTIAL": 139, "MISSING": 32},
+   "pct_verified_9_apps": 54.9,
+   "pct_matrix_9_apps": 56.7,
+   "rows_8_apps_comparable": 228,
+   "counts_verified_8_apps": {"VALIDATED": 108, "BUILT_NOT_VALIDATED": 4, "PARTIAL": 99, "MISSING": 17},
+   "pct_verified_8_apps": 59.1,
+   "pct_matrix_8_apps": 61.2,
+   "verdicts_total": {"AGREE": 296, "LOWER": 10, "RAISE": 2},
+   "reading": "about 55 % of the auditor's 308-feature catalogue is implemented when a validated feature counts 1 and a partial one 0.25; 43 % of rows (132) have an independent PASS, but 255 of the 274 PASS lanes were judged at or before 237256f and their crates changed since, so the figure is 'validated as of R35, pending R36', not 'validated at the tip'. Vendor-level parity is proven only where an oracle exists (Photoshop 489/588, Illustrator 68/75, InDesign 93/99, After Effects 337/342 variants), and only the After Effects keyframe suite has a verdict."
+  },
+  "gui": {
+   "surfaces": {"PASS_JUDGED_HEADLESS": 38, "READY_UNJUDGED": 5, "UNTESTED": 4, "STUB_OR_REFUSAL": 2},
+   "pass_judged_surfaces_reachable_in_window": 22,
+   "pct_verified_pooled_108_workflows": 37.0,
+   "pct_verified_mean_of_apps": 30.3,
+   "matrix_ui_row_pct": 26.3,
+   "strict_ui_row_pct_verified": 14.3,
+   "strict_ui_row_pct_with_additions": 19.8,
+   "matrix_ui_flags": {"checked": 81, "agree": 44, "lower": 37, "raise": 17},
+   "desktop_launch": "NOT_PROVEN",
+   "reading": "a user with the desktop binary can do raster photo work (open, layers, selections, brush, liquify, develop RAW, save native, export PNG/JPEG) and vector drawing with the pen/shape tools, all without menus or file dialogs; nothing for InDesign, Premiere Pro or After Effects is reachable in the window, Figma is prototype play only, Audition needs an undocumented feature build. The GUI is a test harness: no docking, no vendor-style panel system, no timeline UI, and no evidence that the window has ever been opened."
+  }
+ },
+ "cross_app_top_gaps": [
+  "Desktop window never shown to open; GUI proof is one egui frame per test with no input events (HBR-VIS-001 Argus/egui_kittest evidence absent)",
+  "No menus or file dialogs; paths typed into a text field",
+  "16 of 38 PASS-judged surfaces are not reachable from the window (layout editor not hosted; program/source monitor, mixer, spectral display, prototype player only via Viewer methods)",
+  "No timeline, composition, keyframe or render-queue UI (Premiere Pro, After Effects, Audition multitrack)",
+  "Adobe-parity composers (InDesign) not wired into any document model or surface",
+  "Assisted roto / time remap / frame blending exist as libraries but are unwired, and the spec still declares assisted roto a gap",
+  "255 of 274 PASS proofs are stale; R36 (full scope) has not run; Cargo.lock lacks the DXF/EPS pins",
+  "No vendor oracle for Lightroom, Premiere, Audition, Figma, Affinity"
+ ],
+ "open_items_lead": [
+  "Steward batched sync before R36: Cargo.lock + registry pins + probe approvals for dxf/stet* (approved 2026-10-21), interop-affinity, harness-core/view split, harness->score-plugin edge; .config path repoints from the SEAM-SPLITS-2 lane file; then canary on D:",
+  "R36 full-scope round with a fresh validator (re-freeze current tip after the sync; attribute fig_paints_2 bold text regression; judge the 19 READY lanes; re-open 255 stale PASS lanes under CX-VAL-009)",
+  "SMB-CRATE-SEAM-SPLITS-2: bundled run of the web split (67a7496 UNTESTED) in its lane worktree before any push; fig split fef312e tested per lane file",
+  "Operator-requested roto spec update: build v02.217 by the repo procedure (copy bundle, edit module 14 STU-CMP-034/STU-CMP-100 to specify assisted rotoscoping, update manifest/INDEX hashes, append spec-changelog.jsonl, archive v02.216, repoint SPEC_CURRENT), commit and push gov_kernel",
+  "Lane-record upkeep: pushed_as mapping for the 4 stale lane files and the 2 wrong shas; ledger already correct",
+  "Decisions needed on the uncommitted edits in smb-premiere-color-titles (composition.rs) and smb-raw-cleanroom (two draft files), and on the shared-tree leftovers"
+ ],
+ "operator_items": [
+  "Cargo cleanup on C: and D: (candidates in research/audit-20261021/cargo-disk-inventory.json; nothing deleted; C: area over its 140 GiB guard so builders fall back to D:)",
+  "PS-C28 mask variants; Photoshop colour setting HSK-gamma-1.0 (gamma oracle pass); Operator-attended Affinity test files; Figma .fig fixtures beyond the 3; Acrobat PDF/X oracle; os-encode legal check before commercial release",
+  "Spec deltas to publish beyond roto: press-read/press-write and interop-affinity crate notes (STU-ARC-010), STU-AUD waveform/spectral editor clauses, STU-ASSET-004 reading for the Lightroom smart-rule preview",
+  "Optional: delete GitHub branch lane/smb-layout-ui-2-backup; decide on origin/codex/handpick"
+ ],
+ "unverified": [
+  "No test, build or oracle comparison was executed for this report; every oracle count is derived from checked-in expectation files at e64eacd and lane claims",
+  "Whether the desktop window opens and is usable; whether the ~60-widget tool row fits at 1400x900; GPU shared-device path (its test exits early without a GPU)",
+  "Illustrator AI-04/05 and Photoshop oracle matches at the tip (pigment/render-cpu changed after the lanes' last bundled runs)",
+  "RAW corpus tests at the tip (all #[ignore], corpus-gated); InDesign suite needs the host Arial",
+  "Whether non-crate inputs (Cargo.lock, .config, round script) count as relevant input paths under CX-VAL-009 (the lead treats the round as full scope regardless)",
+  "The matrix's catalogue coverage of the spec (6204 MT files) is unmeasured; the 308 rows are an auditor selection"
+ ]
+}

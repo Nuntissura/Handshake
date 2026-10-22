@@ -1,0 +1,1613 @@
+{
+ "schema": "hsk.studio.audit.parity_app@1",
+ "file_id": "WP-KERNEL-STUDIO-AUDIT-20261021-PARITY-PHOTOSHOP",
+ "updated_at": "2026-10-21T01:23:47Z",
+ "by": "read-only parity verifier (Sonnet)",
+ "app": "photoshop",
+ "basis": {
+  "tip": "e64eacd",
+  "matrix_file": "research/parity-matrix-20261020.json",
+  "matrix_lines": "photoshop block lines 261-1236; summary 7578-7695; oracle 7722-8404 (read via apps.photoshop)",
+  "checkout_path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-ps-oracle-parity-2/handshake-studio-assets",
+  "ledger": "ledger.json updated_at 2026-10-21T00:37:22Z",
+  "paths_note": "anchors under crates/hsk-studio-harness/src/view now live in crates/hsk-studio-harness-view/src/view; harness-core holds import.rs; harness tests stay in crates/hsk-studio-harness/tests"
+ },
+ "rows": [
+  {
+   "id": "PS-01",
+   "name": "Layered raster document: layer tree, groups (isolated / pass-through), visibility, opacity, fill opacity",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-composite/src/lower_render_plan.rs:820 (lower_to_render_plan); crates/hsk-studio-folio/src/appearance.rs:59 (LayerAppearance); crates/hsk-studio-render-cpu/src/plan_sink.rs:1545 (pass_through_weighed); crates/hsk-studio-pigment/src/blend_math.rs:1039 (pass_through_mix)",
+   "tests": [
+    "pigment/tests/blend_math.rs::source_over_alpha_and_groups_hand_computed",
+    "render-cpu/tests/cpu_working_depth.rs::pass_through_opacity_is_the_premultiplied_lerp",
+    "composite/tests/render_plan_lowering.rs::clipped_layers_lower_to_clip_to_base_and_unsupported_cases_are_refused",
+    "harness/tests/d5_ps_compare/structure.rs via d5_ps_compare.rs::ps_oracle_layer_structure"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-ENG-2",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE",
+     "status": "PASS_V20"
+    },
+    {
+     "lane_id": "SMB-PIGMENT-ENG-1",
+     "status": "PASS_V20"
+    },
+    {
+     "lane_id": "SMB-RENDER-CPU",
+     "status": "PASS_V20"
+    },
+    {
+     "lane_id": "SMB-D5-PS-COMPARE",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-1",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-2",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "ORACLE_PARTIAL (123 of 131 MATCH; MISMATCH 2, NOT_SUPPORTED 6)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "Matrix note is stale: pass-through group opacity is rendered at e64eacd (pigment pass_through_mix, render-cpu pass_through_weighed; READY lane SMB-PS-ORACLE-PARITY-2 slice 2). Still refused: pass-through fill opacity (render_plan.rs:722 group_pass_through_fill_opacity) and a mask on a pass-through group (render_plan.rs:726). Oracle improved 102 -> 123 MATCH on this row."
+  },
+  {
+   "id": "PS-02",
+   "name": "Full layer-kind set (pixel, adjustment, live filter, fill, mask, placed asset, text)",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-interop-psd/src/loss.rs:112 (SoCo|GdFl|PtFl -> fill_layer_not_applied); crates/hsk-studio-interop-psd/src/proposal.rs:1177-1196 (fill block -> kind psd_fill, payload_kind unsupported); crates/hsk-studio-folio/src/raster.rs:745 (smart_filters)",
+   "tests": [
+    "interop-psd/tests/placed_records.rs",
+    "folio/tests/smart_filter_records.rs",
+    "folio/tests/raster_records_contract.rs",
+    "interop-psd/tests/adjustment_records.rs"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-FOLIO-ENG-6",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PS-SELECT-LIQUIFY-2",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES-3",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "No fill-layer (solid/gradient/pattern) kind: imported as an opaque preserved payload (proposal.rs:1189). Pixel, vector, text, adjustment, placed, smart-filter record layers exist."
+  },
+  {
+   "id": "PS-03",
+   "name": "Blend modes (35-member StudioBlendMode)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-pigment/src/blend_math.rs:75 (StudioBlendMode, 35 members), :531 blend_rgb, :826 composite_over",
+   "tests": [
+    "pigment/tests/blend_math.rs::separable_oracles_hand_computed",
+    "pigment/tests/blend_math.rs::nonseparable_oracles_hand_computed",
+    "pigment/tests/blend_math.rs::approximate_formulas_and_dissolve",
+    "pigment/tests/blend_math.rs::blend_laws_sweep",
+    "harness/tests/d5_ps_compare.rs::ps_oracle_blend_mode_grids"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-ENG-1",
+     "status": "PASS_V20"
+    },
+    {
+     "lane_id": "SMB-RENDER-CPU",
+     "status": "PASS_V20"
+    },
+    {
+     "lane_id": "SMB-RENDER-GPU",
+     "status": "PASS_V15"
+    },
+    {
+     "lane_id": "SMB-D5-PS-COMPARE",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-1",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-2",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "ORACLE_PARTIAL (106 of 108 MATCH; MISMATCH 2)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "Oracle 105 -> 106 MATCH; 2 MISMATCH are 8-bit vivid light at fill 100 (<=2 codes). Dissolve is CPU only (render-gpu kernel.rs:148: plan carries no seed)."
+  },
+  {
+   "id": "PS-04",
+   "name": "Layer masks: density, feather, invert, enable/disable",
+   "matrix_status": "VALIDATED",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-pigment/src/coverage_math.rs:54 (mask_coverage density/invert), :68 feather_sigma; refusal: crates/hsk-studio-pigment/src/render_plan.rs:726 + crates/hsk-studio-composite/src/evaluate_static.rs:270 (mask_on_pass_through)",
+   "tests": [
+    "pigment/tests/adjust_coverage.rs::mask_density_invert_feather_and_blend_if",
+    "pigment/tests/admit_parity.rs",
+    "render-gpu/tests/gpu_plan.rs",
+    "harness/tests/d5_ps_compare.rs::ps_oracle_layer_structure"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-ENG-2",
+     "status": "PASS_V18"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-ADJ",
+     "status": "PASS_V17"
+    },
+    {
+     "lane_id": "SMB-RENDER-GPU-ADJ",
+     "status": "PASS_V16"
+    },
+    {
+     "lane_id": "SMB-D5-PS-COMPARE",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-1",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-2",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "ORACLE_PARTIAL (6 of 15 MATCH; NOT_SUPPORTED 5, ORACLE_INVALID 4)",
+   "matrix_verdict": "LOWER",
+   "matrix_ui": false,
+   "notes": "Density/invert/feather on pixel layers are real, but a mask on a pass-through group (Photoshop's default group mode) is typed-refused for every backend; D5 PS-C28 mask variants NOT_SUPPORTED (blocker in lane SMB-PS-ORACLE-PARITY-2: needs cross-lane composite change). Row oracle: 5 of 15 variants NOT_SUPPORTED + 4 ORACLE_INVALID (feather/density key not applied by the oracle script), 6 MATCH. Rule used: sub-capability refused where Photoshop defines it and the oracle exercises it. If refusal limits are ignored this row stays VALIDATED (matrix)."
+  },
+  {
+   "id": "PS-05",
+   "name": "Vector masks",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-composite/src/vector_mask.rs:184 (VectorMask); crates/hsk-studio-folio/src/vector.rs:297 (StudioVectorMask); crates/hsk-studio-interop-psd/src/loss.rs:111 (vmsk/vsms -> vector_data_not_applied)",
+   "tests": [
+    "composite/tests/vector_mask.rs",
+    "composite/tests/vector_mask_2.rs",
+    "composite/tests/composition_docgraph_masks.rs",
+    "render-cpu/tests/vector_mask.rs",
+    "harness/tests/viewer_vector_masks.rs"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPOSITE-VECTOR-MASK",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-VECTOR-MASK-2",
+     "status": "PASS_V4"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-DOCGRAPH-MASKS",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-CLIP-RECORDS",
+     "status": "PASS_V5"
+    },
+    {
+     "lane_id": "SMB-R32-REMEDIATION",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Engine vector masks work; PSD vmsk/vsms blocks are opaque on import; no Photoshop oracle case."
+  },
+  {
+   "id": "PS-06",
+   "name": "Clipping masks (clip to base)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-composite/src/lower_render_plan.rs:820 (clip runs -> clip_to_base); refusal tests pigment/tests/render_plan.rs:544",
+   "tests": [
+    "composite/tests/render_plan_lowering.rs::clipped_layers_lower_to_clip_to_base_and_unsupported_cases_are_refused",
+    "composite/tests/render_plan_lowering.rs::pass_through_group_as_clip_base_is_unavailable_and_unsupported_in_the_ledger",
+    "pigment/tests/render_plan.rs::clip_to_base_is_validated_refused_without_opt_in_and_approximate",
+    "pigment/tests/blend_if_clip.rs::clip_roles_refuse_blend_if_uniformly_for_every_backend"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-RENDER-CPU-CLIP",
+     "status": "PASS_V20"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-CLIP-ALIGN",
+     "status": "PASS_V20"
+    },
+    {
+     "lane_id": "SMB-BLENDIF-CLIP-ADOPT",
+     "status": "PASS_V18"
+    },
+    {
+     "lane_id": "SMB-D5-PS-COMPARE",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-1",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-2",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "ORACLE_PARTIAL (4 of 13 MATCH; MISMATCH 1, NOT_SUPPORTED 8)",
+   "matrix_verdict": "LOWER",
+   "matrix_ui": false,
+   "notes": "Plain clip-to-base is real (Approximate) but Blend-If on clip base / clipped layer (D5 PS-C18..C22) and pass-through or adjustment clip bases are typed-refused: 8 of 13 oracle variants NOT_SUPPORTED, 1 MISMATCH (PS-C20 clipped_no_blendif, circle rasterisation), 4 MATCH. Photoshop defines these rules (oracle outputs exist). Lenient reading keeps VALIDATED."
+  },
+  {
+   "id": "PS-07",
+   "name": "Adjustment layers: levels, curves, hue/saturation, brightness/contrast, exposure, invert, threshold, posterize",
+   "matrix_status": "VALIDATED",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-pigment/src/adjust_math.rs:28 (AdjustmentKind, 8 members), :451-456 (brightness/contrast: only the legacy transfer, modern is a typed refusal), :323 levels_gamma",
+   "tests": [
+    "pigment/tests/adjust_coverage.rs::levels_curves_and_point_adjustments",
+    "pigment/tests/adjust_coverage.rs::hue_saturation_master_and_refusals",
+    "pigment/tests/oracle_parity.rs::levels_gamma_toe_near_black",
+    "pigment/tests/working_depth.rs::levels_on_whole_levels_reproduce_the_oracle_ramp",
+    "harness/tests/d5_ps_compare.rs::ps_oracle_adjustment_layers"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-ENG-2",
+     "status": "PASS_V18"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-ADJ",
+     "status": "PASS_V17"
+    },
+    {
+     "lane_id": "SMB-RENDER-CPU-ADJ",
+     "status": "PASS_V17"
+    },
+    {
+     "lane_id": "SMB-RENDER-GPU-ADJ",
+     "status": "PASS_V16"
+    },
+    {
+     "lane_id": "SMB-INTEROP-PSD-ADJ",
+     "status": "PASS_V25"
+    },
+    {
+     "lane_id": "SMB-D5-PS-COMPARE",
+     "status": "READY_FOR_VALIDATION"
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-1",
+     "status": "READY_FOR_VALIDATION"
+    },
+    {
+     "lane_id": "SMB-HARNESS-RENDER-RECORDS",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-2",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "ORACLE_PARTIAL (53 of 64 MATCH; MISMATCH 3, NOT_SUPPORTED 8)",
+   "matrix_verdict": "LOWER",
+   "matrix_ui": true,
+   "notes": "Photoshop's default (non-legacy) Brightness/Contrast and Hue/Saturation per-colour bands are refused (D5 PS-C05 modern_* 4 NOT_SUPPORTED; adjust_math.rs:440 colour bands not part of the op). Levels/curves/exposure/invert/threshold/posterize/legacy B/C are real. Oracle 53 of 64 MATCH (3 MISMATCH: Levels gamma-1.5 16-bit, sat+50, 8-bit ev+1; 8 NS). Lenient reading keeps VALIDATED."
+  },
+  {
+   "id": "PS-08",
+   "name": "Remaining adjustments (vibrance, colour balance, black & white, photo filter, channel mixer, gradient map, selective colour, colour lookup, shadows/highlights)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-pigment/src/adjust_colour.rs (vibrance, colour balance, B&W, photo filter, channel mixer, selective colour, gradient map, colour lookup, shadows/highlights; lut_entries :221)",
+   "tests": [
+    "pigment/tests/adjust_colour.rs::vibrance_balance_filter_black_and_white_mixer",
+    "pigment/tests/adjust_colour.rs::selective_colour_gradient_map_and_lookup",
+    "pigment/tests/adjust_colour.rs::tone_match_and_replace",
+    "render-cpu/tests/cpu_adjust_colour.rs",
+    "interop-psd/tests/adjustment_records_2.rs"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-HARNESS-RENDER-RECORDS",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "No D5 case for the second adjustment set: Photoshop behaviour UNVERIFIED. Limits kept (shadows/highlights radius > 0 refused; EqualizeHistogram refused adjust_colour.rs:342)."
+  },
+  {
+   "id": "PS-09",
+   "name": "Layer styles: drop shadow, inner shadow, outer/inner glow, colour overlay, stroke",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-pigment/src/effect_math.rs:859 (grow_distance), :877 (grow_coverage); effect_math/window.rs; glow refusals effect_math.rs:76-79",
+   "tests": [
+    "pigment/tests/effects.rs::drop_shadow_offset_blur_taps_and_spread",
+    "pigment/tests/effects.rs::stroke_outside_inside_and_centre_bands",
+    "pigment/tests/effects_wave2.rs::glow_edge_centre_and_outer_equal_the_shadow_chain",
+    "pigment/tests/oracle_parity.rs::knockout_coverage_and_interior_mix",
+    "harness/tests/d5_ps_compare.rs::ps_oracle_layer_effects"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-EFFECTS-WAVE-1",
+     "status": "PASS_V17"
+    },
+    {
+     "lane_id": "SMB-EFFECTS-WAVE-2",
+     "status": "PASS_V17"
+    },
+    {
+     "lane_id": "SMB-RENDER-CPU-FX2",
+     "status": "PASS_V17"
+    },
+    {
+     "lane_id": "SMB-PIGMENT-WINDOW",
+     "status": "PASS_V17"
+    },
+    {
+     "lane_id": "SMB-D5-PS-COMPARE",
+     "status": "READY_FOR_VALIDATION"
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-1",
+     "status": "READY_FOR_VALIDATION"
+    },
+    {
+     "lane_id": "SMB-HARNESS-RENDER-RECORDS",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-2",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "ORACLE_PARTIAL (278 of 310 MATCH; MISMATCH 1, NOT_SUPPORTED 31)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "Matrix oracle numbers are stale: 137 -> 278 of 310 MATCH at e64eacd (1 MISMATCH PS-C13 circle_outside_s50, 31 NOT_SUPPORTED: glow precise/range/jitter, Blend-If+effects, nested effects, style switches). The PASS lanes (SMB-EFFECTS-WAVE-1/2) predate the grow/stroke/knockout/unit-fade maths of READY lanes SMB-PS-ORACLE-PARITY-1/2, so the tip maths is not independently validated (proof_stale)."
+  },
+  {
+   "id": "PS-10",
+   "name": "Layer styles: bevel & emboss, satin, gradient overlay, pattern overlay",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-pigment/src/effect_math/style.rs:729 (PatternOverlayOp); effect_math/style.rs (satin, bevel & emboss, gradient overlay); crates/hsk-studio-interop-psd/src/patterns.rs (Patt/Pat2/Pat3, READY)",
+   "tests": [
+    "pigment/tests/layer_styles.rs::bevel_hand_values",
+    "pigment/tests/layer_styles.rs::satin_and_gradient_overlay_hand_values",
+    "pigment/tests/pattern_overlay.rs::tiling_hand_values_and_matte",
+    "render-cpu/tests/cpu_pattern_overlay.rs",
+    "interop-psd/tests/pattern_overlay_import.rs"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES-3",
+     "status": "READY_FOR_VALIDATION"
+    },
+    {
+     "lane_id": "SMB-HARNESS-RENDER-RECORDS",
+     "status": "PASS_V2"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "Engine styles PASS; PSD pattern import (patterns.rs) READY under SMB-PS-ADJUST-STYLES-3. No D5 case (PS-C17 is inner glow and maps to no matrix row)."
+  },
+  {
+   "id": "PS-11",
+   "name": "Blend If (advanced blending ranges)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-pigment/src/coverage_math.rs:190 (blend_if_weight), :206 (BLEND_IF_GRAY_WEIGHTS, READY), :230 blend_if_weight_over",
+   "tests": [
+    "pigment/tests/blend_if_clip.rs::clip_roles_refuse_blend_if_uniformly_for_every_backend",
+    "pigment/tests/blend_if_clip.rs::identity_ranges_on_clip_roles_are_not_refused",
+    "pigment/tests/adjust_coverage.rs::mask_density_invert_feather_and_blend_if",
+    "pigment/tests/oracle_parity.rs::special_eight_fill_inside_the_blend",
+    "harness/tests/d5_ps_compare.rs::ps_oracle_layer_structure"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-ENG-2",
+     "status": "PASS_V18"
+    },
+    {
+     "lane_id": "SMB-PIGMENT-BLENDIF-CLIP",
+     "status": "PASS_V17"
+    },
+    {
+     "lane_id": "SMB-RENDER-GPU-ADJ",
+     "status": "PASS_V16"
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-1",
+     "status": "READY_FOR_VALIDATION"
+    },
+    {
+     "lane_id": "SMB-D5-PS-COMPARE",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-2",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "ORACLE_PARTIAL (12 of 28 MATCH; MISMATCH 1, NOT_SUPPORTED 15)",
+   "matrix_verdict": "LOWER",
+   "matrix_ui": false,
+   "notes": "Blend-If on unclipped layers is real (oracle PS-C09 gray weights now match), but on clip base / clipped layer (PS-C18..C22) and together with effects (PS-C24..C26) it is typed-refused: 15 of 28 oracle variants NOT_SUPPORTED, 1 MISMATCH, 12 MATCH. Lenient reading keeps VALIDATED."
+  },
+  {
+   "id": "PS-12",
+   "name": "Knockout (shallow/deep)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-pigment/src/knockout_math.rs:44 (knockout_over), :76 knockout_clear, :92 knockout_union; crates/hsk-studio-render-cpu/src/plan_sink/knockout.rs; crates/hsk-studio-render-gpu/src/plan_sink/knockout.rs + kernel_knockout.wgsl (READY)",
+   "tests": [
+    "pigment/tests/knockout.rs::shallow_knockout_hand_values",
+    "pigment/tests/knockout_placements.rs::placements_are_admitted_with_a_plain_ancestry",
+    "render-cpu/tests/cpu_knockout.rs",
+    "render-cpu/tests/cpu_knockout_2.rs",
+    "render-gpu/tests/gpu_knockout.rs"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES-3",
+     "status": "READY_FOR_VALIDATION"
+    },
+    {
+     "lane_id": "SMB-D5-PS-COMPARE",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-1",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-2",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "ORACLE_PARTIAL (1 of 3 MATCH; ORACLE_INVALID 2)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "CPU validated; GPU knockout (5514c50) READY. Photoshop behaviour UNVERIFIED: D5 PS-C11 knockout key was not applied by the oracle script (2 ORACLE_INVALID, 1 MATCH)."
+  },
+  {
+   "id": "PS-13",
+   "name": "Selection tools (marquee, lasso, magic wand, quick/object/subject select) and StudioSelectionSet",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-pigment/src/select_tools/wand.rs:58 (magic_wand), quick.rs:314 (quick_select), magnetic.rs:275 (magnetic_lasso), quick.rs:447 object_select / :456 subject_select / :461 sky_select (refuse model_unavailable), crates/hsk-studio-pigment/src/selection.rs:408 (rect); crates/hsk-studio-harness-view/src/view/select_liquify.rs:265 (select_wand)",
+   "tests": [
+    "pigment/tests/selection.rs::shapes_hand_values_and_fill_rules",
+    "pigment/tests/select_wand.rs::contiguous_selects_one_region_global_selects_both",
+    "pigment/tests/select_quick.rs::grabcut_rect_finds_the_object_and_ml_select_refuses_model_unavailable",
+    "pigment/tests/select_liquify_2.rs::live_wire_follows_an_edge_and_magnetic_lasso_snaps_to_the_object",
+    "harness/tests/viewer_select_liquify_2.rs::magnetic_lasso_quick_select_and_liquify_gestures"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-SELECTION",
+     "status": "PASS_V11"
+    },
+    {
+     "lane_id": "SMB-HARNESS-UI-2",
+     "status": "PASS_V8"
+    },
+    {
+     "lane_id": "SMB-PS-SELECT-LIQUIFY",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-PS-SELECT-LIQUIFY-2",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "Object/subject/sky select are typed model_unavailable stubs; no StudioSelectionSet (grep: none)."
+  },
+  {
+   "id": "PS-14",
+   "name": "Select and Mask / edge refinement, quick mask, save selection to channel",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-pigment/src/select_tools/refine.rs:482 (refine_edge); crates/hsk-studio-harness-view/src/view/selection_store.rs:21 (encode)",
+   "tests": [
+    "pigment/tests/select_refine.rs::decontamination_and_smart_radius",
+    "pigment/tests/select_refine.rs::guided_filter_softens_the_band_toward_the_matte",
+    "harness/tests/viewer_refine_brush.rs::refine_brush_strokes_edit_the_selection_one_step_each"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PS-SELECT-LIQUIFY",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-PS-SELECT-LIQUIFY-2",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-PS-SMART-FILTER-WIRING",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-HARNESS-UI-3",
+     "status": "PASS_V6"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "No quick mask and no save-selection-to-channel: grep quick_mask|save_selection|selection_channel over pigment, harness-view, harness-core, folio found only a DESCRIPTOR string and a comment."
+  },
+  {
+   "id": "PS-15",
+   "name": "Brush engine and painting tools",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-pigment/src/brush.rs:245 (place_dabs), :356 (stroke_coverage), :478 (paint_replacement); Tool::Brush crates/hsk-studio-harness-view/src/view/edit.rs:42",
+   "tests": [
+    "pigment/tests/brush.rs::spacing_and_pressure_are_exact",
+    "pigment/tests/brush.rs::coverage_hardness_flow_opacity_and_selection_clip",
+    "harness/tests/viewer_brush_parity.rs::viewer_brush_equals_a_direct_masked_replace_call",
+    "harness/tests/viewer_edit.rs::select_paint_undo_redo_save_reopen_pixels"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-BRUSH",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-PIGMENT-SELECTION",
+     "status": "PASS_V11"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "Parametric round tip only; dynamics_control_unsupported (brush.rs:36); no custom tips, scatter, smudge, mixer."
+  },
+  {
+   "id": "PS-16",
+   "name": "Retouching: healing, spot healing, clone stamp, patch, red eye",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-pigment/src/retouch.rs:459 (clone_stamp), :597 (heal), :781 (spot_heal); crates/hsk-studio-pigment/src/content_aware.rs:1664 (patch)",
+   "tests": [
+    "pigment/tests/retouch.rs::clone_stamp_copies_exact_pixels_and_aligned_keeps_one_offset",
+    "pigment/tests/retouch.rs::hostile_clone_inputs_are_typed_refusals",
+    "pigment/tests/content_aware.rs::fill_continues_stripes_and_checker_with_a_quality_receipt"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-RETOUCH",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-PIGMENT-CONTENT-AWARE",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-PIGMENT-CONTENT-AWARE-2",
+     "status": "PASS_V7"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "No red-eye tool in pigment (develop only has a refused recipe flag, recipe.rs:58) and no viewer retouch tool: the viewer Tool enum (edit.rs:37, 31 members) has no clone/heal/spot/patch."
+  },
+  {
+   "id": "PS-17",
+   "name": "Eraser family",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-pigment/src/brush.rs:498 (erase_replacement), :533 (route_erase)",
+   "tests": [
+    "pigment/tests/brush.rs::paint_and_erase_go_through_masked_replace"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-BRUSH",
+     "status": "PASS_V10"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Engine-level eraser only; no background/magic eraser (grep none), no tool surface."
+  },
+  {
+   "id": "PS-18",
+   "name": "Content-aware fill / move / scale",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-pigment/src/content_aware.rs:1571 (fill), :1750 (content_aware_move), :1664 patch; crates/hsk-studio-pigment/src/content_aware/scale.rs:275 (content_aware_scale)",
+   "tests": [
+    "pigment/tests/content_aware.rs::fill_continues_stripes_and_checker_with_a_quality_receipt",
+    "pigment/tests/content_aware.rs::fill_is_thread_count_invariant",
+    "pigment/tests/content_aware_scale.rs",
+    "pigment/tests/content_aware_wiring.rs",
+    "render-cpu/tests/cpu_content_aware.rs"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-CONTENT-AWARE",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-PIGMENT-CONTENT-AWARE-2",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-RENDER-CONTENT-AWARE",
+     "status": "PASS_V6"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "render-gpu refuses content-aware typed; Adobe pixel parity unverified (no D5 case)."
+  },
+  {
+   "id": "PS-19",
+   "name": "Fill and gradient tools, gradients and patterns on raster",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-pigment/src/render_plan.rs:197 (PlanNode = Tile | Solid | Vector | Group: no gradient or pattern node)",
+   "tests": [
+    "pigment/tests/render_plan.rs",
+    "render-cpu/tests/vector_paint.rs"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-ENG-1",
+     "status": "PASS_V20"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Solid fills and vector paint (gradients on vector shapes) render; no raster gradient/pattern fill and no raster bucket fill. The viewer Tool::PaintBucket (edit.rs:138) is the vector paint bucket (view/vector.rs)."
+  },
+  {
+   "id": "PS-20",
+   "name": "Transforms: free transform, scale/rotate/skew/distort/perspective/warp/puppet warp, resampling",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-pigment/src/transform_math.rs:83 (Projective2), :764 (resample_reference)",
+   "tests": [
+    "pigment/tests/transform.rs::known_affine_cases_match_hand_values",
+    "render-cpu/tests/cpu_transform.rs",
+    "render-cpu/tests/cpu_projective.rs",
+    "render-gpu/tests/gpu_transform.rs"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-TRANSFORM",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-AE-KEY-TRACK-2",
+     "status": "PASS_V3"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Affine + projective with nearest/bilinear/bicubic. No warp / puppet warp (grep warp|puppet in pigment: only optic-flow comments in frame_blend.rs) and no on-canvas free-transform tool."
+  },
+  {
+   "id": "PS-21",
+   "name": "Crop, canvas size, image size, trim",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-pigment/src/canvas_ops.rs:174 (canvas_resize), :226 (crop), :474 (trim)",
+   "tests": [
+    "pigment/tests/retouch.rs::canvas_resize_places_content_by_the_nine_member_anchor",
+    "pigment/tests/retouch.rs::crop_copies_exactly_and_rotation_is_the_transform_operator",
+    "pigment/tests/content_aware_wiring.rs"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PIGMENT-RETOUCH",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-PIGMENT-CONTENT-AWARE-2",
+     "status": "PASS_V7"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "No whole-document Image Size/resample command (grep image_size|resize_image|resample_document over pigment and harness-view: none); no viewer crop tool."
+  },
+  {
+   "id": "PS-22",
+   "name": "Filters and smart/live filters (blur, sharpen, noise, distort, liquify, camera raw filter)",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-pigment/src/liquify.rs:205 (LiquifyMesh), crates/hsk-studio-pigment/src/smart_filter.rs:130 (SmartFilterStack), crates/hsk-studio-pigment/src/filter_math.rs:78 (FilterKind), crates/hsk-studio-composite/src/lower_render_plan.rs:869; crates/hsk-studio-harness-view/src/view/select_liquify.rs (liquify)",
+   "tests": [
+    "pigment/tests/liquify.rs::reconstruct_returns_exactly_to_identity",
+    "pigment/tests/smart_filter.rs::stack_rerenders_in_order_from_the_untouched_source",
+    "pigment/tests/blur.rs::layer_blur_uses_the_shared_gaussian_and_conserves_premultiplied_mass",
+    "render-cpu/tests/cpu_smart_filter.rs",
+    "render-gpu/tests/gpu_smart_filter_masks.rs"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-COMPOSITE-NEW-KINDS",
+     "status": "PASS_V8"
+    },
+    {
+     "lane_id": "SMB-RENDER-FILTERS",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-PS-SELECT-LIQUIFY",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-PS-SELECT-LIQUIFY-2",
+     "status": "PASS_V3"
+    },
+    {
+     "lane_id": "SMB-PS-SMART-FILTER-WIRING",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES-3",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "No distort filter family (grep ripple|twirl-filter|spherize|zigzag over pigment/composite: only the liquify twirl) and no camera-raw filter; smart-filter masks on GPU / placed instances (f588e45) READY."
+  },
+  {
+   "id": "PS-23",
+   "name": "Type layers rendered in the image",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-type/src/outline.rs:184 (glyph_outlines), crates/hsk-studio-type/src/raster.rs:97 (rasterize_run), crates/hsk-studio-composite/src/text.rs:267 (lower_to_render_plan_with_text)",
+   "tests": [
+    "render-cpu/tests/text_render.rs::cpu_renders_lowered_text_with_pinned_digest",
+    "render-gpu/tests/text_render.rs",
+    "composite/tests/text_lowering.rs",
+    "type/tests/glyph_render.rs"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-TYPE-GLYPH-RENDER",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-COMPOSITE-TEXT",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-TYPE",
+     "status": "PASS_V7"
+    },
+    {
+     "lane_id": "SMB-FOLIO-ENG-3",
+     "status": "PASS_V13"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "Caller supplies shaped runs, fonts and fill; no character/paragraph panels or warp text. Type crate changed after R35 (ligature work): proof stale."
+  },
+  {
+   "id": "PS-24",
+   "name": "Smart objects / placed assets (embedded and linked)",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-folio/src/raster.rs:829 (placed_sources); crates/hsk-studio-interop-psd/src/placed.rs (SoLd/SoLE, legacy PlLd READY)",
+   "tests": [
+    "interop-psd/tests/placed_records.rs",
+    "interop-psd/tests/placed_legacy.rs",
+    "composite/tests/placed_assets.rs",
+    "composite/tests/placed_smart_filters.rs",
+    "render-cpu/tests/cpu_placed.rs"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES-2",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PACKAGE-COMPLETENESS",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PS-ADJUST-STYLES-3",
+     "status": "READY_FOR_VALIDATION"
+    },
+    {
+     "lane_id": "SMB-PACKAGE-COMPLETENESS-2",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "No edit-contents, update-from-source, convert-to-smart-object or relink surface found."
+  },
+  {
+   "id": "PS-25",
+   "name": "Channels panel: alpha and spot channels, channel operations",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-interop-psd/src/export.rs:1-16 (module doc: unowned blocks and untouched channel bytes stay as read); proposal.rs:1286 (extra channels are not layer pixels)",
+   "tests": [
+    "interop-psd/tests/precision_color_export.rs (CMYK/Lab original channel bytes survive export)"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-INTEROP-PSD",
+     "status": "PASS_V28"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "UNVERIFIED: no test or code names alpha/spot channel preservation; only the generic base-document byte preservation of export.rs is evidenced. No channel panel or channel ops (grep spot|alpha channel|DisplayInfo in interop-psd src/tests: no feature code). Weakest PARTIAL in the app; could be MISSING if the Operator does not count incidental preservation."
+  },
+  {
+   "id": "PS-26",
+   "name": "Colour modes and bit depth (RGB/CMYK/Lab/Gray/Indexed/Duotone/Bitmap; 8/16/32-bit)",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-interop-psd/src/lib.rs:67 (DESCRIPTOR capabilities); crates/hsk-studio-harness-core/src/import.rs:391 (convert_to_native with ICC)",
+   "tests": [
+    "interop-psd/tests/precision_color_export.rs",
+    "harness/tests/import_colour.rs",
+    "harness/tests/d5_ps_compare.rs (PS-L01/PS-L02)"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-INTEROP-PSD-WIDE",
+     "status": "PASS_V26"
+    },
+    {
+     "lane_id": "SMB-INTEROP-PSD",
+     "status": "PASS_V28"
+    },
+    {
+     "lane_id": "SMB-CONVERT-COLOUR",
+     "status": "PASS_V11"
+    },
+    {
+     "lane_id": "SMB-D5-PS-COMPARE",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-1",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-2",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "ORACLE_PARTIAL (1 of 3 MATCH; MISMATCH 2)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "CMYK/Lab/Gray imported as display projections; no mode-conversion commands; indexed/duotone/bitmap: grep over pigment, prism, interop-psd, harness-core found nothing. Oracle: Lab16->sRGB-class PS-L02 MATCH, Lab->SWOP CMYK 2 MISMATCH."
+  },
+  {
+   "id": "PS-27",
+   "name": "Colour management: ICC v2/v4 profiles, working space, conversions, rendering intents, BPC",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-prism/src/wide.rs:825 (WideEngine); crates/hsk-studio-prism/src/icc_eval.rs",
+   "tests": [
+    "prism/tests/wide_bpc.rs",
+    "prism/tests/oracle_t1_lcms2.rs",
+    "prism/tests/wide_profiles.rs",
+    "prism/tests/wide_admitted.rs",
+    "harness/tests/d5_ps_compare.rs::ps_oracle_colour_conversions"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PRISM-ENG-1",
+     "status": "PASS_V11"
+    },
+    {
+     "lane_id": "SMB-PRISM-ENG-5",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-PRISM-ENG-7",
+     "status": "PASS_V8"
+    },
+    {
+     "lane_id": "SMB-PRISM-ENG-8",
+     "status": "PASS_V8"
+    },
+    {
+     "lane_id": "SMB-INTEROP-PSD-RECEIPT",
+     "status": "PASS_V25"
+    },
+    {
+     "lane_id": "SMB-D5-PS-COMPARE",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-1",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-2",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "ORACLE_MISMATCH (0 of 2 MATCH; Lab->SWOP CMYK relcol and perceptual vs Photoshop ACE)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Engine validated against lcms2 oracle tests; Adobe ACE parity not reached: both D5 Lab->SWOP CMYK variants MISMATCH (expectations.json class colour_engine). prism DESCRIPTOR still lists softproof/gamut/BPC/LUT/OCIO as pending (lib.rs:647) although wide_bpc.rs and lut.rs exist: DESCRIPTOR stale, UNVERIFIED which is right for BPC on non-wide routes."
+  },
+  {
+   "id": "PS-28",
+   "name": "Soft proofing and gamut warning",
+   "matrix_status": "MISSING",
+   "verified_level": "MISSING",
+   "code_anchor": "none; Grep softproof|soft_proof|gamut_warning|gamut_check over crates/hsk-studio-prism and crates/hsk-studio-harness-view: only the prism DESCRIPTOR 'pending' string (lib.rs:647)",
+   "tests": [],
+   "lanes": [],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": ""
+  },
+  {
+   "id": "PS-29",
+   "name": "History panel / undo-redo",
+   "matrix_status": "PARTIAL",
+   "verified_level": "PARTIAL",
+   "code_anchor": "crates/hsk-studio-harness-view/src/view/edit.rs:589 (undo), :595 (redo); crates/hsk-studio-harness-view/src/view/mod.rs:1264 (run.history())",
+   "tests": [
+    "harness/tests/viewer_edit.rs::select_paint_undo_redo_save_reopen_pixels",
+    "harness/tests/viewer_edit.rs::opacity_and_blend_mode_edits_with_undo_redo_survive_save"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-HARNESS-UI-2",
+     "status": "PASS_V8"
+    },
+    {
+     "lane_id": "SMB-UI-SUPPORT-APIS",
+     "status": "PASS_V9"
+    },
+    {
+     "lane_id": "SMB-CHRONICLE-TABLE",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-CONTROLS",
+     "status": "PASS_V4"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "Undo/redo only; no History panel listing states, no snapshots, history not persisted (state JSON exposes history)."
+  },
+  {
+   "id": "PS-30",
+   "name": "Histogram, info and colour sampler diagnostics",
+   "matrix_status": "MISSING",
+   "verified_level": "MISSING",
+   "code_anchor": "none; Grep [Hh]istogram over pigment, prism, harness-view, develop: only an EqualizeHistogram refusal (adjust_colour.rs:163); no info/sampler code",
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": ""
+  },
+  {
+   "id": "PS-31",
+   "name": "Actions / macro recording and batch",
+   "matrix_status": "MISSING",
+   "verified_level": "MISSING",
+   "code_anchor": "none; Grep macro|record_action|batch_action over hsk-studio-session/src: no match (harness import sweep is a batch importer, not an action recorder)",
+   "tests": [],
+   "lanes": [],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": ""
+  },
+  {
+   "id": "PS-32",
+   "name": "GPU-accelerated compositing",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-render-gpu/src/plan_sink.rs:1589 (execute_extended_detailed); crates/hsk-studio-render-gpu/src/lib.rs:71 (DESCRIPTOR)",
+   "tests": [
+    "render-gpu/tests/gpu_plan.rs",
+    "render-gpu/tests/gpu_knockout.rs",
+    "render-gpu/tests/gpu_working_depth.rs",
+    "render-gpu/tests/gpu_smart_filter_masks.rs",
+    "render-gpu/tests/shared_device.rs"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-RENDER-GPU",
+     "status": "PASS_V15"
+    },
+    {
+     "lane_id": "SMB-RENDER-GPU-ADJ",
+     "status": "PASS_V16"
+    },
+    {
+     "lane_id": "SMB-RENDER-GPU-PROBE",
+     "status": "PASS_V12"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Backend-specific proof (dx12/vulkan RTX 3090). GPU gaps: dissolve (kernel.rs:148), content-aware (typed refusal). Many GPU additions since R35 are READY."
+  },
+  {
+   "id": "PS-33",
+   "name": "Generative fill / AI features",
+   "matrix_status": "MISSING",
+   "verified_level": "MISSING",
+   "code_anchor": "none; Grep generative|GenerativeFill|generative_fill over pigment and harness-view: no match",
+   "tests": [],
+   "lanes": [],
+   "proof_stale": false,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": false,
+   "notes": "Spec treats it as an optional adapter lane."
+  },
+  {
+   "id": "PS-34",
+   "name": "Native Studio document save/open (atomic, streamed, crash-safe)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-package/src/save.rs:371 (save_atomic); crates/hsk-studio-package/src/references.rs:160 (referenced_assets); crates/hsk-studio-package/src/externals.rs:490 (external_references)",
+   "tests": [
+    "package/tests/streaming_save.rs",
+    "package/tests/mask_tiles.rs",
+    "package/tests/externals.rs",
+    "package/tests/linked_files.rs",
+    "package/tests/import_entries.rs"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-PACKAGE",
+     "status": "PASS_V14"
+    },
+    {
+     "lane_id": "SMB-PACKAGE-STREAM-SAVE",
+     "status": "PASS_V13"
+    },
+    {
+     "lane_id": "SMB-SESSION",
+     "status": "PASS_V16"
+    },
+    {
+     "lane_id": "SMB-PACKAGE-MASK-TILES",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PACKAGE-COMPLETENESS",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-PACKAGE-COMPLETENESS-2",
+     "status": "READY_FOR_VALIDATION"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "Resolver ports / linked-source health (608dbce) READY under SMB-PACKAGE-COMPLETENESS-2."
+  },
+  {
+   "id": "PS-35",
+   "name": "Open any supported document as an editable native document with colour management (convert flow: PSD/PSB, TIFF incl. layered, DNG/raw, PDF carried)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-harness-core/src/import.rs:391 (convert_to_native); crates/hsk-studio-harness-core/src/import/tiff.rs; crates/hsk-studio-harness-core/src/import/colour.rs",
+   "tests": [
+    "harness/tests/import_psd.rs::psd_converts_to_a_native_package_that_opens_in_a_session_with_receipt_and_original",
+    "harness/tests/import_tiff.rs::photoshop_tiff_imports_its_layers_through_interop_psd",
+    "harness/tests/import_colour.rs",
+    "harness/tests/import_psd.rs::unknown_and_not_yet_importable_formats_are_typed_refusals"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-CONVERT-NATIVE",
+     "status": "PASS_V11"
+    },
+    {
+     "lane_id": "SMB-CONVERT-TIFF",
+     "status": "PASS_V11"
+    },
+    {
+     "lane_id": "SMB-CONVERT-COLOUR",
+     "status": "PASS_V11"
+    },
+    {
+     "lane_id": "SMB-CONVERT-FOLLOWUPS",
+     "status": "PASS_V11"
+    },
+    {
+     "lane_id": "SMB-INTEROP-PSD-LE-LAYERS",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-SESSION-IMPORT-ENTRIES",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-DEVELOP-TIFF-CONSOLIDATE",
+     "status": "PASS_V10"
+    },
+    {
+     "lane_id": "SMB-D5-PS-COMPARE",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-1",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    },
+    {
+     "lane_id": "SMB-PS-ORACLE-PARITY-2",
+     "status": "READY_FOR_VALIDATION",
+     "added_by_verifier": true
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "ORACLE_MATCH (1 of 1 variants MATCH)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "PDF carried, not imported. The anchor files moved from harness to harness-core in the 12e2d46 split."
+  },
+  {
+   "id": "PS-36",
+   "name": "Export the composited document to JPEG / PNG (own baseline JPEG encoder, PNG encoder, ICC embed)",
+   "matrix_status": "VALIDATED",
+   "verified_level": "VALIDATED",
+   "code_anchor": "crates/hsk-studio-harness-view/src/view/export.rs:68 (encode_frame); crates/hsk-studio-interop-raster/src/jpeg_encode.rs:253 (encode_jpeg); crates/hsk-studio-interop-raster/src/png.rs:240 (encode_png)",
+   "tests": [
+    "harness/tests/viewer_export.rs::viewer_exports_the_composite_as_png_and_jpeg",
+    "harness/tests/viewer_export.rs::cli_export_writes_png_and_jpeg_and_refuses_bad_requests"
+   ],
+   "lanes": [
+    {
+     "lane_id": "SMB-IO-RASTER-COMMON",
+     "status": "PASS_V2"
+    },
+    {
+     "lane_id": "SMB-CONVERT-RASTER",
+     "status": "PASS_V9"
+    }
+   ],
+   "proof_stale": true,
+   "oracle": "NO_ORACLE_CASE (D5 has no case mapped to this row)",
+   "matrix_verdict": "AGREE",
+   "matrix_ui": true,
+   "notes": "Untagged sRGB; JPEG flattens transparency on white."
+  }
+ ],
+ "counts": {
+  "VALIDATED": 12,
+  "BUILT_NOT_VALIDATED": 0,
+  "PARTIAL": 20,
+  "MISSING": 4
+ },
+ "engine_pct": {
+  "matrix": 55.6,
+  "verified": 47.2
+ },
+ "oracle_summary": {
+  "source": "crates/hsk-studio-harness/tests/d5_ps_compare/expectations.json @e64eacd (28 entries: 9 MISMATCH, 19 NOT_SUPPORTED; note: 340 -> 489 MATCH) applied to the 588 variants of research/d5-photoshop-compare-20261016.json (Photoshop 27.11.0), auditor re-derivation (entry glob first match wins, an NS entry applies only to variants originally NOT_SUPPORTED, ORACLE_INVALID/ABSENT kept)",
+  "totals_at_e64eacd": {
+   "MATCH": 489,
+   "MISMATCH": 9,
+   "NOT_SUPPORTED": 83,
+   "ORACLE_INVALID": 6,
+   "ORACLE_ABSENT": 1
+  },
+  "totals_at_6585ff0_matrix": {
+   "MATCH": 340,
+   "MISMATCH": 157,
+   "NOT_SUPPORTED": 84,
+   "ORACLE_INVALID": 6,
+   "ORACLE_ABSENT": 1
+  },
+  "agrees_with_lane_file": "SMB-PS-ORACLE-PARITY-2 lane states MATCH 489, NOT_SUPPORTED 83, MISMATCH 9, ORACLE_INVALID 6, ORACLE_ABSENT 1: equal to the re-derivation",
+  "judged": "NOT judged: SMB-D5-PS-COMPARE, SMB-PS-ORACLE-PARITY-1 and SMB-PS-ORACLE-PARITY-2 are READY_FOR_VALIDATION in ledger.json; no PASS verdict covers the oracle suite. The suite was not run by this verifier (no cargo allowed); the counts rest on the committed expectations file whose own rule makes the suite fail on any unlisted MISMATCH.",
+  "per_row": {
+   "PS-01": {
+    "MATCH": 123,
+    "MISMATCH": 2,
+    "NOT_SUPPORTED": 6
+   },
+   "PS-03": {
+    "MATCH": 106,
+    "MISMATCH": 2
+   },
+   "PS-04": {
+    "NOT_SUPPORTED": 5,
+    "MATCH": 6,
+    "ORACLE_INVALID": 4
+   },
+   "PS-06": {
+    "MATCH": 4,
+    "NOT_SUPPORTED": 8,
+    "MISMATCH": 1
+   },
+   "PS-07": {
+    "MATCH": 53,
+    "MISMATCH": 3,
+    "NOT_SUPPORTED": 8
+   },
+   "PS-09": {
+    "MATCH": 278,
+    "MISMATCH": 1,
+    "NOT_SUPPORTED": 31
+   },
+   "PS-11": {
+    "MATCH": 12,
+    "NOT_SUPPORTED": 15,
+    "MISMATCH": 1
+   },
+   "PS-12": {
+    "MATCH": 1,
+    "ORACLE_INVALID": 2
+   },
+   "PS-26": {
+    "MISMATCH": 2,
+    "MATCH": 1
+   },
+   "PS-27": {
+    "MISMATCH": 2
+   },
+   "PS-35": {
+    "MATCH": 1
+   }
+  },
+  "per_case": {
+   "PS-B01": {
+    "MATCH": 106,
+    "MISMATCH": 2
+   },
+   "PS-C01": {
+    "MATCH": 3
+   },
+   "PS-C02": {
+    "MATCH": 10,
+    "MISMATCH": 1
+   },
+   "PS-C03": {
+    "MATCH": 4
+   },
+   "PS-C04": {
+    "MATCH": 6,
+    "MISMATCH": 1
+   },
+   "PS-C05": {
+    "NOT_SUPPORTED": 4,
+    "MATCH": 7
+   },
+   "PS-C06": {
+    "MATCH": 9,
+    "MISMATCH": 1
+   },
+   "PS-C07": {
+    "MATCH": 5
+   },
+   "PS-C08": {
+    "MATCH": 6
+   },
+   "PS-C09": {
+    "MATCH": 6
+   },
+   "PS-C10": {
+    "MATCH": 2,
+    "ORACLE_INVALID": 4
+   },
+   "PS-C11": {
+    "MATCH": 1,
+    "ORACLE_INVALID": 2
+   },
+   "PS-C12": {
+    "MATCH": 98
+   },
+   "PS-C13": {
+    "MATCH": 36,
+    "MISMATCH": 1
+   },
+   "PS-C14": {
+    "MATCH": 8,
+    "NOT_SUPPORTED": 2
+   },
+   "PS-C15": {
+    "MATCH": 111
+   },
+   "PS-C16": {
+    "MATCH": 21,
+    "NOT_SUPPORTED": 21
+   },
+   "PS-C17": {
+    "MATCH": 38,
+    "NOT_SUPPORTED": 36
+   },
+   "PS-C18": {
+    "MATCH": 1,
+    "NOT_SUPPORTED": 2
+   },
+   "PS-C19": {
+    "NOT_SUPPORTED": 2
+   },
+   "PS-C20": {
+    "NOT_SUPPORTED": 1,
+    "MISMATCH": 1
+   },
+   "PS-C21": {
+    "NOT_SUPPORTED": 2
+   },
+   "PS-C22": {
+    "NOT_SUPPORTED": 1,
+    "MATCH": 1
+   },
+   "PS-C23": {
+    "MATCH": 2
+   },
+   "PS-C24": {
+    "MATCH": 1,
+    "NOT_SUPPORTED": 3
+   },
+   "PS-C25": {
+    "NOT_SUPPORTED": 2
+   },
+   "PS-C26": {
+    "NOT_SUPPORTED": 2,
+    "MATCH": 1
+   },
+   "PS-C27": {
+    "MATCH": 2,
+    "NOT_SUPPORTED": 1
+   },
+   "PS-C28": {
+    "MATCH": 2,
+    "NOT_SUPPORTED": 3,
+    "ORACLE_ABSENT": 1
+   },
+   "PS-C29": {
+    "MATCH": 1,
+    "NOT_SUPPORTED": 1
+   },
+   "PS-L01": {
+    "MISMATCH": 2
+   },
+   "PS-L02": {
+    "MATCH": 1
+   }
+  },
+  "unmapped": "PS-C17 (74 variants: 38 MATCH, 36 NOT_SUPPORTED, inner glow) carries rows:[] in the research file and maps to no matrix row; per-row counts overlap (a variant can evidence two rows)",
+  "remaining_mismatches": [
+   [
+    "PS-C02",
+    "16bit_comp_and_red",
+    "formula"
+   ],
+   [
+    "PS-C04",
+    "sat+50",
+    "rounding_8bit"
+   ],
+   [
+    "PS-C06",
+    "8bit_ev+1_only",
+    "rounding_8bit"
+   ],
+   [
+    "PS-B01",
+    "d8_o100_f100_VIVIDLIGHT",
+    "rounding_8bit"
+   ],
+   [
+    "PS-B01",
+    "d8_o50_f100_VIVIDLIGHT",
+    "rounding_8bit"
+   ],
+   [
+    "PS-L01",
+    "lab16_to_swop_relcol",
+    "colour_engine"
+   ],
+   [
+    "PS-L01",
+    "lab16_to_swop_perceptual",
+    "colour_engine"
+   ],
+   [
+    "PS-C13",
+    "circle_outside_s50",
+    "formula"
+   ],
+   [
+    "PS-C20",
+    "clipped_no_blendif",
+    "geometry"
+   ]
+  ],
+  "remaining_not_supported_classes": "Blend-If on clip roles (PS-C18..C22), mask/fill on pass-through group (PS-C28 mask*, PS-C29 fill50), effects with Blend-If (PS-C24..C26), glow precise/range/jitter (PS-C16/C17), style switches (PS-C14), nested effects (PS-C27), modern brightness/contrast (PS-C05)",
+  "oracle_defects": "6 ORACLE_INVALID (PS-C10 mask feather x4, PS-C11 knockout x2: key not applied by the oracle session script) and 1 ORACLE_ABSENT (PS-C28); SMB-PS-ORACLE-RESCRIPT queued per matrix",
+  "unverified_rows": "rows with no D5 case: PS-02, 05, 08, 10, 13-25, 28-34, 36"
+ },
+ "top_gaps": [
+  "Fill layers and raster fills: solid/gradient/pattern fill layers import as opaque preserved payloads (interop-psd/src/loss.rs:112, proposal.rs:1189) and the render plan has no gradient or pattern node (pigment render_plan.rs:197); no raster gradient tool or bucket (PS-02, PS-19).",
+  "Groups and clipping: a mask on a pass-through group, pass-through fill opacity, Blend-If on clip roles and Blend-If with effects are typed-refused although Photoshop defines them (D5 PS-C18..C26, C28, C29: 15 + 8 + ~30 NOT_SUPPORTED variants) (PS-04, PS-06, PS-11).",
+  "Default Brightness/Contrast (modern) and Hue/Saturation bands refused (pigment adjust_math.rs:451; D5 PS-C05 4 NOT_SUPPORTED); Levels gamma > 1 toe and Lab->CMYK (ACE) still mismatch (PS-07, PS-27).",
+  "Interactive tool and document-command surface: viewer Tool enum (harness-view/src/view/edit.rs:37) has no clone/heal/eraser/crop/free-transform/gradient tools; no Image Size command, no warp/puppet warp, no distort filter family (PS-15..PS-17, PS-20..PS-22).",
+  "Smart objects and diagnostics: no edit-contents/update/convert for smart objects (PS-24); no channels, history panel, histogram/info, soft proof, mode conversions, actions or generative features (PS-25, 28, 29, 30, 31, 33)."
+ ],
+ "unlisted_capabilities": [
+  "chroma/luma keying: crates/hsk-studio-pigment/src/keying.rs (tests/keying.rs, keying_2.rs; render-cpu/tests/cpu_keying.rs)",
+  "motion tracking: crates/hsk-studio-pigment/src/tracking.rs (tests/tracking.rs)",
+  "roto selection, refine edge and frame blending/optic flow: pigment/src/select_tools/roto.rs, roto_refine.rs, frame_blend.rs (added since 6585ff0 for After Effects)",
+  "gradient mesh rasterisation on CPU: crates/hsk-studio-render-cpu/src/mesh.rs (Illustrator lane)",
+  "scene-referred / 32-bit extended-range output stage and ACES view transforms: pigment render_plan.rs OutputStage, prism view_transform*.rs",
+  "8-bit working depth mode (OutputStage.working_depth, new in SMB-PS-ORACLE-PARITY-2): pigment tests/working_depth.rs, render-cpu tests/cpu_working_depth.rs, render-gpu tests/gpu_working_depth.rs",
+  "AI recolour artwork in prism/src/recolor.rs (Illustrator lane)",
+  "render-gpu shared-device texture path (tests/shared_device.rs)"
+ ],
+ "unverified": [
+  "Photoshop behaviour of every row without a D5 case (see oracle_summary.unverified_rows)",
+  "PS-25 alpha/spot channel preservation (no named test)",
+  "the 489-MATCH figure itself: derived from the committed expectations file and lane file, the suite was not run (no cargo permitted) and the lanes are READY_FOR_VALIDATION",
+  "whether prism BPC / LUT are implemented on every route (DESCRIPTOR says pending, tests exist)",
+  "behaviour of desktop window launch (Operator-attended) and whether the stale-proof crates still pass: R36 not run"
+ ],
+ "notes": [
+  "verified_level rule: VALIDATED needs a PASS_Vn lane covering the whole named capability; a row is lowered to PARTIAL when the code typed-refuses a sub-capability that Photoshop defines and the oracle exercises (>= ~25% of the row's oracle variants NOT_SUPPORTED, or the sub-capability is in the row name). Four rows are lowered on that rule (PS-04, PS-06, PS-07, PS-11). Ignoring that rule, verified = matrix = 55.6 (counts 16/0/16/4).",
+  "No row was raised: READY work since 6585ff0 (SMB-PS-ADJUST-STYLES-3, SMB-PS-ORACLE-PARITY-1/2, SMB-PACKAGE-COMPLETENESS-2) is unjudged and only improves oracle numbers and notes, none moves a row to a higher level.",
+  "BUILT_NOT_VALIDATED is empty by the same rule as the matrix: READY lanes in this app add to rows that already have a PASS-covered core.",
+  "proof_stale is true for every Photoshop row that has code: all owning crates (pigment, composite, render-cpu, render-gpu, folio, interop-psd, prism, package, session, type, harness*) are in the changed-since-R35 list.",
+  "Stale matrix notes: PS-01 (pass-through opacity now rendered), PS-09 and PS-07 oracle counts (137 -> 278, 47 -> 53), PS-03 (105 -> 106), harness anchors moved to harness-view/harness-core.",
+  "Row-level verdict tally: AGREE 32, LOWER 4, RAISE 0.",
+  "Tests were confirmed present by file and name at e64eacd and read as assertion tests where opened (rw2/nef oracle tests, d5 expectations); test bodies of every cited test were not individually opened."
+ ]
+}

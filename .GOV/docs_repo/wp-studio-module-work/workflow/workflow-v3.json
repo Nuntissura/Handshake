@@ -1,0 +1,38 @@
+{
+  "schema": "hsk.studio_module_workflow@1",
+  "version": 3,
+  "adopted": true,
+  "adopted_by": "Operator 2026-10-20 (live chat: 'record your suggestions as new workflow. then apply it and continue development')",
+  "updated_at": "2026-10-20T20:30:00Z",
+  "proposed_by": "lead (WP-KERNEL-STUDIO), from the 2026-10-15..20 time-sink review",
+  "supersedes": ["workflow/workflow.json (v2, never adopted)", "START_LOG.md#workflow-v1"],
+  "authority_note": "Studio-local workflow. Handshake Codex rules (CX-VAL-*, CX-GP-*) are unchanged and win on conflict; this file only chooses how Studio applies them.",
+  "evidence": {
+    "weekly_limit_gap": "2026-10-16T15:30Z..2026-10-20T13:00Z, all agents stopped; ~6 h rescue of ~3000 uncommitted/unpushed lines on 2026-10-20",
+    "concurrency": "up to ~13 agents, 11+ builders queued on one build slot; resumed agents carried 0.5-0.9 M tokens of context each",
+    "round_size": "R34 reopened 212 lanes and R35 243 (CX-VAL-009) for 16-28 new claims; R35 canary ~5 h plus union ~8 h",
+    "rework": "R33-R35: three round FAILs where a new capability broke an existing test in the same crate (F-R35-3)",
+    "sync_serialization": "steward syncs re-parented/failed push 3x as origin moved; one sync + canary per new crate/edge",
+    "notification_overhead": "hundreds of interim hand-backs while agents waited on builds"
+  },
+  "rules": [
+    {"id": "WF3-001", "area": "agents", "rule": "Use fresh agents with one bounded task each. Resume an existing agent only to rescue its own uncommitted work or for a short follow-up on the same task; never resume long-context agents for new work."},
+    {"id": "WF3-002", "area": "agents", "rule": "At most 5 builders plus 1 validator plus 1 steward run at a time, sized to the two build slots (C: lanes, D: rounds and canaries)."},
+    {"id": "WF3-003", "area": "agents", "rule": "Agents report only when finished or blocked. Builds and test runs wait in the background; no interim hand-backs while waiting."},
+    {"id": "WF3-004", "area": "builds", "rule": "Builders follow the brief's 'Build strategy (Operator 2026-10-20)': C: SSD slot for lanes; one bundled lock hold per push (tools/lane-check.sh); whole test suites of every changed crate before READY (rule 4a); fix all visible failures then one re-run; re-run after a rebase whenever it touched the lane's crates or their dependencies."},
+    {"id": "WF3-005", "area": "builds", "rule": "Commit locally after every slice; push after each green bundled run. Uncommitted work at the end of an agent's turn is a defect."},
+    {"id": "WF3-006", "area": "rounds", "rule": "Scoped rounds: the round's unit selection is the crates changed since the last finalized round plus their reverse-dependency closure (computed by the steward's selection helper from the candidate diff). Crates outside the selection keep their last PASS proof under CX-VAL-002 (the reused verdict names both commits). CX-VAL-009 re-opens are unchanged; every re-opened lane's crate is inside the selection by construction. A full-workspace union runs every third round and whenever the toolchain, Cargo.lock dependency set or round entry script changes. Codex basis: CX-VAL-011 (added 2026-10-20 with Operator approval); Studio opts in through this record."},
+    {"id": "WF3-007", "area": "rounds", "rule": "Freeze a round when 8 or more lanes are READY or 8 hours have passed since the last freeze, whichever comes first. One fresh validator per round; it finalizes the round in the same session and never leaves a completed union unfinalized."},
+    {"id": "WF3-008", "area": "steward", "rule": "One batched steward sync per round, just before the freeze: builders push and file dep-requests; the steward syncs all new crates, edges and round features at once, then runs the canary on that tip. No per-push syncs unless a builder is blocked on the probe."},
+    {"id": "WF3-009", "area": "capacity", "rule": "C: SSD lane targets stay within the Operator's 150 GB grant (140 GiB guard). Eviction of idle lane targets requires Operator approval (pending 2026-10-20)."},
+    {"id": "WF3-010", "area": "hooks", "rule": "Write governance text (ledger ops, START_LOG lines, messages) with file tools, never inlined in shell commands, so command-text hooks do not match words inside notes. Gated commands start with a leading `cd` into the Studio governance folder or a lane worktree, never the kernel root (the root pointer belongs to WP-KERNEL-012). Never reshape a command to get past a hook."},
+    {"id": "WF3-011", "area": "hooks", "rule": "Gameplan retired everywhere (Operator 2026-10-20: 'stop everywhere'): Codex CX-GP-001/002/005 and GLOBAL-GAMEPLAN-001..006 retired, CX-VAL-010's gameplan step removed; no gameplan files, checks, confirmations or lane pointers are maintained. The global hook is removed by the Operator (uninstall-hooks is Operator-only); until then a blocked gated command is reported, never reshaped. Never rerun an identical failed command without a changed input."},
+    {"id": "WF3-012", "area": "handoff", "rule": "HANDOFF.md is refreshed at the end of every round and before any expected pause (usage limit, end of day), with current heads, running agents, READY backlog and Operator items."}
+  ],
+  "changes_from_previous": [
+    {"previous": "many concurrent builders, resumed long-context agents", "now": "<=5 fresh bounded builders (WF3-001/002)"},
+    {"previous": "every round re-runs the whole workspace", "now": "scoped selection with proof reuse; full union every third round (WF3-006)"},
+    {"previous": "per-push steward syncs", "now": "one batched sync per round (WF3-008)"},
+    {"previous": "per-slice builds and own-tests-only", "now": "bundled builds over whole changed-crate suites (WF3-004)"}
+  ]
+}

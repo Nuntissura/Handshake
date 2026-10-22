@@ -1,0 +1,60 @@
+{
+ "crate": "hsk-studio-develop",
+ "lane": "SMB-DEVELOP-DNG-WRITER",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed 71253a3 on codex/handshake-studio-assets",
+ "commits": [
+  {
+   "sha": "64804d9",
+   "subject": "interop-tiff slice 1: write_container"
+  },
+  {
+   "sha": "44f2a50",
+   "subject": "develop slice 2: DNG 1.4 writer"
+  },
+  {
+   "sha": "a3efdab",
+   "subject": "harness slice 3: develop --dng"
+  },
+  {
+   "sha": "5b1f0ab",
+   "subject": "ljpeg_enc: category 16 fix"
+  },
+  {
+   "sha": "71253a3",
+   "subject": "harness-view: drop redundant clones (pushed tip)"
+  }
+ ],
+ "capabilities_done": [
+  "interop-tiff write_container: generic LE classic TIFF writer (typed entries, strips, child IFDs behind pointer tags 330/34665)",
+  "develop dng_write: dng_from_raw / develop_to_dng / exif_subset / reduce_preview; CFA-preserving lossless; DNG 1.4.0.0; IFD0 sRGB preview + SubIFD raw; XMP tag 700 supplied by caller; Exif subset; compression none or lossless JPEG (ljpeg_enc, K.2 Huffman); read-back verification by develop's own reader",
+  "harness: develop SOURCE OUT --dng [--dng-compression none|ljpeg] [--dng-preview none|medium|full] [--dng-xmp FILE] [--dng-allow-dropped]"
+ ],
+ "tests": {
+  "argv": "lane-check --disk d: cargo nextest run -p hsk-studio-develop -p hsk-studio-interop-tiff -p hsk-studio-harness -p hsk-studio-harness-view --features hsk-studio-harness/viewer --no-fail-fast",
+  "exit": 0,
+  "sha": "71253a3",
+  "passed": 294,
+  "failed": 0,
+  "notes": "first run 2 ljpeg_enc failures fixed in one commit; post-rebase re-run 294/294 on the pushed tree (40 skipped = ignored)"
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "Validator: judge the pushed sha. Lead: new edge harness -> interop-lrcat (feature viewer) would let the CLI generate the crs XMP packet itself; today --dng-xmp embeds a packet produced by lrcat write_sidecar. A cross-crate test (lrcat write_sidecar -> develop DNG -> lrcat read_sidecar) belongs in interop-lrcat tests (lrcat already depends on develop).",
+ "updated_at": "2026-10-22T18:13:14Z",
+ "notes": {
+  "spec_basis": "module 14: [STU-RAW-017] raw-side export facts: a DNG output path with a compatibility version, a compression flag, a conversion method that may preserve the original raw payload, and an embedded-preview cache option; [STU-RAW-103] export to an interchange container reverses the import decode (develop settings travel as embedded XMP); [STU-IO-136] compression domain",
+  "parity": "Lightroom Classic / Adobe DNG Converter equivalence UNVERIFIED (no oracle). Adobe converter corpus file compared by tag profile only (input CR2 not in corpus): adobe_only_tags=[271,272,305,306,315,330,529-532,700,34665,37393,50718,50727,50731-50736,50738-50740,50780,50827,50931,50932,50936-50939,50941,50942,50966,50967,50969-50971,50981,50982,51041,51111] ours_only=[]",
+  "corpus_round_trip": "canon-eos-5d3-mlv-14bit-lossless (none 3142212 B, ljpeg 14-bit 2175040 B), samsung-sm-g950u (dropped opcode_list_2; none 18290892 B, ljpeg 10174660 B), nikon-d80 tiled linearized (none 20367504 B, ljpeg 12461248 B): raw samples equal sample for sample, tags equal",
+  "gaps": [
+   "DNG version fixed 1.4",
+   "no linear-raw / deflate / lossy DNG",
+   "opcode lists, masked areas, hue-sat maps, default user crop not carried (UnappliedPolicy::Record lists them)",
+   "XMP packet must be supplied (develop cannot depend on interop-lrcat)",
+   "ljpeg strips, not tiles"
+  ],
+  "deps": "no new crates.io dependency, no new module edge"
+ },
+ "verdicts": []
+}

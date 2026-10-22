@@ -1,12 +1,20 @@
 {
- "crate": "hsk-studio-press",
+ "crate": "hsk-studio-press + hsk-studio-interop-layout",
  "lane": "SMB-LAYOUT-PDF-EXPORT",
  "status": "READY_FOR_VALIDATION",
- "phase": "slice 1 (press export builder) pushed; slice 2 (interop-layout lowering) BLOCKED on decision L1",
+ "phase": "slice 1 (press builder, 0451297) and slice 2 (interop-layout lowering, e83e699 + f97530d) pushed",
  "commits": [
   {
    "sha": "0451297",
    "subject": "press (SMB-LAYOUT-PDF-EXPORT slice 1): new-PDF export builder over the crate's own writers"
+  },
+  {
+   "sha": "e83e699",
+   "subject": "interop-layout (SMB-LAYOUT-PDF-EXPORT slice 2): Folio snapshot lowered onto press PdfExport"
+  },
+  {
+   "sha": "f97530d",
+   "subject": "interop-layout tests (SMB-LAYOUT-PDF-EXPORT slice 2): stream scanner starts at the dictionary end"
   }
  ],
  "capabilities_done": [
@@ -19,26 +27,27 @@
   "finish(cancel) -> (bytes, ExportReceipt): content via canon::write_ops + Flate, objects/xref/trailer via writer::write_document; trailer /ID = first 16 bytes of sha256 over the objects (deterministic, no dates); receipt re-reads the output with PdfDoc::open: pages, version, sha256, effective_destination_profile_sha256 (decoded profile), effective_output_condition, effective_oc_registry, effective_pdfx_profile None, conformance not_proven",
   "Typed ExportError (32 variants, stable snake_case codes, Press(PressError) for writer/reader refusals); builder unchanged after any refusal; no bytes on error",
   "Hostile bounds: image bytes vs max_decoded_bytes, raw aggregate vs max_decoded_total (checked before compressing), written aggregate vs max_bytes, max_pages, max_object_number (reserved before allocating), max_content_ops per page, |value| <= MAX_EXPORT_COORD 1e9 with |v| < 1e-9 written as 0 (so every number fits canon's 64-char numbers), text <= 4096 chars, /ToUnicode text 1..16 chars, glyph ids < maxp numGlyphs; module denies clippy::arithmetic_side_effects",
-  "lib.rs: mod export, pub use export::{...}, DESCRIPTOR api entries PdfExport::* and ExportError::code (JSON re-parsed after the edit: valid)"
+  "lib.rs: mod export, pub use export::{...}, DESCRIPTOR api entries PdfExport::* and ExportError::code (JSON re-parsed after the edit: valid)",
+  "slice 2 export_pdf(PdfExportInput{snapshot, design records, stories (LayoutProposal + ShapedParagraphs + PdfGlyph id/font/size/offsets per glyph), fonts (bytes, face, hyphen glyph), PdfAssets port (SVPT paths, raster tiles, SCPF profiles), press options/limits}) -> PdfExportOutput{bytes, press receipt, loss, page ids, glyph/path/tile counts}",
+  "slice 2 pages: every page of every spread; media = trim + bleed with inside/outside by PageSide; TrimBox; BleedBox when declared; spread coordinates (y down, pages side by side as layout folio_input) mapped to PDF space",
+  "slice 2 text layers: frame lines placed from layout x_start/baseline and layout advances, justification word_scale on whitespace glyphs and letter_gap between glyphs, glyph offsets, hyphen glyph on hyphenated lines; fonts embedded once with /W from advances and /ToUnicode from story clusters; runs grouped per font and size",
+  "slice 2 vector layers: nib OwnedPath (validated; quads to exact cubics; per-path fill rule) with the solid Fill/Stroke rows of fill_style_id / stroke_style_id paint styles; profile-bound colours ICCBased (profile bytes via the port, embedded once per hash), unassigned colours DeviceRGB",
+  "slice 2 raster layers: pigment ResolvedTile validate_shape/validate_hashes + prism profile_hash check; linear rgb_f32le quantised to 16-bit big-endian, ICCBased with the tile's own profile (no colour conversion), straight alpha as SMask; sizes checked before allocation",
+  "slice 2 losses (counted LossEntry): layer_appearance_ignored, layer_not_on_page_spread, layer_kind_not_exported, story_not_supplied, frame_not_placed, to_unicode_cluster_skipped, hyphen_glyph_missing, glyph_font_not_embedded, press font refusal codes, paint_colour_untagged, paint_profile_unresolved, paint_colour_out_of_range, paint_style_unresolved, paint_opacity_or_blend_ignored, paint_gradient, stroke_weight_unit, stroke_align_drawn_centred, stroke_dash_ignored, vector_path_unresolved, raster_unresolved, raster_tile_invalid, raster_profile_hash, raster_profile_not_embedded",
+  "slice 2 typed PdfExportError: canceled, stale_revision, invalid_input (glyphs_misaligned, font_index, glyph_metrics, line_glyph_range, frame_page, length_not_pt, negative_bleed, raster_placement, raster_plane), press codes; module denies clippy::arithmetic_side_effects"
  ],
  "tests": {
-  "argv": "nextest run -p hsk-studio-press --lib --test export -E 'binary(export) | test(/^export::/)'",
+  "argv": "nextest run -p hsk-studio-interop-layout (slice 2 + existing); slice 1: nextest run -p hsk-studio-press --lib --test export -E 'binary(export) | test(/^export::/)' (6 passed at 0451297)",
   "exit": 0,
-  "sha": "0451297",
-  "passed": 6,
+  "sha": "f97530d",
+  "passed": 13,
   "failed": 0
  },
- "blockers": [
-  {
-   "error": "slice 2 needs Studio edge hsk-studio-interop-layout -> hsk-studio-press (decision L1, brief topic ownership/deps); interop-layout allowed edges today: folio, layout, type, prism (WORKSPACE_RULES path-deps). Also open: nib paths / pigment tiles for interop-layout.",
-   "file_line": "builders/briefs/lane-smb-layout-pdf-export.md topic deps; builders/dep-requests.jsonl last line (2026-10-15T00:08:36Z)",
-   "attempts": 0
-  }
- ],
+ "blockers": [],
  "lock_wait_s": 0,
  "bg_pids": [],
- "next": "lead decision L1 + steward edge, then slice 2 export_pdf in hsk-studio-interop-layout; slice 3 subsetting/CFF/transparency groups/PDF/X-4 + independent conformance oracle",
- "updated_at": "2026-10-15T00:08:36Z",
+ "next": "slice 3: font subsetting, CFF (/FontFile3), transparency groups and blend modes, PDF/X-4 output intent + independent conformance oracle; Type ParagraphResult -> PdfGlyph adapter; layer-graph paint order",
+ "updated_at": "2026-10-15T00:31:35Z",
  "notes": {
   "spec_basis": [
    "STU-IO-006 row 20 (module 14 l.21336): 'Portable document format | .pdf | Vector/doc | I·EP·X | ... vector+text+raster; text preserved on export where not rasterized'",
@@ -58,16 +67,36 @@
   "clippy": "clippy -p hsk-studio-press --lib --tests: no press warnings (observe warnings pre-existing, other owner)",
   "v4_14_note": "0451297 lands in hsk-studio-press AFTER SMB-PRESS-PG-HARDEN's READY commit aafcde7 (not yet judged). It is additive: new files src/export.rs, src/export/**, tests/export.rs and lib.rs lines (mod export, pub use export, DESCRIPTOR api list entries); no existing press function body changed. The lead must list 0451297 in that claim or judge PG-HARDEN at aafcde7.",
   "own_cause_log": "first clippy: E0382 moved ExportError value in sfnt.rs (fixed with a const before the first commit); tests module inherited deny(arithmetic_side_effects) (fixed with saturating index math)",
+  "slice2_tests": [
+   "tests/pdf_export.rs snapshot_lowers_to_pdf: Folio snapshot (2-page facing spread, bleed inside 3 / outside 9 / top-bottom 9, justified 100 pt frame, vector square with untagged red fill and ICC-tagged blue 4 pt stroke, 2x2 linear raster tile, a text layer whose story is not supplied) laid out by reflow_typeset -> media boxes [0,0,312,418] via PdfDoc; independent scan of the inflated content streams: H at (29,359), justified line 1 ends at 129 (slot 100, hand-computed), w at (29,335) then +advance, path 53/359 -> 153/359 with f*, 4.0 w / 1 J / 2 j, /CS0 CS 0 0 1 SC, image cm 20 0 0 20 103 89, 16-bit samples and alpha equal hand values, linear working profile embedded, ToUnicode <00A1> <0048>; losses exactly paint_colour_untagged + story_not_supplied",
+   "tests/pdf_export.rs misaligned_stale_and_refused_inputs: glyphs_misaligned, font_index, glyph_metrics (NaN size), stale_revision 6 vs 7, line_glyph_range, garbage font -> loss font_unreadable x1 and glyph_font_not_embedded x2, no design records -> 0 paths, canceled token"
+  ],
+  "slice2_own_cause_log": "first run of snapshot_lowers_to_pdf: the test's stream scanner matched 'stream\\n' inside 'endstream' (test bug, not product); fixed in f97530d; the retry guard was cleared by that commit (route a)",
+  "slice2_deps": "press, nib, pigment, prism added to interop-layout Cargo.toml (decision L1b START_LOG 2026-10-15; steward edges 9154f50; dep-requests lines for press, nib and pigment)",
   "unverified": [
    "Acrobat/InDesign rendering of the output (D5 oracle); only hayro-interpret 0.7.0 and press's own reader read it",
    "StemV 80 and Flags 4 in the FontDescriptor are neutral values (TrueType has no StemV source); viewer tolerance UNVERIFIED beyond hayro",
-   "PDF/X or PDF/A conformance: not claimed, not proven (STU-PDF-002); needs an independent checker (slice 3)"
+   "PDF/X or PDF/A conformance: not claimed, not proven (STU-PDF-002); needs an independent checker (slice 3)",
+   "slice 2 paint order = StudioDocument::layers order, bottom first (layer graph not consulted)",
+   "slice 2 bleed inside_or_left/outside_or_right mapping by PageSide (right-hand and single-sided: inside = left)",
+   "slice 2 text fill is a caller value; Folio type-style fill is not lowered"
   ],
   "gaps": [
-   "slice 2 (interop-layout lowering) blocked on L1",
    "no font subsetting (whole font embedded), no CFF (/FontFile3), no transparency groups/blend modes, spots, overprint, marks, tagged PDF, links, encryption, presets, JPEG passthrough",
-   "DESCRIPTOR lists the api entries only; no export proof/limitations block yet"
+   "no Type ParagraphResult -> PdfGlyph adapter (the caller maps Glyph::glyph_id)",
+   "no render proof of slice 2 output inside interop-layout (slice 1's hayro render covers the builder)",
+   "DESCRIPTOR lists the press api entries only; interop-layout DESCRIPTOR not yet updated with export_pdf"
   ],
-  "claim": "No PASS claimed; READY_FOR_VALIDATION for slice 1 on pushed commit 0451297"
- }
+  "claim": "No PASS claimed; READY_FOR_VALIDATION for slices 1+2 on pushed commits 0451297, e83e699, f97530d"
+ },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "0451297 e83e699 f97530d: press PdfExport builder over canon::write_ops/writer::write_document (Type0/CIDFontType2 whole-font embed, Flate images + SMask, ICCBased, deterministic /ID, typed ExportError refusals, conformance not_proven stated); interop-layout lowers Folio pages/spreads, text runs (Type glyph ids), SVPT paths, raster tiles onto it with typed losses. Judged at candidate tree, which also holds SMB-LAYOUT-PDF-EXPORT-2 commits fb369b9 98abfd6 7027040 084e744 (other lane id, V4-15). No stub. Lane tests 12 passed / 0 failed (/press::export|interop-layout::pdf_export|::export::/); default press 190, interop-layout 15; all units of press/interop-layout build 0 run 0", "idempotency_key": "STUDIO-R30:SMB-LAYOUT-PDF-EXPORT:e7a2b6c5f8e2:PASS_V1", "round": "STUDIO-R30", "lane": "SMB-LAYOUT-PDF-EXPORT", "candidate": "e7a2b6c5f8e2162f26de6e651aa2f195d04d14b2", "tree": "1e1cbc37a8dec6fba5cf6fdfddac3212d12ded23", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R30", "started_at": "2026-10-15T01:28:40Z", "completed_at": "2026-10-15T02:04:29Z"},
+  {"decision": "passed", "verdict": "PASS_V2", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed e7a2b6c..d9c59f8 + reverse-dependency closure, 16 crates). units of press/interop-layout: 2 crate units + default; all build 0 / run 0; default press 198, interop-layout 18", "idempotency_key": "STUDIO-R31:SMB-LAYOUT-PDF-EXPORT:d9c59f899673:PASS_V2", "round": "STUDIO-R31", "lane": "SMB-LAYOUT-PDF-EXPORT", "candidate": "d9c59f899673c4e4753dcd6d0269db87dfea0319", "tree": "135b10c9736bdfe3d024fcea9d0940506cc8c7a3", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R31", "started_at": "2026-10-15T03:03:04Z", "completed_at": "2026-10-15T04:38:10Z"},
+  {"decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed d9c59f8..eb569d5 + reverse-dependency closure, 28 crates).  units of interop-layout/press: 2 crate units + default; all build 0 / run 0; default interop-layout 23, press 204", "idempotency_key": "STUDIO-R32:SMB-LAYOUT-PDF-EXPORT:eb569d5764a3:PASS_V3", "round": "STUDIO-R32", "lane": "SMB-LAYOUT-PDF-EXPORT", "candidate": "eb569d5764a3243d492c40f5fe8494782e45c882", "tree": "a232cd250db1371549353ee0c3ada8b8c0c083c4", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R32", "started_at": "2026-10-15T06:20:39Z", "completed_at": "2026-10-15T07:38:27Z"},
+  {"decision": "passed", "verdict": "PASS_V4", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed eb569d5..ef53ea7 + reverse-dependency closure, 24 crates).  units of interop-layout/press: 2 crate units + default; all build 0 / run 0; default interop-layout 29, press 204", "idempotency_key": "STUDIO-R33:SMB-LAYOUT-PDF-EXPORT:ef53ea781923:PASS_V4", "round": "STUDIO-R33", "lane": "SMB-LAYOUT-PDF-EXPORT", "candidate": "ef53ea781923c4ed859c31ac98ea21f97ab188a9", "tree": "3e6eded3fda85beaaea2739b220ff6ed9ec59f5f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R33", "started_at": "2026-10-15T08:54:16Z", "completed_at": "2026-10-15T11:44:50Z"},
+  {"decision": "passed", "verdict": "PASS_V5", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ef53ea7..ca5e9c9 + reverse-dependency closure, 29 crates).  units of interop-layout/press: 2 crate units + default; all build 0 / run 0; default interop-layout 31, press 206", "idempotency_key": "STUDIO-R34:SMB-LAYOUT-PDF-EXPORT:ca5e9c92fa6b:PASS_V5", "round": "STUDIO-R34", "lane": "SMB-LAYOUT-PDF-EXPORT", "candidate": "ca5e9c92fa6be13b50428ea3be6571ccc1d1a511", "tree": "4afc6f85614b23faaffb0c941d9da11a7eb3259f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R34", "started_at": "2026-10-15T22:54:57Z", "completed_at": "2026-10-16T02:52:16Z"},
+  {"decision": "passed", "verdict": "PASS_V6", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ca5e9c9..237256f + reverse-dependency closure, 31 crates).  units of interop-layout/press: 2 crate units + default; all build 0 / run 0; default interop-layout 37, press 159", "idempotency_key": "STUDIO-R35:SMB-LAYOUT-PDF-EXPORT:237256f8792c:PASS_V6", "round": "STUDIO-R35", "lane": "SMB-LAYOUT-PDF-EXPORT", "candidate": "237256f8792c708b96464030d4b40f3a93e8f0e0", "tree": "f699823b8e0d0530a5f9a96df354b8b7aac8294f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R35", "started_at": "2026-10-16T07:31:56Z", "completed_at": "2026-10-20T14:11:50Z"},
+    {"decision": "passed", "verdict": "PASS_V7", "status_change": "PASS_V7", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V6", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: interop-layout).  units of interop-layout/press: 2 crate units + default; all build 0 / run 0; default passed interop-layout 42, press 159", "idempotency_key": "STUDIO-R36:SMB-LAYOUT-PDF-EXPORT:a10576683c7a:PASS_V7", "claim_scope": null, "round": "STUDIO-R36", "lane": "SMB-LAYOUT-PDF-EXPORT", "candidate": "a10576683c7a76b3da37e6ec4794652c3e903bbd", "tree": "27fb1f13e97fbaecd9e4b61428e53bcab50a3169", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R36", "started_at": "2026-10-21T17:26:59Z", "completed_at": "2026-10-22T05:34:45Z"},
+    {"decision": "passed", "verdict": "PASS_V8", "status_change": "PASS_V8", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V7", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: interop-layout).  units of interop-layout/press: 2 crate units + default; all build 0 / run 0; default passed interop-layout 47, press 159", "idempotency_key": "STUDIO-R37:SMB-LAYOUT-PDF-EXPORT:1d139a6990f5:PASS_V8", "claim_scope": null, "round": "STUDIO-R37", "lane": "SMB-LAYOUT-PDF-EXPORT", "candidate": "1d139a6990f55b77c1ce09c1dc7a5c2f47c324f4", "tree": "3c2b5fe1ce168053e16b0f682b9b728a0441c9fc", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37", "started_at": "2026-10-22T09:20:11Z", "completed_at": "2026-10-22T13:00:58Z"}
+ ]
 }

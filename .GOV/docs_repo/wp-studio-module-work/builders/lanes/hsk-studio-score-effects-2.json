@@ -1,0 +1,72 @@
+{
+ "crate": "hsk-studio-score",
+ "lane": "SMB-SCORE-EFFECTS-2",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-2 pushed (d8cb160 SidechainDynamics, e6ca990 FeedbackDelay); reverb, spectral NR and BS.1770 loudness already in score (SMB-SCORE-DSP/TRUEPEAK), not duplicated",
+ "commits": [
+  {
+   "sha": "d8cb160157e668177406be0341bdbfae08d015d3",
+   "subject": "score (SMB-SCORE-EFFECTS-2 slice 1): SidechainDynamics - lookahead and external key for compressor/expander/gate"
+  },
+  {
+   "sha": "e6ca990380ccf76146174f4c32f11a9bd586193d",
+   "subject": "score (SMB-SCORE-EFFECTS-2 slice 2): FeedbackDelay - echo with feedback, loop damping and stereo ping-pong"
+  }
+ ],
+ "capabilities_done": [
+  "SidechainDynamics (src/sidechain.rs): reuses the Dynamics gain computer (compressor/expander/gate, Giannoulis soft knee, peak or RMS detector, attack/release, hold, range, makeup, link) and adds lookahead (main delayed round(lookahead_ms*rate/1000) samples = reported latency, detector on the undelayed key) and KeySource::External{channels} (input = main channels then key channels, output = main channels; linked = loudest key, unlinked = key i drives main i); Internal key with lookahead 0 is bit-identical to Dynamics; allocation only at construction",
+  "FeedbackDelay (src/delay.rs): D = round(time_ms*rate/1000) samples (>= 1, 0..5000 ms), line = x + feedback*f(tap), out = (1-mix) x + mix tap; impulse echoes exact at m*D with feedback^(m-1) (48k/44.1k/96k tested); optional one-pole loop damping 20..rate/2 Hz (unity DC; echo 2 = fb(1-k)k^j tested); stereo ping-pong; feedback -0.99..0.99; delay line <= MAX_DELAY_LINE_SAMPLES (8Mi f64) checked before allocation; latency 0; tail_frames() bound tested; f64 loop state with 1e-30 flush"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-score --test sidechain --test dynamics --no-fail-fast (9/9 at d8cb160 content); cargo nextest run -p hsk-studio-score --test delay --test foundation_contract --no-fail-fast (9/9) and --test delay after the lint fix (4/4) at e6ca990 content",
+  "exit": 0,
+  "sha": "e6ca990380ccf76146174f4c32f11a9bd586193d",
+  "passed": 18,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 27,
+ "bg_pids": [],
+ "next": "none in this dispatch; candidate follow-ups: key band filter (spec Dynamics low/high_frequency), multiband compressor, chorus/flanger (spec Flanger contract table), Dattorro plate",
+ "updated_at": "2026-10-15T02:05:34Z",
+ "notes": {
+  "spec_basis": [
+   "STU-FX-134: 'Studio ships a native audio effect domain.' (audio StudioLiveFilter; same determinism requirement as 14.9.1)",
+   "STU-FX-134a: complete audio processor set incl. rows Dynamics (38 params), Single-band Compressor, Single-band Dynamics, Multiband Compressor, Hard Limiter, Analog Delay, Studio Reverb, Adaptive Noise Reduction, Loudness Meter",
+   "STU-FX-134a Dynamics contract table (sheet DynamicsUI): look_ahead_time in4 hard 0..500, attack_time 0..500, release_time 0..2000, link_channels, use_rms, use_noise_gate; no units declared (ms authored); SIDECHAIN_LOOKAHEAD_MS = 0..500 follows look_ahead_time",
+   "STU-FX-147: loudness-standard enumeration is a declared GAP",
+   "STU-FX-134a row 'Analog Delay' declares 0 parameters: FeedbackDelay ranges are authored"
+  ],
+  "already_in_score_not_duplicated": {
+   "dynamics": "Dynamics + LookaheadLimiter (SMB-SCORE-DSP slice 1, 7f76cfd): compressor/expander/gate, knee, attack/release, RMS or peak; this lane adds only lookahead + sidechain",
+   "reverb": "Reverb (SMB-SCORE-DSP slice 3, 4e36b3d): Schroeder-Moorer combs+allpasses, RT60-derived loop gains, T30 within 10 percent tested; not rebuilt",
+   "noise_reduction": "NoiseProfiler/NoiseReducer (SMB-SCORE-DSP slice 4, 917a7ac): noise-print capture, STFT sqrt-Hann hop N/4, Wiener-style subtraction; not rebuilt",
+   "loudness": "LoudnessMeter (SMB-SCORE-DSP slice 2 + SMB-SCORE-TRUEPEAK f025ff7): BS.1770-4 momentary/short-term/integrated/LRA + Annex 2 true peak; EBU vectors NOT_PROVEN (HTTP 403); not rebuilt"
+  },
+  "parity": "Adobe Audition side-chain, lookahead and delay behaviour UNVERIFIED (D5 oracle session); no parity claimed",
+  "parity_matrix_stale": "research/parity-matrix-20261014b.json AU-08/09/10/13 still read MISSING although SMB-SCORE-DSP implemented them; lead should refresh the matrix",
+  "licence_clean_room": "Giannoulis-Massberg-Reiss JAES 2012 formulas (existing gain computer reused); feedback comb / delay line recurrence from textbook (J. O. Smith, Physical Audio Signal Processing); no third-party source read or copied",
+  "dep_requests": "none",
+  "new_module_edges": "none (score-internal module sidechain.rs)",
+  "working_tree": "pre-existing stat-only modifications of other score src files left uncommitted; pathspec commits only; Cargo.lock not committed",
+  "check_clippy": "cargo clippy -p hsk-studio-score -p hsk-studio-score-device -p hsk-studio-score-plugin --tests --examples at e6ca990 content: no findings in score crates (2 pre-existing too_many_arguments in hsk-studio-observe); one needless_range_loop in tests/delay.rs fixed before commit",
+  "gaps": [
+   "No key (detector) band filter: spec Dynamics low_frequency/high_frequency rows have no declared semantics; not implemented",
+   "No multiband compressor, no chorus/flanger/phaser, no click/hum restoration (outside this dispatch)"
+  ],
+  "retry_guard": "one hook block: a lane-file edit script was run with the kernel root as cwd (resolved the WP-KERNEL-012 gameplan); cause = wrong cwd, rerun with the leading cd into the product workspace; no gameplan step added or confirmed",
+  "new_tests": {
+   "sidechain": 4,
+   "delay": 4
+  },
+  "descriptor": "DESCRIPTOR gained SidechainDynamics and FeedbackDelay entries; JSON parse checked"
+ },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "claim d8cb160 e6ca990: SidechainDynamics (external key, lookahead reported as latency, linked/unlinked gain), FeedbackDelay (feedback, one-pole damping, stereo ping-pong refused on non-stereo, capacity checked before allocation). Audition parity UNVERIFIED (D5). No stub. Lane tests 8 passed / 0 failed (/hsk-studio-score::(sidechain|delay)/, all units). units of score: 1 crate units + default; all build 0 / run 0; default score 78 | attributed, not this lane: hsk-studio-score::restore::clicks_are_detected_and_interpolated [default] -> SMB-SCORE-EFFECTS-3 (interim slice-3 bound restore.rs:77 worst < 0.02 (measured 0.0302 at click 26200) in a new module of that deferred lane (1bf37d6..d160025); changed after the candidate by bd8e099 (claim of that lane, R32); lead note 2026-10-15)", "idempotency_key": "STUDIO-R31:SMB-SCORE-EFFECTS-2:d9c59f899673:PASS_V1", "round": "STUDIO-R31", "lane": "SMB-SCORE-EFFECTS-2", "candidate": "d9c59f899673c4e4753dcd6d0269db87dfea0319", "tree": "135b10c9736bdfe3d024fcea9d0940506cc8c7a3", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R31", "started_at": "2026-10-15T03:03:04Z", "completed_at": "2026-10-15T04:38:10Z"},
+  {"decision": "passed", "verdict": "PASS_V2", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed d9c59f8..eb569d5 + reverse-dependency closure, 28 crates).  units of score: 1 crate units + default; all build 0 / run 0; default score 114", "idempotency_key": "STUDIO-R32:SMB-SCORE-EFFECTS-2:eb569d5764a3:PASS_V2", "round": "STUDIO-R32", "lane": "SMB-SCORE-EFFECTS-2", "candidate": "eb569d5764a3243d492c40f5fe8494782e45c882", "tree": "a232cd250db1371549353ee0c3ada8b8c0c083c4", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R32", "started_at": "2026-10-15T06:20:39Z", "completed_at": "2026-10-15T07:38:27Z"},
+  {"decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ef53ea7..ca5e9c9 + reverse-dependency closure, 29 crates).  units of score: 1 crate units + default; all build 0 / run 0; default score 120", "idempotency_key": "STUDIO-R34:SMB-SCORE-EFFECTS-2:ca5e9c92fa6b:PASS_V3", "round": "STUDIO-R34", "lane": "SMB-SCORE-EFFECTS-2", "candidate": "ca5e9c92fa6be13b50428ea3be6571ccc1d1a511", "tree": "4afc6f85614b23faaffb0c941d9da11a7eb3259f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R34", "started_at": "2026-10-15T22:54:57Z", "completed_at": "2026-10-16T02:52:16Z"},
+  {"decision": "passed", "verdict": "PASS_V4", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ca5e9c9..237256f + reverse-dependency closure, 31 crates).  units of score: 1 crate units + default; all build 0 / run 0; default score 121", "idempotency_key": "STUDIO-R35:SMB-SCORE-EFFECTS-2:237256f8792c:PASS_V4", "round": "STUDIO-R35", "lane": "SMB-SCORE-EFFECTS-2", "candidate": "237256f8792c708b96464030d4b40f3a93e8f0e0", "tree": "f699823b8e0d0530a5f9a96df354b8b7aac8294f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R35", "started_at": "2026-10-16T07:31:56Z", "completed_at": "2026-10-20T14:11:50Z"},
+    {"decision": "passed", "verdict": "PASS_V5", "status_change": "PASS_V5", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V4", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: score).  units of score: 1 crate units + default; all build 0 / run 0; default passed score 131", "idempotency_key": "STUDIO-R36:SMB-SCORE-EFFECTS-2:a10576683c7a:PASS_V5", "claim_scope": null, "round": "STUDIO-R36", "lane": "SMB-SCORE-EFFECTS-2", "candidate": "a10576683c7a76b3da37e6ec4794652c3e903bbd", "tree": "27fb1f13e97fbaecd9e4b61428e53bcab50a3169", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R36", "started_at": "2026-10-21T17:26:59Z", "completed_at": "2026-10-22T05:34:45Z"},
+    {"decision": "passed", "verdict": "PASS_V6", "status_change": "PASS_V6", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V5", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (root_inputs_changed (Cargo.toml members, Cargo.lock workspace packages, .config step-0 policy duplicate-fingerprints/machine-paths, tools/workspace-probe.rs); crates outside the closure: score).  units of score: 1 crate units + default; all build 0 / run 0; default passed score 131", "idempotency_key": "STUDIO-R37:SMB-SCORE-EFFECTS-2:1d139a6990f5:PASS_V6", "claim_scope": null, "round": "STUDIO-R37", "lane": "SMB-SCORE-EFFECTS-2", "candidate": "1d139a6990f55b77c1ce09c1dc7a5c2f47c324f4", "tree": "3c2b5fe1ce168053e16b0f682b9b728a0441c9fc", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37", "started_at": "2026-10-22T09:20:11Z", "completed_at": "2026-10-22T13:00:58Z"}
+ ]
+}

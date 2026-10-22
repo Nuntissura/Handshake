@@ -4,10 +4,22 @@
  "status": "READY_FOR_VALIDATION",
  "phase": "slices 1-3 pushed (5c2288e + 3d02528 fill, 9c39a5e patch + move, b7880bb claims/exclusion proof); clippy -p hsk-studio-pigment --tests clean; clippy over pigment + composite + develop + interop-fig + interop-psd + render-cpu + render-gpu --tests exit 0 (warnings only in observe/type, pre-existing); content_aware 8/8 at b7880bb, retouch 13/13 regression at 9c39a5e (retouch.rs unchanged after)",
  "commits": [
-  {"sha": "5c2288e", "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE slice 1): native content-aware fill (STU-RAS-143)"},
-  {"sha": "3d02528", "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE slice 1): fill tests; best-patch final vote; source-adequate pyramid levels"},
-  {"sha": "9c39a5e", "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE slice 2): content-aware patch (normal/content-aware) and move (move/extend)"},
-  {"sha": "b7880bb", "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE slice 3): receipt and doc claims cite their tests; move destination exclusion proven"}
+  {
+   "sha": "5c2288e",
+   "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE slice 1): native content-aware fill (STU-RAS-143)"
+  },
+  {
+   "sha": "3d02528",
+   "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE slice 1): fill tests; best-patch final vote; source-adequate pyramid levels"
+  },
+  {
+   "sha": "9c39a5e",
+   "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE slice 2): content-aware patch (normal/content-aware) and move (move/extend)"
+  },
+  {
+   "sha": "b7880bb",
+   "subject": "pigment (SMB-PIGMENT-CONTENT-AWARE slice 3): receipt and doc claims cite their tests; move destination exclusion proven"
+  }
  ],
  "capabilities_done": [
   "slice 1 content_aware::fill(target RgbaPlane, hole CoveragePlane coverage>0 clipped to the target, SamplingArea auto|rectangular(Rect)|custom(CoveragePlane, coverage>=32768), ContentAwareOptions, RetouchLimits): pyramid (halve while hole bbox > one patch, next level >= 2 patches, source centres >= domain centres, <= max_levels); PatchMatch NNF (Barnes 2009) with JACOBI sweeps (propagation at distance 1 and 2^min(4,S-1-s), random search radii max(w,h)/2^k, SplitMix64(seed, level, em, sweep, centre, draw)); EM with weighted voting exp(-e/(2*0.1^2)) (Wexler 2007), best-patch final vote at level 0 (no averaging blur); coarsest init onion peel, finer init from the parent; blend colour_adaptation none = d + c(f - d) premultiplied, default = retouch membrane Poisson solver (extracted as retouch::heal_with_guide, heal behaviour unchanged) with guide = synthesized hole + NNF votes on the 4-neighbour ring; thread-count independent bytes (par_fill over contiguous chunks of pure per-centre/per-pixel updates)",
@@ -16,7 +28,13 @@
   "slice 2 content_aware::content_aware_move(target, selection, offset (p shows p - offset), MoveMode move|extend, sampling, options, limits) -> MoveResult{result, fill receipt, paste HealReceipt}: move fills the vacated selection with the destination footprint excluded from sampling, then places the object (colour_adaptation none = source-over with selection coverage via retouch::paint_over; default = retouch heal with the moved original as guide); destination outside the target places nothing; damage = union of hole and visible destination",
   "slice 3 quality receipt ContentAwareReceipt{seed, patch_radius, levels[LevelReceipt{width, height, hole_pixels, domain_centres, source_centres, em_iterations, search_iterations, energies per EM iteration}], iterations, final_energy, work, guided, blend HealReceipt}; content_aware::DESCRIPTOR; V4-07 claims cite tests"
  ],
- "tests": {"argv": "cargo nextest run -p hsk-studio-pigment --test content_aware --no-fail-fast", "exit": 0, "sha": "b7880bb", "passed": 8, "failed": 0},
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-pigment --test content_aware --no-fail-fast",
+  "exit": 0,
+  "sha": "b7880bb",
+  "passed": 8,
+  "failed": 0
+ },
  "blockers": [],
  "lock_wait_s": 190,
  "bg_pids": [],
@@ -34,5 +52,32 @@
   "unowned_dirty_file": "crates/hsk-studio-pigment/tests/transform.rs shows M with an empty content diff (pre-existing, also noted by SMB-PIGMENT-RETOUCH); not touched, not committed",
   "cargo_lock": "not touched",
   "route": "no gameplan blocks on cargo; one command blocked by the WP-KERNEL-012 kernel gameplan because a variable assignment preceded the leading cd (PROC-CD-FIRST); rerun with cd first, no gameplan step added"
- }
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "5c2288e 3d02528 9c39a5e b7880bb: PatchMatch NNF pyramid (seeded random init, Jacobi propagation, random search, EM vote, onion peel), patch/move, budgets before allocation, V4-01 deny. No stub. Lane tests 8 passed / 0 failed (/::content_aware::/); default pigment 125; all units of pigment build 0 run 0",
+   "idempotency_key": "STUDIO-R29:SMB-PIGMENT-CONTENT-AWARE:62c0bf666fc8:PASS_V1",
+   "round": "STUDIO-R29",
+   "lane": "SMB-PIGMENT-CONTENT-AWARE",
+   "candidate": "62c0bf666fc88e6ab5424e4eae46f18521c5dffe",
+   "tree": "b8c285ac064abaa57d54553f2e4ce940f6c0fb04",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "started_at": "2026-10-14T23:54:12Z",
+   "completed_at": "2026-10-15T00:47:07Z"
+  },
+  {"decision": "passed", "verdict": "PASS_V2", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed 62c0bf6..e7a2b6c + reverse-dependency closure, 13 crates): units of pigment all build 0/run 0, 0 failed, 0 timed_out; default pigment 135", "idempotency_key": "STUDIO-R30:SMB-PIGMENT-CONTENT-AWARE:e7a2b6c5f8e2:PASS_V2", "round": "STUDIO-R30", "lane": "SMB-PIGMENT-CONTENT-AWARE", "candidate": "e7a2b6c5f8e2162f26de6e651aa2f195d04d14b2", "tree": "1e1cbc37a8dec6fba5cf6fdfddac3212d12ded23", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R30", "started_at": "2026-10-15T01:28:40Z", "completed_at": "2026-10-15T02:04:29Z"},
+  {"decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed e7a2b6c..d9c59f8 + reverse-dependency closure, 16 crates). units of pigment: 1 crate units + default; all build 0 / run 0; default pigment 139", "idempotency_key": "STUDIO-R31:SMB-PIGMENT-CONTENT-AWARE:d9c59f899673:PASS_V3", "round": "STUDIO-R31", "lane": "SMB-PIGMENT-CONTENT-AWARE", "candidate": "d9c59f899673c4e4753dcd6d0269db87dfea0319", "tree": "135b10c9736bdfe3d024fcea9d0940506cc8c7a3", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R31", "started_at": "2026-10-15T03:03:04Z", "completed_at": "2026-10-15T04:38:10Z"},
+  {"decision": "passed", "verdict": "PASS_V4", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed d9c59f8..eb569d5 + reverse-dependency closure, 28 crates).  units of pigment: 1 crate units + default; all build 0 / run 0; default pigment 138 | attributed, not this lane: hsk-studio-pigment::plan_followups::admission_readers_of_nodes_and_entries_are_classified [default] -> SMB-COMPOSITE-VECTOR-MASK-2", "idempotency_key": "STUDIO-R32:SMB-PIGMENT-CONTENT-AWARE:eb569d5764a3:PASS_V4", "round": "STUDIO-R32", "lane": "SMB-PIGMENT-CONTENT-AWARE", "candidate": "eb569d5764a3243d492c40f5fe8494782e45c882", "tree": "a232cd250db1371549353ee0c3ada8b8c0c083c4", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R32", "started_at": "2026-10-15T06:20:39Z", "completed_at": "2026-10-15T07:38:27Z"},
+  {"decision": "passed", "verdict": "PASS_V5", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed eb569d5..ef53ea7 + reverse-dependency closure, 24 crates).  units of pigment: 1 crate units + default; all build 0 / run 0; default pigment 184", "idempotency_key": "STUDIO-R33:SMB-PIGMENT-CONTENT-AWARE:ef53ea781923:PASS_V5", "round": "STUDIO-R33", "lane": "SMB-PIGMENT-CONTENT-AWARE", "candidate": "ef53ea781923c4ed859c31ac98ea21f97ab188a9", "tree": "3e6eded3fda85beaaea2739b220ff6ed9ec59f5f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R33", "started_at": "2026-10-15T08:54:16Z", "completed_at": "2026-10-15T11:44:50Z"},
+  {"decision": "passed", "verdict": "PASS_V6", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ef53ea7..ca5e9c9 + reverse-dependency closure, 29 crates).  units of pigment: 1 crate units + default; all build 0 / run 0; default pigment 200", "idempotency_key": "STUDIO-R34:SMB-PIGMENT-CONTENT-AWARE:ca5e9c92fa6b:PASS_V6", "round": "STUDIO-R34", "lane": "SMB-PIGMENT-CONTENT-AWARE", "candidate": "ca5e9c92fa6be13b50428ea3be6571ccc1d1a511", "tree": "4afc6f85614b23faaffb0c941d9da11a7eb3259f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R34", "started_at": "2026-10-15T22:54:57Z", "completed_at": "2026-10-16T02:52:16Z"},
+  {"decision": "passed", "verdict": "PASS_V7", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ca5e9c9..237256f + reverse-dependency closure, 31 crates).  units of pigment: 1 crate units + default; all build 0 / run 0; default pigment 202", "idempotency_key": "STUDIO-R35:SMB-PIGMENT-CONTENT-AWARE:237256f8792c:PASS_V7", "round": "STUDIO-R35", "lane": "SMB-PIGMENT-CONTENT-AWARE", "candidate": "237256f8792c708b96464030d4b40f3a93e8f0e0", "tree": "f699823b8e0d0530a5f9a96df354b8b7aac8294f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R35", "started_at": "2026-10-16T07:31:56Z", "completed_at": "2026-10-20T14:11:50Z"},
+    {"decision": "passed", "verdict": "PASS_V8", "status_change": "PASS_V8", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V7", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: pigment).  units of pigment: 1 crate units + default; all build 0 / run 0; default passed pigment 215", "idempotency_key": "STUDIO-R36:SMB-PIGMENT-CONTENT-AWARE:a10576683c7a:PASS_V8", "claim_scope": null, "round": "STUDIO-R36", "lane": "SMB-PIGMENT-CONTENT-AWARE", "candidate": "a10576683c7a76b3da37e6ec4794652c3e903bbd", "tree": "27fb1f13e97fbaecd9e4b61428e53bcab50a3169", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R36", "started_at": "2026-10-21T17:26:59Z", "completed_at": "2026-10-22T05:34:45Z"},
+    {"decision": "passed", "verdict": "PASS_V9", "status_change": "PASS_V9", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V8", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: pigment).  units of pigment: 1 crate units + default; all build 0 / run 0; default passed pigment 216", "idempotency_key": "STUDIO-R37:SMB-PIGMENT-CONTENT-AWARE:1d139a6990f5:PASS_V9", "claim_scope": null, "round": "STUDIO-R37", "lane": "SMB-PIGMENT-CONTENT-AWARE", "candidate": "1d139a6990f55b77c1ce09c1dc7a5c2f47c324f4", "tree": "3c2b5fe1ce168053e16b0f682b9b728a0441c9fc", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37", "started_at": "2026-10-22T09:20:11Z", "completed_at": "2026-10-22T13:00:58Z"}
+ ]
 }

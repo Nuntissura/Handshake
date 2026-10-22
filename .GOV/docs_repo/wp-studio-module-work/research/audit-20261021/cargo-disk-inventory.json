@@ -1,0 +1,2654 @@
+{
+  "schema": "hsk.studio.audit.cargo_disk@1",
+  "file_id": "studio-audit-cargo-disk-inventory-20261021",
+  "file_kind": "audit_cargo_disk_inventory",
+  "updated_at": "2026-10-21T06:32:10Z",
+  "by": "read-only disk auditor (Sonnet)",
+  "method": "Read-only. Sizes = robocopy <dir> NUL /L /S /BYTES (list-only apparent size, same method as studio-env.sh guard; counts hardlinks twice, so real disk use can be lower), GiB = bytes/2^30. Newest write = newest mtime among direct children of .fingerprint (and of the dir). Lane status from ledger.json lanes[] matched on lower-case lane_id == owner dir (exact match only; non-matching owners flagged). Idle = newest write older than 3 days before audit time. Processes via Get-CimInstance Win32_Process. Nothing deleted, moved, or stopped. Scratchpad measurement scripts only wrote to the session scratchpad.",
+  "drives": {
+    "C": {
+      "used_gib": 7110.45,
+      "free_gib": 340.36
+    },
+    "D": {
+      "used_gib": 13062.89,
+      "free_gib": 1839.1
+    }
+  },
+  "running_processes": [
+    {
+      "note": "No cargo, rustc, cargo-nextest, nextest, sccache or rust-analyzer process was running at audit start (Get-CimInstance Win32_Process, name filter). The only name match was lmlink-connector.exe (matches \"link\", PID 282996, start 2026-10-19 17:51, an LM Studio extension, not a build tool). No target dir is in use by a build process.",
+      "matched": [
+        {
+          "pid": 282996,
+          "name": "lmlink-connector.exe",
+          "start": "2026-10-19T17:51:47",
+          "relevant_to_build": false
+        }
+      ]
+    }
+  ],
+  "studio_env_facts": [
+    "studio-env.sh: \"Operator grant 2026-10-14 (CX-984-014, START_LOG): the shared builder edit-tree target (owner studio-team-dev only) lives on the C: SSD at C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target (cap 150 GB, cleaned at WP close) with its own per-disk lock C:/HandshakeBuild/.disk-build-lock; every other owner ... and all TMP/TEMP stay under Handshake_Artifacts on D:.\"",
+    "studio-env.sh: \"STUDIO_BUILD_DISK=ssd moves a lane owner's target INSIDE the one granted target, at <granted target>/lanes/<owner>\" (CARGO_TARGET_DIR=${_studio_ssd}/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/${_STUDIO_SSD_LANE}).",
+    "studio-env.sh: \"Guard: an SSD build is refused (status 77, before queueing) while the whole C:/HandshakeBuild/WP-KERNEL-STUDIO tree is over STUDIO_SSD_CAP_GB (default 140 of the 150 GB grant ...). Unset or STUDIO_BUILD_DISK=d: unchanged D: target.\"",
+    "studio-env.sh: \"Record ${_STUDIO_SSD_TREE}/.studio-ssd-size = \\\"<KiB> <measure start epoch>\\\" ... robocopy /L listing (sums apparent sizes and counts cargo's uplift hardlinks twice, so it errs high = fail-safe) ... Decision uses the last record of any age: over STUDIO_SSD_CAP_GB -> status 77; a record older than STUDIO_SSD_SIZE_MAX_AGE_S (default 3600) ... starts a re-measure ... After a cleanup, delete the record to re-admit at once.\"",
+    "studio-env.sh: _studio_art=\"D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO\"; non-studio-team-dev owners: CARGO_TARGET_DIR=\"${_studio_art}/${_studio_owner}/target\"; export TMP=\"${_studio_art}/${_studio_owner}/tmp\" (TEMP, TMPDIR same).",
+    "studio-env.sh: export CARGO_PROFILE_DEV_DEBUG=line-tables-only; CARGO_PROFILE_TEST_DEBUG=line-tables-only. Nextest store pinned under ${CARGO_TARGET_DIR}/nextest via .studio-nextest-store.toml. Disk lock: C: lock for studio-team-dev and ssd lanes, ${_studio_art}/.disk-build-lock for D: owners; GPU lock ${_studio_art}/.gpu-test-lock.",
+    "studio-env.sh sets NO sccache/RUSTC_WRAPPER and NO CARGO_HOME override (no CARGO_HOME env var in this shell either; cargo home = $HOME/.cargo on C:). sccache appears only as a commented usage line in tools/steward-sync.sh.",
+    "Measured: .studio-ssd-size on C: = \"167888470 1792537353\" = 160.12 GiB at epoch 1792537353 (matches this audit 160.11 GiB, robocopy apparent-size method)."
+  ],
+  "c_build_area": {
+    "total_gib": 160.11,
+    "guard_gib": 140,
+    "cap_gb": 150,
+    "structure": {
+      "studio-team-dev/target/debug (shared warm, non-lane)": 99.13,
+      "studio-team-dev/target/lanes": 60.82,
+      "studio-team-dev/target/release": 0.13,
+      "studio-team-dev/target/tmp": 0.03,
+      "only owner dir under WP-KERNEL-STUDIO": "studio-team-dev (lanes live INSIDE its target at target/lanes/<owner>)"
+    },
+    "other_top_level_entries": [
+      "C:/HandshakeBuild/.disk-build-lock (lock dir: over.1792535065-..., over.1792537353-..., queue, events.log; last write 2026-10-20T23:38Z; NOT a candidate)",
+      "C:/HandshakeBuild/WP-KERNEL-STUDIO/.studio-ssd-size (guard record, 167888470 KiB = 160.12 GiB)"
+    ],
+    "empty_lane_dirs_on_c": [
+      "smb-d24a-codec-defaults",
+      "smb-ai-ae-oracle-followups",
+      "smb-premiere-color-titles",
+      "smb-dxf-eps-import",
+      "smb-raw-cleanroom",
+      "smb-ps-oracle-parity-1",
+      "smb-layout-ui-2",
+      "smb-ae-roto-timeremap",
+      "smb-ps-adjust-styles-2",
+      "smb-crate-seam-splits",
+      "smb-affinity-interop-1",
+      "smb-raw-cleanroom-2",
+      "smb-steward-notice",
+      "smb-r35-remediation",
+      "smb-crate-seam-splits-2"
+    ],
+    "owners": [
+      {
+        "owner": "studio-team-dev (shared builder target, non-lane part)",
+        "lane_status": "special owner: shared builder target",
+        "total_gib": 99.29,
+        "incremental_gib": 0.0,
+        "deps_gib": 97.96,
+        "build_gib": 0.15,
+        "fingerprint_gib": 0.05,
+        "newest_write_utc": "2026-10-20T19:42:30.5041529Z",
+        "class": "KEEP",
+        "reason": "shared warm deps; no incremental left"
+      },
+      {
+        "owner": "smb-au-waveform-editor",
+        "lane_status": "SMB-AU-WAVEFORM-EDITOR: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 19.82,
+        "incremental_gib": 6.66,
+        "deps_gib": 12.75,
+        "build_gib": 0.08,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-20T17:49:54.6525249Z",
+        "class": "KEEP",
+        "reason": "lane READY_FOR_VALIDATION; non-incremental part kept in case a round FAIL needs remediation. incremental (6.66 GiB) is SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-develop-lens-presets",
+        "lane_status": "SMB-DEVELOP-LENS-PRESETS: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 12.13,
+        "incremental_gib": 2.5,
+        "deps_gib": 9.32,
+        "build_gib": 0.07,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-20T17:15:59.7883000Z",
+        "class": "KEEP",
+        "reason": "lane READY_FOR_VALIDATION; non-incremental part kept in case a round FAIL needs remediation. incremental (2.5 GiB) is SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-id-composer-parity",
+        "lane_status": "SMB-ID-COMPOSER-PARITY: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 3.11,
+        "incremental_gib": 1.47,
+        "deps_gib": 1.54,
+        "build_gib": 0.05,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-20T16:57:28.9285056Z",
+        "class": "KEEP",
+        "reason": "lane READY_FOR_VALIDATION; non-incremental part kept in case a round FAIL needs remediation. incremental (1.47 GiB) is SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-package-completeness",
+        "lane_status": "SMB-PACKAGE-COMPLETENESS: status=PASS_V2 phase=done (STUDIO-R34 PASS_V1 @ca5e9c9)",
+        "total_gib": 0.19,
+        "incremental_gib": 0.13,
+        "deps_gib": 0.04,
+        "build_gib": 0.02,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-16T03:42:24.5278432Z",
+        "class": "SAFE_BUT_REBUILD_COST",
+        "reason": "ledger PASS_V2, newest write 2026-10-16T03:42:24.5278432Z older than 3 days; full rebuild only if lane is reopened. incremental (0.13 GiB) is SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-ps-oracle-parity-2",
+        "lane_status": "SMB-PS-ORACLE-PARITY-2: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 20.85,
+        "incremental_gib": 5.94,
+        "deps_gib": 14.47,
+        "build_gib": 0.08,
+        "fingerprint_gib": 0.01,
+        "newest_write_utc": "2026-10-20T23:32:11.5198825Z",
+        "class": "KEEP",
+        "reason": "lane READY_FOR_VALIDATION; non-incremental part kept in case a round FAIL needs remediation. incremental (5.94 GiB) is SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-type-ff-ligature",
+        "lane_status": "SMB-TYPE-FF-LIGATURE: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 4.73,
+        "incremental_gib": 2.62,
+        "deps_gib": 1.94,
+        "build_gib": 0.08,
+        "fingerprint_gib": 0.01,
+        "newest_write_utc": "2026-10-20T22:59:12.5303049Z",
+        "class": "KEEP",
+        "reason": "lane READY_FOR_VALIDATION; non-incremental part kept in case a round FAIL needs remediation. incremental (2.62 GiB) is SAFE_CHEAP."
+      }
+    ]
+  },
+  "d_artifact_root": {
+    "total_gib": 1078.81,
+    "note_total": "WP-KERNEL-STUDIO measured 1078.81 GiB in two independent passes (top-level pass and owner pass agree).",
+    "top_level": [
+      {
+        "name": "WP-KERNEL-STUDIO (measured again per owner)",
+        "size_gib": 1078.81
+      },
+      {
+        "name": "handshake-cargo-target",
+        "size_gib": 1374.82
+      },
+      {
+        "name": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+        "size_gib": 419.93
+      },
+      {
+        "name": "WP-KERNEL-012",
+        "size_gib": 402.58
+      },
+      {
+        "name": "WP-CKC-posekit-overhaul",
+        "size_gib": 79.25
+      },
+      {
+        "name": "debug",
+        "size_gib": 31.47
+      },
+      {
+        "name": "h123",
+        "size_gib": 28.79
+      },
+      {
+        "name": "handshake-product",
+        "size_gib": 28.32
+      },
+      {
+        "name": "handshake-test",
+        "size_gib": 17.76
+      },
+      {
+        "name": "mt006-remediation",
+        "size_gib": 16.72
+      },
+      {
+        "name": "handshake-release-target",
+        "size_gib": 11.63
+      },
+      {
+        "name": "target-wp1",
+        "size_gib": 9.92
+      },
+      {
+        "name": "cargo-target",
+        "size_gib": 5.37
+      },
+      {
+        "name": "handshake-cargo-target-wsl",
+        "size_gib": 5.22
+      },
+      {
+        "name": "wp1-mt006-v6-substrate",
+        "size_gib": 2.8
+      },
+      {
+        "name": "warm-agent-target",
+        "size_gib": 1.77
+      },
+      {
+        "name": "handshake-tool",
+        "size_gib": 0.95
+      },
+      {
+        "name": "managed_pgdata",
+        "size_gib": 0.11
+      },
+      {
+        "name": "wp1-mt013-fix2",
+        "size_gib": 0.07
+      },
+      {
+        "name": "managed-pg",
+        "size_gib": 0.07
+      },
+      {
+        "name": "greenroom_backups",
+        "size_gib": 0.05
+      },
+      {
+        "name": "warm-agent",
+        "size_gib": 0.02
+      }
+    ],
+    "owners": [
+      {
+        "owner": "studio-team-dev",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 347.25,
+        "incremental_gib": 31.17,
+        "deps_gib": 14.0,
+        "build_gib": 0.16,
+        "fingerprint_gib": 0.05,
+        "newest_write_utc": "2026-10-20T22:55:24.0807886Z",
+        "class": "KEEP",
+        "reason": "shared builder owner: target (46.18) KEEP except incremental (31.17, SAFE_CHEAP); steward-export 287.95 SAFE_BUT_REBUILD_COST; sccache 6.28 SAFE_BUT_REBUILD_COST; steward 5.24 UNKNOWN; tmp 0.18 SAFE_CHEAP."
+      },
+      {
+        "owner": "studio-round",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 316.52,
+        "incremental_gib": 98.0,
+        "deps_gib": 216.88,
+        "build_gib": 0.21,
+        "fingerprint_gib": 0.03,
+        "newest_write_utc": "2026-10-20T22:19:51.1391041Z",
+        "class": "KEEP",
+        "reason": "validator rounds (R36 pending); only incremental (98 GiB) is SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-crate-seam-splits",
+        "lane_status": "SMB-CRATE-SEAM-SPLITS: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 48.9,
+        "incremental_gib": 11.06,
+        "deps_gib": 37.07,
+        "build_gib": 0.1,
+        "fingerprint_gib": 0.01,
+        "newest_write_utc": "2026-10-20T19:46:13.3358856Z",
+        "class": "KEEP",
+        "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits. Incremental (11.06 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-package-completeness",
+        "lane_status": "SMB-PACKAGE-COMPLETENESS: status=PASS_V2 phase=done (STUDIO-R34 PASS_V1 @ca5e9c9)",
+        "total_gib": 36.74,
+        "incremental_gib": 16.18,
+        "deps_gib": 20.09,
+        "build_gib": 0.08,
+        "fingerprint_gib": 0.01,
+        "newest_write_utc": "2026-10-20T16:23:28.9549352Z",
+        "class": "KEEP",
+        "reason": "ledger PASS_V2 but newest write 2026-10-20T16:23:28.9549352Z is within 3 days (recent use). Incremental (16.18 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-ps-oracle-parity-1",
+        "lane_status": "SMB-PS-ORACLE-PARITY-1: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 31.26,
+        "incremental_gib": 10.21,
+        "deps_gib": 20.61,
+        "build_gib": 0.08,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-20T18:19:52.7782037Z",
+        "class": "KEEP",
+        "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits. Incremental (10.21 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-develop-lens-presets",
+        "lane_status": "SMB-DEVELOP-LENS-PRESETS: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 28.35,
+        "incremental_gib": 9.36,
+        "deps_gib": 18.65,
+        "build_gib": 0.08,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-20T19:38:05.6726012Z",
+        "class": "KEEP",
+        "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits. Incremental (9.36 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-ps-oracle-parity-2",
+        "lane_status": "SMB-PS-ORACLE-PARITY-2: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 23.47,
+        "incremental_gib": 8.43,
+        "deps_gib": 14.59,
+        "build_gib": 0.08,
+        "fingerprint_gib": 0.01,
+        "newest_write_utc": "2026-10-21T00:18:44.8431710Z",
+        "class": "KEEP",
+        "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits. Incremental (8.43 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-au-waveform-editor",
+        "lane_status": "SMB-AU-WAVEFORM-EDITOR: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 22.05,
+        "incremental_gib": 6.49,
+        "deps_gib": 15.17,
+        "build_gib": 0.08,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-20T19:09:45.2822023Z",
+        "class": "KEEP",
+        "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits. Incremental (6.49 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-crate-seam-splits-2",
+        "lane_status": "SMB-CRATE-SEAM-SPLITS-2: status=BLOCKED phase=build",
+        "total_gib": 14.33,
+        "incremental_gib": 2.94,
+        "deps_gib": 11.06,
+        "build_gib": 0.07,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-20T22:33:15.6481829Z",
+        "class": "KEEP",
+        "reason": "ledger BLOCKED: target kept for possible remediation / local-only commits. Incremental (2.94 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-pr-source-monitor",
+        "lane_status": "SMB-PR-SOURCE-MONITOR: status=PASS_V1 phase=done (STUDIO-R35 PASS_V1 @237256f)",
+        "total_gib": 12.44,
+        "incremental_gib": 8.08,
+        "deps_gib": 4.27,
+        "build_gib": 0.08,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-16T07:29:14.3356256Z",
+        "class": "SAFE_BUT_REBUILD_COST",
+        "reason": "ledger PASS_V1, newest write 2026-10-16T07:29:14.3356256Z older than 3 days; full rebuild only if lane reopened. Incremental (8.08 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-ps-adjust-styles-3",
+        "lane_status": "SMB-PS-ADJUST-STYLES-3: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 12.11,
+        "incremental_gib": 6.14,
+        "deps_gib": 5.76,
+        "build_gib": 0.06,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-16T18:17:27.2682663Z",
+        "class": "KEEP",
+        "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits. Incremental (6.14 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-audition-ui",
+        "lane_status": "SMB-AUDITION-UI: status=PASS_V2 phase=done (STUDIO-R34 PASS_V1 @ca5e9c9)",
+        "total_gib": 9.57,
+        "incremental_gib": 5.09,
+        "deps_gib": 4.32,
+        "build_gib": 0.08,
+        "fingerprint_gib": 0.01,
+        "newest_write_utc": "2026-10-16T02:57:42.9522582Z",
+        "class": "SAFE_BUT_REBUILD_COST",
+        "reason": "ledger PASS_V2, newest write 2026-10-16T02:57:42.9522582Z older than 3 days; full rebuild only if lane reopened. Incremental (5.09 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-ai-type-path-recolor",
+        "lane_status": "SMB-AI-TYPE-PATH-RECOLOR: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 9.45,
+        "incremental_gib": 6.57,
+        "deps_gib": 2.78,
+        "build_gib": 0.08,
+        "fingerprint_gib": 0.01,
+        "newest_write_utc": "2026-10-16T13:52:08.0352067Z",
+        "class": "KEEP",
+        "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits. Incremental (6.57 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-r33-findings",
+        "lane_status": "SMB-R33-FINDINGS: status=PASS_V1 phase=done (STUDIO-R35 PASS_V1 @237256f)",
+        "total_gib": 8.84,
+        "incremental_gib": 5.64,
+        "deps_gib": 3.09,
+        "build_gib": 0.05,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-15T14:03:16.5602199Z",
+        "class": "SAFE_BUT_REBUILD_COST",
+        "reason": "ledger PASS_V1, newest write 2026-10-15T14:03:16.5602199Z older than 3 days; full rebuild only if lane reopened. Incremental (5.64 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-ae-roto-timeremap",
+        "lane_status": "SMB-AE-ROTO-TIMEREMAP: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 8.68,
+        "incremental_gib": 5.9,
+        "deps_gib": 2.65,
+        "build_gib": 0.08,
+        "fingerprint_gib": 0.01,
+        "newest_write_utc": "2026-10-20T22:59:37.7194874Z",
+        "class": "KEEP",
+        "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits. Incremental (5.9 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-composite-vector-mask-scratch",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 7.99,
+        "incremental_gib": 3.71,
+        "deps_gib": 4.04,
+        "build_gib": 0.07,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-15T04:38:37.9726313Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "smb-d5-ps-compare",
+        "lane_status": "SMB-D5-PS-COMPARE: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 7.75,
+        "incremental_gib": 4.92,
+        "deps_gib": 2.52,
+        "build_gib": 0.07,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-16T11:52:12.9952286Z",
+        "class": "KEEP",
+        "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits. Incremental (4.92 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-ps-adjust-styles-2",
+        "lane_status": "SMB-PS-ADJUST-STYLES-2: status=PASS_V2 phase=done (STUDIO-R35 PASS_V2 @237256f)",
+        "total_gib": 7.7,
+        "incremental_gib": 5.29,
+        "deps_gib": 2.34,
+        "build_gib": 0.07,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-16T04:15:26.2591021Z",
+        "class": "SAFE_BUT_REBUILD_COST",
+        "reason": "ledger PASS_V2, newest write 2026-10-16T04:15:26.2591021Z older than 3 days; full rebuild only if lane reopened. Incremental (5.29 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-docgraph2-scratch",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 7.43,
+        "incremental_gib": 2.63,
+        "deps_gib": 4.56,
+        "build_gib": 0.07,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-15T08:45:10.3760597Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "smb-steward-notice",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 7.34,
+        "incremental_gib": 2.94,
+        "deps_gib": 4.2,
+        "build_gib": 0.07,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-20T21:03:09.7292759Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane with id 'smb-steward-notice'; newest write 2026-10-20T21:03:09.7292759Z. Incremental (2.94 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-id-prepress",
+        "lane_status": "SMB-ID-PREPRESS: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 6.88,
+        "incremental_gib": 5.33,
+        "deps_gib": 1.5,
+        "build_gib": 0.05,
+        "fingerprint_gib": 0.01,
+        "newest_write_utc": "2026-10-16T06:26:59.1928618Z",
+        "class": "KEEP",
+        "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits. Incremental (5.33 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-r35-remediation",
+        "lane_status": "SMB-R35-REMEDIATION: status=DONE phase=done",
+        "total_gib": 6.57,
+        "incremental_gib": 2.66,
+        "deps_gib": 3.79,
+        "build_gib": 0.08,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-20T15:47:31.9786549Z",
+        "class": "KEEP",
+        "reason": "ledger DONE but newest write 2026-10-20T15:47:31.9786549Z is within 3 days (recent use). Incremental (2.66 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-d24a-codec-defaults",
+        "lane_status": "SMB-D24A-CODEC-DEFAULTS: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 6.36,
+        "incremental_gib": 3.77,
+        "deps_gib": 2.5,
+        "build_gib": 0.08,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-16T04:04:52.0388260Z",
+        "class": "KEEP",
+        "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits. Incremental (3.77 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-ae-3d-2",
+        "lane_status": "SMB-AE-3D-2: status=PASS_V2 phase=done (STUDIO-R35 PASS_V2 @237256f)",
+        "total_gib": 6.17,
+        "incremental_gib": 4.29,
+        "deps_gib": 1.81,
+        "build_gib": 0.07,
+        "fingerprint_gib": 0.01,
+        "newest_write_utc": "2026-10-15T22:55:49.7194262Z",
+        "class": "SAFE_BUT_REBUILD_COST",
+        "reason": "ledger PASS_V2, newest write 2026-10-15T22:55:49.7194262Z older than 3 days; full rebuild only if lane reopened. Incremental (4.29 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-layout-ui",
+        "lane_status": "SMB-LAYOUT-UI: status=PASS_V2 phase=done (STUDIO-R34 PASS_V1 @ca5e9c9)",
+        "total_gib": 4.86,
+        "incremental_gib": 3.04,
+        "deps_gib": 1.68,
+        "build_gib": 0.04,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-15T11:21:26.9549533Z",
+        "class": "SAFE_BUT_REBUILD_COST",
+        "reason": "ledger PASS_V2, newest write 2026-10-15T11:21:26.9549533Z older than 3 days; full rebuild only if lane reopened. Incremental (3.04 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-reel-encode",
+        "lane_status": "SMB-REEL-ENCODE: status=PASS_V3 phase=done (STUDIO-R33 PASS_V1 @ef53ea7)",
+        "total_gib": 4.51,
+        "incremental_gib": 2.23,
+        "deps_gib": 2.12,
+        "build_gib": 0.12,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-15T07:58:14.9618272Z",
+        "class": "SAFE_BUT_REBUILD_COST",
+        "reason": "ledger PASS_V3, newest write 2026-10-15T07:58:14.9618272Z older than 3 days; full rebuild only if lane reopened. Incremental (2.23 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-lr-library-write",
+        "lane_status": "SMB-LR-LIBRARY-WRITE: status=PASS_V1 phase=done (STUDIO-R35 PASS_V1 @237256f)",
+        "total_gib": 4.49,
+        "incremental_gib": 2.95,
+        "deps_gib": 1.43,
+        "build_gib": 0.04,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-16T11:41:49.3299039Z",
+        "class": "SAFE_BUT_REBUILD_COST",
+        "reason": "ledger PASS_V1, newest write 2026-10-16T11:41:49.3299039Z older than 3 days; full rebuild only if lane reopened. Incremental (2.95 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-ae-3d-3",
+        "lane_status": "SMB-AE-3D-3: status=PASS_V1 phase=done (STUDIO-R35 PASS_V1 @237256f)",
+        "total_gib": 4.48,
+        "incremental_gib": 2.91,
+        "deps_gib": 1.5,
+        "build_gib": 0.07,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-16T03:02:09.7732101Z",
+        "class": "SAFE_BUT_REBUILD_COST",
+        "reason": "ledger PASS_V1, newest write 2026-10-16T03:02:09.7732101Z older than 3 days; full rebuild only if lane reopened. Incremental (2.91 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "pulse-playback-2",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 4.42,
+        "incremental_gib": 2.32,
+        "deps_gib": 1.98,
+        "build_gib": 0.08,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-15T06:15:44.5601335Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane with id 'pulse-playback-2'; newest write 2026-10-15T06:15:44.5601335Z. Incremental (2.32 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-type-ff-ligature",
+        "lane_status": "SMB-TYPE-FF-LIGATURE: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 4.28,
+        "incremental_gib": 2.18,
+        "deps_gib": 1.94,
+        "build_gib": 0.08,
+        "fingerprint_gib": 0.01,
+        "newest_write_utc": "2026-10-20T23:41:22.5301084Z",
+        "class": "KEEP",
+        "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits. Incremental (2.18 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-d5-ai-id-ae-compare",
+        "lane_status": "SMB-D5-AI-ID-AE-COMPARE: status=PASS_V1 phase=done (STUDIO-R35 PASS_V1 @237256f)",
+        "total_gib": 3.93,
+        "incremental_gib": 2.89,
+        "deps_gib": 1.0,
+        "build_gib": 0.04,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-16T13:37:58.3560390Z",
+        "class": "SAFE_BUT_REBUILD_COST",
+        "reason": "ledger PASS_V1, newest write 2026-10-16T13:37:58.3560390Z older than 3 days; full rebuild only if lane reopened. Incremental (2.89 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-premiere-color-titles",
+        "lane_status": "SMB-PREMIERE-COLOR-TITLES: status=PASS_V1 phase=done (STUDIO-R35 PASS_V1 @237256f)",
+        "total_gib": 3.64,
+        "incremental_gib": 3.0,
+        "deps_gib": 0.6,
+        "build_gib": 0.04,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-16T03:38:45.0312757Z",
+        "class": "SAFE_BUT_REBUILD_COST",
+        "reason": "ledger PASS_V1, newest write 2026-10-16T03:38:45.0312757Z older than 3 days; full rebuild only if lane reopened. Incremental (3 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-ai-ae-oracle-followups",
+        "lane_status": "SMB-AI-AE-ORACLE-FOLLOWUPS: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 3.1,
+        "incremental_gib": 2.12,
+        "deps_gib": 0.91,
+        "build_gib": 0.06,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-20T15:22:40.0706249Z",
+        "class": "KEEP",
+        "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits. Incremental (2.12 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-crate-seam-splits-2-base",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 3.08,
+        "incremental_gib": 1.46,
+        "deps_gib": 1.56,
+        "build_gib": 0.04,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-20T22:57:57.6067423Z",
+        "class": "KEEP",
+        "reason": "base tree of BLOCKED lane SMB-CRATE-SEAM-SPLITS-2 (local-only commits); lane id mapping by name only, VERIFY. Incremental (1.46 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-raw-cleanroom-2",
+        "lane_status": "SMB-RAW-CLEANROOM-2: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 2.92,
+        "incremental_gib": 1.93,
+        "deps_gib": 0.91,
+        "build_gib": 0.04,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-20T15:10:56.8240781Z",
+        "class": "KEEP",
+        "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits. Incremental (1.93 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-layout-ui-2",
+        "lane_status": "SMB-LAYOUT-UI-2: status=PASS_V1 phase=done (STUDIO-R35 PASS_V1 @237256f)",
+        "total_gib": 2.87,
+        "incremental_gib": 1.8,
+        "deps_gib": 1.02,
+        "build_gib": 0.04,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-16T04:32:36.2328944Z",
+        "class": "SAFE_BUT_REBUILD_COST",
+        "reason": "ledger PASS_V1, newest write 2026-10-16T04:32:36.2328944Z older than 3 days; full rebuild only if lane reopened. Incremental (1.8 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-id-composer-parity",
+        "lane_status": "SMB-ID-COMPOSER-PARITY: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 2.77,
+        "incremental_gib": 1.14,
+        "deps_gib": 1.54,
+        "build_gib": 0.05,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-20T16:57:15.6543624Z",
+        "class": "KEEP",
+        "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits. Incremental (1.14 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-raw-cleanroom",
+        "lane_status": "SMB-RAW-CLEANROOM: status=PASS_V1 phase=done (STUDIO-R35 PASS_V1 @237256f)",
+        "total_gib": 2.71,
+        "incremental_gib": 1.76,
+        "deps_gib": 0.87,
+        "build_gib": 0.04,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-16T07:31:51.5646542Z",
+        "class": "SAFE_BUT_REBUILD_COST",
+        "reason": "ledger PASS_V1, newest write 2026-10-16T07:31:51.5646542Z older than 3 days; full rebuild only if lane reopened. Incremental (1.76 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-affinity-interop-1",
+        "lane_status": "SMB-AFFINITY-INTEROP-1: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 2.69,
+        "incremental_gib": 1.39,
+        "deps_gib": 1.19,
+        "build_gib": 0.05,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-20T14:28:03.0300212Z",
+        "class": "KEEP",
+        "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits. Incremental (1.39 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-dxf-eps-import",
+        "lane_status": "SMB-DXF-EPS-IMPORT: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 2.43,
+        "incremental_gib": 1.32,
+        "deps_gib": 0.96,
+        "build_gib": 0.07,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-20T23:14:06.9376781Z",
+        "class": "KEEP",
+        "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits. Incremental (1.32 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "downloads",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 2.04,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-16T07:43:36.0195782Z",
+        "class": "KEEP",
+        "reason": "data or tools (oracle-corpus is test DATA)."
+      },
+      {
+        "owner": "smb-notes-batch-1-red",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 1.91,
+        "incremental_gib": 0.77,
+        "deps_gib": 0.96,
+        "build_gib": 0.06,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-12T00:40:34.5720138Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "smb-prism-view-transform",
+        "lane_status": "SMB-PRISM-VIEW-TRANSFORM: status=PASS_V5 phase=done (STUDIO-R31 PASS_V1 @d9c59f8)",
+        "total_gib": 1.91,
+        "incremental_gib": 0.71,
+        "deps_gib": 1.11,
+        "build_gib": 0.06,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-15T02:27:47.4016207Z",
+        "class": "SAFE_BUT_REBUILD_COST",
+        "reason": "ledger PASS_V5, newest write 2026-10-15T02:27:47.4016207Z older than 3 days; full rebuild only if lane reopened. Incremental (0.71 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-ae-particles-audio-presets",
+        "lane_status": "SMB-AE-PARTICLES-AUDIO-PRESETS: status=READY_FOR_VALIDATION phase=validation",
+        "total_gib": 1.85,
+        "incremental_gib": 1.27,
+        "deps_gib": 0.54,
+        "build_gib": 0.03,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-16T09:52:21.4599560Z",
+        "class": "KEEP",
+        "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits. Incremental (1.27 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "prism-eng6",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 1.82,
+        "incremental_gib": 1.1,
+        "deps_gib": 0.58,
+        "build_gib": 0.07,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T07:07:30.9000650Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane with id 'prism-eng6'; newest write 2026-10-11T07:07:30.9000650Z. Incremental (1.1 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-composite-text-scratch",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 1.62,
+        "incremental_gib": 0.53,
+        "deps_gib": 0.99,
+        "build_gib": 0.06,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-14T20:52:41.9232975Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "oracle-corpus",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 1.62,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-16T12:39:12.1347299Z",
+        "class": "KEEP",
+        "reason": "data or tools (oracle-corpus is test DATA)."
+      },
+      {
+        "owner": "prism-eng8-export",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 1.46,
+        "incremental_gib": 0.64,
+        "deps_gib": 0.69,
+        "build_gib": 0.07,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T10:07:24.0762629Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane with id 'prism-eng8-export'; newest write 2026-10-11T10:07:24.0762629Z. Incremental (0.64 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-ae-3d-3-slices",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 1.16,
+        "incremental_gib": 0.83,
+        "deps_gib": 0.23,
+        "build_gib": 0.06,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-16T03:03:12.4983434Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane with id 'smb-ae-3d-3-slices'; newest write 2026-10-16T03:03:12.4983434Z. Incremental (0.83 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-notes-batch-1-r19-red",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 1.06,
+        "incremental_gib": 0.35,
+        "deps_gib": 0.59,
+        "build_gib": 0.02,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-12T04:20:18.7605721Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "smb-notes-batch-1-r18-red",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 1.01,
+        "incremental_gib": 0.35,
+        "deps_gib": 0.53,
+        "build_gib": 0.02,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-12T03:35:12.4233267Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "r25-prereview-probe",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.98,
+        "incremental_gib": 0.29,
+        "deps_gib": 0.64,
+        "build_gib": 0.02,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-12T10:46:26.4676819Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "smb-notes-batch-1-r16-red",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.97,
+        "incremental_gib": 0.36,
+        "deps_gib": 0.54,
+        "build_gib": 0.03,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-12T01:23:35.8354666Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "smb-composite-clip-records-scratch",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.78,
+        "incremental_gib": 0.41,
+        "deps_gib": 0.31,
+        "build_gib": 0.03,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-15T01:54:01.9972397Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "smb-notes-batch-1-r17-red",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.6,
+        "incremental_gib": 0.18,
+        "deps_gib": 0.37,
+        "build_gib": 0.02,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-12T02:23:57.9711421Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "r29-prereview-probe",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.58,
+        "incremental_gib": 0.11,
+        "deps_gib": 0.43,
+        "build_gib": 0.02,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-14T20:07:18.5684535Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "smb-psd-folio-ceiling-red",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.51,
+        "incremental_gib": 0.25,
+        "deps_gib": 0.21,
+        "build_gib": 0.03,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-12T05:24:30.9096548Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "smb-psd-budget-red",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.5,
+        "incremental_gib": 0.26,
+        "deps_gib": 0.19,
+        "build_gib": 0.03,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T15:38:57.8958932Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "smb-motionjs-nul-red",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.44,
+        "incremental_gib": 0.16,
+        "deps_gib": 0.22,
+        "build_gib": 0.02,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T10:02:12.5486257Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "smb-psd-r7-red",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.43,
+        "incremental_gib": 0.21,
+        "deps_gib": 0.19,
+        "build_gib": 0.03,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T11:14:47.3457368Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "smb-web-r13-mutant",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.34,
+        "incremental_gib": 0.22,
+        "deps_gib": 0.1,
+        "build_gib": 0.02,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T20:55:26.5418378Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "prism-eng5",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.3,
+        "incremental_gib": 0.13,
+        "deps_gib": 0.16,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T04:00:15.8921745Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane with id 'prism-eng5'; newest write 2026-10-11T04:00:15.8921745Z. Incremental (0.13 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "MT-35536",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.29,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-10T16:52:47.6775850Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "MT-35534",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.29,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-10T11:38:20.7010110Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "smb-web-difftest",
+        "lane_status": "SMB-WEB-DIFFTEST: status=PASS_V3 phase=small fix (rem-web-r13) then narrow pre-review",
+        "total_gib": 0.26,
+        "incremental_gib": 0.13,
+        "deps_gib": 0.08,
+        "build_gib": 0.03,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T12:43:11.2144657Z",
+        "class": "SAFE_BUT_REBUILD_COST",
+        "reason": "ledger PASS_V3, newest write 2026-10-11T12:43:11.2144657Z older than 3 days; full rebuild only if lane reopened. Incremental (0.13 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-web-r12-mutant",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.24,
+        "incremental_gib": 0.12,
+        "deps_gib": 0.09,
+        "build_gib": 0.02,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T19:10:08.8419234Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "smb-web-r13-red",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.24,
+        "incremental_gib": 0.12,
+        "deps_gib": 0.09,
+        "build_gib": 0.02,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T20:48:04.8681954Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "MT-35532",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.23,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-10T10:08:57.8443428Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "MT-35531",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.2,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-10T09:02:58.9724614Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "smb-web-r10-red",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.17,
+        "incremental_gib": 0.09,
+        "deps_gib": 0.06,
+        "build_gib": 0.02,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T16:21:24.8013464Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "reel-av1",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.17,
+        "incremental_gib": 0.0,
+        "deps_gib": 0.13,
+        "build_gib": 0.03,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T03:28:22.5548207Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane with id 'reel-av1'; newest write 2026-10-11T03:28:22.5548207Z. Incremental (0 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "prism-oracle",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.16,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T03:59:08.3972718Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "smb-web-r11-red",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.15,
+        "incremental_gib": 0.07,
+        "deps_gib": 0.06,
+        "build_gib": 0.02,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T17:55:49.0688531Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "smb-web-r9-mutant",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.14,
+        "incremental_gib": 0.06,
+        "deps_gib": 0.06,
+        "build_gib": 0.02,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T14:52:42.6917781Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "smb-web-difftest-red",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.14,
+        "incremental_gib": 0.05,
+        "deps_gib": 0.05,
+        "build_gib": 0.02,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T12:38:28.5939169Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "smb-web-parity-red",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.13,
+        "incremental_gib": 0.05,
+        "deps_gib": 0.06,
+        "build_gib": 0.02,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T13:33:55.9567913Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "MT-35533",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.12,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-10T09:34:39.0270048Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "studio-repass-media",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.12,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-09T16:52:52.3739191Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "smb-web-r12-red",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.12,
+        "incremental_gib": 0.05,
+        "deps_gib": 0.05,
+        "build_gib": 0.02,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T19:06:28.5667603Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "smb-web-r9-red",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.11,
+        "incremental_gib": 0.04,
+        "deps_gib": 0.05,
+        "build_gib": 0.02,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T14:51:17.5898859Z",
+        "class": "SAFE_CHEAP",
+        "reason": "scratch tree (red/mutant/probe/scratch), not a ledger lane."
+      },
+      {
+        "owner": "MT-35535",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.08,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-10T13:59:12.1387233Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "tools",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.06,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-15T06:10:59.9279323Z",
+        "class": "KEEP",
+        "reason": "data or tools (oracle-corpus is test DATA)."
+      },
+      {
+        "owner": "app-inspect",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.05,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-14T15:47:51.1926472Z",
+        "class": "KEEP",
+        "reason": "data or tools (oracle-corpus is test DATA)."
+      },
+      {
+        "owner": "MT-35528",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.02,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-10T07:53:35.8167863Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "MT-35530",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.02,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-10T08:26:49.6587489Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "MT-34817",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.01,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-10T02:01:17.3407663Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "score-plugin-fixture",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.01,
+        "incremental_gib": 0.0,
+        "deps_gib": 0.01,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T05:22:35.2702579Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane with id 'score-plugin-fixture'; newest write 2026-10-11T05:22:35.2702579Z. Incremental (0 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "smb-web-r10-cssparser",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.01,
+        "incremental_gib": 0.0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T16:21:49.7220049Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane with id 'smb-web-r10-cssparser'; newest write 2026-10-11T16:21:49.7220049Z. Incremental (0 GiB) counted SAFE_CHEAP."
+      },
+      {
+        "owner": "MT-35529",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.01,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-10T07:47:20.9347406Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "MT-30320",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-10T01:21:10.8541569Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "MT-30790",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-10T01:27:02.9848631Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "smb-audio-codecs",
+        "lane_status": "SMB-AUDIO-CODECS: status=PASS_V4 phase=done (STUDIO-R33 PASS_V2 @ef53ea7)",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-15T07:48:15.9242599Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "MT-35538",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-10T14:18:15.5842677Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "MT-30321",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-10T01:21:19.1900145Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "studio-kernel-bindings",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T02:37:24.7276626Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "reel-mxf-mkv",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T06:08:41.9927725Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "MT-30318",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-10T01:20:58.6036023Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "autonomous-research-team",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-10T04:57:26.5225453Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "interop-lrcat",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-15T04:55:16.1532232Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "engine-video-oracle",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-14T19:57:21.4360375Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "studio-repass-ui",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-09T16:52:00.1669303Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "studio-repass-root",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-09T16:52:00.1513051Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": ".gpu-test-lock",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-21T00:14:15.9707848Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "studio-repass-engineering",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-09T16:53:27.7398068Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "MT-30319",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-10T01:21:01.6217739Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "MT-30789",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-10T01:27:02.7585848Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "MT-30322",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-10T01:21:24.5336850Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "MT-30785",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-10T01:13:49.0517714Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "press-d27",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T18:13:43.9980159Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": ".disk-build-lock",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-21T00:13:40.1505787Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      },
+      {
+        "owner": "studio-session",
+        "lane_status": "no ledger lane with this id",
+        "total_gib": 0.0,
+        "incremental_gib": 0,
+        "deps_gib": 0.0,
+        "build_gib": 0.0,
+        "fingerprint_gib": 0.0,
+        "newest_write_utc": "2026-10-11T02:49:35.5871632Z",
+        "class": "UNKNOWN",
+        "reason": "no ledger lane, no target."
+      }
+    ],
+    "scratch_trees": [
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-composite-vector-mask-scratch",
+        "size_gib": 7.99,
+        "newest_write_utc": "2026-10-15T04:38:37.9726313Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-docgraph2-scratch",
+        "size_gib": 7.43,
+        "newest_write_utc": "2026-10-15T08:45:10.3760597Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-notes-batch-1-red",
+        "size_gib": 1.91,
+        "newest_write_utc": "2026-10-12T00:40:34.5720138Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-composite-text-scratch",
+        "size_gib": 1.62,
+        "newest_write_utc": "2026-10-14T20:52:41.9232975Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-notes-batch-1-r19-red",
+        "size_gib": 1.06,
+        "newest_write_utc": "2026-10-12T04:20:18.7605721Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-notes-batch-1-r18-red",
+        "size_gib": 1.01,
+        "newest_write_utc": "2026-10-12T03:35:12.4233267Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/r25-prereview-probe",
+        "size_gib": 0.98,
+        "newest_write_utc": "2026-10-12T10:46:26.4676819Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-notes-batch-1-r16-red",
+        "size_gib": 0.97,
+        "newest_write_utc": "2026-10-12T01:23:35.8354666Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-composite-clip-records-scratch",
+        "size_gib": 0.78,
+        "newest_write_utc": "2026-10-15T01:54:01.9972397Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-notes-batch-1-r17-red",
+        "size_gib": 0.6,
+        "newest_write_utc": "2026-10-12T02:23:57.9711421Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/r29-prereview-probe",
+        "size_gib": 0.58,
+        "newest_write_utc": "2026-10-14T20:07:18.5684535Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-psd-folio-ceiling-red",
+        "size_gib": 0.51,
+        "newest_write_utc": "2026-10-12T05:24:30.9096548Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-psd-budget-red",
+        "size_gib": 0.5,
+        "newest_write_utc": "2026-10-11T15:38:57.8958932Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-motionjs-nul-red",
+        "size_gib": 0.44,
+        "newest_write_utc": "2026-10-11T10:02:12.5486257Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-psd-r7-red",
+        "size_gib": 0.43,
+        "newest_write_utc": "2026-10-11T11:14:47.3457368Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r13-mutant",
+        "size_gib": 0.34,
+        "newest_write_utc": "2026-10-11T20:55:26.5418378Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r12-mutant",
+        "size_gib": 0.24,
+        "newest_write_utc": "2026-10-11T19:10:08.8419234Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r13-red",
+        "size_gib": 0.24,
+        "newest_write_utc": "2026-10-11T20:48:04.8681954Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r10-red",
+        "size_gib": 0.17,
+        "newest_write_utc": "2026-10-11T16:21:24.8013464Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r11-red",
+        "size_gib": 0.15,
+        "newest_write_utc": "2026-10-11T17:55:49.0688531Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r9-mutant",
+        "size_gib": 0.14,
+        "newest_write_utc": "2026-10-11T14:52:42.6917781Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-difftest-red",
+        "size_gib": 0.14,
+        "newest_write_utc": "2026-10-11T12:38:28.5939169Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-parity-red",
+        "size_gib": 0.13,
+        "newest_write_utc": "2026-10-11T13:33:55.9567913Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r12-red",
+        "size_gib": 0.12,
+        "newest_write_utc": "2026-10-11T19:06:28.5667603Z"
+      },
+      {
+        "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r9-red",
+        "size_gib": 0.11,
+        "newest_write_utc": "2026-10-11T14:51:17.5898859Z"
+      }
+    ],
+    "other_wp_folders": [
+      {
+        "name": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+        "size_gib": 419.93
+      },
+      {
+        "name": "WP-KERNEL-012",
+        "size_gib": 402.58
+      },
+      {
+        "name": "WP-CKC-posekit-overhaul",
+        "size_gib": 79.25
+      },
+      {
+        "name": "WP-TEST-MT-BOARD-READY-GATE-v1",
+        "size_gib": 0.0
+      },
+      {
+        "name": "WP-TEST-STOCK-WORKFLOW",
+        "size_gib": 0.0
+      }
+    ],
+    "non_wp_top_level_note": "handshake-cargo-target is 1374.82 GiB (larger than WP-KERNEL-STUDIO); debug 31.47, h123 28.79, handshake-product 28.32, handshake-test 17.76, mt006-remediation 16.72, handshake-release-target 11.63, target-wp1 9.92, cargo-target 5.37, handshake-cargo-target-wsl 5.22 etc. Other-WP and legacy folders are out of Studio scope: size only, NOT classified."
+  },
+  "stray_repo_local_targets": [
+    {
+      "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-assets/handshake-studio-assets/target",
+      "exists": true,
+      "size_gib": 22.9,
+      "newest_write_utc": "2026-10-15T11:35:33.7399328Z",
+      "no_running_cargo_process": true
+    },
+    {
+      "lane_worktrees_checked": 34,
+      "lane_worktrees_with_target": 0,
+      "note": "No stray handshake-studio-assets/target in any of the checked wt-studio-lanes/<lane> worktrees."
+    }
+  ],
+  "cargo_home": {
+    "registry_cache_gib": 0.5,
+    "registry_src_gib": 3.11,
+    "registry_index_gib": 0.1,
+    "git_gib": 0,
+    "git_note": "$HOME/.cargo/git does not exist",
+    "bin_gib": 0.24,
+    "advisory_dbs_gib": 0.03,
+    "total_gib": 3.99,
+    "bin_entries": [
+      "cargo-clippy.exe 0MB",
+      "cargo-deny.exe 8.5MB",
+      "cargo-fmt.exe 0MB",
+      "cargo-miri.exe 12.2MB",
+      "cargo-nextest.exe 19.3MB",
+      "cargo-sqlx.exe 5MB",
+      "cargo-tarpaulin.exe 10.3MB",
+      "cargo.exe 0MB",
+      "clippy-driver.exe 0MB",
+      "just.exe 4.1MB",
+      "rg.exe 4.3MB",
+      "rls.exe 0MB",
+      "rust-analyzer.exe 0MB",
+      "rust-gdb.exe 0MB",
+      "rust-gdbgui.exe 0MB",
+      "rust-lldb.exe 0MB",
+      "rustc.exe 0MB",
+      "rustdoc.exe 0MB",
+      "rustfmt.exe 0MB",
+      "rustup.exe 12.2MB",
+      "sccache.exe 22.7MB",
+      "sqlx.exe 5MB"
+    ],
+    "location": "C: ($HOME/.cargo; no CARGO_HOME override found)"
+  },
+  "candidates": {
+    "C": {
+      "SAFE_CHEAP": [
+        {
+          "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/tmp",
+          "size_gib": 0.03,
+          "reason": "tmp leftovers (last write 2026-10-15)."
+        },
+        {
+          "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-au-waveform-editor/debug/incremental",
+          "size_gib": 6.66,
+          "reason": "incremental of lane smb-au-waveform-editor (rebuilds in minutes)."
+        },
+        {
+          "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-develop-lens-presets/debug/incremental",
+          "size_gib": 2.5,
+          "reason": "incremental of lane smb-develop-lens-presets (rebuilds in minutes)."
+        },
+        {
+          "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-id-composer-parity/debug/incremental",
+          "size_gib": 1.47,
+          "reason": "incremental of lane smb-id-composer-parity (rebuilds in minutes)."
+        },
+        {
+          "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-package-completeness/debug/incremental",
+          "size_gib": 0.13,
+          "reason": "incremental of lane smb-package-completeness (rebuilds in minutes)."
+        },
+        {
+          "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ps-oracle-parity-2/debug/incremental",
+          "size_gib": 5.94,
+          "reason": "incremental of lane smb-ps-oracle-parity-2 (rebuilds in minutes)."
+        },
+        {
+          "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-type-ff-ligature/debug/incremental",
+          "size_gib": 2.62,
+          "reason": "incremental of lane smb-type-ff-ligature (rebuilds in minutes)."
+        },
+        {
+          "path": "C:\\Users\\Ilja Smets/.cargo/registry/cache",
+          "size_gib": 0.5,
+          "reason": "cargo registry .crate archives; registry/src (3.11 GiB) holds the extracted copies, so archives are duplicated. Offline re-extract would need them if src is deleted. Cargo home is on C: (user profile)."
+        }
+      ],
+      "KEEP": [
+        {
+          "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/debug",
+          "size_gib": 99.13,
+          "reason": "Shared warm deps of studio-team-dev (deps 97.96 GiB; incremental already removed 2026-10-20; newest debug write 2026-10-20T19:42Z). Cheapest-to-keep warm base for all lane builds."
+        },
+        {
+          "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/release",
+          "size_gib": 0.13,
+          "reason": "release profile of shared target (14 Oct); small."
+        },
+        {
+          "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-au-waveform-editor (minus incremental)",
+          "size_gib": 13.16,
+          "reason": "lane READY_FOR_VALIDATION; non-incremental part kept in case a round FAIL needs remediation."
+        },
+        {
+          "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-develop-lens-presets (minus incremental)",
+          "size_gib": 9.63,
+          "reason": "lane READY_FOR_VALIDATION; non-incremental part kept in case a round FAIL needs remediation."
+        },
+        {
+          "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-id-composer-parity (minus incremental)",
+          "size_gib": 1.64,
+          "reason": "lane READY_FOR_VALIDATION; non-incremental part kept in case a round FAIL needs remediation."
+        },
+        {
+          "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ps-oracle-parity-2 (minus incremental)",
+          "size_gib": 14.91,
+          "reason": "lane READY_FOR_VALIDATION; non-incremental part kept in case a round FAIL needs remediation."
+        },
+        {
+          "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-type-ff-ligature (minus incremental)",
+          "size_gib": 2.11,
+          "reason": "lane READY_FOR_VALIDATION; non-incremental part kept in case a round FAIL needs remediation."
+        },
+        {
+          "path": "C:\\Users\\Ilja Smets/.cargo/registry/src",
+          "size_gib": 3.11,
+          "reason": "extracted crates (used by builds)."
+        },
+        {
+          "path": "C:\\Users\\Ilja Smets/.cargo/bin",
+          "size_gib": 0.24,
+          "reason": "tools (cargo-nextest, cargo-deny, sccache.exe, just, ...)."
+        }
+      ],
+      "SAFE_BUT_REBUILD_COST": [
+        {
+          "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-package-completeness (minus incremental)",
+          "size_gib": 0.06,
+          "reason": "ledger PASS_V2, newest write 2026-10-16T03:42:24.5278432Z older than 3 days; full rebuild only if lane is reopened."
+        }
+      ],
+      "UNKNOWN": []
+    },
+    "D": {
+      "SAFE_CHEAP": [
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/target/debug/incremental",
+          "size_gib": 31.17,
+          "reason": "incremental of shared D: fallback target."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tmp",
+          "size_gib": 0.18,
+          "reason": "TMP/TEMP leftovers of the shared builder owner."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target/debug/incremental",
+          "size_gib": 98.0,
+          "reason": "validator round target incremental; regenerable per spec but R36 is pending, so first R36 compile is slower (Operator/validator call). debug newest write ."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-crate-seam-splits/target/debug/incremental",
+          "size_gib": 11.06,
+          "reason": "incremental of smb-crate-seam-splits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-package-completeness/target/debug/incremental",
+          "size_gib": 16.18,
+          "reason": "incremental of smb-package-completeness."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-oracle-parity-1/target/debug/incremental",
+          "size_gib": 10.21,
+          "reason": "incremental of smb-ps-oracle-parity-1."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-develop-lens-presets/target/debug/incremental",
+          "size_gib": 9.36,
+          "reason": "incremental of smb-develop-lens-presets."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-oracle-parity-2/target/debug/incremental",
+          "size_gib": 8.43,
+          "reason": "incremental of smb-ps-oracle-parity-2."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-au-waveform-editor/target/debug/incremental",
+          "size_gib": 6.49,
+          "reason": "incremental of smb-au-waveform-editor."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-crate-seam-splits-2/target/debug/incremental",
+          "size_gib": 2.94,
+          "reason": "incremental of smb-crate-seam-splits-2."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-source-monitor/target/debug/incremental",
+          "size_gib": 8.08,
+          "reason": "incremental of smb-pr-source-monitor."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-adjust-styles-3/target/debug/incremental",
+          "size_gib": 6.14,
+          "reason": "incremental of smb-ps-adjust-styles-3."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-audition-ui/target/debug/incremental",
+          "size_gib": 5.09,
+          "reason": "incremental of smb-audition-ui."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-type-path-recolor/target/debug/incremental",
+          "size_gib": 6.57,
+          "reason": "incremental of smb-ai-type-path-recolor."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r33-findings/target/debug/incremental",
+          "size_gib": 5.64,
+          "reason": "incremental of smb-r33-findings."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-roto-timeremap/target/debug/incremental",
+          "size_gib": 5.9,
+          "reason": "incremental of smb-ae-roto-timeremap."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-composite-vector-mask-scratch",
+          "size_gib": 7.99,
+          "reason": "pure scratch tree by name (smb-composite-vector-mask-scratch), newest write 2026-10-15T04:38:37.9726313Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-d5-ps-compare/target/debug/incremental",
+          "size_gib": 4.92,
+          "reason": "incremental of smb-d5-ps-compare."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-adjust-styles-2/target/debug/incremental",
+          "size_gib": 5.29,
+          "reason": "incremental of smb-ps-adjust-styles-2."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-docgraph2-scratch",
+          "size_gib": 7.43,
+          "reason": "pure scratch tree by name (smb-docgraph2-scratch), newest write 2026-10-15T08:45:10.3760597Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-steward-notice/target/debug/incremental",
+          "size_gib": 2.94,
+          "reason": "incremental of smb-steward-notice."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-prepress/target/debug/incremental",
+          "size_gib": 5.33,
+          "reason": "incremental of smb-id-prepress."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r35-remediation/target/debug/incremental",
+          "size_gib": 2.66,
+          "reason": "incremental of smb-r35-remediation."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-d24a-codec-defaults/target/debug/incremental",
+          "size_gib": 3.77,
+          "reason": "incremental of smb-d24a-codec-defaults."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-3d-2/target/debug/incremental",
+          "size_gib": 4.29,
+          "reason": "incremental of smb-ae-3d-2."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-ui/target/debug/incremental",
+          "size_gib": 3.04,
+          "reason": "incremental of smb-layout-ui."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-encode/target/debug/incremental",
+          "size_gib": 2.23,
+          "reason": "incremental of smb-reel-encode."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-lr-library-write/target/debug/incremental",
+          "size_gib": 2.95,
+          "reason": "incremental of smb-lr-library-write."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-3d-3/target/debug/incremental",
+          "size_gib": 2.91,
+          "reason": "incremental of smb-ae-3d-3."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/pulse-playback-2/target/debug/incremental",
+          "size_gib": 2.32,
+          "reason": "incremental of pulse-playback-2."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-ff-ligature/target/debug/incremental",
+          "size_gib": 2.18,
+          "reason": "incremental of smb-type-ff-ligature."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-d5-ai-id-ae-compare/target/debug/incremental",
+          "size_gib": 2.89,
+          "reason": "incremental of smb-d5-ai-id-ae-compare."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-premiere-color-titles/target/debug/incremental",
+          "size_gib": 3.0,
+          "reason": "incremental of smb-premiere-color-titles."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-ae-oracle-followups/target/debug/incremental",
+          "size_gib": 2.12,
+          "reason": "incremental of smb-ai-ae-oracle-followups."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-crate-seam-splits-2-base/target/debug/incremental",
+          "size_gib": 1.46,
+          "reason": "incremental of smb-crate-seam-splits-2-base."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-raw-cleanroom-2/target/debug/incremental",
+          "size_gib": 1.93,
+          "reason": "incremental of smb-raw-cleanroom-2."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-ui-2/target/debug/incremental",
+          "size_gib": 1.8,
+          "reason": "incremental of smb-layout-ui-2."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-composer-parity/target/debug/incremental",
+          "size_gib": 1.14,
+          "reason": "incremental of smb-id-composer-parity."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-raw-cleanroom/target/debug/incremental",
+          "size_gib": 1.76,
+          "reason": "incremental of smb-raw-cleanroom."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-affinity-interop-1/target/debug/incremental",
+          "size_gib": 1.39,
+          "reason": "incremental of smb-affinity-interop-1."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-dxf-eps-import/target/debug/incremental",
+          "size_gib": 1.32,
+          "reason": "incremental of smb-dxf-eps-import."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-notes-batch-1-red",
+          "size_gib": 1.91,
+          "reason": "pure scratch tree by name (smb-notes-batch-1-red), newest write 2026-10-12T00:40:34.5720138Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-prism-view-transform/target/debug/incremental",
+          "size_gib": 0.71,
+          "reason": "incremental of smb-prism-view-transform."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-particles-audio-presets/target/debug/incremental",
+          "size_gib": 1.27,
+          "reason": "incremental of smb-ae-particles-audio-presets."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/prism-eng6/target/debug/incremental",
+          "size_gib": 1.1,
+          "reason": "incremental of prism-eng6."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-composite-text-scratch",
+          "size_gib": 1.62,
+          "reason": "pure scratch tree by name (smb-composite-text-scratch), newest write 2026-10-14T20:52:41.9232975Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/prism-eng8-export/target/debug/incremental",
+          "size_gib": 0.64,
+          "reason": "incremental of prism-eng8-export."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-3d-3-slices/target/debug/incremental",
+          "size_gib": 0.83,
+          "reason": "incremental of smb-ae-3d-3-slices."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-notes-batch-1-r19-red",
+          "size_gib": 1.06,
+          "reason": "pure scratch tree by name (smb-notes-batch-1-r19-red), newest write 2026-10-12T04:20:18.7605721Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-notes-batch-1-r18-red",
+          "size_gib": 1.01,
+          "reason": "pure scratch tree by name (smb-notes-batch-1-r18-red), newest write 2026-10-12T03:35:12.4233267Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/r25-prereview-probe",
+          "size_gib": 0.98,
+          "reason": "pure scratch tree by name (r25-prereview-probe), newest write 2026-10-12T10:46:26.4676819Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-notes-batch-1-r16-red",
+          "size_gib": 0.97,
+          "reason": "pure scratch tree by name (smb-notes-batch-1-r16-red), newest write 2026-10-12T01:23:35.8354666Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-composite-clip-records-scratch",
+          "size_gib": 0.78,
+          "reason": "pure scratch tree by name (smb-composite-clip-records-scratch), newest write 2026-10-15T01:54:01.9972397Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-notes-batch-1-r17-red",
+          "size_gib": 0.6,
+          "reason": "pure scratch tree by name (smb-notes-batch-1-r17-red), newest write 2026-10-12T02:23:57.9711421Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/r29-prereview-probe",
+          "size_gib": 0.58,
+          "reason": "pure scratch tree by name (r29-prereview-probe), newest write 2026-10-14T20:07:18.5684535Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-psd-folio-ceiling-red",
+          "size_gib": 0.51,
+          "reason": "pure scratch tree by name (smb-psd-folio-ceiling-red), newest write 2026-10-12T05:24:30.9096548Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-psd-budget-red",
+          "size_gib": 0.5,
+          "reason": "pure scratch tree by name (smb-psd-budget-red), newest write 2026-10-11T15:38:57.8958932Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-motionjs-nul-red",
+          "size_gib": 0.44,
+          "reason": "pure scratch tree by name (smb-motionjs-nul-red), newest write 2026-10-11T10:02:12.5486257Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-psd-r7-red",
+          "size_gib": 0.43,
+          "reason": "pure scratch tree by name (smb-psd-r7-red), newest write 2026-10-11T11:14:47.3457368Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r13-mutant",
+          "size_gib": 0.34,
+          "reason": "pure scratch tree by name (smb-web-r13-mutant), newest write 2026-10-11T20:55:26.5418378Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/prism-eng5/target/debug/incremental",
+          "size_gib": 0.13,
+          "reason": "incremental of prism-eng5."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-difftest/target/debug/incremental",
+          "size_gib": 0.13,
+          "reason": "incremental of smb-web-difftest."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r12-mutant",
+          "size_gib": 0.24,
+          "reason": "pure scratch tree by name (smb-web-r12-mutant), newest write 2026-10-11T19:10:08.8419234Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r13-red",
+          "size_gib": 0.24,
+          "reason": "pure scratch tree by name (smb-web-r13-red), newest write 2026-10-11T20:48:04.8681954Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r10-red",
+          "size_gib": 0.17,
+          "reason": "pure scratch tree by name (smb-web-r10-red), newest write 2026-10-11T16:21:24.8013464Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r11-red",
+          "size_gib": 0.15,
+          "reason": "pure scratch tree by name (smb-web-r11-red), newest write 2026-10-11T17:55:49.0688531Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r9-mutant",
+          "size_gib": 0.14,
+          "reason": "pure scratch tree by name (smb-web-r9-mutant), newest write 2026-10-11T14:52:42.6917781Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-difftest-red",
+          "size_gib": 0.14,
+          "reason": "pure scratch tree by name (smb-web-difftest-red), newest write 2026-10-11T12:38:28.5939169Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-parity-red",
+          "size_gib": 0.13,
+          "reason": "pure scratch tree by name (smb-web-parity-red), newest write 2026-10-11T13:33:55.9567913Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r12-red",
+          "size_gib": 0.12,
+          "reason": "pure scratch tree by name (smb-web-r12-red), newest write 2026-10-11T19:06:28.5667603Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r9-red",
+          "size_gib": 0.11,
+          "reason": "pure scratch tree by name (smb-web-r9-red), newest write 2026-10-11T14:51:17.5898859Z."
+        }
+      ],
+      "KEEP": [
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/target (minus incremental)",
+          "size_gib": 15.01,
+          "reason": "shared warm deps fallback target for builders when C: is over guard."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tool-install",
+          "size_gib": 1.06,
+          "reason": "tool install dir."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev (sync-export, sync, misc)",
+          "size_gib": 0.36,
+          "reason": "small sync/export dirs and empty subdirs."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round (minus target incremental)",
+          "size_gib": 218.52,
+          "reason": "validator round state: deps 216.88 GiB, results, src; R36 pending."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-crate-seam-splits (minus incremental)",
+          "size_gib": 37.84,
+          "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-package-completeness (minus incremental)",
+          "size_gib": 20.56,
+          "reason": "ledger PASS_V2 but newest write 2026-10-20T16:23:28.9549352Z is within 3 days (recent use)."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-oracle-parity-1 (minus incremental)",
+          "size_gib": 21.05,
+          "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-develop-lens-presets (minus incremental)",
+          "size_gib": 18.99,
+          "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-oracle-parity-2 (minus incremental)",
+          "size_gib": 15.04,
+          "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-au-waveform-editor (minus incremental)",
+          "size_gib": 15.56,
+          "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-crate-seam-splits-2 (minus incremental)",
+          "size_gib": 11.39,
+          "reason": "ledger BLOCKED: target kept for possible remediation / local-only commits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-adjust-styles-3 (minus incremental)",
+          "size_gib": 5.97,
+          "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-type-path-recolor (minus incremental)",
+          "size_gib": 2.88,
+          "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-roto-timeremap (minus incremental)",
+          "size_gib": 2.78,
+          "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-d5-ps-compare (minus incremental)",
+          "size_gib": 2.83,
+          "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-prepress (minus incremental)",
+          "size_gib": 1.55,
+          "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r35-remediation (minus incremental)",
+          "size_gib": 3.91,
+          "reason": "ledger DONE but newest write 2026-10-20T15:47:31.9786549Z is within 3 days (recent use)."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-d24a-codec-defaults (minus incremental)",
+          "size_gib": 2.59,
+          "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-type-ff-ligature (minus incremental)",
+          "size_gib": 2.1,
+          "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ai-ae-oracle-followups (minus incremental)",
+          "size_gib": 0.98,
+          "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-crate-seam-splits-2-base (minus incremental)",
+          "size_gib": 1.62,
+          "reason": "base tree of BLOCKED lane SMB-CRATE-SEAM-SPLITS-2 (local-only commits); lane id mapping by name only, VERIFY."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-raw-cleanroom-2 (minus incremental)",
+          "size_gib": 0.99,
+          "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-id-composer-parity (minus incremental)",
+          "size_gib": 1.63,
+          "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-affinity-interop-1 (minus incremental)",
+          "size_gib": 1.3,
+          "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-dxf-eps-import (minus incremental)",
+          "size_gib": 1.11,
+          "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/downloads",
+          "size_gib": 2.04,
+          "reason": "test data / tool downloads / inspected tools, not a build output."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-particles-audio-presets (minus incremental)",
+          "size_gib": 0.58,
+          "reason": "ledger READY_FOR_VALIDATION: target kept for possible remediation / local-only commits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus",
+          "size_gib": 1.62,
+          "reason": "test data / tool downloads / inspected tools, not a build output."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/tools",
+          "size_gib": 0.06,
+          "reason": "test data / tool downloads / inspected tools, not a build output."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/app-inspect",
+          "size_gib": 0.05,
+          "reason": "test data / tool downloads / inspected tools, not a build output."
+        }
+      ],
+      "SAFE_BUT_REBUILD_COST": [
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward-export",
+          "size_gib": 287.95,
+          "reason": "Steward round-export tree: target/debug/deps = 286.29 GiB (target total 287.64), src 0.04, results 0.22 (C1..C46 result dirs), incremental only 0.02. Last write 2026-10-20T22:22:54.0554952Z (about 7 h before this audit). Deleting means a full cold build of the next steward sync/round export; deps likely carry stale per-commit hashes from C1..C46 (UNVERIFIED hypothesis). Steward/Operator decision."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/sccache",
+          "size_gib": 6.28,
+          "reason": "sccache store (16 hashed dirs, newest write 2026-10-21). NOT configured in studio-env.sh; only referenced as a commented usage line in tools/steward-sync.sh (RUSTC_WRAPPER=sccache SCCACHE_DIR=<studio-team-dev>/sccache). Regenerable but costs warm-cache hits."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-pr-source-monitor (minus incremental)",
+          "size_gib": 4.36,
+          "reason": "ledger PASS_V1, newest write 2026-10-16T07:29:14.3356256Z older than 3 days; full rebuild only if lane reopened."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-audition-ui (minus incremental)",
+          "size_gib": 4.48,
+          "reason": "ledger PASS_V2, newest write 2026-10-16T02:57:42.9522582Z older than 3 days; full rebuild only if lane reopened."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-r33-findings (minus incremental)",
+          "size_gib": 3.2,
+          "reason": "ledger PASS_V1, newest write 2026-10-15T14:03:16.5602199Z older than 3 days; full rebuild only if lane reopened."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-adjust-styles-2 (minus incremental)",
+          "size_gib": 2.41,
+          "reason": "ledger PASS_V2, newest write 2026-10-16T04:15:26.2591021Z older than 3 days; full rebuild only if lane reopened."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-3d-2 (minus incremental)",
+          "size_gib": 1.88,
+          "reason": "ledger PASS_V2, newest write 2026-10-15T22:55:49.7194262Z older than 3 days; full rebuild only if lane reopened."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-ui (minus incremental)",
+          "size_gib": 1.82,
+          "reason": "ledger PASS_V2, newest write 2026-10-15T11:21:26.9549533Z older than 3 days; full rebuild only if lane reopened."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-reel-encode (minus incremental)",
+          "size_gib": 2.28,
+          "reason": "ledger PASS_V3, newest write 2026-10-15T07:58:14.9618272Z older than 3 days; full rebuild only if lane reopened."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-lr-library-write (minus incremental)",
+          "size_gib": 1.54,
+          "reason": "ledger PASS_V1, newest write 2026-10-16T11:41:49.3299039Z older than 3 days; full rebuild only if lane reopened."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-3d-3 (minus incremental)",
+          "size_gib": 1.57,
+          "reason": "ledger PASS_V1, newest write 2026-10-16T03:02:09.7732101Z older than 3 days; full rebuild only if lane reopened."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-d5-ai-id-ae-compare (minus incremental)",
+          "size_gib": 1.04,
+          "reason": "ledger PASS_V1, newest write 2026-10-16T13:37:58.3560390Z older than 3 days; full rebuild only if lane reopened."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-premiere-color-titles (minus incremental)",
+          "size_gib": 0.64,
+          "reason": "ledger PASS_V1, newest write 2026-10-16T03:38:45.0312757Z older than 3 days; full rebuild only if lane reopened."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-layout-ui-2 (minus incremental)",
+          "size_gib": 1.07,
+          "reason": "ledger PASS_V1, newest write 2026-10-16T04:32:36.2328944Z older than 3 days; full rebuild only if lane reopened."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-raw-cleanroom (minus incremental)",
+          "size_gib": 0.95,
+          "reason": "ledger PASS_V1, newest write 2026-10-16T07:31:51.5646542Z older than 3 days; full rebuild only if lane reopened."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-prism-view-transform (minus incremental)",
+          "size_gib": 1.2,
+          "reason": "ledger PASS_V5, newest write 2026-10-15T02:27:47.4016207Z older than 3 days; full rebuild only if lane reopened."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-difftest (minus incremental)",
+          "size_gib": 0.13,
+          "reason": "ledger PASS_V3, newest write 2026-10-11T12:43:11.2144657Z older than 3 days; full rebuild only if lane reopened."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-assets/handshake-studio-assets/target",
+          "size_gib": 22.9,
+          "reason": "repo-local stray target (CX-984 violation); last write 2026-10-15T11:36Z; no cargo/rustc process running now; worktree owner not checked (UNVERIFIED whether the wt-studio-assets worktree is still used)."
+        }
+      ],
+      "UNKNOWN": [
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward",
+          "size_gib": 5.24,
+          "reason": "steward log dir (C*.log etc.); 5.24 GiB measured, content beyond logs NOT_INSPECTED."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-steward-notice (minus incremental)",
+          "size_gib": 4.4,
+          "reason": "no ledger lane with id 'smb-steward-notice'; newest write 2026-10-20T21:03:09.7292759Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/pulse-playback-2 (minus incremental)",
+          "size_gib": 2.1,
+          "reason": "no ledger lane with id 'pulse-playback-2'; newest write 2026-10-15T06:15:44.5601335Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/prism-eng6 (minus incremental)",
+          "size_gib": 0.72,
+          "reason": "no ledger lane with id 'prism-eng6'; newest write 2026-10-11T07:07:30.9000650Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/prism-eng8-export (minus incremental)",
+          "size_gib": 0.82,
+          "reason": "no ledger lane with id 'prism-eng8-export'; newest write 2026-10-11T10:07:24.0762629Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-3d-3-slices (minus incremental)",
+          "size_gib": 0.33,
+          "reason": "no ledger lane with id 'smb-ae-3d-3-slices'; newest write 2026-10-16T03:03:12.4983434Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/prism-eng5 (minus incremental)",
+          "size_gib": 0.17,
+          "reason": "no ledger lane with id 'prism-eng5'; newest write 2026-10-11T04:00:15.8921745Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35536",
+          "size_gib": 0.29,
+          "reason": "no target dir, not a ledger lane (MT packet scratch / repass / fixture / venv); small."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35534",
+          "size_gib": 0.29,
+          "reason": "no target dir, not a ledger lane (MT packet scratch / repass / fixture / venv); small."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35532",
+          "size_gib": 0.23,
+          "reason": "no target dir, not a ledger lane (MT packet scratch / repass / fixture / venv); small."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35531",
+          "size_gib": 0.2,
+          "reason": "no target dir, not a ledger lane (MT packet scratch / repass / fixture / venv); small."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/reel-av1 (minus incremental)",
+          "size_gib": 0.17,
+          "reason": "no ledger lane with id 'reel-av1'; newest write 2026-10-11T03:28:22.5548207Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/prism-oracle",
+          "size_gib": 0.16,
+          "reason": "no target dir, not a ledger lane (MT packet scratch / repass / fixture / venv); small."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35533",
+          "size_gib": 0.12,
+          "reason": "no target dir, not a ledger lane (MT packet scratch / repass / fixture / venv); small."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-media",
+          "size_gib": 0.12,
+          "reason": "no target dir, not a ledger lane (MT packet scratch / repass / fixture / venv); small."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35535",
+          "size_gib": 0.08,
+          "reason": "no target dir, not a ledger lane (MT packet scratch / repass / fixture / venv); small."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35528",
+          "size_gib": 0.02,
+          "reason": "no target dir, not a ledger lane (MT packet scratch / repass / fixture / venv); small."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35530",
+          "size_gib": 0.02,
+          "reason": "no target dir, not a ledger lane (MT packet scratch / repass / fixture / venv); small."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-34817",
+          "size_gib": 0.01,
+          "reason": "no target dir, not a ledger lane (MT packet scratch / repass / fixture / venv); small."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/score-plugin-fixture (minus incremental)",
+          "size_gib": 0.01,
+          "reason": "no ledger lane with id 'score-plugin-fixture'; newest write 2026-10-11T05:22:35.2702579Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-web-r10-cssparser (minus incremental)",
+          "size_gib": 0.01,
+          "reason": "no ledger lane with id 'smb-web-r10-cssparser'; newest write 2026-10-11T16:21:49.7220049Z."
+        },
+        {
+          "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35529",
+          "size_gib": 0.01,
+          "reason": "no target dir, not a ledger lane (MT packet scratch / repass / fixture / venv); small."
+        }
+      ]
+    }
+  },
+  "totals_by_class": {
+    "C": {
+      "build_area_only": {
+        "SAFE_CHEAP": 19.35,
+        "SAFE_BUT_REBUILD_COST": 0.06,
+        "KEEP": 140.71,
+        "UNKNOWN": 0.0
+      },
+      "including_cargo_home": {
+        "SAFE_CHEAP": 19.85,
+        "SAFE_BUT_REBUILD_COST": 0.06,
+        "KEEP": 144.06,
+        "UNKNOWN": 0.0
+      }
+    },
+    "D": {
+      "WP_KERNEL_STUDIO_and_stray": {
+        "SAFE_CHEAP": 328.48,
+        "SAFE_BUT_REBUILD_COST": 345.7,
+        "KEEP": 411.97,
+        "UNKNOWN": 15.52
+      }
+    }
+  },
+  "to_reach_guard_on_c_gib": {
+    "total_now": 160.11,
+    "guard": 140,
+    "must_remove_gib": 20.11,
+    "after_removing_all_SAFE_CHEAP": 140.76,
+    "after_removing_SAFE_CHEAP_and_SAFE_BUT_REBUILD_COST": 140.7,
+    "note": "SAFE_CHEAP on C: is only the lane incremental dirs plus tmp; it leaves C: just over the guard. A further ~1 GiB must come from KEEP items (for example the 0.13 GiB release dir plus the non-incremental part of one READY lane such as smb-id-composer-parity 1.64 GiB) or the Operator raises the guard / the lanes move back to D:. The guard re-admits builders only after .studio-ssd-size is deleted or re-measured below 140 GiB."
+  },
+  "unverified": [
+    "Whether the steward-export tree (287.95 GiB, last write 2026-10-20T22:55Z) is still needed by the next steward sync / round; classification SAFE_BUT_REBUILD_COST is size and age based only.",
+    "Claim that steward-export deps contain stale per-commit hashes from C1..C46 (not inspected).",
+    "Whether wt-studio-assets worktree still uses its 22.9 GiB stray target (no process running; last write 2026-10-15).",
+    "Mapping of D: owners to ledger lanes is exact-id only; smb-package-completeness maps to PASS_V2 lane SMB-PACKAGE-COMPLETENESS... but the READY lane is SMB-PACKAGE-COMPLETENESS-2 and the owner was written 2026-10-20T16:22Z (treated KEEP); smb-crate-seam-splits-2-base is mapped by name to the BLOCKED lane.",
+    "Contents of studio-team-dev/steward (5.24 GiB) beyond log files not inspected.",
+    "Sizes are apparent sizes (hardlinks counted twice); real freed space after deletion can be lower, but the guard uses the same measure.",
+    "Whether selected sizes shift between listing and deletion: other agents/builders were active on D: during the audit (scratchpad shared)."
+  ],
+  "notes": [
+    "Nothing was deleted, moved, stopped or modified; only this file and scratchpad measurement scripts were written.",
+    "C: area is entirely studio-team-dev: shared warm base 99.13 GiB (deps 97.96) + 21 lane dirs under target/lanes (60.82 GiB total in only 6 non-empty lanes; 15 lane dirs are empty). Lane incremental dirs hold 19.32 GiB.",
+    "Incremental on C: shared base is already 0 (removal of 2026-10-20 confirmed). C: is 160.11 GiB = 20.11 GiB over the 140 GiB guard and 10.11 over the 150 GB cap.",
+    "On D:, incremental across all owners is the largest cheap bucket; studio-round incremental (98 GiB) and studio-team-dev target incremental (31.17 GiB) dominate. studio-round incremental is classed SAFE_CHEAP but R36 is pending, so the first R36 compile is slower.",
+    "PASS-lane targets older than 3 days are mostly small (0.2 to 12 GiB each); the big D: items are studio-round deps, steward-export, and READY-lane targets (smb-crate-seam-splits 48.9, smb-package-completeness 36.74, smb-ps-oracle-parity-1 31.26, smb-develop-lens-presets 28.35).",
+    "Handshake_Artifacts also holds 1374.82 GiB in handshake-cargo-target plus other-WP folders (WP-KERNEL-012-Native-Editors... 419.93, WP-KERNEL-012 402.58, WP-CKC-posekit-overhaul 79.25); not Studio scope, size only.",
+    "D: drive reports 13062.89 GiB used / 1839.10 GiB free and C: 7110.45 / 340.36 GiB as Get-PSDrive Used/Free in GiB.",
+    "One concurrent file in the session scratchpad (audit.ps1 etc.) belongs to another agent, not touched."
+  ]
+}

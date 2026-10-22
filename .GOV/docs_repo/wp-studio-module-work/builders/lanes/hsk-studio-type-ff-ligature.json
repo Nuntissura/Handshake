@@ -1,0 +1,92 @@
+{
+  "crate": "hsk-studio-type (engine.rs, result.rs, serialize.rs, validate.rs, descriptor.rs, provider/harfrust.rs, tests) + hsk-studio-layout (paragraph.rs, breaker.rs, threaded_reflow.rs, typeset.rs, adobe_composer.rs, lib.rs, tests) + hsk-studio-interop-layout tests (d5_id_oracle.rs, d5_id_expected_mismatch.txt, longdoc_pdf.rs Line literal)",
+  "lane": "SMB-TYPE-FF-LIGATURE",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed 2026-10-21 (lead rebase after the branch restore): 9b29497..2e0f53e; READY_FOR_VALIDATION on 2e0f53e (ledger authority); awaiting R36",
+  "commits": [
+    {
+      "sha": "6b8b2d7",
+      "subject": "Type: composition v2 standard-ligature fallback from cmap presentation forms and line-end advance data",
+      "pushed_as": "9b29497",
+      "pushed": true
+    },
+    {
+      "sha": "e80d545",
+      "subject": "Layout: hyphenation breaks use Type v2 line-end data: ligature split into components, no kern across the hyphen",
+      "pushed_as": "d3dc86d",
+      "pushed": true
+    },
+    {
+      "sha": "6674746",
+      "subject": "Layout: glyph scaling in justification (min/desired/max), InDesign D5 ID-02 model",
+      "pushed_as": "df1b7ce",
+      "pushed": true
+    },
+    {
+      "sha": "ae857f7",
+      "subject": "Layout: Adobe composers count letter and glyph ranges (paragraph cost, overfull test)",
+      "pushed_as": "b063dd5",
+      "pushed": true
+    },
+    {
+      "sha": "2bf8664",
+      "subject": "D5 ID oracle: glyph scaling and Type v2 ligature carets compared, ff tolerance removed, expected list regenerated",
+      "pushed_as": "ad57100",
+      "pushed": true
+    },
+    {
+      "sha": "f9e1cad",
+      "subject": "Type: is_multiple_of in the v2 ligature gate (clippy manual_is_multiple_of)",
+      "pushed_as": "2e0f53e",
+      "pushed": true
+    }
+  ],
+  "capabilities_done": [
+    "Type COMPOSITION_VERSION v2 (STU-TYP-130 token increment; COMPOSITION_VERSION_V1 recomposes v1 unchanged, bytes identical): ff/fi/fl/ffi/ffl from cmap presentation forms U+FB00..U+FB04 when liga is on and GSUB formed no ligature, so the ligature replaces the f-f pair kern (Arial ff = uniFB00, 1094 units, as InDesign)",
+    "Type v2 per-run line-end data: Run::line_end_advances (hmtx advance where pair kerning changed a glyph) and Run::ligature_components (nominal glyph + advance per component); serialized under v2 only; harfrust spike refuses v2",
+    "Layout: hyphenation point inside a ligature becomes a break (left components + hyphen end the line, right components start the next: Line::end_part / Line::start_part, sources split inside the glyph); a glyph before a hyphen takes its hmtx advance (no kern across the split); breakers measure the split widths",
+    "Layout glyph scaling: JustifyParams::glyph_scaling (validated 0.5..2.0) and Justification::glyph_scale; words first, then letters and glyphs by range; with glyph scaling the Adobe justification gives the rest past the limits to the words; Single-line candidates and the Paragraph Composer cost count letter and glyph ranges; a line inside the combined shrink limits is not overfull",
+    "d5 ID suite: MATCH 55 -> 93 of 99 variants (ID-01 79/80, ID-02 9/12 incl. 2 of 4 glyph-scaling sets, ID-03 4/6, ID-04 1/1) plus arial_ff_is_the_presentation_form_ligature MATCH; ff-line 0.1 pt tolerance removed (all characters at 0.001 pt)"
+  ],
+  "tests": {
+    "argv": "cd <lane>/handshake-studio-assets && bash <GOV>/tools/lane-check.sh --owner smb-type-ff-ligature --disk d -- cargo nextest run -p hsk-studio-type -p hsk-studio-layout -p hsk-studio-interop-layout --features hsk-studio-type/harfrust --no-fail-fast --success-output final --failure-output final (clippy over the 3 crates + dependents composite, harness, harness-view, interop-fig, render-cpu, render-gpu; whole suites per rule 4a)",
+    "exit": 0,
+    "sha": "2bf8664 (f9e1cad after it only replaces `level % 2 == 0` with `level.is_multiple_of(2)` in the v2 gate; covered by the post-rebase re-run before push)",
+    "passed": 169,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 2600,
+  "bg_pids": [],
+  "next": "on lead's go: fetch (no --prune), rebase lane/smb-type-ff-ligature on the restored origin tip, one bundled re-run (same argv; f9e1cad and any rebase changes), diff --stat check, push HEAD:codex/handshake-studio-assets, set READY_FOR_VALIDATION. Follow-ups: FU single-line glyph-scaling break rule (2 ID-02 sets); pdf_export ignores Justification::glyph_scale and Line::start_part/end_part (a split ligature is drawn whole on the next line); fi/fl/ffi/ffl presentation ligatures need a D5 oracle text",
+  "updated_at": "2026-10-21T14:39:23Z",
+  "notes": {
+    "worktree": "wt-studio-lanes/smb-type-ff-ligature (branch lane/smb-type-ff-ligature from 6585ff0); lane-gameplan pointer written per lead correction",
+    "build_disk": "runs 1-2 on the SSD slot; run 3 refused (exit 77: SSD tree 160 GiB > 140 GiB cap at 2026-10-20T23:02Z) after a 1987 s lock wait; run 4 on D: per the setup fallback, exit 0",
+    "runs": "run1: id02 FAIL (para gs breaks, single gs line 5 left unjustified: overfull flag ignored glyph capacity); run2: paragraph-composer letter/glyph ranges fixed para ls-3/gs95/ls-5 gs90 sets; run3: SSD 77; run4: all green after the overfull fix and the regenerated expected list",
+    "spec_basis": "STU-TYP-130 composition version token (changing shaping semantics requires incrementing it; documents recompose under their authored token); STU-TYP-135 composer weighting of letter-spacing, word-spacing and glyph-scaling penalties; module 14 justification fields minimum <= desired <= maximum for word, letter and glyph scaling (glyph_scaling 50..200 %)",
+    "research": "Arial 7.06 (oracle-corpus/host-fonts, never committed) inspected with fontTools: GSUB liga lookups are Arabic/Hebrew only; cmap maps U+FB00..U+FB06 (uniFB00 1094, f 569, latn GPOS kern f-f -37 = 1101). Oracle carets: second component at 547 units x glyph scale + letter gap, next glyph at 1094 + gap (all ID-02/03 variants); split dif-/ferences: second f at 569 (e at 3.334 pt). HarfBuzz forms ligatures from GSUB only; its Arabic fallback synthesizes ligatures from cmap presentation forms when GSUB lacks them (pattern reused, no code read). Glyph-scaling model re-fitted per line with a session scratch least-squares script (residual <= 2e-5 pt) and simulated: words first, letters+glyphs by range, past limits words take the rest; reproduces all 20 lines of both single gs sets",
+    "unverified": "fi/fl/ffi/ffl presentation ligatures (no oracle text); glyph-scaling past-limit rule and paragraph-composer range extension outside the D5 ID-02 sets; hyphen scaled with the glyph scale",
+    "remaining_mismatch": "6 of 99, all breaks with x identical on equal lines: ID-01 para_hyph_left_w240, ID-02 para_ws100_100_100, ID-03 para_hyph_w240 / para_nohyph_w240 (pre-existing paragraph-composer fits), ID-02 single gs95 and single ls-5 gs90 (line 7: InDesign takes re-sult resp. the loose break where Studio's single-line rules (a)/(b) take the tight whole word inside the glyph range; no single weighting of the glyph range fits both sets plus the non-gs fit: scratch analysis in this lane)",
+    "rule_4a": "whole suites of type (incl. harfrust_spike with the feature), layout and interop-layout ran: 169/169; type foundation tests are now bound to COMPOSITION_VERSION_V1 (the independent reference 6579f9a9 carries composition_binding v1; not re-pinned) and composition_v2_presentation_ligatures_keep_gsub_priority proves v2 = v1 glyphs on the committed fonts where the fallback must not act (liga off, no presentation forms, NotoSansSC GSUB ligatures); dependents only clippy-checked (their fixtures use Inter/Noto fonts without presentation forms)",
+    "tests_added": "type foundation_contract composition_v2_presentation_ligatures_keep_gsub_priority; layout typeset hyphen_inside_a_ligature_sets_its_components_and_drops_kerning_at_the_line_end, glyph_scaling_shares_the_rest_with_letters_by_range_and_is_validated, glyph_scaling_shrink_keeps_an_adobe_line_inside_the_limits (hostile: non-partitioning ligature parts, out-of-range/NaN glyph scaling); d5 arial_ff_is_the_presentation_form_ligature",
+    "provenance": "no vendored rustybuzz/ttf-parser/unicode-bidi file changed (tests/provenance.rs count unchanged)",
+    "cargo_lock": "unchanged, never committed",
+    "arial": "local proprietary font only read from the oracle corpus; never committed; d5 tests print NOT_PROVEN without it",
+    "pushed_as": {
+      "map_local_to_origin": {
+        "6b8b2d7": "9b29497",
+        "e80d545": "d3dc86d",
+        "6674746": "df1b7ce",
+        "ae857f7": "b063dd5",
+        "2bf8664": "ad57100",
+        "f9e1cad": "2e0f53e"
+      },
+      "by": "lead 2026-10-21 record upkeep: origin/codex/handshake-studio-assets restored at 8bb6f64 after the deletion incident; this lane's commits were rebased by the lead and pushed (patch-ids verified identical); ledger status READY_FOR_VALIDATION on the pushed tip."
+    }
+  },
+  "verdicts": [
+    {"decision": "passed", "verdict": "PASS_V1", "status_change": "PASS_V1", "included_by": "READY claim in candidate", "prior_status": "READY_FOR_VALIDATION", "failures": [], "remediation": null, "blocker": null, "not_proven": ["type glyph_render::run_raster_digest_and_mixed_scripts (default): cross-host raster identity (STU-TYP-131) needs a second host running this digest", "type glyph_render::run_raster_digest_and_mixed_scripts (features:hsk-studio-type+harfrust): cross-host raster identity (STU-TYP-131) needs a second host running this digest"], "note": "units of interop-layout/layout/type: 5 crate units + default; all build 0 / run 0; default passed interop-layout 42, layout 77, type 49", "idempotency_key": "STUDIO-R36:SMB-TYPE-FF-LIGATURE:a10576683c7a:PASS_V1", "claim_scope": null, "round": "STUDIO-R36", "lane": "SMB-TYPE-FF-LIGATURE", "candidate": "a10576683c7a76b3da37e6ec4794652c3e903bbd", "tree": "27fb1f13e97fbaecd9e4b61428e53bcab50a3169", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R36", "started_at": "2026-10-21T17:26:59Z", "completed_at": "2026-10-22T05:34:45Z"},
+    {"decision": "passed", "verdict": "PASS_V2", "status_change": "PASS_V2", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": ["type glyph_render::run_raster_digest_and_mixed_scripts (default): cross-host raster identity (STU-TYP-131) needs a second host running this digest", "type glyph_render::run_raster_digest_and_mixed_scripts (features:hsk-studio-type+harfrust): cross-host raster identity (STU-TYP-131) needs a second host running this digest"], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: interop-layout, layout).  units of interop-layout/layout/type: 5 crate units + default; all build 0 / run 0; default passed interop-layout 47, layout 84, type 49", "idempotency_key": "STUDIO-R37:SMB-TYPE-FF-LIGATURE:1d139a6990f5:PASS_V2", "claim_scope": null, "round": "STUDIO-R37", "lane": "SMB-TYPE-FF-LIGATURE", "candidate": "1d139a6990f55b77c1ce09c1dc7a5c2f47c324f4", "tree": "3c2b5fe1ce168053e16b0f682b9b728a0441c9fc", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37", "started_at": "2026-10-22T09:20:11Z", "completed_at": "2026-10-22T13:00:58Z"}
+  ]
+}

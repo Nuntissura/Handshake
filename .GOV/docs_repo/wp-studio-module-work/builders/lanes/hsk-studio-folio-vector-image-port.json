@@ -4,12 +4,21 @@
   "status": "READY_FOR_VALIDATION",
   "phase": "pushed at 6e2ec80 (branch codex/handshake-studio-assets)",
   "commits": [
-    {"sha": "6e2ec80", "subject": "folio (SMB-FOLIO-VECTOR-IMAGE-PORT, SMB-FOLIO-PARENT-PAGES): image-typed vector source port; hsk.studio.parent_page_records@1"}
+    {
+      "sha": "6e2ec80",
+      "subject": "folio (SMB-FOLIO-VECTOR-IMAGE-PORT, SMB-FOLIO-PARENT-PAGES): image-typed vector source port; hsk.studio.parent_page_records@1"
+    }
   ],
   "capabilities_done": [
     "lib.rs source-op arm: a vector layer's source operation may declare its single `out` port value_type image (rasterisable vector) so it can feed a group's image `inputs` (mirrors G1 for text); vector-typed form, text form, all other kinds and existing documents unchanged; other value types on a vector source still InvalidPort; edges still require equal value types"
   ],
-  "tests": {"argv": "cargo nextest run -p hsk-studio-folio --test vector_image_port_contract --test parent_pages_contract --test paint_blur_style_contract --no-fail-fast", "exit": 0, "sha": "6e2ec80", "passed": 9, "failed": 0},
+  "tests": {
+    "argv": "cargo nextest run -p hsk-studio-folio --test vector_image_port_contract --test parent_pages_contract --test paint_blur_style_contract --no-fail-fast",
+    "exit": 0,
+    "sha": "6e2ec80",
+    "passed": 9,
+    "failed": 0
+  },
   "blockers": [],
   "bg_pids": [],
   "next": "composite follow-up",
@@ -19,5 +28,30 @@
     "edit_to_existing_test": "tests/paint_blur_style_contract.rs: removed the assertion that a vector source declared image is InvalidPort (valid by this lane)",
     "composite_follow_up": "composite must evaluate/lower an image-typed vector source inside its group via the existing vector plane path (analogue of G1 slice 4 for text); until then it should refuse the image form with a typed refusal.",
     "proof": "cargo check --tests over folio exit 0; dependents (chronicle components composite harness interop-fig interop-layout interop-media interop-psd interop-vector layout package pigment pulse session) --keep-going Finished clean; one earlier run showed E0432/E0308 in interop-fig tests/fig_composite.rs against pigment/composite items (another lane's in-flight shared-tree edits, not folio). clippy -p hsk-studio-folio --tests: no warnings outside hsk-studio-type."
-  }
+  },
+  "verdicts": [
+    {
+      "decision": "passed",
+      "verdict": "PASS_V1",
+      "failures": [],
+      "remediation": null,
+      "blocker": null,
+      "not_proven": [],
+      "note": "6e2ec80: vector source op with a single image out port is typed Image so it feeds group image inputs (mirrors G1 text); vector form unchanged. No stub. Lane tests 1 passed / 0 failed (/vector_image_port_contract/); default folio 58; all units of folio build 0 run 0",
+      "idempotency_key": "STUDIO-R29:SMB-FOLIO-VECTOR-IMAGE-PORT:62c0bf666fc8:PASS_V1",
+      "round": "STUDIO-R29",
+      "lane": "SMB-FOLIO-VECTOR-IMAGE-PORT",
+      "candidate": "62c0bf666fc88e6ab5424e4eae46f18521c5dffe",
+      "tree": "b8c285ac064abaa57d54553f2e4ce940f6c0fb04",
+      "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+      "started_at": "2026-10-14T23:54:12Z",
+      "completed_at": "2026-10-15T00:47:07Z"
+    },
+  {"decision": "passed", "verdict": "PASS_V2", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed d9c59f8..eb569d5 + reverse-dependency closure, 28 crates).  units of folio: 1 crate units + default; all build 0 / run 0; default folio 67", "idempotency_key": "STUDIO-R32:SMB-FOLIO-VECTOR-IMAGE-PORT:eb569d5764a3:PASS_V2", "round": "STUDIO-R32", "lane": "SMB-FOLIO-VECTOR-IMAGE-PORT", "candidate": "eb569d5764a3243d492c40f5fe8494782e45c882", "tree": "a232cd250db1371549353ee0c3ada8b8c0c083c4", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R32", "started_at": "2026-10-15T06:20:39Z", "completed_at": "2026-10-15T07:38:27Z"},
+  {"decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed eb569d5..ef53ea7 + reverse-dependency closure, 24 crates).  units of folio: 1 crate units + default; all build 0 / run 0; default folio 69", "idempotency_key": "STUDIO-R33:SMB-FOLIO-VECTOR-IMAGE-PORT:ef53ea781923:PASS_V3", "round": "STUDIO-R33", "lane": "SMB-FOLIO-VECTOR-IMAGE-PORT", "candidate": "ef53ea781923c4ed859c31ac98ea21f97ab188a9", "tree": "3e6eded3fda85beaaea2739b220ff6ed9ec59f5f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R33", "started_at": "2026-10-15T08:54:16Z", "completed_at": "2026-10-15T11:44:50Z"},
+  {"decision": "passed", "verdict": "PASS_V4", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ef53ea7..ca5e9c9 + reverse-dependency closure, 29 crates).  units of folio: 1 crate units + default; all build 0 / run 0; default folio 81", "idempotency_key": "STUDIO-R34:SMB-FOLIO-VECTOR-IMAGE-PORT:ca5e9c92fa6b:PASS_V4", "round": "STUDIO-R34", "lane": "SMB-FOLIO-VECTOR-IMAGE-PORT", "candidate": "ca5e9c92fa6be13b50428ea3be6571ccc1d1a511", "tree": "4afc6f85614b23faaffb0c941d9da11a7eb3259f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R34", "started_at": "2026-10-15T22:54:57Z", "completed_at": "2026-10-16T02:52:16Z"},
+  {"decision": "passed", "verdict": "PASS_V5", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ca5e9c9..237256f + reverse-dependency closure, 31 crates).  units of folio: 1 crate units + default; all build 0 / run 0; default folio 86", "idempotency_key": "STUDIO-R35:SMB-FOLIO-VECTOR-IMAGE-PORT:237256f8792c:PASS_V5", "round": "STUDIO-R35", "lane": "SMB-FOLIO-VECTOR-IMAGE-PORT", "candidate": "237256f8792c708b96464030d4b40f3a93e8f0e0", "tree": "f699823b8e0d0530a5f9a96df354b8b7aac8294f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R35", "started_at": "2026-10-16T07:31:56Z", "completed_at": "2026-10-20T14:11:50Z"},
+    {"decision": "passed", "verdict": "PASS_V6", "status_change": "PASS_V6", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V5", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: folio).  units of folio: 1 crate units + default; all build 0 / run 0; default passed folio 91", "idempotency_key": "STUDIO-R36:SMB-FOLIO-VECTOR-IMAGE-PORT:a10576683c7a:PASS_V6", "claim_scope": null, "round": "STUDIO-R36", "lane": "SMB-FOLIO-VECTOR-IMAGE-PORT", "candidate": "a10576683c7a76b3da37e6ec4794652c3e903bbd", "tree": "27fb1f13e97fbaecd9e4b61428e53bcab50a3169", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R36", "started_at": "2026-10-21T17:26:59Z", "completed_at": "2026-10-22T05:34:45Z"},
+    {"decision": "passed", "verdict": "PASS_V7", "status_change": "PASS_V7", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V6", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: folio).  units of folio: 1 crate units + default; all build 0 / run 0; default passed folio 98", "idempotency_key": "STUDIO-R37:SMB-FOLIO-VECTOR-IMAGE-PORT:1d139a6990f5:PASS_V7", "claim_scope": null, "round": "STUDIO-R37", "lane": "SMB-FOLIO-VECTOR-IMAGE-PORT", "candidate": "1d139a6990f55b77c1ce09c1dc7a5c2f47c324f4", "tree": "3c2b5fe1ce168053e16b0f682b9b728a0441c9fc", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37", "started_at": "2026-10-22T09:20:11Z", "completed_at": "2026-10-22T13:00:58Z"}
+ ]
 }

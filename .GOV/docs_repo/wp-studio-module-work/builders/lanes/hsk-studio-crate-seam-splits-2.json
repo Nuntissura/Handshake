@@ -1,0 +1,92 @@
+{
+  "crate": "hsk-studio-interop-fig (-> hsk-studio-interop-fig-base, hsk-studio-interop-fig-native), hsk-studio-web (-> hsk-studio-web-core, hsk-studio-web-assets)",
+  "lane": "SMB-CRATE-SEAM-SPLITS-2",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "both splits rebased onto origin 9c48de8 (no textual conflicts; git rename detection carried the 9c48de8 Gaussian blur_kernel effects.rs/fig_geometry.rs changes into fig-native/facade tests) and pushed; head 077fe0c",
+  "worktree": "Handshake Worktrees/wt-studio-lanes/smb-crate-seam-splits-2 (branch lane/smb-crate-seam-splits-2, base 6585ff0), STUDIO_OWNER=smb-crate-seam-splits-2",
+  "commits": [
+    {
+      "sha": "31b35b0",
+      "subject": "interop-fig (SMB-CRATE-SEAM-SPLITS-2): split into hsk-studio-interop-fig-base and -native",
+      "pushed": true,
+      "pushed_as": "31b35b0 (ancestor of 077fe0c)"
+    },
+    {
+      "sha": "077fe0c",
+      "subject": "web (SMB-CRATE-SEAM-SPLITS-2): split into hsk-studio-web-core and hsk-studio-web-assets",
+      "pushed": true,
+      "pushed_as": "077fe0c"
+    }
+  ],
+  "decision_basis": "START_LOG 'Lead decision 2026-10-16 (SMB-CRATE-SEAM-SPLITS slice 3)' items (2) and (3); lanes/hsk-studio-crate-seam-splits.json slice3_candidates",
+  "in_flight_check": "2026-10-20: git status --short and git log origin/codex/handshake-studio-assets..HEAD in every wt-studio-lanes/* worktree and the shared wt-studio-assets tree: no uncommitted or unpushed path under hsk-studio-interop-fig or hsk-studio-web",
+  "spec_basis": {
+    "STU-ARC-018": "each facade re-exports only its own two halves, item by item (no glob); hsk-studio-interop-fig and hsk-studio-web stay the single owners of STUDIO-MODULE-INTEROP_FIG and STUDIO-MODULE-WEB",
+    "CX-CAP-001": "one active owner per capability: unchanged"
+  },
+  "capabilities_done": [
+    "interop-fig: pure move (git renames, content unchanged except graph.rs) of container, error, graph, import, kiwi, kiwi_value, nodes, semantic_decode, version_map -> crates/hsk-studio-interop-fig-base/src and native, effects, geometry, text_out, export -> crates/hsk-studio-interop-fig-native/src; descriptor.rs stays in the facade",
+    "interop-fig seam: base container, graph, import, nodes, semantic_decode are #[doc(hidden)] pub mod; graph::build and GraphBuild pub(crate) -> #[doc(hidden)] pub; native lib.rs imports those modules plus FigError, Result, SourceId under the same crate:: names",
+    "web: pure move of dom (+dom/construction), charref, entity, entity_table, css, responsive, preview, refresh, source_dom_patch, error, report -> crates/hsk-studio-web-core/src (DESCRIPTOR moved verbatim from the facade lib.rs into web-core lib.rs because the moved carriers unit test reads crate::DESCRIPTOR); assets, carriers, cssurl, datauri and their unit test files -> crates/hsk-studio-web-assets/src",
+    "web seam: core charref, dom, error are #[doc(hidden)] pub mod; charref Context, CharData, Decoded, decode and dom Sheet, Sheet::span, WebDoc::sheet/raw_text_data/text_value pub(crate) -> #[doc(hidden)] pub; assets lib.rs has #[cfg(test)] use of DESCRIPTOR, Limits, parse for the moved unit tests",
+    "web cssurl/tests.rs: include_str! of the css-parsing-tests corpus now ../../../hsk-studio-web/tests/data/... (path only)",
+    "facades: same public names re-exported item by item (web keeps responsive and source_dom_patch module paths); original deps kept for integration tests and examples",
+    "root Cargo.toml: members + declared-members add the four crates; dependencies.allowed: fig-base [accord, folio, observe, package], fig-native [accord, folio, components, type, package, nib, press, interop-raster, interop-fig-base], interop-fig += fig-base, fig-native; web-core [accord, observe], web-assets [accord, web-core], web += web-core, web-assets",
+    "dep-requests.jsonl: 6 lines at 2026-10-20T22:07:34Z (fig -> base, fig -> native, native -> base, web -> core, web -> assets, assets -> core)"
+  ],
+  "tests": {
+    "argv": "lane-check.sh --owner smb-crate-seam-splits-2 --disk d -- cargo nextest run -p hsk-studio-interop-fig-base -p hsk-studio-interop-fig-native -p hsk-studio-interop-fig -p hsk-studio-web-core -p hsk-studio-web-assets -p hsk-studio-web -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/viewer,hsk-studio-harness-view/viewer --no-fail-fast",
+    "head": "077fe0c",
+    "result": "318 run: 318 passed, 20 skipped, 0 failed (clippy clean for lane crates; warnings only upstream in hsk-studio-type)",
+    "per_crate": {
+      "hsk-studio-interop-fig": 55,
+      "hsk-studio-web": 94,
+      "hsk-studio-web-assets": 42,
+      "hsk-studio-web-core": 2,
+      "hsk-studio-harness": 126,
+      "fig-base/fig-native/harness-view": 0
+    },
+    "note": "fig_paints_2 bold_text pin failure seen at 6585ff0 no longer occurs on 9c48de8 base"
+  },
+  "blockers": [
+    "RESOLVED: 2026-10-20 origin-delete incident (origin restored, rebased on 9c48de8); gameplan hook no longer blocking"
+  ],
+  "fig_bundle": {
+    "argv": "lane-check.sh --owner smb-crate-seam-splits-2 --disk d (SSD refused 77: 142 GiB > 140) -- cargo nextest run -p hsk-studio-interop-fig-base -p hsk-studio-interop-fig-native -p hsk-studio-interop-fig -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/viewer,hsk-studio-harness-view/viewer --no-fail-fast",
+    "head": "67a7496 (fig fef312e + web 67a7496 on 6585ff0)",
+    "clippy": "clean for the fig crates and harness/harness-view (warnings only in hsk-studio-type and hsk-studio-observe)",
+    "result": "180 run: 179 passed, 1 failed, 20 skipped; FAIL hsk-studio-interop-fig::fig_paints_2 bold_text_renders_with_the_inter_bold_fixture (artboard p99 5.700324 > pin 5.698; mean 0.907880, <=8 0.993252)",
+    "pre_existing_proof": "same test at unsplit origin 6585ff0 (temp detached worktree wt-studio-lanes/smb-crate-seam-splits-2-base, since removed): FAIL with identical metrics (artboard p99 5.700324, mean 0.907880): not caused by the split; render-path commits since R35 candidate 237256f8 (SMB-PS-ORACLE-PARITY-1 30ea18e/a95f819/d69a277, SMB-AI-AE-ORACLE-FOLLOWUPS 3a876c5/87707e1/fb9882c, ...) are the candidates; not re-pinned by this lane (another lane's expectation)"
+  },
+  "steward_items": [
+    ".config/duplicate-fingerprints.toml D16 allowed: crates/hsk-studio-interop-fig/src/container.rs -> crates/hsk-studio-interop-fig-base/src/container.rs (run-round step 0 exit 71 otherwise)",
+    ".config/machine-paths.toml pinned: crates/hsk-studio-web/src/cssurl/tests.rs = 1 -> crates/hsk-studio-web-assets/src/cssurl/tests.rs = 1 (run-round step 0 exit 72 otherwise)",
+    "registry pins, APPROVED, probe and lock for the four new crates (batched sync, WF3-008)"
+  ],
+  "bg_pids": [],
+  "next": "after the hook block is lifted: run the fig bundle (argv above), fix all, one re-run; push; then the web bundle; push; record shas and set READY_FOR_VALIDATION",
+  "updated_at": "2026-10-22T06:45:08Z",
+  "notes": {
+    "api": "public names of hsk-studio-interop-fig and hsk-studio-web unchanged (same lists, explicit); new surface exists only as #[doc(hidden)] seam items in the base/core halves",
+    "cargo_lock": "left uncommitted",
+    "gov_kernel": "no gov_kernel commits; this file and the dep-requests lines are uncommitted kernel edits"
+  },
+  "steward_facts": {
+    "new_members": [
+      "hsk-studio-interop-fig-base",
+      "hsk-studio-interop-fig-native",
+      "hsk-studio-web-core",
+      "hsk-studio-web-assets"
+    ],
+    "root_cargo_toml": "members + declared-members + dependencies.allowed edges in the lane commits (fig-base [accord, folio, observe, package]; fig-native [accord, folio, components, type, package, nib, press, interop-raster, interop-fig-base]; interop-fig += fig-base, fig-native; web-core [accord, observe]; web-assets [accord, web-core]; web += web-core, web-assets)",
+    "pins": "workspace-internal =0.1.0 path pins; 6 dep-requests lines filed 2026-10-20; registry pins/APPROVED/probe/lock for the four new crates owed (steward sync)",
+    "config_repoints_owed": [
+      ".config/duplicate-fingerprints.toml D16: crates/hsk-studio-interop-fig/src/container.rs -> crates/hsk-studio-interop-fig-base/src/container.rs",
+      ".config/machine-paths.toml: crates/hsk-studio-web/src/cssurl/tests.rs = 1 -> crates/hsk-studio-web-assets/src/cssurl/tests.rs = 1"
+    ],
+    "cargo_lock": "left uncommitted in lane worktree"
+  },
+  "verdicts": [
+    {"decision": "passed", "verdict": "PASS_V1", "status_change": "PASS_V1", "included_by": "READY claim in candidate", "prior_status": "READY_FOR_VALIDATION", "failures": [], "remediation": null, "blocker": null, "not_proven": ["harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness audio_import::wav_and_surround_files_import_with_the_bs775_downmix_and_channel_map (features:hsk-studio-harness+media): AAC 5.1 downmix needs --features studio-aac (D24-A)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+media): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness audio_import::wav_and_surround_files_import_with_the_bs775_downmix_and_channel_map (features:hsk-studio-harness+media-native): AAC 5.1 downmix needs --features studio-aac (D24-A)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+media-native): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+audio-device): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness audio_import::wav_and_surround_files_import_with_the_bs775_downmix_and_channel_map (features:hsk-studio-harness+audio-batch): AAC 5.1 downmix needs --features studio-aac (D24-A)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+audio-batch): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+studio-aac): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness audio_import::wav_and_surround_files_import_with_the_bs775_downmix_and_channel_map (features:hsk-studio-harness+os-encode): AAC 5.1 downmix needs --features studio-aac (D24-A)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+os-encode): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness audio_import::wav_and_surround_files_import_with_the_bs775_downmix_and_channel_map (features:hsk-studio-harness+audio-plugin): AAC 5.1 downmix needs --features studio-aac (D24-A)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+audio-plugin): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-basic-shapes.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_native.rs maps into Folio and proves save+reopen identity and a rename; geometry, transforms, effects, images and masks are losses)", "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-components-autolayout.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_native.rs maps into Folio and proves save+reopen identity and a rename; geometry, transforms, effects, images and masks are losses)", "interop-fig fig_import::actual_fig_instance_variable_prototype_edit_reopen (default): actual_fig_instance_variable_prototype_edit_reopen file=fig-prototype-pages.fig decoded=census+typed_node_tree editable_import=not_proven(tests/fig_native.rs maps into Folio and proves save+reopen identity and a rename; geometry, transforms, effects, images and masks are losses)"], "note": "Four new members built and ran (fig-base, fig-native, web-core, web-assets); facade public names unchanged; step 0 D16 site and machine-path pin moved by the steward sync. units of harness/harness-core/harness-view/interop-fig/interop-fig-base/interop-fig-native/web/web-assets/web-core: 42 crate units + default; all build 0 / run 0; default passed harness 7, harness-core ?, harness-view ?, interop-fig 55, interop-fig-base ?, interop-fig-native ?, web 94, web-assets 42, web-core 2", "idempotency_key": "STUDIO-R37:SMB-CRATE-SEAM-SPLITS-2:1d139a6990f5:PASS_V1", "claim_scope": "31b35b0 interop-fig -> fig-base/fig-native, 077fe0c web -> web-core/web-assets; pure moves (renames 100% except graph.rs/charref.rs/dom.rs/cssurl tests.rs seam visibility and include path); facades re-export item by item, no glob (STU-ARC-018)", "round": "STUDIO-R37", "lane": "SMB-CRATE-SEAM-SPLITS-2", "candidate": "1d139a6990f55b77c1ce09c1dc7a5c2f47c324f4", "tree": "3c2b5fe1ce168053e16b0f682b9b728a0441c9fc", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37", "started_at": "2026-10-22T09:20:11Z", "completed_at": "2026-10-22T13:00:58Z"}
+  ]
+}

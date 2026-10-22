@@ -1,0 +1,87 @@
+{
+  "crate": "hsk-studio-harness-view + hsk-studio-harness",
+  "lane": "SMB-HARNESS-SHELL-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-3 (+2 fix commits) pushed at 45f04b2 (origin tip 45f04b2); READY covers 2defb17, 9ca2c59, 1f0e945, 5605a52, 45f04b2",
+  "commits": [
+    {"sha": "2defb17", "subject": "SMB-HARNESS-SHELL-1 slice 1: desktop shell menu bar, file dialog, recent files, hosted panels"},
+    {"sha": "9ca2c59", "subject": "SMB-HARNESS-SHELL-1 slice 2: desktop binary --recent list file, RUN-UI menus and feature build"},
+    {"sha": "1f0e945", "subject": "SMB-HARNESS-SHELL-1 slice 3: headless shell tests (menus, keys, dialog, recents, surfaces)"},
+    {"sha": "5605a52", "subject": "SMB-HARNESS-SHELL-1 slice 1 fix: layout editor visibility read before the mutable borrow"},
+    {"sha": "45f04b2", "subject": "SMB-HARNESS-SHELL-1 slice 3 fix: drop the duplicated dead_code allow (clippy duplicated_attributes)"}
+  ],
+  "capabilities_done": [
+    "slice 1 menu bar (harness-view src/view/shell.rs, egui MenuBar/menu_button): File (Open... Ctrl+O, Open Recent > files + Clear Recent, Save Ctrl+S, Save As... Ctrl+Shift+S, Export PNG..., Export JPEG..., Close Ctrl+W), Edit (Undo Ctrl+Z, Redo Ctrl+Y), View (Fit in Window, Actual Size, Zoom In, Zoom Out, Render on GPU, Status Log), Workspace > Panels (Layers F2, Properties F3, Develop F4, Layout Editor F5, Program Monitor F6, Source Monitor F7, Mixer F8, Waveform Editor F9, Spectral Display F11, Prototype Player F12); every entry = Viewer::shell_command(ShellCommand) over existing Viewer methods; widget names menu.<command id>",
+    "slice 1 panel hosting: Viewer::toggle_panel opens a closed surface (open_monitor on the document's first sequence; open_source_media through a media dialog; open_mixer with the open audio file's ImportedAudio or silent sources; open_waveform_from_audio; open_spectral_display(default_params); open_prototype through a .fig dialog; LayoutEditor::new from layout_ui's public API on the open document's pages or a blank one-page document) and shows/hides an open one; feature gates media / audio-batch greyed with label '<Panel> (needs feature F)'; unmet preconditions greyed with the reason as hover; refusals written to the status log",
+    "slice 1 file dialog (harness-view src/view/file_dialog.rs, own, no dependency): std::fs::read_dir listing, folders first, extension filters per purpose (documents/images, audio with media, .fig, media, .handshake, png, jpg, All files), type-to-path (relative or absolute), Up, choose, Enter/Escape, save rules (default extension, save_dir_missing, file_exists unless replace); hostile input: path_empty, path_too_long (>4096 B), path_control_character (NUL incl.), listing bounded at 4096 entries (truncated flag), unreadable entries counted",
+    "slice 1 recent files: 10 most recent opens (absolute, deduplicated), Open Recent reopens, encode/decode JSON hsk.studio.harness.recent@1 with bounds (64 KiB, 10 paths, exact keys, schema, per-path parse_typed); FILE > Close on a fresh Run of the same harness (Viewer keeps &'static Harness); state_json()['shell'] projects panels (open, visible, availability, feature, reason, label, shortcut, command), recents, dialog",
+    "slice 2 desktop binary --recent LIST (read at start, rewritten atomically via view::export::write_atomic when Viewer::recent_generation changes); RUN-UI.md: Operator build --features desktop,audio-batch, menu/shortcut map, opt-in features, shell model API; stale known limits on masks and raster records corrected",
+    "slice 3 tests/viewer_shell.rs (7 tests, headless one-frame egui, no window)"
+  ],
+  "tests": {
+    "argv": "cd <lane>/handshake-studio-assets && bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-harness-shell-1 --disk d -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness -p hsk-studio-harness-core --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+    "exit": 0,
+    "sha": "45f04b2",
+    "passed": 162,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "lead: R37 judgement; follow-ups in notes.gaps",
+  "updated_at": "2026-10-22T07:12:00Z",
+  "notes": {
+    "spec_basis": [
+      "[STU-CMP-110] (14.27.11) Every panel, control, layer switch, mask, matte assignment, camera, light and visible state in this sub-section MUST be model-visible and typed-steerable through the Studio command surface (14.16); MUST be headlessly inspectable, steerable and screenshot-capturable through Argus with no foreground focus steal (14.20) ...",
+      "[STU-QUIET-005] HEADLESS VISUAL PROOF. Agents visually inspect output through the headless StudioRenderHarness (render-to-buffer capture) and Argus on the AccessKit tree ... the harness MUST fall back to AccessKit-tree/state assertions ...",
+      "[STU-OVR-001] Studio MUST be implemented as an independently buildable modular asset workspace ... Asset leaf packages MUST compile and prove their declared dependency closures without requiring handshake_core, the native shell ...",
+      "[STU-SHL-004] Studio does not own a menu bar ... the shell menu bar carries eight menus ... Studio contributes leaves into FILE, EDIT, VIEW and HELP and inserts eleven module menus between VIEW and GO",
+      "[STU-SHL-008] Naming law binding ... No vendor product name is a Studio menu title, submenu, leaf, panel ...",
+      "[STU-SHL-009] Every surface specified here MUST be discoverable, inspectable and steerable out of process through the AccessKit tree by stable author_id ... no foreground window, no focus steal ...",
+      "[STU-SHL-010] The Studio menu bar is the shell menu bar with fifteen Studio-touched titles: four extended (FILE, EDIT, VIEW, HELP) and eleven inserted (..., WORKSPACE)",
+      "[STU-SHL-023] FILE: Open... studio.document.open; Open Recent studio.document.open_recent; Close studio.document.close; Save / Save As... studio.document.save / .save_as; Export studio.interop.export",
+      "[STU-SHL-024] EDIT: Undo / Redo studio.history.undo / .redo",
+      "[STU-SHL-036] WORKSPACE: Panels | expansion | studio.workspace.panel - one show/hide toggle per panel",
+      "[STU-ARC-014] Controls MUST implement one reusable panel/control mechanic with typed capability configuration for text fields, sliders, swatches, menus, windows ... The same descriptors MUST feed structured tools, AccessKit, UserManual and Argus"
+    ],
+    "naming_decision": "the dispatch asked for a 'Window' menu; the spec names the panel toggles WORKSPACE > Panels ([STU-SHL-036], naming law [STU-SHL-008], HSK naming rule), so the menu is titled 'Workspace' with a 'Panels' heading; command ids reuse the spec roots (studio.document.*, studio.history.*, studio.interop.export.*, studio.view.*, studio.workspace.panel.<key>); leaf suffixes (.png/.jpeg, .fit, .<panel key>) are harness ids, not spec names. Timeline entry omitted: no timeline egui surface exists (timeline_export has no egui).",
+    "dialog_approach": "own in-crate egui dialog (view/file_dialog.rs); no new dependency, no dep-requests line (egui-file-dialog is not in the local registry; not needed)",
+    "gui_surfaces_now_reachable_in_window": {
+      "documented_build_desktop": [
+        "Layout editor (page view, select/frame/thread tools, ... live preflight) - was NOT_HOSTED; now Workspace > Layout Editor / F5",
+        "Program monitor (Play, Pause, step, scrub) over a document sequence - was VIEWER_API_ONLY; now Workspace > Program Monitor / F6 (transport only: no frame decoder bound for document sequences)",
+        "Prototype play mode (Figma) window - was VIEWER_API_ONLY; now Workspace > Prototype Player / F12 via a .fig dialog",
+        "File open: now also File > Open... dialog, Open Recent, Ctrl+O (path field kept)",
+        "Save native package: now also File > Save / Save As... dialog, Ctrl+S / Ctrl+Shift+S",
+        "Export composite as PNG / JPEG: now File > Export PNG... / Export JPEG... with a chosen path (dialog)"
+      ],
+      "feature_build_desktop_audio_batch": [
+        "Source monitor (marks, Insert, Overwrite, transport, J/K/L/I/O keys) - was VIEWER_API_ONLY; now Workspace > Source Monitor / F7 via a media dialog (feature media)",
+        "Mixer / routing editor - was VIEWER_API_ONLY; now Workspace > Mixer / F8 (needs a document sequence)",
+        "Waveform editor panel - was WINDOW_FEATURE_BUILD after an audio open; now also Workspace > Waveform Editor / F9",
+        "Spectral frequency display - was VIEWER_API_ONLY; now Workspace > Spectral Display / F11 (after the waveform editor)",
+        "Audio file open + Audio side panel - WINDOW_FEATURE_BUILD, now documented in RUN-UI (build desktop,audio-batch) and in the Open dialog's Audio filter"
+      ],
+      "visibility_toggles_added": ["Layers panel F2", "Properties + import receipt F3", "Develop panel F4 (shown only for camera raw / DNG)", "Status log (View)"],
+      "still_not_reachable": [
+        "Path edit operations without a widget, vector appearance/stroke/swatches/graphic styles, align/distribute/transform, envelope/brushes, clipping/vector masks, .ai import as editable vectors + vector SVG/PDF export, type on a path/recolour/mesh/separations, audio batch processing, timeline/composition/render-queue export: Viewer API only (no egui surface exists; out of this lane's no-new-engine scope)"
+      ]
+    },
+    "test_counts": "viewer_shell.rs 7 tests: menu_bar_draws_its_titles_and_every_entry_has_a_unique_command_id, accesskit_clicks_reach_the_open_dialog_and_a_workspace_panel (feature desktop; AccessKit ActionRequest Click through egui input on File, Open..., Workspace, Layout Editor), function_keys_and_workspace_entries_open_every_surface (F-key events + shell_command; media and audio-batch branches per build), greyed_entries_name_their_feature, file_dialog_lists_folders_first_and_filters_by_extension (incl. hostile typed paths), open_recent_round_trips_and_hostile_lists_are_refused, save_as_export_and_close_run_through_the_dialog_and_shortcuts. Whole suites of harness/harness-view/harness-core with desktop+audio-batch: 162 passed, 0 failed, 20 skipped (#[ignore] corpus tests) at 45f04b2 (after rebase onto 09a5b29); first green run 160/160 at e501d5e before rebase.",
+    "proof_limits": "the greyed-entry UI path (disabled AccessKit node naming the feature) runs only in builds lacking media/audio-batch (round units [viewer] and [desktop, viewer]); in the lane run it is proven by the pure feature_gate/entry_label checks. The window itself is still not launched (Operator-attended, CX-SAFE-002).",
+    "gaps": [
+      "STU-ARC-014: menus and the dialog are built with egui directly in the harness, not through hsk-studio-controls descriptors (controls is outside this lane); a controls menu/window descriptor kind would let the same descriptors feed AccessKit/UserManual/Argus",
+      "layout editor edits are not written back to the open document/package (declared gap of layout_ui: persistence through session/chronicle); needs a layout_ui save API (not editable here)",
+      "program monitor opened on a document sequence has no frame source (no ClipSource -> media bytes resolution in the viewer)",
+      "waveform editor needs a document open besides the audio file (the edit list lives in the session); a 'new empty document' route would remove the precondition",
+      "no settings path in the harness: recent list persists only with --recent LIST",
+      "audio-device builds but the window opens no audio output (no device grant in the binary)",
+      "HELP menu, menu mnemonics and AccessKit node ids in the reserved band ([STU-SHL-004]) not implemented; no drag-and-drop, docking, multi-document",
+      "harness DESCRIPTOR not_proven still lists viewer_masks_effects_adjustments (stale per RUN-UI correction); left unchanged in this lane"
+    ],
+    "touched_outside_owned": "none (layout_ui.rs untouched; no crate outside harness, harness-view)"
+  },
+  "verdicts": [
+    {"decision": "passed", "verdict": "PASS_V1", "status_change": "PASS_V1", "included_by": "READY claim in candidate", "prior_status": "READY_FOR_VALIDATION", "failures": [], "remediation": null, "blocker": null, "not_proven": ["harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+import-raw+import-tiff): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+desktop+viewer): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness audio_import::wav_and_surround_files_import_with_the_bs775_downmix_and_channel_map (features:hsk-studio-harness+media): AAC 5.1 downmix needs --features studio-aac (D24-A)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+media): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness audio_import::wav_and_surround_files_import_with_the_bs775_downmix_and_channel_map (features:hsk-studio-harness+media-native): AAC 5.1 downmix needs --features studio-aac (D24-A)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+media-native): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+audio-device): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness audio_import::wav_and_surround_files_import_with_the_bs775_downmix_and_channel_map (features:hsk-studio-harness+audio-batch): AAC 5.1 downmix needs --features studio-aac (D24-A)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+audio-batch): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+studio-aac): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness audio_import::wav_and_surround_files_import_with_the_bs775_downmix_and_channel_map (features:hsk-studio-harness+os-encode): AAC 5.1 downmix needs --features studio-aac (D24-A)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+os-encode): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)", "harness audio_import::wav_and_surround_files_import_with_the_bs775_downmix_and_channel_map (features:hsk-studio-harness+audio-plugin): AAC 5.1 downmix needs --features studio-aac (D24-A)", "harness import_tiff::photoshop_tiff_imports_its_layers_through_interop_psd (features:hsk-studio-harness+audio-plugin): tiff_layered_photoshop_parity tiff-layered/pillow-tiff-adobe-deflate-photoshop-cs.tif reason=no_independent_photoshop_oracle (layers parsed from file bytes only)"], "note": "viewer_shell 7 tests ran in the harness feature units; menu titles File/Edit/View/Workspace, no vendor product name in menu titles, leaves, panels or command ids; finding F-R37-3 (dialog filter label). units of harness/harness-core/harness-view: 36 crate units + default; all build 0 / run 0; default passed harness 7, harness-core ?, harness-view ?", "idempotency_key": "STUDIO-R37:SMB-HARNESS-SHELL-1:1d139a6990f5:PASS_V1", "claim_scope": "2defb17 9ca2c59 1f0e945 5605a52 45f04b2; judged against STU-SHL-036 (Workspace > Panels) / STU-SHL-008 and headless proof (one-frame egui + AccessKit, tests/viewer_shell.rs)", "round": "STUDIO-R37", "lane": "SMB-HARNESS-SHELL-1", "candidate": "1d139a6990f55b77c1ce09c1dc7a5c2f47c324f4", "tree": "3c2b5fe1ce168053e16b0f682b9b728a0441c9fc", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37", "started_at": "2026-10-22T09:20:11Z", "completed_at": "2026-10-22T13:00:58Z"}
+  ]
+}

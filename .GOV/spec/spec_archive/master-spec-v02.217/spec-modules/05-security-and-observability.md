@@ -8,7 +8,7 @@ title: "5. Security & Observability"
 source_baseline_version: "v02.182"
 source_baseline_path: ".GOV/spec/Handshake_Master_Spec_v02.182.md"
 source_body_original_sha256: "e3019d9565e98421293edf35dda918ea27e94fd61f7906aac758d8373948763c"
-body_sha256: "12077b38185c534084ea43703ce80b415930a3460f6709dedc33758e7a3c3649"
+body_sha256: "000df3751f995392f194338bbfe3bd87c1e58f3b19aef72afd8ea6192575aa0e"
 metadata_rule: "frontmatter is machine metadata; body follows after this block"
 ---
 # 5. Security & Observability
@@ -1878,20 +1878,6 @@ Primitive: `ProcessOwnershipLedger`, backed by the `SCHEMAFULL` SurrealDB table 
 **HARD** (operator-binding, 2026-05-18; Q-PROCESS-LEDGER-SCOPE = ALL Handshake-spawned processes):
 
 Every process spawned by Handshake -- model engine, mechanical job, ASR worker, ComfyUI worker, sandbox container, plugin process, helper subprocess -- MUST write START + STOP rows. **NO exceptions.** A spawn path that bypasses the ledger is a spec defect.
-
-#### 5.7.2.1 Protected adoption of an already-owned Palmistry watcher [ADD v02.217]
-
-[WP012-ADOPT-007] Genuine canonical custodian and registration MUST be established from actual authenticated registration together with the native lease, a fresh signed challenge and current OS generations, and MUST be retained durably. Missing or incomplete proof MUST fail closed.
-
-[WP012-ADOPT-008] The original watcher START, attributed EventLedger entry and durable canonical verifier identity MUST share the real guarded transaction. Authorization MUST retain the exact resource, grant, capability, action and authenticated attribution required by 11.1.6.2 and the live guarded authority requirements of 2.3.13.12.9.
-
-[WP012-ADOPT-009] If public verifier publication is process-local, publication MUST use protected postcommit revalidation. Implementations MUST NOT claim database/RAM atomicity.
-
-[WP012-ADOPT-010] Uncertain commit or publication acknowledgement MUST retain honest `Uncertain` state and use the same-operation canonical reread. Implementations MUST NOT create a second START or fake STOP to reconcile uncertainty.
-
-[WP012-ADOPT-011] Revocation linearized first MUST deny the operation. Commit linearized first MUST preserve the canonical committed receipt; later revocation MUST NOT erase that receipt or fabricate STOP.
-
-[WP012-ADOPT-012] Adoption MUST preserve the original watcher identity and ownership, existing START/STOP obligations and full positive/negative runtime and independent acceptance. Dedicated capability/profile eligibility MUST NOT substitute for genuine durable custodian registration, exact-watcher grant or guarded commit/publication proof.
 
 ### 5.7.3 Perf safeguards (HARD)
 

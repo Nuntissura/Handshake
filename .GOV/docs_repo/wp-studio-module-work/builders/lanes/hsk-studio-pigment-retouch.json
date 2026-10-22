@@ -4,10 +4,22 @@
  "status": "READY_FOR_VALIDATION",
  "phase": "slices 1-4 pushed (9650626 clone stamp, 78ff77d healing + spot healing, e8c4f18 crop/canvas/trim, edc1e0b filters as plan operators); clippy -p hsk-studio-pigment --tests clean; clippy over pigment + composite + render-cpu + render-gpu + develop + interop-psd --tests exit 0 (warnings only in observe/type, pre-existing); retouch 13/13",
  "commits": [
-  {"sha": "9650626", "subject": "pigment (SMB-PIGMENT-RETOUCH slice 1): clone stamp over brush dabs with aligned/non-aligned source, rotation and selection clip; content-aware fill typed refusal"},
-  {"sha": "78ff77d", "subject": "pigment (SMB-PIGMENT-RETOUCH slice 2): healing brush (membrane Poisson blend, SOR, receipt) and spot healing (proximity-match source search)"},
-  {"sha": "e8c4f18", "subject": "pigment (SMB-PIGMENT-RETOUCH slice 3): crop with optional rotation via the transform operator, canvas resize with nine-member anchor, trim by transparent/top-left/bottom-right basis"},
-  {"sha": "edc1e0b", "subject": "pigment (SMB-PIGMENT-RETOUCH slice 4): core filters as plan operators (gaussian blur reuse, unsharp mask, high pass, median, seeded add noise); chunk/thread-count independent CPU reference; LayerExtension.filters + ExtOperator::Filter + PlanError::FilterParameter/FilterCombination"}
+  {
+   "sha": "9650626",
+   "subject": "pigment (SMB-PIGMENT-RETOUCH slice 1): clone stamp over brush dabs with aligned/non-aligned source, rotation and selection clip; content-aware fill typed refusal"
+  },
+  {
+   "sha": "78ff77d",
+   "subject": "pigment (SMB-PIGMENT-RETOUCH slice 2): healing brush (membrane Poisson blend, SOR, receipt) and spot healing (proximity-match source search)"
+  },
+  {
+   "sha": "e8c4f18",
+   "subject": "pigment (SMB-PIGMENT-RETOUCH slice 3): crop with optional rotation via the transform operator, canvas resize with nine-member anchor, trim by transparent/top-left/bottom-right basis"
+  },
+  {
+   "sha": "edc1e0b",
+   "subject": "pigment (SMB-PIGMENT-RETOUCH slice 4): core filters as plan operators (gaussian blur reuse, unsharp mask, high pass, median, seeded add noise); chunk/thread-count independent CPU reference; LayerExtension.filters + ExtOperator::Filter + PlanError::FilterParameter/FilterCombination"
+  }
  ],
  "capabilities_done": [
   "slice 1 retouch::RgbaPlane (validated straight RGBA f32), RetouchLimits (bytes + work, checked before allocation), CloneSource/CloneOptions (STU-RAS-139 aligned, source_rotation_deg -180..180, sample_scope), begin_stroke anchor rule (aligned = first dab of first stroke, non-aligned = first dab of each stroke), CloneMap sampled through transform_math PreparedTransform::sample_rgba (integer offset = exact copy), clone_stamp painting source-over with stroke coverage (brush::stroke_coverage) intersected with the selection (brush::clip_to_selection), content_aware_fill typed refusal content_aware_unsupported",
@@ -15,7 +27,13 @@
   "slice 3 canvas_ops: Anchor (STU-RAS-141 1..9), canvas_resize(CanvasResize) offset floor((W'-W)*{0,1/2,1}) with fill; crop (angle 0 exact copy, expand transparent, keep-pixels mode, content_aware_fill_on_expand refused; rotated crop = transform_math layer transform, bytes equal resample_reference; rotated keep-pixels refused crop_rotate_keep_pixels_unsupported); trim_rect/trim with TrimBasis 0|1|9 and per-edge booleans (STU-RAS-142), trim_everything refusal",
   "slice 4 filter_math: LayerFilter gaussian_blur (blur_math reuse), unsharp_mask (amount/radius/threshold), high_pass, median (disc, premultiplied, total_cmp), add_noise (uniform/gaussian Irwin-Hall, monochromatic, SplitMix64 seed per (x, y, channel)); filter_window with cost check before allocation; filter_plane (destructive apply form, STU-RAS-037); filter_plane_chunked (bands x scoped threads) bit-identical to filter_plane for every band height and thread count tried; plan operators: LayerExtension.filters (<= 16, skipped in serde when empty so existing digests are unchanged), ExtOperator::Filter(FilterKind) keys filter_*, class approximate, PlanError::FilterParameter / FilterCombination (plan_filter_parameter / plan_filter_combination); render-cpu/render-gpu do not declare filters, so admit_extended refuses filter_* before any sink call"
  ],
- "tests": {"argv": "cargo nextest run -p hsk-studio-pigment --test retouch --no-fail-fast", "exit": 0, "sha": "edc1e0b", "passed": 13, "failed": 0},
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-pigment --test retouch --no-fail-fast",
+  "exit": 0,
+  "sha": "edc1e0b",
+  "passed": 13,
+  "failed": 0
+ },
  "blockers": [],
  "lock_wait_s": 60,
  "bg_pids": [],
@@ -33,5 +51,32 @@
   "unowned_dirty_file": "crates/hsk-studio-pigment/tests/transform.rs shows M in git status with an empty content diff (line-ending/stat only); not touched, not committed by this lane",
   "cargo_lock": "not touched",
   "route": "no gameplan blocks on cargo; one kernel-root shell command was blocked by the WP-KERNEL-012 gameplan (hook resolves the kernel pointer from that cwd); switched to the Write tool for lane-file edits, no gameplan touched"
- }
+ },
+ "verdicts": [
+  {
+   "decision": "passed",
+   "verdict": "PASS_V1",
+   "failures": [],
+   "remediation": null,
+   "blocker": null,
+   "not_proven": [],
+   "note": "9650626 78ff77d e8c4f18 edc1e0b (+fcd627d CA-2 wiring, CX-VAL-009 lead decision): clone stamp, membrane Poisson heal (SOR, converged reported), spot heal, crop/canvas/trim, filter_math (USM, high pass, median sort, SplitMix noise); content_aware_fill now native fill; V4-01 deny on retouch/canvas_ops/filter_math. No stub. Lane tests 13 passed / 0 failed (/::retouch::/); default pigment 125; all units of pigment build 0 run 0",
+   "idempotency_key": "STUDIO-R29:SMB-PIGMENT-RETOUCH:62c0bf666fc8:PASS_V1",
+   "round": "STUDIO-R29",
+   "lane": "SMB-PIGMENT-RETOUCH",
+   "candidate": "62c0bf666fc88e6ab5424e4eae46f18521c5dffe",
+   "tree": "b8c285ac064abaa57d54553f2e4ce940f6c0fb04",
+   "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R29",
+   "started_at": "2026-10-14T23:54:12Z",
+   "completed_at": "2026-10-15T00:47:07Z"
+  },
+  {"decision": "passed", "verdict": "PASS_V2", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed 62c0bf6..e7a2b6c + reverse-dependency closure, 13 crates): units of pigment all build 0/run 0, 0 failed, 0 timed_out; default pigment 135", "idempotency_key": "STUDIO-R30:SMB-PIGMENT-RETOUCH:e7a2b6c5f8e2:PASS_V2", "round": "STUDIO-R30", "lane": "SMB-PIGMENT-RETOUCH", "candidate": "e7a2b6c5f8e2162f26de6e651aa2f195d04d14b2", "tree": "1e1cbc37a8dec6fba5cf6fdfddac3212d12ded23", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R30", "started_at": "2026-10-15T01:28:40Z", "completed_at": "2026-10-15T02:04:29Z"},
+  {"decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed e7a2b6c..d9c59f8 + reverse-dependency closure, 16 crates). units of pigment: 1 crate units + default; all build 0 / run 0; default pigment 139", "idempotency_key": "STUDIO-R31:SMB-PIGMENT-RETOUCH:d9c59f899673:PASS_V3", "round": "STUDIO-R31", "lane": "SMB-PIGMENT-RETOUCH", "candidate": "d9c59f899673c4e4753dcd6d0269db87dfea0319", "tree": "135b10c9736bdfe3d024fcea9d0940506cc8c7a3", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R31", "started_at": "2026-10-15T03:03:04Z", "completed_at": "2026-10-15T04:38:10Z"},
+  {"decision": "passed", "verdict": "PASS_V4", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed d9c59f8..eb569d5 + reverse-dependency closure, 28 crates).  units of pigment: 1 crate units + default; all build 0 / run 0; default pigment 138 | attributed, not this lane: hsk-studio-pigment::plan_followups::admission_readers_of_nodes_and_entries_are_classified [default] -> SMB-COMPOSITE-VECTOR-MASK-2", "idempotency_key": "STUDIO-R32:SMB-PIGMENT-RETOUCH:eb569d5764a3:PASS_V4", "round": "STUDIO-R32", "lane": "SMB-PIGMENT-RETOUCH", "candidate": "eb569d5764a3243d492c40f5fe8494782e45c882", "tree": "a232cd250db1371549353ee0c3ada8b8c0c083c4", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R32", "started_at": "2026-10-15T06:20:39Z", "completed_at": "2026-10-15T07:38:27Z"},
+  {"decision": "passed", "verdict": "PASS_V5", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed eb569d5..ef53ea7 + reverse-dependency closure, 24 crates).  units of pigment: 1 crate units + default; all build 0 / run 0; default pigment 184", "idempotency_key": "STUDIO-R33:SMB-PIGMENT-RETOUCH:ef53ea781923:PASS_V5", "round": "STUDIO-R33", "lane": "SMB-PIGMENT-RETOUCH", "candidate": "ef53ea781923c4ed859c31ac98ea21f97ab188a9", "tree": "3e6eded3fda85beaaea2739b220ff6ed9ec59f5f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R33", "started_at": "2026-10-15T08:54:16Z", "completed_at": "2026-10-15T11:44:50Z"},
+  {"decision": "passed", "verdict": "PASS_V6", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ef53ea7..ca5e9c9 + reverse-dependency closure, 29 crates).  units of pigment: 1 crate units + default; all build 0 / run 0; default pigment 200", "idempotency_key": "STUDIO-R34:SMB-PIGMENT-RETOUCH:ca5e9c92fa6b:PASS_V6", "round": "STUDIO-R34", "lane": "SMB-PIGMENT-RETOUCH", "candidate": "ca5e9c92fa6be13b50428ea3be6571ccc1d1a511", "tree": "4afc6f85614b23faaffb0c941d9da11a7eb3259f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R34", "started_at": "2026-10-15T22:54:57Z", "completed_at": "2026-10-16T02:52:16Z"},
+  {"decision": "passed", "verdict": "PASS_V7", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ca5e9c9..237256f + reverse-dependency closure, 31 crates).  units of pigment: 1 crate units + default; all build 0 / run 0; default pigment 202", "idempotency_key": "STUDIO-R35:SMB-PIGMENT-RETOUCH:237256f8792c:PASS_V7", "round": "STUDIO-R35", "lane": "SMB-PIGMENT-RETOUCH", "candidate": "237256f8792c708b96464030d4b40f3a93e8f0e0", "tree": "f699823b8e0d0530a5f9a96df354b8b7aac8294f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R35", "started_at": "2026-10-16T07:31:56Z", "completed_at": "2026-10-20T14:11:50Z"},
+    {"decision": "passed", "verdict": "PASS_V8", "status_change": "PASS_V8", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V7", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: pigment).  units of pigment: 1 crate units + default; all build 0 / run 0; default passed pigment 215", "idempotency_key": "STUDIO-R36:SMB-PIGMENT-RETOUCH:a10576683c7a:PASS_V8", "claim_scope": null, "round": "STUDIO-R36", "lane": "SMB-PIGMENT-RETOUCH", "candidate": "a10576683c7a76b3da37e6ec4794652c3e903bbd", "tree": "27fb1f13e97fbaecd9e4b61428e53bcab50a3169", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R36", "started_at": "2026-10-21T17:26:59Z", "completed_at": "2026-10-22T05:34:45Z"},
+    {"decision": "passed", "verdict": "PASS_V9", "status_change": "PASS_V9", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V8", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: pigment).  units of pigment: 1 crate units + default; all build 0 / run 0; default passed pigment 216", "idempotency_key": "STUDIO-R37:SMB-PIGMENT-RETOUCH:1d139a6990f5:PASS_V9", "claim_scope": null, "round": "STUDIO-R37", "lane": "SMB-PIGMENT-RETOUCH", "candidate": "1d139a6990f55b77c1ce09c1dc7a5c2f47c324f4", "tree": "3c2b5fe1ce168053e16b0f682b9b728a0441c9fc", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37", "started_at": "2026-10-22T09:20:11Z", "completed_at": "2026-10-22T13:00:58Z"}
+ ]
 }

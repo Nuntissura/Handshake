@@ -1,0 +1,19 @@
+schema_version: handshake.gameplan.v1
+template_version: 1
+kind: gameplan
+instance_policy:
+  omit_empty_optional_fields: true
+  policy_lives_in_rule_refs_not_instance_fields: true
+  schema_ref: repo-governance/schemas/gameplan.schema.yaml
+rule_refs: []
+writing: 'no prose; terse fragments; determinism > grammar; verb object [op value]'
+precedence: 'on conflict CODEX, role profile, WP contract, WP-STATE, MT win; correct the step'
+scope: mt
+assignment: STUDIO-ROUND-CANDIDATE
+parent: .GOV/task_packets/WP-KERNEL-STUDIO/gameplans/STUDIO-MODULE-ROUND.yaml
+generation: 2
+refs:
+  round_candidate: {from: ../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/ROUND_IDENTITY.json, key: sha}
+expensive_actions: []
+steps:
+- {id: GP-017, role: any, at: before_round, do: verify round candidate (ROUND_IDENTITY sha) ancestor of origin(branch); fetch first, check: {type: cmd, argv: [git, -C, ../wt-studio-assets, merge-base, --is-ancestor, '{ref:round_candidate}', refs/remotes/origin/codex/handshake-studio-assets], expect_exit: 0, timeout_seconds: 15}, source: 'F-R35-11: GP-016 pinned R35 sha; ref round_candidate reads the frozen export identity, one step for every round', state: active}

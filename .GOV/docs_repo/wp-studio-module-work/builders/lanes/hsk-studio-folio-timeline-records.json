@@ -1,0 +1,81 @@
+{
+ "crate": "hsk-studio-folio",
+ "crates": [
+  "hsk-studio-folio",
+  "hsk-studio-session"
+ ],
+ "lane": "SMB-FOLIO-TIMELINE-RECORDS",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "folio stores sequence/clip markers and clip transitions; session timeline step = one undo; pushed",
+ "commits": [
+  {
+   "sha": "b91bf9d",
+   "subject": "folio/session (SMB-FOLIO-TIMELINE-RECORDS): sequence and clip markers and clip transitions stored in Folio; one timeline step = one undo",
+   "note": "committed locally to clear the retry guard and pushed by another builder's push before the test fix below; at b91bf9d the folio test timeline_records.rs had 2 wrong assertions (test-only), fixed in 6f4e2f6"
+  },
+  {
+   "sha": "6f4e2f67b944b80417ff9024770b9524c25c402f",
+   "subject": "folio/session (SMB-FOLIO-TIMELINE-RECORDS): round-trip proof compares typed documents; descriptors name the timeline records and submit_timeline"
+  }
+ ],
+ "capabilities_done": [
+  "folio timeline.rs: StudioSequence.markers and StudioClip.markers (Vec<StudioMarker>: document-unique key marker_id, name, comment, LabelColor (16), start/duration Ticks, explicit-null role chapter|web_link|cue_point|caption; sequence ticks for sequence markers, SOURCE ticks for clip markers) and StudioClip.transitions (ClipTransitions{head, tail}: TimelineTransition = schema hsk.studio.transition@1, transition_id, transition_kind key, duration, alignment centered_on_cut|start_at_cut|end_at_cut|custom, center_offset)",
+  "wire: all three fields serde(default, skip_serializing_if empty), so record-free documents encode byte-identically and old documents decode unchanged",
+  "validation: key ids unique in the document, bounded text (4096 bytes; names/role text control-free), start+duration overflow, transition duration > 0, center_offset only with custom and |offset| <= duration, one transition per cut (an abutting incoming head beside an outgoing tail is refused), MAX_MARKERS_PER_SEQUENCE 65536 checked on the count before any marker is examined, markers and transitions counted in Budget.nodes; timeline.rs now carries #![deny(clippy::arithmetic_side_effects)] with its existing arithmetic made checked/saturating (V4-01)",
+  "session timeline.rs: TimelineStep{command_id, correlation_id, sequence_id, expect, write}; Session::submit_timeline / submit_timeline_keyed run the SAME submit pipeline as provider submits (grant, idempotency key + binding, admission, CommitPort, publish) with a sequence-value precondition; Applied::timeline_inverse is the undo and its inverse the redo; refusals value_conflict / invalid_target / invalid_input / invalid_command / folio_rejected / budget_exceeded / stale_revision / canceled change nothing",
+  "pulse: LabelColor, MarkerRole and TransitionAlignment are now Folio's types re-exported (one definition); struct literals updated (assemble.rs, tests, example)",
+  "interop-media folio_map.rs: the 3 literals gain markers/transitions empty values (lead-approved, no behaviour change)"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-pulse -p hsk-studio-interop-media -p hsk-studio-chronicle --no-fail-fast",
+  "exit": 0,
+  "sha": "b91bf9d + test fix 6f4e2f6 (folio/session suites rerun green at 6f4e2f6: 86/86)",
+  "passed": 139,
+  "failed": 0,
+  "focused": [
+   "folio timeline_records::markers_and_transitions_round_trip_and_old_wire_is_unchanged",
+   "folio timeline_records::hostile_timeline_records_are_refused_typed",
+   "session timeline_undo::timeline_step_round_trips_and_undoes_as_one_step",
+   "session timeline_undo::hostile_timeline_steps_change_nothing"
+  ],
+  "workspace_check": "cargo check --workspace --tests --examples: only error is crates/hsk-studio-composite/tests/vector_mask_2.rs (another builder's untracked WIP, missing Snapshot import), unrelated"
+ },
+ "blockers": [
+  "steward: session serde_json promoted from dev to normal dependency (same =1.0.151; dep-requests.jsonl line appended); Cargo.lock uncommitted"
+ ],
+ "bg_pids": [],
+ "next": "pulse annotate/transition read and write the Folio records directly (TimelineAnnotations becomes a view over the sequence) so follow_timeline_edit output is the TimelineStep write; transition parameter set (14.9.1) and the repeat_end_frame choice are not stored yet",
+ "updated_at": "2026-10-15T03:40:00Z",
+ "notes": {
+  "spec_basis": [
+   "STU-VID-010: 'A sequence owns an ordered set of StudioTracks, a settings record, a time model, in/out points, a work area, and a marker list.'",
+   "STU-VID-020: clip fields 'transitions | Optional head and tail transition references ([STU-VID-032]).' and 'markers | Clip-local marker list.'; 'label_color | One of the 16 declared label colours'",
+   "STU-VID-032: 'StudioTransition (schema id hsk.studio.transition@1) carries: transition_kind (a filter_kind in the transition category of [STU-FX-126]), duration (ticks), alignment (centered_on_cut | start_at_cut | end_at_cut | custom), center_offset, and a typed parameter set obeying 14.9.1 in full.'",
+   "STU-VID-034: 'Each carries a name, a comment, a colour, a duration (a marker may be a span, not only a point), and an optional typed payload for chapter, web-link, cue-point and caption roles.'",
+   "STU-VID-040: 'Every operation in this sub-section is one reversible StudioHistoryEntry'; STU-HIS-002: undo 'by applying its inverse command or a snapshot revert'; STU-CON-022: later history owners 'MUST reuse these patch/precondition/inverse semantics rather than invent a conflicting patch grammar.'"
+  ],
+  "decisions": [
+   "undo mechanism: session document entries (selection/text/develop) are documented 'Not undoable and not a revision', so they cannot carry undo; chronicle's property table addresses only layers, artboards and page spreads (NodeKind), and adding NodeKind::Sequence would break exhaustive matches in interop-fig and interop-layout. The step is therefore a sequence-scoped snapshot revert with chronicle's precondition + inverse semantics, routed through session's existing submit pipeline (no fast path)",
+   "Rust type TimelineTransition: folio already has StudioTransition for the STU-PRO-116 prototype transition (reactions.rs); the wire schema id is the spec's hsk.studio.transition@1",
+   "a transition at a cut is stored once, as the outgoing clip's tail; marker and transition ids are document-local keys (no prefix declared); clip markers in source ticks (Studio readings, documented in timeline.rs)",
+   "transition_kind is an opaque key: no canonical filter_kind for cross dissolve is verified in STU-FX-126; tests use 'cross_dissolve' as a test value only"
+  ],
+  "out_of_owned_paths": "crates/hsk-studio-interop-media/src/folio_map.rs (3 literals, lead-approved 2026-10-15); pulse files (literals + enum re-exports) recorded in the SMB-PULSE-EDITING lane",
+  "byte_identity": "interop-media has no digest test; proof: folio test asserts Folio's own encoding of a record-free document has no markers/transitions keys and re-decodes identically; interop-media EDL->Folio test green; new fields are appended and skipped when empty",
+  "gaps": [
+   "pulse TimelineAnnotations still keeps its own marker/transition records beside the sequence; migrating it onto the Folio fields is the next pulse slice",
+   "work area, project-item markers, transition parameter set, repeat_end_frame choice not stored",
+   "timeline steps have no chronicle RevisionUpdate (the property vector does not cover sequences)"
+  ],
+  "verdicts": [],
+  "later_commits": "42005c4 (lane SMB-PULSE-PLAYBACK, after READY, V4-14) extended the Folio records additively: sequence work_area, transition parameters (param_value) and repeat_end_frame, all serde-default; existing fields and tests unchanged and green at 42005c4."
+ },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "claim b91bf9d 6f4e2f6: Folio sequence/clip markers and clip transitions (hsk.studio.transition@1), omitted when empty (byte identity), validated (unique ids, one transition per cut, tick overflow, budgets); Session submit_timeline one undo step. No stub. units of folio/session/pulse/interop-media: 4 crate units + default; all build 0 / run 0; default folio 67, session 25, pulse 28, interop-media 6", "idempotency_key": "STUDIO-R32:SMB-FOLIO-TIMELINE-RECORDS:eb569d5764a3:PASS_V1", "round": "STUDIO-R32", "lane": "SMB-FOLIO-TIMELINE-RECORDS", "candidate": "eb569d5764a3243d492c40f5fe8494782e45c882", "tree": "a232cd250db1371549353ee0c3ada8b8c0c083c4", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R32", "started_at": "2026-10-15T06:20:39Z", "completed_at": "2026-10-15T07:38:27Z"},
+  {"decision": "passed", "verdict": "PASS_V2", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed eb569d5..ef53ea7 + reverse-dependency closure, 24 crates).  units of folio/interop-media/pulse/session: 4 crate units + default; all build 0 / run 0; default folio 69, interop-media 6, pulse 30, session 25", "idempotency_key": "STUDIO-R33:SMB-FOLIO-TIMELINE-RECORDS:ef53ea781923:PASS_V2", "round": "STUDIO-R33", "lane": "SMB-FOLIO-TIMELINE-RECORDS", "candidate": "ef53ea781923c4ed859c31ac98ea21f97ab188a9", "tree": "3e6eded3fda85beaaea2739b220ff6ed9ec59f5f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R33", "started_at": "2026-10-15T08:54:16Z", "completed_at": "2026-10-15T11:44:50Z"},
+  {"decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ef53ea7..ca5e9c9 + reverse-dependency closure, 29 crates).  units of folio/interop-media/pulse/session: 4 crate units + default; all build 0 / run 0; default folio 81, interop-media 6, pulse 32, session 26", "idempotency_key": "STUDIO-R34:SMB-FOLIO-TIMELINE-RECORDS:ca5e9c92fa6b:PASS_V3", "round": "STUDIO-R34", "lane": "SMB-FOLIO-TIMELINE-RECORDS", "candidate": "ca5e9c92fa6be13b50428ea3be6571ccc1d1a511", "tree": "4afc6f85614b23faaffb0c941d9da11a7eb3259f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R34", "started_at": "2026-10-15T22:54:57Z", "completed_at": "2026-10-16T02:52:16Z"},
+  {"decision": "passed", "verdict": "PASS_V4", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ca5e9c9..237256f + reverse-dependency closure, 31 crates).  units of folio/interop-media/pulse/session: 4 crate units + default; all build 0 / run 0; default folio 86, interop-media 8, pulse 32, session 26", "idempotency_key": "STUDIO-R35:SMB-FOLIO-TIMELINE-RECORDS:237256f8792c:PASS_V4", "round": "STUDIO-R35", "lane": "SMB-FOLIO-TIMELINE-RECORDS", "candidate": "237256f8792c708b96464030d4b40f3a93e8f0e0", "tree": "f699823b8e0d0530a5f9a96df354b8b7aac8294f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R35", "started_at": "2026-10-16T07:31:56Z", "completed_at": "2026-10-20T14:11:50Z"},
+    {"decision": "passed", "verdict": "PASS_V5", "status_change": "PASS_V5", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V4", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: folio, interop-media, pulse, session).  units of folio/interop-media/pulse/session: 4 crate units + default; all build 0 / run 0; default passed folio 91, interop-media 8, pulse 35, session 27", "idempotency_key": "STUDIO-R36:SMB-FOLIO-TIMELINE-RECORDS:a10576683c7a:PASS_V5", "claim_scope": null, "round": "STUDIO-R36", "lane": "SMB-FOLIO-TIMELINE-RECORDS", "candidate": "a10576683c7a76b3da37e6ec4794652c3e903bbd", "tree": "27fb1f13e97fbaecd9e4b61428e53bcab50a3169", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R36", "started_at": "2026-10-21T17:26:59Z", "completed_at": "2026-10-22T05:34:45Z"},
+    {"decision": "passed", "verdict": "PASS_V6", "status_change": "PASS_V6", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V5", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: folio, interop-media, pulse, session).  units of folio/interop-media/pulse/session: 4 crate units + default; all build 0 / run 0; default passed folio 98, interop-media 8, pulse 35, session 27", "idempotency_key": "STUDIO-R37:SMB-FOLIO-TIMELINE-RECORDS:1d139a6990f5:PASS_V6", "claim_scope": null, "round": "STUDIO-R37", "lane": "SMB-FOLIO-TIMELINE-RECORDS", "candidate": "1d139a6990f55b77c1ce09c1dc7a5c2f47c324f4", "tree": "3c2b5fe1ce168053e16b0f682b9b728a0441c9fc", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37", "started_at": "2026-10-22T09:20:11Z", "completed_at": "2026-10-22T13:00:58Z"}
+ ]
+}

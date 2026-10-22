@@ -1,0 +1,76 @@
+{
+ "crate": "hsk-studio-score",
+ "lane": "SMB-SCORE-SPECTRAL",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-3 pushed; READY covers score commits bc90aed..376064e",
+ "commits": [
+  {
+   "sha": "bc90aed41824eece0a5cc595b8f29658f0081585",
+   "subject": "score (SMB-SCORE-SPECTRAL slice 1 wip): spectrogram tiles and reassignment"
+  },
+  {
+   "sha": "e03bbeb5a7cab4530ae390f83cf199ee9433c8c2",
+   "subject": "score (SMB-SCORE-SPECTRAL slice 2): spectral selection with attenuate and heal; exact passthrough outside"
+  },
+  {
+   "sha": "5d9a41e",
+   "subject": "score (SMB-SCORE-SPECTRAL slice 3 wip): streaming time-stretch with transient phase reset (shared frame engine)"
+  },
+  {
+   "sha": "7c5404f",
+   "subject": "score (SMB-SCORE-SPECTRAL slice 3 diag): StreamingStretch::last_onset diagnostic"
+  },
+  {
+   "sha": "376064e",
+   "subject": "score (SMB-SCORE-SPECTRAL slice 3 test): steady-tone onset test uses a faded end (an abrupt stop is a transient)"
+  }
+ ],
+ "capabilities_done": [
+  "Spectrogram (src/spectrogram.rs): STFT magnitude grid with periodic Hann N (power of two 256..16384) and hop 1..N, frame k centred on k*hop, ceil(len/hop) frames x (N/2+1) bins, calibrated so a bin-centred sine of amplitude A reads A (measured within 1e-6; Hann neighbours A/2; DC calibrated); tiles over frame ranges from caller chunks that cover tile_input_range only (streaming big files), bit-identical to the whole grid for 3 parameter sets and mixed tile sizes; memory budget MAX_TILE_CELLS = 2^24 cells per tile checked before work, scratch allocated once, tiles allocate nothing; tile_reassigned adds Auger-Flandrin reassigned time and frequency per cell (measured: a 1000.3 Hz tone reassigns within 0.0031 Hz of its frequency, bin width 23.4 Hz; an impulse reassigns to its exact sample over 4076 cells)",
+  "spectral_edit (src/spectral_edit.rs): SpectralSelection (samples start..end x low..high Hz) on a Hann STFT (hop N/4, synthesis w/1.5); only the change of selected cells is resynthesised and added, so every sample outside SpectralEditReport.affected_start..affected_end is the input bit for bit (tested for attenuate and heal); Attenuate (-120..0 dB): full-band selection gives g*x within 2.98e-9 in the interior, a 4-8 kHz band at -20 dB measures -20.000 dB inside and 0.0000 dB below/above; Heal: selected log magnitudes interpolated between the frames three hops outside the selection, phase kept: a 4.2/4.6 kHz burst is reduced by 44.2 dB against the clean signal, the 1 kHz tone outside the band changes by 9e-11; out-of-band 500 Hz content in the edit difference <= 6e-10",
+  "StreamingStretch (src/stretch.rs): push/pull streaming phase vocoder on a frame engine shared with time_stretch (offline refactored onto it), bounded preallocated input/output rings (push takes only what fits; tested: a 1 M-sample push takes < 100 k), finish() ends the output at exactly round(total*factor); with transients off bit-identical to time_stretch for push/pull partitions 1/7, 333/4096, 4096/1 and whole at factors 0.6/1.5/3; transient preservation: positive spectral flux > 0.3 = onset, synthesis phase reset to analysis phase, next 4 frames advance the input by exactly H_s (one-to-one resynthesis until the window passes the onset), then the analysis position returns to its target by at most twice the nominal hop; click train (19 clicks every 4800, factor 1.5): energy within +-32 samples of each output click 1.0000 with phase reset vs 0.1107 plain, worst position shift 491 samples (<= 1024 asserted), one onset per click (20 incl. the stream start); a steady faded tone has only the start onset and keeps its amplitude within 0.2 dB; last_onset() diagnostic"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-score --test stretch_stream (3/3 at 376064e); --test stretch (4/4 on the shared engine at 5d9a41e content, offline code unchanged since)",
+  "exit": 0,
+  "sha": "376064e",
+  "passed": 7,
+  "failed": 0
+ },
+ "blockers": [],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "none in this dispatch; candidates: multichannel (stereo-linked) streaming stretch, reassigned display rendering, heal across frequency for long selections",
+ "updated_at": "2026-10-15T04:37:40Z",
+ "notes": {
+  "spec_basis": [
+   "STU-FX-134: native audio effect domain (Audition spectral frequency display, spectral selection and healing are Audition features; Audition parity UNVERIFIED, D5)"
+  ],
+  "licence_clean_room": "Auger and Flandrin, IEEE TSP 1995 reassignment re-derived; FFT reused from score denoise.rs; Duxbury-Davies-Sandler AES 2002 and Roebel DAFx 2003 phase reset at transients re-derived",
+  "own_causes": [
+   "slice 1: a parse error (`as u64 <` read as generics) failed the first build; the gameplan retry guard blocked the identical rerun; route (a): fixed and committed (bc90aed) before rerunning",
+   "slice 3: (1) first run the onset mode covered frames k..k+3 only; the next (hold) frame still contained the click and smeared it (concentration 0.9768) -> 4 more frames at H_s (concentration 1.0000); (2) the steady-tone test cut the tone abruptly, which is a genuine broadband transient (onset at frame 116, centre 47514 via last_onset) -> faded end; (3) the 0.99 concentration bound was set before measuring. Each fix committed before rerun (route a)"
+  ],
+  "new_tests": {
+   "spectrogram": 4,
+   "spectral_edit": 4,
+   "stretch_stream": 3
+  },
+  "check_clippy": "cargo clippy -p hsk-studio-score -p hsk-studio-score-device -p hsk-studio-score-plugin --tests --examples at 376064e: no findings in score crates",
+  "dep_requests": "none",
+  "working_tree": "pre-existing stat-only modifications of other score src files left uncommitted; pathspec commits only; Cargo.lock not committed",
+  "gaps": [
+   "StreamingStretch is mono (one instance per channel; no stereo phase linking)",
+   "onset detector is spectral-flux only (threshold 0.3 authored); soft onsets below it are not preserved",
+   "heal interpolates over time only (long selections use only the two boundary frames)",
+   "Audition spectral display/heal and Premiere/Audition stretch parity UNVERIFIED (D5)"
+  ]
+ },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "claim bc90aed e03bbeb 5d9a41e 7c5404f 376064e: STFT spectrogram tiles with time/frequency reassignment (Auger-Flandrin, read in spectrogram.rs tile_reassigned), spectral selection attenuate/heal with bit-exact passthrough outside the affected span, streaming time-stretch with transient phase reset. No stub. units of score: 1 crate units + default; all build 0 / run 0; default score 114", "idempotency_key": "STUDIO-R32:SMB-SCORE-SPECTRAL:eb569d5764a3:PASS_V1", "round": "STUDIO-R32", "lane": "SMB-SCORE-SPECTRAL", "candidate": "eb569d5764a3243d492c40f5fe8494782e45c882", "tree": "a232cd250db1371549353ee0c3ada8b8c0c083c4", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R32", "started_at": "2026-10-15T06:20:39Z", "completed_at": "2026-10-15T07:38:27Z"},
+  {"decision": "passed", "verdict": "PASS_V2", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ef53ea7..ca5e9c9 + reverse-dependency closure, 29 crates).  units of score: 1 crate units + default; all build 0 / run 0; default score 120", "idempotency_key": "STUDIO-R34:SMB-SCORE-SPECTRAL:ca5e9c92fa6b:PASS_V2", "round": "STUDIO-R34", "lane": "SMB-SCORE-SPECTRAL", "candidate": "ca5e9c92fa6be13b50428ea3be6571ccc1d1a511", "tree": "4afc6f85614b23faaffb0c941d9da11a7eb3259f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R34", "started_at": "2026-10-15T22:54:57Z", "completed_at": "2026-10-16T02:52:16Z"},
+  {"decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ca5e9c9..237256f + reverse-dependency closure, 31 crates).  units of score: 1 crate units + default; all build 0 / run 0; default score 121", "idempotency_key": "STUDIO-R35:SMB-SCORE-SPECTRAL:237256f8792c:PASS_V3", "round": "STUDIO-R35", "lane": "SMB-SCORE-SPECTRAL", "candidate": "237256f8792c708b96464030d4b40f3a93e8f0e0", "tree": "f699823b8e0d0530a5f9a96df354b8b7aac8294f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R35", "started_at": "2026-10-16T07:31:56Z", "completed_at": "2026-10-20T14:11:50Z"},
+    {"decision": "passed", "verdict": "PASS_V4", "status_change": "PASS_V4", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V3", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: score).  units of score: 1 crate units + default; all build 0 / run 0; default passed score 131", "idempotency_key": "STUDIO-R36:SMB-SCORE-SPECTRAL:a10576683c7a:PASS_V4", "claim_scope": null, "round": "STUDIO-R36", "lane": "SMB-SCORE-SPECTRAL", "candidate": "a10576683c7a76b3da37e6ec4794652c3e903bbd", "tree": "27fb1f13e97fbaecd9e4b61428e53bcab50a3169", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R36", "started_at": "2026-10-21T17:26:59Z", "completed_at": "2026-10-22T05:34:45Z"},
+    {"decision": "passed", "verdict": "PASS_V5", "status_change": "PASS_V5", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V4", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (root_inputs_changed (Cargo.toml members, Cargo.lock workspace packages, .config step-0 policy duplicate-fingerprints/machine-paths, tools/workspace-probe.rs); crates outside the closure: score).  units of score: 1 crate units + default; all build 0 / run 0; default passed score 131", "idempotency_key": "STUDIO-R37:SMB-SCORE-SPECTRAL:1d139a6990f5:PASS_V5", "claim_scope": null, "round": "STUDIO-R37", "lane": "SMB-SCORE-SPECTRAL", "candidate": "1d139a6990f55b77c1ce09c1dc7a5c2f47c324f4", "tree": "3c2b5fe1ce168053e16b0f682b9b728a0441c9fc", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37", "started_at": "2026-10-22T09:20:11Z", "completed_at": "2026-10-22T13:00:58Z"}
+ ]
+}

@@ -1,0 +1,86 @@
+{
+ "crate": "hsk-studio-score",
+ "lane": "SMB-SCORE-EFFECTS-4",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-4 pushed through 88ccd32; READY covers score commits a7ef7e7..88ccd32; PR-23 pulse adapter BLOCKED on the pulse -> score edge (request line written, no manifest change)",
+ "commits": [
+  {
+   "sha": "a7ef7e70d1ea4e196382fe55c8c9539574f6c741",
+   "subject": "score (SMB-SCORE-EFFECTS-4 slice 1): Session latency compensation and per-track effect stacks"
+  },
+  {
+   "sha": "e8e9067",
+   "subject": "score (SMB-SCORE-EFFECTS-4 slice 2 wip): Automatable for every processor; equivalence, refusal and session ramp tests"
+  },
+  {
+   "sha": "ddae5e0",
+   "subject": "score (SMB-SCORE-EFFECTS-4 slice 2 test): sparse-click input for the ClickRepair threshold audibility check"
+  },
+  {
+   "sha": "9e3bcd02b4a8a5297d4f16a0c026ffd4c11fd02c",
+   "subject": "score (SMB-SCORE-EFFECTS-4 slice 2): Automatable for every processor (DESCRIPTOR)"
+  },
+  {
+   "sha": "aec3b10eab3fff8ebe4ae440f6cac046b425d091",
+   "subject": "score (SMB-SCORE-EFFECTS-4 slice 3): ClickRepair leaves digital-silence edges alone"
+  },
+  {
+   "sha": "88ccd32c1954ada563b904ab4a20af8ef0cd1986",
+   "subject": "score (SMB-SCORE-EFFECTS-4 slice 4, PR-23 score side): clip source windows and fades for timeline audio crossfades"
+  }
+ ],
+ "capabilities_done": [
+  "Session latency compensation: track latency = sum of its stage latencies (<= MAX_TRACK_LATENCY 2^24); the stack is primed with timeline samples 0..L (outputs discarded) and then fed L samples ahead, so output frame t carries timeline t for every track (session latency 0, track_latency() reports L); stage k lanes are evaluated at the timeline time of the audio it reads (n - latency of earlier stages); tested bit-exact against dry tracks (two transparent lookahead stages, ClickRepair 1792) and against the stages run by hand shifted by their latency with a threshold step, across block partitions down to 1 frame and after reset()",
+  "Per-track effect stacks: TrackSpec (non-exhaustive, TrackSpec::new) holds effects: Vec<EffectSlot{processor, lanes}> (<= MAX_TRACK_EFFECTS 16); every stage must accept the clip layout and the session rate; Automatable::automation_parameters now returns a Vec (rate-dependent ranges possible, called outside the audio path); SidechainDynamics (threshold/ratio/makeup) and ClickRepair (threshold) are Automatable",
+  "Automatable for every processor: Gain, Pan, ChannelMix, HardLimiter, LookaheadLimiter, Equalizer (master + per-section frequency/gain/q, rate-dependent range), RampedGain (target), Dynamics, SidechainDynamics, MultibandCompressor (3 per band), FeedbackDelay, Flanger, Chorus (delay+depth bounded by the line sized at construction), Phaser (min <= max < rate/2), ClickRepair, HumRemover (notches re-placed), Reverb (comb gains recomputed), NoiseReducer; Unity, LoudnessMeter and Chain expose none (Chain stages are type-erased; a session track automates stages through its own stack); construction-time sizes (delay times, FFT, voices, stages, bands, lookahead) are not automatable. Proven: for all 59 parameters, set_automated on a fresh processor is bit-identical to constructing with the value and audible on the test input (except a low-pass section's gain, ignored by definition); NaN/inf/out-of-range/unknown index refused and leave the processor unchanged; a linear ramp on every parameter through a Session renders finite and bit-identical across block partitions",
+  "ClickRepair silence edges: a cluster right after >= p exact zeros (abrupt start) or a cluster of zeros followed by p zeros (abrupt stop) is left untouched and counted in silence_edges(); tested WITHOUT fade-in: start at stream sample 0, stop, 5000 samples of silence, abrupt restart, stop -> output bit-exact, 4 edges, 0 repairs; 7 clicks plus a 10-sample dropout inside that material are all repaired (SNR improvement 26.11 dB) and the edges stay bit-exact",
+  "PR-23 score side: TrackSpec::from_source (clip window from source audio = source in/out), Fade{frames, Linear|EqualPower} fade_in/fade_out applied to the clip before the effect stack with progress k/frames (the pulse transition_frame convention), so an abutting fade-out/fade-in pair is the AudioCrossfade; crossfades tested bit-exact for both curves, fades stay aligned through a latent stack"
+ ],
+ "tests": {
+  "argv": "cargo nextest run -p hsk-studio-score --test restore_edges --test restore (7/7 at aec3b10); --test session_fades --test session --test session_latency --test automation (13/13) and --test session_fades after the lint fix (3/3) at 88ccd32",
+  "exit": 0,
+  "sha": "88ccd32c1954ada563b904ab4a20af8ef0cd1986",
+  "passed": 20,
+  "failed": 0
+ },
+ "blockers": [
+  {
+   "error": "PR-23 needs the module edge hsk-studio-pulse -> hsk-studio-score, which is outside the declared DAG (pulse: folio only); not added",
+   "file_line": "Cargo.toml [workspace.metadata.studio.dependencies.hsk-studio-pulse] allowed",
+   "attempts": 0
+  }
+ ],
+ "lock_wait_s": 0,
+ "bg_pids": [],
+ "next": "after a lead decision on the pulse -> score edge: pulse adapter mapping StudioSequence audio clips, AudioCrossfade spans and caller volume/pan lanes onto score Session (owner: pulse lane or this lane by assignment)",
+ "updated_at": "2026-10-15T03:46:30Z",
+ "notes": {
+  "spec_basis": [
+   "STU-FX-135: audio effects are non-destructive, reorderable, individually bypassable stack entries (per-track stack in Session)",
+   "STU-FX-137: tracks, buses, sends",
+   "STU-VID-032/032a (pulse): AudioCrossfade transitions on audio tracks (PR-23 input)"
+  ],
+  "api_change": "TrackSpec fields effect/effect_lanes (2808f39, EFFECTS-3) replaced by effects: Vec<EffectSlot>; TrackSpec is now #[non_exhaustive] with TrackSpec::new so later fields are additive; no consumer outside score tests used the old fields (grep)",
+  "new_tests": {
+   "session_latency": 2,
+   "automation": 3,
+   "restore_edges": 2,
+   "session_fades": 3
+  },
+  "parity": "Adobe Audition/Premiere mixdown, delay compensation and automation parity UNVERIFIED (D5)",
+  "dep_requests": "builders/dep-requests.jsonl: hsk-studio-pulse -> hsk-studio-score, status requested (2026-10-15T03:46:30Z); no manifest change made or pushed",
+  "working_tree": "pre-existing stat-only modifications of other score src files left uncommitted; pathspec commits only; Cargo.lock not committed",
+  "own_causes": [
+   "slice 2: the audibility check failed for ClickRepair (uniform noise never exceeds 1.35 robust sigmas; cubed noise flags so densely that clusters exceed max_gap and are skipped) -> sparse-click input for that kind; committed before rerun (route a)"
+  ],
+  "check_clippy": "cargo clippy -p hsk-studio-score -p hsk-studio-score-device -p hsk-studio-score-plugin --tests --examples at 88ccd32: no findings in score crates",
+  "pr23_design": "pulse -> score adapter: per enabled audio clip TrackSpec::from_source(source PCM via caller resolver keyed by ClipSource, source_in ticks -> samples, duration -> frames; speed != 1 needs score ClipResampler, refused until decided), start = timeline_start in samples; AudioCrossfade span [cut - before, cut + after) -> outgoing fade_out and incoming fade_in of span frames (handles: outgoing window extended past its out point by after-cut frames, incoming by before-cut frames, as pulse transition_handles reports); track volume/pan: caller lanes (folio StudioTrack has none); muted/soloed/enabled filter tracks. Crossfade curve default UNVERIFIED (Premiere constant power is common; spec STU-VID-032a names only 'crossfade')"
+ },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "claim a7ef7e7 e8e9067 ddae5e0 9e3bcd0 aec3b10 88ccd32: Session latency compensation + per-track effect stacks, Automatable for every processor, ClickRepair digital-silence edges, clip source windows + fades (PR-23 score side). No stub. units of score: 1 crate units + default; all build 0 / run 0; default score 114", "idempotency_key": "STUDIO-R32:SMB-SCORE-EFFECTS-4:eb569d5764a3:PASS_V1", "round": "STUDIO-R32", "lane": "SMB-SCORE-EFFECTS-4", "candidate": "eb569d5764a3243d492c40f5fe8494782e45c882", "tree": "a232cd250db1371549353ee0c3ada8b8c0c083c4", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R32", "started_at": "2026-10-15T06:20:39Z", "completed_at": "2026-10-15T07:38:27Z"},
+  {"decision": "passed", "verdict": "PASS_V2", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ef53ea7..ca5e9c9 + reverse-dependency closure, 29 crates).  units of score: 1 crate units + default; all build 0 / run 0; default score 120", "idempotency_key": "STUDIO-R34:SMB-SCORE-EFFECTS-4:ca5e9c92fa6b:PASS_V2", "round": "STUDIO-R34", "lane": "SMB-SCORE-EFFECTS-4", "candidate": "ca5e9c92fa6be13b50428ea3be6571ccc1d1a511", "tree": "4afc6f85614b23faaffb0c941d9da11a7eb3259f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R34", "started_at": "2026-10-15T22:54:57Z", "completed_at": "2026-10-16T02:52:16Z"},
+  {"decision": "passed", "verdict": "PASS_V3", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crates changed ca5e9c9..237256f + reverse-dependency closure, 31 crates).  units of score: 1 crate units + default; all build 0 / run 0; default score 121", "idempotency_key": "STUDIO-R35:SMB-SCORE-EFFECTS-4:237256f8792c:PASS_V3", "round": "STUDIO-R35", "lane": "SMB-SCORE-EFFECTS-4", "candidate": "237256f8792c708b96464030d4b40f3a93e8f0e0", "tree": "f699823b8e0d0530a5f9a96df354b8b7aac8294f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R35", "started_at": "2026-10-16T07:31:56Z", "completed_at": "2026-10-20T14:11:50Z"},
+    {"decision": "passed", "verdict": "PASS_V4", "status_change": "PASS_V4", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V3", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: score).  units of score: 1 crate units + default; all build 0 / run 0; default passed score 131", "idempotency_key": "STUDIO-R36:SMB-SCORE-EFFECTS-4:a10576683c7a:PASS_V4", "claim_scope": null, "round": "STUDIO-R36", "lane": "SMB-SCORE-EFFECTS-4", "candidate": "a10576683c7a76b3da37e6ec4794652c3e903bbd", "tree": "27fb1f13e97fbaecd9e4b61428e53bcab50a3169", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R36", "started_at": "2026-10-21T17:26:59Z", "completed_at": "2026-10-22T05:34:45Z"},
+    {"decision": "passed", "verdict": "PASS_V5", "status_change": "PASS_V5", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V4", "failures": [], "remediation": null, "blocker": null, "not_proven": [], "note": "CX-VAL-009 reopen (root_inputs_changed (Cargo.toml members, Cargo.lock workspace packages, .config step-0 policy duplicate-fingerprints/machine-paths, tools/workspace-probe.rs); crates outside the closure: score).  units of score: 1 crate units + default; all build 0 / run 0; default passed score 131", "idempotency_key": "STUDIO-R37:SMB-SCORE-EFFECTS-4:1d139a6990f5:PASS_V5", "claim_scope": null, "round": "STUDIO-R37", "lane": "SMB-SCORE-EFFECTS-4", "candidate": "1d139a6990f55b77c1ce09c1dc7a5c2f47c324f4", "tree": "3c2b5fe1ce168053e16b0f682b9b728a0441c9fc", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37", "started_at": "2026-10-22T09:20:11Z", "completed_at": "2026-10-22T13:00:58Z"}
+ ]
+}

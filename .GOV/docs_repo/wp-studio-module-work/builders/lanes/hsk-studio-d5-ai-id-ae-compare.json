@@ -1,0 +1,36 @@
+{
+  "crate": "hsk-studio-motion (AE), hsk-studio-render-cpu tests over nib + pigment (AI), hsk-studio-interop-layout tests over layout + type (ID)",
+  "lane": "SMB-D5-AI-ID-AE-COMPARE",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-3 pushed (b822715, 7910061, 16d5c9e); summary research/d5-ai-id-ae-compare-20261016.json on gov_kernel 6fb8edfd",
+  "commits": [
+    {"sha": "b822715", "subject": "SMB-D5-AI-ID-AE-COMPARE slice 1: After Effects valueAtTime oracle comparison; motion chord handle 1/6, continuity keeps incoming speed"},
+    {"sha": "7910061", "subject": "SMB-D5-AI-ID-AE-COMPARE slice 2: Illustrator oracle comparison (AI-01..05) through nib + pigment"},
+    {"sha": "16d5c9e", "subject": "SMB-D5-AI-ID-AE-COMPARE slice 3: InDesign composer oracle comparison (ID-01..04) through IDML import, Type and layout"}
+  ],
+  "capabilities_done": [
+    "slice 1 AE (motion tests/d5_ae_oracle.rs): 337 MATCH, 4 NOT_SUPPORTED (roving spatial path, 3 AE expression globals), 1 NOT_PROVEN (AE-02 tangents variant absent); fixes keyframe.rs chord influence 1/6, assistants.rs make_continuous incoming speed wins",
+    "slice 2 AI (render-cpu tests/d5_ai_oracle.rs): 59 MATCH (dashes, fill rules, 14 cap/join/miter, 32 blend modes, 4 isolation/knockout, 3 gradients), 15 MISMATCH listed (2 midpoint curve FU-AI-1, 13 sub-pixel cap/tip FU-AI-3), 1 NOT_SUPPORTED (aliased export)",
+    "slice 3 ID (interop-layout tests/d5_id_oracle.rs): 20 MATCH (single-line ragged 10/10, 7 other, 3 IDML imports), 75 MISMATCH listed by class (KP composer, single-line justification, hyphenation, full justify, thread), 4 NOT_SUPPORTED (glyph scaling)"
+  ],
+  "tests": {"argv": "nextest -p hsk-studio-render-cpu -p hsk-studio-interop-layout -p hsk-studio-motion --test d5_ai_oracle --test d5_id_oracle --test d5_ae_oracle --no-fail-fast --no-capture", "exit": 0, "sha": "3d5fbda + lane commits (pushed rebased on 38d491b as 16d5c9e)", "passed": 14, "failed": 0},
+  "blockers": [],
+  "lock_wait_s": 18000,
+  "bg_pids": [],
+  "next": "lead: AE rerun for AE-02 (script fixed); follow-ups FU-AE-1..3, FU-AI-1..3, FU-ID-1..6 in the research JSON",
+  "updated_at": "2026-10-16T13:42:00Z",
+  "notes": {
+    "worktree": "wt-studio-lanes/smb-d5-ai-id-ae-compare (branch lane/smb-d5-ai-id-ae-compare); gameplan pointer .gameplan-active at the worktree root like the other lane trees",
+    "build_disk": "D: only (lead 2026-10-16)",
+    "corpus_added": "oracle-corpus/host-fonts/arial.ttf + provenance.json (new files only)",
+    "ae_script": "oracle-session/hsk_oracle_aftereffects.jsx AE-02 tangents padded to the Position value length; committed 6fb8edfd; After Effects NOT rerun",
+    "push_proof": "slice 1: rerun after rebase onto 46d8e4d, pushed on 895f0b7 (layout/harness only). slices 2-3: 14/14 at 3d5fbda + lane commits; pushed on 38d491b whose 3 newer commits are additive (nib/render-cpu mesh, type path_text, prism recolor, interop-vector split; lib.rs adds mod lines only), so the run was reused",
+    "cargo_lock": "cargo-regenerated Cargo.lock stashed before each rebase (SAFETY stashes), never committed",
+    "deadline": "pushes delayed by D: lock queues and validator rounds (R35 canary/union held the lock ~4 h)"
+  },
+ "verdicts": [
+  {"decision": "passed", "verdict": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": ["motion d5_ae_oracle::ae02_spatial_position (default): d5_ae_oracle::ae02_spatial_position AE-02 two_keys_spatial_tangents_set reason=variant absent from corpus (session script passed 2-element tangents to 3-D Position; script fixed, AE rerun pending)"], "note": "claim b822715: motion d5_ae_oracle compares Property::sample with the D5 After Effects valueAtTime oracle (adobe-session/aftereffects, SHA-256 pinned, absent = NOT_PROVEN, empty expected-mismatch list); product fixes cited to the oracle: chord handle influence 1/3 -> 1/6, make_continuous keeps the incoming speed (DESCRIPTOR/doc cite d5_ae_oracle tests). Oracle files read from the corpus bound at freeze. units of motion: 1 crate units + default; all build 0 / run 0; default motion 22", "idempotency_key": "STUDIO-R35:SMB-D5-AI-ID-AE-COMPARE:237256f8792c:PASS_V1", "claim_scope": "slice 1 (b822715); slices 2-3 local", "round": "STUDIO-R35", "lane": "SMB-D5-AI-ID-AE-COMPARE", "candidate": "237256f8792c708b96464030d4b40f3a93e8f0e0", "tree": "f699823b8e0d0530a5f9a96df354b8b7aac8294f", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R35", "started_at": "2026-10-16T07:31:56Z", "completed_at": "2026-10-20T14:11:50Z"},
+    {"decision": "passed", "verdict": "PASS_V2", "status_change": "PASS_V2", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V1", "failures": [], "remediation": null, "blocker": null, "not_proven": ["motion d5_ae_oracle::ae02_spatial_position (default): d5_ae_oracle::ae02_spatial_position AE-02 two_keys_spatial_tangents_set reason=variant absent from corpus (session script passed 2-element tangents to 3-D Position; script fixed, AE rerun pending)"], "note": "CX-VAL-009 reopen (crate_or_dependency_changed: motion).  units of motion: 1 crate units + default; all build 0 / run 0; default passed motion 28", "idempotency_key": "STUDIO-R36:SMB-D5-AI-ID-AE-COMPARE:a10576683c7a:PASS_V2", "claim_scope": null, "round": "STUDIO-R36", "lane": "SMB-D5-AI-ID-AE-COMPARE", "candidate": "a10576683c7a76b3da37e6ec4794652c3e903bbd", "tree": "27fb1f13e97fbaecd9e4b61428e53bcab50a3169", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R36", "started_at": "2026-10-21T17:26:59Z", "completed_at": "2026-10-22T05:34:45Z"},
+    {"decision": "passed", "verdict": "PASS_V3", "status_change": "PASS_V3", "included_by": "CX-VAL-009 reopen", "prior_status": "PASS_V2", "failures": [], "remediation": null, "blocker": null, "not_proven": ["motion d5_ae_oracle::ae02_spatial_position (default): d5_ae_oracle::ae02_spatial_position AE-02 two_keys_spatial_tangents_set reason=variant absent from corpus (session script passed 2-element tangents to 3-D Position; script fixed, AE rerun pending)"], "note": "CX-VAL-009 reopen (root_inputs_changed (Cargo.toml members, Cargo.lock workspace packages, .config step-0 policy duplicate-fingerprints/machine-paths, tools/workspace-probe.rs); crates outside the closure: motion).  units of motion: 1 crate units + default; all build 0 / run 0; default passed motion 28", "idempotency_key": "STUDIO-R37:SMB-D5-AI-ID-AE-COMPARE:1d139a6990f5:PASS_V3", "claim_scope": null, "round": "STUDIO-R37", "lane": "SMB-D5-AI-ID-AE-COMPARE", "candidate": "1d139a6990f55b77c1ce09c1dc7a5c2f47c324f4", "tree": "3c2b5fe1ce168053e16b0f682b9b728a0441c9fc", "results_ref": "../Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R37", "started_at": "2026-10-22T09:20:11Z", "completed_at": "2026-10-22T13:00:58Z"}
+ ]
+}

@@ -1,0 +1,4 @@
+# Per-lane child gameplans (tools/lane-gameplan.sh) and their confirmations/failures sidecars are machine-local,
+# like the lane worktrees they bind to.
+*
+!.gitignore
