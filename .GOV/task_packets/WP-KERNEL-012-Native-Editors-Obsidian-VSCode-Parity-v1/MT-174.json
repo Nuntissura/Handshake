@@ -10016,6 +10016,103 @@
     "runtime_acceptance": "Independent validator pending; no acceptance claimed"
   },
   "remediation_record": {
+    "session_reauthentication_diagnostic_probe_20261023": {
+      "id": "WP012-MT174-SESSION-REAUTH-PROBE-20261023",
+      "recorded_at_utc": "2026-10-22T22:32:25Z",
+      "state": "BOUND_PENDING_CHANGED_COMPILE_AND_CURRENT_EXECUTION_GUARDS",
+      "authority_refs": [
+        ".GOV/codex/Handshake_Codex_v1.4.md#CX-EXEC-003",
+        ".GOV/codex/Handshake_Codex_v1.4.md#CX-EXEC-003A",
+        ".GOV/codex/Handshake_Codex_v1.4.md#CX-EXEC-014",
+        "MT-174.json#/attempt_budget",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/scope_expansion"
+      ],
+      "failing_assertion": "Public local-authority session exchange returns HTTP403 where HTTP200 is required; current Chat log local_authority_session_bootstrap_failed identifies login_event_identity, coarse cause Storage.",
+      "current_attempt_history": [
+        {
+          "attempt": "Snapshot01",
+          "observed_failure": "SDK-incompatible Windows verbatim endpoint path; session-exchange assertion not reached",
+          "next_input_change": "Endpoint-path normalization",
+          "evidence": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/iv-kernel-crdt-snapshot-original-20261022-01/result.json",
+          "log_sha256": "003a6c83d12cdf5a510bcf250b8a15b3a691f3545f90d2ffffc4f398011a9b45"
+        },
+        {
+          "attempt": "Snapshot03",
+          "observed_failure": "Durable fixture directory creation failed; session-exchange assertion not reached",
+          "next_input_change": "Shorter fixture path retaining the complete store identity",
+          "evidence": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/iv-kernel-crdt-snapshot-original-20261022-03/result.json",
+          "log_sha256": "b66e923dc3141d79f7db9fed0887d868fe3b9f24c90031f42c627311739fd6a6"
+        },
+        {
+          "attempt": "Snapshot04",
+          "observed_failure": "Configured namespace/database mismatch during fixture opening; session-exchange assertion not reached",
+          "next_input_change": "Retain the immutable configured context through the actual bootstrap owner",
+          "evidence": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/iv-kernel-crdt-snapshot-original-20261022-04/result.json",
+          "log_sha256": "2913919ae7cb85d37b5f704897ba0710d5b227beefbeba04db83917b15423401"
+        },
+        {
+          "attempt": "Snapshot05",
+          "observed_failure": "First current public durable session exchange HTTP403 versus HTTP200",
+          "allocation": "Original Snapshot confirmation after configured-context repair; not a post-HTTP403 diagnostic probe",
+          "next_input_change": "Add the reviewed secret-safe outer bootstrap phase and coarse error-class diagnostic",
+          "evidence": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/iv-kernel-crdt-snapshot-original-20261022-05/result.json",
+          "log_sha256": "dcf2c674891a764f100b7515b51154d220702f0aacdeec1ccfa32f6396f86792"
+        },
+        {
+          "attempt": "ChatINITIAL1",
+          "observed_failure": "Second current public durable session exchange HTTP403 versus HTTP200; login_event_identity reports Storage before login-event creation",
+          "allocation": "Original unfiltered whole-two Chat INITIAL1, not a post-HTTP403 diagnostic probe",
+          "next_input_change": "Reviewed local_accounts.rs constant SDK subphase and static error-kind diagnostics, with unchanged authentication and returned errors",
+          "evidence": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/iv-operator-chat-original-20261022-01/result.json",
+          "log_sha256": "8c622e78283dcf5f77903ae096867eeb4390962e593b83e0dc319357a87b1b5f"
+        }
+      ],
+      "historical_selector_lineage": {
+        "refs": [
+          "MT-109.json#/remediation_v19/shared_runtime_probe_20260920/proofs/5",
+          "MT-109.json#/remediation_v19/shared_runtime_probe_followup_20260920/checks/0",
+          "MT-109.json#/remediation_v19/shared_runtime_probe_followup_20260920/checks/4"
+        ],
+        "meaning": "Historical HTTP rows11/14 failed and row18 passed after the finite account-event parser repair. Preserve that resolved parser-loop history; its PASS neither proves the current source nor grants a fresh current run."
+      },
+      "technical_hypothesis": {
+        "kind": "OBSERVABILITY_HYPOTHESIS_NOT_ESTABLISHED_AUTHENTICATION_CAUSE",
+        "source": "src/backend/handshake_core/src/api/authority.rs::record_login_event -> src/backend/handshake_core/src/storage/surreal/local_accounts.rs::authenticate_local_session",
+        "hypothesis": "A failing SDK context/signin/query/check/SessionRow-decode operation, or a closed storage lease, is propagated through the same Storage wrapper before login-event creation; the outer coarse diagnostic discards the stage and structural category required to locate the underlying failure.",
+        "intended_diagnostic_action": "Log only constant select_context/signin/session_query/session_query_check/session_row_decode and the pinned SDK static kind_str category, plus Closed-only lease reporting. Return each same error; retain SQL, authorization, public403 and cleanup. The probe distinguishes these branches without asserting an underlying cause or an authentication repair."
+      },
+      "candidate": {
+        "commit": "b4dbdda5667e6aea78da73e73b80cd6daa393ae9",
+        "tree": "c8b220d4b2e83d39014d6e45c548a88331ff01c3",
+        "changed_path": "src/backend/handshake_core/src/storage/surreal/local_accounts.rs",
+        "source_sha256": "b5b22e5d033ea5e8963a06faa9c111a0facf5927b7ac1820d4fc6d458fc39c26",
+        "source_review": "Actual Root NONAUTHOR and the three existing independent Codecheck correctness/privacy/lifecycle readers cleared this exact candidate; compilation and runtime are not proved by that review."
+      },
+      "attempt_accounting": {
+        "current_http403_execution_entries": 2,
+        "current_http403_post_diagnosis_probe_consumed": 0,
+        "current_http403_post_diagnosis_confirmation_consumed": 0,
+        "basis": "Original independent IV execution-ledger handback: Snapshot05 first exposed403 while consuming the context-repair confirmation; ChatINITIAL1 repeated403 as the original Chat initial run. No subsequent auth diagnostic Cargo/test/model was launched. Earlier path/context failures are not HTTP403 assertions. This derives the existing CX-EXEC-003A probe, without resetting any target, assertion or historical attempt.",
+        "probe_bound_by_this_record": 1,
+        "automatic_confirmations": 0,
+        "consume_probe": "On actual launch of the exact bound HTTP selector, regardless of outcome; retain its result and all prior attempts.",
+        "limits": "All four Snapshot slots remain consumed: no fifth Snapshot. ChatINITIAL1 remains failed and consumed: no automatic whole-two retry. No alternate actor/selector pool, MT168 exception, new allowance, automatic confirmation, or acceptance reduction."
+      },
+      "execution": {
+        "executor_chat": "01a15322-1723-7f23-b8dc-9dc278dcaea3",
+        "executor_role": "Original independent Integration Validator",
+        "source_and_compile_owner_chat": "01a15e8a-2b54-79a0-91a2-7304d67cbddc",
+        "product_worktree": "WP/MT-declared wtc-WP-KERNEL-012 on feat/WP-KERNEL-012",
+        "argv": ["cargo", "test", "--manifest-path", "src/backend/handshake_core/Cargo.toml", "--locked", "-j", "1", "--features", "test-utils,surreal-test-support", "--lib", "api::authority::local_account_http_tests::local_account_http_setup_login_vault_logout_and_constant_denials", "--", "--exact", "--nocapture"],
+        "compile_config_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-durable-capture-20261021-01/local-session-auth-no-run-config-01.json",
+        "compile_config_sha256": "10632c99ac61f33078370bbb5ca5e2a0412ef5c32a9bfac9048f1f6896222fb0",
+        "profile_sha256": "61cf1b2ae4889684c6f8403f1d60ad9d651b36a1e77ccdeded5fd6b99e8e082e",
+        "normalizer_sha256": "866976ad8302495cf6b94bb314c7738a91b39e2cce1b7e2ba3e1d34a11efcc14",
+        "prerequisites": "Qualified affected --no-run compilation on the pushed candidate; independently bound current runtime argv/config/source/tool controls and x64 Rust1.97.1, jobs1, Normal32/memory5/IO2, original canonical target and private IV capture; actual exclusive resource handoff. Original Chat model-env/config is not imported into this auth probe. No retired gameplan/KB execution wrapper.",
+        "result_requirements": "Capture the actual named test result, numeric exits, complete raw log and exact observed subphase/category if failure; re-read source/control guards, confirm the owned process tree drained, and explicitly return custody. No diagnostic verdict substitutes for authenticated capture, mounted Native or original MT acceptance."
+      },
+      "requirements_lifecycle_and_verdict_unchanged": true
+    },
     "round36_actual_result_20261012": {
       "id": "WP012-P2-ROUND36-ACTUAL-RESULT-20261012",
       "candidate": "336ddaca1cdd8b55a1b93eecd04d0dae04e22ae3",
