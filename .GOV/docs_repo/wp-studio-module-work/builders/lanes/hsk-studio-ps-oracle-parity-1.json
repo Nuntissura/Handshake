@@ -2,7 +2,7 @@
  "crate": "hsk-studio-pigment (effect_math, blend_math, adjust_math, coverage_math), hsk-studio-render-cpu, hsk-studio-render-gpu (fx/kernel WGSL mirrors), hsk-studio-harness (tests/d5_ps_compare/expectations.json)",
  "lane": "SMB-PS-ORACLE-PARITY-1",
  "status": "READY_FOR_VALIDATION",
- "phase": "slices 1-4 pushed (5fa82ec..f9b2fd7); D5 196 -> 340 MATCH",
+ "phase": "R36 FAIL_V1 remediation pushed (b2b43fc, 9c48de8 on origin 9c48de8): per-shadow blur kernel, Figma shadows Gaussian; slices 1-4 (5fa82ec..f9b2fd7) unchanged",
  "commits": [
   {
    "sha": "30ea18e",
@@ -39,6 +39,20 @@
    "subject": "render-gpu one blend() call per composite entry point",
    "slice": "1-4",
    "status": "READY_FOR_VALIDATION"
+  },
+  {
+   "sha": "b2b43fc",
+   "subject": "SMB-PS-ORACLE-PARITY-1 (R36 remediation): per-shadow blur kernel in pigment + render-gpu",
+   "slice": "R36-remediation",
+   "status": "READY_FOR_VALIDATION",
+   "pushed_as": "b2b43fc (local 572ee71 before the rebase onto 9e09375)"
+  },
+  {
+   "sha": "9c48de8",
+   "subject": "SMB-PS-ORACLE-PARITY-1 (R36 remediation): Figma shadows select the Gaussian kernel",
+   "slice": "R36-remediation",
+   "status": "READY_FOR_VALIDATION",
+   "pushed_as": "9c48de8 (local 844c5c4 before the rebase onto 9e09375); origin codex/handshake-studio-assets 9e09375..9c48de8"
   }
  ],
  "capabilities_done": [
@@ -49,18 +63,27 @@
   "D5 suite: 196 -> 340 MATCH (MISMATCH 301 -> 157); expectations.json lists every remaining MISMATCH by exact variant name so the 144 fixed variants are enforced"
  ],
  "tests": {
-  "argv": "r8 (post-rebase tree f9b2fd7, one D: lock hold): cargo clippy -p pigment -p render-cpu -p render-gpu -p harness --features hsk-studio-harness/viewer --tests (exit 0); cargo nextest run --no-fail-fast -p harness -p pigment -p render-cpu -p render-gpu --features hsk-studio-harness/viewer --test d5_ps_compare --test effects --test effects_wave2 --test effect_window --test layer_styles --test blend_math --test adjust_coverage --test oracle_parity --test bevel_techniques --test cpu_effects --test cpu_window --test cpu_extended --test cpu_effects_fx2 --test gpu_plan; r10: the 13 render-gpu tests that timed out in r6/r8, --test-threads 1; r3 earlier: whole pigment/render-cpu/render-gpu suites + d5 (363 pass, 5 re-pinned in d69a277)",
+  "argv": "R36 remediation, two lane-check.sh holds on D: (--owner smb-ps-oracle-parity-1 --disk d). rr1 (tree 844c5c4 = pushed 9c48de8 minus origin 9e09375's composite test re-pin): clippy --tests over pigment render-cpu render-gpu folio composite interop-psd interop-fig harness + dependents [chronicle components develop harness-core harness-view interop-layout interop-media interop-vector interop-vector-core interop-vector-svg kernel-bindings layout package pulse session] exit 0; cargo nextest run -p hsk-studio-pigment -p hsk-studio-render-cpu -p hsk-studio-render-gpu -p hsk-studio-folio -p hsk-studio-composite -p hsk-studio-interop-psd -p hsk-studio-interop-fig -p hsk-studio-harness --no-fail-fast -E 'not package(hsk-studio-harness) | binary(d5_ps_compare)' -> 726 run, 724 passed, 2 failed (composite render_plan_lowering effect_stack_lowers_to_pigment_ops_that_render_as_derived and inner_shadow_and_glows_lower_to_pigment_ops_that_render_as_derived, line 874 '0.00075900555 != 0', identical to the R36 junit failure attributed to SMB-PS-ORACLE-PARITY-2; fixed upstream by 9e09375); d5_ps_compare has #![cfg(feature = \"viewer\")] so it compiled empty there. rr2 (rebased tree 9c48de8): clippy exit 0; cargo nextest run -p hsk-studio-composite -p hsk-studio-interop-fig -p hsk-studio-harness --features hsk-studio-harness/viewer --no-fail-fast --no-capture -E 'binary(render_plan_lowering) | binary(d5_ps_compare) | binary(fig_paints_2)' -> 31 run, 31 passed (D5 verdict lines 489 MATCH / 9 MISMATCH / 83 NOT_SUPPORTED, all within expectations.json)",
   "exit": 0,
-  "sha": "f9b2fd7",
-  "passed": 89,
+  "sha": "9c48de8",
+  "passed": 31,
   "failed": 0
  },
  "blockers": [],
- "lock_wait_s": 9964,
+ "lock_wait_s": 0,
  "bg_pids": [],
- "next": "validator",
- "updated_at": "2026-10-20T18:33:26Z",
+ "next": "validator (R37)",
+ "updated_at": "2026-10-22T06:27:04Z",
  "notes": {
+  "remediation_R36": {
+   "failure": "STUDIO-R36 FAIL_V1 figma_parity_bound_regressed_by_effect_blur_change: interop-fig fig_paints_2.rs:125 bold_text_renders_with_the_inter_bold_fixture artboard p99 5.700324 > 5.698 at a105766. 30ea18e moved every effect blur to Photoshop's tent; Figma DROP_SHADOW maps to StudioEffectKind::DropShadow -> pigment DropShadowOp, so Figma shadows inherited the Photoshop kernel.",
+   "kernel_design": "pigment effect_math::EffectBlurKernel { Tent (default), Gaussian }, taps()/support(); DropShadowOp and InnerShadowOp carry blur_kernel (with_blur_kernel, serde-skipped when Tent so existing plan encodings are unchanged); EffectOp::blur_kernel() (Tent for every other kind); reference matte_chain_with, effect_support_px/grown_support and the window ChainPlan::with_kernel use the op's kernel. Gaussian = coverage_math::feather_kernel / feather_support (sigma size/2, support ceil(3 sigma)), bit-identical to the pre-30ea18e kernel. render-gpu fx: blur_kind(op.blur_kernel) -> BlurKind::Gauss (feather_kernel taps) for drop/inner shadow via matte_chain_with; every other pass keeps BlurKind::Tent. Record path: folio raster StudioEffectBlurKernel { tent, gaussian } as optional blur_kernel on the DropShadow and InnerShadow kinds (absent = tent, not encoded when absent; additive, old documents unchanged); composite lower_extensions shadow_blur_kernel maps it; interop-psd writes None (Photoshop tent); interop-fig writes Some(gaussian) for DROP_SHADOW and INNER_SHADOW. Figma FOREGROUND_BLUR/BACKGROUND_BLUR already map to StudioEffectKind::Blur (pigment blur_math), not affected by 30ea18e.",
+   "figma_blur_rule": "sigma = radius / 2. Sources: Figma plugin API Effect docs (developers.figma.com/docs/plugins/api/Effect: radius = 'The blur radius of the shadow', no sigma stated); Figma help 'Apply effects to layers' (help.figma.com/hc/en-us/articles/360041488473): 'Both shadow effects translate to the box-shadow property in CSS'; CSS Backgrounds 3 section 6.1.2 Blurring Shadow Edges: box-shadow blur approximates a Gaussian with standard deviation equal to half the blur radius. That Figma's own rasteriser equals this Gaussian is UNVERIFIED (D5).",
+   "measured": "fig_paints_2 bold_text_renders_with_the_inter_bold_fixture artboard: pin (measured at 1e232f9 with the Gaussian) p99 5.697709 mean 0.920768; R36 at a105766 (tent) p99 5.700324 mean 0.907880; after the fix at 9c48de8 p99 5.697709 mean 0.920768, within 2/255 0.967568, within 8/255 0.993241, text region mean 3.862939 / 0.914453 within 8 (all identical to the pin). No re-pin: the measured p99 equals the pinned measurement. The tent gave a lower mean but a higher p99; the Gaussian is the documented Figma/CSS rule, so the original pins stand. basic_shapes_artboard_remeasured_with_image_fill mean 1.517853, image probes mean 1.925695 (unchanged pins hold).",
+   "v4_06_sites": "class figma_parity_bound_regressed_by_effect_blur_change, regex 'effect_blur_kernel|effect_blur_support|BlurKind::Tent' over pigment src and render-gpu src: effect_math.rs effect_support_px DropShadow (fixed: op kernel), grown_support InnerShadow (fixed) / OuterGlow / InnerGlow (n/a: no Figma mapping, Photoshop tent kept), matte_chain (now matte_chain_with; DropShadow/InnerShadow reference and interior mattes fixed, glows n/a); window.rs ChainPlan (DropShadow/InnerShadow fixed via with_kernel; glows/stroke n/a), window.rs prepare satin/bevel kernel (n/a, Photoshop-only kinds); style.rs satin/bevel soften x5 (n/a); render-gpu fx.rs matte_chain DropShadow/InnerShadow (fixed via matte_chain_with), OuterGlow/InnerGlow/stroke (n/a), satin blur_into Tent (n/a), bevel soften Tent (n/a). interop-fig maps only DROP_SHADOW, INNER_SHADOW (fixed) and FOREGROUND/BACKGROUND_BLUR (blur_math, n/a). Count: 6 fixed, rest n/a.",
+   "tests_added": "pigment effects.rs gaussian_kernel_is_selected_per_shadow (defaults, hand Gaussian taps, supports, hostile sizes, matte of a delta, serde skip); effect_window.rs all_ops + Gaussian drop shadow and inner shadow (bit identity, budgets, support margin); render-gpu gpu_plan fx_wave1 parity + Gaussian drop + inner shadow case (passed in rr1; tests/gpu-proof.toml require_gpu = true, so a pass is an adapter run, not NOT_PROVEN); interop-fig fig_geometry asserts blur_kernel gaussian on the mapped shadow.",
+   "paths_touched_beyond_lane_crates": "hsk-studio-folio/src/raster.rs (additive optional record field), hsk-studio-interop-psd/src/effects.rs (blur_kernel: None), hsk-studio-composite/src/lower_extensions.rs, hsk-studio-interop-fig src/effects.rs + tests/fig_geometry.rs: required because the kernel choice has to travel from the Figma importer through the Folio record and composite lowering to the pigment op; not touched: composite tests/render_plan_lowering.rs (SMB-PS-ORACLE-PARITY-2). No new dependency; Cargo.lock not committed."
+  },
   "worktree": "wt-studio-lanes/smb-ps-oracle-parity-1 (branch lane/smb-ps-oracle-parity-1); STUDIO_OWNER=smb-ps-oracle-parity-1; run 1 on D: (2026-10-16), re-run on the C: SSD slot per the Operator build strategy of 2026-10-20",
   "setup": "first worktree add -b created the branch but failed on a transient assets-repository/config lock; the worktree was then added on the existing branch. lane-gameplan.sh printed OK",
   "oracle": "Photoshop 27.11.0 D5 corpus <oracle corpus root>/adobe-session/photoshop (pins unchanged); evidence research/d5-photoshop-compare-20261016.json",

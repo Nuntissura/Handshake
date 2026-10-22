@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-22T05:55:26Z",
+ "updated_at": "2026-10-22T06:29:27Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -8917,8 +8917,8 @@
   {
    "lane_id": "SMB-PS-ORACLE-PARITY-1",
    "crate": "pigment + render-cpu + render-gpu",
-   "phase": "remediation",
-   "status": "FAIL_V1",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "owner": "builder-ps-oracle-parity-20261016",
    "commits": [
     "30ea18e",
@@ -8926,12 +8926,14 @@
     "a95f819",
     "819880b",
     "d69a277",
-    "f9b2fd7"
+    "f9b2fd7",
+    "b2b43fc R36 remediation: pigment EffectBlurKernel {Tent default, Gaussian} on DropShadow/InnerShadow ops; render-gpu mirror",
+    "9c48de8 R36 remediation: Folio optional blur_kernel field, composite lowering, interop-psd absent, interop-fig gaussian (sigma = radius/2, CSS box-shadow reading; Figma renderer UNVERIFIED)"
    ],
    "verdicts": [
     "STUDIO-R36 FAIL_V1 @a105766 (fig_paints_2::bold_text_renders_with_the_inter_bold_fixture crates/hsk-studio-interop-fig/tests/fig_paints_2.rs:125; keep Figma shadow blur on its own kernel or re-measure fig_paints_2 with evidence; run interop-fig and all dependents; attributed elsewhere: SMB-PS-ORACLE-PARITY-2, flaky (no lane): wall-clock audio device; NOT_PROVEN lines: 21, see round-R36.json)"
    ],
-   "note": "Photoshop oracle MATCH 196->340 (no regressions): tent effect kernel, offsets, knockout, interior alpha, special-8 fill, levels toe, Blend-If ramps. Satin/soften re-pins UNVERIFIED (rescript requested). render-gpu concurrent timeouts = infra (pass alone 13/13). Gaps: ~100 spread/choke/stroke corners, gamma 1.5 toe, this-gray Blend-If, 8-bit quantisation, C14/C16, Lab->SWOP",
+   "note": "Photoshop oracle MATCH 196->340 (no regressions): tent effect kernel, offsets, knockout, interior alpha, special-8 fill, levels toe, Blend-If ramps. Satin/soften re-pins UNVERIFIED (rescript requested). render-gpu concurrent timeouts = infra (pass alone 13/13). Gaps: ~100 spread/choke/stroke corners, gamma 1.5 toe, this-gray Blend-If, 8-bit quantisation, C14/C16, Lab->SWOP | R36 FAIL_V1 remediated 2026-10-22: Figma-sourced shadows keep a Gaussian kernel, Photoshop paths keep the tent; fig_paints_2 back to its pin (p99 5.697709, mean 0.920768, no re-pin); lead waiver for carrier edits in folio raster.rs, composite lower_extensions.rs, interop-psd effects.rs, interop-fig effects.rs/fig_geometry.rs; R37 judges",
    "lane_file": "builders/lanes/hsk-studio-ps-oracle-parity-1.json",
    "remediation": {
     "failed_acceptance_refs": [
@@ -8954,7 +8956,7 @@
      "hsk-studio-interop-fig::fig_paints_2::bold_text_renders_with_the_inter_bold_fixture"
     ]
    },
-   "candidate": "a105766"
+   "candidate": "9c48de8"
   },
   {
    "lane_id": "SMB-PS-ORACLE-RESCRIPT",
