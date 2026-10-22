@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-22T07:13:26Z",
+ "updated_at": "2026-10-22T07:27:29Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9211,6 +9211,23 @@
    ],
    "verdicts": [],
    "note": "GUI reachability gap (gui-surfaces.json): layout editor F5, program monitor F6, prototype player F12 now reachable in the desktop build; source monitor F7, mixer F8, waveform editor F9, spectral display F11 with feature audio-batch (greyed otherwise, label names the feature); Open/Save/Export via dialogs; Ctrl+O/S/Shift+S/W/Z/Y. No dependency added. Whole suites of the three crates (desktop,audio-batch): 162/162, re-run after rebase onto 09a5b29. Gaps: menus/dialog not via hsk-studio-controls descriptors (STU-ARC-014, out of lane); layout editor edits not saved (layout_ui needs a save API); program monitor on a document sequence has no frame decoder; recent files persist only with --recent; no HELP menu; harness DESCRIPTOR not_proven mask entry stale. R37 judges."
+  },
+  {
+   "lane_id": "SMB-LAYOUT-COMPOSER-WIRING",
+   "crate": "hsk-studio-folio (type style records) + hsk-studio-layout + hsk-studio-interop-layout",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "blocked_on": null,
+   "owner": "builder (Opus, lead dispatch 2026-10-22)",
+   "lane_file": "builders/lanes/hsk-studio-layout-composer-wiring.json",
+   "candidate": "8ab5155",
+   "commits": [
+    "d09e3e6 + c2055c7 + 8ab5155 Folio StudioCompositionSettings (composition_scope/engine, hyphenation, H&J fields) on StudioTypeStyleRecords: style_composition + paragraph_composition override (text_id + paragraph_start)",
+    "a187176 layout: settings resolve through based_on then local override; single_line -> Adobe Single-line, every_line -> Paragraph composer; FirstFit when absent; TypesetOptions.hyphen_advance_pt",
+    "c3b7fbc interop-layout IDML import_type_styles maps Composer ('HL Composer'/'HL Single'), hyphenation and justification attributes; reflow_import_typeset composes from them"
+   ],
+   "verdicts": [],
+   "note": "InDesign top gap 1 (parity-indesign.json): Adobe-parity composers now reachable through the document model and IDML import. Bundled run 225/225 (folio, layout, interop-layout whole suites; D5 ID tests ran with the host Arial present); 15 new tests incl. adversarial XML. Still default/lost: IDML Justification, fonts, size, leading, indents; no IDML export; hyphen_weight and hyphenate_across_columns stored without effect; [No paragraph style] paragraphs get the root settings as an approximated loss. UNVERIFIED: hyphen width estimate font size/3, single-word LeftAlign/CenterAlign/RightAlign values, World-Ready/Japanese composer values. Spec gaps for the lead: no FirstFit value, no H&J defaults, use_auto_leading merged with line_height Auto, 'longer than' vs 'at least' for min word length, no local-override storage contract, composer registry/balance-ragged/nine-value justification not stored. R37 judges."
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
