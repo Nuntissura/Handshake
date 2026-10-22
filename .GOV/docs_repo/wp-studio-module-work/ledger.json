@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-22T21:40:45Z",
+ "updated_at": "2026-10-22T23:38:07Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9671,17 +9671,24 @@
   {
    "lane_id": "SMB-TIMELINE-UI-1",
    "crate": "hsk-studio-harness-view (view/timeline*.rs, registration + Workspace menu hunks) + hsk-studio-pulse (snap.rs additive)",
-   "phase": "build",
-   "status": "BLOCKED",
-   "blocked_on": "two headless drag tests fail (viewer_timeline.rs:372/:421: the synthetic pointer drag never trims the clip); 4 bundled runs (221 passed / 2 failed); pre-existing viewer defect F-TL-1 (toolbar separators in horizontal_wrapped take the full height and squeeze bottom panels) fixed under lead waiver (56d963f) but did not clear the tests; fresh diagnostics agent dispatched (one probe + one confirming run)",
+   "phase": "ready",
+   "status": "READY_FOR_VALIDATION",
+   "blocked_on": null,
    "owner": "builder (Opus) -> diagnostics (Opus), lead dispatch 2026-10-22",
    "lane_file": "builders/lanes/hsk-studio-timeline-ui-1.json",
-   "candidate": null,
+   "candidate": "5ab33c9",
    "commits": [
-    "(local only, lane/smb-timeline-ui-1 on e3953de) 1fafd92 pulse snap targets; 4185b59 timeline panel (WORKSPACE > Panels > Timeline F10: ruler, tracks, clips, playhead, markers, work-area bar; trim/lift/ripple/razor/move via pulse as single undo steps); a994595 tests; cd3d85a 0bc2a81 e1c014c 56d963f fixes"
+    "23c2376 pulse snap targets (edit points, markers, work area, playhead)",
+    "7eac4c6 timeline panel: WORKSPACE > Panels > Timeline (F10), ruler, tracks, clips, playhead",
+    "27aafd2 headless tests: menu/F10, pixel placement, drag trim via pulse with undo",
+    "8992a13 checked tick division / float positions (clippy)",
+    "f75249c toolbar spacing instead of full-height separators",
+    "cdb484b one-row scrolling toolbar; program monitor follows undo/redo",
+    "62ad523 harness-view toolbar: bound wrapping toolbar rows to one line height (F-TL-1, lead waiver)",
+    "5ab33c9 drag tests: settle the layout before aiming the pointer (diagnosis: first-frame layout shifts 35 px on frame 2; F-TL-2)"
    ],
    "verdicts": [],
-   "note": "Premiere/AE/Audition GUI 0 % gap: first timeline surface; not pushed until the two drag tests pass (never push a lane with failing own tests)"
+   "note": "Premiere/AE/Audition GUI 0 % gap: first timeline surface; not pushed until the two drag tests pass (never push a lane with failing own tests) | 2026-10-23 READY at 5ab33c9 (pushed 23b1bb7..5ab33c9, lane paths only + registration hunks in view/mod.rs, shell.rs): confirming bundled run 223 passed / 0 failed / 20 skipped (harness-view, harness, pulse whole suites + clippy) at c48872d, rebased over the steward's run-round.sh commit only. Diagnosis H3: the test aimed the pointer at the first egui frame; panels sit 35 px lower from frame 2; fix in the test file (settle()). F-TL-2 recorded (headless pointer tests settle layout first). Unfixed observation: viewer top bars end at y 825 on a 1200 px screen (~800 px tall), unverified in the real window; toolbar owner to look. No Folio record field: rule 4b not triggered."
   },
   {
    "lane_id": "SMB-EPS-FREE-FONTS",
