@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-22T06:57:49Z",
+ "updated_at": "2026-10-22T07:13:26Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9192,6 +9192,25 @@
    ],
    "verdicts": [],
    "note": "Lightroom export parity gap (LR top gap 4): TIFF export 8/16-bit, None/LZW/ZIP(+predictor), LE/BE, BigTIFF, dpi, metadata, sRGB/Display P3 with embedded profile; typed refusals incl. colour_space_profile_missing (adobe_rgb_1998/prophoto_rgb: no profile in corpus). Missing: DNG writer, resize/output sharpening, STU-COL-132 embed selection. Bundled run 264/264 (pre-rebase tree; rebase brought interop-fig/web only). Lead-accepted scope exception: small hunks in harness cli.rs and harness-view view/develop.rs (DevelopExport::Tiff). Lightroom parity UNVERIFIED (no oracle). R37 judges."
+  },
+  {
+   "lane_id": "SMB-HARNESS-SHELL-1",
+   "crate": "hsk-studio-harness-view + hsk-studio-harness (+ harness-core hooks)",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "blocked_on": null,
+   "owner": "builder (Opus, lead dispatch 2026-10-22)",
+   "lane_file": "builders/lanes/hsk-studio-harness-shell-1.json",
+   "candidate": "45f04b2",
+   "commits": [
+    "2defb17 menu bar (STU-SHL naming: WORKSPACE > Panels), own egui file dialog (view/file_dialog.rs), recent files, panel hosting",
+    "5605a52 fix",
+    "9ca2c59 studio-harness --recent LIST; RUN-UI.md",
+    "1f0e945 tests/viewer_shell.rs (AccessKit clicks, F-key events, hostile paths/recent lists)",
+    "45f04b2 fix"
+   ],
+   "verdicts": [],
+   "note": "GUI reachability gap (gui-surfaces.json): layout editor F5, program monitor F6, prototype player F12 now reachable in the desktop build; source monitor F7, mixer F8, waveform editor F9, spectral display F11 with feature audio-batch (greyed otherwise, label names the feature); Open/Save/Export via dialogs; Ctrl+O/S/Shift+S/W/Z/Y. No dependency added. Whole suites of the three crates (desktop,audio-batch): 162/162, re-run after rebase onto 09a5b29. Gaps: menus/dialog not via hsk-studio-controls descriptors (STU-ARC-014, out of lane); layout editor edits not saved (layout_ui needs a save API); program monitor on a document sequence has no frame decoder; recent files persist only with --recent; no HELP menu; harness DESCRIPTOR not_proven mask entry stale. R37 judges."
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
