@@ -1,0 +1,66 @@
+{
+  "crate": "hsk-studio-folio (composition effect-stack records, submodule composition/effects.rs), hsk-studio-composite (SceneContent::Effected, composition/effect_stack.rs CPU kernels, temporal/composition/effects.rs lowering); renderer proof test in hsk-studio-render-cpu/tests (decision B1)",
+  "lane": "SMB-AE-EFFECT-STACK-1",
+  "status": null,
+  "phase": "3 slices committed LOCALLY in lane worktree wt-studio-lanes/smb-ae-effect-stack-1 (9d177e5, dde603e, c733641), NOT pushed; bundled run not yet executed: paused by lead order 2026-10-23 (global gameplan hook hard-blocking gated commands); golden digest pins still placeholders 'PIN' (must be filled from the first run before any push)",
+  "commits": [
+    {"sha": "9d177e5", "subject": "Studio AE-17: Folio per-layer composition effect stack records with STU-FX-131 parameter rows and hard-bound refusals (SMB-AE-EFFECT-STACK-1 slice 1)", "pushed": false},
+    {"sha": "dde603e", "subject": "Studio AE-17: composite lowers the layer effect stack into SceneContent::Effected with distort and generate CPU kernels (SMB-AE-EFFECT-STACK-1 slice 2)", "pushed": false},
+    {"sha": "c733641", "subject": "Studio AE-17: render-cpu proof of the composition effect stack against the host kernels (SMB-AE-EFFECT-STACK-1 slice 3)", "pushed": false}
+  ],
+  "capabilities_done": [
+    "slice 1 folio: StudioCompositionLayer.effects (ordered StudioCompositionEffect: effect_id stack-local key, filter_kind twirl|spherize|offset|polar_coordinates|gradient_ramp|circle|checkerboard, enabled default true, solo default false, entry opacity percent default 100, values keyed by param_key as StudioKeyedValue); serde default + skip so records without a stack are byte-identical; StudioEffectParamSpec rows per kind (param_key, param_index, display_name, kind scalar|angle|point_2d|color|enumeration, hard_min/hard_max/soft_min/soft_max as four separate Option fields, bound_state, default, unit, precision, animatable, interpolable, options with source index gaps kept); validation: count <= MAX_LAYER_EFFECTS 128 (BudgetExceeded), id grammar, DuplicateIdentity, unknown param key, component count, finite values, hard bound -> InvalidField .../{param}/effect_param_out_of_range (static and keyframe values), enumeration = exact option index and hold-only keys, entry opacity 0..=100",
+    "slice 2 composite: SceneContent::Effected(EffectedContent{content, rect, mask, effects}); effected_surface renders the content over the rect, multiplies folded layer-space mask coverage (STU-CMP-010 step 2), premultiplies, runs apply_effects in stack order with per-entry mix (STU-FX-008 opacity), converts back to straight, records exactness key composition_effect_stack Approximate; kernels (pub apply_effects, f64 maths, bilinear at texel centres): Twirl (linear falloff), Spherize (asin hemisphere), Offset (wrap), Polar Coordinates (rect_to_polar / polar_to_rect + interpolation), Gradient Ramp (linear/radial + blend with original), Circle (AA edge or outward feather, replace/over), Checkerboard (cells from anchor, replace/over); hostile input refused before allocation: EffectError Parameter(index)/Shape/OverBudget (128 entries, entries x pixels <= 2^34)/Canceled, surfaces charged before allocation",
+    "slice 2 adapter: CompLayer.effects read at source build (disabled dropped, solo honoured, keyed values -> motion Property); at a tick values sampled, hard bounds re-checked (InvalidState effect_param_out_of_range, never clamped), point_2d fractions of layer size -> surface px, masks folded into the content (no composition-space mask matte; a 3D plane skips its own mask application when folded); typed refusals composition_effect_option (generator blending modes other than None/Normal, Circle edge != None, non-zero feather inner edge, non-zero ramp scatter, non-zero checkerboard feather) and composition_effect_content (null/adjustment/collapsed-precomp layer, document-graph path)",
+    "slice 3 render-cpu: tests/composition_effect_stack.rs renders every golden stack through the CPU backend and compares with the host kernels (tolerance 1e-6) on several chunk/thread settings"
+  ],
+  "tests": {
+    "argv": "cd <lane>/handshake-studio-assets && bash <GOV>/tools/lane-check.sh --owner smb-ae-effect-stack-1 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-composite -p hsk-studio-render-cpu -p hsk-studio-package --features hsk-studio-composite/motion --no-fail-fast",
+    "exit": null,
+    "sha": null,
+    "passed": null,
+    "failed": null,
+    "detail": "NOT RUN. New tests (not yet executed): folio composition_effect_records.rs (effect_stack_records_round_trip_and_an_absent_stack_is_byte_identical, parameter_rows_keep_hard_and_soft_bounds_apart_and_defaults_are_legal, hostile_effect_records_are_refused_typed); composite composition_effects.rs (distort_and_generate_kernels_match_pinned_digests_and_hand_values [12 golden digests, pins = 'PIN' placeholders until the first run prints them], hostile_effect_parameters_are_refused_before_allocation, folio_effect_stacks_render_through_render_scene_in_stack_order); render-cpu composition_effect_stack.rs (effect_stacks_render_on_the_cpu_backend_like_the_host_kernels). Package suite included per rule 4b (new Folio fields effects/effect_id/filter_kind/enabled/solo/opacity/values contain no externals vocabulary word)."
+  },
+  "blockers": [
+    {"error": "Lead order 2026-10-23: global gameplan hook hard-blocks gated commands ('confirm_binding target missing: .../wtc-WP-KERNEL-012 | GLOBAL-GAMEPLAN-001', reported by the lead); no bundled run or gated command until the lead says the hook is off. This lane did not itself hit the hook block.", "file_line": "n/a (infrastructure)", "attempts": 0},
+    {"error": "Earlier lock timeout (not a product failure): a cargo check on D: gave up after 7200 s ('disk-build-lock: gave up after 7200s waiting for run-round studio-round (run-round --all sha e3953dea1b69 ... R38-canary)'); the subsequent bundled run (lock timeout 28800 s) was stopped by this builder (own processes) while still queued, on the lead's pause order; it had compiled nothing.", "file_line": "n/a", "attempts": 0}
+  ],
+  "lock_wait_s": 11677,
+  "bg_pids": [],
+  "next": "When the lead lifts the pause: one bundled lane-check run (argv above) on D:; read the 12 'GOLDEN <case> <digest>' lines from the golden test failure output, pin them in crates/hsk-studio-composite/tests/composition_effects.rs GOLDEN, fix any other failure in one commit, re-run once; then fetch + rebase onto origin/codex/handshake-studio-assets, diff --stat check, guarded push, set READY_FOR_VALIDATION.",
+  "updated_at": "2026-10-23T01:22:51Z",
+  "notes": {
+    "spec_basis (v02.221 module 14)": {
+      "STU-FX-001": "\"A filter or effect applied to any `StudioLayer` is recorded as a `StudioLiveFilter` node inside that layer's `StudioEffectStack` ..., never as a destructive pixel/geometry mutation of the layer's source data.\"",
+      "STU-FX-002": "\"A `StudioEffectStack` is an ordered list of `StudioLiveFilter` entries. Each entry carries: `filter_kind` ..., typed parameter payload, an optional `StudioMask` reference ..., a `StudioBlendMode` + opacity ..., an `enabled` flag, and an `render_scope` (`layer` | `below` | `group`)\"",
+      "STU-FX-003": "\"Every stack entry is re-editable, reorderable, maskable, and individually enable/disable-able ... Reordering two entries re-composes the stack in the new order deterministically.\"",
+      "STU-FX-008": "\"Each stack entry composes onto the accumulated result using its `StudioBlendMode` + opacity, exactly as a layer blends\"",
+      "STU-FX-011": "\"Effect evaluation is deterministic: given the same source data, parameters, mask, seed, and `StudioColorProfile`, the `RenderEngine` MUST produce byte-stable output for a given backend\"",
+      "STU-FX-011b": "\"an effect parameter exposed to motion is the same typed field, sampled per frame, and the effect re-evaluates deterministically per timeline sample\"",
+      "STU-FX-104": "\"A value outside `[hard_min, hard_max]` is an ERROR, not a clamp: the typed command surface MUST reject it with a determinate `EFFECT_PARAM_OUT_OF_RANGE` result\"",
+      "STU-FX-105": "soft bounds \"are NOT a validation surface. An operator or a model MAY set a value outside the soft range and inside the hard range; doing so is legal\"",
+      "STU-FX-106/107": "bound_state enumeration; \"Collapsing hard and soft bounds into one range is FORBIDDEN\"",
+      "STU-FX-112": "kinds incl. `angle` \"wraps rather than clamps unless a hard bound is declared\", `point_2d` \"stored as fractions of layer size by default\", `enumeration` \"1-based index into `options`\"",
+      "STU-FX-116a": "\"Enumerated option indices are STABLE\"",
+      "STU-FX-130/131": "Distort catalogue rows Twirl (ADBE Twirl, 4 typed params), Spherize (ADBE Spherize, 3), Offset (ADBE Offset, 3), Polar Coordinates (ADBE Polar Coordinates, 3); Generate rows Gradient Ramp (ADBE Ramp, 9), Circle (ADBE Circle, 13), Checkerboard (ADBE Checkerboard, 13); their 14.9.4 parameter tables reproduced row for row",
+      "STU-CMP-010": "\"3. **Effects.** Evaluate the `StudioEffectStack` in stack order ([STU-FX-002]). Effects therefore see MASKED content\"; STU-CMP-010b \"masks are applied BEFORE effects, and the transform is applied AFTER effects\""
+    },
+    "UNVERIFIED (D5 oracle)": [
+      "all kernel formulas are Studio readings: Twirl linear falloff and radius = Twirl Radius % of the larger layer side; Spherize asin hemisphere mapping, radius in layer px; Offset moves the layer centre to Shift Center To with wrap; Polar Coordinates centring, radius = half the smaller side, angle 0 up clockwise, linear interpolation of the sample point; Gradient Ramp degenerate cases; Circle 1-px AA edge and linear outward feather; Checkerboard parity (anchor cell coloured); generator Blending Mode None = replace, Normal = source-over",
+      "Twirl Angle row recorded hard/soft 0..0 read as the capture's no-range encoding (bound_state unbounded_in_source), not as a hard bound admitting only 0",
+      "effect solo switch semantics (only enabled soloed entries run)",
+      "trigonometric kernels use platform libm: pinned digests are per platform (STU-FX-011 'for a given backend')"
+    ],
+    "gaps_left": [
+      "entry StudioMask reference (STU-FX-004), entry blend modes other than normal (STU-FX-008), render_scope below|group, colour-parameter StudioColorProfile reference (STU-FX-118)",
+      "refused options: generator blending modes other than None/Normal, Circle Edge options 2-5 and inner feather, Ramp Scatter > 0, Checkerboard feather, 4-Color Gradient jitter (kind not implemented)",
+      "not implemented kinds: Wave Warp (recorded rows inconsistent: Direction ANGLE hard 1..32000, Phase ANGLE -100..100), Bulge, Ripple, Magnify, Mesh Warp, Turbulent Displace, Power Pin, Blob Displace, 4-Color Gradient, Fill (PATH param), and every row without typed parameters (STU-FX-146 gap)",
+      "effects on adjustment layers (STU-CMP-015) and on the document-graph path refused typed",
+      "GPU: no render-gpu proof file; the stack runs on the host after the backend renders the layer, so GPU frames differ only by the layer render"
+    ],
+    "build_disk": "SSD slot refused at env sourcing 2026-10-22T21:56Z: 'studio-env: C:/HandshakeBuild/WP-KERNEL-STUDIO held 140 GiB at 2026-10-22T21:56:32Z > cap 140 GiB (Operator grant CX-984-014: 150 GB); SSD build refused (77).' -> moved to D: (target Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-effect-stack-1/target); no process ever ran on C:; Operator decision 2026-10-23 (no builds on C:) already satisfied; C: target untouched.",
+    "render-cpu": "no render-cpu source changed (kernels live in composite: composite cannot depend on render-cpu without a new module edge); only an additive test file",
+    "process_notes": "gameplans not created/checked (retired; Operator 2026-10-23 ignore hooks); one dev-time cargo check attempt timed out on the lock (counted in lock_wait_s)"
+  }
+}
