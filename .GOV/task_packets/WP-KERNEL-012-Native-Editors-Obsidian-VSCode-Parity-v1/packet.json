@@ -1,4 +1,78 @@
 {
+  "operator_engine_profiles_binding_20261023": {
+    "decision_id": "WP012-ENGINE-PROFILES-BINDING-20261023",
+    "recorded_at_utc": "2026-10-23T00:12:14.972572Z",
+    "status": "APPROVED_SCOPE_SOURCE_AND_HOST_DEPENDENCIES_PENDING",
+    "authority_source": {
+      "kind": "DIRECT_HUMAN_SCOPE_APPROVAL_RELAYED_BY_MASTER",
+      "message_id": null,
+      "message_date": null,
+      "exact_message_timestamp": null,
+      "signature_invented": false,
+      "operator_quotes": [
+        "this is part of the dexterity kit wich is part of the hskernel module. this is the model router and engine selector ... dexterity should have engine profiles so we can easily match prefab settings, models, engines. this is scope expantions and gets my waiver ... implement it into handshake hskernel under the dexterity kit (this was part of wp multi model orchestration).",
+        "engine profiles should be inside the settings inside its own tab. so selecting a model in the chatbox actually selects a profile.",
+        "use this small npu based model and the larger 4b abliterated model for cpu as test proof. both models and engines worked for tanuki."
+      ]
+    },
+    "spec_binding": {
+      "entrypoint": ".GOV/spec/SPEC_CURRENT.md",
+      "enrichment_version": "v02.222",
+      "module_path": ".GOV/spec/master-spec-v02.222/spec-modules/04-llm-infrastructure.md",
+      "anchor": "4.3.7.6",
+      "normative_ids": [
+        "DEX-EP-001",
+        "DEX-EP-002",
+        "DEX-EP-003",
+        "DEX-EP-004",
+        "DEX-EP-005",
+        "DEX-EP-006",
+        "DEX-EP-007",
+        "DEX-EP-008",
+        "DEX-EP-009",
+        "DEX-EP-010",
+        "DEX-EP-011",
+        "DEX-EP-012",
+        "DEX-EP-013",
+        "DEX-EP-014",
+        "DEX-EP-015",
+        "DEX-EP-016",
+        "DEX-EP-017",
+        "DEX-EP-018",
+        "DEX-EP-019",
+        "DEX-EP-020",
+        "DEX-EP-021",
+        "DEX-EP-022",
+        "DEX-EP-023"
+      ],
+      "existing_anchors_preserved": [
+        "4.3.7.1",
+        "4.3.7.2",
+        "4.3.7.4",
+        "4.3.9.4.4"
+      ],
+      "disposition": "Minimum approved enrichment, not a waiver or supersession of CX-SPEC-TRUTH-001; original WP012 governance pin and settled acceptance unchanged."
+    },
+    "mt_bindings": {
+      "standalone_source": "MT-195.json",
+      "host_adoption": "MT-196.json",
+      "source_publication_independent_of_host_binding": true
+    },
+    "owners": {
+      "source_invocation_proof_publication": "01a15c29-11d3-7ae0-be4e-804a86c28a5d",
+      "primary_product_git_manifests_locks_compiler": "01a15e8a-2b54-79a0-91a2-7304d67cbddc",
+      "host_ram_team": "01a165da-ecdb-7a40-8504-6918286033ee",
+      "source_facts_ram_team": "01a165da-6123-7e93-b767-0cc1a984e54c",
+      "worker_ram_team": "01a165e1-af19-7001-ad2b-b1a744890c83",
+      "independent_codecheck": "01a15ea5-f32e-7643-8fcd-534a3f64cc57"
+    },
+    "required_additional_proofs": [
+      "Genuine Qwen3-0.6B through GenieX QAIRT on NPU.",
+      "Genuine Qwen3-4B-abliterated Q4_0 through GenieX llama_cpp on CPU. Historical 4B proof was NPU, not CPU."
+    ],
+    "preservation": "All original Chat, WP012, CKC and WP1 scope, pins, acceptance, independent verdicts, historical failures and scoped allowances remain. No MT174/auth/capture recovery edit, Source29 host-supplier grant, Native policy-denial retry, attempt reset, fake inputs/auth, fabricated run_id or automatic model/runtime permission.",
+    "activation_condition": "Planner-backed profile/Settings source work may begin after the recorded planner proof/pin/reread and an actual nonoverlapping Primary file-window assignment compatible with current compiler freeze. Only launch-adapter changes, new worker adoption/use and whole-MT acceptance require the separately published/proven compatible worker pin and reread. No write window, worker custody or runtime permission is granted by this record."
+  },
   "operator_memory_reserve_removal_20261014": {
     "decision_id": "WP012-MEMORY-RESERVE-REMOVAL-20261014",
     "status": "APPROVED_ACTIVE",
