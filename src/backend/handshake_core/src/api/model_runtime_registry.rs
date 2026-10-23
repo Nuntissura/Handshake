@@ -1180,3 +1180,116 @@ mod tests {
         assert!(serde_json::from_value::<SelectReadyModelRequest>(ambiguous_retry).is_err());
     }
 }
+
+
+pub fn engine_profile_routes(state: crate::AppState) -> Router {
+    Router::new()
+        .route(
+            "/workspaces/:workspace_id/engine-profiles",
+            get(engine_profiles_list).post(engine_profiles_mutate),
+        )
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.clone(), crate::api::authority::require_authenticated_session,
+        ))
+        .with_state(state)
+}
+
+type EngineProfileApiError = (StatusCode, Json<Value>);
+
+fn engine_profile_api_error(error: crate::model_runtime::EngineProfileError) -> EngineProfileApiError {
+    use crate::model_runtime::EngineProfileError as Error;
+    let status = match &error {
+        Error::InvalidProfile | Error::FingerprintMismatch => StatusCode::BAD_REQUEST,
+        Error::Conflict => StatusCode::CONFLICT,
+        Error::ProfileUnavailable => StatusCode::NOT_FOUND,
+        Error::ScopeDenied => StatusCode::FORBIDDEN,
+        Error::CapacityExceeded => StatusCode::PAYLOAD_TOO_LARGE,
+        Error::Integrity => StatusCode::INTERNAL_SERVER_ERROR,
+        Error::StorageUnavailable => StatusCode::SERVICE_UNAVAILABLE,
+    };
+    (status, Json(json!({"error": error.to_string()})))
+}
+
+async fn engine_profile_authority(
+    state: &crate::AppState,
+    headers: &axum::http::HeaderMap,
+    workspace_id: &str,
+    write: bool,
+) -> Result<(
+    crate::api::authority::AuthorizedResourceContext,
+    ExactResourceScopeAttribution,
+), EngineProfileApiError> {
+    use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+    use crate::swarm_orchestration::resource_scope::{
+        AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId, WorkspaceScopeRef,
+    };
+    let authority = crate::api::authority::authorize_request(
+        state, headers, if write { "fs.write" } else { "fs.read" },
+        ResourceKind::Workspace, workspace_id,
+        if write { ResourceAction::Update } else { ResourceAction::Read },
+    ).await?;
+    let parse = |value: &str| -> Result<Uuid, EngineProfileApiError> {
+        let value = Uuid::parse_str(value)
+            .map_err(|_| crate::api::authority::constant_denial())?;
+        if value.is_nil() { return Err(crate::api::authority::constant_denial()); }
+        Ok(value)
+    };
+    let scope = ExactResourceScopeAttribution {
+        owner_account_id: OwnerAccountId::from_uuid(parse(&authority.account_id)?),
+        actor_principal_id: ActorPrincipalId::from_uuid(parse(&authority.principal_id)?),
+        authenticated_session_id: AuthenticatedSessionRef::from_uuid(parse(&authority.session_id)?),
+        access_space_id: AccessSpaceRef::from_uuid(parse(&authority.access_space_id)?),
+        workspace_id: WorkspaceScopeRef::new(workspace_id.to_owned())
+            .map_err(|_| crate::api::authority::constant_denial())?,
+    };
+    Ok((authority, scope))
+}
+
+async fn engine_profile_run_scoped<T>(
+    state: &crate::AppState,
+    authority: &crate::api::authority::AuthorizedResourceContext,
+    workspace_id: &str,
+    operation: impl std::future::Future<Output = T>,
+) -> T {
+    let actor = match authority.actor_kind.as_str() {
+        "system" => crate::kernel::KernelActor::System(authority.actor_id.clone()),
+        "session_broker" => crate::kernel::KernelActor::SessionBroker(authority.actor_id.clone()),
+        "model_adapter" => crate::kernel::KernelActor::ModelAdapter(authority.actor_id.clone()),
+        "toolgate" => crate::kernel::KernelActor::ToolGate(authority.actor_id.clone()),
+        "validationrunner" => crate::kernel::KernelActor::ValidationRunner(authority.actor_id.clone()),
+        "promotiongate" => crate::kernel::KernelActor::PromotionGate(authority.actor_id.clone()),
+        _ => crate::kernel::KernelActor::Operator(authority.actor_id.clone()),
+    };
+    state.surreal.with_record_user_scope(
+        authority.record_user_scope.clone(),
+        crate::storage::surreal::event_ledger::with_loom_session_receipt(
+            actor, workspace_id.to_owned(), operation,
+        ),
+    ).await
+}
+
+async fn engine_profiles_list(
+    State(state): State<crate::AppState>,
+    AxumPath(workspace_id): AxumPath<String>,
+    headers: axum::http::HeaderMap,
+) -> Result<Json<crate::model_runtime::EngineProfileRegistryV1>, EngineProfileApiError> {
+    let (authority, scope) = engine_profile_authority(&state, &headers, &workspace_id, false).await?;
+    let store = SurrealModelRegistryStore::new(state.surreal.clone());
+    engine_profile_run_scoped(
+        &state, &authority, &workspace_id, store.list_engine_profiles(&scope),
+    ).await.map(Json).map_err(engine_profile_api_error)
+}
+
+async fn engine_profiles_mutate(
+    State(state): State<crate::AppState>,
+    AxumPath(workspace_id): AxumPath<String>,
+    headers: axum::http::HeaderMap,
+    Json(request): Json<crate::model_runtime::EngineProfileMutationRequestV1>,
+) -> Result<Json<crate::model_runtime::EngineProfileRegistryV1>, EngineProfileApiError> {
+    let (authority, scope) = engine_profile_authority(&state, &headers, &workspace_id, true).await?;
+    request.validate().map_err(engine_profile_api_error)?;
+    let store = SurrealModelRegistryStore::new(state.surreal.clone());
+    engine_profile_run_scoped(
+        &state, &authority, &workspace_id, store.mutate_engine_profile(&scope, request),
+    ).await.map(Json).map_err(engine_profile_api_error)
+}

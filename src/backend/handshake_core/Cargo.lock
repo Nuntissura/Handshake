@@ -3247,6 +3247,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "handshake_canonical_json"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=dc053f69bbe0e4117588f8d2d6d559f3629adbd4#dc053f69bbe0e4117588f8d2d6d559f3629adbd4"
+dependencies = [
+ "hex",
+ "serde_json",
+ "sha2 0.10.9",
+]
+
+[[package]]
 name = "handshake_capability_registry_document"
 version = "0.1.0"
 dependencies = [
@@ -3349,6 +3359,7 @@ dependencies = [
  "handshake_ckc_sheet_parser",
  "handshake_ckc_sheet_template",
  "handshake_contact_sheet",
+ "handshake_dexterity",
  "handshake_document",
  "handshake_document_surreal",
  "handshake_job_admission",
@@ -3421,6 +3432,16 @@ dependencies = [
  "yrs",
  "zeroize",
  "zip 0.6.6",
+]
+
+[[package]]
+name = "handshake_dexterity"
+version = "0.1.0"
+source = "git+https://github.com/Nuntissura/assets.git?rev=dc053f69bbe0e4117588f8d2d6d559f3629adbd4#dc053f69bbe0e4117588f8d2d6d559f3629adbd4"
+dependencies = [
+ "handshake_canonical_json",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

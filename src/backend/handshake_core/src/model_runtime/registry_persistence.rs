@@ -558,3 +558,252 @@ pub(crate) fn parse_provider(token: &str) -> Result<ProviderKind, ModelRegistryP
 fn model_runtime_validation_error(error: ModelRuntimeError) -> ModelRegistryPersistenceError {
     ModelRegistryPersistenceError::InvalidRegistration(error.to_string())
 }
+
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EngineProfileSnapshotV1 {
+    pub profile: handshake_dexterity::EngineProfile,
+    pub fingerprint: String,
+}
+
+impl EngineProfileSnapshotV1 {
+    pub fn new(profile: handshake_dexterity::EngineProfile) -> Result<Self, EngineProfileError> {
+        let resolved = handshake_dexterity::Registry::new(vec![profile.clone()])
+            .and_then(|registry| registry.resolve(&profile.id))
+            .map_err(|_| EngineProfileError::InvalidProfile)?;
+        Ok(Self { profile, fingerprint: resolved.fingerprint().to_owned() })
+    }
+
+    pub fn validate(&self) -> Result<(), EngineProfileError> {
+        if Self::new(self.profile.clone())?.fingerprint != self.fingerprint {
+            return Err(EngineProfileError::FingerprintMismatch);
+        }
+        Ok(())
+    }
+
+    pub fn identity(&self) -> EngineProfileIdentityV1 {
+        EngineProfileIdentityV1 {
+            profile_id: self.profile.id.clone(),
+            revision: self.profile.revision,
+            fingerprint: self.fingerprint.clone(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EngineProfileIdentityV1 {
+    pub profile_id: String,
+    pub revision: u64,
+    pub fingerprint: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EngineProfileDefinitionV1 {
+    pub profile_id: String,
+    pub revisions: Vec<EngineProfileSnapshotV1>,
+    pub head_generation: u64,
+    pub tombstoned: bool,
+}
+
+impl EngineProfileDefinitionV1 {
+    pub fn head(&self) -> Result<&EngineProfileSnapshotV1, EngineProfileError> {
+        self.revisions.last().ok_or(EngineProfileError::Integrity)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EngineProfileRegistryV1 {
+    pub registry_generation: u64,
+    pub profiles: Vec<EngineProfileDefinitionV1>,
+    pub active_generation: u64,
+    pub active: Option<EngineProfileIdentityV1>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "operation", rename_all = "snake_case", deny_unknown_fields)]
+pub enum EngineProfileMutationV1 {
+    Create { snapshot: EngineProfileSnapshotV1 },
+    NewRevision {
+        expected_head: EngineProfileIdentityV1,
+        expected_head_generation: u64,
+        snapshot: EngineProfileSnapshotV1,
+    },
+    Tombstone {
+        expected_head: EngineProfileIdentityV1,
+        expected_head_generation: u64,
+    },
+    Activate {
+        expected_head: EngineProfileIdentityV1,
+        expected_head_generation: u64,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EngineProfileMutationRequestV1 {
+    pub request_id: uuid::Uuid,
+    pub reason: String,
+    pub expected_registry_generation: u64,
+    pub expected_active_generation: u64,
+    pub mutation: EngineProfileMutationV1,
+}
+
+#[derive(Clone, Debug, thiserror::Error)]
+pub enum EngineProfileError {
+    #[error("engine_profile_invalid")]
+    InvalidProfile,
+    #[error("engine_profile_fingerprint_mismatch")]
+    FingerprintMismatch,
+    #[error("engine_profile_conflict")]
+    Conflict,
+    #[error("engine_profile_unavailable")]
+    ProfileUnavailable,
+    #[error("engine_profile_scope_denied")]
+    ScopeDenied,
+    #[error("engine_profile_integrity")]
+    Integrity,
+    #[error("engine_profile_capacity_exceeded")]
+    CapacityExceeded,
+    #[error("engine_profile_storage_unavailable")]
+    StorageUnavailable,
+}
+
+impl EngineProfileMutationRequestV1 {
+    pub fn validate(&self) -> Result<(), EngineProfileError> {
+        if self.request_id.is_nil() || self.reason.trim().is_empty()
+            || self.reason.len() > 512
+            || self.reason.chars().any(char::is_control)
+            || self.expected_registry_generation >= i64::MAX as u64
+            || self.expected_active_generation >= i64::MAX as u64
+        {
+            return Err(EngineProfileError::InvalidProfile);
+        }
+        if let EngineProfileMutationV1::Create { snapshot }
+            | EngineProfileMutationV1::NewRevision { snapshot, .. } = &self.mutation
+        {
+            snapshot.validate()?;
+        }
+        Ok(())
+    }
+}
+
+impl EngineProfileRegistryV1 {
+    pub fn validate(&self) -> Result<(), EngineProfileError> {
+        if serde_json::to_vec(self).map_err(|_| EngineProfileError::Integrity)?.len() > 1_048_576 {
+            return Err(EngineProfileError::CapacityExceeded);
+        }
+        if self.registry_generation > i64::MAX as u64
+            || self.active_generation > i64::MAX as u64
+            || self.profiles.len() > MODEL_REGISTRY_ROW_CAP
+        {
+            return Err(EngineProfileError::Integrity);
+        }
+        let mut ids = BTreeSet::new();
+        for definition in &self.profiles {
+            if !ids.insert(definition.profile_id.as_str()) || definition.revisions.is_empty() {
+                return Err(EngineProfileError::Integrity);
+            }
+            for (index, snapshot) in definition.revisions.iter().enumerate() {
+                snapshot.validate()?;
+                if snapshot.profile.id != definition.profile_id
+                    || snapshot.profile.revision != index as u64 + 1
+                {
+                    return Err(EngineProfileError::Integrity);
+                }
+            }
+            if definition.head_generation != definition.revisions.len() as u64
+                + u64::from(definition.tombstoned)
+            {
+                return Err(EngineProfileError::Integrity);
+            }
+        }
+        if let Some(active) = &self.active {
+            let definition = self.profiles.iter()
+                .find(|profile| profile.profile_id == active.profile_id && !profile.tombstoned)
+                .ok_or(EngineProfileError::Integrity)?;
+            if definition.head()?.identity() != *active {
+                return Err(EngineProfileError::Integrity);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn apply(&self, request: &EngineProfileMutationRequestV1) -> Result<Self, EngineProfileError> {
+        self.validate()?;
+        request.validate()?;
+        if request.expected_registry_generation != self.registry_generation
+            || request.expected_active_generation != self.active_generation
+        {
+            return Err(EngineProfileError::Conflict);
+        }
+        let mut next = self.clone();
+        if let EngineProfileMutationV1::Create { snapshot } = &request.mutation {
+            if snapshot.profile.revision != 1 || next.profiles.len() >= MODEL_REGISTRY_ROW_CAP
+                || next.profiles.iter().any(|profile| profile.profile_id == snapshot.profile.id)
+            {
+                return Err(EngineProfileError::Conflict);
+            }
+            next.profiles.push(EngineProfileDefinitionV1 {
+                profile_id: snapshot.profile.id.clone(),
+                revisions: vec![snapshot.clone()],
+                head_generation: 1,
+                tombstoned: false,
+            });
+        } else {
+            let (expected, generation) = match &request.mutation {
+                EngineProfileMutationV1::NewRevision { expected_head, expected_head_generation, .. }
+                | EngineProfileMutationV1::Tombstone { expected_head, expected_head_generation }
+                | EngineProfileMutationV1::Activate { expected_head, expected_head_generation } =>
+                    (expected_head, *expected_head_generation),
+                EngineProfileMutationV1::Create { .. } => unreachable!(),
+            };
+            let definition = next.profiles.iter_mut()
+                .find(|profile| profile.profile_id == expected.profile_id && !profile.tombstoned)
+                .ok_or(EngineProfileError::ProfileUnavailable)?;
+            if definition.head_generation != generation || definition.head()?.identity() != *expected {
+                return Err(EngineProfileError::Conflict);
+            }
+            match &request.mutation {
+                EngineProfileMutationV1::NewRevision { snapshot, .. } => {
+                    if snapshot.profile.id != expected.profile_id
+                        || snapshot.profile.revision != expected.revision.checked_add(1)
+                            .ok_or(EngineProfileError::Conflict)?
+                    {
+                        return Err(EngineProfileError::Conflict);
+                    }
+                    definition.revisions.push(snapshot.clone());
+                    definition.head_generation = definition.head_generation.checked_add(1)
+                        .ok_or(EngineProfileError::Conflict)?;
+                    if next.active.as_ref() == Some(expected) {
+                        next.active = None;
+                        next.active_generation += 1;
+                    }
+                }
+                EngineProfileMutationV1::Tombstone { .. } => {
+                    definition.tombstoned = true;
+                    definition.head_generation = definition.head_generation.checked_add(1)
+                        .ok_or(EngineProfileError::Conflict)?;
+                    if next.active.as_ref() == Some(expected) {
+                        next.active = None;
+                        next.active_generation += 1;
+                    }
+                }
+                EngineProfileMutationV1::Activate { .. } => {
+                    next.active = Some(expected.clone());
+                    next.active_generation += 1;
+                }
+                EngineProfileMutationV1::Create { .. } => unreachable!(),
+            }
+        }
+        next.registry_generation += 1;
+        if serde_json::to_vec(&next).map_err(|_| EngineProfileError::Integrity)?.len() > 1_048_576 {
+            return Err(EngineProfileError::CapacityExceeded);
+        }
+        next.validate()?;
+        Ok(next)
+    }
+}

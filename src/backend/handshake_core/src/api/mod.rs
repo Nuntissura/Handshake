@@ -203,6 +203,7 @@ pub fn routes(state: AppState) -> Router {
             state.llm_client.clone(),
         ),
     );
+    let engine_profile_routes = model_runtime_registry::engine_profile_routes(state.clone());
     let workspace_routes = workspaces::routes(state.clone());
     let preferences_routes = preferences::routes(state.clone());
     let calendar_routes = calendar::routes(state.clone());
@@ -241,6 +242,7 @@ pub fn routes(state: AppState) -> Router {
     authority_routes
         .merge(navigation_routes)
         .merge(model_runtime_routes)
+        .merge(engine_profile_routes)
         .merge(workspace_routes)
         .merge(preferences_routes)
         .merge(calendar_routes)

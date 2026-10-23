@@ -164,6 +164,7 @@ path = "src/bin/cwd-probe.rs"
 test = false
 
 [dependencies]
+handshake_dexterity = { git = "https://github.com/Nuntissura/assets.git", rev = "dc053f69bbe0e4117588f8d2d6d559f3629adbd4" }
 handshake-account-activation = { path = "../../shared/handshake_account_activation" }
 handshake_member_enrollment = { git = "https://github.com/Nuntissura/Handshake.git", rev = "74d130af75b2735351005d240dc7f793f2433961" }
 handshake_producer_association = { git = "https://github.com/Nuntissura/Handshake.git", rev = "74d130af75b2735351005d240dc7f793f2433961" }

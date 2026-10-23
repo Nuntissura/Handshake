@@ -2358,3 +2358,287 @@ fn require_single_test_mutation(
 fn storage_error(error: SurrealStorageError) -> ModelRegistryPersistenceError {
     ModelRegistryPersistenceError::Storage(error.to_string())
 }
+
+
+#[derive(SurrealValue)]
+struct EngineProfileReadBindings {
+    record: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct EngineProfileRegistryRow {
+    data: Value,
+    payload: Value,
+    payload_hash: String,
+}
+
+#[derive(SurrealValue)]
+struct EngineProfileResultRow {
+    data: Value,
+}
+
+#[derive(SurrealValue)]
+struct EngineProfileReplayRow {
+    payload: Value,
+    payload_hash: String,
+}
+
+#[derive(SurrealValue)]
+struct EngineProfileReplayBindings {
+    scope: ExactScopeBindings,
+    request_key: String,
+}
+
+#[derive(SurrealValue)]
+struct EngineProfileRegistryContent {
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: RecordId,
+    data: Value,
+    receipt_id: RecordId,
+}
+
+#[derive(SurrealValue)]
+struct EngineProfileMutationBindings {
+    record: RecordId,
+    event_record: RecordId,
+    scope: ExactScopeBindings,
+    request_key: String,
+    request_fingerprint: String,
+    before: Value,
+    after: Value,
+    content: EngineProfileRegistryContent,
+    event: KernelReceiptWrite,
+}
+
+const ENGINE_PROFILE_REPLAY_QUERY: &str = r#"
+SELECT payload, payload_hash FROM kernel_event_ledger
+WHERE idempotency_key = $request_key
+  AND source_component = 'engine_profiles'
+  AND aggregate_type = 'engine_profile_registry'
+  AND owner_account_id = $scope.owner_account_id
+  AND actor_principal_id = $scope.actor_principal_id
+  AND authenticated_session_id = $scope.authenticated_session_id
+  AND access_space_id = $scope.access_space_id
+  AND workspace_id = record::id($scope.workspace_id)
+LIMIT 2;
+"#;
+
+const ENGINE_PROFILE_MUTATE_QUERY: &str = r#"
+BEGIN TRANSACTION;
+LET $replay = SELECT payload FROM kernel_event_ledger
+WHERE idempotency_key = $request_key
+  AND source_component = 'engine_profiles'
+  AND aggregate_type = 'engine_profile_registry'
+  AND owner_account_id = $scope.owner_account_id
+  AND actor_principal_id = $scope.actor_principal_id
+  AND authenticated_session_id = $scope.authenticated_session_id
+  AND access_space_id = $scope.access_space_id
+  AND workspace_id = record::id($scope.workspace_id)
+LIMIT 2;
+IF array::len($replay) > 1 { THROW 'ENGINE_PROFILE_INTEGRITY'; };
+IF array::len($replay) = 1 {
+    IF $replay[0].payload.request_fingerprint != $request_fingerprint {
+        THROW 'ENGINE_PROFILE_CONFLICT';
+    };
+} ELSE {
+    LET $current = SELECT data FROM $record;
+    IF ($before = NULL AND array::len($current) != 0)
+        OR ($before != NULL AND (array::len($current) != 1 OR $current[0].data != $before)) {
+        THROW 'ENGINE_PROFILE_CONFLICT';
+    };
+    CREATE $event_record CONTENT $event;
+    IF $before = NULL {
+        CREATE $record CONTENT $content;
+    } ELSE {
+        UPDATE $record CONTENT $content;
+    };
+    LET $committed = SELECT data, receipt_id FROM $record;
+    IF array::len($committed) != 1 OR $committed[0].data != $after
+        OR $committed[0].receipt_id != $event_record {
+        THROW 'ENGINE_PROFILE_INTEGRITY';
+    };
+};
+LET $result = IF array::len($replay) = 1 {
+    LET $current = SELECT data FROM $record;
+    IF array::len($current) != 1
+        OR $current[0].data.registry_generation < $replay[0].payload.after.registry_generation {
+        THROW 'ENGINE_PROFILE_INTEGRITY';
+    };
+    $current[0].data
+} ELSE { $after };
+RETURN [{ data: $result }];
+COMMIT TRANSACTION;
+"#;
+
+fn engine_profile_owner_json(scope: &ExactResourceScopeAttribution) -> Value {
+    json!({
+        "owner_account_id": scope.owner_account_id.to_string(),
+        "actor_principal_id": scope.actor_principal_id.to_string(),
+        "access_space_id": scope.access_space_id.to_string(),
+        "workspace_id": scope.workspace_id.as_str(),
+    })
+}
+
+fn engine_profile_record(scope: &ExactResourceScopeAttribution) -> RecordId {
+    RecordId::new("engine_profile_registry", fingerprint(&engine_profile_owner_json(scope)))
+}
+
+fn decode_engine_profile_payload(
+    payload: &Value,
+    payload_hash: &str,
+    scope: &ExactResourceScopeAttribution,
+) -> Result<crate::model_runtime::EngineProfileRegistryV1, crate::model_runtime::EngineProfileError> {
+    use crate::model_runtime::{
+        EngineProfileError as Error, EngineProfileMutationRequestV1, EngineProfileRegistryV1,
+    };
+    if payload.get("schema_id").and_then(Value::as_str) != Some("hsk.engine_profile_mutation@1")
+        || fingerprint(payload) != payload_hash
+        || engine_profile_owner_json(scope).as_object().ok_or(Error::Integrity)?.iter()
+            .any(|(key, value)| payload.get(key) != Some(value))
+    {
+        return Err(Error::Integrity);
+    }
+    let request: EngineProfileMutationRequestV1 = serde_json::from_value(
+        payload.get("request").cloned().ok_or(Error::Integrity)?
+    ).map_err(|_| Error::Integrity)?;
+    let before: Option<EngineProfileRegistryV1> = serde_json::from_value(
+        payload.get("before").cloned().ok_or(Error::Integrity)?
+    ).map_err(|_| Error::Integrity)?;
+    let after: EngineProfileRegistryV1 = serde_json::from_value(
+        payload.get("after").cloned().ok_or(Error::Integrity)?
+    ).map_err(|_| Error::Integrity)?;
+    let historical_session = payload.get("authenticated_session_id")
+        .and_then(Value::as_str).ok_or(Error::Integrity)?;
+    let historical_session_id = uuid::Uuid::parse_str(historical_session)
+        .map_err(|_| Error::Integrity)?;
+    if historical_session_id.is_nil() { return Err(Error::Integrity); }
+    let mut receipt_scope = scope_json(scope);
+    receipt_scope["authenticated_session_id"] = json!(historical_session);
+    let request_fingerprint = fingerprint(&json!({"scope": receipt_scope, "request": request}));
+    if payload.get("request_fingerprint").and_then(Value::as_str) != Some(request_fingerprint.as_str())
+        || before.unwrap_or_default().apply(&request).map_err(|_| Error::Integrity)? != after
+    {
+        return Err(Error::Integrity);
+    }
+    Ok(after)
+}
+
+impl SurrealModelRegistryStore {
+    pub async fn list_engine_profiles(
+        &self,
+        scope: &ExactResourceScopeAttribution,
+    ) -> Result<crate::model_runtime::EngineProfileRegistryV1, crate::model_runtime::EngineProfileError> {
+        use crate::model_runtime::{EngineProfileError as Error, EngineProfileRegistryV1};
+        let bindings = EngineProfileReadBindings { record: engine_profile_record(scope) };
+        let rows = self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_values::<EngineProfileRegistryRow, _>(
+                "SELECT data, receipt_id.payload AS payload, receipt_id.payload_hash AS payload_hash FROM $record;",
+                bindings,
+            ).await
+        })).await.map_err(|_| Error::StorageUnavailable)?;
+        match rows.as_slice() {
+            [] => Ok(EngineProfileRegistryV1::default()),
+            [row] => {
+                let state = decode_engine_profile_payload(&row.payload, &row.payload_hash, scope)?;
+                if serde_json::to_value(&state).map_err(|_| Error::Integrity)? != row.data {
+                    return Err(Error::Integrity);
+                }
+                Ok(state)
+            }
+            _ => Err(Error::Integrity),
+        }
+    }
+
+    pub async fn mutate_engine_profile(
+        &self,
+        scope: &ExactResourceScopeAttribution,
+        request: crate::model_runtime::EngineProfileMutationRequestV1,
+    ) -> Result<crate::model_runtime::EngineProfileRegistryV1, crate::model_runtime::EngineProfileError> {
+        use crate::model_runtime::{EngineProfileError as Error, EngineProfileRegistryV1};
+        request.validate()?;
+        let request_fingerprint = fingerprint(&json!({"scope": scope_json(scope), "request": request}));
+        let request_key = format!("engine-profile:{}", fingerprint(
+            &json!({"scope": scope_json(scope), "request_id": request.request_id})
+        ));
+        let replay_bindings = EngineProfileReplayBindings {
+            scope: exact_scope_bindings(scope),
+            request_key: request_key.clone(),
+        };
+        let replay = self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_values::<EngineProfileReplayRow, _>(
+                ENGINE_PROFILE_REPLAY_QUERY, replay_bindings,
+            ).await
+        })).await.map_err(|_| Error::StorageUnavailable)?;
+        if let [row] = replay.as_slice() {
+            if row.payload.get("request_fingerprint").and_then(Value::as_str) != Some(request_fingerprint.as_str()) {
+                return Err(Error::Conflict);
+            }
+            let historical = decode_engine_profile_payload(&row.payload, &row.payload_hash, scope)?;
+            let current = self.list_engine_profiles(scope).await?;
+            if current.registry_generation < historical.registry_generation {
+                return Err(Error::Integrity);
+            }
+            return Ok(current);
+        }
+        if !replay.is_empty() { return Err(Error::Integrity); }
+        let current = self.list_engine_profiles(scope).await?;
+        let before = if current.registry_generation == 0 { Value::Null }
+            else { serde_json::to_value(&current).map_err(|_| Error::Integrity)? };
+        let after = current.apply(&request)?;
+        let after_value = serde_json::to_value(&after).map_err(|_| Error::Integrity)?;
+        let mut payload = scope_json(scope);
+        let object = payload.as_object_mut().ok_or(Error::Integrity)?;
+        object.insert("schema_id".into(), json!("hsk.engine_profile_mutation@1"));
+        object.insert("request".into(), serde_json::to_value(&request).map_err(|_| Error::Integrity)?);
+        object.insert("request_fingerprint".into(), json!(request_fingerprint));
+        object.insert("before".into(), before.clone());
+        object.insert("after".into(), after_value.clone());
+        let event = NewKernelEvent::builder(
+            request_key.clone(), scope.authenticated_session_id.to_string(),
+            KernelEventType::EngineProfileMutationRecorded,
+            KernelActor::System("engine_profiles".into()),
+        )
+        .aggregate("engine_profile_registry", fingerprint(&engine_profile_owner_json(scope)))
+        .source_component("engine_profiles")
+        .idempotency_key(request_key.clone())
+        .payload(payload)
+        .build().map_err(|_| Error::Integrity)?;
+        let event = scoped_receipt_write(event, scope).map_err(|_| Error::ScopeDenied)?;
+        let content = EngineProfileRegistryContent {
+            owner_account_id: scope.owner_account_id.to_string(),
+            actor_principal_id: scope.actor_principal_id.to_string(),
+            authenticated_session_id: scope.authenticated_session_id.to_string(),
+            access_space_id: scope.access_space_id.to_string(),
+            workspace_id: workspace_record(scope),
+            data: after_value.clone(),
+            receipt_id: RecordId::new("kernel_event_ledger", event.event_id.clone()),
+        };
+        let bindings = EngineProfileMutationBindings {
+            record: engine_profile_record(scope),
+            event_record: RecordId::new("kernel_event_ledger", event.event_id.clone()),
+            scope: exact_scope_bindings(scope),
+            request_key,
+            request_fingerprint,
+            before,
+            after: after_value,
+            content,
+            event,
+        };
+        let rows = self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_values_at::<EngineProfileResultRow, _>(
+                ENGINE_PROFILE_MUTATE_QUERY, bindings, 5,
+            ).await
+        })).await.map_err(|error| {
+            if error.to_string().contains("ENGINE_PROFILE_CONFLICT") { Error::Conflict }
+            else { Error::StorageUnavailable }
+        })?;
+        let [result] = rows.as_slice() else { return Err(Error::Integrity); };
+        let result: EngineProfileRegistryV1 = serde_json::from_value(result.data.clone())
+            .map_err(|_| Error::Integrity)?;
+        result.validate()?;
+        Ok(result)
+    }
+}

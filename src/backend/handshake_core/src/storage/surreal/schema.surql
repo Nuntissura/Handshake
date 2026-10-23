@@ -914,7 +914,7 @@ DEFINE SEQUENCE IF NOT EXISTS kernel_event_sequence BATCH 1 START 1;
 
 -- MT109_AUTHORITY_BEGIN
 DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
-    PERMISSIONS FOR select WHERE IF aggregate_type = 'producer_association' { fn::wp012_validator_association_ledger($this, false) } ELSE { (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids) AND (aggregate_type != 'argus_action' OR (aggregate_id = payload.action_id AND correlation_id = payload.action_id AND kernel_task_run_id = 'argus:' + payload.connection_id AND session_run_id = 'argus:' + payload.connection_id AND idempotency_key = 'argus-action-receipt:' + payload.diagnostics_session_id + ':' + payload.action_id AND authority_action = 'create' AND authority_resource_id.resource_kind = 'flight_recorder' AND owner_account_id = payload.owner_account_id AND actor_principal_id = payload.actor_principal_id AND authenticated_session_id = payload.authenticated_session_id AND access_space_id = payload.access_space_id AND workspace_id = payload.workspace_id AND authenticated_session_id = record::id(authority_session_id) AND owner_account_id = record::id(authority_session_id.account_id) AND actor_principal_id = record::id(authority_session_id.principal_id) AND access_space_id = record::id(authority_session_id.access_space_id) AND actor_kind IN ['operator', 'toolgate'] AND actor_kind = authority_session_id.principal_id.actor_kind AND actor_id = authority_session_id.principal_id.actor_id))) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_model_lane_receipt($this, false) OR fn::wp012_palmistry_watcher_receipt($this, false) OR fn::wp012_palmistry_watcher_read_receipt($this) OR fn::wp012_member_revoke_receipt($this, false) OR fn::wp012_model_lane_role_ledger_read($this) }
+    PERMISSIONS FOR select WHERE IF aggregate_type = 'producer_association' { fn::wp012_validator_association_ledger($this, false) } ELSE { (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids) AND (aggregate_type != 'argus_action' OR (aggregate_id = payload.action_id AND correlation_id = payload.action_id AND kernel_task_run_id = 'argus:' + payload.connection_id AND session_run_id = 'argus:' + payload.connection_id AND idempotency_key = 'argus-action-receipt:' + payload.diagnostics_session_id + ':' + payload.action_id AND authority_action = 'create' AND authority_resource_id.resource_kind = 'flight_recorder' AND owner_account_id = payload.owner_account_id AND actor_principal_id = payload.actor_principal_id AND authenticated_session_id = payload.authenticated_session_id AND access_space_id = payload.access_space_id AND workspace_id = payload.workspace_id AND authenticated_session_id = record::id(authority_session_id) AND owner_account_id = record::id(authority_session_id.account_id) AND actor_principal_id = record::id(authority_session_id.principal_id) AND access_space_id = record::id(authority_session_id.access_space_id) AND actor_kind IN ['operator', 'toolgate'] AND actor_kind = authority_session_id.principal_id.actor_kind AND actor_id = authority_session_id.principal_id.actor_id))) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_model_lane_receipt($this, false) OR fn::wp012_palmistry_watcher_receipt($this, false) OR fn::wp012_palmistry_watcher_read_receipt($this) OR fn::wp012_member_revoke_receipt($this, false) OR fn::wp012_model_lane_role_ledger_read($this) OR fn::wp012_engine_profile_ledger_read($this) }
                 FOR create WHERE IF aggregate_type = 'producer_association' {
                     fn::wp012_validator_association_ledger($this, true)
                 } ELSE IF aggregate_type IN ['role_evidence', 'validator_designation', 'role_evidence_consumption'] {
@@ -6560,6 +6560,140 @@ DEFINE FUNCTION OVERWRITE fn::wp012_search_contributors($manifest: array<object>
     };
     RETURN fn::mt109_has_workspace_access($workspace, 'read', 'fs.read');
 };
+DEFINE FUNCTION OVERWRITE fn::wp012_engine_profile_current_owner($owner: string, $principal: string, $space: string, $workspace: string, $write: bool) {
+    RETURN fn::mt109_live_session()
+        AND $owner = record::id($auth.account_id)
+        AND $principal = record::id($auth.principal_id)
+        AND $space = record::id($auth.access_space_id)
+        AND fn::mt109_has_workspace_access($workspace,
+            IF $write { 'update' } ELSE { 'read' },
+            IF $write { 'fs.write' } ELSE { 'fs.read' });
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_engine_profile_ledger_read($row: object) {
+    IF $row.event_type != 'ENGINE_PROFILE_MUTATION_RECORDED'
+        OR $row.source_component != 'engine_profiles'
+        OR $row.aggregate_type != 'engine_profile_registry'
+        OR $row.authority_capability_id != 'fs.write'
+        OR $row.authority_action != 'update'
+        OR $row.authority_resource_id = NONE
+        OR $row.authority_session_id = NONE
+        OR array::len($row.wsids) != 1
+        OR $row.workspace_id != $row.wsids[0]
+        OR $row.payload.workspace_id != $row.workspace_id
+        OR $row.payload.owner_account_id != $row.owner_account_id
+        OR $row.payload.actor_principal_id != $row.actor_principal_id
+        OR $row.payload.authenticated_session_id != $row.authenticated_session_id
+        OR $row.payload.access_space_id != $row.access_space_id
+        OR $row.authenticated_session_id != record::id($row.authority_session_id)
+        OR $row.authority_resource_id.resource_kind != 'workspace'
+        OR $row.authority_resource_id.external_resource_id != $row.workspace_id
+        OR record::id($row.authority_resource_id.owner_account_id) != $row.owner_account_id
+        OR record::id($row.authority_resource_id.access_space_id) != $row.access_space_id
+        OR !fn::wp012_engine_profile_current_owner($row.owner_account_id,
+            $row.actor_principal_id, $row.access_space_id, $row.workspace_id, false)
+        OR crypto::sha256(encoding::json::encode($row.payload)) != $row.payload_hash
+        OR !fn::wp012_engine_profile_transition($row.payload) { RETURN false; };
+    LET $owner = { owner_account_id: $row.owner_account_id,
+        actor_principal_id: $row.actor_principal_id,
+        access_space_id: $row.access_space_id, workspace_id: $row.workspace_id };
+    RETURN crypto::sha256(encoding::json::encode($owner)) = $row.aggregate_id;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_engine_profile_snapshot($snapshot: object) {
+    RETURN array::sort(object::keys($snapshot)) = ['fingerprint', 'profile']
+        AND type::is_object($snapshot.profile)
+        AND type::is_string($snapshot.profile.id) AND string::trim($snapshot.profile.id) != ''
+        AND type::is_int($snapshot.profile.revision) AND $snapshot.profile.revision > 0
+        AND type::is_string($snapshot.fingerprint) AND string::len($snapshot.fingerprint) = 64
+        AND crypto::sha256(encoding::json::encode($snapshot.profile)) = $snapshot.fingerprint;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_engine_profile_transition($payload: object) {
+    IF array::sort(object::keys($payload)) != ['access_space_id', 'actor_principal_id',
+        'after', 'authenticated_session_id', 'before', 'owner_account_id', 'request',
+        'request_fingerprint', 'schema_id', 'workspace_id']
+        OR $payload.schema_id != 'hsk.engine_profile_mutation@1'
+        OR !type::is_object($payload.request) OR !type::is_object($payload.after)
+        OR array::sort(object::keys($payload.request)) != ['expected_active_generation',
+            'expected_registry_generation', 'mutation', 'reason', 'request_id']
+        OR !type::is_string($payload.request.request_id)
+        OR string::len($payload.request.request_id) != 36
+        OR $payload.request.request_id = '00000000-0000-0000-0000-000000000000'
+        OR !type::is_string($payload.request.reason)
+        OR string::trim($payload.request.reason) = '' OR string::len($payload.request.reason) > 512
+        OR !type::is_int($payload.request.expected_registry_generation)
+        OR !type::is_int($payload.request.expected_active_generation)
+        OR $payload.request.expected_registry_generation < 0
+        OR $payload.request.expected_active_generation < 0
+        OR !type::is_object($payload.request.mutation)
+        OR string::len(encoding::json::encode($payload.after)) > 1048576 { RETURN false; };
+    LET $scope = { owner_account_id: $payload.owner_account_id,
+        actor_principal_id: $payload.actor_principal_id,
+        authenticated_session_id: $payload.authenticated_session_id,
+        access_space_id: $payload.access_space_id, workspace_id: $payload.workspace_id };
+    IF crypto::sha256(encoding::json::encode({ scope: $scope, request: $payload.request }))
+        != $payload.request_fingerprint { RETURN false; };
+    LET $before = IF $payload.before = NULL {
+        { registry_generation: 0, profiles: [], active_generation: 0, active: NULL }
+    } ELSE { $payload.before };
+    IF !type::is_object($before) OR array::sort(object::keys($before))
+        != ['active', 'active_generation', 'profiles', 'registry_generation']
+        OR !type::is_array($before.profiles)
+        OR $before.registry_generation != $payload.request.expected_registry_generation
+        OR $before.active_generation != $payload.request.expected_active_generation
+        OR array::len($before.profiles) > 4096 { RETURN false; };
+    LET $mutation = $payload.request.mutation;
+    LET $create = $mutation.operation = 'create';
+    IF $mutation.operation NOT IN ['create', 'new_revision', 'tombstone', 'activate'] { RETURN false; };
+    IF $create {
+        IF array::sort(object::keys($mutation)) != ['operation', 'snapshot']
+            OR !fn::wp012_engine_profile_snapshot($mutation.snapshot)
+            OR $mutation.snapshot.profile.revision != 1
+            OR array::len($before.profiles) >= 4096 { RETURN false; };
+    } ELSE {
+        IF !type::is_object($mutation.expected_head)
+            OR array::sort(object::keys($mutation.expected_head)) != ['fingerprint', 'profile_id', 'revision']
+            OR !type::is_int($mutation.expected_head_generation) { RETURN false; };
+        IF $mutation.operation = 'new_revision' {
+            IF array::sort(object::keys($mutation)) != ['expected_head', 'expected_head_generation', 'operation', 'snapshot']
+                OR !fn::wp012_engine_profile_snapshot($mutation.snapshot) { RETURN false; };
+        } ELSE {
+            IF array::sort(object::keys($mutation)) != ['expected_head', 'expected_head_generation', 'operation'] { RETURN false; };
+        };
+    };
+    LET $profile_id = IF $create { $mutation.snapshot.profile.id } ELSE { $mutation.expected_head.profile_id };
+    LET $matches = array::filter($before.profiles, |$profile| $profile.profile_id = $profile_id);
+    IF ($create AND array::len($matches) != 0) OR (!$create AND array::len($matches) != 1) { RETURN false; };
+    LET $old = IF $create { NULL } ELSE { $matches[0] };
+    LET $head = IF $create { NULL } ELSE { $old.revisions[array::len($old.revisions) - 1] };
+    IF !$create {
+        IF $old.tombstoned OR $old.head_generation != $mutation.expected_head_generation
+            OR $mutation.expected_head != { profile_id: $head.profile.id,
+                revision: $head.profile.revision, fingerprint: $head.fingerprint } { RETURN false; };
+    };
+    IF $mutation.operation = 'new_revision' AND ($mutation.snapshot.profile.id != $profile_id
+        OR $mutation.snapshot.profile.revision != $head.profile.revision + 1) { RETURN false; };
+    LET $replacement = IF $create {
+        { profile_id: $profile_id, revisions: [$mutation.snapshot], head_generation: 1, tombstoned: false }
+    } ELSE IF $mutation.operation = 'new_revision' {
+        { profile_id: $profile_id, revisions: array::append($old.revisions, $mutation.snapshot),
+            head_generation: $old.head_generation + 1, tombstoned: false }
+    } ELSE IF $mutation.operation = 'tombstone' {
+        { profile_id: $profile_id, revisions: $old.revisions,
+            head_generation: $old.head_generation + 1, tombstoned: true }
+    } ELSE { $old };
+    LET $profiles = IF $create { array::append($before.profiles, $replacement) }
+        ELSE { array::map($before.profiles, |$profile|
+            IF $profile.profile_id = $profile_id { $replacement } ELSE { $profile }) };
+    LET $invalidate = $mutation.operation IN ['new_revision', 'tombstone']
+        AND $before.active != NULL AND $before.active = $mutation.expected_head;
+    LET $active = IF $mutation.operation = 'activate' { $mutation.expected_head }
+        ELSE IF $invalidate { NULL } ELSE { $before.active };
+    LET $active_generation = $before.active_generation
+        + IF $invalidate OR $mutation.operation = 'activate' { 1 } ELSE { 0 };
+    RETURN $payload.after = {
+        registry_generation: $before.registry_generation + 1, profiles: $profiles,
+        active_generation: $active_generation, active: $active
+    };
+};
 DEFINE FUNCTION OVERWRITE fn::wp012_api_receipt($resource: option<record<protected_resources>>, $session: option<record<authenticated_sessions>>, $capability: option<string>, $action: option<string>, $wsids: array<string>, $event: string, $source: string, $aggregate: string, $aggregate_id: string, $payload: object, $actor_kind: string, $actor_id: string, $write: bool) {
     IF array::len($wsids) != 1 OR $payload.workspace_id != $wsids[0]
         OR !fn::wp012_exact_loom_scope($payload.owner_account_id, $payload.actor_principal_id, $payload.authenticated_session_id, $payload.access_space_id, $wsids[0])
@@ -6613,6 +6747,24 @@ DEFINE FUNCTION OVERWRITE fn::wp012_api_receipt($resource: option<record<protect
             AND ($grant.expires_at = NONE AND $payload.envelope.grant_expires_at = NULL OR $grant.expires_at != NONE AND $grant.expires_at = type::datetime($payload.envelope.grant_expires_at))
             AND $auth.id.expires_at = type::datetime($payload.envelope.session_expires_at)
             AND fn::mt109_ledger_access($resource, $session, $capability, $action);
+    };
+    IF $event = 'ENGINE_PROFILE_MUTATION_RECORDED' AND $source = 'engine_profiles'
+        AND $aggregate = 'engine_profile_registry' {
+        IF $capability != 'fs.write' OR $action != 'update'
+            OR !fn::wp012_engine_profile_transition($payload) { RETURN false; };
+        LET $scope = { owner_account_id: $payload.owner_account_id,
+            actor_principal_id: $payload.actor_principal_id,
+            access_space_id: $payload.access_space_id, workspace_id: $payload.workspace_id };
+        IF crypto::sha256(encoding::json::encode($scope)) != $aggregate_id { RETURN false; };
+        IF !$write { RETURN fn::mt109_has_workspace_access($wsids[0], 'read', 'fs.read'); };
+        LET $rows = SELECT data FROM engine_profile_registry
+            WHERE id = type::record('engine_profile_registry', $aggregate_id);
+        IF ($payload.before = NULL AND array::len($rows) != 0)
+            OR ($payload.before != NULL AND (array::len($rows) != 1 OR $rows[0].data != $payload.before)) {
+            RETURN false;
+        };
+        RETURN fn::mt109_ledger_access($resource, $session, $capability, $action)
+            AND fn::mt109_has_workspace_access($wsids[0], 'update', 'fs.write');
     };
     IF $event = 'MODEL_RUNTIME_SELECTION_RECORDED' AND $source = 'model_runtime_registry' AND $aggregate = 'model_runtime_registry'
         AND $aggregate_id = $payload.registry_row_id AND $payload.selection_revision = 1
