@@ -1,0 +1,438 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-195",
+  "created_at_utc": "2026-10-23T00:12:14.972572Z",
+  "updated_at_utc": "2026-10-23T00:12:14.972572Z",
+  "identity": {
+    "mt_id": "MT-195",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Canonical Dexterity Engine Profiles standalone source",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "Proven immutable EngineProfile registry and exact launch-plan source at its canonical published revision, separate from host adoption.",
+    "requirement_refs": [
+      "DEX-EP-001",
+      "DEX-EP-002",
+      "DEX-EP-006",
+      "DEX-EP-017",
+      "DEX-EP-020"
+    ],
+    "acceptance_refs": [
+      "MT-195.json#/scope/acceptance_criteria/0",
+      "MT-195.json#/scope/acceptance_criteria/1",
+      "MT-195.json#/scope/acceptance_criteria/2",
+      "MT-195.json#/scope/acceptance_criteria/3"
+    ],
+    "materialized_acceptance": []
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Existing assigned kernel-builder team; no model/session profile change.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis"
+  },
+  "execution": {
+    "lane": "implementation",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [],
+    "allowed_write_paths": [
+      "assets/hskernel/handshake_dexterity/Cargo.toml",
+      "assets/hskernel/handshake_dexterity/Cargo.lock",
+      "assets/hskernel/handshake_dexterity/README.md",
+      "assets/hskernel/handshake_dexterity/src/lib.rs",
+      "assets/hskernel/handshake_dexterity/src/profile.rs",
+      "assets/hskernel/handshake_dexterity/src/plan.rs",
+      "assets/hskernel/handshake_dexterity/tests/profiles.rs"
+    ],
+    "forbidden_write_paths": [
+      "Handshake product source",
+      "HSK-STUDIO-WORKER-ASSET-001 source",
+      "Unrelated assets/catalog scope outside the original canonical publication controller"
+    ],
+    "stop_conditions": [
+      "Preserve original invocation and other-device ownership; no bootstrap loan.",
+      "This record grants no host/worker source lease, new Cargo slot or runtime execution."
+    ],
+    "module_change_stage": "standalone_source",
+    "product_worktree": "../../.assets",
+    "product_branch": null,
+    "ownership": {
+      "source_invocation_lock_proof_catalog_git_publication": "01a15c29-11d3-7ae0-be4e-804a86c28a5d",
+      "source_team_facts_ram_only": "01a165da-6123-7e93-b767-0cc1a984e54c",
+      "new_custody_granted": false
+    },
+    "existing_source_contract": {
+      "asset_id": "HANDSHAKE-DEXTERITY-ASSET-001",
+      "canonical_repository": "https://github.com/Nuntissura/assets.git",
+      "canonical_path": "assets/hskernel/handshake_dexterity",
+      "normal_plan_ref": ".local/asset-publication/handshake-dexterity-plan.json",
+      "authority": "Actual Operator request, canonical assets authority/policy/create-assets and README under the original Codeleader invocation. This MT records existing source work and adds no dependency on Spec/host completion.",
+      "original_controller_catalog_paths": [
+        "assets-index.yaml",
+        "repo-governance/skills/create-assets/references/assets-index.yaml"
+      ]
+    },
+    "module_maintenance": {
+      "module_id": "HANDSHAKE-DEXTERITY-ASSET-001",
+      "canonical_repository": "https://github.com/Nuntissura/assets.git",
+      "canonical_path": "assets/hskernel/handshake_dexterity",
+      "maintainer": "01a15c29-11d3-7ae0-be4e-804a86c28a5d",
+      "public_api": "EngineProfile{id,revision,model,engine,preset,device}, immutable resolved profile/fingerprint, Registry enumeration/resolution and LaunchPlan; adopt the actual published API.",
+      "inputs": [
+        "Immutable declared profile and engine/device settings",
+        "assets/shared/handshake_canonical_json"
+      ],
+      "outputs": [
+        "Resolved profile/fingerprint and explicit launch plan",
+        "Owning locked source proof, canonical publication revision and reread"
+      ],
+      "dependency_direction": "Pure planner consumes canonical JSON; no Handshake auth/storage/UI, Tanuki or worker process dependency.",
+      "gui_boundary": "Settings, persistence, authorization, Argus, UserManual, telemetry and runtime execution stay in separate host/worker owners.",
+      "recovery": "Separate pinned adoption retains coherent previous source/host dependency and adapter for rollback."
+    },
+    "source_adoption": {
+      "host_mt": "MT-196",
+      "immutable_revision": "dc053f69bbe0e4117588f8d2d6d559f3629adbd4",
+      "source_tree": "252670152f2a050e6d409bd2494ad37804c7adc4",
+      "dependency_pins": {
+        "package": "handshake_dexterity",
+        "version": "0.1.0",
+        "lock_path": "assets/hskernel/handshake_dexterity/Cargo.lock",
+        "lock_revision": "dc053f69bbe0e4117588f8d2d6d559f3629adbd4",
+        "canonical_json_path": "assets/shared/handshake_canonical_json",
+        "canonical_repository_revision": "dc053f69bbe0e4117588f8d2d6d559f3629adbd4"
+      },
+      "source_proof_ref": "MT-195.json#/validation/proof_records/0",
+      "independent_remote_reread_ref": "MT-195.json#/validation/proof_records/1",
+      "state": "PUBLISHED_PLANNER_ONLY_HOST_AND_RUNTIME_SEPARATE"
+    }
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "Canonical assets .local/asset-publication/handshake-dexterity-plan.json"
+    ],
+    "checks": [
+      {
+        "check_id": "MT195-RECORDED-SOURCE-PROOF",
+        "claim_refs": [
+          "AC195-1",
+          "AC195-2",
+          "AC195-3"
+        ],
+        "command_or_method": "Reuse the original normal isolated publisher exact nine-test Cargo1.97.1 candidate and kit-composition proof; do not rerun unchanged green proof.",
+        "expected": "Actual numeric0 results and exact published candidate inputs remain bound.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Existing publication controller exit/stdout evidence",
+          "Locked candidate test count9 and kit check",
+          "Exact source/dependency tree"
+        ]
+      },
+      {
+        "check_id": "MT195-CANONICAL-REREAD",
+        "claim_refs": [
+          "AC195-4"
+        ],
+        "command_or_method": "Reuse the original fresh canonical fetch/read of all nine full published blobs and the separately inspected canonical publication receipt.",
+        "expected": "Published immutable source equals the proven candidate and exact receipt.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Canonical commit/tree and full-blob equality",
+          "Original publication receipt and source owner handback"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true
+  },
+  "authority_files": {
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "role": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-195.json",
+    "spec": ".GOV/spec/SPEC_CURRENT.md"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "NOT_REQUIRED",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "READY_FOR_VALIDATION",
+    "depends_on": [],
+    "blocks": [
+      "MT-196"
+    ],
+    "active": false,
+    "claimed_by": null,
+    "completed_by": null,
+    "validator_verdict": null,
+    "blocked_on": null
+  },
+  "scope": {
+    "summary": "Bind the already-authorized and now-published canonical planner asset; preserve its existing standalone ownership/proof/publication path.",
+    "allowed_paths": [
+      "assets/hskernel/handshake_dexterity/Cargo.toml",
+      "assets/hskernel/handshake_dexterity/Cargo.lock",
+      "assets/hskernel/handshake_dexterity/README.md",
+      "assets/hskernel/handshake_dexterity/src/lib.rs",
+      "assets/hskernel/handshake_dexterity/src/profile.rs",
+      "assets/hskernel/handshake_dexterity/src/plan.rs",
+      "assets/hskernel/handshake_dexterity/tests/profiles.rs"
+    ],
+    "forbidden_paths": [
+      "Handshake product source",
+      "HSK-STUDIO-WORKER-ASSET-001 source",
+      "Unrelated assets/catalog scope outside the original canonical publication controller"
+    ],
+    "acceptance_criteria": [
+      "AC195-1: Immutable EngineProfile identity/revision/model/engine/preset/device and Registry enumeration/resolution retain the complete snapshot and fingerprint.",
+      "AC195-2: Exact QAIRT NPU and llama_cpp CPU plans consume declared profiles without process execution, host authority changes or copied Tanuki logic.",
+      "AC195-3: Existing nine reviewed owning API tests and kit-composition check pass on the exact isolated locked candidate, with real nonzero results and source/dependency identity.",
+      "AC195-4: Actual canonical publication, immutable source/dependency pin and independent canonical reread resolve before distinct host adoption."
+    ],
+    "proof_targets": [
+      "assets/hskernel/handshake_dexterity/tests/profiles.rs",
+      "Existing .local/asset-publication/handshake-dexterity-plan.json isolated candidate and kit composition check"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [],
+    "argus_targets": [],
+    "expected_evidence": [],
+    "not_applicable_reason": "Pure planner source; actual native Settings/chat/Argus belongs to MT196."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": false,
+    "target_entries": [
+      "assets/hskernel/handshake_dexterity/README.md"
+    ],
+    "expected_evidence": [
+      "Public API/limits/usage and host boundary agree with actual source."
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "Immutable profile and launch-plan inputs"
+    ],
+    "identity_and_scope_contexts": [
+      "Host supplies authorized inputs; source gains no storage/process authority."
+    ],
+    "enforcement_boundaries": [
+      "Pure validation/resolution/planning API"
+    ],
+    "same_project_private_resource_cases": [],
+    "cross_account_negative_cases": [],
+    "derived_resource_non_widening_cases": [],
+    "revocation_and_context_switch_cases": [],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [
+      "No secrets/raw output in diagnostics."
+    ],
+    "expected_evidence": [
+      "Owning API negative cases and existing source review"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-001",
+      "disposition": "REQUIRED_IN_THIS_SCOPE",
+      "proof_ref": "MT-195.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-004",
+      "disposition": "REQUIRED_IN_THIS_SCOPE",
+      "proof_ref": "MT-195.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-007",
+      "disposition": "REQUIRED_IN_THIS_SCOPE",
+      "proof_ref": "MT-195.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-008",
+      "disposition": "REQUIRED_IN_THIS_SCOPE",
+      "proof_ref": "MT-195.json#/proof"
+    }
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "authority_ref": "packet.json#/hbr",
+      "requirement": "Preserve applicable original Flight Recorder, diagnostics and Palmistry obligations; actual per-tier evidence or justified applicability is required at readiness."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "ready_for_validation_or_blocked"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "ENGINE_PROFILE_SCOPE",
+    "risks": [
+      "Model-ID-only serialization loses engine/device/settings.",
+      "Mutable lookup or late acknowledgement changes a pinned choice.",
+      "Unpublished source or a host-local spawner bypasses canonical lifecycle ownership."
+    ],
+    "minimum_controls": [
+      "Compare full immutable profile identity/fingerprint across the actual path.",
+      "Correlate acknowledgements and scoped durable selection/run/session state.",
+      "Consume real source pins/proof/rereads and preserve actual worker/Primary custody."
+    ]
+  },
+  "operator_authority": {
+    "approval_ref": "packet.json#/operator_engine_profiles_binding_20261023",
+    "scope_approval_recorded": true,
+    "runtime_permission_inferred": false
+  },
+  "spec_basis": {
+    "module_path": ".GOV/spec/master-spec-v02.222/spec-modules/04-llm-infrastructure.md",
+    "anchor": "4.3.7.6",
+    "normative_ids": [
+      "DEX-EP-001",
+      "DEX-EP-002",
+      "DEX-EP-003",
+      "DEX-EP-004",
+      "DEX-EP-005",
+      "DEX-EP-006",
+      "DEX-EP-007",
+      "DEX-EP-008",
+      "DEX-EP-009",
+      "DEX-EP-010",
+      "DEX-EP-011",
+      "DEX-EP-012",
+      "DEX-EP-013",
+      "DEX-EP-014",
+      "DEX-EP-015",
+      "DEX-EP-016",
+      "DEX-EP-017",
+      "DEX-EP-018",
+      "DEX-EP-019",
+      "DEX-EP-020",
+      "DEX-EP-021",
+      "DEX-EP-022",
+      "DEX-EP-023"
+    ],
+    "existing_workprofile_policy_preserved": true
+  },
+  "context_capsule": {
+    "owning_module": "HANDSHAKE-DEXTERITY-ASSET-001",
+    "module_maintenance_refs": [
+      "MT-195.json#/execution/module_maintenance"
+    ],
+    "original_acceptance_refs": [
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-012.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-014.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json"
+    ],
+    "pin_policy": "Original WP012896f4e15 and all original source-WP pins/acceptance/history remain. This approved new source/adoption scope binds v02.2224.3.7.6 and current module lifecycle."
+  },
+  "validation": {
+    "acceptance_state": "SOURCE_PROOF_PUBLICATION_RECORDED_NO_MT_VERDICT",
+    "proof_records": [
+      {
+        "kind": "EXISTING_CANONICAL_ASSET_OWNING_PROOF",
+        "executor": "01a15c29-11d3-7ae0-be4e-804a86c28a5d",
+        "candidate_commit": "dc053f69bbe0e4117588f8d2d6d559f3629adbd4",
+        "candidate_tree": "252670152f2a050e6d409bd2494ad37804c7adc4",
+        "cargo_toolchain": "1.97.1",
+        "api_tests": 9,
+        "candidate_tests_exit": 0,
+        "kit_composition_exit": 0,
+        "child_and_controller_exit": 0,
+        "capture_errors": [],
+        "source": "Actual Codeleader handback and asset parent direct reads of canonical .local/asset-publication/latest.json and existing publish-kit exit.json/stdout.log, relayed by Master. Exact source proof is existing evidence, not a new run by the preparation writer.",
+        "owned_process_drain": 0,
+        "compiler_cache_custody": "RETURNED",
+        "receipt_adoption_and_managed_skill_update": "COMPLETED",
+        "product_runtime_or_host_acceptance": false,
+        "artifact_refs": {
+          "root": "Canonical Codex artifact root, resolved by the owning runtime",
+          "exit_json_artifact_root_relative": "WP-KERNEL-012/MT-174/dexterity-source/logs/publish-kit/exit.json",
+          "stdout_log_artifact_root_relative": "WP-KERNEL-012/MT-174/dexterity-source/logs/publish-kit/stdout.log",
+          "candidate_proof_asset_repository_relative": ".local/asset-publication/candidate-ww2rk60w/proof",
+          "canonical_receipt_asset_repository_relative": ".local/asset-publication/latest.json"
+        },
+        "controller_exit_at_utc": "2026-10-22T23:51:50.030796+00:00",
+        "separate_source_result_artifact_invented": false
+      },
+      {
+        "kind": "INDEPENDENT_CANONICAL_TARGET_REREAD",
+        "executor": "01a15c29-11d3-7ae0-be4e-804a86c28a5d",
+        "revision": "dc053f69bbe0e4117588f8d2d6d559f3629adbd4",
+        "tree": "252670152f2a050e6d409bd2494ad37804c7adc4",
+        "canonical_receipt_ref": "../../.assets/.local/asset-publication/latest.json",
+        "published_paths": [
+          "assets/hskernel/handshake_dexterity/Cargo.toml",
+          "assets/hskernel/handshake_dexterity/Cargo.lock",
+          "assets/hskernel/handshake_dexterity/README.md",
+          "assets/hskernel/handshake_dexterity/src/lib.rs",
+          "assets/hskernel/handshake_dexterity/src/profile.rs",
+          "assets/hskernel/handshake_dexterity/src/plan.rs",
+          "assets/hskernel/handshake_dexterity/tests/profiles.rs",
+          "assets-index.yaml",
+          "repo-governance/skills/create-assets/references/assets-index.yaml"
+        ],
+        "fresh_fetch_full_blob_equality": 9,
+        "canonical_receipt_directly_opened_by_preparation_writer": true,
+        "source": "Codeleader fresh-fetch/full-blob reread, asset parent proof/receipt inspection and Master verification; no self-authored publication status substitutes.",
+        "global_parity": "NOT_CLAIMED; prior unrelated Studio findings remain separate"
+      }
+    ],
+    "no_repeated_source_proof_required_for_host_spec_authoring": true
+  }
+}

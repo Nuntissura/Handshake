@@ -1,0 +1,666 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-196",
+  "created_at_utc": "2026-10-23T00:12:14.972572Z",
+  "updated_at_utc": "2026-10-23T00:12:14.972572Z",
+  "identity": {
+    "mt_id": "MT-196",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Pinned Dexterity Engine Profiles Settings and chat host adoption",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "Settings Engine Profiles CRUD and durable active choice feed the chat chooser; complete immutable profile survives legitimate audit, backend engine/device dispatch and run/lane/session recovery.",
+    "requirement_refs": [
+      "DEX-EP-001",
+      "DEX-EP-002",
+      "DEX-EP-003",
+      "DEX-EP-004",
+      "DEX-EP-005",
+      "DEX-EP-006",
+      "DEX-EP-007",
+      "DEX-EP-008",
+      "DEX-EP-009",
+      "DEX-EP-010",
+      "DEX-EP-011",
+      "DEX-EP-012",
+      "DEX-EP-013",
+      "DEX-EP-014",
+      "DEX-EP-015",
+      "DEX-EP-016",
+      "DEX-EP-017",
+      "DEX-EP-018",
+      "DEX-EP-019",
+      "DEX-EP-020",
+      "DEX-EP-021",
+      "DEX-EP-022",
+      "DEX-EP-023"
+    ],
+    "acceptance_refs": [
+      "MT-196.json#/scope/acceptance_criteria/0",
+      "MT-196.json#/scope/acceptance_criteria/1",
+      "MT-196.json#/scope/acceptance_criteria/2",
+      "MT-196.json#/scope/acceptance_criteria/3",
+      "MT-196.json#/scope/acceptance_criteria/4",
+      "MT-196.json#/scope/acceptance_criteria/5",
+      "MT-196.json#/scope/acceptance_criteria/6"
+    ],
+    "materialized_acceptance": []
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Existing assigned kernel-builder team; no model/session profile change.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis"
+  },
+  "execution": {
+    "lane": "implementation",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [
+      "MT-195"
+    ],
+    "allowed_write_paths": [
+      "src/frontend/handshake_native/src/settings_dialog.rs",
+      "src/frontend/handshake_native/src/operator_chat_pane.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/backend/handshake_core/src/api/operator_chat.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/operator_chat.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs",
+      "src/backend/handshake_core/src/model_runtime/registry_persistence.rs",
+      "src/backend/handshake_core/src/api/model_runtime_registry.rs",
+      "src/backend/handshake_core/src/storage/surreal/model_registry.rs",
+      "src/backend/handshake_core/src/storage/surreal/model_registry_schema.surql",
+      "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
+      "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql",
+      "src/backend/handshake_core/src/storage/surreal/session_store.rs",
+      "src/backend/handshake_core/src/storage/mod.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql",
+      "src/backend/handshake_core/src/user_manual/seed.rs",
+      "src/backend/handshake_core/src/user_manual/registry.rs",
+      "src/backend/handshake_core/src/user_manual/behavior_coverage.rs",
+      "src/frontend/handshake_native/tests/test_operator_chat_selection_and_transcript_argus.rs",
+      "src/frontend/handshake_native/tests/test_operator_chat_launch_argus.rs",
+      "src/backend/handshake_core/tests/model_runtime_registry_api_tests.rs",
+      "src/backend/handshake_core/tests/operator_chat_route_tests.rs",
+      "src/backend/handshake_core/tests/operator_chat_surreal_tests.rs",
+      "src/backend/handshake_core/tests/operator_chat_capture_surreal_tests.rs",
+      "src/backend/handshake_core/tests/user_manual_content_tests.rs",
+      "src/backend/handshake_core/tests/user_manual_behavior_coverage_tests.rs",
+      "src/backend/handshake_core/src/kernel/mod.rs"
+    ],
+    "forbidden_write_paths": [
+      "Canonical Dexterity/worker asset internals",
+      "Source29 host-supplier boundary",
+      "MT174/auth/capture recovery and Native policy-denial retry",
+      "Manifests/locks/shared exports except sole Primary exact dependency-pin disposition"
+    ],
+    "stop_conditions": [
+      "Planner-backed profile/Settings source edits require the recorded planner proof/pin/reread and actual Primary nonoverlapping file window compatible with the current compile freeze. Worker pin/proof/reread is required only for launch-adapter changes, new worker adoption/use and whole-MT acceptance.",
+      "No duplicate host spawner, copied Tanuki logic, forged run_id, weakened scope, invented source lease, attempt reset or automatic runtime permission.",
+      "Preserve original Chat/WP012/CKC/WP1 scope/pins/proof, failures/denials and independent verdict ownership."
+    ],
+    "module_change_stage": "host_adoption",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "ownership": {
+      "physical_product_writer_git_manifests_locks_compiler": "01a15e8a-2b54-79a0-91a2-7304d67cbddc",
+      "host_ram_team": "01a165da-ecdb-7a40-8504-6918286033ee",
+      "actual_primary_write_release_ref": null,
+      "state": "PROSPECTIVE_PATHS_NO_LEASE_TRANSFER",
+      "manifest_lock_pin_changes": "Only sole Primary may make exact dependency/pin edits under existing custody; this gives no other writer those paths."
+    },
+    "source_adoption": {
+      "source_mt": "MT-195",
+      "canonical_repository": "https://github.com/Nuntissura/assets.git",
+      "canonical_path": "assets/hskernel/handshake_dexterity",
+      "immutable_revision": "dc053f69bbe0e4117588f8d2d6d559f3629adbd4",
+      "source_tree": "252670152f2a050e6d409bd2494ad37804c7adc4",
+      "dependency_pins": {
+        "package": "handshake_dexterity",
+        "version": "0.1.0",
+        "lock_path": "assets/hskernel/handshake_dexterity/Cargo.lock",
+        "lock_revision": "dc053f69bbe0e4117588f8d2d6d559f3629adbd4",
+        "canonical_json_path": "assets/shared/handshake_canonical_json",
+        "canonical_repository_revision": "dc053f69bbe0e4117588f8d2d6d559f3629adbd4"
+      },
+      "source_proof_ref": "MT-195.json#/validation/proof_records/0",
+      "independent_remote_reread_ref": "MT-195.json#/validation/proof_records/1",
+      "host_pin_status": "PLANNER_PUBLISHED_SOURCE_SLICES_WAIT_PRIMARY_WINDOW_WORKER_CONDITIONALLY_PENDING",
+      "additional_source_dependencies": [
+        {
+          "asset_id": "HSK-STUDIO-WORKER-ASSET-001",
+          "canonical_repository": "https://github.com/Nuntissura/assets.git",
+          "canonical_path": "assets/handshake-studio-assets/crates/hsk-studio-worker",
+          "source_mt": null,
+          "source_contract_ref": null,
+          "source_owner_release_ref": null,
+          "approved_source_write_paths": null,
+          "immutable_revision": null,
+          "dependency_pins": null,
+          "source_proof_ref": null,
+          "independent_remote_reread_ref": null,
+          "required_capability": "Existing worker supervisor consumes compatible exact one-shot inputs with bounded streams, owned cancellation/deadline and confirmed reap/cleanup retention.",
+          "state": "PENDING_VERIFIED_SOURCE_SCOPE_CUSTODY_PROOF_PUBLICATION_REREAD",
+          "worker_depends_on_planner": false,
+          "source_authority_granted_by_this_contract": false,
+          "applies_to": "Launch-adapter changes, new worker adoption/use and whole-MT acceptance; not executor-independent profile CRUD or Settings projection."
+        }
+      ]
+    },
+    "module_maintenance": {
+      "source_contract_ref": "MT-195.json#/execution/module_maintenance",
+      "host_adapter_paths": [
+        "src/frontend/handshake_native/src/settings_dialog.rs",
+        "src/frontend/handshake_native/src/operator_chat_pane.rs",
+        "src/frontend/handshake_native/src/backend_client.rs",
+        "src/frontend/handshake_native/src/app.rs",
+        "src/backend/handshake_core/src/api/operator_chat.rs",
+        "src/backend/handshake_core/src/swarm_orchestration/operator_chat.rs",
+        "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs",
+        "src/backend/handshake_core/src/model_runtime/registry_persistence.rs",
+        "src/backend/handshake_core/src/api/model_runtime_registry.rs",
+        "src/backend/handshake_core/src/storage/surreal/model_registry.rs",
+        "src/backend/handshake_core/src/storage/surreal/model_registry_schema.surql",
+        "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
+        "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql",
+        "src/backend/handshake_core/src/storage/surreal/session_store.rs",
+        "src/backend/handshake_core/src/storage/mod.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema.surql",
+        "src/backend/handshake_core/src/kernel/mod.rs"
+      ],
+      "maintainer": "01a15e8a-2b54-79a0-91a2-7304d67cbddc",
+      "responsibilities": "Host owns auth/scoped SurrealDB, registry artifact/capability validation, Settings/chat GUI, legitimate prelaunch audit and durable run/lane/session linkage, Argus/manual/telemetry. Planner resolves immutable profiles; separate worker owns process lifecycle.",
+      "required_services": [
+        "Existing ScopedModelRegistryAuthority/SurrealModelRegistryStore",
+        "Existing SwarmCoordinator/ModelLaneStore and durable ModelSession authority",
+        "Published compatible canonical worker API"
+      ],
+      "rollback": "Previous immutable dependency pins plus their matching reviewed host adapters; preserve durable records and source history."
+    },
+    "prelaunch_audit_binding": {
+      "finding": "Client selection_request omits required run_id; the transport adds headers only. Backend canonical run read and audit success remain required before the pane accepts selection.",
+      "resolution_required": "Technical owner binds legitimate prelaunch audit ownership and immutable candidate revision before effects; no fabricated run_id or scope weakening.",
+      "write_loci": [
+        "src/frontend/handshake_native/src/backend_client.rs",
+        "src/frontend/handshake_native/src/operator_chat_pane.rs",
+        "src/backend/handshake_core/src/api/operator_chat.rs",
+        "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs"
+      ],
+      "resolution_proof": null
+    },
+    "source_slices": [
+      {
+        "slice_id": "MT196-PROFILE-CRUD",
+        "scope": "Executor-independent typed profile definitions/revision/fingerprint and scoped registry CRUD/active-selection CAS. Include typed Engine Profile lifecycle event integration and its existing scoped receipt validator.",
+        "allowed_write_paths": [
+          "src/backend/handshake_core/src/model_runtime/registry_persistence.rs",
+          "src/backend/handshake_core/src/storage/surreal/model_registry.rs",
+          "src/backend/handshake_core/src/storage/surreal/model_registry_schema.surql",
+          "src/backend/handshake_core/src/api/model_runtime_registry.rs",
+          "src/backend/handshake_core/src/kernel/mod.rs",
+          "src/backend/handshake_core/src/storage/surreal/schema.surql"
+        ],
+        "depends_on": [
+          "MT-195 published planner dc053f69bbe0e4117588f8d2d6d559f3629adbd4 proof and canonical reread"
+        ],
+        "worker_pin_required": false,
+        "actual_primary_file_window_ref": null,
+        "entry_condition": "Codeleader/Primary assign actual nonoverlapping files and verify current compiler-freeze compatibility; this contract does not itself release source custody.",
+        "excluded": "Worker/spawn changes and CPU/NPU execution proof.",
+        "receipt_integration": {
+          "typed_event_owner": "src/backend/handshake_core/src/kernel/mod.rs",
+          "typed_event_binding_points": [
+            "KernelEventType",
+            "as_str",
+            "required_first_slice_events"
+          ],
+          "receipt_validator_owner": "src/backend/handshake_core/src/storage/surreal/schema.surql",
+          "receipt_validator_function": "fn::wp012_api_receipt",
+          "existing_scoped_writer": "storage/surreal/model_registry.rs::scoped_receipt_write",
+          "unchanged_event_ledger_reuse": {
+            "path": "src/backend/handshake_core/src/storage/surreal/event_ledger.rs",
+            "mechanism": "prepare_scoped_loom_event",
+            "write_required": false
+          },
+          "preserved_boundaries": [
+            "Keep the exact five-scope authentic authority and canonical payload mechanisms.",
+            "Do not use receipt_write, which clears authority; do not borrow model selection event semantics.",
+            "Preserve existing model_registry_schema.surql selection-row semantics."
+          ],
+          "technical_family_payload_and_actual_source_window_owner": "Codeleader and sole Primary; this binding chooses no event family/payload and grants no file window.",
+          "locus_evidence": "Master relayed the actual host-parent/Diagnostics consumer closure and Codeleader technical disposition for this bounded MT196-only correction."
+        }
+      },
+      {
+        "slice_id": "MT196-SETTINGS-PROJECTION",
+        "scope": "Settings Engine Profiles tab and chooser projection after the typed scoped profile contract is available.",
+        "allowed_write_paths": [
+          "src/frontend/handshake_native/src/settings_dialog.rs",
+          "src/frontend/handshake_native/src/operator_chat_pane.rs",
+          "src/frontend/handshake_native/src/app.rs"
+        ],
+        "depends_on": [
+          "MT196-PROFILE-CRUD published host contract"
+        ],
+        "worker_pin_required": false,
+        "actual_primary_file_window_ref": null,
+        "entry_condition": "Primary assigns actual nonoverlapping source window compatible with current compiler freeze; preserve full identity and candidate-revision correlation."
+      },
+      {
+        "slice_id": "MT196-WORKER-ADOPTION",
+        "scope": "Launch adapter and compatible canonical worker use through the legitimate governed dispatch path.",
+        "depends_on": [
+          "MT-195",
+          "HSK-STUDIO-WORKER-ASSET-001 compatible published immutable source, owning proof and independent reread"
+        ],
+        "worker_pin_required": true,
+        "actual_primary_file_window_ref": null,
+        "entry_condition": "Real worker source scope/custody/API proof/pin/reread and actual Primary window; no new process authority inferred."
+      }
+    ],
+    "whole_mt_acceptance_requires_all_dependencies": true
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-012.json#/scope/proof_commands",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json#/scope/proof_commands"
+    ],
+    "checks": [
+      {
+        "check_id": "MT196-IMPLEMENTER-COMPILE",
+        "claim_refs": [
+          "AC196-1",
+          "AC196-2",
+          "AC196-3"
+        ],
+        "command_or_method": "Sole Primary uses the existing locked cargo check --tests boundary for affected backend test-utils,surreal-test-support and native inputs after exact pins and changed-input prechecks; authoring grants no Cargo launch.",
+        "expected": "Numeric successful compile/static result on unchanged captured inputs; no runtime claim.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact registered argv/features/toolchain/candidate inputs",
+          "Numeric terminal result and complete log",
+          "No source/config drift; actual resource custody"
+        ]
+      },
+      {
+        "check_id": "MT196-SETTINGS-CHOOSER",
+        "claim_refs": [
+          "AC196-1",
+          "AC196-2",
+          "AC196-5",
+          "AC196-7"
+        ],
+        "command_or_method": "Register profile CRUD, same-model distinct bundles, edit/delete/stale inventory and late-ACK assertions in named native component targets; production Argus proof remains under original lawful admission.",
+        "expected": "Actual new behavior is exercised. Existing offline/recording-backend targets are component evidence only.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact new test names/assertions and results",
+          "Stable profile CRUD/chooser identifiers and observed state",
+          "Production boundary evidence or exact original admission blocker"
+        ]
+      },
+      {
+        "check_id": "MT196-DURABLE-AUDIT",
+        "claim_refs": [
+          "AC196-1",
+          "AC196-3",
+          "AC196-4",
+          "AC196-5"
+        ],
+        "command_or_method": "Register independent changed-behavior assertions in model_runtime_registry_api_tests and operator_chat_route_tests/operator_chat_surreal_tests/operator_chat_capture_surreal_tests; use real scoped embedded SurrealDB and genuine run/audit ownership.",
+        "expected": "Scoped CRUD/active/restart, full request-to-run/lane/session lineage and non-mutating negative/prelaunch audit cases pass. Unmodified old green tests do not prove this feature.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Exact new names and original entrypoint commands",
+          "Durable reopen and canonical scoped records",
+          "Genuine IDs and audit decision evidence"
+        ]
+      },
+      {
+        "check_id": "MT196-GENUINE-NPU-CPU",
+        "claim_refs": [
+          "AC196-2",
+          "AC196-3",
+          "AC196-6"
+        ],
+        "command_or_method": "Independent runtime owner executes genuine Qwen3-0.6B with GenieX QAIRT NPU and Qwen3-4B-abliterated Q4_0 with GenieX llama_cpp CPU through actual selected-profile dispatch, only after original runtime/resource admission.",
+        "expected": "Both actual engine/device results, selected fingerprints and owned cancel/deadline/output/reap outcomes are proven; no fixture or historical4B NPU substitute.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Qualified real model artifacts/digests and actual engine/device inputs",
+          "Canonical planner/compatible worker immutable pins",
+          "Independent inference, durable lineage and cleanup evidence",
+          "Original permission and allowance preserved"
+        ]
+      },
+      {
+        "check_id": "MT196-MANUAL",
+        "claim_refs": [
+          "AC196-7"
+        ],
+        "command_or_method": "Update actual operator-chat-launch/model-runtime-registry manual seed/routes/coverage and verify user_manual_content_tests/user_manual_behavior_coverage_tests changed behavior.",
+        "expected": "A no-context operator/model can create a profile and choose it for chat, with accurate limitations/recovery.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout",
+        "evidence_required": [
+          "Actual same-change manual/coverage diff",
+          "Exact meaningful checks/results"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "exact_new_test_registration_required_before_runtime_readiness": true,
+    "runtime_authorized_by_authoring": false
+  },
+  "authority_files": {
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md",
+    "role": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-196.json",
+    "spec": ".GOV/spec/SPEC_CURRENT.md"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "NOT_REQUIRED",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "depends_on": [
+      "MT-195"
+    ],
+    "blocks": [],
+    "active": false,
+    "claimed_by": null,
+    "completed_by": null,
+    "validator_verdict": null,
+    "blocked_on": "Actual Primary source-window/current-freeze assignment for planner-backed profile CRUD/Settings work. Worker source contract/scope/custody/proof/pin/reread remains required for launch-adapter/worker work and whole-MT acceptance."
+  },
+  "scope": {
+    "summary": "Adopt independently proven planner and compatible worker sources through existing Settings, registry, chat and durable run/session adapters.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/settings_dialog.rs",
+      "src/frontend/handshake_native/src/operator_chat_pane.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/backend/handshake_core/src/api/operator_chat.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/operator_chat.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs",
+      "src/backend/handshake_core/src/model_runtime/registry_persistence.rs",
+      "src/backend/handshake_core/src/api/model_runtime_registry.rs",
+      "src/backend/handshake_core/src/storage/surreal/model_registry.rs",
+      "src/backend/handshake_core/src/storage/surreal/model_registry_schema.surql",
+      "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
+      "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql",
+      "src/backend/handshake_core/src/storage/surreal/session_store.rs",
+      "src/backend/handshake_core/src/storage/mod.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema.surql",
+      "src/backend/handshake_core/src/user_manual/seed.rs",
+      "src/backend/handshake_core/src/user_manual/registry.rs",
+      "src/backend/handshake_core/src/user_manual/behavior_coverage.rs",
+      "src/frontend/handshake_native/tests/test_operator_chat_selection_and_transcript_argus.rs",
+      "src/frontend/handshake_native/tests/test_operator_chat_launch_argus.rs",
+      "src/backend/handshake_core/tests/model_runtime_registry_api_tests.rs",
+      "src/backend/handshake_core/tests/operator_chat_route_tests.rs",
+      "src/backend/handshake_core/tests/operator_chat_surreal_tests.rs",
+      "src/backend/handshake_core/tests/operator_chat_capture_surreal_tests.rs",
+      "src/backend/handshake_core/tests/user_manual_content_tests.rs",
+      "src/backend/handshake_core/tests/user_manual_behavior_coverage_tests.rs",
+      "src/backend/handshake_core/src/kernel/mod.rs"
+    ],
+    "forbidden_paths": [
+      "Canonical Dexterity/worker asset internals",
+      "Source29 host-supplier boundary",
+      "MT174/auth/capture recovery and Native policy-denial retry",
+      "Manifests/locks/shared exports except sole Primary exact dependency-pin disposition"
+    ],
+    "acceptance_criteria": [
+      "AC196-1: Settings has its own Engine Profiles tab with create/read/edit/delete/active selection through scoped durable SurrealDB authority; definitions and active choice survive restart.",
+      "AC196-2: Chatbox model choice selects a full immutable profile; same-model/different-engine/device/settings profiles remain distinct through serialization/backend dispatch.",
+      "AC196-3: Complete identity/revision/model artifact digest/engine/preset/device/fingerprint remain in selection audit and genuine run/lane/session records; recovery uses the pinned snapshot.",
+      "AC196-4: Scoped backend validation precedes effects. Unknown/deleted/stale profile, digest/capability/policy mismatch, cross-account/workspace and unavailable-device failures are typed/non-mutating; no silent fallback.",
+      "AC196-5: Prelaunch audit has legitimate coordinator ownership and genuine required scope/run binding. Never fabricate run_id, weaken scope or accept after audit failure. Edit/delete/inventory and late acknowledgements preserve revision correlation and started runs.",
+      "AC196-6: Genuine Qwen3-0.6B GenieX QAIRT NPU and Qwen3-4B-abliterated Q4_0 GenieX llama_cpp CPU execute with selected-profile lineage and actual result/device/cleanup evidence. Historical4B NPU proof is not CPU proof.",
+      "AC196-7: Same-change manual and stable native model-navigable controls drive the actual workflow; component/storage/source/compile evidence remains distinct from production runtime and independent WP acceptance."
+    ],
+    "proof_targets": [
+      "src/frontend/handshake_native/tests/test_operator_chat_selection_and_transcript_argus.rs",
+      "src/frontend/handshake_native/tests/test_operator_chat_launch_argus.rs",
+      "src/backend/handshake_core/tests/model_runtime_registry_api_tests.rs",
+      "src/backend/handshake_core/tests/operator_chat_route_tests.rs",
+      "src/backend/handshake_core/tests/operator_chat_surreal_tests.rs",
+      "src/backend/handshake_core/tests/operator_chat_capture_surreal_tests.rs",
+      "src/backend/handshake_core/tests/user_manual_content_tests.rs",
+      "src/backend/handshake_core/tests/user_manual_behavior_coverage_tests.rs"
+    ],
+    "ownership_note": "Prospective paths only; no lease transfer. Primary remains sole physical Product writer; host coders supply RAM deltas. Existing workspace preferences are not already EngineProfile authority."
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": true,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "Settings Engine Profiles tab",
+      "Chatbox model/profile selector"
+    ],
+    "argus_targets": [
+      "Stable profile CRUD/active-selection controls",
+      "Distinct immutable profile chooser and selected state"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": true,
+    "target_entries": [
+      "operator-chat-launch",
+      "model-runtime-registry-and-loom-degrade"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "EngineProfile definitions/active selection",
+      "Model artifact registration and engine/device capability",
+      "Selection audit, ModelLaneRun/ModelLane and ModelSession"
+    ],
+    "identity_and_scope_contexts": [
+      "Real account/workspace and coordinator-owned run/lane/session"
+    ],
+    "enforcement_boundaries": [
+      "Backend profile/selection API",
+      "Scoped SurrealDB transaction and SwarmCoordinator launch"
+    ],
+    "same_project_private_resource_cases": [
+      "Profile does not widen artifact grants."
+    ],
+    "cross_account_negative_cases": [
+      "Other-account profile/model access denied without mutation."
+    ],
+    "derived_resource_non_widening_cases": [
+      "Snapshots retain original resource scope."
+    ],
+    "revocation_and_context_switch_cases": [
+      "Changed/revoked scope cannot accept stale pending choice/launch."
+    ],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [
+      "No secrets/raw private output in diagnostics."
+    ],
+    "expected_evidence": [
+      "stable_resource_owner_scope_linkage",
+      "default_deny_negative_test",
+      "same_project_cross_account_isolation_test_when_applicable",
+      "derived_resource_scope_non_widening_test_when_applicable",
+      "actor_owner_access_space_attribution",
+      "revocation_or_context_switch_test_when_applicable",
+      "remote_delegation_sync_scope_test_when_applicable",
+      "argus_or_typed_privacy_state_inspection_when_operator_visible"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-001",
+      "disposition": "REQUIRED_IN_THIS_SCOPE",
+      "proof_ref": "MT-196.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-004",
+      "disposition": "REQUIRED_IN_THIS_SCOPE",
+      "proof_ref": "MT-196.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-007",
+      "disposition": "REQUIRED_IN_THIS_SCOPE",
+      "proof_ref": "MT-196.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-008",
+      "disposition": "REQUIRED_IN_THIS_SCOPE",
+      "proof_ref": "MT-196.json#/proof"
+    }
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "authority_ref": "packet.json#/hbr",
+      "requirement": "Preserve applicable original Flight Recorder, diagnostics and Palmistry obligations; actual per-tier evidence or justified applicability is required at readiness."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "ready_for_validation_or_blocked"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "ENGINE_PROFILE_SCOPE",
+    "risks": [
+      "Model-ID-only serialization loses engine/device/settings.",
+      "Mutable lookup or late acknowledgement changes a pinned choice.",
+      "Unpublished source or a host-local spawner bypasses canonical lifecycle ownership."
+    ],
+    "minimum_controls": [
+      "Compare full immutable profile identity/fingerprint across the actual path.",
+      "Correlate acknowledgements and scoped durable selection/run/session state.",
+      "Consume real source pins/proof/rereads and preserve actual worker/Primary custody."
+    ]
+  },
+  "operator_authority": {
+    "approval_ref": "packet.json#/operator_engine_profiles_binding_20261023",
+    "scope_approval_recorded": true,
+    "runtime_permission_inferred": false
+  },
+  "spec_basis": {
+    "module_path": ".GOV/spec/master-spec-v02.222/spec-modules/04-llm-infrastructure.md",
+    "anchor": "4.3.7.6",
+    "normative_ids": [
+      "DEX-EP-001",
+      "DEX-EP-002",
+      "DEX-EP-003",
+      "DEX-EP-004",
+      "DEX-EP-005",
+      "DEX-EP-006",
+      "DEX-EP-007",
+      "DEX-EP-008",
+      "DEX-EP-009",
+      "DEX-EP-010",
+      "DEX-EP-011",
+      "DEX-EP-012",
+      "DEX-EP-013",
+      "DEX-EP-014",
+      "DEX-EP-015",
+      "DEX-EP-016",
+      "DEX-EP-017",
+      "DEX-EP-018",
+      "DEX-EP-019",
+      "DEX-EP-020",
+      "DEX-EP-021",
+      "DEX-EP-022",
+      "DEX-EP-023"
+    ],
+    "existing_workprofile_policy_preserved": true
+  },
+  "context_capsule": {
+    "owning_module": "HANDSHAKE-DEXTERITY-ASSET-001",
+    "module_maintenance_refs": [
+      "MT-195.json#/execution/module_maintenance"
+    ],
+    "original_acceptance_refs": [
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-012.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-014.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json"
+    ],
+    "pin_policy": "Original WP012896f4e15 and all original source-WP pins/acceptance/history remain. This approved new source/adoption scope binds v02.2224.3.7.6 and current module lifecycle."
+  },
+  "validation": {
+    "proof_records": [],
+    "acceptance_state": "NOT_PROVEN",
+    "original_acceptance_unchanged": true,
+    "current_compile_or_runtime_pass_claimed": false
+  }
+}
