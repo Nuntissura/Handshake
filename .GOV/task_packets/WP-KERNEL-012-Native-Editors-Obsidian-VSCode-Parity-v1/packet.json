@@ -1,4 +1,62 @@
 {
+  "operator_worker_metadata_resume_20261023_01": {
+    "decision_id": "WP012-WORKER-METADATA-RESUME-20261023-01",
+    "recorded_at_utc": "2026-10-23T14:22:54.315442Z",
+    "status": "APPROVED_BOUNDED_NORMAL_WORKER_METADATA_RESUME",
+    "authority_source": {
+      "kind": "DIRECT_HUMAN_ANSWER",
+      "exact_question": "May leadership preserve the existing backups and incident evidence, adopt the current asset base 2d7932e, and resume normal Codex/Claude metadata synchronization, requalification and worker proof/publication? The earlier unresolved metadata hold blocks those writes: qualification and Claude still use 447e681, while the current asset base and Codex state use 2d7932e. The worker owner verified all 21 qualified source inputs are unchanged. This resolves that specific hold; your broader feature-expansion permission is already active.",
+      "exact_answer": "Resume normal synchronization and publication",
+      "source": "Current human answer to Master request_user_input_async, relayed for this required authority record.",
+      "message_id": null
+    },
+    "scope": {
+      "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+      "phase": 2,
+      "worker_parent": "01a165e1-af19-7001-ad2b-b1a744890c83",
+      "code_dev_leader": "01a168a9-05b2-7630-9633-5faac88dd068",
+      "current_asset_base": "2d7932eb7aee724816ac95999127f38bbd47cd2e",
+      "candidate": "Exact already-reviewed five-file provided-process Worker V3 candidate; no new source scope permission.",
+      "source_input_basis": "Worker owner verified all21 qualified source inputs unchanged, as stated in the approved question; this permission is not an independent source/proof verdict."
+    },
+    "precedence": "Override the prior managed-metadata freeze only for the following approved normal operations. Preserve historical hold/incident records and every other hold unchanged.",
+    "approved_operations": [
+      {
+        "operation_id": "WP012-WORKER-METADATA-RESUME-20261023-01-001",
+        "requirement": "Before any managed update, copy the current Codex installation state, current Claude installation state and current Claude inventory to unique nonoverwriting evidence names; preserve existing backups and incident evidence."
+      },
+      {
+        "operation_id": "WP012-WORKER-METADATA-RESUME-20261023-01-002",
+        "requirement": "Adopt the named current asset base through supported normal before-use management for both Codex and Claude skill directories; use fresh origin, source and managed-state checks and stop on conflicts."
+      },
+      {
+        "operation_id": "WP012-WORKER-METADATA-RESUME-20261023-01-003",
+        "requirement": "Rebind the technical current base, exact reviewed five-file V3 qualification and controls without treating this decision as proof of changed source or a new candidate."
+      },
+      {
+        "operation_id": "WP012-WORKER-METADATA-RESUME-20261023-01-004",
+        "requirement": "Run one normal isolated owning11+23+23 proof/publication pipeline, required postpublication managed refresh/parity, and independent published-source reread under the owning authority."
+      }
+    ],
+    "preservation": [
+      "Existing backups and incident history",
+      "Foreign RSS and Studio work",
+      "Foreign and unrelated index content"
+    ],
+    "managed_metadata_prohibitions": [
+      "Manual JSON approval-field or hash rewriting",
+      "Bypass or quarantine",
+      "Restore447 or reset to evade the normal helper",
+      "Foreign overwrite"
+    ],
+    "authority_limits": [
+      "Normal supported helper only; no manual repair substitute",
+      "No runtime, authentication, Native retry, finite-pool or HTTP allowance change",
+      "No inference or new source-scope permission",
+      "Primary retains actual compiler/slot, physical Product, Git and pin/lock custody",
+      "Original independent acceptance and all other holds remain"
+    ]
+  },
   "operator_scope_expansion_20261023_02": {
     "decision_id": "WP012-OPERATOR-SCOPE-EXPANSION-20261023-02",
     "recorded_at_utc": "2026-10-23T13:04:13.800690Z",
