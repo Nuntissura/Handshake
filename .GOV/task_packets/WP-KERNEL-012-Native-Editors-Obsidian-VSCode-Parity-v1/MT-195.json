@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-195",
   "created_at_utc": "2026-10-23T00:12:14.972572Z",
-  "updated_at_utc": "2026-10-23T00:12:14.972572Z",
+  "updated_at_utc": "2026-10-23T04:30:29.457355Z",
   "identity": {
     "mt_id": "MT-195",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -192,15 +192,15 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "READY_FOR_VALIDATION",
+    "status": "PASS_V1",
     "depends_on": [],
     "blocks": [
       "MT-196"
     ],
     "active": false,
     "claimed_by": null,
-    "completed_by": null,
-    "validator_verdict": null,
+    "completed_by": "01a15322-1723-7f23-b8dc-9dc278dcaea3",
+    "validator_verdict": "PASS_V1",
     "blocked_on": null
   },
   "scope": {
@@ -382,7 +382,7 @@
     "pin_policy": "Original WP012896f4e15 and all original source-WP pins/acceptance/history remain. This approved new source/adoption scope binds v02.2224.3.7.6 and current module lifecycle."
   },
   "validation": {
-    "acceptance_state": "SOURCE_PROOF_PUBLICATION_RECORDED_NO_MT_VERDICT",
+    "acceptance_state": "SOURCE_ACCEPTANCE_PASS_V1_HOST_AND_RUNTIME_SEPARATE",
     "proof_records": [
       {
         "kind": "EXISTING_CANONICAL_ASSET_OWNING_PROOF",
@@ -431,6 +431,62 @@
         "canonical_receipt_directly_opened_by_preparation_writer": true,
         "source": "Codeleader fresh-fetch/full-blob reread, asset parent proof/receipt inspection and Master verification; no self-authored publication status substitutes.",
         "global_parity": "NOT_CLAIMED; prior unrelated Studio findings remain separate"
+      },
+      {
+        "id": "WP012-MT195-INDEPENDENT-SOURCE-PASS-V1-20261023",
+        "kind": "INDEPENDENT_SOURCE_ACCEPTANCE_VERDICT",
+        "verdict": "PASS_V1",
+        "executor": "01a15322-1723-7f23-b8dc-9dc278dcaea3",
+        "executor_role": "INTEGRATION_VALIDATOR",
+        "recorded_at_utc": "2026-10-23T04:30:29.457355Z",
+        "scope": "MT-195 standalone planner source only; AC195-1 through AC195-4.",
+        "candidate_commit": "dc053f69bbe0e4117588f8d2d6d559f3629adbd4",
+        "candidate_tree": "252670152f2a050e6d409bd2494ad37804c7adc4",
+        "acceptance": [
+          {
+            "id": "AC195-1",
+            "verdict": "PASS",
+            "basis": "Inspected complete EngineProfile, owned validated ResolvedProfile, canonical fingerprint and deterministic Registry enumeration/resolution; reuse unchanged owning API proof."
+          },
+          {
+            "id": "AC195-2",
+            "verdict": "PASS",
+            "basis": "Inspected pure explicit QAIRT NPU and llama_cpp CPU launch planning and negative cases; no auto-device fallback or process execution added."
+          },
+          {
+            "id": "AC195-3",
+            "verdict": "PASS",
+            "basis": "Reuse exact existing Cargo1.97.1 isolated locked nine-test and kit-composition proof with numeric zero outcomes under validation/proof_records/0; independently inspected retained publisher child/controller zero exits and empty capture errors."
+          },
+          {
+            "id": "AC195-4",
+            "verdict": "PASS",
+            "basis": "Inspected pinned immutable source/tree and publisher output; reuse original independent fresh canonical nine-full-blob equality under validation/proof_records/1. Candidate checkout hashes remain distinct from remote reread evidence."
+          }
+        ],
+        "directly_inspected": [
+          "MT-195.json#/scope",
+          "MT-195.json#/proof",
+          "MT-195.json#/validation/proof_records/0",
+          "MT-195.json#/validation/proof_records/1",
+          "dc053f69bbe0e4117588f8d2d6d559f3629adbd4:assets/hskernel/handshake_dexterity/Cargo.toml",
+          "dc053f69bbe0e4117588f8d2d6d559f3629adbd4:assets/hskernel/handshake_dexterity/src/lib.rs",
+          "dc053f69bbe0e4117588f8d2d6d559f3629adbd4:assets/hskernel/handshake_dexterity/src/profile.rs",
+          "dc053f69bbe0e4117588f8d2d6d559f3629adbd4:assets/hskernel/handshake_dexterity/src/plan.rs",
+          "dc053f69bbe0e4117588f8d2d6d559f3629adbd4:assets/hskernel/handshake_dexterity/tests/profiles.rs",
+          "WP-KERNEL-012/MT-174/dexterity-source/logs/publish-kit/exit.json",
+          "WP-KERNEL-012/MT-174/dexterity-source/logs/publish-kit/stdout.log"
+        ],
+        "reused_proof_refs": [
+          "MT-195.json#/validation/proof_records/0",
+          "MT-195.json#/validation/proof_records/1"
+        ],
+        "proof_reuse_basis": "Same immutable source/dependency revision and asserted source behavior; duplicate parent proof forbidden by MT-195.json#/proof/duplicate_parent_proof_forbidden. No test or canonical fetch was repeated by this validator.",
+        "receipt_limit": "Mutable assets .local/asset-publication/latest.json now identifies a later worker publication. It is not reused as the planner receipt; retained immutable planner publication and original canonical reread remain the evidence.",
+        "host_adoption_proven": false,
+        "model_or_device_runtime_proven": false,
+        "global_parity_claimed": false,
+        "whole_wp_verdict_issued": false
       }
     ],
     "no_repeated_source_proof_required_for_host_spec_authoring": true
