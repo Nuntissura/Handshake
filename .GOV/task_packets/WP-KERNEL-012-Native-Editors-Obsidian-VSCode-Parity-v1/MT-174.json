@@ -10072,11 +10072,11 @@
       },
       "prepared_artifacts": {
         "config_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-durable-capture-20261021-01/local-session-auth-no-run-config-02.json",
-        "config_sha256": "d6cc0a7c2345ed2aac36bd6053dd3399c97538f723e9b1e020e1d42952ea512d",
+        "config_sha256": "0cdd0fbd3e0cdc27cc0e48ec91ece570a0394ae12f4356796dc7c6f37d96611c",
         "producer_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-durable-capture-20261021-01/local-session-auth-no-run-private-capture-02.py",
         "producer_sha256": "4c9396a52d01d4589db28983adf5c0fc401d7869ac9251177344c3ab1fdef4dc",
         "task_xml_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-durable-capture-20261021-01/local-session-auth-no-run-task-02.xml",
-        "task_xml_sha256": "4d4e3b71cb89297a9c90747c36a6f3fd6bffeb44f8beea548b244641b6209eaf",
+        "task_xml_sha256": "f980d51fe6688db1cf45531c2a04fcdc59252af5191d6a31d58e01dd6f21606a",
         "output_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-local-session-auth-no-run-20261023-02"
       },
       "ownership_and_admission": {
@@ -10097,6 +10097,22 @@
         "existing_http_probe_unconsumed": 1,
         "automatic_confirmations": 0,
         "boundary": "This compile-only recovery consumes no HTTP probe and grants no new HTTP pool. Preserve every spent Snapshot and Chat attempt, original proof limits, lifecycle and acceptance."
+      },
+      "registration_preflight": {
+        "observed_at_utc": "2026-10-22T23:49:46.5033345Z",
+        "evidence_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-local-session-auth-no-run-20261023-02/task-registration-failure-01.json",
+        "stage": "Register-ScheduledTask",
+        "exit_code": 1,
+        "error": "The task XML is malformed. (1,40)::ERROR: unable to switch the encoding",
+        "started": false,
+        "cargo_launched": false,
+        "task_query_observation": "Primary exact-name query at 2026-10-22T23:50:16Z returned count0. No task was created.",
+        "failed_xml_sha256": "4d4e3b71cb89297a9c90747c36a6f3fd6bffeb44f8beea548b244641b6209eaf",
+        "proposed_cause": "UTF-8 XML encoding declaration passed as a .NET Unicode string. Diagnosis remains proposed until corrected registration succeeds.",
+        "correction": "Remove only the XML encoding declaration. Restoring it recovers the exact prior XML SHA256, so the task element tree is unchanged. Config02 changes only the XML hash. Producer is unchanged.",
+        "corrected_registration": "UNPROVEN",
+        "affected_prechecks": "Minimal affected Codecheck and Diagnostics prechecks pending.",
+        "allowance_preservation": "Preflight failed before task start or Cargo launch. The one compile-recovery start remains unconsumed. No automatic rerun, alternate privilege or new retry pool. Existing IV HTTP probe remains unconsumed and unchanged."
       },
       "requirements_lifecycle_and_verdict_unchanged": true
     },
