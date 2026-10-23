@@ -1128,15 +1128,289 @@ async fn revoke_member_enrollment(
     }
 }
 
+#[cfg(all(any(test, feature = "test-utils"), feature = "duckdb-flight-recorder", feature = "os-keychain"))]
+pub mod local_account_http_test_support {
+    use super::*;
+    use crate::api::MountedRequestExt;
+    use axum::{body::{to_bytes, Body}, http::Request};
+    use serde_json::{json, Value};
+    use sha2::{Digest, Sha256};
+    use std::sync::Arc;
+
+// Move the existing BindingFile and request helper declarations here exactly once; visibility
+// is narrowed to authority descendants so the unchanged sibling tests can continue using them.
+    pub(in crate::api::authority) struct BindingFile {
+        _lock: std::sync::MutexGuard<'static, ()>,
+        _directory: tempfile::TempDir,
+        previous: Option<std::ffi::OsString>,
+        pub(in crate::api::authority) channel: String,
+    }
+    impl BindingFile {
+        pub(in crate::api::authority) fn new() -> Self {
+            let lock = crate::api::stage::NATIVE_BINDING_ENV_LOCK
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            let directory = tempfile::tempdir().unwrap();
+            let channel = "e3".repeat(32);
+            let path = directory.path().join("account-binding.json");
+            std::fs::write(
+                &path,
+                serde_json::to_vec(&crate::api::stage::current_process_native_binding(&channel))
+                    .unwrap(),
+            )
+            .unwrap();
+            let previous = std::env::var_os("HANDSHAKE_STAGE_BINDING_FILE");
+            std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", path);
+            Self {
+                _lock: lock,
+                _directory: directory,
+                previous,
+                channel,
+            }
+        }
+    }
+    impl Drop for BindingFile {
+        fn drop(&mut self) {
+            if let Some(value) = &self.previous {
+                std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", value);
+            } else {
+                std::env::remove_var("HANDSHAKE_STAGE_BINDING_FILE");
+            }
+        }
+    }
+    pub(in crate::api::authority) async fn request(
+        router: &Router,
+        method: &str,
+        path: &str,
+        channel: Option<&str>,
+        session: Option<&str>,
+        body: Value,
+    ) -> (StatusCode, Value) {
+        let mut request = Request::builder()
+            .method(method)
+            .uri(path)
+            .header("content-type", "application/json");
+        if let Some(channel) = channel {
+            request = request.header("x-hsk-channel-binding-token", channel);
+        }
+        if let Some(session) = session {
+            request = request.header(HSK_HEADER_SESSION_TOKEN, session);
+        }
+        let response = router
+            .clone()
+            .oneshot(
+                request
+                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let status = response.status();
+        let bytes = to_bytes(response.into_body(), 128 * 1024).await.unwrap();
+        (status, serde_json::from_slice(&bytes).unwrap())
+    }
+
+    // Shared runner copied from the original test; body unchanged, only test attr/name removed.
+    pub async fn run_local_account_http_setup_login_vault_logout_and_constant_denials() {
+        let binding = BindingFile::new();
+        let backend = crate::storage::tests::embedded_test_backend()
+            .await
+            .unwrap();
+        let recorder = Arc::new(
+            crate::flight_recorder::duckdb::DuckDbFlightRecorder::new_in_memory(7).unwrap(),
+        );
+        let state = AppState {
+            storage: backend.database.clone(),
+            surreal: backend.storage.clone(),
+            flight_recorder: recorder.clone(),
+            diagnostics: recorder,
+            llm_client: Arc::new(crate::llm::ollama::InMemoryLlmClient::new("ok".into())),
+            capability_registry: Arc::new(crate::capabilities::CapabilityRegistry::new()),
+            session_registry: Arc::new(crate::workflows::SessionRegistry::new(
+                crate::workflows::SessionSchedulerConfig::default(),
+            )),
+        };
+        let router = routes(state.clone());
+        let denial = json!({"error":"HSK-403-PROTECTED-RESOURCE"});
+        assert_eq!(
+            request(
+                &router,
+                "GET",
+                "/authority/session",
+                None,
+                None,
+                Value::Null
+            )
+            .await,
+            (StatusCode::FORBIDDEN, denial.clone())
+        );
+        let mut counts = state.surreal.test_admin_query("RETURN array::len(SELECT VALUE id FROM kernel_event_ledger WHERE source_component = 'local_account_authority');".into()).await.unwrap();
+        assert_eq!(counts.take::<Option<i64>>(0).unwrap(), Some(0));
+        let password = json!({"account_name":"Owner","password":"correct horse battery staple"});
+        assert_eq!(
+            request(
+                &router,
+                "POST",
+                "/authority/setup",
+                Some(&binding.channel),
+                None,
+                password.clone()
+            )
+            .await
+            .0,
+            StatusCode::OK
+        );
+        assert_eq!(
+            request(
+                &router,
+                "POST",
+                "/authority/setup",
+                Some(&binding.channel),
+                None,
+                password.clone()
+            )
+            .await,
+            (StatusCode::FORBIDDEN, denial.clone())
+        );
+        assert_eq!(
+            request(
+                &router,
+                "POST",
+                "/authority/login",
+                Some(&binding.channel),
+                None,
+                json!({"account_name":"Owner","password":"wrong password value"})
+            )
+            .await,
+            (StatusCode::FORBIDDEN, denial.clone())
+        );
+        let (status, credential) = request(
+            &router,
+            "POST",
+            "/authority/login",
+            Some(&binding.channel),
+            None,
+            password,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let exchange = json!({"account_id":credential["account_id"],"principal_id":credential["principal_id"],
+            "access_space_id":credential["access_space_id"],"authentication_token":credential["token"]});
+        let (status, session) = request(
+            &router,
+            "POST",
+            "/authority/session",
+            Some(&binding.channel),
+            None,
+            exchange.clone(),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let token = session["session_token"].as_str().unwrap();
+        assert_eq!(
+            request(
+                &router,
+                "POST",
+                "/authority/session",
+                Some(&binding.channel),
+                None,
+                exchange
+            )
+            .await,
+            (StatusCode::FORBIDDEN, denial.clone())
+        );
+        let (status, current) = request(
+            &router,
+            "GET",
+            "/authority/session",
+            Some(&binding.channel),
+            Some(token),
+            Value::Null,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(current["account_id"], credential["account_id"]);
+        assert_eq!(
+            request(
+                &router,
+                "GET",
+                "/authority/session",
+                Some(&"f4".repeat(32)),
+                Some(token),
+                Value::Null
+            )
+            .await,
+            (StatusCode::FORBIDDEN, denial.clone())
+        );
+        use crate::model_runtime::cloud::secrets_vault::{OsKeychainSecretsVault, SecretsVault};
+        let config = state.surreal.config();
+        let installation = hex::encode(Sha256::digest(
+            serde_json::to_vec(&(
+                config.path().to_string_lossy(),
+                config.namespace(),
+                config.database(),
+            ))
+            .unwrap(),
+        ));
+        let vault = OsKeychainSecretsVault::new(format!("handshake-local-accounts-{installation}"));
+        let session_id = session["session_id"].as_str().unwrap();
+        assert!(vault.get(session_id).is_ok_and(|stored| stored.as_str() == token));
+        let other_vault =
+            OsKeychainSecretsVault::new(format!("handshake-local-accounts-{installation}-other"));
+        assert!(
+            matches!(other_vault.get(session_id), Err(crate::model_runtime::cloud::secrets_vault::SecretsVaultError::NoSecretForLane(missing)) if missing == session_id)
+        );
+        assert_eq!(
+            request(
+                &router,
+                "POST",
+                "/authority/logout",
+                Some(&binding.channel),
+                Some(token),
+                Value::Null
+            )
+            .await
+            .0,
+            StatusCode::OK
+        );
+        assert!(
+            matches!(vault.get(session_id), Err(crate::model_runtime::cloud::secrets_vault::SecretsVaultError::NoSecretForLane(missing)) if missing == session_id)
+        );
+        for path in ["/authority/session", "/authority/logout"] {
+            let method = if path.ends_with("logout") {
+                "POST"
+            } else {
+                "GET"
+            };
+            assert_eq!(
+                request(
+                    &router,
+                    method,
+                    path,
+                    Some(&binding.channel),
+                    Some(token),
+                    Value::Null
+                )
+                .await,
+                (StatusCode::FORBIDDEN, denial.clone())
+            );
+        }
+        let mut counts = state.surreal.test_admin_query("RETURN {setup: array::len(SELECT VALUE id FROM kernel_event_ledger WHERE event_type = 'LOCAL_ACCOUNT_SETUP'), login: array::len(SELECT VALUE id FROM kernel_event_ledger WHERE event_type = 'LOCAL_ACCOUNT_LOGIN'), logout: array::len(SELECT VALUE id FROM kernel_event_ledger WHERE event_type = 'LOCAL_ACCOUNT_LOGOUT')};".into()).await.unwrap();
+        assert_eq!(
+            counts.take::<Option<Value>>(0).unwrap(),
+            Some(json!({"setup":1,"login":1,"logout":1}))
+        );
+        state.surreal.shutdown().await.unwrap();
+    }
+
+    // End support module after the shared runner.
+}
+
 #[cfg(all(test, feature = "duckdb-flight-recorder", feature = "os-keychain"))]
 mod local_account_http_tests {
     use super::*;
-    use crate::api::MountedRequestExt;
-    use axum::{
-        body::{to_bytes, Body},
-        http::Request,
-    };
     use std::sync::Arc;
+    use super::local_account_http_test_support::{request, BindingFile};
 
     #[tokio::test]
     async fn cancelled_vault_request_retains_serialization_until_blocking_exit() {
@@ -1405,77 +1679,6 @@ mod local_account_http_tests {
         );
         state.surreal.shutdown().await.unwrap();
     }
-    struct BindingFile {
-        _lock: std::sync::MutexGuard<'static, ()>,
-        _directory: tempfile::TempDir,
-        previous: Option<std::ffi::OsString>,
-        channel: String,
-    }
-    impl BindingFile {
-        fn new() -> Self {
-            let lock = crate::api::stage::NATIVE_BINDING_ENV_LOCK
-                .lock()
-                .unwrap_or_else(|e| e.into_inner());
-            let directory = tempfile::tempdir().unwrap();
-            let channel = "e3".repeat(32);
-            let path = directory.path().join("account-binding.json");
-            std::fs::write(
-                &path,
-                serde_json::to_vec(&crate::api::stage::current_process_native_binding(&channel))
-                    .unwrap(),
-            )
-            .unwrap();
-            let previous = std::env::var_os("HANDSHAKE_STAGE_BINDING_FILE");
-            std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", path);
-            Self {
-                _lock: lock,
-                _directory: directory,
-                previous,
-                channel,
-            }
-        }
-    }
-    impl Drop for BindingFile {
-        fn drop(&mut self) {
-            if let Some(value) = &self.previous {
-                std::env::set_var("HANDSHAKE_STAGE_BINDING_FILE", value);
-            } else {
-                std::env::remove_var("HANDSHAKE_STAGE_BINDING_FILE");
-            }
-        }
-    }
-    async fn request(
-        router: &Router,
-        method: &str,
-        path: &str,
-        channel: Option<&str>,
-        session: Option<&str>,
-        body: Value,
-    ) -> (StatusCode, Value) {
-        let mut request = Request::builder()
-            .method(method)
-            .uri(path)
-            .header("content-type", "application/json");
-        if let Some(channel) = channel {
-            request = request.header("x-hsk-channel-binding-token", channel);
-        }
-        if let Some(session) = session {
-            request = request.header(HSK_HEADER_SESSION_TOKEN, session);
-        }
-        let response = router
-            .clone()
-            .oneshot(
-                request
-                    .body(Body::from(serde_json::to_vec(&body).unwrap()))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-        let status = response.status();
-        let bytes = to_bytes(response.into_body(), 128 * 1024).await.unwrap();
-        (status, serde_json::from_slice(&bytes).unwrap())
-    }
-
     #[tokio::test]
     async fn incomplete_owner_setup_recovery_requires_password_and_preserves_one_time_gate() {
         let binding = BindingFile::new();
@@ -1599,195 +1802,7 @@ mod local_account_http_tests {
 
     #[tokio::test]
     async fn local_account_http_setup_login_vault_logout_and_constant_denials() {
-        let binding = BindingFile::new();
-        let backend = crate::storage::tests::embedded_test_backend()
-            .await
-            .unwrap();
-        let recorder = Arc::new(
-            crate::flight_recorder::duckdb::DuckDbFlightRecorder::new_in_memory(7).unwrap(),
-        );
-        let state = AppState {
-            storage: backend.database.clone(),
-            surreal: backend.storage.clone(),
-            flight_recorder: recorder.clone(),
-            diagnostics: recorder,
-            llm_client: Arc::new(crate::llm::ollama::InMemoryLlmClient::new("ok".into())),
-            capability_registry: Arc::new(crate::capabilities::CapabilityRegistry::new()),
-            session_registry: Arc::new(crate::workflows::SessionRegistry::new(
-                crate::workflows::SessionSchedulerConfig::default(),
-            )),
-        };
-        let router = routes(state.clone());
-        let denial = json!({"error":"HSK-403-PROTECTED-RESOURCE"});
-        assert_eq!(
-            request(
-                &router,
-                "GET",
-                "/authority/session",
-                None,
-                None,
-                Value::Null
-            )
-            .await,
-            (StatusCode::FORBIDDEN, denial.clone())
-        );
-        let mut counts = state.surreal.test_admin_query("RETURN array::len(SELECT VALUE id FROM kernel_event_ledger WHERE source_component = 'local_account_authority');".into()).await.unwrap();
-        assert_eq!(counts.take::<Option<i64>>(0).unwrap(), Some(0));
-        let password = json!({"account_name":"Owner","password":"correct horse battery staple"});
-        assert_eq!(
-            request(
-                &router,
-                "POST",
-                "/authority/setup",
-                Some(&binding.channel),
-                None,
-                password.clone()
-            )
-            .await
-            .0,
-            StatusCode::OK
-        );
-        assert_eq!(
-            request(
-                &router,
-                "POST",
-                "/authority/setup",
-                Some(&binding.channel),
-                None,
-                password.clone()
-            )
-            .await,
-            (StatusCode::FORBIDDEN, denial.clone())
-        );
-        assert_eq!(
-            request(
-                &router,
-                "POST",
-                "/authority/login",
-                Some(&binding.channel),
-                None,
-                json!({"account_name":"Owner","password":"wrong password value"})
-            )
-            .await,
-            (StatusCode::FORBIDDEN, denial.clone())
-        );
-        let (status, credential) = request(
-            &router,
-            "POST",
-            "/authority/login",
-            Some(&binding.channel),
-            None,
-            password,
-        )
-        .await;
-        assert_eq!(status, StatusCode::OK);
-        let exchange = json!({"account_id":credential["account_id"],"principal_id":credential["principal_id"],
-            "access_space_id":credential["access_space_id"],"authentication_token":credential["token"]});
-        let (status, session) = request(
-            &router,
-            "POST",
-            "/authority/session",
-            Some(&binding.channel),
-            None,
-            exchange.clone(),
-        )
-        .await;
-        assert_eq!(status, StatusCode::OK);
-        let token = session["session_token"].as_str().unwrap();
-        assert_eq!(
-            request(
-                &router,
-                "POST",
-                "/authority/session",
-                Some(&binding.channel),
-                None,
-                exchange
-            )
-            .await,
-            (StatusCode::FORBIDDEN, denial.clone())
-        );
-        let (status, current) = request(
-            &router,
-            "GET",
-            "/authority/session",
-            Some(&binding.channel),
-            Some(token),
-            Value::Null,
-        )
-        .await;
-        assert_eq!(status, StatusCode::OK);
-        assert_eq!(current["account_id"], credential["account_id"]);
-        assert_eq!(
-            request(
-                &router,
-                "GET",
-                "/authority/session",
-                Some(&"f4".repeat(32)),
-                Some(token),
-                Value::Null
-            )
-            .await,
-            (StatusCode::FORBIDDEN, denial.clone())
-        );
-        use crate::model_runtime::cloud::secrets_vault::{OsKeychainSecretsVault, SecretsVault};
-        let config = state.surreal.config();
-        let installation = hex::encode(Sha256::digest(
-            serde_json::to_vec(&(
-                config.path().to_string_lossy(),
-                config.namespace(),
-                config.database(),
-            ))
-            .unwrap(),
-        ));
-        let vault = OsKeychainSecretsVault::new(format!("handshake-local-accounts-{installation}"));
-        let session_id = session["session_id"].as_str().unwrap();
-        assert!(vault.get(session_id).is_ok_and(|stored| stored.as_str() == token));
-        let other_vault =
-            OsKeychainSecretsVault::new(format!("handshake-local-accounts-{installation}-other"));
-        assert!(
-            matches!(other_vault.get(session_id), Err(crate::model_runtime::cloud::secrets_vault::SecretsVaultError::NoSecretForLane(missing)) if missing == session_id)
-        );
-        assert_eq!(
-            request(
-                &router,
-                "POST",
-                "/authority/logout",
-                Some(&binding.channel),
-                Some(token),
-                Value::Null
-            )
-            .await
-            .0,
-            StatusCode::OK
-        );
-        assert!(
-            matches!(vault.get(session_id), Err(crate::model_runtime::cloud::secrets_vault::SecretsVaultError::NoSecretForLane(missing)) if missing == session_id)
-        );
-        for path in ["/authority/session", "/authority/logout"] {
-            let method = if path.ends_with("logout") {
-                "POST"
-            } else {
-                "GET"
-            };
-            assert_eq!(
-                request(
-                    &router,
-                    method,
-                    path,
-                    Some(&binding.channel),
-                    Some(token),
-                    Value::Null
-                )
-                .await,
-                (StatusCode::FORBIDDEN, denial.clone())
-            );
-        }
-        let mut counts = state.surreal.test_admin_query("RETURN {setup: array::len(SELECT VALUE id FROM kernel_event_ledger WHERE event_type = 'LOCAL_ACCOUNT_SETUP'), login: array::len(SELECT VALUE id FROM kernel_event_ledger WHERE event_type = 'LOCAL_ACCOUNT_LOGIN'), logout: array::len(SELECT VALUE id FROM kernel_event_ledger WHERE event_type = 'LOCAL_ACCOUNT_LOGOUT')};".into()).await.unwrap();
-        assert_eq!(
-            counts.take::<Option<Value>>(0).unwrap(),
-            Some(json!({"setup":1,"login":1,"logout":1}))
-        );
-        state.surreal.shutdown().await.unwrap();
+        super::local_account_http_test_support::run_local_account_http_setup_login_vault_logout_and_constant_denials().await;
     }
 }
 

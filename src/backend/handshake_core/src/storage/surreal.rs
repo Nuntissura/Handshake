@@ -4340,7 +4340,7 @@ impl SurrealStorage {
         .await
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-utils"))]
     pub(crate) async fn test_admin_query(
         &self,
         statement: String,

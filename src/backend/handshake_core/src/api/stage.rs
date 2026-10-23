@@ -256,10 +256,10 @@ fn token_matches(stored: &str, presented: &str) -> bool {
 /// is process-global, so two suites in the same test binary (for example `api::memory` and
 /// `api::flight_recorder`) would otherwise authenticate against each other's token and fail
 /// non-deterministically.
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 pub(crate) static NATIVE_BINDING_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 pub(crate) fn current_process_native_binding(token: &str) -> serde_json::Value {
     let pid = std::process::id();
     let process_birth = process_birth_identity(pid)

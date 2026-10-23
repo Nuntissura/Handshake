@@ -890,3 +890,8 @@ required-features = ["test-utils", "surreal-test-support"]
 name = "model_lane_promotion_surreal_tests"
 path = "tests/model_lane_promotion_surreal_tests.rs"
 required-features = ["app-runtime", "test-utils", "surreal-test-support", "os-keychain"]
+
+[[test]]
+name = "local_account_http_setup_tests"
+path = "tests/local_account_http_setup_tests.rs"
+required-features = ["runtime-full", "os-keychain", "test-utils", "surreal-test-support", "duckdb-flight-recorder"]
