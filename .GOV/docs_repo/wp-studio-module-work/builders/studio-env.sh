@@ -55,6 +55,11 @@ export CARGO_PROFILE_TEST_DEBUG=line-tables-only
 # cargo output (268.5 GiB on D: + 19.3 GiB on C: purged 2026-10-21, regrown with every build since). Cost: an edited
 # workspace crate recompiles whole instead of incrementally. STUDIO_INCREMENTAL=1 opts a lane back in (lead approval only).
 export CARGO_INCREMENTAL="${STUDIO_INCREMENTAL:-0}"
+# Lead decision 2026-10-23: with D: (a spinning disk) as the only build disk, a round holds the D: lock for hours and
+# builders behind it gave up at the 7200 s default (SMB-HARNESS-SHELL-2 exit 75 after 13666 s of waiting; AE-EFFECT-STACK-1,
+# PANELS-1 likewise). Builders wait up to 6 h instead of failing; they run in the background anyway. A caller's explicit
+# value still wins.
+export STUDIO_DISK_BUILD_LOCK_TIMEOUT_S="${STUDIO_DISK_BUILD_LOCK_TIMEOUT_S:-21600}"
 mkdir -p "${CARGO_TARGET_DIR}" "${TMP}"
 
 # Tree binding (diagnostics/stale-artifacts.md M2): Cargo hashes workspace-member paths relative to the workspace
