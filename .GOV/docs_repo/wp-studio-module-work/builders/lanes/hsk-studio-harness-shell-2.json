@@ -1,0 +1,72 @@
+{
+  "crate": "hsk-studio-harness-view + hsk-studio-harness + hsk-studio-controls (additive)",
+  "lane": "SMB-HARNESS-SHELL-2",
+  "status": "BLOCKED",
+  "phase": "slices 1-2 committed locally in wt-studio-lanes/smb-harness-shell-2 (NOT pushed); bundled run 1 gave up on the D: disk lock (no clippy or test ran); held on the lead's stop for gated commands; the global gameplan hook then blocked a plain Bash lane-file update",
+  "commits": [
+    {"sha": "fc934f9", "subject": "SMB-HARNESS-SHELL-2 slice 1: controls menu and window descriptors (STU-ARC-014)", "pushed": false},
+    {"sha": "8ddbae5", "subject": "SMB-HARNESS-SHELL-2 slice 2: shell menu from controls descriptors, HELP menu, F-R37-3", "pushed": false}
+  ],
+  "capabilities_done": [],
+  "capabilities_written_unproven": [
+    "F-R37-3 [STU-SHL-008]: OpenPrototype dialog filter 'Figma (.fig)' -> 'Design file (.fig)' (file_dialog.rs); test no_vendor_product_name_in_dialog_filters_or_the_menu_tree scans every Purpose's filter labels and window items, the help window, and every menu node id/label in three states (nothing open; document + recent path holding a vendor word as data; sequence document with panels open)",
+    "[STU-ARC-014] hsk-studio-controls::menu (additive module): MenuBar/MenuNode/WindowSpec descriptors, one Availability record per node ([STU-SHL-050] states, [STU-SHL-051] 12 reason codes), audit (unique ids MENU-INV-2, depth [STU-SHL-021], reason on every non-available node [STU-SHL-019], one available remedy per INAPPLICABLE_HERE [STU-SHL-020], descriptor_display_name_empty, vendor_product_name_in_display_name [STU-SHL-251]), resolve_remedies, agent_json, manual_topics, egui menu_bar_ui (never hides [STU-SHL-018], remedy drawn as enabled sibling leaf [STU-SHL-052])",
+    "harness-view shell: Viewer::menu_bar builds FILE / EDIT / VIEW / WORKSPACE > Panels / HELP from those descriptors; one evaluation feeds egui, AccessKit description per node (feature desktop), shell_command refusals (same reason line, MENU-INV-4), state_json shell.menu and the manual",
+    "[STU-SHL-037] HELP: all 16 leaves in spec order (Studio Manual submenu 6, Full Command Index, Keyboard Shortcut Reference, Diagnostics submenu 7 menu-only, About Studio); implemented: Open/Search Manual (in-window help view, bounded query, hostile query refusals), Full Command Index, Keyboard Shortcut Reference, System Report, About; others greyed NOT_IN_THIS_DOCUMENT NOT_IMPLEMENTED_YET",
+    "file dialog drawn from a controls WindowSpec (Purpose::window_spec), window descriptor in state_json; RUN-UI.md updated"
+  ],
+  "tests": {
+    "argv": "cd <lane>/handshake-studio-assets && bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-harness-shell-2 --disk d -- cargo nextest run -p hsk-studio-controls -p hsk-studio-harness-view -p hsk-studio-harness -p hsk-studio-harness-core --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+    "exit": 75,
+    "sha": "8ddbae5",
+    "passed": null,
+    "failed": null
+  },
+  "tests_written": {
+    "controls tests/menu_descriptors.rs (5)": ["vendor_names_are_found_as_tokens_never_as_substrings", "audit_is_clean_on_a_lawful_bar_and_names_every_breach", "remedies_resolve_to_one_available_leaf_or_the_node_leaves_the_inapplicable_state", "every_projection_reads_the_one_availability_record", "menu_bar_ui_never_hides_a_node_and_dispatches_the_remedy_leaf"],
+    "harness tests/viewer_shell.rs (3 new, 2 updated)": ["no_vendor_product_name_in_dialog_filters_or_the_menu_tree", "help_menu_carries_the_spec_leaves_and_opens_the_help_views", "availability_reaches_the_command_api_the_projection_and_accesskit_alike (AccessKit part feature desktop; prints NOT_PROVEN without it)", "updated: menu_bar_draws_its_titles... (HELP title), accesskit_clicks_reach_the_open_dialog_and_a_workspace_panel (Panels submenu), function_keys... (filter label)"]
+  },
+  "blockers": [
+    {"error": "studio-env: C:/HandshakeBuild/WP-KERNEL-STUDIO held 140 GiB at 2026-10-22T21:56:32Z > cap 140 GiB (Operator grant CX-984-014: 150 GB); SSD build refused (77). Unset STUDIO_BUILD_DISK to build on D:; cleanup is a steward/Operator action.", "file_line": "builders/studio-env.sh (SSD guard)", "attempts": 1},
+    {"error": "disk-build-lock: gave up after 7201s waiting for run-round studio-round (run-round --all sha e3953dea1b69 results .../studio-round/results/R38-canary); lane-check exit 75; no clippy or test ran (infrastructure, not a product failure)", "file_line": "tools/lane-check.sh -> builders/studio-env.sh disk lock", "attempts": 1},
+    {"error": "Lead 2026-10-23: no gated command until the global gameplan hook is off (hook text: confirm_binding target missing: .../wtc-WP-KERNEL-012 | GLOBAL-GAMEPLAN-001)", "file_line": "global hook", "attempts": 0},
+    {"error": "PreToolUse:Bash hook (gameplan.py hook) blocked a plain python lane-file update run from the kernel root: 'scope | role=* | at=before_round | GLOBAL-GAMEPLAN-001'; unconfirmed GP-016, GP-017 (orchestrator), GP-024, GP-026, GP-027, GP-028, GP-030, GP-031 (builder) for HEAD 61e002ba32e3; fix lines offered: gameplan confirm ... (NOT run, per Operator instruction to ignore gameplans). This file was written with the Write tool instead; no command was reshaped.", "file_line": "~/.claude/skills/gameplan/scripts/gameplan.py hook", "attempts": 1}
+  ],
+  "lock_wait_s": 13666,
+  "bg_pids": [],
+  "next": "when the lead clears the hook: rerun the same bundled lane-check on D: at 8ddbae5 (whole suites of controls, harness-view, harness, harness-core; desktop + audio-batch); then fetch + rebase onto origin/codex/handshake-studio-assets (smb-timeline-ui-1 also touches harness-view: expect a possible conflict), diff --stat check, guarded push, READY_FOR_VALIDATION, START_LOG line",
+  "updated_at": "2026-10-22T23:15:06Z (not refreshed: Bash blocked by the hook, no date -u available)",
+  "notes": {
+    "disk_move": "Operator decision 2026-10-23 (no builds on C:): no process of this lane ever ran on the C: target (the only SSD attempt was refused by studio-env with exit 77 before cargo started); every build of this lane runs on D: with STUDIO_OWNER=smb-harness-shell-2 without STUDIO_BUILD_DISK, target Handshake_Artifacts/WP-KERNEL-STUDIO/smb-harness-shell-2/target. C: target untouched (lead handles it).",
+    "check": "cargo check -p hsk-studio-controls -p hsk-studio-harness-view -p hsk-studio-harness --tests --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch: exit 0 on D: (no warnings in the owned crates), before the commits; 6465 s lock wait",
+    "spec_basis": [
+      "[STU-SHL-008] Naming law binding. No vendor product name is a Studio menu title, submenu, leaf, panel, region, tool, family, Layout Preset, Task Scope, command id or manual anchor. Vendor names appear ... ONLY as capture provenance ... or in an explanatory note",
+      "[STU-SHL-252] The naming law applies to every generated string ... A generated display_name containing a vendor product name is a build failure ([STU-SHL-251])",
+      "[STU-SECTION-003] a source suite's product name (Photoshop, Illustrator, InDesign, Affinity, Photo, Designer, Publisher, Figma, FigJam, and so on) is never a Studio tool, command, panel, or manual name",
+      "[STU-ARC-014] Controls MUST implement one reusable panel/control mechanic with typed capability configuration for text fields, sliders, swatches, menus, windows ... The same descriptors MUST feed structured tools, AccessKit, UserManual and Argus",
+      "[STU-SHL-004] the shell menu bar carries eight menus ... Studio contributes leaves into FILE, EDIT, VIEW and HELP",
+      "[STU-SHL-037] HELP: Studio Manual (Open Studio Manual, Search Manual…, Help for This Command, Help for This Panel, Help for This Tool, Domain Guides…), Full Command Index… (menu-only), Keyboard Shortcut Reference…, Diagnostics (Render Harness…, Visual Debugger, Flight Recorder, Validation Report…, System Report…, GPU Report…, Accessibility Tree Snapshot…; menu-only), About Studio",
+      "[STU-SHL-017] menu invariants MENU-INV-2 (one id per primary leaf), MENU-INV-4 (one availability evaluation feeds every renderer), MENU-INV-5 (author_id menu.{command_id})",
+      "[STU-SHL-018] The menu NEVER hides ... INAPPLICABLE_HERE renders greyed with its reason and its remedy. NOT_IN_THIS_DOCUMENT renders greyed with its reason",
+      "[STU-SHL-019] Machine-readable disabled_reason readable through tooltip, AccessKit node and command API with identical content",
+      "[STU-SHL-020] Every INAPPLICABLE_HERE state MUST carry a remedy_command_id naming ONE enabled command ... The menu renders the remedy as an enabled sibling leaf",
+      "[STU-SHL-021] Maximum depth including registry expansion is 4",
+      "[STU-SHL-050] three states AVAILABLE / INAPPLICABLE_HERE / NOT_IN_THIS_DOCUMENT; [STU-SHL-051] twelve reason codes (closed)",
+      "[STU-SHL-036] WORKSPACE > Panels | expansion | studio.workspace.panel",
+      "[STU-SHL-009] / [STU-CMP-110] / [STU-QUIET-005] headlessly inspectable and steerable, no foreground window, no focus steal: every new surface is driven by Viewer methods and state_json, drawn into a bare egui::Context in tests"
+    ],
+    "decisions": [
+      "HELP command ids: the spec gives labels but no ids; studio.help.* are harness ids (no canonical id verified)",
+      "availability mapping (harness choice, alignment UNVERIFIED): missing cargo feature -> NOT_IN_THIS_DOCUMENT CAPABILITY_NOT_GRANTED clause capability:<feature>; no sequence -> NOT_IN_THIS_DOCUMENT NO_SUCH_CONTAINER container:timeline; nothing open -> INAPPLICABLE_HERE NO_SUCH_CONTAINER remedy Open…; develop/waveform -> INAPPLICABLE_HERE DOC_FEATURE_ABSENT remedy Open…; spectral -> remedy waveform editor, resolved to Open… when that is greyed; nothing to undo -> NOT_IN_THIS_DOCUMENT DOC_FEATURE_ABSENT; nothing to redo -> INAPPLICABLE_HERE remedy Undo",
+      "vendor list (controls VENDOR_PRODUCT_NAMES) taken from the spec: STU-SECTION-003 and the provenance keys of the STU-SHL-113 panel catalogue (adobe, photoshop, illustrator, indesign, aftereffects, premiere, lightroom, dreamweaver, affinity, figma, figjam); matched as tokens or adjacent token pairs, never substrings (V4-08), so Photo/Designer/Publisher alone are not flagged (photo is a spec profile name)",
+      "WORKSPACE > Panels is now a submenu node (studio.workspace.panel) instead of a heading label, so the expansion node is addressable"
+    ],
+    "gaps": [
+      "layout editor save API: NOT built. Persisting layout edits through the session needs chronicle writes for page spreads, text_frame and stories; hsk-studio-chronicle addressable() admits only Name on page spreads and no text_frame/story property, and placement seeds only root/group stacks (crates/hsk-studio-chronicle/src/lib.rs:425); chronicle is outside this lane -> needs a chronicle/session lane",
+      "STU-SHL-004 Alt mnemonics and AccessKit node ids in the reserved band: owned by the shell menu bar (handshake_core), not the standalone harness; not implemented here",
+      "STU-ARC-014 descriptors now drive menus and the file dialog / help windows; the dialog's file list rows and the other panels' egui code are not descriptor-driven",
+      "HELP leaves Help for This Command/Panel/Tool, Domain Guides, Render Harness, Visual Debugger, Flight Recorder, Validation Report, GPU Report, Accessibility Tree Snapshot: greyed NOT_IMPLEMENTED_YET (no backing surface in the viewer)",
+      "vendor names outside menus and dialogs, left as provenance/format strings: harness-core import receipts and CLI manual text (Affinity preview route, tiff_photoshop_layers_not_imported), CLI colour space adobe-rgb"
+    ]
+  }
+}

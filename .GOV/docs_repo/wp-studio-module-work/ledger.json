@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-23T01:24:24Z",
+ "updated_at": "2026-10-23T01:54:02Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9709,14 +9709,17 @@
    "lane_id": "SMB-HARNESS-SHELL-2",
    "crate": "hsk-studio-harness-view / harness / harness-core (+controls descriptors if spec-placed)",
    "phase": "build",
-   "status": null,
-   "blocked_on": null,
+   "status": "BLOCKED",
+   "blocked_on": "global gameplan hook (Operator decision pending; it even blocked a plain python lane-file update: 'scope | role=* | at=before_round | GLOBAL-GAMEPLAN-001', unconfirmed GP-016/017/024/026/027/028/030/031 for kernel HEAD 61e002ba) plus infrastructure: bundled lane-check at 8ddbae5 exit 75 (D: lock gave up after 7201 s behind the R38 canary; total lock wait 13666 s); nothing run beyond cargo check --tests (exit 0, desktop + audio-batch)",
    "owner": "builder (Opus), lead dispatch 2026-10-22 ~21:45Z after the Operator's traction question",
    "lane_file": "builders/lanes/hsk-studio-harness-shell-2.json",
    "candidate": null,
-   "commits": [],
+   "commits": [
+    "(local only, lane/smb-harness-shell-2 over e3953de) fc934f9 controls: menu + window descriptors (STU-ARC-014, additive) + tests/menu_descriptors.rs (5 tests)",
+    "8ddbae5 shell menu built from descriptors; HELP menu (STU-SHL-037: 16 leaves, 6 as in-window help view, 10 greyed NOT_IMPLEMENTED_YET); F-R37-3 fixed ('Design file (.fig)', STU-SHL-008); viewer_shell.rs +3/~2 tests; RUN-UI.md"
+   ],
    "verdicts": [],
-   "note": "F-R37-3 vendor-name dialog filter label; HARNESS-SHELL-1 gaps (HELP leaves STU-SHL-004, layout editor save API, controls descriptors STU-ARC-014); SSD slot"
+   "note": "F-R37-3 vendor-name dialog filter label; HARNESS-SHELL-1 gaps (HELP leaves STU-SHL-004, layout editor save API, controls descriptors STU-ARC-014); SSD slot | 2026-10-23: gaps: layout editor save API not built (chronicle has no page-spread/text_frame/story write: hsk-studio-chronicle/src/lib.rs:425); Alt mnemonics and reserved-band node ids belong to the shell, not the harness. Remaining: bundled run, rebase (timeline lane also touches harness-view), diff check, guarded push, READY, START_LOG line. Never built on C: (77 refusal)."
   },
   {
    "lane_id": "SMB-HARNESS-PANELS-1",
