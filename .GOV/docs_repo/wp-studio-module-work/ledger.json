@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-23T17:55:50Z",
+ "updated_at": "2026-10-23T18:51:52Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9750,19 +9750,21 @@
   {
    "lane_id": "SMB-AE-EFFECT-STACK-1",
    "crate": "hsk-studio-composite (+folio additive records, render-cpu additive kernels)",
-   "phase": "build",
-   "status": "BLOCKED",
-   "blocked_on": "paused by the lead (global gameplan hook hard-blocks gated runs; Operator decision pending): 3 slices committed locally, never compiled or run; its D: check had given up after 7200 s behind R38 and its queued bundled run was stopped by the builder itself on the pause order (nothing compiled)",
+   "phase": "ready",
+   "status": "READY_FOR_VALIDATION",
+   "blocked_on": null,
    "owner": "builder (Opus), lead dispatch 2026-10-22 ~21:45Z after the Operator's traction question",
    "lane_file": "builders/lanes/hsk-studio-ae-effect-stack-1.json",
-   "candidate": null,
+   "candidate": "5739eb5",
    "commits": [
-    "(local only, lane/smb-ae-effect-stack-1 over e3953de) 9d177e5 Folio StudioCompositionLayer.effects records",
-    "dde603e composite SceneContent::Effected, CPU kernels, record lowering",
-    "c733641 render-cpu proof test"
+    "699eda4 Folio effect-stack records (STU-FX-131 rows)",
+    "6e7da77 composite SceneContent::Effected + distort/generate kernels",
+    "1f460b1 render-cpu proof",
+    "0c0df93 test fixes (golden printing, alpha-0 texels, then_some)",
+    "5739eb5 12 golden digests pinned"
    ],
    "verdicts": [],
-   "note": "AE per-layer effect stack + distort/generate families (parity-after_effects.json gaps); headless golden proofs; rule 4b; SSD slot | 2026-10-23: distort Twirl, Spherize, Offset, Polar Coordinates; generate Gradient Ramp, Circle, Checkerboard; STU-FX-131 parameter rows; spec basis STU-FX-001/002/003/008/011/011b/104-107/112/116a/130/131, STU-CMP-010/010b. Stack order, masks before effects, disabled skipped, solo honoured, entry opacity mixes; out-of-range refused (effect_param_out_of_range), unimplemented options refused (composition_effect_option, composition_effect_content). Tests written, none run: 3 folio, 3 composite (12 golden digests still PIN placeholders, to be filled from the first run before any push), 1 render-cpu. Remaining: one bundled lane-check on D: over folio, composite, render-cpu, package (rule 4b: Folio gained a field), pin digests, one re-run, rebase, guarded push, READY. UNVERIFIED for D5: kernel formulas are Studio readings; Twirl Angle 0..0 read as no declared range; solo semantics; trig digests depend on platform libm. Never built on C: (77 refusal)."
+   "note": "AE per-layer effect stack + distort/generate families (parity-after_effects.json gaps); headless golden proofs; rule 4b; SSD slot | 2026-10-23: distort Twirl, Spherize, Offset, Polar Coordinates; generate Gradient Ramp, Circle, Checkerboard; STU-FX-131 parameter rows; spec basis STU-FX-001/002/003/008/011/011b/104-107/112/116a/130/131, STU-CMP-010/010b. Stack order, masks before effects, disabled skipped, solo honoured, entry opacity mixes; out-of-range refused (effect_param_out_of_range), unimplemented options refused (composition_effect_option, composition_effect_content). Tests written, none run: 3 folio, 3 composite (12 golden digests still PIN placeholders, to be filled from the first run before any push), 1 render-cpu. Remaining: one bundled lane-check on D: over folio, composite, render-cpu, package (rule 4b: Folio gained a field), pin digests, one re-run, rebase, guarded push, READY. UNVERIFIED for D5: kernel formulas are Studio readings; Twirl Angle 0..0 read as no declared range; solo semantics; trig digests depend on platform libm. Never built on C: (77 refusal). | 2026-10-23 READY at 5739eb5 (pushed 88edeb0..5739eb5, 15 lane paths; lead verified, no PIN left). Run 2: 400/400 (folio 106, composite 144, render-cpu 115, package 35), clippy OK; lock waits 5145 s (harvest) + 2048 s. Digests platform-bound (Windows libm). Builder's record command hook-blocked; lead wrote the records. Incident: builder TaskStopped its own queued run; the lane-check kept running as run 1; nothing foreign touched."
   },
   {
    "lane_id": "STUDIO-R38",
