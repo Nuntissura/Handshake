@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-HANDOFF
 file_kind: handoff
-updated_at: 2026-10-23T14:57:05Z
+updated_at: 2026-10-23T15:01:14Z
 wp: WP-KERNEL-STUDIO
 authority: Handshake Codex, KERNEL_BUILDER_PROTOCOL, START_LOG.md, ledger.json, validation/*, builders/briefs/wave-parity-2-common.md, builders/studio-env.sh, workflow/workflow-v3.json (this file is a projection; they win on conflict)
 ---
@@ -26,14 +26,14 @@ STATE YOU INHERIT (verified 2026-10-23 ~12:00Z; re-verify):
 - The machine restarted ~08:40Z on 2026-10-23. Every running process died: validation round R38 (candidate e3953de) was lost 12 h into its canary and never reached the union; the steward's lock/registry sync died (SYNC_SHA PENDING); all agents died. Nothing was corrupted: lane worktrees kept their local commits.
 - Product origin tip 5ab33c9. READY_FOR_VALIDATION and unvalidated on origin: SMB-AE-ROTO-WIRING d9de925, SMB-PS-FILL-LAYERS 3b88879, SMB-DEVELOP-DNG-WRITER 71253a3, SMB-AE-RENDER-QUEUE-2 e3953de, SMB-TIMELINE-UI-1 5ab33c9. They need round R39 (scoped, tools/round-select.py) on the current tip.
 - Parked with LOCAL commits only (never run, never pushed), in wt-studio-lanes/<lane>/handshake-studio-assets: smb-harness-shell-2 (8ddbae5, 2 commits), smb-harness-panels-1 (587886c, 3), smb-ae-effect-stack-1 (c733641, 3), smb-eps-free-fonts (a0351e9, 3 + Cargo.lock dirty by rule). Each needs: one bundled lane-check, fixes, rebase, guarded push, READY. Their lane files say exactly what remains. The EPS lane then needs a steward sync (7 new workspace members hsk-studio-ps*, edges, round-features, one machine-path pin, licence gate on the GUST Font License).
-- Steward owes: the lock/registry sync (never dispatch it while a round holds D:), canary C54, SYNC_SHA; run-round.sh already has CARGO_INCREMENTAL=0 (23b1bb7) and round-select.py ignores step-0 policy overlays (kernel, committed).
+- Steward: the previous lead dispatched sync attempt 3 (lock/registry sync + canary C54 on the idle D:) at ~15:35Z on 2026-10-23 as a fresh agent of the OLD session; that agent dies with that session. Before anything else read ledger.json lane SMB-STEWARD and the last `- Steward 2026-10-23` line in START_LOG.md: if SYNC_SHA is recorded, use it; if not, check for a live steward-sync process (never stop it) and otherwise dispatch the sync yourself (never while a round holds D:). run-round.sh already has CARGO_INCREMENTAL=0 (23b1bb7) and round-select.py ignores step-0 policy overlays (kernel, committed).
 - Disks: D: (Toshiba 16 TB spinning disk) is the only build disk by Operator decision; C: (Samsung 870 QVO SATA SSD) is closed for builds (studio-env.sh refuses STUDIO_BUILD_DISK=ssd). The approved D: cleanup (batch A: 50 finished owners' target+tmp) ran 2026-10-23 11:52Z-14:44Z and is COMPLETE: 99 paths, 295.2 GiB, 263,938 files deleted; D: free 1220.8 -> 1497.7 GiB (research/cargo-cleanup-result-20261022.json). The D: lock dir had a stale `held` from the dead round; the lock's stale-break rule clears it when the next waiter sees holder and child dead. The three fresh C: lane stubs were deleted 2026-10-23 (C: lanes dir empty; every approved cleanup item is done). Re-check free space before any new build.
-- BLOCKER: the Operator's GLOBAL agent config (C:\Users\Ilja Smets\.claude\settings.json, two hook entries matching Bash|PowerShell, running ~/.claude/skills/gameplan/scripts/gameplan.py) hard-blocks every command whose text matches cargo test / nextest / cargo clean / run-round, and blocks mutating commands while it considers a gameplan active. It resolves WP-KERNEL-012's gameplan from every Studio tree and fails on a worktree this machine lacks. The Operator said to IGNORE gameplans this session (no gameplan work), but a hard block cannot be ignored: report the exact message, never reshape a command around it, never touch the Operator's config. Until the Operator disables those entries, no lane can run tests and no round can run (on 2026-10-23 the Operator had the lead remove them and then asked for the revert, preferring an instruction not to use the skill; the instruction is in place but cannot lift the hook; backups of the settings file exist beside it). Keep your own command text free of those words when you only record things, and report the first block verbatim to the Operator.
+- HOOK (probe first, do not assume): the Operator's GLOBAL agent config (C:\Users\Ilja Smets\.claude\settings.json, two hook entries matching Bash|PowerShell, running ~/.claude/skills/gameplan/scripts/gameplan.py) hard-blocks every command whose text matches cargo test / nextest / cargo clean / run-round, and blocks mutating commands while it considers a gameplan active. It resolves WP-KERNEL-012's gameplan from every Studio tree and fails on a worktree this machine lacks. The Operator said to IGNORE gameplans this session (no gameplan work), but a hard block cannot be ignored: report the exact message, never reshape a command around it, never touch the Operator's config. It hard-blocked this machine at 11:48Z on 2026-10-23, yet probes with the gated words PASSED at ~15:25Z from the kernel root and from a lane worktree with the same entries present (cause UNVERIFIED; the Operator keeps the hooks as they are). Rule: at session start run one harmless echo containing a gated word from the kernel root and from a lane worktree; if it passes, proceed; if it blocks, report the exact message to the Operator and stop gated work. Never reshape a command around it, never edit the Operator's config (backups of the settings file exist beside it from 2026-10-23).
 - Spec: SPEC_CURRENT -> v02.222 (the other device published v02.221 reconciling both lineages on 2026-10-22 and v02.222 "Engine Profiles binding" on 2026-10-23 00:12Z; the roto contract STU-CMP-034 with declared 0..100 chatter bounds is in both). Next Studio spec edit starts a v02.223 bundle by the copy-first procedure (see the v02.217/v02.218 commits); always re-read SPEC_CURRENT.md first, the other device moves it. Residue folders master-spec-v02.218 and master-spec-v02.220 beside the current bundle await the Operator's removal approval.
 
 - Parity at handover (research/parity-20261023-rollup.json; validated / on-origin-unvalidated / local): engine 55.8 / 56.0 / 56.0 % over 9 apps (54.9 on 2026-10-21); GUI pooled 52.8 / 53.2 / 56.5 % (37.0); GUI strict 20.8 / 22.4 / 24.7 % (14.3). After Effects GUI is 0 %; Premiere GUI 40 % only through the READY timeline panel; InDesign GUI 70 % through the hosted layout editor; no vendor oracle for Lightroom, Premiere, Audition, Figma, Affinity. Top gaps per app are in the post-mortem.
 
-FIRST ASSIGNMENT: confirm the state above by reading, not by building (the hook may still be on). Then, in this order, as the hook allows: (1) steward sync + canary C54 on D: with nothing else building; (2) finish the four parked lanes (one at a time on the D: lock, biggest first) and push them; (3) R39 scoped on the tip; (4) only then new lanes, from the post-mortem's top gaps.
+FIRST ASSIGNMENT: (0) run the hook probe (one harmless echo containing a gated word, from the kernel root and from a lane worktree; see the HOOK item); (1) confirm the state above by reading, not by building; (2) steward sync + canary C54 on D: with nothing else building, unless SYNC_SHA is already recorded; (3) finish the four parked lanes one at a time on the D: lock, biggest first (effect-stack-1, panels-1, shell-2, eps-free-fonts; eps needs its own steward sync after its push), and push them; (4) R39 on the tip (full scope by rule: tools/run-round.sh changed in 23b1bb7; expect many hours on the spinning disk); (5) only then new lanes, from the post-mortem's top gaps, at most two GUI lanes at once.
 
 DO:
 - Follow the Operator's instructions directly and fully. Do not send an instruction back to the Operator or ask them to re-confirm something they already decided.
@@ -54,7 +54,7 @@ DO NOT:
 - Do not touch WP-KERNEL-012 files. Do not integrate Studio into Handshake.
 - Do not edit the Master Spec except on an explicit Operator request.
 - Do not add any database other than SurrealDB. Permissive licences only; never read GPL/LGPL/MPL source. Never commit the proprietary Arial host font from the oracle corpus. Never classify the cargo registry cache (~/.cargo/registry/cache, registry/index) as removable.
-- Do not build on C: (Operator 2026-10-23) until the Operator reopens it. Do not scan whole disks or other projects' folders; Studio's own cargo output is the only cleanup scope.
+- Do not build on C: (Operator 2026-10-23) until the Operator reopens it. Do not scan whole disks or other projects' folders; Studio's own cargo output is the only cleanup scope. Do not edit the Operator's global settings file; the hooks stay as they are.
 - Do not dispatch a steward sync or a canary while a validation round holds the D: lock; do not run more than one disk-heavy job per disk.
 ```
 
@@ -99,9 +99,11 @@ DO NOT:
 
 <topic id="state" status="active" summary="Verified state on 2026-10-23 after the machine restart">
 
-## State (verified 2026-10-23 ~12:00Z)
+## State (verified 2026-10-23 ~15:40Z)
 
-- Machine restart ~08:40Z: R38 (e3953de) lost in its canary; steward sync lost (SYNC_SHA PENDING); all agents gone. Lane worktrees intact (see takeover prompt). D: cleanup batch A COMPLETE 14:44Z (99 paths, 295.2 GiB; D: free 1497.7 GiB); C: cleanup complete (C: free 528 GiB, tree 134 MB). Result file research/cargo-cleanup-result-20261022.json (to be extended with the D: run).
+- Machine restart ~08:40Z: R38 (e3953de) lost in its canary; steward sync lost (SYNC_SHA PENDING); all agents gone. Lane worktrees intact (see takeover prompt). D: cleanup batch A COMPLETE 14:44Z (99 paths, 295.2 GiB; D: free 1497.7 GiB); C: cleanup complete incl. the three lane stubs (C: free 528 GiB; C: lanes dir empty). Every approved cleanup item is done; result file research/cargo-cleanup-result-20261022.json.
+- Hooks: kept as they are by Operator decision; probes with gated words passed at ~15:25Z (cause unverified); the settings file was briefly edited and restored byte-identically (backup settings.json.bak-20261023-gameplan-hooks beside it).
+- Running at handover (old session's agents): steward sync attempt 3 + canary C54 on D: (dispatched ~15:35Z). Nothing else builds.
 - Product origin tip 5ab33c9; 41 commits and +15,063 lines in the 24 h before the restart; 11 lanes pushed 2026-10-22 (7 PASS in R36/R37; 4 READY unvalidated; timeline READY).
 - Validation: R36 @ a105766 291 PASS / 2 FAIL (remediated); R37 @ 1d139a6 297 PASS / 1 FAIL (remediated); R38 LOST. Next: R39 scoped.
 - Spec v02.222 current (see takeover prompt). Post-mortem: research/post-mortem-20261023.md; parity updates: research/parity-20261023-{adobe-print,video-audio,figma-affinity-shell}.json.
@@ -113,7 +115,7 @@ DO NOT:
 
 ## Waiting on the Operator
 
-- Disable the two gameplan hook entries in the global settings.json for this work (blocks every test run and round); instructing agents not to use the skill is already done and does not lift the hook.
+- Gameplan hooks: kept as they are by Operator decision 2026-10-23; they did not block at ~15:25Z (cause unverified). If a session is blocked again, the Operator decides.
 - Reopen C: (SSD) for builds with a grant large enough for a round target plus lane targets (roughly 300 to 400 GiB), or keep all builds on the spinning D: and accept rounds of 12 h or more.
 - Windows Search and Defender exclusions for the build roots; uTorrent and the Codex app compete for D: seeks (report only).
 - Spec residue: `git rm -r` of .GOV/spec/master-spec-v02.218 and master-spec-v02.220 (archive copies exist).
