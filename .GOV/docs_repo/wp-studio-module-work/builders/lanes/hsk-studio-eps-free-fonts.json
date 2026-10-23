@@ -1,54 +1,61 @@
 {
  "crate": "hsk-studio-ps, hsk-studio-ps-core, hsk-studio-ps-engine, hsk-studio-ps-fonts, hsk-studio-ps-graphics, hsk-studio-ps-ops, hsk-studio-ps-pdf (new, vendored stet 0.8.4 fork); hsk-studio-interop-vector-core, hsk-studio-interop-vector",
  "lane": "SMB-EPS-FREE-FONTS",
- "status": "BLOCKED",
- "phase": "slices 1-3 committed locally on lane/smb-eps-free-fonts (9d482cf, 21b6d98, a0351e9), NOT pushed: no green bundled run yet; waiting for the lead to lift the gated-command stop",
- "worktree": "Handshake Worktrees/wt-studio-lanes/smb-eps-free-fonts (branch lane/smb-eps-free-fonts, base e3953de), STUDIO_OWNER=smb-eps-free-fonts, STUDIO_BUILD_DISK=d",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "slices 1-3 + run-3 test fixes pushed at 88edeb0 (rebased onto 347026e9); bundled run 4 green",
+ "worktree": "Handshake Worktrees/wt-studio-lanes/smb-eps-free-fonts (branch lane/smb-eps-free-fonts, rebased onto origin 347026e9), STUDIO_OWNER=smb-eps-free-fonts, D: target",
  "commits": [
   {
-   "sha": "9d482cf",
+   "sha": "d195ef7",
    "subject": "hsk-studio-ps* (SMB-EPS-FREE-FONTS slices 1-2): vendored stet 0.8.4 fork with free fonts only",
-   "pushed": false
+   "pushed": true
   },
   {
-   "sha": "21b6d98",
+   "sha": "521700f",
    "subject": "interop-vector-core (SMB-EPS-FREE-FONTS slice 3): EPS worker restored on the free-font fork",
-   "pushed": false
+   "pushed": true
   },
   {
-   "sha": "a0351e9",
+   "sha": "e65c0be",
    "subject": "SMB-EPS-FREE-FONTS: fix eps_worker test path escape; clippy clean in the vendored fork",
-   "pushed": false
+   "pushed": true
+  },
+  {
+   "sha": "88edeb0",
+   "subject": "SMB-EPS-FREE-FONTS: run-3 test fixes (TeX Gyre notice check; fork system-font cache is empty)",
+   "pushed": true
   }
  ],
  "capabilities_done": [
-  "slice 1 (local, unproven by a test run): seven vendored members hsk-studio-ps{,-core,-engine,-fonts,-graphics,-ops,-pdf} (stet 0.8.4, Apache-2.0 OR MIT) without any URW++ file; free fonts embedded with licences; SOURCE_PROVENANCE.json + NOTICE per crate; cargo check -p hsk-studio-ps --tests green (check1, no warnings)",
-  "slice 2 (local, unproven by a test run): 35 standard names -> TeX Gyre / STIX Two Math (Symbol) / DejaVu Sans (ZapfDingbats); symbolic encodings via cmap; standard 14 embedded in PDFs; host font discovery off",
-  "slice 3 (local, unproven by a test run): interop-vector-core eps / eps-worker restored on hsk-studio-ps; .loadbinaryfontfile embedded-only guard; feature-dependent EPS_ROUTE refusal"
+  "slice 1 (pushed, run 4 green): seven vendored members hsk-studio-ps{,-core,-engine,-fonts,-graphics,-ops,-pdf} (stet 0.8.4, Apache-2.0 OR MIT) without any URW++ file; free fonts embedded with licences; SOURCE_PROVENANCE.json + NOTICE per crate; cargo check -p hsk-studio-ps --tests green (check1, no warnings)",
+  "slice 2 (pushed, run 4 green): 35 standard names -> TeX Gyre / STIX Two Math (Symbol) / DejaVu Sans (ZapfDingbats); symbolic encodings via cmap; standard 14 embedded in PDFs; host font discovery off",
+  "slice 3 (pushed, run 4 green): interop-vector-core eps / eps-worker restored on hsk-studio-ps; .loadbinaryfontfile embedded-only guard; feature-dependent EPS_ROUTE refusal"
  ],
  "tests": {
-  "argv": "lane-check.sh --owner smb-eps-free-fonts --disk d -- cargo nextest run -p hsk-studio-ps -p hsk-studio-ps-core -p hsk-studio-ps-engine -p hsk-studio-ps-fonts -p hsk-studio-ps-graphics -p hsk-studio-ps-ops -p hsk-studio-ps-pdf -p hsk-studio-interop-vector-core -p hsk-studio-interop-vector --features hsk-studio-interop-vector-core/eps-worker --no-fail-fast",
-  "exit": 75,
-  "sha": "a0351e9",
-  "passed": null,
-  "failed": null
- },
- "blockers": [
-  {
-   "error": "run2 (a0351e9): disk-build-lock: gave up after 7200s waiting for run-round studio-round (run-round --all sha e3953dea1b69 results .../studio-round/results/R38-canary); exit 75, no clippy or test ran (infrastructure, not a product failure)",
-   "file_line": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-eps-free-fonts/logs/run2.log",
-   "attempts": 1
+  "argv": "lane-check.sh --owner smb-eps-free-fonts --disk d -- cargo nextest run -p hsk-studio-ps -p hsk-studio-ps-core -p hsk-studio-ps-engine -p hsk-studio-ps-fonts -p hsk-studio-ps-graphics -p hsk-studio-ps-ops -p hsk-studio-ps-pdf -p hsk-studio-interop-vector-core -p hsk-studio-interop-vector --features hsk-studio-interop-vector-core/eps-worker --no-fail-fast (clippy --tests over the 9 crates + dependents hsk-studio-harness, hsk-studio-harness-view, hsk-studio-interop-vector-svg, then whole suites)",
+  "exit": 0,
+  "sha": "ebe8689 (pre-rebase tree of 88edeb0; the rebase onto 347026e9 brought only harness/harness-view panel files, dependents not dependencies of the tested crates: no re-run per wave-parity-2 rule 3)",
+  "passed": 808,
+  "failed": 0,
+  "per_crate": {
+   "hsk-studio-ps": 6,
+   "hsk-studio-ps-core": 156,
+   "hsk-studio-ps-engine": 11,
+   "hsk-studio-ps-fonts": 147,
+   "hsk-studio-ps-graphics": 123,
+   "hsk-studio-ps-ops": 306,
+   "hsk-studio-ps-pdf": 15,
+   "hsk-studio-interop-vector-core": 18,
+   "hsk-studio-interop-vector": 26
   },
-  {
-   "error": "Lead 2026-10-23: gameplan hook hard-blocks gated commands ('confirm_binding target missing: .../wtc-WP-KERNEL-012 | GLOBAL-GAMEPLAN-001'); do not start a bundled run until the lead says it is off. This lane did NOT hit the hook (run2 was queued before the message and ended on the lock timeout).",
-   "file_line": null,
-   "attempts": 0
-  }
- ],
- "lock_wait_s": 7200,
+  "clippy": "no warning in the lane crates (hsk-studio-observe's 2 pre-existing too_many_arguments warnings are not this lane's)",
+  "log": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-eps-free-fonts/logs/run4.log"
+ },
+ "blockers": [],
+ "lock_wait_s": 7395,
  "bg_pids": [],
- "next": "when the lead lifts the stop: re-run the argv above (one bundled run), fix all failures, one re-run; fetch + rebase; diff --stat check; guarded push; READY_FOR_VALIDATION on the pushed sha",
- "updated_at": "2026-10-23T02:36:33Z",
+ "next": "validator round on 88edeb0; steward sync items in notes.steward_facts",
+ "updated_at": "2026-10-23T17:55:50Z",
  "notes": {
   "operator_basis": "OPERATOR DECISION 2026-10-22 (START_LOG): keep EPS conversion, free fonts only ('replace EPS with open source fonts, everything made in mankind and is free'); supersedes the 2026-10-21 rejection of crates.io stet; dxf rejection stands (own DXF reader unchanged).",
   "spec_basis": [
@@ -98,7 +105,7 @@
    "duplicate_fingerprints": "none: D16/D18/TIMECODE patterns have no match in the vendored crates' src; the worker uses hsk-studio-worker (D18 owner)",
    "licence_gate": "crate licences in the closure all permissive (research.a_stet_registry.measured_closure); embedded font assets: GUST Font License (LPPL-1.3c) for TeX Gyre, OFL-1.1 for STIX Two Math, Bitstream Vera/Arev for DejaVu Sans - asset licences for the lead/steward to record like the 2026-10-14 bundled-font decision"
   },
-  "runs": "check1 (cargo check -p hsk-studio-ps --tests, 9d482cf tree): green, 1m05s, no warnings. run1 (21b6d98): clippy stopped on one compile error in tests/eps_worker.rs (a '\\\\' char literal lost an escape in a shell heredoc) plus 2 clippy warnings in vendored code (icc.rs collapsible_if, type2_charstring.rs unfulfilled expect) -> fixed in a0351e9; tests did not run. run2 (a0351e9): lock timeout, exit 75. Logs: Handshake_Artifacts/WP-KERNEL-STUDIO/smb-eps-free-fonts/logs/{check1,run1,run2}.log.",
+  "runs": "check1 (cargo check -p hsk-studio-ps --tests, 9d482cf tree): green, 1m05s, no warnings. run1 (21b6d98): clippy stopped on one compile error in tests/eps_worker.rs (a '\\\\' char literal lost an escape in a shell heredoc) plus 2 clippy warnings in vendored code (icc.rs collapsible_if, type2_charstring.rs unfulfilled expect) -> fixed in a0351e9; tests did not run. run2 (a0351e9): lock timeout, exit 75. Logs: Handshake_Artifacts/WP-KERNEL-STUDIO/smb-eps-free-fonts/logs/{check1,run1,run2}.log. run3 (dc0867a, rebased onto 5ab33c9): clippy clean; 806/808, 2 FAIL: hsk-studio-ps::free_fonts embedded_fonts_are_free_and_their_licences_ship (lane test asserted 'GUST' in every TeX Gyre notice; Adventor and Pagella name only 'TeX USERS GROUPS': 25/33 name GUST, 33/33 name TeX Gyre + TeX USERS GROUPS) and hsk-studio-ps-fonts system_fonts::tests::test_system_font_cache_builds (upstream test expects host fonts; the fork turns discovery off) -> fixed in ebe8689 (88edeb0 after rebase); the vendored-file change is recorded in hsk-studio-ps-fonts SOURCE_PROVENANCE.json (changes + owned_sha256 4ff52d5b...). run4 (ebe8689): green 808/808 after a 7395 s D: lock wait (steward canary C54-r2, SMB-HARNESS-PANELS-1). Logs run3.log, run4.log.",
   "gameplan": "lane-gameplan.sh smb-eps-free-fonts was run once at lane start (2026-10-22, per the then-interim brief rule: it only writes the lane pointer); no gameplan created, checked, confirmed or edited after the Operator instruction of 2026-10-23"
  }
 }

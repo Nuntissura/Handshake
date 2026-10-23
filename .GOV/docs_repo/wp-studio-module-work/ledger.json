@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-23T17:27:42Z",
+ "updated_at": "2026-10-23T17:55:50Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9699,19 +9699,20 @@
   {
    "lane_id": "SMB-EPS-FREE-FONTS",
    "crate": "vendored stet fork (EPS -> PDF crates, Apache-2.0 OR MIT) + hsk-studio-interop-vector-core EPS worker",
-   "phase": "build",
-   "status": "BLOCKED",
-   "blocked_on": "no green bundled run yet: run 2 gave up on the D: lock after 7200 s behind the R38 canary (exit 75); lead hold on gated commands while the Operator's global gameplan hook blocks them; steward sync required before READY (7 new members, edges, round-features, one machine-path pin)",
+   "phase": "ready",
+   "status": "READY_FOR_VALIDATION",
+   "blocked_on": null,
    "owner": "builder (Opus), lead dispatch 2026-10-22 on the Operator decision 'replace EPS with open source fonts'",
    "lane_file": "builders/lanes/hsk-studio-eps-free-fonts.json",
-   "candidate": null,
+   "candidate": "88edeb0",
    "commits": [
-    "(local only, lane/smb-eps-free-fonts) 9d482cf slices 1-2: stet 0.8.4 forked as members crates/hsk-studio-ps{,-core,-engine,-fonts,-graphics,-ops,-pdf} (sources unchanged under upstream aliases; SOURCE_PROVENANCE.json per crate with per-file sha256; NOTICE)",
-    "21b6d98 slice 3: EPS worker restored on the fork (features eps/eps-worker, worker binary, caps + memory-cap detection, typed refusal when off; embedded fonts only, disk font files refused)",
-    "a0351e9 run-1 fixes (one test escape, two clippy warnings in vendored code)"
+    "d195ef7 hsk-studio-ps* vendored stet 0.8.4 fork with free fonts only (slices 1-2)",
+    "521700f interop-vector-core: EPS worker restored on the free-font fork (slice 3)",
+    "e65c0be run-1 fixes (eps_worker test path escape; clippy in the vendored fork)",
+    "88edeb0 run-3 test fixes (TeX Gyre notice check; fork system-font cache empty; recorded in ps-fonts SOURCE_PROVENANCE.json)"
    ],
    "verdicts": [],
-   "note": "replace the AGPL-published URW base35 fonts with free fonts (TeX Gyre GFL, Liberation/STIX Two/Noto Sans Symbols 2 OFL), trim hayro-jpeg2000 default features so image/moxcms never enter the lock, restore the EPS worker on the fork | 2026-10-23: removed the 35 URW Type 1 fonts, NimbusRoman CFF FontSet, LICENSE-URW-FONTS (never copied), glob and jpeg-encoder (DCTEncode now errors); hayro-jpeg2000 built with std only (image stays out of the lock); host font scanning and render feature off. Fonts: 33 TeX Gyre Type 1 (GUST Font License, an LPPL-1.3c instance; URW++ released these to GUST under it) for the Latin families; Symbol = STIX Two Math (OFL-1.1, 189/189 glyphs, 29 via Unicode fallback); ZapfDingbats = DejaVu Sans (Bitstream Vera/Arev licence, 201/201; Noto Sans Symbols 2 covered only 153, dropped); PDFs embed the standard 14. New lock crates: hayro-jbig2 0.1.0, hayro-ccitt 0.2.0, jpeg-decoder 0.3.2; Cargo.lock uncommitted. Steward items: 7 members + edges in root Cargo.toml; interop-vector-core optional edges hsk-studio-ps, hsk-studio-ps-core, hsk-studio-worker; 40 dep-requests lines filed (20 internal, 20 crates.io); round-features interop-vector-core [[eps-worker]]; step-0 machine-path pin crates/hsk-studio-ps-engine/src/eval.rs = 1. Build evidence so far: cargo check -p hsk-studio-ps --tests clean. Gaps: EPS import proven only against a recording provider (not Press end to end); no harness .eps import route; Symbol/ZapfDingbats spacing not Adobe-compatible (UNVERIFIED); upstream tests needing URW fonts print NOT_PROVEN. The licence gate (steward) judges the GUST Font License."
+   "note": "replace the AGPL-published URW base35 fonts with free fonts (TeX Gyre GFL, Liberation/STIX Two/Noto Sans Symbols 2 OFL), trim hayro-jpeg2000 default features so image/moxcms never enter the lock, restore the EPS worker on the fork | 2026-10-23: removed the 35 URW Type 1 fonts, NimbusRoman CFF FontSet, LICENSE-URW-FONTS (never copied), glob and jpeg-encoder (DCTEncode now errors); hayro-jpeg2000 built with std only (image stays out of the lock); host font scanning and render feature off. Fonts: 33 TeX Gyre Type 1 (GUST Font License, an LPPL-1.3c instance; URW++ released these to GUST under it) for the Latin families; Symbol = STIX Two Math (OFL-1.1, 189/189 glyphs, 29 via Unicode fallback); ZapfDingbats = DejaVu Sans (Bitstream Vera/Arev licence, 201/201; Noto Sans Symbols 2 covered only 153, dropped); PDFs embed the standard 14. New lock crates: hayro-jbig2 0.1.0, hayro-ccitt 0.2.0, jpeg-decoder 0.3.2; Cargo.lock uncommitted. Steward items: 7 members + edges in root Cargo.toml; interop-vector-core optional edges hsk-studio-ps, hsk-studio-ps-core, hsk-studio-worker; 40 dep-requests lines filed (20 internal, 20 crates.io); round-features interop-vector-core [[eps-worker]]; step-0 machine-path pin crates/hsk-studio-ps-engine/src/eval.rs = 1. Build evidence so far: cargo check -p hsk-studio-ps --tests clean. Gaps: EPS import proven only against a recording provider (not Press end to end); no harness .eps import route; Symbol/ZapfDingbats spacing not Adobe-compatible (UNVERIFIED); upstream tests needing URW fonts print NOT_PROVEN. The licence gate (steward) judges the GUST Font License. | 2026-10-23 READY at 88edeb0 (pushed 347026e..88edeb0: 284 files, 10 lane paths, Cargo.lock not committed; lead verified on origin). Run 4 (ebe8689 pre-rebase tree; rebase brought only dependents) green 808/808 over the 7 ps crates + interop-vector-core + interop-vector, clippy incl. dependents; lock wait 7395 s. STEWARD SYNC OWED before R39 can include it: 7 new members + edges (in root Cargo.toml on origin), interop-vector-core optional edges ps/ps-core/worker, 40 dep-requests, registry pins, lock additions hayro-ccitt 0.2.0 / hayro-jbig2 0.1.0 / jpeg-decoder 0.3.2, round-features interop-vector-core [[eps-worker]], machine-path pin ps-engine/src/eval.rs = 1, licences GUST/LPPL-1.3c + OFL-1.1 + Bitstream Vera/Arev. UNVERIFIED: Symbol/ZapfDingbats metrics vs Adobe (D5). Builder's record command hook-blocked (kernel cwd, unconfirmed WP-012 steps); lead applied its prepared update."
   },
   {
    "lane_id": "SMB-HARNESS-SHELL-2",
