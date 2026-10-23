@@ -10019,7 +10019,7 @@
     "session_authentication_compile_capture_recovery_20261023": {
       "id": "WP012-MT174-AUTH-COMPILE-CAPTURE-RECOVERY-20261023",
       "recorded_at_utc": "2026-10-22T23:47:00.921118+00:00",
-      "state": "BOUND_PENDING_FINAL_NONAUTHOR_REVIEW_PRECHECKS_AND_EXCLUSIVE_CUSTODY",
+      "state": "BLOCKED_ON_SCHEDULER_REGISTRATION_PERMISSION",
       "authority_refs": [
         ".GOV/codex/Handshake_Codex_v1.4.md#CX-EXEC-014",
         ".GOV/codex/Handshake_Codex_v1.4.md#CX-EXEC-003",
@@ -10113,6 +10113,26 @@
         "corrected_registration": "UNPROVEN",
         "affected_prechecks": "Minimal affected Codecheck and Diagnostics prechecks pending.",
         "allowance_preservation": "Preflight failed before task start or Cargo launch. The one compile-recovery start remains unconsumed. No automatic rerun, alternate privilege or new retry pool. Existing IV HTTP probe remains unconsumed and unchanged."
+      },
+      "second_registration_preflight": {
+        "observed_at_utc": "2026-10-23T00:13:50.9810870Z",
+        "evidence_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-local-session-auth-no-run-20261023-02/task-registration-failure-02.json",
+        "evidence_bytes": 197,
+        "evidence_sha256": "baa0a647fc0befe8c7f9672dd804ece147282f94c1eeecab55f6577675fbbf9a",
+        "stage": "Register-ScheduledTask",
+        "exit_code": 1,
+        "exit_observation_basis": "Actual Primary handback; failure JSON itself records registration status and error.",
+        "task_name": "Handshake-MT174-Auth-NoRun-20261023-02",
+        "registered": "NOT_CONFIRMED",
+        "started": false,
+        "cargo_launched": false,
+        "runtime_launched": false,
+        "error": "Access is denied.\r\n",
+        "current_disposition": "Registration path STOPPED. Corrected S4U task registration returned Access is denied. Exact permission cause NOT_ESTABLISHED.",
+        "bounded_diagnostics_observation": "Diagnostics handback reports Get-ScheduledTask returned no object, current token Medium with Administrators deny-only, and root Scheduler folder readable. Primary fresh exact-name query remains pending. These observations establish neither an elevation requirement nor a batch-logon-right cause.",
+        "permitted_next_dependency": "Actual OS permission-state change or a separately explicitly authorized proof method is required before this registration path can proceed.",
+        "prohibitions": "No further registration retry, ACL or policy change, credential or token change, alternate actor or alternate launcher is authorized by this record.",
+        "preservation": "Corrected artifact pins, source and input bindings, prior failure history and all spent budgets remain unchanged. The one compile-recovery start and existing one IV HTTP probe remain unconsumed. This blocker changes only this recovery record, not MT lifecycle, whole-WP state, acceptance or scope."
       },
       "requirements_lifecycle_and_verdict_unchanged": true
     },
