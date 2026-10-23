@@ -1,0 +1,247 @@
+{
+ "schema": "hsk.studio.cleanup_result@2",
+ "file_id": "CARGO-CLEANUP-RESULT-20261022",
+ "generated_at": "2026-10-23T02:56:34Z",
+ "proposal": "research/cargo-cleanup-proposal-20261022.json",
+ "approvals": [
+  "Operator 2026-10-22: batches A and B approved ('move them to the bin if you cannot directly delete them')",
+  "Operator 2026-10-23: D: deletion stopped (D: is the build disk), C: cleanup only at tempered speed, no builds on C:",
+  "Operator 2026-10-23: the three fresh wave-4 C: lane stubs may be deleted once the lanes confirm they build on D: (confirmed in their reports; deletion deferred while the global hook gates destructive commands)"
+ ],
+ "runs": [
+  {
+   "script": "cleanup2.ps1",
+   "mode": "background I/O priority, C: then D:; stopped by the lead at 23:08Z before any D: item",
+   "items": [
+    {
+     "at": "2026-10-22T21:33:11Z",
+     "status": "DELETED",
+     "size_gib_20261021": 0.0,
+     "seconds": 5.1,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ae-roto-timeremap"
+    },
+    {
+     "at": "2026-10-22T21:33:19Z",
+     "status": "DELETED",
+     "size_gib_20261021": 0.0,
+     "seconds": 4.9,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-affinity-interop-1"
+    },
+    {
+     "at": "2026-10-22T21:33:26Z",
+     "status": "DELETED",
+     "size_gib_20261021": 0.0,
+     "seconds": 4.8,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ai-ae-oracle-followups"
+    },
+    {
+     "at": "2026-10-22T22:08:45Z",
+     "status": "DELETED",
+     "size_gib_20261021": 13.15,
+     "seconds": 2116.3,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-au-waveform-editor"
+    },
+    {
+     "at": "2026-10-22T22:08:53Z",
+     "status": "DELETED",
+     "size_gib_20261021": 0.0,
+     "seconds": 0.1,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-crate-seam-splits"
+    },
+    {
+     "at": "2026-10-22T22:08:57Z",
+     "status": "DELETED",
+     "size_gib_20261021": 0.0,
+     "seconds": 0.3,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-crate-seam-splits-2"
+    },
+    {
+     "at": "2026-10-22T22:09:03Z",
+     "status": "DELETED",
+     "size_gib_20261021": 0.0,
+     "seconds": 0.1,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-d24a-codec-defaults"
+    },
+    {
+     "at": "2026-10-22T22:11:17Z",
+     "status": "DELETED",
+     "size_gib_20261021": 9.63,
+     "seconds": 130.5,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-develop-lens-presets"
+    },
+    {
+     "at": "2026-10-22T22:11:29Z",
+     "status": "DELETED",
+     "size_gib_20261021": 0.0,
+     "seconds": 2.2,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-dxf-eps-import"
+    },
+    {
+     "at": "2026-10-22T22:22:10Z",
+     "status": "DELETED",
+     "size_gib_20261021": 1.64,
+     "seconds": 634.6,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-id-composer-parity"
+    },
+    {
+     "at": "2026-10-22T22:22:19Z",
+     "status": "DELETED",
+     "size_gib_20261021": 0.0,
+     "seconds": 2.8,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-layout-ui-2"
+    },
+    {
+     "at": "2026-10-22T22:23:26Z",
+     "status": "DELETED",
+     "size_gib_20261021": 0.07,
+     "seconds": 62.7,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-package-completeness"
+    },
+    {
+     "at": "2026-10-22T22:23:33Z",
+     "status": "DELETED",
+     "size_gib_20261021": 0.0,
+     "seconds": 0.4,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-premiere-color-titles"
+    },
+    {
+     "at": "2026-10-22T22:23:37Z",
+     "status": "DELETED",
+     "size_gib_20261021": 0.0,
+     "seconds": 0.4,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ps-adjust-styles-2"
+    },
+    {
+     "at": "2026-10-22T22:23:43Z",
+     "status": "DELETED",
+     "size_gib_20261021": 0.0,
+     "seconds": 0.0,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ps-oracle-parity-1"
+    },
+    {
+     "at": "2026-10-22T22:42:57Z",
+     "status": "DELETED",
+     "size_gib_20261021": 14.92,
+     "seconds": 1147.7,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-ps-oracle-parity-2"
+    },
+    {
+     "at": "2026-10-22T22:43:09Z",
+     "status": "DELETED",
+     "size_gib_20261021": 0.0,
+     "seconds": 0.0,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-r35-remediation"
+    },
+    {
+     "at": "2026-10-22T22:43:21Z",
+     "status": "DELETED",
+     "size_gib_20261021": 0.0,
+     "seconds": 3.3,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-raw-cleanroom"
+    },
+    {
+     "at": "2026-10-22T22:43:32Z",
+     "status": "DELETED",
+     "size_gib_20261021": 0.0,
+     "seconds": 3.9,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-raw-cleanroom-2"
+    },
+    {
+     "at": "2026-10-22T22:43:45Z",
+     "status": "DELETED",
+     "size_gib_20261021": 0.0,
+     "seconds": 2.4,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-steward-notice"
+    },
+    {
+     "at": "2026-10-22T23:04:02Z",
+     "status": "DELETED",
+     "size_gib_20261021": 2.1,
+     "seconds": 1212.6,
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/smb-type-ff-ligature"
+    }
+   ],
+   "deleted_gib_20261021_sizes": 41.51,
+   "deleted_count": 21
+  },
+  {
+   "script": "cleanup3.ps1",
+   "mode": "C: only, file-by-file, caps 150 files/s and 40 MiB/s, background priority",
+   "free_before": [
+    {
+     "drive": "C",
+     "free_gib": 424.84
+    },
+    {
+     "drive": "D",
+     "free_gib": 1363.9
+    }
+   ],
+   "free_after": [
+    {
+     "drive": "C",
+     "free_gib": 505.96
+    },
+    {
+     "drive": "D",
+     "free_gib": 1338.11
+    }
+   ],
+   "counts": [
+    {
+     "status": "ABSENT",
+     "n": 21,
+     "gib_deleted": 0.0
+    },
+    {
+     "status": "DELETED",
+     "n": 2,
+     "gib_deleted": 99.13
+    }
+   ],
+   "items": [
+    {
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/debug",
+     "disk": "C",
+     "batch": "B",
+     "owner": "studio-team-dev (shared edit tree, SSD slot)",
+     "size_gib_20261021": 99.13,
+     "status": "DELETED",
+     "detail": "",
+     "seconds": 12832.9,
+     "files": 64511,
+     "gib_deleted": 99.13
+    },
+    {
+     "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/.studio-ssd-size",
+     "disk": "C",
+     "batch": "A",
+     "owner": "ssd-cap-record",
+     "size_gib_20261021": 0,
+     "status": "DELETED",
+     "detail": "",
+     "seconds": 0.1,
+     "files": 0,
+     "gib_deleted": 0
+    }
+   ]
+  }
+ ],
+ "c_state_after": {
+  "free_gib": 505.96,
+  "tree_bytes": 134486792,
+  "tree_files": 295,
+  "remaining": [
+   "studio-team-dev/target/lanes/smb-ae-effect-stack-1",
+   "studio-team-dev/target/lanes/smb-harness-panels-1",
+   "studio-team-dev/target/lanes/smb-harness-shell-2"
+  ],
+  "remaining_note": "fresh stubs (~128 MiB together, never built), approved for deletion, pending the hook decision"
+ },
+ "d_state": "batch A for D: (50 finished owners' target+tmp, 210.7 GiB known as of 2026-10-21 plus regrown incremental) approved but NOT executed: D: is the build disk; the Operator reopens it",
+ "totals_since_20261021": {
+  "c_deleted_gib_sizes_20261021": 159.96,
+  "d_deleted_gib_sizes_20261021": 319.86,
+  "note": "2026-10-21 run: C 19.32 (incremental) + D 319.86 (incremental, variants, stray target); 2026-10-22/23 runs: C only"
+ }
+}
