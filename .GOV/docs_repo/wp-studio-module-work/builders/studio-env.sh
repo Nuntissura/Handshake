@@ -12,7 +12,11 @@
 # Guard: an SSD build is refused (status 77, before queueing) while the whole C:/HandshakeBuild/WP-KERNEL-STUDIO
 # tree is over STUDIO_SSD_CAP_GB (default 140 of the 150 GB grant; see studio_ssd_cap_check). Unset or
 # STUDIO_BUILD_DISK=d: unchanged D: target. STUDIO_SSD_ROOT is a self-test knob only (default C:/HandshakeBuild).
-_studio_art="D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO"
+# Artifact root (HSK-ART-001, Operator 2026-10-24): the Handshake_Artifacts folder inside the Handshake Worktrees folder that holds
+# the kernel, discovered from this file's location (this file lives in <kernel>/.GOV/docs_repo/wp-studio-module-work/builders/), or
+# HANDSHAKE_ARTIFACTS_ROOT when set. Never a literal drive path (disk-agnostic) and never `..` from the current directory.
+_studio_kernel="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+_studio_art="${HANDSHAKE_ARTIFACTS_ROOT:-$(cd "${_studio_kernel}/.." && pwd)/Handshake_Artifacts}/WP-KERNEL-STUDIO"
 _studio_ssd="${STUDIO_SSD_ROOT:-C:/HandshakeBuild}"
 _studio_owner="${STUDIO_OWNER:-studio-team-dev}"
 _STUDIO_SSD_LANE=""

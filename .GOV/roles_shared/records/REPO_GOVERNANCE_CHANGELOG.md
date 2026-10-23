@@ -5487,3 +5487,20 @@
 - CHANGESET_VERSION: 2026.10.10.1
 - AUDIT_ID: AUDIT-20261010-COMPILER-SCHEDULING
 - RGF-331: local compilation scheduling policy/helper/profile applied; version-only launch smoke PASS with Cargo1.97.1 and CPU32/MEM5/IO2. Independent static review PASS; publication pending. Machine authority: .GOV/Audits/AUDIT-20261010-COMPILER-SCHEDULING.json. Product NONE.
+
+### 2026.10.24.1 / GOV-CHANGE-20261024-01
+
+- STATUS: APPLIED
+- SUMMARY: Replaced the relative build-artifact-root rule (`../Handshake_Artifacts/`, a sibling of whatever checkout a command ran from) with the discovered root `Handshake Worktrees/Handshake_Artifacts` and stable rule ids HSK-ART-001..004 (per-WP target shared by MTs, per-MT result folders only, Studio per-lane owner folders with retention P1/P2/P3, stray roots are violations listed for approved deletion); Studio's build env now derives that root from the kernel location instead of a literal D: path.
+- CHANGE_TYPE: POLICY_HARDENING
+- DRIVER_EVIDENCE:
+  - `AUDIT_ID: N/A (Operator decision in chat 2026-10-24 after a stray `D:/Projects/LLM projects/Handshake/Handshake_Artifacts/handshake-cargo-target/ae3d-origin-check` target created 2026-10-15 by a Studio lane command run one folder too high; recorded in .GOV/docs_repo/wp-studio-module-work/START_LOG.md)`
+  - `SMOKETEST_REVIEW_ID: N/A`
+- SURFACES:
+  - `CLAUDE.md`
+  - `AGENTS.md`
+  - `.GOV/docs_repo/wp-studio-module-work/builders/studio-env.sh`
+- FOLLOW_ON_ITEMS:
+  - `WP-KERNEL-012 gameplan file paths still use ../Handshake_Artifacts relative to the kernel (other device's file; not changed here)`
+  - `a stray-root finder scoped to the Handshake project folder (never whole disks)`
+- OUTCOME: Build output location no longer depends on the command's working directory; both root authority files carry identical HSK-ART-001..004 text; Studio env verified to resolve the same path as before on this machine.
