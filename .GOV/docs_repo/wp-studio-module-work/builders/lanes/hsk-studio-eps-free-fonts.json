@@ -1,0 +1,104 @@
+{
+ "crate": "hsk-studio-ps, hsk-studio-ps-core, hsk-studio-ps-engine, hsk-studio-ps-fonts, hsk-studio-ps-graphics, hsk-studio-ps-ops, hsk-studio-ps-pdf (new, vendored stet 0.8.4 fork); hsk-studio-interop-vector-core, hsk-studio-interop-vector",
+ "lane": "SMB-EPS-FREE-FONTS",
+ "status": "BLOCKED",
+ "phase": "slices 1-3 committed locally on lane/smb-eps-free-fonts (9d482cf, 21b6d98, a0351e9), NOT pushed: no green bundled run yet; waiting for the lead to lift the gated-command stop",
+ "worktree": "Handshake Worktrees/wt-studio-lanes/smb-eps-free-fonts (branch lane/smb-eps-free-fonts, base e3953de), STUDIO_OWNER=smb-eps-free-fonts, STUDIO_BUILD_DISK=d",
+ "commits": [
+  {
+   "sha": "9d482cf",
+   "subject": "hsk-studio-ps* (SMB-EPS-FREE-FONTS slices 1-2): vendored stet 0.8.4 fork with free fonts only",
+   "pushed": false
+  },
+  {
+   "sha": "21b6d98",
+   "subject": "interop-vector-core (SMB-EPS-FREE-FONTS slice 3): EPS worker restored on the free-font fork",
+   "pushed": false
+  },
+  {
+   "sha": "a0351e9",
+   "subject": "SMB-EPS-FREE-FONTS: fix eps_worker test path escape; clippy clean in the vendored fork",
+   "pushed": false
+  }
+ ],
+ "capabilities_done": [
+  "slice 1 (local, unproven by a test run): seven vendored members hsk-studio-ps{,-core,-engine,-fonts,-graphics,-ops,-pdf} (stet 0.8.4, Apache-2.0 OR MIT) without any URW++ file; free fonts embedded with licences; SOURCE_PROVENANCE.json + NOTICE per crate; cargo check -p hsk-studio-ps --tests green (check1, no warnings)",
+  "slice 2 (local, unproven by a test run): 35 standard names -> TeX Gyre / STIX Two Math (Symbol) / DejaVu Sans (ZapfDingbats); symbolic encodings via cmap; standard 14 embedded in PDFs; host font discovery off",
+  "slice 3 (local, unproven by a test run): interop-vector-core eps / eps-worker restored on hsk-studio-ps; .loadbinaryfontfile embedded-only guard; feature-dependent EPS_ROUTE refusal"
+ ],
+ "tests": {
+  "argv": "lane-check.sh --owner smb-eps-free-fonts --disk d -- cargo nextest run -p hsk-studio-ps -p hsk-studio-ps-core -p hsk-studio-ps-engine -p hsk-studio-ps-fonts -p hsk-studio-ps-graphics -p hsk-studio-ps-ops -p hsk-studio-ps-pdf -p hsk-studio-interop-vector-core -p hsk-studio-interop-vector --features hsk-studio-interop-vector-core/eps-worker --no-fail-fast",
+  "exit": 75,
+  "sha": "a0351e9",
+  "passed": null,
+  "failed": null
+ },
+ "blockers": [
+  {
+   "error": "run2 (a0351e9): disk-build-lock: gave up after 7200s waiting for run-round studio-round (run-round --all sha e3953dea1b69 results .../studio-round/results/R38-canary); exit 75, no clippy or test ran (infrastructure, not a product failure)",
+   "file_line": "Handshake_Artifacts/WP-KERNEL-STUDIO/smb-eps-free-fonts/logs/run2.log",
+   "attempts": 1
+  },
+  {
+   "error": "Lead 2026-10-23: gameplan hook hard-blocks gated commands ('confirm_binding target missing: .../wtc-WP-KERNEL-012 | GLOBAL-GAMEPLAN-001'); do not start a bundled run until the lead says it is off. This lane did NOT hit the hook (run2 was queued before the message and ended on the lock timeout).",
+   "file_line": null,
+   "attempts": 0
+  }
+ ],
+ "lock_wait_s": 7200,
+ "bg_pids": [],
+ "next": "when the lead lifts the stop: re-run the argv above (one bundled run), fix all failures, one re-run; fetch + rebase; diff --stat check; guarded push; READY_FOR_VALIDATION on the pushed sha",
+ "updated_at": "2026-10-23T02:36:33Z",
+ "notes": {
+  "operator_basis": "OPERATOR DECISION 2026-10-22 (START_LOG): keep EPS conversion, free fonts only ('replace EPS with open source fonts, everything made in mankind and is free'); supersedes the 2026-10-21 rejection of crates.io stet; dxf rejection stands (own DXF reader unchanged).",
+  "spec_basis": [
+   "STU-IO-006 row 18: Encapsulated PostScript .eps, Vector, I-X, 'Legacy vector interchange transformed; rasterized where structure is opaque', SOX.",
+   "STU-IO-006 row 19: PostScript .ps, Vector, I-X, 'PostScript stream transformed/rasterized on decode', SOX (the worker converts plain PostScript too; no .ps import entry point added).",
+   "STU-IO-004: a format feature is not promoted without its five artifacts; malformed input fails closed with a receipt (worker failures are typed: deadline, memory_cap, crashed, postscript_error, no_pages, output_over_cap, protocol).",
+   "STU-ARC-018 SELECTIVE REUSE: upstream Rust leaf algorithms only with pinned source hash, patch/license provenance and explicit dependency/loss/failure review (SOURCE_PROVENANCE.json + NOTICE per vendored crate).",
+   "spec module: .GOV/spec/master-spec-v02.218/spec-modules/14-studio-creative-suite.md (SPEC_CURRENT v02.218)"
+  ],
+  "research": {
+   "a_stet_registry": {
+    "where_the_fonts_are": "NOT in stet-fonts: the facade crate stet 0.8.4 embeds them. stet/src/embedded_resources.rs ENTRIES = include_bytes! of resources/Font/*.t1 (35 URW programs: NimbusRoman/Sans/SansNarrow/MonoPS, P052, C059, URWBookman, URWGothic, StandardSymbolsPS, D050000L, Z003; PFB-unwrapped Type 1 with binary eexec) plus resources/FontSet/NimbusRoman-Regular-CFF.ps (URW-derived CFF); no build script, no feature flag (always compiled in); register_all puts them in the FileStore as Font/<name>.t1 and resources/Font/<name>.t1. LICENSE-URW-FONTS: the files are the Artifex urw-base35-fonts revisions published under AGPL alone; OFL is stet's inference from URW++'s 2017 Version 2.0 licensing.",
+    "name_mapping": "resources/Init/fontmapping.ps FontSubstitutions (Times-Roman -> NimbusRoman-Regular ...), consumed by fontcategory.ps /FindResource (substitute, FontDirectory, then resources/Font/<name>{.t1,.pfa,.pfb,.ttf,.otf}: Type 1 by `run`, .ttf/.otf by .loadbinaryfontfile reading the DISK only, then system fonts, then DefaultFont /Helvetica), which rewrites /FontName to the requested name; a Rust mirror stet_fonts::FONT_SUBSTITUTIONS (used by .loadfont/findfont native path, font_loader::load_font_file).",
+    "crates_for_eps_to_pdf": "stet (facade, pdf-output), stet-core, stet-engine, stet-ops, stet-fonts, stet-graphics, stet-pdf; NOT stet-render (render feature, tiny-skia fork) and not stet-pdf-reader (dev only). All seven are needed and all must be forked: stet holds the fonts; stet-core must change its hayro-jpeg2000 features; stet-engine/ops/pdf depend on stet-core and stet-graphics on stet-fonts, whose substitution table names the URW files.",
+    "image_closure": "stet-core 0.8.4 depends on hayro-jpeg2000 ^0.3.4 with DEFAULT features (std, simd, image = dep:image + dep:moxcms): this is what put `image` into the shared lock. stet-core and stet-graphics also depend on moxcms 0.8 directly (stet-graphics features any_to_any) - moxcms 0.8.1 is already locked via hayro-interpret (press) and is not a designated crate. jpeg-decoder 0.3 (default-features off) is DCTDecode, needed for JPEG images inside EPS; jpeg-encoder 0.7 ((MIT OR Apache-2.0) AND IJG) only serves the DCTEncode filter (rare in EPS); hayro-jbig2 0.1.0 (+ hayro-ccitt 0.2.0) JBIG2Decode, fax 0.2 CCITTFax, weezl LZW. glob is used only by filenameforall and a Linux SWOP*.icc search. Decision: hayro-jpeg2000 default-features = false, features [std] (JPXDecode kept, no image/moxcms edge); jpeg-encoder and glob dropped; jpeg-decoder kept.",
+    "measured_closure": "cargo tree -p hsk-studio-ps -e normal after the fork: adler2, block-buffer, cfg-if, cpufeatures, crc32fast, crypto-common, digest, fax (MIT), flate2, generic-array (MIT), hayro-ccitt, hayro-jbig2, hayro-jpeg2000, itoa, jpeg-decoder, memchr (Unlicense OR MIT), miniz_oxide (MIT OR Zlib OR Apache-2.0), moxcms 0.8.1 + pxfm (BSD-3-Clause OR Apache-2.0), num-traits, proc-macro2, quote, rustc-hash, serde/serde_core/serde_derive, serde_json, sha2 0.10.9, simd-adler32 (MIT), syn, thiserror(-impl) 2.0.21, typenum, unicode-ident ((MIT OR Apache-2.0) AND Unicode-3.0), weezl, zmij (MIT). No image, no copyleft. cargo fetch added exactly 3 packages to the lock: hayro-ccitt 0.2.0 (2026-01-04), hayro-jbig2 0.1.0 (2026-01-08), jpeg-decoder 0.3.2 (2025-06-21), all Apache-2.0/MIT, pure Rust (crates.io API, generic user agent)."
+   },
+   "b_fonts": {
+    "tex_gyre": "CTAN package tex-gyre 2.501 (https://ctan.org/pkg/tex-gyre: licence 'The GUST Font License (GFL)'), archive https://mirrors.ctan.org/fonts/tex-gyre.zip sha256 1773c470f9e388e087b68e3426e115af2cd236845a7e05ceb25b2a503409a7a3. GFL = LPPL 1.3c instance (doc/GUST-FONT-LICENSE.txt; http://www.gust.org.pl/fonts/licenses/GUST-FONT-LICENSE.txt) with a non-binding renaming request for derived works. Each README states the family 'is based on the URW <font> kindly released by URW++ Design and Development Inc. under GFL (independently of the GPL release accompanying Ghostscript)': the publisher's own grant, unlike stet's URW files. LPPL 1.3c (https://www.latex-project.org/lppl/lppl-1-3c/): partial distribution counts as a Derived Work (clause 2) allowed under clause 6 (identify changes, no support implied, point to the complete Work): we ship 33 unmodified .pfb + GUST-FONT-LICENSE + README/MANIFEST and state that in NOTICE/provenance; not copyleft for the rest of the program. Families: Termes=Times, Heros=Helvetica, Heros Condensed=Helvetica-Narrow, Cursor=Courier, Pagella=Palatino, Schola=NewCenturySchlbk, Bonum=Bookman, Adventor=AvantGarde, Chorus=ZapfChancery. TeX Gyre has no Symbol or Dingbats font.",
+    "symbol": "STIX Two Math 2.13 static TTF from google/fonts commit 823468bd7825152bce2b8fd2cf740432ad2fce8d ofl/stixtwomath (upstream stipub/stixfonts c4afdf3), sha256 562551b15b836e6e01d1b7350909baf3c8c8d83260c1190fbf4544333e6936de; OFL.txt sha256 0c8825913b60d858aacdb33c4ca6660a7d64b0d6464702efbb19313f5765861a (SIL OFL 1.1, RFN 'TM Math'). Coverage of SymbolEncoding (fontTools, measured): 160/189 via the AGL, the other 29 are AGL Private Use names (bracket/brace pieces, extenders, serif/sans (c)(R)TM) which all resolve through a fallback to U+239B..U+23AE, U+23AF, U+23D0, U+203E, U+00A9/00AE/2122 -> 189/189.",
+    "zapfdingbats": "DejaVu Sans 2.37 (https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-sans-ttf-2.37.zip sha256 5c6e497a2f36552cb5ffb112c413a6af39c0f3c47653662b90b4fa6499822fd7; DejaVuSans.ttf sha256 7da195a74c55bef988d0d48f9508bd5d849425c1770dba5d7bfc6ce9ed848954; LICENSE sha256 7a083b136e64d064794c3419751e5c7dd10d2f64c108fe5ba161eae5e5958a93): Bitstream Vera + Arev licences (permissive: use/copy/merge/distribute, rename if modified, not sold alone; DejaVu changes public domain). Coverage of the ZapfDingbats encoding via the ITC Zapf Dingbats Glyph List: 201/201 code points.",
+    "rejected": "Noto Sans Symbols 2 (OFL-1.1, google/fonts 8b0a1d0f, sha256 7d5fb73b7ca67a6798101741f5d280a3d016a56a197afcd4199dbb57b4b82a21): only 153/201 ZapfDingbats code points (missing a6-a10 crosses/stars, circled digits U+2460-2469 and U+2776-2793, arrows U+2192/2194/2195) -> DejaVu Sans chosen (not OFL, but permissive). Liberation 2.x: not needed (TeX Gyre covers all 33 Latin fonts). GPL-only fonts (GNU FreeFont, old Ghostscript URW) and the URW base35 (AGPL per Artifex) excluded.",
+    "metric_evidence": "TeX Gyre AFM widths A W a y: qtmr 722 944 444 500, qhvr 667 944 556 500, qcrr 600 x4 (asserted against the PDF Widths and the charstrings in tests/free_fonts.rs)."
+   },
+   "c_vendoring_plan": "Workspace members must be crates/hsk-studio-* (tools/workspace-probe.rs invalid_declared_member), so crates/vendor/* is impossible; hsk-studio-type vendors rustybuzz/ttf-parser as in-crate modules with third-party/<pkg>/ provenance, which would mean rewriting ~97k lines of crate paths. Chosen: seven members crates/hsk-studio-ps{,-core,-engine,-fonts,-graphics,-ops,-pdf}, sources copied byte-for-byte (shutil.copyfile, fresh mtimes) with path dependencies that keep the upstream aliases (stet-core = { path, package = \"hsk-studio-ps-core\" }) so the code compiles unchanged; SOURCE_PROVENANCE.json per crate (upstream crate checksum, every file's upstream sha256, owned sha256, modified flag, change list) and NOTICE; LICENSE-APACHE/LICENSE-MIT (and stet-fonts' LICENSE-ADOBE-AGL/-CMAP) kept; LICENSE-URW-FONTS, resources/Font/*.t1 and the CFF FontSet never copied."
+  },
+  "fork_changes": "see each crate's SOURCE_PROVENANCE.json 'changes'; behaviour changes: (1) free fonts: 33 TeX Gyre .pfb unwrapped (PFB segments) to Font/<FontName>.t1; STIX Two Math / DejaVu Sans as Font/HskStudioPs-Symbol.ttf / HskStudioPs-ZapfDingbats.ttf, loaded from the embedded store (load_binary_font) as Type 42 fonts whose Encoding is the PLRM Symbol / ZapfDingbats built-in encoding resolved through the font's cmap with uniXXXX glyph names (stet_fonts::symbolic); internal names so a document asking for DejaVuSans by name never gets a re-encoded copy; (2) host font discovery off (no C:\\Windows\\Fonts or /usr/share/fonts scan, no ~/.cache/stet/system_fonts.json): host fonts are machine-dependent and may not be free; (3) stet-pdf embeds the standard 14 fonts too (upstream left them unembedded, so a reader would draw its own fonts, not the measured free ones); (4) DCTEncode output -> ioerror (jpeg-encoder dropped); filenameforall enumerates nothing (glob dropped); (5) render feature not vendored (render-gated code compiled out, unexpected_cfgs allowed in hsk-studio-ps lib.rs).",
+  "worker": "interop-vector-core features eps (dep:hsk-studio-worker + hsk-studio-worker/job-caps) and eps-worker (eps + dep:stet = hsk-studio-ps [pdf-output] + dep:stet-core = hsk-studio-ps-core); bin interop-vector-eps-worker (required-features eps-worker); src/eps_worker.rs and the bin restored byte-identical from 85b3446 except the docs and one guard change: .loadbinaryfontfile loads only embedded font files (the symbolic substitutes are TrueType), disk paths answer false. EPS_ROUTE is feature-dependent (worker route vs eps_worker_not_in_this_build...). Facade forwards eps/eps-worker, re-exports EPS_WORKER_PROGRAM / EpsWorkerOptions / WorkerEpsConverter, DESCRIPTOR native_gap updated.",
+  "hostile_input": "unchanged worker containment from SMB-DXF-EPS-IMPORT (deadline, CPU cap, 256 MiB-1 GiB Job memory cap with memory-notice polling, recursion/string bombs, file operators denied, all workers reaped: tests/eps_worker.rs). unwrap_pfb uses checked slicing (embedded constants only). The vendored interpreter's own hostile-font guards kept (hsk-studio-ps-fonts tests/malformed_font_guards.rs).",
+  "gaps": "import_eps_with is proven with a recording provider, not with Press read_vector_document end to end (needs a harness-level lane); no harness .eps/.ps import route; ZapfDingbats/Symbol substitutes are not metric-compatible with Adobe's fonts (glyph advances come from STIX Two Math / DejaVu Sans; text after them shifts relative to Adobe output) - UNVERIFIED against an Adobe oracle (D5); TeX Gyre metric compatibility asserted only for the A/W/a/y AFM samples; DCTEncode unavailable; non-Windows workers have the deadline only (no memory/CPU cap); upstream unit tests that read the URW fonts print NOT_PROVEN (no URW fixture by design).",
+  "steward_facts": {
+   "new_members": [
+    "hsk-studio-ps-fonts",
+    "hsk-studio-ps-graphics",
+    "hsk-studio-ps-core",
+    "hsk-studio-ps-ops",
+    "hsk-studio-ps-pdf",
+    "hsk-studio-ps-engine",
+    "hsk-studio-ps"
+   ],
+   "root_cargo_toml": "members + declared-members + workspace.metadata.studio.dependencies.<crate>.allowed added in lane commit 9d482cf (precedent SMB-CRATE-SEAM-SPLITS-2): ps-fonts []; ps-graphics [ps-fonts]; ps-core [ps-fonts, ps-graphics]; ps-ops and ps-pdf [ps-core, ps-fonts, ps-graphics]; ps-engine [ps-core, ps-ops]; ps [ps-core, ps-engine, ps-fonts, ps-graphics, ps-ops, ps-pdf]; interop-vector-core += hsk-studio-ps, hsk-studio-ps-core, hsk-studio-worker (all three optional, features eps / eps-worker). No edge to accord/observe or any other Studio crate.",
+   "dep_requests": "40 lines appended 2026-10-23T02:05:38Z (20 workspace-internal =0.1.0 pins incl. the 3 optional interop-vector-core edges; 20 crates.io pins). The 2026-10-21 rejected stet lines stay rejected (crates.io stet is not used).",
+   "registry_pins_owed": "registry.<crate>.direct/locked + APPROVED for: ps-fonts [flate2, rustc-hash, serde, serde_json], ps-graphics [moxcms 0.8.1 any_to_any, sha2 0.10.9], ps-core [fax, flate2, hayro-jbig2 0.1.0, hayro-jpeg2000 0.3.5 (std only), jpeg-decoder 0.3.2, moxcms 0.8.1, rustc-hash, serde, serde_json, sha2, thiserror, weezl], ps-ops [flate2], ps-pdf [flate2]",
+   "lock": "cargo fetch adds exactly hayro-ccitt 0.2.0, hayro-jbig2 0.1.0, jpeg-decoder 0.3.2 (all Apache-2.0/MIT, pure Rust, >= 2 weeks old) plus the 7 workspace packages; no image, no copyleft; Cargo.lock left uncommitted",
+   "round_features": "hsk-studio-interop-vector-core [[\"eps-worker\"]] (tests/eps_worker.rs and the worker bin are required-features eps-worker); hsk-studio-interop-vector optional [[\"eps-worker\"]] (forwarding only)",
+   "machine_paths_pin": "crates/hsk-studio-ps-engine/src/eval.rs = 1 (line 1298, an upstream comment naming a C:\\Users\\... path that must not be mangled inside a PostScript string; not a host path). Reported, not edited; step 0 exits 72 without the pin. (The other upstream hit, C:\\Windows\\Fonts in ps-fonts system_fonts.rs, is gone because the fork stops scanning host font directories.)",
+   "duplicate_fingerprints": "none: D16/D18/TIMECODE patterns have no match in the vendored crates' src; the worker uses hsk-studio-worker (D18 owner)",
+   "licence_gate": "crate licences in the closure all permissive (research.a_stet_registry.measured_closure); embedded font assets: GUST Font License (LPPL-1.3c) for TeX Gyre, OFL-1.1 for STIX Two Math, Bitstream Vera/Arev for DejaVu Sans - asset licences for the lead/steward to record like the 2026-10-14 bundled-font decision"
+  },
+  "runs": "check1 (cargo check -p hsk-studio-ps --tests, 9d482cf tree): green, 1m05s, no warnings. run1 (21b6d98): clippy stopped on one compile error in tests/eps_worker.rs (a '\\\\' char literal lost an escape in a shell heredoc) plus 2 clippy warnings in vendored code (icc.rs collapsible_if, type2_charstring.rs unfulfilled expect) -> fixed in a0351e9; tests did not run. run2 (a0351e9): lock timeout, exit 75. Logs: Handshake_Artifacts/WP-KERNEL-STUDIO/smb-eps-free-fonts/logs/{check1,run1,run2}.log.",
+  "gameplan": "lane-gameplan.sh smb-eps-free-fonts was run once at lane start (2026-10-22, per the then-interim brief rule: it only writes the lane pointer); no gameplan created, checked, confirmed or edited after the Operator instruction of 2026-10-23"
+ }
+}
