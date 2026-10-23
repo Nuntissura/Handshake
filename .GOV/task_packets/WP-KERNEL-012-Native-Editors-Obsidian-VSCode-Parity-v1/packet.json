@@ -385,7 +385,7 @@
       "No new branch/worktree or silent compiler selector changes"
     ],
     "research_and_review_ref": "WP-KERNEL-012-phase02-successor-handoff-v5.json#/research_basis; five existing leaders review20261014 reconciled by delivery lead",
-    "restart_ref": "WP-KERNEL-012-phase02-successor-handoff-v6.json",
+    "restart_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json",
     "next_action": "Push kernel amendment, checkpoint actual product dirt if any, brief all five team leaders with pushed governance revision, then release current73368c07 native stage preparation and original compiler after fresh admission",
     "operator_absence_full_control_20261016": {
       "decision_id": "WP012-OPERATOR-ABSENCE-FULL-CONTROL-20261016",
