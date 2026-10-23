@@ -1,0 +1,316 @@
+{
+  "schema": "hsk.studio.research.parity_update@1",
+  "file_id": "WP-KERNEL-STUDIO-PARITY-20261023-FIGMA-AFFINITY-SHELL",
+  "updated_at": "2026-10-23T14:00:00Z",
+  "by": "read-only parity auditor (Claude Opus 5.5) for Figma, Affinity, the cross-app GUI shell and the overall roll-up; no build, test, cargo or rustup command was run; no git write except `git fetch origin codex/handshake-studio-assets` in the shared tree (remote-tracking ref only)",
+  "wp": "WP-KERNEL-STUDIO",
+  "basis": {
+    "baseline": "research/feature-completeness-20261021.json (product tip e64eacd) with research/audit-20261021/parity-figma.json, parity-affinity.json, gui-surfaces.json",
+    "origin_tip": "origin/codex/handshake-studio-assets @ 5ab33c9 (fetched 2026-10-23; repo Nuntissura/assets, workspace handshake-studio-assets/, 49 crates under crates/)",
+    "last_finalized_round": "STUDIO-R37 @ 1d139a6 (full scope, 297 PASS / 1 FAIL, recorded 2026-10-22T13:00:58Z, validation/round-R37.json); STUDIO-R36 @ a105766 (full scope, 291 PASS / 2 FAIL, validation/round-R36.json); STUDIO-R38 never finished (machine restart during its canary, START_LOG.md:565; no validation/round-R38.json exists)",
+    "delivered_after_r37": "27 commits 1d139a6..5ab33c9 (git log): SMB-TIMELINE-UI-1 (READY), SMB-AE-RENDER-QUEUE-2, SMB-DEVELOP-DNG-WRITER, SMB-PS-FILL-LAYERS, SMB-AE-ROTO-WIRING remediation, steward 23b1bb7 run-round.sh CARGO_INCREMENTAL=0; crates changed: composite, develop, folio, harness, harness-view, interop-psd, interop-tiff, package, pigment, pulse, render-cpu, plus tools/run-round.sh (git diff --name-only 1d139a6 5ab33c9)",
+    "local_unvalidated_lanes": {
+      "smb-harness-shell-2": "wt-studio-lanes/smb-harness-shell-2: fc934f9, 8ddbae5 on base e3953de, 2 ahead of its origin ref, not pushed, no green run (lane file BLOCKED: lock give-up exit 75, then hook)",
+      "smb-harness-panels-1": "wt-studio-lanes/smb-harness-panels-1: bfe8f85, a7838c8, 587886c on base e3953de, 3 ahead, not pushed; run 1 182 passed / 13 failed at a7838c8, fix 587886c not re-run (lane file BLOCKED by the gameplan hook)",
+      "smb-eps-free-fonts": "wt-studio-lanes/smb-eps-free-fonts: 9d482cf, 21b6d98, a0351e9 on base e3953de, 3 ahead, Cargo.lock modified uncommitted; no green bundled run (lane file BLOCKED)"
+    },
+    "spec": "SPEC_CURRENT.md resolves to v02.222 (.GOV/spec/master-spec-v02.222/spec-modules/14-studio-creative-suite.md); the brief named v02.221, which is now the previous version (SPEC_CURRENT.md previous_current_spec). Clause ids below were grepped in that module only",
+    "method": "Rows: the 2026-10-21 per-row levels re-checked only where a lane touched them since (lane files updated_at >= 2026-10-21, ledger.json, round-R36/R37 verdicts), each changed row verified against code on origin by git grep/git show (file:line). Formulas unchanged: engine pct = 100*(VALIDATED + 0.5*BUILT_NOT_VALIDATED + 0.25*PARTIAL)/rows; GUI pct per app = (DOABLE judged + 0.5*DOABLE unjudged)/workflows; pooled GUI = same over all 108 workflows; strict UI = matrix ui rows AGREE (reachable from the window through a PASS-judged surface)/308.",
+    "split_definitions": {
+      "DELIVERED_VALIDATED": "on origin and covered by a PASS verdict at the R37 candidate 1d139a6; rows whose new work is not PASS-judged stay at their prior level",
+      "DELIVERED_UNVALIDATED": "adds work on origin 5ab33c9 without a PASS verdict (READY or pushed after R37), counted by the audit formula (0.5 for BUILT_NOT_VALIDATED / DOABLE unjudged); cumulative over DELIVERED_VALIDATED",
+      "LOCAL": "adds unpushed lane commits (LOCAL_UNVALIDATED), counted like unvalidated work; cumulative; never delivered"
+    }
+  },
+  "per_app": [
+    {
+      "app": "figma",
+      "rows": 23,
+      "baseline_20261021": {
+        "engine_counts": {"VALIDATED": 13, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 4, "MISSING": 6},
+        "engine_pct": 60.9,
+        "engine_pct_stale_adjusted_floor": 39.1,
+        "gui_pct": 14.3,
+        "gui_workflows": 7,
+        "gui_doable_judged": 1,
+        "strict_ui_rows_agree": 0
+      },
+      "changed_rows": [
+        {
+          "row": "FG-14 Canvas rendering of design nodes (fills, strokes, effects)",
+          "level_before": "VALIDATED",
+          "level_after": "VALIDATED",
+          "event": "R36 regression then fix: 30ea18e (SMB-PS-ORACLE-PARITY-1) made the Photoshop tent blur kernel drive Figma DROP_SHADOW; fig_paints_2 bold_text p99 5.700324 > 5.698 -> PARITY-1 FAIL_V1 (round-R36.json findings F-R36-2); remediation b2b43fc + 9c48de8 carries an explicit Gaussian kernel for Figma; R37 PASS_V2 'fig_paints_2 at its unchanged pin' (START_LOG.md:576)",
+          "lane": "SMB-PS-ORACLE-PARITY-1",
+          "sha": "b2b43fc, 9c48de8 (in 1d139a6)",
+          "proof": "STUDIO-R37 PASS_V2 @1d139a6; SMB-INTEROP-FIG-PAINTS-2 PASS_V7 @1d139a6 (ledger.json)",
+          "code_on_origin": "crates/hsk-studio-interop-fig-native/src/effects.rs:98 and :114 (blur_kernel: Some(StudioEffectBlurKernel::Gaussian)); crates/hsk-studio-pigment/src/effect_math.rs:317 (pub blur_kernel: EffectBlurKernel, default tent); test crates/hsk-studio-interop-fig/tests/fig_paints_2.rs:76",
+          "evidence_level": "VALIDATED"
+        },
+        {
+          "row": "FG-23 .fig import into an editable native document (and FG-20 frame export anchors)",
+          "level_before": "VALIDATED",
+          "level_after": "VALIDATED",
+          "event": "crate split (pure move) of interop-fig into interop-fig-base + interop-fig-native with an item-by-item facade; public names unchanged",
+          "lane": "SMB-CRATE-SEAM-SPLITS-2",
+          "sha": "31b35b0 (fig), 077fe0c (web)",
+          "proof": "STUDIO-R37 PASS_V1 @1d139a6 (lane file verdicts; round-R37.json lanes); SMB-INTEROP-FIG-NATIVE PASS_V12 @1d139a6",
+          "code_on_origin": "crates/hsk-studio-interop-fig/src/lib.rs:22-31 (pub use from fig-base / fig-native); crates/hsk-studio-interop-fig-native/src/native.rs:3177 (to_native); src/export.rs:126, 688, 774 (plan_frame_exports, export_frame_pdf, export_frame_raster)",
+          "evidence_level": "VALIDATED"
+        },
+        {
+          "row": "FG-10 / FG-11 prototype play and smart animate (GUI reachability only; engine level unchanged)",
+          "level_before": "VALIDATED (engine); GUI VIEWER_API_ONLY",
+          "level_after": "VALIDATED (engine); GUI reachable from WORKSPACE > Prototype Player / F12 through a .fig file dialog",
+          "lane": "SMB-HARNESS-SHELL-1",
+          "sha": "2defb17, 9ca2c59, 1f0e945, 5605a52, 45f04b2",
+          "proof": "STUDIO-R37 PASS_V1 @1d139a6 (tests/viewer_shell.rs, headless one-frame egui + AccessKit click); SMB-HARNESS-PROTOTYPE-PLAY PASS_V6 @1d139a6",
+          "code_on_origin": "crates/hsk-studio-harness-view/src/view/shell.rs:623 (open_prototype from the dialog), :139 (Key::F12), :154 ('F12'); crates/hsk-studio-harness-view/src/view/mod.rs:346 (pub fn open_prototype)",
+          "evidence_level": "VALIDATED (headless)"
+        },
+        {
+          "row": "all VALIDATED rows (proof freshness)",
+          "event": "R36 and R37 were full-scope rounds that re-judged every re-opened PASS lane (round-R36.json scope 'full (CX-VAL-011)'; round-R37.json reused_pass_lanes: none); the 2026-10-21 stale floor (39.1 %) no longer applies at 1d139a6. At origin 5ab33c9 folio, composite, pigment and render-cpu changed again (git diff 1d139a6..5ab33c9), so rows rendering through them (FG-01, 02, 04, 05, 06, 09, 10, 11, 13, 14, 15, 20, 23) are proof-stale at the tip pending R38 (CX-VAL-009)",
+          "evidence_level": "VALIDATED at 1d139a6; STALE at 5ab33c9"
+        }
+      ],
+      "local_changes": [
+        {"lane": "SMB-HARNESS-SHELL-2", "sha": "8ddbae5", "change": "F-R37-3: dialog filter 'Figma (.fig)' -> 'Design file (.fig)' (local file_dialog.rs:141); origin still carries 'Figma (.fig)' at crates/hsk-studio-harness-view/src/view/file_dialog.rs:134", "evidence_level": "LOCAL_UNVALIDATED", "parity_effect": "none (naming-law fix)"}
+      ],
+      "recomputed": {
+        "engine": {
+          "DELIVERED_VALIDATED": {"counts": {"VALIDATED": 13, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 4, "MISSING": 6}, "pct": 60.9},
+          "DELIVERED_UNVALIDATED": {"counts": {"VALIDATED": 13, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 4, "MISSING": 6}, "pct": 60.9, "note": "no post-R37 Figma engine work on origin"},
+          "LOCAL": {"counts": {"VALIDATED": 13, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 4, "MISSING": 6}, "pct": 60.9}
+        },
+        "gui": {
+          "workflows": 7,
+          "DELIVERED_VALIDATED": {"doable_judged": 2, "doable_unjudged": 0, "pct": 28.6, "changed": "Prototype play with smart animate: ENGINE_ONLY -> DOABLE_IN_STUDIO_GUI (Workspace > Prototype Player F12, SHELL-1 PASS_V1)"},
+          "DELIVERED_UNVALIDATED": {"pct": 28.6},
+          "LOCAL": {"pct": 28.6, "note": "PANELS-1 vector_export is whole-document SVG/PDF, not per-frame .fig export; .fig still does not open as editable content"},
+          "unchanged_not_doable": ["Open a .fig file as editable content: no .fig route in harness-core import (git grep for fig in crates/hsk-studio-harness-core/src/import.rs finds only psd ProposalConfig lines); .fig opens only into the prototype player", "Components/variants/overrides, auto layout/constraints, variables/modes: ENGINE_ONLY", "Export frames PNG/SVG/PDF: ENGINE_ONLY"]
+        },
+        "strict_ui_rows_agree": {"DELIVERED_VALIDATED": 2, "LOCAL": 2, "rows": ["FG-10", "FG-11"]}
+      },
+      "top_gaps": [
+        {"rank": 1, "gap": "No collaboration stack: multiplayer/comments (FG-16), version history (FG-17), team libraries (FG-18) MISSING; SMB-FIG-COLLAB still queued with no commits (ledger.json status null, phase 'queued')", "spec": "[STU-SDB-001] (14.0 SurrealDB authority; module line 7526 table: 'kernel CRDT co-edit is the primary path', row without its own clause id); [STU-DS-049] local-first design system", "oracle": "none (capability MISSING)"},
+        {"rank": 2, "gap": ".fig does not open as editable content in the window; no design-editing surface for components, variants, auto layout, variables (Figma GUI 2 of 7 workflows)", "spec": "[STU-DS-001] (design import), [STU-DS-160] contextual panel binding, [STU-CMP-110]", "oracle": "Operator fixtures only (3 .fig)"},
+        {"rank": 3, "gap": "Text: no general font resolver; text auto-resize and vertical align are typed losses (FG-15 PARTIAL)", "spec": "module 14.7 (Type); matrix source carries no clause id", "oracle": "FIXTURE_PROVEN partly (text region 91.4 % within 8/255 on fig_paints_2); otherwise UNVERIFIED"},
+        {"rank": 4, "gap": "GRID auto layout and SLOT component properties refused (FG-07 / FG-04 weak AGREE); layout grids MISSING (FG-22)", "spec": "[STU-DS-146], [STU-DS-110]", "oracle": "UNVERIFIED against Figma"},
+        {"rank": 5, "gap": "No .fig writer, SVG frame export is a typed loss (FG-20 PARTIAL); Dev Mode and plugin/REST API MISSING (FG-19, FG-21)", "spec": "module 14.13 export; STU-AUT (14.14) for FG-21; FG-19 is vendor-sourced (no spec clause)", "oracle": "FIXTURE_PROVEN for PNG/PDF frame export only"}
+      ],
+      "oracle_status": "No Figma vendor oracle. Three Operator-exported Figma 126.10.7 fixtures; fig_paints_2 back at its pin after the R36 regression (R37 PASS_V2). fig-components-autolayout-variants.png and the prototype -scroll PNG are still read by no test (2026-10-21 audit; not re-checked). Multi-mode variables and tween frames unproven."
+    },
+    {
+      "app": "affinity",
+      "rows": 80,
+      "studio_split_rows": {"shared": 20, "pixel (Photo)": 23, "develop (Photo)": 3, "vector (Designer)": 18, "layout (Publisher)": 16},
+      "baseline_20261021": {
+        "engine_counts": {"VALIDATED": 24, "BUILT_NOT_VALIDATED": 1, "PARTIAL": 40, "MISSING": 15},
+        "engine_pct": 43.1,
+        "engine_pct_by_studio": {"shared": 48.8, "pixel": 20.7, "develop": 25.0, "Photo (pixel+develop)": 21.2, "vector": 62.5, "layout": 50.0},
+        "gui_pct": 60.0,
+        "gui_workflows": 15,
+        "gui_doable_judged": 9,
+        "strict_ui_rows_agree": 15
+      },
+      "changed_rows": [
+        {
+          "row": "AF-43 Text on a path (shared)",
+          "level_before": "BUILT_NOT_VALIDATED",
+          "level_after": "VALIDATED",
+          "lane": "SMB-AI-TYPE-PATH-RECOLOR",
+          "sha": "54865f6..395d080 range (per gui-surfaces.json basis); unchanged claim",
+          "proof": "STUDIO-R36 PASS_V1 @a105766; STUDIO-R37 PASS_V2 @1d139a6 (ledger.json)",
+          "code_on_origin": "crates/hsk-studio-type/src/path_text.rs:125 (PathTextOptions), :160 (PathTextRun); crates/hsk-studio-folio/src/vector_path_text.rs:104 (StudioPathText); crates/hsk-studio-harness-view/src/view/vector/path_text.rs:84 (path_text_layout); tests crates/hsk-studio-type/tests/ai_path_text.rs:25, :73, :129, crates/hsk-studio-folio/tests/ai_path_text_records.rs:46",
+          "caveat": "engine row; no live editable path-text layer in the window (matrix note); Affinity behaviour UNVERIFIED (no oracle)",
+          "evidence_level": "VALIDATED"
+        },
+        {
+          "row": "AF-06 DWG / DXF import and place (shared)",
+          "level_before": "PARTIAL (DXF import READY, feature-gated)",
+          "level_after": "PARTIAL (DXF import validated, default-on own reader; DWG typed refusal; no DXF export)",
+          "lane": "SMB-DXF-EPS-IMPORT",
+          "sha": "65f3a04 (own DXF reader adapted from MIT dxf 0.6.2), a105766",
+          "proof": "STUDIO-R36 PASS_V1 @a105766; STUDIO-R37 PASS_V2 @1d139a6",
+          "code_on_origin": "crates/hsk-studio-interop-vector-core/src/dxf_import.rs:712 (import_dxf); src/dxf_reader.rs; src/cad.rs:66 (identify_cad), :81 (import_dwg refusal); Cargo.toml [features] default = [] with only accord/folio/nib/observe path deps",
+          "evidence_level": "PARTIAL (unchanged level, now PASS-judged)"
+        },
+        {
+          "row": "AF-07 SVG and EPS import/export (vector)",
+          "level_before": "PARTIAL (audit cited EPS import through an isolated stet worker, feature-gated)",
+          "level_after": "PARTIAL; capability regressed: the EPS interpreter route was removed for licensing (6cf1de4); import_eps always refuses EpsVectorNotDecoded; DSC/preview read and EPSF 3.0 export remain",
+          "lane": "SMB-DXF-EPS-IMPORT",
+          "sha": "6cf1de4",
+          "proof": "STUDIO-R36 PASS_V1, STUDIO-R37 PASS_V2",
+          "code_on_origin": "crates/hsk-studio-interop-vector-core/src/eps.rs:179 (read_eps), :363 (import_eps_preview), :384 (import_eps, doc :381 'always refuses with VectorError::EpsVectorNotDecoded'); src/eps_export.rs:313 (export_eps)",
+          "local": "SMB-EPS-FREE-FONTS a0351e9 (LOCAL_UNVALIDATED, not pushed) restores the worker on a vendored stet fork with free fonts; the audit kept AF-07 PARTIAL even with the worker, so no level change locally",
+          "evidence_level": "PARTIAL"
+        },
+        {
+          "row": "AF-02 Native Affinity documents (shared)",
+          "level_before": "PARTIAL (READY)",
+          "level_after": "PARTIAL (PASS-judged container reader + opt-in preview; layers not decoded, no writer)",
+          "lane": "SMB-AFFINITY-INTEROP-1",
+          "sha": "a82a77c (no interop-affinity commit since e64eacd: git log e64eacd..origin -- crates/hsk-studio-interop-affinity is empty)",
+          "proof": "STUDIO-R36 PASS_V1, STUDIO-R37 PASS_V2 (lane file verdicts); corpus tests remain #[ignore]",
+          "code_on_origin": "crates/hsk-studio-interop-affinity/src/container.rs:262 (parse); src/thumbnail.rs:168, :215; crates/hsk-studio-harness-core/src/import.rs:137 (affinity_native_use_export refusal), :377 (import_affinity_preview)",
+          "evidence_level": "PARTIAL"
+        },
+        {
+          "row": "AF-04, AF-09, AF-10, AF-16, AF-18, AF-39, AF-57, AF-63, AF-71 (rows whose covering lanes were READY on 2026-10-21: SMB-ID-PREPRESS, SMB-PACKAGE-COMPLETENESS-2, SMB-AI-TYPE-PATH-RECOLOR, SMB-DEVELOP-LENS-PRESETS)",
+          "level_before": "PARTIAL / VALIDATED as listed in parity-affinity.json",
+          "level_after": "unchanged: all those lanes are PASS (R36/R37), but each row is PARTIAL for a named missing sub-capability (matrix notes: no PDF-to-layout import, no palette scopes/ASE, no measure/X-ray, no lens database, mesh not drawn by composite/PDF/SVG, auto-size refused, no image/QR merge fields), not for lack of a verdict",
+          "evidence_level": "NOT_INSPECTED beyond the ledger verdicts and the matrix notes (no per-row code re-read)"
+        },
+        {
+          "row": "AF-24 / AF-17 / AF-08 (post-R37 SMB-PS-FILL-LAYERS, SMB-DEVELOP-DNG-WRITER on origin, unvalidated)",
+          "level_after": "unchanged: fill layers are not an AF-24 adjustment kind and add no gradient tool (AF-17); DNG is not in AF-08's format list",
+          "evidence_level": "DELIVERED_UNVALIDATED, no row effect"
+        }
+      ],
+      "gui_changes": [
+        {"workflow": "Publisher: pages, text frames, tables, styles, preflight", "before": "ENGINE_ONLY (layout editor NOT_HOSTED)", "after": "DOABLE judged: WORKSPACE > Layout Editor / F5", "proof": "SMB-HARNESS-SHELL-1 PASS_V1 + SMB-LAYOUT-UI PASS_V4 / SMB-LAYOUT-UI-2 PASS_V3 @1d139a6", "code_on_origin": "crates/hsk-studio-harness-view/src/view/shell.rs:676 (LayoutEditor::new on the open document's pages); src/layout_ui.rs:284, :312", "caveat": "layout edits are not written back to the open document/package (SHELL-1 lane gap list)", "split": "DELIVERED_VALIDATED"},
+        {"workflow": "Designer: align/transform, swatches, gradients, appearance, styles", "before": "ENGINE_ONLY", "after": "LOCAL partial: PANELS-1 hosts appearance, stroke, swatches, graphic_styles, align_distribute, transform; fills are solid only (hosted.rs:1241 SetFill -> PaintSpec::Solid; no 'gradient' in hosted.rs), so not credited", "split": "LOCAL_UNVALIDATED, not counted"},
+        {"workflow": "Export PSD / PDF / SVG", "before": "ENGINE_ONLY", "after": "LOCAL partial: PANELS-1 vector_export (export_vector_svg / pdf, hosted.rs:1277); PSD export still absent; not credited", "split": "LOCAL_UNVALIDATED, not counted"},
+        {"workflow": "Photo: adjustments, live filters, effects, masks", "after": "unchanged ENGINE_ONLY on origin; PANELS-1 masks panel (make_clip / make_vector_mask, hosted.rs:1262-1263) covers vector masks only", "split": "LOCAL_UNVALIDATED, not counted"}
+      ],
+      "recomputed": {
+        "engine": {
+          "DELIVERED_VALIDATED": {"counts": {"VALIDATED": 25, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 40, "MISSING": 15}, "pct": 43.8, "pct_by_studio": {"shared": 51.3, "pixel": 20.7, "develop": 25.0, "Photo (pixel+develop)": 21.2, "vector": 62.5, "layout": 50.0}},
+          "DELIVERED_UNVALIDATED": {"counts": {"VALIDATED": 25, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 40, "MISSING": 15}, "pct": 43.8},
+          "LOCAL": {"counts": {"VALIDATED": 25, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 40, "MISSING": 15}, "pct": 43.8}
+        },
+        "gui": {
+          "workflows": 15,
+          "DELIVERED_VALIDATED": {"doable_judged": 10, "doable_unjudged": 0, "pct": 66.7},
+          "DELIVERED_UNVALIDATED": {"pct": 66.7},
+          "LOCAL": {"pct": 66.7, "note": "would be 70.0 if the Designer panel workflow were credited without gradients (0.5 unjudged); not credited"}
+        },
+        "strict_ui_rows_agree": {
+          "DELIVERED_VALIDATED": 20,
+          "added_validated": ["AF-45", "AF-62", "AF-63", "AF-65", "AF-74 (layout editor now hosted, F5)"],
+          "LOCAL": 22,
+          "added_local": ["AF-48 (path_operations live corner)", "AF-61 (align_distribute, transform)"],
+          "not_flipped": ["AF-17 (no gradient widget)", "AF-21 (local masks panel: vector clip/mask only, pixel mask editing absent)", "AF-24, AF-26 (view-only)"]
+        }
+      },
+      "top_gaps": [
+        {"rank": 1, "gap": "No native Affinity document support beyond a container reader and a lossy preview: layer/object graph not decoded, no writer, default import refuses every KA file (AF-02)", "spec": "[STU-IO-006] rows 30-33", "oracle": "none; 9 MIT .afdesign samples back only the container reader (#[ignore] corpus tests); SMB-AFFINITY-ORACLE-OPERATOR 'decided', no claim (ledger.json)"},
+        {"rank": 2, "gap": "No Studio/Persona model or workspace presets (AF-78 MISSING); WORKSPACE > Layout Presets not implemented in the harness shell", "spec": "[STU-OVR-002] (matrix source), [STU-SHL-036] WORKSPACE menu", "oracle": "none"},
+        {"rank": 3, "gap": "Photo gaps: compound masks, live masks, frequency separation, HDR merge, panorama, focus merge, saved layer states, 3.1 tone tools, ML selection/generative tools all MISSING (AF-22, 23, 28, 31, 35, 36, 37, 77, 79, 80); Photo engine 21.2 %", "spec": "[STU-RAW-129], [STU-AUT-134], [STU-UNI-005], [STU-RAS-045]; AF-22/23/31/37/79 vendor-sourced (no clause)", "oracle": "none"},
+        {"rank": 4, "gap": "No macros/batch (AF-12 MISSING) and no export persona: slices, presets, multi-format batch (AF-13 PARTIAL)", "spec": "[STU-RAS-169], [STU-AUT-010], [STU-DOC-004], [STU-IO-111]", "oracle": "none"},
+        {"rank": 5, "gap": "Publisher fidelity: data merge without image/QR fields (AF-71), no place auto-flow (AF-72), no linked-file layer override (AF-73), IDML import without masters/styles/groups (AF-05); layout editor now reachable but its edits are not persisted to the document", "spec": "[STU-LAY-162]; AF-72/73 vendor-sourced (no clause)", "oracle": "none (InDesign D5 oracle backs only the inherited composer rows)"}
+      ],
+      "oracle_status": "No Affinity vendor oracle (installed Affinity 3.x has no scripting API; Operator-attended test files pending). Every Affinity behaviour row is UNVERIFIED against Affinity; inherited Photoshop/Illustrator/InDesign rows carry only those apps' D5 oracle evidence."
+    }
+  ],
+  "shell": {
+    "reachability_38_pass_surfaces": {
+      "baseline_20261021": {"reachable_documented_window": 22, "unreachable": 16, "unreachable_ids": "gui-surfaces.json surfaces[25..30, 34, 35, 36 (feature build), 40, 41, 42, 43, 44 (NOT_HOSTED), 4 (CLI), 48 (model navigation API)]"},
+      "counts_now": {"reachable_on_origin_validated": 28, "reachable_only_in_LOCAL_lanes": 7, "still_unreachable": 3, "total": 38},
+      "table": [
+        {"surface": "Program monitor (gui-surfaces #34)", "now": "ORIGIN", "path": "WORKSPACE > Program Monitor / F6 (needs a document sequence; transport only, no frame source for document sequences)", "code": "shell.rs:682 open_monitor", "proof": "SHELL-1 PASS_V1 R37"},
+        {"surface": "Source monitor (#35)", "now": "ORIGIN (documented build desktop,audio-batch)", "path": "WORKSPACE > Source Monitor / F7 via a media dialog", "code": "shell.rs:628, :635; crates/hsk-studio-harness/Cargo.toml:24 audio-batch implies media; RUN-UI.md:17, :20", "proof": "SHELL-1 PASS_V1 R37"},
+        {"surface": "Audio file open + Audio side panel (#36, was WINDOW_FEATURE_BUILD undocumented)", "now": "ORIGIN (now the documented build)", "code": "RUN-UI.md:17 'cargo run -p hsk-studio-harness --features desktop,audio-batch'", "proof": "SHELL-1 PASS_V1 R37; SMB-AUDIO-IMPORT-WIRING PASS"},
+        {"surface": "Mixer / routing editor (#40)", "now": "ORIGIN (documented build)", "path": "WORKSPACE > Mixer / F8 (needs a document sequence)", "code": "shell.rs:701, :703; RUN-UI.md:59", "proof": "SHELL-1 PASS_V1 R37"},
+        {"surface": "Prototype player (#43)", "now": "ORIGIN", "path": "WORKSPACE > Prototype Player / F12 via a .fig dialog", "code": "shell.rs:623", "proof": "SHELL-1 PASS_V1 R37"},
+        {"surface": "Layout editor (#44, was NOT_HOSTED)", "now": "ORIGIN", "path": "WORKSPACE > Layout Editor / F5", "code": "shell.rs:676", "proof": "SHELL-1 PASS_V1 R37"},
+        {"surface": "Path edit operations (#25)", "now": "LOCAL (PANELS-1 path_operations, Shift+F8)", "code": "local hosted.rs:107"},
+        {"surface": "Vector appearance / stroke / swatches / graphic styles (#26)", "now": "LOCAL (appearance, stroke, swatches, graphic_styles)", "code": "local hosted.rs:101-104"},
+        {"surface": "Align / distribute / transform (#27)", "now": "LOCAL", "code": "local hosted.rs:105-106"},
+        {"surface": "Envelope warp + art/scatter/pattern brushes (#28)", "now": "LOCAL", "code": "local hosted.rs:109-110"},
+        {"surface": "Clipping / vector masks (#29)", "now": "LOCAL", "code": "local hosted.rs:108, :1262-1263"},
+        {"surface": ".ai import as editable vectors; vector SVG/PDF export (#30)", "now": "LOCAL (vector_import, vector_export)", "code": "local hosted.rs:111-112, :1277, :1279"},
+        {"surface": "Audio batch processing (#41)", "now": "LOCAL (audio_batch, Ctrl+Shift+F3, feature audio-batch)", "code": "local hosted.rs:113"},
+        {"surface": "Timeline / composition / render-queue export functions (#42)", "now": "STILL_UNREACHABLE", "note": "the new timeline panel (WORKSPACE > Timeline F10, SMB-TIMELINE-UI-1 READY, shell.rs:690) edits but has no export path (timeline_ui.rs: no export/encode/render_queue hit, 364 lines)"},
+        {"surface": "Headless CLI (#4)", "now": "STILL_UNREACHABLE (CLI by nature, not a window surface)"},
+        {"surface": "Model navigation stable ids (#48)", "now": "STILL_UNREACHABLE (agent API by nature)"}
+      ],
+      "new_surfaces_not_in_the_38": [
+        {"surface": "Desktop menu bar File / Edit / View / Workspace, own file dialog, Open Recent", "state": "ORIGIN, PASS_V1 R37", "code": "shell.rs:808 (egui::MenuBar), :826, :851, :857, :868; :275-291 entries; file_dialog.rs"},
+        {"surface": "Timeline panel (WORKSPACE > Timeline F10)", "state": "ORIGIN, READY_FOR_VALIDATION (SMB-TIMELINE-UI-1 @5ab33c9), DELIVERED_UNVALIDATED", "code": "shell.rs:135 (Key::F10), :690 (open_timeline); view/timeline_ui.rs", "note": "RUN-UI.md:191 still says 'no timeline panel' (stale)"},
+        {"surface": "Waveform editor (F9) / spectral display (F11)", "state": "ORIGIN, PASS (SMB-AU-WAVEFORM-EDITOR PASS_V1 R36; SHELL-1 hosting PASS_V1 R37)", "code": "shell.rs:712, :714"},
+        {"surface": "13 hosted panels (PANELS-1)", "state": "LOCAL_UNVALIDATED", "code": "local view/hosted.rs (1408 lines); tests/viewer_panels.rs 18 tests"}
+      ]
+    },
+    "menus_dialogs_help": {
+      "origin": "Menu bar with File, Edit, View, Workspace (Panel::ALL = 11 panels incl. Timeline, shell.rs:75); own egui file dialog with extension filters and hostile-path refusals; Open Recent (10, hsk.studio.harness.recent@1). No HELP menu on origin (git grep -i help shell.rs: 0 hits). Menus are built with egui directly, not from hsk-studio-controls descriptors (STU-ARC-014 gap recorded by SHELL-1). Naming-law finding F-R37-3 open on origin: file_dialog.rs:134 'Figma (.fig)'.",
+      "local_shell_2": "HELP menu with the 16 [STU-SHL-037] leaves (Open/Search Manual, Full Command Index, Keyboard Shortcut Reference, System Report, About implemented; the rest greyed NOT_IMPLEMENTED_YET), menu/window descriptors in hsk-studio-controls (local crates/hsk-studio-controls/src/menu.rs), one availability record feeding egui, AccessKit and the command API ([STU-SHL-017..021], [STU-SHL-050..052]), F-R37-3 fix. LOCAL_UNVALIDATED: no clippy or test ran (lock give-up exit 75, then the hook).",
+      "still_absent": "menu mnemonics and reserved AccessKit id band ([STU-SHL-004]); module menus between VIEW and GO; WORKSPACE Tools / Layout Presets ([STU-SHL-036] lists 90 panel leaves and 362 tool leaves, module lines 31569-31570); docking, multi-document, drag-and-drop; settings path (recents persist only with --recent)",
+      "spec": "[STU-SHL-004], [STU-SHL-008], [STU-SHL-009], [STU-SHL-036], [STU-SHL-037], [STU-ARC-014]"
+    },
+    "headless_proof": {
+      "STU-CMP-110": "Requires every panel/control/visible state to be model-visible, typed-steerable and 'headlessly inspectable, steerable and screenshot-capturable through Argus with no foreground focus steal' (module line 30012). Status: PARTIAL. Model-visible/steerable: shell_command + state_json()['shell'] on origin (PASS). Screenshot-capturable through Argus: NOT MET (no Argus, no UI screenshot).",
+      "STU-QUIET-005": "Requires headless visual proof via StudioRenderHarness render-to-buffer and Argus on the AccessKit tree, with AccessKit/state fallback (module line 22372). Status: fallback path only. AccessKit tree + state assertions exist; document pixels via render-cpu; no UI pixel capture.",
+      "improved_since_audit": "The 2026-10-21 audit found 0 injected input events in harness tests. Origin now injects egui input headlessly: key events (crates/hsk-studio-harness/tests/viewer_shell.rs:36 egui::Event::Key) and AccessKit click action requests (viewer_shell.rs:167 AccessKitActionRequest Action::Click), PASS_V1 R37; pointer drags in crates/hsk-studio-harness-view/tests/viewer_timeline.rs (READY, unvalidated); local PANELS-1 adds per-surface AccessKit lookups (viewer_panels.rs, run 1 13 failures fixed in 587886c, not re-run).",
+      "desktop_launch": "NOT_PROVEN: no test opens the native window; SHELL-1 proof_limits: 'The window itself is still not launched (Operator-attended, CX-SAFE-002)'; START_LOG.md:566 notes viewer top bars ~800 px on a 1200 px headless screen, unverified in the real window"
+    },
+    "argus_egui_kittest_gap": {
+      "audit_finding": "HBR-VIS-001 Argus/egui_kittest evidence absent (feature-completeness-20261021.json cross_app_top_gaps[0]; gui-surfaces.json headless_proof_kinds_found 'NOT FOUND: egui_kittest ... Argus ...')",
+      "status_at_origin_5ab33c9": "UNCHANGED: git grep -i egui_kittest over the whole origin tree: 0 hits; git grep -l -i argus over harness, harness-view, harness-core, controls: 0 files; no screenshot capture in harness/harness-view (only the DESCRIPTOR text 'no screenshot inspection of the window', crates/hsk-studio-harness/src/lib.rs:35)",
+      "local": "none of the local lanes adds egui_kittest or Argus",
+      "stale_record": "harness DESCRIPTOR not_proven still lists viewer_masks_effects_adjustments although render records and mask tiles render (lib.rs:35; SHELL-1 gap list)"
+    }
+  },
+  "overall": {
+    "status": "PARTIAL",
+    "inputs_used": ["this file (figma, affinity)", "research/parity-20261023-video-audio.json (premiere_pro, after_effects, audition: its per_app[].recompute counts and workflow points as written, not re-derived)"],
+    "missing_inputs": ["research/parity-20261023-adobe-print.json"],
+    "missing_note": "Absent when this roll-up was computed: Photoshop, Lightroom Classic, Illustrator and InDesign use their 2026-10-21 per-app numbers unchanged; their R36/R37 verdicts and the layout-editor hosting effect on InDesign GUI rows are NOT counted.",
+    "engine_9_apps": {
+      "rows": 308,
+      "baseline_20261021": {"counts": {"VALIDATED": 132, "BUILT_NOT_VALIDATED": 5, "PARTIAL": 139, "MISSING": 32}, "pct": 54.9},
+      "DELIVERED_VALIDATED": {"counts": {"VALIDATED": 137, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 139, "MISSING": 32}, "pct": 55.8, "formula": "100*(137 + 0.5*0 + 0.25*139)/308 = 171.75/308; deltas from BUILT_NOT_VALIDATED to VALIDATED: Affinity +1 (AF-43), After Effects +2, Audition +2 (video-audio file)"},
+      "DELIVERED_UNVALIDATED": {"counts": {"VALIDATED": 137, "BUILT_NOT_VALIDATED": 3, "PARTIAL": 136, "MISSING": 32}, "pct": 56.0, "formula": "172.5/308; Premiere +1 BNV / -1 PARTIAL, After Effects +2 BNV / -2 PARTIAL (video-audio file)"},
+      "LOCAL": {"counts": {"VALIDATED": 137, "BUILT_NOT_VALIDATED": 3, "PARTIAL": 136, "MISSING": 32}, "pct": 56.0}
+    },
+    "engine_8_apps": {
+      "rows": 228,
+      "note": "the comparable 8-app set excludes Affinity (308 - 80 = 228)",
+      "baseline_20261021": {"counts": {"VALIDATED": 108, "BUILT_NOT_VALIDATED": 4, "PARTIAL": 99, "MISSING": 17}, "pct": 59.1},
+      "DELIVERED_VALIDATED": {"counts": {"VALIDATED": 112, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 99, "MISSING": 17}, "pct": 60.0},
+      "DELIVERED_UNVALIDATED": {"counts": {"VALIDATED": 112, "BUILT_NOT_VALIDATED": 3, "PARTIAL": 96, "MISSING": 17}, "pct": 60.3},
+      "LOCAL": {"pct": 60.3}
+    },
+    "gui_pooled_108_workflows": {
+      "baseline_20261021": {"points": 40.0, "pct": 37.0},
+      "DELIVERED_VALIDATED": {"points": 49.5, "pct": 45.8, "per_app_points": {"photoshop": 11.0, "lightroom_classic": 8.5, "illustrator": 8.0, "indesign": 0.0, "figma": 2.0, "premiere_pro": 4.0, "after_effects": 0.0, "audition": 6.0, "affinity": 10.0}},
+      "DELIVERED_UNVALIDATED": {"points": 50.0, "pct": 46.3, "delta": "premiere_pro +0.5 (Timeline F10, READY)"},
+      "LOCAL": {"points": 50.5, "pct": 46.8, "delta": "audition +0.5 (audio_batch hosted panel, PANELS-1)"},
+      "mean_of_apps": {"baseline": 30.3, "DELIVERED_VALIDATED": 41.0, "DELIVERED_UNVALIDATED": 41.5, "LOCAL": 42.1, "formula_validated": "(61.1 + 65.4 + 47.1 + 0 + 28.6 + 40.0 + 0 + 60.0 + 66.7) / 9"},
+      "caveat": "InDesign stays at its 2026-10-21 0 % only because the adobe-print file is missing; its layout editor is now reachable (F5, PASS_V1)"
+    },
+    "gui_strict_ui_rows": {
+      "baseline_20261021": {"agree": 44, "pct": 14.3},
+      "DELIVERED_VALIDATED": {"agree": 56, "pct": 18.2, "added": ["FG-10", "FG-11", "AF-45", "AF-62", "AF-63", "AF-65", "AF-74", "PR-07", "PR-19", "PR-23", "AU-13", "AU-14"]},
+      "DELIVERED_UNVALIDATED": {"agree": 61, "pct": 19.8, "added": ["PR-03", "PR-04", "PR-05", "PR-11", "PR-12 (READY timeline; as listed in the video-audio file's strict PR rows)"]},
+      "LOCAL": {"agree": 63, "pct": 20.5, "added": ["AF-48", "AF-61"], "note": "AU-22 is a raise/addition in the video-audio file, not an AGREE"},
+      "informational_shell_cross_app": {
+        "note": "rows of the adobe-print apps flipped by the same shell hosting; owned by the missing adobe-print audit and NOT in the figures above",
+        "validated_candidates": ["ID-01", "ID-02", "ID-04", "ID-05", "ID-12", "ID-14", "ID-25", "ID-29 (layout editor F5)"],
+        "local_candidates": ["AI-07", "AI-16", "AI-20", "AI-23", "AI-24 (PANELS-1)"],
+        "if_counted": {"DELIVERED_VALIDATED": "64/308 = 20.8 %", "DELIVERED_UNVALIDATED": "69/308 = 22.4 %", "LOCAL": "76/308 = 24.7 %"}
+      }
+    },
+    "proof_freshness": "VALIDATED counts are as of R37 @1d139a6 (full scope; no reused PASS lanes). At origin 5ab33c9 eleven crates and tools/run-round.sh changed after R37, so R38 must again be full scope (run-round.sh is a full-round trigger, START_LOG.md:577) and rows over composite/folio/pigment/render-cpu/harness-view are proof-stale at the tip."
+  },
+  "process_findings": [
+    {"id": "PF-1", "finding": "Disk-lock waits dominated the shell lanes: SHELL-2 waited 13666 s in total and its bundled run gave up after 7201 s behind the R38 canary (exit 75, no clippy or test ran); PANELS-1 waited 11284 s (check 6174 s, run 1 5110 s); TIMELINE-UI-1 14000 s; EPS-FREE-FONTS 7200 s", "evidence": "builders/lanes/hsk-studio-harness-shell-2.json blockers[1] 'disk-build-lock: gave up after 7201s waiting for run-round studio-round ... R38-canary' and lock_wait_s 13666; hsk-studio-harness-panels-1.json lock_wait_s 11284, notes.lock_waits; hsk-studio-timeline-ui-1.json:77; hsk-studio-eps-free-fonts.json:48"},
+    {"id": "PF-2", "finding": "R37 was dispatched as scoped but round-select computed --all because steward step-0 overlay repoints (.config/duplicate-fingerprints.toml, machine-paths.toml) counted as round-entry config; scoped closure would have been 30 of 49 crates; union took 3h25m. Fixed in round-select.py afterwards, but 23b1bb7 then changed tools/run-round.sh, a genuine full-round trigger, so R38 is full again", "evidence": "validation/round-R37.json findings_not_failures F-R37-2 and selection.full_reasons; START_LOG.md:576, :577 ('R37 replay a105766 -> 1d139a6 now selects 30 of 49')"},
+    {"id": "PF-3", "finding": "The C: SSD guard refused builds (exit 77) and pushed every lane to the single spinning D: disk, which caused the lock queue in PF-1; the Operator then closed the C: slot ('no builds on C') while C: was cleaned to 506-528 GiB free", "evidence": "hsk-studio-harness-shell-2.json blockers[0] 'C:/HandshakeBuild/WP-KERNEL-STUDIO held 140 GiB ... SSD build refused (77)'; hsk-studio-harness-panels-1.json notes.build_disk (160 GiB); START_LOG.md:562, :564"},
+    {"id": "PF-4", "finding": "The Operator's global gameplan hook hard-blocked PANELS-1's second bundled run and a plain lane-file update in SHELL-2 (it resolves WP-KERNEL-012's gameplan from every Studio tree and expects a missing worktree); both lanes now sit with unpushed, unproven commits", "evidence": "START_LOG.md:569 (HOOK BLOCK); hsk-studio-harness-panels-1.json blockers[0] 'confirm_binding target missing: .../wtc-WP-KERNEL-012 | GLOBAL-GAMEPLAN-001'; hsk-studio-harness-shell-2.json blockers[2], [3]"},
+    {"id": "PF-5", "finding": "R38 was lost: the machine restart killed the R38 canary after 12 h without reaching the union, the steward's sync attempt 2 and all agents; 117 GiB of D: was consumed first; no R38 verdicts, so post-R37 work (timeline, render queue, DNG writer, fill layers, roto remediation) stays unvalidated", "evidence": "START_LOG.md:565 'MACHINE RESTART 2026-10-23 ~08:40Z ... the R38 canary (started 20:43Z, 12 h without reaching the union ...)'; no validation/round-R38.json"},
+    {"id": "PF-6", "finding": "Cross-app coupling cost one FAIL/remediation cycle: a Photoshop oracle change to the shared pigment blur kernel regressed the Figma fixture test (fig_paints_2) and failed PARITY-1 in R36; the lane had run pigment/render-cpu only", "evidence": "validation/round-R36.json findings_not_failures F-R36-2 ('30ea18e Photoshop tent blur kernel also drives Figma DROP_SHADOW'); fixed b2b43fc + 9c48de8, R37 PASS_V2 (START_LOG.md:549, :576)"},
+    {"id": "PF-7", "finding": "Shell work is serialised on one file: SHELL-2, PANELS-1 and TIMELINE-UI-1 all edit harness-view shell.rs (Panel enum / ALL length); both local lanes are based on e3953de while origin moved to 5ab33c9 with Timeline added, so rebase conflicts are expected before push. TIMELINE-UI-1 itself needed a 5-run loop on a headless pointer-layout issue", "evidence": "hsk-studio-harness-panels-1.json next ('expect conflicts with SMB-TIMELINE-UI-1 / SMB-HARNESS-SHELL-2 in shell.rs Panel matches and ALL length'); hsk-studio-harness-shell-2.json next; origin shell.rs:75 'pub const ALL: [Panel; 11]'; START_LOG.md:566 ('Root cause of the 5-run loop')"},
+    {"id": "PF-8", "finding": "Record drift: lane files keep status READY_FOR_VALIDATION after PASS verdicts (SHELL-1 PASS_V1, AFFINITY-INTEROP-1 PASS_V2, DXF-EPS-IMPORT PASS_V2 in ledger.json); RUN-UI.md:191 says 'no timeline panel' while origin hosts one; the brief cited spec v02.221 while SPEC_CURRENT is v02.222", "evidence": "builders/lanes/hsk-studio-harness-shell-1.json status vs its own verdicts[0] PASS_V1; ledger.json SMB-HARNESS-SHELL-1 PASS_V1; .GOV/spec/SPEC_CURRENT.md current_spec.version v02.222"}
+  ],
+  "unverified": [
+    "No test, build or oracle comparison was run; every PASS is read from round-R36/R37.json, lane files and ledger.json",
+    "LOCAL lanes: code read only (hosted.rs keys and dispatch lines, shell-2 HELP constants, file_dialog filter); none has a green bundled run (PANELS-1 fix 587886c not re-run; SHELL-2 never ran tests)",
+    "Affinity rows inherited from other apps were not re-verified beyond the ledger verdicts and matrix notes (same scope rule as the 2026-10-21 audit)",
+    "Whether the desktop window opens and the menus are usable at 1400x900 (NOT_PROVEN); layout editor edits are not persisted (lane-declared gap, not re-checked in code)",
+    "Overall roll-up is PARTIAL: research/parity-20261023-adobe-print.json was absent; video-audio numbers are taken from that file as written",
+    "One Bash command of this audit (a python heredoc whose text named the round) was blocked by the global gameplan hook; it was not reshaped: the roll-up was applied with the Edit tool and the file re-validated with json.load (ok)"
+  ]
+}
