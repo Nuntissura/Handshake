@@ -1,4 +1,130 @@
 {
+  "operator_scope_expansion_20261023_02": {
+    "decision_id": "WP012-OPERATOR-SCOPE-EXPANSION-20261023-02",
+    "recorded_at_utc": "2026-10-23T13:04:13.800690Z",
+    "status": "APPROVED_SCOPE_EXPANSION_AUTHORITY_LATER_WAIVER_PROMISED",
+    "authority_source": {
+      "kind": "DIRECT_CURRENT_HUMAN_INSTRUCTION",
+      "exact_quote": "you are allowed to expand scope, you will get my waiver, i rather have more features then less.",
+      "source_turn": "Current human turn, relayed by Master to the bounded authoring agent.",
+      "message_id": null
+    },
+    "scope": {
+      "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+      "phase": 2,
+      "boundary": "WP012 Phase2 only, preserving all carried CKC/WP1 obligations; no authority change for unrelated WPs."
+    },
+    "precedence": "For feature/dependency scope expansion within WP012 Phase2, this instruction supersedes older limits to smallest-blocker-only expansion or scope minimization. It leaves the separately preserved rules intact and changes no original acceptance requirement.",
+    "units": [
+      {
+        "unit_id": "WP012-SCOPE-EXPANSION-20261023-02-001",
+        "requirement": "Leadership may expand useful feature and dependency scope within WP-KERNEL-012 Phase2."
+      },
+      {
+        "unit_id": "WP012-SCOPE-EXPANSION-20261023-02-002",
+        "requirement": "Leadership should favor more useful features over minimizing scope."
+      },
+      {
+        "unit_id": "WP012-SCOPE-EXPANSION-20261023-02-003",
+        "requirement": "Leadership may continue without fresh permission solely for feature or dependency scope expansion under this decision."
+      },
+      {
+        "unit_id": "WP012-SCOPE-EXPANSION-20261023-02-004",
+        "requirement": "Preserve every original WP012, carried CKC and WP1 obligation; additions must not substitute for or downscope that work."
+      },
+      {
+        "unit_id": "WP012-SCOPE-EXPANSION-20261023-02-005",
+        "requirement": "Before implementing a concrete addition, identify its exact scope, files and owners and complete the authority, refinement and Master Spec coordination already required for that addition."
+      },
+      {
+        "unit_id": "WP012-SCOPE-EXPANSION-20261023-02-006",
+        "requirement": "Record actual touched paths and why in the existing owning scope records for the later Operator waiver at completion."
+      },
+      {
+        "unit_id": "WP012-SCOPE-EXPANSION-20261023-02-007",
+        "requirement": "Treat the promised later waiver as not yet issued for unspecified actions; do not invent already-granted action-specific waivers."
+      },
+      {
+        "unit_id": "WP012-SCOPE-EXPANSION-20261023-02-008",
+        "requirement": "Preserve existing process-stop, metadata, finite-attempt, runtime, authentication, cleanup, sole physical Product writer/compiler/Git and independent-acceptance rules."
+      }
+    ],
+    "waiver_state": {
+      "status": "LATER_OPERATOR_WAIVER_PROMISED_NOT_ACTION_SPECIFICALLY_ISSUED",
+      "completion_record": "Present actual touched paths and reasons for the later waiver; this decision is not a blanket waiver of unspecified actions.",
+      "concrete_additions_for_later_waiver": [
+        {
+          "path": "app/src-tauri/src/commands/swarm_runtime.rs",
+          "why": "Restore existing cfg(test) request construction compatibility with newly private authority state using an existing SpawnRequest rather than weakening privacy.",
+          "state": "PLANNED_NOT_YET_RECORDED_AS_ACTUALLY_TOUCHED"
+        }
+      ]
+    },
+    "recording": {
+      "surface": "Use existing owning contracts/current handoff; do not add bureaucracy solely to repeat this authorization.",
+      "actual_touched_paths": [
+        {
+          "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+          "why": "Record the exact human instruction as one canonical machine-readable scope-expansion decision."
+        },
+        {
+          "path": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/WP-KERNEL-012-phase02-successor-handoff-v8.json",
+          "why": "Link the canonical decision and its precedence from current authority/scope and team workflow."
+        }
+      ]
+    },
+    "concrete_additions": [
+      {
+        "addition_id": "WP012-SCOPE-EXPANSION-20261023-02-CALLER-001",
+        "status": "APPROVED_EXACT_SOURCE_SCOPE_PENDING_PREIMAGE_BASE_OUTPUT_NONOVERLAP_BINDING",
+        "authority_ref": "packet.json#/operator_scope_expansion_20261023_02",
+        "source": "Current Code Dev Leader concrete repair supplied by Master under the current human scope-expansion decision.",
+        "product_path": "app/src-tauri/src/commands/swarm_runtime.rs",
+        "owned_surface": {
+          "cfg": "cfg(test)",
+          "function": "mixed_local_and_cloud_spawn_route_through_one_coordinator",
+          "scope": "Only request construction in this named test function."
+        },
+        "exact_correction": "Mutate instance_id on an existing SpawnRequest instance instead of using the cross-crate struct-update construction blocked by the newly private authority field. Preserve the same request behavior and public authority privacy; change no other function or test behavior.",
+        "current_preimage": {
+          "reported_raw_sha256": "CF2A9DA4FAE0435BD72981650D6457187A23D2203B406227B0B4FA67C6B72825",
+          "provenance": "Code Dev Leader reported; not independently verified by Master root.",
+          "required_before_write": "Freshly verify exact source preimage and immutable external base against this supplied hash."
+        },
+        "ownership": {
+          "source_parent": "01a15614-a478-7503-9470-198df23dd255",
+          "source_author": "Same existing supplier_consumer_coder under Core parent; no new UUID or custody transfer inferred.",
+          "physical_product_git_compiler": "01a15e8a-2b54-79a0-91a2-7304d67cbddc",
+          "physical_rule": "Only Primary later applies one frozen reviewed exact-hash candidate to Product."
+        },
+        "external_candidate": {
+          "output_root": "NOT_YET_SUPPLIED_MUST_BE_RECORDED_BEFORE_WRITE",
+          "immutable_base": "REQUIRED_NOT_YET_BOUND_IN_THIS_RECORD",
+          "write_state": "NOT_AUTHORIZED_TO_START_UNTIL_EXACT_PREIMAGE_BASE_OUTPUT_NONOVERLAP_BOUNDARY_RECORDED",
+          "boundary": "Distinct external candidate/base only; no direct Product writes or mutation/blending of other output."
+        },
+        "nonoverlap": "Existing consumer6 remain frozen. This one extra caller repair has its own external candidate/base/output ownership boundary and does not permit edits to the frozen six.",
+        "prewrite_binding": [
+          "Exact correction text and source preimage hash verified",
+          "Immutable external base and exact distinct output root supplied and recorded",
+          "Actual source ownership and nonoverlap with frozen consumer6 and Primary physical window recorded"
+        ],
+        "review": "Named nonauthor source review followed by independent current Codecheck before Primary application.",
+        "preserved_boundaries": [
+          "Current behavior and private authority field remain",
+          "No runtime/authentication/metadata change",
+          "No new test or runtime execution grant",
+          "Original acceptance, source review and process/compiler custody rules remain"
+        ],
+        "later_waiver": {
+          "path": "app/src-tauri/src/commands/swarm_runtime.rs",
+          "why": "Restore existing cfg(test) request construction compatibility with newly private authority state using an existing SpawnRequest rather than weakening privacy.",
+          "state": "PLANNED_NOT_YET_RECORDED_AS_ACTUALLY_TOUCHED"
+        }
+      }
+    ],
+    "updated_at_utc": "2026-10-23T13:07:13.266310Z"
+  },
   "operator_engine_profiles_binding_20261023": {
     "decision_id": "WP012-ENGINE-PROFILES-BINDING-20261023",
     "recorded_at_utc": "2026-10-23T00:12:14.972572Z",

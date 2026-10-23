@@ -7804,7 +7804,8 @@
     },
     "authority_and_scope": {
       "authorization": "Direct human requested a new handoff of current WP-KERNEL-012 Phase2 state, all team rules/composition and agreed workflow improvements; Master delegated this bounded authoring and a later reviewed minimal packet selector change.",
-      "no_scope_or_acceptance_change": true,
+      "no_original_acceptance_change": true,
+      "scope_expansion_authority_changed": true,
       "product_scope": "Full original WP-KERNEL-012 plus carried CKC and WP1 Phase2 remains required: working persistent healthy backend, authenticated Native and original workflows, standalone canonical modules/assets with real caller adoption, publication, durability, recovery, shutdown and original independent verdicts.",
       "preservation_ref": "#/scope_and_pins",
       "inherited_content": "All v6 root values/subtrees remain present or are exactly recoverable from inherited_v6_superseded_root_values; historical scope, pins, attempts, source proof and failures are retained.",
@@ -7817,7 +7818,10 @@
         "rules": "No new checkout, copied governance, restored junction, destructive Git or foreign process stop."
       },
       "old_packet_topology": "Historical packet fields that mention junctions, stale main or old external governance placement remain historical and do not override current kernel-first authority.",
-      "paperwork": "The Phase2 paperwork hold remains except genuine independently validated whole-MT PASS status or an explicit bounded human paperwork request. This handoff is the latter exception; it creates no other paperwork predecessor."
+      "paperwork": "The Phase2 paperwork hold remains except genuine independently validated whole-MT PASS status or an explicit bounded human paperwork request. This handoff is the latter exception; it creates no other paperwork predecessor.",
+      "operator_scope_expansion_ref": "packet.json#/operator_scope_expansion_20261023_02",
+      "scope_expansion_precedence": "The linked canonical human decision permits broader WP012 Phase2 feature/dependency expansion and supersedes older smallest-blocker-only or scope-minimization limits. It preserves all original obligations and separate rules; no concrete requirement or acceptance is changed by this record.",
+      "current_scope_addition_ref": "packet.json#/operator_scope_expansion_20261023_02/concrete_additions/0"
     },
     "leadership_and_custody": {
       "master": {
@@ -8140,7 +8144,9 @@
           "you can change and improve the workflow and team comp. but make sure to edit it in the hand off so it is recorded"
         ],
         "application": "Master adopts the one bounded isolated-store recovery candidate workflow below and records it before candidate dispatch. This does not release the stuck child or enlarge Product source/runtime/metadata authority."
-      }
+      },
+      "operator_scope_expansion_ref": "packet.json#/operator_scope_expansion_20261023_02",
+      "scope_expansion_precedence": "Apply the linked canonical decision when choosing useful additions; scope expansion alone requires no fresh permission. Exact files/owners and necessary existing coordination still precede implementation; record actual touched paths and reasons for the later waiver."
     },
     "source_delivery": {
       "product_current_state": {
