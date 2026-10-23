@@ -1,0 +1,61 @@
+{
+  "crate": "hsk-studio-harness-view + hsk-studio-harness (registration glue, tests, RUN-UI)",
+  "lane": "SMB-HARNESS-PANELS-1",
+  "status": "BLOCKED",
+  "phase": "3 local commits, NOT pushed (bfe8f85, a7838c8, 587886c on lane/smb-harness-panels-1 over origin e3953de); bundled run 1 at a7838c8: 182 passed / 13 failed (one test-helper defect, fixed in 587886c); bundled run 2 hard-blocked by the re-introduced gameplan hook",
+  "commits": [
+    {"sha": "bfe8f85", "subject": "Studio harness: hosted panels behind WORKSPACE > Panels for the Viewer-API-only surfaces (SMB-HARNESS-PANELS-1 slice 1)", "pushed": false},
+    {"sha": "a7838c8", "subject": "Studio harness: headless per-surface tests of the hosted panels and shell-hosted surfaces (SMB-HARNESS-PANELS-1 slice 2)", "pushed": false},
+    {"sha": "587886c", "subject": "Studio harness panels tests: AccessKit lookups also match a node's value (egui exposes a plain label's text as value, a button's as label) (SMB-HARNESS-PANELS-1 slice 2 fix)", "pushed": false}
+  ],
+  "capabilities_done": [
+    "slice 1 (compiles; cargo check -p hsk-studio-harness-view --features desktop,audio-batch exit 0, clippy over harness-view + harness clean in run 1): new view/hosted.rs hosts 13 panels behind WORKSPACE > Panels through Panel::Hosted(HostedPanel) (additive hunks in shell.rs; one `pub mod hosted;` line in view/mod.rs): appearance (Shift+F2), stroke (Shift+F3), swatches (Shift+F4), graphic_styles (Shift+F5), align_distribute (Shift+F6), transform (Shift+F7), path_operations (Shift+F8), masks (Shift+F9), envelope_distort (Shift+F10), brushes (Shift+F11), vector_export (Shift+F12), vector_import (Ctrl+Shift+F2), audio_batch (Ctrl+Shift+F3, feature audio-batch); command ids studio.workspace.panel.<key>; floating egui windows panel.<key>, controls panel.<key>.<control>; every control builds a PanelAction run by Viewer::hosted_action = one existing Viewer method (set_fill/set_stroke/clear/reduce, add/apply(tinted)/detach swatch, graphic style add/apply/merge/redefine/break, align/distribute/transform/transform_each, offset_path_layer/outline_stroke_layer/expand_shape/promote_network/edit_path (reverse, split at anchor, remove anchor, convert, live corner, join), make_clip/make_vector_mask/release_masks, make/release/expand_envelope, add/apply/remove_brush, export_vector_svg/pdf, import_ai, AudioBatchQueue submit/run); shell consumes modified F-keys before plain ones; state_json shell.hosted.<key> (open, visible, summary, last, swatches/styles/brushes/targets/queue) and shell.surfaces (layout editor, program monitor, source monitor, prototype player state)",
+    "slice 2 (written, run 1 partially green): tests/viewer_panels.rs 18 tests; RUN-UI.md hosted-panels table + model API"
+  ],
+  "tests": {
+    "argv": "cd <lane>/handshake-studio-assets && bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-harness-panels-1 --disk d -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+    "exit": 100,
+    "sha": "a7838c8",
+    "passed": 182,
+    "failed": 13,
+    "skipped": 20,
+    "failed_tests": "all in viewer_panels: 12 hosted-panel tests at viewer_panels.rs:124 ('summary ... not in the AccessKit tree') and audio_surfaces_are_reachable_or_name_their_feature at :719 ('Master' label); cause: egui 0.33 response.rs sets a Role::Label node's text as accesskit value, not label; the test helper matched label only. Fixed in 587886c (match label or value); not yet re-run. All pre-existing harness / harness-view tests passed (incl. viewer_shell 7); viewer_panels passed: layout_editor_surface..., program_monitor_surface... (AccessKit Play click), prototype_player_surface..., source_monitor_surface..., every_hosted_panel_has_a_unique_key...",
+    "passed_new": ["layout_editor_surface_is_reachable_and_projects_its_state", "program_monitor_surface_is_reachable_and_projects_its_transport", "prototype_player_surface_is_reachable_and_projects_its_state", "source_monitor_surface_is_reachable_or_names_its_feature", "every_hosted_panel_has_a_unique_key_shortcut_and_needs_a_document_when_it_edits_one"]
+  },
+  "blockers": [
+    {
+      "error": "PreToolUse:Bash hook error: [python -c \"import os,runpy,sys;p=os.path.join(os.path.expanduser('~'),'.claude','skills','gameplan','scripts','gameplan.py');sys.argv=[p,'hook'];runpy.run_path(p,run_name='__main__')\"; exit $LASTEXITCODE]: gameplan | readable D:\\Projects\\LLM projects\\Handshake\\Handshake Worktrees\\wt-gov-kernel\\.GOV\\task_packets\\WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1\\gameplan.yaml | confirm_binding target missing: D:/Projects/LLM projects/Handshake/Handshake Worktrees/wtc-WP-KERNEL-012 | GLOBAL-GAMEPLAN-001",
+      "file_line": "global gameplan hook (re-introduced 2026-10-23); blocked command: the bundled lane-check (same argv as run 1) chained after the commit of 587886c",
+      "attempts": 1,
+      "handling": "per Operator instruction 2026-10-23: not reshaped, no gameplan created/checked; reported to the lead"
+    }
+  ],
+  "lock_wait_s": 11284,
+  "bg_pids": [],
+  "next": "lead: once the hook no longer blocks lane builds, rerun the bundled lane-check at 587886c (argv above); also a viewer-only test compile (cargo check -p hsk-studio-harness --tests --features viewer, the non-desktop / non-audio-batch cfg branches of viewer_panels.rs are not yet compiled); if green: fetch + rebase onto origin (expect conflicts with SMB-TIMELINE-UI-1 / SMB-HARNESS-SHELL-2 in shell.rs Panel matches and ALL length), diff --stat check, guarded push, READY",
+  "updated_at": "2026-10-23T01:15:30Z",
+  "notes": {
+    "worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-harness-panels-1 (branch lane/smb-harness-panels-1 from origin e3953de)",
+    "build_disk": "SSD slot refused at the first cargo call (exit 77): 'studio-env: C:/HandshakeBuild/WP-KERNEL-STUDIO held 160 GiB at 2026-10-20T23:02:33Z > cap 140 GiB (Operator grant CX-984-014: 150 GB); SSD build refused (77). Unset STUDIO_BUILD_DISK to build on D:; cleanup is a steward/Operator action.' Fell back to D: (target Handshake_Artifacts/WP-KERNEL-STUDIO/smb-harness-panels-1/target) before any build ran on C:. Operator decision 2026-10-23 (no builds on C:, via the coordinator): acknowledged; no process of this lane ever ran on the C: target; the lane stays on D:; the C: target is left for the lead.",
+    "lock_waits": "check: 6174 s (R38 canary, then SMB-TIMELINE-UI-1 lane-check); bundled run 1: 5110 s",
+    "spec_basis": [
+      "[STU-SHL-036] WORKSPACE: Panels | expansion | studio.workspace.panel - one show/hide toggle per panel; leaf count 90, ASSERTED ([STU-SHL-038])",
+      "[STU-SHL-004] Studio does not own a menu bar. Studio MUST NOT create a second menu bar, a second command registry ... It contributes into the surfaces the shell already ships",
+      "[STU-SHL-008] Naming law binding. No vendor product name is a Studio menu title, submenu, leaf, panel, region, tool, family, Layout Preset, Task Scope, command id or manual anchor",
+      "[STU-SHL-009] Every surface specified here MUST be discoverable, inspectable and steerable out of process through the AccessKit tree by stable author_id ... no foreground window, no focus steal, no OS-level input injection, no cursor warping, no pane popping",
+      "[STU-SHL-113] panel catalogue rows used: Appearance appearance, Stroke stroke, Swatches swatches, Graphic Styles graphic-styles, Align & Distribute align-distribute, Transform transform, Masks masks, Brushes brushes, Export export, Render Queue render-queue",
+      "[STU-SHL-028] OBJECT: Path submenu (Join, Outline Stroke, Offset Path..., Convert Point, Split Path at Selected Points, Reverse Path Direction ...); Procedural (Envelope Distort ...); [STU-SHL-023] FILE Import studio.interop.import",
+      "[STU-CMP-110] Every panel, control ... and visible state MUST be model-visible and typed-steerable through the Studio command surface (14.16); MUST be headlessly inspectable, steerable and screenshot-capturable through Argus with no foreground focus steal (14.20)",
+      "[STU-QUIET-005] HEADLESS VISUAL PROOF ... the harness MUST fall back to AccessKit-tree/state assertions ..., never blocking on foreground automation",
+      "[STU-ARC-014] Controls MUST implement one reusable panel/control mechanic ... The same descriptors MUST feed structured tools, AccessKit, UserManual and Argus (gap: panels are egui directly, as the shell lane's)"
+    ],
+    "already_hosted_by_shell_1": "layout editor (F5), program monitor (F6), source monitor (F7, media), mixer (F8), waveform editor (F9), spectral display (F11), prototype player (F12) were made reachable by SMB-HARNESS-SHELL-1 (PASS_V1 R37); this lane adds per-surface headless proofs and their state projection (state_json shell.surfaces)",
+    "naming": "hosted panel labels use STU-SHL-113 catalogue names where they exist (Appearance, Stroke, Swatches, Graphic Styles, Align & Distribute, Transform, Masks, Brushes); the rest describe the spec menu node hosted (OBJECT > Path -> Path Operations, OBJECT > Procedural > Envelope Distort, FILE > Export / Import -> Vector Export / Vector Import, batch processing -> Audio Batch); keys are harness ids; no vendor names",
+    "left_unreachable": [
+      "Timeline / composition / render-queue export: no viewer binding exists for its inputs (session_render_queue_jobs needs a Resolver, TileInfoSource and ScenePixels source); providing them is engine wiring, not hosting; the timeline panel itself is lane SMB-TIMELINE-UI-1 (unpushed)",
+      "Headless CLI and model navigation API: not window surfaces (the hosted panels extend the stable ids and state projection)",
+      "Partial within hosted surfaces: Folio swatch specs (CMYK / Lab / spot / tint records), set_document_cmyk_profile, gradient fills, move_envelope_point, NetworkEdit and pathfinder are not given controls (API only)"
+    ],
+    "shared_file_hunks": "shell.rs: additive only (import line, Panel::Hosted variant, ALL 10->23 entries, one arm per match, modifiers(), ShellState.hosted field + Default, close_document line, layout_state accessor, availability/open arms, shell_json hosted/surfaces keys, shortcut loop ordering, hosted_ui call); mod.rs: one module line. No other lane's hunk staged."
+  }
+}

@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-22T23:38:07Z",
+ "updated_at": "2026-10-23T01:19:23Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9722,14 +9722,18 @@
    "lane_id": "SMB-HARNESS-PANELS-1",
    "crate": "hsk-studio-harness-view (panel hosting, registration, Workspace menu hunks)",
    "phase": "build",
-   "status": null,
-   "blocked_on": null,
+   "status": "BLOCKED",
+   "blocked_on": "global gameplan hook hard-blocked the second bundled run (confirm_binding target missing: wtc-WP-KERNEL-012 | GLOBAL-GAMEPLAN-001); Operator decision needed (hook lives in the Operator's global config); run 1 at a7838c8: 195 run / 182 passed / 13 failed (one cause: AccessKit value vs label match; fixed in 587886c, not re-run); viewer-only cfg branches not compiled; rebase over TIMELINE-UI-1 / SHELL-2 shell.rs expected",
    "owner": "builder (Opus), lead dispatch 2026-10-22 ~21:45Z after the Operator's traction question",
    "lane_file": "builders/lanes/hsk-studio-harness-panels-1.json",
    "candidate": null,
-   "commits": [],
+   "commits": [
+    "(local only, lane/smb-harness-panels-1 over e3953de) bfe8f85 slice 1 view/hosted.rs + additive shell.rs hunks",
+    "a7838c8 slice 2 tests/viewer_panels.rs (18 tests) + RUN-UI section",
+    "587886c test-helper fix (AccessKit value)"
+   ],
    "verdicts": [],
-   "note": "host the 16 PASS-judged surfaces unreachable from the window (gui-surfaces.json: layout editor, program/source monitor, mixer, spectral display, prototype player, ...) as WORKSPACE > Panels; headless proof per surface; SSD slot"
+   "note": "host the 16 PASS-judged surfaces unreachable from the window (gui-surfaces.json: layout editor, program/source monitor, mixer, spectral display, prototype player, ...) as WORKSPACE > Panels; headless proof per surface; SSD slot | 2026-10-23: 13 surfaces hosted (appearance, stroke, swatches, graphic_styles, align_distribute, transform, path_operations, masks, envelope_distort, brushes, vector_export, vector_import, audio_batch) via Viewer::hosted_action; shell-1 had already hosted layout editor, program/source monitor, mixer, waveform, spectral, prototype player (per-surface proof added, state under state_json shell.surfaces). Left unreachable: timeline/composition/render-queue export (engine wiring, not hosting). Lock waits 6174 s + 5110 s behind R38/timeline; never built on C: (77 refusal)."
   },
   {
    "lane_id": "SMB-AE-EFFECT-STACK-1",
