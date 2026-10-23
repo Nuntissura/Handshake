@@ -116,7 +116,10 @@
       "src/backend/handshake_core/tests/operator_chat_capture_surreal_tests.rs",
       "src/backend/handshake_core/tests/user_manual_content_tests.rs",
       "src/backend/handshake_core/tests/user_manual_behavior_coverage_tests.rs",
-      "src/backend/handshake_core/src/kernel/mod.rs"
+      "src/backend/handshake_core/src/kernel/mod.rs",
+      "src/backend/handshake_core/src/api/mod.rs",
+      "src/backend/handshake_core/Cargo.toml",
+      "src/backend/handshake_core/Cargo.lock"
     ],
     "forbidden_write_paths": [
       "Canonical Dexterity/worker asset internals",
@@ -137,7 +140,11 @@
       "host_ram_team": "01a165da-ecdb-7a40-8504-6918286033ee",
       "actual_primary_write_release_ref": null,
       "state": "PROSPECTIVE_PATHS_NO_LEASE_TRANSFER",
-      "manifest_lock_pin_changes": "Only sole Primary may make exact dependency/pin edits under existing custody; this gives no other writer those paths."
+      "manifest_lock_pin_changes": "Primary alone adopts the exact published Nuntissura/assets Git rev dc053f69bbe0e4117588f8d2d6d559f3629adbd4 in the declared backend manifest/lock and owns resolver execution; preserve every existing CKC/navigation pin, copy no asset lock and perform no broad upgrade. No actual source window or resolver/compile permission is granted by this record.",
+      "primary_only_write_paths": [
+        "src/backend/handshake_core/Cargo.toml",
+        "src/backend/handshake_core/Cargo.lock"
+      ]
     },
     "source_adoption": {
       "source_mt": "MT-195",
@@ -196,7 +203,8 @@
         "src/backend/handshake_core/src/storage/surreal/session_store.rs",
         "src/backend/handshake_core/src/storage/mod.rs",
         "src/backend/handshake_core/src/storage/surreal/schema.surql",
-        "src/backend/handshake_core/src/kernel/mod.rs"
+        "src/backend/handshake_core/src/kernel/mod.rs",
+        "src/backend/handshake_core/src/api/mod.rs"
       ],
       "maintainer": "01a15e8a-2b54-79a0-91a2-7304d67cbddc",
       "responsibilities": "Host owns auth/scoped SurrealDB, registry artifact/capability validation, Settings/chat GUI, legitimate prelaunch audit and durable run/lane/session linkage, Argus/manual/telemetry. Planner resolves immutable profiles; separate worker owns process lifecycle.",
@@ -228,7 +236,10 @@
           "src/backend/handshake_core/src/storage/surreal/model_registry_schema.surql",
           "src/backend/handshake_core/src/api/model_runtime_registry.rs",
           "src/backend/handshake_core/src/kernel/mod.rs",
-          "src/backend/handshake_core/src/storage/surreal/schema.surql"
+          "src/backend/handshake_core/src/storage/surreal/schema.surql",
+          "src/backend/handshake_core/src/api/mod.rs",
+          "src/backend/handshake_core/Cargo.toml",
+          "src/backend/handshake_core/Cargo.lock"
         ],
         "depends_on": [
           "MT-195 published planner dc053f69bbe0e4117588f8d2d6d559f3629adbd4 proof and canonical reread"
@@ -257,8 +268,13 @@
             "Do not use receipt_write, which clears authority; do not borrow model selection event semantics.",
             "Preserve existing model_registry_schema.surql selection-row semantics."
           ],
-          "technical_family_payload_and_actual_source_window_owner": "Codeleader and sole Primary; this binding chooses no event family/payload and grants no file window.",
-          "locus_evidence": "Master relayed the actual host-parent/Diagnostics consumer closure and Codeleader technical disposition for this bounded MT196-only correction."
+          "technical_family_payload_and_actual_source_window_owner": "Codeleader chose the recorded typed event variant/wire; actual payload implementation, Primary nonoverlapping source window and current auth proof boundary remain with Codeleader/Primary. This binding grants no source window.",
+          "locus_evidence": "Master relayed BOTH Codeleader and host-parent actual inspection, technical disposition and literal existence verification as the final complete MT196-only delta; no source research was repeated.",
+          "typed_event_variant": "KernelEventType::EngineProfileMutationRecorded",
+          "typed_event_wire": "ENGINE_PROFILE_MUTATION_RECORDED",
+          "wire_compatibility": "Use the existing uppercase wire convention; no parser rewrite or aliases.",
+          "router_mount_owner": "src/backend/handshake_core/src/api/mod.rs",
+          "authenticated_crud_adaptation": "The genuine AppState-backed CRUD router in existing api/model_runtime_registry.rs is mounted by api/mod.rs and reuses require_authenticated_session, authority::authorize_request, AuthorizedResourceContext.record_user_scope and with_loom_session_receipt/scoped_receipt_write; preserve unrelated registry routes."
         }
       },
       {
@@ -443,7 +459,10 @@
       "src/backend/handshake_core/tests/operator_chat_capture_surreal_tests.rs",
       "src/backend/handshake_core/tests/user_manual_content_tests.rs",
       "src/backend/handshake_core/tests/user_manual_behavior_coverage_tests.rs",
-      "src/backend/handshake_core/src/kernel/mod.rs"
+      "src/backend/handshake_core/src/kernel/mod.rs",
+      "src/backend/handshake_core/src/api/mod.rs",
+      "src/backend/handshake_core/Cargo.toml",
+      "src/backend/handshake_core/Cargo.lock"
     ],
     "forbidden_paths": [
       "Canonical Dexterity/worker asset internals",
