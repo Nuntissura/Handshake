@@ -45,10 +45,12 @@
     "d842b6b probe semver build metadata",
     "404ff3a sync (D9 edge reverted; probe 35/35; canary 26/26)",
     "1262c05 sync (10 dep approvals)",
-    "2abb984 entrypoint fix (R4 candidate)"
+    "2abb984 entrypoint fix (R4 candidate)",
+    "23b1bb7 run-round.sh CARGO_INCREMENTAL=0 in env block + env_set (P1, 2026-10-22)"
    ],
    "verdicts": [],
-   "note": "baseline 133 pass; 3 Type doctest failures (vendored ttf-parser examples src/provider/ttf/mod.rs:182,205,2080) | 2026-10-22 ~21:45Z post-R37 tooling sync dispatched: round-select.py step-0 overlays not entry inputs (F-R37-2), run-round.sh CARGO_INCREMENTAL=0 (P1), pre-approved edges render-cpu->folio (dev) and harness->interop-lrcat (feature-gated) recorded, canary queues behind R38"
+   "SYNC_SHA": null,
+   "note": "baseline 133 pass; 3 Type doctest failures (vendored ttf-parser examples src/provider/ttf/mod.rs:182,205,2080) | 2026-10-22 ~21:45Z post-R37 tooling sync dispatched: round-select.py step-0 overlays not entry inputs (F-R37-2), run-round.sh CARGO_INCREMENTAL=0 (P1), pre-approved edges render-cpu->folio (dev) and harness->interop-lrcat (feature-gated) recorded, canary queues behind R38 | 2026-10-23T00:15Z steward: round-select.py done (kernel, uncommitted; self-test 25/25; R37 replay a105766->1d139a6 = 30 of 49 crates, not --all); 23b1bb7 pushed (run-round.sh CARGO_INCREMENTAL=0); edges not declared (no manifest on origin needs them), recorded as pre-approved in WORKSPACE_RULES path-deps; sync attempt 1 on 23b1bb7: LOCK_DIFF/REGISTRY empty, LICENSE_GATE OK, then exit 6 (probe rustc gave up after the default 7200 s disk-lock wait behind R38, 00:11:39Z); attempt 2 on 5ab33c9 (shared tree fast-forwarded, no derivation input changed) started 00:13:34Z with the same 7200 s bound, unmonitored: SYNC_SHA and canary C54 PENDING"
   },
   {
    "lane_id": "SMB-LAYOUT",

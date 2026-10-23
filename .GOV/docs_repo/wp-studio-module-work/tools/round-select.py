@@ -7,9 +7,23 @@ A full-workspace union (`--all`) is due when any of these holds:
   - every third round: --rounds-since-full >= 2 (the caller counts finalized rounds since the last full union);
   - the toolchain changed (rust-toolchain.toml);
   - the Cargo.lock dependency set changed (external [[package]] name/version/source set; workspace members excluded);
-  - the round entry script or its configuration changed (tools/run-round.sh, tools/disk-build-lock.sh, .config/*);
+  - the round entry script, the tools it runs or its configuration changed: every tools/* and .config/* file EXCEPT
+    the step-0 policy overlays and the non-round tools below. Full-round triggers today: tools/run-round.sh,
+    tools/disk-build-lock.sh, tools/registry-sync.py (step 0 check), .config/nextest.toml, .config/round-features.toml,
+    .config/oracle-corpus.toml, .config/oracle-fixtures.toml, and any NEW tools/ or .config/ file (safe default);
   - root Cargo.toml changed outside [workspace.metadata] (profiles, workspace dependencies, members are handled as
     crate changes only when nothing else changed).
+Step-0 policy overlays (lead decision 2026-10-22, F-R37-2; NOT round-entry inputs, they select nothing): exactly
+  .config/duplicate-fingerprints.toml (V4-05 frozen-duplicate patterns + allowed sites, read by run-round.sh step 0),
+  .config/machine-paths.toml (V4-03 machine-local path [pinned] allowances, read by run-round.sh step 0),
+  .config/disk-build-lock.toml (disk-wide build lock root marker; lock protocol stays in tools/disk-build-lock.sh).
+  The steward repoints the first two in sync commits (steward-sync.sh --overlay .config/*.toml) when lanes move or
+  split files; step 0 runs over the whole workspace in every round regardless of the selection, so a repoint is
+  re-checked without a full union. They are listed in the record's "policy_overlays_changed".
+Non-round tools (never executed or read by tools/run-round.sh; listed in "non_entry_tools_changed"): exactly
+  tools/workspace-probe.rs (steward-sync probe, compiled standalone by the steward, not a workspace member),
+  tools/camera-matrix-table.py (generator; its output crates/hsk-studio-develop/src/camera_table.rs is crate source
+  and selects develop by itself).
 Usage:
   python -X utf8 round-select.py --repo GITDIR --base SHA --candidate SHA --metadata-dir DIR --round R37 --base-round R36
       [--rounds-since-full K] [--sub handshake-studio-assets] [--out FILE.json]
@@ -21,7 +35,11 @@ Exit: 0 ok; 2 usage/inputs; 3 metadata or git failure."""
 import argparse, json, os, subprocess, sys, tomllib
 
 ENTRY = ("tools/run-round.sh", "tools/disk-build-lock.sh")
-ENTRY_PREFIXES = (".config/",)
+ENTRY_PREFIXES = (".config/", "tools/")
+# Step-0 policy overlays: excluded from ENTRY_PREFIXES (see the header; lead decision F-R37-2).
+POLICY_OVERLAYS = frozenset((".config/duplicate-fingerprints.toml", ".config/machine-paths.toml",
+                             ".config/disk-build-lock.toml"))
+NON_ROUND_TOOLS = frozenset(("tools/workspace-probe.rs", "tools/camera-matrix-table.py"))
 
 
 def lock_deps(text):
@@ -57,7 +75,10 @@ def decide(changed, packages, rounds_since_full, lock_old, lock_new, root_old, r
         added = sorted(f"{n}@{v}" for n, v, _ in lock_deps(lock_new) - lock_deps(lock_old))
         removed = sorted(f"{n}@{v}" for n, v, _ in lock_deps(lock_old) - lock_deps(lock_new))
         reasons.append(f"Cargo.lock dependency set changed (added {added[:8]}, removed {removed[:8]})")
-    entry = sorted(p for p in changed if p in ENTRY or p.startswith(ENTRY_PREFIXES))
+    policy = sorted(p for p in changed if p in POLICY_OVERLAYS)
+    tools_skip = sorted(p for p in changed if p in NON_ROUND_TOOLS)
+    entry = sorted(p for p in changed if (p in ENTRY or p.startswith(ENTRY_PREFIXES))
+                   and p not in POLICY_OVERLAYS and p not in NON_ROUND_TOOLS)
     if entry:
         reasons.append(f"round entry script or its configuration changed: {entry}")
     if "Cargo.toml" in changed and root_changed_outside_metadata(root_old, root_new):
@@ -83,7 +104,8 @@ def decide(changed, packages, rounds_since_full, lock_old, lock_new, root_old, r
          "basis": "CX-VAL-002: no file of the crate and none of its workspace dependencies changed between the commits"}
         for n in names if n not in closure]
     return {"schema": "hsk.studio.round-selection@1", "round": rnd, "base_round": base_round, "base": base,
-            "candidate": cand, "full": full, "full_reasons": reasons, "changed_crates": direct,
+            "candidate": cand, "full": full, "full_reasons": reasons, "policy_overlays_changed": policy,
+            "non_entry_tools_changed": tools_skip, "changed_crates": direct,
             "selected": selected, "selection_args": ["--all"] if full else selected, "reuse": reuse}
 
 
@@ -111,6 +133,25 @@ def self_test():
                    not run(["Cargo.lock"], l2=lock1 + '\n[[package]]\nname = "f"\nversion = "0.1.0"\n')["full"]))
     checks.append(("entry script change -> full", run(["tools/run-round.sh"])["selection_args"] == ["--all"]))
     checks.append(("round config change -> full", run([".config/nextest.toml"])["full"]))
+    for cfg in (".config/round-features.toml", ".config/oracle-corpus.toml", ".config/oracle-fixtures.toml",
+                ".config/new-policy.toml", "tools/registry-sync.py", "tools/disk-build-lock.sh", "tools/new-tool.sh"):
+        checks.append((f"{cfg} change -> full", run([cfg])["selection_args"] == ["--all"]))
+    r = run(["tools/workspace-probe.rs", "tools/camera-matrix-table.py"])
+    checks.append(("non-round tools only -> nothing selected, not full", not r["full"] and r["selected"] == []
+                   and r["non_entry_tools_changed"] == ["tools/camera-matrix-table.py", "tools/workspace-probe.rs"]))
+    # F-R37-2 (lead decision 2026-10-22): the step-0 policy overlays select nothing extra.
+    ov = [".config/disk-build-lock.toml", ".config/duplicate-fingerprints.toml", ".config/machine-paths.toml"]
+    r = run(ov)
+    checks.append(("policy overlays only -> nothing selected, not full",
+                   not r["full"] and r["selected"] == [] and r["selection_args"] == [] and len(r["reuse"]) == 5
+                   and r["policy_overlays_changed"] == ov))
+    r = run([".config/duplicate-fingerprints.toml", ".config/machine-paths.toml", "crates/c/src/lib.rs"])
+    checks.append(("overlays + crate change -> only that crate's closure", not r["full"] and r["selected"] == ["c", "e"]))
+    r = run(ov + ["Cargo.lock"], l2=lock2)
+    checks.append(("overlays + Cargo.lock dependency change -> --all", r["selection_args"] == ["--all"]))
+    checks.append(("Cargo.lock dependency change alone -> --all", run(["Cargo.lock"], l2=lock2)["selection_args"] == ["--all"]))
+    checks.append(("overlays + nextest.toml -> --all",
+                   run(ov + [".config/nextest.toml"])["selection_args"] == ["--all"]))
     checks.append(("toolchain change -> full", run(["rust-toolchain.toml"])["full"]))
     checks.append(("third round -> full", run([], k=2)["full"] and not run([], k=1)["full"]))
     checks.append(("root metadata-only change -> not full",

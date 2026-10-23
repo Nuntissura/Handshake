@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-WORKSPACE-RULES
 file_kind: builder_workspace_rules
-updated_at: 2026-10-11T02:40:00Z
+updated_at: 2026-10-22T21:47:39Z
 owner: workspace-steward
 ---
 
@@ -33,6 +33,7 @@ owner: workspace-steward
 - interop-fig: folio, components, type | interop-layout: folio, layout, type, prism
 - session: folio, chronicle, package | harness: folio, session, controls | kernel-bindings: folio, session
 - score-device, score-plugin: score | reel-native: reel | motion-js: motion
+- Pre-approved edges (lead decisions after STUDIO-R37, 2026-10-22; NOT yet declared because no manifest on origin needs them at 23b1bb7): (a) render-cpu DEV-depends on folio (`[dev-dependencies]` only; fill-layers PSD-to-pixels fixture test); (b) harness -> interop-lrcat behind a non-default cargo feature (DNG XMP export). A lane that needs one adds it to its own crate Cargo.toml and appends ONE line to `builders/dep-requests.jsonl`: `{"edge":"dev:render-cpu=folio","crate":"hsk-studio-render-cpu","reason":"..."}` or `{"edge":"harness=interop-lrcat","crate":"hsk-studio-harness","feature":"<feature>","reason":"..."}` (no `dep` key, so the registry gate ignores it); the next steward sync declares it with `--add-edge dev:render-cpu=folio` / `--add-edge harness=interop-lrcat` (edges.py checks acyclicity) without a further lead decision. Any other edge still needs a lead decision.
 
 </topic>
 
