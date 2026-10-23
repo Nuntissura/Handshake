@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-23T02:37:46Z",
+ "updated_at": "2026-10-23T11:52:25Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9758,6 +9758,18 @@
    ],
    "verdicts": [],
    "note": "AE per-layer effect stack + distort/generate families (parity-after_effects.json gaps); headless golden proofs; rule 4b; SSD slot | 2026-10-23: distort Twirl, Spherize, Offset, Polar Coordinates; generate Gradient Ramp, Circle, Checkerboard; STU-FX-131 parameter rows; spec basis STU-FX-001/002/003/008/011/011b/104-107/112/116a/130/131, STU-CMP-010/010b. Stack order, masks before effects, disabled skipped, solo honoured, entry opacity mixes; out-of-range refused (effect_param_out_of_range), unimplemented options refused (composition_effect_option, composition_effect_content). Tests written, none run: 3 folio, 3 composite (12 golden digests still PIN placeholders, to be filled from the first run before any push), 1 render-cpu. Remaining: one bundled lane-check on D: over folio, composite, render-cpu, package (rule 4b: Folio gained a field), pin digests, one re-run, rebase, guarded push, READY. UNVERIFIED for D5: kernel formulas are Studio readings; Twirl Angle 0..0 read as no declared range; solo semantics; trig digests depend on platform libm. Never built on C: (77 refusal)."
+  },
+  {
+   "lane_id": "STUDIO-R38",
+   "crate": "validation round (scoped) on e3953de",
+   "phase": "validation",
+   "status": "LOST",
+   "blocked_on": "machine restart 2026-10-23 ~08:40Z during the canary (12 h, union never started); no verdicts; re-run as R39 on the new tip",
+   "owner": "validator (Opus), lead dispatch 2026-10-22 20:39Z",
+   "candidate": "e3953de",
+   "commits": [],
+   "verdicts": [],
+   "note": "READY lanes it was to judge stay READY: SMB-AE-ROTO-WIRING d9de925, SMB-PS-FILL-LAYERS 3b88879, SMB-DEVELOP-DNG-WRITER 71253a3, SMB-AE-RENDER-QUEUE-2 e3953de; plus SMB-TIMELINE-UI-1 5ab33c9 for R39"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",
