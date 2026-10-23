@@ -56,7 +56,7 @@
         {
           "path": "app/src-tauri/src/commands/swarm_runtime.rs",
           "why": "Restore existing cfg(test) request construction compatibility with newly private authority state using an existing SpawnRequest rather than weakening privacy.",
-          "state": "PLANNED_NOT_YET_RECORDED_AS_ACTUALLY_TOUCHED"
+          "state": "ACTUALLY_TOUCHED_SOURCE_REPAIR_APPLIED_LATER_WAIVER_NOT_YET_ISSUED"
         }
       ]
     },
@@ -76,7 +76,7 @@
     "concrete_additions": [
       {
         "addition_id": "WP012-SCOPE-EXPANSION-20261023-02-CALLER-001",
-        "status": "APPROVED_EXACT_SOURCE_SCOPE_PENDING_PREIMAGE_BASE_OUTPUT_NONOVERLAP_BINDING",
+        "status": "ACTUALLY_APPLIED_UNCOMPILED_UNRUN",
         "authority_ref": "packet.json#/operator_scope_expansion_20261023_02",
         "source": "Current Code Dev Leader concrete repair supplied by Master under the current human scope-expansion decision.",
         "product_path": "app/src-tauri/src/commands/swarm_runtime.rs",
@@ -85,25 +85,31 @@
           "function": "mixed_local_and_cloud_spawn_route_through_one_coordinator",
           "scope": "Only request construction in this named test function."
         },
-        "exact_correction": "Mutate instance_id on an existing SpawnRequest instance instead of using the cross-crate struct-update construction blocked by the newly private authority field. Preserve the same request behavior and public authority privacy; change no other function or test behavior.",
+        "exact_correction": "In the named cfg(test) block, change the first binding to let mut local_req = build_spawn_request(&local_request(\"D:/__handshake_no_such_mixed_model__/model.safetensors\")).expect(\"valid local request\"); then replace let local_req = SpawnRequest { instance_id: ModelInstanceId::new(local_req.instance_id.model_id, 1), ..local_req }; with local_req.instance_id = ModelInstanceId::new(local_req.instance_id.model_id, 1);. Preserve the comment, behavior and private authority field; change no other function or test behavior.",
         "current_preimage": {
           "reported_raw_sha256": "CF2A9DA4FAE0435BD72981650D6457187A23D2203B406227B0B4FA67C6B72825",
-          "provenance": "Code Dev Leader reported; not independently verified by Master root.",
+          "verified_raw_sha256": "CF2A9DA4FAE0435BD72981650D6457187A23D2203B406227B0B4FA67C6B72825",
+          "provenance": "Core freshly verified the Product caller in exec bbee44; the dedicated binding editor independently matched Get-FileHash SHA256 before recording. Master root did not independently verify it.",
           "required_before_write": "Freshly verify exact source preimage and immutable external base against this supplied hash."
         },
         "ownership": {
           "source_parent": "01a15614-a478-7503-9470-198df23dd255",
-          "source_author": "Same existing supplier_consumer_coder under Core parent; no new UUID or custody transfer inferred.",
+          "source_author": "/root/supplier_consumer_coder",
+          "source_author_member_id": "01a1686a-b987-7913-a122-8b06aab515dd",
           "physical_product_git_compiler": "01a15e8a-2b54-79a0-91a2-7304d67cbddc",
-          "physical_rule": "Only Primary later applies one frozen reviewed exact-hash candidate to Product."
+          "physical_rule": "Only Primary chooses and physically applies one frozen reviewed exact-hash candidate; the completed physical application is recorded below."
         },
         "external_candidate": {
-          "output_root": "NOT_YET_SUPPLIED_MUST_BE_RECORDED_BEFORE_WRITE",
-          "immutable_base": "REQUIRED_NOT_YET_BOUND_IN_THIS_RECORD",
-          "write_state": "NOT_AUTHORIZED_TO_START_UNTIL_EXACT_PREIMAGE_BASE_OUTPUT_NONOVERLAP_BOUNDARY_RECORDED",
-          "boundary": "Distinct external candidate/base only; no direct Product writes or mutation/blending of other output."
+          "path_base": "Live kernel root; the following ../Handshake_Artifacts paths resolve from that root.",
+          "output_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-196/supplier-source-candidate-20261023-01/consumer/postimages",
+          "output_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-196/supplier-source-candidate-20261023-01/consumer/postimages/app/src-tauri/src/commands/swarm_runtime.rs",
+          "immutable_base": "../Handshake_Artifacts/WP-KERNEL-012/MT-196/supplier-source-candidate-20261023-01/consumer/base/app/src-tauri/src/commands/swarm_runtime.rs",
+          "base_capture_state": "Initial binding/base-absence history preserved in binding_history; current base file was not reobserved in this application handback.",
+          "prewrite_observation": "Core exec bbee44 and the binding editor independently observed both seventh paths absent. Core exec 6dcd23 and the binding editor observed ordinary base/postimages directories without link or reparse attributes.",
+          "write_state": "REVIEWED_SOURCE_CANDIDATE_PHYSICALLY_APPLIED_UNCOMPILED_UNRUN; NO_NEW_WRITE_WINDOW",
+          "boundary": "Same author owns only this distinct seventh base/output path. The existing consumer6 remain frozen and untouched; no other new-path writer, direct Product write or blending of other output is permitted."
         },
-        "nonoverlap": "Existing consumer6 remain frozen. This one extra caller repair has its own external candidate/base/output ownership boundary and does not permit edits to the frozen six.",
+        "nonoverlap": "The initial exact author/output/nonoverlap acknowledgment remains preserved in binding_history. Primary now reports all physical source windows closed; this record opens no new writer window.",
         "prewrite_binding": [
           "Exact correction text and source preimage hash verified",
           "Immutable external base and exact distinct output root supplied and recorded",
@@ -119,7 +125,42 @@
         "later_waiver": {
           "path": "app/src-tauri/src/commands/swarm_runtime.rs",
           "why": "Restore existing cfg(test) request construction compatibility with newly private authority state using an existing SpawnRequest rather than weakening privacy.",
-          "state": "PLANNED_NOT_YET_RECORDED_AS_ACTUALLY_TOUCHED"
+          "state": "ACTUALLY_TOUCHED_SOURCE_REPAIR_APPLIED_LATER_WAIVER_NOT_YET_ISSUED"
+        },
+        "binding_history": {
+          "state": "INITIAL_PREWRITE_BINDING_PRESERVED_HISTORICAL",
+          "status": "BOUND_READY_FOR_BASE_CAPTURE_THEN_EXTERNAL_SOURCE_WRITE",
+          "external_candidate": {
+            "path_base": "Live kernel root; the following ../Handshake_Artifacts paths resolve from that root.",
+            "output_root": "../Handshake_Artifacts/WP-KERNEL-012/MT-196/supplier-source-candidate-20261023-01/consumer/postimages",
+            "output_path": "../Handshake_Artifacts/WP-KERNEL-012/MT-196/supplier-source-candidate-20261023-01/consumer/postimages/app/src-tauri/src/commands/swarm_runtime.rs",
+            "immutable_base": "../Handshake_Artifacts/WP-KERNEL-012/MT-196/supplier-source-candidate-20261023-01/consumer/base/app/src-tauri/src/commands/swarm_runtime.rs",
+            "base_capture_state": "NOT_YET_CREATED. After this binding is written and reread, capture the fresh Product preimage into the immutable base and verify byte/hash equality to the recorded preimage before any output write.",
+            "prewrite_observation": "Core exec bbee44 and the binding editor independently observed both seventh paths absent. Core exec 6dcd23 and the binding editor observed ordinary base/postimages directories without link or reparse attributes.",
+            "write_state": "BASE_CAPTURE_AUTHORIZED_AFTER_RECORD_REREAD; OUTPUT_WRITE_ONLY_AFTER_FRESH_PREIMAGE_AND_IMMUTABLE_BASE_BYTE_HASH_MATCH",
+            "boundary": "Same author owns only this distinct seventh base/output path. The existing consumer6 remain frozen and untouched; no other new-path writer, direct Product write or blending of other output is permitted."
+          },
+          "nonoverlap": "Primary 01a15e8a-2b54-79a0-91a2-7304d67cbddc supplied a fresh exact acknowledgment for app/src-tauri/src/commands/swarm_runtime.rs: no active physical Product write/Git/compiler window; this caller is outside boot2 and Native4 external scope; Primary independently matched the recorded preimage hash and opened the named cfg(test) block and packet decision. Existing consumer6 remain frozen and untouched. The same named author owns only this seventh external path, with no other new-path writer. Primary alone later applies a frozen candidate after nonauthor and current Codecheck review; the acknowledgment supplies the window fact and grants no waiver.",
+          "physical_rule": "Only Primary later applies one frozen reviewed exact-hash candidate to Product.",
+          "qualification": "The recorded initial base/output absence belongs to the binding observation before source authoring; it is not asserted as the current filesystem state."
+        },
+        "physical_application": {
+          "state": "ACTUALLY_APPLIED_UNCOMPILED_UNRUN",
+          "recorded_at_utc": "2026-10-23T13:41:55.226255Z",
+          "primary": "01a15e8a-2b54-79a0-91a2-7304d67cbddc",
+          "provenance": "Direct actual Primary source-result handback; Master has not reviewed Product source.",
+          "product_path": "app/src-tauri/src/commands/swarm_runtime.rs",
+          "preimage_sha256": "cf2a9da4fae0435bd72981650d6457187a23d2203b406227b0b4fa67c6b72825",
+          "postimage_sha256": "c4f84a03b161a9f9c0ab21bb26a487b047de88959e49b0e267fb74237faa5488",
+          "scope_check": "Primary independently checked that the only scoped correction is let mut plus instance_id assignment in the named cfg(test) request construction.",
+          "scoped_diff_check_exit": 0,
+          "scoped_numstat": {
+            "added": 2,
+            "deleted": 5
+          },
+          "candidate_basis": "Reviewed frozen candidate; this paperwork update issues no additional source review verdict.",
+          "physical_windows": "ALL_CLOSED",
+          "limits": "No Product commit/push, compiler/runtime/metadata action, verdict, readiness or acceptance. Existing consumer6 remain outside this caller-only application record."
         }
       }
     ],

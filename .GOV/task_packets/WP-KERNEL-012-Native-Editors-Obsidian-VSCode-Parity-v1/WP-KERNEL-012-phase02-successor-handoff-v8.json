@@ -8328,17 +8328,17 @@
         }
       },
       "boot2": {
-        "state": "CODECHECK_PATH_IDENTITY_HOLD_NO_CORRECTED_CANDIDATE_HANDBACK",
+        "state": "ROOT_BOOT2_AND_NATIVE4_SOURCE_APPLIED_UNCOMPILED_UNRUN_FINAL_COMPOSITION_HELD",
         "owner": "01a15e8a-2b54-79a0-91a2-7304d67cbddc",
         "v4_module_sha256": "46558f417f8395b0b6783ab3af0098aeeeedb95322f3adb1cc34d80b419aef9f",
         "caller_prefix": "e0ead4c",
         "diagnostics": "Nonauthor scoped static clear on v4 supplied; independent Codecheck three lenses completed and held path identity.",
         "design_scope": "Capture configured bytes/path/hash once, genuine selected tool/model/configured-temp binds and host budgets; no source-only approval interpreted as execution.",
-        "corrected_replacement": "NOT_YET_HANDED_BACK",
-        "current_need": "Exact native4 one-author external assignment and scope compatibility are recorded. Official member wait IDLE and native list pending_init conflict; resume and dispatch remain unproven. Fresh baseline/window/typed-interface entry verification remains required before writes.",
+        "corrected_replacement": "Primary physically saved exact existing root boot module/caller and new GenieX configuration after preimage/new-absence checks and patch/readback. Native4 exact reviewed source is also applied; all physical source windows are closed.",
+        "current_need": "Boot2 source references are compatible with existing published worker447, so newer worker publication was not a predecessor to this source save. Final newfactory/composed compilation still requires newer worker proof/publication/independent reread/pin adoption and lock closure. No Core13/newfactory physical save, pin/lock/Git/compiler/metadata action or runtime verdict is reported.",
         "source4_disposition": {
           "decision_id": "WP012-BOOT-BIND-IDENTITY-SOURCE-20261023-01",
-          "state": "APPROVED_SOURCE_ONLY_EXACT_CURRENT_EXTERNAL_AUTHOR_AFTER_RECORD",
+          "state": "PHYSICALLY_APPLIED_REVIEWED_SOURCE_ONLY_NATIVE4_WINDOW_CLOSED",
           "paths": [
             "src/backend/handshake_core/src/sandbox/adapter.rs",
             "src/backend/handshake_core/src/sandbox/handshake_native.rs",
@@ -8357,19 +8357,6 @@
             "src/backend/handshake_core/src/sandbox/windows_native_jail/acl_transaction.rs": 114
           },
           "authority_basis": "Master authority helper final inspection confirmed active Root scope-expansion permission; no fresh human approval is required by that inspected clause. Existing MT172 write scope is not a current source lease.",
-          "current_owner": "Host parent01a165da-ecdb-7a40-8504-6918286033ee /root/profile_dispatch_coder member01a165db-e323-7c40-8203-3fd28716176b; prepared assignment, resume/dispatch unproven.",
-          "primary_window": {
-            "handback": "Primary reports no active physical Product window. Primary retains boot2, sole physical Product/Git/compiler ownership. Native4 external, Core13 external and Primary boot2 scopes are disjoint.",
-            "entry_requirement": "Reverify exact baseline hashes/current scoped window and the typed lease interface inside the four approved paths before any external author write.",
-            "baseline": "Preimages must freshly match the applied6182 source; this record invents no baseline hash.",
-            "state": "RECORDED_SCOPE_COMPATIBILITY_REQUIRES_FRESH_ENTRY_VERIFICATION"
-          },
-          "before_writes": [
-            "Exact assignment and disjoint output boundary recorded in selected v8",
-            "Verify actual resumed author status and follow up only the named native member through its owning parent",
-            "Freshly verify applied6182 baseline preimage hashes and current nonoverlapping Primary window",
-            "Verify typed nonserialized lease interface remains within all four approved paths; no fifth-path blanket permission"
-          ],
           "controls": [
             "Public BindSpec and AttachedProcessSpec literals/serde plus worker entry remain unchanged",
             "Carry typed nonserialized expected identity and owned handle in the existing root adapter object",
@@ -8380,40 +8367,165 @@
             "Preserve Diagnostics nonauthor, current Codecheck, required compilation and original IV runtime proof"
           ],
           "limits": [
-            "Source15 approval remains a separate disposition",
-            "No current native4 task dispatch, proven resume, source write, implementation or unblocked-runtime claim",
-            "Four paths are the current minimum candidate boundary, not proof of completeness; any additional actual path needs a separate recorded decision before write",
-            "No runtime, config/record population, metadata or allowance/pool change"
+            "Native4 result is scoped source application only; no compilation, Windows runtime or acceptance PASS",
+            "Source15 approval remains separate; all original scope, holds, finite allowances and independent acceptance remain",
+            "No Product Git, compiler, runtime or metadata action or MT verdict advanced in this handback",
+            "No further path, process, metadata or runtime authority is created"
           ],
           "independence": "This conditional four-path scope does not serialize the independently recorded Store7 rule018 workflow.",
-          "author_assignment": {
-            "owning_parent": "01a165da-ecdb-7a40-8504-6918286033ee",
-            "native_name": "/root/profile_dispatch_coder",
-            "member_thread_id": "01a165db-e323-7c40-8203-3fd28716176b",
-            "write_responsibility": "One author owns all four external postimages; no second author or split-write claim.",
-            "operational_state": "PREPARED_NOT_DISPATCHED_STATUS_DISCREPANCY",
-            "observations": [
+          "historical_prewrite_observation": {
+            "state": "APPROVED_SOURCE_ONLY_EXACT_CURRENT_EXTERNAL_AUTHOR_AFTER_RECORD",
+            "current_owner": "Host parent01a165da-ecdb-7a40-8504-6918286033ee /root/profile_dispatch_coder member01a165db-e323-7c40-8203-3fd28716176b; prepared assignment, resume/dispatch unproven.",
+            "primary_window": {
+              "handback": "Primary reports no active physical Product window. Primary retains boot2, sole physical Product/Git/compiler ownership. Native4 external, Core13 external and Primary boot2 scopes are disjoint.",
+              "entry_requirement": "Reverify exact baseline hashes/current scoped window and the typed lease interface inside the four approved paths before any external author write.",
+              "baseline": "Preimages must freshly match the applied6182 source; this record invents no baseline hash.",
+              "state": "RECORDED_SCOPE_COMPATIBILITY_REQUIRES_FRESH_ENTRY_VERIFICATION"
+            },
+            "before_writes": [
+              "Exact assignment and disjoint output boundary recorded in selected v8",
+              "Verify actual resumed author status and follow up only the named native member through its owning parent",
+              "Freshly verify applied6182 baseline preimage hashes and current nonoverlapping Primary window",
+              "Verify typed nonserialized lease interface remains within all four approved paths; no fifth-path blanket permission"
+            ],
+            "limits": [
+              "Source15 approval remains a separate disposition",
+              "No current native4 task dispatch, proven resume, source write, implementation or unblocked-runtime claim",
+              "Four paths are the current minimum candidate boundary, not proof of completeness; any additional actual path needs a separate recorded decision before write",
+              "No runtime, config/record population, metadata or allowance/pool change"
+            ],
+            "author_assignment": {
+              "owning_parent": "01a165da-ecdb-7a40-8504-6918286033ee",
+              "native_name": "/root/profile_dispatch_coder",
+              "member_thread_id": "01a165db-e323-7c40-8203-3fd28716176b",
+              "write_responsibility": "One author owns all four external postimages; no second author or split-write claim.",
+              "operational_state": "PREPARED_NOT_DISPATCHED_STATUS_DISCREPANCY",
+              "observations": [
+                {
+                  "surface": "Parent subAgentActivity and exact official member wait",
+                  "wait_cursor": "f66f08f3-2ca4-4d9a-8543-47f3b70724d4:1",
+                  "state": "IDLE",
+                  "last_turn": "Previous6182 completed without error; no active write in this bounded wait observation."
+                },
+                {
+                  "surface": "Parent native list_agents as supplied in later Primary handback",
+                  "state": "PENDING_INIT",
+                  "qualification": "Do not collapse this with the official idle observation into READY or RUNNING."
+                }
+              ],
+              "observation_limit": "Both are time-bounded owning-parent handbacks. Actual resume is NOT_PROVEN; no native4 followup/task dispatch has occurred."
+            },
+            "external_output": {
+              "artifact_root": "../Handshake_Artifacts",
+              "artifact_root_relative_directory": "WP-KERNEL-012/MT-196/boot-bind-identity-source-20261023-01",
+              "observation": "Host parent freshly verified MT196 parent exists and proposed output root is absent; no files created.",
+              "state": "PREPARED_ABSENT_NOT_CREATED"
+            },
+            "selection_and_application": "Diagnostics remains the nonauthor prechecker, then current Codecheck. Primary alone later chooses/applies one frozen reviewed exact-hash candidate; the external child writes no Product files."
+          },
+          "historical_boot_delivery_observation": {
+            "state": "CODECHECK_PATH_IDENTITY_HOLD_NO_CORRECTED_CANDIDATE_HANDBACK",
+            "corrected_replacement": "NOT_YET_HANDED_BACK",
+            "current_need": "Exact native4 one-author external assignment and scope compatibility are recorded. Official member wait IDLE and native list pending_init conflict; resume and dispatch remain unproven. Fresh baseline/window/typed-interface entry verification remains required before writes."
+          },
+          "current_owner": "Primary01a15e8a-2b54-79a0-91a2-7304d67cbddc retains physical Product/Git/compiler ownership; this Native4 physical window is CLOSED. No current external child liveness is inferred.",
+          "physical_application": {
+            "state": "PHYSICALLY_APPLIED_EXACT_REVIEWED_FOUR_PATH_SOURCE",
+            "recorded_at_utc": "2026-10-23T13:38:43.891776Z",
+            "provenance": {
+              "type": "TWO_DIRECT_ACTUAL_OWNING_HANDBACKS",
+              "primary": "01a15e8a-2b54-79a0-91a2-7304d67cbddc",
+              "code_dev_leader": "01a168a9-05b2-7630-9633-5faac88dd068",
+              "limits": "Master has not reviewed Product source. Paperwork author performed no source inspection, build, test, network, metadata or Git action; source/application claims below are the owning handbacks."
+            },
+            "verified_product_branch": "feat/WP-KERNEL-012",
+            "preimages": "Primary freshly matched all four preimages to the prior applied6182 generation before applying the combined patch.",
+            "combined_patch_check_exit": 0,
+            "frozen_postimage_product_raw_hashes": {
+              "src/backend/handshake_core/src/sandbox/adapter.rs": "114eb7dd405f8b5bdabd79a61f75680ca1f67da1b3e1dfccc2a3e13d83b23cfd",
+              "src/backend/handshake_core/src/sandbox/handshake_native.rs": "1a5a14b38aff7ff7e2623adf500264eeacbd15b8228b2b68d0757f4a7c8cd927",
+              "src/backend/handshake_core/src/sandbox/windows_native_jail/adapter.rs": "bd9520bb3e989c889182764cb7cbe29772592ed2d64d22ad73e3305d2e061d39",
+              "src/backend/handshake_core/src/sandbox/windows_native_jail/acl_transaction.rs": "127e53a4b560aa17eaecdb6401952dfa9eb6daba4997daa3166e3b366d51d24b"
+            },
+            "raw_hash_basis": "Primary independently raw-rehashed Product against the frozen postimage copies.",
+            "scoped_diff_check_exit": 0,
+            "change_boundary": "Primary reports no other Product files changed by this application step; this is not a global worktree claim.",
+            "physical_window": "CLOSED",
+            "preceding_source_reviews": [
               {
-                "surface": "Parent subAgentActivity and exact official member wait",
-                "wait_cursor": "f66f08f3-2ca4-4d9a-8543-47f3b70724d4:1",
-                "state": "IDLE",
-                "last_turn": "Previous6182 completed without error; no active write in this bounded wait observation."
+                "owner": "01a165de-05e9-79f1-8287-dfb2ba5427c1",
+                "role": "Diagnostics nonauthor",
+                "result": "SCOPED_SOURCE_CLEAR_BEFORE_APPLICATION"
               },
               {
-                "surface": "Parent native list_agents as supplied in later Primary handback",
-                "state": "PENDING_INIT",
-                "qualification": "Do not collapse this with the official idle observation into READY or RUNNING."
+                "owner": "01a16702-3129-7c21-9a20-c6616fb04ed1",
+                "role": "Current independent Codecheck",
+                "result": "SCOPED_SOURCE_CLEAR_BEFORE_APPLICATION"
               }
             ],
-            "observation_limit": "Both are time-bounded owning-parent handbacks. Actual resume is NOT_PROVEN; no native4 followup/task dispatch has occurred."
-          },
-          "external_output": {
-            "artifact_root": "../Handshake_Artifacts",
-            "artifact_root_relative_directory": "WP-KERNEL-012/MT-196/boot-bind-identity-source-20261023-01",
-            "observation": "Host parent freshly verified MT196 parent exists and proposed output root is absent; no files created.",
-            "state": "PREPARED_ABSENT_NOT_CREATED"
-          },
-          "selection_and_application": "Diagnostics remains the nonauthor prechecker, then current Codecheck. Primary alone later chooses/applies one frozen reviewed exact-hash candidate; the external child writes no Product files."
+            "acceptance_limit": "These reviews and physical source application establish no Windows runtime, compiler or Product acceptance PASS.",
+            "history_preservation": "Prior6182 and failed5a9 generations/history are preserved; this current result does not overwrite or convert their outcomes.",
+            "other_actions": "No Product Git/compiler/runtime/metadata action or MT verdict advanced.",
+            "downstream_boot": {
+              "state": "BOOT_V5_SOURCE_ACTUALLY_APPLIED_UNCOMPILED_UNRUN",
+              "raw_sha256": "86230642b174e4ff9ce6d38b431a53b3d06699dd225c2f875c49440944545844",
+              "source_save_compatibility": "Existing published worker447 references suffice for this boot2 source save.",
+              "final_newfactory_composed_compile": "Still requires newer worker proof/publication/reread/pin adoption and lock closure."
+            },
+            "historical_downstream_boot": {
+              "state": "BOOT_V5_EXTERNAL_WAITING_DEPENDENCIES",
+              "reported_raw_sha256_prefix": "86230642",
+              "full_hash": "NOT_SUPPLIED_NOT_INFERRED_FROM_PREFIX",
+              "waiting_on": [
+                "Canonical worker proof/publication",
+                "Host pin adoption",
+                "Exact lock closure"
+              ]
+            }
+          }
+        },
+        "prior_delivery_observations": [
+          {
+            "state": "NATIVE4_REVIEWED_SOURCE_APPLIED_BOOT_V5_EXTERNAL_DEPENDENCY_HELD",
+            "corrected_replacement": "Native4 exact reviewed source physically applied; external bootv5 raw hash prefix86230642 remains dependency-held, with no full hash inferred.",
+            "current_need": "Native4 physical window is closed after exact reviewed four-path application. External bootv5 awaits worker proof/publication, pins and locks; original compiler/runtime/acceptance holds remain."
+          }
+        ],
+        "caller_sha256": "e0ead4c41dff3f8101ad314ece1ba3a48eb0544e4e99154201facf3ceda11cb8",
+        "v5_configuration_sha256": "86230642b174e4ff9ce6d38b431a53b3d06699dd225c2f875c49440944545844",
+        "root_boot2_application": {
+          "state": "ACTUALLY_APPLIED_UNCOMPILED_UNRUN",
+          "recorded_at_utc": "2026-10-23T13:41:55.226255Z",
+          "primary": "01a15e8a-2b54-79a0-91a2-7304d67cbddc",
+          "provenance": "Direct actual Primary source-result handback supplied through Master; Master has not reviewed Product source.",
+          "logical_source_identities": [
+            {
+              "identity": "Existing root boot module/caller",
+              "raw_sha256": "e0ead4c41dff3f8101ad314ece1ba3a48eb0544e4e99154201facf3ceda11cb8"
+            },
+            {
+              "identity": "New GenieX configuration source",
+              "raw_sha256": "86230642b174e4ff9ce6d38b431a53b3d06699dd225c2f875c49440944545844"
+            }
+          ],
+          "path_limit": "Exact boot2 paths are not present in this owning handoff node; logical identities and exact hashes are retained without guessing paths.",
+          "checks": "Primary reports exact source preimages/new absence, combined patch check and saved-byte readback. No numeric exit value absent from the handback is invented.",
+          "worker_source_compatibility": "This boot2 source uses references compatible with existing published447. The earlier overbroad source-save hold on newer worker publication is corrected.",
+          "final_composition_requires": [
+            "Newer worker owning proof/publication",
+            "Independent canonical publication reread",
+            "Required host pin adoption",
+            "Exact lock closure"
+          ],
+          "physical_windows": "ALL_CLOSED",
+          "not_advanced": [
+            "Core13 or newfactory physical save",
+            "Pin or lock update",
+            "Product Git commit or push",
+            "Compiler or runtime execution",
+            "Metadata mutation",
+            "MT verdict or Product readiness/acceptance"
+          ]
         }
       },
       "canonical_publications": {
