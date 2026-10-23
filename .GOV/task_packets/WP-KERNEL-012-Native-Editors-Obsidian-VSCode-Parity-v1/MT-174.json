@@ -10019,7 +10019,7 @@
     "session_authentication_compile_capture_recovery_20261023": {
       "id": "WP012-MT174-AUTH-COMPILE-CAPTURE-RECOVERY-20261023",
       "recorded_at_utc": "2026-10-22T23:47:00.921118+00:00",
-      "state": "BLOCKED_ON_SCHEDULER_REGISTRATION_PERMISSION",
+      "state": "METHOD03_BOUND_PENDING_ACTUAL_PRECHECKS_AND_EXCLUSIVE_CUSTODY",
       "authority_refs": [
         ".GOV/codex/Handshake_Codex_v1.4.md#CX-EXEC-014",
         ".GOV/codex/Handshake_Codex_v1.4.md#CX-EXEC-003",
@@ -10133,6 +10133,42 @@
         "permitted_next_dependency": "Actual OS permission-state change or a separately explicitly authorized proof method is required before this registration path can proceed.",
         "prohibitions": "No further registration retry, ACL or policy change, credential or token change, alternate actor or alternate launcher is authorized by this record.",
         "preservation": "Corrected artifact pins, source and input bindings, prior failure history and all spent budgets remain unchanged. The one compile-recovery start and existing one IV HTTP probe remain unconsumed. This blocker changes only this recovery record, not MT lifecycle, whole-WP state, acceptance or scope."
+      },
+      "separate_method_03": {
+        "id": "WP012-MT174-AUTH-COMPILE-METHOD03-20261023",
+        "binding": "Root technical decision under existing CX-EXEC-014 and packet delegated scope binds ONE specific method03 launcher invocation, conditional on current prelaunch checks and Primary exclusive resource/cache custody. No launch or runtime grant is claimed.",
+        "artifacts": [
+          {
+            "ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-durable-capture-20261021-01/local-session-auth-no-run-config-03.json",
+            "bytes": 6335,
+            "sha256": "dd160b51f953054cbabe0da895612879291f851ca638481525077a3e0ae72a35"
+          },
+          {
+            "ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-durable-capture-20261021-01/local-session-auth-no-run-private-capture-03.py",
+            "bytes": 12924,
+            "sha256": "c1d56c908623609db1dccf7c7501ec9b406f527a928f702a0fd52e2941bfcb5f"
+          },
+          {
+            "ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-durable-capture-20261021-01/local-session-auth-no-run-launch-03.py",
+            "bytes": 3099,
+            "sha256": "908ef6534f602e42ca878952c33f05498eea8d7a1b9ef03daefebd6b0e78b021"
+          },
+          {
+            "ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-durable-capture-20261021-01/tool-job-observation-03.json",
+            "bytes": 352,
+            "sha256": "eb68477dae60a3dea170b4e5913513374dbacb4f168c0c4e3b6ad5c94bc44671"
+          }
+        ],
+        "method": "Same-token owned child uses CREATE_BREAKAWAY_FROM_JOB | CREATE_NEW_CONSOLE with SW_HIDE and feedback disabled. Launcher freshly requires current tool-job BREAKAWAY_OK bit0x800; producer proves membership in no job and a nonzero hidden console before Cargo. Normalizer and Cargo inherit that console.",
+        "observation_limit": "Read-only current tool-job observation flags 0x2800 establishes capability for that observation only. It does not establish the cause of method01 missing terminal evidence or release the launcher fresh-query guard. Dispatch acknowledgment is not compile PASS.",
+        "owned_lifecycle": "Producer creates a new anonymous kill-on-close job. It creates its normalizer suspended, assigns and verifies the owned job before resuming. Normalizer wait is 3600 seconds with 30 additional seconds for owned drain. Only this invocation owned processes may be terminated for its deadline/error cleanup. Any expired deadline, leftover descendant or capture error disqualifies PASS.",
+        "unchanged_inputs": "Retain commit b4dbdda5667e6aea78da73e73b80cd6daa393ae9, source b5b22e5d033ea5e8963a06faa9c111a0facf5927b7ac1820d4fc6d458fc39c26, input map c525212a16710d5cccf73bfc7df7cacf7ea6fef1c6bc4ab9e630d3ad25cab6ed, profile 61cf1b2ae4889684c6f8403f1d60ad9d651b36a1e77ccdeded5fd6b99e8e082e and normalizer 866976ad8302495cf6b94bb314c7738a91b39e2cce1b7e2ba3e1d34a11efcc14. Exact config03 retains x64 Rust1.97.1, original argv with --no-run, warm target and jobs1.",
+        "output_ref": "../Handshake_Artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-local-session-auth-no-run-20261023-03",
+        "review_observation": "Root actual full-source review, independent Codecheck Windows ABI and lifecycle lenses, and Diagnostics returned STATIC CLEAR for these method03 files, per current Code Dev Leader handback. Static review does not prove launch or compilation.",
+        "owners_and_order": "Primary 01a15e8a-2b54-79a0-91a2-7304d67cbddc owns actual process, Cargo and controls. Source-proof worker goes first if actually ready. Method03 compile waits for that worker terminal result, owned drain and present explicit release. Original IV remains sole HTTP probe and runtime-verdict owner.",
+        "admission_and_accounting": "Only one launcher invocation is bound. Necessary pre-Cargo guards belong to that same invocation and fail closed without Cargo. No automatic retry. Do not mark compile start or the IV probe consumed before its actual defined launch. Existing one unconsumed IV probe, original spent histories, source pins, lifecycle and acceptance remain unchanged.",
+        "mandatory_proof": "Require observed numeric Cargo and normalizer exit 0, complete raw log, full source/control and own HEAD/index postguards, topology reconciliation and independent external owned-ancestry drain before explicit resource return. Parent dispatch or private-job accounting alone cannot replace terminal proof or independent drain.",
+        "method02_boundary": "Method02 S4U registration remains STOPPED and blocked. Its recorded prohibitions govern that denied registration path and authorize no alternate method. This separate explicit method03 binding allows only this specific launcher, with no blanket alternate-launcher permission, Scheduler retry, OS permission, policy, ACL, credential or token change, or foreign-job setter."
       },
       "requirements_lifecycle_and_verdict_unchanged": true
     },
