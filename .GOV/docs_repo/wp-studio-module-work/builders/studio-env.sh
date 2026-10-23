@@ -15,8 +15,10 @@
 # Artifact root (HSK-ART-001, Operator 2026-10-24): the Handshake_Artifacts folder inside the Handshake Worktrees folder that holds
 # the kernel, discovered from this file's location (this file lives in <kernel>/.GOV/docs_repo/wp-studio-module-work/builders/), or
 # HANDSHAKE_ARTIFACTS_ROOT when set. Never a literal drive path (disk-agnostic) and never `..` from the current directory.
-_studio_kernel="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-_studio_art="${HANDSHAKE_ARTIFACTS_ROOT:-$(cd "${_studio_kernel}/.." && pwd)/Handshake_Artifacts}/WP-KERNEL-STUDIO"
+# `pwd -W` (Git Bash) prints the Windows form `D:/...`; cargo.exe and other native tools read CARGO_TARGET_DIR and TMP literally, so
+# the MSYS form `/d/...` must never reach them. Plain `pwd` is the fallback outside Git Bash.
+_studio_kernel="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && { pwd -W 2>/dev/null || pwd; })"
+_studio_art="${HANDSHAKE_ARTIFACTS_ROOT:-$(cd "${_studio_kernel}/.." && { pwd -W 2>/dev/null || pwd; })/Handshake_Artifacts}/WP-KERNEL-STUDIO"
 _studio_ssd="${STUDIO_SSD_ROOT:-C:/HandshakeBuild}"
 _studio_owner="${STUDIO_OWNER:-studio-team-dev}"
 _STUDIO_SSD_LANE=""
