@@ -1,0 +1,37 @@
+{
+ "crate": "hsk-studio-develop",
+ "lane": "SMB-DNG-READBACK-VALUES",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed 4793616b on codex/handshake-studio-assets",
+ "commits": [
+  {"sha": "4793616b", "subject": "Studio: DNG writer read-back compares BlackLevelDelta values; round-trip test with varying deltas"}
+ ],
+ "capabilities_done": [
+  "dng_write.rs read-back verify now compares BlackLevelDeltaH/V values (abs diff <= 1e-6, same tolerance as BlackLevel), not only lengths",
+  "tests/develop_dng_write.rs: Src gains delta_h/delta_v (SRATIONAL quarter steps); assert_same_document compares delta values exactly; uncompressed round-trip authors 64 column / 48 row non-zero, varying, non-symmetric deltas and asserts the written arrays equal the authored vectors in order"
+ ],
+ "tests": {
+  "argv": "lane-check --owner smb-dng-readback-values --disk ssd -- cargo nextest run -p hsk-studio-develop -p hsk-studio-interop-tiff --no-fail-fast",
+  "exit": 0,
+  "sha": "4793616b",
+  "passed": 168,
+  "failed": 0,
+  "notes": "168 run, 20 skipped (ignored); no rebase change (origin tip unchanged at 53a7333f)"
+ },
+ "blockers": [],
+ "next": "Validator: judge the pushed sha.",
+ "updated_at": "2026-10-24T00:00:00Z",
+ "notes": {
+  "finding_ref": "R39 on b7ef882e, findings_not_failures, lane SMB-DEVELOP-DNG-WRITER: read-back checked only lengths of BlackLevelDeltaH/V",
+  "sites": [
+   {"site": "crates/hsk-studio-develop/src/dng_write.rs:593-596 (same_levels in read-back)", "result": "fixed (product-code verify, tolerance 1e-6; reported to lead)"},
+   {"site": "crates/hsk-studio-develop/tests/develop_dng_write.rs assert_same_document (delta len checks, was :202-203)", "result": "fixed (exact value equality)"},
+   {"site": "tests/develop_dng_write.rs: source builder never authored deltas, so every prior round trip compared empty arrays", "result": "fixed (delta_h/delta_v fields, uncompressed round-trip test)"},
+   {"site": "dng_write.rs black_level read-back", "result": "not-applicable (already value-compared, 1e-6)"},
+   {"site": "tests/develop_dng.rs:604 delta len check", "result": "not-applicable (reader test; values asserted at :590 region, outside this lane)"}
+  ],
+  "asserted_values": "H[i] = ((i*7)%13 - 6) * 0.25 for i in 0..64; V[i] = ((i*5)%11 - 3) * 0.25 + 0.5 for i in 0..48; exact f64 equality after SRATIONAL decode",
+  "writer_bug": "none found",
+  "feature_gated_tests": "no feature-gated tests touched (4e n/a); no doc examples changed (4d n/a); no path literals added (4c)"
+ }
+}

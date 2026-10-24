@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-24T05:57:21Z",
+ "updated_at": "2026-10-24T06:52:57Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -10368,6 +10368,24 @@
    "commits": [],
    "verdicts": [],
    "note": "InDesign ID-23 liquid rules (STU-LAY-111), adjust layout (STU-LAY-010/112), alternate layouts with linked-story state (STU-LAY-011/019); push only after FIG-EDIT-2's Folio slice is on origin",
+   "remediation": null
+  },
+  {
+   "lane_id": "SMB-DNG-READBACK-VALUES",
+   "crate": "hsk-studio-develop (dng_write.rs verify step + tests/develop_dng_write.rs)",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "blocked_on": null,
+   "owner": "builder (Sonnet/medium), lead dispatch 2026-10-24T06:52:57Z",
+   "lane_file": "builders/lanes/hsk-studio-dng-readback-values.json",
+   "worktree": "wt-studio-lanes/smb-dng-readback-values (lane/smb-dng-readback-values @53a7333f, created by the lead)",
+   "disk": "C:",
+   "candidate": "4793616b",
+   "commits": [
+    "4793616b DNG writer read-back compares BlackLevelDelta values; round-trip test with varying deltas"
+   ],
+   "verdicts": [],
+   "note": "R39 finding (dng_write.rs:592-596 length-only check). Fix: writer verify step compares BlackLevelDeltaH/V values (1e-6, BlackLevel's tolerance); assert_same_document compares exactly; the test source previously wrote no delta tags (every earlier round trip compared empty arrays), now authors 64 column + 48 row varying deltas. No writer bug found. src/ change accepted by the lead as within the finding. 168/168 on C:",
    "remediation": null
   }
  ],
