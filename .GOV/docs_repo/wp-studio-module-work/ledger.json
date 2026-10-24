@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-24T05:06:17Z",
+ "updated_at": "2026-10-24T05:34:16Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9961,18 +9961,22 @@
   {
    "lane_id": "SMB-PR-RATE-STRETCH-1",
    "crate": "hsk-studio-pulse (new rate.rs + lib.rs lines) + harness-view timeline.rs, timeline_ui.rs, timeline/trim.rs, new timeline/rate.rs",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "blocked_on": null,
    "owner": "builder (Opus/medium), lead dispatch 2026-10-24T04:28:09Z",
    "lane_file": "builders/lanes/hsk-studio-pr-rate-stretch-1.json",
    "brief": "builders/briefs/lane-smb-pr-rate-stretch-1.md",
    "worktree": "wt-studio-lanes/smb-pr-rate-stretch-1 (lane/smb-pr-rate-stretch-1 @b9c311e5, created by the lead)",
    "disk": "C:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "e3fc44b5",
+   "commits": [
+    "a3c7d385 pulse rate stretch + Speed/Duration planners (slice 1)",
+    "03594a14 timeline Rate Stretch tool (R), Speed/Duration form (Ctrl+R), speed labels (slice 2)",
+    "e3fc44b5 exact slip at non-unit speed, slip_inexact_at_speed (slice 3)"
+   ],
    "verdicts": [],
-   "note": "Premiere rate stretch + Speed/Duration planners, rate_stretch tool (R), Ctrl+R, exact slip at non-unit speed (STU-VID-026/031); single writer of TRIM-1's files",
+   "note": "Premiere rate stretch + Speed/Duration planners, rate_stretch tool (R), Ctrl+R, exact slip at non-unit speed (STU-VID-026/031); single writer of TRIM-1's files; READY 2026-10-24 on e3fc44b5: 298 passed / 0 failed / 20 skipped on C: after rebasing onto HEALING-1 c9a32dd6 (pre-rebase 297/297); RUN-UI.md lines routed to SMB-FIG-EDIT-1 (owner of RUN-UI.md tonight); gaps: time remapping (PR-09 stays PARTIAL), no ripple-trailing option; Premiere limits UNVERIFIED",
    "remediation": null
   }
  ],
