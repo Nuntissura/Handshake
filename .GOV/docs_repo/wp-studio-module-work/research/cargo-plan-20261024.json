@@ -1010,7 +1010,8 @@
     "rule": "P2 after the R39 verdicts",
     "size_gib": "see r39_estimate.ready_lane_targets_gib (9 lanes, 163.3 GiB measured)"
    }
-  ]
+  ],
+  "status": "phase 2 executed (groups A-D 07:03-10:49Z) and batch E executed (11:15-12:35Z); see research/cargo-cleanup-result-20261024.json"
  },
  "keep": [
   {
@@ -3120,5 +3121,34 @@
     "error": null
    }
   ]
- }
+ },
+ "usage_after_phase2": {
+  "at": "2026-10-24T12:36:24Z",
+  "source": "research/cargo-cleanup-result-20261024.json",
+  "C": {
+   "batch_e": "12 finished SSD lane targets under studio-team-dev/target/lanes deleted 11:53-12:35Z (178.31 GiB counted; partial deletions of two stopped runs uncounted); lanes/ is now empty",
+   "c_k01_k02": "studio-team-dev/target/release and nextest deleted 10:49Z (0.125 GiB)",
+   "studio_tree_now": "studio-round/target only (R40 building; not measured: the lead's 10:49Z figure was 50.5 GiB and growing ~1.1 GiB/min) + the empty studio-team-dev/target skeleton",
+   "free_gib": 540.15,
+   "free_at": "2026-10-24T12:35:02Z",
+   "ssd_size_record": "C:/HandshakeBuild/WP-KERNEL-STUDIO/.studio-ssd-size deleted 12:35Z; studio-env re-measures on the next SSD build",
+   "deleted_gib_total": 178.433
+  },
+  "D": {
+   "phase1_measured_target_gib": 643.69,
+   "deleted_from_phase1_measured_gib": 131.603,
+   "deleted_built_after_phase1_gib": 37.073,
+   "studio_target_used_gib_measured_basis": 512.087,
+   "remaining_known_targets": [
+    "studio-round/target (458.2 GiB; R40 moves rounds to C:, then next candidate)",
+    "smb-ae-roto-wiring/target (28.4 GiB, R39 INCONCLUSIVE)",
+    "smb-timeline-ui-1/target (25.1 GiB, R39 INCONCLUSIVE)",
+    "studio-team-dev/sync-export/target (0.28 GiB)",
+    "studio-team-dev/steward-export/target (NOT_MEASURED; 287.6 GiB on 2026-10-21)"
+   ],
+   "free_gib": 1653.1
+  },
+  "recycle_bin_gib_for_operator": 0
+ },
+ "generated_at_phase2_update": "2026-10-24T12:36:24Z"
 }
