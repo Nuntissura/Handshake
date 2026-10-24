@@ -1,28 +1,32 @@
 {
   "crate": "hsk-studio-harness-view",
   "lane": "SMB-TIMELINE-TRIM-1",
-  "status": null,
-  "phase": "bundled run1 GREEN at 17652963 (220/220); doc-only 8f090c37 + d0bd918a on top (RUN-UI.md; no test reads it, no re-run); PUSH HOLD until the frozen R39 candidate sha",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed b9c311e5 (rebased on origin 7d62c5da); bundled run2 on C: green 231/231 at b9c311e5; never claimed PASS",
   "commits": [
     {
-      "sha": "b7b5ff54",
-      "subject": "Studio timeline trims (SMB-TIMELINE-TRIM-1 slices 1-4): ripple/roll/slip/slide typed trims with achieved delta, trim-mode drags, nudges and bindings, extend edit, multi-frame step, trim session",
-      "pushed": false
+      "sha": "9ffa4ec5",
+      "subject": "Studio timeline trims (SMB-TIMELINE-TRIM-1 slices 1-4)",
+      "pushed": true,
+      "local_before_rebase": "b7b5ff54"
     },
     {
-      "sha": "17652963",
+      "sha": "2666e6d8",
       "subject": "Studio timeline trim headless tests (SMB-TIMELINE-TRIM-1 slices 1-4)",
-      "pushed": false
+      "pushed": true,
+      "local_before_rebase": "17652963"
     },
     {
-      "sha": "8f090c37",
+      "sha": "e66aaeca",
       "subject": "RUN-UI.md: timeline trim modes, trim session, nudge keys (lead-approved scope, HBR-MAN-001)",
-      "pushed": false
+      "pushed": true,
+      "local_before_rebase": "8f090c37"
     },
     {
-      "sha": "d0bd918a",
-      "subject": "RUN-UI.md known limits: timeline panel exists, pointer to trim section (HBR-MAN-003, lead-requested)",
-      "pushed": false
+      "sha": "b9c311e5",
+      "subject": "RUN-UI.md known limits: timeline panel exists, pointer to trim section (HBR-MAN-003)",
+      "pushed": true,
+      "local_before_rebase": "d0bd918a"
     }
   ],
   "capabilities_done": [
@@ -32,21 +36,23 @@
     "slice 4: trim session (Trim Session button / TrimSessionEnter on the selected edit point): outgoing/incoming tiles labelled with source ticks (preview of the pending adjustment), -major/-minor/+minor/+major (TrimNudge), focus In/Out/In+Out (TrimSessionFocus; cmd.trim.focusin/focusout/focusinandout), ripple<->roll toggle, composite preview flag (cmd.timeline.composite.preview.during.trim), Apply commits ONE history step, Cancel abandons (nothing committed while open); adjustments planned, never committed, with the achieved-delta clamp and named limit; state_json timeline.trim_session"
   ],
   "tests": {
-    "argv": "cd <lane>/handshake-studio-assets && bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-timeline-trim-1 --disk d -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+    "argv": "cd <lane>/handshake-studio-assets && bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-timeline-trim-1 --disk ssd -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
     "exit": 0,
-    "sha": "17652963",
-    "passed": 220,
+    "sha": "b9c311e5",
+    "passed": 231,
     "failed": 0,
     "skipped": 20,
     "clippy": "clean of errors in the same lock hold (harness-view, harness + direct dependents); own warning fixed before commit",
     "new_tests": "tests/viewer_timeline_trim.rs 14/14: ripple_trim_shifts_later_clips_on_sync_locked_tracks, roll_moves_the_edit_between_neighbours, slip_changes_source_window_only, slide_keeps_source_and_resizes_neighbours, achieved_delta_is_clamped_and_refusals_are_named, ripple_drag_closes_no_gap_and_undo_restores, roll_drag_on_a_shared_edit, slip_drag_changes_frames_not_position, spec_bindings_nudge_slip_and_slide, extend_edit_to_playhead_rolls_the_nearest_edit, one_multi_frame_step_governs_every_several_variant, trim_session_adjusts_and_commits_one_step, rollback_abandons_the_session, focus_and_type_toggle_are_typed_commands",
-    "rule_4b": "no Folio record field added or renamed (diff: harness-view view/timeline*, tests): hsk-studio-package suite not required"
+    "rule_4b": "no Folio record field added or renamed (diff: harness-view view/timeline*, tests): hsk-studio-package suite not required",
+    "history": "run1 on D: at 17652963 (pre-rebase, base 1e3ae3d4): 220/220 green; run2 on C: at b9c311e5 after rebase onto 7d62c5da (folio/pulse/prism moved): 231/231 green, 14/14 viewer_timeline_trim",
+    "rebase": "onto 7d62c5da clean; RUN-UI.md soft-proof and trim sections both kept; diff --stat lists only own 6 paths"
   },
   "blockers": [],
   "lock_wait_s": 1000,
   "bg_pids": [],
-  "next": "PUSH HOLD: on the lead's go (frozen R39 candidate sha) fetch, rebase onto origin/codex/handshake-studio-assets, re-run only if the rebase touched harness-view/harness or their dependencies, git diff --stat must list only my paths, guarded SHA push; then READY_FOR_VALIDATION",
-  "updated_at": "2026-10-24T02:57:12Z",
+  "next": "validation round judges SMB-TIMELINE-TRIM-1 at b9c311e5; remediation of SMB-TIMELINE-UI-1 (if R39 fails it) comes to this lane as a separate commit set",
+  "updated_at": "2026-10-24T04:15:58Z",
   "notes": {
     "worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-timeline-trim-1 (branch lane/smb-timeline-trim-1, base origin 1e3ae3d4)",
     "slice_commits": "slices 1-4 share timeline.rs/timeline_ui.rs hunks, so they landed as one product commit (b7b5ff54) plus one test commit (17652963) instead of four slice commits",
@@ -89,9 +95,10 @@
     "own_causes": [
       "none: run1 green first time"
     ],
-    "push_hold": "lead override 2026-10-24: hold until the frozen R39 candidate sha (V4-14: SMB-TIMELINE-UI-1 5ab33c9 judged on its own commits)",
+    "push_hold": "lifted by lead GO after R39 froze b7ef882e (03:43:20Z)",
     "kernel_not_committed": true,
     "run_ui_md": "added as new section \"Timeline trims (lane SMB-TIMELINE-TRIM-1)\" before \"For models\" (RUN-UI.md has no timeline section yet; line 239 \"no timeline panel\" is stale from before SMB-TIMELINE-UI-1, left untouched); SMB-PS-SOFT-PROOF-2 rebase merge expected: keep both",
-    "touched_outside_brief": "crates/hsk-studio-harness/RUN-UI.md (brief said do not touch; lead approved 2026-10-24 scope addition)"
+    "touched_outside_brief": "crates/hsk-studio-harness/RUN-UI.md (brief said do not touch; lead approved 2026-10-24 scope addition)",
+    "ready_sha": "b9c311e50c51546118ac029e7cc605e2eeea1c9e"
   }
 }

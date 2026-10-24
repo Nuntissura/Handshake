@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-24T03:57:44Z",
+ "updated_at": "2026-10-24T04:16:26Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9798,18 +9798,23 @@
   {
    "lane_id": "SMB-TIMELINE-TRIM-1",
    "crate": "hsk-studio-harness-view (view/timeline.rs, timeline_ui.rs, new view/timeline/trim*.rs, tests/viewer_timeline_trim.rs)",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "blocked_on": null,
    "owner": "builder (Opus/medium), lead dispatch 2026-10-24 ~01:30Z",
    "lane_file": "builders/lanes/hsk-studio-timeline-trim-1.json",
    "brief": "builders/briefs/lane-smb-timeline-trim-1.md",
    "worktree": "wt-studio-lanes/smb-timeline-trim-1 (lane/smb-timeline-trim-1 @1e3ae3d4, created by the lead)",
    "disk": "D:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "b9c311e5",
+   "commits": [
+    "9ffa4ec5 timeline trims product (slices 1-4)",
+    "2666e6d8 tests/viewer_timeline_trim.rs (14 tests)",
+    "e66aaeca RUN-UI.md timeline trims section",
+    "b9c311e5 RUN-UI.md stale \"no timeline panel\" line corrected"
+   ],
    "verdicts": [],
-   "note": "Premiere ripple/roll/slip/slide trims, nudges, trim session (STU-VID-026/026a/026b/035a/090); single writer of timeline.rs/timeline_ui.rs; any R39 remediation of SMB-TIMELINE-UI-1 is assigned here; PUSH HOLD until the R39 candidate is frozen (V4-14: carries READY SMB-TIMELINE-UI-1 files); green locally 2026-10-24 at 17652963 (220 passed / 0 failed, clippy clean), HEAD d0bd918a adds RUN-UI.md trim section + stale-line fix (doc-only); waiting for the R39 freeze to push",
+   "note": "Premiere ripple/roll/slip/slide trims, nudges, trim session (STU-VID-026/026a/026b/035a/090); single writer of timeline.rs/timeline_ui.rs; any R39 remediation of SMB-TIMELINE-UI-1 is assigned here; PUSH HOLD until the R39 candidate is frozen (V4-14: carries READY SMB-TIMELINE-UI-1 files); green locally 2026-10-24 at 17652963 (220 passed / 0 failed, clippy clean), HEAD d0bd918a adds RUN-UI.md trim section + stale-line fix (doc-only); waiting for the R39 freeze to push; PUSHED after the R39 freeze, READY 2026-10-24 on b9c311e5: 231 passed / 0 failed / 20 skipped, clippy clean, re-run on C: after rebasing onto 7d62c5da; for R40",
    "remediation": null
   },
   {
@@ -9876,18 +9881,23 @@
   {
    "lane_id": "SMB-PS-SOFT-PROOF-2",
    "crate": "hsk-studio-folio (proof_state.rs, lib.rs module + DESCRIPTOR text for proof and multicam) + session source.rs 'proof' token + package tests/externals.rs + harness-view view/proof.rs + shell.rs/view/mod.rs hunks + RUN-UI.md + prism src/proof/gamut.rs:17-18 doc fix",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "blocked_on": null,
    "owner": "builder (Opus/high), lead dispatch 2026-10-24T02:46:25Z",
    "lane_file": "builders/lanes/hsk-studio-ps-soft-proof-2.json",
    "brief": "builders/briefs/lane-smb-ps-soft-proof-2.md",
    "worktree": "wt-studio-lanes/smb-ps-soft-proof-2 (lane/smb-ps-soft-proof-2 @7a16f66d, created by the lead)",
    "disk": "D:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "7d62c5da",
+   "commits": [
+    "10e4ab94 folio hsk.studio.proof_records@1 + session proof token + package classification (slice 1)",
+    "f3e684a6 harness-view VIEW/COLOR proof menus, setup window, canvas proof + gamut overlay, state_json proof, RUN-UI.md, viewer_shell.rs:641 \"Color\" (slices 2-4)",
+    "3411503b prism gamut.rs doc fix (slice 5)",
+    "7d62c5da viewer_proof fixture clippy fix"
+   ],
    "verdicts": [],
-   "note": "document-scoped proof state record (STU-COL-240), VIEW/COLOR proof menus, preset menu, canvas gamut overlay; PUSH HOLD until the R39 candidate is frozen (V4-14: SOFT-PROOF-1, MULTICAM-1 and folio/session/package READY lanes); green locally 2026-10-24 at d5af057a (578 passed / 0 failed, clippy exit 0; folio, session, package, prism, harness-view, harness desktop+audio-batch); lead-approved scope exception harness tests/viewer_shell.rs:641 titles add \"Color\" (STU-SHL-011); waiting for the R39 freeze to push",
+   "note": "document-scoped proof state record (STU-COL-240), VIEW/COLOR proof menus, preset menu, canvas gamut overlay; PUSH HOLD until the R39 candidate is frozen (V4-14: SOFT-PROOF-1, MULTICAM-1 and folio/session/package READY lanes); green locally 2026-10-24 at d5af057a (578 passed / 0 failed, clippy exit 0; folio, session, package, prism, harness-view, harness desktop+audio-batch); lead-approved scope exception harness tests/viewer_shell.rs:641 titles add \"Color\" (STU-SHL-011); waiting for the R39 freeze to push; PUSHED after the R39 freeze, READY 2026-10-24 on 7d62c5da: 583 passed / 0 failed / 22 pre-existing skips, clippy exit 0, re-run on C: after rebasing onto MULTICAM-2 087d4a9d; for R40",
    "remediation": null
   },
   {
