@@ -1,0 +1,56 @@
+{
+  "crate": "hsk-studio-pulse + hsk-studio-session",
+  "lane": "SMB-PR-MULTICAM-2",
+  "status": null,
+  "phase": "slices 1-3 committed locally (ee44fd18, d50894f7, 6979d6eb; UNPUSHED) and bundled lane-check run 1 GREEN at 6979d6eb on D: (90/90, clippy no errors over pulse, session and 5 direct dependents); PUSH HOLD until the lead sends the R39 frozen candidate sha (V4-14: SMB-PR-MULTICAM-1 is judged first)",
+  "commits": [
+    {"sha": "ee44fd18", "subject": "SMB-PR-MULTICAM-2 slice 1: session one-step multicam commit (Session::submit_multicam / _keyed, MulticamStep) as one revision, one receipt, one inverse (local, unpushed)"},
+    {"sha": "d50894f7", "subject": "SMB-PR-MULTICAM-2 slice 2: pulse flatten and resolve_active_angle at non-unit forward speed (local, unpushed)"},
+    {"sha": "6979d6eb", "subject": "SMB-PR-MULTICAM-2 slice 3: pulse flatten carries clip markers to their pieces (local, unpushed)"}
+  ],
+  "capabilities_done": [
+    "slice 1 (session, ee44fd18, local): Session::submit_multicam / submit_multicam_keyed commit a MulticamStep = zero or more SequenceEdit (Replace expect->write, Insert at index of a CREATED sequence, Remove) each quoting the live value, plus the multicam records entry expect -> write, as ONE revision (also records-only steps), ONE receipt, ONE inverse (Applied::multicam_inverse: replace swapped, insert <-> remove at the live index, records swapped, reverse order; its inverse = redo); shares grant, idempotency key, admission, commit authority and publish (entry published only together with the successor, also on reconcile adoption); refusals value_conflict / invalid_target / invalid_input / invalid_command / folio_rejected (incl. removing a still-nested sequence, records invalid against the result) / budget_exceeded / total_too_large / stale_revision / canceled leave document, entry and receipts untouched; MAX_MULTICAM_STEP_EDITS = 128; session DESCRIPTOR version 5",
+    "slice 2 (pulse, d50894f7, local): plan_multicam_flatten and resolve_active_angle at non-unit FORWARD speed: multicam clip speed s and angle-clip speed a rational; a piece keeps its media window (angle clip window cut to the overlap, mapped through a), its timeline span maps through s, its speed is the exact reduced product s*a; inexact derived ticks refused multicam_speed_inexact; reverse speed on the multicam clip or a read angle clip refused multicam_reverse_unsupported; resolve floors a fractional source position",
+    "slice 3 (pulse, 6979d6eb, local): flatten carries each clip marker (source-sequence ticks) to the piece whose span holds its start, converted to that piece's media ticks through the slice 2 mapping (exact), id/name/comment/colour/duration/role kept, timeline position preserved (tested); refused multicam_marker_in_gap, multicam_marker_spans_pieces, multicam_marker_outside_window; MAX_FLATTEN_MARKERS = 65536 running total checked before each clip, binary-search placement"
+  ],
+  "tests": {"argv": "cd <lane worktree>/handshake-studio-assets && bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-pr-multicam-2 --disk d -- cargo nextest run -p hsk-studio-pulse -p hsk-studio-session --no-fail-fast", "exit": 0, "sha": "6979d6eb", "passed": 90, "failed": 0},
+  "blockers": [],
+  "lock_wait_s": 282,
+  "bg_pids": [],
+  "next": "on the lead's R39 sha: git fetch origin && git rebase origin/codex/handshake-studio-assets; re-run the bundled lane-check only if the rebase touched pulse, session or their dependencies (folio, package, chronicle, accord, observe; SMB-PS-SOFT-PROOF-2 touches session source.rs and folio); diff --stat check; push; then READY_FOR_VALIDATION",
+  "updated_at": "2026-10-24T03:10:34Z",
+  "notes": {
+    "spec_basis": [
+      "STU-VID-033: '`flatten` bakes the current cut list into ordinary clips and discards the multicam mode; it is one reversible history step.'",
+      "STU-VID-040: 'Every operation in this sub-section is one reversible `StudioHistoryEntry` (14.19). ... A multicam record pass is one step.'",
+      "STU-VID-031: '`speed` is a rational multiplier ... Reverse is a negative speed.'",
+      "STU-VID-034: 'A CLIP marker travels with the clip and moves when the clip moves. A SEQUENCE marker is positioned in sequence time and does not move with clips.'",
+      "STU-VID-090 obligation 3: 'A determinate result is required for every refusal' (basis of the named refusals)"
+    ],
+    "declared_readings": [
+      "a records-only multicam step (switch without cut, toggles) advances the document revision by one with identical document content, so it is one history step with one receipt",
+      "a commit authority receives the successor document; the multicam records travel in the binding hash and the session stores the entry only when it publishes that successor",
+      "flatten at speed: piece media window = angle clip window cut to the overlap mapped through the angle-clip speed a; piece timeline span = overlap mapped through the multicam clip speed s; piece speed = exact reduced s*a; inexact -> multicam_speed_inexact",
+      "reverse speed on a multicam clip or an angle clip it reads -> multicam_reverse_unsupported (resolve and flatten)",
+      "resolve_active_angle floors a fractional source position (a slowed clip holds a source tick)",
+      "clip markers go to the piece holding their start (half-open spans), converted to media ticks; gap -> multicam_marker_in_gap, span past the piece end -> multicam_marker_spans_pieces, start outside the clip source window -> multicam_marker_outside_window; never converted to sequence markers"
+    ],
+    "spec_deltas": [
+      "STU-VID-033 states no flatten mapping for speed-changed multicam or angle clips (declared above)",
+      "STU-VID-033 states no flatten behaviour for reverse speed (declared refusal)",
+      "STU-VID-033 / STU-VID-034 state no flatten mapping for clip markers (declared above)",
+      "STU-VID-033 does not state how a multicam step that creates a source sequence is committed (declared: one session step with insert/remove inverse)"
+    ],
+    "pinned_refusals_updated": "no existing test pinned multicam_speed_unsupported or multicam_markers_present (grep over crates/); the variants were replaced by SpeedInexact/ReverseUnsupported and MarkerInGap/MarkerSpansPieces/MarkerOutsideWindow (MulticamError is pub; no other crate matches on it)",
+    "rule_4b": "no Folio field added or renamed: package suite not required",
+    "dependents": "session public API additive (Applied gains multicam_inverse; no external struct literal of Applied): clippy over harness, harness-core, harness-view, interop-media, kernel-bindings passed with no errors in run 1",
+    "shared_files": "session lib.rs (mod + pub use + DESCRIPTOR text), session.rs (submit pipeline: Step enum, entry write travelling with successor/pending commit, set_document_entry split into document_entry_fits/put_document_entry, behaviour unchanged), timeline.rs (valid_command_id helper); source.rs and every Folio file untouched; Cargo.lock untouched; no new crate edge or crates.io dependency",
+    "unverified_D5": "Premiere: flatten of speed-changed angles, marker placement after flatten, reverse-speed multicam behaviour",
+    "not_proven": [
+      "NOT_PROVEN: program-monitor playback and composite render of the active angle (pulse playback / composite resolve no nested sequence)",
+      "NOT_PROVEN: Premiere flatten of speed-changed angles and marker placement after flatten (no Premiere oracle)"
+    ],
+    "run_history": "run 1 green at 6979d6eb (90/90; clippy no errors; waited 282 s for the D: lock behind run-round steward-export)",
+    "gameplan": "not used (retired per lead override)"
+  }
+}

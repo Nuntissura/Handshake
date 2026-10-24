@@ -1,0 +1,97 @@
+{
+  "crate": "hsk-studio-harness-view",
+  "lane": "SMB-TIMELINE-TRIM-1",
+  "status": null,
+  "phase": "bundled run1 GREEN at 17652963 (220/220); doc-only 8f090c37 + d0bd918a on top (RUN-UI.md; no test reads it, no re-run); PUSH HOLD until the frozen R39 candidate sha",
+  "commits": [
+    {
+      "sha": "b7b5ff54",
+      "subject": "Studio timeline trims (SMB-TIMELINE-TRIM-1 slices 1-4): ripple/roll/slip/slide typed trims with achieved delta, trim-mode drags, nudges and bindings, extend edit, multi-frame step, trim session",
+      "pushed": false
+    },
+    {
+      "sha": "17652963",
+      "subject": "Studio timeline trim headless tests (SMB-TIMELINE-TRIM-1 slices 1-4)",
+      "pushed": false
+    },
+    {
+      "sha": "8f090c37",
+      "subject": "RUN-UI.md: timeline trim modes, trim session, nudge keys (lead-approved scope, HBR-MAN-001)",
+      "pushed": false
+    },
+    {
+      "sha": "d0bd918a",
+      "subject": "RUN-UI.md known limits: timeline panel exists, pointer to trim section (HBR-MAN-003, lead-requested)",
+      "pushed": false
+    }
+  ],
+  "capabilities_done": [
+    "slice 1: TimelineCommand::{RippleTrimIn, RippleTrimOut, Roll, Slip, Slide}{clip_id, delta_frames} -> one pulse TimelineEdit (TrimIn/TrimOut ripple, Roll, Slip, Slide) via Run::submit_sequence (one undo step); achieved delta = requested, else the largest admitted toward zero by a deterministic halving search (<= 64 planner calls) only on limit refusals (outside_range, past_source_start/end, zero_duration, invalid_range, overlap, sync_lock_blocked, underflow, overflow); structural refusals named at once (unknown_clip, not_adjacent, source_extent_unknown, track_locked, linked_edit_unsupported); Viewer::timeline_trim(cmd) -> TrimOutcome; state_json timeline.last_trim {requested_frames, achieved_frames, planner_calls, limit, refusal, revision}; SelectEdit{mode: TrimIn|TrimOut|RippleIn|RippleOut|Roll, nearest_to} on targeted unlocked tracks, EditPointAt",
+    "slice 2: toolbar trim-mode selector timeline.tool.{selection,ripple,roll,slip,slide} (SetTool); edge drags ripple (RippleIn/Out) or roll (a head edge rolls the previous abutting clip's tail), body drags slip/slide; one undo step per drag; snapping as existing drags; edge click selects the edit point in the tool's mode; selected edit point drawn as a bar",
+    "slice 3: SlipNudge / SlideNudge with [STU-VID-041] bindings Ctrl+Alt+Left/Right, Ctrl+Alt+Shift+Left/Right, Alt+, Alt+. Alt+Shift+, Alt+Shift+.; TrimNudge (cmd.trim.plus/minus.minor/major) on the selected edit point; ClipNudge (harness Alt+Left/Right, Shift step); ExtendEditToPlayhead (selected roll edit, else nearest abutting edit on targeted tracks; Extend Edit button); SetMultiFrameStep 1..=1000, one step shared by every many variant (Studio default 5)",
+    "slice 4: trim session (Trim Session button / TrimSessionEnter on the selected edit point): outgoing/incoming tiles labelled with source ticks (preview of the pending adjustment), -major/-minor/+minor/+major (TrimNudge), focus In/Out/In+Out (TrimSessionFocus; cmd.trim.focusin/focusout/focusinandout), ripple<->roll toggle, composite preview flag (cmd.timeline.composite.preview.during.trim), Apply commits ONE history step, Cancel abandons (nothing committed while open); adjustments planned, never committed, with the achieved-delta clamp and named limit; state_json timeline.trim_session"
+  ],
+  "tests": {
+    "argv": "cd <lane>/handshake-studio-assets && bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-timeline-trim-1 --disk d -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+    "exit": 0,
+    "sha": "17652963",
+    "passed": 220,
+    "failed": 0,
+    "skipped": 20,
+    "clippy": "clean of errors in the same lock hold (harness-view, harness + direct dependents); own warning fixed before commit",
+    "new_tests": "tests/viewer_timeline_trim.rs 14/14: ripple_trim_shifts_later_clips_on_sync_locked_tracks, roll_moves_the_edit_between_neighbours, slip_changes_source_window_only, slide_keeps_source_and_resizes_neighbours, achieved_delta_is_clamped_and_refusals_are_named, ripple_drag_closes_no_gap_and_undo_restores, roll_drag_on_a_shared_edit, slip_drag_changes_frames_not_position, spec_bindings_nudge_slip_and_slide, extend_edit_to_playhead_rolls_the_nearest_edit, one_multi_frame_step_governs_every_several_variant, trim_session_adjusts_and_commits_one_step, rollback_abandons_the_session, focus_and_type_toggle_are_typed_commands",
+    "rule_4b": "no Folio record field added or renamed (diff: harness-view view/timeline*, tests): hsk-studio-package suite not required"
+  },
+  "blockers": [],
+  "lock_wait_s": 1000,
+  "bg_pids": [],
+  "next": "PUSH HOLD: on the lead's go (frozen R39 candidate sha) fetch, rebase onto origin/codex/handshake-studio-assets, re-run only if the rebase touched harness-view/harness or their dependencies, git diff --stat must list only my paths, guarded SHA push; then READY_FOR_VALIDATION",
+  "updated_at": "2026-10-24T02:57:12Z",
+  "notes": {
+    "worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-timeline-trim-1 (branch lane/smb-timeline-trim-1, base origin 1e3ae3d4)",
+    "slice_commits": "slices 1-4 share timeline.rs/timeline_ui.rs hunks, so they landed as one product commit (b7b5ff54) plus one test commit (17652963) instead of four slice commits",
+    "owned_paths": "crates/hsk-studio-harness-view/src/view/timeline.rs, src/view/timeline_ui.rs, NEW src/view/timeline/trim.rs, NEW src/view/timeline/trim_session.rs (mod declared in timeline.rs), NEW tests/viewer_timeline_trim.rs; nothing else touched",
+    "spec_basis": [
+      "[STU-VID-026] The normative trim vocabulary ... each is one reversible history step ... Ripple trim (Refuses when a sync-locked track cannot absorb the shift), Roll (Refuses when either side would exceed its available source), Slip, Slide, Extend edit to playhead, Trim forward / backward by one or by many (Clamps to the operation's own limits)",
+      "[STU-VID-026a] A trim session may be entered on a selected edit point ... minor and major step, in-only, out-only or both-sides focus, composite preview, explicit rollback ... trim type toggles between ripple and roll",
+      "[STU-VID-026b] Selecting an edit point is itself a typed operation with a stated mode",
+      "[STU-VID-035a] nudges by one frame or the configured multi-frame step; slip and slide have their own one-and-many pairs; one shared multi-frame step",
+      "[STU-VID-040] A trim is one step, not one step per frame dragged",
+      "[STU-VID-090] obligations 1 and 3: typed form returns the achieved delta; determinate result for every refusal",
+      "[STU-VID-041] cmd.timeline.editpoint.*, cmd.timeline.slip.*, cmd.timeline.slide.*, cmd.trim.plus/minus.minor/major, cmd.trim.focusin/out/inandout, cmd.timeline.composite.preview.during.trim"
+    ],
+    "studio_readings_unverified_D5": [
+      "multi-frame step default 5 (Premiere default UNVERIFIED)",
+      "slip direction: right/positive = later source window",
+      "roll tool on an edge with no abutting neighbour trims (regular trim)",
+      "trim session: focus In+Out == roll type; a focus/type change restarts the adjustment at 0",
+      "clip nudge binding Alt+Left/Right (harness binding)",
+      "Premiere tool cursor zones and trim-session frame layout"
+    ],
+    "not_proven": [
+      "NOT_PROVEN: outgoing/incoming frame pixels and composite preview picture (no frame decoder bound on a document sequence; tiles show source ticks)",
+      "NOT_PROVEN: real desktop window",
+      "NOT_PROVEN: Premiere cursor zones, default multi-frame step, ripple/roll toggle feel (no Premiere oracle)"
+    ],
+    "gaps": [
+      "rate stretch not built (pulse has no speed planner)",
+      "ripple trim in cannot extend a clip whose timeline start is 0 into its head handle (pulse TrimIn takes an absolute new_head tick; refused outside_range)",
+      "slip delta = frames x sequence ticks per frame (exact only at unit speed)",
+      "no trim-tool key bindings (B/N/Y/U not in the brief's command rows); extend edit and trim forward/backward have no binding",
+      "transitions pruned by ripple/roll are reported in the status line notes (pulse dropped_transitions), not drawn"
+    ],
+    "run_ui_md_lines_for_lead": [
+      "Timeline trims (lane SMB-TIMELINE-TRIM-1): toolbar Selection / Ripple / Roll / Slip / Slide sets what edge and body drags do (ripple: later content on sync-locked tracks shifts; roll: the edit between two abutting clips; slip: source window; slide: between neighbours); one undo step per drag.",
+      "Click a clip edge to select that edit point; Trim Session opens the outgoing/incoming tiles with -step/-1/+1/+step, In / Out / In+Out focus, ripple/roll toggle, Composite Preview, Apply (one undo step) and Cancel (nothing committed).",
+      "Keys with the panel active and a clip selected: Ctrl+Alt+Left/Right slip one frame (Shift: multi-frame step), Alt+, / Alt+. slide one frame (Shift: step), Alt+Left/Right nudge the clip; Extend Edit rolls the selected (else nearest) edit to the playhead.",
+      "A trim past a limit commits the achieved part (state_json timeline.last_trim); a refusal names its code in the status log and changes nothing. Unknown source lengths refuse source extensions (source_extent_unknown)."
+    ],
+    "own_causes": [
+      "none: run1 green first time"
+    ],
+    "push_hold": "lead override 2026-10-24: hold until the frozen R39 candidate sha (V4-14: SMB-TIMELINE-UI-1 5ab33c9 judged on its own commits)",
+    "kernel_not_committed": true,
+    "run_ui_md": "added as new section \"Timeline trims (lane SMB-TIMELINE-TRIM-1)\" before \"For models\" (RUN-UI.md has no timeline section yet; line 239 \"no timeline panel\" is stale from before SMB-TIMELINE-UI-1, left untouched); SMB-PS-SOFT-PROOF-2 rebase merge expected: keep both",
+    "touched_outside_brief": "crates/hsk-studio-harness/RUN-UI.md (brief said do not touch; lead approved 2026-10-24 scope addition)"
+  }
+}

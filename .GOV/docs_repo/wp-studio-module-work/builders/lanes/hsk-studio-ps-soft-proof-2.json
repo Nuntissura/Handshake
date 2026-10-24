@@ -1,0 +1,92 @@
+{
+  "crate": "hsk-studio-folio + hsk-studio-session (source.rs token) + hsk-studio-package (tests/externals.rs) + hsk-studio-harness-view + hsk-studio-harness (RUN-UI.md, tests/viewer_shell.rs:641 exception) + hsk-studio-prism (gamut.rs doc line)",
+  "lane": "SMB-PS-SOFT-PROOF-2",
+  "status": null,
+  "phase": "slices 1-5 committed locally, HEAD d5af057a (base origin 7a16f66d); bundled lane-check run 1 GREEN on D: at d5af057a (578/578, 22 skipped pre-existing, clippy over the 6 crates + 21 dependents exit 0, no warning in owned files); PUSH HOLD: not pushed, waiting for the lead's R39 freeze sha (V4-14)",
+  "commits": [
+    {
+      "sha": "7aac11f0",
+      "subject": "slice 1: folio proof records + session token + package classification + folio DESCRIPTOR (multicam, proof)"
+    },
+    {
+      "sha": "6b898ed4",
+      "subject": "slices 2-4: harness-view proof menus, window, canvas preview + overlay, state_json proof"
+    },
+    {
+      "sha": "86095c58",
+      "subject": "slice 5: prism gamut.rs doc blank line"
+    },
+    {
+      "sha": "d5af057a",
+      "subject": "viewer_proof fixture is_multiple_of (clippy)"
+    }
+  ],
+  "capabilities_done": [
+    "slice 1 (7aac11f0): folio StudioProofRecords hsk.studio.proof_records@1 beside the document: saved conditions (name + six STU-COL-241 fields; proof_profile shipped working_cmyk|working_rgb|legacy_uncompensated_rgb | icc SCPF id + sha256 digest | colour_vision | operator_matrix [9] with Prism bounds), active_condition (saved or shipped name), proof_colours, gamut_warning {enabled, colour 0..=1 default 0.5 grey, opacity 0..=100 default 100 (STU-COL-244 table)}; validate_proof_records / parse_proof_records (bounded preflight, duplicate keys refused) / proof_records_schema; typed refusals InvalidField/InvalidId/DuplicateIdentity/DanglingReference/BudgetExceeded/Canceled; <= 256 conditions, Budget.nodes; session DOCUMENT_ENTRY_TOKENS + proof; package externals schema line + 3 classified rows; folio DESCRIPTOR text for multicam (SMB-PR-MULTICAM-1 text verbatim) and proof records",
+    "slice 2 (6b898ed4): VIEW > Proof (studio.color.proof: Proof Setup, Proof Colours, Gamut Warning, Colour-Vision Proof) and COLOR title > Proof (studio.color.proof_menu: + Custom Proof Condition, Save Proof Preset), ShellCommand::Proof(ProofMenuLeaf), one Viewer::proof_command(ProofCommand) surface behind menu and window, in-window proof setup window (presets = shipped + saved, gamut colour/opacity, custom condition fields, colour vision, save preset), availability 'no open document to proof' (remedy File > Open), no key bindings; every change = Folio-validated session entry proof as ONE undo step; survives save and reopen",
+    "slice 3 (6b898ed4): canvas proof view: Proof Colours = Prism SoftProof::run over the composite read-back (frame sRGB bytes decoded to linear light, WORKING_PROFILE_LINEAR_SRGB -> sRGB v4 display); Gamut Warning = apply_overlay on what is shown; frame, document and Export PNG/JPEG stay unproofed (STU-COL-164); GPU display-texture frames proofed from the render-cpu read-back (state read_back); frames > MAX_WIDE_PIXELS refused proof_pixel_limit",
+    "slice 4 (6b898ed4): state_json proof: entry, folio error (hostile entry = diagnostic, bytes unchanged), enabled, active_condition, condition (six fields), conditions, presets, gamut_warning {area_fraction, out_of_gamut_pixels, pixel_count, region_count, regions_truncated, regions, bounds, method, gamut_intent, threshold, max_delta_e76}, receipt (ids, sha256, intents, output_sha256), read_back, canvas proof|frame, preview_error, window, not_proven; RUN-UI.md usage section",
+    "slice 5 (86095c58): prism gamut.rs:17 blank //! line (doc_lazy_continuation)"
+  ],
+  "tests": {
+    "argv": "cd <lane worktree>/handshake-studio-assets && bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-ps-soft-proof-2 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-package -p hsk-studio-prism -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+    "exit": 0,
+    "sha": "d5af057a (local, unpushed)",
+    "passed": 578,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "on the lead's R39 freeze sha: git fetch origin && git rebase origin/codex/handshake-studio-assets; re-run the bundled check only if the rebase touched my crates or their dependencies; diff --stat check; push; then READY_FOR_VALIDATION",
+  "updated_at": "2026-10-24T03:39:37Z",
+  "notes": {
+    "worktree": "wt-studio-lanes/smb-ps-soft-proof-2 (branch lane/smb-ps-soft-proof-2, base origin 7a16f66d)",
+    "brief": "builders/briefs/lane-smb-ps-soft-proof-2.md",
+    "scope_exception": "crates/hsk-studio-harness/tests/viewer_shell.rs:641 titles list gains \"Color\" (COLOR > Proof needs the COLOR title, STU-SHL-011 order File, Edit, View, Color, Workspace, Help); lead-approved option (a) 2026-10-24 (HBR-STOP-005 exception, exactly that one line)",
+    "gameplan": "not used (retired per lead override)",
+    "rule_4a": "whole suites of folio, session, package, prism, harness-view, harness (features desktop + audio-batch: viewer_shell and the AccessKit test compiled); clippy over the 6 crates and 21 direct dependents in the same lock hold",
+    "rule_4b": "new Folio record set: package suite included (externals every_folio_reference_property_is_classified PASS)",
+    "new_tests": [
+      "folio tests/proof_records.rs: proof_records_validate_six_fields_and_bounds, gamut_opacity_follows_the_parameter_table, proof_records_absent_keep_documents_byte_identical",
+      "harness-view tests/viewer_proof.rs: proof_menus_list_the_spec_leaves, proof_menu_is_unavailable_without_a_document, accesskit_click_toggles_proof_colours (desktop), selecting_a_preset_writes_the_document_entry_and_undo_restores, custom_condition_and_save_preset_round_trip_through_save_and_reopen, proof_colours_change_the_displayed_texture_not_the_document, export_stays_unproofed_while_proof_is_on, gamut_overlay_marks_out_of_gamut_pixels_with_the_configured_colour, state_json_reports_area_fraction_and_regions, hostile_proof_entries_read_as_folio_diagnostics, not_proven_lines"
+    ],
+    "spec_basis": [
+      "STU-COL-240",
+      "STU-COL-241",
+      "STU-COL-242",
+      "STU-COL-243",
+      "STU-COL-244 (gamut_warning.opacity 0..100 default 100 percent)",
+      "STU-COL-164",
+      "STU-COL-250",
+      "STU-SHL-025 (Proof | submenu | studio.color.proof)",
+      "STU-SHL-030 (COLOR Proof submenu incl. Custom Proof Condition, Save Proof Preset)",
+      "STU-SHL-011 (COLOR between VIEW and WORKSPACE)",
+      "STU-SHL-008 (British leaf labels)"
+    ],
+    "spec_deltas": [
+      "leaf command ids are a declared Studio reading: studio.color.proof.{setup,colours,gamut_warning,colour_vision} (VIEW) and studio.color.proof_menu.{setup,custom_condition,colours,gamut_warning,colour_vision,save_preset} (COLOR); STU-SHL-030 gives no COLOR submenu id and a menu id appears once in the bar (MENU-INV-2), so COLOR > Proof is studio.color.proof_menu; no key bindings (spec declares none; Photoshop Ctrl+Y / Ctrl+Shift+Y UNVERIFIED)",
+      "proof source = canvas composite in WORKING_PROFILE_LINEAR_SRGB, read back as the frame's 8-bit sRGB bytes decoded to linear light; display profile sRGB v4; working_rgb proofs to the same working space; working_cmyk = document working_space_cmyk else the vector records' CMYK StudioIccProfile marked working_space (bytes from the vector entry), refused proof_no_cmyk_working_profile otherwise",
+      "ICC proof profile reference = SCPF id + sha256 of a StudioIccProfile in the vector records (Folio checks the shape, the host resolves bytes and the digest)",
+      "shipped preset names are Prism's; a saved condition may not reuse one; shipped presets as records carry Prism's defaults (relative/relative, BPC on, paper/ink off)",
+      "choosing a condition (Proof Setup, Custom, Colour-Vision) turns Proof Colours on; a toggle with no active condition selects working_cmyk when resolvable else working_rgb; Proof Colours / Gamut Warning on without an active condition is refused by Folio",
+      "Save Proof Preset saves the active condition under a new name, the active condition stays",
+      "gamut warning without Proof Colours overlays the unproofed frame (frame bytes / 255 as display RGB); every pixel judged incl. transparent ones, alpha kept",
+      "GPU shared-device frames: proof view on the render-cpu read-back (declared, state read_back); frames above MAX_WIDE_PIXELS refused proof_pixel_limit"
+    ],
+    "unverified": [
+      "Photoshop proof menu bindings, default proof condition, gamut-warning colour/opacity defaults, proof-preset file semantics (D5)"
+    ],
+    "not_proven": [
+      "NOT_PROVEN: GPU shared-device display path with proof on (desktop window)",
+      "NOT_PROVEN: equality with Photoshop Proof Colors / Gamut Warning output and defaults (no D5 proof case)"
+    ],
+    "gaps": [
+      "proof preview is CPU (read-back), not on the GPU display path",
+      "no chunked proof for frames above Prism's 2,097,152-pixel per-call bound",
+      "custom-condition window lists the document's StudioIccProfile records; no picker to add a new ICC profile"
+    ],
+    "shared_files": "folio lib.rs (2 mod lines + DESCRIPTOR hunk), session source.rs (token + doc lines), package tests/externals.rs (1 schema line + 3 rows), harness-view shell.rs and mod.rs additive hunks; no other lane's hunks; Cargo.lock untouched; no new crate edge or crates.io dependency",
+    "run_history": "cargo check --tests (6 crates, desktop+audio-batch) clean; bundled run 1 green at d5af057a"
+  }
+}
