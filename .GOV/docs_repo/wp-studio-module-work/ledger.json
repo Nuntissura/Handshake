@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-24T04:28:09Z",
+ "updated_at": "2026-10-24T05:06:17Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9924,18 +9924,21 @@
   {
    "lane_id": "SMB-LR-HEALING-1",
    "crate": "hsk-studio-develop (new retouch.rs + additive hunks) + harness-view develop_entry.rs + interop-lrcat xmp_sidecar.rs",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "blocked_on": null,
    "owner": "builder (Opus/high), lead dispatch 2026-10-24T04:28:09Z",
    "lane_file": "builders/lanes/hsk-studio-lr-healing-1.json",
    "brief": "builders/briefs/lane-smb-lr-healing-1.md",
    "worktree": "wt-studio-lanes/smb-lr-healing-1 (lane/smb-lr-healing-1 @b9c311e5, created by the lead)",
    "disk": "C:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "c9a32dd6",
+   "commits": [
+    "125e7d6c develop retouch records, heal/clone/spot removal, core distraction removal + harness-view develop_entry encode/decode (slices 1-3)",
+    "c9a32dd6 interop-lrcat crs:RetouchAreas decode (slice 4)"
+   ],
    "verdicts": [],
-   "note": "Lightroom heal/clone/spot removal (STU-RAW-015/124) + core distraction removal via pigment on-device fill (STU-RAS-143); generative fill refuses model_unavailable; red-eye refused (no spec fields)",
+   "note": "Lightroom heal/clone/spot removal (STU-RAW-015/124) + core distraction removal via pigment on-device fill (STU-RAS-143); generative fill refuses model_unavailable; red-eye refused (no spec fields); READY 2026-10-24 on c9a32dd6: 402 passed / 0 failed / 39 skipped on C: (develop, harness-view, harness, interop-lrcat). Lead-accepted scope exceptions (HBR-STOP-005, to disclose to the Operator): develop local.rs windowed brush raster (same arithmetic) + Mask::validate pub(crate); interop-lrcat fix: nested rdf:Description in a list item no longer counts as a repeated top-level property (previously failed the read with xmp_property_repeated). Gaps: window does not enable_retouch (harness-view view/develop.rs), no spot tool, no XMP write-back of retouch areas, circle/gradient masks dropped with loss note; lrcat field names UNVERIFIED",
    "remediation": null
   },
   {
