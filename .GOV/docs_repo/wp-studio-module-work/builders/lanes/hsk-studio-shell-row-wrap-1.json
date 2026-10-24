@@ -1,0 +1,71 @@
+{
+ "crate": "hsk-studio-harness-view",
+ "lane": "SMB-SHELL-ROW-WRAP-1",
+ "status": "READY_FOR_VALIDATION",
+ "phase": "pushed bfb5843c to origin/codex/handshake-studio-assets; whole harness-view + harness suites green (265/265, D: per lead during R40)",
+ "commits": [
+  {
+   "sha": "8b921154",
+   "subject": "harness-view: toolbar, Layers and other wrapping rows wrap their items (shared view::wrap: wrap_item moved from develop.rs, wrap_measured for sliders/checkboxes/combos); headless test viewer_shell_rows.rs"
+  },
+  {
+   "sha": "bfb5843c",
+   "subject": "harness-view: Layers panel content spans the panel width (the wrapped button row no longer narrows the panel every frame)"
+  }
+ ],
+ "capabilities_done": [
+  "view/wrap.rs: wrap_item (moved from develop.rs, no copy; develop.rs and develop/spot.rs use it via `use super::wrap::wrap_item`) and wrap_measured (non-text items sized from their previous frame, drawn with TextWrapMode::Extend); both are a plain push_id outside a wrapping layout",
+  "toolbar row and tool option rows wrap their items; Layers panel buttons wrap; Layers panel keeps its default or dragged width"
+ ],
+ "tests": {
+  "red_probe": {
+   "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-shell-row-wrap-1 --disk ssd --tests toolbar_and_layers_stable -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+   "sha": "868be362 + new test only (fix stashed)",
+   "exit": 100,
+   "passed": 0,
+   "failed": 3
+  },
+  "run_1": {
+   "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-shell-row-wrap-1 --disk d -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+   "sha": "8b921154",
+   "exit": 100,
+   "passed": 262,
+   "failed": 3,
+   "failure": "viewer_shell_rows: Layers panel narrowed every frame 206 -> 96 px once its row wrapped (toolbar already fixed at 107 px)"
+  },
+  "confirming": {
+   "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-shell-row-wrap-1 --disk d -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+   "sha": "bfb5843c",
+   "exit": 0,
+   "passed": 265,
+   "failed": 0,
+   "skipped": 20
+  }
+ },
+ "blockers": [],
+ "bg_pids": [],
+ "next": "validation round",
+ "updated_at": "2026-10-24T10:23:15Z",
+ "pushed_sha": "bfb5843c4c0d4098bfa2504750b3d7f8d3917a6a",
+ "diagnosis_refs": [
+  "diagnostics/smb-lr-healing-2-1.md"
+ ],
+ "notes": {
+  "sites_fixed": {
+   "src/view/mod.rs": "914 (Layers panel set_min_width), 929 (Layers buttons), 1313 tools, 1326 combine, 1337 Deselect, 1343-1349 brush size/hardness/opacity/colour, 1357 Undo, 1361 Redo",
+   "src/view/vector.rs": "vector_options_ui 2100-2171 (22 items: fill/stroke checkboxes and colours, width and shape sliders, End path, pathfinder combo; toolbar row)",
+   "src/view/select_liquify.rs": "ps_options_ui 415-449 (11 sliders/checkboxes/combos; toolbar row)",
+   "src/view/hosted.rs": "526 button helper (Align / Distribute / Outline Stroke rows of hosted surfaces)",
+   "src/view/waveform.rs": "921, 926, 937 (amplify / normalize DragValues, snap checkbox), 1006 button helper (waveform panel row)",
+   "src/view/design/instance.rs": "718 variant row, 771 Reset override, 787 Swap row (same bug, same helper; design* listed per brief)",
+   "src/view/develop.rs": "wrap_item removed (moved to view/wrap.rs); call sites unchanged"
+  },
+  "sizes_before_after": "tests/viewer_shell_rows.rs, PanelState rects. Before (868be362): toolbar 803.0 px at 1400x900 (default and star tool), 825.0 px at 900x700; Layers 262.2 then 282.4 px (overflow width). After the item fix only (8b921154): toolbar 107.0 px at 1400x900, 192.0 px at 900x700, stable over 23 frames; Layers narrowed 206.0 -> 175.6 -> 156.6 -> ... -> 96.0 px (SidePanel stores the width its content used; the wrapped row uses less). After bfb5843c: all three tests pass (toolbar height and Layers width identical over 20 frames after 3 warm-up frames, toolbar <= 200 px at 1400x900, <= 350 px at 900x700); passing values not printed by nextest (captured output).",
+  "F-TL-1": "builders/lanes/hsk-studio-timeline-ui-1.json findings F-TL-1 / remaining_finding (toolbar ~800 px on a 1200 px screen): reproduced at 868be362 (803 px at 1400x900) and fixed (107 px); cause: push_id items in the wrapping tool row (tools_ui, vector_options_ui, ps_options_ui) shrink to one glyph and wrap glyph by glyph, not the separators alone",
+  "not_fixed": "waveform FADE_CURVE ComboBox::from_id_salt sits directly in the row (no push_id; wrapping it would change its persistent id): left as is. Right properties/develop SidePanel not touched (develop lane's rows; may narrow the same way when no wide fixed row is present: UNVERIFIED). Hosted egui::Window sizes not tested",
+  "rule_4e": "tests/viewer_shell_rows.rs is #![cfg(feature = \"viewer\")]; .config/round-features.toml has hsk-studio-harness-view [\"viewer\"]: covered",
+  "rule_4d": "no doc examples added",
+  "run_ui_md": "not changed (no user-visible behaviour described there changes); rustdoc in view/wrap.rs and mod.rs",
+  "lead_instruction": "after the red probe on C: (took R40's gap past the 900 s hold, cold target) further runs on --disk d per lead"
+ }
+}
