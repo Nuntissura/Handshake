@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-24T05:52:50Z",
+ "updated_at": "2026-10-24T05:53:27Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9944,18 +9944,22 @@
   {
    "lane_id": "SMB-FIG-EDIT-1",
    "crate": "hsk-studio-harness-view (new view/design*, additive view/mod.rs, shell.rs Open routing, file_dialog.rs filter, vector.rs accessor) + RUN-UI.md",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "blocked_on": null,
    "owner": "builder (Opus/high), lead dispatch 2026-10-24T04:28:09Z",
    "lane_file": "builders/lanes/hsk-studio-fig-edit-1.json",
    "brief": "builders/briefs/lane-smb-fig-edit-1.md",
    "worktree": "wt-studio-lanes/smb-fig-edit-1 (lane/smb-fig-edit-1 @b9c311e5, created by the lead)",
    "disk": "C:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "74daa7a8",
+   "commits": [
+    "ecba5768 File > Open .fig -> editable <stem>.handshake + instance inspector (variants, properties, overrides, reset, swap) (slices 1-3)",
+    "fda07339 import fixes",
+    "74daa7a8 RUN-UI.md Rate stretch lines (routed from SMB-PR-RATE-STRETCH-1, doc-only)"
+   ],
    "verdicts": [],
-   "note": "Figma: File > Open makes .fig an editable native document; instance inspector (variant switch, overrides with reset, component swap) in Properties (STU-IO-006 row 35, STU-DS-008/016/017/160); no new edge",
+   "note": "Figma: File > Open makes .fig an editable native document; instance inspector (variant switch, overrides with reset, component swap) in Properties (STU-IO-006 row 35, STU-DS-008/016/017/160); no new edge; READY 2026-10-24 on 74daa7a8: 248 passed / 0 failed / 20 skipped on C: after rebasing onto e3fc44b5; 11/11 viewer_fig_edit incl. AccessKit. Lead decision: instance variant/override state persists via a Folio design-state record + session token \"design\" + package classifier (pattern of proof/multicam) in follow-up lane SMB-FIG-EDIT-2; until then edits are session-only and a reopened edited instance reads state unknown. Gaps: binding layers dropped (receipt), image paints not drawn, single-line first-style text, translation-only redraw; 2 clippy warnings in tests/viewer_fig_edit.rs (271, 510). Infra: warm-up build OS error 1455 (paging file too small) at default jobs; CARGO_BUILD_JOBS=6 succeeded",
    "remediation": null
   },
   {
