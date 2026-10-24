@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-24T02:32:57Z",
+ "updated_at": "2026-10-24T02:46:25Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9800,7 +9800,7 @@
    "candidate": null,
    "commits": [],
    "verdicts": [],
-   "note": "Premiere ripple/roll/slip/slide trims, nudges, trim session (STU-VID-026/026a/026b/035a/090); single writer of timeline.rs/timeline_ui.rs; any R39 remediation of SMB-TIMELINE-UI-1 is assigned here",
+   "note": "Premiere ripple/roll/slip/slide trims, nudges, trim session (STU-VID-026/026a/026b/035a/090); single writer of timeline.rs/timeline_ui.rs; any R39 remediation of SMB-TIMELINE-UI-1 is assigned here; PUSH HOLD until the R39 candidate is frozen (V4-14: carries READY SMB-TIMELINE-UI-1 files)",
    "remediation": null
   },
   {
@@ -9862,6 +9862,40 @@
    "commits": [],
    "verdicts": [],
    "note": "After Effects GUI 0 % -> 12.5-18.8 % unjudged when built (planner estimate)",
+   "remediation": null
+  },
+  {
+   "lane_id": "SMB-PS-SOFT-PROOF-2",
+   "crate": "hsk-studio-folio (proof_state.rs, lib.rs module + DESCRIPTOR text for proof and multicam) + session source.rs 'proof' token + package tests/externals.rs + harness-view view/proof.rs + shell.rs/view/mod.rs hunks + RUN-UI.md + prism src/proof/gamut.rs:17-18 doc fix",
+   "phase": "build",
+   "status": null,
+   "blocked_on": null,
+   "owner": "builder (Opus/high), lead dispatch 2026-10-24T02:46:25Z",
+   "lane_file": "builders/lanes/hsk-studio-ps-soft-proof-2.json",
+   "brief": "builders/briefs/lane-smb-ps-soft-proof-2.md",
+   "worktree": "wt-studio-lanes/smb-ps-soft-proof-2 (lane/smb-ps-soft-proof-2 @7a16f66d, created by the lead)",
+   "disk": "D:",
+   "candidate": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "document-scoped proof state record (STU-COL-240), VIEW/COLOR proof menus, preset menu, canvas gamut overlay; PUSH HOLD until the R39 candidate is frozen (V4-14: SOFT-PROOF-1, MULTICAM-1 and folio/session/package READY lanes)",
+   "remediation": null
+  },
+  {
+   "lane_id": "SMB-PR-MULTICAM-2",
+   "crate": "hsk-studio-pulse (src/multicam.rs) + hsk-studio-session (multicam.rs, timeline.rs or a step file, session.rs, lib.rs) + tests",
+   "phase": "build",
+   "status": null,
+   "blocked_on": null,
+   "owner": "builder (Opus/high), lead dispatch 2026-10-24T02:46:25Z",
+   "lane_file": "builders/lanes/hsk-studio-pr-multicam-2.json",
+   "brief": "builders/briefs/lane-smb-pr-multicam-2.md",
+   "worktree": "wt-studio-lanes/smb-pr-multicam-2 (lane/smb-pr-multicam-2 @7a16f66d, created by the lead)",
+   "disk": "D:",
+   "candidate": null,
+   "commits": [],
+   "verdicts": [],
+   "note": "one-step session commit for multicam changes incl. new source sequence, flatten/resolve at non-unit forward speed, markers through flatten, named refusals; PUSH HOLD until the R39 candidate is frozen (V4-14)",
    "remediation": null
   }
  ],
