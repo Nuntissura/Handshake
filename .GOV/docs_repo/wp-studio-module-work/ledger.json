@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-24T08:51:42Z",
+ "updated_at": "2026-10-24T09:23:03Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -10270,15 +10270,23 @@
    "brief": "builders/briefs/lane-smb-fig-edit-1.md",
    "worktree": "wt-studio-lanes/smb-fig-edit-1 (lane/smb-fig-edit-1 @b9c311e5, created by the lead)",
    "disk": "C:",
-   "candidate": "74daa7a8",
+   "candidate": "868be362",
    "commits": [
     "ecba5768 File > Open .fig -> editable <stem>.handshake + instance inspector (variants, properties, overrides, reset, swap) (slices 1-3)",
     "fda07339 import fixes",
-    "74daa7a8 RUN-UI.md Rate stretch lines (routed from SMB-PR-RATE-STRETCH-1, doc-only)"
+    "74daa7a8 RUN-UI.md Rate stretch lines (routed from SMB-PR-RATE-STRETCH-1, doc-only)",
+    "868be362 D16 remediation: zipped .fig detection via hsk_studio_interop_fig::open_fig (no ZIP magic copy) + test design_file_detection_zipped_bare_and_other_zip"
    ],
    "verdicts": [],
    "note": "Figma: File > Open makes .fig an editable native document; instance inspector (variant switch, overrides with reset, component swap) in Properties (STU-IO-006 row 35, STU-DS-008/016/017/160); no new edge; READY 2026-10-24 on 74daa7a8: 248 passed / 0 failed / 20 skipped on C: after rebasing onto e3fc44b5; 11/11 viewer_fig_edit incl. AccessKit. Lead decision: instance variant/override state persists via a Folio design-state record + session token \"design\" + package classifier (pattern of proof/multicam) in follow-up lane SMB-FIG-EDIT-2; until then edits are session-only and a reopened edited instance reads state unknown. Gaps: binding layers dropped (receipt), image paints not drawn, single-line first-style text, translation-only redraw; 2 clippy warnings in tests/viewer_fig_edit.rs (271, 510). Infra: warm-up build OS error 1455 (paging file too small) at default jobs; CARGO_BUILD_JOBS=6 succeeded",
-   "remediation": null
+   "remediation": {
+    "failure_ref": "studio-round/results/R40-canary/step0.policy.txt (exit 71, V4-05 new D16 site view/design/fig_import.rs:59)",
+    "class": "frozen duplicate D16 (hand-written ZIP magic sniff)",
+    "fix_commit": "868be362",
+    "proof": "round step-0 scanner read-only exit 0; lane-check 262/262 (harness-view + harness desktop+audio-batch); lead re-check lane-check --step0-only clean at 868be362",
+    "by": "remediation builder (Opus/medium), worktree lane/smb-fig-edit-1-r1",
+    "at": "2026-10-24T09:23:03Z"
+   }
   },
   {
    "lane_id": "SMB-PR-RATE-STRETCH-1",

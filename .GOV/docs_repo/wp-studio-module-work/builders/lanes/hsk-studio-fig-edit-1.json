@@ -2,7 +2,7 @@
   "crate": "hsk-studio-harness-view",
   "lane": "SMB-FIG-EDIT-1",
   "status": "READY_FOR_VALIDATION",
-  "phase": "slices 1-3 pushed at 74daa7a8 after a green bundled run",
+  "phase": "D16 remediation pushed at 868be362 after a green bundled run (R40 canary step-0 refusal fixed)",
   "commits": [
     {
       "sha": "ecba5768",
@@ -15,6 +15,10 @@
     {
       "sha": "74daa7a8",
       "subject": "RUN-UI.md: Rate stretch sub-list in the timeline trims section (SMB-PR-RATE-STRETCH-1 manual lines; lead request, doc-only)"
+    },
+    {
+      "sha": "868be362",
+      "subject": "harness-view: zipped .fig detection through the container owner open_fig (D16, no ZIP magic copy)"
     }
   ],
   "capabilities_done": [
@@ -23,17 +27,19 @@
     "slice 3: state_json()[\"design\"] = {instance: layer_id, instance_id, state import|edited|unknown, main_component_id, component_id, component_name, variants{values,current}, properties, overrides{node_id,node_name,field,value}, texts, swap_targets, error; instance_layers; last command result or error}; RUN-UI.md section (HBR-MAN-001)"
   ],
   "tests": {
-    "argv": "lane-check.sh --owner smb-fig-edit-1 --disk ssd -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast (CARGO_BUILD_JOBS=6)",
+    "argv": "lane-check.sh --owner smb-fig-edit-1-r1 --disk ssd -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast (CARGO_BUILD_JOBS=6)",
     "exit": 0,
-    "sha": "74daa7a8",
-    "passed": 248,
-    "failed": 0
+    "sha": "868be362",
+    "passed": 262,
+    "failed": 0,
+    "skipped": 20,
+    "new_test": "viewer_fig_edit::design_file_detection_zipped_bare_and_other_zip (zipped .fig, .FIG, bare canvas as .fig and .bin recognised; same ZIP as .zip / no extension, 3-byte file, absent path not)"
   },
   "blockers": [],
   "lock_wait_s": 0,
   "bg_pids": [],
   "next": "lead decision on instance-record persistence (session token design or vector-entry design members); then auto layout / constraints / variables editors and .fig export from the window (later slices of the design-editing gap)",
-  "updated_at": "2026-10-24T05:52:51Z",
+  "updated_at": "2026-10-24T09:22:03Z",
   "notes": {
     "worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-fig-edit-1 (branch lane/smb-fig-edit-1 at origin b9c311e5)",
     "infra": "warm build (cargo nextest --no-run) failed on C: with os error 1455 (paging file too small) while linking many test binaries in parallel with other agents; retried with CARGO_BUILD_JOBS=6",
@@ -62,5 +68,26 @@
     "lead_request": "74daa7a8 adds SMB-PR-RATE-STRETCH-1 manual lines verbatim to RUN-UI.md Timeline trims as a Rate stretch sub-list (separate pathspec commit, doc-only)",
     "rebase": "rebased onto origin e3fc44b5 before the one bundled run; origin unchanged at push; push verified (origin == 74daa7a8)",
     "lint_debt": "2 clippy warnings in tests/viewer_fig_edit.rs (bool_assert_comparison :271, explicit deref :510); warnings only, left so the judged commit stays stable (V4-14)"
-  }
+  },
+  "remediations": [
+    {
+      "failure_ref": "R40 canary step 0, exit 71, candidate 42b304c7 (Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R40-canary/step0.policy.txt): V4-05 new D16 site crates/hsk-studio-harness-view/src/view/design/fig_import.rs:59 (b\"PK\u0003\u0004\" sniff, introduced by ecba5768)",
+      "class": "frozen duplicate D16 sniff",
+      "fix_commit": "868be362",
+      "worktree": "wt-studio-lanes/smb-fig-edit-1-r1 (branch lane/smb-fig-edit-1-r1)",
+      "fix": "is_design_file takes the ZIP-or-bare verdict from the container owner hsk-studio-interop-fig open_fig (re-export of interop-fig-base container.rs) on the 8-byte head: Ok(Packaging::Zip) or Err(FigError::Zip(_)) = ZIP (no directory fits in 8 bytes), a bare head = NotFig; fig-kiwi prelude and .fig-extension gate unchanged; no new crate edge, no module edit",
+      "step0_evidence": "round step-0 policy block (tools/run-round.sh) run read-only on the workspace: exit 0, D16 new_sites {}; lane-check.sh (fdbe825c, runs the round's step 0) printed 'step 0 policy clean (V4-03 machine paths, V4-05 frozen duplicates)' on the rebased tree",
+      "tests": {
+        "argv": "lane-check.sh --owner smb-fig-edit-1-r1 --disk ssd -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast (CARGO_BUILD_JOBS=6)",
+        "exit": 0,
+        "sha": "868be362",
+        "passed": 262,
+        "failed": 0,
+        "skipped": 20,
+        "new_test": "viewer_fig_edit::design_file_detection_zipped_bare_and_other_zip (zipped .fig, .FIG, bare canvas as .fig and .bin recognised; same ZIP as .zip / no extension, 3-byte file, absent path not)"
+      },
+      "runs": "run 1 on 8148fc7e: 254/254 passed, then lane-check exited 2 from a syntax error after the tests because the steward rewrote lane-check.sh mid-run (fdbe825c, 10:46); run 2 same tree with the new script: exit 0, 254/254; origin moved (SMB-LR-HEALING-2 touched harness-view, develop, interop-lrcat), rebased to 868be362, run 3: exit 0, 262/262",
+      "at": "2026-10-24T09:22:03Z"
+    }
+  ]
 }
