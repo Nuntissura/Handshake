@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-24T05:34:16Z",
+ "updated_at": "2026-10-24T05:52:50Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9977,6 +9977,24 @@
    ],
    "verdicts": [],
    "note": "Premiere rate stretch + Speed/Duration planners, rate_stretch tool (R), Ctrl+R, exact slip at non-unit speed (STU-VID-026/031); single writer of TRIM-1's files; READY 2026-10-24 on e3fc44b5: 298 passed / 0 failed / 20 skipped on C: after rebasing onto HEALING-1 c9a32dd6 (pre-rebase 297/297); RUN-UI.md lines routed to SMB-FIG-EDIT-1 (owner of RUN-UI.md tonight); gaps: time remapping (PR-09 stays PARTIAL), no ripple-trailing option; Premiere limits UNVERIFIED",
+   "remediation": null
+  },
+  {
+   "lane_id": "SMB-MOTION-JS-CPU-CAP-TEST",
+   "crate": "hsk-studio-motion-js (tests/os_caps.rs only)",
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
+   "blocked_on": null,
+   "owner": "builder (Sonnet/medium), lead dispatch 2026-10-24T05:52:50Z",
+   "lane_file": "builders/lanes/hsk-studio-motion-js-cpu-cap-test.json",
+   "worktree": "wt-studio-lanes/smb-motion-js-cpu-cap-test (lane/smb-motion-js-cpu-cap-test @e3fc44b5, created by the lead)",
+   "disk": "C:",
+   "candidate": "df252615",
+   "commits": [
+    "df252615 job_cpu_cap test asserts typed Budget(Cpu) + killed_os_cpu + re-arm; wall bound only a 300 ms..9 s hang guard"
+   ],
+   "verdicts": [],
+   "note": "R39 finding (flaky, charged to no lane): 3 s wall bound missed at 4.54 s under host load though the typed Budget code was returned; fix asserts the product property; trade-off recorded: without a product CPU-time accessor the test cannot separate host poll from kernel backstop (follow-up). quickjs,test-faults 28/28, quickjs 25/25 on C:",
    "remediation": null
   }
  ],
