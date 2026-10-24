@@ -1,13 +1,29 @@
 {
   "crate": "hsk-studio-harness-view",
   "lane": "SMB-LR-HEALING-2",
-  "status": "BLOCKED",
-  "phase": "loop cap: two bundled runs on C: ssd failed on the same GUI-test failure (spot preview settle); slices 1-4 committed locally on lane/smb-lr-healing-2, NOT pushed",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed 09b4f637 to origin/codex/handshake-studio-assets after diagnosis smb-lr-healing-2-1 fix; slices 1-4 + layout fix green",
   "commits": [
-    {"sha": "574047ff", "subject": "harness-view (slices 1-2): enable wiring, typed spot ops, develop.spot.* controls, Develop panel spot section (LOCAL, not pushed)"},
-    {"sha": "3a1a3c28", "subject": "interop-lrcat (slice 3): crs:RetouchAreas write-back, circle masks decode, gradient masks a named loss (LOCAL, not pushed)"},
-    {"sha": "80ea5c88", "subject": "develop (slice 4): SettingsGroup::SpotRemoval copy/sync (LOCAL, not pushed)"},
-    {"sha": "19516258", "subject": "harness-view: retouch enables under develop.retouch_enables; settle on the preview rect (LOCAL, not pushed)"}
+    {
+      "sha": "79719fc1",
+      "subject": "harness-view (slices 1-2): enable wiring, typed spot ops, develop.spot.* controls, Develop panel spot section (pushed; was 574047ff)"
+    },
+    {
+      "sha": "2c6251b4",
+      "subject": "interop-lrcat (slice 3): crs:RetouchAreas write-back, circle masks decode, gradient masks a named loss (pushed; was 3a1a3c28)"
+    },
+    {
+      "sha": "321dba0b",
+      "subject": "develop (slice 4): SettingsGroup::SpotRemoval copy/sync (pushed; was 80ea5c88)"
+    },
+    {
+      "sha": "986385b3",
+      "subject": "harness-view: retouch enables under develop.retouch_enables; settle on the preview rect (pushed; was 19516258)"
+    },
+    {
+      "sha": "09b4f637",
+      "subject": "harness-view: develop panel rows wrap their buttons (wrap_item: row allocates each item, stable push_id inside); panel no longer widens every frame (pushed; diagnosis smb-lr-healing-2-1; was 46b5bcdd/fd02e21b before rebases)"
+    }
   ],
   "capabilities_done": [
     "slice 1 (green in both runs): viewer sets enable_retouch / enable_distraction_removal from the edit's lists (adapter fills never enable); DevelopOp AddSpot / MoveSpotSource / SetSpot / RemoveSpot / AddDistraction / RemoveDistraction, each one undo step through re-develop + tiles commit; controls develop.spot.<i>.{centre_x,centre_y,radius,feather,opacity,source_x,source_y}, develop.distraction.<i>.radius; state_json develop.spots / distraction / retouch_enables / spot_preview",
@@ -16,23 +32,40 @@
     "slice 4 (green): SettingsGroup::SpotRemoval (key spot_removal) copies retouch + distraction areas and both switches; adapter fills not copied, loss adapter_fill_image_specific"
   ],
   "tests": {
-    "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-lr-healing-2 --disk ssd -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness -p hsk-studio-interop-lrcat -p hsk-studio-develop --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
-    "exit": 100,
-    "sha": "19516258",
-    "passed": 427,
-    "failed": 3
-  },
-  "blockers": [
-    {
-      "error": "panicked at crates\\hsk-studio-harness-view\\tests\\viewer_develop_spot.rs:202:5: the spot preview did not settle: {\"frame\":[640,320],\"gesture\":null,\"mode\":\"heal\",\"rect\":[290.0,890.0,570.0,1030.0]} (tests clicking_the_preview_adds_a_spot_at_the_pointer, dragging_the_source_handle_moves_the_source, spot_controls_are_accesskit_nodes; run 1 at 80ea5c88 failed the same three at the same line with the drawn-list settle condition)",
-      "file_line": "crates/hsk-studio-harness-view/tests/viewer_develop_spot.rs:202 (settle helper)",
-      "attempts": 2
+    "probe": {
+      "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-lr-healing-2 --disk ssd --tests clicking_the_preview_adds_a_spot_at_the_pointer,dragging_the_source_handle_moves_the_source,spot_controls_are_accesskit_nodes -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+      "sha": "46b5bcdd",
+      "exit": 0,
+      "passed": 3,
+      "failed": 0
+    },
+    "confirming": {
+      "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-lr-healing-2 --disk ssd -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness -p hsk-studio-interop-lrcat -p hsk-studio-develop --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+      "sha": "fd02e21b (rebased on c3c7201b)",
+      "exit": 0,
+      "passed": 430,
+      "failed": 0
+    },
+    "post_rebase": {
+      "argv": "same as confirming",
+      "sha": "09b4f637 (rebased on 42b304c7: SMB-FIG-EDIT-2 harness-view design + folio)",
+      "exit": 2,
+      "passed": 435,
+      "failed": 0,
+      "note": "clippy (crates + dependents) finished and all 435 tests passed; exit 2 = bash syntax error at lane-check.sh:76 because the steward rewrote lane-check.sh (fdbe825c, 10:46) while the run was executing (infrastructure, not product)"
+    },
+    "step0": {
+      "argv": "lane-check.sh --step0-only",
+      "sha": "09b4f637",
+      "exit": 71,
+      "note": "V4-05 new D16 site crates/hsk-studio-harness-view/src/view/design/fig_import.rs:59 (zip_named_fig, introduced by SMB-FIG-EDIT-1 ecba5768, already on origin 42b304c7); not a lane path, lane diff adds no site"
     }
-  ],
+  },
+  "blockers": [],
   "lock_wait_s": 546,
   "bg_pids": [],
-  "next": "lead decision: allow a focused diagnostic run of viewer_develop_spot (UNVERIFIED hypothesis: the preview rect alternates between two layouts frame to frame, e.g. the right panel's ScrollArea scrollbar toggling, so no two consecutive frames match within 8; fix = settle on a rect repeated within N frames or bound the oscillation, then one bundled run, rebase, push)",
-  "updated_at": "2026-10-24T07:04:11Z",
+  "next": "validation round; steward/lead: step-0 V4-05 site in SMB-FIG-EDIT-1/2 fig_import.rs:59 (origin) needs a duplicate-fingerprints allowance or fix by its owner; lane-check.sh changed mid-run (fdbe825c)",
+  "updated_at": "2026-10-24T08:51:02Z",
   "notes": {
     "spec_basis": {
       "STU-RAW-015": "a heal/clone spot-removal tool with source-point control ... develop-scoped operations on StudioRawDevelop and reuse the raster retouch primitives of 14.4",
@@ -54,12 +87,33 @@
       "NOT_PROVEN: Lightroom spot-tool gestures and crs:RetouchAreas field spelling (no Lightroom oracle, D5)",
       "NOT_PROVEN: real desktop window"
     ],
-    "gaps": ["slice 2 GUI tests not green (blocker)", "canvas spot tool", "red-eye (spec gap)", "XMP encode of distraction areas (no crs field known)"],
+    "gaps": [
+      "slice 2 GUI tests not green (blocker)",
+      "canvas spot tool",
+      "red-eye (spec gap)",
+      "XMP encode of distraction areas (no crs field known)"
+    ],
     "run_ui_md_lines": [
       "Develop > Spot removal (top of the Develop panel): pick Spot mode heal / clone / distraction, then click the preview to place a spot (radius 0.05 of the shorter side), or drag from an empty point to set the radius.",
       "Drag a spot's yellow source circle, or Alt+drag from inside a spot, to move its source. Each spot row has a type switch (heal <-> clone) and Remove; distraction spots have Remove. Every change is one EDIT > Undo step.",
       "Sliders develop.spot.<i>.centre_x/centre_y/radius/feather/opacity/source_x/source_y and develop.distraction.<i>.radius sit in the Spot removal section; state_json develop.spots, develop.distraction, develop.retouch_enables and develop.spot_preview (rect, frame, mode) show the state."
     ],
-    "rules": "C: ssd only, CARGO_BUILD_JOBS=6; gameplan not used; Cargo.lock untouched; no new dependency or crate edge; view/mod.rs untouched; no doc examples added; nothing pushed (loop cap)"
-  }
+    "rules": "C: ssd only, CARGO_BUILD_JOBS=6; gameplan not used; Cargo.lock untouched; no new dependency or crate edge; view/mod.rs untouched; no doc examples added; pushed 09b4f637 after diagnosis; develop.rs change beyond additive: existing develop/family/export rows switched from bare push_id to wrap_item (layout fix, same ids and labels); rule 4c no machine paths added; 4d no doc examples; 4e round-features has harness-view [viewer] and [desktop, audio-batch]",
+    "findings": {
+      "F-LRH2-1": "develop panel creep: ui.push_id items inside ui.horizontal_wrapped never wrap (egui 0.33 scope_dyn); past the row end they get zero width, text shrinks to one glyph, the right SidePanel stores the overflow and widens every frame (real window: develop panel grows ~300 -> ~1200 px over ~10 frames, canvas squeezed). Fixed for develop.rs rows and spot.rs rows via wrap_item.",
+      "F-LRH2-2": "same egui mechanism remains outside this lane: viewer toolbar (view/mod.rs tools_ui sliders/selectables in push_id, F-TL-1 ~800 px toolbar) and the Layers panel button row (view/mod.rs:912-928); owners of view/mod.rs can reuse the wrap_item pattern."
+    }
+  },
+  "diagnosis_refs": [
+    "diagnostics/smb-lr-healing-2-1.md"
+  ],
+  "pushed_sha": "09b4f6379c1698b637a7a440a1372d011634aee8",
+  "resolved_blockers": [
+    {
+      "error": "viewer_develop_spot.rs:202 the spot preview did not settle (runs 1-2)",
+      "diagnosis_ref": "diagnostics/smb-lr-healing-2-1.md",
+      "fix": "09b4f637",
+      "proof": "probe 3/3 at 46b5bcdd; bundled 430/430 at fd02e21b; 435/435 at 09b4f637"
+    }
+  ]
 }
