@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-24T02:15:58Z",
+ "updated_at": "2026-10-24T02:32:57Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9806,18 +9806,24 @@
   {
    "lane_id": "SMB-PS-SOFT-PROOF-1",
    "crate": "hsk-studio-prism (new src/proof*, tests/soft_proof.rs)",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "blocked_on": null,
    "owner": "builder (Opus/high), lead dispatch 2026-10-24 ~01:30Z",
    "lane_file": "builders/lanes/hsk-studio-ps-soft-proof-1.json",
    "brief": "builders/briefs/lane-smb-ps-soft-proof-1.md",
    "worktree": "wt-studio-lanes/smb-ps-soft-proof-1 (lane/smb-ps-soft-proof-1 @1e3ae3d4, created by the lead)",
    "disk": "D:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "7a16f66d",
+   "commits": [
+    "5b16a413 proof condition record + presets (slice 1)",
+    "cd713954 two-intent proof chain (slice 2)",
+    "ddd24a60 colour-vision proof conditions (slice 3)",
+    "1e1c1e6e gamut warning + in-gamut substitute + SOFT_PROOF_DESCRIPTOR (slice 4)",
+    "7a16f66d clippy fix (pushed HEAD)"
+   ],
    "verdicts": [],
-   "note": "Photoshop soft proofing engine (STU-COL-022/023/240-245/138): proof condition, two-intent chain, CVD proofs, gamut warning, in-gamut substitute; document-scoped proof state and window toggle are follow-ups",
+   "note": "Photoshop soft proofing engine (STU-COL-022/023/240-245/138): proof condition, two-intent chain, CVD proofs, gamut warning, in-gamut substitute; document-scoped proof state and window toggle are follow-ups; READY 2026-10-24 on 7a16f66d: prism whole suite 184 passed / 0 failed / 2 skipped (pre-existing), 17 new soft_proof tests, clippy prism + direct dependents no errors (2 doc-format warnings at src/proof/gamut.rs:17-18 left for the next prism change); green run on pre-rebase 2fbca5c7, rebase touched no prism file or dependency; declared readings in notes.spec_deltas (CMYK gamut threshold 5 dE CIE76, warning colour mid grey, legacy uncompensated RGB = unmanaged display)",
    "remediation": null
   },
   {

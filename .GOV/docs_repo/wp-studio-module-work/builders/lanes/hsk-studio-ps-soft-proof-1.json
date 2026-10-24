@@ -1,0 +1,95 @@
+{
+  "crate": "hsk-studio-prism",
+  "lane": "SMB-PS-SOFT-PROOF-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed 7a16f66d (origin codex/handshake-studio-assets); bundled run green on pre-rebase 2fbca5c7, rebase onto dbc31c18 touched no prism file or prism dependency (git diff 2fbca5c7 HEAD over prism/accord/observe/Cargo.toml empty), so no re-run",
+  "commits": [
+    {
+      "sha": "5b16a413",
+      "subject": "slice 1: proof condition record (six independent fields, STU-COL-241), shipped presets (STU-COL-242/243), Machado 2009 CVD matrices"
+    },
+    {
+      "sha": "cd713954",
+      "subject": "slice 2: two-intent proof chain (STU-COL-022/023/240), paper colour / black ink display-stage readings, toggle off = plain display transform, hostile refusals before allocation"
+    },
+    {
+      "sha": "ddd24a60",
+      "subject": "slice 3: colour-vision proof conditions + bounded operator matrices (STU-COL-243)"
+    },
+    {
+      "sha": "1e1c1e6e",
+      "subject": "slice 4: gamut warning (STU-COL-244/138) + explicit in-gamut substitute (STU-COL-245), SOFT_PROOF_DESCRIPTOR"
+    },
+    {
+      "sha": "7a16f66d",
+      "subject": "clippy needless_range_loop (enumerate); pushed HEAD"
+    }
+  ],
+  "capabilities_done": [
+    "ProofCondition {name, proof_profile, proof_intent, display_intent, black_point_compensation, simulate_paper_color, simulate_black_ink} + ProofConditionRecord::to_json, select_proof_condition",
+    "shipped_proof_conditions: working_cmyk, working_rgb, legacy_uncompensated_rgb, protanopia, deuteranopia, tritanopia",
+    "prepare_soft_proof / SoftProof::run: document -> proof device (proof_intent, BPC) -> display (display_intent), toggle via enabled flag, document buffer immutable, receipt names both intents, both BPC reports, ids/hashes, output_sha256",
+    "colour-vision proofs (Machado 2009 severity 1.0, linear-light sRGB proof device) and OperatorSimulation (finite, |c|<=4, row sums 0..=2) through the same chain",
+    "SoftProof::gamut_warning: mask, area_fraction, bounds, 8-connected regions capped at 256 (region_count, regions_truncated), max_delta_e76, GamutWarningStyle colour + opacity 0..=100 default 100, apply_overlay",
+    "SoftProof::in_gamut_substitute: explicit, active proof_intent, CIE76 delta, substitute_in_gamut re-check"
+  ],
+  "tests": {
+    "argv": "cd <lane worktree>/handshake-studio-assets && bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-ps-soft-proof-1 --disk d -- cargo nextest run -p hsk-studio-prism --no-fail-fast",
+    "exit": 0,
+    "sha": "2fbca5c7 (pre-rebase; prism tree identical in pushed 7a16f66d)",
+    "passed": 184,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 2258,
+  "bg_pids": [],
+  "next": "lead: validation round; follow-ups listed in notes.gaps",
+  "updated_at": "2026-10-24T02:32:25Z",
+  "notes": {
+    "worktree": "wt-studio-lanes/smb-ps-soft-proof-1 (branch lane/smb-ps-soft-proof-1, base origin 1e3ae3d4)",
+    "brief": "builders/briefs/lane-smb-ps-soft-proof-1.md",
+    "rule_4a": "whole hsk-studio-prism suite run (184 passed, 2 skipped pre-existing ignores; 17 new tests in tests/soft_proof.rs all PASS); clippy over prism and its direct dependents ran in the same lock hold, no errors",
+    "rule_4b": "no Folio field added: package suite not required",
+    "dependents": "public API additive only (mod proof + pub use; DESCRIPTOR string gains a soft_proof key and drops the stale softproof/gamut pending entries); no dependent pins the new names, so dependent suites not required",
+    "clippy_nits": "2 clippy doc_lazy_continuation warnings in src/proof/gamut.rs:17-18 (module doc paragraph after a list needs a blank //! line); left unfixed to keep the pushed tree identical to the green run; one-line doc fix for the next prism touch",
+    "spec_basis": [
+      "STU-COL-022",
+      "STU-COL-023",
+      "STU-COL-138",
+      "STU-COL-240",
+      "STU-COL-241",
+      "STU-COL-242",
+      "STU-COL-243",
+      "STU-COL-244 (gamut_warning.opacity 0..100 default 100 percent)",
+      "STU-COL-245",
+      "acc.gamut_coverage_readable"
+    ],
+    "spec_deltas": [
+      "STU-COL-242 'legacy uncompensated RGB' undefined: Studio reading = document RGB device values shown on the display unmanaged (display stage identity); refused for non-RGB documents (legacy_needs_rgb_document)",
+      "STU-COL-244 declares no out-of-gamut tolerance for table proof profiles: Studio reading = PCS round trip document -> proof device -> PCS, CIE76 > 5 (LittleCMS 2 cmsgmt.c threshold as cross-reference); matrix/Gray proof devices use the ClipReport linear test (tolerance 0.001)",
+      "STU-COL-244 declares no default warning colour: Studio reading = display RGB (0.5, 0.5, 0.5)",
+      "STU-COL-138 + STU-COL-244: perceptual/saturation proof intents never clip, so the gamut check runs under relative colorimetric",
+      "STU-COL-241 simulate_paper_color: Studio reading = absolute colorimetric display stage (PCS scaled by proof wtpt / display wtpt) applied after the display black-point map; simulate_black_ink = no BPC on the display stage; the two compose independently (4 distinct outputs, test paper_and_black_ink_flags_are_independent)",
+      "STU-COL-243: Machado 2009 matrices applied to linear-light sRGB (the paper page does not state the encoding); operator matrix bounds |c|<=4, row sums 0..=2 are Studio readings",
+      "toggle off = document -> display under display_intent with BPC on (Studio reading of the 'ordinary' display transform)",
+      "STU-COL-245 'nearest in-gamut colour under the active intent' read as: rendered by the proof device under proof_intent (device clamp), back to the document relative colorimetric without BPC, clamped 0..1 (not a delta-E minimisation)"
+    ],
+    "unverified": [
+      "Photoshop proof-colour numerics for paper white and black ink",
+      "Photoshop gamut-warning threshold and default colour",
+      "Photoshop proof defaults (Studio defaults: relative/relative, BPC on)",
+      "Illustrator/InDesign proof behaviour"
+    ],
+    "not_proven": [
+      "equality with Photoshop View > Proof Colors / Gamut Warning (no D5 proof case)",
+      "equality with LittleCMS cmsCreateProofingTransform + gamut check (no oracle file)"
+    ],
+    "gaps": [
+      "document-scoped proof state (STU-COL-240): Folio record + rule 4b package suite, follow-up lane",
+      "on-screen toggle, proof preset menu and gamut overlay in the window (harness-view), follow-up lane",
+      "CMYK in-gamut substitute is not asserted substitute_in_gamut (boundary round-trip accuracy of table profiles; asserted for matrix proof devices)"
+    ],
+    "cvd_source": "Machado, Oliveira, Fernandes 2009 IEEE TVCG 15(6); matrices verified against https://www.inf.ufrgs.br/~oliveira/pubs_files/CVD_Simulation/CVD_Simulation.html (numbers only)",
+    "intermediate_commits": "only the pushed HEAD 7a16f66d (= tree of green 2fbca5c7 for prism) was built and tested; slice commits 5b16a413..1e1c1e6e were committed locally without separate builds"
+  }
+}
