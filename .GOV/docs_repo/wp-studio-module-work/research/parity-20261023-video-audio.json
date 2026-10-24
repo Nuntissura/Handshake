@@ -1,0 +1,343 @@
+{
+  "schema": "hsk.studio.research.parity_update@1",
+  "file_id": "WP-KERNEL-STUDIO-PARITY-UPDATE-20261023-VIDEO-AUDIO",
+  "updated_at": "2026-10-23T14:00:00Z",
+  "by": "read-only parity auditor (Claude Opus 5.5) for the lead; no build, test, cargo or rustup command was run; product read only through git show/grep/log on origin/codex/handshake-studio-assets after git fetch",
+  "wp": "WP-KERNEL-STUDIO",
+  "apps": ["premiere_pro", "after_effects", "audition"],
+  "basis": {
+    "baseline": "research/feature-completeness-20261021.json (tip e64eacd) + research/audit-20261021/parity-{premiere_pro,after_effects,audition}.json + research/audit-20261021/gui-surfaces.json",
+    "origin_tip": "5ab33c9 (origin/codex/handshake-studio-assets after git fetch 2026-10-23; 53 commits e64eacd..5ab33c9)",
+    "rounds_read": "validation/round-R36.json (candidate a105766, 291 PASS / 2 FAIL) and validation/round-R37.json (candidate 1d139a6, 297 PASS / 1 FAIL). R38 (candidate e3953de) never finished: canary lost in the machine restart 2026-10-23 ~08:40Z (START_LOG.md:565); nothing after 1d139a6 is judged",
+    "ledger": "ledger.json updated_at 2026-10-23T02:37:46Z",
+    "lane_files": ["builders/lanes/hsk-studio-timeline-ui-1.json", "hsk-studio-ae-roto-wiring.json", "hsk-studio-ae-roto-timeremap.json", "hsk-studio-ae-render-queue-2.json", "hsk-studio-ae-effect-stack-1.json", "hsk-studio-harness-shell-1.json", "hsk-studio-harness-shell-2.json", "hsk-studio-harness-panels-1.json", "hsk-studio-au-waveform-editor.json", "hsk-studio-ai-ae-oracle-followups.json", "hsk-studio-ae-particles-audio-presets.json", "hsk-studio-accord-composition-prefix.json (identity prefix only; no row change)"],
+    "local_worktrees": {
+      "smb-ae-effect-stack-1": "9d177e5, dde603e, c733641 (HEAD c733641, not an ancestor of origin; tests never run; golden pins still the literal 'PIN' at crates/hsk-studio-composite/tests/composition_effects.rs:35-36)",
+      "smb-harness-shell-2": "fc934f9, 8ddbae5 (not on origin; bundled run exit 75, no test ran)",
+      "smb-harness-panels-1": "bfe8f85, a7838c8, 587886c (not on origin; run 1 at a7838c8 182 pass / 13 fail, fix 587886c never run)"
+    },
+    "spec": "SPEC_CURRENT moved to v02.222 on 2026-10-23T00:12Z (the brief names v02.221; module 14 was read in .GOV/spec/master-spec-v02.222/spec-modules/14-studio-creative-suite.md by grep of clause ids only). STU-CMP-034 assisted rotoscoping at :29482, parameter table chatter rows :29561/:29565 (percent 0..100, v02.218 alignment), STU-CMP-100 RESOLVED at :29985",
+    "method_unchanged": "same row sets (25 / 24 / 22 rows), same evidence scale and same formulas as the 2026-10-21 audit (see recompute.formulas)"
+  },
+  "tiers": {
+    "DELIVERED_VALIDATED": "row level counted from lanes with PASS_Vn in R36/R37 only; READY and local work ignored. Note: R37 re-judged every reopened lane at 1d139a6 (fresh), but origin moved 29 commits since (folio, composite, pigment, pulse, harness-view changed), so these PASS proofs are stale again under CX-VAL-009 until the next round",
+    "DELIVERED_UNVALIDATED": "validated tier plus code on origin whose lane is READY_FOR_VALIDATION (SMB-AE-ROTO-WIRING d9de925, SMB-AE-RENDER-QUEUE-2 e3953de, SMB-TIMELINE-UI-1 5ab33c9); built-not-validated weight 0.5 per the audit",
+    "LOCAL": "unvalidated tier plus unpushed lane commits (LOCAL_UNVALIDATED, never delivered); same 0.5 weight for a capability that would become BUILT_NOT_VALIDATED"
+  },
+  "per_app": [
+    {
+      "app": "premiere_pro",
+      "baseline_20261021": {
+        "engine_pct_verified": 56.0,
+        "engine_pct_matrix": 59.0,
+        "engine_counts": {"VALIDATED": 11, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 12, "MISSING": 2},
+        "gui_pct_pooled_workflows": 0.0,
+        "gui_workflows": 10,
+        "strict_ui_row_pct": 4.0,
+        "strict_ui_row_pct_with_additions": 4.0,
+        "strict_note": "strict = rows reachable by a window widget of a PASS-judged surface / 25 (only PR-18, in an undocumented media build); the audit's 9-app strict figure is 14.3 %"
+      },
+      "changed_rows": [
+        {
+          "row": "PR-12 Snapping and timecode display",
+          "change": "snap-to-edit-point/marker/work-area/playhead magnet now exists (was the sole LOWER reason)",
+          "lane": "SMB-TIMELINE-UI-1",
+          "origin_commits": ["23c2376 (pulse snap, slice 2a)", "7eac4c6", "27aafd2", "5ab33c9"],
+          "code": ["crates/hsk-studio-pulse/src/snap.rs:77 pub fn snap_targets", "snap.rs:154 pub fn nearest_snap", "snap.rs:168 pub fn adjacent_edit"],
+          "tests": ["crates/hsk-studio-pulse/tests/snap.rs:83 snap_targets_list_edit_points_markers_work_area_and_playhead", "snap.rs:117 nearest_snap_picks_the_closest_target_within_the_distance", "snap.rs:144 hostile_sequences_are_refused_or_bounded", "crates/hsk-studio-harness-view/tests/viewer_timeline.rs:414 dragged_edges_snap_to_edit_points_within_the_snap_distance"],
+          "proof": "READY unvalidated (lane bundled run 223/223 at c48872d, lane claim; never in a round)",
+          "level": {"before": "PARTIAL", "validated": "PARTIAL", "unvalidated": "BUILT_NOT_VALIDATED", "local": "BUILT_NOT_VALIDATED"},
+          "residual": "feet+frames display still returns timecode_unsupported (crates/hsk-studio-pulse/src/display.rs:129)"
+        },
+        {
+          "row": "PR-03 Trim / PR-04 Razor / PR-05 Lift-extract / PR-11 Markers, work area",
+          "change": "GUI only: first timeline surface. WORKSPACE > Panels > Timeline (F10) draws ruler, tracks, clip blocks, sequence and clip markers, work-area bar, playhead on the program monitor clock; trim in/out (non-ripple), lift, ripple delete (extract), razor at playhead, move, add/next/prev marker, next/prev edit, all through pulse planners as one undo step each. Engine levels unchanged (already VALIDATED)",
+          "lane": "SMB-TIMELINE-UI-1",
+          "origin_commits": ["7eac4c6", "27aafd2", "8992a13", "f75249c", "cdb484b", "62ad523", "5ab33c9"],
+          "code": ["crates/hsk-studio-harness-view/src/view/shell.rs:67 Panel::Timeline, :135 F10, :453 unavailable 'the open document has no sequence'", "crates/hsk-studio-harness-view/src/view/timeline.rs:979-1004 RazorAtPlayhead / LiftClip / ExtractClip / TrimIn{ripple:false} / TrimOut{ripple:false}", "timeline.rs:701 move = LiftClip then assembly overwrite"],
+          "tests": ["crates/hsk-studio-harness-view/tests/viewer_timeline.rs:256 timeline_opens_from_the_workspace_menu_and_f10", ":301 accesskit_click_opens_the_timeline_and_clips_are_nodes", ":319 clip_blocks_sit_at_the_pixels_of_their_in_and_out", ":365 dragging_a_clip_edge_trims_it_through_pulse_and_undo_restores_it", ":463 razor_lift_and_ripple_delete_are_single_undo_steps", ":509 markers_show_add_at_the_playhead_and_jump", ":545 hostile_sequences_lay_out_bounded"],
+          "proof": "READY unvalidated. New evidence kind: these tests inject egui PointerButton/PointerMoved events (viewer_timeline.rs:181-188), the first simulated-input GUI proof in the harness (the 2026-10-21 GUI audit found 0)",
+          "level": {"engine": "VALIDATED (unchanged)", "gui": "timeline UI READY_UNJUDGED"},
+          "assessment_vs_gui_rows": {
+            "premiere_pro": "'Timeline assembly and editing' -> DOABLE_UNJUDGED (0.5). 'Trimming (ripple/roll/slip/slide)' stays ENGINE_ONLY: the panel trims in/out with ripple:false only; ripple, roll, slip, slide, trim session (STU-VID-026/026a), insert/overwrite drops, nest, transitions, track lock/mute/solo absent (lane gaps). Caveat: no command creates a sequence in the window (git grep new_sequence|create_sequence|NewSequence in harness-view/src: 0 hits), so the panel needs a .handshake package that already holds one",
+            "after_effects": "no change: the panel is the clip timeline; the keyframe timeline / composition panel (STU-SHL-091, STU-MOT-050) is not built",
+            "audition": "no change: audio clips are drawn on audio tracks but there is no multitrack mixing/clip-gain/automation UI; does not satisfy the multitrack-session workflow"
+          }
+        },
+        {
+          "row": "PR-07 Source monitor 3/4-point / PR-19 Program and source monitors / PR-23 Timeline audio mixing",
+          "change": "GUI reach: panels that were Viewer-API-only are now opened from WORKSPACE > Panels: Program Monitor F6, Source Monitor F7 (feature media, media file dialog), Mixer F8 (feature audio-batch); RUN-UI.md now documents the --features desktop,audio-batch build (audio-batch implies media)",
+          "lane": "SMB-HARNESS-SHELL-1",
+          "origin_commits": ["2defb17", "9ca2c59", "1f0e945", "5605a52", "45f04b2"],
+          "code": ["crates/hsk-studio-harness-view/src/view/shell.rs:60-72 enum Panel (ProgramMonitor, SourceMonitor, Timeline, Mixer, WaveformEditor, SpectralDisplay)", "shell.rs:119-125 feature(): SourceMonitor needs media, Mixer/WaveformEditor/SpectralDisplay need audio-batch", "crates/hsk-studio-harness/RUN-UI.md:17 desktop,audio-batch build, :57-61 panel table"],
+          "tests": ["crates/hsk-studio-harness/tests/viewer_shell.rs:243 function_keys_and_workspace_entries_open_every_surface", ":202 accesskit_clicks_reach_the_open_dialog_and_a_workspace_panel", ":372 greyed_entries_name_their_feature"],
+          "proof": "PASS_V1 in R37 @1d139a6 (ledger SMB-HARNESS-SHELL-1 'STUDIO-R37 PASS_V1'); stale since 7eac4c6 edited shell.rs",
+          "level": {"engine": "PR-07 VALIDATED, PR-19 PARTIAL, PR-23 VALIDATED (unchanged)", "gui": "matrix ui flags PR-07/PR-19/PR-23 move LOWER -> AGREE"},
+          "residual": "RUN-UI.md:187-188: the program monitor opened on a document sequence has no frame decoder bound (transport and scrub run, media clip frames are not resolved); RUN-UI.md:191 still says 'no timeline panel' (stale after 5ab33c9). PR-19 real-time performance on a real screen still unmeasured"
+        },
+        {
+          "row": "PR-18 Audio decode / PR-24 Export",
+          "change": "validation only: the READY D24-A codec-defaults remainder was judged",
+          "lane": "SMB-D24A-CODEC-DEFAULTS",
+          "origin_commits": ["3b73143 (pre-audit)"],
+          "code": ["git grep -i 'ac-3|eac3' in crates/hsk-studio-reel/src: 0 hits (AC-3 still absent)", "git grep -i 'AacEncoder|encode_aac|ProResEncoder' in crates: 0 hits (no AAC or ProRes encode)"],
+          "tests": "NOT_INSPECTED (test names not re-read; verdict from rounds)",
+          "proof": "PASS_V2 in R36 @a105766, PASS_V3 in R37 @1d139a6",
+          "level": {"before": "PARTIAL", "validated": "PARTIAL", "unvalidated": "PARTIAL", "local": "PARTIAL"}
+        }
+      ],
+      "recompute": {
+        "engine": {
+          "DELIVERED_VALIDATED": {"counts": {"VALIDATED": 11, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 12, "MISSING": 2}, "pct": 56.0},
+          "DELIVERED_UNVALIDATED": {"counts": {"VALIDATED": 11, "BUILT_NOT_VALIDATED": 1, "PARTIAL": 11, "MISSING": 2}, "pct": 57.0},
+          "LOCAL": {"counts": {"VALIDATED": 11, "BUILT_NOT_VALIDATED": 1, "PARTIAL": 11, "MISSING": 2}, "pct": 57.0}
+        },
+        "gui_pooled_workflows": {
+          "DELIVERED_VALIDATED": {"doable_judged": 4, "doable_unjudged": 0, "pct": 40.0, "doable": ["Import video media (Source Monitor F7 + media dialog; decoders of the media build only)", "Source monitor marks and 3/4-point insert/overwrite (F7; needs a document sequence)", "Program monitor playback (F6; frames of media clips not resolved per RUN-UI.md:187)", "Audio mixing (Mixer F8)"]},
+          "DELIVERED_UNVALIDATED": {"doable_judged": 4, "doable_unjudged": 1, "pct": 45.0, "added": ["Timeline assembly and editing (Timeline F10, READY)"]},
+          "LOCAL": {"doable_judged": 4, "doable_unjudged": 1, "pct": 45.0, "added": []},
+          "still_engine_only": ["Trimming ripple/roll/slip/slide", "Transitions", "Titles and colour", "Captions", "Export (render queue / presets)"]
+        },
+        "strict_ui_rows": {
+          "DELIVERED_VALIDATED": {"rows": ["PR-07", "PR-18", "PR-19", "PR-23"], "pct": 16.0},
+          "DELIVERED_UNVALIDATED": {"rows_added_from_READY_timeline": ["PR-03 (trim in/out only)", "PR-04", "PR-05", "PR-11", "PR-12"], "pct": 36.0},
+          "LOCAL": {"pct": 36.0}
+        }
+      },
+      "top_gaps": [
+        {"rank": 1, "row": "PR-10 Multicam", "level": "MISSING (weight 1.0 lost)", "spec": "[STU-VID-033] Multicam is a clip mode (14-studio-creative-suite.md:23597)", "lane_exists": false},
+        {"rank": 2, "row": "PR-25 Text-based editing, auto reframe, speech to text", "level": "MISSING", "spec": "NO_CLAUSE_FOUND: grep of clause headings for transcri|speech|text-based|auto reframe in module 14 found none", "lane_exists": false},
+        {"rank": 3, "row": "PR-08 Nested sequences (and timeline GUI trim modes)", "level": "PARTIAL; no nest command (git grep 'pub fn nest' in crates: only test helpers)", "spec": "[STU-VID-030] A sequence may be a clip (:23543), [STU-VID-030a] (:23550); trim modes [STU-VID-026] (:23476), [STU-VID-026a] (:23494)", "lane_exists": false},
+        {"rank": 4, "row": "PR-16 HEVC decode / PR-24 ProRes and AAC encode", "level": "PARTIAL", "spec": "[STU-VID-051] codec and container support (:24559), [STU-VID-084] GAP codec adapter selection (:25469), export [STU-VID-060]-[STU-VID-064] (:24658-:25329)", "lane_exists": false},
+        {"rank": 5, "row": "PR-20/PR-21 Transitions, effects, scopes, legal range", "level": "PARTIAL (one transition kind; no scopes)", "spec": "[STU-VID-032] transitions (:23579), [STU-VID-032a] (:23588), [STU-VID-105] scopes owned by 14.8 (:23464)", "lane_exists": false}
+      ],
+      "oracle": "absent: no Premiere Pro D5 oracle (audit); every changed row stays UNVERIFIED against Premiere. Timeline choices (overwrite-on-move, 8 px snap distance, snap priorities, M binding, green marker default) are Studio choices, Premiere behaviour UNVERIFIED (lane unverified_D5)"
+    },
+    {
+      "app": "after_effects",
+      "baseline_20261021": {
+        "engine_pct_verified": 58.3,
+        "engine_pct_matrix": 63.5,
+        "engine_counts": {"VALIDATED": 10, "BUILT_NOT_VALIDATED": 2, "PARTIAL": 12, "MISSING": 0},
+        "gui_pct_pooled_workflows": 0.0,
+        "gui_workflows": 8,
+        "strict_ui_row_pct": 0.0,
+        "strict_ui_row_pct_with_additions": 0.0
+      },
+      "changed_rows": [
+        {
+          "row": "AE-05 Spatial interpolation, roving, auto/continuous Bezier",
+          "change": "READY remainder judged",
+          "lane": "SMB-AI-AE-ORACLE-FOLLOWUPS",
+          "origin_commits": ["3a876c5", "87707e1", "fb9882c", "5a3186a", "3602062 (all pre-audit, now judged)"],
+          "code": ["crates/hsk-studio-motion/src/property.rs:116 pub fn with_spatial_tangents", "crates/hsk-studio-motion/src/spatial.rs:209 pub fn spatial_auto_bezier"],
+          "tests": "NOT_INSPECTED by name; oracle residue file crates/hsk-studio-motion/tests/d5_ae_expected_mismatch.txt still lists AE-02 three_keys_roving_middle (~0.011 px vs TOL_PX 0.01)",
+          "proof": "PASS_V1 R36 @a105766, PASS_V2 R37 @1d139a6",
+          "level": {"before": "BUILT_NOT_VALIDATED", "validated": "VALIDATED", "unvalidated": "VALIDATED", "local": "VALIDATED"}
+        },
+        {
+          "row": "AE-07 Expressions",
+          "change": "After Effects globals prelude (value, time, linear) judged",
+          "lane": "SMB-AI-AE-ORACLE-FOLLOWUPS",
+          "origin_commits": ["same as AE-05"],
+          "code": ["crates/hsk-studio-motion-js/src/lib.rs:39 pub use provider::AE_GLOBALS_PRELUDE"],
+          "tests": "NOT_INSPECTED by name (lane: tests/d5_ae_expressions.rs, AE-03 post-expression 3/3 MATCH)",
+          "proof": "PASS_V1 R36, PASS_V2 R37",
+          "level": {"before": "BUILT_NOT_VALIDATED", "validated": "VALIDATED", "unvalidated": "VALIDATED", "local": "VALIDATED"},
+          "residual": "only value, time and linear() are After Effects-compatible (audit top gap 3 unchanged)"
+        },
+        {
+          "row": "AE-10 Time remapping, frame blending, time stretch",
+          "change": "library judged (R36) and now wired: Folio stores time_remap and frame_blending per layer; composite lowers them (FrameBlended scene content); render queue honours the frame-blending switch",
+          "lane": "SMB-AE-ROTO-TIMEREMAP (library) + SMB-AE-ROTO-WIRING (wiring) + SMB-AE-RENDER-QUEUE-2 (queue switch)",
+          "origin_commits": ["3432d5c (library, pre-audit)", "0c6b978", "5958475", "026c3f6", "1674fd9", "2d2eaee", "9140dae", "d9de925", "5211e9b", "443f1fb", "427dda3", "e3953de"],
+          "code": ["crates/hsk-studio-folio/src/composition.rs:308 pub time_remap, :311 pub frame_blending, :314 pub roto", "crates/hsk-studio-folio/src/composition/roto.rs:70 enum StudioFrameBlending", "crates/hsk-studio-composite/src/composition.rs:147 SceneContent::FrameBlended", "crates/hsk-studio-composite/src/temporal/composition.rs:2224 lowering", "crates/hsk-studio-harness-view/src/view/timeline_export/render_queue.rs:120 apply_frame_blending_switch"],
+          "tests": ["crates/hsk-studio-composite/tests/composition_roto.rs:216 time_remap_records_lower_and_frame_blending_renders", "crates/hsk-studio-folio/tests/roto_records_contract.rs:219 enabling_time_remap_builds_the_identity_keys", "crates/hsk-studio-harness/tests/render_queue_settings.rs:562 frame_blending_switch_reaches_the_composition_layers", ":608 a_frame_blended_layer_renders_through_the_queue_renderer"],
+          "proof": "SMB-AE-ROTO-TIMEREMAP PASS_V1 R36 / PASS_V2 R37; SMB-AE-ROTO-WIRING FAIL_V1 R37 then remediated, READY on d9de925 (unvalidated; lane run 486/486); SMB-AE-RENDER-QUEUE-2 READY on e3953de (unvalidated; lane run 469/469 before final rebase)",
+          "level": {"before": "PARTIAL", "validated": "PARTIAL", "unvalidated": "BUILT_NOT_VALIDATED", "local": "BUILT_NOT_VALIDATED"},
+          "residual": "no GUI; Premiere clip speed ramps (PR-09) not covered"
+        },
+        {
+          "row": "AE-18 Keying, matte refinement, rotoscoping",
+          "change": "assisted roto wired to Folio records (strokes, spans, engine classic|learned, 22 STU-CMP-034 parameters), composite propagation, matte and refine stages, lost-frame reporting, freeze; learned engine is the spec's typed refusal",
+          "lane": "SMB-AE-ROTO-WIRING (on SMB-AE-ROTO-TIMEREMAP library)",
+          "origin_commits": ["0c6b978", "5958475", "026c3f6", "1674fd9", "2d2eaee", "9140dae", "d9de925"],
+          "code": ["crates/hsk-studio-folio/src/composition/roto.rs:119-122 enum StudioRotoEngine {Classic (default), Learned}", "roto.rs:368 pub struct StudioAssistedRoto", "crates/hsk-studio-composite/src/temporal/composition/roto.rs:344 pub fn propagate_roto, :11 model_unavailable:roto-learned-propagation, :87 COMPOSITION_ROTO_NOT_PROPAGATED", "crates/hsk-studio-composite/src/composition.rs:1104 SceneContent::Rotoscoped", "crates/hsk-studio-package/tests/externals.rs:562 StudioRotoStroke.path classified (R37 remediation)"],
+          "tests": ["crates/hsk-studio-composite/tests/composition_roto.rs:324 roto_records_propagate_into_the_matte_pipeline", ":405 lost_frames_are_reported_and_corrective_strokes_recover_them", ":434 freeze_locks_segmentation_and_matte_controls_stay_live", ":467 refine_stage_consumes_the_edge_refinement_engine", ":489 chatter_controls_refuse_outside_zero_to_one_hundred_on_both_stages", "crates/hsk-studio-folio/tests/roto_records_contract.rs:85, :126, :177", "crates/hsk-studio-package/tests/externals.rs:390 every_folio_reference_property_is_classified"],
+          "proof": "library PASS_V1 R36 (judged against STU-CMP-034 v02.217, round-R36.json:1940); wiring FAIL_V1 R37 (round-R37.json:1510), remediated + v02.218 alignment, READY d9de925 unvalidated",
+          "level": {"before": "PARTIAL", "validated": "PARTIAL", "unvalidated": "BUILT_NOT_VALIDATED", "local": "BUILT_NOT_VALIDATED"},
+          "residual": "no roto UI (no stroke tool, no span view); learned engine refuses model_unavailable per STU-CMP-034 item 4"
+        },
+        {
+          "row": "AE-22 Render queue",
+          "change": "reduced resolution (half/third/quarter/custom), 8/16/32 bpc, work-area and custom spans, frame-blending switch, straight/premultiplied RGB; still refused: fields and 3:2 pulldown, RGB+alpha output, wireframe, effects off, frame-rate conversion, post-render actions",
+          "lane": "SMB-AE-RENDER-QUEUE-2",
+          "origin_commits": ["5211e9b", "443f1fb", "427dda3", "e3953de"],
+          "code": ["crates/hsk-studio-harness-view/src/view/timeline_export/render_queue.rs:132 render_settings, :137 draft renders as best with a note, :84/:98 item_span + render_span_range, :165 refuse render_fields, :203 refuse output_alpha_codec", "crates/hsk-studio-folio/src/motion_records.rs:673 composition_work_areas"],
+          "tests": ["crates/hsk-studio-harness/tests/render_queue_settings.rs:132 reduced_resolutions_render_the_scene_at_the_reduced_size", ":179 bit_depths_quantise_to_their_levels_and_32_bit_is_unbounded", ":207 thirty_two_bit_rendering_keeps_values_above_one", ":231 alpha_output_modes_obey_the_straight_premultiplied_laws", ":398 spans_whole_composition_work_area_and_custom_in_out", ":444 the_queue_renders_the_work_area_at_reduced_resolution_and_depth", ":497 settings_still_refused_are_refused_before_rendering"],
+          "proof": "READY unvalidated (R38 was to judge it; lost)",
+          "level": {"before": "PARTIAL", "validated": "PARTIAL", "unvalidated": "PARTIAL", "local": "PARTIAL"},
+          "also_resolves": "AE-01 note 'Folio stores no work area' (record added, READY); AE-01 level stays VALIDATED"
+        },
+        {
+          "row": "AE-21 Particles / AE-23 Motion presets / AE-24 Audio in compositions",
+          "change": "validation only: the READY lane was judged; levels stay PARTIAL for the audit's reasons",
+          "lane": "SMB-AE-PARTICLES-AUDIO-PRESETS",
+          "origin_commits": ["b7fb9a1", "28be4cf", "6ed1dd9 (pre-audit)"],
+          "code": ["crates/hsk-studio-composite/src/temporal/motion_preset.rs:10-11 .ffx refused (ProprietaryFfx)", "git grep -i particle in crates/hsk-studio-folio/src: only motion_preset.rs:1 (no particle-layer record)"],
+          "proof": "PASS_V1 R36, PASS_V2 R37",
+          "level": {"before": "PARTIAL", "validated": "PARTIAL", "unvalidated": "PARTIAL", "local": "PARTIAL"}
+        },
+        {
+          "row": "AE-17 Effects: blur, glow, colour correction, distort, generate",
+          "change": "LOCAL_UNVALIDATED: per-layer composition effect stack (Folio records with STU-FX-131 parameter rows, composite SceneContent::Effected, 7 distort/generate kernels: twirl, spherize, offset, polar coordinates, gradient ramp, circle, checkerboard)",
+          "lane": "SMB-AE-EFFECT-STACK-1",
+          "origin_commits": "none (local 9d177e5, dde603e, c733641 in wt-studio-lanes/smb-ae-effect-stack-1)",
+          "code": ["(local HEAD) crates/hsk-studio-folio/src/composition/effects.rs:30, :72 distort kinds"],
+          "tests": "never run; 12 golden digests are the placeholder 'PIN' (local crates/hsk-studio-composite/tests/composition_effects.rs:35-36)",
+          "proof": "LOCAL_UNVALIDATED",
+          "level": {"before": "PARTIAL", "validated": "PARTIAL", "unvalidated": "PARTIAL", "local": "PARTIAL"},
+          "residual": "blur/glow/colour-correction are not composition-stack kinds; level stays PARTIAL even locally"
+        }
+      ],
+      "recompute": {
+        "engine": {
+          "DELIVERED_VALIDATED": {"counts": {"VALIDATED": 12, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 12, "MISSING": 0}, "pct": 62.5},
+          "DELIVERED_UNVALIDATED": {"counts": {"VALIDATED": 12, "BUILT_NOT_VALIDATED": 2, "PARTIAL": 10, "MISSING": 0}, "pct": 64.6},
+          "LOCAL": {"counts": {"VALIDATED": 12, "BUILT_NOT_VALIDATED": 2, "PARTIAL": 10, "MISSING": 0}, "pct": 64.6}
+        },
+        "gui_pooled_workflows": {
+          "DELIVERED_VALIDATED": {"pct": 0.0},
+          "DELIVERED_UNVALIDATED": {"pct": 0.0},
+          "LOCAL": {"pct": 0.0},
+          "reason": "all 8 workflows remain ENGINE_ONLY: no composition panel, keyframe timeline, graph editor, effect controls, roto tool or render-queue panel in any tier; the new clip timeline does not serve After Effects"
+        },
+        "strict_ui_rows": {"DELIVERED_VALIDATED": {"pct": 0.0}, "DELIVERED_UNVALIDATED": {"pct": 0.0}, "LOCAL": {"pct": 0.0}}
+      },
+      "top_gaps": [
+        {"rank": 1, "row": "Composition / keyframe timeline / graph editor UI (AE-09 and every GUI workflow)", "level": "GUI 0 %; AE-09 PARTIAL", "spec": "[STU-SHL-091] two time panels, one time model (:32011); [STU-MOT-050] graph editor is a REQUIRED surface (:27495), [STU-MOT-051]/[STU-MOT-052] (:27501/:27513)", "lane_exists": false},
+        {"rank": 2, "row": "AE-17 per-layer effect stack (blur/glow/colour still absent from the stack)", "level": "PARTIAL; distort/generate LOCAL_UNVALIDATED", "spec": "[STU-FX-007] (:19184), [STU-FX-008] (:19186), [STU-FX-131] parameter records (:13603)", "lane_exists": "SMB-AE-EFFECT-STACK-1 (BLOCKED, local)"},
+        {"rank": 3, "row": "AE-13 Masks: no feather/opacity/expansion on composition masks", "level": "PARTIAL", "spec": "[STU-CMP-025] (:29388), [STU-CMP-025a] (:29396), [STU-CMP-026] (:29403), [STU-CMP-027] (:29413)", "lane_exists": false},
+        {"rank": 4, "row": "AE-22 render queue remainder (fields/pulldown, alpha output, effects off, frame-rate conversion)", "level": "PARTIAL", "spec": "[STU-MOT-121] render settings (:28020), [STU-MOT-122] output module (:28048), [STU-MOT-125] (:28079)", "lane_exists": "SMB-AE-RENDER-QUEUE-2 covered part (READY); no lane for the remainder"},
+        {"rank": 5, "row": "AE-11 text animators (6 of 99 animator properties) and AE-20 3D (planar renderer, no models)", "level": "PARTIAL", "spec": "[STU-MOT-092] 99 animator properties (:27805); [STU-MOT-014] 3D material/geometry groups (:27285)", "lane_exists": false}
+      ],
+      "oracle": "present (After Effects 26.5 D5 session, 342 entries: 337 MATCH, 0 MISMATCH, 4 NOT_SUPPORTED, 1 NOT_PROVEN per the audit; residue file still lists AE-02 three_keys_roving_middle). Only AE-04/05/07/09 have oracle cases; AE-10, AE-18, AE-22 changes have NO_ORACLE_CASE and stay UNVERIFIED against After Effects (lane files say so for AE-22)"
+    },
+    {
+      "app": "audition",
+      "baseline_20261021": {
+        "engine_pct_verified": 81.8,
+        "engine_pct_matrix": 84.1,
+        "engine_counts": {"VALIDATED": 16, "BUILT_NOT_VALIDATED": 2, "PARTIAL": 4, "MISSING": 0},
+        "gui_pct_pooled_workflows": 25.0,
+        "gui_pct_documented_build": 0.0,
+        "gui_workflows": 10,
+        "strict_ui_row_pct": 0.0,
+        "strict_ui_row_pct_with_additions": 4.5
+      },
+      "changed_rows": [
+        {
+          "row": "AU-12 Spectral display and editing / AU-20 Waveform editing",
+          "change": "waveform + spectral editor lane judged; both panels now reachable from WORKSPACE > Panels (Waveform Editor F9, Spectral Display F11) in the documented desktop,audio-batch build",
+          "lane": "SMB-AU-WAVEFORM-EDITOR (+ SMB-HARNESS-SHELL-1 for reach)",
+          "origin_commits": ["04bb6ed", "37c3a58", "130d2dd", "af11aa4", "557ac06 (pre-audit, now judged)", "2defb17..45f04b2 (reach)"],
+          "code": ["crates/hsk-studio-harness-view/src/view/waveform.rs:76-95 widget ids cut/copy/paste/paste_mix/delete/silence/insert_silence/fade_in/fade_out/amplify/normalize/invert/reverse/snap/undo/redo", "waveform.rs:886 Cut button", "shell.rs:119-125 audio-batch gate"],
+          "tests": "NOT_INSPECTED by name for the waveform lane; reach: crates/hsk-studio-harness/tests/viewer_shell.rs:243",
+          "proof": "SMB-AU-WAVEFORM-EDITOR PASS_V1 R36, PASS_V2 R37; SMB-HARNESS-SHELL-1 PASS_V1 R37",
+          "level": {"before": "BUILT_NOT_VALIDATED (both)", "validated": "VALIDATED", "unvalidated": "VALIDATED", "local": "VALIDATED"}
+        },
+        {
+          "row": "AU-13 Loudness metering / AU-14 Multitrack session, mixer / AU-15 Mixdown",
+          "change": "GUI reach only: Mixer F8 (with meters) and the audio-file Export FLAC/AIFF are reachable in the documented build",
+          "lane": "SMB-HARNESS-SHELL-1",
+          "origin_commits": ["2defb17", "9ca2c59", "1f0e945", "5605a52", "45f04b2"],
+          "code": ["crates/hsk-studio-harness/RUN-UI.md:17, :20 (audio-batch implies media), :59 Mixer row"],
+          "proof": "PASS_V1 R37",
+          "level": {"engine": "VALIDATED (unchanged)", "gui": "AU-13/AU-14 LOWER -> AGREE; AU-15 raise now in the documented build"},
+          "residual": "AU-14: still no tracks-with-clips multitrack editor, no clip drag/trim, no automation lanes (the clip timeline draws audio clips only)"
+        },
+        {
+          "row": "AU-19 Plugin hosting",
+          "change": "validation only (plugin-on-selection slice of the waveform lane judged); VST3 still no backend",
+          "lane": "SMB-AU-WAVEFORM-EDITOR",
+          "code": ["crates/hsk-studio-score-plugin/src/lib.rs:63 DESCRIPTOR: vst3 NOT_PROVEN 'declared in ApprovedPlugin, no backend (abi_mismatch)'; clap NOT_PROVEN without fixture"],
+          "proof": "PASS_V1 R36",
+          "level": {"before": "PARTIAL", "validated": "PARTIAL", "unvalidated": "PARTIAL", "local": "PARTIAL"}
+        },
+        {
+          "row": "AU-22 Batch processing and presets",
+          "change": "LOCAL_UNVALIDATED GUI: audio_batch hosted panel (Ctrl+Shift+F3, feature audio-batch) over the existing AudioBatchQueue",
+          "lane": "SMB-HARNESS-PANELS-1",
+          "origin_commits": "none (local bfe8f85, a7838c8, 587886c)",
+          "code": ["(local HEAD) crates/hsk-studio-harness-view/src/view/hosted.rs:80 AudioBatch, :113 key audio_batch"],
+          "proof": "LOCAL_UNVALIDATED (run 1: 13 viewer_panels failures incl. audio_surfaces_are_reachable_or_name_their_feature; fix 587886c never run)",
+          "level": {"engine": "PARTIAL (unchanged: no favourites / recorded sequences)"}
+        }
+      ],
+      "recompute": {
+        "engine": {
+          "DELIVERED_VALIDATED": {"counts": {"VALIDATED": 18, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 4, "MISSING": 0}, "pct": 86.4},
+          "DELIVERED_UNVALIDATED": {"counts": {"VALIDATED": 18, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 4, "MISSING": 0}, "pct": 86.4},
+          "LOCAL": {"counts": {"VALIDATED": 18, "BUILT_NOT_VALIDATED": 0, "PARTIAL": 4, "MISSING": 0}, "pct": 86.4}
+        },
+        "gui_pooled_workflows": {
+          "DELIVERED_VALIDATED": {"doable_judged": 6, "doable_unjudged": 0, "pct": 60.0, "doable": ["Open an audio file", "Waveform edit (F9)", "Spectral display and editing (F11)", "Mixer / routing (F8; tracks-with-clips view still absent)", "Loudness metering (meters in the mixer)", "Export mixdown FLAC/AIFF"]},
+          "DELIVERED_UNVALIDATED": {"pct": 60.0},
+          "LOCAL": {"doable_judged": 6, "doable_unjudged": 1, "pct": 65.0, "added": ["Batch processing (audio_batch hosted panel, LOCAL)"]},
+          "still_engine_only": ["Apply effects to a selection (no effect buttons in waveform.rs)", "Noise reduction / restoration", "Playback of the opened file (audio out needs feature audio-device, outside the documented build)"],
+          "note": "the 2026-10-21 25 % relied on an undocumented feature build; RUN-UI.md now documents it, so before = 0 % documented / 25 % feature build"
+        },
+        "strict_ui_rows": {
+          "DELIVERED_VALIDATED": {"agree": ["AU-13", "AU-14"], "raise": ["AU-12", "AU-15", "AU-20"], "pct_agree_only": 9.1, "pct_with_additions": 22.7},
+          "DELIVERED_UNVALIDATED": {"pct_agree_only": 9.1, "pct_with_additions": 22.7},
+          "LOCAL": {"pct_agree_only": 9.1, "pct_with_additions": 27.3, "added": ["AU-22 (local)"]}
+        }
+      },
+      "top_gaps": [
+        {"rank": 1, "row": "AU-14 multitrack timeline / clip view / automation lanes (GUI)", "level": "engine VALIDATED, GUI absent", "spec": "[STU-FX-137] audio routing is part of the document (:18454); [STU-FX-135] non-destructive audio stacks (:18444); no Audition multitrack-editor clause found (grep of clause headings for multitrack: 0)", "lane_exists": false},
+        {"rank": 2, "row": "AU-19 VST3/AU hosting (CLAP opt-in, unproven)", "level": "PARTIAL", "spec": "NO_CLAUSE_FOUND in module 14 (grep VST: only ADBE export table rows); plugin contract [STU-AUT-155] (:21701)", "lane_exists": false},
+        {"rank": 3, "row": "AU-17 recording / AU-18 playback on a real device", "level": "PARTIAL", "spec": "NO_CLAUSE_FOUND in module 14 for device capture/output (grep of clause headings for device|transport: colour devices only)", "lane_exists": false},
+        {"rank": 4, "row": "AU-22 batch, favourites, effects rack presets", "level": "PARTIAL (GUI LOCAL)", "spec": "[STU-AUT-109] recording is capture of the command stream (:21529); [STU-AUT-126] batch job record (:21605); [STU-AUT-133] (:21622)", "lane_exists": "SMB-HARNESS-PANELS-1 (GUI only, BLOCKED local)"},
+        {"rank": 5, "row": "AU-10 restoration / apply effects to a selection in the GUI", "level": "engine VALIDATED, GUI absent", "spec": "[STU-FX-134] native audio effect domain (:18436), [STU-FX-138] guided audio adjustment (:18470); waveform/spectral editor clauses still unpublished (audit operator item 'STU-AUD waveform/spectral editor clauses')", "lane_exists": false}
+      ],
+      "oracle": "absent: no Audition oracle (audit); BS.1770-4 / EBU Tech 3341 text and analytic responses only. Every row stays UNVERIFIED against Audition"
+    }
+  ],
+  "recompute_formulas": {
+    "engine": "pct = 100 * (VALIDATED + 0.5*BUILT_NOT_VALIDATED + 0.25*PARTIAL) / rows (rows: Premiere 25, After Effects 24, Audition 22), unweighted, as in feature-completeness-20261021.json evidence_levels.engine.weights",
+    "gui_pooled": "pct = 100 * (doable_judged + 0.5*doable_unjudged) / workflows, the GUI auditor's per-app workflow lists (10 / 8 / 10) unchanged; 'judged' = window path through a PASS-judged surface, as in gui-surfaces.json overall_gui_pct_method",
+    "strict_ui_rows": "pct = rows whose capability a window widget reaches / app rows; agree-only counts the matrix ui-flagged rows (gui-surfaces.json matrix_ui_flag_verification), with_additions adds raises",
+    "three_app_pooled_gui": {"before": 8.9, "validated": 35.7, "unvalidated": 37.5, "local": 39.3, "formula": "(Premiere + AE + Audition doable points) / 28 workflows"}
+  },
+  "summary": {
+    "premiere_pro": {"engine": {"before": 56.0, "validated": 56.0, "unvalidated": 57.0, "local": 57.0}, "gui_pooled": {"before": 0.0, "validated": 40.0, "unvalidated": 45.0, "local": 45.0}, "gui_strict": {"before": 4.0, "validated": 16.0, "unvalidated": 36.0, "local": 36.0}, "changed_rows": 10},
+    "after_effects": {"engine": {"before": 58.3, "validated": 62.5, "unvalidated": 64.6, "local": 64.6}, "gui_pooled": {"before": 0.0, "validated": 0.0, "unvalidated": 0.0, "local": 0.0}, "gui_strict": {"before": 0.0, "validated": 0.0, "unvalidated": 0.0, "local": 0.0}, "changed_rows": 10},
+    "audition": {"engine": {"before": 81.8, "validated": 86.4, "unvalidated": 86.4, "local": 86.4}, "gui_pooled": {"before": 25.0, "validated": 60.0, "unvalidated": 60.0, "local": 65.0}, "gui_strict_with_additions": {"before": 4.5, "validated": 22.7, "unvalidated": 22.7, "local": 27.3}, "changed_rows": 7},
+    "changed_row_ids": {
+      "premiere_pro": ["PR-03", "PR-04", "PR-05", "PR-07", "PR-11", "PR-12", "PR-18", "PR-19", "PR-23", "PR-24 (validation only)"],
+      "after_effects": ["AE-01 (note)", "AE-05", "AE-07", "AE-10", "AE-17 (local)", "AE-18", "AE-21", "AE-22", "AE-23", "AE-24"],
+      "audition": ["AU-12", "AU-13", "AU-14", "AU-15", "AU-19", "AU-20", "AU-22 (local)"]
+    }
+  },
+  "process_findings": [
+    {"id": "PF-1", "finding": "Assisted roto could not pass while spec v02.216 declared it a gap; the Operator-requested v02.217 had to be published first (2026-10-21) before R36 judged the library", "evidence": ["research/feature-completeness-20261021.json per_app after_effects.engine.roto", "START_LOG.md:544 SPEC v02.217 PUBLISHED", "validation/round-R36.json:1940 'Judged against STU-CMP-034 v02.217'"], "mitigation": "publish the spec clause before dispatching a lane whose capability the spec declares a gap"},
+    {"id": "PF-2", "finding": "R36 PASSed the roto library but raised F-R36-3 (engine named GraphCut vs spec closed set classic/learned; chatter refused outside 0..=100 while the v02.217 table said unknown bounds): spec rework v02.218 plus code rework 9140dae/d9de925", "evidence": ["validation/round-R36.json:1438 F-R36-3", "START_LOG.md:556 SPEC v02.218 PUBLISHED", "builders/lanes/hsk-studio-ae-roto-wiring.json commits 9140dae, d9de925"], "mitigation": "lane parameter tables checked against the spec table names and bounds before READY"},
+    {"id": "PF-3", "finding": "R37 FAIL_V1 SMB-AE-ROTO-WIRING: new Folio fields StudioRotoStroke.path / StudioRotoEdgeStroke.path were not classified in the package externals table; the lane's bundled run omitted hsk-studio-package (a reverse dependent of folio). Same failure hit SMB-AE-RENDER-QUEUE-2's first run", "evidence": ["validation/round-R37.json:1510 F-R37-1", "ledger.json:11288 'SMB-AE-ROTO-WIRING FAIL_V1'", "START_LOG.md:552 (rule 4b added)", "builders/lanes/hsk-studio-ae-render-queue-2.json notes (1 failure from the roto lane)"], "mitigation": "brief rule 4b (any Folio field change runs the package suite) now in force"},
+    {"id": "PF-4", "finding": "R37 dispatched as scoped but forced to full scope because steward .config step-0 repoints counted as round-entry inputs (longer round)", "evidence": ["validation/round-R37.json scope field", "START_LOG.md:552 (2) F-R37-2"], "mitigation": "round-select.py policy_overlays_changed (START_LOG.md:577)"},
+    {"id": "PF-5", "finding": "R38 canary ran 12 h on e3953de without reaching the union and was lost in the machine restart; SMB-AE-ROTO-WIRING and SMB-AE-RENDER-QUEUE-2 remain READY unvalidated and SMB-TIMELINE-UI-1 (pushed after the R38 freeze) needs the next round too", "evidence": ["START_LOG.md:565 MACHINE RESTART", "validation/round-R37.json:1602 R38 queue"], "mitigation": "re-run as R39 on the current tip; record canary progress so a crash does not lose 12 h"},
+    {"id": "PF-6", "finding": "D: disk-build-lock waits dominate lane wall time: timeline 14000 s, harness-shell-2 13666 s, ae-effect-stack-1 11677 s, harness-panels-1 11284 s, roto-wiring 1500 s; two lanes gave up after 7200 s queued behind the R38 canary (exit 75, nothing compiled)", "evidence": ["builders/lanes/hsk-studio-timeline-ui-1.json:77", "hsk-studio-harness-shell-2.json:31, :35", "hsk-studio-ae-effect-stack-1.json:27, :29", "hsk-studio-harness-panels-1.json:33", "hsk-studio-ae-roto-wiring.json:60"], "mitigation": "single spinning build disk; C: closed to builds by Operator decision (START_LOG.md:562)"},
+    {"id": "PF-7", "finding": "C: SSD build slot refused (exit 77, target over the 140 GiB cap) and then closed by the Operator; lanes fell back to cold D: owner targets (full first builds)", "evidence": ["builders/lanes/hsk-studio-harness-shell-2.json:30", "START_LOG.md:562"], "mitigation": "C: cleanup complete (START_LOG.md:564); reopen the slot only by Operator decision"},
+    {"id": "PF-8", "finding": "The re-introduced global gameplan hook hard-blocked gated commands; three lanes for these apps (AE effect stack, harness shell 2, harness panels 1) sit LOCAL with unrun or partly failing tests", "evidence": ["START_LOG.md:569 HOOK BLOCK", "builders/lanes/hsk-studio-harness-panels-1.json:27", "builders/lanes/hsk-studio-ae-effect-stack-1.json blockers[0]"], "mitigation": "Operator disables the hook for the session; then rerun the three bundled lane-checks"},
+    {"id": "PF-9", "finding": "SMB-TIMELINE-UI-1 needed a 5-run loop: the drag tests aimed the pointer from the first egui frame's layout, panels move 35 px from frame 2 (F-TL-2); plus a toolbar fix outside owned files (56d963f/62ad523, untested at push)", "evidence": ["START_LOG.md:566", "builders/lanes/hsk-studio-timeline-ui-1.json tests.history and notes.touched_outside_owned"], "mitigation": "settle layout before pointer tests (test helper)"},
+    {"id": "PF-10", "finding": "R36 itself was delayed: canary C52 failed 40 of 134 units on sccache port exhaustion from an unrelated Operator app; rounds now run without a rustc wrapper", "evidence": ["START_LOG.md:547"], "mitigation": "no wrapper in rounds; Operator to quiet the app before long rounds"},
+    {"id": "PF-11", "finding": "Spec version numbers v02.217 and v02.218 were issued twice (WP012 on 2026-10-18 and Studio on 2026-10-21/22) and had to be reconciled into v02.221; SPEC_CURRENT moved again to v02.222 on 2026-10-23", "evidence": ["START_LOG.md:557", ".GOV/spec/master-spec-v02.222/spec-changelog.jsonl entries v02.217/v02.218 (two each)"], "mitigation": "fetch gov_kernel before any spec bump"},
+    {"id": "PF-12", "finding": "GitHub product branch deleted by an unguarded push on 2026-10-21; the roto/time-remap lane push waited for the restore", "evidence": ["START_LOG.md:539", "START_LOG.md:541"], "mitigation": "PUSH SAFETY brief rule (guarded pushes)"}
+  ],
+  "unverified": [
+    "No test, build or oracle comparison was run for this report; all PASS/READY states come from round files, ledger and lane files; READY test counts are lane claims",
+    "Whether the desktop window opens remains NOT_PROVEN; every GUI figure rests on headless proof (now including injected pointer events for the timeline)",
+    "Test names for SMB-AU-WAVEFORM-EDITOR, SMB-AI-AE-ORACLE-FOLLOWUPS and SMB-D24A-CODEC-DEFAULTS were not re-read (NOT_INSPECTED); their code anchors were",
+    "Premiere/Audition parity of every row is UNVERIFIED (no vendor oracle); After Effects changes AE-10/18/22 have no oracle case",
+    "GUI workflow judgements count a reachable panel as DOABLE per the audit rule even where it needs a pre-existing sequence (no new-sequence command) or lacks frame decoding (RUN-UI.md:187-188)"
+  ]
+}

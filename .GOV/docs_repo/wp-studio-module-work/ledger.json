@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-23T02:37:46Z",
+ "updated_at": "2026-10-23T20:43:34Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -49,8 +49,18 @@
     "23b1bb7 run-round.sh CARGO_INCREMENTAL=0 in env block + env_set (P1, 2026-10-22)"
    ],
    "verdicts": [],
-   "SYNC_SHA": null,
-   "note": "baseline 133 pass; 3 Type doctest failures (vendored ttf-parser examples src/provider/ttf/mod.rs:182,205,2080) | 2026-10-22 ~21:45Z post-R37 tooling sync dispatched: round-select.py step-0 overlays not entry inputs (F-R37-2), run-round.sh CARGO_INCREMENTAL=0 (P1), pre-approved edges render-cpu->folio (dev) and harness->interop-lrcat (feature-gated) recorded, canary queues behind R38 | 2026-10-23T00:15Z steward: round-select.py done (kernel, uncommitted; self-test 25/25; R37 replay a105766->1d139a6 = 30 of 49 crates, not --all); 23b1bb7 pushed (run-round.sh CARGO_INCREMENTAL=0); edges not declared (no manifest on origin needs them), recorded as pre-approved in WORKSPACE_RULES path-deps; sync attempt 1 on 23b1bb7: LOCK_DIFF/REGISTRY empty, LICENSE_GATE OK, then exit 6 (probe rustc gave up after the default 7200 s disk-lock wait behind R38, 00:11:39Z); attempt 2 on 5ab33c9 (shared tree fast-forwarded, no derivation input changed) started 00:13:34Z with the same 7200 s bound, unmonitored: SYNC_SHA and canary C54 PENDING"
+   "SYNC_SHA": "5ab33c9f1c97de81d442603c4e3a25c7eb8c6313",
+   "canary": {
+    "id": "C54-5ab33c9-r2",
+    "status": "STOPPED_REDUNDANT",
+    "stopped_at": "2026-10-23T20:43:34Z",
+    "units_completed": 27,
+    "units_total_approx": 134,
+    "reason": "Operator decision 2026-10-23: the post-R37 sync found the lock and registry unchanged since canary C53 (reused by R37 on 1d139a6); C53 is the reused proof for the unchanged dependency set (CX-VERIFY-002). The lead's dispatch of a full --all canary on an unchanged lock was an error.",
+    "next": "one scoped canary after the EPS steward sync (which changes the lock: 7 members + 3 crates)",
+    "partial_results": "studio-team-dev/steward-export/results/C54-5ab33c9-r2 (first 27 units; not a proof)"
+   },
+   "note": "baseline 133 pass; 3 Type doctest failures (vendored ttf-parser examples src/provider/ttf/mod.rs:182,205,2080) | 2026-10-22 ~21:45Z post-R37 tooling sync dispatched: round-select.py step-0 overlays not entry inputs (F-R37-2), run-round.sh CARGO_INCREMENTAL=0 (P1), pre-approved edges render-cpu->folio (dev) and harness->interop-lrcat (feature-gated) recorded, canary queues behind R38 | 2026-10-23T00:15Z steward: round-select.py done (kernel, uncommitted; self-test 25/25; R37 replay a105766->1d139a6 = 30 of 49 crates, not --all); 23b1bb7 pushed (run-round.sh CARGO_INCREMENTAL=0); edges not declared (no manifest on origin needs them), recorded as pre-approved in WORKSPACE_RULES path-deps; sync attempt 1 on 23b1bb7: LOCK_DIFF/REGISTRY empty, LICENSE_GATE OK, then exit 6 (probe rustc gave up after the default 7200 s disk-lock wait behind R38, 00:11:39Z); attempt 2 on 5ab33c9 (shared tree fast-forwarded, no derivation input changed) started 00:13:34Z with the same 7200 s bound, unmonitored: SYNC_SHA and canary C54 PENDING | 2026-10-23T15:03Z steward attempt 3: attempt 2 had in fact exited 0 at 02:10:42Z (already in sync at 5ab33c9, probe 89/89, no commit); its canary C54-5ab33c9 held the D: lock from 08:17Z and died in the restart. Attempt 3 on 5ab33c9 (HEAD == origin): LOCK_DIFF/REGISTRY empty (5 fuzzing-only skips, reel via rav1e), LICENSE_GATE OK, stale lock 1792743029-3258323 broken by the lock's own rule at 15:03:01Z (~60 s wait), PROBE 89/89, already in sync, SYNC_SHA=5ab33c9 exit 0; nothing committed or pushed. Canary C54 NOT run: gameplan hook blocks any command naming the round entry script (WP-KERNEL-012 binding); lead decision needed | 2026-10-23 ~20:45Z canary C54-5ab33c9-r2 STOPPED by the lead on the Operator's decision after 27 of ~134 units (redundant: lock/registry unchanged since C53; C53 reused as proof). The stale `held` of the killed run-round stays until the next waiter's stale-break rule clears it."
   },
   {
    "lane_id": "SMB-LAYOUT",
@@ -9695,69 +9705,86 @@
   {
    "lane_id": "SMB-EPS-FREE-FONTS",
    "crate": "vendored stet fork (EPS -> PDF crates, Apache-2.0 OR MIT) + hsk-studio-interop-vector-core EPS worker",
-   "phase": "build",
-   "status": "BLOCKED",
-   "blocked_on": "no green bundled run yet: run 2 gave up on the D: lock after 7200 s behind the R38 canary (exit 75); lead hold on gated commands while the Operator's global gameplan hook blocks them; steward sync required before READY (7 new members, edges, round-features, one machine-path pin)",
+   "phase": "ready",
+   "status": "READY_FOR_VALIDATION",
+   "blocked_on": null,
    "owner": "builder (Opus), lead dispatch 2026-10-22 on the Operator decision 'replace EPS with open source fonts'",
    "lane_file": "builders/lanes/hsk-studio-eps-free-fonts.json",
-   "candidate": null,
+   "candidate": "88edeb0",
    "commits": [
-    "(local only, lane/smb-eps-free-fonts) 9d482cf slices 1-2: stet 0.8.4 forked as members crates/hsk-studio-ps{,-core,-engine,-fonts,-graphics,-ops,-pdf} (sources unchanged under upstream aliases; SOURCE_PROVENANCE.json per crate with per-file sha256; NOTICE)",
-    "21b6d98 slice 3: EPS worker restored on the fork (features eps/eps-worker, worker binary, caps + memory-cap detection, typed refusal when off; embedded fonts only, disk font files refused)",
-    "a0351e9 run-1 fixes (one test escape, two clippy warnings in vendored code)"
+    "d195ef7 hsk-studio-ps* vendored stet 0.8.4 fork with free fonts only (slices 1-2)",
+    "521700f interop-vector-core: EPS worker restored on the free-font fork (slice 3)",
+    "e65c0be run-1 fixes (eps_worker test path escape; clippy in the vendored fork)",
+    "88edeb0 run-3 test fixes (TeX Gyre notice check; fork system-font cache empty; recorded in ps-fonts SOURCE_PROVENANCE.json)"
    ],
    "verdicts": [],
-   "note": "replace the AGPL-published URW base35 fonts with free fonts (TeX Gyre GFL, Liberation/STIX Two/Noto Sans Symbols 2 OFL), trim hayro-jpeg2000 default features so image/moxcms never enter the lock, restore the EPS worker on the fork | 2026-10-23: removed the 35 URW Type 1 fonts, NimbusRoman CFF FontSet, LICENSE-URW-FONTS (never copied), glob and jpeg-encoder (DCTEncode now errors); hayro-jpeg2000 built with std only (image stays out of the lock); host font scanning and render feature off. Fonts: 33 TeX Gyre Type 1 (GUST Font License, an LPPL-1.3c instance; URW++ released these to GUST under it) for the Latin families; Symbol = STIX Two Math (OFL-1.1, 189/189 glyphs, 29 via Unicode fallback); ZapfDingbats = DejaVu Sans (Bitstream Vera/Arev licence, 201/201; Noto Sans Symbols 2 covered only 153, dropped); PDFs embed the standard 14. New lock crates: hayro-jbig2 0.1.0, hayro-ccitt 0.2.0, jpeg-decoder 0.3.2; Cargo.lock uncommitted. Steward items: 7 members + edges in root Cargo.toml; interop-vector-core optional edges hsk-studio-ps, hsk-studio-ps-core, hsk-studio-worker; 40 dep-requests lines filed (20 internal, 20 crates.io); round-features interop-vector-core [[eps-worker]]; step-0 machine-path pin crates/hsk-studio-ps-engine/src/eval.rs = 1. Build evidence so far: cargo check -p hsk-studio-ps --tests clean. Gaps: EPS import proven only against a recording provider (not Press end to end); no harness .eps import route; Symbol/ZapfDingbats spacing not Adobe-compatible (UNVERIFIED); upstream tests needing URW fonts print NOT_PROVEN. The licence gate (steward) judges the GUST Font License."
+   "note": "replace the AGPL-published URW base35 fonts with free fonts (TeX Gyre GFL, Liberation/STIX Two/Noto Sans Symbols 2 OFL), trim hayro-jpeg2000 default features so image/moxcms never enter the lock, restore the EPS worker on the fork | 2026-10-23: removed the 35 URW Type 1 fonts, NimbusRoman CFF FontSet, LICENSE-URW-FONTS (never copied), glob and jpeg-encoder (DCTEncode now errors); hayro-jpeg2000 built with std only (image stays out of the lock); host font scanning and render feature off. Fonts: 33 TeX Gyre Type 1 (GUST Font License, an LPPL-1.3c instance; URW++ released these to GUST under it) for the Latin families; Symbol = STIX Two Math (OFL-1.1, 189/189 glyphs, 29 via Unicode fallback); ZapfDingbats = DejaVu Sans (Bitstream Vera/Arev licence, 201/201; Noto Sans Symbols 2 covered only 153, dropped); PDFs embed the standard 14. New lock crates: hayro-jbig2 0.1.0, hayro-ccitt 0.2.0, jpeg-decoder 0.3.2; Cargo.lock uncommitted. Steward items: 7 members + edges in root Cargo.toml; interop-vector-core optional edges hsk-studio-ps, hsk-studio-ps-core, hsk-studio-worker; 40 dep-requests lines filed (20 internal, 20 crates.io); round-features interop-vector-core [[eps-worker]]; step-0 machine-path pin crates/hsk-studio-ps-engine/src/eval.rs = 1. Build evidence so far: cargo check -p hsk-studio-ps --tests clean. Gaps: EPS import proven only against a recording provider (not Press end to end); no harness .eps import route; Symbol/ZapfDingbats spacing not Adobe-compatible (UNVERIFIED); upstream tests needing URW fonts print NOT_PROVEN. The licence gate (steward) judges the GUST Font License. | 2026-10-23 READY at 88edeb0 (pushed 347026e..88edeb0: 284 files, 10 lane paths, Cargo.lock not committed; lead verified on origin). Run 4 (ebe8689 pre-rebase tree; rebase brought only dependents) green 808/808 over the 7 ps crates + interop-vector-core + interop-vector, clippy incl. dependents; lock wait 7395 s. STEWARD SYNC OWED before R39 can include it: 7 new members + edges (in root Cargo.toml on origin), interop-vector-core optional edges ps/ps-core/worker, 40 dep-requests, registry pins, lock additions hayro-ccitt 0.2.0 / hayro-jbig2 0.1.0 / jpeg-decoder 0.3.2, round-features interop-vector-core [[eps-worker]], machine-path pin ps-engine/src/eval.rs = 1, licences GUST/LPPL-1.3c + OFL-1.1 + Bitstream Vera/Arev. UNVERIFIED: Symbol/ZapfDingbats metrics vs Adobe (D5). Builder's record command hook-blocked (kernel cwd, unconfirmed WP-012 steps); lead applied its prepared update."
   },
   {
    "lane_id": "SMB-HARNESS-SHELL-2",
    "crate": "hsk-studio-harness-view / harness / harness-core (+controls descriptors if spec-placed)",
-   "phase": "build",
-   "status": "BLOCKED",
-   "blocked_on": "global gameplan hook (Operator decision pending; it even blocked a plain python lane-file update: 'scope | role=* | at=before_round | GLOBAL-GAMEPLAN-001', unconfirmed GP-016/017/024/026/027/028/030/031 for kernel HEAD 61e002ba) plus infrastructure: bundled lane-check at 8ddbae5 exit 75 (D: lock gave up after 7201 s behind the R38 canary; total lock wait 13666 s); nothing run beyond cargo check --tests (exit 0, desktop + audio-batch)",
+   "phase": "ready",
+   "status": "READY_FOR_VALIDATION",
+   "blocked_on": null,
    "owner": "builder (Opus), lead dispatch 2026-10-22 ~21:45Z after the Operator's traction question",
    "lane_file": "builders/lanes/hsk-studio-harness-shell-2.json",
-   "candidate": null,
+   "candidate": "1709b748",
    "commits": [
-    "(local only, lane/smb-harness-shell-2 over e3953de) fc934f9 controls: menu + window descriptors (STU-ARC-014, additive) + tests/menu_descriptors.rs (5 tests)",
-    "8ddbae5 shell menu built from descriptors; HELP menu (STU-SHL-037: 16 leaves, 6 as in-window help view, 10 greyed NOT_IMPLEMENTED_YET); F-R37-3 fixed ('Design file (.fig)', STU-SHL-008); viewer_shell.rs +3/~2 tests; RUN-UI.md"
+    "fdb4f81c controls menu and window descriptors (STU-ARC-014)",
+    "6ff85bc2 shell menu from controls descriptors, HELP menu, F-R37-3",
+    "64ec3455 rebase over TIMELINE-UI-1: timeline without a sequence -> NOT_IN_THIS_DOCUMENT NO_SUCH_CONTAINER; timeline AccessKit test via the Panels submenu",
+    "1709b748 run-1 fixes: AccessKit tests match egui's submenu label and the menu Save leaf"
    ],
    "verdicts": [],
-   "note": "F-R37-3 vendor-name dialog filter label; HARNESS-SHELL-1 gaps (HELP leaves STU-SHL-004, layout editor save API, controls descriptors STU-ARC-014); SSD slot | 2026-10-23: gaps: layout editor save API not built (chronicle has no page-spread/text_frame/story write: hsk-studio-chronicle/src/lib.rs:425); Alt mnemonics and reserved-band node ids belong to the shell, not the harness. Remaining: bundled run, rebase (timeline lane also touches harness-view), diff check, guarded push, READY, START_LOG line. Never built on C: (77 refusal)."
+   "note": "F-R37-3 vendor-name dialog filter label; HARNESS-SHELL-1 gaps (HELP leaves STU-SHL-004, layout editor save API, controls descriptors STU-ARC-014); SSD slot | 2026-10-23: gaps: layout editor save API not built (chronicle has no page-spread/text_frame/story write: hsk-studio-chronicle/src/lib.rs:425); Alt mnemonics and reserved-band node ids belong to the shell, not the harness. Remaining: bundled run, rebase (timeline lane also touches harness-view), diff check, guarded push, READY, START_LOG line. Never built on C: (77 refusal). | 2026-10-23 READY at 1709b748 (pushed 5739eb5..1709b748, 8 lane paths in controls/harness/harness-view; lead verified). Bundled lane-check 227/227 passed, 20 skipped, at 1709b748 (clippy + whole suites controls, harness-view, harness, harness-core, desktop + audio-batch); 4 runs in all because origin moved twice; run 1 had 3 test-side AccessKit lookup failures fixed in one commit. Conflicts: PANELS-1 4 hunks in shell.rs both kept (hosted panels under WORKSPACE > Panels); timeline registration, descriptor menus and HELP survived. Gap: layout editor save API not built (chronicle lacks the write path). Lock wait 11778 s over 4 runs."
   },
   {
    "lane_id": "SMB-HARNESS-PANELS-1",
    "crate": "hsk-studio-harness-view (panel hosting, registration, Workspace menu hunks)",
-   "phase": "build",
-   "status": "BLOCKED",
-   "blocked_on": "global gameplan hook hard-blocked the second bundled run (confirm_binding target missing: wtc-WP-KERNEL-012 | GLOBAL-GAMEPLAN-001); Operator decision needed (hook lives in the Operator's global config); run 1 at a7838c8: 195 run / 182 passed / 13 failed (one cause: AccessKit value vs label match; fixed in 587886c, not re-run); viewer-only cfg branches not compiled; rebase over TIMELINE-UI-1 / SHELL-2 shell.rs expected",
+   "phase": "ready",
+   "status": "READY_FOR_VALIDATION",
+   "blocked_on": null,
    "owner": "builder (Opus), lead dispatch 2026-10-22 ~21:45Z after the Operator's traction question",
    "lane_file": "builders/lanes/hsk-studio-harness-panels-1.json",
-   "candidate": null,
+   "candidate": "347026e",
    "commits": [
-    "(local only, lane/smb-harness-panels-1 over e3953de) bfe8f85 slice 1 view/hosted.rs + additive shell.rs hunks",
-    "a7838c8 slice 2 tests/viewer_panels.rs (18 tests) + RUN-UI section",
-    "587886c test-helper fix (AccessKit value)"
+    "7d227c2 hosted panels behind WORKSPACE > Panels for the Viewer-API-only surfaces",
+    "e2e8c10 headless per-surface tests of the hosted panels and shell-hosted surfaces",
+    "347026e AccessKit lookups also match a node's value"
    ],
    "verdicts": [],
-   "note": "host the 16 PASS-judged surfaces unreachable from the window (gui-surfaces.json: layout editor, program/source monitor, mixer, spectral display, prototype player, ...) as WORKSPACE > Panels; headless proof per surface; SSD slot | 2026-10-23: 13 surfaces hosted (appearance, stroke, swatches, graphic_styles, align_distribute, transform, path_operations, masks, envelope_distort, brushes, vector_export, vector_import, audio_batch) via Viewer::hosted_action; shell-1 had already hosted layout editor, program/source monitor, mixer, waveform, spectral, prototype player (per-surface proof added, state under state_json shell.surfaces). Left unreachable: timeline/composition/render-queue export (engine wiring, not hosting). Lock waits 6174 s + 5110 s behind R38/timeline; never built on C: (77 refusal)."
+   "note": "host the 16 PASS-judged surfaces unreachable from the window (gui-surfaces.json: layout editor, program/source monitor, mixer, spectral display, prototype player, ...) as WORKSPACE > Panels; headless proof per surface; SSD slot | 2026-10-23: 13 surfaces hosted (appearance, stroke, swatches, graphic_styles, align_distribute, transform, path_operations, masks, envelope_distort, brushes, vector_export, vector_import, audio_batch) via Viewer::hosted_action; shell-1 had already hosted layout editor, program/source monitor, mixer, waveform, spectral, prototype player (per-surface proof added, state under state_json shell.surfaces). Left unreachable: timeline/composition/render-queue export (engine wiring, not hosting). Lock waits 6174 s + 5110 s behind R38/timeline; never built on C: (77 refusal). | 2026-10-23 READY at 347026e (pushed 5ab33c9..347026e, 5 lane paths only; one shell.rs Panel::ALL conflict resolved 11+13 -> 24): run 2: 203 passed / 0 failed / 20 skipped, viewer_panels 18/18, viewer-only clippy OK; lock wait 3484 s. 13 surfaces hosted; gaps: timeline/composition/render-queue export (engine wiring), swatch/gradient/envelope/network/pathfinder controls API-only. Builder's record command hook-blocked (kernel cwd); lead wrote the records."
   },
   {
    "lane_id": "SMB-AE-EFFECT-STACK-1",
    "crate": "hsk-studio-composite (+folio additive records, render-cpu additive kernels)",
-   "phase": "build",
-   "status": "BLOCKED",
-   "blocked_on": "paused by the lead (global gameplan hook hard-blocks gated runs; Operator decision pending): 3 slices committed locally, never compiled or run; its D: check had given up after 7200 s behind R38 and its queued bundled run was stopped by the builder itself on the pause order (nothing compiled)",
+   "phase": "ready",
+   "status": "READY_FOR_VALIDATION",
+   "blocked_on": null,
    "owner": "builder (Opus), lead dispatch 2026-10-22 ~21:45Z after the Operator's traction question",
    "lane_file": "builders/lanes/hsk-studio-ae-effect-stack-1.json",
-   "candidate": null,
+   "candidate": "5739eb5",
    "commits": [
-    "(local only, lane/smb-ae-effect-stack-1 over e3953de) 9d177e5 Folio StudioCompositionLayer.effects records",
-    "dde603e composite SceneContent::Effected, CPU kernels, record lowering",
-    "c733641 render-cpu proof test"
+    "699eda4 Folio effect-stack records (STU-FX-131 rows)",
+    "6e7da77 composite SceneContent::Effected + distort/generate kernels",
+    "1f460b1 render-cpu proof",
+    "0c0df93 test fixes (golden printing, alpha-0 texels, then_some)",
+    "5739eb5 12 golden digests pinned"
    ],
    "verdicts": [],
-   "note": "AE per-layer effect stack + distort/generate families (parity-after_effects.json gaps); headless golden proofs; rule 4b; SSD slot | 2026-10-23: distort Twirl, Spherize, Offset, Polar Coordinates; generate Gradient Ramp, Circle, Checkerboard; STU-FX-131 parameter rows; spec basis STU-FX-001/002/003/008/011/011b/104-107/112/116a/130/131, STU-CMP-010/010b. Stack order, masks before effects, disabled skipped, solo honoured, entry opacity mixes; out-of-range refused (effect_param_out_of_range), unimplemented options refused (composition_effect_option, composition_effect_content). Tests written, none run: 3 folio, 3 composite (12 golden digests still PIN placeholders, to be filled from the first run before any push), 1 render-cpu. Remaining: one bundled lane-check on D: over folio, composite, render-cpu, package (rule 4b: Folio gained a field), pin digests, one re-run, rebase, guarded push, READY. UNVERIFIED for D5: kernel formulas are Studio readings; Twirl Angle 0..0 read as no declared range; solo semantics; trig digests depend on platform libm. Never built on C: (77 refusal)."
+   "note": "AE per-layer effect stack + distort/generate families (parity-after_effects.json gaps); headless golden proofs; rule 4b; SSD slot | 2026-10-23: distort Twirl, Spherize, Offset, Polar Coordinates; generate Gradient Ramp, Circle, Checkerboard; STU-FX-131 parameter rows; spec basis STU-FX-001/002/003/008/011/011b/104-107/112/116a/130/131, STU-CMP-010/010b. Stack order, masks before effects, disabled skipped, solo honoured, entry opacity mixes; out-of-range refused (effect_param_out_of_range), unimplemented options refused (composition_effect_option, composition_effect_content). Tests written, none run: 3 folio, 3 composite (12 golden digests still PIN placeholders, to be filled from the first run before any push), 1 render-cpu. Remaining: one bundled lane-check on D: over folio, composite, render-cpu, package (rule 4b: Folio gained a field), pin digests, one re-run, rebase, guarded push, READY. UNVERIFIED for D5: kernel formulas are Studio readings; Twirl Angle 0..0 read as no declared range; solo semantics; trig digests depend on platform libm. Never built on C: (77 refusal). | 2026-10-23 READY at 5739eb5 (pushed 88edeb0..5739eb5, 15 lane paths; lead verified, no PIN left). Run 2: 400/400 (folio 106, composite 144, render-cpu 115, package 35), clippy OK; lock waits 5145 s (harvest) + 2048 s. Digests platform-bound (Windows libm). Builder's record command hook-blocked; lead wrote the records. Incident: builder TaskStopped its own queued run; the lane-check kept running as run 1; nothing foreign touched."
+  },
+  {
+   "lane_id": "STUDIO-R38",
+   "crate": "validation round (scoped) on e3953de",
+   "phase": "validation",
+   "status": "LOST",
+   "blocked_on": "machine restart 2026-10-23 ~08:40Z during the canary (12 h, union never started); no verdicts; re-run as R39 on the new tip",
+   "owner": "validator (Opus), lead dispatch 2026-10-22 20:39Z",
+   "candidate": "e3953de",
+   "commits": [],
+   "verdicts": [],
+   "note": "READY lanes it was to judge stay READY: SMB-AE-ROTO-WIRING d9de925, SMB-PS-FILL-LAYERS 3b88879, SMB-DEVELOP-DNG-WRITER 71253a3, SMB-AE-RENDER-QUEUE-2 e3953de; plus SMB-TIMELINE-UI-1 5ab33c9 for R39"
   }
  ],
  "research_derived_lanes_policy": "Operator 2026-10-11: engine research may create extra MTs; each concrete finding becomes a lane SMB-<CRATE>-ENG-<n> with source note ref and target improvement; dispatched like any lane",

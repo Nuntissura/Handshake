@@ -1,41 +1,76 @@
 {
   "crate": "hsk-studio-harness-view + hsk-studio-harness + hsk-studio-controls (additive)",
   "lane": "SMB-HARNESS-SHELL-2",
-  "status": "BLOCKED",
-  "phase": "slices 1-2 committed locally in wt-studio-lanes/smb-harness-shell-2 (NOT pushed); bundled run 1 gave up on the D: disk lock (no clippy or test ran); held on the lead's stop for gated commands; the global gameplan hook then blocked a plain Bash lane-file update",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed 1709b748 (rebased on origin 5739eb5c: over SMB-TIMELINE-UI-1 5ab33c9, SMB-HARNESS-PANELS-1, SMB-EPS-FREE-FONTS, SMB-AE-EFFECT-STACK-1); confirming bundled run 227/227 green at 1709b748",
   "commits": [
-    {"sha": "fc934f9", "subject": "SMB-HARNESS-SHELL-2 slice 1: controls menu and window descriptors (STU-ARC-014)", "pushed": false},
-    {"sha": "8ddbae5", "subject": "SMB-HARNESS-SHELL-2 slice 2: shell menu from controls descriptors, HELP menu, F-R37-3", "pushed": false}
+    {
+      "sha": "fdb4f81c",
+      "subject": "SMB-HARNESS-SHELL-2 slice 1: controls menu and window descriptors (STU-ARC-014)",
+      "pushed": true
+    },
+    {
+      "sha": "6ff85bc2",
+      "subject": "SMB-HARNESS-SHELL-2 slice 2: shell menu from controls descriptors, HELP menu, F-R37-3",
+      "pushed": true
+    },
+    {
+      "sha": "64ec3455",
+      "subject": "rebase over SMB-TIMELINE-UI-1: timeline panel without a sequence is NOT_IN_THIS_DOCUMENT NO_SUCH_CONTAINER; timeline AccessKit test walks WORKSPACE > Panels",
+      "pushed": true
+    },
+    {
+      "sha": "1709b748",
+      "subject": "run-1 fixes: AccessKit tests match egui's submenu label (Panels + right arrow) and the Save menu leaf by its shortcut label",
+      "pushed": true
+    }
   ],
-  "capabilities_done": [],
-  "capabilities_written_unproven": [
+  "capabilities_done": [
     "F-R37-3 [STU-SHL-008]: OpenPrototype dialog filter 'Figma (.fig)' -> 'Design file (.fig)' (file_dialog.rs); test no_vendor_product_name_in_dialog_filters_or_the_menu_tree scans every Purpose's filter labels and window items, the help window, and every menu node id/label in three states (nothing open; document + recent path holding a vendor word as data; sequence document with panels open)",
     "[STU-ARC-014] hsk-studio-controls::menu (additive module): MenuBar/MenuNode/WindowSpec descriptors, one Availability record per node ([STU-SHL-050] states, [STU-SHL-051] 12 reason codes), audit (unique ids MENU-INV-2, depth [STU-SHL-021], reason on every non-available node [STU-SHL-019], one available remedy per INAPPLICABLE_HERE [STU-SHL-020], descriptor_display_name_empty, vendor_product_name_in_display_name [STU-SHL-251]), resolve_remedies, agent_json, manual_topics, egui menu_bar_ui (never hides [STU-SHL-018], remedy drawn as enabled sibling leaf [STU-SHL-052])",
     "harness-view shell: Viewer::menu_bar builds FILE / EDIT / VIEW / WORKSPACE > Panels / HELP from those descriptors; one evaluation feeds egui, AccessKit description per node (feature desktop), shell_command refusals (same reason line, MENU-INV-4), state_json shell.menu and the manual",
     "[STU-SHL-037] HELP: all 16 leaves in spec order (Studio Manual submenu 6, Full Command Index, Keyboard Shortcut Reference, Diagnostics submenu 7 menu-only, About Studio); implemented: Open/Search Manual (in-window help view, bounded query, hostile query refusals), Full Command Index, Keyboard Shortcut Reference, System Report, About; others greyed NOT_IN_THIS_DOCUMENT NOT_IMPLEMENTED_YET",
     "file dialog drawn from a controls WindowSpec (Purpose::window_spec), window descriptor in state_json; RUN-UI.md updated"
   ],
+  "capabilities_written_unproven": [],
   "tests": {
     "argv": "cd <lane>/handshake-studio-assets && bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-harness-shell-2 --disk d -- cargo nextest run -p hsk-studio-controls -p hsk-studio-harness-view -p hsk-studio-harness -p hsk-studio-harness-core --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
-    "exit": 75,
-    "sha": "8ddbae5",
-    "passed": null,
-    "failed": null
+    "exit": 0,
+    "sha": "1709b748",
+    "passed": 227,
+    "failed": 0,
+    "skipped": 20,
+    "clippy": "clean in the same lock hold (controls, harness-view, harness, harness-core with desktop + audio-batch; no dependents outside the tested set); remaining warnings are in crates outside this lane (harness-view timeline_export/composition.rs manual_clamp from another lane, hsk-studio-type, observe, interop-psd, render-cpu)",
+    "history": "run1 at 214a588 (after rebase over 5ab33c9): 206/209, 3 FAIL all test-side AccessKit lookups: egui 0.33 labels a submenu button 'Panels ⏵' (viewer_shell accesskit_clicks..., viewer_timeline accesskit_click_opens_the_timeline...), and the Save lookup hit the side panel's own 'Save' button instead of the menu leaf 'Save Ctrl+S' (availability_reaches...); fixed in one commit. run2 at 6a2e8b48: 209/209. origin moved (PANELS-1 shell.rs, EPS fonts): rebase with 4 shell.rs conflicts (imports, ShellState hosted + help fields, Default, shell_json hosted/surfaces + menu/help), all kept both sides; run3 at a5151f1a: 227/227. origin moved again (AE-EFFECT-STACK-1 folio/composite, dependencies of harness): clean rebase; run4 at 1709b748: 227/227.",
+    "rule_4b": "no Folio record field added or renamed: hsk-studio-package suite not required"
   },
   "tests_written": {
-    "controls tests/menu_descriptors.rs (5)": ["vendor_names_are_found_as_tokens_never_as_substrings", "audit_is_clean_on_a_lawful_bar_and_names_every_breach", "remedies_resolve_to_one_available_leaf_or_the_node_leaves_the_inapplicable_state", "every_projection_reads_the_one_availability_record", "menu_bar_ui_never_hides_a_node_and_dispatches_the_remedy_leaf"],
-    "harness tests/viewer_shell.rs (3 new, 2 updated)": ["no_vendor_product_name_in_dialog_filters_or_the_menu_tree", "help_menu_carries_the_spec_leaves_and_opens_the_help_views", "availability_reaches_the_command_api_the_projection_and_accesskit_alike (AccessKit part feature desktop; prints NOT_PROVEN without it)", "updated: menu_bar_draws_its_titles... (HELP title), accesskit_clicks_reach_the_open_dialog_and_a_workspace_panel (Panels submenu), function_keys... (filter label)"]
+    "controls tests/menu_descriptors.rs (5)": [
+      "vendor_names_are_found_as_tokens_never_as_substrings",
+      "audit_is_clean_on_a_lawful_bar_and_names_every_breach",
+      "remedies_resolve_to_one_available_leaf_or_the_node_leaves_the_inapplicable_state",
+      "every_projection_reads_the_one_availability_record",
+      "menu_bar_ui_never_hides_a_node_and_dispatches_the_remedy_leaf"
+    ],
+    "harness tests/viewer_shell.rs (3 new, 2 updated)": [
+      "no_vendor_product_name_in_dialog_filters_or_the_menu_tree",
+      "help_menu_carries_the_spec_leaves_and_opens_the_help_views",
+      "availability_reaches_the_command_api_the_projection_and_accesskit_alike (AccessKit part feature desktop; prints NOT_PROVEN without it)",
+      "updated: menu_bar_draws_its_titles... (HELP title), accesskit_clicks_reach_the_open_dialog_and_a_workspace_panel (Panels submenu), function_keys... (filter label)"
+    ]
   },
-  "blockers": [
-    {"error": "studio-env: C:/HandshakeBuild/WP-KERNEL-STUDIO held 140 GiB at 2026-10-22T21:56:32Z > cap 140 GiB (Operator grant CX-984-014: 150 GB); SSD build refused (77). Unset STUDIO_BUILD_DISK to build on D:; cleanup is a steward/Operator action.", "file_line": "builders/studio-env.sh (SSD guard)", "attempts": 1},
-    {"error": "disk-build-lock: gave up after 7201s waiting for run-round studio-round (run-round --all sha e3953dea1b69 results .../studio-round/results/R38-canary); lane-check exit 75; no clippy or test ran (infrastructure, not a product failure)", "file_line": "tools/lane-check.sh -> builders/studio-env.sh disk lock", "attempts": 1},
-    {"error": "Lead 2026-10-23: no gated command until the global gameplan hook is off (hook text: confirm_binding target missing: .../wtc-WP-KERNEL-012 | GLOBAL-GAMEPLAN-001)", "file_line": "global hook", "attempts": 0},
-    {"error": "PreToolUse:Bash hook (gameplan.py hook) blocked a plain python lane-file update run from the kernel root: 'scope | role=* | at=before_round | GLOBAL-GAMEPLAN-001'; unconfirmed GP-016, GP-017 (orchestrator), GP-024, GP-026, GP-027, GP-028, GP-030, GP-031 (builder) for HEAD 61e002ba32e3; fix lines offered: gameplan confirm ... (NOT run, per Operator instruction to ignore gameplans). This file was written with the Write tool instead; no command was reshaped.", "file_line": "~/.claude/skills/gameplan/scripts/gameplan.py hook", "attempts": 1}
-  ],
-  "lock_wait_s": 13666,
+  "blockers": [],
+  "lock_wait_s": {
+    "run1": 6414,
+    "run2": 1988,
+    "run3": 2637,
+    "run4": 739,
+    "total_this_session": 11778,
+    "earlier_sessions": 13666
+  },
   "bg_pids": [],
-  "next": "when the lead clears the hook: rerun the same bundled lane-check on D: at 8ddbae5 (whole suites of controls, harness-view, harness, harness-core; desktop + audio-batch); then fetch + rebase onto origin/codex/handshake-studio-assets (smb-timeline-ui-1 also touches harness-view: expect a possible conflict), diff --stat check, guarded push, READY_FOR_VALIDATION, START_LOG line",
-  "updated_at": "2026-10-22T23:15:06Z (not refreshed: Bash blocked by the hook, no date -u available)",
+  "next": "validator: independent verdict on 1709b748",
+  "updated_at": "2026-10-23T19:35:00Z",
   "notes": {
     "disk_move": "Operator decision 2026-10-23 (no builds on C:): no process of this lane ever ran on the C: target (the only SSD attempt was refused by studio-env with exit 77 before cargo started); every build of this lane runs on D: with STUDIO_OWNER=smb-harness-shell-2 without STUDIO_BUILD_DISK, target Handshake_Artifacts/WP-KERNEL-STUDIO/smb-harness-shell-2/target. C: target untouched (lead handles it).",
     "check": "cargo check -p hsk-studio-controls -p hsk-studio-harness-view -p hsk-studio-harness --tests --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch: exit 0 on D: (no warnings in the owned crates), before the commits; 6465 s lock wait",
@@ -67,6 +102,7 @@
       "STU-ARC-014 descriptors now drive menus and the file dialog / help windows; the dialog's file list rows and the other panels' egui code are not descriptor-driven",
       "HELP leaves Help for This Command/Panel/Tool, Domain Guides, Render Harness, Visual Debugger, Flight Recorder, Validation Report, GPU Report, Accessibility Tree Snapshot: greyed NOT_IMPLEMENTED_YET (no backing surface in the viewer)",
       "vendor names outside menus and dialogs, left as provenance/format strings: harness-core import receipts and CLI manual text (Affinity preview route, tiff_photoshop_layers_not_imported), CLI colour space adobe-rgb"
-    ]
+    ],
+    "rebase_conflicts": "SMB-TIMELINE-UI-1: no textual conflict; semantic: Panel::Timeline added to the NO_SUCH_CONTAINER arm of panel_descriptor_availability, viewer_timeline AccessKit test walks the new Panels submenu. SMB-HARNESS-PANELS-1: 4 shell.rs hunks, both sides kept; hosted panels appear under WORKSPACE > Panels via Panel::ALL, their \"open a document first\" maps to INAPPLICABLE_HERE with remedy Open."
   }
 }

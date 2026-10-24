@@ -12,5 +12,20 @@
   "objc2-avf-audio@0.3.2": {"license": "Zlib OR Apache-2.0 OR MIT", "checksum": "13a380031deed8e99db00065c45937da434ca987c034e13b87e4441f9e4090be", "source": "https://crates.io/api/v1/crates/objc2-avf-audio/0.3.2"},
   "objc2-core-audio@0.3.2": {"license": "Zlib OR Apache-2.0 OR MIT", "checksum": "e1eebcea8b0dbff5f7c8504f3107c68fc061a3eb44932051c8cf8a68d969c3b2", "source": "https://crates.io/api/v1/crates/objc2-core-audio/0.3.2"},
   "objc2-core-audio-types@0.3.2": {"license": "Zlib OR Apache-2.0 OR MIT", "checksum": "5a89f2ec274a0cf4a32642b2991e8b351a404d290da87bb6a9a9d8632490bd1c", "source": "https://crates.io/api/v1/crates/objc2-core-audio-types/0.3.2"}
+ },
+ "asset_licenses_note": "Approved licences of non-code assets embedded in workspace members (vendored forks). license_gate.py gates only registry `locked` crates.io records and does not read this section; it is the decision and verification record for the steward sync that adds the member.",
+ "asset_licenses": {
+  "hsk-studio-ps": {
+   "decision": "Lead decision 2026-10-24 (steward EPS sync dispatch) on Operator decision 2026-10-22 'replace EPS with open source fonts'; same treatment as the 2026-10-14 bundled-font decision (START_LOG).",
+   "lane": "SMB-EPS-FREE-FONTS", "introduced_by": "d195ef7 (vendored stet 0.8.4 fork); verified at origin 1709b748",
+   "verified_at": "2026-10-24", "verified_by": "workspace steward (EPS sync); font files and licence texts read, no GPL/LGPL/MPL source read",
+   "assets": [
+    {"paths": "crates/hsk-studio-ps/resources/Font/tex-gyre/q*.pfb (33 Type 1 files, FontName TeXGyre{Termes,Heros,HerosCondensed,Cursor,Pagella,Schola,Bonum,Adventor}-*, TeXGyreChorus-MediumItalic; concatenated sha256 88d5591df2a26777...)", "license": "GUST Font License (LPPL-1.3c instance)", "license_text": "crates/hsk-studio-ps/resources/Font/tex-gyre/GUST-FONT-LICENSE.txt (sha256 2bd69affc3da0071...) + README/MANIFEST per family"},
+    {"paths": "crates/hsk-studio-ps/resources/Font/stix-two/STIXTwoMath-Regular.ttf (STIX Two Math 2.12, sha256 562551b15b836e6e...)", "license": "OFL-1.1", "license_text": "crates/hsk-studio-ps/resources/Font/stix-two/OFL.txt (sha256 0c8825913b60d858...); name table IDs 13/14 = SIL OFL 1.1"},
+    {"paths": "crates/hsk-studio-ps/resources/Font/dejavu/DejaVuSans.ttf (DejaVu Sans 2.37, sha256 7da195a74c55bef9...)", "license": "Bitstream-Vera AND Arev (DejaVu changes public domain)", "license_text": "crates/hsk-studio-ps/resources/Font/dejavu/LICENSE (sha256 7a083b136e64d064...); name table ID 13 = Bitstream Vera + Arev terms"}
+   ],
+   "checks": ["embedded set (src/embedded_resources.rs include_bytes) = exactly the 33 TeX Gyre .pfb + STIX Two Math + DejaVu Sans; FONT_LICENCES embeds the three licence texts", "crates/hsk-studio-ps/NOTICE (sha256 e9b3ea1a54385c83...) lists all three with copyright and licence", "no URW base35 program (no Nimbus*/n0*l.pfb file, every .pfb FontName is TeXGyre*; the only case-insensitive 'urw' byte matches are 3 random hits inside eexec-encrypted segments) and no LICENSE-URW-FONTS anywhere in the repository", "no font licence file names GPL/LGPL/AGPL; no GPL-only/AGPL font embedded", "kept from stet with permissive terms: Adobe AGL/ZapfDingbats glyph lists and CID tables (hsk-studio-ps-fonts LICENSE-ADOBE-AGL / LICENSE-ADOBE-CMAP, BSD-3-Clause-style), default_cmyk.icc (stated CC0 by stet)"],
+   "minor_finding": "NOTICE gives 'Copyright 2006-2009' for all TeX Gyre fonts; the Adventor and Pagella programs state 2007-2018 / 2006-2018 'et al.' (attribution text only; builder fix, not a licence blocker)"
+  }
  }
 }

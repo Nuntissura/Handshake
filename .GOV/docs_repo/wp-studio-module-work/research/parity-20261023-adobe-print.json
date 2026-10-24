@@ -1,0 +1,1335 @@
+{
+  "schema": "hsk.studio.research.parity_update@1",
+  "file_id": "WP-KERNEL-STUDIO-PARITY-20261023-ADOBE-PRINT",
+  "updated_at": "2026-10-23",
+  "by": "read-only parity auditor (Claude Opus 5.5) for photoshop, lightroom_classic, illustrator, indesign; no build, test or cargo command run",
+  "wp": "WP-KERNEL-STUDIO",
+  "basis": {
+    "baseline": "research/feature-completeness-20261021.json (tip e64eacd) + research/audit-20261021/parity-{photoshop,lightroom_classic,illustrator,indesign}.json + gui-surfaces.json",
+    "product_tip": "origin/codex/handshake-studio-assets @ 5ab33c9 (fetched 2026-10-23; shared tree HEAD == origin; 3 Operator-leftover modified files not read); 53 commits e64eacd..5ab33c9",
+    "rounds": [
+      "STUDIO-R36 @a105766 (completed 2026-10-22T05:34:45Z): 291 PASS / 2 FAIL",
+      "STUDIO-R37 @1d139a6 (completed 2026-10-22T13:00:58Z): 297 PASS / 1 FAIL",
+      "STUDIO-R38 @e3953de: never finished (machine restart during its canary)"
+    ],
+    "local_worktrees": "wt-studio-lanes/{smb-harness-shell-2 (8ddbae5), smb-harness-panels-1 (587886c), smb-eps-free-fonts (a0351e9)} counted LOCAL_UNVALIDATED only; smb-ae-effect-stack-1 is not one of these apps",
+    "spec": "SPEC_CURRENT -> v02.222 (not v02.221 as briefed: SPEC_CURRENT.md updated_at 2026-10-23T00:12Z); clauses grepped in .GOV/spec/master-spec-v02.222/spec-modules/14-studio-creative-suite.md, cited as ':line'",
+    "post_r37_staleness": "crates changed 1d139a6..5ab33c9: composite, develop, folio, harness, harness-view, interop-psd, interop-tiff, package, pigment, pulse; PASS proofs on these crates are stale again under CX-VAL-009 until the next finished round"
+  },
+  "method": {
+    "engine_formula": "pct = 100 * (VALIDATED + 0.5*BUILT_NOT_VALIDATED + 0.25*PARTIAL) / rows; same rows as the 2026-10-21 audit (PS 36, LR 35, AI 32, ID 31), unweighted; levels per the audit's verified_level rule (a row stays PARTIAL while a vendor-defined sub-capability it names is absent or typed-refused)",
+    "gui_pooled_formula": "per app (DOABLE judged + 0.5*DOABLE unjudged) / core workflows of gui-surfaces.json per_app; LOCAL column counts reach that exists only in local commits at 0.5",
+    "gui_strict_formula": "per app AGREE ui rows / app rows under the gui-surfaces.json matrix_ui_flag_verification rule (the audit published only the pooled 44/308 = 14.3 %; per-app values derived from per_app.matrix_ui_rows_verified); 'with additions' adds RAISE rows",
+    "delivery_classes": {
+      "DELIVERED_VALIDATED": "on origin and PASS in a finished round (R36 or R37)",
+      "DELIVERED_UNVALIDATED": "on origin, lane READY_FOR_VALIDATION (R38 did not finish)",
+      "LOCAL_UNVALIDATED": "only in a lane worktree, never pushed; never counted as delivered"
+    },
+    "changed_row_rule": "a row is listed when its verified level, a covering lane's verdict (READY -> PASS or FAIL) or its GUI reach changed since 2026-10-21; rows sharing the same lane evidence are grouped"
+  },
+  "apps": {
+    "photoshop": {
+      "before_20261021": {
+        "rows": 36,
+        "counts": {
+          "VALIDATED": 12,
+          "BUILT_NOT_VALIDATED": 0,
+          "PARTIAL": 20,
+          "MISSING": 4
+        },
+        "engine_pct_verified": 47.2,
+        "engine_pct_matrix": 55.6,
+        "gui_pct_pooled": 61.1,
+        "gui_workflows": 18,
+        "gui_doable_judged": 11,
+        "gui_doable_unjudged": 0,
+        "gui_strict_pct": 30.6,
+        "gui_strict_rows": "11 agree / 36",
+        "gui_strict_with_additions_pct": 38.9,
+        "gui_strict_with_additions_rows": "11 agree + 3 raise / 36",
+        "source": "feature-completeness-20261021.json per_app[0]; audit-20261021/parity-photoshop.json counts; gui-surfaces.json per_app[0]"
+      },
+      "changed_rows": [
+        {
+          "row": "PS-02",
+          "name": "Full layer-kind set",
+          "change": "fill layers (solid/gradient/pattern) now import from PSD and render: the absence the audit named is closed in code; level stays PARTIAL",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": {
+            "DELIVERED_VALIDATED": "PARTIAL",
+            "DELIVERED_UNVALIDATED": "PARTIAL",
+            "LOCAL": "PARTIAL"
+          },
+          "why_still_partial": "PSD shape layers (fill + vector mask) stay preserved, not applied (fill_layer_import.rs:483); gradient dither, align_with_layer=false, non-50 midpoints and noise gradients refused (lane gaps); the audit lowers a row while Photoshop-defined sub-capabilities are refused. Lenient alternative: BUILT_NOT_VALIDATED -> engine 47.9 % with origin work.",
+          "evidence": [
+            {
+              "lane": "SMB-PS-FILL-LAYERS",
+              "commits_on_origin": "c7daeb6 a4cd70b 9204fdf 7d69cc2 3b88879",
+              "round_verdict": "READY_FOR_VALIDATION (R38 lost in its canary; never judged)",
+              "delivery_class": "DELIVERED_UNVALIDATED",
+              "tests": [
+                "folio/tests/fill_layer_records.rs::fill_layers_are_graph_sources_and_validate_per_kind",
+                "interop-psd/tests/fill_layer_import.rs::solid_fill_maps_to_a_fill_layer_with_its_record_and_exports_unchanged",
+                "::gradient_fill_maps_every_field",
+                "::pattern_fill_maps_with_its_tile_and_missing_or_unminted_patterns_are_typed",
+                "::unknown_fields_are_reported_and_a_vector_mask_keeps_the_fill_preserved",
+                "composite/tests/fill_layer_lowering.rs::gradient_fill_renders_the_hand_derived_gradient_with_opacity_and_fill",
+                "render-cpu/tests/cpu_fill_layers.rs::gradient_fill_renders_bit_identical_to_the_reference_and_to_the_hand_value",
+                "::pattern_fill_renders_bit_identical_to_the_reference"
+              ],
+              "verified_at": "crates/hsk-studio-folio/src/fill_layer.rs:66 (enum StudioFill), :118 (struct StudioFillLayer); folio/src/raster.rs:771 (fill_layer field); interop-psd/src/fill.rs:61, 83-84 (SoCo/GdFl/PtFl mapped); interop-psd/src/proposal.rs:975 (fill_layer_not_applied loss removed once mapped); composite/src/lower_extensions.rs:153, 156, 160; tests interop-psd/tests/fill_layer_import.rs:243, 265, 397, 483; composite/tests/fill_layer_lowering.rs:187, 291; render-cpu/tests/cpu_fill_layers.rs:88, 141"
+            },
+            {
+              "lane": "SMB-PS-ADJUST-STYLES-3",
+              "commits_on_origin": "5514c50 f588e45 e303149 a548d49 e55a1a5 15d55b5",
+              "round_verdict": "PASS_V1 R36, PASS_V2 R37",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "render-gpu/tests/gpu_knockout.rs::gpu_knockout_placements_match_render_cpu_hand_values",
+                "::gpu_masked_partial_knockout_matches_pigment_knockout_math"
+              ],
+              "verified_at": "crates/hsk-studio-render-gpu/tests/gpu_knockout.rs:186, 284"
+            }
+          ],
+          "oracle": "NO_ORACLE_CASE (no D5 fill-layer case; Photoshop pixel parity UNVERIFIED)"
+        },
+        {
+          "row": "PS-19",
+          "name": "Fill and gradient tools, gradients and patterns on raster",
+          "change": "gradient/pattern render as fill layers (READY); still no raster gradient tool or bucket; PARTIAL",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": {
+            "DELIVERED_VALIDATED": "PARTIAL",
+            "DELIVERED_UNVALIDATED": "PARTIAL",
+            "LOCAL": "PARTIAL"
+          },
+          "evidence": [
+            {
+              "lane": "SMB-PS-FILL-LAYERS",
+              "commits_on_origin": "c7daeb6 a4cd70b 9204fdf 7d69cc2 3b88879",
+              "round_verdict": "READY_FOR_VALIDATION (R38 lost in its canary; never judged)",
+              "delivery_class": "DELIVERED_UNVALIDATED",
+              "tests": [
+                "folio/tests/fill_layer_records.rs::fill_layers_are_graph_sources_and_validate_per_kind",
+                "interop-psd/tests/fill_layer_import.rs::solid_fill_maps_to_a_fill_layer_with_its_record_and_exports_unchanged",
+                "::gradient_fill_maps_every_field",
+                "::pattern_fill_maps_with_its_tile_and_missing_or_unminted_patterns_are_typed",
+                "::unknown_fields_are_reported_and_a_vector_mask_keeps_the_fill_preserved",
+                "composite/tests/fill_layer_lowering.rs::gradient_fill_renders_the_hand_derived_gradient_with_opacity_and_fill",
+                "render-cpu/tests/cpu_fill_layers.rs::gradient_fill_renders_bit_identical_to_the_reference_and_to_the_hand_value",
+                "::pattern_fill_renders_bit_identical_to_the_reference"
+              ],
+              "verified_at": "crates/hsk-studio-folio/src/fill_layer.rs:66 (enum StudioFill), :118 (struct StudioFillLayer); folio/src/raster.rs:771 (fill_layer field); interop-psd/src/fill.rs:61, 83-84 (SoCo/GdFl/PtFl mapped); interop-psd/src/proposal.rs:975 (fill_layer_not_applied loss removed once mapped); composite/src/lower_extensions.rs:153, 156, 160; tests interop-psd/tests/fill_layer_import.rs:243, 265, 397, 483; composite/tests/fill_layer_lowering.rs:187, 291; render-cpu/tests/cpu_fill_layers.rs:88, 141"
+            }
+          ],
+          "oracle": "NO_ORACLE_CASE"
+        },
+        {
+          "row": "PS-01, PS-03, PS-04, PS-06, PS-07, PS-09, PS-11, PS-12, PS-26, PS-27",
+          "name": "rows tied to the D5 Photoshop oracle lanes",
+          "change": "covering oracle lanes READY (unjudged) -> PASS; R35-stale PASS proofs re-judged in R36/R37; levels unchanged (PS-04/06/07/11 keep the typed refusals the audit lowered them for; expectations.json identical)",
+          "evidence_level_before": "PS-01/03/09/12/27 VALIDATED; PS-04/06/07/11/26 PARTIAL",
+          "evidence_level_after": "unchanged",
+          "evidence": [
+            {
+              "lane": "SMB-D5-PS-COMPARE",
+              "commits_on_origin": "3d5fbda",
+              "round_verdict": "PASS_V1 R36, PASS_V2 R37",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "harness/tests/d5_ps_compare.rs::ps_oracle_blend_mode_grids",
+                "::ps_oracle_adjustment_layers",
+                "::ps_oracle_layer_structure",
+                "::ps_oracle_layer_effects",
+                "::ps_oracle_colour_conversions"
+              ],
+              "verified_at": "crates/hsk-studio-harness/tests/d5_ps_compare.rs:32,39,50,60,71 (fn ps_oracle_*); tests/d5_ps_compare/expectations.json unchanged e64eacd..5ab33c9 (git diff --stat empty)"
+            },
+            {
+              "lane": "SMB-PS-ORACLE-PARITY-1",
+              "commits_on_origin": "30ea18e..f9b2fd7 + R36 remediation b2b43fc, 9c48de8",
+              "round_verdict": "FAIL_V1 R36 (fig_paints_2 bold_text p99 5.700324 > 5.698), PASS_V2 R37",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "interop-fig/tests/fig_paints_2.rs::bold_text_renders_with_the_inter_bold_fixture"
+              ],
+              "verified_at": "crates/hsk-studio-pigment/src/effect_math.rs:842 (pub enum EffectBlurKernel); crates/hsk-studio-interop-fig/tests/fig_paints_2.rs:76"
+            },
+            {
+              "lane": "SMB-PS-ORACLE-PARITY-2",
+              "commits_on_origin": "e64eacd + R36 remediation 9e09375",
+              "round_verdict": "FAIL_V1 R36 (composite render_plan_lowering pinned 0 vs grow fringe 0.000759), PASS_V2 R37",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "composite/tests/render_plan_lowering.rs::effect_stack_lowers_to_pigment_ops_that_render_as_derived",
+                "::inner_shadow_and_glows_lower_to_pigment_ops_that_render_as_derived"
+              ],
+              "verified_at": "crates/hsk-studio-composite/tests/render_plan_lowering.rs:1337 (fn effect_stack_lowers_to_pigment_ops_that_render_as_derived)"
+            }
+          ],
+          "oracle": "Photoshop 27.11.0: 489 MATCH / 9 MISMATCH / 83 NOT_SUPPORTED / 6 ORACLE_INVALID / 1 ORACLE_ABSENT of 588 (unchanged), now under PASS verdicts"
+        },
+        {
+          "row": "PS-10, PS-12, PS-22, PS-24",
+          "name": "layer styles / knockout / smart filters / smart objects",
+          "change": "covering SMB-PS-ADJUST-STYLES-3 READY -> PASS; levels unchanged (PS-24 still no edit-contents/update/convert)",
+          "evidence_level_before": "PS-10/12 VALIDATED; PS-22/24 PARTIAL",
+          "evidence_level_after": "unchanged",
+          "evidence": [
+            {
+              "lane": "SMB-PS-ADJUST-STYLES-3",
+              "commits_on_origin": "5514c50 f588e45 e303149 a548d49 e55a1a5 15d55b5",
+              "round_verdict": "PASS_V1 R36, PASS_V2 R37",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "render-gpu/tests/gpu_knockout.rs::gpu_knockout_placements_match_render_cpu_hand_values",
+                "::gpu_masked_partial_knockout_matches_pigment_knockout_math"
+              ],
+              "verified_at": "crates/hsk-studio-render-gpu/tests/gpu_knockout.rs:186, 284"
+            }
+          ],
+          "oracle": "PS-12 has D5 knockout cases; others NO_ORACLE_CASE"
+        },
+        {
+          "row": "PS-24, PS-34",
+          "name": "placed assets / native save",
+          "change": "covering SMB-PACKAGE-COMPLETENESS-2 READY -> PASS; levels unchanged",
+          "evidence_level_before": "PS-24 PARTIAL; PS-34 VALIDATED",
+          "evidence_level_after": "unchanged",
+          "evidence": [
+            {
+              "lane": "SMB-PACKAGE-COMPLETENESS-2",
+              "commits_on_origin": "608dbce",
+              "round_verdict": "PASS_V1 R36, PASS_V2 R37",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "package/tests/linked_files.rs::linked_files_are_checked_for_existence_and_hash_inside_the_document_directory"
+              ],
+              "verified_at": "crates/hsk-studio-package/tests/linked_files.rs:39"
+            }
+          ],
+          "oracle": "NO_ORACLE_CASE"
+        }
+      ],
+      "gui_changes": [
+        {
+          "surface": "menu bar (FILE/EDIT/VIEW/WORKSPACE), own file dialog, recent files",
+          "effect": "audit 'no menus or file dialogs (paths typed)' no longer holds; no Photoshop workflow changes state (open/save/export were already DOABLE by typed path)",
+          "evidence": [
+            {
+              "lane": "SMB-HARNESS-SHELL-1",
+              "commits_on_origin": "2defb17 9ca2c59 1f0e945 5605a52 45f04b2",
+              "round_verdict": "PASS_V1 R37",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "harness/tests/viewer_shell.rs::menu_bar_draws_its_titles_and_every_entry_has_a_unique_command_id",
+                "::accesskit_clicks_reach_the_open_dialog_and_a_workspace_panel",
+                "::function_keys_and_workspace_entries_open_every_surface"
+              ],
+              "verified_at": "crates/hsk-studio-harness-view/src/view/shell.rs:93, 108, 132 (LayoutEditor panel, 'Layout Editor', F5), :648 (toggle_panel), :676 (LayoutEditor::new hosted); harness/tests/viewer_shell.rs:173, 202, 232-237 (AccessKit click on 'Layout Editor' draws 'layout'), 243, 269-275 (F5 hosts the editor, draws layout + layout.pages, DrawFrame applied)"
+            }
+          ]
+        },
+        {
+          "surface": "hosted masks panel (LOCAL)",
+          "effect": "make_clip / make_vector_mask on vector layers; raster layer-mask workflow not reached: not counted",
+          "evidence": [
+            {
+              "lane": "SMB-HARNESS-PANELS-1",
+              "commits_on_origin": "LOCAL ONLY bfe8f85 a7838c8 587886c (wt-studio-lanes/smb-harness-panels-1)",
+              "round_verdict": "none: BLOCKED; run 1 at a7838c8 182 passed / 13 failed (AccessKit helper), fix 587886c never re-run (gameplan hook block)",
+              "delivery_class": "LOCAL_UNVALIDATED",
+              "tests": [
+                "harness/tests/viewer_panels.rs (18 tests, never green)"
+              ],
+              "verified_at": "local commit 587886c: crates/hsk-studio-harness-view/src/view/hosted.rs:101-113 (13 hosted panel keys incl. stroke, swatches, graphic_styles, align_distribute, transform, path_operations, masks, vector_export, vector_import), :902-903 (Live Corner -> PathEdit::Corner), :1262 (make_clip), :1277 (export_vector_svg), :1279 (import_ai)"
+            }
+          ]
+        }
+      ],
+      "unlisted_capabilities_changed": [],
+      "recomputed": {
+        "DELIVERED_VALIDATED": {
+          "engine_counts": {
+            "VALIDATED": 12,
+            "BUILT_NOT_VALIDATED": 0,
+            "PARTIAL": 20,
+            "MISSING": 4
+          },
+          "engine_pct": 47.2,
+          "gui_pooled_pct": 61.1,
+          "gui_pooled_inputs": "(11 judged + 0.5*0 unjudged/local)/18 workflows",
+          "gui_strict_pct": 30.6,
+          "gui_strict_with_additions_pct": 38.9,
+          "gui_strict_inputs": "11 agree (+3 raise) / 36 rows"
+        },
+        "DELIVERED_VALIDATED_PLUS_DELIVERED_UNVALIDATED (origin 5ab33c9)": {
+          "engine_counts": {
+            "VALIDATED": 12,
+            "BUILT_NOT_VALIDATED": 0,
+            "PARTIAL": 20,
+            "MISSING": 4
+          },
+          "engine_pct": 47.2,
+          "gui_pooled_pct": 61.1,
+          "gui_pooled_inputs": "(11 judged + 0.5*0 unjudged/local)/18 workflows",
+          "gui_strict_pct": 30.6,
+          "gui_strict_with_additions_pct": 38.9,
+          "gui_strict_inputs": "11 agree (+3 raise) / 36 rows"
+        },
+        "PLUS_LOCAL_UNVALIDATED (unpushed lane commits)": {
+          "engine_counts": {
+            "VALIDATED": 12,
+            "BUILT_NOT_VALIDATED": 0,
+            "PARTIAL": 20,
+            "MISSING": 4
+          },
+          "engine_pct": 47.2,
+          "gui_pooled_pct": 61.1,
+          "gui_pooled_inputs": "(11 judged + 0.5*0 unjudged/local)/18 workflows",
+          "gui_strict_pct": 30.6,
+          "gui_strict_with_additions_pct": 38.9,
+          "gui_strict_inputs": "11 agree (+3 raise) / 36 rows"
+        },
+        "lenient_alternative": {
+          "assumption": "PS-02 counted BUILT_NOT_VALIDATED on origin (fill was the only absence the audit's PS-02 note named)",
+          "engine_pct_validated": 47.2,
+          "engine_pct_with_origin": 47.9
+        }
+      },
+      "oracle": {
+        "d5_oracle": "PRESENT (Photoshop 27.11.0, 588 variants)",
+        "counts": {
+          "MATCH": 489,
+          "MISMATCH": 9,
+          "NOT_SUPPORTED": 83,
+          "ORACLE_INVALID": 6,
+          "ORACLE_ABSENT": 1
+        },
+        "changed_since_20261021": "verdict only: SMB-D5-PS-COMPARE PASS (R36/R37), SMB-PS-ORACLE-PARITY-1/-2 PASS_V2 (R37) after FAIL_V1 in R36; expectations.json byte-unchanged e64eacd..5ab33c9; no d5_ps NOT_PROVEN line in the R36/R37 unions",
+        "rows_with_no_case": "PS-02 fill layers, PS-19, PS-24 and every audit NO_ORACLE_CASE row stay UNVERIFIED vs Photoshop",
+        "open": "SMB-D5-PS-GAMMA-OPERATOR (decided, Operator-attended HSK-gamma-1.0 setting); SMB-PS-ORACLE-RESCRIPT (queued; PS-C28 mask variants)",
+        "post_r37_risk": "pigment/composite/interop-psd/folio changed 1d139a6..5ab33c9 (fill layers); oracle suite not re-run on the tip (R38 lost)"
+      },
+      "top_gaps_remaining": [
+        {
+          "rank": 1,
+          "row": "PS-28",
+          "level": "MISSING",
+          "weight_deficit": 1.0,
+          "gap": "Soft proofing and gamut warning",
+          "spec": [
+            "STU-COL-022 (14-studio-creative-suite.md:12434)",
+            "STU-COL-240 (:11064)"
+          ],
+          "lane": "none"
+        },
+        {
+          "rank": 2,
+          "row": "PS-30",
+          "level": "MISSING",
+          "weight_deficit": 1.0,
+          "gap": "Histogram, info, colour sampler",
+          "spec": [
+            "STU-RAS-049 (:1840)"
+          ],
+          "lane": "none"
+        },
+        {
+          "rank": 3,
+          "row": "PS-31",
+          "level": "MISSING",
+          "weight_deficit": 1.0,
+          "gap": "Actions / macro recording and batch",
+          "spec": [
+            "STU-RAS-169 (:1310)"
+          ],
+          "lane": "none"
+        },
+        {
+          "rank": 4,
+          "row": "PS-33",
+          "level": "MISSING",
+          "weight_deficit": 1.0,
+          "gap": "Generative fill / AI features",
+          "spec": [
+            "STU-RAS-045 (:1805): cloud/vendor-generative features are NOT core; optional StudioModelAdapter lane or intentionally omitted",
+            "STU-ARC-019 (:247) current non-AI activation"
+          ],
+          "lane": "none (spec places it outside current scope)"
+        },
+        {
+          "rank": 5,
+          "row": "PS-19",
+          "level": "PARTIAL",
+          "weight_deficit": 0.75,
+          "gap": "No raster gradient tool or bucket fill (audit top gap 1 remainder after fill layers)",
+          "spec": [
+            "STU-RAS-160 (raster gradient geometry, cited by the fill-layer lane)",
+            "STU-RAS-161 (:1265) StudioPattern model"
+          ],
+          "lane": "none for the tool (SMB-PS-FILL-LAYERS READY covers fill-layer rendering only)"
+        }
+      ],
+      "top_gaps_rank_rule": "audit weight deficit (MISSING 1.0, PARTIAL 0.75 per row), ties broken by the audit's own top_gaps order; same rule for every app"
+    },
+    "lightroom_classic": {
+      "before_20261021": {
+        "rows": 35,
+        "counts": {
+          "VALIDATED": 16,
+          "BUILT_NOT_VALIDATED": 0,
+          "PARTIAL": 17,
+          "MISSING": 2
+        },
+        "engine_pct_verified": 57.9,
+        "engine_pct_matrix": 57.9,
+        "gui_pct_pooled": 65.4,
+        "gui_workflows": 13,
+        "gui_doable_judged": 8,
+        "gui_doable_unjudged": 1,
+        "gui_strict_pct": 31.4,
+        "gui_strict_rows": "11 agree / 35",
+        "gui_strict_with_additions_pct": 42.9,
+        "gui_strict_with_additions_rows": "11 agree + 4 raise / 35",
+        "source": "feature-completeness-20261021.json per_app[1]; parity-lightroom_classic.json; gui-surfaces.json per_app[1]"
+      },
+      "changed_rows": [
+        {
+          "row": "LR-02",
+          "name": "Proprietary raw decode",
+          "change": "RW2 and Huffman NEF clean-room decoders (the audit's BUILT_NOT_VALIDATED part) now PASS, oracle tests run by the validator; PARTIAL unchanged (RAF/CR3/SR2 clean-room blocked, compressed ORF and RW2 format 8 absent)",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": {
+            "DELIVERED_VALIDATED": "PARTIAL",
+            "DELIVERED_UNVALIDATED": "PARTIAL",
+            "LOCAL": "PARTIAL"
+          },
+          "evidence": [
+            {
+              "lane": "SMB-RAW-CLEANROOM-2",
+              "commits_on_origin": "d51b0c9",
+              "round_verdict": "PASS_V1 R36, PASS_V2 R37 (R36 validator note: oracle tests rw2/nef_clean_room_matches_the_dng_converter_oracle_bit_exact passed in ignored:hsk-studio-develop)",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "develop src/raw_cr/rw2.rs::rw2_clean_room_matches_the_dng_converter_oracle_bit_exact",
+                "develop src/raw_cr/nef.rs::nef_clean_room_matches_the_dng_converter_oracle_bit_exact"
+              ],
+              "verified_at": "crates/hsk-studio-develop/src/raw_cr/rw2.rs:574; crates/hsk-studio-develop/src/raw_cr/nef.rs:548"
+            }
+          ],
+          "oracle": "Adobe DNG Converter 18.7 (decode oracle, not Lightroom): RW2 8/8, NEF 10/10 bit-exact, judged R36; other corpus raw comparisons NOT_PROVEN in R37 (reason adobe_dng_converter_not_installed)"
+        },
+        {
+          "row": "LR-13, LR-14, LR-15, LR-16, LR-18, LR-19, LR-20, LR-22",
+          "name": "lens / transform / effects / calibration / looks / presets / masks / crop",
+          "change": "covering SMB-DEVELOP-LENS-PRESETS slice 6 READY -> PASS; levels unchanged (LR-13 no .lcp/database; LR-18 no DCP/XMP profiles)",
+          "evidence_level_before": "LR-14/15/16/22 VALIDATED; LR-13/18/19/20 PARTIAL",
+          "evidence_level_after": "unchanged",
+          "evidence": [
+            {
+              "lane": "SMB-DEVELOP-LENS-PRESETS",
+              "commits_on_origin": "b0025d2 658aef4 (slice 6)",
+              "round_verdict": "PASS_V3 R36, PASS_V4 R37",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "harness/tests/viewer_develop_lens.rs::lens_transform_effects_calibration_look_and_preset_develop_undo_and_reopen"
+              ],
+              "verified_at": "crates/hsk-studio-harness/tests/viewer_develop_lens.rs:59"
+            }
+          ],
+          "oracle": "UNVERIFIED against Lightroom Classic (no oracle)"
+        },
+        {
+          "row": "LR-33",
+          "name": "Export: JPEG/TIFF/DNG with resize, output sharpening, watermark",
+          "change": "TIFF export (8/16-bit, None/LZW/ZIP, LE/BE, BigTIFF, ICC) validated; DNG 1.4 writer on origin unvalidated; both CLI only (no window button); resize, output sharpening, watermark still absent; PARTIAL",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": {
+            "DELIVERED_VALIDATED": "PARTIAL",
+            "DELIVERED_UNVALIDATED": "PARTIAL",
+            "LOCAL": "PARTIAL"
+          },
+          "evidence": [
+            {
+              "lane": "SMB-DEVELOP-EXPORT-TIFF",
+              "commits_on_origin": "0ad3ca4 d585939 ea51228 09a5b29",
+              "round_verdict": "PASS_V1 R37",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "develop/tests/develop_export_tiff.rs::tiff_export_round_trips_pixels_profile_and_metadata_for_every_setting",
+                "::corpus_dng_develops_to_a_tiff_equal_to_the_output_buffer",
+                "harness/tests/viewer_develop_tiff.rs::cli_tiff_export_matches_the_png_samples_and_embeds_the_profile"
+              ],
+              "verified_at": "crates/hsk-studio-develop/src/export.rs:79 (TiffExportSettings), :306 (develop_to_tiff); develop/tests/develop_export_tiff.rs:54, 239; harness/tests/viewer_develop_tiff.rs:26; harness-view/src/view/develop.rs:553 (DevelopExport::Tiff; CLI route, lane gaps: no window button)"
+            },
+            {
+              "lane": "SMB-DEVELOP-DNG-WRITER",
+              "commits_on_origin": "64804d9 44f2a50 a3efdab 5b1f0ab 71253a3",
+              "round_verdict": "READY_FOR_VALIDATION (R38 lost; never judged)",
+              "delivery_class": "DELIVERED_UNVALIDATED",
+              "tests": [
+                "develop/tests/develop_dng_write.rs::uncompressed_dng_round_trips_samples_and_tags",
+                "::lossless_jpeg_dng_round_trips_exactly_and_is_smaller",
+                "::corpus_adobe_dng_converter_tag_profile_is_compared",
+                "harness/tests/viewer_develop_dng.rs::cli_dng_export_preserves_the_raw_frame_and_carries_preview_and_xmp"
+              ],
+              "verified_at": "crates/hsk-studio-develop/src/dng_write.rs:92 (DngExportSettings), :418 (dng_from_raw), :685 (develop_to_dng); develop/tests/develop_dng_write.rs:233, 257, 617; harness/tests/viewer_develop_dng.rs:23; harness-view/src/view/develop.rs:565 (DevelopExport::Dng)"
+            }
+          ],
+          "oracle": "UNVERIFIED vs Lightroom; DNG compared with an Adobe-converter file by tag profile only (lane notes)"
+        }
+      ],
+      "gui_changes": [
+        {
+          "workflow": "Lens corrections, transform/Upright, effects, calibration",
+          "state_before": "DOABLE_UNJUDGED (0.5)",
+          "state_after": "DOABLE_IN_STUDIO_GUI judged (1.0)",
+          "evidence": [
+            {
+              "lane": "SMB-DEVELOP-LENS-PRESETS",
+              "commits_on_origin": "b0025d2 658aef4 (slice 6)",
+              "round_verdict": "PASS_V3 R36, PASS_V4 R37",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "harness/tests/viewer_develop_lens.rs::lens_transform_effects_calibration_look_and_preset_develop_undo_and_reopen"
+              ],
+              "verified_at": "crates/hsk-studio-harness/tests/viewer_develop_lens.rs:59"
+            }
+          ]
+        },
+        {
+          "surface": "menu bar + file dialog",
+          "effect": "RAW/DNG opens through FILE > Open; workflow was already DOABLE",
+          "evidence": [
+            {
+              "lane": "SMB-HARNESS-SHELL-1",
+              "commits_on_origin": "2defb17 9ca2c59 1f0e945 5605a52 45f04b2",
+              "round_verdict": "PASS_V1 R37",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "harness/tests/viewer_shell.rs::menu_bar_draws_its_titles_and_every_entry_has_a_unique_command_id",
+                "::accesskit_clicks_reach_the_open_dialog_and_a_workspace_panel",
+                "::function_keys_and_workspace_entries_open_every_surface"
+              ],
+              "verified_at": "crates/hsk-studio-harness-view/src/view/shell.rs:93, 108, 132 (LayoutEditor panel, 'Layout Editor', F5), :648 (toggle_panel), :676 (LayoutEditor::new hosted); harness/tests/viewer_shell.rs:173, 202, 232-237 (AccessKit click on 'Layout Editor' draws 'layout'), 243, 269-275 (F5 hosts the editor, draws layout + layout.pages, DrawFrame applied)"
+            }
+          ]
+        }
+      ],
+      "unlisted_capabilities_changed": [],
+      "recomputed": {
+        "DELIVERED_VALIDATED": {
+          "engine_counts": {
+            "VALIDATED": 16,
+            "BUILT_NOT_VALIDATED": 0,
+            "PARTIAL": 17,
+            "MISSING": 2
+          },
+          "engine_pct": 57.9,
+          "gui_pooled_pct": 69.2,
+          "gui_pooled_inputs": "(9 judged + 0.5*0 unjudged/local)/13 workflows",
+          "gui_strict_pct": 31.4,
+          "gui_strict_with_additions_pct": 42.9,
+          "gui_strict_inputs": "11 agree (+4 raise) / 35 rows"
+        },
+        "DELIVERED_VALIDATED_PLUS_DELIVERED_UNVALIDATED (origin 5ab33c9)": {
+          "engine_counts": {
+            "VALIDATED": 16,
+            "BUILT_NOT_VALIDATED": 0,
+            "PARTIAL": 17,
+            "MISSING": 2
+          },
+          "engine_pct": 57.9,
+          "gui_pooled_pct": 69.2,
+          "gui_pooled_inputs": "(9 judged + 0.5*0 unjudged/local)/13 workflows",
+          "gui_strict_pct": 31.4,
+          "gui_strict_with_additions_pct": 42.9,
+          "gui_strict_inputs": "11 agree (+4 raise) / 35 rows"
+        },
+        "PLUS_LOCAL_UNVALIDATED (unpushed lane commits)": {
+          "engine_counts": {
+            "VALIDATED": 16,
+            "BUILT_NOT_VALIDATED": 0,
+            "PARTIAL": 17,
+            "MISSING": 2
+          },
+          "engine_pct": 57.9,
+          "gui_pooled_pct": 69.2,
+          "gui_pooled_inputs": "(9 judged + 0.5*0 unjudged/local)/13 workflows",
+          "gui_strict_pct": 31.4,
+          "gui_strict_with_additions_pct": 42.9,
+          "gui_strict_inputs": "11 agree (+4 raise) / 35 rows"
+        }
+      },
+      "oracle": {
+        "d5_oracle": "ABSENT for Lightroom Classic (develop, library, export UNVERIFIED); decode-only oracle Adobe DNG Converter 18.7 PRESENT",
+        "changed_since_20261021": "RW2 8/8 and NEF 10/10 bit-exact oracle tests judged PASS in R36 (were READY, unjudged); TIFF/DNG export have no oracle; DNG writer compared with a converter file by tag profile only",
+        "not_proven": "R37 union: 20 develop NOT_PROVEN lines, incl. 9 cfa_samples_vs_independent_dng with reason adobe_dng_converter_not_installed"
+      },
+      "top_gaps_remaining": [
+        {
+          "rank": 1,
+          "row": "LR-21",
+          "level": "MISSING",
+          "weight_deficit": 1.0,
+          "gap": "Healing / spot removal / distraction removal",
+          "spec": [
+            "STU-RAW-124 (:2598) retouch record structure and generative-fill boundary"
+          ],
+          "lane": "none"
+        },
+        {
+          "rank": 2,
+          "row": "LR-23",
+          "level": "MISSING",
+          "weight_deficit": 1.0,
+          "gap": "HDR / panorama merge, Enhance, lens blur",
+          "spec": [
+            "STU-RAW-129 (:2617) HDR develop state",
+            "STU-RAW-130 (:2626) / STU-RAW-014 (:2650) enhance tiers",
+            "STU-AUT-134 (:21624) multi-input stack operations (panorama coverage NOT_INSPECTED)"
+          ],
+          "lane": "none"
+        },
+        {
+          "rank": 3,
+          "row": "LR-27 (LR-27..31)",
+          "level": "PARTIAL",
+          "weight_deficit": 0.75,
+          "gap": "Library is a port without a real catalog",
+          "spec": [
+            "STU-IO-189 (:235) Lightroom catalog interop",
+            "STU-ASSET-019 (:31149) catalog capability set"
+          ],
+          "lane": "none open (SMB-INTEROP-LRCAT / SMB-LIGHTROOM-CATALOG are PASS and do not close it)"
+        },
+        {
+          "rank": 4,
+          "row": "LR-20",
+          "level": "PARTIAL",
+          "weight_deficit": 0.75,
+          "gap": "AI subject/sky/object masks evaluate to model_unavailable",
+          "spec": [
+            "STU-RAW-123 (:2581) mask source catalogue",
+            "STU-RAS-045 / STU-ARC-019 (model features optional; non-AI current scope)"
+          ],
+          "lane": "none"
+        },
+        {
+          "rank": 5,
+          "row": "LR-33",
+          "level": "PARTIAL",
+          "weight_deficit": 0.75,
+          "gap": "Export lacks resize, output sharpening, watermark, presets and a window button for TIFF/DNG",
+          "spec": [
+            "STU-IO-135 (:21059) still-image export groups",
+            "STU-IO-138 (:21094)"
+          ],
+          "lane": "none open (TIFF PASS, DNG READY cover formats only)"
+        }
+      ]
+    },
+    "illustrator": {
+      "before_20261021": {
+        "rows": 32,
+        "counts": {
+          "VALIDATED": 17,
+          "BUILT_NOT_VALIDATED": 0,
+          "PARTIAL": 15,
+          "MISSING": 0
+        },
+        "engine_pct_verified": 64.8,
+        "engine_pct_matrix": 62.5,
+        "engine_pct_stale_adjusted": 38.3,
+        "gui_pct_pooled": 47.1,
+        "gui_workflows": 17,
+        "gui_doable_judged": 8,
+        "gui_doable_unjudged": 0,
+        "gui_strict_pct": 18.8,
+        "gui_strict_rows": "6 agree / 32",
+        "gui_strict_with_additions_pct": 31.3,
+        "gui_strict_with_additions_rows": "6 agree + 4 raise / 32",
+        "source": "feature-completeness-20261021.json per_app[2]; parity-illustrator.json; gui-surfaces.json per_app[2]"
+      },
+      "changed_rows": [
+        {
+          "row": "AI-13, AI-14",
+          "name": "stroke attributes / gradients",
+          "change": "covering SMB-AI-AE-ORACLE-FOLLOWUPS READY -> PASS (midpoint power curve, butt-cap extension); levels unchanged (arrowheads, freeform gradients, mesh drawing absent)",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": "unchanged",
+          "evidence": [
+            {
+              "lane": "SMB-AI-AE-ORACLE-FOLLOWUPS",
+              "commits_on_origin": "3a876c5 87707e1 fb9882c 5a3186a 3602062",
+              "round_verdict": "PASS_V1 R36, PASS_V2 R37",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "render-cpu/tests/d5_ai_oracle.rs::ai01_caps_joins_miters",
+                "::ai02_dashes_and_fill_rules",
+                "::ai03_gradients",
+                "::ai04_blend_modes",
+                "::ai05_isolation_knockout"
+              ],
+              "verified_at": "crates/hsk-studio-nib/src/raster.rs:658 (fn midpoint_curve, Illustrator power curve); render-cpu/tests/d5_ai_oracle.rs:464, 504, 551, 611, 651; d5_ai_expected_mismatch.txt unchanged e64eacd..5ab33c9"
+            }
+          ],
+          "oracle": "Illustrator 30.8.2: 68 MATCH / 6 MISMATCH / 1 NOT_SUPPORTED of 75 (unchanged), now under PASS; the audit's 'AI-04/05 MATCH at the tip unconfirmed' ran green in the R37 full union (no d5_ai NOT_PROVEN line)"
+        },
+        {
+          "row": "AI-14, AI-27, AI-28, AI-29, AI-30, AI-31",
+          "name": "mesh / type on a path / outlines / recolour / separations",
+          "change": "covering SMB-AI-TYPE-PATH-RECOLOR READY -> PASS: the audit's BUILT_NOT_VALIDATED sub-parts (type on a path, path-text outlines, recolour, mesh edit, separations preview) are validated; PARTIAL unchanged (no area type, no general Create Outlines, no swatch groups/ASE, no per-object overprint, mesh not drawn by composite/PDF/SVG)",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": "unchanged",
+          "evidence": [
+            {
+              "lane": "SMB-AI-TYPE-PATH-RECOLOR",
+              "commits_on_origin": "395d080 3e835f5 88a1410 54865f6",
+              "round_verdict": "PASS_V1 R36, PASS_V2 R37",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "harness/tests/viewer_ai_type_path_recolor.rs::ai_type_on_a_path_lays_out_and_converts_to_outlines",
+                "::ai_recolor_artwork_is_one_undo_step_and_global_swatches_propagate",
+                "::ai_gradient_mesh_from_a_shape_edits_rasterises_and_undoes",
+                "::ai_vector_separations_preview_through_press"
+              ],
+              "verified_at": "crates/hsk-studio-harness/tests/viewer_ai_type_path_recolor.rs:89, 132, 189, 234"
+            }
+          ],
+          "oracle": "NO_ORACLE_CASE"
+        },
+        {
+          "row": "AI-31",
+          "name": "CMYK documents, separations, overprint preview",
+          "change": "SMB-ID-PREPRESS separations/ink manager PASS_V2 R36 after R35 FAIL_V1; PARTIAL",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": "unchanged",
+          "evidence": [
+            {
+              "lane": "SMB-ID-PREPRESS",
+              "commits_on_origin": "c28363a..3195ea5 + R35 remediation 3b73143",
+              "round_verdict": "PASS_V2 R36, PASS_V3 R37 (after R35 FAIL_V1)",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "layout/tests/id_prepress_vjust.rs::vjust_center_and_bottom_move_the_block",
+                "interop-layout/tests/id_prepress_epub.rs::epub_package_structure_chapters_nav_and_metadata"
+              ],
+              "verified_at": "crates/hsk-studio-layout/tests/id_prepress_vjust.rs:31; crates/hsk-studio-interop-layout/tests/id_prepress_epub.rs:69"
+            }
+          ],
+          "oracle": "NO_ORACLE_CASE"
+        }
+      ],
+      "gui_changes": [
+        {
+          "workflows": [
+            "Open .ai as editable vectors (vector_import -> import_ai)",
+            "Live corners on existing paths (path_operations Live Corner)",
+            "Stroke panel",
+            "Align, distribute, transform",
+            "Clipping and opacity masks (masks -> make_clip/make_vector_mask)",
+            "Export SVG / PDF (vector_export)"
+          ],
+          "state_before": "ENGINE_ONLY",
+          "state_after": "LOCAL_UNVALIDATED (hosted panels only in local commits; counted 0.5 in the LOCAL column)",
+          "not_counted": "'Swatches, graphic styles, recolour artwork' (recolour not hosted), gradients, type",
+          "strict_rows_local": "AI-07, AI-16, AI-20, AI-23, AI-24 would move LOWER -> AGREE",
+          "evidence": [
+            {
+              "lane": "SMB-HARNESS-PANELS-1",
+              "commits_on_origin": "LOCAL ONLY bfe8f85 a7838c8 587886c (wt-studio-lanes/smb-harness-panels-1)",
+              "round_verdict": "none: BLOCKED; run 1 at a7838c8 182 passed / 13 failed (AccessKit helper), fix 587886c never re-run (gameplan hook block)",
+              "delivery_class": "LOCAL_UNVALIDATED",
+              "tests": [
+                "harness/tests/viewer_panels.rs (18 tests, never green)"
+              ],
+              "verified_at": "local commit 587886c: crates/hsk-studio-harness-view/src/view/hosted.rs:101-113 (13 hosted panel keys incl. stroke, swatches, graphic_styles, align_distribute, transform, path_operations, masks, vector_export, vector_import), :902-903 (Live Corner -> PathEdit::Corner), :1262 (make_clip), :1277 (export_vector_svg), :1279 (import_ai)"
+            }
+          ]
+        },
+        {
+          "surface": "menu bar + file dialog",
+          "effect": ".ai through FILE > Open still lands as a carried PDF (no new import route in harness-core); no Illustrator workflow changes state",
+          "evidence": [
+            {
+              "lane": "SMB-HARNESS-SHELL-1",
+              "commits_on_origin": "2defb17 9ca2c59 1f0e945 5605a52 45f04b2",
+              "round_verdict": "PASS_V1 R37",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "harness/tests/viewer_shell.rs::menu_bar_draws_its_titles_and_every_entry_has_a_unique_command_id",
+                "::accesskit_clicks_reach_the_open_dialog_and_a_workspace_panel",
+                "::function_keys_and_workspace_entries_open_every_surface"
+              ],
+              "verified_at": "crates/hsk-studio-harness-view/src/view/shell.rs:93, 108, 132 (LayoutEditor panel, 'Layout Editor', F5), :648 (toggle_panel), :676 (LayoutEditor::new hosted); harness/tests/viewer_shell.rs:173, 202, 232-237 (AccessKit click on 'Layout Editor' draws 'layout'), 243, 269-275 (F5 hosts the editor, draws layout + layout.pages, DrawFrame applied)"
+            }
+          ]
+        }
+      ],
+      "unlisted_capabilities_changed": [
+        {
+          "capability": "DXF import (own reader adapted from MIT dxf 0.6.2, default-on); EPS DSC/preview read and EPSF export",
+          "change": "READY -> PASS (R36); EPS vector conversion removed for licensing (typed loss eps_vector_not_decoded)",
+          "evidence": [
+            {
+              "lane": "SMB-DXF-EPS-IMPORT",
+              "commits_on_origin": "85b3446 + remediations 6cf1de4 65f3a04 a105766",
+              "round_verdict": "PASS_V1 R36, PASS_V2 R37",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "interop-vector-core/tests/dxf_import.rs::dxf_entities_become_layered_paths_in_points"
+              ],
+              "verified_at": "crates/hsk-studio-interop-vector-core/tests/dxf_import.rs:52; interop-vector-core/src/eps.rs:11, 356 (EPS vector content is the typed loss eps_vector_not_decoded: interpreter removed for licensing)"
+            }
+          ]
+        },
+        {
+          "capability": "EPS vector conversion through a vendored stet fork with free fonts",
+          "change": "LOCAL_UNVALIDATED, never tested",
+          "evidence": [
+            {
+              "lane": "SMB-EPS-FREE-FONTS",
+              "commits_on_origin": "LOCAL ONLY 9d482cf 21b6d98 a0351e9 (wt-studio-lanes/smb-eps-free-fonts; Cargo.lock dirty)",
+              "round_verdict": "none: BLOCKED; run 2 exit 75 (D: lock gave up after 7200 s behind the R38 canary); no test ever ran",
+              "delivery_class": "LOCAL_UNVALIDATED",
+              "tests": [],
+              "verified_at": "NOT_INSPECTED (vendored hsk-studio-ps* fork source not opened; lane file only)"
+            }
+          ]
+        }
+      ],
+      "recomputed": {
+        "DELIVERED_VALIDATED": {
+          "engine_counts": {
+            "VALIDATED": 17,
+            "BUILT_NOT_VALIDATED": 0,
+            "PARTIAL": 15,
+            "MISSING": 0
+          },
+          "engine_pct": 64.8,
+          "gui_pooled_pct": 47.1,
+          "gui_pooled_inputs": "(8 judged + 0.5*0 unjudged/local)/17 workflows",
+          "gui_strict_pct": 18.8,
+          "gui_strict_with_additions_pct": 31.2,
+          "gui_strict_inputs": "6 agree (+4 raise) / 32 rows"
+        },
+        "DELIVERED_VALIDATED_PLUS_DELIVERED_UNVALIDATED (origin 5ab33c9)": {
+          "engine_counts": {
+            "VALIDATED": 17,
+            "BUILT_NOT_VALIDATED": 0,
+            "PARTIAL": 15,
+            "MISSING": 0
+          },
+          "engine_pct": 64.8,
+          "gui_pooled_pct": 47.1,
+          "gui_pooled_inputs": "(8 judged + 0.5*0 unjudged/local)/17 workflows",
+          "gui_strict_pct": 18.8,
+          "gui_strict_with_additions_pct": 31.2,
+          "gui_strict_inputs": "6 agree (+4 raise) / 32 rows"
+        },
+        "PLUS_LOCAL_UNVALIDATED (unpushed lane commits)": {
+          "engine_counts": {
+            "VALIDATED": 17,
+            "BUILT_NOT_VALIDATED": 0,
+            "PARTIAL": 15,
+            "MISSING": 0
+          },
+          "engine_pct": 64.8,
+          "gui_pooled_pct": 64.7,
+          "gui_pooled_inputs": "(8 judged + 0.5*6 unjudged/local)/17 workflows",
+          "gui_strict_pct": 34.4,
+          "gui_strict_with_additions_pct": 46.9,
+          "gui_strict_inputs": "11 agree (+4 raise) / 32 rows"
+        },
+        "note": "LOCAL GUI counts the 6 workflows reached only by SMB-HARNESS-PANELS-1 local commits at 0.5 (its suite has never been green); strict LOCAL counts AI-07/16/20/23/24 as AGREE. No validated or origin change for Illustrator GUI."
+      },
+      "oracle": {
+        "d5_oracle": "PRESENT (Illustrator 30.8.2, 75 entries)",
+        "counts": {
+          "MATCH": 68,
+          "MISMATCH": 6,
+          "NOT_SUPPORTED": 1
+        },
+        "changed_since_20261021": "verdict only: SMB-AI-AE-ORACLE-FOLLOWUPS PASS (R36/R37); d5_ai_expected_mismatch.txt unchanged; the audit's unconfirmed AI-04/05 MATCH at tip ran green in the R37 full union (no NOT_PROVEN line)",
+        "post_r37_risk": "pigment/composite/folio changed after 1d139a6; DXF/EPS have no oracle (reader UNVERIFIED on CAD-written files)"
+      },
+      "top_gaps_remaining": [
+        {
+          "rank": 1,
+          "row": "AI-28",
+          "level": "PARTIAL",
+          "weight_deficit": 0.75,
+          "gap": "No area-type authoring, no live path-text layer, no general Create Outlines (with AI-29)",
+          "spec": [
+            "STU-TYP-114 (:7929) text_kind point|area|path|frame_grid"
+          ],
+          "lane": "SMB-AI-MESH-2 queued (live editable path-text layer only); area type: none"
+        },
+        {
+          "rank": 2,
+          "row": "AI-09",
+          "level": "PARTIAL",
+          "weight_deficit": 0.75,
+          "gap": "Simplify absent; also Shaper, Blend tool, Image Trace, Intertwine (AI-04, AI-27)",
+          "spec": [
+            "STU-VEC-114 (:3216) Simplify parameter contract",
+            "STU-VEC-014 (:3664) compound paths",
+            "Blend-tool clause NOT_FOUND by grep"
+          ],
+          "lane": "none"
+        },
+        {
+          "rank": 3,
+          "row": "AI-15",
+          "level": "PARTIAL",
+          "weight_deficit": 0.75,
+          "gap": "Pattern-bound vector fills/strokes refused by composite (AI-14/AI-27 mesh also not drawn by composite/PDF/SVG)",
+          "spec": [
+            "STU-VEC-017 (:3785)",
+            "STU-VEC-138 (:3791) pattern paint contract"
+          ],
+          "lane": "none for vector pattern fills; mesh drawing in SMB-AI-MESH-2 (queued)"
+        },
+        {
+          "rank": 4,
+          "row": "AI-32",
+          "level": "PARTIAL",
+          "weight_deficit": 0.75,
+          "gap": "No Place/Link command; interchange: no .ai writer, no harness import route for DXF/EPS",
+          "spec": [
+            ".ai writer clause NOT_FOUND by grep ('.ai writer', 'ai export', 'native .ai')"
+          ],
+          "lane": "none (SMB-EPS-FREE-FONTS local restores EPS conversion only)"
+        },
+        {
+          "rank": 5,
+          "row": "AI-31 / AI-13",
+          "level": "PARTIAL",
+          "weight_deficit": 0.75,
+          "gap": "No per-object overprint; no arrowheads",
+          "spec": [
+            "STU-LAY-160 (:7178) ink/overprint/separation contract",
+            "STU-PDF-002 (:243)",
+            "STU-VEC-146 (:3986) arrowhead catalogue",
+            "STU-VEC-020 (:3936)"
+          ],
+          "lane": "SMB-AI-MESH-2 queued (per-object overprint attribute); arrowheads: none"
+        }
+      ]
+    },
+    "indesign": {
+      "before_20261021": {
+        "rows": 31,
+        "counts": {
+          "VALIDATED": 13,
+          "BUILT_NOT_VALIDATED": 0,
+          "PARTIAL": 15,
+          "MISSING": 3
+        },
+        "engine_pct_verified": 54.0,
+        "engine_pct_matrix": 54.0,
+        "engine_pct_stale_adjusted": {
+          "file_level": 44.4,
+          "crate_level": 33.1
+        },
+        "gui_pct_pooled": 0.0,
+        "gui_workflows": 10,
+        "gui_doable_judged": 0,
+        "gui_doable_unjudged": 0,
+        "gui_strict_pct": 0.0,
+        "gui_strict_rows": "0 agree / 31 (8 ui rows all LOWER: layout editor not hosted)",
+        "gui_strict_with_additions_pct": 0.0,
+        "source": "feature-completeness-20261021.json per_app[3]; parity-indesign.json; gui-surfaces.json per_app[3]"
+      },
+      "changed_rows": [
+        {
+          "row": "ID-06, ID-07, ID-08",
+          "name": "composers / H&J / hyphenation",
+          "change": "Adobe Single-line/Paragraph composers PASS (composer parity, ff ligature) and are now wired: Folio type-style records carry composition settings, layout selects the Adobe composers from them, IDML import maps Composer/hyphenation/H&J, and the layout editor's reflow passes the document's style records. The audit's 'biggest finding' (composers unreachable) is closed at engine level; no editor control exposes the fields yet (lane next). Levels VALIDATED unchanged.",
+          "evidence_level_before": "VALIDATED (generic composers; parity composers BUILT_NOT_VALIDATED and unwired)",
+          "evidence_level_after": {
+            "DELIVERED_VALIDATED": "VALIDATED incl. parity composers and wiring"
+          },
+          "evidence": [
+            {
+              "lane": "SMB-ID-COMPOSER-PARITY + SMB-TYPE-FF-LIGATURE",
+              "commits_on_origin": "98d70fb ec8b2c8 5fa82ec; 2e0f53e (+5 rebased)",
+              "round_verdict": "PASS_V1 R36, PASS_V2 R37 (both)",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "layout/tests/typeset.rs::adobe_paragraph_fills_every_justified_line_and_is_deterministic",
+                "interop-layout/tests/d5_id_oracle.rs::id01_composer_width_sweep"
+              ],
+              "verified_at": "crates/hsk-studio-layout/tests/typeset.rs:774; d5_id_expected_mismatch.txt unchanged e64eacd..5ab33c9"
+            },
+            {
+              "lane": "SMB-LAYOUT-COMPOSER-WIRING",
+              "commits_on_origin": "d09e3e6 a187176 c3b7fbc c2055c7 8ab5155",
+              "round_verdict": "PASS_V1 R37",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "layout/tests/composer_wiring.rs::composition_scope_selects_the_adobe_composers",
+                "::inheritance_and_local_override_resolve_in_order",
+                "::hyphenation_settings_drive_the_breakers",
+                "interop-layout/tests/idml_composition.rs::idml_reflow_composes_with_the_mapped_composer",
+                "interop-layout/tests/d5_id_oracle.rs::id03_imported_styles_compose_as_the_explicit_setup"
+              ],
+              "verified_at": "crates/hsk-studio-folio/src/typestyle.rs:206 (StudioCompositionSettings); layout/src/styles.rs:131 (resolve_style_composition); layout/src/typeset.rs:317 (EveryLine -> Composer::AdobeParagraph); harness-view/src/layout_ui.rs:445 (request composer FirstFit) + :451 (StyleSource from the document's style records, so records select the Adobe composers; file unchanged since e64eacd); interop-layout/src/idml_composition.rs:240 (import_type_styles); layout/tests/composer_wiring.rs:188, 215, 254; interop-layout/tests/idml_composition.rs:275; d5_id_oracle.rs:693, 741"
+            }
+          ],
+          "oracle": "InDesign 21.6: 93 MATCH / 6 MISMATCH of 99 (unchanged); records-driven path proven equal to the oracle-compared setup (d5_id_oracle.rs:693, 741); overfitting risk F-R36-4 open"
+        },
+        {
+          "row": "ID-09",
+          "name": "OpenType shaping",
+          "change": "covering SMB-TYPE-FF-LIGATURE READY -> PASS; level unchanged",
+          "evidence_level_before": "VALIDATED",
+          "evidence_level_after": "unchanged",
+          "evidence": [
+            {
+              "lane": "SMB-ID-COMPOSER-PARITY + SMB-TYPE-FF-LIGATURE",
+              "commits_on_origin": "98d70fb ec8b2c8 5fa82ec; 2e0f53e (+5 rebased)",
+              "round_verdict": "PASS_V1 R36, PASS_V2 R37 (both)",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "layout/tests/typeset.rs::adobe_paragraph_fills_every_justified_line_and_is_deterministic",
+                "interop-layout/tests/d5_id_oracle.rs::id01_composer_width_sweep"
+              ],
+              "verified_at": "crates/hsk-studio-layout/tests/typeset.rs:774; d5_id_expected_mismatch.txt unchanged e64eacd..5ab33c9"
+            }
+          ],
+          "oracle": "arial ff ligature case in d5_id_oracle"
+        },
+        {
+          "row": "ID-12",
+          "name": "Character/paragraph styles",
+          "change": "Folio style records now store composer, hyphenation and justification limits (part of the code-confirmed absence closed); still absent: nested/line styles, style groups, cross-document load, indents, space before/after; PARTIAL",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": "unchanged",
+          "evidence": [
+            {
+              "lane": "SMB-LAYOUT-COMPOSER-WIRING",
+              "commits_on_origin": "d09e3e6 a187176 c3b7fbc c2055c7 8ab5155",
+              "round_verdict": "PASS_V1 R37",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "layout/tests/composer_wiring.rs::composition_scope_selects_the_adobe_composers",
+                "::inheritance_and_local_override_resolve_in_order",
+                "::hyphenation_settings_drive_the_breakers",
+                "interop-layout/tests/idml_composition.rs::idml_reflow_composes_with_the_mapped_composer",
+                "interop-layout/tests/d5_id_oracle.rs::id03_imported_styles_compose_as_the_explicit_setup"
+              ],
+              "verified_at": "crates/hsk-studio-folio/src/typestyle.rs:206 (StudioCompositionSettings); layout/src/styles.rs:131 (resolve_style_composition); layout/src/typeset.rs:317 (EveryLine -> Composer::AdobeParagraph); harness-view/src/layout_ui.rs:445 (request composer FirstFit) + :451 (StyleSource from the document's style records, so records select the Adobe composers; file unchanged since e64eacd); interop-layout/src/idml_composition.rs:240 (import_type_styles); layout/tests/composer_wiring.rs:188, 215, 254; interop-layout/tests/idml_composition.rs:275; d5_id_oracle.rs:693, 741"
+            }
+          ],
+          "oracle": "NO_ORACLE_CASE"
+        },
+        {
+          "row": "ID-04, ID-19, ID-22, ID-24, ID-28, ID-29, ID-30",
+          "name": "prepress rows of SMB-ID-PREPRESS",
+          "change": "READY (after R35 FAIL_V1) -> PASS_V2 R36; PARTIAL unchanged (auto-size/first-baseline refusals, no links panel, no smart guides, PDF overprint flags unread, epubcheck not run, no image/QR merge)",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": "unchanged",
+          "evidence": [
+            {
+              "lane": "SMB-ID-PREPRESS",
+              "commits_on_origin": "c28363a..3195ea5 + R35 remediation 3b73143",
+              "round_verdict": "PASS_V2 R36, PASS_V3 R37 (after R35 FAIL_V1)",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "layout/tests/id_prepress_vjust.rs::vjust_center_and_bottom_move_the_block",
+                "interop-layout/tests/id_prepress_epub.rs::epub_package_structure_chapters_nav_and_metadata"
+              ],
+              "verified_at": "crates/hsk-studio-layout/tests/id_prepress_vjust.rs:31; crates/hsk-studio-interop-layout/tests/id_prepress_epub.rs:69"
+            }
+          ],
+          "oracle": "NO_ORACLE_CASE"
+        },
+        {
+          "row": "ID-26",
+          "name": "Package",
+          "change": "SMB-PACKAGE-COMPLETENESS-2 READY -> PASS; PARTIAL",
+          "evidence_level_before": "PARTIAL",
+          "evidence_level_after": "unchanged",
+          "evidence": [
+            {
+              "lane": "SMB-PACKAGE-COMPLETENESS-2",
+              "commits_on_origin": "608dbce",
+              "round_verdict": "PASS_V1 R36, PASS_V2 R37",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "package/tests/linked_files.rs::linked_files_are_checked_for_existence_and_hash_inside_the_document_directory"
+              ],
+              "verified_at": "crates/hsk-studio-package/tests/linked_files.rs:39"
+            }
+          ],
+          "oracle": "NO_ORACLE_CASE"
+        },
+        {
+          "row": "ID-01, ID-02, ID-04, ID-05, ID-12, ID-14, ID-25, ID-29",
+          "name": "ui-flagged rows",
+          "change": "GUI strict LOWER -> AGREE: the layout editor (pages, frames, threading, story editor, styles, tables, find/change, preflight; SMB-LAYOUT-UI PASS_V4 and SMB-LAYOUT-UI-2 PASS_V3 at R37) is hosted in the desktop window via WORKSPACE > Panels > Layout Editor (F5)",
+          "evidence_level_before": "LOWER (NOT_HOSTED)",
+          "evidence_level_after": {
+            "DELIVERED_VALIDATED": "AGREE (PASS_JUDGED_HEADLESS, reachable in window)"
+          },
+          "evidence": [
+            {
+              "lane": "SMB-HARNESS-SHELL-1",
+              "commits_on_origin": "2defb17 9ca2c59 1f0e945 5605a52 45f04b2",
+              "round_verdict": "PASS_V1 R37",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "harness/tests/viewer_shell.rs::menu_bar_draws_its_titles_and_every_entry_has_a_unique_command_id",
+                "::accesskit_clicks_reach_the_open_dialog_and_a_workspace_panel",
+                "::function_keys_and_workspace_entries_open_every_surface"
+              ],
+              "verified_at": "crates/hsk-studio-harness-view/src/view/shell.rs:93, 108, 132 (LayoutEditor panel, 'Layout Editor', F5), :648 (toggle_panel), :676 (LayoutEditor::new hosted); harness/tests/viewer_shell.rs:173, 202, 232-237 (AccessKit click on 'Layout Editor' draws 'layout'), 243, 269-275 (F5 hosts the editor, draws layout + layout.pages, DrawFrame applied)"
+            }
+          ],
+          "caveats": "edits not persisted through session/chronicle (layout_ui.rs:19-20 declared gap); composition preview uses fixed 0.5 em advances (layout_ui.rs:22); no IDML route into the editor (no 'idml' in harness-core import.rs or shell.rs); no place-image or PDF/EPUB export control in layout_ui"
+        }
+      ],
+      "gui_changes": [
+        {
+          "workflows": [
+            "Pages, spreads, parent pages",
+            "Text frames, columns, threading",
+            "Story editing",
+            "Paragraph/character/GREP styles",
+            "Tables",
+            "Find / change",
+            "Live preflight"
+          ],
+          "state_before": "ENGINE_ONLY (NOT hosted)",
+          "state_after": "DOABLE_IN_STUDIO_GUI judged",
+          "still_engine_only": [
+            "Open IDML / native layout document into an editor",
+            "Place images / graphic frames",
+            "Export PDF / EPUB"
+          ],
+          "evidence": [
+            {
+              "lane": "SMB-HARNESS-SHELL-1",
+              "commits_on_origin": "2defb17 9ca2c59 1f0e945 5605a52 45f04b2",
+              "round_verdict": "PASS_V1 R37",
+              "delivery_class": "DELIVERED_VALIDATED",
+              "tests": [
+                "harness/tests/viewer_shell.rs::menu_bar_draws_its_titles_and_every_entry_has_a_unique_command_id",
+                "::accesskit_clicks_reach_the_open_dialog_and_a_workspace_panel",
+                "::function_keys_and_workspace_entries_open_every_surface"
+              ],
+              "verified_at": "crates/hsk-studio-harness-view/src/view/shell.rs:93, 108, 132 (LayoutEditor panel, 'Layout Editor', F5), :648 (toggle_panel), :676 (LayoutEditor::new hosted); harness/tests/viewer_shell.rs:173, 202, 232-237 (AccessKit click on 'Layout Editor' draws 'layout'), 243, 269-275 (F5 hosts the editor, draws layout + layout.pages, DrawFrame applied)"
+            }
+          ]
+        }
+      ],
+      "unlisted_capabilities_changed": [],
+      "recomputed": {
+        "DELIVERED_VALIDATED": {
+          "engine_counts": {
+            "VALIDATED": 13,
+            "BUILT_NOT_VALIDATED": 0,
+            "PARTIAL": 15,
+            "MISSING": 3
+          },
+          "engine_pct": 54.0,
+          "gui_pooled_pct": 70.0,
+          "gui_pooled_inputs": "(7 judged + 0.5*0 unjudged/local)/10 workflows",
+          "gui_strict_pct": 25.8,
+          "gui_strict_with_additions_pct": 25.8,
+          "gui_strict_inputs": "8 agree (+0 raise) / 31 rows"
+        },
+        "DELIVERED_VALIDATED_PLUS_DELIVERED_UNVALIDATED (origin 5ab33c9)": {
+          "engine_counts": {
+            "VALIDATED": 13,
+            "BUILT_NOT_VALIDATED": 0,
+            "PARTIAL": 15,
+            "MISSING": 3
+          },
+          "engine_pct": 54.0,
+          "gui_pooled_pct": 70.0,
+          "gui_pooled_inputs": "(7 judged + 0.5*0 unjudged/local)/10 workflows",
+          "gui_strict_pct": 25.8,
+          "gui_strict_with_additions_pct": 25.8,
+          "gui_strict_inputs": "8 agree (+0 raise) / 31 rows"
+        },
+        "PLUS_LOCAL_UNVALIDATED (unpushed lane commits)": {
+          "engine_counts": {
+            "VALIDATED": 13,
+            "BUILT_NOT_VALIDATED": 0,
+            "PARTIAL": 15,
+            "MISSING": 3
+          },
+          "engine_pct": 54.0,
+          "gui_pooled_pct": 70.0,
+          "gui_pooled_inputs": "(7 judged + 0.5*0 unjudged/local)/10 workflows",
+          "gui_strict_pct": 25.8,
+          "gui_strict_with_additions_pct": 25.8,
+          "gui_strict_inputs": "8 agree (+0 raise) / 31 rows"
+        }
+      },
+      "oracle": {
+        "d5_oracle": "PRESENT (InDesign 21.6, 99 entries)",
+        "counts": {
+          "MATCH": 93,
+          "MISMATCH": 6
+        },
+        "changed_since_20261021": "verdicts: SMB-ID-COMPOSER-PARITY and SMB-TYPE-FF-LIGATURE PASS (R36/R37); new wired-path test id03_imported_styles_compose_as_the_explicit_setup (d5_id_oracle.rs:693) PASS in R37 with SMB-LAYOUT-COMPOSER-WIRING; d5_id_expected_mismatch.txt unchanged; no d5_id NOT_PROVEN line in R36/R37 (the host-Arial NOT_PROVEN path did not trigger)",
+        "open": "F-R36-4: composer constants fitted to the oracle they are scored on (held-out InDesign case set = Operator item); PDF/X-4 has no oracle (SMB-PDFX-ORACLE queued, Acrobat Preflight)"
+      },
+      "top_gaps_remaining": [
+        {
+          "rank": 1,
+          "row": "ID-11",
+          "level": "MISSING",
+          "weight_deficit": 1.0,
+          "gap": "Vertical / CJK typography; RTL stories refused by layout",
+          "spec": [
+            "STU-TYP-137 (:8140) kinsoku",
+            "STU-TYP-138 (:8152) mojikumi"
+          ],
+          "lane": "none"
+        },
+        {
+          "rank": 2,
+          "row": "ID-23",
+          "level": "MISSING",
+          "weight_deficit": 1.0,
+          "gap": "Liquid / adjust / alternate layouts",
+          "spec": [
+            "STU-LAY-111 (:5552) liquid-rule enumeration",
+            "STU-LAY-011 (:5589) alternate layouts"
+          ],
+          "lane": "none"
+        },
+        {
+          "rank": 3,
+          "row": "ID-31",
+          "level": "MISSING",
+          "weight_deficit": 1.0,
+          "gap": "Open PDF as a layout document",
+          "spec": [
+            "clause NOT_FOUND by grep"
+          ],
+          "lane": "SMB-ID-PREPRESS-2 queued ('open PDF as document')"
+        },
+        {
+          "rank": 4,
+          "row": "ID-27",
+          "level": "PARTIAL",
+          "weight_deficit": 0.75,
+          "gap": "PDF/X-4 conformance not proven; no printer marks/booklet; glyph-scaled/ligature-split lines not mapped in PDF",
+          "spec": [
+            "STU-PDF-002 (:243) prepress output"
+          ],
+          "lane": "SMB-PDFX-ORACLE queued (Acrobat Preflight, Operator-attended); SMB-ID-PREPRESS-2 queued"
+        },
+        {
+          "rank": 5,
+          "row": "ID-04",
+          "level": "PARTIAL",
+          "weight_deficit": 0.75,
+          "gap": "Frame auto-size and first-baseline kinds typed-refused",
+          "spec": [
+            "STU-LAY-119 (:5775) auto-sizing enumeration"
+          ],
+          "lane": "SMB-ID-PREPRESS-2 queued (frame auto-size)"
+        }
+      ],
+      "top_gaps_unranked_note": "IDML/INDD import fidelity (audit top gap 2) has no row of its own; spec STU-IO-186 (:211) native editability scope; no open lane"
+    }
+  },
+  "summary": {
+    "photoshop": {
+      "engine": "47.2 -> 47.2 / 47.2 / 47.2 (validated / +origin / +local)",
+      "gui_pooled": "61.1 -> 61.1 / 61.1 / 61.1",
+      "gui_strict": "30.6 -> 30.6 / 30.6 / 30.6",
+      "changed_rows_distinct": 16,
+      "top_gap": "PS-28 soft proofing (MISSING, STU-COL-022, no lane)"
+    },
+    "lightroom_classic": {
+      "engine": "57.9 -> 57.9 / 57.9 / 57.9",
+      "gui_pooled": "65.4 -> 69.2 / 69.2 / 69.2",
+      "gui_strict": "31.4 -> 31.4 / 31.4 / 31.4",
+      "changed_rows_distinct": 10,
+      "top_gap": "LR-21 healing/spot removal (MISSING, STU-RAW-124, no lane)"
+    },
+    "illustrator": {
+      "engine": "64.8 -> 64.8 / 64.8 / 64.8",
+      "gui_pooled": "47.1 -> 47.1 / 47.1 / 64.7",
+      "gui_strict": "18.8 -> 18.8 / 18.8 / 34.4",
+      "changed_rows_distinct": 7,
+      "top_gap": "AI-28 area type / live path text (PARTIAL, STU-TYP-114, only path-text in queued SMB-AI-MESH-2)"
+    },
+    "indesign": {
+      "engine": "54.0 -> 54.0 / 54.0 / 54.0",
+      "gui_pooled": "0.0 -> 70.0 / 70.0 / 70.0",
+      "gui_strict": "0.0 -> 25.8 / 25.8 / 25.8",
+      "changed_rows_distinct": 17,
+      "top_gap": "ID-11 vertical/CJK typography (MISSING, STU-TYP-137/138, no lane)"
+    },
+    "reading": "No row of these four apps changed engine level: each landed lane closed a named sub-capability (fill layers, TIFF/DNG export, type on a path, recolour, composer wiring, RW2/NEF clean-room) or turned READY evidence into PASS, but every touched row still has another vendor-defined part absent, so the audit's formula gives identical engine figures. The movement is in evidence quality (R35-stale proofs re-judged; the D5 oracle lanes judged PASS) and GUI: the layout editor is in the window (InDesign 0 -> 70 % pooled), Lightroom's lens/effects workflow is judged, Illustrator's API-only panels are hosted only in local commits.",
+    "overall_gui_effect_of_these_apps": "pooled 9-app figure 40/108 = 37.0 % -> 47.5/108 = 44.0 % from these four apps alone (other apps' changes, e.g. SMB-TIMELINE-UI-1, not audited here); strict 44/308 -> 52/308 = 16.9 %"
+  },
+  "process_findings": [
+    {
+      "finding": "R36 FAIL_V1 SMB-PS-ORACLE-PARITY-2: the grow-fringe change (8f5bbfc) left a dependent composite test pinned at 0; one extra round to PASS",
+      "evidence": "validation/round-R36.json attributed_failures (render_plan_lowering x2 -> SMB-PS-ORACLE-PARITY-2); START_LOG.md:548, :574"
+    },
+    {
+      "finding": "R36 FAIL_V1 SMB-PS-ORACLE-PARITY-1: the Photoshop tent blur kernel also drove Figma DROP_SHADOW (shared op, cross-app regression); remediation edited carrier files outside the lane's crates under a lead waiver",
+      "evidence": "START_LOG.md:539 (regression first seen), :548, :549 (WAIVER HBR-STOP-005)"
+    },
+    {
+      "finding": "DXF/EPS lane reworked twice for licence closure (dxf -> image dependency; stet embeds AGPL-published URW fonts); EPS conversion removed, then re-requested by the Operator as a free-font fork that has never had a test run",
+      "evidence": "START_LOG.md:540, :545, :553, :570; builders/lanes/hsk-studio-eps-free-fonts.json blockers"
+    },
+    {
+      "finding": "All pushes held after a lane deleted the product branch on GitHub (2026-10-21); the tested lanes (incl. PS parity 2, DXF/EPS, ff ligature) waited for the restore",
+      "evidence": "START_LOG.md:539, :541"
+    },
+    {
+      "finding": "R36 opened ~19 h after the audit because of infrastructure: lead-approved deletion of the cargo registry cache broke the offline sync; sccache port exhaustion from a non-Studio app failed 39-40 of 134 canary units; three steward attempts",
+      "evidence": "START_LOG.md:546, :547, :571-573; ledger.json round_R36.opened_at 2026-10-21T20:25:04Z"
+    },
+    {
+      "finding": "R37 ran full scope (3h25m) because step-0 policy overlays counted as round inputs (F-R37-2); fixed in round-select.py afterwards",
+      "evidence": "START_LOG.md:552, :576; ledger.json round_R37.findings F-R37-2"
+    },
+    {
+      "finding": "R38 lost: 12 h canary on the spinning D: disk, then a machine restart; SMB-PS-FILL-LAYERS and SMB-DEVELOP-DNG-WRITER stay READY and unvalidated on origin",
+      "evidence": "HANDOFF.md:26-27; ledger.json lanes SMB-PS-FILL-LAYERS / SMB-DEVELOP-DNG-WRITER status READY_FOR_VALIDATION"
+    },
+    {
+      "finding": "GUI and EPS lanes blocked before any green run: HARNESS-SHELL-2 and EPS-FREE-FONTS gave up on the D: lock behind the R38 canary (exit 75; SHELL-2 13666 s total wait); HARNESS-PANELS-1 run 2 and SHELL-2 then hard-blocked by the global gameplan hook",
+      "evidence": "START_LOG.md:569, :578; HANDOFF.md:66; builders/lanes/hsk-studio-harness-shell-2.json and hsk-studio-harness-panels-1.json blockers"
+    },
+    {
+      "finding": "Three concurrent harness-view lanes (timeline, shell-2, panels-1) guarantee rebase conflicts in shell.rs/mod.rs; the Illustrator GUI gains wait on that sequencing",
+      "evidence": "HANDOFF.md:80; builders/lanes/hsk-studio-harness-panels-1.json next ('expect conflicts with SMB-TIMELINE-UI-1 / SMB-HARNESS-SHELL-2')"
+    },
+    {
+      "finding": "In-lane rework runs: TIFF export 5 big-endian failures (one extra run), DNG writer 2 ljpeg failures, composer wiring 1 test defect, panels-1 13 AccessKit-helper failures",
+      "evidence": "builders/lanes/hsk-studio-develop-export-tiff.json notes.fix_in_run; hsk-studio-develop-dng-writer.json tests.notes; hsk-studio-layout-composer-wiring.json notes.runs; hsk-studio-harness-panels-1.json tests"
+    },
+    {
+      "finding": "InDesign composer parity is fitted to the oracle it is scored on (F-R36-4); without a held-out InDesign case set (Operator item) 93/99 overstates general parity",
+      "evidence": "START_LOG.md:548; ledger.json SMB-ID-COMPOSER-PARITY note ('overfitting risk')"
+    },
+    {
+      "finding": "SHELL-1 shipped a vendor product name in a dialog filter (F-R37-3, STU-SHL-008); the fix exists only in the unpushed SHELL-2 lane",
+      "evidence": "ledger.json round_R37.findings F-R37-3; builders/lanes/hsk-studio-harness-shell-2.json capabilities_written_unproven[0]"
+    }
+  ],
+  "unverified": [
+    "No test, build or oracle comparison executed; PASS statements come from validation/round-R36.json, round-R37.json and ledger.json",
+    "Desktop window launch remains NOT_PROVEN (all shell proofs are headless egui/AccessKit)",
+    "SMB-EPS-FREE-FONTS vendored source NOT_INSPECTED (lane file only)",
+    "Spec clauses for the Illustrator Blend tool, an .ai writer and InDesign open-PDF-as-document: NOT_FOUND by grep (may exist under other wording)",
+    "Whether STU-AUT-134 covers panorama/HDR merge: NOT_INSPECTED",
+    "Oracle results at 5ab33c9 (post-R37 changes in pigment/composite/folio/develop): not re-run"
+  ]
+}

@@ -12,17 +12,22 @@
 # Guard: an SSD build is refused (status 77, before queueing) while the whole C:/HandshakeBuild/WP-KERNEL-STUDIO
 # tree is over STUDIO_SSD_CAP_GB (default 140 of the 150 GB grant; see studio_ssd_cap_check). Unset or
 # STUDIO_BUILD_DISK=d: unchanged D: target. STUDIO_SSD_ROOT is a self-test knob only (default C:/HandshakeBuild).
-_studio_art="D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO"
+# Artifact root (HSK-ART-001, Operator 2026-10-24): the Handshake_Artifacts folder inside the Handshake Worktrees folder that holds
+# the kernel, discovered from this file's location (this file lives in <kernel>/.GOV/docs_repo/wp-studio-module-work/builders/), or
+# HANDSHAKE_ARTIFACTS_ROOT when set. Never a literal drive path (disk-agnostic) and never `..` from the current directory.
+# `pwd -W` (Git Bash) prints the Windows form `D:/...`; cargo.exe and other native tools read CARGO_TARGET_DIR and TMP literally, so
+# the MSYS form `/d/...` must never reach them. Plain `pwd` is the fallback outside Git Bash.
+_studio_kernel="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && { pwd -W 2>/dev/null || pwd; })"
+_studio_art="${HANDSHAKE_ARTIFACTS_ROOT:-$(cd "${_studio_kernel}/.." && { pwd -W 2>/dev/null || pwd; })/Handshake_Artifacts}/WP-KERNEL-STUDIO"
 _studio_ssd="${STUDIO_SSD_ROOT:-C:/HandshakeBuild}"
 _studio_owner="${STUDIO_OWNER:-studio-team-dev}"
 _STUDIO_SSD_LANE=""
 case "${STUDIO_BUILD_DISK:-}" in
   ""|d|D|hdd) ;;
   ssd)
-    # Operator 2026-10-23: NO builds on C: while C: is being cleaned ("built there [D:], let C disk clean up run, and no
-    # builds on C"). The SSD opt-in is closed until the Operator reopens it; builders build on D: (unset STUDIO_BUILD_DISK).
-    echo "studio-env: STUDIO_BUILD_DISK=ssd refused: Operator 2026-10-23 closed the C: build slot (C: cleanup in progress); unset STUDIO_BUILD_DISK and build on D:" >&2
-    return 1
+    # Operator 2026-10-24 ("c is ok but 400gb seems excessive"): the C: slot is reopened for lane builders under the
+    # existing 150 GB grant (cap STUDIO_SSD_CAP_GB 140, rule P3 at most 6 live lane targets); rounds, canaries, exports
+    # and TMP/TEMP stay on D:. (Closed 2026-10-23 during the C: cleanup, which completed the same day.)
     case "/${_studio_owner}/" in
       /studio-team-dev/) ;;
       *//*|*/./*|*/../*|*\\*|*:*|*" "*)

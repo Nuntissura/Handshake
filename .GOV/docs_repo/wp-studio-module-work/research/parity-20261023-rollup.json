@@ -1,0 +1,35 @@
+{
+ "schema": "hsk.studio.research.parity_rollup@1",
+ "file_id": "PARITY-20261023-ROLLUP",
+ "updated_at": "2026-10-23T12:40:00Z",
+ "by": "lead (recomputed from the three auditor files; the shell file's overall was PARTIAL because the adobe-print file landed later)",
+ "inputs": ["research/parity-20261023-adobe-print.json", "research/parity-20261023-video-audio.json", "research/parity-20261023-figma-affinity-shell.json", "research/feature-completeness-20261021.json (baseline, formulas, row sets)"],
+ "tiers": {"VALIDATED": "PASS in a finished round (R36 @a105766, R37 @1d139a6)", "UNVALIDATED": "on origin 5ab33c9 but never judged (R38 lost in the machine restart)", "LOCAL": "commits only in lane worktrees, never run"},
+ "formulas": {"engine": "100*(VALIDATED + 0.5*BUILT_NOT_VALIDATED + 0.25*PARTIAL)/rows, pooled over 308 rows (9 apps) or 228 rows (8 apps, Affinity excluded)", "gui_pooled": "(doable judged + 0.5*doable unjudged)/108 workflows", "gui_strict": "UI rows whose vendor-defined workflow is doable in the window with the same semantics / 308 rows"},
+ "overall": {
+  "engine_9_apps_pct": {"baseline_20261021": 54.9, "VALIDATED": 55.8, "UNVALIDATED": 56.0, "LOCAL": 56.0, "source": "figma-affinity-shell overall.engine_9_apps (print apps' engine unchanged, so its use of their 2026-10-21 counts is exact)"},
+  "engine_8_apps_pct": {"baseline_20261021": 59.1, "VALIDATED": 60.0, "UNVALIDATED": 60.3, "LOCAL": 60.3},
+  "gui_pooled_pct": {"baseline_20261021": 37.0, "VALIDATED": 52.8, "UNVALIDATED": 53.2, "LOCAL": 56.5,
+   "points_of_108": {"VALIDATED": 57.0, "UNVALIDATED": 57.5, "LOCAL": 61.0},
+   "per_app_points_VALIDATED": {"photoshop": 11.0, "lightroom_classic": 9.0, "illustrator": 8.0, "indesign": 7.0, "figma": 2.0, "premiere_pro": 4.0, "after_effects": 0.0, "audition": 6.0, "affinity": 10.0},
+   "deltas": {"UNVALIDATED": "premiere_pro +0.5 (Timeline F10 READY)", "LOCAL": "illustrator +3.0 (PANELS-1 six panels), audition +0.5 (audio_batch panel)"},
+   "correction_vs_shell_file": "the shell file's 45.8/46.3/46.8 used 2026-10-21 points for Lightroom (8.5 -> 9.0) and InDesign (0 -> 7.0: layout editor hosted on F5, PASS_V1 R37) and no Illustrator local gain"},
+  "gui_strict_pct": {"baseline_20261021": 14.3, "VALIDATED": 20.8, "UNVALIDATED": 22.4, "LOCAL": 24.7,
+   "agree_rows_of_308": {"baseline": 44, "VALIDATED": 64, "UNVALIDATED": 69, "LOCAL": 76},
+   "composition": "shell file 56/61/63 + InDesign 8 rows now reachable (ID-01/02/04/05/12/14/25/29 via the hosted layout editor) + Illustrator 5 local rows (AI-07/16/20/23/24 via PANELS-1)"}
+ },
+ "per_app": {
+  "photoshop":        {"engine": [47.2, 47.2, 47.2, 47.2], "gui_pooled": [61.1, 61.1, 61.1, 61.1], "gui_strict": [30.6, 30.6, 30.6, 30.6], "changed_rows": 16, "top_gap": "PS-28 soft proofing (STU-COL-022, no lane)", "oracle": "present (D5), expectations unchanged, PASS verdicts"},
+  "lightroom_classic": {"engine": [57.9, 57.9, 57.9, 57.9], "gui_pooled": [65.4, 69.2, 69.2, 69.2], "gui_strict": [31.4, 31.4, 31.4, 31.4], "changed_rows": 10, "top_gap": "LR-21 healing (STU-RAW-124, no lane)", "oracle": "none (only the RW2/NEF decode oracle, judged R36)"},
+  "illustrator":      {"engine": [64.8, 64.8, 64.8, 64.8], "gui_pooled": [47.1, 47.1, 47.1, 64.7], "gui_strict": [18.8, 18.8, 18.8, 34.4], "changed_rows": 7, "top_gap": "AI-28 area type (STU-TYP-114; SMB-AI-MESH-2 covers live path text only)", "oracle": "present (D5)"},
+  "indesign":         {"engine": [54.0, 54.0, 54.0, 54.0], "gui_pooled": [0.0, 70.0, 70.0, 70.0], "gui_strict": [0.0, 25.8, 25.8, 25.8], "changed_rows": 17, "top_gap": "ID-11 vertical/CJK text (STU-TYP-137/138, no lane)", "oracle": "present (D5); F-R36-4: composer fitted to the oracle it is scored on"},
+  "figma":            {"engine": [60.9, 60.9, 60.9, 60.9], "gui_pooled": [14.3, 28.6, 28.6, 28.6], "gui_strict": "see shell file", "changed_rows": "see shell file", "top_gap": "design editing UI absent; no collaboration stack", "oracle": "none"},
+  "premiere_pro":     {"engine": [56.0, 56.0, 57.0, 57.0], "gui_pooled": [0.0, 40.0, 45.0, 45.0], "gui_strict": [4.0, 16.0, 36.0, 36.0], "changed_rows": 10, "top_gap": "PR-10 multicam (STU-VID-033, no lane); trimming ripple/roll/slip/slide engine-only; no new-sequence command in the window", "oracle": "none"},
+  "after_effects":    {"engine": [58.3, 62.5, 64.6, 64.6], "gui_pooled": [0.0, 0.0, 0.0, 0.0], "gui_strict": [0.0, 0.0, 0.0, 0.0], "changed_rows": 10, "top_gap": "composition/keyframe timeline and graph editor UI (STU-SHL-091, STU-MOT-050, no lane)", "oracle": "present (D5, 337/342) but AE-10/18/22 changes have no oracle case (UNVERIFIED)"},
+  "audition":         {"engine": [81.8, 86.4, 86.4, 86.4], "gui_pooled": [25.0, 60.0, 60.0, 65.0], "gui_strict_with_additions": [4.5, 22.7, 22.7, 27.3], "changed_rows": 7, "top_gap": "multitrack clip/automation editor (no spec clause found, no lane)", "oracle": "none"},
+  "affinity":         {"engine": [43.1, 43.8, 43.8, 43.8], "gui_pooled": [60.0, 66.7, 66.7, 66.7], "gui_strict": "see shell file", "changed_rows": "see shell file", "top_gap": "AF-07 EPS import regressed to refusal on origin (fork with free fonts is LOCAL only)", "oracle": "none (Operator-attended test files pending)"}
+ },
+ "order_of_values": "[baseline_20261021, VALIDATED, UNVALIDATED, LOCAL]",
+ "shell": {"pass_judged_surfaces": 38, "reachable_on_origin": 28, "reachable_only_in_local_panels_lane": 7, "unreachable": 3, "unreachable_items": ["timeline/composition/render-queue export functions", "CLI", "model-navigation API"], "menus_on_origin": "File/Edit/View/Workspace with 11 panels; no HELP menu; vendor-name dialog filter label (F-R37-3) still on origin, fixed only in LOCAL SHELL-2", "headless_proof": "STU-CMP-110/STU-QUIET-005 met through the AccessKit/state fallback; key and AccessKit-click injection exists; 0 egui_kittest/Argus hits; desktop window launch NOT_PROVEN"},
+ "staleness": "composite, develop, folio, interop-psd, pigment, harness-view changed after R37; every PASS on those crates is stale until R39 (full scope by rule: tools/run-round.sh changed in 23b1bb7)"
+}
