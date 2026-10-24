@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-24T07:29:32Z",
+ "updated_at": "2026-10-24T08:18:55Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -10322,18 +10322,22 @@
   {
    "lane_id": "SMB-FIG-EDIT-2",
    "crate": "hsk-studio-folio (design_state record) + session source.rs 'design' token + package externals + harness-view view/design* + RUN-UI.md",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "blocked_on": null,
    "owner": "builder (Opus/high), lead dispatch 2026-10-24T05:57:21Z",
    "lane_file": "builders/lanes/hsk-studio-fig-edit-2.json",
    "brief": "builders/briefs/lane-smb-fig-edit-2.md",
    "worktree": "wt-studio-lanes/smb-fig-edit-2 (lane/smb-fig-edit-2 @df252615, created by the lead)",
    "disk": "C: (CARGO_BUILD_JOBS=6)",
-   "candidate": null,
-   "commits": [],
+   "candidate": "42b304c7",
+   "commits": [
+    "e592bc5f folio hsk.studio.design_state@1 + session token design + package schema line (slice 1, 185/185)",
+    "df71ba64 folio design state: main component as stored, VARIANT properties select the drawn member",
+    "42b304c7 window writes/restores instance state in the design entry; viewer_fig_edit clippy fixes; RUN-UI.md (slices 2-4)"
+   ],
    "verdicts": [],
-   "note": "persist Figma instance state (variant, properties, overrides, swap) across save/reopen (lead decision on FIG-EDIT-1's open item); Folio slice pushed first",
+   "note": "persist Figma instance state (variant, properties, overrides, swap) across save/reopen (lead decision on FIG-EDIT-1's open item); Folio slice pushed first; READY 2026-10-24 on 42b304c7: 442 passed / 0 failed / 20 skipped on C: (folio, session, package, harness-view, harness desktop+audio-batch). Declared deviations accepted by the lead: undo does not restore the design entry (harness-core Run::restructure carries no entry; state kept per instance layer + current children, newest 256); a folio lib.rs DESCRIPTOR rebase conflict with ID-LIQUID was resolved by the builder (kept origin line, re-applied its two edits, word-diff checked, full bundled re-run) although the brief said stop",
    "remediation": null
   },
   {
