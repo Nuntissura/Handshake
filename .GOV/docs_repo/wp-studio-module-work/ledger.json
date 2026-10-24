@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-24T07:05:44Z",
+ "updated_at": "2026-10-24T07:29:32Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -10356,18 +10356,24 @@
   {
    "lane_id": "SMB-ID-LIQUID-LAYOUT-1",
    "crate": "hsk-studio-folio (layout_rules.rs + lib.rs lines) + hsk-studio-layout (liquid.rs, adjust_layout.rs, alternate.rs) + package externals line",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "blocked_on": null,
    "owner": "builder (Opus/high), lead dispatch 2026-10-24T05:57:21Z",
    "lane_file": "builders/lanes/hsk-studio-id-liquid-layout-1.json",
    "brief": "builders/briefs/lane-smb-id-liquid-layout-1.md",
    "worktree": "wt-studio-lanes/smb-id-liquid-layout-1 (lane/smb-id-liquid-layout-1 @df252615, created by the lead)",
    "disk": "C: (CARGO_BUILD_JOBS=6)",
-   "candidate": null,
-   "commits": [],
+   "candidate": "c3c7201b",
+   "commits": [
+    "24918171 folio layout_rules record set + package classification (slice 1)",
+    "e2332943 layout liquid engine, seven rules (slice 2)",
+    "eb16e1c0 adjust layout STU-LAY-112 (slice 3)",
+    "793e7547 alternate layouts with linked stories/page items (slice 4)",
+    "c3c7201b test-only fix (StudioRgba colour_profile_id)"
+   ],
    "verdicts": [],
-   "note": "InDesign ID-23 liquid rules (STU-LAY-111), adjust layout (STU-LAY-010/112), alternate layouts with linked-story state (STU-LAY-011/019); push only after FIG-EDIT-2's Folio slice is on origin",
+   "note": "InDesign ID-23 liquid rules (STU-LAY-111), adjust layout (STU-LAY-010/112), alternate layouts with linked-story state (STU-LAY-011/019); push only after FIG-EDIT-2's Folio slice is on origin; READY 2026-10-24 on c3c7201b: 252 passed / 0 failed (folio, layout, package whole suites; clippy 20 dependents clean) on C:; rebase brought only 53a7333f + 4793616b (no re-run); no feature-gated tests (rule 4e); gaps: remove_forced_line_breaks stored not applied, flex/container mode, IDML rules import/export, guides/parent bindings into alternates; InDesign behaviour UNVERIFIED (D5); spec deltas in lane notes",
    "remediation": null
   },
   {
