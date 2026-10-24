@@ -1,0 +1,537 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-203",
+  "created_at_utc": "2026-10-24T17:07:08.422Z",
+  "updated_at_utc": "2026-10-24T17:29:17.190Z",
+  "identity": {
+    "mt_id": "MT-203",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Central GPU ownership, memory accountability and native lifecycle integration",
+    "version": 1,
+    "contract_revision": 2
+  },
+  "closure_unit": {
+    "outcome": "Existing and future modules consume one authoritative shared GPU ownership/broker contract with accountable memory/lifecycle and focused typed clients, integrated without replacing adequate canonical components.",
+    "requirement_refs": [
+      "WP012-UI-20261024-015",
+      "WP012-UI-20261024-016",
+      "WP012-UI-20261024-017",
+      "WP012-UI-20261024-018",
+      "WP012-UI-20261024-019",
+      "WP012-UI-20261024-020",
+      "WP012-UI-20261024-021",
+      "WP012-UI-20261024-022",
+      "WP012-UI-20261024-023"
+    ],
+    "acceptance_refs": [
+      "MT-203.json#/scope/acceptance_criteria/0",
+      "MT-203.json#/scope/acceptance_criteria/1",
+      "MT-203.json#/scope/acceptance_criteria/2",
+      "MT-203.json#/scope/acceptance_criteria/3",
+      "MT-203.json#/scope/acceptance_criteria/4",
+      "MT-203.json#/scope/acceptance_criteria/5",
+      "MT-203.json#/scope/acceptance_criteria/6"
+    ],
+    "materialized_acceptance": []
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Owning lead assigns roles; no model/profile or activation inferred by this planned contract.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": null,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": null,
+      "confirm": null
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "permission_policy": "Historical spent outcomes and receipts remain exact. Relevant future retries require CURRENT recorded human authority and actual distinct technical leader plus independent partner agreement in the owning admission. No reset/refill or automatic attempt grant is made here; existing scoped authority is not denied by a new numeric cap.",
+    "allowance_state": "DEFER_TO_CURRENT_RECORDED_HUMAN_AUTHORITY_AND_OWNING_ADMISSION",
+    "automatic_new_allowance_granted": false,
+    "current_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/current_retry_policy"
+  },
+  "execution": {
+    "lane": "planned_implementation",
+    "foreground_or_interactive_tools_forbidden": false,
+    "depends_on": [
+      "MT-197"
+    ],
+    "allowed_write_paths": [],
+    "forbidden_write_paths": [
+      "Files outside exact actual owning allocation",
+      "Canonical renderer internals from a host-only scope",
+      "Existing private/frozen outputs and unrelated files"
+    ],
+    "stop_conditions": [
+      "PLANNED only: no source lease, compiler slot, fetch permission, runtime grant or independent verdict. Actual exact owner/window/preimages follow existing custody.",
+      "Retain existing source/runtime/auth/metadata/process/fetch holds and physical custody unless an exact applicable current decision lifts the hold. Historical spent outcomes and receipts remain exact. Relevant future retries require CURRENT recorded human authority and actual distinct technical leader plus independent partner agreement in the owning admission. No reset/refill or automatic attempt grant is made here; existing scoped authority is not denied by a new numeric cap.",
+      "Resolve adequate existing renderer capability before any reusable gap; no forced asset/framework or unrelated replacement.",
+      "Preserve original three-WP scope/acceptance/pins and held cases. Prototype/static/mock evidence does not prove real app behavior."
+    ],
+    "module_change_stage": "host_gpu_ownership_memory_lifecycle",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "ownership": {
+      "claimed_by": null,
+      "source_writer": null,
+      "state": "PLANNED_UNCLAIMED_EXACT_CANONICAL_OWNER_AND_PATHS_PENDING_MT197",
+      "candidate_scope": "vulkan-renderer/** when assigned by actual owning leader",
+      "shared_paths": "Existing physical Product/manifest/Git/compiler custody stays Primary. Reuse current distinct source/host lifecycle; narrow exact source/client files under actual existing ownership before writes."
+    },
+    "canonical_source_binding": {
+      "owner": null,
+      "repository": null,
+      "path": null,
+      "api": null,
+      "status": "UNKNOWN_PENDING_GROUNDED_EXISTING_GPU_OWNER",
+      "condition": "Reuse/extend actual canonical GPU/resource components. Focused typed clients, no forced new asset/monolith/one adapter. Any reusable source gap uses separate owning source proof/publication before host adoption."
+    },
+    "interaction_policy": {
+      "prototype": "Controlled quiet isolated prototype interaction with owned test window/session, preserve Operator focus/input and explicit actual owner.",
+      "genuine_product": "Only separately admitted genuine Product GUI proof under current named independent route, resource/auth/process safeguards and actual allowance. Prototype permission is not a runtime grant.",
+      "source_stage": "No arbitrary app launch or authority bypass from source work."
+    },
+    "conditional_dependencies": [
+      {
+        "mt_ref": "MT-198.json",
+        "when": "A verified reusable GPU/renderer gap requires new canonical source; exact source proof/publication/pin precedes affected host writes."
+      }
+    ]
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-197.json",
+      "MT-198.json",
+      "MT-199.json",
+      "MT-001.json",
+      "MT-075.json",
+      "MT-076.json",
+      "MT-077.json",
+      "MT-078.json",
+      "MT-097.json",
+      "MT-098.json",
+      "MT-099.json",
+      "MT-102.json",
+      "MT-103.json",
+      "MT-104.json",
+      "MT-174.json",
+      "MT-185.json",
+      "MT-188.json",
+      "MT-196.json",
+      "../WP-CKC-posekit-overhaul/packet.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json",
+      "packet.json#/operator_professional_desktop_ui_20261024/original_diagnostic_contract_refs"
+    ],
+    "checks": [
+      {
+        "check_id": "UI203-OWNING-GPU-MEMORY-LIFECYCLE",
+        "claim_refs": [
+          "AC203-1",
+          "AC203-2",
+          "AC203-3",
+          "AC203-4",
+          "AC203-5",
+          "AC203-6",
+          "AC203-7"
+        ],
+        "command_or_method": "Inspect actual canonical GPU/resource owner and typed client contracts first. Reuse exact valid source evidence; changed canonical gaps receive focused owning static/compile/source proof before normal publication and pinned host adoption. Original independent runtime owner proves real allocation/budget/pressure/staging/shared-versus-dedicated/inflight/reclaim/shutdown/device-loss/recovery/multiwindow/module-client behavior and genuine Vulkan identity only on separately admitted exact inputs. No unrelated CPU/NPU move or new runtime budget.",
+        "expected": "Existing and future modules consume one authoritative shared GPU ownership/broker contract with accountable memory/lifecycle and focused typed clients, integrated without replacing adequate canonical components.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout_follow_current_scoped_authority_no_automatic_retry",
+        "evidence_required": [
+          "Exact actual owner/client/source/dependency/config identities",
+          "Authoritative resource/memory/lifecycle state and focused positive/negative/pressure evidence",
+          "Genuine Vulkan backend/device evidence and independent affected review/acceptance",
+          "Affected typed internal_diagnostics events and actual correlated standalone Palmistry retention; unchanged original watcher/source proof reused. Crash-survival proof is later separately admitted genuine owned Product test."
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-203.json",
+    "microtask_projection": null,
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "operator_request": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/operator_professional_desktop_ui_20261024",
+    "draft_materials": [
+      ".GOV/docs_repo/wp012-desktop-ui-drafts/ui-draft-mockup.html",
+      ".GOV/docs_repo/wp012-desktop-ui-drafts/desktop-material-reference.png"
+    ],
+    "original_contracts": [
+      "MT-001.json",
+      "MT-075.json",
+      "MT-076.json",
+      "MT-077.json",
+      "MT-078.json",
+      "MT-097.json",
+      "MT-098.json",
+      "MT-099.json",
+      "MT-102.json",
+      "MT-103.json",
+      "MT-104.json",
+      "MT-174.json",
+      "MT-185.json",
+      "MT-188.json",
+      "MT-196.json",
+      "../WP-CKC-posekit-overhaul/packet.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+    ],
+    "diagnostic_contracts_ref": "packet.json#/operator_professional_desktop_ui_20261024/original_diagnostic_contract_refs"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "NOT_REQUESTED",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-197"
+    ],
+    "blocks": [
+      "MT-202"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING",
+    "claimed_by": null,
+    "completed_by": null,
+    "blocked_on": null
+  },
+  "scope": {
+    "summary": "Existing and future modules consume one authoritative shared GPU ownership/broker contract with accountable memory/lifecycle and focused typed clients, integrated without replacing adequate canonical components.",
+    "allowed_paths": [],
+    "forbidden_paths": [
+      "Files outside exact actual owning allocation",
+      "Canonical renderer internals from a host-only scope",
+      "Existing private/frozen outputs and unrelated files"
+    ],
+    "acceptance_criteria": [
+      "AC203-1: Ground actual existing canonical GPU ownership/resource-broker mechanics and focused typed clients for existing and future modules. Record authoritative owner, allocation/client identities, dependencies, exact files and source-versus-host contracts before implementation. Reuse adequate capability; no invented mandatory framework, new monolith or assumption of one adapter/API.",
+      "AC203-2: All affected modules use centralized authoritative GPU device/queue/resource/pool/budget ownership through scoped typed clients. No per-module independent device/pool/budget bypass; unrelated CPU/NPU work stays in its owning contracts. Prove client/module attachment, detach and multiwindow ownership and denial/isolation conditions.",
+      "AC203-3: Bind accountable allocations/reservations/budgets, pressure/admission, staging and shared-versus-dedicated memory attribution to real authoritative resource state. Prove focused positive/negative pressure/budget behavior and truthful diagnostics without arbitrary new caps or fabricated memory success.",
+      "AC203-4: Bind submitted/in-flight work settlement, cancellation/retirement and reclamation. Prove resources are not freed before settlement, reclaimed twice or retained beyond owning lifecycle, using actual owned mechanisms and focused lifecycle/pressure checks. Preserve valid partial results and original process/resource protections.",
+      "AC203-5: Prove shutdown, device-loss/recovery, window resize/recreation and module attachment/detachment against actual owning typed contracts. Prevent stale clients or leaked ownership after recovery; unsupported cases remain explicit and cannot be hidden by renderer fallback.",
+      "AC203-6: Integrate the actual Vulkan GUI as a client of that owner with genuine backend/device/memory/lifecycle evidence on exact native inputs. D3D/OpenGL fallback is not Vulkan. Reusable canonical gaps need separate proven published source before host adoption; exact unchanged proof is reused. Current runtime/fetch/physical custody and scoped human retry authority remain, no automatic execution grant.",
+      "AC203-7: Actual allocation/pressure/staging/in-flight settlement/reclaim/shutdown/device-loss/recovery/window/module lifetime failures are observable through internal_diagnostics and correlated standalone Palmistry records with mechanical typed metadata/privacy. Reuse canonical watcher and allowlist; the broker/GUI does not become a copied watcher, recovery executor or OS remediation controller."
+    ],
+    "proof_targets": [
+      "Actual canonical shared GPU owner/client memory and lifecycle contracts plus genuine native Vulkan integration"
+    ],
+    "code_boundary": {
+      "native_host": "src/frontend/handshake_native main/app/window/diagnostics clients, exact affected paths pending grounded decision",
+      "canonical_gpu_owner_module": null,
+      "canonical_owner_status": "UNKNOWN_PENDING_DESIGN",
+      "scope_rule": "No invented backend/module path or broad source lease. Ground exact existing mechanics and client boundaries in MT-197 before owning allocation."
+    },
+    "activation_state": "PLANNED_UNCLAIMED_UNVERIFIED",
+    "diagnostics_boundary": "Existing internal_diagnostics GUI event producers and canonical standalone Palmistry watcher/event transport. No new watcher/controller/automatic restart/OS remediation/model authority or blanket source lease."
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": false,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "Actual native Vulkan GUI diagnostics, multiwindow and module GPU clients"
+    ],
+    "argus_targets": [
+      "Stable controls/AccessKit state, real layout and workflow actions"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": true,
+    "target_entries": [
+      "Affected existing manual entries resolved by MT-197 coverage; original obligations retained"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "GPU allocations/reservations/budgets/pressure/staging/shared and dedicated memory",
+      "Submitted/in-flight work settlement, window/module clients and diagnostics"
+    ],
+    "identity_and_scope_contexts": [
+      "Retained real account/sub-profile/workspace/model-lane context"
+    ],
+    "enforcement_boundaries": [
+      "Existing backend authority and scoped UI state; renderer grants no access"
+    ],
+    "same_project_private_resource_cases": [
+      "Preserve scoped access and redaction."
+    ],
+    "cross_account_negative_cases": [
+      "Denied state reveals no other account private content."
+    ],
+    "derived_resource_non_widening_cases": [
+      "Render/search/diagnostic projections do not widen grants."
+    ],
+    "revocation_and_context_switch_cases": [
+      "Stale selection/context cannot retain revoked access."
+    ],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [
+      "Capture/diagnostics retain privacy controls."
+    ],
+    "expected_evidence": [
+      "stable_resource_owner_scope_linkage",
+      "default_deny_negative_test",
+      "same_project_cross_account_isolation_test_when_applicable",
+      "derived_resource_scope_non_widening_test_when_applicable",
+      "actor_owner_access_space_attribution",
+      "revocation_or_context_switch_test_when_applicable",
+      "remote_delegation_sync_scope_test_when_applicable",
+      "argus_or_typed_privacy_state_inspection_when_operator_visible"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    {
+      "rule_ref": "HBR-INT-009",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-203.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-VIS-001",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-203.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-VIS-002",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-203.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-VIS-003",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-203.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-VIS-004",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-203.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-VIS-005",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-203.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MAN-001",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-203.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MAN-002",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-203.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MAN-003",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-203.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MAN-004",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-203.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-QUIET-001",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-203.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-SWARM-001",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-203.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-001",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-203.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-001",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-203.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-002",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-203.json#/proof"
+    }
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "PLANNED_UNCLAIMED_UNVERIFIED"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "CENTRAL_GPU_OWNERSHIP_MEMORY_LIFECYCLE",
+    "risks": [
+      "Independent client GPU devices/pools bypass budgets and obscure memory attribution.",
+      "In-flight resource reclamation races, device-loss recovery or module detach leak ownership.",
+      "One assumed adapter/API, forced framework or unrelated CPU/NPU moves widen scope without benefit."
+    ],
+    "minimum_controls": [
+      "Ground existing authoritative owner and typed client/lease contracts, exact source/host boundaries.",
+      "Prove focused real allocation/pressure/settlement/reclaim/shutdown/recovery/multiwindow/module attach behavior under actual admission.",
+      "Reuse canonical capability and compatible proof; preserve original acceptance/privacy/custody and scoped retry authority."
+    ]
+  },
+  "operator_authority": {
+    "approval_ref": "packet.json#/operator_professional_desktop_ui_20261024",
+    "scope_approval_recorded": true,
+    "implementation_state": "PLANNED_UNCLAIMED_UNVERIFIED",
+    "runtime_permission_inferred": false,
+    "new_attempts_granted": false,
+    "current_retry_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/current_retry_policy",
+    "interaction_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/interaction_policy"
+  },
+  "spec_basis": {
+    "source": "Current operator UI/refactor/Vulkan request relayed by Master, requirement meaning in packet request; no fabricated verbatim message or accepted design.",
+    "operator_requirement_ref": "packet.json#/operator_professional_desktop_ui_20261024/requirements",
+    "existing_ui_guidance": ".GOV/spec/master-spec-v02.222/spec-modules/12-end-of-file-appendices.md#12.5",
+    "current_spec_entrypoint": ".GOV/spec/SPEC_CURRENT.md",
+    "coordination": "MT-197 resolves topical clauses/refinement and needed exact enrichment before dependent adoption. Original pins/acceptance remain.",
+    "new_topic_binding": {
+      "module_ref": ".GOV/spec/master-spec-v02.223/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md",
+      "spec_version": "v02.223",
+      "stable_rule_ids": [
+        "GUI-DESKTOP-003",
+        "GUI-DESKTOP-004",
+        "GUI-DESKTOP-006",
+        "GUI-DESKTOP-020",
+        "GUI-DESKTOP-021",
+        "GUI-DESKTOP-023",
+        "GUI-DESKTOP-024",
+        "GUI-DESKTOP-025",
+        "GUI-DESKTOP-026",
+        "GUI-DESKTOP-027",
+        "GUI-DESKTOP-028",
+        "GUI-DESKTOP-029",
+        "GUI-DESKTOP-030",
+        "GUI-DESKTOP-031",
+        "GUI-DESKTOP-032",
+        "GUI-DESKTOP-033",
+        "GUI-DESKTOP-034",
+        "GUI-DESKTOP-035",
+        "GUI-DESKTOP-036",
+        "GUI-DESKTOP-037",
+        "GUI-DESKTOP-038",
+        "GUI-DESKTOP-039",
+        "GUI-DESKTOP-040",
+        "GUI-DESKTOP-044",
+        "GUI-DESKTOP-047",
+        "GUI-DESKTOP-048",
+        "GUI-DESKTOP-049",
+        "GUI-DESKTOP-050",
+        "GUI-DESKTOP-051",
+        "GUI-DESKTOP-052",
+        "GUI-DESKTOP-053",
+        "GUI-DESKTOP-054",
+        "GUI-DESKTOP-055"
+      ],
+      "role": "Operator-approved new scope only; original governance/source/spec pins and original acceptance remain unchanged."
+    }
+  },
+  "context_capsule": {
+    "owning_module": null,
+    "module_binding_status": "UNKNOWN_PENDING_GROUNDED_EXISTING_GPU_OWNER",
+    "module_maintenance_refs": [
+      "MT-203.json#/execution/canonical_source_binding"
+    ],
+    "original_acceptance_refs": [
+      "MT-001.json",
+      "MT-075.json",
+      "MT-076.json",
+      "MT-077.json",
+      "MT-078.json",
+      "MT-097.json",
+      "MT-098.json",
+      "MT-099.json",
+      "MT-102.json",
+      "MT-103.json",
+      "MT-104.json",
+      "MT-174.json",
+      "MT-185.json",
+      "MT-188.json",
+      "MT-196.json",
+      "../WP-CKC-posekit-overhaul/packet.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+    ],
+    "draft_reference_ref": "packet.json#/operator_professional_desktop_ui_20261024/draft_references",
+    "pin_policy": "No original three-WP source/spec/governance pin or verdict changes. New compatible adoption follows owning grounded decision.",
+    "diagnostic_obligation_ref": "packet.json#/operator_professional_desktop_ui_20261024/gui_diagnostics_palmistry_20261024"
+  },
+  "validation": {
+    "review_verdict": "PENDING",
+    "proof_records": [],
+    "implementation_result": "NOT_IMPLEMENTED_NOT_RUN"
+  },
+  "gpu_contract_result": {
+    "status": "NOT_STARTED",
+    "canonical_owner": null,
+    "typed_clients": [],
+    "allocation_and_memory_model": null,
+    "inflight_and_reclamation": null,
+    "shutdown_loss_recovery_windows_modules": null,
+    "source_adoption_binding": null,
+    "proof_refs": []
+  }
+}

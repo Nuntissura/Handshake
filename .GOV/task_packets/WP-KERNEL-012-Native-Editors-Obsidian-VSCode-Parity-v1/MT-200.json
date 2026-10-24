@@ -1,0 +1,552 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-200",
+  "created_at_utc": "2026-10-24T16:59:01.024Z",
+  "updated_at_utc": "2026-10-24T17:29:17.190Z",
+  "identity": {
+    "mt_id": "MT-200",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Shared-edge professional native workbench and materials",
+    "version": 1,
+    "contract_revision": 3
+  },
+  "closure_unit": {
+    "outcome": "Professional materially distinct native docked workbench with shared edges/dividers and all retained workflows reachable.",
+    "requirement_refs": [
+      "WP012-UI-20261024-001",
+      "WP012-UI-20261024-002",
+      "WP012-UI-20261024-003",
+      "WP012-UI-20261024-004",
+      "WP012-UI-20261024-005",
+      "WP012-UI-20261024-006",
+      "WP012-UI-20261024-007",
+      "WP012-UI-20261024-008",
+      "WP012-UI-20261024-009",
+      "WP012-UI-20261024-010",
+      "WP012-UI-20261024-011",
+      "WP012-UI-20261024-012",
+      "WP012-UI-20261024-019",
+      "WP012-UI-20261024-020",
+      "WP012-UI-20261024-013",
+      "WP012-UI-20261024-014",
+      "WP012-UI-20261024-016",
+      "WP012-UI-20261024-017",
+      "WP012-UI-20261024-018",
+      "WP012-UI-20261024-021",
+      "WP012-UI-20261024-022",
+      "WP012-UI-20261024-023"
+    ],
+    "acceptance_refs": [
+      "MT-200.json#/scope/acceptance_criteria/0",
+      "MT-200.json#/scope/acceptance_criteria/1",
+      "MT-200.json#/scope/acceptance_criteria/2",
+      "MT-200.json#/scope/acceptance_criteria/3",
+      "MT-200.json#/scope/acceptance_criteria/4",
+      "MT-200.json#/scope/acceptance_criteria/5",
+      "MT-200.json#/scope/acceptance_criteria/6",
+      "MT-200.json#/scope/acceptance_criteria/7"
+    ],
+    "materialized_acceptance": []
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Owning lead assigns roles; no model/profile or activation inferred by this planned contract.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": null,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": null,
+      "confirm": null
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "permission_policy": "Historical spent outcomes and receipts remain exact. Relevant future retries require CURRENT recorded human authority and actual distinct technical leader plus independent partner agreement in the owning admission. No reset/refill or automatic attempt grant is made here; existing scoped authority is not denied by a new numeric cap.",
+    "allowance_state": "DEFER_TO_CURRENT_RECORDED_HUMAN_AUTHORITY_AND_OWNING_ADMISSION",
+    "automatic_new_allowance_granted": false,
+    "current_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/current_retry_policy"
+  },
+  "execution": {
+    "lane": "planned_implementation",
+    "foreground_or_interactive_tools_forbidden": false,
+    "depends_on": [
+      "MT-197"
+    ],
+    "allowed_write_paths": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/split_layout.rs",
+      "src/frontend/handshake_native/src/layout_persistence.rs",
+      "src/frontend/handshake_native/src/pane_registry.rs",
+      "src/frontend/handshake_native/src/pane_header.rs",
+      "src/frontend/handshake_native/src/tab_bar.rs",
+      "src/frontend/handshake_native/src/theme/",
+      "src/frontend/handshake_native/src/top_menu_bar.rs",
+      "src/frontend/handshake_native/src/accessibility/",
+      "src/frontend/handshake_native/src/settings_dialog.rs"
+    ],
+    "forbidden_write_paths": [
+      "Files outside exact actual owning allocation",
+      "Canonical renderer internals from a host-only scope",
+      "Existing private/frozen outputs and unrelated files"
+    ],
+    "stop_conditions": [
+      "PLANNED only: no source lease, compiler slot, fetch permission, runtime grant or independent verdict. Actual exact owner/window/preimages follow existing custody.",
+      "Retain existing source/runtime/auth/metadata/process/fetch holds and physical custody unless an exact applicable current decision lifts the hold. Historical spent outcomes and receipts remain exact. Relevant future retries require CURRENT recorded human authority and actual distinct technical leader plus independent partner agreement in the owning admission. No reset/refill or automatic attempt grant is made here; existing scoped authority is not denied by a new numeric cap.",
+      "Resolve adequate existing renderer capability before any reusable gap; no forced asset/framework or unrelated replacement.",
+      "Preserve original three-WP scope/acceptance/pins and held cases. Prototype/static/mock evidence does not prove real app behavior."
+    ],
+    "module_change_stage": "host_ui",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "ownership": {
+      "claimed_by": null,
+      "source_writer": null,
+      "state": "PLANNED_UNCLAIMED_NO_CURRENT_PRODUCT_WRITE_LEASE",
+      "candidate_scope": "material-docking/**",
+      "shared_paths": "One actual writer per app/lib/manifest/backend_client hook, explicit current-holder release and receiver acknowledgement. Primary alone physically applies Product and owns compiler/Git."
+    },
+    "interaction_policy": {
+      "prototype": "Controlled quiet isolated prototype interaction with owned test window/session, preserve Operator focus/input and explicit actual owner.",
+      "genuine_product": "Only separately admitted genuine Product GUI proof under current named independent route, resource/auth/process safeguards and actual allowance. Prototype permission is not a runtime grant.",
+      "source_stage": "No arbitrary app launch or authority bypass from source work."
+    }
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-001.json",
+      "MT-075.json",
+      "MT-076.json",
+      "MT-077.json",
+      "MT-078.json",
+      "MT-097.json",
+      "MT-098.json",
+      "MT-099.json",
+      "MT-102.json",
+      "MT-103.json",
+      "MT-104.json",
+      "MT-174.json",
+      "MT-185.json",
+      "MT-188.json",
+      "MT-196.json",
+      "../WP-CKC-posekit-overhaul/packet.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json",
+      "packet.json#/operator_professional_desktop_ui_20261024/original_diagnostic_contract_refs"
+    ],
+    "checks": [
+      {
+        "check_id": "UI200-OWNING-PROOF",
+        "claim_refs": [
+          "AC200-1",
+          "AC200-2",
+          "AC200-3",
+          "AC200-4",
+          "AC200-5",
+          "AC200-6",
+          "AC200-7",
+          "AC200-8"
+        ],
+        "command_or_method": "Reuse unchanged valid native coverage. On stable authorized app inputs, independent proof inspects Argus/AccessKit and renders and performs resize/navigation/persistence and original affected multi-step workflows. No runtime is granted by this contract creation.",
+        "expected": "Professional materially distinct native docked workbench with shared edges/dividers and all retained workflows reachable.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout_no_automatic_retry",
+        "evidence_required": [
+          "Exact target/source/dependency/config identity",
+          "Affected proof and original acceptance linkage",
+          "Named independent review; permission-held cases stay open",
+          "Affected typed internal_diagnostics events and actual correlated standalone Palmistry retention; unchanged original watcher/source proof reused. Crash-survival proof is later separately admitted genuine owned Product test."
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-200.json",
+    "microtask_projection": null,
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "operator_request": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/operator_professional_desktop_ui_20261024",
+    "draft_materials": [
+      ".GOV/docs_repo/wp012-desktop-ui-drafts/ui-draft-mockup.html",
+      ".GOV/docs_repo/wp012-desktop-ui-drafts/desktop-material-reference.png"
+    ],
+    "original_contracts": [
+      "MT-001.json",
+      "MT-075.json",
+      "MT-076.json",
+      "MT-077.json",
+      "MT-078.json",
+      "MT-097.json",
+      "MT-098.json",
+      "MT-099.json",
+      "MT-102.json",
+      "MT-103.json",
+      "MT-104.json",
+      "MT-174.json",
+      "MT-185.json",
+      "MT-188.json",
+      "MT-196.json",
+      "../WP-CKC-posekit-overhaul/packet.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+    ],
+    "diagnostic_contracts_ref": "packet.json#/operator_professional_desktop_ui_20261024/original_diagnostic_contract_refs"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "NOT_REQUESTED",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "PENDING",
+    "depends_on": [
+      "MT-197"
+    ],
+    "blocks": [
+      "MT-202"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING",
+    "claimed_by": null,
+    "completed_by": null,
+    "blocked_on": null
+  },
+  "scope": {
+    "summary": "Professional materially distinct native docked workbench with shared edges/dividers and all retained workflows reachable.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/split_layout.rs",
+      "src/frontend/handshake_native/src/layout_persistence.rs",
+      "src/frontend/handshake_native/src/pane_registry.rs",
+      "src/frontend/handshake_native/src/pane_header.rs",
+      "src/frontend/handshake_native/src/tab_bar.rs",
+      "src/frontend/handshake_native/src/theme/",
+      "src/frontend/handshake_native/src/top_menu_bar.rs",
+      "src/frontend/handshake_native/src/accessibility/",
+      "src/frontend/handshake_native/src/settings_dialog.rs"
+    ],
+    "forbidden_paths": [
+      "Files outside exact actual owning allocation",
+      "Canonical renderer internals from a host-only scope",
+      "Existing private/frozen outputs and unrelated files"
+    ],
+    "acceptance_criteria": [
+      "AC200-1: Implement MT-197 grounded workbench/material design while retaining all original three-WP user/model workflows and backend contracts. Photoshop/VS Code and drafts inform quality/materials without defining a copied product taxonomy.",
+      "AC200-2: All internal docked panes touch at shared edges with shared resize dividers, no internal gutters or desktop gaps. Minimum sizes, keyboard navigation, DPI/window resize and persisted layout remain coherent. Distinct external OS windows retain normal OS boundaries.",
+      "AC200-3: Use consistent shared icons, scrollbars, type, materials, readable contrast and focus/hover/selected/disabled states. Verify empty/loading/error/denied/recovery, discoverability and no clipping/overlap.",
+      "AC200-4: GUI coder A owns material-docking and Handpick interaction candidates under MT-200/201. Coder B owns Vulkan/window candidates under MT-198/199. Keep candidate roots disjoint; one actual named writer handles each shared app/lib/manifest integration hook. No coder handle or Product lease is inferred.",
+      "AC200-5: Separate workflow tester performs real user actions and multi-step tasks on the genuine app with Argus/AccessKit state and captures. Prototype alternatives/feedback remain distinct from actual behavior/runtime acceptance.",
+      "AC200-6: Implement Settings module tabs with feature subtabs OR equivalent discoverable system tree covering actual existing module/features. Preserve Engine Profiles INSIDE Settings and complete profile dispatch and original MT-196 snapshots/live authority. Prove reachability, keyboard/accessibility, typed persistence and empty/loading/error/denied/recovery states without dropping original controls.",
+      "AC200-7: Workbench/multiwindow/module clients obey the single authoritative GPU owner/broker and memory-accounting/lifecycle contracts; do not create independent device/pool/budget bypasses. Keep visual/material behavior responsive to actual pressure/recovery without widening resource/auth scope.",
+      "AC200-8: Real navigation, layout/divider/component/Settings state changes and errors emit or expose typed allowlisted mechanical diagnostic state through internal_diagnostics and the existing Palmistry event path, without project contents/secrets or a watcher copied into the GUI."
+    ],
+    "proof_targets": [
+      "Genuine native workbench shared dividers and retained workflows"
+    ],
+    "code_boundary": {
+      "native_crate": "src/frontend/handshake_native",
+      "canonical_renderer_owner": "UNKNOWN_PENDING_DESIGN; no invented new asset",
+      "basis": "Existing native Cargo/main/layout/search contracts; exact source files narrow under actual allocation."
+    },
+    "activation_state": "PLANNED_UNCLAIMED_UNVERIFIED",
+    "diagnostics_boundary": "Existing internal_diagnostics GUI event producers and canonical standalone Palmistry watcher/event transport. No new watcher/controller/automatic restart/OS remediation/model authority or blanket source lease."
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": true,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "Affected original native editor/CKC/PoseKit/orchestration workflows"
+    ],
+    "argus_targets": [
+      "Stable controls/AccessKit state, real layout and workflow actions"
+    ],
+    "expected_evidence": [
+      "argus_inspect_or_accesskit_tree",
+      "argus_screenshot_or_snapshot_reference",
+      "renderer_console_error_scan",
+      "layout_overlap_state_check",
+      "capture_matrix_or_recorded_not_applicable_reason"
+    ],
+    "not_applicable_reason": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": true,
+    "target_entries": [
+      "Affected existing manual entries resolved by MT-197 coverage; original obligations retained"
+    ],
+    "expected_evidence": [
+      "user_manual_diff",
+      "manual_self_consistency_test",
+      "manual_inspection_or_no_context_operation_test",
+      "hbr_int_009_diagnostic_posture_recorded"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "Existing editor/CKC/PoseKit/orchestration scoped state"
+    ],
+    "identity_and_scope_contexts": [
+      "Retained real account/sub-profile/workspace/model-lane context"
+    ],
+    "enforcement_boundaries": [
+      "Existing backend authority and scoped UI state; renderer grants no access"
+    ],
+    "same_project_private_resource_cases": [
+      "Preserve scoped access and redaction."
+    ],
+    "cross_account_negative_cases": [
+      "Denied state reveals no other account private content."
+    ],
+    "derived_resource_non_widening_cases": [
+      "Render/search/diagnostic projections do not widen grants."
+    ],
+    "revocation_and_context_switch_cases": [
+      "Stale selection/context cannot retain revoked access."
+    ],
+    "remote_saas_mcp_sync_cases": [],
+    "metadata_side_channel_cases": [
+      "Capture/diagnostics retain privacy controls."
+    ],
+    "expected_evidence": [
+      "stable_resource_owner_scope_linkage",
+      "default_deny_negative_test",
+      "same_project_cross_account_isolation_test_when_applicable",
+      "derived_resource_scope_non_widening_test_when_applicable",
+      "actor_owner_access_space_attribution",
+      "revocation_or_context_switch_test_when_applicable",
+      "remote_delegation_sync_scope_test_when_applicable",
+      "argus_or_typed_privacy_state_inspection_when_operator_visible"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    {
+      "rule_ref": "HBR-INT-009",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-200.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-VIS-001",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-200.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-VIS-002",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-200.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-VIS-003",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-200.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-VIS-004",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-200.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-VIS-005",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-200.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MAN-001",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-200.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MAN-002",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-200.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MAN-003",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-200.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MAN-004",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-200.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-QUIET-001",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-200.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-SWARM-001",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-200.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-001",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-200.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-001",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-200.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-002",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-200.json#/proof"
+    }
+  ],
+  "hbr_int_009_tier_obligations": [],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "PLANNED_UNCLAIMED_UNVERIFIED"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "BOUNDED_PROFESSIONAL_DESKTOP_UI",
+    "risks": [
+      "Draft taxonomy/static mockups replace real app proof.",
+      "Migration drops held workflows/accessibility/privacy.",
+      "Coders overlap or force a new renderer despite adequate existing capability."
+    ],
+    "minimum_controls": [
+      "Retain all original acceptance and exact relevant proof; samples remain untrusted DRAFT.",
+      "Bind actual owner/API and supported pins; standalone only for verified gap, host adoption distinct.",
+      "Use disjoint ownership/shared-hook handoff and original independent runtime/process/pool limits."
+    ]
+  },
+  "operator_authority": {
+    "approval_ref": "packet.json#/operator_professional_desktop_ui_20261024",
+    "scope_approval_recorded": true,
+    "implementation_state": "PLANNED_UNCLAIMED_UNVERIFIED",
+    "runtime_permission_inferred": false,
+    "new_attempts_granted": false,
+    "current_retry_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/current_retry_policy",
+    "interaction_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/interaction_policy"
+  },
+  "spec_basis": {
+    "source": "Current operator UI/refactor/Vulkan request relayed by Master, requirement meaning in packet request; no fabricated verbatim message or accepted design.",
+    "operator_requirement_ref": "packet.json#/operator_professional_desktop_ui_20261024/requirements",
+    "existing_ui_guidance": ".GOV/spec/master-spec-v02.222/spec-modules/12-end-of-file-appendices.md#12.5",
+    "current_spec_entrypoint": ".GOV/spec/SPEC_CURRENT.md",
+    "coordination": "MT-197 resolves topical clauses/refinement and needed exact enrichment before dependent adoption. Original pins/acceptance remain.",
+    "new_topic_binding": {
+      "module_ref": ".GOV/spec/master-spec-v02.223/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md",
+      "spec_version": "v02.223",
+      "stable_rule_ids": [
+        "GUI-DESKTOP-001",
+        "GUI-DESKTOP-002",
+        "GUI-DESKTOP-003",
+        "GUI-DESKTOP-005",
+        "GUI-DESKTOP-006",
+        "GUI-DESKTOP-007",
+        "GUI-DESKTOP-008",
+        "GUI-DESKTOP-009",
+        "GUI-DESKTOP-010",
+        "GUI-DESKTOP-011",
+        "GUI-DESKTOP-012",
+        "GUI-DESKTOP-013",
+        "GUI-DESKTOP-014",
+        "GUI-DESKTOP-015",
+        "GUI-DESKTOP-016",
+        "GUI-DESKTOP-017",
+        "GUI-DESKTOP-018",
+        "GUI-DESKTOP-019",
+        "GUI-DESKTOP-025",
+        "GUI-DESKTOP-027",
+        "GUI-DESKTOP-028",
+        "GUI-DESKTOP-037",
+        "GUI-DESKTOP-038",
+        "GUI-DESKTOP-039",
+        "GUI-DESKTOP-041",
+        "GUI-DESKTOP-042",
+        "GUI-DESKTOP-043",
+        "GUI-DESKTOP-044",
+        "GUI-DESKTOP-045",
+        "GUI-DESKTOP-046",
+        "GUI-DESKTOP-047",
+        "GUI-DESKTOP-048",
+        "GUI-DESKTOP-049",
+        "GUI-DESKTOP-050",
+        "GUI-DESKTOP-051",
+        "GUI-DESKTOP-052",
+        "GUI-DESKTOP-053",
+        "GUI-DESKTOP-054",
+        "GUI-DESKTOP-055"
+      ],
+      "role": "Operator-approved new scope only; original governance/source/spec pins and original acceptance remain unchanged."
+    }
+  },
+  "context_capsule": {
+    "owning_module": "src/frontend/handshake_native",
+    "module_binding_status": "BOUND_EXISTING_NATIVE_CRATE",
+    "module_maintenance_refs": [
+      "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation"
+    ],
+    "original_acceptance_refs": [
+      "MT-001.json",
+      "MT-075.json",
+      "MT-076.json",
+      "MT-077.json",
+      "MT-078.json",
+      "MT-097.json",
+      "MT-098.json",
+      "MT-099.json",
+      "MT-102.json",
+      "MT-103.json",
+      "MT-104.json",
+      "MT-174.json",
+      "MT-185.json",
+      "MT-188.json",
+      "MT-196.json",
+      "../WP-CKC-posekit-overhaul/packet.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+    ],
+    "draft_reference_ref": "packet.json#/operator_professional_desktop_ui_20261024/draft_references",
+    "pin_policy": "No original three-WP source/spec/governance pin or verdict changes. New compatible adoption follows owning grounded decision.",
+    "diagnostic_obligation_ref": "packet.json#/operator_professional_desktop_ui_20261024/gui_diagnostics_palmistry_20261024"
+  },
+  "validation": {
+    "review_verdict": "PENDING",
+    "proof_records": [],
+    "implementation_result": "NOT_IMPLEMENTED_NOT_RUN"
+  }
+}

@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#171d22">
+  <meta name="description" content="A frosted-glass desktop workspace concept. Multiple independent workspaces, a solid menu bar, and host resources at a glance.">
+  <title>Handshake — Glass Workspace</title>
+  <style>
+.desktop-scene{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;background:#263a3d;color:#dde4e3;font-family:Inter,"Segoe UI",Arial,sans-serif;--bg-ink:#20383b;--bg-teal:#527e7d;--bg-light:#a7b9a0;--bg-copper:#bc9270;--bg-deep:#26332e;--bg-sky:#526c6b}
+.desktop-wallpaper{position:absolute;inset:0;width:100%;height:100%;filter:saturate(.76)}
+.desktop-wallpaper .bg-sky{fill:var(--bg-sky)}
+.desktop-wallpaper .bg-teal{fill:var(--bg-teal)}
+.desktop-wallpaper .bg-light{fill:var(--bg-light)}
+.desktop-wallpaper .bg-copper{fill:var(--bg-copper)}
+.desktop-wallpaper .bg-deep{fill:var(--bg-deep)}
+.desktop-wallpaper .bg-ink{fill:var(--bg-ink)}
+.desktop-vignette{position:absolute;inset:0;background:linear-gradient(180deg,#0d1a2430 0%,transparent 45%,#10262d45 100%)}
+body[data-wallpaper="dusk"] .desktop-scene{--bg-ink:#2e2a37;--bg-teal:#7e706f;--bg-light:#d7b596;--bg-copper:#bb795e;--bg-deep:#4b3541;--bg-sky:#827772}
+body[data-wallpaper="slate"] .desktop-scene{--bg-ink:#26313b;--bg-teal:#758394;--bg-light:#aeb9c3;--bg-copper:#7c8f9b;--bg-deep:#374350;--bg-sky:#637787}
+.desktop-window{position:absolute;border:1px solid #ffffff35;border-radius:12px;overflow:hidden;box-shadow:0 18px 80px #07141775;background:#dce2de;transition:opacity .3s ease,transform .4s ease}
+body[data-backdrop="wallpaper"] .desktop-window{opacity:0;transform:translateY(14px)}
+.desktop-window-bar{height:36px;background:#e8ece8;display:flex;align-items:center;gap:7px;padding:0 13px;font-size:10px;color:#56605b;border-bottom:1px solid #2b393712}
+.desktop-window-dot{height:6px;width:6px;border-radius:50%;background:#b7c2bb}
+.desktop-window-title{margin-left:10px;font-weight:500}
+.desktop-window-controls{margin-left:auto;color:#88968e;letter-spacing:11px;font-size:12px}
+.desktop-browser{left:-36px;top:126px;width:510px;height:430px;transform:rotate(-3deg);background:#edece5}
+body[data-backdrop="wallpaper"] .desktop-browser{transform:rotate(-3deg) translateY(14px)}
+.desktop-browser-nav{height:43px;padding:8px 14px;display:flex;gap:11px;align-items:center;border-bottom:1px solid #929d8b25;color:#879081;font-size:14px;box-sizing:border-box}
+.desktop-browser-address{flex:1;border-radius:5px;background:#dce0d4;border:1px solid #79837316;padding:5px 12px;font-size:9px;color:#5f695c}
+.desktop-browser-body{padding:27px 29px;color:#394943}
+.desktop-eyebrow{font-size:8px;letter-spacing:2.8px;text-transform:uppercase;color:#788476}
+.desktop-browser-heading{font-family:Georgia,serif;font-size:35px;line-height:1.03;margin:12px 0 17px;max-width:290px;font-weight:400;color:#425c50}
+.desktop-browser-photo{height:175px;border-radius:5px;background:linear-gradient(155deg,#90aa95 0%,#b6c1a8 40%,#507462 41%,#71977c 60%,#344e43 61%);position:relative;overflow:hidden}
+.desktop-browser-photo:before{content:"";position:absolute;width:230px;height:230px;border:1px solid #e1e6cf6b;border-radius:50%;top:40px;left:60px;box-shadow:0 0 0 24px #c7d4b021,0 0 0 48px #c7d4b014}
+.desktop-browser-caption{margin-top:12px;display:flex;justify-content:space-between;font-size:8px;color:#8a9388}
+.desktop-files{right:24px;top:104px;width:380px;height:352px;transform:rotate(2deg);background:#e4e8e2}
+body[data-backdrop="wallpaper"] .desktop-files{transform:rotate(2deg) translateY(14px)}
+.desktop-files-path{height:38px;margin:0 15px;border-bottom:1px solid #a7b3a63d;display:flex;align-items:center;gap:12px;color:#637166;font-size:9px}
+.desktop-files-content{display:flex;height:calc(100% - 76px)}
+.desktop-files-sidebar{padding:16px 13px;width:78px;border-right:1px solid #a4b3a829;font-size:9px;color:#718276;line-height:29px}
+.desktop-files-grid{flex:1;display:grid;grid-template-columns:repeat(2,1fr);gap:13px;padding:22px 17px;align-content:start}
+.desktop-file-card{text-align:center;font-size:8px;color:#66796b}
+.desktop-file-thumb{height:67px;border-radius:5px;margin-bottom:7px;background:#839b83;overflow:hidden;position:relative;border:3px solid #f8f9f2;box-shadow:0 1px 3px #152b3a0d}
+.desktop-file-thumb:after{content:"";position:absolute;width:100px;height:80px;border-radius:40%;background:#c8c6ac;transform:rotate(-35deg);left:32px;top:32px}
+.desktop-file-thumb.bg-thumb-two{background:#b59174}
+.desktop-file-thumb.bg-thumb-two:after{background:#4f6761;top:14px;left:-38px;transform:rotate(25deg)}
+.desktop-file-thumb.bg-thumb-three{background:#778f97}
+.desktop-file-thumb.bg-thumb-three:after{background:#d0d1bd;top:40px;left:7px}
+.desktop-file-thumb.bg-thumb-four{background:#b3bdab}
+.desktop-file-thumb.bg-thumb-four:after{background:#6f867b;top:4px;left:65px}
+.desktop-music{right:-40px;bottom:100px;width:470px;height:255px;transform:rotate(-4deg);background:#263f42;color:#e1e5dc;border-color:#a8bbac3b}
+body[data-backdrop="wallpaper"] .desktop-music{transform:rotate(-4deg) translateY(14px)}
+.desktop-music .desktop-window-bar{background:#24393b;color:#c0cec3;border-bottom-color:#ffffff0c}
+.desktop-music .desktop-window-dot{background:#7b928a}
+.desktop-music-body{padding:27px;display:flex;gap:25px;align-items:center}
+.desktop-album{width:124px;height:145px;border-radius:5px;background:#a8b6a3;flex-shrink:0;position:relative;overflow:hidden;box-shadow:0 7px 21px #14212375}
+.desktop-album:before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 75% 30%,#ece0b8 0 17%,transparent 17.5%),linear-gradient(155deg,transparent 35%,#698576 36% 65%,#344f48 66%);opacity:.94}
+.desktop-album:after{content:"D I S T A N C E";position:absolute;bottom:13px;left:12px;font-size:8px;letter-spacing:1px;color:#e6e6d0}
+.desktop-music-meta{flex:1}
+.desktop-music-meta .desktop-eyebrow{color:#a7bbaf;font-size:7px}
+.desktop-music-name{font-size:22px;margin:11px 0 6px;font-weight:400;color:#e7e7d8}
+.desktop-music-artist{font-size:10px;color:#a5b7ad}
+.desktop-music-progress{height:3px;background:#8da49b30;margin:22px 0 17px;border-radius:3px;position:relative}
+.desktop-music-progress:before{content:"";position:absolute;inset:0 43% 0 0;background:#d5d9bb;border-radius:3px}
+.desktop-music-playback{display:flex;align-items:center;gap:21px;color:#bccbbf;font-size:13px}
+.desktop-music-play{width:27px;height:27px;display:grid;place-items:center;border-radius:50%;background:#d9dfc8;color:#304b43;font-size:10px;padding-left:2px;box-sizing:border-box}
+.desktop-taskbar{position:absolute;bottom:0;left:0;right:0;height:44px;background:#14201e73;backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border-top:1px solid #ffffff16;display:flex;align-items:center;justify-content:center;gap:22px;color:#dbe5df}
+.desktop-taskbar-icon{width:21px;height:21px;display:flex;align-items:center;justify-content:center;position:relative}
+.desktop-taskbar-icon svg{display:block;width:20px;height:20px;opacity:.87}
+.desktop-taskbar-icon.bg-active:after{content:"";width:12px;height:2px;border-radius:2px;background:#cdd8b7;position:absolute;bottom:-7px;left:5px}
+.desktop-taskbar-weather{position:absolute;left:22px;display:flex;align-items:center;gap:8px;font-size:10px;color:#c5d1c8}
+.desktop-taskbar-weather svg{width:17px;height:17px;color:#d2d8b8}
+.desktop-taskbar-time{position:absolute;right:20px;text-align:right;font-size:9px;line-height:14px;color:#c3d0c8;font-variant-numeric:tabular-nums}
+@media(max-width:800px){.desktop-browser{left:-130px;width:420px}.desktop-files{right:-100px}.desktop-music{width:370px;right:-70px}.desktop-taskbar{gap:17px}.desktop-taskbar-weather{display:none}}
+
+</style>
+  <style>
+:root{--accent:#d6a27c;--accent-rgb:214,162,124;--text:#e3e6e6;--muted:#949da0;--faint:#6f7b7f;--border:rgba(225,237,238,.12);--glass-rgb:24,33,38;--glass-opacity:.62;--blur:18px;--solid:#1c2227;--overlay:#242d32;--hover:rgba(224,239,242,.065);--editor-text:#c8d4d7;--gutter:#718186;--shadow:0 14px 45px rgba(0,0,0,.17);--code-keyword:#c4a6c9;--code-string:#b8c6a2;--code-type:#a6c6ce;--code-fn:#d6bf97;--code-number:#d3a785;--font:Inter,"Segoe UI Variable","Segoe UI",Arial,sans-serif;--mono:"Cascadia Code","SFMono-Regular",Consolas,"Liberation Mono",monospace}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden}body{font-family:var(--font);color:var(--text);background:#233f46;font-size:12px;line-height:1.5;-webkit-font-smoothing:antialiased}button,input,select{font:inherit}button{color:inherit;border:0;background:none;cursor:pointer}button,a,input,select{ -webkit-tap-highlight-color:transparent}button{touch-action:manipulation}button:disabled{cursor:default;opacity:.4}button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}input:focus-visible,select:focus-visible{outline:1px solid var(--accent)}button svg,[data-icon] svg{width:16px;height:16px;display:block;flex-shrink:0}button [data-icon],span[data-icon]{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}a{color:inherit;text-decoration:none}strong{font-weight:550}button,div,section{scrollbar-width:thin;scrollbar-color:#70808655 transparent}button:hover{background:var(--hover)}[hidden]{display:none!important}.muted{color:var(--muted)}.preview-strip{position:fixed;inset:0 28px auto;height:52px;display:flex;align-items:center;justify-content:space-between;font-size:9px;letter-spacing:1.9px;color:#dee9e9c9;text-shadow:0 1px 8px #15282b66}.preview-strip>span{display:flex;align-items:center;gap:10px}.preview-dot{height:5px;width:5px;border-radius:50%;background:#bcd0c5}.strip-divider{opacity:.4;margin:0 3px}.preview-note{letter-spacing:.25px;font-size:10px;color:#d4dfe0a3}.preview-note button{border:1px solid #d4dfe066;border-radius:50%;font-family:Georgia,serif;width:14px;height:14px;padding:0;font-size:10px;line-height:12px}.app-shell{position:fixed;inset:52px 26px 55px;min-width:780px;display:flex;flex-direction:column;border:1px solid #d5e8ec30;border-radius:10px;box-shadow:0 25px 75px #07131755,0 3px 12px #07131733;overflow:hidden;transition:inset .2s,border-radius .2s}.app-shell.maximized{inset:0;border-radius:0}.titlebar{height:44px;min-height:44px;display:flex;align-items:center;gap:17px;padding-left:15px;background:var(--solid);border-bottom:1px solid #ffffff0b;z-index:20;user-select:none}.brand{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:580;letter-spacing:-.2px}.brand svg{width:23px;height:23px;color:var(--accent)}.menubar{display:flex;gap:2px;align-items:center}.menubar button{font-size:11px;color:#c0c7c9;padding:5px 6px;border-radius:4px}.menubar button[aria-expanded=true]{background:#ffffff0e}.command-trigger{height:26px;max-width:350px;min-width:150px;width:28%;margin-left:auto;display:flex;align-items:center;gap:9px;padding:0 9px;color:#8f9a9f;border:1px solid #dce8eb13;background:#ffffff04;border-radius:5px;font-size:10px}.command-trigger svg{width:13px;height:13px}.command-trigger kbd{margin-left:auto;white-space:nowrap;color:#819097;font-family:var(--font);font-size:9px}.command-trigger>span:nth-child(2){white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.titlebar-end{display:flex;align-items:center;gap:1px;margin-left:auto;align-self:stretch}.titlebar-divider{width:1px;height:15px;background:#fff1;margin:0 4px}.icon-button{width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;color:var(--muted)}.icon-button.small{width:24px;height:24px}.icon-button.small svg{width:14px;height:14px}.icon-button.tiny{width:23px;height:23px}.icon-button.tiny svg{width:13px;height:13px}.window-control{width:34px;display:flex;align-items:center;justify-content:center;color:#a9b0b3}.window-control svg{width:12px;height:12px}.close-control:hover{background:#ba4e4e;color:white}.app-body{flex:1;min-height:0;display:grid;grid-template-columns:48px 206px minmax(0,1fr);position:relative}.glass{background:rgba(var(--glass-rgb),var(--glass-opacity));backdrop-filter:blur(var(--blur)) saturate(1.12);-webkit-backdrop-filter:blur(var(--blur)) saturate(1.12)}.activity-rail{border-right:1px solid var(--border);display:flex;flex-direction:column;justify-content:space-between;padding:8px 0 13px;user-select:none}.rail-top,.rail-bottom{display:flex;align-items:center;flex-direction:column;gap:9px}.rail-bottom{gap:16px}.activity-button{height:38px;width:47px;display:flex;align-items:center;justify-content:center;position:relative;color:#a0afb4}.activity-button svg{width:20px;height:20px;stroke-width:1.5}.activity-button.active{color:var(--accent)}.activity-button.active:before{content:"";position:absolute;top:7px;bottom:7px;left:0;width:2px;background:var(--accent);border-radius:0 1px 1px 0}.activity-button b{position:absolute;font-size:8px;line-height:13px;min-width:13px;right:8px;bottom:4px;background:var(--accent);color:#243036;border-radius:50%;font-weight:650}.avatar{background:#bfc9c61c;border:1px solid #d0ded136;border-radius:50%;font-size:9px;width:25px;height:25px;color:#cbd8d3;padding:0}.sidebar{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--border);overflow:hidden}.sidebar-heading{display:flex;align-items:center;justify-content:space-between;padding:19px 15px 15px 17px;font-size:9px;letter-spacing:1.5px;color:#b2bec1;font-weight:600;height:57px;min-height:57px}#sidebarContent{overflow:auto;flex:1;padding:0 10px 15px}.workspace-nav-item{display:flex;align-items:center;gap:10px;padding:10px 9px;border:1px solid transparent;border-radius:6px;width:100%;margin-bottom:5px;text-align:left}.workspace-nav-item.selected{background:rgba(var(--accent-rgb),.09);border-color:rgba(var(--accent-rgb),.21)}.workspace-nav-item .workspace-symbol{width:29px;height:29px;border-radius:6px;flex-shrink:0}.workspace-nav-item .workspace-symbol svg{width:15px;height:15px}.workspace-nav-label{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}.workspace-nav-label strong{font-size:11px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}.workspace-nav-label small{font-size:9px;color:var(--muted)}.workspace-shortcut{font-family:var(--mono);font-size:9px;color:var(--faint)}.add-workspace-nav{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:10px;padding:9px 9px;width:100%;text-align:left;border-radius:4px}.add-workspace-nav svg{width:13px;height:13px}.sidebar-section-title{font-size:9px;font-weight:600;letter-spacing:1.3px;color:#b2bec1;margin:22px 7px 9px;display:flex;align-items:center;justify-content:space-between}.sidebar-section-title button{color:var(--muted);font-size:9px}.tree-row{display:flex;gap:6px;align-items:center;height:26px;color:#b2bec2;font-size:10px;width:100%;border-radius:3px;text-align:left;white-space:nowrap;overflow:hidden;padding:0 6px}.tree-row svg{width:12px;height:12px;color:#93a1a7}.tree-row .file-glyph{font-size:10px;width:12px}.tree-row.indent-1{padding-left:18px}.tree-row.indent-2{padding-left:33px}.tree-row.indent-3{padding-left:47px}.tree-row.active{background:#dceaf30d;color:#e2e7e8}.tree-row .tree-status{margin-left:auto;font-size:9px;color:var(--accent);padding-right:5px}.tree-row .folder-icon{color:#acb8bc}.sidebar-subtle{padding:5px 7px;color:var(--faint);font-size:10px;line-height:1.8}.sidebar-bottom{padding:12px 12px 13px}.local-indicator{display:flex;align-items:center;gap:8px;padding:8px 2px 15px;color:var(--muted)}.status-dot{width:5px;height:5px;border-radius:50%;background:#91b5a2;display:inline-block;flex-shrink:0;box-shadow:0 0 6px #7ea88e15}.local-indicator div{display:flex;flex-direction:column;gap:2px;flex:1}.local-indicator strong{font-size:10px;color:#becbc9}.local-indicator div span{font-size:9px;color:var(--faint)}.local-indicator>span[data-icon] svg{height:13px;width:13px}.appearance-card{display:flex;align-items:center;gap:9px;width:100%;padding:11px 9px;border:1px solid var(--border);border-radius:6px;background:#ffffff03;text-align:left}.appearance-card>span:nth-child(2){display:flex;flex-direction:column;gap:1px;flex:1}.appearance-card strong{font-size:10px}.appearance-card small{font-size:9px;color:var(--muted)}.appearance-card>span:last-child svg{height:12px;width:12px;color:var(--faint)}.glass-swatch{height:27px;width:27px;border:1px solid #ddeaea3d;border-radius:7px;background:linear-gradient(135deg,#acc4bf55,#ffffff0c 55%,#e3c4a73d);box-shadow:inset 1px 1px 0 #ffffff24}.work-area{display:flex;flex-direction:column;min-width:0;min-height:0;background:#0c182117;padding:0 17px}.canvas-toolbar{height:57px;min-height:57px;display:flex;align-items:center;justify-content:space-between;gap:12px}.canvas-title{display:flex;gap:9px;align-items:center;font-size:11px;font-weight:500;color:#e2e9e9;text-shadow:0 1px 8px #0f272c44}.canvas-title svg{width:14px;height:14px;color:#c1d2d1}.count-badge{font-size:9px;color:#b4c4c7;border:1px solid #dceaea24;background:#18303822;padding:0px 5px;border-radius:4px}.canvas-actions{display:flex;align-items:center;gap:9px}.layout-switch{display:flex;gap:1px;border:1px solid #cce0e424;border-radius:5px;padding:2px;background:#1828302e}.layout-switch button{padding:4px 5px;border-radius:3px;color:#91a8af}.layout-switch svg{height:13px;width:13px}.layout-switch .selected{background:#c3d8e01a;color:#e3e9e9}.quiet-button{display:flex;align-items:center;gap:6px;padding:6px;color:#c6d3d5;font-size:10px;border-radius:4px}.quiet-button svg{height:13px;width:13px}.quiet-button>span:last-child svg{height:10px;width:10px}.toolbar-divider{width:1px;height:17px;background:#dceaea28}.new-workspace{display:flex;gap:5px;align-items:center;font-size:10px;padding:6px 9px;border:1px solid #dce6e82a;background:#dce6e80c;border-radius:5px;color:#e1e9e8;white-space:nowrap}.new-workspace svg{height:12px;width:12px}.canvas-grid{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.36fr) minmax(290px,1fr);grid-template-rows:minmax(240px,1.18fr) minmax(205px,.82fr);gap:14px;position:relative}.workspace-window{display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;border:1px solid #d5e6ec27;border-radius:7px;box-shadow:var(--shadow);position:relative;transition:border-color .15s,box-shadow .15s}.workspace-window.active{border-color:rgba(var(--accent-rgb),.46);box-shadow:0 0 0 1px rgba(var(--accent-rgb),.03),var(--shadow)}.primary-window{grid-column:1;grid-row:1/3}.notes-window{grid-column:2;grid-row:1}.studio-window{grid-column:2;grid-row:2}.workspace-titlebar{height:39px;min-height:39px;display:flex;align-items:center;gap:8px;padding:0 10px;background:#bdced008;border-bottom:1px solid var(--border);user-select:none;touch-action:none}.workspace-titlebar strong{font-size:11px;white-space:nowrap}.workspace-symbol{width:21px;height:21px;display:inline-flex;align-items:center;justify-content:center;border-radius:5px}.workspace-symbol svg{width:12px;height:12px}.workspace-symbol.orange{background:#d8a07715;color:#d9ad86;border:1px solid #e2b18623}.workspace-symbol.sage{background:#a2c2af12;color:#a8c7b0;border:1px solid #b3d0bc24}.workspace-symbol.lavender{background:#a6aad115;color:#b4bbd6;border:1px solid #a8aed327}.workspace-path{color:var(--muted);font-size:9px;margin-left:1px;white-space:nowrap}.window-heading-actions{display:flex;align-items:center;gap:1px;margin-left:auto}.live-label{font-size:8px;display:flex;gap:4px;align-items:center;color:#a9bcb0;margin-right:6px}.live-label i{width:4px;height:4px;background:#a8bfa9;border-radius:50%}.editor-tabs{height:35px;min-height:35px;display:flex;border-bottom:1px solid var(--border);align-items:stretch;background:#16212614;overflow:hidden}.editor-tab{display:flex;gap:7px;align-items:center;padding:0 12px;font-size:10px;color:var(--muted);border-right:1px solid #cce0e30b;white-space:nowrap;position:relative}.editor-tab.active{background:#e1e9eb07;color:#d7e2e4}.editor-tab.active:before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:var(--accent)}.editor-tab svg{width:11px;height:11px}.file-glyph{font-family:var(--mono);font-size:11px;font-weight:600;font-style:normal;display:inline-block;text-align:center}.file-glyph.rust{color:#c89f7e}.file-glyph.toml{color:#a4b1b9}.file-glyph.markdown{color:#a5bfcf;font-size:10px}.unsaved-dot{width:5px;height:5px;border-radius:50%;background:#b8c4c7;margin-left:8px}.tab-add{align-self:center;margin-left:auto;margin-right:5px}.tab-counter{font-family:var(--mono);background:#d1e4e20b;border-radius:3px;font-size:8px;padding:0 4px}.breadcrumbs{display:flex;align-items:center;gap:9px;height:29px;min-height:29px;padding:0 15px;font-size:9px;color:#8d9fa6;white-space:nowrap;overflow:hidden}.breadcrumbs>span{font-size:13px;color:#71848a}.breadcrumbs em{font-style:normal;color:#a1b7b7}.breadcrumbs .file-glyph{font-size:10px;margin-right:-5px}.editor-body{position:relative;display:flex;flex:1;min-height:100px;overflow:hidden}.code-lines{padding:6px 0 19px;flex:1;overflow:auto;outline:none;font:11px/1.93 var(--mono);color:var(--editor-text);tab-size:4}.code-row{display:flex;min-height:21px;white-space:pre}.code-row.highlight-line{background:#d4e8f008}.line-number{color:var(--gutter);width:43px;padding-right:15px;flex-shrink:0;text-align:right;user-select:none;font-size:10px}.line-text{padding-right:22px;white-space:pre}.syntax-comment{color:#7c9297;font-style:italic}.syntax-keyword{color:var(--code-keyword)}.syntax-type{color:var(--code-type)}.syntax-string{color:var(--code-string)}.syntax-fn{color:var(--code-fn)}.syntax-number{color:var(--code-number)}.syntax-punctuation{color:#7d999f}.minimap{width:39px;position:absolute;right:5px;top:8px;opacity:.3;padding:0 3px;pointer-events:none;background:#0b181514}.minimap span{display:block;height:2px;background:#bdd0cf70;margin-bottom:3px;margin-left:2px;max-width:100%}.minimap span:nth-child(3n){background:#d2b49b70}.minimap:after{content:"";position:absolute;inset:0 0 55%;background:#e2eeee18}.terminal-panel{height:125px;min-height:100px;flex-shrink:0;border-top:1px solid var(--border);background:#0f1a2112;display:flex;flex-direction:column}.panel-tabs{display:flex;align-items:center;gap:16px;padding:0 12px;height:33px;min-height:33px}.panel-tabs>button{font-size:8px;letter-spacing:.55px;color:#84979e;padding:8px 0 6px;height:100%;position:relative}.panel-tabs>button.selected{color:#c8d4d7}.panel-tabs>button.selected:after{content:"";position:absolute;bottom:0;left:0;right:0;height:1px;background:var(--accent)}.panel-tabs>button span{font-size:8px;border:1px solid #b1cbd019;border-radius:3px;padding:0 3px;margin-left:2px}.terminal-context{margin-left:auto;color:#80978e;font-size:8px;display:flex;align-items:center;gap:5px;white-space:nowrap}.panel-tabs .icon-button{height:20px;width:20px;flex-shrink:0}.terminal-output{font:10px/1.8 var(--mono);padding:7px 14px 0;overflow:auto;flex:1;color:#b9cace}.terminal-muted{color:#84999f}.terminal-green{color:#adc3a6;margin-left:6px}.terminal-accent{color:var(--accent)}.terminal-form{display:flex;align-items:center;gap:9px;padding:0 14px 8px;font:11px var(--mono)}.terminal-form label{color:var(--accent)}.terminal-form input{background:none;border:0;outline:none;color:#c8d9db;flex:1;min-width:0;padding:3px 0}.terminal-form input::placeholder{color:#75909955}.workspace-footer{height:25px;min-height:25px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-top:1px solid var(--border);font-size:8px;color:#94a7ad;background:#14242c0b;gap:8px}.workspace-footer>span{display:flex;align-items:center;gap:5px;white-space:nowrap}.workspace-footer svg{width:10px;height:10px}.footer-dot{color:#82919866;padding:0 3px}.small-status-dot{height:4px;width:4px;border-radius:50%;background:#94ad9b}.notes-content{padding:18px 24px 12px;flex:1;overflow:auto}.note-meta{display:flex;align-items:center;justify-content:space-between;font-size:8px;color:#8ca09f;letter-spacing:.2px}.note-tag{font-size:7px;letter-spacing:1.25px;color:#acc0b6;background:#c9dfd60a;border:1px solid #c9dfd61c;padding:3px 6px;border-radius:3px}.notes-content h1{font-size:20px;font-weight:500;letter-spacing:-.65px;line-height:1.35;color:#e1e7e4;margin:14px 0 7px}.note-intro{font-size:11px;line-height:1.7;color:#b1c1be;margin:0}.note-rule{height:1px;background:#d9e7df15;margin:15px 0 12px}.notes-content h3{font-size:10px;font-weight:600;margin:0 0 6px;color:#ccd9d2}.task-row{display:flex;align-items:center;gap:8px;font-size:10px;color:#bac8c4;padding:4px 0;cursor:pointer}.task-row input{appearance:none;width:11px;height:11px;border:1px solid #b9d0c845;border-radius:3px;margin:0;position:relative;cursor:pointer;background:#d3e4d205;flex-shrink:0}.task-row input:checked{background:#a4bfaa1f;border-color:#a4bfaa6b}.task-row input:checked:after{content:"";position:absolute;top:1px;left:3px;width:3px;height:5px;transform:rotate(45deg);border-right:1px solid #c0d2c3;border-bottom:1px solid #c0d2c3}.task-row input:checked+span{color:#7f9790;text-decoration:line-through}.note-callout{display:flex;align-items:center;gap:8px;padding:10px 0 0;margin-top:10px;border-top:1px solid #d9e7df15;font-size:9px;color:#a0b9ac}.note-callout svg{height:13px;width:13px}.studio-toolbar{height:34px;min-height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-bottom:1px solid var(--border)}.studio-tabs{display:flex;gap:17px;height:100%}.studio-tabs button{font-size:9px;color:var(--muted);padding:0;position:relative}.studio-tabs button.selected{color:#d0d9df}.studio-tabs button.selected:after{content:"";position:absolute;bottom:0;height:1px;background:#aab4c5;left:0;right:0}.studio-content{padding:15px 15px 10px;overflow:auto;flex:1}.asset-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.asset-card{min-width:0;padding:0;text-align:left;border-radius:4px;background:none!important}.asset-art{display:block;position:relative;height:86px;overflow:hidden;border-radius:4px;border:1px solid #dfeaf01f;transition:transform .2s,filter .2s}.asset-card:hover .asset-art{transform:translateY(-2px);filter:brightness(1.09)}.art-coast{background:linear-gradient(#9aa9aa,#c4c6b1 38%,#91a8a1 39%,#476969 75%,#283d3e)}.art-coast:before{content:"";position:absolute;background:linear-gradient(135deg,#334c4b,#1e3433);width:100%;height:60%;clip-path:polygon(0 10%,20% 38%,40% 45%,65% 76%,100% 85%,100% 100%,0 100%);bottom:0}.art-coast i{position:absolute;right:20%;top:24%;width:20%;height:15%;border-radius:50%;background:#dce0c151;filter:blur(5px)}.art-coast b{position:absolute;top:49%;left:16%;width:65%;height:1px;background:#d1ded74c;transform:rotate(-9deg)}.art-glass{background:linear-gradient(130deg,#c4c4b7,#8c9d97 52%,#455e5d)}.art-glass:before{content:"";position:absolute;left:29%;top:16%;height:65%;width:46%;border:1px solid #e8ece470;border-radius:13px;background:linear-gradient(120deg,#ecf3e929,#e9f5ec05 30%,#f7fffa34);transform:rotate(-19deg);box-shadow:4px 8px 16px #182d3837,inset 1px 1px 4px #fff3}.art-glass i{position:absolute;left:10%;top:20%;height:59%;width:38%;border:1px solid #e8ece459;border-radius:10px;background:linear-gradient(120deg,#cfddda36,#edf5ed0a);transform:rotate(-19deg);box-shadow:3px 7px 8px #24373f18}.art-glass b{position:absolute;width:22px;height:22px;right:15%;bottom:16%;border:1px solid #e1ebdf66;border-radius:50%;box-shadow:inset -3px -3px 6px #f2f8ed26;background:#cadbcb12}.art-dune{background:linear-gradient(145deg,#d2b692,#b69a7e 43%,#9a7761 44%,#725f53)}.art-dune:before{content:"";position:absolute;inset:25% -40% -50% 0;background:linear-gradient(180deg,#d2b18b,#ae8c6c);border-radius:80% 20% 0 0;transform:rotate(28deg);box-shadow:0 -1px 1px #edcda1aa}.art-dune i{position:absolute;width:150%;height:90%;background:linear-gradient(180deg,#a88060,#725a49);border-radius:90% 50% 0 0;left:-60%;bottom:-25%;transform:rotate(-27deg);box-shadow:0 -1px 0 #dbb48b66}.asset-caption{display:flex;flex-direction:column;padding:6px 1px 0;gap:1px}.asset-caption strong{font-size:9px;color:#c0ced1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.asset-caption small{font-size:7px;letter-spacing:.2px;color:#8da0a6}.palette-strip{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:15px;padding-top:11px;border-top:1px solid #d8e6ed15;font-size:8px;color:#91a7b0}.palette-strip>div{display:flex;gap:5px}.palette-strip button{height:13px;width:13px;background:var(--swatch);border:1px solid #ffffff35;border-radius:50%;padding:0}.palette-strip button:hover{transform:scale(1.2)}.canvas-bottom{height:35px;min-height:35px;display:flex;align-items:center;justify-content:space-between;color:#c2d4d0b0;font-size:8px;letter-spacing:.1px;gap:10px}.canvas-bottom>span{display:flex;align-items:center;gap:6px}.canvas-bottom .muted{color:#a7bec2a3}.statusbar{height:28px;min-height:28px;background:var(--solid);border-top:1px solid #c4d5df15;display:flex;align-items:center;padding:0 8px 0 0;gap:3px;z-index:10;font-size:9px;color:#a5b3b9}.statusbar button{height:27px;display:flex;align-items:center;gap:6px;padding:0 9px;white-space:nowrap}.host-label{border-right:1px solid #c2d8e71a;margin-right:5px;font-size:8px;letter-spacing:.55px;color:#c5d0d5}.host-label svg{width:12px;height:12px}.host-label .status-dot{width:4px;height:4px;margin-left:2px}.resource-items{display:flex;align-items:center;gap:2px}.resource-items button{gap:6px;padding:0 7px;font-size:9px}.resource-name{color:#7f969f;font-size:8px;letter-spacing:.2px}.resource-value{color:#bdcdd1;font-size:9px;font-variant-numeric:tabular-nums}.resource-value span{font-size:8px;color:#859ba3}.sparkline{width:29px!important;height:12px!important;fill:none;stroke:#91aaa0;stroke-width:1.1;opacity:.65}.meter{height:3px;width:23px;background:#a6b9bd1c;display:block;border-radius:3px;position:relative;overflow:hidden}.meter:after{content:"";height:100%;width:var(--fill);background:#91a9a1;position:absolute;left:0;top:0}.sample-badge{font-size:6px;letter-spacing:.7px;border:1px solid #b1c6cc24;border-radius:3px;line-height:13px;padding:0 4px;margin-left:5px;color:#8699a2;white-space:nowrap}.statusbar-right{display:flex;align-items:center;margin-left:auto;gap:3px}.statusbar-right button{font-size:8px;gap:5px;padding:0 6px}.statusbar-right svg{width:11px;height:11px}.statusbar-separator{height:12px;width:1px;background:#c1d8df15}.floating-panel{position:fixed;z-index:100;border:1px solid #c5dad838;background:rgba(32,43,48,.97);backdrop-filter:blur(28px);color:#dce7e7;border-radius:9px;box-shadow:0 18px 60px #00111870,0 2px 8px #0002}.appearance-panel{right:68px;top:145px;width:285px;padding:16px 19px}.popover-heading{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;gap:10px}.popover-heading>span{display:flex;align-items:center;gap:8px}.popover-heading svg{width:15px;height:15px;color:#a9bfbf}.popover-description{color:#8fa5a9;font-size:10px;margin:1px 0 22px}.setting-row{display:flex;align-items:center;justify-content:space-between;margin-top:16px;font-size:10px;color:#bbcdd0}.setting-row output{font-family:var(--mono);color:#b2c7c5;font-size:9px}.appearance-panel input[type=range]{width:100%;height:3px;margin:15px 0 5px;accent-color:var(--accent);cursor:pointer;display:block}.range-labels{display:flex;justify-content:space-between;color:#7e969d;font-size:8px}.setting-divider{height:1px;background:#d6ebe019;margin:22px 0}.segmented-control{display:flex;gap:2px;border:1px solid #d6ebe019;padding:2px;border-radius:5px}.segmented-control button{font-size:8px;color:#97aeb3;border-radius:3px;padding:4px 7px}.segmented-control button.selected{background:#d6ebe014;color:#dfedeb}.toggle-switch{height:16px;width:28px;border-radius:10px;background:#ffffff15;padding:2px}.toggle-switch i{display:block;width:12px;height:12px;border-radius:50%;background:#c2cece;transition:transform .15s}.toggle-switch.on{background:#d4a77f8c}.toggle-switch.on i{transform:translateX(12px);background:#f2dfcd}.wallpaper-options{display:flex;gap:8px;margin:19px 0 16px}.wallpaper-options>button{flex:1;min-width:0;padding:0;font-size:8px;color:#a0b6bb;background:none}.wallpaper-thumb{height:39px;display:block;border:2px solid transparent;border-radius:5px;margin-bottom:5px}.wallpaper-options .selected .wallpaper-thumb{border-color:#dbb391;box-shadow:0 0 0 2px #d4a77f1a}.coast-thumb{background:linear-gradient(145deg,#7a9a99,#2a4e56 50%,#a99278)}.dusk-thumb{background:linear-gradient(145deg,#8a6f76,#ac8c75 55%,#393d57)}.slate-thumb{background:linear-gradient(145deg,#768691,#283e4e 55%,#8a999e)}.reset-settings{font-size:9px;color:#9ab0b4;width:100%;border:1px solid #b6cbd625;padding:7px;border-radius:4px}.resource-panel{bottom:96px;left:39px;width:352px;padding:17px 20px}.resource-summary{display:flex;align-items:center;gap:12px;padding:18px 0 15px;border-bottom:1px solid #dcebe81a;margin-bottom:12px}.host-computer-icon{height:35px;width:35px;display:flex;align-items:center;justify-content:center;background:#c7dbd913;border:1px solid #bfd6d824;border-radius:7px;color:#a0c0b5}.host-computer-icon svg{height:20px;width:20px}.resource-summary>div:nth-child(2){display:flex;flex-direction:column;gap:2px}.resource-summary strong{font-size:11px}.resource-summary>div:nth-child(2)>span{font-size:9px;color:#8ba3ab}.demo-pill{margin-left:auto;color:#c3af9b;font-size:7px;letter-spacing:.8px;border:1px solid #c7aa8f33;padding:2px 5px;border-radius:3px}.resource-detail{margin:14px 0}.resource-detail>div{display:flex;align-items:center;justify-content:space-between;font-size:10px}.resource-detail strong{font-weight:500}.resource-detail .resource-amount{font-family:var(--mono);font-size:9px;color:#9eb5b9}.resource-track{height:4px;border-radius:3px;background:#dbeae91a;margin:6px 0;overflow:hidden}.resource-track span{height:100%;display:block;background:#aac1b3;border-radius:3px}.resource-detail p{font-size:8px;color:#829da5;margin:4px 0}.resource-note{font-size:9px;line-height:1.7;color:#8da8af;border-top:1px solid #dcebe81a;padding-top:12px;margin:16px 0 0}.modal-backdrop{position:fixed;inset:0;background:#04131b5c;backdrop-filter:blur(5px);z-index:200;display:flex;justify-content:center;align-items:flex-start;padding:18vh 20px 40px;overflow:auto}.command-dialog{width:540px;background:#232e33f5;border:1px solid #c7d6de42;border-radius:10px;box-shadow:0 30px 100px #0007;overflow:hidden}.command-input-wrap{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid #c7d6de1a}.command-input-wrap>span{color:var(--accent)}.command-input-wrap input{flex:1;min-width:0;background:none;border:0;outline:none;color:#e0ebed;font-size:13px}.command-input-wrap input::placeholder{color:#9cafb4}.command-input-wrap kbd,.command-footer kbd{font:8px var(--font);color:#90aab1;border:1px solid #a6bfc326;padding:1px 4px;border-radius:3px}.command-category{font-size:8px;letter-spacing:1px;color:#839ea5;padding:14px 18px 8px}.command-results{max-height:350px;overflow:auto}.command-result{display:flex;align-items:center;gap:12px;width:calc(100% - 16px);margin:2px 8px;border-radius:5px;padding:11px;color:#bfd0d6;font-size:11px;text-align:left}.command-result.selected{background:#c8d7df12;color:#e2e9e9}.command-result>span:first-child{color:#a4bcbf}.command-result small{margin-left:auto;font-size:9px;color:#8ba3ad}.command-footer{padding:10px 18px;display:flex;gap:16px;border-top:1px solid #c7d6de1a;color:#819ba3;font-size:8px;margin-top:10px}.command-footer>span{display:flex;align-items:center;gap:5px}.standard-dialog{width:370px;max-width:100%;background:#253037fa;border:1px solid #c7d6de42;border-radius:11px;padding:22px;box-shadow:0 30px 100px #0006;color:#e0e9eb}.standard-dialog>p{color:#9cb0b7;font-size:11px;margin:3px 0 22px}.standard-dialog>label{display:block;font-size:10px;color:#acc0c6;margin:15px 0 6px}.standard-dialog>input,.standard-dialog>select{display:block;width:100%;height:36px;border:1px solid #bcd0d73b;border-radius:5px;background:#18292f;color:#d8e6e9;padding:0 10px;font-size:11px}.primary-button{display:flex;gap:7px;justify-content:center;align-items:center;width:100%;background:#caa27f;color:#252f31;border:1px solid #edc19b47;border-radius:5px;padding:10px;margin-top:22px;font-size:11px;font-weight:600}.primary-button:hover{background:#d7af8b}.primary-button svg{height:14px;width:14px}.about-dialog{width:430px}.about-mark{width:49px;height:49px;border:1px solid #e2b38e4f;background:#c6997910;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#dfb491;margin:24px 0 15px}.about-mark svg{width:28px;height:28px}.about-dialog h2{font-size:22px;font-weight:500;letter-spacing:-.5px;margin:0 0 12px}.about-dialog h2 span{font-size:10px;margin-left:7px;color:#95aeb5;letter-spacing:0}.about-dialog>p{line-height:1.8}.about-facts{border-top:1px solid #c8dbe21a;padding-top:14px}.about-facts>span{font-size:9px;letter-spacing:.2px;color:#c0d2d6}.about-facts>p{font-size:10px;line-height:1.8;color:#90aab3;margin:5px 0 15px}.asset-dialog{position:relative;width:520px;max-width:90vw;background:#253137;padding:16px;border:1px solid #a6c2c84c;border-radius:10px;box-shadow:0 30px 70px #0006}.asset-close{position:absolute;right:22px;top:22px;z-index:2;background:#223338aa;color:white}.asset-dialog .asset-art{height:290px}.asset-dialog h3{font-size:15px;font-weight:500;margin:14px 4px 4px}.asset-dialog p{font-size:10px;line-height:1.7;color:#a4b7c0;margin:0 4px 6px}.menu-popover{min-width:220px;padding:6px;border-radius:5px}.menu-item{display:flex;align-items:center;justify-content:space-between;width:100%;padding:7px 10px;font-size:10px;border-radius:3px;gap:16px;text-align:left}.menu-item>span{display:flex;align-items:center;gap:8px}.menu-item svg{width:13px;height:13px;color:#a9c0c7}.menu-item small{font-size:8px;color:#8da6ae}.menu-separator{height:1px;background:#a7c3cf1d;margin:5px}.toast{position:fixed;bottom:105px;left:50%;transform:translateX(-50%);z-index:400;display:flex;align-items:center;gap:9px;color:#d6e6e6;background:#26363bed;border:1px solid #cce2e230;box-shadow:0 8px 30px #0004;border-radius:7px;padding:11px 16px;font-size:11px;max-width:90vw}.toast svg{color:#abccb4;height:14px;width:14px}.restore-app{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:12px 20px;background:#24343bd9;backdrop-filter:blur(15px);border:1px solid #b6d1d34a;border-radius:7px;box-shadow:0 10px 25px #0004;color:#d6e3e5;font-size:12px;z-index:100}.canvas-grid.floating{display:block}.floating .workspace-window{position:absolute;width:var(--floating-w,64%);height:var(--floating-h,90%);left:var(--floating-x,0);top:var(--floating-y,0);resize:both;min-width:280px;min-height:200px;max-width:100%;max-height:100%;}.floating .workspace-window[data-workspace=handshake]{--floating-w:66%;--floating-h:94%;--floating-x:0%;--floating-y:0%;z-index:3}.floating .workspace-window[data-workspace=suradb]{--floating-w:43%;--floating-h:61%;--floating-x:57%;--floating-y:4%;z-index:2}.floating .workspace-window[data-workspace=studio]{--floating-w:45%;--floating-h:43%;--floating-x:53%;--floating-y:57%;z-index:4}.floating .workspace-titlebar{cursor:grab}.floating .workspace-titlebar:active{cursor:grabbing}.floating .workspace-path{display:none}.canvas-grid.focused{display:flex!important}.canvas-grid.focused .workspace-window{display:none!important}.canvas-grid.focused .workspace-window.focused-window{display:flex!important;position:relative;inset:auto!important;transform:none!important;width:100%!important;height:100%!important;max-width:none;flex:1;resize:none}.focused-window.notes-window .notes-content{padding:38px 60px}.focused-window.notes-window h1{font-size:32px}.focused-window.notes-window .note-intro{font-size:15px}.focused-window.notes-window .task-row{font-size:13px;padding:10px 0}.focused-window.studio-window .studio-content{padding:30px}.focused-window.studio-window .asset-art{height:clamp(120px,25vh,260px)}.focused-window .workspace-path{display:inline}.sidebar-hidden .app-body{grid-template-columns:48px minmax(0,1fr)}.sidebar-hidden .sidebar{display:none}.extra-window .note-editor{flex:1;background:transparent;border:0;color:var(--text);padding:22px;resize:none;font:12px/1.9 var(--font);outline:none;overflow:auto;white-space:pre-wrap}.extra-window .code-editor{font-family:var(--mono)}.workspace-grid-4{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:repeat(2,minmax(220px,1fr))!important;overflow:auto}.workspace-grid-4>.workspace-window{grid-row:auto!important;grid-column:auto!important}.canvas-grid.has-many{overflow:auto}.has-many:not(.floating):not(.focused){grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:310px;grid-template-rows:310px}.has-many:not(.floating):not(.focused)>.workspace-window{grid-row:auto;grid-column:auto}.file-search{width:100%;background:#12212860;border:1px solid #a0b7c03d;color:var(--text);border-radius:4px;padding:7px 9px;font-size:10px;margin-bottom:12px}.search-result{width:100%;font-size:10px;text-align:left;color:#bdced4;padding:8px;border-radius:4px;display:flex;align-items:center;gap:8px}.search-result small{margin-left:auto;color:#8ca4ad;font-size:8px}.changes-summary{font-size:10px;color:#adc4bf;padding:8px}.change-item{font-size:10px;display:flex;justify-content:space-between;padding:7px}.change-item span{color:var(--accent)}.asset-grid.list-mode{grid-template-columns:1fr}.list-mode .asset-card{display:flex;align-items:center;gap:12px}.list-mode .asset-art{height:44px;width:60px;flex-shrink:0}.list-mode .asset-caption{padding:0}.full-palette{display:flex;gap:8px;height:100%;min-height:125px}.palette-block{flex:1;display:flex;flex-direction:column;justify-content:flex-end;min-width:0;border-radius:5px;padding:8px 5px;text-align:center;font:8px var(--mono);color:#1c303a;background:var(--swatch)!important;border:1px solid #e2ebe332}.task-note{margin:9px 0 15px;color:#95b2aa;font-size:10px}.notes-content.tasks-only h1{font-size:19px}.notes-content.tasks-only .task-row{padding:9px 0}.notes-content.tasks-only .note-meta{margin-bottom:15px}.search-empty{padding:16px 8px;font-size:10px;color:#9cb2b7}.empty-canvas{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;grid-column:1/-1;grid-row:1/-1;color:#d1e0df;background:#1c30313d;border:1px dashed #d3e4df4a;border-radius:7px;backdrop-filter:blur(18px)}.empty-canvas h2{font-size:22px;font-weight:500;margin:0}.empty-canvas p{font-size:12px;margin:0;color:#bccdcd}.empty-canvas .primary-button{width:auto;padding:9px 20px;margin-top:6px}
+body[data-theme=light]{--text:#27393e;--muted:#5b737a;--faint:#71898e;--border:#273c401f;--glass-rgb:214,228,229;--editor-text:#314d53;--gutter:#779399;--hover:#163a4010;--code-keyword:#835f83;--code-string:#47614b;--code-type:#386672;--code-fn:#7a6145;--code-number:#896048}body[data-theme=light] .sidebar-heading,body[data-theme=light] .sidebar-section-title{color:#3e626a}body[data-theme=light] .workspace-symbol{background:#263c4710}body[data-theme=light] .workspace-symbol.orange{color:#835b39}body[data-theme=light] .workspace-symbol.sage{color:#42694e}body[data-theme=light] .workspace-symbol.lavender{color:#5b5d86}body[data-theme=light] .tree-row,body[data-theme=light] .notes-content h1,body[data-theme=light] .notes-content h3,body[data-theme=light] .task-row,body[data-theme=light] .editor-tab.active,body[data-theme=light] .asset-caption strong,body[data-theme=light] .local-indicator strong{color:#315157}body[data-theme=light] .note-intro,body[data-theme=light] .note-callout,body[data-theme=light] .workspace-footer,body[data-theme=light] .breadcrumbs,body[data-theme=light] .studio-tabs button.selected,body[data-theme=light] .palette-strip,body[data-theme=light] .terminal-form input,body[data-theme=light] .terminal-output{color:#506d72}body[data-theme=light] .task-row input{border-color:#4a686f70}body[data-theme=light] .task-row input:checked{background:#6184772e}body[data-theme=light] .task-row input:checked:after{border-color:#456557}body[data-theme=light] .titlebar,body[data-theme=light] .statusbar{color:#dce7e7}body[data-theme=light] .notes-content .note-tag{color:#43675d;background:#5c88791a;border-color:#4e7c6f29}body[data-theme=light] .syntax-comment{color:#6b878a}body[data-theme=light] .appearance-card{border-color:#38575f2e;background:#fff1}body[data-theme=light] .workspace-window.active{border-color:#b4855f88}body[data-theme=light] .activity-button{color:#5f7a81}body[data-theme=light] .activity-button.active{color:#805d42}body[data-theme=light] .avatar{color:#365c60;border-color:#4e787d5c}body[data-theme=light] .live-label{color:#54766b}body[data-theme=light] .terminal-muted{color:#648087}body[data-theme=light] .terminal-green{color:#4f785a}
+@media(min-width:1600px){.app-shell{inset:62px 45px 65px}.preview-strip{inset:0 47px auto;height:62px}.app-body{grid-template-columns:52px 230px minmax(0,1fr)}.activity-button{width:51px}.work-area{padding:0 22px}.canvas-grid{gap:18px;grid-template-columns:minmax(0,1.45fr) minmax(350px,1fr)}.code-lines{font-size:13px;line-height:2}.line-number{font-size:11px;width:53px}.editor-tab{font-size:11px;padding:0 15px}.workspace-titlebar{height:43px;min-height:43px}.workspace-titlebar strong{font-size:12px}.notes-content{padding:25px 31px}.notes-content h1{font-size:26px}.note-intro{font-size:13px}.task-row{font-size:12px;padding:5px 0}.notes-content h3{font-size:12px}.note-rule{margin:21px 0 17px}.note-callout{margin-top:14px;padding-top:13px;font-size:10px}.asset-art{height:120px}.studio-content{padding:20px}.asset-caption strong{font-size:11px}.asset-caption small{font-size:9px}.terminal-panel{height:155px}.terminal-output{font-size:12px}.terminal-form{font-size:12px}.sidebar-heading{font-size:10px}.workspace-nav-label strong{font-size:12px}.workspace-nav-label small{font-size:10px}.tree-row{font-size:11px;height:28px}.canvas-toolbar{height:62px;min-height:62px}.canvas-bottom{height:42px;min-height:42px}.resource-items button{padding:0 10px}.statusbar{height:30px;min-height:30px}.resource-panel{bottom:110px}}
+@media(max-width:1190px){.titlebar{gap:10px}.brand span{display:none}.menubar button{font-size:10px;padding:5px}.command-trigger{max-width:260px}.app-body{grid-template-columns:44px 178px minmax(0,1fr)}.activity-button{width:43px}.work-area{padding:0 12px}.canvas-grid{gap:10px;grid-template-columns:minmax(0,1.2fr) minmax(265px,1fr)}.notes-content{padding:15px 18px}.notes-content h1{font-size:18px}.workspace-path{display:none}.live-label{display:none}.editor-tab{padding:0 9px;font-size:9px}.code-lines{font-size:10px}.line-number{width:33px;padding-right:10px}.terminal-context{display:none}.resource-items button{padding:0 5px;gap:4px}.resource-value{font-size:8px}.resource-value span{font-size:7px}.resource-name{font-size:7px}.sparkline{width:20px!important}.resource-items .meter{width:17px}.statusbar{gap:0}.host-label{padding:0 7px!important}.canvas-bottom>span:last-child{display:none}.asset-art{height:75px}.appearance-card{padding:9px 6px;gap:6px}.appearance-card small{font-size:8px}.local-indicator{gap:6px}.glass-swatch{width:23px;height:23px}.titlebar-end .window-control{width:29px}}
+@media(max-width:950px){.app-shell{inset:45px 12px 45px;min-width:0}.preview-strip{inset:0 15px auto;height:45px;font-size:8px;letter-spacing:1.3px}.preview-note{font-size:8px}.app-body{grid-template-columns:42px 150px minmax(0,1fr)}.activity-button{width:41px}.sidebar-heading{padding:16px 10px;font-size:8px}#sidebarContent{padding:0 6px 10px}.workspace-nav-item{gap:7px;padding:8px 6px}.workspace-shortcut{display:none}.workspace-nav-label strong{font-size:10px}.workspace-nav-label small{font-size:8px}.workspace-nav-item .workspace-symbol{width:24px;height:24px}.sidebar-bottom{padding:8px}.appearance-card small{display:none}.local-indicator>span:last-child{display:none}.local-indicator div span{font-size:8px}.canvas-grid{grid-template-columns:minmax(0,1.1fr) minmax(220px,1fr);gap:9px}.canvas-actions{gap:4px}.new-workspace{padding:6px}.new-workspace>span:last-child{display:none}.canvas-title{font-size:10px;gap:6px}.titlebar{padding-left:10px;gap:9px}.command-trigger{min-width:130px;width:25%}.menubar button[data-menu=Terminal],.menubar button[data-menu=Workspace]{display:none}.titlebar-end>.icon-button,.titlebar-divider{display:none}.window-heading-actions .icon-button:last-child{display:none}.workspace-titlebar{gap:6px;padding:0 8px}.workspace-titlebar strong{font-size:10px}.editor-tabs .editor-tab:nth-child(3){display:none}.notes-content{padding:14px}.notes-content h1{font-size:17px}.note-intro{font-size:10px}.note-meta>span:last-child{display:none}.task-row{font-size:9px;gap:6px}.task-row input{width:10px;height:10px}.note-callout{font-size:8px}.studio-content{padding:12px 10px 8px}.asset-grid{gap:6px}.asset-art{height:65px}.asset-caption strong{font-size:8px}.asset-caption small{font-size:6px}.palette-strip{font-size:7px;gap:3px}.palette-strip button{height:11px;width:11px}.palette-strip>div{gap:4px}.resource-items button{padding:0 5px}.resource-items .sparkline,.resource-items .meter{display:none}.sample-badge{font-size:5px;padding:0 3px}.statusbar-right button{padding:0 4px}.host-label{font-size:7px}.host-label .status-dot{display:none}.terminal-panel{height:108px}.terminal-output{font-size:9px}.panel-tabs{gap:12px;padding:0 10px}.panel-tabs>button{font-size:7px}.workspace-footer{font-size:7px;padding:0 8px}.workspace-footer .footer-dot{padding:0}.workspace-footer .muted{display:none}.canvas-toolbar{height:49px;min-height:49px}}
+@media(max-width:720px){.app-shell{inset:42px 8px 39px;border-radius:8px}.app-body{grid-template-columns:39px minmax(0,1fr)}.sidebar{display:none}.sidebar-hidden .app-body{grid-template-columns:39px minmax(0,1fr)}.activity-button{width:38px}.activity-button svg{width:18px;height:18px}.sidebar-mobile-open .sidebar{display:flex;position:absolute;left:39px;top:0;bottom:0;width:205px;z-index:30;background:#233139f5;backdrop-filter:blur(25px)}.titlebar{height:40px;min-height:40px;gap:8px}.menubar button{font-size:9px}.menubar button[data-menu=Help]{display:none}.command-trigger{min-width:100px;width:auto;flex:1;max-width:none;height:25px}.command-trigger>span:nth-child(2){font-size:9px}.command-trigger kbd{display:none}.titlebar-end .window-control{width:23px}.titlebar-end .window-control:first-of-type{display:none}.preview-strip{inset:0 11px auto;height:42px;font-size:7px;letter-spacing:1px}.preview-strip .preview-note{letter-spacing:0;font-size:7px;gap:5px}.preview-strip .preview-note button{height:12px;width:12px;line-height:10px;font-size:8px}.preview-dot{display:none}.work-area{padding:0 9px}.canvas-grid{display:flex;flex-direction:column;overflow:auto;gap:12px}.workspace-window{flex-shrink:0;min-height:260px}.primary-window{height:440px}.notes-window{height:338px}.studio-window{height:255px}.canvas-bottom{height:26px;min-height:26px;font-size:7px}.code-lines{font-size:11px}.editor-tabs .editor-tab:nth-child(3){display:flex}.notes-content{padding:17px 21px}.notes-content h1{font-size:21px}.note-intro{font-size:11px}.task-row{font-size:10px}.note-callout{font-size:9px}.asset-art{height:95px}.asset-caption strong{font-size:10px}.asset-caption small{font-size:8px}.studio-content{padding:14px}.palette-strip{font-size:9px}.statusbar{height:40px;min-height:40px;flex-wrap:wrap;padding:2px 5px;gap:0;align-content:center}.statusbar .host-label{height:17px;font-size:6px;padding:0 5px!important}.host-label svg{width:10px;height:10px}.resource-items{order:3;width:100%;justify-content:space-between}.resource-items button{height:17px;padding:0 4px;gap:4px}.resource-name{font-size:6px}.resource-value{font-size:7px}.resource-value span{font-size:6px}.sample-badge{font-size:5px;margin-left:3px;line-height:11px}.statusbar-right{height:15px;gap:1px}.statusbar-right button{height:15px;font-size:7px}.statusbar-right svg{width:10px;height:10px}.statusbar-separator{height:8px}.appearance-panel{right:18px;top:110px;width:268px}.resource-panel{bottom:88px;left:15px;width:min(352px,calc(100vw - 30px));max-height:70vh;overflow:auto}.modal-backdrop{padding:12vh 14px 30px}.command-dialog{width:100%}.canvas-title{font-size:10px}.canvas-actions{gap:4px}.canvas-toolbar{height:47px;min-height:47px}.quiet-button{font-size:9px;gap:4px;padding:4px}.layout-switch button{padding:4px}.toolbar-divider{margin:0 2px}.floating .workspace-window{min-width:245px;min-height:220px}.canvas-grid.floating{overflow:auto;min-height:0}.focused-window.notes-window .notes-content{padding:24px}.focused-window.notes-window h1{font-size:26px}.canvas-grid.focused{overflow:auto}.canvas-grid.focused .workspace-window{min-height:100%;height:auto!important}.canvas-grid.focused .primary-window{min-height:450px}.canvas-grid.focused .studio-window{min-height:300px}.canvas-grid.focused .notes-window{min-height:350px}.menu-popover{max-width:calc(100vw - 25px)}.toast{bottom:93px;font-size:10px}.titlebar-end .close-control{display:none}.app-shell.maximized{inset:0}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}@supports not (backdrop-filter:blur(1px)){.glass{background:rgba(var(--glass-rgb),.94)}}
+
+.app-shell{z-index:2}.preview-strip{z-index:1}.restore-app{z-index:100}
+
+/* Continuous native-style frost beneath the pane surfaces. */
+.app-body{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);background:rgba(18,29,34,.16)}
+.canvas-toolbar{background:rgba(21,35,42,.13);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);margin:0 -17px;padding:0 17px}
+.canvas-grid[data-count="1"]:not(.floating):not(.focused){grid-template:1fr / minmax(0,1fr)}
+.canvas-grid[data-count="2"]:not(.floating):not(.focused){grid-template:minmax(0,1fr) / repeat(2,minmax(0,1fr))}
+.canvas-grid[data-count="1"]:not(.floating):not(.focused)>.workspace-window,.canvas-grid[data-count="2"]:not(.floating):not(.focused)>.workspace-window{grid-row:auto;grid-column:auto}
+@media(min-width:1191px) and (max-width:1599px){.code-lines{font-size:12px}.line-number{font-size:10px}.resource-name{font-size:9px}.resource-value{font-size:10px}.resource-value span{font-size:9px}.resource-items button{padding:0 8px}.sample-badge{font-size:7px}.statusbar{height:30px;min-height:30px}.workspace-nav-label strong{font-size:12px}.workspace-nav-label small{font-size:10px}.tree-row{font-size:11px}.canvas-title{font-size:12px}.asset-art{height:78px}.palette-strip{margin-top:11px;padding-top:9px}}
+@media(min-width:1600px){.canvas-toolbar{margin:0 -22px;padding:0 22px}}
+@media(max-width:1190px){.canvas-toolbar{margin:0 -12px;padding:0 12px}}
+@media(max-width:720px){.canvas-toolbar{margin:0 -9px;padding:0 9px}}
+
+</style>
+</head>
+<body data-wallpaper="coast" data-backdrop="apps" data-theme="dark">
+  <div id="desktopScene" class="desktop-scene" aria-hidden="true">
+  <svg class="desktop-wallpaper" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="bg-atmosphere" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e7e5d5" stop-opacity=".1"/><stop offset=".65" stop-color="#122931" stop-opacity=".13"/><stop offset="1" stop-color="#111f23" stop-opacity=".25"/></linearGradient>
+      <linearGradient id="bg-landshade" x1="0" y1="0" x2=".4" y2="1"><stop stop-color="#c3cbb6" stop-opacity=".08"/><stop offset="1" stop-color="#102528" stop-opacity=".5"/></linearGradient>
+    </defs>
+    <rect width="1600" height="1000" class="bg-sky"/>
+    <path d="M-100 610C80 476 141 300 320 238S588 221 750 307 1042 328 1186 245 1465 179 1700 265V1050H-100Z" class="bg-teal"/>
+    <path d="M-100 744C134 619 215 407 420 359S707 390 888 372 1081 274 1296 344 1547 494 1700 379V1050H-100Z" class="bg-light"/>
+    <path d="M-100 834C149 719 315 437 538 440S763 529 932 474 1190 395 1364 481 1553 635 1700 496V1050H-100Z" class="bg-copper"/>
+    <path d="M-100 960C113 788 390 572 626 603S838 726 1034 626 1289 575 1454 654 1595 800 1700 650V1050H-100Z" class="bg-deep"/>
+    <path d="M-100 1110C176 872 477 713 705 780S1003 962 1191 828 1436 811 1700 905V1100Z" class="bg-ink"/>
+    <path d="M-100 744C134 619 215 407 420 359S707 390 888 372 1081 274 1296 344 1547 494 1700 379" fill="none" stroke="#e1e4ce" stroke-opacity=".18" stroke-width="2"/>
+    <path d="M-100 960C113 788 390 572 626 603S838 726 1034 626 1289 575 1454 654 1595 800 1700 650" fill="none" stroke="#d4d0ab" stroke-opacity=".17" stroke-width="2"/>
+    <rect width="1600" height="1000" fill="url(#bg-atmosphere)"/>
+    <rect y="350" width="1600" height="650" fill="url(#bg-landshade)"/>
+  </svg>
+  <div class="desktop-vignette"></div>
+  <section class="desktop-window desktop-browser">
+    <div class="desktop-window-bar"><i class="desktop-window-dot"></i><i class="desktop-window-dot"></i><i class="desktop-window-dot"></i><span class="desktop-window-title">Fieldnotes — inspiration</span><span class="desktop-window-controls">− □ ×</span></div>
+    <div class="desktop-browser-nav"><span>‹</span><span>›</span><span>↻</span><div class="desktop-browser-address">fieldnotes / places / the quiet coast</div></div>
+    <div class="desktop-browser-body"><div class="desktop-eyebrow">Places to get lost</div><h2 class="desktop-browser-heading">Somewhere,<br>away from it all.</h2><div class="desktop-browser-photo"></div><div class="desktop-browser-caption"><span>THE QUIET COAST</span><span>COLLECTION 028</span></div></div>
+  </section>
+  <section class="desktop-window desktop-files">
+    <div class="desktop-window-bar"><i class="desktop-window-dot"></i><i class="desktop-window-dot"></i><i class="desktop-window-dot"></i><span class="desktop-window-title">Reference library</span><span class="desktop-window-controls">− □ ×</span></div>
+    <div class="desktop-files-path"><span>‹</span><span>›</span><span>Collections</span><span>›</span><span>Materials</span></div>
+    <div class="desktop-files-content"><div class="desktop-files-sidebar">Home<br>Desktop<br>Projects<br>References<br>Downloads</div><div class="desktop-files-grid"><div class="desktop-file-card"><div class="desktop-file-thumb"></div>Coastal forms</div><div class="desktop-file-card"><div class="desktop-file-thumb bg-thumb-two"></div>Warm surfaces</div><div class="desktop-file-card"><div class="desktop-file-thumb bg-thumb-three"></div>Quiet textures</div><div class="desktop-file-card"><div class="desktop-file-thumb bg-thumb-four"></div>Natural light</div></div></div>
+  </section>
+  <section class="desktop-window desktop-music">
+    <div class="desktop-window-bar"><i class="desktop-window-dot"></i><i class="desktop-window-dot"></i><i class="desktop-window-dot"></i><span class="desktop-window-title">Now playing</span><span class="desktop-window-controls">− □ ×</span></div>
+    <div class="desktop-music-body"><div class="desktop-album"></div><div class="desktop-music-meta"><div class="desktop-eyebrow">A little room to think</div><div class="desktop-music-name">Slow mornings</div><div class="desktop-music-artist">Distance · ambient collection</div><div class="desktop-music-progress"></div><div class="desktop-music-playback"><span>‹‹</span><span class="desktop-music-play">Ⅱ</span><span>››</span></div></div></div>
+  </section>
+  <div class="desktop-taskbar">
+    <div class="desktop-taskbar-weather"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><span>16° &nbsp; Partly cloudy</span></div>
+    <div class="desktop-taskbar-icon"><svg viewBox="0 0 24 24" fill="#cbd6c4"><path d="M3 3h8v8H3zm10 0h8v8h-8zM3 13h8v8H3zm10 0h8v8h-8z"/></svg></div>
+    <div class="desktop-taskbar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#d0daca" stroke-width="1.6"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></div>
+    <div class="desktop-taskbar-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M2 6a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v11H2Z" fill="#baa780"/><path d="M2 9h20v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2Z" fill="#d9c596"/></svg></div>
+    <div class="desktop-taskbar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#9dbeaf" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c6 6 6 12 0 18-6-6-6-12 0-18Z"/></svg></div>
+    <div class="desktop-taskbar-icon bg-active"><svg viewBox="0 0 24 24" fill="none" stroke="#e2d5bc" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18V6m12 12V6M6 12h12M3 8l3-3 3 3m6 8 3 3 3-3"/></svg></div>
+    <div class="desktop-taskbar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#d3bdad" stroke-width="1.7" stroke-linecap="round"><path d="M9 17V5l12-2v12M9 5l12-2"/><ellipse cx="6" cy="17" rx="3" ry="2.4"/><ellipse cx="18" cy="15" rx="3" ry="2.4"/></svg></div>
+    <div class="desktop-taskbar-time"><span>10:24</span><br><span>24/10/2026</span></div>
+  </div>
+</div>
+
+  <div class="preview-strip"><span><span class="preview-dot"></span>DESKTOP CONCEPT <span class="strip-divider">/</span> HANDSHAKE</span><span class="preview-note">Simulated desktop &amp; resource data <button id="aboutButton" aria-label="About this prototype">i</button></span></div>
+  <main id="appShell" class="app-shell" aria-label="Handshake desktop workspace">
+    <header class="titlebar" data-tauri-drag-region>
+      <a href="#" class="brand" aria-label="Handshake home" id="brandHome"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7.5 8.5 5l4 2.5 3-1.5L20 9v6l-4 3-4-2.5-3 1L4 13V7.5Z" stroke="currentColor" stroke-width="1.5"/><path d="m4 8 5 3 3-2 4 2v5M9 11v5M12 9V7.5" stroke="currentColor" stroke-width="1.5"/></svg><span>Handshake</span></a>
+      <nav class="menubar" aria-label="Application menu">
+        <button data-menu="File">File</button><button data-menu="Edit">Edit</button><button data-menu="View">View</button><button data-menu="Workspace">Workspace</button><button data-menu="Terminal">Terminal</button><button data-menu="Help">Help</button>
+      </nav>
+      <button id="commandButton" class="command-trigger"><span data-icon="search"></span><span>Search or run a command…</span><kbd>Ctrl K</kbd></button>
+      <div class="titlebar-end"><button id="toggleSidebarTop" class="icon-button" aria-label="Toggle sidebar" title="Toggle sidebar (Ctrl+B)"><span data-icon="sidebar"></span></button><span class="titlebar-divider"></span><button class="window-control" id="minimizeApp" aria-label="Minimize preview" title="Minimize"><span data-icon="minus"></span></button><button class="window-control" id="maximizeApp" aria-label="Maximize preview" title="Maximize"><span data-icon="maximize"></span></button><button class="window-control close-control" id="closeApp" aria-label="Close preview" title="Close preview"><span data-icon="x"></span></button></div>
+    </header>
+    <div class="app-body">
+      <nav class="activity-rail glass" aria-label="Activity">
+        <div class="rail-top"><button class="activity-button active" data-activity="workspaces" aria-label="Workspaces" title="Workspaces"><span data-icon="panels"></span><i></i></button><button class="activity-button" data-activity="search" aria-label="Search files" title="Search files"><span data-icon="search"></span></button><button class="activity-button" data-activity="files" aria-label="Explorer" title="Explorer"><span data-icon="files"></span></button><button class="activity-button" data-activity="git" aria-label="Source control" title="Source control"><span data-icon="branch"></span><b>3</b></button><button class="activity-button" data-activity="terminal" aria-label="Toggle terminal" title="Toggle terminal"><span data-icon="terminal"></span></button></div>
+        <div class="rail-bottom"><button class="activity-button" id="appearanceRail" aria-label="Appearance settings" title="Appearance"><span data-icon="sliders"></span></button><button class="avatar" id="profileButton" aria-label="Local session information" title="Local session">IS</button></div>
+      </nav>
+      <aside id="sidebar" class="sidebar glass" aria-label="Workspace sidebar">
+        <div class="sidebar-heading"><span id="sidebarTitle">WORKSPACES</span><button class="icon-button small" id="addWorkspaceSide" aria-label="Add workspace"><span data-icon="plus"></span></button></div>
+        <div id="sidebarContent"></div>
+        <div class="sidebar-bottom"><div class="local-indicator"><span class="status-dot"></span><div><strong>Local workspace</strong><span>Everything in one place</span></div><span data-icon="monitor"></span></div><button class="appearance-card" id="appearanceCard"><span class="glass-swatch"></span><span><strong>Smoked glass</strong><small>Make this space yours</small></span><span data-icon="chevronRight"></span></button></div>
+      </aside>
+      <section class="work-area" aria-label="Workspace canvas">
+        <div class="canvas-toolbar"><div class="canvas-title"><span data-icon="panels"></span><span>All workspaces</span><span class="count-badge" id="workspaceCount">3</span></div><div class="canvas-actions"><div class="layout-switch" role="group" aria-label="Workspace layout"><button id="tileLayout" class="selected" title="Tiled layout" aria-label="Tiled layout" aria-pressed="true"><span data-icon="layout"></span></button><button id="cascadeLayout" title="Floating layout" aria-label="Floating layout" aria-pressed="false"><span data-icon="cascade"></span></button></div><button id="glassButton" class="quiet-button"><span data-icon="droplet"></span><span>Glass</span><span data-icon="chevronDown"></span></button><span class="toolbar-divider"></span><button id="newWorkspaceButton" class="new-workspace"><span data-icon="plus"></span><span>New workspace</span></button></div></div>
+        <div class="canvas-grid" id="canvasGrid">
+          <section class="workspace-window glass primary-window active" data-workspace="handshake" aria-label="Handshake workspace">
+            <div class="workspace-titlebar" data-drag="handshake"><span class="workspace-symbol orange"><span data-icon="code"></span></span><strong>Handshake</strong><span class="workspace-path">desktop / shell</span><div class="window-heading-actions"><span class="live-label"><i></i>Active</span><button data-action="focus" data-id="handshake" class="icon-button tiny" aria-label="Focus Handshake workspace" title="Focus workspace"><span data-icon="expand"></span></button><button data-action="workspace-menu" data-id="handshake" class="icon-button tiny" aria-label="Handshake workspace options"><span data-icon="more"></span></button></div></div>
+            <div class="editor-tabs"><button class="editor-tab active" data-file="shell.rs" data-workspace-id="handshake"><span class="file-glyph rust">R</span>shell.rs<span class="unsaved-dot" title="Sample file"></span></button><button class="editor-tab" data-file="theme.rs" data-workspace-id="handshake"><span class="file-glyph rust">R</span>theme.rs</button><button class="editor-tab" data-file="Cargo.toml" data-workspace-id="handshake"><span class="file-glyph toml">◇</span>Cargo.toml</button><button class="tab-add icon-button tiny" data-action="new-file" data-id="handshake" aria-label="New file in Handshake"><span data-icon="plus"></span></button></div>
+            <div class="breadcrumbs" id="codeBreadcrumb">src <span>›</span> desktop <span>›</span> <i class="file-glyph rust">R</i> shell.rs <span>›</span> <em>DesktopShell</em></div>
+            <div class="editor-body"><div class="code-lines" id="codeLines" tabindex="0" aria-label="Rust code sample"></div><div class="minimap" aria-hidden="true" id="minimap"></div></div>
+            <div id="terminalPanel" class="terminal-panel"><div class="panel-tabs"><button class="selected" data-terminal-tab="terminal">TERMINAL</button><button data-terminal-tab="problems">PROBLEMS <span>0</span></button><button data-terminal-tab="output">OUTPUT</button><span class="terminal-context"><span class="status-dot"></span>preview shell</span><button id="closeTerminal" class="icon-button tiny" aria-label="Hide terminal"><span data-icon="x"></span></button></div><div id="terminalOutput" class="terminal-output" aria-live="polite"><div><span class="terminal-muted">~/projects/handshake</span> <span class="terminal-green">main</span></div><div><span class="terminal-accent">❯</span> <span class="terminal-muted">Type help to explore this preview.</span></div></div><form id="terminalForm" class="terminal-form"><label for="terminalInput">❯</label><input id="terminalInput" autocomplete="off" spellcheck="false" aria-label="Preview terminal command" placeholder="help"></form></div>
+            <div class="workspace-footer"><span><span data-icon="branch"></span>main <span class="footer-dot">·</span> <span class="muted">3 changes</span></span><span><span class="small-status-dot"></span> Ready <span class="footer-dot">·</span> Rust</span></div>
+          </section>
+          <section class="workspace-window glass notes-window" data-workspace="suradb" aria-label="SuraDB workspace">
+            <div class="workspace-titlebar" data-drag="suradb"><span class="workspace-symbol sage"><span data-icon="database"></span></span><strong>SuraDB</strong><span class="workspace-path">research</span><div class="window-heading-actions"><button data-action="focus" data-id="suradb" class="icon-button tiny" aria-label="Focus SuraDB workspace" title="Focus workspace"><span data-icon="expand"></span></button><button data-action="workspace-menu" data-id="suradb" class="icon-button tiny" aria-label="SuraDB workspace options"><span data-icon="more"></span></button></div></div>
+            <div class="editor-tabs"><button class="editor-tab active" data-note-tab="notes"><span class="file-glyph markdown">M↓</span>architecture.md</button><button class="editor-tab" data-note-tab="tasks"><span data-icon="checkSquare"></span>Tasks<span class="tab-counter">4</span></button></div>
+            <div class="notes-content" id="notesContent"><div class="note-meta"><span class="note-tag">WORKING NOTES</span><span>Just now</span></div><h1>A place for every thought.</h1><p class="note-intro">State, context, and the connections<br class="wide-only"> between them.</p><div class="note-rule"></div><h3>Next up</h3><label class="task-row"><input type="checkbox" data-task="0"><span>Map the workspace lifecycle</span></label><label class="task-row"><input type="checkbox" data-task="1"><span>Connect the local resource monitor</span></label><label class="task-row"><input type="checkbox" data-task="2" checked><span>Sketch the shared shell</span></label><label class="task-row"><input type="checkbox" data-task="3"><span>Review the glass material</span></label><div class="note-callout"><span data-icon="bulb"></span><span>Separate spaces. One continuous workflow.</span></div></div>
+            <div class="workspace-footer"><span><span data-icon="file"></span>Personal notes</span><span id="taskProgress">1 / 4 done</span></div>
+          </section>
+          <section class="workspace-window glass studio-window" data-workspace="studio" aria-label="Studio workspace">
+            <div class="workspace-titlebar" data-drag="studio"><span class="workspace-symbol lavender"><span data-icon="image"></span></span><strong>Studio</strong><span class="workspace-path">visual library</span><div class="window-heading-actions"><button data-action="focus" data-id="studio" class="icon-button tiny" aria-label="Focus Studio workspace" title="Focus workspace"><span data-icon="expand"></span></button><button data-action="workspace-menu" data-id="studio" class="icon-button tiny" aria-label="Studio workspace options"><span data-icon="more"></span></button></div></div>
+            <div class="studio-toolbar"><div class="studio-tabs"><button class="selected" data-studio-tab="references">References</button><button data-studio-tab="palette">Palette</button></div><button id="studioViewButton" class="icon-button tiny" aria-label="Toggle asset list view" title="Toggle list view"><span data-icon="grid"></span></button></div>
+            <div class="studio-content" id="studioContent"><div class="asset-grid"><button class="asset-card" data-asset="0"><span class="asset-art art-coast"><i></i><b></b></span><span class="asset-caption"><strong>Quiet coast</strong><small>Atmosphere / 01</small></span></button><button class="asset-card" data-asset="1"><span class="asset-art art-glass"><i></i><b></b><em></em></span><span class="asset-caption"><strong>Material study</strong><small>Glass / 02</small></span></button><button class="asset-card" data-asset="2"><span class="asset-art art-dune"><i></i><b></b></span><span class="asset-caption"><strong>Warm terrain</strong><small>Texture / 03</small></span></button></div><div class="palette-strip"><span>Workspace palette</span><div><button style="--swatch:#d39b74" data-color="#d39b74" aria-label="Set copper accent"></button><button style="--swatch:#a8bbaa" data-color="#a8bbaa" aria-label="Set sage accent"></button><button style="--swatch:#a8afcf" data-color="#a8afcf" aria-label="Set lavender accent"></button><button style="--swatch:#8faab9" data-color="#8faab9" aria-label="Set blue accent"></button><button style="--swatch:#dbd1bd" data-color="#dbd1bd" aria-label="Set sand accent"></button></div></div></div>
+            <div class="workspace-footer"><span><span data-icon="image"></span>3 references</span><span><span class="small-status-dot"></span> Local collection</span></div>
+          </section>
+        </div>
+        <div class="canvas-bottom"><span><span class="status-dot"></span><span id="canvasHint">Your work, with a little breathing room.</span></span><span>Ctrl K <span class="muted">commands</span><span class="footer-dot">·</span> Ctrl B <span class="muted">sidebar</span></span></div>
+      </section>
+    </div>
+    <footer class="statusbar"><button id="hostButton" class="host-label" title="Open host resource monitor"><span data-icon="monitor"></span><span>HOST PC</span><span class="status-dot"></span></button><div class="resource-items"><button data-resource="cpu" title="Example CPU utilization"><span class="resource-name">CPU</span><span class="resource-value">18<span>%</span></span><svg class="sparkline" viewBox="0 0 30 12"><path d="M0 9 3 8 6 10 9 5 12 7 15 3 18 5 21 4 24 8 27 5 30 6"/></svg></button><button data-resource="ram" title="Example system memory"><span class="resource-name">RAM</span><span class="resource-value">18.4<span> / 64 GB</span></span><i class="meter" style="--fill:29%"></i></button><button data-resource="gpu" title="Example GPU utilization"><span class="resource-name">GPU</span><span class="resource-value">9<span>%</span></span><svg class="sparkline" viewBox="0 0 30 12"><path d="M0 10 3 9 6 10 9 8 12 9 15 5 18 7 21 9 24 6 27 8 30 8"/></svg></button><button data-resource="vram" title="Example GPU memory"><span class="resource-name">VRAM</span><span class="resource-value">3.2<span> / 24 GB</span></span></button><button data-resource="npu" title="NPU telemetry unavailable in this prototype"><span class="resource-name">NPU</span><span class="resource-value muted">—</span></button><button data-resource="disk" title="Example storage usage"><span class="resource-name">SSD</span><span class="resource-value">42<span>%</span></span></button></div><span class="sample-badge">SAMPLE DATA</span><div class="statusbar-right"><button id="problemsButton" aria-label="Show problems panel"><span data-icon="circleX"></span>0<span data-icon="triangle"></span>0</button><span class="statusbar-separator"></span><button id="notificationsButton" aria-label="Notifications"><span data-icon="bell"></span></button></div></footer>
+  </main>
+  <button id="restoreApp" class="restore-app" hidden><span data-icon="panels"></span>Restore Handshake</button>
+  <section id="appearancePanel" class="floating-panel appearance-panel" aria-label="Appearance" hidden><div class="popover-heading"><span><span data-icon="droplet"></span>Glass &amp; appearance</span><button data-close="appearancePanel" class="icon-button small" aria-label="Close appearance"><span data-icon="x"></span></button></div><p class="popover-description">Keep the world in view.</p><div class="setting-row"><label for="opacitySlider">Glass opacity</label><output id="opacityOutput">62%</output></div><input type="range" id="opacitySlider" min="18" max="94" value="62"><div class="range-labels"><span>Clear</span><span>Solid</span></div><div class="setting-row"><label for="blurSlider">Frosted blur</label><output id="blurOutput">18 px</output></div><input type="range" id="blurSlider" min="0" max="36" value="18"><div class="range-labels"><span>Sharp</span><span>Soft</span></div><div class="setting-divider"></div><div class="setting-row"><span>Glass tone</span><div class="segmented-control"><button data-theme="dark" class="selected">Smoked</button><button data-theme="light">Frost</button></div></div><div class="setting-row"><span>Desktop backdrop</span><button class="toggle-switch on" id="backdropToggle" role="switch" aria-checked="true" aria-label="Show background application windows"><i></i></button></div><div class="wallpaper-options"><button data-wallpaper="coast" class="selected"><span class="wallpaper-thumb coast-thumb"></span>Coast</button><button data-wallpaper="dusk"><span class="wallpaper-thumb dusk-thumb"></span>Dusk</button><button data-wallpaper="slate"><span class="wallpaper-thumb slate-thumb"></span>Slate</button></div><button id="resetAppearance" class="reset-settings">Reset appearance</button></section>
+  <section id="resourcePanel" class="floating-panel resource-panel" aria-label="Host resources" hidden><div class="popover-heading"><span><span data-icon="monitor"></span>Host resources</span><button data-close="resourcePanel" class="icon-button small" aria-label="Close resources"><span data-icon="x"></span></button></div><div class="resource-summary"><div class="host-computer-icon"><span data-icon="monitor"></span></div><div><strong>Local workstation</strong><span>Illustrative hardware readings</span></div><span class="demo-pill">DEMO</span></div><div id="resourceDetails"></div><p class="resource-note">The desktop app would read these values from your computer. NPU usage appears when supported.</p></section>
+  <div class="modal-backdrop" id="commandModal" hidden><section class="command-dialog" role="dialog" aria-modal="true" aria-label="Command palette"><div class="command-input-wrap"><span data-icon="search"></span><input id="commandInput" placeholder="What would you like to do?" autocomplete="off"><kbd>Esc</kbd></div><div class="command-category">WORKSPACE COMMANDS</div><div id="commandResults"></div><div class="command-footer"><span><kbd>↑</kbd><kbd>↓</kbd> navigate</span><span><kbd>↵</kbd> select</span></div></section></div>
+  <div class="modal-backdrop" id="newWorkspaceModal" hidden><form class="standard-dialog" id="newWorkspaceForm" role="dialog" aria-modal="true" aria-labelledby="newWorkspaceHeading"><div class="popover-heading"><span id="newWorkspaceHeading">A fresh workspace</span><button type="button" data-close="newWorkspaceModal" class="icon-button small" aria-label="Close new workspace"><span data-icon="x"></span></button></div><p>Give your next idea a little room.</p><label for="workspaceName">Workspace name</label><input id="workspaceName" placeholder="e.g. New project" maxlength="40" required autocomplete="off"><label for="workspaceKind">Start with</label><select id="workspaceKind"><option value="notes">Notes &amp; ideas</option><option value="code">Code workspace</option></select><button class="primary-button" type="submit"><span data-icon="plus"></span>Create workspace</button></form></div>
+  <div class="modal-backdrop" id="aboutModal" hidden><section class="standard-dialog about-dialog" role="dialog" aria-modal="true" aria-labelledby="aboutHeading"><div class="popover-heading"><span id="aboutHeading">A clearer space to work.</span><button data-close="aboutModal" class="icon-button small" aria-label="Close about"><span data-icon="x"></span></button></div><div class="about-mark"><span data-icon="panels"></span></div><h2>Handshake <span>Glass concept</span></h2><p>A desktop-inspired workspace with solid chrome, frosted surfaces, independent project windows, and host resources at a glance.</p><div class="about-facts"><span>What works</span><p>Workspace switching, floating and tiled layouts, editable notes, search, a command palette, and glass controls.</p><span>Prototype boundary</span><p>The apps behind the glass and resource readings are simulated. Real desktop transparency requires a native window with Windows Desktop Acrylic.</p></div><button class="primary-button" data-close="aboutModal">Back to the workspace</button></section></div>
+  <div class="modal-backdrop" id="assetModal" hidden><section class="asset-dialog" role="dialog" aria-modal="true" aria-label="Reference preview"><button data-close="assetModal" class="asset-close icon-button" aria-label="Close reference"><span data-icon="x"></span></button><div id="assetPreview"></div><div id="assetDescription"></div></section></div>
+  <div id="menuPopover" class="menu-popover floating-panel" role="menu" hidden></div>
+  <div id="toast" class="toast" role="status" hidden><span data-icon="check"></span><span id="toastText"></span></div>
+  <script>
+'use strict';
+
+const $ = (selector, root = document) => root.querySelector(selector);
+const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+const icons = {
+  search:'<circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/>',
+  panels:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M9 12h12"/>',
+  sidebar:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/>',
+  files:'<path d="M14 3H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h1M14 3l4 4v1M14 3v5h5"/><rect x="9" y="10" width="11" height="12" rx="1.5"/>',
+  file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8ZM14 2v6h6"/>',
+  folder:'<path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
+  branch:'<circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M6 7v10M18 7c0 6-12 3-12 10"/>',
+  terminal:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 8 4 4-4 4M13 16h4"/>',
+  sliders:'<path d="M4 6h8m4 0h4M4 12h3m4 0h9M4 18h10m4 0h2"/><circle cx="14" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="16" cy="18" r="2"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',minus:'<path d="M5 12h14"/>',
+  x:'<path d="m6 6 12 12M18 6 6 18"/>',maximize:'<rect x="5" y="5" width="14" height="14" rx=".8"/>',
+  chevronRight:'<path d="m9 5 7 7-7 7"/>',chevronDown:'<path d="m5 9 7 7 7-7"/>',
+  monitor:'<rect x="3" y="3" width="18" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
+  layout:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M13 3v18M13 13h8"/>',
+  cascade:'<path d="M16 6V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h2"/><rect x="8" y="8" width="13" height="13" rx="1"/>',
+  droplet:'<path d="M12 3C9 7 5 10 5 14a7 7 0 0 0 14 0c0-4-4-7-7-11Z"/><path d="M8 14a4 4 0 0 0 4 4"/>',
+  code:'<path d="m8 6-6 6 6 6m8-12 6 6-6 6m-3-15-2 18"/>',
+  database:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 4 16 4 16 0V5M4 12c0 4 16 4 16 0"/>',
+  image:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="m21 15-5-5L6 21"/>',
+  expand:'<path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/>',
+  more:'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+  checkSquare:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="m7 12 3 3 7-7"/>',
+  check:'<path d="m5 12 4 4L19 6"/>',bulb:'<path d="M9 18h6m-5 3h4M8 14a6 6 0 1 1 8 0c-1 1-1 2-1 3H9c0-1 0-2-1-3Z"/>',
+  grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  circleX:'<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/>',
+  triangle:'<path d="m12 3 10 18H2Z"/><path d="M12 9v5m0 3v.1"/>',
+  bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
+  arrowLeft:'<path d="M19 12H5m7-7-7 7 7 7"/>',download:'<path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/>',
+  refresh:'<path d="M20 7v5h-5M4 17v-5h5M5.5 7a8 8 0 0 1 13-2L20 8M4 16l1.5 3a8 8 0 0 0 13-2"/>',
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v.1"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>'
+};
+const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.file}</svg>`;
+const hydrateIcons = (root=document) => $$('[data-icon]',root).forEach(el=>el.innerHTML=icon(el.dataset.icon));
+const escapeHtml = value => String(value).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const STORAGE_KEY = 'handshake-glass-v1';
+let saved = {};
+try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { saved = {}; }
+if (!saved || typeof saved !== 'object' || Array.isArray(saved)) saved = {};
+const clamp = (value,min,max,fallback) => Number.isFinite(Number(value)) ? Math.max(min,Math.min(max,Number(value))) : fallback;
+const state = {
+  opacity:clamp(saved.opacity,18,94,62),blur:clamp(saved.blur,0,36,18),
+  theme:['dark','light'].includes(saved.theme)?saved.theme:'dark',
+  wallpaper:['coast','dusk','slate'].includes(saved.wallpaper)?saved.wallpaper:'coast',
+  backdrop:saved.backdrop==='wallpaper'?'wallpaper':'apps',
+  accent:/^#[0-9a-f]{6}$/i.test(saved.accent||'')?saved.accent:'#d6a27c',
+  layout:saved.layout==='floating'?'floating':'tiled',active:'handshake',focus:null,
+  tasks:Array.isArray(saved.tasks)&&saved.tasks.length===4?saved.tasks.map(Boolean):[false,false,true,false],
+  extras:Array.isArray(saved.extras)?saved.extras.filter(x=>typeof x.id==='string'&&/^custom-\d+$/.test(x.id)&&typeof x.name==='string').slice(0,12).map(x=>({id:x.id,name:x.name.slice(0,40),kind:x.kind==='code'?'code':'notes',content:String(x.content||'').slice(0,50000)})):[],
+  closed:Array.isArray(saved.closed)?saved.closed.filter(x=>['handshake','suradb','studio'].includes(x)||/^custom-\d+$/.test(x)):[],
+  activity:'workspaces',file:'shell.rs',noteTab:'notes',studioTab:'references',terminalTab:'terminal',sidebarHidden:false
+};
+function persist(){
+  const {opacity,blur,theme,wallpaper,backdrop,accent,layout,tasks,extras,closed}=state;
+  try { localStorage.setItem(STORAGE_KEY,JSON.stringify({opacity,blur,theme,wallpaper,backdrop,accent,layout,tasks,extras,closed})); } catch {}
+}
+const builtins = [
+  {id:'handshake',name:'Handshake',desc:'Desktop & creative tools',icon:'code',tone:'orange'},
+  {id:'suradb',name:'SuraDB',desc:'Notes & architecture',icon:'database',tone:'sage'},
+  {id:'studio',name:'Studio',desc:'References & materials',icon:'image',tone:'lavender'}
+];
+function workspaces(){return [...builtins.filter(x=>!state.closed.includes(x.id)),...state.extras.filter(x=>!state.closed.includes(x.id)).map(x=>({...x,desc:x.kind==='code'?'Code workspace':'Notes & ideas',icon:x.kind==='code'?'code':'file',tone:'sage'}))];}
+const sourceFiles = {
+  'shell.rs':`// A little more room to think.
+// One shell. Many independent workspaces.
+
+use crate::workspace::{Workspace, WorkspaceId};
+use crate::theme::{GlassMaterial, Palette};
+
+pub struct DesktopShell {
+    workspaces: Vec<Workspace>,
+    active: WorkspaceId,
+    material: GlassMaterial,
+}
+
+impl DesktopShell {
+    pub fn new() -> Self {
+        Self {
+            workspaces: Vec::new(),
+            active: WorkspaceId::default(),
+            material: GlassMaterial::Frosted {
+                opacity: 0.62,
+                blur: 18.0,
+                tint: Palette::Smoked,
+            },
+        }
+    }
+
+    pub fn open(&mut self, workspace: Workspace) {
+        self.active = workspace.id();
+        self.workspaces.push(workspace);
+    }
+
+    pub fn focus(&mut self, id: WorkspaceId) {
+        self.active = id;
+    }
+}
+
+// The header stays solid.
+// Everything else has room to breathe.`,
+  'theme.rs':`// Material tokens for the shared shell.
+
+pub enum Palette {
+    Smoked,
+    Frost,
+}
+
+pub enum GlassMaterial {
+    Frosted {
+        opacity: f32,
+        blur: f32,
+        tint: Palette,
+    },
+    Solid,
+}
+
+impl GlassMaterial {
+    pub fn default_surface() -> Self {
+        Self::Frosted {
+            opacity: 0.62,
+            blur: 18.0,
+            tint: Palette::Smoked,
+        }
+    }
+}
+
+// Design sample — not a compiled application.
+// Native desktop blur uses Windows Acrylic.`,
+  'Cargo.toml':`# Example project metadata.
+# This is an illustrative file in the GUI preview.
+
+[package]
+name = "handshake-shell"
+version = "0.1.0"
+edition = "2024"
+description = "A shared creative desktop workspace"
+
+[workspace]
+members = [
+    "crates/workspace",
+    "crates/theme",
+    "crates/telemetry",
+]
+
+# Keep workspace state separate from presentation.
+# Collect real telemetry in the native host.`,
+  'README.md':`# Handshake — Glass workspace
+
+A desktop GUI concept for a connected creative workflow.
+
+## Explore
+
+• Open multiple workspaces.
+• Switch between tiled and floating windows.
+• Drag floating windows by their title bars.
+• Adjust blur, opacity, wallpaper, and glass tone.
+• Open the host monitor from the bottom-left status bar.
+
+## Shortcuts
+
+Ctrl K      Search and commands
+Ctrl B      Toggle the workspace sidebar
+Ctrl \u0060      Toggle the preview terminal
+Alt 1–3     Select a workspace
+Esc         Close popovers or leave focus mode
+
+## Prototype boundary
+
+The backdrop apps and resource values are simulated.
+Files in the built-in code workspace are design samples.
+New notes are editable and saved in this browser.
+The native desktop would use Windows Desktop Acrylic.`
+};
+function syntaxLine(line){
+  if(line.trim().startsWith('//')||line.trim().startsWith('#'))return `<span class="syntax-comment">${escapeHtml(line)}</span>`;
+  const re=/("[^"\n]*"|\b(?:pub|struct|enum|impl|fn|use|self|mut|crate|let|return)\b|\b(?:Self|Vec|Workspace|WorkspaceId|GlassMaterial|Palette|DesktopShell|Frosted|Smoked|Frost|Solid|f32)\b|\b\d+(?:\.\d+)?\b|\b[a-z_]+(?=\())/g;
+  let result='',last=0;
+  for(const match of line.matchAll(re)){
+    result+=escapeHtml(line.slice(last,match.index));
+    const s=match[0];let cls='fn';
+    if(s.startsWith('"'))cls='string';else if(/^\d/.test(s))cls='number';else if(/^(pub|struct|enum|impl|fn|use|self|mut|crate|let|return)$/.test(s))cls='keyword';else if(/^[A-Z]/.test(s)||s==='f32')cls='type';
+    result+=`<span class="syntax-${cls}">${escapeHtml(s)}</span>`;last=match.index+s.length;
+  }
+  return result+escapeHtml(line.slice(last));
+}
+function renderFile(file){
+  if(!(file in sourceFiles))return;
+  state.file=file;
+  const lines=sourceFiles[file].split('\n');
+  $('#codeLines').innerHTML=lines.map((line,i)=>`<div class="code-row${i===17?' highlight-line':''}"><span class="line-number">${i+1}</span><span class="line-text">${syntaxLine(line)||' '}</span></div>`).join('');
+  $('#minimap').innerHTML=lines.slice(0,38).map(line=>`<span style="width:${Math.min(100,Math.max(5,line.trim().length*2))}%;margin-left:${Math.min(14,line.search(/\S/)*1.1)}px;opacity:${line.trim()?1:0}"></span>`).join('');
+  $$('.editor-tab[data-file]').forEach(b=>b.classList.toggle('active',b.dataset.file===file));
+  $('#codeBreadcrumb').innerHTML=`${file==='Cargo.toml'||file==='README.md'?'handshake':'src <span>›</span> desktop'} <span>›</span> <i class="file-glyph ${file.endsWith('.rs')?'rust':'toml'}">${file.endsWith('.rs')?'R':'◇'}</i> ${escapeHtml(file)}${file==='shell.rs'?'<span>›</span><em>DesktopShell</em>':''}`;
+  $('#codeLines').scrollTop=0;
+  renderSidebar();
+}
+let folderOpen=true, desktopFolderOpen=true;
+function fileTree(){
+  return `<div class="sidebar-section-title"><span>EXPLORER</span><span data-icon="more"></span></div><button class="tree-row" data-folder="root"><span data-icon="chevronDown"></span><span>HANDSHAKE</span></button><button class="tree-row indent-1" data-folder="src"><span data-icon="${folderOpen?'chevronDown':'chevronRight'}"></span><span class="folder-icon" data-icon="folder"></span>src</button>${folderOpen?`<button class="tree-row indent-2" data-folder="desktop"><span data-icon="${desktopFolderOpen?'chevronDown':'chevronRight'}"></span><span class="folder-icon" data-icon="folder"></span>desktop</button>${desktopFolderOpen?['shell.rs','theme.rs'].map(file=>`<button class="tree-row indent-3 ${state.file===file?'active':''}" data-open-file="${file}"><span class="file-glyph rust">R</span>${file}<span class="tree-status">M</span></button>`).join(''):''}<button class="tree-row indent-2" data-open-file="README.md"><span data-icon="file"></span>README.md</button>`:''}<button class="tree-row indent-1 ${state.file==='Cargo.toml'?'active':''}" data-open-file="Cargo.toml"><span class="file-glyph toml">◇</span>Cargo.toml</button><button class="tree-row indent-1" data-open-file="README.md"><span class="file-glyph markdown">M↓</span>README.md</button>`;
+}
+function renderSidebar(){
+  const c=$('#sidebarContent');const previousQuery=$('#fileSearch')?.value||'';
+  $('#sidebarTitle').textContent={workspaces:'WORKSPACES',search:'SEARCH',files:'EXPLORER',git:'SOURCE CONTROL',terminal:'WORKSPACES'}[state.activity]||'WORKSPACES';
+  $$('.activity-button[data-activity]').forEach(b=>b.classList.toggle('active',b.dataset.activity===state.activity));
+  if(state.activity==='search'){
+    c.innerHTML='<input class="file-search" id="fileSearch" placeholder="Find a file or workspace…" aria-label="Search files and workspaces"><div id="fileSearchResults"></div>';
+    $('#fileSearch').addEventListener('input',e=>renderSearch(e.target.value));$('#fileSearch').value=previousQuery;renderSearch(previousQuery);
+  }else if(state.activity==='git'){
+    c.innerHTML=`<div class="changes-summary">${icon('branch')} main <span class="muted">· Sample changes</span></div><div class="sidebar-section-title">CHANGES <span>3</span></div><button class="tree-row" data-open-file="shell.rs"><span class="file-glyph rust">R</span>shell.rs<span class="tree-status">M</span></button><button class="tree-row" data-open-file="theme.rs"><span class="file-glyph rust">R</span>theme.rs<span class="tree-status">M</span></button><button class="tree-row" data-open-file="Cargo.toml"><span class="file-glyph toml">◇</span>Cargo.toml<span class="tree-status">M</span></button><p class="sidebar-subtle">Example repository state for this interface concept.</p>`;
+  }else if(state.activity==='files'){
+    c.innerHTML=fileTree();
+  }else{
+    c.innerHTML=workspaces().map((w,i)=>`<button class="workspace-nav-item ${state.active===w.id?'selected':''}" data-select-workspace="${w.id}" title="Select ${escapeHtml(w.name)}"><span class="workspace-symbol ${w.tone}">${icon(w.icon)}</span><span class="workspace-nav-label"><strong>${escapeHtml(w.name)}</strong><small>${escapeHtml(w.desc)}</small></span>${i<3?`<span class="workspace-shortcut">${i+1}</span>`:''}</button>`).join('')+'<button class="add-workspace-nav" data-new-workspace>'+icon('plus')+'Add workspace</button>'+fileTree();
+  }
+  const closedItems=[...builtins,...state.extras].filter(w=>state.closed.includes(w.id));
+  if(closedItems.length&&state.activity==='workspaces')c.innerHTML+='<div class="sidebar-section-title">CLOSED WORKSPACES</div>'+closedItems.map(w=>`<button class="tree-row" data-reopen-workspace="${w.id}"><span data-icon="refresh"></span>${escapeHtml(w.name)}</button>`).join('');
+  hydrateIcons(c);
+}
+function renderSearch(query){
+  const items=[...Object.keys(sourceFiles).map(file=>({label:file,detail:'Handshake',type:'file',id:file})),...workspaces().map(w=>({label:w.name,detail:'Workspace',type:'workspace',id:w.id}))];
+  const list=items.filter(x=>(x.label+' '+x.detail).toLowerCase().includes(query.toLowerCase()));
+  $('#fileSearchResults').innerHTML=list.length?list.map(x=>`<button class="search-result" ${x.type==='file'?`data-open-file="${escapeHtml(x.id)}"`:`data-select-workspace="${escapeHtml(x.id)}"`}>${icon(x.type==='file'?'file':'panels')}<span>${escapeHtml(x.label)}</span><small>${escapeHtml(x.detail)}</small></button>`).join(''):'<div class="search-empty">No matching files or workspaces.</div>';
+}
+function selectWorkspace(id){
+  if(!workspaces().some(w=>w.id===id))return;
+  state.active=id;
+  $$('.workspace-window').forEach(w=>w.classList.toggle('active',w.dataset.workspace===id));
+  const selected=$(`[data-workspace="${id}"]`);
+  if(state.layout==='floating'&&selected)selected.style.zIndex=String(++topZ);
+  if(state.focus)focusWorkspace(id,true);
+  else if(matchMedia('(max-width:720px)').matches)selected?.scrollIntoView({behavior:'smooth',block:'nearest'});
+  renderSidebar();
+}
+let topZ=10;
+function focusWorkspace(id,force=false){
+  if(state.focus===id&&!force){state.focus=null;$('#canvasGrid').classList.remove('focused');$$('.workspace-window').forEach(w=>w.classList.remove('focused-window'));$('#canvasHint').textContent='Your work, with a little breathing room.';return;}
+  state.focus=id;state.active=id;$('#canvasGrid').classList.add('focused');
+  $$('.workspace-window').forEach(w=>{w.classList.toggle('focused-window',w.dataset.workspace===id);w.classList.toggle('active',w.dataset.workspace===id);});
+  $('#canvasHint').textContent='Focus mode · Press Esc to return to all workspaces';renderSidebar();
+}
+function setLayout(layout){
+  state.layout=layout;state.focus=null;$('#canvasGrid').classList.remove('focused');
+  $$('.workspace-window').forEach(w=>{w.classList.remove('focused-window');w.style.removeProperty('left');w.style.removeProperty('top');w.style.removeProperty('width');w.style.removeProperty('height');w.style.removeProperty('z-index');});
+  $('#canvasGrid').classList.toggle('floating',layout==='floating');
+  $('#tileLayout').classList.toggle('selected',layout==='tiled');$('#tileLayout').setAttribute('aria-pressed',String(layout==='tiled'));
+  $('#cascadeLayout').classList.toggle('selected',layout==='floating');$('#cascadeLayout').setAttribute('aria-pressed',String(layout==='floating'));
+  $('#canvasHint').textContent=layout==='floating'?'Drag a title bar to arrange your workspaces.':'Your work, with a little breathing room.';
+  persist();
+}
+function updateWorkspaceCount(){
+  const count=workspaces().length;$('#workspaceCount').textContent=String(count);$('#canvasGrid').dataset.count=String(count);
+  $('#canvasGrid').classList.toggle('workspace-grid-4',count===4);$('#canvasGrid').classList.toggle('has-many',count>4);
+  $('.empty-canvas')?.remove();
+  if(!count){const el=document.createElement('div');el.className='empty-canvas';el.innerHTML='<span data-icon="panels"></span><h2>Room for your next idea.</h2><p>Create a workspace or restore the example layout.</p><button class="primary-button" data-new-workspace>New workspace</button><button class="quiet-button" id="restoreDefaults">Restore example workspaces</button>';$('#canvasGrid').append(el);hydrateIcons(el);$('#restoreDefaults').onclick=restoreDefaults;}
+}
+function closeWorkspace(id){
+  if(!state.closed.includes(id))state.closed.push(id);
+  $(`[data-workspace="${id}"]`).hidden=true;
+  if(state.focus===id){state.focus=null;$('#canvasGrid').classList.remove('focused');$('#canvasHint').textContent=state.layout==='floating'?'Drag a title bar to arrange your workspaces.':'Your work, with a little breathing room.';}
+  if(state.active===id)state.active=workspaces()[0]?.id||'';
+  updateWorkspaceCount();renderSidebar();if(state.active)selectWorkspace(state.active);persist();toast('Workspace closed. Reopen it from the sidebar.');
+}
+function restoreDefaults(){state.closed=state.closed.filter(x=>!builtins.some(w=>w.id===x));builtins.forEach(w=>$(`[data-workspace="${w.id}"]`).hidden=false);updateWorkspaceCount();setLayout('tiled');selectWorkspace('handshake');persist();toast('Example workspaces restored.');}
+function createExtraWindow(w){
+  const el=document.createElement('section');el.className='workspace-window glass extra-window';el.dataset.workspace=w.id;el.setAttribute('aria-label',w.name+' workspace');
+  el.style.setProperty('--floating-x',(12+state.extras.indexOf(w)*5)%35+'%');el.style.setProperty('--floating-y',(12+state.extras.indexOf(w)*4)%30+'%');
+  el.innerHTML=`<div class="workspace-titlebar" data-drag="${w.id}"><span class="workspace-symbol sage">${icon(w.kind==='code'?'code':'file')}</span><strong>${escapeHtml(w.name)}</strong><div class="window-heading-actions"><button data-action="focus" data-id="${w.id}" class="icon-button tiny" aria-label="Focus ${escapeHtml(w.name)}">${icon('expand')}</button><button data-action="workspace-menu" data-id="${w.id}" class="icon-button tiny" aria-label="Workspace options">${icon('more')}</button></div></div><div class="editor-tabs"><button class="editor-tab active"><span class="file-glyph markdown">${w.kind==='code'?'R':'M↓'}</span>${w.kind==='code'?'main.rs':'untitled.md'}</button></div><textarea class="note-editor ${w.kind==='code'?'code-editor':''}" aria-label="Editable ${escapeHtml(w.name)} content" spellcheck="${w.kind!=='code'}"></textarea><div class="workspace-footer"><span>${icon('file')}Saved in this browser</span><span>${w.kind==='code'?'Plain text editor':'Editable note'}</span></div>`;
+  $('textarea',el).value=w.content;
+  $('textarea',el).addEventListener('input',e=>{w.content=e.target.value;persist();});
+  $('#canvasGrid').append(el);
+}
+function newWorkspace(){if(state.extras.length>=12){toast('This preview supports 12 custom workspaces.');return;}openModal('newWorkspaceModal');$('#workspaceName').value='';setTimeout(()=>$('#workspaceName').focus(),20);}
+$('#newWorkspaceForm').addEventListener('submit',e=>{
+  e.preventDefault();const name=$('#workspaceName').value.trim();if(!name)return;
+  const kind=$('#workspaceKind').value;const w={id:'custom-'+Date.now(),name,kind,content:kind==='code'?'// Your next project starts here.\n\nfn main() {\n    println!("Hello, workspace.");\n}\n':'# '+name+'\n\nA little room for your next idea.\n\n'};
+  state.extras.push(w);createExtraWindow(w);closeModal('newWorkspaceModal');updateWorkspaceCount();selectWorkspace(w.id);focusWorkspace(w.id,true);persist();toast('Workspace created. Your edits save in this browser.');
+});
+function applyAppearance(){
+  document.documentElement.style.setProperty('--glass-opacity',state.opacity/100);
+  document.documentElement.style.setProperty('--blur',state.blur+'px');
+  document.documentElement.style.setProperty('--accent',state.accent);
+  document.documentElement.style.setProperty('--accent-rgb',`${parseInt(state.accent.slice(1,3),16)},${parseInt(state.accent.slice(3,5),16)},${parseInt(state.accent.slice(5,7),16)}`);
+  document.body.dataset.theme=state.theme;document.body.dataset.wallpaper=state.wallpaper;document.body.dataset.backdrop=state.backdrop;
+  $('#opacitySlider').value=state.opacity;$('#opacityOutput').textContent=state.opacity+'%';$('#blurSlider').value=state.blur;$('#blurOutput').textContent=state.blur+' px';
+  $$('.segmented-control [data-theme]').forEach(b=>b.classList.toggle('selected',b.dataset.theme===state.theme));
+  $$('.wallpaper-options [data-wallpaper]').forEach(b=>b.classList.toggle('selected',b.dataset.wallpaper===state.wallpaper));
+  $('#backdropToggle').classList.toggle('on',state.backdrop==='apps');$('#backdropToggle').setAttribute('aria-checked',String(state.backdrop==='apps'));
+  $('.appearance-card strong').textContent=state.theme==='dark'?'Smoked glass':'Frosted glass';persist();
+}
+$('#opacitySlider').oninput=e=>{state.opacity=Number(e.target.value);applyAppearance();};
+$('#blurSlider').oninput=e=>{state.blur=Number(e.target.value);applyAppearance();};
+$$('.segmented-control [data-theme]').forEach(b=>b.onclick=()=>{state.theme=b.dataset.theme;applyAppearance();});
+$$('.wallpaper-options [data-wallpaper]').forEach(b=>b.onclick=()=>{state.wallpaper=b.dataset.wallpaper;applyAppearance();});
+$('#backdropToggle').onclick=()=>{state.backdrop=state.backdrop==='apps'?'wallpaper':'apps';applyAppearance();};
+$('#resetAppearance').onclick=()=>{Object.assign(state,{opacity:62,blur:18,theme:'dark',wallpaper:'coast',backdrop:'apps',accent:'#d6a27c'});applyAppearance();toast('Default glass appearance restored.');};
+function togglePanel(id){const el=$('#'+id),wasHidden=el.hidden;closePopovers();el.hidden=!wasHidden;}
+function closePopovers(){['appearancePanel','resourcePanel','menuPopover'].forEach(id=>$('#'+id).hidden=true);$$('[data-menu]').forEach(b=>b.setAttribute('aria-expanded','false'));}
+let returnFocus=null;
+function openModal(id){closePopovers();$$('.modal-backdrop').forEach(m=>m.hidden=true);returnFocus=document.activeElement;$('#'+id).hidden=false;setTimeout(()=>$('#'+id+' input, #'+id+' button')?.focus(),10);}
+function closeModal(id){$('#'+id).hidden=true;returnFocus?.focus();returnFocus=null;}
+let toastTimer;
+function toast(message){$('#toastText').textContent=message;$('#toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').hidden=true,3500);}
+['glassButton','appearanceCard','appearanceRail'].forEach(id=>$('#'+id).onclick=e=>{e.stopPropagation();togglePanel('appearancePanel');});
+$('#hostButton').onclick=e=>{e.stopPropagation();togglePanel('resourcePanel');};
+$$('[data-resource]').forEach(b=>b.onclick=e=>{e.stopPropagation();togglePanel('resourcePanel');});
+['aboutButton','profileButton'].forEach(id=>$('#'+id).onclick=()=>openModal('aboutModal'));
+$('#brandHome').onclick=e=>{e.preventDefault();restoreApp();setLayout('tiled');};
+['newWorkspaceButton','addWorkspaceSide'].forEach(id=>$('#'+id).onclick=newWorkspace);
+$('#tileLayout').onclick=()=>setLayout('tiled');$('#cascadeLayout').onclick=()=>setLayout('floating');
+function toggleSidebar(){if(matchMedia('(max-width:720px)').matches){$('#appShell').classList.toggle('sidebar-mobile-open');return;}state.sidebarHidden=!state.sidebarHidden;$('#appShell').classList.toggle('sidebar-hidden',state.sidebarHidden);}
+$('#toggleSidebarTop').onclick=toggleSidebar;
+function minimizeApp(){$('#appShell').hidden=true;$('#restoreApp').hidden=false;closePopovers();}
+function restoreApp(){$('#appShell').hidden=false;$('#restoreApp').hidden=true;}
+$('#minimizeApp').onclick=minimizeApp;$('#closeApp').onclick=minimizeApp;$('#restoreApp').onclick=restoreApp;
+$('#maximizeApp').onclick=()=>{$('#appShell').classList.toggle('maximized');$('#maximizeApp').setAttribute('aria-label',$('#appShell').classList.contains('maximized')?'Restore preview size':'Maximize preview');};
+function toggleTerminal(force){$('#terminalPanel').hidden=typeof force==='boolean'?!force:!$('#terminalPanel').hidden;if(!$('#terminalPanel').hidden){restoreBuiltin('handshake');selectWorkspace('handshake');}}
+$('#closeTerminal').onclick=()=>toggleTerminal(false);
+function restoreBuiltin(id){if(state.closed.includes(id)){state.closed=state.closed.filter(x=>x!==id);$(`[data-workspace="${id}"]`).hidden=false;updateWorkspaceCount();persist();}}
+$$('[data-terminal-tab]').forEach(b=>b.onclick=()=>selectTerminalTab(b.dataset.terminalTab));
+const terminalHistory=[];
+function selectTerminalTab(tab){state.terminalTab=tab;$$('[data-terminal-tab]').forEach(b=>b.classList.toggle('selected',b.dataset.terminalTab===tab));$('#terminalForm').hidden=tab!=='terminal';if(tab==='problems')$('#terminalOutput').innerHTML='<div class="terminal-green">No example diagnostics to display.</div><div class="terminal-muted">No compiler is connected in this preview.</div>';else if(tab==='output')$('#terminalOutput').innerHTML='<div class="terminal-muted">Handshake GUI preview</div><div>Visual shell ready. Workspace state saves locally in this browser.</div>';else renderTerminalHistory();}
+function renderTerminalHistory(){const out=$('#terminalOutput');out.replaceChildren();if(!terminalHistory.length){const a=document.createElement('div');a.textContent='~/projects/handshake  main';a.className='terminal-muted';out.append(a);const b=document.createElement('div');b.textContent='Type help to explore this preview.';b.className='terminal-muted';out.append(b);}for(const x of terminalHistory){const row=document.createElement('div');row.textContent=x.text;row.className=x.input?'terminal-accent':'terminal-muted';out.append(row);}out.scrollTop=out.scrollHeight;}
+$('#terminalForm').addEventListener('submit',e=>{
+  e.preventDefault();const input=$('#terminalInput'),value=input.value.trim();input.value='';if(!value)return;
+  terminalHistory.push({input:true,text:'❯ '+value});let result;
+  const [cmd,...args]=value.split(/\s+/);
+  switch(cmd.toLowerCase()){
+    case 'help':result='Preview commands: help · clear · ls · pwd · date · status · echo · theme dark|light · layout tiled|floating · open handshake|suradb|studio';break;
+    case 'clear':terminalHistory.length=0;break;
+    case 'ls':result='src/  Cargo.toml  README.md   [example files]';break;
+    case 'pwd':result='~/projects/handshake  [simulated path]';break;
+    case 'date':result=new Intl.DateTimeFormat('en-GB',{dateStyle:'full',timeStyle:'short',timeZone:'Europe/Brussels'}).format(new Date())+' · Brussels';break;
+    case 'status':result='SAMPLE DATA: CPU 18% · RAM 18.4/64 GB · GPU 9% · VRAM 3.2/24 GB · NPU unavailable · SSD 42%';break;
+    case 'echo':result=args.join(' ');break;
+    case 'theme':if(['dark','light'].includes(args[0])){state.theme=args[0];applyAppearance();result='Glass tone updated.';}else result='Usage: theme dark|light';break;
+    case 'layout':if(['tiled','floating'].includes(args[0])){setLayout(args[0]);result='Workspace layout updated.';}else result='Usage: layout tiled|floating';break;
+    case 'open':if(builtins.some(w=>w.id===args[0])){restoreBuiltin(args[0]);selectWorkspace(args[0]);result='Workspace selected.';}else result='Usage: open handshake|suradb|studio';break;
+    default:result='This is a preview terminal; system commands are not executed. Type help for available actions.';
+  }
+  if(result!==undefined)terminalHistory.push({input:false,text:result});if(terminalHistory.length>80)terminalHistory.splice(0,terminalHistory.length-80);renderTerminalHistory();
+});
+$('#problemsButton').onclick=()=>{toggleTerminal(true);selectTerminalTab('problems');};
+$('#notificationsButton').onclick=()=>toast('All quiet. There are no notifications in this preview.');
+$$('[data-activity]').forEach(b=>b.onclick=()=>{const activity=b.dataset.activity;if(activity==='terminal'){toggleTerminal();return;}state.activity=activity;if(state.sidebarHidden)toggleSidebar();if(matchMedia('(max-width:720px)').matches)$('#appShell').classList.add('sidebar-mobile-open');renderSidebar();if(activity==='search')$('#fileSearch').focus();});
+function updateTasks(){
+  $$('[data-task]').forEach(input=>input.checked=state.tasks[Number(input.dataset.task)]);
+  $('#taskProgress').textContent=state.tasks.filter(Boolean).length+' / 4 done';persist();
+}
+const notesMarkup=$('#notesContent').innerHTML;
+function renderNoteTab(tab){state.noteTab=tab;$$('[data-note-tab]').forEach(b=>b.classList.toggle('active',b.dataset.noteTab===tab));$('#notesContent').classList.toggle('tasks-only',tab==='tasks');if(tab==='notes')$('#notesContent').innerHTML=notesMarkup;else $('#notesContent').innerHTML='<div class="note-meta"><span class="note-tag">WORKSPACE TASKS</span></div><h1>A few things to move forward.</h1><p class="task-note">Your checklist saves in this browser.</p>'+['Map the workspace lifecycle','Connect the local resource monitor','Sketch the shared shell','Review the glass material'].map((t,i)=>`<label class="task-row"><input type="checkbox" data-task="${i}"><span>${t}</span></label>`).join('');hydrateIcons($('#notesContent'));updateTasks();}
+$$('[data-note-tab]').forEach(b=>b.onclick=()=>renderNoteTab(b.dataset.noteTab));
+const studioMarkup=$('#studioContent').innerHTML;
+function renderStudioTab(tab){state.studioTab=tab;$$('[data-studio-tab]').forEach(b=>b.classList.toggle('selected',b.dataset.studioTab===tab));if(tab==='references')$('#studioContent').innerHTML=studioMarkup;else $('#studioContent').innerHTML='<div class="full-palette">'+['#d39b74','#a8bbaa','#a8afcf','#8faab9','#dbd1bd'].map(c=>`<button class="palette-block" data-color="${c}" style="--swatch:${c}" title="Use ${c} as accent">${c.toUpperCase()}</button>`).join('')+'</div>';}
+$$('[data-studio-tab]').forEach(b=>b.onclick=()=>renderStudioTab(b.dataset.studioTab));
+$('#studioViewButton').onclick=()=>{if(state.studioTab!=='references')renderStudioTab('references');$('.asset-grid').classList.toggle('list-mode');};
+function openAsset(index){const cards=$$('.asset-card');const card=cards[index];if(!card)return;$('#assetPreview').innerHTML=$('.asset-art',card).outerHTML;const names=['Quiet coast','Material study','Warm terrain'];const desc=['A cool shoreline study: soft greens, slate water, and an open horizon.','A transparent material study: layered edges, subtle reflections, and soft diffusion.','A warm texture study: copper, sand, and gently sculpted ridges.'];$('#assetDescription').innerHTML=`<h3>${names[index]}</h3><p>${desc[index]}</p><p>Illustrative reference created for this interface concept.</p>`;openModal('assetModal');}
+const commands=[
+  {label:'New workspace',icon:'plus',hint:'Create',run:newWorkspace},
+  {label:'Arrange workspaces in tiles',icon:'layout',hint:'Layout',run:()=>setLayout('tiled')},
+  {label:'Float and arrange workspace windows',icon:'cascade',hint:'Layout',run:()=>setLayout('floating')},
+  {label:'Adjust glass & appearance',icon:'droplet',hint:'Appearance',run:()=>togglePanel('appearancePanel')},
+  {label:'View host resources',icon:'monitor',hint:'Sample data',run:()=>togglePanel('resourcePanel')},
+  {label:'Toggle sidebar',icon:'sidebar',hint:'Ctrl B',run:toggleSidebar},
+  {label:'Toggle preview terminal',icon:'terminal',hint:'Ctrl `',run:()=>toggleTerminal()},
+  {label:'Switch to Handshake',icon:'code',hint:'Alt 1',run:()=>{restoreBuiltin('handshake');selectWorkspace('handshake');}},
+  {label:'Switch to SuraDB',icon:'database',hint:'Alt 2',run:()=>{restoreBuiltin('suradb');selectWorkspace('suradb');}},
+  {label:'Switch to Studio',icon:'image',hint:'Alt 3',run:()=>{restoreBuiltin('studio');selectWorkspace('studio');}},
+  {label:'Restore example workspaces',icon:'refresh',hint:'Workspace',run:restoreDefaults},
+  {label:'About the desktop concept',icon:'info',hint:'Help',run:()=>openModal('aboutModal')}
+];
+let filteredCommands=commands.slice(),commandIndex=0;
+function openCommands(){openModal('commandModal');$('#commandInput').value='';commandIndex=0;renderCommands();setTimeout(()=>$('#commandInput').focus(),20);}
+function renderCommands(){const query=$('#commandInput').value.toLowerCase();filteredCommands=commands.filter(c=>c.label.toLowerCase().includes(query));commandIndex=Math.min(commandIndex,filteredCommands.length-1);if(commandIndex<0)commandIndex=0;$('#commandResults').innerHTML=filteredCommands.length?filteredCommands.map((c,i)=>`<button class="command-result ${i===commandIndex?'selected':''}" data-command-index="${i}"><span>${icon(c.icon)}</span><span>${c.label}</span><small>${c.hint}</small></button>`).join(''):'<div class="search-empty">No matching commands.</div>';}
+function runCommand(index){const c=filteredCommands[index];if(!c)return;closeModal('commandModal');c.run();}
+$('#commandButton').onclick=openCommands;$('#commandInput').oninput=()=>{commandIndex=0;renderCommands();};
+$('#commandInput').onkeydown=e=>{if(e.key==='ArrowDown'){e.preventDefault();commandIndex=(commandIndex+1)%Math.max(1,filteredCommands.length);renderCommands();$('.command-result.selected')?.scrollIntoView({block:'nearest'});}if(e.key==='ArrowUp'){e.preventDefault();commandIndex=(commandIndex+filteredCommands.length-1)%Math.max(1,filteredCommands.length);renderCommands();}if(e.key==='Enter'){e.preventDefault();runCommand(commandIndex);}};
+const menuActions={
+  new:newWorkspace,commands:openCommands,appearance:()=>togglePanel('appearancePanel'),resources:()=>togglePanel('resourcePanel'),sidebar:toggleSidebar,
+  tiled:()=>setLayout('tiled'),floating:()=>setLayout('floating'),terminal:()=>{toggleTerminal(true);selectTerminalTab('terminal');$('#terminalInput').focus();},
+  restore:restoreDefaults,about:()=>openModal('aboutModal'),find:()=>{state.activity='search';if(state.sidebarHidden)toggleSidebar();$('#appShell').classList.add('sidebar-mobile-open');renderSidebar();$('#fileSearch').focus();},
+  export:()=>{const data={concept:'Handshake glass workspace',version:1,appearance:{opacity:state.opacity,blur:state.blur,tone:state.theme,wallpaper:state.wallpaper,accent:state.accent},layout:state.layout,notes:state.extras,tasks:state.tasks};const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='handshake-workspace.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Appearance, workspace list, and notes exported.');},
+  focus:()=>{if(state.active)focusWorkspace(state.active);},close:()=>{if(state.active)closeWorkspace(state.active);},
+  copy:async()=>{try{await navigator.clipboard.writeText(sourceFiles[state.file]);toast(state.file+' copied to clipboard.');}catch{toast('Clipboard unavailable. Select the sample code and copy it manually.');}},
+  clear:()=>{terminalHistory.length=0;selectTerminalTab('terminal');toggleTerminal(true);},
+  keyboard:()=>toast('Ctrl K: commands · Ctrl B: sidebar · Ctrl `: terminal · Alt 1–3: workspace · Esc: close')
+};
+const menus={
+  File:[['New workspace','new','plus'],['Export appearance & notes','export','download'],null,['Restore example workspaces','restore','refresh']],
+  Edit:[['Find a file or workspace','find','search'],['Copy current sample file','copy','files'],null,['Command palette','commands','terminal','Ctrl K']],
+  View:[['Glass & appearance','appearance','droplet'],['Toggle sidebar','sidebar','sidebar','Ctrl B'],['Host resources','resources','monitor'],null,['Tiled workspaces','tiled','layout'],['Floating workspaces','floating','cascade'],['Focus active workspace','focus','expand']],
+  Workspace:[['New workspace','new','plus'],['Focus active workspace','focus','expand'],['Close active workspace','close','x'],null,['Restore example workspaces','restore','refresh']],
+  Terminal:[['Open preview terminal','terminal','terminal','Ctrl `'],['Clear preview terminal','clear','refresh']],
+  Help:[['Keyboard shortcuts','keyboard','terminal'],['About this prototype','about','info']]
+};
+function showMenu(items,x,y){closePopovers();const pop=$('#menuPopover');pop.innerHTML=items.map(item=>item?`<button class="menu-item" role="menuitem" data-menu-action="${item[1]}"><span>${icon(item[2])}${escapeHtml(item[0])}</span>${item[3]?`<small>${item[3]}</small>`:''}</button>`:'<div class="menu-separator" role="separator"></div>').join('');pop.hidden=false;const rect=pop.getBoundingClientRect();pop.style.left=Math.min(Math.max(8,x),innerWidth-rect.width-8)+'px';pop.style.top=Math.min(Math.max(8,y),innerHeight-rect.height-8)+'px';}
+$$('[data-menu]').forEach(b=>b.onclick=e=>{e.stopPropagation();const wasOpen=b.getAttribute('aria-expanded')==='true';closePopovers();if(wasOpen)return;const rect=b.getBoundingClientRect();showMenu(menus[b.dataset.menu],rect.left,rect.bottom+7);b.setAttribute('aria-expanded','true');});
+document.addEventListener('click',e=>{
+  let b=e.target.closest('[data-close]');if(b){const id=b.dataset.close;if($('#'+id).classList.contains('modal-backdrop'))closeModal(id);else $('#'+id).hidden=true;}
+  b=e.target.closest('[data-select-workspace]');if(b){selectWorkspace(b.dataset.selectWorkspace);$('#appShell').classList.remove('sidebar-mobile-open');}
+  b=e.target.closest('[data-new-workspace]');if(b)newWorkspace();
+  b=e.target.closest('[data-reopen-workspace]');if(b){restoreBuiltin(b.dataset.reopenWorkspace);selectWorkspace(b.dataset.reopenWorkspace);}
+  b=e.target.closest('[data-open-file]');if(b){restoreBuiltin('handshake');selectWorkspace('handshake');renderFile(b.dataset.openFile);}
+  b=e.target.closest('[data-file]');if(b)renderFile(b.dataset.file);
+  b=e.target.closest('[data-folder]');if(b){if(b.dataset.folder==='desktop')desktopFolderOpen=!desktopFolderOpen;else folderOpen=!folderOpen;renderSidebar();}
+  b=e.target.closest('[data-action]');if(b){const id=b.dataset.id;if(b.dataset.action==='focus')focusWorkspace(id);else if(b.dataset.action==='workspace-menu'){e.stopPropagation();selectWorkspace(id);const r=b.getBoundingClientRect();showMenu([['Focus workspace','focus','expand'],['Arrange in tiles','tiled','layout'],['Float windows','floating','cascade'],null,['Close workspace','close','x']],r.right-200,r.bottom+4);}else if(b.dataset.action==='new-file'){newWorkspace();$('#workspaceKind').value='code';$('#workspaceName').value='Untitled';}}
+  b=e.target.closest('[data-color]');if(b){state.accent=b.dataset.color;applyAppearance();toast('Workspace accent updated.');}
+  b=e.target.closest('[data-asset]');if(b)openAsset(Number(b.dataset.asset));
+  b=e.target.closest('[data-command-index]');if(b){runCommand(Number(b.dataset.commandIndex));return;}
+  b=e.target.closest('[data-menu-action]');if(b){closePopovers();menuActions[b.dataset.menuAction]?.();}
+  if(e.target.classList.contains('modal-backdrop'))closeModal(e.target.id);
+  if(!e.target.closest('.floating-panel,#glassButton,#appearanceCard,#appearanceRail,#hostButton,[data-resource],[data-menu],[data-action="workspace-menu"]'))closePopovers();
+});
+document.addEventListener('change',e=>{if(e.target.matches('[data-task]')){state.tasks[Number(e.target.dataset.task)]=e.target.checked;updateTasks();}});
+let drag=null;
+document.addEventListener('pointerdown',e=>{
+  const win=e.target.closest('.workspace-window');if(win){if(!e.target.closest('[data-action]'))selectWorkspace(win.dataset.workspace);}
+  const handle=e.target.closest('[data-drag]');if(!handle||e.target.closest('button')||state.layout!=='floating'||state.focus||e.button!==0)return;
+  const rect=win.getBoundingClientRect(),canvas=$('#canvasGrid').getBoundingClientRect();
+  drag={win,dx:e.clientX-rect.left,dy:e.clientY-rect.top,canvas};handle.setPointerCapture(e.pointerId);e.preventDefault();
+});
+document.addEventListener('pointermove',e=>{if(!drag)return;const {win,dx,dy,canvas}=drag;const x=Math.max(0,Math.min(e.clientX-canvas.left-dx,canvas.width-win.offsetWidth)),y=Math.max(0,Math.min(e.clientY-canvas.top-dy,canvas.height-win.offsetHeight));win.style.left=x+'px';win.style.top=y+'px';});
+document.addEventListener('pointerup',()=>drag=null);document.addEventListener('pointercancel',()=>drag=null);
+document.addEventListener('keydown',e=>{
+  const typing=e.target.matches('input,textarea,[contenteditable]');
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openCommands();return;}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='b'&&!typing){e.preventDefault();toggleSidebar();return;}
+  if(e.ctrlKey&&e.key==='`'){e.preventDefault();toggleTerminal();return;}
+  if(e.altKey&&['1','2','3'].includes(e.key)){e.preventDefault();const w=workspaces()[Number(e.key)-1];if(w)selectWorkspace(w.id);return;}
+  if(e.key==='Escape'){
+    const modal=$$('.modal-backdrop').find(m=>!m.hidden);if(modal){closeModal(modal.id);return;}
+    const pop=$$('.floating-panel').find(p=>!p.hidden);if(pop){closePopovers();return;}
+    if(state.focus){focusWorkspace(state.focus);return;}$('#appShell').classList.remove('sidebar-mobile-open');
+  }
+  if(e.key==='Tab'){
+    const modal=$$('.modal-backdrop').find(m=>!m.hidden);if(!modal)return;
+    const f=$$('button:not([disabled]),input,select,textarea,[tabindex="0"]',modal).filter(el=>el.offsetParent!==null);if(!f.length)return;
+    if(e.shiftKey&&document.activeElement===f[0]){e.preventDefault();f[f.length-1].focus();}else if(!e.shiftKey&&document.activeElement===f[f.length-1]){e.preventDefault();f[0].focus();}
+  }
+});
+const resourceData=[
+  {name:'CPU',value:'18%',fill:18,detail:'Illustrative processor utilization'},
+  {name:'RAM',value:'18.4 / 64 GB',fill:28.75,detail:'Physical memory in use'},
+  {name:'GPU',value:'9%',fill:9,detail:'Illustrative graphics utilization'},
+  {name:'VRAM',value:'3.2 / 24 GB',fill:13.33,detail:'Dedicated graphics memory in use'},
+  {name:'NPU',value:'Unavailable',fill:0,detail:'Shown when a supported NPU telemetry source is available'},
+  {name:'Storage',value:'840 GB / 2 TB',fill:42,detail:'Example system drive · 1.16 TB available'}
+];
+$('#resourceDetails').innerHTML=resourceData.map(r=>`<div class="resource-detail"><div><strong>${r.name}</strong><span class="resource-amount">${r.value}</span></div><div class="resource-track"><span style="width:${r.fill}%"></span></div><p>${r.detail}</p></div>`).join('');
+state.extras.forEach(createExtraWindow);state.closed.forEach(id=>{const w=$(`[data-workspace="${id}"]`);if(w)w.hidden=true;});
+hydrateIcons();renderFile(state.file);renderSidebar();updateTasks();applyAppearance();setLayout(state.layout);updateWorkspaceCount();
+if(state.closed.includes(state.active))state.active=workspaces()[0]?.id||'';if(state.active)selectWorkspace(state.active);
+window.addEventListener('resize',()=>{if(state.layout!=='floating'||state.focus)return;const canvas=$('#canvasGrid');$$('.workspace-window').forEach(w=>{if(w.style.left)w.style.left=Math.max(0,Math.min(parseFloat(w.style.left),canvas.clientWidth-w.offsetWidth))+'px';if(w.style.top)w.style.top=Math.max(0,Math.min(parseFloat(w.style.top),canvas.clientHeight-w.offsetHeight))+'px';});});
+
+</script>
+</body>
+</html>
