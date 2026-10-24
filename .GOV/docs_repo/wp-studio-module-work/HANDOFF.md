@@ -1,7 +1,7 @@
 ---
 file_id: WP-STUDIO-MODULE-WORK-HANDOFF
 file_kind: handoff
-updated_at: 2026-10-24T00:27:50Z
+updated_at: 2026-10-24T08:25:00Z
 wp: WP-KERNEL-STUDIO
 authority: Handshake Codex, KERNEL_BUILDER_PROTOCOL, START_LOG.md, ledger.json, validation/*, builders/briefs/wave-parity-2-common.md, builders/studio-env.sh, workflow/workflow-v3.json (this file is a projection; they win on conflict)
 ---
@@ -100,9 +100,19 @@ DO NOT:
 
 </topic>
 
-<topic id="state" status="active" summary="Verified state on 2026-10-23 after the machine restart">
+<topic id="state" status="active" summary="Verified state 2026-10-24 08:20Z (supersedes the takeover prompt's STATE YOU INHERIT block)">
 
-## State (verified 2026-10-23 ~21:30Z)
+## State (lead, 2026-10-24 ~08:20Z)
+
+- Disks (Operator 2026-10-24): C: SSD 400 GB grant (cap 360 GiB, studio-env.sh) is the primary build disk for builders, large canaries and rounds; D: 1.5 TB grant for small canaries and limited builds and the fallback when C: is full after cleanup. Builders use `lane-check.sh --disk ssd` with CARGO_BUILD_JOBS=6 (OS error 1455 at default jobs); the workspace .cargo/config.toml caps jobs at 8. Rounds build on C: since R40 (run-round.sh: the lock follows the target's disk; one GPU lock on the D: root; results/TMP/store on D:). A cargo manager agent owns placement, grants and stale-output cleanup (research/cargo-plan-20261024.json; phase 2 cleanup running after R39).
+- Product origin tip 42b304c7 = R40 candidate. Spec v02.222.
+- R39 @b7ef882e: 266 PASS / 0 FAIL / 42 INCONCLUSIVE (render-gpu timeouts from a foreign Chrome GPU process at low clocks; SMB-TIMELINE-UI-1 never compiled in rounds). PASS_V1: PS-FILL-LAYERS, DEVELOP-DNG-WRITER, AE-RENDER-QUEUE-2, HARNESS-PANELS-1, EPS-FREE-FONTS (doctest remediation b7ef882e), AE-EFFECT-STACK-1, HARNESS-SHELL-2, PR-MULTICAM-1, PS-SOFT-PROOF-1. Findings: harness-view viewer tests and harness audio_session.rs had never run in any round (fixed by round units in 53a7333f); DNG read-back compared lengths only (fixed 4793616b).
+- R40 @42b304c7 running on C: (validator Opus/xhigh, full scope, own canary on the C: target). It judges: TIMELINE-TRIM-1, PS-SOFT-PROOF-2, PR-MULTICAM-2, LR-HEALING-1, PR-RATE-STRETCH-1, FIG-EDIT-1, MOTION-JS-CPU-CAP-TEST, DNG-READBACK-VALUES, ID-LIQUID-LAYOUT-1, FIG-EDIT-2, R39's inconclusive lanes and every re-opened PASS lane.
+- Open lanes: SMB-LR-HEALING-2 BLOCKED at the loop cap (Develop spot preview never settles in 3 GUI tests; local commits only); a fresh diagnostics agent is on it (one probe + one confirming run). SMB-AE-KEYFRAME-TIMELINE-1 parked on the Operator's STU-SHL-130 decision.
+- Lane worktrees created tonight by the lead (under wt-studio-lanes/): smb-timeline-trim-1, smb-ps-soft-proof-1/-2, smb-pr-multicam-1/-2, smb-eps-free-fonts-r1, smb-lr-healing-1/-2, smb-fig-edit-1/-2, smb-pr-rate-stretch-1, smb-id-liquid-layout-1, smb-motion-js-cpu-cap-test, smb-dng-readback-values; their removal needs Operator approval.
+- Brief rules added 2026-10-24 (wave-parity-2-common.md 4c-4e): no drive-letter literals (step 0), lanes run doctests of changed doc examples, feature-gated tests count only if a round unit enables the feature.
+
+## State (verified 2026-10-23 ~21:30Z, history)
 
 - Machine restart ~08:40Z: R38 (e3953de) lost in its canary; steward sync lost (SYNC_SHA PENDING); all agents gone. Lane worktrees intact (see takeover prompt). D: cleanup batch A COMPLETE 14:44Z (99 paths, 295.2 GiB; D: free 1497.7 GiB); C: cleanup complete incl. the three lane stubs (C: free 528 GiB; C: lanes dir empty). Every approved cleanup item is done; result file research/cargo-cleanup-result-20261022.json.
 - Gameplan: the Operator retired the hook in the skill itself on 2026-10-24 (registrations removed from the global settings; hook entrypoints inert; no cross-WP fallback). Nothing blocks Studio commands any more; the lane pointer step is obsolete.
@@ -118,8 +128,12 @@ DO NOT:
 
 ## Waiting on the Operator
 
+- NEW 2026-10-24: STU-SHL-130 layer-versus-node compositing fork (Operator-owned; blocks SHL-P-14 and the After Effects keyframe-timeline lane SMB-AE-KEYFRAME-TIMELINE-1, brief ready). Lead recommendation: layer-based (the spec's evidence fully supports it; Folio composition records are already per-layer; the comp-flowchart graph projection is settled either way).
+- NEW 2026-10-24: GPU tests in rounds slow 3-30x while a Chrome GPU process decodes video (R39: pid 42292, ~37 % video decode + 15 % 3D, GPU held at P8 low clocks); R40 carries a 660 s render-gpu timeout as the infrastructure fix; pausing video playback during rounds avoids it (report only).
+- NEW 2026-10-24: approval to remove tonight's finished lane worktrees and their lane/* branches (list in the state topic) and the older 46 local lane/* branches; disclosure of lead-accepted scope exceptions (HBR-STOP-005): SOFT-PROOF-2 viewer_shell.rs:641 title "Color"; TRIM-1 RUN-UI.md lines; LR-HEALING-1 develop local.rs windowed raster + interop-lrcat nested rdf:Description fix; steward tools/steward-sync.sh accepts .cargo/config.toml; FIG-EDIT-2 resolved a one-line rebase conflict; DNG-READBACK-VALUES changed the writer's verify step in src/.
+- NEW spec deltas 2026-10-24 (lanes used declared readings): STU-COL-244 gamut tolerance/warning colour; STU-COL-242 "legacy uncompensated RGB"; STU-VID-033 angle sync and angle-to-track mapping; STU-VID-031 numeric speed limits, audio pitch and interpolation storage; STU-RAW-124 red-eye fields, retouch stage order, heal_version/offset_y; STU-LAY-010 font-size adjustment bounds; STU-SHL-011/proof submenu leaf ids.
+- (resolved 2026-10-24) C: reopened: 400 GB grant, D: 1.5 TB, D: as fallback; cargo manager agent.
 - (resolved 2026-10-24) Gameplan hook retired in the skill; the global CLAUDE.md [GLOBAL-GAMEPLAN] section still describes the old hook-based gate (drift to resolve on the Operator's side).
-- Reopen C: (SSD) for builds with a grant large enough for a round target plus lane targets (roughly 300 to 400 GiB), or keep all builds on the spinning D: and accept rounds of 12 h or more.
 - Windows Search and Defender exclusions for the build roots; uTorrent and the Codex app compete for D: seeks (report only).
 - Spec residue: `git rm -r` of .GOV/spec/master-spec-v02.218 and master-spec-v02.220 (archive copies exist).
 - PS-C28 mask variants; Photoshop colour setting HSK-gamma-1.0; Operator-attended Affinity test files; Figma .fig fixtures; Acrobat PDF/X oracle; os-encode legal check before commercial release; held-out InDesign oracle set.
