@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-24T03:41:12Z",
+ "updated_at": "2026-10-24T03:57:44Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9893,18 +9893,22 @@
   {
    "lane_id": "SMB-PR-MULTICAM-2",
    "crate": "hsk-studio-pulse (src/multicam.rs) + hsk-studio-session (multicam.rs, timeline.rs or a step file, session.rs, lib.rs) + tests",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "blocked_on": null,
    "owner": "builder (Opus/high), lead dispatch 2026-10-24T02:46:25Z",
    "lane_file": "builders/lanes/hsk-studio-pr-multicam-2.json",
    "brief": "builders/briefs/lane-smb-pr-multicam-2.md",
    "worktree": "wt-studio-lanes/smb-pr-multicam-2 (lane/smb-pr-multicam-2 @7a16f66d, created by the lead)",
    "disk": "D:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "087d4a9d",
+   "commits": [
+    "7ee6fe9b session one-step multicam commit (slice 1)",
+    "87080087 pulse flatten/resolve at non-unit forward speed (slice 2)",
+    "087d4a9d pulse flatten carries clip markers (slice 3)"
+   ],
    "verdicts": [],
-   "note": "one-step session commit for multicam changes incl. new source sequence, flatten/resolve at non-unit forward speed, markers through flatten, named refusals; PUSH HOLD until the R39 candidate is frozen (V4-14); green locally 2026-10-24 at 6979d6eb (90 passed / 0 failed, clippy no errors); waiting for the R39 freeze to push",
+   "note": "one-step session commit for multicam changes incl. new source sequence, flatten/resolve at non-unit forward speed, markers through flatten, named refusals; PUSH HOLD until the R39 candidate is frozen (V4-14); green locally 2026-10-24 at 6979d6eb (90 passed / 0 failed, clippy no errors); waiting for the R39 freeze to push; PUSHED after the R39 freeze (b7ef882e..087d4a9d), READY 2026-10-24 on 087d4a9d: 90 passed / 0 failed at pre-rebase 6979d6eb (rebase brought only hsk-studio-ps* docs/NOTICE, no re-run); for R40",
    "remediation": null
   }
  ],

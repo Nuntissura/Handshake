@@ -1,24 +1,39 @@
 {
   "crate": "hsk-studio-pulse + hsk-studio-session",
   "lane": "SMB-PR-MULTICAM-2",
-  "status": null,
-  "phase": "slices 1-3 committed locally (ee44fd18, d50894f7, 6979d6eb; UNPUSHED) and bundled lane-check run 1 GREEN at 6979d6eb on D: (90/90, clippy no errors over pulse, session and 5 direct dependents); PUSH HOLD until the lead sends the R39 frozen candidate sha (V4-14: SMB-PR-MULTICAM-1 is judged first)",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-3 pushed (origin codex/handshake-studio-assets b7ef882e..087d4a9d) after rebase onto the R39 freeze b7ef882e; bundled lane-check green at pre-rebase 6979d6eb (same tree for pulse/session and every dependency: the rebase only brought hsk-studio-ps* doc comments and NOTICE, so no re-run); READY covers slices 1, 2 and 3",
   "commits": [
-    {"sha": "ee44fd18", "subject": "SMB-PR-MULTICAM-2 slice 1: session one-step multicam commit (Session::submit_multicam / _keyed, MulticamStep) as one revision, one receipt, one inverse (local, unpushed)"},
-    {"sha": "d50894f7", "subject": "SMB-PR-MULTICAM-2 slice 2: pulse flatten and resolve_active_angle at non-unit forward speed (local, unpushed)"},
-    {"sha": "6979d6eb", "subject": "SMB-PR-MULTICAM-2 slice 3: pulse flatten carries clip markers to their pieces (local, unpushed)"}
+    {
+      "sha": "7ee6fe9b",
+      "subject": "SMB-PR-MULTICAM-2 slice 1: session one-step multicam commit (Session::submit_multicam / _keyed, MulticamStep) as one revision, one receipt, one inverse"
+    },
+    {
+      "sha": "87080087",
+      "subject": "SMB-PR-MULTICAM-2 slice 2: pulse flatten and resolve_active_angle at non-unit forward speed"
+    },
+    {
+      "sha": "087d4a9d",
+      "subject": "SMB-PR-MULTICAM-2 slice 3: pulse flatten carries clip markers to their pieces"
+    }
   ],
   "capabilities_done": [
-    "slice 1 (session, ee44fd18, local): Session::submit_multicam / submit_multicam_keyed commit a MulticamStep = zero or more SequenceEdit (Replace expect->write, Insert at index of a CREATED sequence, Remove) each quoting the live value, plus the multicam records entry expect -> write, as ONE revision (also records-only steps), ONE receipt, ONE inverse (Applied::multicam_inverse: replace swapped, insert <-> remove at the live index, records swapped, reverse order; its inverse = redo); shares grant, idempotency key, admission, commit authority and publish (entry published only together with the successor, also on reconcile adoption); refusals value_conflict / invalid_target / invalid_input / invalid_command / folio_rejected (incl. removing a still-nested sequence, records invalid against the result) / budget_exceeded / total_too_large / stale_revision / canceled leave document, entry and receipts untouched; MAX_MULTICAM_STEP_EDITS = 128; session DESCRIPTOR version 5",
-    "slice 2 (pulse, d50894f7, local): plan_multicam_flatten and resolve_active_angle at non-unit FORWARD speed: multicam clip speed s and angle-clip speed a rational; a piece keeps its media window (angle clip window cut to the overlap, mapped through a), its timeline span maps through s, its speed is the exact reduced product s*a; inexact derived ticks refused multicam_speed_inexact; reverse speed on the multicam clip or a read angle clip refused multicam_reverse_unsupported; resolve floors a fractional source position",
-    "slice 3 (pulse, 6979d6eb, local): flatten carries each clip marker (source-sequence ticks) to the piece whose span holds its start, converted to that piece's media ticks through the slice 2 mapping (exact), id/name/comment/colour/duration/role kept, timeline position preserved (tested); refused multicam_marker_in_gap, multicam_marker_spans_pieces, multicam_marker_outside_window; MAX_FLATTEN_MARKERS = 65536 running total checked before each clip, binary-search placement"
+    "slice 1 (session, 7ee6fe9b): Session::submit_multicam / submit_multicam_keyed commit a MulticamStep = zero or more SequenceEdit (Replace expect->write, Insert at index of a CREATED sequence, Remove) each quoting the live value, plus the multicam records entry expect -> write, as ONE revision (also records-only steps), ONE receipt, ONE inverse (Applied::multicam_inverse: replace swapped, insert <-> remove at the live index, records swapped, reverse order; its inverse = redo); shares grant, idempotency key, admission, commit authority and publish (entry published only together with the successor, also on reconcile adoption); refusals value_conflict / invalid_target / invalid_input / invalid_command / folio_rejected (incl. removing a still-nested sequence, records invalid against the result) / budget_exceeded / total_too_large / stale_revision / canceled leave document, entry and receipts untouched; MAX_MULTICAM_STEP_EDITS = 128; session DESCRIPTOR version 5",
+    "slice 2 (pulse, 87080087): plan_multicam_flatten and resolve_active_angle at non-unit FORWARD speed: multicam clip speed s and angle-clip speed a rational; a piece keeps its media window (angle clip window cut to the overlap, mapped through a), its timeline span maps through s, its speed is the exact reduced product s*a; inexact derived ticks refused multicam_speed_inexact; reverse speed on the multicam clip or a read angle clip refused multicam_reverse_unsupported; resolve floors a fractional source position",
+    "slice 3 (pulse, 087d4a9d): flatten carries each clip marker (source-sequence ticks) to the piece whose span holds its start, converted to that piece's media ticks through the slice 2 mapping (exact), id/name/comment/colour/duration/role kept, timeline position preserved (tested); refused multicam_marker_in_gap, multicam_marker_spans_pieces, multicam_marker_outside_window; MAX_FLATTEN_MARKERS = 65536 running total checked before each clip, binary-search placement"
   ],
-  "tests": {"argv": "cd <lane worktree>/handshake-studio-assets && bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-pr-multicam-2 --disk d -- cargo nextest run -p hsk-studio-pulse -p hsk-studio-session --no-fail-fast", "exit": 0, "sha": "6979d6eb", "passed": 90, "failed": 0},
+  "tests": {
+    "argv": "cd <lane worktree>/handshake-studio-assets && bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-pr-multicam-2 --disk d -- cargo nextest run -p hsk-studio-pulse -p hsk-studio-session --no-fail-fast",
+    "exit": 0,
+    "sha": "6979d6eb (pre-rebase; pushed 087d4a9d has identical pulse/session/dependency sources)",
+    "passed": 90,
+    "failed": 0
+  },
   "blockers": [],
   "lock_wait_s": 282,
   "bg_pids": [],
-  "next": "on the lead's R39 sha: git fetch origin && git rebase origin/codex/handshake-studio-assets; re-run the bundled lane-check only if the rebase touched pulse, session or their dependencies (folio, package, chronicle, accord, observe; SMB-PS-SOFT-PROOF-2 touches session source.rs and folio); diff --stat check; push; then READY_FOR_VALIDATION",
-  "updated_at": "2026-10-24T03:10:34Z",
+  "next": "validator round on 087d4a9d (units: whole suites of hsk-studio-pulse and hsk-studio-session; new targets pulse tests/multicam_flatten.rs, session tests/multicam_commit.rs). Follow-ups for a new lane id: playback/composite of the active angle in nested sequences; Premiere D5 oracle for speed/marker flatten",
+  "updated_at": "2026-10-24T03:44:20Z",
   "notes": {
     "spec_basis": [
       "STU-VID-033: '`flatten` bakes the current cut list into ordinary clips and discards the multicam mode; it is one reversible history step.'",
@@ -50,7 +65,7 @@
       "NOT_PROVEN: program-monitor playback and composite render of the active angle (pulse playback / composite resolve no nested sequence)",
       "NOT_PROVEN: Premiere flatten of speed-changed angles and marker placement after flatten (no Premiere oracle)"
     ],
-    "run_history": "run 1 green at 6979d6eb (90/90; clippy no errors; waited 282 s for the D: lock behind run-round steward-export)",
+    "run_history": "run 1 green at 6979d6eb (90/90; clippy no errors; waited 282 s for the D: lock behind run-round steward-export); rebase onto b7ef882e (hsk-studio-ps* only) -> no re-run; pushed 087d4a9d, verified by fetch",
     "gameplan": "not used (retired per lead override)"
   }
 }

@@ -1,0 +1,3124 @@
+{
+ "schema": "hsk.studio.research.cargo_plan@1",
+ "file_id": "CARGO-PLAN-20261024",
+ "generated_at": "2026-10-24T03:53:17Z",
+ "author": "cargo-and-canary manager (Claude Opus 5.5), phase 1: inventory + plan + candidate list; nothing deleted, moved or edited",
+ "dispatch": "lead 2026-10-24 (WP-KERNEL-STUDIO); coordinator additions: placement order (C: primary, D: fallback) and the shared-host facts (foreign GPT agent, WP-KERNEL-012 pushes to gov_kernel)",
+ "operator_grants": {
+  "C": {
+   "quote": "you can run canaries also on c and i will grant you the 400gb",
+   "size": "400 GB",
+   "gib": 372.53,
+   "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+   "covers": "cargo target dirs only (CX-984-014), builders and large canaries/rounds",
+   "lock": "C:/HandshakeBuild/.disk-build-lock"
+  },
+  "D": {
+   "quote": "same goes for d disk, i grant you 1.5tb of target space",
+   "size": "1.5 TB",
+   "gib": 1364.24,
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO",
+   "covers": "cargo target dirs only; exports, results, TMP/TEMP, logs, evidence, oracle corpus also live here but outside the grant (CX-984-001)",
+   "lock": "<D: root>/.disk-build-lock"
+  },
+  "placement_order_quote": "d can be use as fallback when c is limit is reached and clean up does not suffice",
+  "cleanup_quote": "clean up cargo that is stale an not used anymore, but make sure it does first check what its about to remove, if deleting does not work move it to the bin and notify me",
+  "units_note": "GB/TB read as decimal (conservative): 400 GB = 372.53 GiB, 1.5 TB = 1364.24 GiB; studio-env's STUDIO_SSD_CAP_GB is in GiB (cap_kib = value*1024*1024)",
+  "superseded": "the lead's same-day reading 'C: lane builders only, 150 GB grant, cap 140' (START_LOG 2026-10-24) is superseded by the 400 GB grant; builders/studio-env.sh still carries the 150 GB/140 values (diff proposal below)"
+ },
+ "method": {
+  "scope": "only C:/HandshakeBuild/WP-KERNEL-STUDIO and <D: artifact root>/WP-KERNEL-STUDIO; no whole-disk, ~/.cargo, ~/.rustup, Handshake product cargo roots, other WPs or foreign agents' outputs",
+  "sizing": "robocopy <dir> NUL /L /S /NJH /BYTES /NC /NDL /TS /XJ /R:0 /W:0 (the studio_ssd_kib method plus /TS for the newest write; /TS prints UTC, checked against .rustc_info.json LastWriteTimeUtc); counts cargo's uplift hardlinks twice, so sizes err high",
+  "load": "one directory at a time, one walker; walker process in PROCESS_MODE_BACKGROUND_BEGIN, each robocopy child Idle + very-low I/O priority (NtSetInformationProcess ProcessIoPriority=0); D: was saturated by C55 (queue length 30.7, 0% idle at 01:17Z), so the walker was starved by design; the first ordered run was stopped by me at 01:17Z after 4 records and restarted candidates-first (scratch inv-d.jsonl + inv-d2.jsonl); the second run was stopped by me at 03:49Z after 81 records so that D: serves R39 alone; the dirs it had not reached (KEEP data and residue, no candidate among them) are measured after R39",
+  "lane_status_source": "ledger.json lanes[] (350 lanes; 9 READY_FOR_VALIDATION) and MT contract lifecycle.status for MT-* owners",
+  "process_check": "Win32_Process command lines, parent chain walked up to 8 levels; a build process is Studio when any ancestor command line names a Studio root, handshake-studio-assets or wt-studio",
+  "citation_check": "grep of the Studio work folder (records, lane files, validation) for WP-KERNEL-STUDIO/<owner> paths; MT contracts for MT owners",
+  "unmeasured_note": "directories that the starved walker had not reached when this file was written carry size null and are marked in inventory.measured_dirs by absence; sizes from research/audit-20261021/cargo-disk-inventory.json are quoted where used, with that date"
+ },
+ "current_activity": {
+  "C55": "first attempt on b8daa00 refused at step 0 (exit 72, V4-03 machine-local path crates/hsk-studio-controls/tests/menu_descriptors.rs:114, 00:47:32Z); re-run on steward sync 1e3ae3d held the D: lock from 00:57:58Z (class round, 12 crates scoped, target studio-team-dev/steward-export/target) and finished before 03:41Z (lead: C55 done; D: lock free and no build process at 03:41:29Z)",
+  "foreign_builds_check": [
+   {
+    "at": "2026-10-24T01:04:41Z",
+    "build_processes": 8,
+    "foreign": 0,
+    "note": "all C55 (nextest/cargo/rustc under steward-export)"
+   },
+   {
+    "at": "2026-10-24T01:48:51Z",
+    "build_processes": 67,
+    "foreign": 0,
+    "note": "all C55 by parent chain"
+   },
+   {
+    "at": "2026-10-24T03:41:29Z",
+    "build_processes": 0,
+    "foreign": 0,
+    "note": "C55 finished; D: lock free"
+   },
+   {
+    "at": "2026-10-24T03:51:09Z",
+    "build_processes": 26,
+    "foreign": 0,
+    "note": "all Studio: SSD lane smb-ps-soft-proof-2 on C: (C: lock held since 03:45:19Z); D: lock free (R39 being dispatched)"
+   }
+  ],
+  "disk_busy": "01:17Z: D: 0% idle, queue 30.7 (C55); C: 32% idle (C55 toolchain/registry reads under the user profile, or other activity: UNVERIFIED)",
+  "c_free_change": "C: free 521.7 GiB at 00:49Z, 791.0 GiB at 02:46Z: about 269 GiB freed on C: outside the Studio root by someone else (not this agent; the C: Studio tree stayed 0.125 GiB); cause NOT_INSPECTED",
+  "host": "AMD Ryzen 9 5950X, 16 cores / 32 logical CPUs, 127.9 GiB RAM; C: Samsung SSD 870 QVO 8TB (QLC, NTFS 7450.8 GiB); D: TOSHIBA MG08ACA16TE 16 TB HDD (NTFS 14902 GiB)",
+  "candidate_process_reference_check": "2026-10-24T03:50:50Z: 38 candidate paths (27 items + 11 keep-slot items) checked against every process command line: 0 references"
+ },
+ "disks": {
+  "C": {
+   "volume_gib": 7450.8,
+   "free_gib": 786.8,
+   "media": "SSD (Samsung 870 QVO 8TB, QLC)",
+   "studio_root": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+   "studio_target_used_gib": 0.125,
+   "grant_gib": 372.53,
+   "cap_guard_gib": 360,
+   "used_pct_of_grant": 0.03,
+   "contents": "studio-team-dev/target only: release/ 0.125 GiB (2026-10-14 reel-native-mf-worker release build), nextest/ 14 KiB, lanes/ empty; nothing else under the C: Studio root"
+  },
+  "D": {
+   "volume_gib": 14902.0,
+   "free_gib": 1641.4,
+   "media": "HDD (TOSHIBA MG08ACA16TE 16 TB)",
+   "studio_root": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO",
+   "studio_target_used_gib_measured": 643.69,
+   "targets_not_yet_measured": [
+    "studio-team-dev/steward-export/target"
+   ],
+   "studio_target_used_gib_with_20261021_fallback": 931.3,
+   "grant_gib": 1364.24,
+   "cap_guard_gib": 1300,
+   "used_pct_of_grant_measured": 47.18
+  }
+ },
+ "placement_policy": {
+  "order": "C: first for every heavy job within its 400 GB grant; before falling back, clean stale C: output (P2 finished lane targets, then P4 round-target refresh); D: only (a) for small/scoped canaries and limited cargo builds, or (b) as fallback when the C: measure plus the job estimate exceeds the C: cap after that cleanup. Every fallback is recorded with the numbers (C: measured, estimate, cap, what was cleaned).",
+  "job_classes": [
+   {
+    "class": "builder lane (new or remediation)",
+    "disk": "C:",
+    "how": "STUDIO_BUILD_DISK=ssd STUDIO_OWNER=<lane-id> before sourcing builders/studio-env.sh; target C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/<lane>, C: lock, TMP on D:; cap guard refuses (77) over STUDIO_SSD_CAP_GB",
+    "limits": "<= 6 live lane targets on C: (P3), <= 2 GUI lanes at once, sequence lanes sharing a crate"
+   },
+   {
+    "class": "validation round incl. its own --canary (R39 on)",
+    "disk": "R39: D: (lead decision); R40 onward: C:",
+    "how": "R39: run-round.sh --results <D: studio-round>/results/R39 --target-dir <D: studio-round>/target (unchanged path). R40+: --target-dir C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target after the steward commit of diff-run-round-ssd.patch (lands after R39; probes: bash -n, --help, refusal probes for a target outside both roots / results on the SSD root / bare SSD root target, resolution probe printing lock, TMP, store and GPU root for a D: and a C: target)",
+    "fallback": "D: studio-round/target only when C: cannot hold the round after cleaning stale C: output, or when the candidate lacks the commit"
+   },
+   {
+    "class": "large steward canary (--all, or a closure above ~40 units)",
+    "disk": "C: from the R40 change on (same commit); D: until then",
+    "how": "--target-dir C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/steward-export/target (same diff)"
+   },
+   {
+    "class": "small/scoped steward canary (never --all, closure <= ~40 units) such as C55",
+    "disk": "D:",
+    "how": "--target-dir <D:>/studio-team-dev/steward-export/target (warm)"
+   },
+   {
+    "class": "limited cargo builds (single-crate check/clippy, probes, steward probe compiles, export checks)",
+    "disk": "D:",
+    "how": "studio-env.sh without STUDIO_BUILD_DISK (owner target on D:, D: lock)"
+   },
+   {
+    "class": "READY-lane fixes after an R39 FAIL",
+    "disk": "C: (fresh lane target) unless the fix is a one-crate check that fits the warm D: lane target",
+    "how": "as builder lane"
+   }
+  ],
+  "shared_host": "before scheduling a heavy job on a disk: list cargo/rustc/link processes, walk their parent chains, classify Studio vs foreign, and note the foreign ones and their disk (rustc --out-dir / target path) in the queue reasoning; never stop, pause or reprioritise them (CX-SAFE-001); never touch their outputs; Studio bounds its own CPU use (diff proposal: 16 build jobs, 16 test threads)",
+  "free_space_floor": "C: is also the system disk: admit a C: job only if C: free space after the job estimate stays >= 60 GiB (C: free 791.0 GiB at 02:46Z, 521.7 GiB at 00:49Z; a full 372.5 GiB grant leaves about 149 to 418 GiB depending on the rest of C:)"
+ },
+ "c_round_mechanism": {
+  "target_dir": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target (owner studio-round mirrored on the SSD root; a large steward canary uses C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/steward-export/target)",
+  "lock": "C:/HandshakeBuild/.disk-build-lock (the lock studio-env.sh uses for SSD lanes, so round and lanes on C: serialise; rounds keep queue priority and yield gaps)",
+  "gpu_lock": "unchanged machine-wide <D: root>/.gpu-test-lock",
+  "tmp_store_results": "TMP/TEMP <D: root>/studio-round/tmp, test-runner store <D: root>/studio-round/nextest, results <D: root>/studio-round/results/R39 (CX-984-014: grant covers the target only)",
+  "current_blockers_in_run_round": [
+   "line 162: refuses every C: --target-dir/--results ('build output and temp stay off C:')",
+   "lines 129-157: lock root from the walk-up of .config/disk-build-lock.toml starting at the WORKSPACE root (the export on D:), so a C: target would build while holding the D: lock; STUDIO_DISK_BUILD_LOCK_DIR must equal that root (an env override is refused, and would be a run-time addition anyway)",
+   "line 160: GPU lock root = dirname(lock root)/.gpu-test-lock, so a C: lock root would create a second, C:-local GPU lock and break the machine-wide GPU exclusion",
+   "line 229: TMP=<target>/../tmp would land on C:",
+   "lines 235, 495, 502: test-runner store and junit path under <target>/nextest would land on C:"
+  ],
+  "codex_checks": {
+   "CX-VAL-007": "callers pass only the entrypoint's own --results/--target-dir (no env, no flags, no wrapper); the disk/lock/TMP/store choice comes from tools/run-round.sh and .config/disk-build-lock.toml, committed; because run-round runs from the round export, the change must be inside the R39 candidate commit",
+   "CX-984-014": "grant covers the target only: TMP/TEMP, test-runner store, results, logs stay under the sole root; CARGO_INCREMENTAL=0 and line-tables-only debug are already exported by run-round.sh (lines 230-231); the lead checks the C: target size against the cap before every round (procedure in guards.C)",
+   "CX-984-002": "one build per physical disk: the C: lock serialises rounds/canaries with SSD lanes; the D: lock is untouched",
+   "CX-984-001/-012": "results stay under the sole root (diff refuses results elsewhere); no fallback root is created automatically"
+  },
+  "diff_proposals": [
+   {
+    "file": "tools/run-round.sh + .config/disk-build-lock.toml (product tree, steward)",
+    "patch": "C:/Users/ILJASM~1/AppData/Local/Temp/claude/C--Users-Ilja-Smets--claude-spares-spare-4K1gAV/78736d01-8cca-4de4-921a-e3cf98762f72/scratchpad/cargo-manager/diff-run-round-ssd.patch",
+    "summary": "add ssd-search/ssd-lock-dir keys; resolve the lock from the TARGET dir's root; refuse targets outside both roots and results outside the sole root; TMP/store mirrored to <sole root>/<owner path>; GPU lock from the sole root; junit path from the store; round.json target_class; D: callers unchanged (same lock, TMP, store, GPU root)",
+    "path_logic_tested": "the proposed Python block resolved a fake D: target, a C: studio-round target and a C: studio-team-dev/steward-export target correctly and refused a bare SSD root target and an outside target (scratch pytest/)",
+    "patch_text": "PROPOSAL ONLY (not applied). Product tree, branch codex/handshake-studio-assets; owner: workspace steward (tools/ and root .config).\nReason: Operator grant 2026-10-24 (C: SSD 400 GB, target dirs only, CX-984-014) + placement order (C: primary, D: fallback).\nToday tools/run-round.sh refuses every C: path (line 162) and resolves its lock by walking up from the WORKSPACE root\n(the export on D:), so a round or canary cannot build on C:; if the refusal alone were dropped it would build on C:\nwhile holding the D: lock, put TMP/TEMP and the test-runner store on C: (CX-984-014 violation) and use a second,\nC:-local GPU test lock (dirname of the lock root), breaking the machine-wide GPU exclusion.\nCX-VAL-007: the change lands as a commit to the entrypoint and its version-controlled config, inside the candidate\nthe round exports (run-round runs from the export), so it must be in the R39 candidate; callers keep passing only\n--results/--target-dir (no env, no wrapper).\n\n--- a/.config/disk-build-lock.toml\n+++ b/.config/disk-build-lock.toml\n@@ -9,4 +9,11 @@\n schema = \"hsk.studio.disk-build-lock@1\"\n search = \"Handshake_Artifacts/WP-KERNEL-STUDIO\"\n lock-dir = \".disk-build-lock\"\n max-ancestors = 8\n+# Granted SSD build root (Operator 2026-10-24, CX-984-014: 400 GB, cargo target dirs only). A --target-dir under\n+# A/<ssd-search> (A = an ancestor of the target dir) builds under the lock <parent of A/<ssd-search>>/<ssd-lock-dir>\n+# (the same lock the team's studio-env.sh uses for SSD lanes). TMP/TEMP, the test-runner store, results and the GPU\n+# test lock stay under the sole artifact root (`search`, found from the workspace root). The lock always follows the\n+# disk of the target dir.\n+ssd-search = \"HandshakeBuild/WP-KERNEL-STUDIO\"\n+ssd-lock-dir = \".disk-build-lock\"\n\n--- a/tools/run-round.sh\n+++ b/tools/run-round.sh\n@@ -54,7 +54,10 @@\n # Disk-wide build lock (CX-984-002, tools/disk-build-lock.sh protocol @2): the round queues with priority (class\n #   round) and holds the lock for every cargo unit (fixture build included); between units, after holding it for\n #   STUDIO_DISK_BUILD_LOCK_ROUND_SLICE_S (default 300) s, it yields one gap to the first queued builder and re-queues\n-#   first. Root from STUDIO_DISK_BUILD_LOCK_DIR or the walk-up of .config/disk-build-lock.toml (they must agree);\n+#   first. Root from STUDIO_DISK_BUILD_LOCK_DIR or .config/disk-build-lock.toml (they must agree), resolved from the\n+#   TARGET dir: under the sole artifact root -> its lock; under the granted SSD root (ssd-search) -> the SSD lock.\n+#   A target dir outside both roots, or results outside the sole artifact root, is refused (exit 2). TMP/TEMP and the\n+#   test-runner store stay under the sole artifact root for both (CX-984-014: the grant covers the target only).\n #   waits print to stderr; results/disk-lock.json and round.json \"disk_lock\" record holds, yields, waits and broken\n@@ -62,1 +65,1 @@\n-#   round = queue priority; root STUDIO_GPU_TEST_LOCK_DIR or <disk lock root>/../.gpu-test-lock), so GPU tests of the\n+#   round = queue priority; root STUDIO_GPU_TEST_LOCK_DIR or <sole artifact root>/.gpu-test-lock), so GPU tests of the\n@@ -83,1 +86,2 @@\n-# Env: sets CARGO_TARGET_DIR, TMP/TEMP/TMPDIR (<target-dir>/../tmp), CARGO_PROFILE_{DEV,TEST}_DEBUG,\n+# Env: sets CARGO_TARGET_DIR, TMP/TEMP/TMPDIR (<target-dir>/../tmp; for an SSD target <sole artifact root>/<owner path>/tmp,\n+#   owner path = the target dir's parent below the SSD WP dir), CARGO_PROFILE_{DEV,TEST}_DEBUG,\n@@ -129,30 +133,48 @@\n lock_root=\"${STUDIO_DISK_BUILD_LOCK_DIR:-}\"\n-cfg_lock=$(\"$py\" -X utf8 -I - \"$root\" \"$root/.config/disk-build-lock.toml\" <<'PY'\n+# Prints two lines: the lock root for the TARGET dir's disk, and the sole artifact root (`search` from the workspace root).\n+cfg_out=$(\"$py\" -X utf8 -I - \"$root\" \"$root/.config/disk-build-lock.toml\" \"$target\" <<'PY'\n import pathlib, re, sys\n-root, cfg = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])\n+root, cfg, target = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]), pathlib.Path(sys.argv[3])\n if not cfg.exists():\n     sys.exit(0)\n kv = {}\n for line in cfg.read_text(encoding=\"utf-8\").splitlines():\n     m = re.fullmatch(r'\\s*([A-Za-z0-9_-]+)\\s*=\\s*(?:\"([^\"]*)\"|(\\d+))\\s*', line)\n     if m:\n         kv[m.group(1)] = m.group(2) if m.group(2) is not None else int(m.group(3))\n     elif line.strip() and not line.lstrip().startswith(\"#\"):\n         sys.exit(f\"run-round: disk-build-lock.toml: not a `key = value` line: {line!r}\")\n if kv.get(\"schema\") != \"hsk.studio.disk-build-lock@1\" or not all(isinstance(kv.get(k), str) for k in (\"search\", \"lock-dir\")) \\\n         or not isinstance(kv.get(\"max-ancestors\"), int):\n     sys.exit(\"run-round: disk-build-lock.toml needs schema hsk.studio.disk-build-lock@1, search, lock-dir, max-ancestors\")\n-for k in (\"search\", \"lock-dir\"):\n+for k in (\"search\", \"lock-dir\", \"ssd-search\", \"ssd-lock-dir\"):\n+    if k not in kv:\n+        continue\n     p = pathlib.PurePosixPath(kv[k])\n     if p.is_absolute() or \"..\" in p.parts or \":\" in kv[k]:\n         sys.exit(f\"run-round: disk-build-lock.toml {k} must be a relative path without '..'\")\n-found = next((a / kv[\"search\"] for a in [root, *root.parents][: kv[\"max-ancestors\"] + 1] if (a / kv[\"search\"]).is_dir()), None)\n-if found:\n-    print((found / kv[\"lock-dir\"]).as_posix())\n+n = kv[\"max-ancestors\"] + 1\n+def walk(start, rel):\n+    return next((a / rel for a in [start, *start.parents][:n] if (a / rel).is_dir()), None)\n+art = walk(root, kv[\"search\"])                      # sole artifact root (WP dir), from the workspace root\n+if art is None:\n+    sys.exit(0)\n+def inside(p, top):\n+    try:\n+        p.resolve().relative_to(top.resolve()); return True\n+    except ValueError:\n+        return False\n+t_art = walk(target, kv[\"search\"])\n+t_ssd = walk(target, kv[\"ssd-search\"]) if isinstance(kv.get(\"ssd-search\"), str) else None\n+owner_rel = \"\"\n+if t_art is not None and inside(target, t_art) and t_art.resolve() == art.resolve():\n+    lock = art / kv[\"lock-dir\"]\n+elif t_ssd is not None and inside(target, t_ssd) and isinstance(kv.get(\"ssd-lock-dir\"), str):\n+    lock = t_ssd.parent / kv[\"ssd-lock-dir\"]\n+    # the owner path below the SSD WP dir is mirrored on the sole root for TMP/TEMP and the test-runner store\n+    rel = target.resolve().parent.relative_to(t_ssd.resolve()).as_posix()\n+    if rel in (\"\", \".\") or not all(re.fullmatch(r\"[A-Za-z0-9._-]+\", s) and s not in (\".\", \"..\") for s in rel.split(\"/\")):\n+        sys.exit(f\"run-round: SSD target dir needs <ssd root>/<owner path>/target with plain segments, got {target.as_posix()}\")\n+    owner_rel = rel\n+else:\n+    sys.exit(f\"run-round: target dir {target.as_posix()} is neither under {art.as_posix()} nor under the granted SSD root ({kv.get('ssd-search')})\")\n+print(lock.as_posix()); print(art.as_posix()); print(owner_rel)\n PY\n-) || die \"invalid .config/disk-build-lock.toml\"\n+) || die \"invalid .config/disk-build-lock.toml or target dir outside the build roots\"\n+cfg_lock=$(printf '%s\\n' \"$cfg_out\" | sed -n 1p) art_root=$(printf '%s\\n' \"$cfg_out\" | sed -n 2p) owner_rel=$(printf '%s\\n' \"$cfg_out\" | sed -n 3p)\n if [ -n \"$lock_root\" ] && [ -n \"$cfg_lock\" ] && [ \"$(abspath \"$lock_root\")\" != \"$(abspath \"$cfg_lock\")\" ]; then\n   die \"STUDIO_DISK_BUILD_LOCK_DIR=$lock_root differs from the .config/disk-build-lock.toml root $cfg_lock\"\n fi\n lock_root=${lock_root:-$cfg_lock}\n [ -n \"$lock_root\" ] || die \"no disk build lock root (.config/disk-build-lock.toml search not found; or set STUDIO_DISK_BUILD_LOCK_DIR)\"\n+[ -n \"$art_root\" ] || die \"sole artifact root not found from $root (.config/disk-build-lock.toml search)\"\n lock_root=$(abspath \"$lock_root\")\n-gpu_root=$(abspath \"${STUDIO_GPU_TEST_LOCK_DIR:-$(dirname \"$lock_root\")/.gpu-test-lock}\")\n-for p in \"$target\" \"$results\"; do\n-  case \"$p\" in [cC]:*|/c/*) die \"refusing C: path $p (build output and temp stay off C:)\" ;; esac\n-  under \"$p\" \"$root\" && die \"refusing path inside the workspace: $p\"\n-done\n+art_root=$(abspath \"$art_root\")\n+gpu_root=$(abspath \"${STUDIO_GPU_TEST_LOCK_DIR:-$art_root/.gpu-test-lock}\")\n+for p in \"$target\" \"$results\"; do\n+  under \"$p\" \"$root\" && die \"refusing path inside the workspace: $p\"\n+done\n+under \"$results\" \"$art_root\" || die \"results dir must lie under the sole artifact root $art_root (CX-984-001)\"\n+if [ -z \"$owner_rel\" ]; then\n+  tmp_dir=\"$target/../tmp\" store_dir=\"$target/nextest\" target_class=artifact-root\n+else\n+  # e.g. C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target -> <art>/studio-round/{tmp,nextest};\n+  #      .../studio-team-dev/steward-export/target -> <art>/studio-team-dev/steward-export/{tmp,nextest}\n+  tmp_dir=\"$art_root/$owner_rel/tmp\" store_dir=\"$art_root/$owner_rel/nextest\" target_class=ssd\n+fi\n [ -e \"$results/round.json\" ] && die \"results dir already holds a round.json: $results\"\n@@ -229,7 +251,7 @@\n-export CARGO_TARGET_DIR=\"$target\" TMP=\"$target/../tmp\" CARGO_TERM_COLOR=never\n+export CARGO_TARGET_DIR=\"$target\" TMP=\"$tmp_dir\" CARGO_TERM_COLOR=never\n export TEMP=\"$TMP\" TMPDIR=\"$TMP\" CARGO_PROFILE_DEV_DEBUG=line-tables-only CARGO_PROFILE_TEST_DEBUG=line-tables-only\n export CARGO_INCREMENTAL=0\n mkdir -p \"$TMP\"\n-# nextest resolves its store (junit, run data) against the workspace root; pin it under the target dir.\n+# nextest resolves its store (junit, run data) against the workspace root; pin it under the owner on the sole root.\n toolcfg=\"$results/nextest-store.toml\"\n-printf '[store]\\ndir = \"%s/nextest\"\\n' \"$target\" >\"$toolcfg\"\n+printf '[store]\\ndir = \"%s\"\\n' \"$store_dir\" >\"$toolcfg\"\n\n@@ -495,1 +517,1 @@\n-    rm -f \"$target/nextest/$profile/junit.xml\"\n+    rm -f \"$store_dir/$profile/junit.xml\"\n@@ -502,1 +524,1 @@\n-    [ -f \"$target/nextest/$profile/junit.xml\" ] && cp \"$target/nextest/$profile/junit.xml\" \"$d/junit.xml\"\n+    [ -f \"$store_dir/$profile/junit.xml\" ] && cp \"$store_dir/$profile/junit.xml\" \"$d/junit.xml\"\n\n(also: .config/nextest.toml comment \"Written to <target-dir>/nextest/default/junit.xml\" -> \"<store dir>/default/junit.xml\n (<target-dir>/nextest, or <sole root>/<owner path>/nextest for an SSD target)\";\n add \"target_class\": \"$target_class\" next to \"target_dir\" in the round.json writers at lines ~206 and ~898, so a\n validator sees which disk/lock the round used; unchanged behaviour for every existing D: caller: same lock, same TMP\n ($target/../tmp), same store ($target/nextest), same GPU root (<art>/WP-KERNEL-STUDIO/.gpu-test-lock).)\n\nVerification the steward runs before the sync commit (no round): bash -n tools/run-round.sh; run-round --help;\nthree refusal probes that exit 2 before any build (target outside both roots; results on the SSD root; SSD target\nwith a non-plain owner); one resolution probe printing lock/TMP/store/GPU for a D: target and for\nC:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target (a --dev dry path that stops at the results-dir check is enough).\n"
+   },
+   {
+    "file": "builders/studio-env.sh (kernel, lead)",
+    "patch": "C:/Users/ILJASM~1/AppData/Local/Temp/claude/C--Users-Ilja-Smets--claude-spares-spare-4K1gAV/78736d01-8cca-4de4-921a-e3cf98762f72/scratchpad/cargo-manager/diff-studio-env-400gb.patch",
+    "summary": "STUDIO_SSD_CAP_GB default 140 -> 360, comments/refusal text 150 GB -> 400 GB with the fallback order, SSD-lane test-runner store moved to the D: lane owner (CX-984-014)",
+    "patch_text": "PROPOSAL ONLY (not applied). Kernel file .GOV/docs_repo/wp-studio-module-work/builders/studio-env.sh (lead-owned).\nReason: Operator grant 2026-10-24 C: SSD 400 GB (supersedes the 150 GB reading recorded the same day); the guard still\ndefaults to 140 GiB and its refusal text names 150 GB; and for SSD lanes the test-runner store is pinned under\nCARGO_TARGET_DIR on C:, while CX-984-014 keeps test runtime stores under the sole artifact root.\nUnits: studio_ssd_cap_check computes cap_kib = STUDIO_SSD_CAP_GB*1024*1024, i.e. the value is GiB. 400 GB = 372.5 GiB;\ncap 360 GiB leaves 12.5 GiB for growth between the last measure and the end of an admitted build (the robocopy\nmeasure counts cargo's uplift hardlinks twice, so it errs high = fail-safe).\n\n--- a/builders/studio-env.sh\n+++ b/builders/studio-env.sh\n@@ -10,7 +10,8 @@\n # owner's target INSIDE the one granted target, at <granted target>/lanes/<owner> (own tree binding, fingerprints and\n # nextest store: cargo hashes member paths relative to the workspace root, so lane trees never share units), under\n # the C: lock; lock records keep the lane owner. D: round gaps are then not needed by that lane (rounds stay on D:).\n-# Guard: an SSD build is refused (status 77, before queueing) while the whole C:/HandshakeBuild/WP-KERNEL-STUDIO\n-# tree is over STUDIO_SSD_CAP_GB (default 140 of the 150 GB grant; see studio_ssd_cap_check). Unset or\n+# Guard: an SSD build is refused (status 77, before queueing) while the whole C:/HandshakeBuild/WP-KERNEL-STUDIO\n+# tree (lane targets AND the C: round/canary target) is over STUDIO_SSD_CAP_GB (GiB; default 360 of the 400 GB =\n+# 372.5 GiB grant of 2026-10-24; see studio_ssd_cap_check). Unset or\n # STUDIO_BUILD_DISK=d: unchanged D: target. STUDIO_SSD_ROOT is a self-test knob only (default C:/HandshakeBuild).\n@@ -28,3 +29,4 @@\n-    # Operator 2026-10-24 (\"c is ok but 400gb seems excessive\"): the C: slot is reopened for lane builders under the\n-    # existing 150 GB grant (cap STUDIO_SSD_CAP_GB 140, rule P3 at most 6 live lane targets); rounds, canaries, exports\n-    # and TMP/TEMP stay on D:. (Closed 2026-10-23 during the C: cleanup, which completed the same day.)\n+    # Operator 2026-10-24 (supersedes the 150 GB reading of the same day): C: SSD grant 400 GB for builders and large\n+    # canaries/rounds (cap STUDIO_SSD_CAP_GB 360 GiB, rule P3 at most 6 live lane targets per disk); D: is for small\n+    # canaries and limited builds and the fallback when C: is at its cap after cleanup. Exports, results, TMP/TEMP,\n+    # logs and the test-runner store stay on D: (CX-984-001/-014).\n@@ -133,1 +135,1 @@\n-  cap_kib=$(( ${STUDIO_SSD_CAP_GB:-140} * 1024 * 1024 ))\n+  cap_kib=$(( ${STUDIO_SSD_CAP_GB:-360} * 1024 * 1024 ))\n@@ -144,1 +146,1 @@\n-    echo \"studio-env: ${_STUDIO_SSD_TREE} held $((kib / 1048576)) GiB at $(TZ=UTC0 date -d \"@$at\" +%FT%TZ 2>/dev/null) > cap ${STUDIO_SSD_CAP_GB:-140} GiB (Operator grant CX-984-014: 150 GB); SSD build refused (77). Unset STUDIO_BUILD_DISK to build on D:; cleanup is a steward/Operator action.\" >&2\n+    echo \"studio-env: ${_STUDIO_SSD_TREE} held $((kib / 1048576)) GiB at $(TZ=UTC0 date -d \"@$at\" +%FT%TZ 2>/dev/null) > cap ${STUDIO_SSD_CAP_GB:-360} GiB (Operator grant CX-984-014: 400 GB); SSD build refused (77). Fallback order: the cargo manager cleans stale C: output first; only if that does not free enough, unset STUDIO_BUILD_DISK to build on D:.\" >&2\n@@ -175,3 +177,6 @@\n-_studio_nx_cfg=\"${CARGO_TARGET_DIR}/.studio-nextest-store.toml\"\n-[ -f \"${_studio_nx_cfg}\" ] || { printf '[store]\\ndir = \"%s/nextest\"\\n' \"${CARGO_TARGET_DIR}\" >\"${_studio_nx_cfg}.$$\" \\\n+# SSD lanes: the store goes to the lane owner on the sole root (CX-984-014: test runtime stores stay under it).\n+_studio_nx_dir=\"${CARGO_TARGET_DIR}/nextest\"\n+[ -z \"${_STUDIO_SSD_LANE}\" ] || _studio_nx_dir=\"${_studio_art}/${_STUDIO_SSD_LANE}/nextest\"\n+_studio_nx_cfg=\"${CARGO_TARGET_DIR}/.studio-nextest-store.toml\"\n+[ -f \"${_studio_nx_cfg}\" ] || { printf '[store]\\ndir = \"%s\"\\n' \"${_studio_nx_dir}\" >\"${_studio_nx_cfg}.$$\" \\\n   && mv -f \"${_studio_nx_cfg}.$$\" \"${_studio_nx_cfg}\"; } || rm -f \"${_studio_nx_cfg}.$$\"\n\nVerification (lead, no build): source from the shared tree with STUDIO_BUILD_DISK=ssd STUDIO_OWNER=<probe> and print\nCARGO_TARGET_DIR, TMP, STUDIO_DISK_BUILD_LOCK_DIR, the store line of .studio-nextest-store.toml; a fake\n.studio-ssd-size record of 361 GiB must refuse with 77 and one of 359 GiB must admit; remove the probe owner dirs after.\n"
+   },
+   {
+    "file": ".cargo/config.toml (new) + .config/nextest.toml (product tree, steward)",
+    "patch": "C:/Users/ILJASM~1/AppData/Local/Temp/claude/C--Users-Ilja-Smets--claude-spares-spare-4K1gAV/78736d01-8cca-4de4-921a-e3cf98762f72/scratchpad/cargo-manager/diff-parallelism-bound.patch",
+    "summary": "[build] jobs = 16; test-threads = 16 in profiles default and canary (32 logical CPUs shared with a foreign agent); render-gpu group stays 4",
+    "patch_text": "PROPOSAL ONLY (not applied). Product tree, branch codex/handshake-studio-assets; owner: workspace steward.\nReason: Operator fact 2026-10-24: another agent (GPT; handshake portal, hsscrap and rss assets) builds on this machine\nat any hour without Studio's disk locks. Host: AMD Ryzen 9 5950X, 16 cores / 32 logical CPUs, 127.9 GiB RAM.\nToday Studio cargo and nextest default to 32 jobs/threads each; under a concurrent foreign build, CPU-bound tests\napproach the 120 s per-test cap (CX-EXEC-005; R32 showed 32 GPU threads -> 25 timeouts). CX-VAL-007: rounds take no\nrun-time flags or env, so the bound must be version-controlled config that cargo/nextest read themselves.\nValues: half the logical CPUs for Studio (16 build jobs, 16 test threads); render-gpu group stays at 4.\nCost: compile wall time rises when the machine is otherwise idle (UNVERIFIED size; measure on R39: units.tsv times).\n\n--- /dev/null\n+++ b/.cargo/config.toml\n@@ -0,0 +1,6 @@\n+# Studio workspace cargo policy (steward). Read by every cargo call in this workspace: rounds/canaries via\n+# tools/run-round.sh (exports carry this file), the steward and lane builders.\n+# Shared host (Operator 2026-10-24: another agent builds on this machine without Studio's disk locks): Studio uses at\n+# most half of the 32 logical CPUs. No target-dir here: target dirs come from run-round.sh / studio-env.sh only.\n+[build]\n+jobs = 16\n\n--- a/.config/nextest.toml\n+++ b/.config/nextest.toml\n@@ -4,6 +4,9 @@\n [profile.default]\n fail-fast = false\n retries = 0\n+# Shared host (Operator 2026-10-24): half of the 32 logical CPUs, so a concurrent foreign build cannot push CPU-bound\n+# tests over the 120 s cap. render-gpu keeps its own group limit (4) below.\n+test-threads = 16\n # Per-test cap 120 s (CX-EXEC-005): flagged slow at 30 s, terminated after 4 periods.\n slow-timeout = { period = \"30s\", terminate-after = 4 }\n@@ -36,4 +39,5 @@\n [profile.canary]\n fail-fast = false\n retries = 0\n+test-threads = 16\n slow-timeout = { period = \"10s\", terminate-after = 3 }\n\nChecks before commit (steward, no round): `cargo nextest show-config test-groups` or `cargo nextest list` parses the\nconfig (nextest-version 0.9.148 supports profile test-threads); `cargo metadata --locked --offline` still passes;\nthe round's step-0 policy is unaffected (.cargo/ is outside crates/*/src|tests). Lane builders inherit both settings\nin their worktrees; studio-env.sh needs no change.\n"
+   }
+  ],
+  "sequencing": "R40 change (lead decision): the steward commits diff-run-round-ssd.patch and diff-parallelism-bound.patch AFTER R39 (verification without a round: bash -n, --help, the three refusal probes, one resolution probe for a D: and a C: target); that commit is in R40's candidate; R40's own --canary is the first build on the C: path (a refusal costs seconds, before any build). The lead applies diff-studio-env-400gb.patch (kernel file) now, because builders' post-freeze re-runs go to C: under the 140 GiB default cap and 150 GB text."
+ },
+ "guards": {
+  "C": {
+   "STUDIO_SSD_CAP_GB": 360,
+   "why": "GiB; 400 GB = 372.53 GiB minus 12.5 GiB growth margin between measure and the end of an admitted build; the measure errs high (hardlinks counted twice)",
+   "scope": "the whole C:/HandshakeBuild/WP-KERNEL-STUDIO tree (lane targets and the C: round/canary targets share one cap)",
+   "pre_round_check": "lead, before dispatching any C: round/canary (CX-984-014): measure the C: tree with studio_ssd_kib (seconds on the SSD; refresh .studio-ssd-size), admit if measured + job estimate <= 360 GiB and C: free after the estimate >= 60 GiB; otherwise clean C: (P2, then P4) and re-measure; only then fall back to D: and record why",
+   "record": "C:/HandshakeBuild/WP-KERNEL-STUDIO/.studio-ssd-size (existing mechanism; delete it after a cleanup to re-admit at once)"
+  },
+  "D": {
+   "cap_gib": 1300,
+   "why": "1.5 TB = 1364.24 GiB minus 64 GiB margin",
+   "accounting": "sum of cargo target dirs only under the D: root (<owner>/target, studio-round/target, studio-team-dev/{target, steward-export/target, sync-export/target, tool-install/target, steward probe targets}, MT-*/*/cargo-target, repo-local targets inside exports); measured by the same serial robocopy listing at very-low I/O priority, only while no round/canary holds D:, after each round and each cleanup batch; record <D: root>/.studio-target-size.json {measured_at, total_gib, per_target[]} written by the cargo manager",
+   "admission": "a job that creates or grows a D: target is admitted if the last record + its estimate <= 1300 GiB; TMP/results/logs/oracle corpus are outside the grant but D: free space is reported with every record"
+  }
+ },
+ "retention_rules": [
+  {
+   "id": "P1",
+   "rule": "CARGO_INCREMENTAL=0 for builders (studio-env.sh) and rounds/canaries (run-round.sh line 231): keep"
+  },
+  {
+   "id": "P2",
+   "rule": "at lane PASS (commits on origin + round verdict) or abandonment, the lane's target on whichever disk (D: <lane>/target + tmp; C: studio-team-dev/target/lanes/<lane>) goes into the next guarded, check-first batch; right after R39: every PASS lane of the nine READY lanes"
+  },
+  {
+   "id": "P3",
+   "rule": "at most 6 live lane targets per disk; today D: holds 9 (the READY lanes, judged by R39) and C: 0, so new lanes go to C: and D: gets no new lane target until R39 retires READY targets"
+  },
+  {
+   "id": "P4",
+   "rule": "round target refresh: on C:, the studio-round target is kept between rounds (warm deps) only while the C: measure + the next job estimate <= 360 GiB, else it is the first C: item cleaned (lane targets in flight win); on D:, refresh studio-round/target when > 250 GiB or monthly"
+  },
+  {
+   "id": "P5",
+   "rule": "canary/export targets (studio-team-dev/steward-export/target, sync-export/target) follow P4's 250 GiB refresh rule (steward-export was 287.6 GiB on 2026-10-21); a refresh only when no canary is pending (lead decision)"
+  },
+  {
+   "id": "P6",
+   "rule": "MT, probe and export owners: their cargo output is retired when the MT/lane is PASS and no record cites a file inside it; research/fixture/registry data (cargo-home) stays"
+  },
+  {
+   "id": "P7",
+   "rule": "foreign agents' outputs are never in scope; cleanup stays exactly inside the two Studio roots"
+  }
+ ],
+ "queue_24h": {
+  "basis": "state at about 03:50Z: C55 finished (D: lock free, no build process 03:41Z); lead decision: R39 on D: alone, builder re-runs on C:; one build per disk; foreign-build check before each heavy job (none seen at 01:04Z, 01:48Z, 03:41Z); durations UNVERIFIED unless stated",
+  "D": [
+   {
+    "order": 1,
+    "job": "R39 full scope (~138 units), canary reuse, target <D: studio-round>/target (warm, 458.2 GiB), D: lock",
+    "state": "dispatching now (lead)",
+    "why_D": "lead decision: validated path; R37's union took 3h25m on this target"
+   },
+   {
+    "order": 2,
+    "job": "nothing else on D: while R39 runs (no cleanup, no inventory walker, no limited builds)",
+    "state": "R39 holds D:"
+   },
+   {
+    "order": 3,
+    "job": "after the R39 verdicts: measure the D: dirs the walker had not reached and write the D: target accounting record (.studio-target-size.json)",
+    "state": "serial, very-low I/O priority"
+   },
+   {
+    "order": 4,
+    "job": "phase-2 D: cleanup of approved candidates (MT cargo-targets/tmp, prism export stub; keep-slot items the lead releases), then the P2 batch of the R39-PASS READY lanes' targets",
+    "state": "after R39, check-first, tempered; the script waits on any class-round holder or ticket"
+   },
+   {
+    "order": 5,
+    "job": "after R40 has built a fresh single-generation round target on C:: the old 458.2 GiB D: studio-round/target as the next candidate (P4) with the evidence",
+    "state": "lead decision then; D: keeps small/scoped canaries and limited builds"
+   }
+  ],
+  "C": [
+   {
+    "order": 1,
+    "job": "builders' post-R39-freeze re-runs (lane-check --disk ssd = STUDIO_BUILD_DISK=ssd): lane targets C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes/<lane>, C: lock",
+    "state": "now (lead)",
+    "limits": "<= 6 live lane targets on C:, <= 2 GUI lanes at once; studio-env cap still 140 GiB until diff-studio-env-400gb.patch is applied (C: tree 0.125 GiB, so no refusal soon)"
+   },
+   {
+    "order": 2,
+    "job": "phase-2 C: items (only if the lead releases C-K01/C-K02: 0.125 GiB, tempered, skipped while a referencing build runs)",
+    "state": "any time; negligible"
+   },
+   {
+    "order": 3,
+    "job": "steward commit: diff-run-round-ssd.patch + diff-parallelism-bound.patch (R40 change), probes only",
+    "state": "after R39"
+   },
+   {
+    "order": 4,
+    "job": "pre-round check (lead): C: tree measure, foreign-build check, C: free floor",
+    "state": "before R40"
+   },
+   {
+    "order": 5,
+    "job": "R40 on C: (--canary then the round), fresh single-generation target C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-round/target",
+    "state": "first C: round; the lead records its real size for later admissions",
+    "why_C": "Operator placement order; SSD"
+   },
+   {
+    "order": 6,
+    "job": "new builder lanes and R39-FAIL remediations",
+    "state": "on C: as R39 verdicts arrive; they share the C: lock with R40 (round priority, gaps)"
+   }
+  ],
+  "fallback_rule_for_this_window": "R39 is on D: by lead decision (entrypoint-risk, not capacity); from R40 a D: round needs the recorded fallback condition (C: measure + estimate > 360 GiB after cleaning stale C: output, or no commit in the candidate)"
+ },
+ "r39_estimate": {
+  "method": "measure the D: round target once (robocopy listing, this inventory) = upper bound for a fresh C: round target: the D: target accumulates stale units of every round since 2026-10-11 (cargo never collects them; 216.88 GiB deps on 2026-10-21 before R36/R37/R38), while a fresh C: target holds only R39's units; incremental is off for rounds (run-round.sh line 231) and debug is line-tables-only",
+  "lane_reserve_basis": "lane targets without incremental state (cargo-cleanup-proposal-20261022: 47 finished lanes, median 1.6 GiB, p75 3.9 GiB, max 37.8 GiB); measured READY lane targets of this inventory are listed in r39_estimate.ready_lane_targets_gib",
+  "round_target_composition": {
+   "debug_files": 383895,
+   "debug_dirs": 15578,
+   "fingerprint_units": 8206,
+   "units_by_creation_date_utc": {
+    "2026-10-11": 1083,
+    "2026-10-12": 129,
+    "2026-10-14": 1690,
+    "2026-10-15": 1822,
+    "2026-10-16": 1527,
+    "2026-10-21": 1205,
+    "2026-10-22": 715,
+    "2026-10-23": 35
+   },
+   "incremental_dirs": {
+    "2026-10-22": 1498,
+    "2026-10-23": 982
+   },
+   "build_script_dirs": 114,
+   "examples": 180,
+   "reading": "8206 units from at least five dependency generations (each steward lock change gives every dependent unit a new hash; cargo never collects the old ones); 2480 incremental dirs written by R37 and the R38 canary, i.e. those runs still had incremental on (the 2026-10-21 purge removed 98 GiB of incremental from this target)"
+  },
+  "fresh_c_target_estimate": {
+   "range_gib": [
+    100,
+    200
+   ],
+   "status": "UNVERIFIED estimate (no per-unit data without running cargo)",
+   "derivation": "the D: target held 216.88 GiB of non-incremental units on 2026-10-21 before R36; today 458.2 GiB; assuming the incremental share is near the 98 GiB purged on 2026-10-21, R36-R38 added about 141 GiB for 1955 new units (~74 MiB each, mostly workspace test binaries); a fresh R39 holds one generation: the ~1200 workspace units a lock-changing round rebuilds (R36 created 1205) at ~74 MiB = ~87 GiB, plus the registry dependency units it reuses (~1000-1500 at a few to ~20 MiB) = 15-30 GiB, plus fixtures/tmp (<0.2 GiB); range widened to 100-200 GiB for feature-set duplicates",
+   "upper_bound_gib": 458.2,
+   "upper_bound_note": "measured accumulated D: round target incl. stale generations and incremental; a fresh single-generation target with CARGO_INCREMENTAL=0 cannot exceed it"
+  },
+  "recommendation": "R40 on C: (after the steward commit): C: Studio tree 0.125 GiB plus the live lane targets, cap 360 GiB, fresh round estimate 100-200 GiB; admit if measured C: tree + 200 GiB <= 360 GiB, else retire finished C: lane targets (P2) first; record the real R40 target size for later rounds",
+  "post_r39_c_admission": "after R39: measured C: tree (round target kept per P4) + new lane estimates <= 360 GiB; if not, retire the C: round target first (P4), never fall back to D: before that",
+  "scope_note": "R39 itself runs on the warm D: target (lead decision); the fresh-target estimate below is the admission basis for R40's first C: round target",
+  "studio_round_target_measured_gib": 458.218,
+  "studio_round_target_parts": {
+   "studio-round/target/debug": 458.071,
+   "studio-round/target/fixtures": 0.022,
+   "studio-round/target/nextest": 0,
+   "studio-round/target/tmp": 0.125
+  },
+  "studio_round_target_newest_write_utc": "2026-10-23T08:17:14Z",
+  "ready_lane_targets_gib": {
+   "smb-ae-roto-wiring": 28.447,
+   "smb-ps-fill-layers": 12.951,
+   "smb-develop-dng-writer": 19.268,
+   "smb-ae-render-queue-2": 40.797,
+   "smb-timeline-ui-1": 25.14,
+   "smb-harness-panels-1": 15.647,
+   "smb-eps-free-fonts": 1.177,
+   "smb-ae-effect-stack-1": 4.083,
+   "smb-harness-shell-2": 15.784
+  },
+  "fit_on_C": {
+   "cap_gib": 360,
+   "c_used_now_gib": 0.125,
+   "fresh_estimate_high_gib": 200.0,
+   "accumulated_upper_bound_gib": 458.2,
+   "fresh_round_alone_high_gib": 200.1,
+   "fits_round_alone": true,
+   "fresh_round_high_plus_6_typical_lanes_gib": 223.5,
+   "six_typical_lanes_basis": "6 x p75 3.9 GiB (47 finished lanes, no incremental)",
+   "fresh_round_high_plus_6_largest_READY_lane_sizes_gib": 345.2,
+   "fits_with_typical_lanes": true,
+   "fits_with_largest_lanes": true,
+   "accumulated_upper_bound_would_fit": false,
+   "note": "applies to R40's first C: round target (R39 runs on the warm D: target by lead decision); with 3-5 typical lanes the C: tree stays near 210 GiB; six lanes as large as the six largest READY targets (145 GiB together) would reach 345 GiB, just under the cap"
+  }
+ },
+ "deletion_candidates": {
+  "selection_rule": "cargo output (target/cargo-target/tmp) of an owner whose lane/MT is PASS/DONE/abandoned or that no lane owns, newest write before 2026-10-21, no running process referencing it, consumer gone, no record citing a file inside it",
+  "items": [
+   {
+    "id": "D-01",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35528/studio-assets-kernel-builder/cargo-target",
+    "kind": "target (CARGO_TARGET_DIR named cargo-target)",
+    "owner": "MT-35528/studio-assets-kernel-builder",
+    "ledger_status": "MT-35528 lifecycle PASS_V7",
+    "reason": "MT-35528 foundation proof run of 2026-10-10 (builder session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.002,
+    "files": 4,
+    "newest_write_utc": "2026-10-10T10:50:11Z"
+   },
+   {
+    "id": "D-02",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35528/studio-assets-validator/cargo-target",
+    "kind": "target (CARGO_TARGET_DIR named cargo-target)",
+    "owner": "MT-35528/studio-assets-validator",
+    "ledger_status": "MT-35528 lifecycle PASS_V7",
+    "reason": "MT-35528 foundation proof run of 2026-10-10 (validator session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.008,
+    "files": 6,
+    "newest_write_utc": "2026-10-10T14:03:55Z"
+   },
+   {
+    "id": "D-03",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35528/studio-assets-validator/tmp",
+    "kind": "tmp (TMP/TEMP of the MT session)",
+    "owner": "MT-35528/studio-assets-validator",
+    "ledger_status": "MT-35528 lifecycle PASS_V7",
+    "reason": "MT-35528 foundation proof run of 2026-10-10 (validator session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.01,
+    "files": 751,
+    "newest_write_utc": "2026-10-10T14:04:10Z"
+   },
+   {
+    "id": "D-04",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35529/studio-assets-kernel-builder/cargo-target",
+    "kind": "target (CARGO_TARGET_DIR named cargo-target)",
+    "owner": "MT-35529/studio-assets-kernel-builder",
+    "ledger_status": "MT-35529 lifecycle PASS_V1",
+    "reason": "MT-35529 foundation proof run of 2026-10-10 (builder session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0,
+    "files": 51,
+    "newest_write_utc": "2026-10-10T08:27:44Z"
+   },
+   {
+    "id": "D-05",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35529/studio-assets-validator/cargo-target",
+    "kind": "target (CARGO_TARGET_DIR named cargo-target)",
+    "owner": "MT-35529/studio-assets-validator",
+    "ledger_status": "MT-35529 lifecycle PASS_V1",
+    "reason": "MT-35529 foundation proof run of 2026-10-10 (validator session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.011,
+    "files": 27,
+    "newest_write_utc": "2026-10-10T08:39:33Z"
+   },
+   {
+    "id": "D-06",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35529/studio-assets-validator/tmp",
+    "kind": "tmp (TMP/TEMP of the MT session)",
+    "owner": "MT-35529/studio-assets-validator",
+    "ledger_status": "MT-35529 lifecycle PASS_V1",
+    "reason": "MT-35529 foundation proof run of 2026-10-10 (validator session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0,
+    "files": 8,
+    "newest_write_utc": "2026-10-10T07:46:52Z"
+   },
+   {
+    "id": "D-07",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35530/studio-assets-kernel-builder/cargo-target",
+    "kind": "target (CARGO_TARGET_DIR named cargo-target)",
+    "owner": "MT-35530/studio-assets-kernel-builder",
+    "ledger_status": "MT-35530 lifecycle PASS_V4",
+    "reason": "MT-35530 foundation proof run of 2026-10-10 (builder session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.006,
+    "files": 139,
+    "newest_write_utc": "2026-10-10T10:59:03Z"
+   },
+   {
+    "id": "D-08",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35530/studio-assets-validator/cargo-target",
+    "kind": "target (CARGO_TARGET_DIR named cargo-target)",
+    "owner": "MT-35530/studio-assets-validator",
+    "ledger_status": "MT-35530 lifecycle PASS_V4",
+    "reason": "MT-35530 foundation proof run of 2026-10-10 (validator session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.011,
+    "files": 36,
+    "newest_write_utc": "2026-10-10T11:39:58Z"
+   },
+   {
+    "id": "D-09",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35530/studio-assets-validator/tmp",
+    "kind": "tmp (TMP/TEMP of the MT session)",
+    "owner": "MT-35530/studio-assets-validator",
+    "ledger_status": "MT-35530 lifecycle PASS_V4",
+    "reason": "MT-35530 foundation proof run of 2026-10-10 (validator session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.002,
+    "files": 9,
+    "newest_write_utc": "2026-10-10T11:41:16Z"
+   },
+   {
+    "id": "D-10",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35531/studio-assets-kernel-builder/cargo-target",
+    "kind": "target (CARGO_TARGET_DIR named cargo-target)",
+    "owner": "MT-35531/studio-assets-kernel-builder",
+    "ledger_status": "MT-35531 lifecycle PASS_V1",
+    "reason": "MT-35531 foundation proof run of 2026-10-10 (builder session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.058,
+    "files": 287,
+    "newest_write_utc": "2026-10-10T09:01:14Z"
+   },
+   {
+    "id": "D-11",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35531/studio-assets-validator/cargo-target",
+    "kind": "target (CARGO_TARGET_DIR named cargo-target)",
+    "owner": "MT-35531/studio-assets-validator",
+    "ledger_status": "MT-35531 lifecycle PASS_V1",
+    "reason": "MT-35531 foundation proof run of 2026-10-10 (validator session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.12,
+    "files": 269,
+    "newest_write_utc": "2026-10-10T09:08:27Z"
+   },
+   {
+    "id": "D-12",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35531/studio-assets-validator/tmp",
+    "kind": "tmp (TMP/TEMP of the MT session)",
+    "owner": "MT-35531/studio-assets-validator",
+    "ledger_status": "MT-35531 lifecycle PASS_V1",
+    "reason": "MT-35531 foundation proof run of 2026-10-10 (validator session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0,
+    "files": 38,
+    "newest_write_utc": "2026-10-10T09:08:27Z"
+   },
+   {
+    "id": "D-13",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35532/studio-assets-kernel-builder/cargo-target",
+    "kind": "target (CARGO_TARGET_DIR named cargo-target)",
+    "owner": "MT-35532/studio-assets-kernel-builder",
+    "ledger_status": "MT-35532 lifecycle PASS_V2",
+    "reason": "MT-35532 foundation proof run of 2026-10-10 (builder session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.059,
+    "files": 348,
+    "newest_write_utc": "2026-10-10T10:30:18Z"
+   },
+   {
+    "id": "D-14",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35532/studio-assets-validator/cargo-target",
+    "kind": "target (CARGO_TARGET_DIR named cargo-target)",
+    "owner": "MT-35532/studio-assets-validator",
+    "ledger_status": "MT-35532 lifecycle PASS_V2",
+    "reason": "MT-35532 foundation proof run of 2026-10-10 (validator session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.137,
+    "files": 285,
+    "newest_write_utc": "2026-10-10T10:37:15Z"
+   },
+   {
+    "id": "D-15",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35532/studio-assets-validator/tmp",
+    "kind": "tmp (TMP/TEMP of the MT session)",
+    "owner": "MT-35532/studio-assets-validator",
+    "ledger_status": "MT-35532 lifecycle PASS_V2",
+    "reason": "MT-35532 foundation proof run of 2026-10-10 (validator session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0,
+    "files": 93,
+    "newest_write_utc": "2026-10-10T10:36:51Z"
+   },
+   {
+    "id": "D-16",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35533/studio-assets-kernel-builder/cargo-target",
+    "kind": "target (CARGO_TARGET_DIR named cargo-target)",
+    "owner": "MT-35533/studio-assets-kernel-builder",
+    "ledger_status": "MT-35533 lifecycle PASS_V3",
+    "reason": "MT-35533 foundation proof run of 2026-10-10 (builder session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.016,
+    "files": 212,
+    "newest_write_utc": "2026-10-10T11:23:23Z"
+   },
+   {
+    "id": "D-17",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35533/studio-assets-validator/cargo-target",
+    "kind": "target (CARGO_TARGET_DIR named cargo-target)",
+    "owner": "MT-35533/studio-assets-validator",
+    "ledger_status": "MT-35533 lifecycle PASS_V3",
+    "reason": "MT-35533 foundation proof run of 2026-10-10 (validator session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.065,
+    "files": 142,
+    "newest_write_utc": "2026-10-10T11:40:15Z"
+   },
+   {
+    "id": "D-18",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35533/studio-assets-validator/tmp",
+    "kind": "tmp (TMP/TEMP of the MT session)",
+    "owner": "MT-35533/studio-assets-validator",
+    "ledger_status": "MT-35533 lifecycle PASS_V3",
+    "reason": "MT-35533 foundation proof run of 2026-10-10 (validator session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.009,
+    "files": 19,
+    "newest_write_utc": "2026-10-10T11:42:34Z"
+   },
+   {
+    "id": "D-19",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35534/studio-assets-kernel-builder/cargo-target",
+    "kind": "target (CARGO_TARGET_DIR named cargo-target)",
+    "owner": "MT-35534/studio-assets-kernel-builder",
+    "ledger_status": "MT-35534 lifecycle PASS_V2",
+    "reason": "MT-35534 foundation proof run of 2026-10-10 (builder session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.074,
+    "files": 441,
+    "newest_write_utc": "2026-10-10T11:58:47Z"
+   },
+   {
+    "id": "D-20",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35534/studio-assets-validator/cargo-target",
+    "kind": "target (CARGO_TARGET_DIR named cargo-target)",
+    "owner": "MT-35534/studio-assets-validator",
+    "ledger_status": "MT-35534 lifecycle PASS_V2",
+    "reason": "MT-35534 foundation proof run of 2026-10-10 (validator session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.157,
+    "files": 387,
+    "newest_write_utc": "2026-10-10T12:04:21Z"
+   },
+   {
+    "id": "D-21",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35534/studio-assets-validator/tmp",
+    "kind": "tmp (TMP/TEMP of the MT session)",
+    "owner": "MT-35534/studio-assets-validator",
+    "ledger_status": "MT-35534 lifecycle PASS_V2",
+    "reason": "MT-35534 foundation proof run of 2026-10-10 (validator session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.027,
+    "files": 52,
+    "newest_write_utc": "2026-10-10T12:14:34Z"
+   },
+   {
+    "id": "D-22",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35535/studio-assets-kernel-builder/cargo-target",
+    "kind": "target (CARGO_TARGET_DIR named cargo-target)",
+    "owner": "MT-35535/studio-assets-kernel-builder",
+    "ledger_status": "MT-35535 lifecycle PASS_V1",
+    "reason": "MT-35535 foundation proof run of 2026-10-10 (builder session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.01,
+    "files": 207,
+    "newest_write_utc": "2026-10-10T14:02:26Z"
+   },
+   {
+    "id": "D-23",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35535/studio-assets-validator/cargo-target",
+    "kind": "target (CARGO_TARGET_DIR named cargo-target)",
+    "owner": "MT-35535/studio-assets-validator",
+    "ledger_status": "MT-35535 lifecycle PASS_V1",
+    "reason": "MT-35535 foundation proof run of 2026-10-10 (validator session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.037,
+    "files": 154,
+    "newest_write_utc": "2026-10-10T13:45:43Z"
+   },
+   {
+    "id": "D-24",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35535/studio-assets-validator/tmp",
+    "kind": "tmp (TMP/TEMP of the MT session)",
+    "owner": "MT-35535/studio-assets-validator",
+    "ledger_status": "MT-35535 lifecycle PASS_V1",
+    "reason": "MT-35535 foundation proof run of 2026-10-10 (validator session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.012,
+    "files": 30,
+    "newest_write_utc": "2026-10-10T13:59:27Z"
+   },
+   {
+    "id": "D-25",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35536/studio-assets-kernel-builder/cargo-target",
+    "kind": "target (CARGO_TARGET_DIR named cargo-target)",
+    "owner": "MT-35536/studio-assets-kernel-builder",
+    "ledger_status": "MT-35536 lifecycle PASS_V5 (lane SMB-TYPE PASS_V9)",
+    "reason": "MT-35536 foundation proof run of 2026-10-10 (builder session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.03,
+    "files": 219,
+    "newest_write_utc": "2026-10-10T16:48:37Z"
+   },
+   {
+    "id": "D-26",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35536/studio-assets-validator/cargo-target",
+    "kind": "target (CARGO_TARGET_DIR named cargo-target)",
+    "owner": "MT-35536/studio-assets-validator",
+    "ledger_status": "MT-35536 lifecycle PASS_V5 (lane SMB-TYPE PASS_V9)",
+    "reason": "MT-35536 foundation proof run of 2026-10-10 (validator session); MT PASS; no write since 2026-10-10",
+    "consumer_check": "consumer gone: only the 2026-10-10 MT sessions used this owner (MT contract env records); later lanes use their own owners; product tests resolve MT-35536 research/ (kept), never cargo-target or tmp",
+    "citation_check": "MT contracts cite this path only as the CARGO_TARGET_DIR/TMP of the proof environment, not a file inside it as evidence",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0.083,
+    "files": 234,
+    "newest_write_utc": "2026-10-10T16:51:01Z"
+   },
+   {
+    "id": "D-27",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/prism-eng8-export/src/handshake-studio-assets/target",
+    "kind": "repo-local target inside an export",
+    "owner": "prism-eng8-export",
+    "ledger_status": "SMB-PRISM-ENG-8 PASS_V10",
+    "reason": "repo-local target stub (1 file) left in the clean-export proof tree of 2026-10-11 (CX-984: no repo-local targets)",
+    "consumer_check": "consumer gone: the export proof ran 2026-10-11 under STUDIO_OWNER=prism-eng8-export; the cited evidence is the export src (kept), not this target",
+    "citation_check": "lane files prism-eng5/6/8 cite .../prism-eng8-export/src (the export), not the target",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": false,
+    "size_gib": 0,
+    "files": 1,
+    "newest_write_utc": "2026-10-11T10:07:33Z"
+   }
+  ],
+  "keep_slot_release_items": [
+   {
+    "id": "D-K01",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/target",
+    "kind": "target (D: edit-tree target of the shared tree)",
+    "owner": "studio-team-dev",
+    "ledger_status": "shared builder slot (no lane)",
+    "reason": "pre-SSD edit-tree target on D:; builders/studio-env.sh maps owner studio-team-dev to C:/HandshakeBuild/... since the 2026-10-14 grant, so nothing builds here any more",
+    "consumer_check": "consumer gone: studio-env.sh lines 42-44 (studio-team-dev -> C: target); lanes use their own owners, rounds studio-round, canaries steward-export",
+    "citation_check": "no record cites a file inside it (grep of the Studio work folder: path mentions only in the 2026-10-21 inventory and studio-env history)",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": true,
+    "size_gib": 15.013,
+    "files": 25514,
+    "newest_write_utc": "2026-10-14T16:49:08Z"
+   },
+   {
+    "id": "D-K02",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tool-install/target",
+    "kind": "target (cargo install build dir)",
+    "owner": "studio-team-dev/tool-install",
+    "ledger_status": "steward tool install 2026-10-11",
+    "reason": "build dir of the 2026-10-11 tool installs (binaries copied to ~/.cargo/bin per START_LOG); install*.log and dl/ stay",
+    "consumer_check": "consumer gone: installed tools run from ~/.cargo/bin; a reinstall rebuilds",
+    "citation_check": "no record cites a file inside it (grep of the Studio work folder: path mentions only in the 2026-10-21 inventory and studio-env history)",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": true,
+    "size_gib": 1.003,
+    "files": 3563,
+    "newest_write_utc": "2026-10-11T01:01:42Z"
+   },
+   {
+    "id": "D-K03",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward/sccache-probe/a/target",
+    "kind": "target (steward probe)",
+    "owner": "studio-team-dev/steward/sccache-probe/a",
+    "ledger_status": "steward probe 2026-10-20",
+    "reason": "sccache measurement probe of 2026-10-20; neither rounds nor builders use sccache (C55 runs with RUSTC_WRAPPER/SCCACHE_* unset; lead dispatch: no rustc wrapper)",
+    "consumer_check": "consumer gone: no script or record references sccache-probe; its *.log files stay",
+    "citation_check": "no record cites a file inside it (grep of the Studio work folder: path mentions only in the 2026-10-21 inventory and studio-env history)",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": true,
+    "size_gib": 0.961,
+    "files": 1725,
+    "newest_write_utc": "2026-10-20T16:00:30Z"
+   },
+   {
+    "id": "D-K04",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward/sccache-probe/b/target",
+    "kind": "target (steward probe)",
+    "owner": "studio-team-dev/steward/sccache-probe/b",
+    "ledger_status": "steward probe 2026-10-20",
+    "reason": "sccache measurement probe of 2026-10-20; neither rounds nor builders use sccache (C55 runs with RUSTC_WRAPPER/SCCACHE_* unset; lead dispatch: no rustc wrapper)",
+    "consumer_check": "consumer gone: no script or record references sccache-probe; its *.log files stay",
+    "citation_check": "no record cites a file inside it (grep of the Studio work folder: path mentions only in the 2026-10-21 inventory and studio-env history)",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": true,
+    "size_gib": 0.961,
+    "files": 1725,
+    "newest_write_utc": "2026-10-20T16:01:43Z"
+   },
+   {
+    "id": "D-K05",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward/sccache-probe/c/target",
+    "kind": "target (steward probe)",
+    "owner": "studio-team-dev/steward/sccache-probe/c",
+    "ledger_status": "steward probe 2026-10-20",
+    "reason": "sccache measurement probe of 2026-10-20; neither rounds nor builders use sccache (C55 runs with RUSTC_WRAPPER/SCCACHE_* unset; lead dispatch: no rustc wrapper)",
+    "consumer_check": "consumer gone: no script or record references sccache-probe; its *.log files stay",
+    "citation_check": "no record cites a file inside it (grep of the Studio work folder: path mentions only in the 2026-10-21 inventory and studio-env history)",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": true,
+    "size_gib": 0.961,
+    "files": 1725,
+    "newest_write_utc": "2026-10-20T16:02:36Z"
+   },
+   {
+    "id": "D-K06",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward/sccache-probe/d/target",
+    "kind": "target (steward probe)",
+    "owner": "studio-team-dev/steward/sccache-probe/d",
+    "ledger_status": "steward probe 2026-10-20",
+    "reason": "sccache measurement probe of 2026-10-20; neither rounds nor builders use sccache (C55 runs with RUSTC_WRAPPER/SCCACHE_* unset; lead dispatch: no rustc wrapper)",
+    "consumer_check": "consumer gone: no script or record references sccache-probe; its *.log files stay",
+    "citation_check": "no record cites a file inside it (grep of the Studio work folder: path mentions only in the 2026-10-21 inventory and studio-env history)",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": true,
+    "size_gib": 0.961,
+    "files": 1725,
+    "newest_write_utc": "2026-10-20T16:42:39Z"
+   },
+   {
+    "id": "D-K07",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward/sccache-probe/e/target",
+    "kind": "target (steward probe)",
+    "owner": "studio-team-dev/steward/sccache-probe/e",
+    "ledger_status": "steward probe 2026-10-20",
+    "reason": "sccache measurement probe of 2026-10-20; neither rounds nor builders use sccache (C55 runs with RUSTC_WRAPPER/SCCACHE_* unset; lead dispatch: no rustc wrapper)",
+    "consumer_check": "consumer gone: no script or record references sccache-probe; its *.log files stay",
+    "citation_check": "no record cites a file inside it (grep of the Studio work folder: path mentions only in the 2026-10-21 inventory and studio-env history)",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": true,
+    "size_gib": 1.092,
+    "files": 1796,
+    "newest_write_utc": "2026-10-20T16:45:04Z"
+   },
+   {
+    "id": "D-K08",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward/sccache-probe/env/target",
+    "kind": "target (steward probe)",
+    "owner": "studio-team-dev/steward/sccache-probe/env",
+    "ledger_status": "steward probe 2026-10-20",
+    "reason": "sccache measurement probe of 2026-10-20; neither rounds nor builders use sccache (C55 runs with RUSTC_WRAPPER/SCCACHE_* unset; lead dispatch: no rustc wrapper)",
+    "consumer_check": "consumer gone: no script or record references sccache-probe; its *.log files stay",
+    "citation_check": "no record cites a file inside it (grep of the Studio work folder: path mentions only in the 2026-10-21 inventory and studio-env history)",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": true,
+    "size_gib": 0,
+    "files": 2,
+    "newest_write_utc": "2026-10-20T15:02:37Z"
+   },
+   {
+    "id": "D-K09",
+    "disk": "D",
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward/sccache-probe/tiny-env/target",
+    "kind": "target (steward probe)",
+    "owner": "studio-team-dev/steward/sccache-probe/tiny-env",
+    "ledger_status": "steward probe 2026-10-20",
+    "reason": "sccache measurement probe of 2026-10-20; neither rounds nor builders use sccache (C55 runs with RUSTC_WRAPPER/SCCACHE_* unset; lead dispatch: no rustc wrapper)",
+    "consumer_check": "consumer gone: no script or record references sccache-probe; its *.log files stay",
+    "citation_check": "no record cites a file inside it (grep of the Studio work folder: path mentions only in the 2026-10-21 inventory and studio-env history)",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": true,
+    "size_gib": 0,
+    "files": 2,
+    "newest_write_utc": "2026-10-20T16:46:17Z"
+   },
+   {
+    "id": "C-K01",
+    "disk": "C",
+    "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/release",
+    "kind": "target profile dir (release)",
+    "owner": "studio-team-dev (C: granted target)",
+    "ledger_status": "shared builder slot",
+    "reason": "release build of reel-native-mf-worker from 2026-10-14 inside the C: granted target; SSD lanes build under lanes/<lane>",
+    "consumer_check": "consumer gone: no C: build of the shared tree since 2026-10-15 (its debug/ was deleted 2026-10-23); rounds build worker binaries into their own target",
+    "citation_check": "no record cites a file inside it (grep of the Studio work folder: path mentions only in the 2026-10-21 inventory and studio-env history)",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": true,
+    "size_gib": 0.125,
+    "files": 285,
+    "newest_write_utc": "2026-10-14T19:37:52Z"
+   },
+   {
+    "id": "C-K02",
+    "disk": "C",
+    "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/nextest",
+    "kind": "test-runner store",
+    "owner": "studio-team-dev (C: granted target)",
+    "ledger_status": "shared builder slot",
+    "reason": "14 KiB test-runner store of 2026-10-15 on C: (CX-984-014 keeps stores on the sole root)",
+    "consumer_check": "consumer gone: no shared-tree test run on C: since 2026-10-15",
+    "citation_check": "no record cites a file inside it (grep of the Studio work folder: path mentions only in the 2026-10-21 inventory and studio-env history)",
+    "process_check": "no running process references it (checks 2026-10-24T01:04:41Z and 01:48:51Z: every build process belonged to C55); the phase-2 script re-checks right before deletion",
+    "keep_slot_release": true,
+    "size_gib": 0,
+    "files": 1,
+    "newest_write_utc": "2026-10-15T14:00:02Z"
+   }
+  ],
+  "totals": {
+   "items": {
+    "D": {
+     "count": 27,
+     "size_gib": 0.944,
+     "files": 4449
+    }
+   },
+   "keep_slot_release_items": {
+    "D": {
+     "count": 9,
+     "size_gib": 20.952,
+     "files": 37777
+    },
+    "C": {
+     "count": 2,
+     "size_gib": 0.125,
+     "files": 286
+    }
+   }
+  },
+  "post_r39_candidates": [
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target",
+    "size_gib": 458.2,
+    "files": 384370,
+    "status_now": "KEEP: R39 builds in it (lead decision)",
+    "when": "after R39's verdicts AND once R40 has built a fresh single-generation round target on C:",
+    "evidence": "458.07 GiB debug/, 383,895 files; 8206 cargo units created across 2026-10-11..2026-10-23 (at least five dependency-lock generations; cargo never collects superseded units); 2480 incremental dirs from 2026-10-22/23 (R37 and the R38 canary ran with incremental on); P4 refresh threshold 250 GiB; a fresh one-generation target with CARGO_INCREMENTAL=0 is estimated at 100-200 GiB (UNVERIFIED)",
+    "cost": "a later D: fallback round would start cold on the HDD",
+    "script_note": "studio-round is a forbidden name in the phase-2 script as drafted; deleting it needs an explicit lead decision and a deliberate script change"
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/<each R39-PASS READY lane>/target and tmp",
+    "rule": "P2 after the R39 verdicts",
+    "size_gib": "see r39_estimate.ready_lane_targets_gib (9 lanes, 163.3 GiB measured)"
+   }
+  ]
+ },
+ "keep": [
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round",
+   "reason": "round slot: R39 D: fallback target (warm), results cited 5063x by validation records, validator-R32..R38 dirs, export src"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward-export",
+   "reason": "C55 builds into its target now; results C1..C55 cited by steward records"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/sync-export",
+   "reason": "steward sync export (written 2026-10-24); its target is the steward's lock/probe tree"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/sccache",
+   "reason": "kept by the dispatch rule; store last written 2026-10-21 (6.28 GiB on 2026-10-21) and unused since rounds dropped the wrapper: becomes a candidate only if the lead releases it"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward/dbl-test",
+   "reason": "self-managed scratch of tools/disk-build-lock-test.sh (the test wipes and recreates it on every run)"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward (logs, indexes, other probes)",
+   "reason": "steward logs and sync records"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/<other subdirs: camera-colour, dng-corpus-replace, ebu-vectors, layout-harden, longdoc-verapdf, r31-findings, round-dev, probe, sync, smb-*>",
+   "reason": "steward/builder data and logs; smb-render-scene-display logs are cited by lane files"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-*/*/cache (incl. cargo-home)",
+   "reason": "registry caches (CARGO_HOME): never removable by rule"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35535, MT-35536, MT-35538 research dirs",
+   "reason": "research roots; MT-35536's is resolved by product tests (hsk-studio-type tests/support research())"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-*/*/logs, exit/stdout/stderr files, provenance.toml",
+   "reason": "MT proof logs and provenance (evidence)"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/<9 READY lanes>/target, tmp, logs",
+   "reason": "awaiting R39; P2 retires each PASS lane's target and tmp after the verdicts"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/<finished-lane owners>/src, logs, runN, oracle-dng, wip-rw2, *.patch",
+   "reason": "non-cargo residue (exports, logs, fixtures); out of cargo scope; several cited by lane files"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/<owner dirs emptied by batch A 2026-10-23>",
+   "reason": "empty, not cargo output; an optional zero-byte tidy is a lead decision"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/oracle-corpus, downloads, tools, app-inspect, archive, engine-video-oracle, interop-lrcat, .disk-build-lock, .gpu-test-lock, .gameplan-active",
+   "reason": "data, tools, locks, cited fixture generators"
+  }
+ ],
+ "unknown": [
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35538",
+   "contents": "studio-assets-kernel-builder/research only",
+   "evidence_to_decide": "MT-35538 lifecycle is PENDING: the lead records closure or supersession; no cargo output inside"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-30318, MT-30319, MT-30320, MT-30321, MT-30322",
+   "contents": "visual-parent/{candidate-r4.json, preimage-*.json}",
+   "evidence_to_decide": "whether those MT contracts cite the pre-images; non-cargo, tiny"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-30785, MT-30789, MT-30790",
+   "contents": "visual_layout_components/preimage-*.json",
+   "evidence_to_decide": "same as above"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-34817",
+   "contents": "prism-additional-author/controls-34817-34856-preimages-*",
+   "evidence_to_decide": "same as above"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/autonomous-research-team",
+   "contents": "concurrency.json, interchange.json, presentation.json (2026-10-10)",
+   "evidence_to_decide": "cited by docs_repo/studio-collaboration-2026-10-09/.../research.json: keep unless that record is retired"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/press-d27",
+   "contents": "research/ (Cargo.toml, Cargo.lock, rust-toolchain.toml, src; no target)",
+   "evidence_to_decide": "cited by lane file hsk-studio-press.json; the press lane owner decides"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/reel-mxf-mkv",
+   "contents": "MXF/MKV fixture media; av1-1080p, enc, mxf, pcm dirs (2026-10-11)",
+   "evidence_to_decide": "whether product reel fixtures were copied from here (reel lane files)"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-audio-codecs",
+   "contents": "gen/ reference media (AAC/AIFC + .ref-s16)",
+   "evidence_to_decide": "whether committed audio fixtures came from gen/ (lane SMB-AUDIO-CODECS PASS_V6)"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-kernel-bindings, studio-session",
+   "contents": "demo session files (2026-10-11)",
+   "evidence_to_decide": "kernel-bindings / session lane file citations"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-repass-engineering, studio-repass-media, studio-repass-root, studio-repass-ui",
+   "contents": "source/ (2026-10-09; studio-repass-root/source empty)",
+   "evidence_to_decide": "repass records citation"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/prism-oracle",
+   "contents": "venv, pip-cache, gen, out (python, 2026-10-11)",
+   "evidence_to_decide": "whether the prism oracle generator is still needed (the venv is rebuildable)"
+  },
+  {
+   "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/reel-av1",
+   "contents": "spike cargo project (no target), fixture-gen AV1 files, notes (2026-10-11)",
+   "evidence_to_decide": "reel AV1 lane file citation"
+  }
+ ],
+ "risks": [
+  {
+   "risk": "R40 candidate without the run-round diff",
+   "effect": "run-round refuses the C: target (exit 2, seconds) and R40 would have to run on the HDD",
+   "mitigation": "steward commits the diff after R39 with the probes; the lead checks `git show <candidate>:tools/run-round.sh | grep ssd-search` before dispatching R40"
+  },
+  {
+   "risk": "first C: round is cold",
+   "effect": "R40's canary builds every dependency on C: once (duration UNVERIFIED); later rounds reuse the C: target (P4)",
+   "mitigation": "accept once; keep the C: round target between rounds while it fits"
+  },
+  {
+   "risk": "QLC SSD sustained writes",
+   "effect": "write speed drops after the SLC cache fills (cache size of the 870 QVO 8TB: UNVERIFIED, vendor spec not checked here); cargo writes are spread over hours",
+   "mitigation": "incremental off, line-tables-only (both active), jobs bounded to 16"
+  },
+  {
+   "risk": "C: is the system disk",
+   "effect": "C: free moves with non-Studio use (521.7 GiB at 00:49Z, 791.0 GiB at 02:46Z); a full 372.5 GiB grant could leave as little as ~149 GiB",
+   "mitigation": "free-space floor 60 GiB in the pre-round check"
+  },
+  {
+   "risk": "foreign agent builds (GPT: handshake portal, hsscrap, rss) take no Studio lock",
+   "effect": "CPU and disk contention at any hour; test timeouts under CPU pressure",
+   "mitigation": "foreign-build check before heavy jobs, recorded in the queue reasoning; never touch them (CX-SAFE-001); Studio jobs 16 / test threads 16 (diff); a timeout cluster in a round is reported as infrastructure with the foreign process list"
+  },
+  {
+   "risk": "hsscrap and rss live in the same repository Nuntissura/assets (asset index: repository branch codex/handpick = origin HEAD; folders hsscrap/, rss/)",
+   "effect": "a push without an explicit refspec, or a branch mix-up, could touch the other agent's branch",
+   "mitigation": "Studio pushes only `git push origin HEAD:codex/handshake-studio-assets` (explicit refspec), never codex/handpick, never lane backups without approval; never touch hsscrap/ or rss/"
+  },
+  {
+   "risk": "gov_kernel moves under readers (WP-KERNEL-012 agent pushes from another device)",
+   "effect": "files read in this plan may change before the lead commits",
+   "mitigation": "this plan writes one new file only; the lead re-reads ledger/START_LOG before acting"
+  },
+  {
+   "risk": "D: holds 9 READY lane targets (P3 cap 6)",
+   "effect": "no room under P3 for new D: lane targets",
+   "mitigation": "new lanes on C:; P2 batch right after R39"
+  },
+  {
+   "risk": "HBR test_environment_prerequisites.test_entrypoint is still REPLACE_ME (command and config_files empty)",
+   "effect": "CX-VAL-007's 'config files named in HBR' list is empty; the de facto entrypoint is tools/run-round.sh + .config/* (run-round header)",
+   "mitigation": "record command and config files (.config/*.toml, and .cargo/config.toml if the parallelism diff lands) in HBR (governance edit, lead)"
+  },
+  {
+   "risk": "builders/studio-env.sh still says 150 GB / cap 140 and pins the SSD-lane test store on C:",
+   "effect": "lanes are refused at 140 GiB although 400 GB is granted; store on C: deviates from CX-984-014",
+   "mitigation": "diff-studio-env-400gb.patch"
+  },
+  {
+   "risk": "D: walker starvation",
+   "effect": "this inventory took hours under C55; some D: KEEP dirs may be unmeasured when the plan is written",
+   "mitigation": "remaining sizes are measured right after C55 (queue D: step 3); none of them changes a candidate decision"
+  },
+  {
+   "risk": "C55 step-0 refusal on b8daa00 (V4-03 machine-local path in crates/hsk-studio-controls/tests/menu_descriptors.rs:114)",
+   "effect": "one lost canary start (8 s); the re-run on 1e3ae3d passed step 0 (it is building)",
+   "mitigation": "none needed for R39 if its candidate descends from 1e3ae3d"
+  },
+  {
+   "risk": "builders on C: while studio-env.sh still caps at 140 GiB with 150 GB text",
+   "effect": "no effect until the C: tree reaches 140 GiB (0.125 GiB now); misleading refusal text later",
+   "mitigation": "lead applies diff-studio-env-400gb.patch (kernel file)"
+  }
+ ],
+ "phase2_script": "C:/Users/ILJASM~1/AppData/Local/Temp/claude/C--Users-Ilja-Smets--claude-spares-spare-4K1gAV/78736d01-8cca-4de4-921a-e3cf98762f72/scratchpad/cargo-manager/phase2-guarded-delete.ps1",
+ "lead_decisions": [
+  {
+   "at": "2026-10-24 ~03:50Z",
+   "decision": "R39 runs on D: (warm studio-round/target, validated path, union only with canary reuse; R37's union took 3h25m). The run-round SSD patch changes the round entrypoint itself and would get its first real use inside the overnight full round with only bash -n/probe proof. Both patches (diff-run-round-ssd.patch, diff-parallelism-bound.patch) go to a steward commit AFTER R39, so R40 onward can use C:. Builders' post-R39-freeze re-runs go to C: (lane-check --disk ssd) so D: serves R39 alone. studio-round/target stays KEEP until R39's verdicts."
+  }
+ ],
+ "inventory": {
+  "C_first_level": [
+   {
+    "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+    "size_gib": 0.125,
+    "files": 289,
+    "newest_write_utc": "2026-10-15T14:00:02Z",
+    "cls": "contents: studio-team-dev/target only"
+   },
+   {
+    "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes",
+    "size_gib": 0,
+    "files": 0,
+    "newest_write_utc": null
+   },
+   {
+    "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/nextest",
+    "size_gib": 0,
+    "files": 1,
+    "newest_write_utc": "2026-10-15T14:00:02Z"
+   },
+   {
+    "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/release",
+    "size_gib": 0.125,
+    "files": 285,
+    "newest_write_utc": "2026-10-14T19:37:52Z"
+   }
+  ],
+  "D_first_level": [
+   {
+    "entry": ".disk-build-lock",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "KEEP",
+    "reason": "D: disk build lock root (protocol @2)"
+   },
+   {
+    "entry": ".gameplan-active",
+    "kind": "f",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "KEEP",
+    "reason": "89-byte pointer file, not cargo output; obsolete since the gameplan hook was retired 2026-10-24 (removal is a separate lead decision)"
+   },
+   {
+    "entry": ".gpu-test-lock",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "KEEP",
+    "reason": "machine-wide GPU test lock root"
+   },
+   {
+    "entry": "MT-30318",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": "2026-10-10T01:20:58Z",
+    "unmeasured_children": [],
+    "class": "UNKNOWN",
+    "reason": "validator pre-image JSON (2026-10-10), non-cargo, tiny; see unknown[]"
+   },
+   {
+    "entry": "MT-30319",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": "2026-10-10T01:21:01Z",
+    "unmeasured_children": [],
+    "class": "UNKNOWN",
+    "reason": "validator pre-image JSON (2026-10-10), non-cargo, tiny; see unknown[]"
+   },
+   {
+    "entry": "MT-30320",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": "2026-10-10T01:21:10Z",
+    "unmeasured_children": [],
+    "class": "UNKNOWN",
+    "reason": "validator pre-image JSON (2026-10-10), non-cargo, tiny; see unknown[]"
+   },
+   {
+    "entry": "MT-30321",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": "2026-10-10T01:21:19Z",
+    "unmeasured_children": [],
+    "class": "UNKNOWN",
+    "reason": "validator pre-image JSON (2026-10-10), non-cargo, tiny; see unknown[]"
+   },
+   {
+    "entry": "MT-30322",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": "2026-10-10T01:21:24Z",
+    "unmeasured_children": [],
+    "class": "UNKNOWN",
+    "reason": "validator pre-image JSON (2026-10-10), non-cargo, tiny; see unknown[]"
+   },
+   {
+    "entry": "MT-30785",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": "2026-10-10T01:13:49Z",
+    "unmeasured_children": [],
+    "class": "UNKNOWN",
+    "reason": "validator pre-image JSON (2026-10-10), non-cargo, tiny; see unknown[]"
+   },
+   {
+    "entry": "MT-30789",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": "2026-10-10T01:27:02Z",
+    "unmeasured_children": [],
+    "class": "UNKNOWN",
+    "reason": "validator pre-image JSON (2026-10-10), non-cargo, tiny; see unknown[]"
+   },
+   {
+    "entry": "MT-30790",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": "2026-10-10T01:27:02Z",
+    "unmeasured_children": [],
+    "class": "UNKNOWN",
+    "reason": "validator pre-image JSON (2026-10-10), non-cargo, tiny; see unknown[]"
+   },
+   {
+    "entry": "MT-34817",
+    "kind": "d",
+    "size_gib_measured": 0.013,
+    "newest_write_utc": "2026-10-10T02:01:17Z",
+    "unmeasured_children": [],
+    "class": "UNKNOWN",
+    "reason": "validator pre-image JSON (2026-10-10), non-cargo, tiny; see unknown[]"
+   },
+   {
+    "entry": "MT-35528",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "MT-35528/studio-assets-kernel-builder",
+     "MT-35528/studio-assets-validator"
+    ],
+    "class": "KEEP_WITH_CANDIDATES",
+    "reason": "MT lifecycle PASS; cargo-target/ and non-empty tmp/ are candidates; cache/ (cargo-home registry cache), logs, research and provenance stay"
+   },
+   {
+    "entry": "MT-35529",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "MT-35529/studio-assets-kernel-builder",
+     "MT-35529/studio-assets-validator"
+    ],
+    "class": "KEEP_WITH_CANDIDATES",
+    "reason": "MT lifecycle PASS; cargo-target/ and non-empty tmp/ are candidates; cache/ (cargo-home registry cache), logs, research and provenance stay"
+   },
+   {
+    "entry": "MT-35530",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "MT-35530/studio-assets-kernel-builder",
+     "MT-35530/studio-assets-validator"
+    ],
+    "class": "KEEP_WITH_CANDIDATES",
+    "reason": "MT lifecycle PASS; cargo-target/ and non-empty tmp/ are candidates; cache/ (cargo-home registry cache), logs, research and provenance stay"
+   },
+   {
+    "entry": "MT-35531",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "MT-35531/studio-assets-kernel-builder",
+     "MT-35531/studio-assets-validator"
+    ],
+    "class": "KEEP_WITH_CANDIDATES",
+    "reason": "MT lifecycle PASS; cargo-target/ and non-empty tmp/ are candidates; cache/ (cargo-home registry cache), logs, research and provenance stay"
+   },
+   {
+    "entry": "MT-35532",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "MT-35532/studio-assets-kernel-builder",
+     "MT-35532/studio-assets-validator"
+    ],
+    "class": "KEEP_WITH_CANDIDATES",
+    "reason": "MT lifecycle PASS; cargo-target/ and non-empty tmp/ are candidates; cache/ (cargo-home registry cache), logs, research and provenance stay"
+   },
+   {
+    "entry": "MT-35533",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "MT-35533/studio-assets-kernel-builder",
+     "MT-35533/studio-assets-validator"
+    ],
+    "class": "KEEP_WITH_CANDIDATES",
+    "reason": "MT lifecycle PASS; cargo-target/ and non-empty tmp/ are candidates; cache/ (cargo-home registry cache), logs, research and provenance stay"
+   },
+   {
+    "entry": "MT-35534",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "MT-35534/studio-assets-kernel-builder",
+     "MT-35534/studio-assets-validator"
+    ],
+    "class": "KEEP_WITH_CANDIDATES",
+    "reason": "MT lifecycle PASS; cargo-target/ and non-empty tmp/ are candidates; cache/ (cargo-home registry cache), logs, research and provenance stay"
+   },
+   {
+    "entry": "MT-35535",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "MT-35535/studio-assets-kernel-builder",
+     "MT-35535/studio-assets-validator"
+    ],
+    "class": "KEEP_WITH_CANDIDATES",
+    "reason": "MT lifecycle PASS; cargo-target/ and non-empty tmp/ are candidates; cache/ (cargo-home registry cache), logs, research and provenance stay"
+   },
+   {
+    "entry": "MT-35536",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "MT-35536/studio-assets-kernel-builder",
+     "MT-35536/studio-assets-validator"
+    ],
+    "class": "KEEP_WITH_CANDIDATES",
+    "reason": "research root resolved by product tests (hsk-studio-type tests/support research() ancestor walk); its cargo-target/tmp are candidates, research/ and cargo-home (registry cache) stay"
+   },
+   {
+    "entry": "MT-35538",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "MT-35538/studio-assets-kernel-builder"
+    ],
+    "class": "UNKNOWN",
+    "reason": "MT lifecycle PENDING; holds only studio-assets-kernel-builder/research (no cargo output); decide: MT-35538 closure or supersession recorded by the lead"
+   },
+   {
+    "entry": "app-inspect",
+    "kind": "d",
+    "size_gib_measured": 0.051,
+    "newest_write_utc": "2026-10-14T15:47:51Z",
+    "unmeasured_children": [],
+    "class": "KEEP",
+    "reason": "app inspection data (figma)"
+   },
+   {
+    "entry": "archive",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": "2026-10-23T22:29:11Z",
+    "unmeasured_children": [
+     "archive/retired-tools-20261024"
+    ],
+    "class": "KEEP",
+    "reason": "retired tools and lane leftovers archived 2026-10-24"
+   },
+   {
+    "entry": "autonomous-research-team",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "UNKNOWN",
+    "reason": "3 JSON files (2026-10-10), non-cargo; cited by docs_repo/studio-collaboration-2026-10-09/.../autonomous-research-team/research.json; decide: whether that collaboration record still needs the files (out of cargo scope either way)"
+   },
+   {
+    "entry": "downloads",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "downloads/adobe-dng-converter-18.7",
+     "downloads/innoextract-1.9",
+     "downloads/inter-4.1",
+     "downloads/verapdf"
+    ],
+    "class": "KEEP",
+    "reason": "downloaded tools (DNG converter, innoextract, Inter font, veraPDF)"
+   },
+   {
+    "entry": "engine-video-oracle",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "engine-video-oracle/cmd-check",
+     "engine-video-oracle/reel-eng-1",
+     "engine-video-oracle/smb-reel-bframe-order",
+     "engine-video-oracle/smb-reel-eng-2"
+    ],
+    "class": "KEEP",
+    "reason": "RESOLVED from NOT_INSPECTED: fixture authoring dir cited by lane files hsk-studio-reel-eng-1/-eng-2/-bframe-order and briefs lane-reel-eng-1/-2, lane-reel-native-eng-1 (cmd-check/final verified copies); no cargo target inside (depth-5 search)"
+   },
+   {
+    "entry": "interop-lrcat",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "interop-lrcat/fixtures-gen",
+     "interop-lrcat/library-fixture-2-out",
+     "interop-lrcat/library-fixture-out"
+    ],
+    "class": "KEEP",
+    "reason": "fixture generators cited by lane files hsk-studio-interop-lrcat / lightroom-catalog and R6 review (PROVENANCE sha256)"
+   },
+   {
+    "entry": "oracle-corpus",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "oracle-corpus/adobe-session",
+     "oracle-corpus/affinity",
+     "oracle-corpus/agl",
+     "oracle-corpus/dng",
+     "oracle-corpus/host-fonts",
+     "oracle-corpus/icc",
+     "oracle-corpus/psd-tools",
+     "oracle-corpus/raster-common",
+     "oracle-corpus/raw-dng-oracle",
+     "oracle-corpus/raw-vendor",
+     "oracle-corpus/raw-vendor-cleanroom",
+     "oracle-corpus/reel-h264",
+     "oracle-corpus/score-plugin",
+     "oracle-corpus/smpte-rdd36",
+     "oracle-corpus/smpte-st2019-1",
+     "oracle-corpus/tiff",
+     "oracle-corpus/tiff-layered"
+    ],
+    "class": "KEEP",
+    "reason": "oracle test data (round.json binds its manifest)"
+   },
+   {
+    "entry": "press-d27",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "press-d27/research"
+    ],
+    "class": "UNKNOWN",
+    "reason": "research/ = a small cargo project (Cargo.toml, src) with no target; cited by lane file hsk-studio-press.json; non-cargo; decide: press lane owner says whether the research crate is still needed"
+   },
+   {
+    "entry": "prism-eng5",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "no ledger lane (closed probe/export/MT owner); target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "prism-eng6",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "prism-eng6/src"
+    ],
+    "class": "KEEP",
+    "reason": "no ledger lane (closed probe/export/MT owner); non-cargo residue (export src, logs, runN, fixtures); no cargo target found (depth-5 search for target dirs; MT dirs checked one level for cargo-target)"
+   },
+   {
+    "entry": "prism-eng8-export",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "prism-eng8-export/src"
+    ],
+    "class": "KEEP_WITH_CANDIDATES",
+    "reason": "export src cited as proof location by lane files prism-eng5/6/8 (KEEP); src/handshake-studio-assets/target is a candidate (lane SMB-PRISM-ENG-8 PASS_V10)"
+   },
+   {
+    "entry": "prism-oracle",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "prism-oracle/gen",
+     "prism-oracle/out",
+     "prism-oracle/pip-cache",
+     "prism-oracle/venv"
+    ],
+    "class": "UNKNOWN",
+    "reason": "python venv + pip-cache + gen/out (2026-10-11), non-cargo; decide: prism oracle generator still needed (venv is rebuildable)"
+   },
+   {
+    "entry": "pulse-playback-2",
+    "kind": "d",
+    "size_gib_measured": 0.001,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "pulse-playback-2/src"
+    ],
+    "class": "KEEP",
+    "reason": "no ledger lane (closed probe/export/MT owner); non-cargo residue (export src, logs, runN, fixtures); no cargo target found (depth-5 search for target dirs; MT dirs checked one level for cargo-target)"
+   },
+   {
+    "entry": "reel-av1",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "reel-av1/fixture-gen",
+     "reel-av1/spike"
+    ],
+    "class": "UNKNOWN",
+    "reason": "spike cargo project without target, fixture-gen AV1 files, notes (2026-10-11), non-cargo; lane SMB-REEL-AV1-ROUTE PASS_V21"
+   },
+   {
+    "entry": "reel-mxf-mkv",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "reel-mxf-mkv/av1-1080p",
+     "reel-mxf-mkv/enc",
+     "reel-mxf-mkv/mxf",
+     "reel-mxf-mkv/pcm"
+    ],
+    "class": "UNKNOWN",
+    "reason": "MXF/MKV fixture media (2026-10-11), non-cargo; cited only by the 2026-10-22 cleanup proposal; decide: grep of reel lane files / product fixtures for these names"
+   },
+   {
+    "entry": "score-plugin-fixture",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "no ledger lane (closed probe/export/MT owner); target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-ae-3d-2",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-AE-3D-2 PASS_V4; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-ae-3d-2-slice1.patch",
+    "kind": "f",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "KEEP",
+    "reason": "non-cargo patch file (41 KiB)"
+   },
+   {
+    "entry": "smb-ae-3d-3",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-AE-3D-3 PASS_V3; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-ae-3d-3-slices",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "smb-ae-3d-3-slices/src"
+    ],
+    "class": "KEEP",
+    "reason": "no ledger lane (closed probe/export/MT owner); non-cargo residue (export src, logs, runN, fixtures); no cargo target found (depth-5 search for target dirs; MT dirs checked one level for cargo-target)"
+   },
+   {
+    "entry": "smb-ae-effect-stack-1",
+    "kind": "d",
+    "size_gib_measured": 4.085,
+    "newest_write_utc": "2026-10-23T18:49:00Z",
+    "unmeasured_children": [],
+    "class": "KEEP",
+    "reason": "READY_FOR_VALIDATION lane, awaits R39"
+   },
+   {
+    "entry": "smb-ae-particles-audio-presets",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-AE-PARTICLES-AUDIO-PRESETS PASS_V2; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-ae-render-queue-2",
+    "kind": "d",
+    "size_gib_measured": 40.797,
+    "newest_write_utc": "2026-10-22T19:19:23Z",
+    "unmeasured_children": [],
+    "class": "KEEP",
+    "reason": "READY_FOR_VALIDATION lane, awaits R39"
+   },
+   {
+    "entry": "smb-ae-roto-timeremap",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-AE-ROTO-TIMEREMAP PASS_V2; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-ae-roto-wiring",
+    "kind": "d",
+    "size_gib_measured": 28.447,
+    "newest_write_utc": "2026-10-22T13:21:23Z",
+    "unmeasured_children": [],
+    "class": "KEEP",
+    "reason": "READY_FOR_VALIDATION lane, awaits R39"
+   },
+   {
+    "entry": "smb-affinity-interop-1",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "smb-affinity-interop-1/run1",
+     "smb-affinity-interop-1/run2"
+    ],
+    "class": "KEEP",
+    "reason": "ledger SMB-AFFINITY-INTEROP-1 PASS_V2; non-cargo residue (export src, logs, runN, fixtures); no cargo target found (depth-5 search for target dirs; MT dirs checked one level for cargo-target)"
+   },
+   {
+    "entry": "smb-ai-ae-oracle-followups",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-AI-AE-ORACLE-FOLLOWUPS PASS_V2; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-ai-type-path-recolor",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-AI-TYPE-PATH-RECOLOR PASS_V2; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-au-waveform-editor",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-AU-WAVEFORM-EDITOR PASS_V2; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-audio-codecs",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "smb-audio-codecs/gen"
+    ],
+    "class": "UNKNOWN",
+    "reason": "gen/ = generated AAC/AIFC reference media (2026-10-15), non-cargo; lane SMB-AUDIO-CODECS PASS_V6; decide: whether committed fixtures were copied from gen/"
+   },
+   {
+    "entry": "smb-audition-ui",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-AUDITION-UI PASS_V4; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-crate-seam-splits",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-CRATE-SEAM-SPLITS PASS_V3; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-crate-seam-splits-2",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-CRATE-SEAM-SPLITS-2 PASS_V1; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-crate-seam-splits-2-base",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "no ledger lane (closed probe/export/MT owner); target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-d24a-codec-defaults",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-D24A-CODEC-DEFAULTS PASS_V3; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-d5-ai-id-ae-compare",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-D5-AI-ID-AE-COMPARE PASS_V3; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-d5-ps-compare",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-D5-PS-COMPARE PASS_V2; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-develop-dng-writer",
+    "kind": "d",
+    "size_gib_measured": 19.268,
+    "newest_write_utc": "2026-10-22T18:11:45Z",
+    "unmeasured_children": [],
+    "class": "KEEP",
+    "reason": "READY_FOR_VALIDATION lane, awaits R39"
+   },
+   {
+    "entry": "smb-develop-export-tiff",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-DEVELOP-EXPORT-TIFF PASS_V1; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-develop-lens-presets",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-DEVELOP-LENS-PRESETS PASS_V4; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-dxf-eps-import",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "smb-dxf-eps-import/logs"
+    ],
+    "class": "KEEP",
+    "reason": "ledger SMB-DXF-EPS-IMPORT PASS_V2; non-cargo residue (export src, logs, runN, fixtures); no cargo target found (depth-5 search for target dirs; MT dirs checked one level for cargo-target)"
+   },
+   {
+    "entry": "smb-eps-free-fonts",
+    "kind": "d",
+    "size_gib_measured": 1.177,
+    "newest_write_utc": "2026-10-23T17:50:50Z",
+    "unmeasured_children": [],
+    "class": "KEEP",
+    "reason": "READY_FOR_VALIDATION lane, awaits R39"
+   },
+   {
+    "entry": "smb-harness-panels-1",
+    "kind": "d",
+    "size_gib_measured": 15.647,
+    "newest_write_utc": "2026-10-23T17:25:02Z",
+    "unmeasured_children": [],
+    "class": "KEEP",
+    "reason": "READY_FOR_VALIDATION lane, awaits R39"
+   },
+   {
+    "entry": "smb-harness-shell-1",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-HARNESS-SHELL-1 PASS_V1; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-harness-shell-2",
+    "kind": "d",
+    "size_gib_measured": 15.784,
+    "newest_write_utc": "2026-10-23T19:33:41Z",
+    "unmeasured_children": [],
+    "class": "KEEP",
+    "reason": "READY_FOR_VALIDATION lane, awaits R39"
+   },
+   {
+    "entry": "smb-id-composer-parity",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-ID-COMPOSER-PARITY PASS_V2; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-id-prepress",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-ID-PREPRESS PASS_V3; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-layout-composer-wiring",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-LAYOUT-COMPOSER-WIRING PASS_V1; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-layout-ui",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "smb-layout-ui/src"
+    ],
+    "class": "KEEP",
+    "reason": "ledger SMB-LAYOUT-UI PASS_V4; non-cargo residue (export src, logs, runN, fixtures); no cargo target found (depth-5 search for target dirs; MT dirs checked one level for cargo-target)"
+   },
+   {
+    "entry": "smb-layout-ui-2",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-LAYOUT-UI-2 PASS_V3; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-lr-library-write",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-LR-LIBRARY-WRITE PASS_V3; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-package-completeness",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-PACKAGE-COMPLETENESS PASS_V4; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-pr-source-monitor",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-PR-SOURCE-MONITOR PASS_V3; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-premiere-color-titles",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-PREMIERE-COLOR-TITLES PASS_V3; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-prism-view-transform",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "smb-prism-view-transform/src"
+    ],
+    "class": "KEEP",
+    "reason": "ledger SMB-PRISM-VIEW-TRANSFORM PASS_V7; non-cargo residue (export src, logs, runN, fixtures); no cargo target found (depth-5 search for target dirs; MT dirs checked one level for cargo-target)"
+   },
+   {
+    "entry": "smb-ps-adjust-styles-2",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-PS-ADJUST-STYLES-2 PASS_V4; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-ps-adjust-styles-3",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-PS-ADJUST-STYLES-3 PASS_V2; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-ps-fill-layers",
+    "kind": "d",
+    "size_gib_measured": 12.951,
+    "newest_write_utc": "2026-10-22T15:27:49Z",
+    "unmeasured_children": [],
+    "class": "KEEP",
+    "reason": "READY_FOR_VALIDATION lane, awaits R39"
+   },
+   {
+    "entry": "smb-ps-oracle-parity-1",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-PS-ORACLE-PARITY-1 PASS_V2; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-ps-oracle-parity-2",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-PS-ORACLE-PARITY-2 PASS_V2; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-r33-findings",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-R33-FINDINGS PASS_V3; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-r35-remediation",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-R35-REMEDIATION DONE; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-raw-cleanroom",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "smb-raw-cleanroom/run1",
+     "smb-raw-cleanroom/run2",
+     "smb-raw-cleanroom/run3",
+     "smb-raw-cleanroom/run4",
+     "smb-raw-cleanroom/run5",
+     "smb-raw-cleanroom/run6",
+     "smb-raw-cleanroom/run7",
+     "smb-raw-cleanroom/wip-rw2"
+    ],
+    "class": "KEEP",
+    "reason": "ledger SMB-RAW-CLEANROOM PASS_V3; non-cargo residue (export src, logs, runN, fixtures); no cargo target found (depth-5 search for target dirs; MT dirs checked one level for cargo-target)"
+   },
+   {
+    "entry": "smb-raw-cleanroom-2",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "smb-raw-cleanroom-2/oracle-dng",
+     "smb-raw-cleanroom-2/run1",
+     "smb-raw-cleanroom-2/run2",
+     "smb-raw-cleanroom-2/run3",
+     "smb-raw-cleanroom-2/run4",
+     "smb-raw-cleanroom-2/run5"
+    ],
+    "class": "KEEP",
+    "reason": "ledger SMB-RAW-CLEANROOM-2 PASS_V2; non-cargo residue (export src, logs, runN, fixtures); no cargo target found (depth-5 search for target dirs; MT dirs checked one level for cargo-target)"
+   },
+   {
+    "entry": "smb-reel-encode",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "smb-reel-encode/src"
+    ],
+    "class": "KEEP",
+    "reason": "ledger SMB-REEL-ENCODE PASS_V5; non-cargo residue (export src, logs, runN, fixtures); no cargo target found (depth-5 search for target dirs; MT dirs checked one level for cargo-target)"
+   },
+   {
+    "entry": "smb-steward-notice",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "no ledger lane (closed probe/export/MT owner); target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-timeline-ui-1",
+    "kind": "d",
+    "size_gib_measured": 25.14,
+    "newest_write_utc": "2026-10-22T23:34:32Z",
+    "unmeasured_children": [],
+    "class": "KEEP",
+    "reason": "READY_FOR_VALIDATION lane, awaits R39"
+   },
+   {
+    "entry": "smb-type-ff-ligature",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [],
+    "class": "EMPTY",
+    "reason": "ledger SMB-TYPE-FF-LIGATURE PASS_V2; target/tmp removed by batch A 2026-10-23; empty dir, not cargo output (optional zero-byte tidy, lead decision)"
+   },
+   {
+    "entry": "smb-web-difftest",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "smb-web-difftest/src"
+    ],
+    "class": "KEEP",
+    "reason": "ledger SMB-WEB-DIFFTEST PASS_V5; non-cargo residue (export src, logs, runN, fixtures); no cargo target found (depth-5 search for target dirs; MT dirs checked one level for cargo-target)"
+   },
+   {
+    "entry": "smb-web-r10-cssparser",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "smb-web-r10-cssparser/src"
+    ],
+    "class": "KEEP",
+    "reason": "no ledger lane (closed probe/export/MT owner); non-cargo residue (export src, logs, runN, fixtures); no cargo target found (depth-5 search for target dirs; MT dirs checked one level for cargo-target)"
+   },
+   {
+    "entry": "studio-kernel-bindings",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "studio-kernel-bindings/demo"
+    ],
+    "class": "UNKNOWN",
+    "reason": "demo/session-demo.handshake (2026-10-11), non-cargo; decide: kernel-bindings lane file citation"
+   },
+   {
+    "entry": "studio-repass-engineering",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "studio-repass-engineering/source"
+    ],
+    "class": "UNKNOWN",
+    "reason": "source/ (2026-10-09), non-cargo; decide: repass records citation"
+   },
+   {
+    "entry": "studio-repass-media",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "studio-repass-media/source"
+    ],
+    "class": "UNKNOWN",
+    "reason": "source/ (2026-10-09), non-cargo; cited by audit-20261021 inventory only"
+   },
+   {
+    "entry": "studio-repass-root",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "studio-repass-root/source"
+    ],
+    "class": "UNKNOWN",
+    "reason": "source/ empty (2026-10-09), non-cargo"
+   },
+   {
+    "entry": "studio-repass-ui",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "studio-repass-ui/source"
+    ],
+    "class": "UNKNOWN",
+    "reason": "source/ (2026-10-09), non-cargo"
+   },
+   {
+    "entry": "studio-round",
+    "kind": "d",
+    "size_gib_measured": 0.001,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "studio-round/probe",
+     "studio-round/results",
+     "studio-round/src",
+     "studio-round/target",
+     "studio-round/tmp",
+     "studio-round/validator-R32",
+     "studio-round/validator-R33",
+     "studio-round/validator-R34",
+     "studio-round/validator-R35",
+     "studio-round/validator-R36",
+     "studio-round/validator-R36-a105766",
+     "studio-round/validator-R37",
+     "studio-round/validator-R38"
+    ],
+    "class": "KEEP",
+    "reason": "KEEP until R39's verdicts (R39 builds in studio-round/target by lead decision); results cited 5063x by validation records, validator-R32..R38 dirs, export src; after R39 + a fresh R40 target on C:, the 458.2 GiB target is the next candidate (deletion_candidates.post_r39_candidates)"
+   },
+   {
+    "entry": "studio-session",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "studio-session/demo",
+     "studio-session/demo2",
+     "studio-session/demo3"
+    ],
+    "class": "UNKNOWN",
+    "reason": "demo, demo2, demo3 session files (2026-10-11), non-cargo; decide: session lane file citation"
+   },
+   {
+    "entry": "studio-team-dev",
+    "kind": "d",
+    "size_gib_measured": 15.013,
+    "newest_write_utc": "2026-10-14T16:49:08Z",
+    "unmeasured_children": [
+     "studio-team-dev/camera-colour",
+     "studio-team-dev/dng-corpus-replace",
+     "studio-team-dev/ebu-vectors",
+     "studio-team-dev/harness-fixture",
+     "studio-team-dev/layout-harden",
+     "studio-team-dev/lockcheck",
+     "studio-team-dev/longdoc-verapdf",
+     "studio-team-dev/probe",
+     "studio-team-dev/r31-findings",
+     "studio-team-dev/round-dev",
+     "studio-team-dev/sccache",
+     "studio-team-dev/smb-interop-fig-instances-frames",
+     "studio-team-dev/smb-pigment-content-aware-2",
+     "studio-team-dev/smb-render-scene-display",
+     "studio-team-dev/steward",
+     "studio-team-dev/steward-export",
+     "studio-team-dev/sync",
+     "studio-team-dev/sync-export",
+     "studio-team-dev/tmp",
+     "studio-team-dev/tool-install"
+    ],
+    "class": "KEEP",
+    "reason": "builder/steward slot incl. steward-export (C55 builds there now), sync-export, steward logs, sccache; three stale sub-targets are listed as keep_slot_release_items for the lead"
+   },
+   {
+    "entry": "tools",
+    "kind": "d",
+    "size_gib_measured": 0.0,
+    "newest_write_utc": null,
+    "unmeasured_children": [
+     "tools/verapdf",
+     "tools/verapdf-home",
+     "tools/verapdf-installer"
+    ],
+    "class": "KEEP",
+    "reason": "veraPDF install"
+   }
+  ],
+  "measured_dirs": [
+   {
+    "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO",
+    "size_gib": 0.125,
+    "files": 289,
+    "dirs": 60,
+    "newest_write_utc": "2026-10-15T14:00:02Z",
+    "list_seconds": 0.2,
+    "error": null
+   },
+   {
+    "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/lanes",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 1,
+    "newest_write_utc": null,
+    "list_seconds": 0,
+    "error": null
+   },
+   {
+    "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/nextest",
+    "size_gib": 0,
+    "files": 1,
+    "dirs": 2,
+    "newest_write_utc": "2026-10-15T14:00:02Z",
+    "list_seconds": 0,
+    "error": null
+   },
+   {
+    "path": "C:/HandshakeBuild/WP-KERNEL-STUDIO/studio-team-dev/target/release",
+    "size_gib": 0.125,
+    "files": 285,
+    "dirs": 54,
+    "newest_write_utc": "2026-10-14T19:37:52Z",
+    "list_seconds": 0.1,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/.disk-build-lock/queue",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 1,
+    "newest_write_utc": null,
+    "list_seconds": 0.4,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/.gpu-test-lock/queue",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 1,
+    "newest_write_utc": null,
+    "list_seconds": 0.2,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-30318/visual-parent",
+    "size_gib": 0,
+    "files": 2,
+    "dirs": 1,
+    "newest_write_utc": "2026-10-10T01:20:58Z",
+    "list_seconds": 0.2,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-30319/visual-parent",
+    "size_gib": 0,
+    "files": 2,
+    "dirs": 1,
+    "newest_write_utc": "2026-10-10T01:21:01Z",
+    "list_seconds": 0.2,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-30320/visual-parent",
+    "size_gib": 0,
+    "files": 2,
+    "dirs": 1,
+    "newest_write_utc": "2026-10-10T01:21:10Z",
+    "list_seconds": 0.1,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-30321/visual-parent",
+    "size_gib": 0,
+    "files": 2,
+    "dirs": 1,
+    "newest_write_utc": "2026-10-10T01:21:19Z",
+    "list_seconds": 0.2,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-30322/visual-parent",
+    "size_gib": 0,
+    "files": 2,
+    "dirs": 1,
+    "newest_write_utc": "2026-10-10T01:21:24Z",
+    "list_seconds": 0.1,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-30785/visual_layout_components",
+    "size_gib": 0,
+    "files": 1,
+    "dirs": 1,
+    "newest_write_utc": "2026-10-10T01:13:49Z",
+    "list_seconds": 0,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-30789/visual_layout_components",
+    "size_gib": 0,
+    "files": 1,
+    "dirs": 1,
+    "newest_write_utc": "2026-10-10T01:27:02Z",
+    "list_seconds": 0.7,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-30790/visual_layout_components",
+    "size_gib": 0,
+    "files": 1,
+    "dirs": 1,
+    "newest_write_utc": "2026-10-10T01:27:02Z",
+    "list_seconds": 0.1,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-34817/prism-additional-author",
+    "size_gib": 0.013,
+    "files": 81,
+    "dirs": 2,
+    "newest_write_utc": "2026-10-10T02:01:17Z",
+    "list_seconds": 0.1,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35528/studio-assets-kernel-builder/cargo-target",
+    "size_gib": 0.002,
+    "files": 4,
+    "dirs": 1,
+    "newest_write_utc": "2026-10-10T10:50:11Z",
+    "list_seconds": 0,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35528/studio-assets-kernel-builder/tmp",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 1,
+    "newest_write_utc": null,
+    "list_seconds": 0,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35528/studio-assets-validator/cargo-target",
+    "size_gib": 0.008,
+    "files": 6,
+    "dirs": 1,
+    "newest_write_utc": "2026-10-10T14:03:55Z",
+    "list_seconds": 0,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35528/studio-assets-validator/tmp",
+    "size_gib": 0.01,
+    "files": 751,
+    "dirs": 564,
+    "newest_write_utc": "2026-10-10T14:04:10Z",
+    "list_seconds": 167.5,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35529/studio-assets-kernel-builder/cargo-target",
+    "size_gib": 0,
+    "files": 51,
+    "dirs": 16,
+    "newest_write_utc": "2026-10-10T08:27:44Z",
+    "list_seconds": 9.8,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35529/studio-assets-kernel-builder/tmp",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 1,
+    "newest_write_utc": null,
+    "list_seconds": 0,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35529/studio-assets-validator/cargo-target",
+    "size_gib": 0.011,
+    "files": 27,
+    "dirs": 11,
+    "newest_write_utc": "2026-10-10T08:39:33Z",
+    "list_seconds": 9.4,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35529/studio-assets-validator/tmp",
+    "size_gib": 0,
+    "files": 8,
+    "dirs": 1,
+    "newest_write_utc": "2026-10-10T07:46:52Z",
+    "list_seconds": 0,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35530/studio-assets-kernel-builder/cargo-target",
+    "size_gib": 0.006,
+    "files": 139,
+    "dirs": 37,
+    "newest_write_utc": "2026-10-10T10:59:03Z",
+    "list_seconds": 23.2,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35530/studio-assets-kernel-builder/tmp",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 1,
+    "newest_write_utc": null,
+    "list_seconds": 8.3,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35530/studio-assets-validator/cargo-target",
+    "size_gib": 0.011,
+    "files": 36,
+    "dirs": 12,
+    "newest_write_utc": "2026-10-10T11:39:58Z",
+    "list_seconds": 10.9,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35530/studio-assets-validator/tmp",
+    "size_gib": 0.002,
+    "files": 9,
+    "dirs": 2,
+    "newest_write_utc": "2026-10-10T11:41:16Z",
+    "list_seconds": 0,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35531/studio-assets-kernel-builder/cargo-target",
+    "size_gib": 0.058,
+    "files": 287,
+    "dirs": 70,
+    "newest_write_utc": "2026-10-10T09:01:14Z",
+    "list_seconds": 47.4,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35531/studio-assets-kernel-builder/tmp",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 1,
+    "newest_write_utc": null,
+    "list_seconds": 1.3,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35531/studio-assets-validator/cargo-target",
+    "size_gib": 0.12,
+    "files": 269,
+    "dirs": 64,
+    "newest_write_utc": "2026-10-10T09:08:27Z",
+    "list_seconds": 36.9,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35531/studio-assets-validator/tmp",
+    "size_gib": 0,
+    "files": 38,
+    "dirs": 1,
+    "newest_write_utc": "2026-10-10T09:08:27Z",
+    "list_seconds": 1.3,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35532/studio-assets-kernel-builder/cargo-target",
+    "size_gib": 0.059,
+    "files": 348,
+    "dirs": 80,
+    "newest_write_utc": "2026-10-10T10:30:18Z",
+    "list_seconds": 30.4,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35532/studio-assets-kernel-builder/tmp",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 1,
+    "newest_write_utc": null,
+    "list_seconds": 1.3,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35532/studio-assets-validator/cargo-target",
+    "size_gib": 0.137,
+    "files": 285,
+    "dirs": 66,
+    "newest_write_utc": "2026-10-10T10:37:15Z",
+    "list_seconds": 29.5,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35532/studio-assets-validator/tmp",
+    "size_gib": 0,
+    "files": 93,
+    "dirs": 1,
+    "newest_write_utc": "2026-10-10T10:36:51Z",
+    "list_seconds": 0,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35533/studio-assets-kernel-builder/cargo-target",
+    "size_gib": 0.016,
+    "files": 212,
+    "dirs": 45,
+    "newest_write_utc": "2026-10-10T11:23:23Z",
+    "list_seconds": 19,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35533/studio-assets-kernel-builder/tmp",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 1,
+    "newest_write_utc": null,
+    "list_seconds": 1.4,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35533/studio-assets-validator/cargo-target",
+    "size_gib": 0.065,
+    "files": 142,
+    "dirs": 30,
+    "newest_write_utc": "2026-10-10T11:40:15Z",
+    "list_seconds": 11.4,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35533/studio-assets-validator/tmp",
+    "size_gib": 0.009,
+    "files": 19,
+    "dirs": 2,
+    "newest_write_utc": "2026-10-10T11:42:34Z",
+    "list_seconds": 0,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35534/studio-assets-kernel-builder/cargo-target",
+    "size_gib": 0.074,
+    "files": 441,
+    "dirs": 101,
+    "newest_write_utc": "2026-10-10T11:58:47Z",
+    "list_seconds": 34.7,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35534/studio-assets-kernel-builder/tmp",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 1,
+    "newest_write_utc": null,
+    "list_seconds": 1.3,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35534/studio-assets-validator/cargo-target",
+    "size_gib": 0.157,
+    "files": 387,
+    "dirs": 84,
+    "newest_write_utc": "2026-10-10T12:04:21Z",
+    "list_seconds": 31.6,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35534/studio-assets-validator/tmp",
+    "size_gib": 0.027,
+    "files": 52,
+    "dirs": 2,
+    "newest_write_utc": "2026-10-10T12:14:34Z",
+    "list_seconds": 2,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35535/studio-assets-kernel-builder/cargo-target",
+    "size_gib": 0.01,
+    "files": 207,
+    "dirs": 44,
+    "newest_write_utc": "2026-10-10T14:02:26Z",
+    "list_seconds": 15,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35535/studio-assets-kernel-builder/tmp",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 1,
+    "newest_write_utc": null,
+    "list_seconds": 0,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35535/studio-assets-validator/cargo-target",
+    "size_gib": 0.037,
+    "files": 154,
+    "dirs": 32,
+    "newest_write_utc": "2026-10-10T13:45:43Z",
+    "list_seconds": 12.3,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35535/studio-assets-validator/tmp",
+    "size_gib": 0.012,
+    "files": 30,
+    "dirs": 1,
+    "newest_write_utc": "2026-10-10T13:59:27Z",
+    "list_seconds": 0.7,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35536/studio-assets-kernel-builder/cargo-target",
+    "size_gib": 0.03,
+    "files": 219,
+    "dirs": 53,
+    "newest_write_utc": "2026-10-10T16:48:37Z",
+    "list_seconds": 18.5,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35536/studio-assets-kernel-builder/tmp",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 1,
+    "newest_write_utc": null,
+    "list_seconds": 1.3,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35536/studio-assets-validator/cargo-target",
+    "size_gib": 0.083,
+    "files": 234,
+    "dirs": 52,
+    "newest_write_utc": "2026-10-10T16:51:01Z",
+    "list_seconds": 20,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/MT-35536/studio-assets-validator/tmp",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 1,
+    "newest_write_utc": null,
+    "list_seconds": 0,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/app-inspect/figma",
+    "size_gib": 0.051,
+    "files": 109,
+    "dirs": 32,
+    "newest_write_utc": "2026-10-14T15:47:51Z",
+    "list_seconds": 0.4,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/archive/lane-leftovers-20261024",
+    "size_gib": 0,
+    "files": 11,
+    "dirs": 11,
+    "newest_write_utc": "2026-10-23T22:29:11Z",
+    "list_seconds": 0.6,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/prism-eng8-export/src/handshake-studio-assets/target",
+    "size_gib": 0,
+    "files": 1,
+    "dirs": 3,
+    "newest_write_utc": "2026-10-11T10:07:33Z",
+    "list_seconds": 1.3,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-effect-stack-1/target",
+    "size_gib": 4.083,
+    "files": 5845,
+    "dirs": 991,
+    "newest_write_utc": "2026-10-23T18:49:00Z",
+    "list_seconds": 69.5,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-effect-stack-1/tmp",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 1,
+    "newest_write_utc": null,
+    "list_seconds": 1.3,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-render-queue-2/target",
+    "size_gib": 40.797,
+    "files": 58849,
+    "dirs": 3647,
+    "newest_write_utc": "2026-10-22T19:19:23Z",
+    "list_seconds": 325.6,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-render-queue-2/tmp",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 3,
+    "newest_write_utc": null,
+    "list_seconds": 1.3,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-roto-wiring/target",
+    "size_gib": 28.447,
+    "files": 91814,
+    "dirs": 6121,
+    "newest_write_utc": "2026-10-22T13:21:23Z",
+    "list_seconds": 323.4,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ae-roto-wiring/tmp",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 1,
+    "newest_write_utc": null,
+    "list_seconds": 0.3,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-develop-dng-writer/target",
+    "size_gib": 19.268,
+    "files": 29940,
+    "dirs": 1885,
+    "newest_write_utc": "2026-10-22T18:11:45Z",
+    "list_seconds": 36.2,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-develop-dng-writer/tmp",
+    "size_gib": 0,
+    "files": 1,
+    "dirs": 1,
+    "newest_write_utc": "2026-10-22T13:22:03Z",
+    "list_seconds": 1.3,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-eps-free-fonts/logs",
+    "size_gib": 0,
+    "files": 5,
+    "dirs": 1,
+    "newest_write_utc": "2026-10-23T17:50:50Z",
+    "list_seconds": 0.1,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-eps-free-fonts/target",
+    "size_gib": 1.177,
+    "files": 2277,
+    "dirs": 427,
+    "newest_write_utc": "2026-10-23T17:50:50Z",
+    "list_seconds": 2,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-eps-free-fonts/tmp",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 1,
+    "newest_write_utc": null,
+    "list_seconds": 0,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-harness-panels-1/target",
+    "size_gib": 15.647,
+    "files": 5868,
+    "dirs": 988,
+    "newest_write_utc": "2026-10-23T17:25:02Z",
+    "list_seconds": 3.7,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-harness-panels-1/tmp",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 1,
+    "newest_write_utc": null,
+    "list_seconds": 0,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-harness-shell-2/target",
+    "size_gib": 15.784,
+    "files": 5936,
+    "dirs": 1008,
+    "newest_write_utc": "2026-10-23T19:33:41Z",
+    "list_seconds": 5.2,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-harness-shell-2/tmp",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 1,
+    "newest_write_utc": null,
+    "list_seconds": 0,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-fill-layers/target",
+    "size_gib": 12.951,
+    "files": 43214,
+    "dirs": 2830,
+    "newest_write_utc": "2026-10-22T15:27:49Z",
+    "list_seconds": 40.6,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-ps-fill-layers/tmp",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 1,
+    "newest_write_utc": null,
+    "list_seconds": 1.3,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-timeline-ui-1/target",
+    "size_gib": 25.14,
+    "files": 29825,
+    "dirs": 2027,
+    "newest_write_utc": "2026-10-22T23:34:32Z",
+    "list_seconds": 65.8,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/smb-timeline-ui-1/tmp",
+    "size_gib": 0,
+    "files": 0,
+    "dirs": 1,
+    "newest_write_utc": null,
+    "list_seconds": 1.6,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target/debug",
+    "size_gib": 458.071,
+    "files": 383895,
+    "dirs": 15578,
+    "newest_write_utc": "2026-10-23T08:17:14Z",
+    "list_seconds": 7243.7,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target/fixtures",
+    "size_gib": 0.022,
+    "files": 243,
+    "dirs": 20,
+    "newest_write_utc": "2026-10-22T21:14:57Z",
+    "list_seconds": 2.3,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target/nextest",
+    "size_gib": 0,
+    "files": 2,
+    "dirs": 3,
+    "newest_write_utc": "2026-10-23T08:17:14Z",
+    "list_seconds": 0.1,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/target/tmp",
+    "size_gib": 0.125,
+    "files": 230,
+    "dirs": 90,
+    "newest_write_utc": "2026-10-23T07:13:38Z",
+    "list_seconds": 1,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward/dbl-test/env/target",
+    "size_gib": 0,
+    "files": 2,
+    "dirs": 1,
+    "newest_write_utc": "2026-10-20T20:11:26Z",
+    "list_seconds": 0,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward/dbl-test/lane/target",
+    "size_gib": 0,
+    "files": 2,
+    "dirs": 1,
+    "newest_write_utc": "2026-10-20T20:20:44Z",
+    "list_seconds": 0,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward/sccache-probe/a/target",
+    "size_gib": 0.961,
+    "files": 1725,
+    "dirs": 131,
+    "newest_write_utc": "2026-10-20T16:00:30Z",
+    "list_seconds": 4.3,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward/sccache-probe/b/target",
+    "size_gib": 0.961,
+    "files": 1725,
+    "dirs": 131,
+    "newest_write_utc": "2026-10-20T16:01:43Z",
+    "list_seconds": 7.4,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward/sccache-probe/c/target",
+    "size_gib": 0.961,
+    "files": 1725,
+    "dirs": 131,
+    "newest_write_utc": "2026-10-20T16:02:36Z",
+    "list_seconds": 2.4,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward/sccache-probe/d/target",
+    "size_gib": 0.961,
+    "files": 1725,
+    "dirs": 131,
+    "newest_write_utc": "2026-10-20T16:42:39Z",
+    "list_seconds": 2,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward/sccache-probe/e/target",
+    "size_gib": 1.092,
+    "files": 1796,
+    "dirs": 125,
+    "newest_write_utc": "2026-10-20T16:45:04Z",
+    "list_seconds": 1.5,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward/sccache-probe/env/target",
+    "size_gib": 0,
+    "files": 2,
+    "dirs": 1,
+    "newest_write_utc": "2026-10-20T15:02:37Z",
+    "list_seconds": 0,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/steward/sccache-probe/tiny-env/target",
+    "size_gib": 0,
+    "files": 2,
+    "dirs": 1,
+    "newest_write_utc": "2026-10-20T16:46:17Z",
+    "list_seconds": 0,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/sync-export/target",
+    "size_gib": 0.282,
+    "files": 630,
+    "dirs": 116,
+    "newest_write_utc": "2026-10-11T11:58:41Z",
+    "list_seconds": 2.2,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/target",
+    "size_gib": 15.013,
+    "files": 25514,
+    "dirs": 4055,
+    "newest_write_utc": "2026-10-14T16:49:08Z",
+    "list_seconds": 514,
+    "error": null
+   },
+   {
+    "path": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/Handshake_Artifacts/WP-KERNEL-STUDIO/studio-team-dev/tool-install/target",
+    "size_gib": 1.003,
+    "files": 3563,
+    "dirs": 582,
+    "newest_write_utc": "2026-10-11T01:01:42Z",
+    "list_seconds": 138.7,
+    "error": null
+   }
+  ]
+ }
+}
