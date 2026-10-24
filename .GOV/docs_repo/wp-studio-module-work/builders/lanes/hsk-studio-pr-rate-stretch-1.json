@@ -1,0 +1,85 @@
+{
+  "crate": "hsk-studio-pulse, hsk-studio-harness-view",
+  "lane": "SMB-PR-RATE-STRETCH-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed e3fc44b5 (rebased on origin c9a32dd6); bundled run2 on C: green 298/298 at e3fc44b5; never claimed PASS",
+  "commits": [
+    {"sha": "a3c7d385", "subject": "Studio pulse: rate stretch and Speed/Duration planners (SMB-PR-RATE-STRETCH-1 slice 1)", "pushed": true, "local_before_rebase": "061c859a"},
+    {"sha": "03594a14", "subject": "Studio timeline: Rate Stretch tool (R), Speed/Duration form (Ctrl+R), speed labels (SMB-PR-RATE-STRETCH-1 slice 2)", "pushed": true, "local_before_rebase": "fd6eace1"},
+    {"sha": "e3fc44b5", "subject": "Studio timeline: exact slip at non-unit speed, slip_inexact_at_speed (SMB-PR-RATE-STRETCH-1 slice 3)", "pushed": true, "local_before_rebase": "fa3a84c0"}
+  ],
+  "capabilities_done": [
+    "slice 1 (pulse src/rate.rs): plan_rate_stretch(snapshot, sequence_id, expected_revision, RateStretch{clip_id, edge Head|Tail, new_edge}, multicam records, ctx) and plan_speed_duration(.., SpeedDuration{clip_id, target Speed(magnitude)|Duration(ticks), reverse}, ..) -> one EditProposal (Folio-validated, one revision step, TimelineInverse for plan_timeline_revert); source window kept, speed derived through assemble::resolve_points FourPointFit::ChangeSpeed (exact reduced, sign kept), no copy of that rule; only the dragged edge moves (Speed/Duration: head stays), no ripple; linked partners retime together (same edge deltas, own source windows); refusals RateError{Overlap rate_stretch_overlap, BelowOneFrame rate_stretch_below_one_frame, Unrepresentable rate_stretch_unrepresentable, MulticamReverse rate_stretch_multicam_reverse, Pulse(not_frame_aligned, track_locked, linked_edit_unsupported, outside_range, unknown_clip, stale_revision, no_change, invalid_speed)}; speed_from_percent / speed_percent_label helpers; TimelineEdit enum unchanged",
+    "slice 2 (harness-view): TrimTool::RateStretch in the trim-mode selector (timeline.tool.rate_stretch, key R, spec cmd.tools.05ratestretch); edge drags = DragKind::RateStretchIn/Out -> TimelineCommand::RateStretch{clip_id, edge, delta_frames} with the TRIM-1 achieved-delta search (rate_stretch_overlap / rate_stretch_below_one_frame added to LIMIT_CODES), one undo step per drag, last_trim kind rate_stretch; TimelineCommand::SpeedDuration{clip_id, target, reverse}; Ctrl+R (cmd.clip.speed) opens a Speed/Duration form row (timeline.speed_form.*: percent, duration frames, reverse, Maintain Audio Pitch and Interpolation shown disabled with the spec-gap reason, Apply, Cancel; last-edited field is fixed); clip block labels show the speed when not 100 % (e.g. '(80.00%)'); state_json timeline.speed_form; multicam records read from the session document entry 'multicam'",
+    "slice 3 (harness-view trim.rs): slip source delta = frames x ticks per frame x |speed| exactly; non-whole -> slip_inexact_at_speed (named at once, nothing changes)"
+  ],
+  "tests": {
+    "argv": "cd <lane>/handshake-studio-assets && bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-pr-rate-stretch-1 --disk ssd -- cargo nextest run -p hsk-studio-pulse -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+    "exit": 0,
+    "sha": "e3fc44b5",
+    "passed": 298,
+    "failed": 0,
+    "skipped": 20,
+    "clippy": "clean of errors in the same lock hold (pulse, harness-view, harness + direct dependents); no new warnings in owned files",
+    "new_tests": "pulse tests/rate_stretch.rs 5/5: rate_stretch_keeps_the_source_window_and_derives_speed, speed_duration_round_trip_exact, reverse_is_a_negative_speed, stretch_refusals_are_named, linked_clips_stretch_together; harness-view tests/viewer_timeline_rate.rs 5/5: r_selects_the_rate_stretch_tool, rate_stretch_drag_changes_speed_not_source, ctrl_r_speed_duration_sets_speed_and_undo_restores, achieved_delta_stops_at_the_neighbour, slip_at_double_speed_moves_two_source_frames_per_frame",
+    "history": "run1 at fa3a84c0 (base b9c311e5): 297/297 green; rebase onto c9a32dd6 (SMB-LR-HEALING-1 touched develop + harness-view develop_entry.rs) -> run2 at e3fc44b5: 298/298 green",
+    "doctests": "no doc examples added",
+    "rule_4b": "no Folio record field added or renamed: hsk-studio-package suite not required"
+  },
+  "blockers": [],
+  "lock_wait_s": 900,
+  "bg_pids": [],
+  "next": "validation round judges SMB-PR-RATE-STRETCH-1 at e3fc44b5; lead routes notes.run_ui_md_lines into RUN-UI.md (FIG-EDIT-1 owns it tonight)",
+  "updated_at": "2026-10-24T05:32:57Z",
+  "notes": {
+    "worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-pr-rate-stretch-1 (branch lane/smb-pr-rate-stretch-1, base origin b9c311e5)",
+    "owned_paths_touched": "pulse src/rate.rs (new), src/lib.rs (2 lines), tests/rate_stretch.rs (new); harness-view src/view/timeline.rs, src/view/timeline_ui.rs, src/view/timeline/trim.rs, src/view/timeline/rate.rs (new), tests/viewer_timeline_rate.rs (new); nothing else (multicam.rs, timeline_edit.rs, assemble.rs, rational.rs, error.rs untouched; no Cargo.lock, no new crate edge, no crates.io dependency)",
+    "spec_basis": [
+      "[STU-VID-026] | Rate stretch | Change a clip's `duration` by changing its `speed`, keeping the full source window. | Bounded by the speed limits of [STU-VID-031]. |",
+      "[STU-VID-031] `speed` is a rational multiplier ... A clip's speed and duration are two views of one value: fixing either derives the other. Reverse is a negative speed. `Maintain audio pitch` is an independent boolean.",
+      "[STU-VID-090] obligations 1 (achieved delta) and 3 (determinate result for every refusal)",
+      "[STU-VID-040] A trim is one step, not one step per frame dragged.",
+      "| `cmd.clip.speed` | Speed/Duration... | `Ctrl+R` |; | `cmd.tools.05ratestretch` | _(no menu label; executable-only)_ | `R` |; | Rate Stretch | `rate_stretch` | `timeline_edit` | WORKSPACE > Tools > Timeline edit | premiere | Rate Stretch |"
+    ],
+    "declared_readings": [
+      "rate stretch never ripples; only the dragged edge moves; Speed/Duration keeps the head and moves the tail (no ripple of trailing clips)",
+      "limits: duration >= one sequence frame; video tracks move edges on whole frames (not_frame_aligned); speed representable (i64 numerator, reduced, derived duration whole ticks) else rate_stretch_unrepresentable; no overlap with track neighbours (rate_stretch_overlap); a head before tick 0 is outside_range",
+      "linked partners: every member's moved edge moves by the same delta, each keeps its own source window and gets its own exact speed",
+      "reverse on a multicam clip (record present) or on any clip of a declared multicam source sequence -> rate_stretch_multicam_reverse (matches MULTICAM-2's multicam_reverse_unsupported; forward speed admitted)",
+      "slip at speed: N timeline frames = N x ticks per frame x |speed| source ticks, the primary clip's speed; linked partners move by that same source delta; right = later source for forward and reversed clips",
+      "a reverse-only Speed/Duration change has an empty EditProposal::changes (ClipWindow carries no speed); the sequence and inverse carry it",
+      "Rate Stretch tool on a clip body moves the clip (as Selection)",
+      "speed label: floor to two decimals, '-' prefix for reverse"
+    ],
+    "spec_deltas": [
+      "STU-VID-026 rate stretch 'Bounded by the speed limits of [STU-VID-031]' but STU-VID-031 declares no numeric speed limits: bounded by representability, one frame and neighbours (declared)",
+      "STU-VID-031 'Maintain audio pitch' boolean and the frame_sampling/frame_blending/optical_flow choice have no StudioClip storage: not taken by the planners, shown as unavailable in the form (a record set beside the document is a later lane)"
+    ],
+    "studio_readings_unverified_D5": [
+      "Premiere rate-stretch limits (vendor percentage range), whether rate stretch ripples, Speed/Duration dialog defaults and its 'Ripple Edit, Shifting Trailing Clips' option, Rate Stretch cursor zones and body behaviour"
+    ],
+    "not_proven": [
+      "NOT_PROVEN: playback/render of a stretched clip's frames in the window (program monitor has no frame decoder on document sequences)",
+      "NOT_PROVEN: audio at non-unit speed",
+      "NOT_PROVEN: Premiere rate-stretch limits and cursor zones (no Premiere oracle)"
+    ],
+    "gaps": [
+      "time remapping and frame-interpolation choice not stored (PR-09 stays PARTIAL)",
+      "Speed/Duration has no ripple-trailing-clips option",
+      "a reverse-only change lists no ClipChange (write footprint empty)",
+      "multicam records are read from the session entry without re-validation in the viewer (the session validates on every read/write)"
+    ],
+    "run_ui_md_lines": [
+      "Rate stretch (lane SMB-PR-RATE-STRETCH-1): toolbar Rate Stretch (or R with the timeline active) makes clip edge drags change the clip's speed, not its source window; the other edge stays, nothing ripples; one undo step per drag; a drag stops at the neighbour (rate_stretch_overlap) or at one frame (rate_stretch_below_one_frame), see state_json timeline.last_trim.",
+      "Ctrl+R with a clip selected opens the Speed/Duration row: Speed % or Duration (frames) - the field edited last is kept, the other derived - plus Reverse Speed; Apply is one undo step. Maintain Audio Pitch and Interpolation are shown unavailable (no clip field stores them).",
+      "Clips not at 100 % show their speed after the name, e.g. (50.00%) or (-100.00%) for reverse. Slip at speed moves the source by frames x |speed| (200 %: one frame slips two source frames); an inexact slip is refused slip_inexact_at_speed.",
+      "Refusals change nothing and name their code in the status log: rate_stretch_unrepresentable, rate_stretch_multicam_reverse, not_frame_aligned, invalid_speed_percent, invalid_duration."
+    ],
+    "own_causes": [
+      "one compile error before the first bundled run (cancel.check() ValidationError not convertible to RateError), fixed with map_err(PulseError::from); run1 green first time"
+    ],
+    "commit_method": "slice 2/3 split: slice 2 staged trim.rs and the test file without the slip hunk/test via hash-object + update-index (lane index, own paths only); working files transiently had CRLF from python edits, committed blobs verified LF",
+    "kernel_not_committed": true,
+    "ready_sha": "e3fc44b51588de34750413fe6344faab7774157c"
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "crate": "hsk-studio-develop",
+  "lane": "SMB-LR-HEALING-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-4 pushed (origin codex/handshake-studio-assets at c9a32dd6) after one green bundled run on C: ssd",
+  "commits": [
+    {"sha": "125e7d6c", "subject": "develop (SMB-LR-HEALING-1 slices 1-3): STU-RAW-124 retouch records, heal/clone spot removal and core distraction removal over pigment"},
+    {"sha": "c9a32dd6", "subject": "interop-lrcat (SMB-LR-HEALING-1 slice 4): crs:RetouchAreas decode into develop RetouchArea records"}
+  ],
+  "capabilities_done": [
+    "slice 1: RetouchStack {areas, distraction, adapter_fills} on Adjustments (empty default); RetouchArea carries every STU-RAW-124 field; AdapterFillRecord (adapter id, model id + version, ran_locally, fill method, extent, search/target rects, black level, gamma type, input/patch digests, remap info, variations, selected variation) classified studio_model_adapter and never rendered (model_unavailable:distraction_adapter_fill); counts, aggregate dabs (MAX_STACK_DABS) and windows (RETOUCH_MAX_BYTES) refused before allocation",
+    "slice 2: heal / clone stage (enable_retouch): target mask from the STU-RAW-121 dab masks (or the centre/radius circle) rasterised by develop's own brush rasteriser on its bounding window, coverage x opacity; explicit source -> pigment clone_stamp / heal with the (centre - source) pixel offset; engine-chosen source -> pigment spot_heal candidate search; disabled flag keeps the areas and changes nothing; tile API refuses retouch_whole_frame",
+    "slice 3: core distraction removal (enable_distraction_removal): pigment content_aware::fill (STU-RAS-143, auto sampling, area seed) over the hole plus max(16, hole side) px context; adapter records refuse model_unavailable when the group is enabled",
+    "slice 4: harness-view develop_entry encodes/decodes edit.retouch (optional key: absent = empty, entries without retouch keep their bytes; hostile lists typed refusals); interop-lrcat XMP sidecar decodes crs:RetouchAreas into RetouchArea records (unknown fields = loss notes, unusable areas dropped with a loss note)"
+  ],
+  "tests": {
+    "argv": "cd <lane worktree>/handshake-studio-assets && bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-lr-healing-1 --disk ssd -- cargo nextest run -p hsk-studio-develop -p hsk-studio-harness-view -p hsk-studio-harness -p hsk-studio-interop-lrcat --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+    "exit": 0,
+    "sha": "c9a32dd6",
+    "passed": 402,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": null,
+  "bg_pids": [],
+  "next": "validator round (R40 candidate); follow-ups listed in notes.gaps",
+  "updated_at": "2026-10-24T05:05:18Z",
+  "notes": {
+    "spec_basis": {
+      "STU-RAW-015": "a heal/clone spot-removal tool with source-point control ... develop-scoped operations on StudioRawDevelop and reuse the raster retouch primitives of 14.4 where the capability is shared ([STU-DOC-004]); they are not a parallel retouch implementation",
+      "STU-RAW-124": "A retouch area is a record carrying spot_type (heal or clone), heal_version, feather, opacity, seed, a method (gaussian observed), a source_state (source_set_explicitly observed, versus an engine-chosen source), a target dab-mask list with the same brush geometry as [STU-RAW-121], and the source offset (source_x, source_y, offset_y, centre_x, centre_y, radius) ... Studio's core distraction removal is the on-device inpaint of [STU-RAS-143]. Where an adapter produced a fill, the record MUST carry the adapter identity, the model identity and version, whether it ran locally, the patch variation set, and the digests",
+      "STU-RAW-105": "PANEL ENABLE FLAGS ARE PART OF THE STATE",
+      "STU-RAW-103": "INTERCHANGE DECODE AND ENCODE (decode only in this lane)",
+      "STU-RAS-143": "CONTENT-AWARE FILL CONTROL CONTRACT"
+    },
+    "declared_readings": [
+      "stage position: whole frame, first post-tile stage (before detail/clarity, local corrections, effects) on the developed scene-linear frame after the crop; mask and source coordinates normalised to that frame; retouch areas before distraction areas (UNVERIFIED vs Lightroom)",
+      "domain: each area's windows are divided by the smallest power of two s >= max(1, largest value) and covered pixels multiplied back (exact in binary32 for normal values; tested at +3 EV, values > 1, exact copy); negative values refused unsupported_contribution:retouch_negative_value, non-finite non_finite; pigment's own [0, alpha] clamp of a solved heal value still applies",
+      "source offset: target = source translated by (centre - source) in pixels; offset_y, heal_version, method and the retouch-area seed are validated and retained but do not change pixels (one heal algorithm, one feather profile)",
+      "target mask: union (screen) of the dab masks; with no dab mask the centre_x/centre_y/radius circle with the area feather; radius = fraction of the shorter side as in local.rs",
+      "a source footprint leaving the frame is refused unsupported_contribution:retouch_source_outside_frame",
+      "engine-chosen clone areas clone from spot_heal's chosen offset",
+      "lrcat field names: CamelCase of the spec fields (SpotType, HealVersion, Feather, Opacity, Seed, Method, SourceState, SourceX, SourceY, OffsetY, CenterX/CentreX, CenterY/CentreY, Radius, Masks{Radius, Flow, Feather, Dabs}); SourceState maps sourceSetExplicitly/source_set_explicitly/engine_chosen only; all UNVERIFIED (D5)"
+    ],
+    "spec_deltas": [
+      "STU-RAW-015 requires red-eye / pet-eye with pupil size and darken controls but STU-RAW-124 lists no red-eye record fields: red_eye stays refused (UnsupportedContribution(\"red_eye\"))",
+      "STU-RAW-124 does not state the stage position in the develop order, the meaning of heal_version values, the meaning of offset_y next to source_y, or the engine-chosen source_state value name",
+      "STU-RAW-124 lists source_x and source_y but no source mask list for brush spots; the brush-spot source is read as the target masks translated by (centre - source)"
+    ],
+    "shared_file_hunks": "develop local.rs: rasterise_brush now delegates to a new pub(crate) rasterise_brush_window (identical arithmetic for the full window; all local tests green) and Mask::validate became pub(crate); interop-lrcat tokenizer: an rdf:Description nested in an rdf:li / rdf:Description no longer registers top-level properties (two nested descriptions previously failed xmp_property_repeated)",
+    "proof": {
+      "develop tests/develop_retouch.rs": ["retouch_records_carry_every_spec_field", "hostile_retouch_lists_are_refused_before_allocation", "adapter_fill_records_are_classified_not_rendered", "adapter_path_reports_model_unavailable", "clone_area_copies_the_source_offset_exactly", "heal_area_matches_pigment_heal_on_the_same_plane", "disabled_retouch_keeps_areas_and_changes_nothing", "retouch_is_deterministic_across_threads", "distraction_area_fills_through_the_native_inpaint"],
+      "harness-view tests/develop_retouch_entry.rs": ["develop_entry_round_trips_retouch_areas"],
+      "interop-lrcat tests/xmp_sidecar.rs": ["xmp_retouch_areas_decode_into_records"]
+    },
+    "not_proven": [
+      "NOT_PROVEN: equality with Lightroom Classic spot removal (no Lightroom oracle, D5)",
+      "NOT_PROVEN: the window's spot tool and viewer enable wiring (harness-view view/develop.rs is outside this lane: the viewer does not set enable_retouch from the stack, so retouch areas are stored but not applied in the window)"
+    ],
+    "gaps": [
+      "red-eye / pet-eye (spec gap)",
+      "XMP encode of RetouchAreas (STU-RAW-103 encode): the packet bytes stay verbatim on write; new areas are not written",
+      "Lightroom circular/gradient retouch masks (e.g. a crs:What other than a dab brush) drop the area with crs_retouch_field_missing",
+      "records.rs copy-settings group for spot removal (not in owned paths)",
+      "viewer develop.rs enable wiring and a GUI spot tool"
+    ],
+    "rules": "C: ssd only (STUDIO_OWNER=smb-lr-healing-1); gameplan not used; Cargo.lock untouched; no new crates.io dependency or crate edge; doc examples unchanged (no doctest run needed); origin did not move between run and push (rebase no-op, no re-run)"
+  }
+}

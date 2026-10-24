@@ -10,7 +10,9 @@ A full-workspace union (`--all`) is due when any of these holds:
   - the round entry script, the tools it runs or its configuration changed: every tools/* and .config/* file EXCEPT
     the step-0 policy overlays and the non-round tools below. Full-round triggers today: tools/run-round.sh,
     tools/disk-build-lock.sh, tools/registry-sync.py (step 0 check), .config/nextest.toml, .config/round-features.toml,
-    .config/oracle-corpus.toml, .config/oracle-fixtures.toml, and any NEW tools/ or .config/ file (safe default);
+    .config/oracle-corpus.toml, .config/oracle-fixtures.toml, any file under .cargo/ (cargo build configuration,
+    e.g. .cargo/config.toml jobs/flags: changes every build; R40 finding, LOW), and any NEW tools/ or .config/ file
+    (safe default);
   - root Cargo.toml changed outside [workspace.metadata] (profiles, workspace dependencies, members are handled as
     crate changes only when nothing else changed).
 Step-0 policy overlays (lead decision 2026-10-22, F-R37-2; NOT round-entry inputs, they select nothing): exactly
@@ -35,7 +37,7 @@ Exit: 0 ok; 2 usage/inputs; 3 metadata or git failure."""
 import argparse, json, os, subprocess, sys, tomllib
 
 ENTRY = ("tools/run-round.sh", "tools/disk-build-lock.sh")
-ENTRY_PREFIXES = (".config/", "tools/")
+ENTRY_PREFIXES = (".config/", "tools/", ".cargo/")  # .cargo/: cargo build config (jobs, flags) changes every build (R40 LOW)
 # Step-0 policy overlays: excluded from ENTRY_PREFIXES (see the header; lead decision F-R37-2).
 POLICY_OVERLAYS = frozenset((".config/duplicate-fingerprints.toml", ".config/machine-paths.toml",
                              ".config/disk-build-lock.toml"))
@@ -122,6 +124,7 @@ def self_test():
     root = '[workspace]\nmembers = ["crates/a"]\n[workspace.metadata.studio]\nx = 1\n'
     run = lambda changed, k=0, l2=lock1, r2=root: decide(changed, pk, k, lock1, l2, root, r2, "B", "C", "R37", "R36")
     checks = []
+    ov0 = [".config/duplicate-fingerprints.toml", ".config/machine-paths.toml"]
     r = run(["crates/a/src/lib.rs"])
     checks.append(("leaf change selects reverse closure", r["selected"] == ["a", "b", "d"] and not r["full"]))
     checks.append(("reuse records name both commits", {x["crate"] for x in r["reuse"]} == {"c", "e"}
@@ -133,6 +136,8 @@ def self_test():
                    not run(["Cargo.lock"], l2=lock1 + '\n[[package]]\nname = "f"\nversion = "0.1.0"\n')["full"]))
     checks.append(("entry script change -> full", run(["tools/run-round.sh"])["selection_args"] == ["--all"]))
     checks.append(("round config change -> full", run([".config/nextest.toml"])["full"]))
+    checks.append((".cargo/config.toml change -> --all", run([".cargo/config.toml"])["selection_args"] == ["--all"]))
+    checks.append(("any .cargo/ file + overlays -> --all", run(ov0 + [".cargo/other.toml"])["selection_args"] == ["--all"]))
     for cfg in (".config/round-features.toml", ".config/oracle-corpus.toml", ".config/oracle-fixtures.toml",
                 ".config/new-policy.toml", "tools/registry-sync.py", "tools/disk-build-lock.sh", "tools/new-tool.sh"):
         checks.append((f"{cfg} change -> full", run([cfg])["selection_args"] == ["--all"]))

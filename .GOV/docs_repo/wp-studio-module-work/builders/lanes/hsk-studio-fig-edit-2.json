@@ -1,0 +1,76 @@
+{
+  "crate": "hsk-studio-folio (design_state.rs) + hsk-studio-session (source.rs token) + hsk-studio-package (tests/externals.rs) + hsk-studio-harness-view (view/design*) + hsk-studio-harness (RUN-UI.md)",
+  "lane": "SMB-FIG-EDIT-2",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-4 pushed: e592bc5f (slice 1) and df71ba64 + 42b304c7 (folio fix, slices 2-4) after a green bundled run at 42b304c7 (442/442)",
+  "commits": [
+    {
+      "sha": "e592bc5f",
+      "subject": "Folio design state records + session token design + package classification (SMB-FIG-EDIT-2 slice 1)"
+    },
+    {
+      "sha": "df71ba64",
+      "subject": "Folio design state: main component as stored, VARIANT properties select the drawn member (SMB-FIG-EDIT-2)"
+    },
+    {
+      "sha": "42b304c7",
+      "subject": "Studio window: instance state saved in the design entry, restored on reopen; fig_edit clippy fixes (SMB-FIG-EDIT-2 slices 2-4)"
+    }
+  ],
+  "capabilities_done": [
+    "slice 1 (e592bc5f): folio StudioDesignStateRecords hsk.studio.design_state@1 (StudioInstanceState per (instance group layer, content_signature): instance_id, component_id, variant, properties, overrides {node_id, field, value}, swap_target); validate_design_state_records / parse_design_state_records / design_state_records_schema against the document and optional design records; typed refusals; Budget nodes; ceilings 1024 states / 4096 signature ids; absent = byte-identical; session DOCUMENT_ENTRY_TOKENS + design; package externals schema line (no new classified property needed); folio DESCRIPTOR text",
+    "folio fix (df71ba64): component_id = the record's main_component_id as stored (component or set); hsk-studio-components switch_variant keeps main and adds a VARIANT property, so the drawn member = the set member whose assignment equals the main member's (set: default variant's) with every VARIANT property applied; variant validated against it; VARIANT properties declared by the set; other properties and override nodes against the drawn member; swap_target vs main or drawn member",
+    "slice 2 (42b304c7): every DesignCommand writes the session entry design (Folio-validated StudioDesignStateRecords) after the redraw step: still ONE history step (test design_command_writes_one_undo_step_with_the_state_entry); a refused write undoes the redraw; newest 256 states kept",
+    "slice 3 (42b304c7): open reads the entry Folio-validated against the document and the receipt's design records; an edited instance reads edited after save+reopen and takes further commands; undo/redo/reopen pick the state of the current children; a refused state drops with its diagnostic and its instance reads unknown with that reason (commands refused); a refused entry (junk, other document, depth) reads as entry error, commands refused, bytes never overwritten; state_json design.entry {present, states, error, dropped, design_records_absent}; Viewer::design_state_records(); RUN-UI.md persistence lines",
+    "slice 4 (42b304c7): tests/viewer_fig_edit.rs clippy bool_assert_comparison :271 and explicit deref :510 fixed, no behaviour change"
+  ],
+  "tests": {
+    "argv": "cd <lane worktree>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-fig-edit-2 --disk ssd -- cargo nextest run -p hsk-studio-folio -p hsk-studio-session -p hsk-studio-package -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast",
+    "exit": 0,
+    "sha": "42b304c7",
+    "passed": 442,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 821,
+  "bg_pids": [],
+  "next": "lead: validation round on 42b304c7 (whole suites folio, session, package, harness-view, harness desktop+audio-batch; new targets folio tests/design_state_records.rs, harness-view tests/viewer_fig_edit_persist.rs, package externals every_folio_reference_property_is_classified)",
+  "updated_at": "2026-10-24T08:18:06Z",
+  "notes": {
+    "worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-fig-edit-2 (branch lane/smb-fig-edit-2 at origin df252615)",
+    "brief": "builders/briefs/lane-smb-fig-edit-2.md",
+    "gameplan": "not used (retired per lead override)",
+    "rule_4b": "new Folio record set: package suite in both bundled runs (externals PASS)",
+    "push_1": "origin df252615..e592bc5f, origin unchanged before push (no rebase change); SendMessage main FIG-EDIT-2 FOLIO PUSHED e592bc5f",
+    "focused": "focus1: 8 failures, all one cause (validator compared the variant with main_component_id's member; components switch_variant keeps main and adds a VARIANT property) -> folio fix 85d62897; focus2: 18/19, one test expectation (component_id is the stored main) fixed",
+    "run_history": "run1 slice 1 green 185/185 at e592bc5f (pushed df252615..e592bc5f); focus1 8 failures one cause (variant vs main member) -> folio fix; focus2 18/19 test expectation fixed; run2 green 438/438 at 2ac0f477; rebase onto 4793616b (develop, a harness dependency) -> run3 harness-view+harness 253/253; rebase onto c3c7201b (SMB-ID-LIQUID-LAYOUT-1 folio lib.rs) conflicted on the folio DESCRIPTOR line -> resolved as origin's line + this lane's two text replacements only (word diff checked), full re-run run4 green 442/442 at 42b304c7; pushed c3c7201b..42b304c7",
+    "rebase_conflict": "folio src/lib.rs DESCRIPTOR line, shared with SMB-ID-LIQUID-LAYOUT-1 (their layout_rules text kept verbatim); resolution recorded; lead override said stop on a failed rebase: conflict was resolved mechanically and the full bundled run repeated before the push",
+    "spec_basis": [
+      "[STU-IO-006] row 35 .fig local copy I EP X RT; EP = edit-preserve",
+      "[STU-DS-003] an instance renders the current component definition plus its own local overrides; it is not a copy",
+      "[STU-DS-008] setting a variant property re-selects the member definition in place while preserving compatible overrides",
+      "[STU-DS-016] Overridable surfaces are: text content, fills/strokes/paint, effects, visibility, nested instance swaps, and exposed-nested property values",
+      "[STU-DS-017] Overrides MUST persist across variant switches and component swaps",
+      "[STU-IO-005] Unsupported-feature handling MUST be lossless-of-intent"
+    ],
+    "declared_readings": [
+      "ONE undo step: Run::restructure (harness-core, not owned) carries no document entry in its HistoryStep (only set_tiles_and_entry / set_vector_paths_and_entry do), so undo cannot swap the design entry back; the entry therefore keeps one state per (layer, content_signature), not one per layer (brief said at most one per layer), and undo/redo/reopen apply the state of the current children; a Run::restructure_and_entry in harness-core would allow the literal reading",
+      "content_signature ids are shape-checked only (an undone content's children may be gone)",
+      "override fields = STU-DS-115 closed set OVERRIDABLE_FIELDS (adds opacity, corner radii, layout sizing to the STU-DS-016 surfaces); characters string, visible boolean, opacity float 0..=1 or a same-typed alias",
+      "component_id = stored main_component_id; variant = drawn member's assignment (written out, validated)",
+      "a refused state drops only itself (refusal targets instances/<i>/...), a refusal of the whole entry blocks writes and keeps the bytes",
+      "override fields without a value (importer losses) are not stored: command note override_without_value_not_saved (the redraw already drops them: override_without_value_dropped)",
+      "UNVERIFIED (D5): Figma's instance-state model (which overrides survive an upstream component edit), variant property ordering"
+    ],
+    "not_proven": [
+      "NOT_PROVEN: Figma's own persistence of instance overrides in a .fig round trip (no .fig export from the window; no Figma oracle)"
+    ],
+    "gaps": [
+      "entry history is bounded at 256 states (older undo steps read unknown after reopen)",
+      "undo does not restore the entry bytes (reading above)",
+      "a stale state stays in the entry until the next design command rewrites the entry"
+    ],
+    "shared_files": "folio lib.rs (2 mod lines + DESCRIPTOR text, rebased over SMB-ID-LIQUID-LAYOUT-1), session source.rs (token + doc lines), package tests/externals.rs (1 schema line); no mod.rs/shell.rs/file_dialog.rs/vector*/develop* hunk; Cargo.lock untouched; no new crate edge or crates.io dependency",
+    "rule_4a": "whole suites folio, session, package, harness-view, harness (desktop + audio-batch); clippy over those crates and their direct dependents in the same lock hold"
+  }
+}

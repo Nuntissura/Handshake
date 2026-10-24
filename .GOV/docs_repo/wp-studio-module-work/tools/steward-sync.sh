@@ -24,7 +24,7 @@
 #       --target-dir <steward-export>/target        (never studio-team-dev/target)
 # Usage: steward-sync.sh [--overlay RELPATH]... [--add-edge crate=dep]... [--remove-edge crate=dep]...
 #                        [--allow-unrequested] [--no-push] [--dry-run]
-# --overlay: steward-owned path relative to the workspace root (.config/*, tools/run-round.sh,
+# --overlay: steward-owned path relative to the workspace root (.config/*, .cargo/config.toml, tools/run-round.sh,
 #   tools/workspace-probe.rs, tools/registry-sync.py, tools/disk-build-lock.sh) copied from the shared edit tree
 #   into the export first.
 # Disk-wide build lock: cargo goes through the studio-env.sh wrapper (metadata is not a build, so unlocked); the
@@ -52,7 +52,7 @@ while [ $# -gt 0 ]; do
     --remove-edge) edges+=("remove:${2:?}"); shift ;;
     --overlay)
       case "${2:?}" in
-        .config/*.toml|tools/run-round.sh|tools/workspace-probe.rs|tools/registry-sync.py|tools/disk-build-lock.sh) overlays+=("$2") ;;
+        .config/*.toml|.cargo/config.toml|tools/run-round.sh|tools/workspace-probe.rs|tools/registry-sync.py|tools/disk-build-lock.sh) overlays+=("$2") ;;
         *) echo "overlay not steward-owned: $2" >&2; exit 2 ;;
       esac
       case "$2" in *..*) echo "overlay path may not contain ..: $2" >&2; exit 2 ;; esac
@@ -183,8 +183,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
   }
   # Re-parent instead of redoing when lanes pushed during the sync: allowed only when no derivation input changed
   # between BASE and the current tip (root Cargo.toml/Cargo.lock, rust-toolchain.toml, any crate manifest, the
-  # steward tools and .config files, or a committed path); the derived blobs are then identical for the tip.
-  inputs_re="^$SUB/(Cargo\.toml|Cargo\.lock|rust-toolchain\.toml|crates/[^/]+/Cargo\.toml|tools/|\.config/)"
+  # steward tools, .config and .cargo files, or a committed path); the derived blobs are then identical for the tip.
+  inputs_re="^$SUB/(Cargo\.toml|Cargo\.lock|rust-toolchain\.toml|crates/[^/]+/Cargo\.toml|tools/|\.config/|\.cargo/)"
   NEW="" PARENT=""
   for attempt in 1 2 3 4 5 6 7 8; do
     # Lanes push from their own worktrees, so origin moves while the probe waits for the disk lock (3 of 3 syncs on

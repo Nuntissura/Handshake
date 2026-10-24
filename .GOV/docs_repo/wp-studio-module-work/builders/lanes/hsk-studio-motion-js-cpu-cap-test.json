@@ -1,0 +1,18 @@
+{
+  "crate": "hsk-studio-motion-js",
+  "lane": "SMB-MOTION-JS-CPU-CAP-TEST",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed",
+  "commits": ["df2526159197eb15b7271489f9f4d6b920bb1307"],
+  "capabilities_done": ["job_cpu_cap_gives_typed_budget_and_is_rearmed_per_request no longer asserts a tight wall clock"],
+  "tests": [
+    {"argv": "cargo nextest run -p hsk-studio-motion-js --features quickjs,test-faults --no-fail-fast", "exit": 0, "sha": "pre-rebase tree of df252615 (test file only)", "passed": 28, "failed": 0},
+    {"argv": "cargo nextest run -p hsk-studio-motion-js --features quickjs --no-fail-fast", "exit": 0, "sha": "pre-rebase tree of df252615 (test file only)", "passed": 25, "failed": 0}
+  ],
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "validator re-run of unit features:hsk-studio-motion-js+quickjs+test-faults",
+  "updated_at": "2026-10-24",
+  "notes": "Failure ref: R39 on b7ef882e, flaky, wall 4.54 s over the 3 s bound under host load. Test now asserts: typed Budget(Cpu), denied Cpu=1 and Deadline=0 and Fuel=0, killed_os_cpu=1 with killed_deadline=0, re-arm over six caps on one pooled worker, recovery on a new worker; wall bound is >=300 ms and <9 s (below the 10 s deadline, hang guard only). Worker CPU time is not readable from the test without a product change, so the kernel-backstop (3.77 s) versus host-poll discrimination by wall time is dropped. Rebased onto origin/codex/handshake-studio-assets (unrelated upstream files) before push; not re-run after rebase."
+}

@@ -1,0 +1,73 @@
+{
+  "crate": "hsk-studio-folio, hsk-studio-layout, hsk-studio-package (tests/externals.rs)",
+  "lane": "SMB-ID-LIQUID-LAYOUT-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "pushed c3c7201b (slices 1-4) after green bundled lane-check on C:",
+  "commits": [
+    {
+      "sha": "24918171",
+      "subject": "Folio layout_rules record set: liquid rules, object pins, alternate-layout sections, linked stories/page items (slice 1)"
+    },
+    {
+      "sha": "e2332943",
+      "subject": "Layout liquid engine: off, scale, recenter, object_based, guide_based, use_parent with reflow and image refit (slice 2)"
+    },
+    {
+      "sha": "eb16e1c0",
+      "subject": "Layout adjust layout: property bag, measurement strings, scopes, page-scope bleed exception, locked, guides, font bounds, undo (slice 3)"
+    },
+    {
+      "sha": "793e7547",
+      "subject": "Layout alternate layouts as sections with linked stories and linked page items (slice 4)"
+    },
+    {
+      "sha": "c3c7201b",
+      "subject": "Layout liquid/adjust tests: guide colours carry colour_profile_id"
+    }
+  ],
+  "capabilities_done": [
+    "STU-LAY-111 seven liquid members stored/validated (preserve_existing apply-range only, use_parent resolution) + object pins/resize constraints",
+    "STU-LAY-009/111 apply_liquid: off, scale, recenter, object_based, guide_based (liquid guides, text reflow, image refit without distortion), use_parent; Folio-validated proposal; overset per story on last frame",
+    "STU-LAY-010/112 adjust_layout: ten-key partial bag, pt or STU-LAY-101 measurement strings, document/pages/page scope with page-scope bleed exception, include_locked, move_ruler_guides, adjust_font_size with required caller bounds, undo_adjust",
+    "STU-LAY-011 alternate layouts as sections (name rules, alternate_layout_length) via create_alternate_layout",
+    "STU-LAY-019/STU-TYP-125 linked stories and linked page items with separate option objects, derived up_to_date/out_of_date state, update_linked_stories/update_linked_page_items (auto_update, warn_on_change, accept)"
+  ],
+  "tests": {
+    "argv": "cd <lane>/handshake-studio-assets && CARGO_BUILD_JOBS=6 bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-id-liquid-layout-1 --disk ssd -- cargo nextest run -p hsk-studio-folio -p hsk-studio-layout -p hsk-studio-package --no-fail-fast",
+    "exit": 0,
+    "sha": "e9cc8873 (pre-rebase; identical crate tree at c3c7201b)",
+    "passed": 252,
+    "failed": 0
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "await validation round",
+  "updated_at": "2026-10-24T07:28:59Z",
+  "notes": {
+    "worktree": "wt-studio-lanes/smb-id-liquid-layout-1 (branch lane/smb-id-liquid-layout-1 at df252615)",
+    "brief": "builders/briefs/lane-smb-id-liquid-layout-1.md",
+    "rule_4e": "no feature-gated test file in this lane (folio, layout, package tests run on default features); no round-features gap",
+    "rebase_after_green_run": "origin moved 53a7333f (steward sync: Cargo.lock/config) + 4793616b (develop DNG); neither touches folio/layout/package or their dependencies, so no re-run (rule 3); pushed tree of my crates identical to the green run",
+    "clippy": "lane-check clippy over folio, layout, package + 20 dependents: clean, no diagnostic in lane files",
+    "rule_4a_4b": "whole suites folio+layout+package (252 tests) in the bundled run; package externals classifies StudioLayoutRuleRecords.linked_page_items/linked_stories and StudioLinkedStory.child_story_id/parent_story_id as internal",
+    "dependents": "layout public API additive (new names only); its dependents do not pin them, suites not required; clippy covered them",
+    "spec_basis": "STU-LAY-009, STU-LAY-010, STU-LAY-011, STU-LAY-019, STU-LAY-101, STU-LAY-111, STU-LAY-112, STU-TYP-125 (v02.222 module 14, grep)",
+    "spec_deltas": [
+      "DECLARED READING: liquid.preserve_existing is an apply-range directive (apply_page_rules skips), never a stored page rule (InvalidField)",
+      "DECLARED READING: absent page rule and unresolvable use_parent = liquid.off",
+      "SPEC GAP STU-LAY-111: liquid.scale anchor/factor not stated; Studio uses uniform min(W'/W,H'/H) about the page origin",
+      "SPEC GAP STU-LAY-111: guide-based stretch distribution not stated; crossed objects scale on that axis, others keep size with centre scaled",
+      "DECLARED READING: object_based both pins + fixed size on one axis is over-constrained (refused); unconstrained object = unpinned fixed size",
+      "DECLARED READING: images under a liquid resize are refit with their fitting; content_to_frame replaced by proportionally (no distortion)",
+      "SPEC GAP STU-LAY-010: font-size bounds/unit/default not recovered; caller must give both bounds (font_size_bounds_missing); layout returns factor min(margin-box ratios) since type sizes are Type-owned",
+      "DECLARED READING STU-LAY-112: page-collection scope also ignores bleed (both are 'scoped to individual pages'); % = percent of the key's current value",
+      "DECLARED READING STU-LAY-010: adjust geometry = edges on page/bleed edges follow them, other edges map linearly margin box to margin box; Folio stores no object lock so locked layer ids are caller input",
+      "DECLARED READING STU-LAY-011: alternate-layout sections stored in hsk.studio.layout_rules@1 (longdoc StudioSection gains no field); pages outside every section = primary layout; sections never overlap",
+      "DECLARED READING STU-TYP-125: link state derived from synced_parent_fingerprint (FNV-1a, change detection) rather than a stored link_status on the child story; linked-page-item options carry update_policy only (further members not recovered: SPEC GAP)",
+      "GAP: remove_forced_line_breaks stored, not applied (changes byte offsets; needs Type re-shape)",
+      "OUT OF LANE: STU-LAY-011 flex/container mode (consumes StudioAutoLayout); page-navigation side-by-side display and window commands (no harness-view hunk); IDML import/export of rules; guides and parent bindings not copied into alternate layouts"
+    ],
+    "not_proven": "InDesign liquid/adjust/alternate numerics UNVERIFIED (D5: parity-indesign ID-23 NO_ORACLE_CASE); GUI surface not in this lane"
+  }
+}

@@ -10,7 +10,8 @@
 # nextest store: cargo hashes member paths relative to the workspace root, so lane trees never share units), under
 # the C: lock; lock records keep the lane owner. D: round gaps are then not needed by that lane (rounds stay on D:).
 # Guard: an SSD build is refused (status 77, before queueing) while the whole C:/HandshakeBuild/WP-KERNEL-STUDIO
-# tree is over STUDIO_SSD_CAP_GB (default 140 of the 150 GB grant; see studio_ssd_cap_check). Unset or
+# tree (lane targets AND the C: round/canary target) is over STUDIO_SSD_CAP_GB (GiB; default 360 of the 400 GB =
+# 372.5 GiB grant of 2026-10-24; see studio_ssd_cap_check). Unset or
 # STUDIO_BUILD_DISK=d: unchanged D: target. STUDIO_SSD_ROOT is a self-test knob only (default C:/HandshakeBuild).
 # Artifact root (HSK-ART-001, Operator 2026-10-24): the Handshake_Artifacts folder inside the Handshake Worktrees folder that holds
 # the kernel, discovered from this file's location (this file lives in <kernel>/.GOV/docs_repo/wp-studio-module-work/builders/), or
@@ -25,9 +26,10 @@ _STUDIO_SSD_LANE=""
 case "${STUDIO_BUILD_DISK:-}" in
   ""|d|D|hdd) ;;
   ssd)
-    # Operator 2026-10-24 ("c is ok but 400gb seems excessive"): the C: slot is reopened for lane builders under the
-    # existing 150 GB grant (cap STUDIO_SSD_CAP_GB 140, rule P3 at most 6 live lane targets); rounds, canaries, exports
-    # and TMP/TEMP stay on D:. (Closed 2026-10-23 during the C: cleanup, which completed the same day.)
+    # Operator 2026-10-24 (supersedes the 150 GB reading of the same day): C: SSD grant 400 GB for builders and large
+    # canaries/rounds (cap STUDIO_SSD_CAP_GB 360 GiB, rule P3 at most 6 live lane targets per disk); D: is for small
+    # canaries and limited builds and the fallback when C: is at its cap after cleanup. Exports, results, TMP/TEMP,
+    # logs and the test-runner store stay on D: (CX-984-001/-014).
     case "/${_studio_owner}/" in
       /studio-team-dev/) ;;
       *//*|*/./*|*/../*|*\\*|*:*|*" "*)
@@ -133,7 +135,7 @@ studio_ssd_measure() {
 }
 studio_ssd_cap_check() {   # [held]: re-check after a queue wait (record read only, no re-measure, no unknown note)
   local rec="${_STUDIO_SSD_TREE}/.studio-ssd-size" kib="" at="" cap_kib maxage=${STUDIO_SSD_SIZE_MAX_AGE_S:-3600}
-  cap_kib=$(( ${STUDIO_SSD_CAP_GB:-140} * 1024 * 1024 ))
+  cap_kib=$(( ${STUDIO_SSD_CAP_GB:-360} * 1024 * 1024 ))
   { read -r kib at || :; } 2>/dev/null <"$rec" || :
   case "$kib$at" in ''|*[!0-9]*) kib="" at=0 ;; esac
   dbl_now
@@ -141,7 +143,7 @@ studio_ssd_cap_check() {   # [held]: re-check after a queue wait (record read on
     (studio_ssd_measure </dev/null >/dev/null 2>&1 &)
   fi
   if [ -n "$kib" ] && [ "$kib" -gt "$cap_kib" ]; then
-    echo "studio-env: ${_STUDIO_SSD_TREE} held $((kib / 1048576)) GiB at $(TZ=UTC0 date -d "@$at" +%FT%TZ 2>/dev/null) > cap ${STUDIO_SSD_CAP_GB:-140} GiB (Operator grant CX-984-014: 150 GB); SSD build refused (77). Unset STUDIO_BUILD_DISK to build on D:; cleanup is a steward/Operator action." >&2
+    echo "studio-env: ${_STUDIO_SSD_TREE} held $((kib / 1048576)) GiB at $(TZ=UTC0 date -d "@$at" +%FT%TZ 2>/dev/null) > cap ${STUDIO_SSD_CAP_GB:-360} GiB (Operator grant CX-984-014: 400 GB); SSD build refused (77). Fallback order: the cargo manager cleans stale C: output first; only if that does not free enough, unset STUDIO_BUILD_DISK to build on D:." >&2
     return 77
   fi
   [ -n "$kib" ] || [ "${1:-}" = held ] || echo "studio-env: SSD tree size unknown (no record yet); measuring in the background, build allowed" >&2
@@ -172,8 +174,11 @@ studio_disk_lock_run() {
 # The wrapper passes a tool config pinning the store under CARGO_TARGET_DIR (same mechanism as tools/run-round.sh)
 # to `nextest run|r|list|l` unless the caller passes its own --tool-config-file. The config's content is a function
 # of its own directory only, so it is written once per target dir and never goes stale.
+# SSD lanes: the store goes to the lane owner on the sole root (CX-984-014: test runtime stores stay under it).
+_studio_nx_dir="${CARGO_TARGET_DIR}/nextest"
+[ -z "${_STUDIO_SSD_LANE}" ] || _studio_nx_dir="${_studio_art}/${_STUDIO_SSD_LANE}/nextest"
 _studio_nx_cfg="${CARGO_TARGET_DIR}/.studio-nextest-store.toml"
-[ -f "${_studio_nx_cfg}" ] || { printf '[store]\ndir = "%s/nextest"\n' "${CARGO_TARGET_DIR}" >"${_studio_nx_cfg}.$$" \
+[ -f "${_studio_nx_cfg}" ] || { printf '[store]\ndir = "%s"\n' "${_studio_nx_dir}" >"${_studio_nx_cfg}.$$" \
   && mv -f "${_studio_nx_cfg}.$$" "${_studio_nx_cfg}"; } || rm -f "${_studio_nx_cfg}.$$"
 studio_nextest_args() {   # "$@" of a cargo call -> STUDIO_NX_ARGS (store pin inserted after the runner subcommand)
   local a pos=0 done=0 cfg="${CARGO_TARGET_DIR}/.studio-nextest-store.toml"

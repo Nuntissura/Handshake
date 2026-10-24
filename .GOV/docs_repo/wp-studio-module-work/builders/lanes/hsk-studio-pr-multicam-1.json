@@ -1,0 +1,66 @@
+{
+  "crate": "hsk-studio-folio + hsk-studio-pulse + hsk-studio-session + hsk-studio-package (tests/externals.rs schema entry)",
+  "lane": "SMB-PR-MULTICAM-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "slices 1-4 pushed (origin codex/handshake-studio-assets 1e3ae3d4..dbc31c18) after one green bundled lane-check on D: at dbc31c18 (origin unchanged at the pre-push fetch, no rebase needed); READY covers slices 1, 2, 3 and 4",
+  "commits": [
+    {"sha": "d05a998d", "subject": "SMB-PR-MULTICAM-1 slice 1: folio hsk.studio.multicam_records@1 record set (STU-VID-033/030a) beside the document, validated against it"},
+    {"sha": "9fe355dc", "subject": "SMB-PR-MULTICAM-1 slices 2-3: pulse multicam planners (create source, switch with/without cut, audio-follows-video, follow-nest, enable, angle numbering, record pass, paging/navigation, resolve, flatten) as one step each with inverse"},
+    {"sha": "dbc31c18", "subject": "SMB-PR-MULTICAM-1 slice 4: session multicam document entry (validated on set and read) + package externals classification of the multicam schema"}
+  ],
+  "capabilities_done": [
+    "slice 1 (folio, d05a998d): StudioMulticamRecords schema hsk.studio.multicam_records@1 beside the document (StudioDocument/StudioSequence/StudioTrack/StudioClip gain no fields, ClipSource no variant); multicam_sequences [sequence_id, selection_order top_down|source_order, angle_order = derived and validated numbering of the source sequence's video tracks] and clips [clip_id, active_angle, audio_angle, audio_follows_video, follows_nest_setting, enabled]; validate_multicam_records / parse_multicam_records (bounded preflight, duplicate keys refused) / multicam_records_schema / multicam_angle_order / multicam_paired_audio_track; typed refusals InvalidField, InvalidId, DanglingReference, DuplicateIdentity, BudgetExceeded (hard ceilings checked before walking + Budget.nodes), Canceled; >= 16 angles (tested 16 and 64), no fixed maximum below the 1024-track ceiling",
+    "slice 2 (pulse, 9fe355dc): plan_create_multicam_source (one video + one audio track per angle, caller offsets or in points, frame-aligned; timecode/audio-waveform sync refused multicam_sync_unsupported), plan_multicam_switch (with cut = pulse Razor incl. link groups, right halves take the angle; without cut = whole clip; link-group multicam partners switch together), plan_multicam_toggle_audio_follows_video, plan_multicam_toggle_follows_nest, plan_multicam_toggle_enabled (cmd.clip.multicam.toggle), plan_multicam_angle_numbering (renumber keeps each clip on its track); every planner = ONE MulticamProposal (prospective snapshot validated by folio, records validated against it, receipt command id per STU-VID-041) with MulticamInverse; plan_multicam_revert gives undo, its inverse redo; MulticamProposal::sequence_change gives the one-sequence (expect, write) pair for session TimelineStep",
+    "slice 3 (pulse, 9fe355dc): plan_multicam_record_pass (cmd.multicam.toggle.record; <= 4096 events, strictly increasing, inside the clip, one step one inverse), MulticamPage (page_size 1..=64, first/last/next/previous clamped, containing, angles), MulticamNav command ids, multicam_step_angle (clamped), multicam_adjacent_edit (snap_targets + adjacent_edit), resolve_active_angle (angle, tracks, source tick, picture/sound clip under it), plan_multicam_flatten (cmd.clip.multicam.flatten; angle-track clips cut to the source window as ordinary media clips, audio per audio_angle, gaps stay gaps, mode discarded, one step, <= 65536 pieces)",
+    "slice 4 (session + package, dbc31c18): session document entry token `multicam` (DOCUMENT_ENTRY_TOKENS, MULTICAM_ENTRY), Session::multicam_records / set_multicam_records validated by folio on every set and read; a stale entry reads as the folio diagnostic (DanglingReference) and stays stored byte-identically; package externals classifier covers the multicam schema"
+  ],
+  "tests": {"argv": "cd <lane worktree>/handshake-studio-assets && bash <kernel>/.GOV/docs_repo/wp-studio-module-work/tools/lane-check.sh --owner smb-pr-multicam-1 --disk d -- cargo nextest run -p hsk-studio-folio -p hsk-studio-pulse -p hsk-studio-session -p hsk-studio-package --no-fail-fast", "exit": 0, "sha": "dbc31c18", "passed": 221, "failed": 0},
+  "blockers": [],
+  "lock_wait_s": 1364,
+  "bg_pids": [],
+  "next": "validator round on dbc31c18 (units: whole suites of hsk-studio-folio, hsk-studio-pulse, hsk-studio-session, hsk-studio-package; new targets folio tests/multicam_records.rs, pulse tests/multicam.rs, session tests/multicam_entry.rs, package tests/externals.rs every_folio_reference_property_is_classified). Follow-ups for a new lane id: harness-view multicam preview grid + camera key bindings (Ctrl+1..8 cut, 1..9 no-cut, 0 record), pulse playback/composite resolution of the active angle in nested sequences, session one-step commit of a CREATED source sequence (TimelineStep is one existing sequence), flatten of speed-changed angles and of clips with markers, folio DESCRIPTOR text",
+  "updated_at": "2026-10-24T02:14:35Z",
+  "notes": {
+    "spec_basis": [
+      "STU-VID-033: 'Multicam is a clip mode, not a separate editor. A multicam source sequence holds N synchronised angles; a clip referencing it exposes an `active_angle` that is switchable over time, producing a cut list.'",
+      "STU-VID-033: 'Angle count is at least 16 in the addressable command surface; Studio imposes no fixed maximum beyond a document performance budget.'",
+      "STU-VID-033: 'Two switch modes: switch WITH a cut (creates an edit at the playhead and changes the angle after it) and switch WITHOUT a cut (changes the angle for the whole clip).'",
+      "STU-VID-033: 'A record mode captures live angle switches during playback into a cut list; toggling record is a single command.'",
+      "STU-VID-033: 'A preview surface shows all angles in a paged grid with first/last/next/previous page navigation, next/previous angle, and next/previous edit navigation.'",
+      "STU-VID-033: '`audio_follows_video` is a boolean: when true an angle switch also switches the audio.'",
+      "STU-VID-033: '`flatten` bakes the current cut list into ordinary clips and discards the multicam mode; it is one reversible history step.'",
+      "STU-VID-033: 'A selection-order option (top-down versus source order) decides angle numbering.'",
+      "STU-VID-030a: 'multicam clips MAY be set to follow or ignore the nest setting. Both are explicit booleans on the nested clip, never implicit.'",
+      "STU-VID-040: 'A multicam record pass is one step.'",
+      "STU-VID-041 command ids carried in receipts: cmd.clip.create.multicam, cmd.clip.multicam.flatten, cmd.clip.multicam.toggle, cmd.multicam.choose.camera.N, cmd.multicam.choosenocut.cameraN, cmd.multicam.toggle.record, cmd.multicam.audio.follows.video, cmd.multicam.follows.nest.setting, cmd.multicam.page.first|last|next|previous, cmd.multicam.next.camera, cmd.multicam.previous.camera, cmd.multicam.next.edit, cmd.multicam.prev.edit, cmd.multicam.selection.top.down"
+    ],
+    "declared_readings": [
+      "one angle = one VIDEO track of the source sequence; angle n's audio = the audio track with the same per-kind index (none = silent angle)",
+      "selection order: source_order = ascending video track index, top_down = descending index; angle_order is derived and validated, never free",
+      "audio_angle stored separately; equals active_angle while audio_follows_video; turning audio_follows_video on aligns audio_angle to active_angle",
+      "a multicam clip on a video track shows active_angle, on an audio track plays audio_angle",
+      "enabled=false plays the source as an ordinary nest and keeps the angles; enabling a nest without a mode gives angle 1, audio_follows_video on, follow-nest off",
+      "record pass: event at the clip's first tick switches without a cut, later events cut",
+      "flatten: pieces unlinked, no markers, head/tail transition kept only where a piece starts/ends with the clip, else dropped and listed; clips with markers refused multicam_markers_present",
+      "unit forward speed only for resolve/flatten (multicam_speed_unsupported otherwise)",
+      "paging and next/previous angle clamp at the ends (no wrap)"
+    ],
+    "spec_deltas": [
+      "STU-VID-033 does not specify angle sync on creation (audio waveform, timecode, in points): lane accepts caller offsets and in points, refuses timecode and audio waveform with multicam_sync_unsupported",
+      "STU-VID-033 does not specify the angle <-> track mapping or the audio pairing (declared: video track per angle, audio by same index)",
+      "STU-VID-033 does not specify defaults of audio_follows_video or selection order, nor how audio behaves when audio_follows_video is off (declared: separate audio_angle)",
+      "STU-VID-033 does not specify the meaning of top-down vs source order in a Studio document (declared: descending vs ascending video track index)",
+      "STU-VID-033 does not specify flatten of speed-changed angles, markers or transitions"
+    ],
+    "unverified_D5": "Premiere multicam UNVERIFIED: angle numbering defaults, audio-follows-video default, record-pass cut placement at frame boundaries, flatten source-window mapping of speed-changed angles, paging wrap behaviour",
+    "not_proven": [
+      "NOT_PROVEN: program-monitor playback and composite render of the active angle (pulse playback / composite resolve no nested sequence); flatten gives the renderable result",
+      "NOT_PROVEN: the paged preview grid and camera key bindings in the window (harness-view not touched)",
+      "NOT_PROVEN: Premiere behaviour (no Premiere oracle)"
+    ],
+    "folio_descriptor_text_for_lead": "multicam records hsk.studio.multicam_records@1 (StudioMulticamRecords, one per document_id, not a StudioDocument member) validated by validate_multicam_records / parse_multicam_records: multicam_sequences (document sequence id, selection_order top_down|source_order, angle_order = the sequence's video tracks in that numbering, validated) and clips (SCLP clip whose source_ref is ClipSource::Sequence of a declared source other than its own sequence; active_angle and audio_angle 1..=angle count, audio_angle == active_angle while audio_follows_video; follows_nest_setting; enabled); counted against Budget.nodes, hard ceilings 64 sequences / 1024 angles / 262144 clips; tests multicam_records.rs",
+    "shared_files": "folio lib.rs, pulse lib.rs, session lib.rs: two additive lines each; session source.rs token list + doc lines; package tests/externals.rs: one schema line + two CLASSIFIED rows (StudioMulticamClip.audio_angle, StudioMulticamClip.audio_follows_video); no other lane's hunks committed; Cargo.lock untouched; no new crate edge or crates.io dependency",
+    "run_history": "run 1 green (221/221, clippy clean over the 4 crates and 19 direct dependents); waited 1364 s for the D: lock behind run-round steward-export",
+    "gameplan": "not used (retired per lead override)"
+  }
+}

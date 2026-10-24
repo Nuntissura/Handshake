@@ -1,0 +1,93 @@
+{
+  "crate": "hsk-studio-harness-view",
+  "lane": "SMB-FIG-EDIT-1",
+  "status": "READY_FOR_VALIDATION",
+  "phase": "D16 remediation pushed at 868be362 after a green bundled run (R40 canary step-0 refusal fixed)",
+  "commits": [
+    {
+      "sha": "ecba5768",
+      "subject": "Studio window: File > Open makes a .fig an editable native document; instance inspector in Properties (SMB-FIG-EDIT-1 slices 1-3)"
+    },
+    {
+      "sha": "fda07339",
+      "subject": "Studio design files: working space, image paints, binding attachments; definition check first (SMB-FIG-EDIT-1)"
+    },
+    {
+      "sha": "74daa7a8",
+      "subject": "RUN-UI.md: Rate stretch sub-list in the timeline trims section (SMB-PR-RATE-STRETCH-1 manual lines; lead request, doc-only)"
+    },
+    {
+      "sha": "868be362",
+      "subject": "harness-view: zipped .fig detection through the container owner open_fig (D16, no ZIP magic copy)"
+    }
+  ],
+  "capabilities_done": [
+    "slice 1: Viewer::import_fig(source, dest, overwrite) = interop-fig import_fig + decode_document + to_native -> native package beside the source (<stem>.handshake, refused when it exists without overwrite): document (component_instance binding layers dropped, expansion group = instance layer; artboards whole px; harness RGB working space assigned), vector entry (every proposal path as an anchor record, paint styles, one fill_style_id node per styled vector layer, vector records), text entry (story, first paragraph/character style, first stored baseline as origin, linear fills, missing family -> Ubuntu-Light), raster records as the package Records entry, receipt (provenance, every importer mapping/decode loss with counts, unresolved text styles, viewer.* adapter losses, not_proven, design: records + instance bindings + origins + import signatures), original bytes; File > Open (shell Purpose::Open) routes design files (fig-kiwi prelude or ZIP named .fig) here; Open filter list gains Design file (.fig); OpenPrototype unchanged",
+    "slice 2: instance inspector bound contextually in Properties (section design.instance drawn only for an instance layer, STU-DS-160): variant value buttons (switch_variant), component property fields (boolean/text, STU-DS-009), Text <layer> override fields, per-override Reset and Reset all overrides (STU-DS-017), Swap to <component> (swap_component, rematch by name+hierarchy); typed Viewer::design_command(layer_id, DesignCommand) as one undo step: the instance layer is redrawn from the resolved member definition (translated by instance origin - definition origin; drawn overrides characters/visible/opacity applied; new path records and stories); the record is kept per instance-layer content signature so undo/redo return the matching record",
+    "slice 3: state_json()[\"design\"] = {instance: layer_id, instance_id, state import|edited|unknown, main_component_id, component_id, component_name, variants{values,current}, properties, overrides{node_id,node_name,field,value}, texts, swap_targets, error; instance_layers; last command result or error}; RUN-UI.md section (HBR-MAN-001)"
+  ],
+  "tests": {
+    "argv": "lane-check.sh --owner smb-fig-edit-1-r1 --disk ssd -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast (CARGO_BUILD_JOBS=6)",
+    "exit": 0,
+    "sha": "868be362",
+    "passed": 262,
+    "failed": 0,
+    "skipped": 20,
+    "new_test": "viewer_fig_edit::design_file_detection_zipped_bare_and_other_zip (zipped .fig, .FIG, bare canvas as .fig and .bin recognised; same ZIP as .zip / no extension, 3-byte file, absent path not)"
+  },
+  "blockers": [],
+  "lock_wait_s": 0,
+  "bg_pids": [],
+  "next": "lead decision on instance-record persistence (session token design or vector-entry design members); then auto layout / constraints / variables editors and .fig export from the window (later slices of the design-editing gap)",
+  "updated_at": "2026-10-24T09:22:03Z",
+  "notes": {
+    "worktree": "D:/Projects/LLM projects/Handshake/Handshake Worktrees/wt-studio-lanes/smb-fig-edit-1 (branch lane/smb-fig-edit-1 at origin b9c311e5)",
+    "infra": "warm build (cargo nextest --no-run) failed on C: with os error 1455 (paging file too small) while linking many test binaries in parallel with other agents; retried with CARGO_BUILD_JOBS=6",
+    "focused_run": "viewer_fig_edit 11/11 pass at bf4923b1 (pre-rebase), CARGO_BUILD_JOBS=6",
+    "spec_basis": [
+      "[STU-IO-006] row 35: | 35 | Figma design document (local copy) | .fig | Figma family | I EP X RT | ...",
+      "[STU-IO-005] Unsupported-feature handling MUST be lossless-of-intent where the format is a native round-trip target",
+      "[STU-DS-003] StudioComponentInstance ... is a live reference to a StudioComponent ... it is not a copy",
+      "[STU-DS-008] setting a variant property re-selects the member definition in place while preserving compatible overrides",
+      "[STU-DS-009] named component properties that surface on every instance inspector as typed fields",
+      "[STU-DS-016] Overridable surfaces are: text content, fills/strokes/paint, effects, visibility, nested instance swaps, and exposed-nested property values",
+      "[STU-DS-017] Overrides MUST persist across variant switches and component swaps when the target structure matches by layer name and hierarchy, and MUST be resettable both per-property and wholesale",
+      "[STU-DS-160] the instance inspector MUST declare its binding through the contextual property-panel contract ... MUST NOT introduce a whole-UI persona or mode toggle",
+      "[STU-DS-162] typed command surface; [STU-SHL-008] naming law (filter Design file (.fig))"
+    ],
+    "tests_detail": "tests/viewer_fig_edit.rs 11/11 in the bundled run (248 passed, 20 skipped, exit 0): opening_a_fig_yields_an_editable_native_document, fig_layers_and_paths_edit_through_the_vector_surface_and_undo, fig_import_receipt_lists_losses, hostile_fig_bytes_are_refused_bounded, prototype_player_still_opens_fig_files, instance_section_appears_only_for_instances, switching_a_variant_keeps_compatible_overrides, reset_override_and_reset_all, component_swap_rematches_by_name_and_hierarchy (prints NOT_PROVEN for the dropped-override branch), accesskit_drives_the_instance_section (desktop), state_json_reports_instance_and_overrides. Oracle: importer proposal over checked-in interop-fig fixtures, session document/entries, run history, receipt.",
+    "declared_readings": [
+      "instance records changed by a design command live for the session only: no session document entry holds design records (vector entry validate_entry_styles in vector/style.rs admits paint styles + fill nodes only; not owned; no new session token allowed) -> after save+reopen an edited instance reads state unknown and refuses commands until re-import. Needs a lead decision: session token design (session crate) or vector-entry design members (vector lane).",
+      "component_instance binding layers are dropped in the window: harness-core TrustAll binds no component_instance primitive layer (Folio UnsupportedDescriptor otherwise); bindings live in the receipt design.instances",
+      "image paints are not drawn in the window (composite image_paint_unresolved: the vector entry serves no images); their style rows leave the styles, each a receipt loss viewer.image_paint",
+      "text: one line per story, first character style only, missing families draw with Ubuntu-Light (receipt losses); a story over 4096 bytes or more than 256 text layers refuses the import typed",
+      "redraw after a command: translation only (rotated/scaled refused), clips/masks/effects inside the definition not copied (command notes), Figma derived symbol data (resized instances) not reapplied",
+      "UNVERIFIED (D5): Figma instance inspector layout, variant field ordering, override reset semantics beyond STU-DS-017"
+    ],
+    "shared_hunks": "mod.rs: pub mod design + Viewer field design (+init) + properties_ui call + state_json key design; shell.rs: Purpose::Open design-file route (4 lines); file_dialog.rs: Open filter Design file (.fig) (2 lines); vector.rs untouched; no Cargo.toml/Cargo.lock change, no new crate edge",
+    "lead_request": "74daa7a8 adds SMB-PR-RATE-STRETCH-1 manual lines verbatim to RUN-UI.md Timeline trims as a Rate stretch sub-list (separate pathspec commit, doc-only)",
+    "rebase": "rebased onto origin e3fc44b5 before the one bundled run; origin unchanged at push; push verified (origin == 74daa7a8)",
+    "lint_debt": "2 clippy warnings in tests/viewer_fig_edit.rs (bool_assert_comparison :271, explicit deref :510); warnings only, left so the judged commit stays stable (V4-14)"
+  },
+  "remediations": [
+    {
+      "failure_ref": "R40 canary step 0, exit 71, candidate 42b304c7 (Handshake_Artifacts/WP-KERNEL-STUDIO/studio-round/results/R40-canary/step0.policy.txt): V4-05 new D16 site crates/hsk-studio-harness-view/src/view/design/fig_import.rs:59 (b\"PK\u0003\u0004\" sniff, introduced by ecba5768)",
+      "class": "frozen duplicate D16 sniff",
+      "fix_commit": "868be362",
+      "worktree": "wt-studio-lanes/smb-fig-edit-1-r1 (branch lane/smb-fig-edit-1-r1)",
+      "fix": "is_design_file takes the ZIP-or-bare verdict from the container owner hsk-studio-interop-fig open_fig (re-export of interop-fig-base container.rs) on the 8-byte head: Ok(Packaging::Zip) or Err(FigError::Zip(_)) = ZIP (no directory fits in 8 bytes), a bare head = NotFig; fig-kiwi prelude and .fig-extension gate unchanged; no new crate edge, no module edit",
+      "step0_evidence": "round step-0 policy block (tools/run-round.sh) run read-only on the workspace: exit 0, D16 new_sites {}; lane-check.sh (fdbe825c, runs the round's step 0) printed 'step 0 policy clean (V4-03 machine paths, V4-05 frozen duplicates)' on the rebased tree",
+      "tests": {
+        "argv": "lane-check.sh --owner smb-fig-edit-1-r1 --disk ssd -- cargo nextest run -p hsk-studio-harness-view -p hsk-studio-harness --features hsk-studio-harness/desktop,hsk-studio-harness/audio-batch --no-fail-fast (CARGO_BUILD_JOBS=6)",
+        "exit": 0,
+        "sha": "868be362",
+        "passed": 262,
+        "failed": 0,
+        "skipped": 20,
+        "new_test": "viewer_fig_edit::design_file_detection_zipped_bare_and_other_zip (zipped .fig, .FIG, bare canvas as .fig and .bin recognised; same ZIP as .zip / no extension, 3-byte file, absent path not)"
+      },
+      "runs": "run 1 on 8148fc7e: 254/254 passed, then lane-check exited 2 from a syntax error after the tests because the steward rewrote lane-check.sh mid-run (fdbe825c, 10:46); run 2 same tree with the new script: exit 0, 254/254; origin moved (SMB-LR-HEALING-2 touched harness-view, develop, interop-lrcat), rebased to 868be362, run 3: exit 0, 262/262",
+      "at": "2026-10-24T09:22:03Z"
+    }
+  ]
+}
