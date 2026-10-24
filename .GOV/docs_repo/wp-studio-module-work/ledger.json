@@ -2,7 +2,7 @@
  "schema": "hsk.studio_module_build_ledger@1",
  "wp_id": "WP-KERNEL-STUDIO",
  "assignment": "STUDIO-MODULE-BUILD",
- "updated_at": "2026-10-24T01:30:31Z",
+ "updated_at": "2026-10-24T02:15:58Z",
  "status_values": "CX-STATUS-001: READY_FOR_VALIDATION|PASS_Vn|FAIL_Vn|BLOCKED|NEEDS_NEW_APPROACH; null before first submission",
  "phase_values": "brief|build|validation|done",
  "writers": "lead edits lanes; builders/validator append to their lane only via lead or with lane_id-scoped edit",
@@ -9823,18 +9823,22 @@
   {
    "lane_id": "SMB-PR-MULTICAM-1",
    "crate": "hsk-studio-folio + hsk-studio-pulse + hsk-studio-session (new multicam.rs) + package tests/externals.rs line",
-   "phase": "build",
-   "status": null,
+   "phase": "validation",
+   "status": "READY_FOR_VALIDATION",
    "blocked_on": null,
    "owner": "builder (Opus/high), lead dispatch 2026-10-24 ~01:30Z",
    "lane_file": "builders/lanes/hsk-studio-pr-multicam-1.json",
    "brief": "builders/briefs/lane-smb-pr-multicam-1.md",
    "worktree": "wt-studio-lanes/smb-pr-multicam-1 (lane/smb-pr-multicam-1 @1e3ae3d4, created by the lead)",
    "disk": "D:",
-   "candidate": null,
-   "commits": [],
+   "candidate": "dbc31c18",
+   "commits": [
+    "d05a998d folio hsk.studio.multicam_records@1 record set (slice 1)",
+    "9fe355dc pulse multicam planners (slices 2-3)",
+    "dbc31c18 session multicam entry + package externals classification (slice 4)"
+   ],
    "verdicts": [],
-   "note": "Premiere multicam as a separate record set (STU-VID-033); rule 4b package suite; active-angle playback NOT_PROVEN (pulse resolves no nested sequences)",
+   "note": "Premiere multicam as a separate record set (STU-VID-033); rule 4b package suite; active-angle playback NOT_PROVEN (pulse resolves no nested sequences); READY 2026-10-24 on dbc31c18: bundled run 221 passed / 0 failed, clippy 4 crates + 19 dependents; gaps: flatten refuses markers/non-unit speed, session commit of a new source sequence not wired, folio DESCRIPTOR text pending (notes.folio_descriptor_text_for_lead); spec deltas in lane notes.spec_deltas",
    "remediation": null
   },
   {
