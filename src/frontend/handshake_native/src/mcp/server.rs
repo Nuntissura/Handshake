@@ -706,6 +706,34 @@ async fn dispatch_with_session(
         if !state.safety.token.matches(&request.session_token) {
             return McpResponse::error(request.id.clone(), McpError::general(ERR_UNAUTHORIZED, "Unauthorized"));
         }
+        // Preserve selectorless screenshot requests on registered production servers without
+        // bypassing main-window/account/workspace lifetime admission.
+        let implicit_capture = if ArgusMethod::from_wire_name(&request.method) == Some(ArgusMethod::Screenshot)
+            && request.params.get("window_id").is_none()
+        {
+            let main = match windows.get(MAIN_WINDOW_ID) {
+                Ok(window) => window,
+                Err(error) => return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, error)),
+            };
+            let admission = match request.params.get("expected_revision") {
+                Some(value) => match value.as_u64() {
+                    Some(revision) => windows.admit_capture(&main, revision).map(|ticket| (revision, ticket)),
+                    None => Err("expected_revision must be an unsigned integer".to_owned()),
+                },
+                None => windows.admit_current_capture(&main),
+            };
+            let (revision, ticket) = match admission {
+                Ok(admission) => admission,
+                Err(error) => return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, error)),
+            };
+            let mut routed = request.clone();
+            let mut params = routed.params.as_object().cloned().unwrap_or_default();
+            params.insert("window_id".to_owned(), serde_json::Value::String(MAIN_WINDOW_ID.to_owned()));
+            params.insert("expected_revision".to_owned(), serde_json::Value::from(revision));
+            routed.params = serde_json::Value::Object(params);
+            Some((routed, ticket))
+        } else { None };
+        let request = implicit_capture.as_ref().map(|(request, _)| request).unwrap_or(request);
         if ArgusMethod::from_wire_name(&request.method) == Some(ArgusMethod::ListWindows) {
             return McpResponse::ok_value(request.id.clone(), serde_json::json!({"windows": windows.list()}));
         }
@@ -748,7 +776,10 @@ async fn dispatch_with_session(
             let Some(expected) = request.params.get("expected_revision").and_then(|v| v.as_u64()) else {
                 return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, "expected_revision is required"));
             };
-            let validity = window.validate(expected);
+            let validity = match implicit_capture.as_ref() {
+                Some((_, ticket)) => ticket.validate().map(|_| ()),
+                None => window.validate(expected),
+            };
             if let Err(error) = validity {
                 return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, error));
             }
@@ -757,6 +788,15 @@ async fn dispatch_with_session(
                     return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, "Argus window epoch is stale"));
                 }
             }
+            let capture_ticket = if ArgusMethod::from_wire_name(&request.method) == Some(ArgusMethod::Screenshot) {
+                match implicit_capture.as_ref() {
+                    Some((_, ticket)) => Some(ticket.clone()),
+                    None => match windows.admit_capture(&window, expected) {
+                        Ok(ticket) => Some(ticket),
+                        Err(error) => return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, error)),
+                    },
+                }
+            } else { None };
             let mut reservation = if ArgusMethod::from_wire_name(&request.method).is_some_and(|m| m.is_mutating()) {
                 if state.pending_receipts.lock().unwrap_or_else(|e| e.into_inner()).len() >= super::attribution::ACTION_LOG_CAPACITY {
                     return McpResponse::error(request.id.clone(), McpError::general(ERR_RATE_LIMITED, "Unresolved original receipt retention is full; reconcile original actions"));
@@ -769,19 +809,26 @@ async fn dispatch_with_session(
             let original_binding = state.durability.lock().unwrap_or_else(|e| e.into_inner()).clone();
             let capture = state.capture.clone();
             let target = window.descriptor.clone();
-            let capture_live = window.live.clone();
+            let worker_capture_ticket = capture_ticket.clone();
             let capture_window = window.clone();
             let result = scoped.dispatch_shared_async(request, &window.snapshot, &window.channel, move || {
-                capture_window.validate(expected).map_err(ScreenshotError)?;
-                if !capture_live.load(std::sync::atomic::Ordering::Acquire) { return Err(ScreenshotError("Argus window closed before capture".to_owned())); }
+                let ticket = worker_capture_ticket.as_ref()
+                    .ok_or_else(|| ScreenshotError("Argus capture was not admitted".to_owned()))?;
+                ticket.validate().map_err(ScreenshotError)?;
                 let result = if target.window_id == MAIN_WINDOW_ID { capture() }
                 else { super::screenshot::capture_registered_window(&capture_window) };
-                if !capture_live.load(std::sync::atomic::Ordering::Acquire) { return Err(ScreenshotError("Argus window closed during capture".to_owned())); }
-                capture_window.validate(expected).map_err(ScreenshotError)?;
+                ticket.validate().map_err(ScreenshotError)?;
                 result
             }).await;
             let mut result = result;
             let mut published_revision = expected;
+            if let Some(ticket) = capture_ticket.as_ref() {
+                // The existing revision field is a UI-publication CAS value, not an atomic image/tree association.
+                published_revision = match ticket.validate() {
+                    Ok(revision) => revision,
+                    Err(error) => return McpResponse::error(request.id.clone(), ScreenshotError(error).into()),
+                };
+            }
             if ArgusMethod::from_wire_name(&request.method).is_some_and(|m| m.is_mutating()) {
                 let receipt_id = result.result_ref().ok().and_then(|v| v.get("receipt_id")).and_then(|v| v.as_u64());
                 if let Some(receipt_id) = receipt_id {
@@ -854,6 +901,12 @@ async fn dispatch_with_session(
                     object.insert("window_id".to_owned(), serde_json::Value::String(window_id.to_owned()));
                     object.insert("window_epoch".to_owned(), serde_json::Value::from(window.epoch));
                     object.insert("revision".to_owned(), serde_json::Value::from(published_revision));
+                    if capture_ticket.is_some() {
+                        object.insert("admitted_revision".to_owned(), serde_json::Value::from(expected));
+                        object.insert("publication_revision".to_owned(), serde_json::Value::from(published_revision));
+                        // ScreenshotResult supplies image/time/viewport correlation but no exact UI revision.
+                        object.insert("captured_revision".to_owned(), serde_json::Value::Null);
+                    }
                     if ArgusMethod::from_wire_name(&request.method) == Some(ArgusMethod::Inspect) {
                         let owner = state.diagnostic_owner.lock().unwrap_or_else(|error| error.into_inner()).clone();
                         let observation = owner.map(|owner| serde_json::json!({
@@ -1252,4 +1305,156 @@ mod tests {
             "the initial full bucket is honored; allowed {allowed}"
         );
     }
+
+    fn fixture_capture_result() -> ScreenshotResult {
+        use image::ImageEncoder;
+        let mut png = Vec::new();
+        image::codecs::png::PngEncoder::new(&mut png)
+            .write_image(&[0; 4 * 3 * 4], 4, 3, image::ExtendedColorType::Rgba8).unwrap();
+        crate::mcp::screenshot::screenshot_from_png(&png, 4, 3)
+    }
+
+    fn registered_capture_state() -> (ServerState, crate::mcp::argus::WindowSnapshotRegistry, u64) {
+        let mut state = test_state("secret-token-1234567890");
+        let windows = crate::mcp::argus::WindowSnapshotRegistry::new(
+            state.safety.snapshot.clone(), state.safety.channel.clone());
+        windows.note_root_publication_locked(None);
+        let revision = windows.list()[0].revision;
+        state.safety.windows = Some(windows.clone());
+        (state, windows, revision)
+    }
+
+    async fn registered_screenshot(state: &ServerState, revision: u64) -> serde_json::Value {
+        let session = state.safety.session();
+        let line = serde_json::json!({
+            "jsonrpc": "2.0", "id": 71, "method": "argus.screenshot",
+            "params": {"window_id": "main", "expected_revision": revision},
+            "session_token": "secret-token-1234567890",
+        }).to_string();
+        handle_line(&line, state, &session, &mut RateLimiter::new(MAX_REQUESTS_PER_SEC)).await
+    }
+
+    #[tokio::test]
+    async fn screenshot_next_publication_succeeds_with_truthful_revision_association() {
+        let (mut state, windows, before) = registered_capture_state();
+        state.capture = Arc::new(move || {
+            windows.note_root_publication_locked(None);
+            Ok(fixture_capture_result())
+        });
+        let response = registered_screenshot(&state, before).await;
+        assert!(response.get("error").is_none(), "{response}");
+        let value = &response["result"];
+        assert_eq!(value["admitted_revision"], before);
+        assert_eq!(value["publication_revision"], before + 1);
+        assert_eq!(value["revision"], before + 1, "legacy revision remains a UI-publication CAS value");
+        assert!(value["captured_revision"].is_null(), "the capture API provides no exact UI-image revision");
+        assert_eq!(value["width"], 4);
+        assert_eq!(value["height"], 3);
+    }
+
+    #[tokio::test]
+    async fn screenshot_initial_stale_revision_does_not_start_capture() {
+        let (mut state, windows, before) = registered_capture_state();
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let observed = calls.clone();
+        state.capture = Arc::new(move || {
+            observed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(fixture_capture_result())
+        });
+        windows.note_root_publication_locked(None);
+        let response = registered_screenshot(&state, before).await;
+        assert_eq!(response["error"]["code"], ERR_INVALID_PARAMS);
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn screenshot_privacy_retirement_and_republish_rejects_in_flight_capture() {
+        let (mut state, windows, before) = registered_capture_state();
+        assert!(state.durability.lock().unwrap().is_none(), "privacy fencing must work without a durable account binding");
+        state.capture = Arc::new(move || {
+            windows.retire_capture_context();
+            windows.note_root_publication_locked(None);
+            Ok(fixture_capture_result())
+        });
+        let response = registered_screenshot(&state, before).await;
+        assert_eq!(response["error"]["code"], crate::mcp::tools::ERR_TOOL_FAILED);
+        assert!(response.get("result").is_none(), "no image escapes the retired privacy context");
+    }
+
+    #[tokio::test]
+    async fn screenshot_window_close_during_capture_rejects_image() {
+        let (mut state, windows, before) = registered_capture_state();
+        state.capture = Arc::new(move || {
+            windows.begin_close(crate::mcp::argus::MAIN_WINDOW_ID);
+            Ok(fixture_capture_result())
+        });
+        let response = registered_screenshot(&state, before).await;
+        assert_eq!(response["error"]["code"], crate::mcp::tools::ERR_TOOL_FAILED);
+        assert!(response.get("result").is_none());
+    }
+
+
+    #[tokio::test]
+    async fn screenshot_account_revocation_without_reset_rejects_in_flight_image() {
+        let (mut state, windows, _) = registered_capture_state();
+        let account = crate::local_account::mock_account_context("http://127.0.0.1:9911");
+        windows.bind_capture_owner(Some(account.clone()), "workspace");
+        windows.note_root_publication_locked(None);
+        let before = windows.list()[0].revision;
+        state.capture = Arc::new(move || {
+            // The blocking capture worker sees the same revocation guard as the real authority client.
+            // No UI reset or registry retirement occurs before this ordinary publication.
+            account.invalidate();
+            windows.note_root_publication_locked(None);
+            Ok(fixture_capture_result())
+        });
+        let response = registered_screenshot(&state, before).await;
+        assert_eq!(response["error"]["code"], crate::mcp::tools::ERR_TOOL_FAILED);
+        assert!(response.get("result").is_none());
+    }
+
+
+    async fn selectorless_screenshot(state: &ServerState, method: &str) -> serde_json::Value {
+        let session = state.safety.session();
+        let line = serde_json::json!({
+            "jsonrpc": "2.0", "id": 72, "method": method, "params": {},
+            "session_token": "secret-token-1234567890",
+        }).to_string();
+        handle_line(&line, state, &session, &mut RateLimiter::new(MAX_REQUESTS_PER_SEC)).await
+    }
+
+    #[tokio::test]
+    async fn selectorless_screenshot_aliases_admit_current_main_without_new_wire_requirements() {
+        for method in [crate::mcp::argus::ARGUS_SCREENSHOT_METHOD, crate::mcp::argus::LEGACY_SCREENSHOT_METHOD] {
+            let (mut state, windows, _) = registered_capture_state();
+            state.capture = Arc::new(move || {
+                windows.note_root_publication_locked(None);
+                Ok(fixture_capture_result())
+            });
+            let response = selectorless_screenshot(&state, method).await;
+            assert!(response.get("error").is_none(), "{response}");
+            assert_eq!(response["result"]["window_id"], crate::mcp::argus::MAIN_WINDOW_ID);
+            assert_eq!(response["result"]["width"], 4);
+            assert_eq!(response["result"]["height"], 3);
+            assert!(response["result"]["captured_revision"].is_null());
+            assert!(response["result"]["publication_revision"].as_u64().unwrap()
+                > response["result"]["admitted_revision"].as_u64().unwrap());
+        }
+    }
+
+    #[tokio::test]
+    async fn selectorless_screenshot_aliases_cannot_bypass_retirement_and_republication() {
+        for method in [crate::mcp::argus::ARGUS_SCREENSHOT_METHOD, crate::mcp::argus::LEGACY_SCREENSHOT_METHOD] {
+            let (mut state, windows, _) = registered_capture_state();
+            state.capture = Arc::new(move || {
+                windows.retire_capture_context();
+                windows.note_root_publication_locked(None);
+                Ok(fixture_capture_result())
+            });
+            let response = selectorless_screenshot(&state, method).await;
+            assert_eq!(response["error"]["code"], crate::mcp::tools::ERR_TOOL_FAILED);
+            assert!(response.get("result").is_none(), "a missing selector cannot bypass the production privacy ticket");
+        }
+    }
+
 }

@@ -14599,6 +14599,7 @@ impl HandshakeApp {
     /// switch path.
     pub fn bind_active_project_for_integration_test(&mut self, workspace_id: impl Into<String>) {
         let workspace_id = workspace_id.into();
+        self.bind_mcp_capture_owner(&workspace_id);
         self.active_project_id = workspace_id.clone();
         self.project_tabs.set_active_id(workspace_id.clone());
         if let Ok(mut shared) = self.find_in_files_shared.lock() {
@@ -18677,6 +18678,7 @@ impl HandshakeApp {
             self.canvas_request_sequence,
         );
         self.canvas_expected_request = Some(request.clone());
+        self.bind_mcp_capture_owner(&workspace_id);
         self.active_project_id = workspace_id.clone();
         if let Ok(mut board) = self.editor_mounts.secondary.canvas_board.lock() {
             board.begin_projection_load(workspace_id, canvas_block_id);
@@ -20342,8 +20344,10 @@ impl HandshakeApp {
             .context
             .as_ref()
             .ok_or_else(|| "no account is bound to rebind".to_owned())?;
-        let rebound = context.rebound_to_origin_for_test(base_url)?;
-        self.local_account.context = Some(Arc::new(rebound));
+        let rebound = Arc::new(context.rebound_to_origin_for_test(base_url)?);
+        self.mcp_windows.lock().unwrap_or_else(|e| e.into_inner())
+            .bind_capture_owner(Some(rebound.clone()), &self.active_project_id);
+        self.local_account.context = Some(rebound);
         Ok(())
     }
 
@@ -20536,7 +20540,9 @@ impl HandshakeApp {
     /// same per-frame emitter/canvas/pane paths. This changes only the normal active-project source of
     /// truth; it does not inject a canvas or recorder result.
     pub fn set_active_project_id_for_test(&mut self, workspace_id: impl Into<String>) {
-        self.active_project_id = workspace_id.into();
+        let workspace_id = workspace_id.into();
+        self.bind_mcp_capture_owner(&workspace_id);
+        self.active_project_id = workspace_id;
         self.event_emitter_bound_ws = None;
         self.ensure_rich_document_workspace();
     }
@@ -35686,6 +35692,8 @@ impl HandshakeApp {
     /// entered project DOES have a stored layout, the lifecycle load then overwrites this default with
     /// the restored layout; when it does not, this fresh default is what remains.
     fn reset_to_default_layout(&mut self, project_id: &str) {
+        self.mcp_windows.lock().unwrap_or_else(|e| e.into_inner()).retire_capture_context();
+        self.bind_mcp_capture_owner(project_id);
         self.active_project_id = project_id.to_owned();
         self.stage_embed_target = None;
         self.stage_embed_target_epoch
@@ -35986,7 +35994,9 @@ impl HandshakeApp {
                             self.request_workspace_activation(&selected);
                         }
                     } else {
-                        self.active_project_id = self.project_tabs.active_id().to_owned();
+                        let project_id = self.project_tabs.active_id().to_owned();
+                        self.bind_mcp_capture_owner(&project_id);
+                        self.active_project_id = project_id;
                     }
                 }
                 Ok(Err(e)) => self.project_tabs.apply_fetch_error(e.to_string()),
@@ -36722,6 +36732,8 @@ impl HandshakeApp {
         // Clamp pop-out geometries once against the full desktop extent before applying.
         let snapshot = snapshot.clamp_pop_outs_to(monitor_extent);
 
+        self.mcp_windows.lock().unwrap_or_else(|e| e.into_inner()).retire_capture_context();
+        self.bind_mcp_capture_owner(&snapshot.project_id);
         self.active_project_id = snapshot.project_id;
         // Belt-and-suspenders (MT-009): clamp both split axes in-range BEFORE the first render frame so
         // a restored blob with out-of-range weights never shows even a one-frame raw window. The render
@@ -37883,6 +37895,8 @@ impl HandshakeApp {
         if self.account_has_private_state || !context.is_active() {
             return Err("Account transition requires the discard confirmation".into());
         }
+        self.mcp_windows.lock().unwrap_or_else(|e| e.into_inner())
+            .bind_capture_owner(Some(context.clone()), &self.active_project_id);
         self.local_account.context = Some(context);
         self.account_has_private_state = true;
         let base = self.rich_doc_base_url.clone();
@@ -37894,7 +37908,13 @@ impl HandshakeApp {
         Ok(())
     }
 
+    fn bind_mcp_capture_owner(&self, workspace_id: &str) {
+        self.mcp_windows.lock().unwrap_or_else(|e| e.into_inner())
+            .bind_capture_owner(self.local_account.context.clone(), workspace_id);
+    }
+
     fn reset_account_workspace(&mut self, ctx: &egui::Context) {
+        self.mcp_windows.lock().unwrap_or_else(|e| e.into_inner()).retire_capture_context();
         self.rebind_atelier_client(None);
         self.workspace_activation.invalidate();
         {
@@ -38006,6 +38026,9 @@ impl HandshakeApp {
             self.runtime_handle.as_ref(),
             !self.capturing_snapshot,
         );
+        if !self.capturing_snapshot {
+            self.bind_mcp_capture_owner(&self.active_project_id);
+        }
         if self.local_account.take_reset_requested() {
             self.reset_account_workspace(ctx);
         }
@@ -43338,4 +43361,28 @@ struct PendingEngineProfileResponse {
     workspace_id: String,
     account: Arc<crate::local_account::AuthenticatedContext>,
     cell: crate::backend_client::EngineProfileRegistryCell,
+}
+
+
+#[cfg(test)]
+mod mcp_capture_owner_transition_tests {
+    use super::*;
+
+    #[test]
+    fn default_layout_reset_retires_capture_for_new_and_same_workspace_owners() {
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("test".into()));
+        app.bind_mcp_capture_owner(&app.active_project_id);
+        let windows = app.mcp_window_registry();
+        for workspace in ["workspace-b", "workspace-b"] {
+            windows.note_root_publication_locked(None);
+            let window = windows.get(crate::mcp::argus::MAIN_WINDOW_ID).unwrap();
+            let ticket = windows.admit_capture(&window, window.revision()).unwrap();
+            app.reset_to_default_layout(workspace);
+            assert!(windows.admit_capture(&window, window.revision()).is_err());
+            windows.note_root_publication_locked(None);
+            assert!(ticket.validate().is_err(),
+                "both a workspace switch and a same-workspace owner reset must retire the old image");
+            assert!(windows.admit_capture(&window, window.revision()).is_ok());
+        }
+    }
 }

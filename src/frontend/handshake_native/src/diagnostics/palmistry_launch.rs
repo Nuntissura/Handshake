@@ -1567,10 +1567,24 @@ fn launch_palmistry_at_with_bootstrap(
         );
         let (control, signed_ready, handshake_error) = match result {
             Ok((stream, evidence)) => {
+                tracing::info!(
+                    child_pid = child.id(),
+                    parent_pid,
+                    session_id = %session.session_id,
+                    "palmistry signed launch challenge verified"
+                );
                 release_signed_stream(stream);
                 (None, Some(evidence), None)
             }
-            Err(error) => (None, None, Some(error.to_string())),
+            Err(error) => {
+                tracing::warn!(
+                    child_pid = child.id(),
+                    kind = ?error.kind(),
+                    category = "signed_launch_challenge",
+                    "palmistry signed launch challenge failed"
+                );
+                (None, None, Some(error.to_string()))
+            },
         };
         // Failure retains THIS actual Child and reaper, without presenting a legacy ACK as signed proof.
         return Ok(PalmistryHandle {

@@ -225,22 +225,85 @@ pub(crate) struct RegisteredWindow {
 
 impl RegisteredWindow {
     pub(crate) fn revision(&self) -> u64 { self.revision.load(Ordering::Acquire) }
-    pub(crate) fn validate(&self, revision: u64) -> Result<(), String> {
+    fn validate_live_publication(&self) -> Result<(), String> {
         if !self.live.load(Ordering::Acquire) || self.closing.load(Ordering::Acquire) {
             return Err("Argus window is closed or closing".to_owned());
         }
         if !self.published.load(Ordering::Acquire) {
             return Err("Argus window has no published live snapshot".to_owned());
         }
+        Ok(())
+    }
+    pub(crate) fn validate(&self, revision: u64) -> Result<(), String> {
+        self.validate_live_publication()?;
         if revision != self.revision() { return Err("Argus window revision is stale".to_owned()); }
         Ok(())
     }
+}
+
+/// Admitted window/privacy lifetime, independent from ordinary frame publications.
+#[derive(Clone)]
+pub(crate) struct WindowCaptureTicket {
+    registry: WindowSnapshotRegistry,
+    window: RegisteredWindow,
+    context_generation: u64,
+    account: Option<Arc<crate::local_account::AuthenticatedContext>>,
+}
+
+impl WindowCaptureTicket {
+    /// Returns an observed UI publication revision, not an exact renderer-image revision.
+    pub(crate) fn validate(&self) -> Result<u64, String> {
+        let generation = self.registry.capture_context.lock().unwrap_or_else(|e| e.into_inner());
+        if generation.generation != self.context_generation {
+            return Err("Argus capture privacy context was retired".to_owned());
+        }
+        if self.account.as_ref().is_some_and(|account| !account.is_active()) {
+            return Err("Argus capture account was revoked".to_owned());
+        }
+        let state = self.registry.inner.lock().unwrap_or_else(|e| e.into_inner());
+        validate_capture_registration(&state, &self.window)?;
+        Ok(self.window.revision())
+    }
+}
+
+fn validate_capture_registration(state: &WindowRegistryState, window: &RegisteredWindow) -> Result<(), String> {
+    let current = state.windows.get(&window.descriptor.window_id)
+        .ok_or_else(|| "Argus capture window is no longer registered".to_owned())?;
+    if current.epoch != window.epoch
+        || current.descriptor.viewport_id != window.descriptor.viewport_id
+        || current.descriptor.title != window.descriptor.title
+        || !Arc::ptr_eq(&current.live, &window.live)
+        || !Arc::ptr_eq(&current.snapshot, &window.snapshot)
+        || !Arc::ptr_eq(&current.channel, &window.channel)
+    {
+        return Err("Argus capture window registration changed".to_owned());
+    }
+    window.validate_live_publication()
 }
 
 #[derive(Clone)]
 pub struct WindowSnapshotRegistry {
     inner: Arc<Mutex<WindowRegistryState>>,
     next_revision: Arc<std::sync::atomic::AtomicU64>,
+    capture_context: Arc<Mutex<CaptureContext>>,
+}
+
+#[derive(Default)]
+struct CaptureContext {
+    generation: u64,
+    account: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    workspace_id: String,
+}
+
+impl CaptureContext {
+    fn retire(&mut self, state: &WindowRegistryState) {
+        let next = self.generation.checked_add(1);
+        for window in state.windows.values() {
+            window.published.store(false, Ordering::Release);
+            if next.is_none() { window.live.store(false, Ordering::Release); }
+        }
+        if let Some(next) = next { self.generation = next; }
+    }
 }
 
 struct WindowRegistryState {
@@ -255,7 +318,56 @@ impl WindowSnapshotRegistry {
             epoch: 1, snapshot, channel, live: Arc::new(AtomicBool::new(true)),
             revision: Arc::new(std::sync::atomic::AtomicU64::new(0)), published: Arc::new(AtomicBool::new(false)), closing: Arc::new(AtomicBool::new(false)),
         };
-        Self { inner: Arc::new(Mutex::new(WindowRegistryState { windows: std::collections::HashMap::from([(MAIN_WINDOW_ID.to_owned(), root)]), next_epoch: 2 })), next_revision: Arc::new(std::sync::atomic::AtomicU64::new(1)) }
+        Self { inner: Arc::new(Mutex::new(WindowRegistryState { windows: std::collections::HashMap::from([(MAIN_WINDOW_ID.to_owned(), root)]), next_epoch: 2 })), next_revision: Arc::new(std::sync::atomic::AtomicU64::new(1)), capture_context: Arc::new(Mutex::new(CaptureContext::default())) }
+    }
+
+    pub(crate) fn admit_capture(&self, window: &RegisteredWindow, expected_revision: u64) -> Result<WindowCaptureTicket, String> {
+        self.admit_capture_revision(window, Some(expected_revision)).map(|(_, ticket)| ticket)
+    }
+
+    /// Selectorless compatibility captures admit the actual current main publication atomically.
+    pub(crate) fn admit_current_capture(&self, window: &RegisteredWindow) -> Result<(u64, WindowCaptureTicket), String> {
+        self.admit_capture_revision(window, None)
+    }
+
+    fn admit_capture_revision(&self, window: &RegisteredWindow, expected_revision: Option<u64>) -> Result<(u64, WindowCaptureTicket), String> {
+        let generation = self.capture_context.lock().unwrap_or_else(|e| e.into_inner());
+        let state = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        validate_capture_registration(&state, window)?;
+        let revision = window.revision();
+        window.validate(expected_revision.unwrap_or(revision))?;
+        if generation.account.as_ref().is_some_and(|account| !account.is_active()) {
+            return Err("Argus capture account was revoked".to_owned());
+        }
+        Ok((revision, WindowCaptureTicket {
+            registry: self.clone(), window: window.clone(), context_generation: generation.generation,
+            account: generation.account.clone(),
+        }))
+    }
+
+    /// Call before any account/private-state mutation. New admission waits for a fresh publication.
+    pub fn retire_capture_context(&self) {
+        let mut context = self.capture_context.lock().unwrap_or_else(|e| e.into_inner());
+        let state = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        context.retire(&state);
+    }
+
+    /// Bind only the host's existing account revocation guard and actual workspace owner.
+    /// Tickets read the same guard directly, without waiting for a UI/account poll.
+    pub fn bind_capture_owner(
+        &self, account: Option<Arc<crate::local_account::AuthenticatedContext>>, workspace_id: &str,
+    ) {
+        let mut context = self.capture_context.lock().unwrap_or_else(|e| e.into_inner());
+        let same_account = match (&context.account, &account) {
+            (Some(previous), Some(current)) => Arc::ptr_eq(previous, current),
+            (None, None) => true,
+            _ => false,
+        };
+        if same_account && context.workspace_id == workspace_id { return; }
+        let state = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        context.retire(&state);
+        context.account = account;
+        context.workspace_id = workspace_id.to_owned();
     }
 
     pub fn register(&self, descriptor: ArgusWindowDescriptor) -> Result<u64, String> {
@@ -316,6 +428,7 @@ impl WindowSnapshotRegistry {
     }
 
     pub fn note_root_publication_locked(&self, production_ctx: Option<&egui::Context>) {
+        let _capture_context = self.capture_context.lock().unwrap_or_else(|e| e.into_inner());
         if production_ctx.is_some_and(|ctx| ctx.viewport_id() != egui::ViewportId::ROOT) { return; }
         if let Ok(root) = self.get(MAIN_WINDOW_ID) {
             if let Ok(revision) = self.next_revision.fetch_update(Ordering::AcqRel, Ordering::Acquire, |v| v.checked_add(1)) {
@@ -326,6 +439,7 @@ impl WindowSnapshotRegistry {
     }
 
     fn publish_revision(&self, window: &RegisteredWindow) -> bool {
+        let _capture_context = self.capture_context.lock().unwrap_or_else(|e| e.into_inner());
         match self.next_revision.fetch_update(Ordering::AcqRel, Ordering::Acquire, |v| v.checked_add(1)) {
             Ok(revision) => { window.revision.store(revision, Ordering::Release); window.published.store(true, Ordering::Release); true }
             Err(_) => { window.live.store(false, Ordering::Release); false }
@@ -531,4 +645,122 @@ mod tests {
         }
         assert_eq!(ArgusMethod::from_wire_name("argus.unknown"), None);
     }
+
+    fn capture_registry() -> WindowSnapshotRegistry {
+        let snapshot = crate::accessibility::UiTreeSnapshot {
+            root: crate::accessibility::UiTreeNode {
+                id: "root".into(), author_id: None, node_id: 1, role: "Window".into(),
+                label: None, value: None, disabled: false, actions: Vec::new(),
+                bounds: None, children: Vec::new(),
+            },
+            captured_at_utc: "0Z".into(), viewport: None, widget_count: 1,
+        };
+        let registry = WindowSnapshotRegistry::new(Arc::new(Mutex::new(snapshot)),
+            Arc::new(Mutex::new(super::super::action::ActionChannel::new())));
+        registry.note_root_publication_locked(None);
+        registry
+    }
+
+    #[test]
+    fn capture_ticket_allows_next_publication_but_rejects_initial_stale_revision() {
+        let registry = capture_registry();
+        let window = registry.get(MAIN_WINDOW_ID).unwrap();
+        let before = window.revision();
+        let ticket = registry.admit_capture(&window, before).unwrap();
+        registry.note_root_publication_locked(None);
+        assert_eq!(ticket.validate().unwrap(), before + 1);
+        assert!(registry.admit_capture(&window, before).is_err());
+    }
+
+    #[test]
+    fn capture_ticket_rejects_closing_and_reregistered_instances() {
+        let registry = capture_registry();
+        let root = registry.get(MAIN_WINDOW_ID).unwrap();
+        let root_ticket = registry.admit_capture(&root, root.revision()).unwrap();
+        registry.begin_close(MAIN_WINDOW_ID);
+        assert!(root_ticket.validate().is_err());
+
+        let descriptor = ArgusWindowDescriptor {
+            window_id: "child".into(), viewport_id: egui::ViewportId::from_hash_of("child"),
+            title: "Child".into(),
+        };
+        registry.register(descriptor.clone()).unwrap();
+        let child = registry.get("child").unwrap();
+        registry.publish_revision(&child);
+        let ticket = registry.admit_capture(&child, child.revision()).unwrap();
+        registry.unregister("child");
+        registry.register(descriptor).unwrap();
+        let replacement = registry.get("child").unwrap();
+        registry.publish_revision(&replacement);
+        assert_ne!(child.epoch, replacement.epoch);
+        assert!(ticket.validate().is_err());
+        assert!(registry.admit_capture(&replacement, replacement.revision()).is_ok());
+    }
+
+    #[test]
+    fn privacy_retirement_blocks_old_publication_and_cannot_be_revived_by_republish() {
+        let registry = capture_registry();
+        let window = registry.get(MAIN_WINDOW_ID).unwrap();
+        let old_revision = window.revision();
+        let ticket = registry.admit_capture(&window, old_revision).unwrap();
+        registry.retire_capture_context();
+        assert!(window.live.load(Ordering::Acquire), "privacy retirement is distinct from window closure");
+        assert!(registry.admit_capture(&window, old_revision).is_err(),
+            "a fresh generation cannot admit the previous private publication");
+        registry.note_root_publication_locked(None);
+        let current = registry.get(MAIN_WINDOW_ID).unwrap();
+        assert!(Arc::ptr_eq(&current.live, &window.live));
+        assert!(ticket.validate().is_err(), "same-instance republish must not revive the retired ticket");
+        assert!(registry.admit_capture(&current, current.revision()).is_ok());
+    }
+
+
+    #[test]
+    fn capture_ticket_observes_shared_account_revocation_without_ui_reset() {
+        let registry = capture_registry();
+        let account = crate::local_account::mock_account_context("http://127.0.0.1:9911");
+        registry.bind_capture_owner(Some(account.clone()), "workspace");
+        registry.note_root_publication_locked(None);
+        let window = registry.get(MAIN_WINDOW_ID).unwrap();
+        let ticket = registry.admit_capture(&window, window.revision()).unwrap();
+        account.invalidate();
+        registry.note_root_publication_locked(None);
+        assert!(ticket.validate().is_err(), "the actual shared account guard invalidates an in-flight capture");
+        assert!(registry.admit_capture(&window, window.revision()).is_err(),
+            "ordinary republishing cannot authorize a revoked account");
+    }
+
+    #[test]
+    fn workspace_owner_change_unpublishes_and_retires_same_window_capture() {
+        let registry = capture_registry();
+        let account = crate::local_account::mock_account_context("http://127.0.0.1:9911");
+        registry.bind_capture_owner(Some(account.clone()), "workspace-a");
+        registry.note_root_publication_locked(None);
+        let window = registry.get(MAIN_WINDOW_ID).unwrap();
+        let ticket = registry.admit_capture(&window, window.revision()).unwrap();
+        registry.bind_capture_owner(Some(account), "workspace-b");
+        assert!(registry.admit_capture(&window, window.revision()).is_err());
+        registry.note_root_publication_locked(None);
+        assert!(ticket.validate().is_err(), "same-window republish cannot cross the real workspace owner");
+        assert!(registry.admit_capture(&window, window.revision()).is_ok());
+    }
+
+
+    #[test]
+    fn account_guard_replacement_retires_unrevoked_same_identity_ticket() {
+        let registry = capture_registry();
+        let first = crate::local_account::mock_account_context("http://127.0.0.1:9911");
+        registry.bind_capture_owner(Some(first.clone()), "workspace");
+        registry.note_root_publication_locked(None);
+        let window = registry.get(MAIN_WINDOW_ID).unwrap();
+        let ticket = registry.admit_capture(&window, window.revision()).unwrap();
+        let replacement = crate::local_account::mock_account_context("http://127.0.0.1:9911");
+        assert_eq!(first.account_id, replacement.account_id);
+        registry.bind_capture_owner(Some(replacement), "workspace");
+        registry.note_root_publication_locked(None);
+        assert!(first.is_active(), "the old guard need not be revoked for owner replacement to retire it");
+        assert!(ticket.validate().is_err());
+        assert!(registry.admit_capture(&window, window.revision()).is_ok());
+    }
+
 }
