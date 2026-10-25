@@ -1330,6 +1330,7 @@ mod tests {
             "jsonrpc": "2.0", "id": 71, "method": "argus.screenshot",
             "params": {"window_id": "main", "expected_revision": revision},
             "session_token": "secret-token-1234567890",
+            "client_session_id": "capture-regression", "agent_label": "capture-regression",
         }).to_string();
         handle_line(&line, state, &session, &mut RateLimiter::new(MAX_REQUESTS_PER_SEC)).await
     }
@@ -1364,6 +1365,7 @@ mod tests {
         windows.note_root_publication_locked(None);
         let response = registered_screenshot(&state, before).await;
         assert_eq!(response["error"]["code"], ERR_INVALID_PARAMS);
+        assert!(response["error"]["message"].as_str().unwrap().contains("revision is stale"));
         assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0);
     }
 
@@ -1419,6 +1421,7 @@ mod tests {
         let line = serde_json::json!({
             "jsonrpc": "2.0", "id": 72, "method": method, "params": {},
             "session_token": "secret-token-1234567890",
+            "client_session_id": "capture-regression", "agent_label": "capture-regression",
         }).to_string();
         handle_line(&line, state, &session, &mut RateLimiter::new(MAX_REQUESTS_PER_SEC)).await
     }
