@@ -9,6 +9,111 @@ use serde_json::Value;
 
 pub type PaneId = Arc<str>;
 
+/// Logical host window identity. Runtime viewport/HWND/renderer handles are never serialized.
+#[derive(Debug,Clone,PartialEq,Eq,PartialOrd,Ord,Serialize,Deserialize)]
+#[serde(tag="kind",rename_all="snake_case",deny_unknown_fields)]
+pub enum KumihimoWindowId { Root, PopOut { pane_id:PaneId } }
+
+#[derive(Debug,Clone,Serialize,Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct KumihimoWindow {
+    pub window:KumihimoWindowId,
+    pub root:kumihimo_core::WorkspaceId,
+    pub retained:kumihimo_core::WorkspaceId,
+    pub frames:BTreeMap<PaneId,kumihimo_core::FrameId>,
+    pub active:Vec<PaneId>,
+}
+#[derive(Debug,Clone,Serialize,Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct KumihimoView {
+    pub window:KumihimoWindowId,
+    pub pane_id:PaneId,
+    pub resource_key:String,
+    pub view:kumihimo_core::ViewId,
+}
+#[derive(Debug,Clone,Serialize,Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct KumihimoLayout {
+    /// Exact asset-codec JSON, retained as bytes-in-a-string so duplicate fields cannot normalize away.
+    pub model_json:String,
+    pub windows:Vec<KumihimoWindow>,
+    pub views:Vec<KumihimoView>,
+}
+#[derive(Debug,Clone,Serialize,Deserialize)]
+#[serde(tag="state",rename_all="snake_case",deny_unknown_fields)]
+pub enum KumihimoLayoutState {
+    Captured { layout:KumihimoLayout },
+    /// Runtime capture failure is explicit and rejected before any transport/LKG admission.
+    CaptureFailed { reason:String },
+}
+
+impl KumihimoLayout {
+    /// Fully validate detached logical state and bindings. No engines, native handles or I/O exist here.
+    pub fn restore_core(&self)->Result<kumihimo_core::Core,LayoutError> {
+        use kumihimo_core as core;
+        use std::collections::BTreeSet;
+        let invalid=|message:&str|LayoutError::Serde(format!("Kumihimo layout: {message}"));
+        let model=kumihimo_layout_json::decode(self.model_json.as_bytes()).map_err(|error|invalid(&error.to_string()))?;
+        if model.source.lineage!="handshake-native" || model.providers.len()!=1
+            || model.providers[0].key!="handshake-pane-factories" || !model.providers[0].supports_shared_views {
+            return Err(invalid("unrecognized host provider/lineage"));
+        }
+        let options=core::RestoreOptions { providers:vec![core::ProviderResolution {
+            key:"handshake-pane-factories".into(),supports_shared_views:true }],..Default::default() };
+        let restored=core::Core::from_persisted(model,uuid::Uuid::new_v4().to_string(),options,256)
+            .map_err(|error|invalid(&error.to_string()))?;
+        let snapshot=restored.snapshot();
+        let mut windows=BTreeMap::new();let mut roots=BTreeSet::new();let mut frames=BTreeSet::new();
+        for window in &self.windows {
+            if windows.insert(window.window.clone(),window).is_some() || window.root==window.retained
+                || !roots.insert(window.root) || !roots.insert(window.retained) {
+                return Err(invalid("duplicate logical window/root binding"));
+            }
+            for id in [window.root,window.retained] {
+                if snapshot.workspaces.get(&id).is_none_or(|workspace|workspace.owner.is_some()) {
+                    return Err(invalid("missing logical root workspace"));
+                }
+            }
+            let active:BTreeSet<_>=window.active.iter().cloned().collect();
+            if active.len()!=window.active.len() || active.iter().any(|id|!window.frames.contains_key(id)) {
+                return Err(invalid("invalid active pane binding"));
+            }
+            if let KumihimoWindowId::PopOut {pane_id}=&window.window {
+                if window.frames.keys().any(|id|id!=pane_id) { return Err(invalid("foreign pop-out pane binding")); }
+            }
+            let expected:BTreeSet<_>=active.iter().map(|id|window.frames[id]).collect();
+            if snapshot.workspaces[&window.root].frames.iter().copied().collect::<BTreeSet<_>>()!=expected {
+                return Err(invalid("active panes differ from root frame ownership"));
+            }
+            for (pane,frame) in &window.frames {
+                let workspace=if active.contains(pane) {window.root}else{window.retained};
+                if !frames.insert(*frame) || snapshot.frames.get(frame).is_none_or(|entry|
+                    entry.workspace!=workspace || entry.child_workspace.is_some()) {
+                    return Err(invalid("pane/frame ownership mismatch"));
+                }
+            }
+        }
+        if frames.len()!=snapshot.frames.len() || roots.len()!=snapshot.workspaces.len() {
+            return Err(invalid("unbound logical frames/workspaces"));
+        }
+        let mut views=BTreeSet::new();let mut occurrences=BTreeSet::new();
+        for binding in &self.views {
+            let window=windows.get(&binding.window).ok_or_else(||invalid("view window is missing"))?;
+            let frame=window.frames.get(&binding.pane_id).ok_or_else(||invalid("view pane is missing"))?;
+            let view=snapshot.views.get(&binding.view).ok_or_else(||invalid("view is missing"))?;
+            if !views.insert(binding.view) || !occurrences.insert((binding.window.clone(),binding.pane_id.clone(),binding.resource_key.clone()))
+                || view.closed.is_some() || view.frame!=*frame
+                || snapshot.resources.get(&view.resource).is_none_or(|resource|resource.key!=binding.resource_key) {
+                return Err(invalid("view/resource occurrence mismatch"));
+            }
+        }
+        if snapshot.views.values().any(|view|view.closed.is_none()&&!views.contains(&view.id)) {
+            return Err(invalid("live view has no host binding"));
+        }
+        Ok(restored)
+    }
+}
+
 pub trait LayoutModule: Sized {
     fn legacy_default() -> Self;
 }
@@ -134,6 +239,8 @@ pub struct LayoutSnapshot<P, T, M: LayoutModule, W, G> {
     /// version-1 schema backward compatible.
     #[serde(default)]
     pub drawers: DrawersState,
+    #[serde(default,skip_serializing_if="Option::is_none")]
+    pub kumihimo:Option<KumihimoLayoutState>,
 }
 
 impl<P, T, M: LayoutModule, W, G> LayoutSnapshot<P, T, M, W, G> {
@@ -161,6 +268,7 @@ impl<P, T, M: LayoutModule, W, G> LayoutSnapshot<P, T, M, W, G> {
             tab_bars,
             pop_outs,
             drawers: DrawersState::default(),
+            kumihimo:None,
         }
     }
 
@@ -186,6 +294,19 @@ impl<P, T, M: LayoutModule, W, G> LayoutSnapshot<P, T, M, W, G> {
                 found: self.version,
                 expected: LAYOUT_SNAPSHOT_VERSION,
             });
+        }
+        if let Some(state)=&self.kumihimo {
+            let layout=match state {
+                KumihimoLayoutState::Captured {layout}=>layout,
+                KumihimoLayoutState::CaptureFailed {reason}=>return Err(LayoutError::Serde(format!("Kumihimo capture failed: {reason}"))),
+            };
+            layout.restore_core()?;
+            let root=layout.windows.iter().find(|window|window.window==KumihimoWindowId::Root)
+                .ok_or_else(||LayoutError::Serde("Kumihimo root window binding is missing".into()))?;
+            if root.active.iter().cloned().collect::<std::collections::BTreeSet<_>>()
+                != self.panes.keys().cloned().collect::<std::collections::BTreeSet<_>>() {
+                return Err(LayoutError::Serde("Kumihimo root pane set differs from the host registry".into()));
+            }
         }
         // Pane-id completeness: every canonical pane must be present in the registry. A
         // schema+version-valid blob that dropped a pane is structurally corrupt and must NOT be applied

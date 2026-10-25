@@ -857,14 +857,29 @@ impl DialogState {
 /// centred-modal fallback; the centred modal matches the palette/switcher overlay convention already in
 /// this crate, so the three overlays are visually + structurally consistent.
 pub fn show(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsFrame {
-    show_host(ctx, view, false)
+    show_host(ctx, view, false, None)
 }
 
 pub fn show_detached(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsFrame {
-    show_host(ctx, view, true)
+    show_host(ctx, view, true, None)
 }
 
-fn show_host(ctx: &egui::Context, mut view: SettingsView<'_>, detached: bool) -> SettingsFrame {
+/// Render the existing Settings content inside a caller-owned window or panel.
+/// The caller owns geometry and backdrop interaction; this path creates no independent container.
+/// Detached mode retains Re-dock and non-modal accessibility; embedded mode retains Pop out.
+/// All Settings state, private-field cleanup and typed outcomes use the same content owner.
+pub fn show_in_ui(ui: &mut egui::Ui, view: SettingsView<'_>, detached: bool) -> SettingsFrame {
+    let ctx = ui.ctx().clone();
+    show_host(&ctx, view, detached, Some(ui))
+}
+
+fn show_host(
+    ctx: &egui::Context,
+    mut view: SettingsView<'_>,
+    detached: bool,
+    content_ui: Option<&mut egui::Ui>,
+) -> SettingsFrame {
+    let mounted = content_ui.is_some();
     view.engine_profiles.begin_open(view.open_count);
     let state_id = egui::Id::new("settings.state");
     let mut state: DialogState = ctx
@@ -949,7 +964,7 @@ fn show_host(ctx: &egui::Context, mut view: SettingsView<'_>, detached: bool) ->
 
     // ── Backdrop: a full-screen interactable Area BEHIND the window; a click on it dismisses. ──
     let screen = ctx.content_rect();
-    let backdrop = (!detached).then(|| egui::Area::new(egui::Id::new("settings.backdrop"))
+    let backdrop = (!detached && !mounted).then(|| egui::Area::new(egui::Id::new("settings.backdrop"))
         .order(egui::Order::Foreground)
         .fixed_pos(screen.min)
         .interactable(true)
@@ -1061,7 +1076,7 @@ fn show_host(ctx: &egui::Context, mut view: SettingsView<'_>, detached: bool) ->
             // The scrollable body region (Role::Group container at the fixed list id).
             ui.push_id(list_egui_id, |ui| {
                 egui::ScrollArea::vertical()
-                    .max_height(if detached { ui.available_height() } else { 440.0 })
+                    .max_height(if detached || mounted { ui.available_height() } else { 440.0 })
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
                         if view.engine_profiles.tab == EngineProfilesTab::General {
@@ -1076,7 +1091,9 @@ fn show_host(ctx: &egui::Context, mut view: SettingsView<'_>, detached: bool) ->
             });
             emit_list_node(ui.ctx(), list_egui_id);
     };
-    if detached {
+    if let Some(ui) = content_ui {
+        render_body(ui);
+    } else if detached {
         egui::CentralPanel::default().show(ctx, &mut render_body);
     } else {
         egui::Window::new("settings")

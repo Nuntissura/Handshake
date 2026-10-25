@@ -9,3 +9,7 @@ publish = false
 [dependencies]
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
+
+kumihimo-core = { git = "https://github.com/Nuntissura/assets.git", rev = "8a97b9ae445872e4143fad1eb92f9ad082017595", version = "0.3.0" }
+kumihimo-layout-json = { git = "https://github.com/Nuntissura/assets.git", rev = "8a97b9ae445872e4143fad1eb92f9ad082017595", version = "0.1.0" }
+uuid = { version = "1", features = ["v4"] }

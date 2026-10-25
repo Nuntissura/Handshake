@@ -71,6 +71,61 @@ impl handshake_layout_snapshot::LayoutGeometry for PopOutGeometry {
     }
 }
 
+/// Validate the native binding to the same pane/tab owners before transport or LKG admission.
+pub fn validate_snapshot(snapshot:&LayoutSnapshot)->Result<(),LayoutError> {
+    use handshake_layout_snapshot::{KumihimoLayoutState,KumihimoWindowId};
+    snapshot.validate()?;
+    let Some(KumihimoLayoutState::Captured {layout})=&snapshot.kumihimo else {return Ok(());};
+    let core=layout.restore_core()?;
+    let model=core.snapshot();
+    let invalid=|message:&str|LayoutError::Serde(format!("Kumihimo host binding: {message}"));
+    let mut viewports=std::collections::BTreeSet::new();
+    for window in &layout.windows {
+        let viewport=match &window.window {
+            KumihimoWindowId::Root=>egui::ViewportId::ROOT,
+            KumihimoWindowId::PopOut {pane_id}=>egui::ViewportId::from_hash_of(pane_id.as_ref()),
+        };
+        if !viewports.insert(viewport) {return Err(invalid("logical windows collide at the host viewport boundary"));}
+    }
+    for (pane,record) in &snapshot.panes {
+        if record.pane_id!=*pane {
+            return Err(invalid("pane registry key differs from its owner identity"));
+        }
+    }
+    for window in &layout.windows {
+        if let KumihimoWindowId::PopOut {pane_id}=&window.window {
+            if !window.active.is_empty() && (window.active.as_slice()!=[pane_id.clone()]
+                || !snapshot.panes.contains_key(pane_id)
+                || !snapshot.pop_outs.get(pane_id).is_some_and(|popout|popout.open)) {
+                return Err(invalid("active pop-out has no open native pane owner"));
+            }
+        }
+        for pane in &window.active {
+            let bar=snapshot.tab_bars.get(pane).ok_or_else(||invalid("pane has no tab owner"))?;
+            if bar.pane_id!=*pane || (!bar.tabs.is_empty()&&bar.active_index>=bar.tabs.len()) {
+                return Err(invalid("tab owner or active index is invalid"));
+            }
+            let frame=model.frames.get(window.frames.get(pane).ok_or_else(||invalid("pane frame binding is missing"))?)
+                .ok_or_else(||invalid("pane frame is missing"))?;
+            let mut expected=Vec::new();
+            for tab in &bar.tabs {
+                let key=serde_json::to_string(&(&tab.pane_type,&tab.content_id)).map_err(|error|invalid(&error.to_string()))?;
+                let binding=layout.views.iter().find(|view|view.window==window.window
+                    &&view.pane_id==*pane&&view.resource_key==key).ok_or_else(||invalid("tab has no canonical view binding"))?;
+                let view=&model.views[&binding.view];
+                if view.label!=tab.label()||view.pinned!=tab.pinned||view.unsaved!=tab.dirty {
+                    return Err(invalid("view metadata differs from its native tab owner"));
+                }
+                expected.push(binding.view);
+            }
+            if frame.views!=expected || frame.selected_view!=expected.get(bar.active_index).copied() {
+                return Err(invalid("view order/selection differs from the native tab owner"));
+            }
+        }
+    }
+    Ok(())
+}
+
 /// The synchronous transport seam for the layout endpoint. The real implementation
 /// ([`crate::backend_client::WorkbenchLayoutClient`]) blocks on `reqwest` inside the app's tokio
 /// runtime; a test stub implements this trait in-memory so the [`LayoutPersistenceManager`] state
@@ -203,6 +258,7 @@ impl LayoutPersistenceManager {
     /// Save `snapshot` immediately (bypassing the debounce window), retrying transient failures. Used
     /// for the flush-on-due path and for an explicit save-on-exit. Clears the dirty flag on success.
     pub fn save_now(&mut self, snapshot: &LayoutSnapshot) {
+        if let Err(error)=validate_snapshot(snapshot) {self.reject_restore(error);return;}
         let layout_state = snapshot.to_layout_state();
         let mut attempt = 0u32;
         loop {
@@ -253,37 +309,42 @@ impl LayoutPersistenceManager {
         match self.transport.load(workspace_id) {
             Ok(Some(value)) => match LayoutSnapshot::from_layout_state(value) {
                 Ok(snapshot) => {
+                    if let Err(error)=validate_snapshot(&snapshot) {return Ok(self.fall_back_to_lkg(error,workspace_id));}
                     if snapshot.project_id != workspace_id {
                         return Ok(self.fall_back_to_lkg(LayoutError::ProjectMismatch {
                             requested: workspace_id.to_owned(),
                             snapshot: snapshot.project_id.clone(),
-                        }));
+                        },workspace_id));
                     }
                     self.last_known_good = Some(snapshot.clone());
                     self.status = LayoutPersistenceStatus::Loaded;
                     Ok(Some(snapshot))
                 }
                 // Corrupt or foreign-schema blob: fall back to LKG -> default, never apply garbage.
-                Err(e) => Ok(self.fall_back_to_lkg(e)),
+                Err(e) => Ok(self.fall_back_to_lkg(e,workspace_id)),
             },
             Ok(None) => {
                 self.status = LayoutPersistenceStatus::Default;
                 Ok(None)
             }
             // Transport failure: fall back to LKG -> default.
-            Err(e) => Ok(self.fall_back_to_lkg(e)),
+            Err(e) => Ok(self.fall_back_to_lkg(e,workspace_id)),
         }
+    }
+
+    pub fn reject_restore(&mut self,cause:LayoutError) {
+        self.status=LayoutPersistenceStatus::Error {message:cause.to_string(),retries_left:0};
     }
 
     /// Set an `Error` status carrying `cause` and return the last-known-good snapshot if held (else
     /// `None`, so the caller uses the seeded default). This is the single fallback decision point so a
     /// failed load can never apply an unvalidated snapshot.
-    fn fall_back_to_lkg(&mut self, cause: LayoutError) -> Option<LayoutSnapshot> {
+    fn fall_back_to_lkg(&mut self, cause: LayoutError,workspace_id:&str) -> Option<LayoutSnapshot> {
         self.status = LayoutPersistenceStatus::Error {
             message: cause.to_string(),
             retries_left: 0,
         };
-        self.last_known_good.clone()
+        self.last_known_good.as_ref().filter(|snapshot|snapshot.project_id==workspace_id).cloned()
     }
 }
 
@@ -831,4 +892,95 @@ mod tests {
         }
         .is_transient());
     }
+    fn with_canonical_dock_model(mut snapshot:LayoutSnapshot)->LayoutSnapshot {
+        let mut owner=crate::kumihimo::NativeHost::new().unwrap();
+        let panes:Vec<_>=snapshot.panes.keys().cloned().collect();
+        let area=egui::Rect::from_min_size(egui::Pos2::ZERO,egui::vec2(1200.0,800.0));
+        owner.project(egui::ViewportId::ROOT,&panes,area,snapshot.split_weights).unwrap();
+        let bars=snapshot.tab_bars.iter().map(|(id,bar)|(id.clone(),bar.clone())).collect();
+        owner.reconcile_tabs(egui::ViewportId::ROOT,&bars).unwrap();
+        owner.dock(egui::ViewportId::ROOT,&pid("pane-a"),&pid("pane-b"),kumihimo_core::Edge::Bottom).unwrap();
+        for (pane,popout) in &snapshot.pop_outs {
+            if popout.open {
+                let viewport=egui::ViewportId::from_hash_of(pane.as_ref());
+                owner.project(viewport,&[pane.clone()],area,SplitWeights::default()).unwrap();
+                owner.reconcile_tabs(viewport,&bars).unwrap();
+            }
+        }
+        snapshot.kumihimo=Some(handshake_layout_snapshot::KumihimoLayoutState::Captured {layout:owner.capture().unwrap().unwrap()});
+        snapshot
+    }
+
+    #[test]
+    fn invalid_canonical_model_never_replaces_lkg_or_reaches_save_transport() {
+        let good=with_canonical_dock_model(sample_snapshot());
+        validate_snapshot(&good).unwrap();
+        let stub=StubTransport::new();stub.push_load(Ok(Some(good.to_layout_state())));
+        let mut manager=manager_with(stub.clone(),Duration::ZERO);
+        manager.load("proj-1").unwrap().unwrap();
+        let lkg=manager.last_known_good().unwrap().to_layout_state();
+        let mut corrupt=good.clone();
+        if let Some(handshake_layout_snapshot::KumihimoLayoutState::Captured {layout})=&mut corrupt.kumihimo {
+            layout.model_json="{\"invalid\":true}".into();
+        }
+        stub.push_load(Ok(Some(corrupt.to_layout_state())));
+        let fallback=manager.load("proj-1").unwrap().unwrap();
+        assert_eq!(fallback.to_layout_state(),lkg);
+        assert!(matches!(manager.status(),LayoutPersistenceStatus::Error {..}));
+        assert_eq!(manager.last_known_good().unwrap().to_layout_state(),lkg);
+        manager.save_now(&corrupt);
+        assert_eq!(stub.save_calls(),0);
+        assert_eq!(manager.last_known_good().unwrap().to_layout_state(),lkg);
+        stub.push_load(Err(LayoutError::Transport("offline".into())));
+        assert!(manager.load("different-workspace").unwrap().is_none());
+        assert_eq!(manager.last_known_good().unwrap().to_layout_state(),lkg);
+    }
+
+    #[test]
+    fn legacy_layout_without_asset_model_remains_readable_and_explicit_capture_failure_rejects() {
+        let legacy=sample_snapshot();
+        assert!(legacy.kumihimo.is_none());
+        let loaded=LayoutSnapshot::from_layout_state(legacy.to_layout_state()).unwrap();
+        validate_snapshot(&loaded).unwrap();
+        assert_eq!(loaded.to_layout_state(),legacy.to_layout_state());
+        let mut failed=loaded;
+        failed.kumihimo=Some(handshake_layout_snapshot::KumihimoLayoutState::CaptureFailed {reason:"retired owner".into()});
+        assert!(validate_snapshot(&failed).is_err());
+    }
+
+    #[test]
+    fn active_popout_owner_and_tab_corruption_never_enters_lkg() {
+        use handshake_layout_snapshot::{KumihimoLayoutState,KumihimoWindowId};
+        let good=with_canonical_dock_model(sample_snapshot());validate_snapshot(&good).unwrap();
+        let mut unknown=good.clone();
+        if let Some(KumihimoLayoutState::Captured {layout})=&mut unknown.kumihimo {
+            let old=KumihimoWindowId::PopOut {pane_id:pid("pane-b")};
+            let new=KumihimoWindowId::PopOut {pane_id:pid("unknown-native-pane")};
+            let window=layout.windows.iter_mut().find(|window|window.window==old).unwrap();
+            let frame=window.frames.remove(&pid("pane-b")).unwrap();window.frames.insert(pid("unknown-native-pane"),frame);
+            window.active=vec![pid("unknown-native-pane")];window.window=new.clone();
+            for view in &mut layout.views {if view.window==old {view.window=new.clone();view.pane_id=pid("unknown-native-pane");}}
+            layout.restore_core().unwrap(); // canonical model/root remain valid; the host owner is invalid
+        }
+        let mut closed=good.clone();closed.pop_outs.get_mut(&pid("pane-b")).unwrap().open=false;
+        let mut wrong_tab=good.clone();
+        if let Some(KumihimoLayoutState::Captured {layout})=&mut wrong_tab.kumihimo {
+            let view=layout.views.iter().find(|view|matches!(view.window,KumihimoWindowId::PopOut {..})).unwrap().view;
+            let mut model=kumihimo_layout_json::decode(layout.model_json.as_bytes()).unwrap();
+            model.views.iter_mut().find(|entry|entry.id==view).unwrap().label="different popout tab".into();
+            layout.model_json=String::from_utf8(kumihimo_layout_json::encode(&model).unwrap()).unwrap();
+            layout.restore_core().unwrap();
+        }
+        let stub=StubTransport::new();stub.push_load(Ok(Some(good.to_layout_state())));
+        let mut manager=manager_with(stub.clone(),Duration::ZERO);manager.load("proj-1").unwrap();
+        let baseline=manager.last_known_good().unwrap().to_layout_state();
+        for corrupt in [unknown,closed,wrong_tab] {
+            assert!(validate_snapshot(&corrupt).is_err());stub.push_load(Ok(Some(corrupt.to_layout_state())));
+            assert_eq!(manager.load("proj-1").unwrap().unwrap().to_layout_state(),baseline);
+            assert!(matches!(manager.status(),LayoutPersistenceStatus::Error {..}));
+            assert_eq!(manager.last_known_good().unwrap().to_layout_state(),baseline);
+            manager.save_now(&corrupt);assert_eq!(stub.save_calls(),0);
+        }
+    }
+
 }

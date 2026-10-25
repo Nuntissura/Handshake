@@ -5,6 +5,7 @@
 
 pub mod accessibility;
 pub mod app;
+pub mod kumihimo;
 // WP-KERNEL-012 MT-037 (E6 — backend reuse wiring): the typed native clients for the EXISTING
 // handshake_core HTTP surfaces. MT-037 adds backend::knowledge_documents — the consolidated typed
 // client for the full /knowledge/documents/* route family (create/import/load/draft/save/blocks/

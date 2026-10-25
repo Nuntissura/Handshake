@@ -6057,6 +6057,8 @@ pub struct HandshakeApp {
     /// by MT-009. Initialized to the React `DEFAULT_SPLIT_WEIGHTS` (`{ vertical: 0.5, horizontal:
     /// 0.55 }`).
     split_weights: SplitWeights,
+    /// One arrangement/controller owner shared by the root and actual native pane viewports.
+    kumihimo_host: Option<Arc<Mutex<crate::kumihimo::NativeHost>>>,
     /// Per-frame pointer-drag state for the dividers (MT-006). Deliberately separate from
     /// `split_weights` so transient drag flags are never serialized into a layout snapshot
     /// (red-team RISK-5).
@@ -6317,6 +6319,8 @@ pub struct HandshakeApp {
     suppress_cli_login_launch: bool,
     cli_login_poll_in_flight: Arc<std::sync::atomic::AtomicBool>,
     settings_detached: bool,
+    /// Actual detached content context, retained only to clear private widget undo on host exits.
+    settings_detached_context: Option<egui::Context>,
     settings_detached_exit_pending: Option<crate::settings_dialog::SettingsOutcome>,
     settings_effect_context: Option<egui::Context>,
     mcp_windows: Arc<Mutex<crate::mcp::WindowSnapshotRegistry>>,
@@ -8155,6 +8159,49 @@ impl HandshakeApp {
             .expect("HandshakeApp runtime is present until bounded Drop teardown")
     }
 
+    pub fn try_install_kumihimo(&mut self, cc: &eframe::CreationContext<'_>)
+        -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let render = cc.wgpu_render_state.as_ref()
+            .ok_or_else(||std::io::Error::other("Kumihimo requires the native WGPU renderer"))?;
+        kumihimo_egui::native::NativeBackend::Vulkan.validate_actual(render.adapter.get_info().backend)?;
+        self.kumihimo_host = Some(crate::kumihimo::install(&cc.egui_ctx).map_err(std::io::Error::other)?);
+        Ok(())
+    }
+
+    fn kumihimo_scope(&self,project:&str)->Result<String,serde_json::Error> {
+        let account=self.local_account.context.as_ref();
+        serde_json::to_string(&(&self.rich_doc_base_url,project,
+            account.map(|account|(&account.account_id,&account.principal_id,&account.session_id,&account.access_space_id,account.is_active()))))
+    }
+
+    fn prepare_kumihimo(&mut self, ctx: &egui::Context) {
+        let owner = match self.kumihimo_host.clone().map(Ok).unwrap_or_else(||crate::kumihimo::owner(ctx)) {
+            Ok(owner)=>owner,
+            Err(error)=>{ tracing::error!(%error,"Kumihimo host initialization failed"); return; }
+        };
+        crate::kumihimo::bind_context_owner(ctx,owner.clone());
+        let scope=self.kumihimo_scope(&self.active_project_id);
+        match scope {
+            Ok(scope)=>if let Err(error)=owner.lock().unwrap_or_else(|error|error.into_inner()).rebind_scope(scope) {
+                tracing::error!(%error,"Kumihimo owner transition failed");
+            },
+            Err(error)=>tracing::error!(%error,"Kumihimo owner scope could not be encoded"),
+        }
+        self.kumihimo_host=Some(owner);
+    }
+
+    fn shutdown_kumihimo(&mut self) {
+        if let Some(owner)=self.kumihimo_host.take() {
+            let cleanup=owner.lock().unwrap_or_else(|error|error.into_inner()).shutdown();
+            tracing::info!(controller_retired=cleanup.controller_retired,
+                logical_window_bindings_retired=cleanup.logical_window_bindings_retired,
+                view_bindings_retired=cleanup.view_bindings_retired,
+                native_window_slots=?cleanup.native_window_slots,
+                sdk_capture_registry_entries=?cleanup.sdk_capture_registry_entries,
+                os_windows_destroyed=?cleanup.os_windows_destroyed,"Kumihimo host cleanup observation");
+        }
+    }
+
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         Self::new_with_diagnostics(cc, None, false)
     }
@@ -8335,6 +8382,7 @@ impl HandshakeApp {
             code_ref_nav_generation: 0,
             code_ref_nav_pending: HashMap::new(),
             export_save_sink: None,
+            kumihimo_host: None,
             split_weights: SplitWeights::default(),
             split_drag: SplitDragState::default(),
             active_pane: None,
@@ -8427,6 +8475,7 @@ impl HandshakeApp {
             suppress_cli_login_launch: false,
             cli_login_poll_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             settings_detached: false,
+            settings_detached_context: None,
             settings_detached_exit_pending: None,
             settings_effect_context: None,
 
@@ -13413,6 +13462,7 @@ impl HandshakeApp {
             code_ref_nav_generation: 0,
             code_ref_nav_pending: HashMap::new(),
             export_save_sink: None,
+            kumihimo_host: None,
             split_weights: SplitWeights::default(),
             split_drag: SplitDragState::default(),
             active_pane: None,
@@ -13506,6 +13556,7 @@ impl HandshakeApp {
             suppress_cli_login_launch: true,
             cli_login_poll_in_flight: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             settings_detached: false,
+            settings_detached_context: None,
             settings_detached_exit_pending: None,
             settings_effect_context: None,
 
@@ -21738,8 +21789,14 @@ impl HandshakeApp {
     /// (red-team MC2) so a fast change-then-close never loses the change. Safe to call when already
     /// closed.
     pub fn close_settings(&mut self) {
+        if let Some(owner)=&self.kumihimo_host {owner.lock().unwrap_or_else(|error|error.into_inner()).retire_settings();}
+        self.engine_profiles.exit();
+        self.engine_profiles_response=None;
+        let _=self.engine_profiles.take_orphaned();
+
         if self.settings_open { self.invalidate_cloud_host(); }
         self.clear_cloud_edit_state();
+        self.settings_detached_context=None;
         self.settings_detached = false;
         self.settings_detached_exit_pending = None;
         self.mcp_windows.lock().unwrap_or_else(|p| p.into_inner()).unregister(
@@ -21811,6 +21868,7 @@ impl HandshakeApp {
         if let Some(ctx) = self
             .settings_effect_context
             .as_ref()
+            .or(self.settings_detached_context.as_ref())
             .or(self.frame_ctx.as_ref())
         {
             crate::settings_dialog::clear_cloud_key_state(ctx, &mut self.cloud_models);
@@ -21849,8 +21907,10 @@ impl HandshakeApp {
         if !self.settings_open || !self.settings_detached {
             return false;
         }
+        if let Some(owner)=&self.kumihimo_host {owner.lock().unwrap_or_else(|error|error.into_inner()).retire_settings();}
         self.invalidate_cloud_host();
         self.clear_cloud_edit_state();
+        self.settings_detached_context=None;
         self.settings_detached = false;
         self.settings_detached_exit_pending = None;
         self.mcp_windows
@@ -23709,6 +23769,9 @@ impl HandshakeApp {
                 });
                 crate::mcp::screenshot::record_viewport_window_handle(&windows, &window_id, epoch, ctx, &title, outer_rect_px);
                 if closing && self.settings_detached_exit_pending.is_none() {
+                    crate::settings_dialog::clear_cloud_key_state(ctx,&mut self.cloud_models);
+                    self.engine_profiles.exit();self.engine_profiles_response=None;
+
                     self.clear_cloud_edit_state();
                     self.settings_detached_exit_pending =
                         Some(crate::settings_dialog::SettingsOutcome::Close);
@@ -23802,6 +23865,10 @@ impl HandshakeApp {
     }
 
     fn render_settings_surface(&mut self, ctx: &egui::Context, detached: bool) {
+        if detached && !self.capturing_snapshot {
+            self.settings_detached_context=Some(ctx.clone());
+            if self.kumihimo_host.is_none() {self.prepare_kumihimo(ctx);}
+        }
         if !self.capturing_snapshot {
             let scope = self.local_account.context.as_ref()
                 .filter(|account| account.is_active())
@@ -23826,6 +23893,7 @@ impl HandshakeApp {
         }
         let diagnostics_force_open = self.settings_diagnostics_force_open;
         let palette = self.current_theme.palette();
+        let kumihimo_owner=self.kumihimo_host.clone();
         let mut cloud_projection = if self.capturing_snapshot {
             self.cloud_models.snapshot_projection()
         } else {
@@ -23864,7 +23932,16 @@ impl HandshakeApp {
             );
         }
         let frame = if detached {
-            crate::settings_dialog::show_detached(ctx, view)
+            let Some(owner)=kumihimo_owner else {tracing::error!("Settings Kumihimo owner is unavailable");return;};
+            let mut view=Some(view);
+            let mut frame=None;
+            egui::CentralPanel::default().show(ctx,|ui| {
+                let result=owner.lock().unwrap_or_else(|error|error.into_inner()).render_settings(ui,&palette,|ui| {
+                    if let Some(view)=view.take() {frame=Some(crate::settings_dialog::show_in_ui(ui,view,true));}
+                });
+                if let Err(error)=result {tracing::error!(%error,"Settings Kumihimo content mount failed");ui.label("Settings layout is unavailable. Resize or close this window.");}
+            });
+            let Some(frame)=frame else {return;};frame
         } else {
             crate::settings_dialog::show(ctx, view)
         };
@@ -36604,6 +36681,16 @@ impl HandshakeApp {
             .unwrap_or_else(|p| p.into_inner()).iter()
             .filter(|(id, _)| snapshot.panes.contains_key(*id))
             .map(|(id, module)| (id.clone(), *module)).collect();
+        if let Some(owner)=&self.kumihimo_host {
+            let mut owner=owner.lock().unwrap_or_else(|error|error.into_inner());
+            let mut pane_ids:Vec<_>=snapshot.panes.keys().cloned().collect();pane_ids.sort();
+            let captured=owner.synchronize_snapshot(&pane_ids,&self.tab_bar_states,self.split_weights).and_then(|()|owner.capture());
+            snapshot.kumihimo=match captured {
+                Ok(Some(layout))=>Some(handshake_layout_snapshot::KumihimoLayoutState::Captured {layout}),
+                Ok(None)=>None,
+                Err(reason)=>Some(handshake_layout_snapshot::KumihimoLayoutState::CaptureFailed {reason}),
+            };
+        }
         snapshot
     }
 
@@ -36623,7 +36710,15 @@ impl HandshakeApp {
         snapshot: LayoutSnapshot,
         monitor_extent: egui::Rect,
     ) -> Result<(), crate::layout_persistence::LayoutError> {
-        snapshot.validate()?;
+        crate::layout_persistence::validate_snapshot(&snapshot)?;
+        let scope=self.kumihimo_scope(&snapshot.project_id)
+            .map_err(|error|crate::layout_persistence::LayoutError::Serde(error.to_string()))?;
+        let prepared=match &snapshot.kumihimo {
+            Some(handshake_layout_snapshot::KumihimoLayoutState::Captured {layout})=>
+                crate::kumihimo::NativeHost::from_saved(layout,scope,snapshot.split_weights),
+            Some(handshake_layout_snapshot::KumihimoLayoutState::CaptureFailed {reason})=>Err(reason.clone()),
+            None=>crate::kumihimo::NativeHost::new().and_then(|mut owner|{owner.rebind_scope(scope)?;Ok(owner)}),
+        }.map_err(crate::layout_persistence::LayoutError::Serde)?;
         // Clamp pop-out geometries once against the full desktop extent before applying.
         let snapshot = snapshot.clamp_pop_outs_to(monitor_extent);
 
@@ -36679,6 +36774,10 @@ impl HandshakeApp {
             }
         }
 
+        if let Some(owner)=&self.kumihimo_host {
+            let mut owner=owner.lock().unwrap_or_else(|error|error.into_inner());
+            owner.shutdown();*owner=prepared;
+        } else {self.kumihimo_host=Some(Arc::new(Mutex::new(prepared)));}
         Ok(())
     }
 
@@ -36911,7 +37010,9 @@ impl HandshakeApp {
         // (backend down, no LKG) keeps the seeded default — the degraded-but-responsive state, nothing to
         // apply.
         if let Ok(Some(snapshot)) = result {
-            let _ = self.apply_layout_snapshot(snapshot, monitor_extent);
+            if let Err(error)=self.apply_layout_snapshot(snapshot,monitor_extent) {
+                self.layout_manager.lock().unwrap_or_else(|error|error.into_inner()).reject_restore(error);
+            }
         }
         // Re-baseline change detection to the just-settled layout so the restore is not re-saved.
         self.last_seen_layout = Some(self.capture_layout_snapshot().to_layout_state());
@@ -37889,6 +37990,7 @@ impl HandshakeApp {
     }
 
     pub fn ui(&mut self, ctx: &egui::Context) {
+        self.prepare_kumihimo(ctx);
         if !self.capturing_snapshot {
             let windows = self
                 .mcp_windows
@@ -37937,6 +38039,8 @@ impl HandshakeApp {
             self.swarm_model_sessions = crate::settings_dialog::SwarmModelSessionsSettingsState::default();
             self.retain_unconfirmed_cloud_login();
             self.cloud_cli_start_in_flight = false;
+            self.clear_cloud_edit_state();
+            self.settings_detached_context=None;
             crate::settings_dialog::clear_cloud_key_state(ctx, &mut self.cloud_models);
             self.cloud_models = crate::settings_dialog::CloudModelsSettingsState::default();
             self.cloud_access_client = None;
@@ -38930,6 +39034,7 @@ impl HandshakeApp {
         let mut popout_lock_requests: Vec<PaneId> = Vec::new();
         let mut popout_tab_close_requests: Vec<TabCloseRequest> = Vec::new();
         let windows = self.mcp_windows.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        let kumihimo_owner=self.kumihimo_host.clone();
         let epochs = &mut self.popout_argus_epochs;
         let capturing_snapshot = self.capturing_snapshot;
         let mut descriptors: HashMap<PaneId, crate::mcp::ArgusWindowDescriptor> = HashMap::new();
@@ -38997,7 +39102,12 @@ impl HandshakeApp {
                         epochs.get(pane_id).is_none_or(|epoch| windows.get(&window_id)
                             .is_ok_and(|window| window.epoch == *epoch && windows.is_close_ready(&window_id)))
                     }
-                    PopOutLifecycle::Removed { pane_id, .. } => {
+                    PopOutLifecycle::Removed { pane_id, viewport_id } => {
+                        if let Some(owner)=&kumihimo_owner {
+                            if let Err(error)=owner.lock().unwrap_or_else(|error|error.into_inner()).retire_viewport(viewport_id) {
+                                tracing::error!(%error,"Kumihimo viewport retirement failed");
+                            }
+                        }
                         let window_id = crate::popout_window::argus_window_id(pane_id);
                         if let Some(epoch) = epochs.remove(pane_id) {
                             if windows.get(&window_id).is_ok_and(|window| window.epoch == epoch) {
@@ -39212,7 +39322,14 @@ impl HandshakeApp {
 
             // Carve, from the TOP: MT-013 header strip, then MT-007 tab strip, then the body — the SAME
             // stack the docked pane uses, so a popped-out pane keeps its header binding + tab badges.
-            let full = ui.available_rect_before_wrap();
+            let owner=match crate::kumihimo::owner(ui.ctx()) { Ok(owner)=>owner,Err(error)=>{ui.label(error);return;} };
+            let mut owner=owner.lock().unwrap_or_else(|error|error.into_inner());
+            let projection=match owner.project(egui::ViewportId::from_hash_of(pane_id.as_ref()),&[pane_id.clone()],ui.available_rect_before_wrap(),SplitWeights::default()) {
+                Ok(projection)=>projection,Err(error)=>{ui.label(error);return;}
+            };
+            if let Err(error)=owner.reconcile_tabs(egui::ViewportId::from_hash_of(pane_id.as_ref()),tab_bar_states) {ui.label(error);return;}
+            drop(owner);
+            let Some((_,full))=projection.panes.first().cloned() else{return;};
             let header_h = PANE_HEADER_HEIGHT.min(full.height());
             let header_rect =
                 egui::Rect::from_min_max(full.min, egui::pos2(full.right(), full.top() + header_h));
@@ -41877,6 +41994,7 @@ impl eframe::App for HandshakeApp {
     /// before their runtime is dropped, avoiding shutdown-time background panics in headless and GUI
     /// teardown paths.
     fn on_exit(&mut self) {
+        self.shutdown_kumihimo();
         self.shutdown_mcp_server();
         self.shutdown_runtime_once();
         if let Some(handle) = self.palmistry.take() {
@@ -41909,6 +42027,16 @@ impl eframe::App for HandshakeApp {
         // MT-081 ring header (no record-buffer lock, no `format!`, no heap alloc — RISK-004-3). It is a
         // silent no-op when no ring writer is installed (headless/test shell — AC-004-5).
         self.bump_heartbeat();
+        if let (Some(owner),Some(capture))=(&self.kumihimo_host,_frame.native_capture_handle()) {
+            let mut owner=owner.lock().unwrap_or_else(|error|error.into_inner());
+            for viewport in owner.viewport_ids() {
+                if let Ok(target)=capture.target(viewport) {
+                    if let Err(error)=owner.bind_observed_surface(viewport,target.surface_incarnation()) {
+                        tracing::error!(%error,"Kumihimo observed surface binding rejected");
+                    }
+                }
+            }
+        }
         let windows = self.mcp_windows.lock().unwrap_or_else(|p| p.into_inner()).clone();
         crate::mcp::screenshot::update_live_frame_capture(
             &windows, crate::mcp::MAIN_WINDOW_ID, ctx,
@@ -41983,6 +42111,7 @@ impl eframe::App for HandshakeApp {
 
 impl Drop for HandshakeApp {
     fn drop(&mut self) {
+        self.shutdown_kumihimo();
         // `rt` is declared before `editor_mounts`, so Rust would otherwise destroy the runtime first
         // and only then drop the store/panel-owned LspClients. Reclaim EVERY registered and mounted
         // transport explicitly while the runtime is live; the operation de-duplicates shared clients,

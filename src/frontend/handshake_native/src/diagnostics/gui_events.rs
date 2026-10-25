@@ -13,6 +13,11 @@ pub enum GuiDiagnosticOperation {
     EngineProfileRefresh = 0x4755_4900_0000_0003,
     EngineProfileMutation = 0x4755_4900_0000_0004,
     RendererBinding = 0x4755_4900_0000_0005,
+    KumihimoOwner = 0x4755_4900_0000_0009,
+    KumihimoLayout = 0x4755_4900_0000_000a,
+    KumihimoInteraction = 0x4755_4900_0000_000b,
+    KumihimoCleanup = 0x4755_4900_0000_000c,
+    KumihimoWindowRetired = 0x4755_4900_0000_000d,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

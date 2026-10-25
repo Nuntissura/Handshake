@@ -34,6 +34,31 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+
+/// Compare every persisted logical field while proving that restore creates a fresh runtime fence.
+fn assert_restored_snapshot(saved:Value,restored:Value) {
+    use handshake_layout_snapshot::KumihimoLayoutState;
+    let mut expected:LayoutSnapshot=serde_json::from_value(saved).unwrap();
+    let mut actual:LayoutSnapshot=serde_json::from_value(restored).unwrap();
+    match (expected.kumihimo.take(),actual.kumihimo.take()) {
+        (Some(KumihimoLayoutState::Captured {layout:before}),Some(KumihimoLayoutState::Captured {layout:after}))=>{
+            assert_eq!(serde_json::to_value(&before.windows).unwrap(),serde_json::to_value(&after.windows).unwrap());
+            assert_eq!(serde_json::to_value(&before.views).unwrap(),serde_json::to_value(&after.views).unwrap());
+            let before_model=kumihimo_layout_json::decode(before.model_json.as_bytes()).unwrap();
+            let mut after_model=kumihimo_layout_json::decode(after.model_json.as_bytes()).unwrap();
+            assert_ne!(before_model.source.incarnation,after_model.source.incarnation,"restored runtime incarnation must be fresh");
+            assert_eq!(before_model.source.lineage,after_model.source.lineage);
+            // These two fields fence the current runtime, rather than describing durable layout.
+            after_model.source=before_model.source.clone();
+            after_model.source_generation=before_model.source_generation;
+            assert_eq!(before_model,after_model,"all canonical layout/view/resource records must survive restore");
+        }
+        (None,None)=>(),
+        _=>panic!("restoration lost or failed to capture the canonical layout model"),
+    }
+    assert_eq!(expected.to_layout_state(),actual.to_layout_state(),"all legacy shell fields must survive restore");
+}
+
 fn ok_app() -> HandshakeApp {
     HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
         status: "ok".to_string(),
@@ -154,10 +179,7 @@ fn full_layout_round_trips_through_the_app() {
     // The restored shell's captured snapshot must equal the saved one (serialized-form equality, the
     // persisted contract — see layout_persistence.rs PaneRecord/Instant note).
     let restored_json = serde_json::to_value(h2.state().capture_layout_snapshot()).unwrap();
-    assert_eq!(
-        saved_json, restored_json,
-        "restored layout must equal saved layout"
-    );
+    assert_restored_snapshot(saved_json,restored_json);
 
     // Spot-check the individual composed pieces too (so a future serde change can't make the whole
     // blob match by coincidence while a sub-piece is wrong).
@@ -242,7 +264,7 @@ fn ckc_and_canvas_pane_routes_round_trip_through_the_app() {
         canvas_tab.content_id.as_deref(),
         Some("layout-persistence-canvas")
     );
-    assert_eq!(restored.to_layout_state(), saved_json);
+    assert_restored_snapshot(saved_json,restored.to_layout_state());
 }
 
 #[test]

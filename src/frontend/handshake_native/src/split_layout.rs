@@ -18,16 +18,9 @@
 //!   `author_id` (`divider-horizontal` / `divider-vertical`) and a `SetValue` action whose incoming
 //!   value is clamped to `[SPLIT_MIN, SPLIT_MAX]` so an agent cannot collapse a pane to zero size.
 //!
-//! ## Why a hand-rolled 2x2 splitter and not `egui_tiles`
-//!
-//! `egui_tiles` owns its own internal tile tree + per-container `Share` weights and reflows on
-//! drag; it does not expose the contract's explicit `SplitWeights { vertical, horizontal }` model
-//! with the React field names, nor does it emit per-divider `Role::Splitter` AccessKit nodes with
-//! the exact `author_id`s and clamped `SetValue` semantics the MT-006 acceptance criteria assert by
-//! string. The MT-006 contract is specifically about that fixed 2x2 model (ported from
-//! `app/src/App.tsx`), so a focused widget over the existing registry is the correct fit; bending
-//! `egui_tiles` to it would fight every acceptance criterion. `egui_tiles` remains the intended
-//! engine for free-form docking work (MT-007/008) where its tree model is the right tool.
+//! Kumihimo owns the live plan, projection, pointer capture, shared-edge resize and docking.
+//! This adapter retains pane content factories, public IDs, menus and legacy split JSON fields.
+//! The pure legacy rectangle helpers remain for their existing callers and proof fixtures.
 //!
 //! ## Clamp ordering (RISK: zero-size pane)
 //!
@@ -47,7 +40,6 @@ use crate::pane_registry::{
     LockState, PaneFactory, PaneId, PaneRegistry, PaneRenderContext, PaneType,
 };
 use crate::popout_window::PopOutPlaceholder;
-use crate::rails::{RailColors, RailDimensions, RailOrientation, SplitterRail};
 use crate::tab_bar::{
     apply_drop, apply_drop_same_pane, TabBar, TabBarColors, TabBarState, TAB_BAR_HEIGHT,
 };
@@ -424,57 +416,24 @@ impl SplitLayoutWidget {
             return;
         }
 
-        let rects = compute_split_rects(area, *weights);
-
-        // ── Pane bodies + tab bars ─────────────────────────────────────────────────────────────────
-        // Each pane is looked up by its spatial id and rendered into its rect. A missing pane in the
-        // legacy 2x2 shape degrades to an empty rect rather than a panic. MT-097's fresh notes-only
-        // registry has exactly pane-a/pane-b; render that as full-height columns so the work surface
-        // is not visually half blank. MT-098's editor+chat default has pane-a/pane-b/pane-c; render it
-        // as full-height columns so Runtime Chat sits beside the editors instead of in the legacy
-        // bottom-left slot.
-        // A TAB_BAR_HEIGHT-tall strip is carved off the TOP of each pane rect for the MT-007 tab bar;
-        // the pane body renders in the remaining rect below it. Tab interactions are collected here and
-        // reconciled into `tab_bars` AFTER the loop (a drop needs two distinct &mut bars, which is not
-        // possible while iterating).
-        let registry_guard = registry.lock().expect("pane registry mutex poisoned");
-        let layout_kind = pane_layout_kind(&registry_guard);
-        let pane_slots: Vec<(&str, egui::Rect)> = if layout_kind == PaneLayoutKind::Single {
-            vec![(PANE_A, area)]
-        } else if layout_kind == PaneLayoutKind::TwoColumn {
-            let split_x = area.left() + area.width() * weights.vertical;
-            vec![
-                (
-                    PANE_A,
-                    egui::Rect::from_min_max(area.min, egui::pos2(split_x, area.bottom())),
-                ),
-                (
-                    PANE_B,
-                    egui::Rect::from_min_max(egui::pos2(split_x, area.top()), area.max),
-                ),
-            ]
-        } else if layout_kind == PaneLayoutKind::ThreeColumn {
-            let three = compute_three_column_rects(area, *weights);
-            vec![
-                (PANE_A, three.left),
-                (PANE_B, three.middle),
-                (PANE_C, three.right),
-            ]
-        } else {
-            vec![
-                (PANE_A, rects.top_left),
-                (PANE_B, rects.top_right),
-                (PANE_C, rects.bottom_left),
-                (PANE_D, rects.bottom_right),
-            ]
+        let owner = match crate::kumihimo::owner(ui.ctx()) {
+            Ok(owner) => owner,
+            Err(error) => { ui.label(error); return; }
         };
+        let mut kumihimo = owner.lock().unwrap_or_else(|error|error.into_inner());
+        let registry_guard = registry.lock().expect("pane registry mutex poisoned");
+        let mut panes = registry_guard.pane_ids();
+        panes.sort();
+        let projection = match kumihimo.project(ui.ctx().viewport_id(), &panes, area, *weights) {
+            Ok(projection) => projection,
+            Err(error) => { ui.label(error); return; }
+        };
+        if let Err(error) = kumihimo.reconcile_tabs(ui.ctx().viewport_id(), tab_bars) { ui.label(error); return; }
         // (pane_id, TabBarResponse) collected per pane this frame, reconciled below.
         let mut tab_responses: Vec<(PaneId, crate::tab_bar::TabBarResponse)> = Vec::new();
-        for (pane_key, pane_rect) in pane_slots {
-            let pane_id: PaneId = Arc::from(pane_key);
-            let Some(record) = registry_guard.get(&pane_id) else {
-                continue;
-            };
+        let render_result = kumihimo.render(ui, &panes, weights, header_palette, |ui, pane_id, pane_rect| {
+            let pane_id = pane_id.clone();
+            let Some(record) = registry_guard.get(&pane_id) else { return; };
             // Stable egui id from the registry-owned monotonic NodeId (same derivation as
             // PaneHostWidget) so child widget ids and the live AccessKit node id stay stable.
             let node_id = registry_guard
@@ -503,7 +462,7 @@ impl SplitLayoutWidget {
                 if clicked {
                     merge_requests.push(pane_id.clone());
                 }
-                continue;
+                return;
             }
 
             // Carve, from the TOP of the pane rect: the MT-013 binding header strip, then the MT-007
@@ -540,7 +499,7 @@ impl SplitLayoutWidget {
                 let mut header_ui = ui.new_child(
                     egui::UiBuilder::new()
                         .id_salt(("pane-header", node_id))
-                        .max_rect(header_rect)
+                        .max_rect(egui::Rect::from_min_max(header_rect.min+egui::vec2(12.0,0.0),header_rect.max))
                         .layout(egui::Layout::left_to_right(egui::Align::Center)),
                 );
                 header_ui.set_clip_rect(header_rect);
@@ -612,7 +571,8 @@ impl SplitLayoutWidget {
             }
             factory.render(&mut child, &render_ctx);
             emit_accesskit(ui.ctx(), pane_egui_id, pane_id.as_ref(), role, &label);
-        }
+        });
+        if let Err(error) = render_result { ui.colored_label(header_palette.text_subtle,error); }
         drop(registry_guard);
 
         // ── Reconcile tab interactions ──────────────────────────────────────────────────────────────
@@ -620,6 +580,7 @@ impl SplitLayoutWidget {
         // close/activate this frame does not shift indices a drop relies on. A drop is the only
         // interaction that touches TWO bars, so it is the only one that needs the cross-bar
         // `apply_drop`; everything else mutates the one owning bar.
+        if let Err(error)=kumihimo.apply_asset_selection(ui.ctx().viewport_id(),tab_bars) {ui.label(error);}
         for (pane_id, resp) in &tab_responses {
             if let Some(bar) = tab_bars.get_mut(pane_id) {
                 if let Some(idx) = resp.activated_index {
@@ -701,35 +662,19 @@ impl SplitLayoutWidget {
             }
         }
 
-        // ── Dividers ─────────────────────────────────────────────────────────────────────────────
-        // CANONICAL (React): the horizontal LINE controls `weights.horizontal` (top/bottom row split,
-        // Y); the vertical LINE controls `weights.vertical` (left/right column split, X). Line-name
-        // and weight-name match — see `SplitAxis` doc and `app/src/App.tsx`.
-        if layout_kind == PaneLayoutKind::LegacyGrid {
-            Self::divider(
-                ui,
-                SplitAxis::Horizontal,
-                area,
-                rects.divider_h,
-                &mut weights.horizontal,
-                &mut drag_state.dragging_horizontal,
-                divider_colors,
-            );
+        if let Err(error) = kumihimo.reconcile_tabs(ui.ctx().viewport_id(), tab_bars) { ui.label(error); }
+        // Stable legacy keyboard/AccessKit controls remain host intentions over the Kumihimo plan.
+        let before = *weights;
+        if let Some(hit) = projection.horizontal {
+            Self::divider(ui, SplitAxis::Horizontal, area, hit, &mut weights.horizontal,
+                &mut drag_state.dragging_horizontal, divider_colors);
         }
-        if layout_kind != PaneLayoutKind::Single {
-            Self::divider(
-                ui,
-                SplitAxis::Vertical,
-                area,
-                if layout_kind == PaneLayoutKind::ThreeColumn {
-                    compute_three_column_rects(area, *weights).divider_v
-                } else {
-                    rects.divider_v
-                },
-                &mut weights.vertical,
-                &mut drag_state.dragging_vertical,
-                divider_colors,
-            );
+        if let Some(hit) = projection.vertical {
+            Self::divider(ui, SplitAxis::Vertical, area, hit, &mut weights.vertical,
+                &mut drag_state.dragging_vertical, divider_colors);
+        }
+        if *weights != before {
+            if let Err(error) = kumihimo.resize(ui.ctx().viewport_id(), *weights) { *weights=before;ui.label(error); }
         }
     }
 
@@ -745,10 +690,10 @@ impl SplitLayoutWidget {
         hit_rect: egui::Rect,
         weight: &mut f32,
         dragging: &mut bool,
-        colors: DividerColors,
+        _colors: DividerColors,
     ) {
         let id = Self::divider_id(axis);
-        let response = ui.interact(hit_rect, id, egui::Sense::click_and_drag());
+        let response = ui.interact(hit_rect, id, egui::Sense::focusable_noninteractive());
 
         // Cursor affordance on hover/drag.
         if response.hovered() || response.dragged() {
@@ -840,44 +785,8 @@ impl SplitLayoutWidget {
             node.add_action(accesskit::Action::Focus);
         });
 
-        // ── Paint the divider through the integrated rail primitive (MT-010) ─────────────────────
-        // The divider now paints via the SHARED `SplitterRail`/`RailWidget` so it renders with the
-        // SAME thin-strip-in-wider-hit geometry, corner radius, and idle/hover/grab state model as
-        // the scrollbar rails — the "integrated rail" look the C2 contract asks for. After MT-010
-        // there is ZERO direct `painter.rect_filled` for dividers in this file; all divider painting
-        // flows through `SplitterRail::paint`.
-        //
-        // COLOR NOTE: the divider keeps the MT-003 `divider_idle/hover/grab` theme tokens (mapped
-        // into a `RailColors` below), NOT the scrollbar rail palette. MT-006's contract + tests pin
-        // the divider to those tokens; MT-010 unifies the rail SHAPE/STATE-MODEL, not the divider's
-        // color identity. `disabled` is unused for dividers (they are always draggable) — set to the
-        // idle token as an inert placeholder.
-        let rail_colors = RailColors {
-            idle: colors.idle,
-            hover: colors.hover,
-            grab: colors.grab,
-            disabled: colors.idle,
-        };
-        // The painted strip is the contract's DIVIDER_THICKNESS (4px) centered in DIVIDER_HIT_THICKNESS
-        // (8px), expressed as rail dimensions so the divider and scrollbar share one geometry source.
-        let rail_dims = RailDimensions {
-            visual_thickness: DIVIDER_THICKNESS,
-            hit_thickness: DIVIDER_HIT_THICKNESS,
-            ..RailDimensions::default()
-        };
-        let orientation = match axis {
-            SplitAxis::Horizontal => RailOrientation::Horizontal,
-            SplitAxis::Vertical => RailOrientation::Vertical,
-        };
-        SplitterRail::paint(
-            ui,
-            orientation,
-            hit_rect,
-            response.hovered() || response.has_focus(),
-            *dragging,
-            rail_colors,
-            rail_dims,
-        );
+        // Pointer handles and paint belong to Kumihimo. This node only preserves the host's
+        // stable keyboard/AccessKit resize address and its existing persistence field semantics.
     }
 }
 
@@ -1343,4 +1252,36 @@ mod tests {
             assert_ne!(v, chrome);
         }
     }
+    #[test]
+    fn stacked_canonical_panes_use_horizontal_setvalue_without_replacing_the_plan() {
+        use std::sync::Arc;
+        let mut owner=crate::kumihimo::NativeHost::new().unwrap();
+        let panes:Vec<PaneId>=vec![Arc::from("pane-a"),Arc::from("pane-b")];
+        let area=egui::Rect::from_min_size(egui::Pos2::ZERO,egui::vec2(1000.0,600.0));
+        let mut weights=SplitWeights::default();owner.project(egui::ViewportId::ROOT,&panes,area,weights).unwrap();
+        owner.dock(egui::ViewportId::ROOT,&panes[0],&panes[1],kumihimo_core::Edge::Bottom).unwrap();
+        let before=owner.capture().unwrap().unwrap();
+        let projection=owner.project(egui::ViewportId::ROOT,&panes,area,weights).unwrap();
+        assert!(projection.vertical.is_none());let hit=projection.horizontal.unwrap();
+        assert!(hit.center().y>area.top()&&hit.center().y<area.bottom());
+        let ctx=egui::Context::default();let mut dragging=false;
+        let _=ctx.run(egui::RawInput {screen_rect:Some(area),events:vec![egui::Event::AccessKitActionRequest(accesskit::ActionRequest {
+            action:accesskit::Action::SetValue,target:accesskit::NodeId(DIVIDER_H_NODE_ID),
+            data:Some(accesskit::ActionData::NumericValue(0.7))})],..Default::default()},|ctx| {
+            egui::CentralPanel::default().show(ctx,|ui|SplitLayoutWidget::divider(ui,SplitAxis::Horizontal,area,hit,
+                &mut weights.horizontal,&mut dragging,DividerColors {idle:egui::Color32::GRAY,hover:egui::Color32::GRAY,grab:egui::Color32::GRAY}));
+        });
+        assert!((weights.horizontal-0.7).abs()<0.001);
+        owner.resize(egui::ViewportId::ROOT,weights).unwrap();
+        let after=owner.capture().unwrap().unwrap();
+        let before=kumihimo_layout_json::decode(before.model_json.as_bytes()).unwrap();
+        let after=kumihimo_layout_json::decode(after.model_json.as_bytes()).unwrap();
+        assert_eq!(before.frames,after.frames);
+        assert_eq!(before.layouts[0].plan.nodes.keys().collect::<Vec<_>>(),after.layouts[0].plan.nodes.keys().collect::<Vec<_>>());
+        assert!(matches!(&after.layouts[0].plan.nodes[&after.layouts[0].plan.root.unwrap()],kumihimo_core::LayoutNode::Split {axis:kumihimo_core::Axis::Vertical,..}));
+        let resized=owner.project(egui::ViewportId::ROOT,&panes,area,weights).unwrap();
+        assert!((resized.horizontal.unwrap().center().y-420.0).abs()<1.0);
+        assert!(resized.vertical.is_none());
+    }
+
 }

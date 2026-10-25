@@ -108,6 +108,10 @@ wgpu_screenshots = []
 diag-test-seams = []
 
 [dependencies]
+kumihimo-core = { git = "https://github.com/Nuntissura/assets.git", rev = "8a97b9ae445872e4143fad1eb92f9ad082017595", version = "=0.3.0", default-features = false }
+kumihimo-content = { git = "https://github.com/Nuntissura/assets.git", rev = "8a97b9ae445872e4143fad1eb92f9ad082017595", version = "=0.2.0", default-features = false }
+kumihimo-layout-json = { git = "https://github.com/Nuntissura/assets.git", rev = "8a97b9ae445872e4143fad1eb92f9ad082017595", version = "=0.1.0", default-features = false }
+kumihimo-egui = { git = "https://github.com/Nuntissura/assets.git", rev = "8a97b9ae445872e4143fad1eb92f9ad082017595", version = "=0.2.0", default-features = false, features = ["native-eframe"] }
 handshake-account-activation = { path = "../../shared/handshake_account_activation" }
 handshake_folder_tree = { path = "../handshake_folder_tree" }
 handshake_code_structure = { git = "https://github.com/Nuntissura/assets.git", rev = "ff373410b87114c077fc6a5b11cc8be7eafb811d" }
@@ -137,8 +141,8 @@ memmap2 = "0.9"
 zeroize = "1"
 chacha20poly1305 = "0.10"
 curve25519-dalek = "5.0.0"
-egui = "0.33"
-eframe = { version = "0.33", default-features = false, features = ["wgpu", "accesskit", "persistence", "default_fonts"] }
+egui = "=0.33.3"
+eframe = { version = "=0.33.3", default-features = false, features = ["wgpu", "accesskit", "persistence", "default_fonts"] }
 egui_tiles = { version = "0.14", features = ["serde"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 # MT-027 transport: the out-of-process MCP server runs a localhost TCP listener and (on Windows) a
@@ -153,7 +157,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 # this enables the already-present process module (gated behind the `process` feature).
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "net", "io-util", "sync", "time", "process"] }
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = "=1.0.151"
 handshake_dexterity = { git = "https://github.com/Nuntissura/assets.git", rev = "30089b4d506861e4b3bcdd1f72805b17ebfc2324" }
 # WP-KERNEL-012 MT-011 rich-text document model: `thiserror` derives the error enums
 # (SchemaError / TransformError / DocJsonError) in src/rich_editor/document_model/*.
@@ -361,10 +365,9 @@ interprocess = "2"
 # it is declared with the GDI + window-enumeration features the focus-safe capture needs. Windows-only
 # (the offscreen render path covers headless proof on every OS).
 [target.'cfg(windows)'.dependencies]
-# `eframe/wgpu` enables the renderer integration but no native backend when eframe defaults are
-# disabled. Anchor DX12 on Windows through the already-transitive wgpu package; this keeps normal
-# production binaries runnable without enabling Vulkan/Metal/GLES or eframe's unrelated defaults.
-wgpu = { version = "27.0.1", default-features = false, features = ["dx12"] }
+# The host selects Vulkan only through Kumihimo's strict NativeBackend configuration.
+# Compiled backend support does not permit runtime API fallback.
+wgpu = { version = "=27.0.1", default-features = false, features = ["vulkan"] }
 # MT-030 ADDS the `Win32_UI_Accessibility` feature (NOT a new crate — windows-sys is already the dep)
 # so the LIVE focus audit (tests/test_focus_audit_live.rs, #[ignore]) can install a REAL
 # WINEVENT_SYSTEM_FOREGROUND hook via SetWinEventHook / UnhookWinEvent / WINEVENTPROC / HWINEVENTHOOK
@@ -505,3 +508,10 @@ harness = true
 name = "test_perf_large_knowledge"
 path = "tests/test_perf_large_knowledge.rs"
 harness = true
+
+# NativeCaptureHandle and owned native surface receipts come from this exact SDK revision.
+# Cargo ignores dependency-workspace patches, so the host root adopts all three explicitly.
+[patch.crates-io]
+eframe = { git = "https://github.com/Nuntissura/assets.git", rev = "8a97b9ae445872e4143fad1eb92f9ad082017595", version = "=0.33.3" }
+egui-wgpu = { git = "https://github.com/Nuntissura/assets.git", rev = "8a97b9ae445872e4143fad1eb92f9ad082017595", version = "=0.33.3" }
+accesskit_windows = { git = "https://github.com/Nuntissura/assets.git", rev = "8a97b9ae445872e4143fad1eb92f9ad082017595", version = "=0.29.2" }

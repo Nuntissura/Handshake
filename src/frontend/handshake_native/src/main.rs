@@ -559,9 +559,11 @@ fn main() -> eframe::Result<()> {
         // operator's foreground activation. Ordinary interactive launches retain the platform default.
         root_viewport = root_viewport.with_active(false);
     }
+    let requested_backend = kumihimo_egui::native::NativeBackend::Vulkan;
     let native_options = eframe::NativeOptions {
         viewport: root_viewport,
         renderer: eframe::Renderer::Wgpu,
+        wgpu_options: requested_backend.configuration(),
         ..Default::default()
     };
 
@@ -572,10 +574,17 @@ fn main() -> eframe::Result<()> {
         "handshake-native",
         native_options,
         Box::new(move |cc| {
-            let phase = if cc.wgpu_render_state.is_some() {
-                GuiDiagnosticPhase::Accepted
-            } else {
-                GuiDiagnosticPhase::Unavailable
+            // Validate the actual existing renderer before constructing any application host.
+            let renderer_binding = match cc.wgpu_render_state.as_ref() {
+                Some(render) => requested_backend
+                    .validate_actual(render.adapter.get_info().backend)
+                    .map_err(|_| std::io::Error::other("requested Vulkan backend does not match the actual renderer")),
+                None => Err(std::io::Error::other("Vulkan renderer is unavailable")),
+            };
+            let phase = match &renderer_binding {
+                Ok(()) => GuiDiagnosticPhase::Accepted,
+                Err(_) if cc.wgpu_render_state.is_none() => GuiDiagnosticPhase::Unavailable,
+                Err(_) => GuiDiagnosticPhase::Rejected,
             };
             let pending = if record_gui_observation(GuiDiagnosticOperation::RendererBinding, phase) {
                 None
@@ -585,6 +594,7 @@ fn main() -> eframe::Result<()> {
             *pending_renderer_slot
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner()) = pending;
+            renderer_binding?;
             let mut app = HandshakeApp::new_with_diagnostic_provenance(cc, diagnostic_provenance);
             // Hand the running shell the Palmistry handle so a clean exit (`HandshakeApp::on_exit`) sends
             // the explicit Shutdown control message (§6.13.3). `None` when the watcher was not launched
@@ -592,6 +602,9 @@ fn main() -> eframe::Result<()> {
             if let Some(handle) = palmistry {
                 app.set_palmistry_handle(handle);
             }
+            app.try_install_kumihimo(cc)?;
+            // Adapter validation does not establish trusted GPU ownership or accounting.
+            tracing::warn!("framework Vulkan/Kumihimo initialization; trusted GPU ownership/accounting not bound; no authoritative GPU budget");
             Ok(Box::new(app))
         }),
     );
