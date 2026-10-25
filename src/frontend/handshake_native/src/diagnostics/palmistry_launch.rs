@@ -411,6 +411,14 @@ fn perform_signed_watcher_handshake(
         if Instant::now() >= deadline {
             return Err(timeout_error());
         }
+        #[cfg(windows)]
+        if matches!(control_pipe_readiness(stream)?, ControlPipeReadiness::Empty) {
+            std::thread::sleep(
+                Duration::from_millis(2)
+                    .min(deadline.saturating_duration_since(Instant::now())),
+            );
+            continue;
+        }
         let mut byte = [0; 1];
         match stream.read(&mut byte) {
             Ok(0) => {
@@ -523,6 +531,14 @@ fn perform_signed_watcher_operation(
     loop {
         if Instant::now() >= deadline {
             return Err(timed_out());
+        }
+        #[cfg(windows)]
+        if matches!(control_pipe_readiness(stream)?, ControlPipeReadiness::Empty) {
+            std::thread::sleep(
+                Duration::from_millis(2)
+                    .min(deadline.saturating_duration_since(Instant::now())),
+            );
+            continue;
         }
         let mut byte = [0; 1];
         match stream.read(&mut byte) {

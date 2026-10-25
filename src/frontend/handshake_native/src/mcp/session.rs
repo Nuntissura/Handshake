@@ -336,9 +336,24 @@ impl McpSession {
                 // within the boundary or the request receives a typed error while inspect/click/value
                 // traffic remains serviceable.
                 const SCREENSHOT_CAPTURE_TIMEOUT: Duration = Duration::from_secs(2);
+                let capture_started = std::time::Instant::now();
+                let capture_span = tracing::debug_span!("mcp_live_screenshot", rpc_request_id = request.id.as_u64());
+                tracing::debug!(parent: &capture_span, phase = "dispatch_started",
+                    deadline_ms = SCREENSHOT_CAPTURE_TIMEOUT.as_millis() as u64, "screenshot dispatch phase");
+                let worker_span = capture_span.clone();
                 let capture_result = match tokio::time::timeout(
                     SCREENSHOT_CAPTURE_TIMEOUT,
-                    tokio::task::spawn_blocking(capture),
+                    tokio::task::spawn_blocking(move || {
+                        let _entered = worker_span.enter();
+                        tracing::debug!(phase = "worker_started",
+                            elapsed_ms = capture_started.elapsed().as_secs_f64() * 1000.0,
+                            "screenshot dispatch phase");
+                        let result = capture();
+                        tracing::debug!(phase = "worker_finished", success = result.is_ok(),
+                            elapsed_ms = capture_started.elapsed().as_secs_f64() * 1000.0,
+                            "screenshot dispatch phase");
+                        result
+                    }),
                 )
                 .await
                 {
@@ -346,11 +361,19 @@ impl McpSession {
                     Ok(Err(error)) => Err(ScreenshotError(format!(
                         "screenshot capture worker failed: {error}"
                     ))),
-                    Err(_) => Err(ScreenshotError(format!(
-                        "screenshot capture exceeded the {} ms production boundary",
-                        SCREENSHOT_CAPTURE_TIMEOUT.as_millis()
-                    ))),
+                    Err(_) => {
+                        tracing::debug!(parent: &capture_span, phase = "dispatch_timeout",
+                            elapsed_ms = capture_started.elapsed().as_secs_f64() * 1000.0,
+                            "screenshot dispatch phase");
+                        Err(ScreenshotError(format!(
+                            "screenshot capture exceeded the {} ms production boundary",
+                            SCREENSHOT_CAPTURE_TIMEOUT.as_millis()
+                        )))
+                    },
                 };
+                tracing::debug!(parent: &capture_span, phase = "dispatch_wait_completed", success = capture_result.is_ok(),
+                    elapsed_ms = capture_started.elapsed().as_secs_f64() * 1000.0,
+                    "screenshot dispatch phase");
                 let snapshot = clone_snapshot(snapshot);
                 // Screenshot does not resolve or enqueue an action, so a private empty channel preserves
                 // the canonical dispatch/auth/response shape without contending with live UI actions.

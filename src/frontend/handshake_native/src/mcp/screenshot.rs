@@ -96,6 +96,7 @@ struct FrameCaptureToken(u64);
 struct PendingFrame {
     window: super::argus::RegisteredWindow,
     reply: std::sync::mpsc::SyncSender<std::sync::Arc<egui::ColorImage>>,
+    started: std::time::Instant,
 }
 
 #[derive(Default)]
@@ -137,7 +138,10 @@ pub(crate) fn update_live_frame_capture(
             let Some(pending) = frames.pending.get(&token.0) else { continue; };
             if pending.window.descriptor.viewport_id == *viewport_id
                 && pending.window.live.load(std::sync::atomic::Ordering::Acquire) {
-                let _ = pending.reply.try_send(image.clone());
+                let delivered = pending.reply.try_send(image.clone()).is_ok();
+                tracing::debug!(capture_id = token.0, phase = "renderer_event_delivered", delivered,
+                    elapsed_ms = pending.started.elapsed().as_secs_f64() * 1000.0,
+                    "live frame capture phase");
             }
         }
     });
@@ -147,7 +151,9 @@ fn capture_live_frame(
     window_id: &str,
     expected: Option<&super::argus::RegisteredWindow>,
 ) -> Result<ScreenshotResult, ScreenshotError> {
+    let started = std::time::Instant::now();
     let token = NEXT_FRAME_CAPTURE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    tracing::debug!(capture_id = token, phase = "renderer_lookup_started", "live frame capture phase");
     let (reply, receiver) = std::sync::mpsc::sync_channel(1);
     let entry = {
         let mut frames = LIVE_FRAMES.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner());
@@ -166,14 +172,20 @@ fn capture_live_frame(
         if frames.pending.values().any(|pending| pending.window.descriptor.window_id == window_id) {
             return Err(ScreenshotError("a live frame capture is already in progress for this window".to_owned()));
         }
-        frames.pending.insert(token, PendingFrame { window: entry.window.clone(), reply });
+        frames.pending.insert(token, PendingFrame { window: entry.window.clone(), reply, started });
         entry
     };
     let _pending = PendingFrameGuard(token);
+    tracing::debug!(capture_id = token, phase = "queue_send_started",
+        elapsed_ms = started.elapsed().as_secs_f64() * 1000.0, "live frame capture phase");
     entry.context.send_viewport_cmd_to(entry.window.descriptor.viewport_id,
         egui::ViewportCommand::Screenshot(egui::UserData::new(FrameCaptureToken(token))));
+    tracing::debug!(capture_id = token, phase = "queue_send_completed",
+        elapsed_ms = started.elapsed().as_secs_f64() * 1000.0, "live frame capture phase");
     // Only the MCP blocking worker waits; the UI thread merely delivers the renderer's event.
     let result = receiver.recv_timeout(std::time::Duration::from_millis(1500));
+    tracing::debug!(capture_id = token, phase = "receive_completed", received = result.is_ok(),
+        elapsed_ms = started.elapsed().as_secs_f64() * 1000.0, "live frame capture phase");
     let image = result.map_err(|error| ScreenshotError(format!("live renderer frame unavailable: {error}")))?;
     if !entry.window.live.load(std::sync::atomic::Ordering::Acquire) {
         return Err(ScreenshotError("Argus capture window closed during capture".to_owned()));
@@ -181,13 +193,22 @@ fn capture_live_frame(
     let width = u32::try_from(image.size[0]).map_err(|_| ScreenshotError("frame width overflow".to_owned()))?;
     let height = u32::try_from(image.size[1]).map_err(|_| ScreenshotError("frame height overflow".to_owned()))?;
     if width == 0 || height == 0 { return Err(ScreenshotError("renderer returned an empty frame".to_owned())); }
+    tracing::debug!(capture_id = token, phase = "rgba_conversion_started",
+        elapsed_ms = started.elapsed().as_secs_f64() * 1000.0, "live frame capture phase");
     let rgba: Vec<u8> = image.pixels.iter().flat_map(|pixel| pixel.to_array()).collect();
     let mut png = Vec::new();
     use image::ImageEncoder;
-    image::codecs::png::PngEncoder::new(&mut png)
-        .write_image(&rgba, width, height, image::ExtendedColorType::Rgba8)
-        .map_err(|error| ScreenshotError(format!("PNG encode failed: {error}")))?;
-    Ok(screenshot_from_png(&png, width, height))
+    tracing::debug!(capture_id = token, phase = "png_encoding_started",
+        elapsed_ms = started.elapsed().as_secs_f64() * 1000.0, "live frame capture phase");
+    let encoded = image::codecs::png::PngEncoder::new(&mut png)
+        .write_image(&rgba, width, height, image::ExtendedColorType::Rgba8);
+    tracing::debug!(capture_id = token, phase = "png_encoding_completed", success = encoded.is_ok(),
+        elapsed_ms = started.elapsed().as_secs_f64() * 1000.0, "live frame capture phase");
+    encoded.map_err(|error| ScreenshotError(format!("PNG encode failed: {error}")))?;
+    let screenshot = screenshot_from_png(&png, width, height);
+    tracing::debug!(capture_id = token, phase = "response_encoding_completed",
+        elapsed_ms = started.elapsed().as_secs_f64() * 1000.0, "live frame capture phase");
+    Ok(screenshot)
 }
 
 #[derive(Clone)]
