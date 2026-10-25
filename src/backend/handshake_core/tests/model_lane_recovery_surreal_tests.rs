@@ -3,20 +3,28 @@
 mod surreal_test_store_support;
 
 use chrono::{DateTime, Utc};
-use handshake_core::storage::surreal::{SurrealStorage};
+use handshake_core::capabilities::CapabilityRegistry;
+use handshake_core::storage::knowledge::{KnowledgeStore, NewKnowledgeRichDocument};
+use handshake_core::storage::surreal::{SurrealDatabase, SurrealStorage};
+use handshake_core::storage::surreal::local_accounts::{password_verifier, LocalSessionContext};
+use handshake_core::storage::surreal::resource_authority::{
+    AuthorizationRequest, RecordUserScope, ResourceAction, ResourceKind,
+};
+use handshake_core::storage::NewWorkspace;
 use handshake_core::swarm_orchestration::model_lane::{
     ModelLaneAuthorityTestCorruption, ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState,
     ModelLaneLeaseScope, ModelLaneLeaseState, ModelLaneMtRuntimeStatus, ModelLaneRecoveryEventKind,
-    ModelLaneRecoveryState, ModelLaneRecoveryStatus, ModelLaneStatus, ModelLaneStore,
+    ModelLaneRecoveryState, ModelLaneRecoveryStatus, ModelLaneResult, ModelLaneStatus, ModelLaneStore,
     NewModelLaneDiagnosticTierStatus, NewModelLaneLease, NewModelLaneMtRuntimeStatus,
     NewModelLaneRecoveryCheckpoint, NewModelLaneRecoveryEvent,
 };
 use handshake_core::swarm_orchestration::resource_scope::{
     AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId, ResourceScope,
-    WorkspaceScopeRef,
+    WorkspaceScopeRef, ExactResourceScopeAttribution, ResourceAccessLifecycleRegistry,
 };
 use handshake_core::test_harness::crdt_workspace::{
-    build_surreal_admissible_crdt_posture, SurrealAdmissibleCrdtPosture,
+    build_surreal_admissible_crdt_posture_authenticated, AuthenticatedModelLaneTestOperation,
+    SurrealAdmissibleCrdtPosture,
 };
 use serde_json::json;
 use surreal_test_store_support::IsolatedSurrealTestStore;
@@ -25,42 +33,133 @@ struct Harness {
     isolated: IsolatedSurrealTestStore,
     storage: SurrealStorage,
     scope: ResourceScope,
+    lifecycle: ResourceAccessLifecycleRegistry,
+    session_token: String,
+    channel_hash: String,
+    document_id: String,
     store: ModelLaneStore,
 }
 
 impl Harness {
     async fn create(label: &str) -> Self {
-        let mut isolated = IsolatedSurrealTestStore::create()
+        let isolated = IsolatedSurrealTestStore::create()
             .await
             .expect("allocate recovery scope");
         let storage = isolated.storage().clone();
-        let scope = exact_scope(label);
-        let store = ModelLaneStore::new_scoped(storage.clone(), scope.clone());
-        Self {
-            isolated,
-            storage,
-            scope,
-            store,
-        }
+        let password = format!("recovery-password-{}", uuid::Uuid::now_v7());
+        let verifier_password = password.clone();
+        let verifier = tokio::task::spawn_blocking(move || password_verifier(&verifier_password))
+            .await.expect("password worker").expect("production password verifier");
+        let capabilities = CapabilityRegistry::new().profile_by_id("Operator")
+            .expect("production Operator profile").allowed.clone();
+        let account_name = format!("recovery-{label}");
+        let identity = storage.setup_local_owner(&account_name, verifier, capabilities)
+            .await.expect("normal first Owner setup");
+        let credential = storage.login_local_owner(&account_name, password)
+            .await.expect("normal Owner password login");
+        assert_eq!(credential.account_id, identity.account_id);
+        assert_eq!(credential.principal_id, identity.principal_id);
+        assert_eq!(credential.access_space_id, identity.access_space_id);
+        let channel_hash = format!("{:x}", <sha2::Sha256 as sha2::Digest>::digest(
+            uuid::Uuid::now_v7().as_bytes(),
+        ));
+        let session = storage.exchange_session_credential(
+            &credential.account_id, &credential.principal_id, &credential.access_space_id,
+            &credential.token, &channel_hash, std::time::Duration::from_secs(3600),
+        ).await.expect("consume genuine login credential");
+        let context = storage.authenticate_local_session(&session.token, &channel_hash)
+            .await.expect("authenticate issued session");
+        assert_eq!(context.session_id, session.session_id);
+        let workspace = storage.create_account_workspace(&context, &RecordUserScope {
+            workspace_id: Some(uuid::Uuid::now_v7().to_string()),
+            resource_id: uuid::Uuid::now_v7().to_string(),
+            session_id: context.session_id.clone(),
+            session_token: session.token.clone(),
+            channel_binding_hash: Some(channel_hash.clone()),
+            capability_id: "fs.write".into(),
+            action: ResourceAction::Create,
+            grant_id: None,
+        }, NewWorkspace { name: format!("recovery-{label}") })
+            .await.expect("canonical workspace and creator grant");
+        let scope = exact_scope(&context, &workspace.id);
+        let lifecycle = storage.resource_access_lifecycle();
+        let exact = ExactResourceScopeAttribution::try_from_resource_scope(&scope)
+            .expect("canonical five-field scope");
+        lifecycle.register_active(exact.clone()).expect("activate authenticated workspace");
+        let store = ModelLaneStore::new_scoped_with_lifecycle(
+            storage.clone(), scope.clone(), lifecycle.clone(),
+        );
+        let workspace_create = AuthenticatedModelLaneTestOperation::authorize(
+            storage.clone(), AuthorizationRequest {
+                session_token: session.token.clone(), channel_binding_hash: Some(channel_hash.clone()),
+                capability_id: "fs.write".into(), resource_kind: ResourceKind::Workspace,
+                external_resource_id: workspace.id.clone(), action: ResourceAction::Create,
+            }, exact,
+        ).await.expect("authorize original workspace Create");
+        let document = workspace_create.run(async {
+            Ok(SurrealDatabase::new(storage.clone()).create_knowledge_rich_document(
+                NewKnowledgeRichDocument {
+                    workspace_id: workspace.id.clone(), document_id: None,
+                    title: format!("Recovery {label}"),
+                    schema_version: handshake_core::knowledge_document::block_tree::DOCUMENT_SCHEMA_VERSION.to_string(),
+                    content_json: json!({"type": "doc", "content": []}),
+                    crdt_document_id: None, crdt_snapshot_id: None, promotion_receipt_event_id: None,
+                    project_ref: None, folder_ref: None, authority_label: Some("promoted".into()),
+                    owner_actor_kind: Some(context.actor_kind.clone()), owner_actor_id: Some(context.actor_id.clone()),
+                },
+            ).await.expect("canonical rich document and creator grant"))
+        }).await.expect("create document under original authority");
+        Self { isolated, storage, scope, lifecycle, session_token: session.token,
+            channel_hash, document_id: document.rich_document_id, store }
+    }
+
+    async fn operation(&self, capability: &str, kind: ResourceKind, external: &str,
+        action: ResourceAction) -> ModelLaneResult<AuthenticatedModelLaneTestOperation> {
+        AuthenticatedModelLaneTestOperation::authorize(self.storage.clone(), AuthorizationRequest {
+            session_token: self.session_token.clone(), channel_binding_hash: Some(self.channel_hash.clone()),
+            capability_id: capability.into(), resource_kind: kind,
+            external_resource_id: external.into(), action,
+        }, ExactResourceScopeAttribution::try_from_resource_scope(&self.scope)
+            .expect("canonical five-field scope")).await
+    }
+
+    async fn create_record<T>(&self, future: impl std::future::Future<Output = ModelLaneResult<T>>)
+        -> ModelLaneResult<T> {
+        self.operation("fs.write", ResourceKind::Workspace,
+            self.scope.workspace.as_ref().expect("workspace").as_str(), ResourceAction::Create)
+            .await?.run(future).await
+    }
+
+    async fn read<T>(&self, future: impl std::future::Future<Output = ModelLaneResult<T>>)
+        -> ModelLaneResult<T> {
+        self.operation("fs.read", ResourceKind::Workspace,
+            self.scope.workspace.as_ref().expect("workspace").as_str(), ResourceAction::Read)
+            .await?.run(future).await
+    }
+
+    async fn recover<T>(&self, future: impl std::future::Future<Output = ModelLaneResult<T>>)
+        -> ModelLaneResult<T> {
+        self.operation("model_lane.recovery.execute", ResourceKind::Workspace,
+            self.scope.workspace.as_ref().expect("workspace").as_str(), ResourceAction::Update)
+            .await?.run(future).await
     }
 
     async fn posture(&self, label: &str) -> SurrealAdmissibleCrdtPosture {
-        build_surreal_admissible_crdt_posture(
-            &self.store,
-            self.scope.workspace.as_ref().expect("workspace").as_str(),
-            label,
-        )
-        .await
-        .expect("seed production posture")
+        let workspace = self.scope.workspace.as_ref().expect("workspace").as_str();
+        let workspace_create = self.operation("fs.write", ResourceKind::Workspace,
+            workspace, ResourceAction::Create).await.expect("original workspace Create");
+        let document_update = self.operation("fs.write", ResourceKind::RichDocument,
+            &self.document_id, ResourceAction::Update).await.expect("original Document Update");
+        build_surreal_admissible_crdt_posture_authenticated(
+            &self.store, workspace, label, "model://local/mt018", &self.document_id,
+            &workspace_create, &document_update,
+        ).await.expect("seed authenticated production posture")
     }
 
     async fn cleanup(mut self) {
         drop(self.store);
         drop(self.storage);
-        self.isolated
-            .cleanup()
-            .await
-            .expect("cleanup recovery scope");
+        self.isolated.cleanup().await.expect("cleanup recovery scope");
     }
 }
 
@@ -68,42 +167,42 @@ impl Harness {
 async fn recovery_replays_checkpoint_events_leases_diagnostics_and_mt_status_after_restart() {
     let mut harness = Harness::create("replay").await;
     let posture = harness.posture("replay").await;
-    let message = harness
+    let message = harness.create_record(harness
         .store
-        .record_message(posture.message.clone())
+        .record_message(posture.message.clone()))
         .await
         .expect("record source message");
     let checkpoint = checkpoint(&posture, &message, "checkpoint-replay");
-    let stored_checkpoint = harness
+    let stored_checkpoint = harness.create_record(harness
         .store
-        .record_recovery_checkpoint(checkpoint.clone())
+        .record_recovery_checkpoint(checkpoint.clone()))
         .await
         .expect("record checkpoint atomically");
     assert_eq!(
-        harness
+        harness.create_record(harness
             .store
-            .record_recovery_checkpoint(checkpoint)
+            .record_recovery_checkpoint(checkpoint))
             .await
             .expect("checkpoint retry"),
         stored_checkpoint
     );
     let event = recovery_event(&posture, &message, "event-replay");
-    let stored_event = harness
+    let stored_event = harness.create_record(harness
         .store
-        .record_recovery_event(event.clone())
+        .record_recovery_event(event.clone()))
         .await
         .expect("record ordered recovery event");
     assert_eq!(
-        harness
+        harness.create_record(harness
             .store
-            .record_recovery_event(event)
+            .record_recovery_event(event))
             .await
             .expect("event retry"),
         stored_event
     );
-    harness
+    harness.create_record(harness
         .store
-        .record_lane_lease(lease(&posture, "lease-replay", "2099-01-01T00:00:00Z"))
+        .record_lane_lease(lease(&posture, "lease-replay", "2099-01-01T00:00:00Z")))
         .await
         .expect("record active lease");
     for tier in [
@@ -111,24 +210,24 @@ async fn recovery_replays_checkpoint_events_leases_diagnostics_and_mt_status_aft
         ModelLaneDiagnosticTier::InternalDiagnostics,
         ModelLaneDiagnosticTier::Palmistry,
     ] {
-        harness
+        harness.create_record(harness
             .store
-            .record_diagnostic_tier_status(diagnostic(&posture, tier))
+            .record_diagnostic_tier_status(diagnostic(&posture, tier)))
             .await
             .expect("record diagnostic tier");
     }
-    harness
+    harness.create_record(harness
         .store
-        .record_mt_runtime_status(mt_status(&posture))
+        .record_mt_runtime_status(mt_status(&posture)))
         .await
         .expect("record MT status");
 
     let now = DateTime::parse_from_rfc3339("2026-09-02T01:00:00Z")
         .expect("timestamp")
         .with_timezone(&Utc);
-    let before = harness
+    let before = harness.recover(harness
         .store
-        .test_recover_run_after_restart_at(&posture.run_id, now)
+        .test_recover_run_after_restart_at(&posture.run_id, now))
         .await
         .expect("recover exact run");
     assert_eq!(before.checkpoint.checkpoint_id, "checkpoint-replay");
@@ -136,14 +235,14 @@ async fn recovery_replays_checkpoint_events_leases_diagnostics_and_mt_status_aft
     assert_eq!(before.active_leases.len(), 1);
     assert!(before.reclaimable_lease_ids.is_empty());
     assert_eq!(before.mt_runtime_statuses.len(), 1);
-    harness
+    harness.read(harness
         .store
-        .validate_diagnostic_tier_posture(&posture.run_id, "HBR-INT-009")
+        .validate_diagnostic_tier_posture(&posture.run_id, "HBR-INT-009"))
         .await
         .expect("three-tier diagnostic posture");
-    let receipts = harness
+    let receipts = harness.read(harness
         .store
-        .test_scoped_authority_receipts(&posture.run_id, 64)
+        .test_scoped_authority_receipts(&posture.run_id, 64))
         .await
         .expect("inspect bounded canonical receipts");
     assert!(receipts
@@ -155,26 +254,45 @@ async fn recovery_replays_checkpoint_events_leases_diagnostics_and_mt_status_aft
 
     drop(harness.store);
     drop(harness.storage);
-harness.isolated.reopen().await.expect("reopen same scope");
+    harness.isolated.reopen().await.expect("reopen same scope");
     let storage = harness.isolated.storage().clone();
-    let reopened = ModelLaneStore::new_scoped(storage.clone(), harness.scope.clone());
+    let exact = ExactResourceScopeAttribution::try_from_resource_scope(&harness.scope)
+        .expect("retained canonical five-field scope");
+    harness.lifecycle.authorize(&exact).expect("original context remains active");
+    let context = storage.authenticate_local_session(&harness.session_token, &harness.channel_hash)
+        .await.expect("same authenticated session remains live after reopen");
+    assert_eq!(ExactResourceScopeAttribution::try_from_resource_scope(&exact_scope(
+        &context, exact.workspace_id.as_str(),
+    )).expect("reauthenticated five-field scope"), exact);
+    AuthenticatedModelLaneTestOperation::authorize(storage.clone(), AuthorizationRequest {
+        session_token: harness.session_token.clone(),
+        channel_binding_hash: Some(harness.channel_hash.clone()),
+        capability_id: "model_lane.recovery.execute".into(), resource_kind: ResourceKind::Workspace,
+        external_resource_id: exact.workspace_id.as_str().to_owned(), action: ResourceAction::Update,
+    }, exact.clone()).await.expect("reauthorize original recovery operation after reopen");
+    let lifecycle = storage.resource_access_lifecycle();
+    lifecycle.register_active(exact).expect("activate reauthorized context on reopened storage");
+    let reopened = ModelLaneStore::new_scoped_with_lifecycle(
+        storage.clone(), harness.scope.clone(), lifecycle.clone(),
+    );
+    harness.lifecycle = lifecycle;
+    harness.store = reopened;
+    harness.storage = storage;
     assert_eq!(
-        reopened
-            .test_recover_run_after_restart_at(&posture.run_id, now)
+        harness.recover(harness.store
+            .test_recover_run_after_restart_at(&posture.run_id, now))
             .await
             .expect("recover after restart"),
         before
     );
     assert_eq!(
-        reopened
-            .recover_restartable_runs_at_boot()
+        harness.recover(harness.store
+            .recover_restartable_runs_at_boot())
             .await
             .expect("boot recovery")
             .len(),
         1
     );
-    harness.store = reopened;
-    harness.storage = storage;
     harness.cleanup().await;
 }
 
@@ -182,27 +300,27 @@ harness.isolated.reopen().await.expect("reopen same scope");
 async fn recovery_lease_expiry_is_deterministic_and_does_not_widen_scope() {
     let harness = Harness::create("lease-expiry").await;
     let posture = harness.posture("lease-expiry").await;
-    let message = harness
+    let message = harness.create_record(harness
         .store
-        .record_message(posture.message.clone())
+        .record_message(posture.message.clone()))
         .await
         .expect("record source message");
-    harness
+    harness.create_record(harness
         .store
-        .record_recovery_checkpoint(checkpoint(&posture, &message, "checkpoint-expiry"))
+        .record_recovery_checkpoint(checkpoint(&posture, &message, "checkpoint-expiry")))
         .await
         .expect("record checkpoint");
-    harness
+    harness.create_record(harness
         .store
-        .record_lane_lease(lease(&posture, "lease-expired", "2026-09-02T00:00:00Z"))
+        .record_lane_lease(lease(&posture, "lease-expired", "2026-09-02T00:00:00Z")))
         .await
         .expect("record lease");
     let now = DateTime::parse_from_rfc3339("2026-09-02T01:00:00Z")
         .expect("timestamp")
         .with_timezone(&Utc);
-    let recovered = harness
+    let recovered = harness.recover(harness
         .store
-        .test_recover_run_after_restart_at(&posture.run_id, now)
+        .test_recover_run_after_restart_at(&posture.run_id, now))
         .await
         .expect("recover expired lease");
     assert!(recovered.active_leases.is_empty());
@@ -224,30 +342,30 @@ async fn recovery_rejects_checkpoint_projection_and_receipt_corruption_at_boot_a
         let label = format!("corrupt-{index}");
         let harness = Harness::create(&label).await;
         let posture = harness.posture(&label).await;
-        let message = harness
+        let message = harness.create_record(harness
             .store
-            .record_message(posture.message.clone())
+            .record_message(posture.message.clone()))
             .await
             .expect("record source message");
         let checkpoint_id = format!("checkpoint-corrupt-{index}");
-        harness
+        harness.create_record(harness
             .store
-            .record_recovery_checkpoint(checkpoint(&posture, &message, &checkpoint_id))
+            .record_recovery_checkpoint(checkpoint(&posture, &message, &checkpoint_id)))
             .await
             .expect("record canonical checkpoint");
-        harness
+        harness.create_record(harness
             .store
-            .test_corrupt_scoped_authority("recovery_checkpoint", &checkpoint_id, corruption)
+            .test_corrupt_scoped_authority("recovery_checkpoint", &checkpoint_id, corruption))
             .await
             .expect("apply enumerated checkpoint corruption");
-        assert!(harness
+        assert!(harness.recover(harness
             .store
-            .recover_run_after_restart(&posture.run_id)
+            .recover_run_after_restart(&posture.run_id))
             .await
             .is_err());
-        assert!(harness
+        assert!(harness.recover(harness
             .store
-            .recover_restartable_runs_at_boot()
+            .recover_restartable_runs_at_boot())
             .await
             .is_err());
         harness.cleanup().await;
@@ -258,57 +376,57 @@ async fn recovery_rejects_checkpoint_projection_and_receipt_corruption_at_boot_a
 async fn recovery_rejects_cross_stream_checkpoint_and_event_sequence_gap_without_mutation() {
     let harness = Harness::create("stream-gap").await;
     let posture = harness.posture("stream-gap").await;
-    let message = harness
+    let message = harness.create_record(harness
         .store
-        .record_message(posture.message.clone())
+        .record_message(posture.message.clone()))
         .await
         .expect("record source message");
-    let before = harness
+    let before = harness.read(harness
         .store
-        .test_scoped_authority_receipts(&posture.run_id, 64)
+        .test_scoped_authority_receipts(&posture.run_id, 64))
         .await
         .expect("baseline authority receipts");
 
     let mut foreign_stream = checkpoint(&posture, &message, "checkpoint-foreign-stream");
     foreign_stream.event_ledger_stream_id = "model-lane://foreign/stream".into();
-    assert!(harness
+    assert!(harness.create_record(harness
         .store
-        .record_recovery_checkpoint(foreign_stream)
+        .record_recovery_checkpoint(foreign_stream))
         .await
         .is_err());
     assert_eq!(
-        harness
+        harness.read(harness
             .store
-            .test_scoped_authority_receipts(&posture.run_id, 64)
+            .test_scoped_authority_receipts(&posture.run_id, 64))
             .await
             .expect("cross-stream denial receipt watermark"),
         before
     );
 
-    harness
+    harness.create_record(harness
         .store
-        .record_recovery_checkpoint(checkpoint(&posture, &message, "checkpoint-stream-gap"))
+        .record_recovery_checkpoint(checkpoint(&posture, &message, "checkpoint-stream-gap")))
         .await
         .expect("record canonical checkpoint");
-    let before_gap = harness
+    let before_gap = harness.read(harness
         .store
-        .test_scoped_authority_receipts(&posture.run_id, 64)
+        .test_scoped_authority_receipts(&posture.run_id, 64))
         .await
         .expect("pre-gap authority watermark");
     let mut gap = recovery_event(&posture, &message, "event-sequence-gap");
     gap.source_event_ledger_seq = Some(message.event_ledger_seq + 10_000);
-    let gap_result = harness.store.record_recovery_event(gap).await;
-    let after = harness
+    let gap_result = harness.create_record(harness.store.record_recovery_event(gap)).await;
+    let after = harness.read(harness
         .store
-        .test_scoped_authority_receipts(&posture.run_id, 64)
+        .test_scoped_authority_receipts(&posture.run_id, 64))
         .await
         .expect("inspect authority after denials");
     match gap_result {
         Err(_) => assert_eq!(after, before_gap),
         Ok(_) => {
-            assert!(harness
+            assert!(harness.recover(harness
                 .store
-                .recover_run_after_restart(&posture.run_id)
+                .recover_run_after_restart(&posture.run_id))
                 .await
                 .is_err());
             assert_eq!(after.len(), before_gap.len() + 1);
@@ -321,35 +439,39 @@ async fn recovery_rejects_cross_stream_checkpoint_and_event_sequence_gap_without
 async fn concurrent_recovery_child_events_receive_unique_canonical_order() {
     let harness = Harness::create("concurrent-children").await;
     let posture = harness.posture("concurrent-children").await;
-    let message = harness
+    let message = harness.create_record(harness
         .store
-        .record_message(posture.message.clone())
+        .record_message(posture.message.clone()))
         .await
         .expect("record source message");
-    harness
+    harness.create_record(harness
         .store
         .record_recovery_checkpoint(checkpoint(
             &posture,
             &message,
             "checkpoint-concurrent-children",
-        ))
+        )))
         .await
         .expect("record recovery parent");
 
     let barrier = std::sync::Arc::new(tokio::sync::Barrier::new(3));
+    let first_operation = harness.operation("fs.write", ResourceKind::Workspace,
+        harness.scope.workspace.as_ref().expect("workspace").as_str(), ResourceAction::Create)
+        .await.expect("authorize concurrent recovery child");
+    let second_operation = first_operation.clone();
     let first_store = harness.store.clone();
     let first_barrier = barrier.clone();
     let first_event = recovery_event(&posture, &message, "event-child-a");
     let first = tokio::spawn(async move {
         first_barrier.wait().await;
-        first_store.record_recovery_event(first_event).await
+        first_operation.run(first_store.record_recovery_event(first_event)).await
     });
     let second_store = harness.store.clone();
     let second_barrier = barrier.clone();
     let second_event = recovery_event(&posture, &message, "event-child-b");
     let second = tokio::spawn(async move {
         second_barrier.wait().await;
-        second_store.record_recovery_event(second_event).await
+        second_operation.run(second_store.record_recovery_event(second_event)).await
     });
     barrier.wait().await;
     let (first, second) = tokio::time::timeout(std::time::Duration::from_secs(10), async {
@@ -365,9 +487,9 @@ async fn concurrent_recovery_child_events_receive_unique_canonical_order() {
         .expect("second child persists");
     assert_ne!(first.replay_order_seq, second.replay_order_seq);
 
-    let recovered = harness
+    let recovered = harness.recover(harness
         .store
-        .recover_run_after_restart(&posture.run_id)
+        .recover_run_after_restart(&posture.run_id))
         .await
         .expect("recover both children");
     assert_eq!(recovered.recovery_events.len(), 2);
@@ -521,21 +643,13 @@ fn mt_status(posture: &SurrealAdmissibleCrdtPosture) -> NewModelLaneMtRuntimeSta
     }
 }
 
-fn exact_scope(label: &str) -> ResourceScope {
+fn exact_scope(context: &LocalSessionContext, workspace: &str) -> ResourceScope {
+    let parse = |id: &str| uuid::Uuid::parse_str(id).expect("canonical identity UUID");
     ResourceScope {
-        owner_account_id: OwnerAccountId::from_uuid(label_uuid(&(format!("account-{label}")))),
-        actor_principal_id: ActorPrincipalId::from_uuid(label_uuid(&(format!("actor-{label}")))),
-        authenticated_session: Some(AuthenticatedSessionRef::from_uuid(label_uuid(&(format!("session-{label}"))))),
-        access_space: Some(AccessSpaceRef::from_uuid(label_uuid(&(format!("access-{label}"))))),
-        workspace: Some(WorkspaceScopeRef::new(format!("workspace-{label}")).expect("workspace")),
+        owner_account_id: OwnerAccountId::from_uuid(parse(&context.identity.account_id)),
+        actor_principal_id: ActorPrincipalId::from_uuid(parse(&context.identity.principal_id)),
+        authenticated_session: Some(AuthenticatedSessionRef::from_uuid(parse(&context.session_id))),
+        access_space: Some(AccessSpaceRef::from_uuid(parse(&context.identity.access_space_id))),
+        workspace: Some(WorkspaceScopeRef::new(workspace.to_owned()).expect("canonical workspace")),
     }
-}
-
-/// Deterministic identifier for a test label so the same label resolves to the
-/// same exact scope across reopen phases of one proof.
-fn label_uuid(label: &str) -> uuid::Uuid {
-    let digest = <sha2::Sha256 as sha2::Digest>::digest(label.as_bytes());
-    let mut bytes = [0u8; 16];
-    bytes.copy_from_slice(&digest[..16]);
-    uuid::Uuid::from_bytes(bytes)
 }

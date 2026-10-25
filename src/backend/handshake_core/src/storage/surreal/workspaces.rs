@@ -909,7 +909,7 @@ impl SurrealStorage {
             fr: RecordId::new("protected_resources", Uuid::now_v7().to_string()),
             workspace_grant: RecordId::new("resource_grants", Uuid::now_v7().to_string()),
             fr_grant: RecordId::new("resource_grants", Uuid::now_v7().to_string()),
-            capabilities: ["fs.read", "fs.write", "model_lane.navigation.read", "fr.read", "fr.ingest.runtime_chat", "fr.ingest.native_editor", "memory.read", "memory.propose", "memory.review", "memory.commit"].into_iter().map(str::to_owned).collect(),
+            capabilities: ["fs.read", "fs.write", "model_lane.navigation.read", "fr.read", "fr.ingest.runtime_chat", "fr.ingest.native_editor", "memory.read", "memory.propose", "memory.review", "memory.commit", "model_lane.recovery.execute"].into_iter().map(str::to_owned).collect(),
             memory_surfaces: ["memory_pack", "memory_proposal", "memory_commit_report", "memory_item", "memory_item_count"].into_iter().map(|kind| MemorySurfaceBinding {
                 kind: kind.to_owned(), resource: RecordId::new("protected_resources", Uuid::now_v7().to_string()),
                 grant: RecordId::new("resource_grants", Uuid::now_v7().to_string()),
@@ -1271,7 +1271,10 @@ fn validate_workspace_original_shape(original: &WorkspaceCreationBindings) -> Re
     let expected_capabilities: Vec<String> = ["fs.read", "fs.write", "model_lane.navigation.read", "fr.read",
         "fr.ingest.runtime_chat", "fr.ingest.native_editor", "memory.read", "memory.propose", "memory.review", "memory.commit"]
         .into_iter().map(str::to_owned).collect();
-    if original.capabilities != expected_capabilities || original.first_owner_workspace_receipt_read
+    let mut recovery_capabilities = expected_capabilities.clone();
+    recovery_capabilities.push("model_lane.recovery.execute".to_owned());
+    if (original.capabilities != expected_capabilities && original.capabilities != recovery_capabilities)
+        || original.first_owner_workspace_receipt_read
         || original.workspace != RecordId::new("workspaces", original.external.clone())
         || original.operation_id != original.external
         || Uuid::parse_str(&original.operation_id).is_err() || Uuid::parse_str(&original.edit).is_err()

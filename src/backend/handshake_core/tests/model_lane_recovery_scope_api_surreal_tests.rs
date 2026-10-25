@@ -3,21 +3,25 @@
 mod surreal_test_store_support;
 
 use handshake_core::storage::surreal::resource_authority::{
-    AuthorizationRequest, ResourceAction, ResourceKind,
+    AuthorizationRequest, RecordUserScope, ResourceAction, ResourceKind,
 };
 use handshake_core::test_harness::crdt_workspace::AuthenticatedModelLaneTestOperation;
 
-use handshake_core::storage::surreal::{SurrealStorage};
+use handshake_core::capabilities::CapabilityRegistry;
+use handshake_core::storage::knowledge::{KnowledgeStore, NewKnowledgeRichDocument};
+use handshake_core::storage::surreal::{SurrealDatabase, SurrealStorage};
+use handshake_core::storage::surreal::local_accounts::{password_verifier, LocalSessionContext};
+use handshake_core::storage::NewWorkspace;
 use handshake_core::swarm_orchestration::model_lane::{
     ModelLaneError, ModelLaneRecoveryState, ModelLaneRecoveryStatus, ModelLaneStatus,
-    ModelLaneStore, NewModelLaneRecoveryCheckpoint,
+    ModelLaneResult, ModelLaneStore, NewModelLaneRecoveryCheckpoint,
 };
 use handshake_core::swarm_orchestration::resource_scope::{
     AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, ExactResourceScopeAttribution,
     OwnerAccountId, ResourceAccessLifecycleRegistry, ResourceScope, ScopeDenied, WorkspaceScopeRef,
 };
 use handshake_core::test_harness::crdt_workspace::{
-    build_surreal_admissible_crdt_posture, SurrealAdmissibleCrdtPosture,
+    build_surreal_admissible_crdt_posture_authenticated, SurrealAdmissibleCrdtPosture,
 };
 use serde_json::json;
 use surreal_test_store_support::IsolatedSurrealTestStore;
@@ -272,6 +276,54 @@ async fn run_activated_http_recovery_case(
 }
 
 #[cfg(feature = "app-runtime")]
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ComposedHttpRecoveryInput {
+    account_name: String,
+    password: String,
+    channel_token: String,
+    workspace_name: String,
+    launch_request: handshake_core::swarm_orchestration::operator_chat::OperatorChatLaunchRequest,
+    checkpoint_id: String,
+    timeout_seconds: u64,
+}
+
+#[cfg(feature = "app-runtime")]
+#[tokio::test]
+async fn composed_http_recovery_uses_authenticated_launch_and_preserves_get_state()
+    -> Result<(), Box<dyn std::error::Error + Send + Sync>>
+{
+    use std::io::Read as _;
+    // This file supplies data, never grants, registry entries or authority.
+    let path = std::env::var_os("HANDSHAKE_RECOVERY_HTTP_INPUT").ok_or_else(|| {
+        std::io::Error::other("missing genuine composed recovery inputs: set HANDSHAKE_RECOVERY_HTTP_INPUT to JSON with account_name, password, channel_token, workspace_name, launch_request, checkpoint_id and timeout_seconds; canonical storage/native-channel configuration and a real registered model/session are also required")
+    })?;
+    let mut bytes = Vec::new();
+    std::fs::File::open(path)?.take(65_537).read_to_end(&mut bytes)?;
+    if bytes.len() > 65_536 {
+        return Err(std::io::Error::other("composed recovery input exceeds 65536 bytes").into());
+    }
+    let input: ComposedHttpRecoveryInput = serde_json::from_slice(&bytes)
+        .map_err(|_| std::io::Error::other("invalid composed recovery input JSON"))?;
+    if input.account_name.trim().is_empty() || input.password.is_empty()
+        || input.channel_token.trim().is_empty() || input.workspace_name.trim().is_empty()
+        || input.checkpoint_id.trim().is_empty() || !(1..=600).contains(&input.timeout_seconds)
+    {
+        return Err(std::io::Error::other("composed recovery input requires nonempty credentials/channel/workspace/checkpoint and timeout_seconds within 1..=600").into());
+    }
+    let mut options = handshake_core::backend_runtime::RuntimeOptions::from_env().await
+        .map_err(|_| std::io::Error::other("canonical backend storage configuration is invalid"))?;
+    options.listener = Some(tokio::net::TcpListener::bind("127.0.0.1:0").await?);
+    let deadline = std::time::Instant::now()
+        + std::time::Duration::from_secs(input.timeout_seconds);
+    run_composed_http_recovery_case(
+        options, reqwest::Client::builder().build()?, input.channel_token,
+        input.account_name, input.password, input.workspace_name, input.launch_request,
+        input.checkpoint_id, deadline,
+    ).await
+}
+
+#[cfg(feature = "app-runtime")]
 struct RecoveryRuntimeConsumer {
     prepared: std::cell::RefCell<Option<tokio::sync::oneshot::Receiver<(
         handshake_core::api::account_scope::ProductLocalResourceScope, String,
@@ -420,33 +472,157 @@ async fn run_composed_http_recovery_case(
     }).await
 }
 
+struct Harness {
+    isolated: IsolatedSurrealTestStore,
+    storage: SurrealStorage,
+    scope: ResourceScope,
+    lifecycle: ResourceAccessLifecycleRegistry,
+    session_token: String,
+    channel_hash: String,
+    document_id: String,
+    store: ModelLaneStore,
+}
+
+impl Harness {
+    async fn create(label: &str) -> Self {
+        let isolated = IsolatedSurrealTestStore::create()
+            .await
+            .expect("allocate recovery scope");
+        let storage = isolated.storage().clone();
+        let password = format!("recovery-password-{}", uuid::Uuid::now_v7());
+        let verifier_password = password.clone();
+        let verifier = tokio::task::spawn_blocking(move || password_verifier(&verifier_password))
+            .await.expect("password worker").expect("production password verifier");
+        let capabilities = CapabilityRegistry::new().profile_by_id("Operator")
+            .expect("production Operator profile").allowed.clone();
+        let account_name = format!("recovery-{label}");
+        let identity = storage.setup_local_owner(&account_name, verifier, capabilities)
+            .await.expect("normal first Owner setup");
+        let credential = storage.login_local_owner(&account_name, password)
+            .await.expect("normal Owner password login");
+        assert_eq!(credential.account_id, identity.account_id);
+        assert_eq!(credential.principal_id, identity.principal_id);
+        assert_eq!(credential.access_space_id, identity.access_space_id);
+        let channel_hash = format!("{:x}", <sha2::Sha256 as sha2::Digest>::digest(
+            uuid::Uuid::now_v7().as_bytes(),
+        ));
+        let session = storage.exchange_session_credential(
+            &credential.account_id, &credential.principal_id, &credential.access_space_id,
+            &credential.token, &channel_hash, std::time::Duration::from_secs(3600),
+        ).await.expect("consume genuine login credential");
+        let context = storage.authenticate_local_session(&session.token, &channel_hash)
+            .await.expect("authenticate issued session");
+        assert_eq!(context.session_id, session.session_id);
+        let workspace = storage.create_account_workspace(&context, &RecordUserScope {
+            workspace_id: Some(uuid::Uuid::now_v7().to_string()),
+            resource_id: uuid::Uuid::now_v7().to_string(),
+            session_id: context.session_id.clone(),
+            session_token: session.token.clone(),
+            channel_binding_hash: Some(channel_hash.clone()),
+            capability_id: "fs.write".into(),
+            action: ResourceAction::Create,
+            grant_id: None,
+        }, NewWorkspace { name: format!("recovery-{label}") })
+            .await.expect("canonical workspace and creator grant");
+        let scope = exact_scope(&context, &workspace.id);
+        let lifecycle = storage.resource_access_lifecycle();
+        let exact = ExactResourceScopeAttribution::try_from_resource_scope(&scope)
+            .expect("canonical five-field scope");
+        lifecycle.register_active(exact.clone()).expect("activate authenticated workspace");
+        let store = ModelLaneStore::new_scoped_with_lifecycle(
+            storage.clone(), scope.clone(), lifecycle.clone(),
+        );
+        let workspace_create = AuthenticatedModelLaneTestOperation::authorize(
+            storage.clone(), AuthorizationRequest {
+                session_token: session.token.clone(), channel_binding_hash: Some(channel_hash.clone()),
+                capability_id: "fs.write".into(), resource_kind: ResourceKind::Workspace,
+                external_resource_id: workspace.id.clone(), action: ResourceAction::Create,
+            }, exact,
+        ).await.expect("authorize original workspace Create");
+        let document = workspace_create.run(async {
+            Ok(SurrealDatabase::new(storage.clone()).create_knowledge_rich_document(
+                NewKnowledgeRichDocument {
+                    workspace_id: workspace.id.clone(), document_id: None,
+                    title: format!("Recovery {label}"),
+                    schema_version: handshake_core::knowledge_document::block_tree::DOCUMENT_SCHEMA_VERSION.to_string(),
+                    content_json: json!({"type": "doc", "content": []}),
+                    crdt_document_id: None, crdt_snapshot_id: None, promotion_receipt_event_id: None,
+                    project_ref: None, folder_ref: None, authority_label: Some("promoted".into()),
+                    owner_actor_kind: Some(context.actor_kind.clone()), owner_actor_id: Some(context.actor_id.clone()),
+                },
+            ).await.expect("canonical rich document and creator grant"))
+        }).await.expect("create document under original authority");
+        Self { isolated, storage, scope, lifecycle, session_token: session.token,
+            channel_hash, document_id: document.rich_document_id, store }
+    }
+
+    async fn operation(&self, capability: &str, kind: ResourceKind, external: &str,
+        action: ResourceAction) -> ModelLaneResult<AuthenticatedModelLaneTestOperation> {
+        AuthenticatedModelLaneTestOperation::authorize(self.storage.clone(), AuthorizationRequest {
+            session_token: self.session_token.clone(), channel_binding_hash: Some(self.channel_hash.clone()),
+            capability_id: capability.into(), resource_kind: kind,
+            external_resource_id: external.into(), action,
+        }, ExactResourceScopeAttribution::try_from_resource_scope(&self.scope)
+            .expect("canonical five-field scope")).await
+    }
+
+    async fn create_record<T>(&self, future: impl std::future::Future<Output = ModelLaneResult<T>>)
+        -> ModelLaneResult<T> {
+        self.operation("fs.write", ResourceKind::Workspace,
+            self.scope.workspace.as_ref().expect("workspace").as_str(), ResourceAction::Create)
+            .await?.run(future).await
+    }
+
+    async fn read<T>(&self, future: impl std::future::Future<Output = ModelLaneResult<T>>)
+        -> ModelLaneResult<T> {
+        self.operation("fs.read", ResourceKind::Workspace,
+            self.scope.workspace.as_ref().expect("workspace").as_str(), ResourceAction::Read)
+            .await?.run(future).await
+    }
+
+    async fn recover<T>(&self, future: impl std::future::Future<Output = ModelLaneResult<T>>)
+        -> ModelLaneResult<T> {
+        self.operation("model_lane.recovery.execute", ResourceKind::Workspace,
+            self.scope.workspace.as_ref().expect("workspace").as_str(), ResourceAction::Update)
+            .await?.run(future).await
+    }
+
+    async fn posture(&self, label: &str) -> SurrealAdmissibleCrdtPosture {
+        let workspace = self.scope.workspace.as_ref().expect("workspace").as_str();
+        let workspace_create = self.operation("fs.write", ResourceKind::Workspace,
+            workspace, ResourceAction::Create).await.expect("original workspace Create");
+        let document_update = self.operation("fs.write", ResourceKind::RichDocument,
+            &self.document_id, ResourceAction::Update).await.expect("original Document Update");
+        build_surreal_admissible_crdt_posture_authenticated(
+            &self.store, workspace, label, "model://local/mt018", &self.document_id,
+            &workspace_create, &document_update,
+        ).await.expect("seed authenticated production posture")
+    }
+
+    async fn cleanup(mut self) {
+        drop(self.store);
+        drop(self.storage);
+        self.isolated.cleanup().await.expect("cleanup recovery scope");
+    }
+}
+
 #[tokio::test]
 async fn recovery_denies_each_scope_mismatch_stale_revoked_and_incomplete_context() {
-    let mut isolated = IsolatedSurrealTestStore::create()
-        .await
-        .expect("allocate recovery scope API database");
-    let storage = isolated.storage().clone();
-    let scope = exact_scope("scope-api");
-    let owner_lifecycle = active_lifecycle(&scope);
-    let owner =
-        ModelLaneStore::new_scoped_with_lifecycle(storage.clone(), scope.clone(), owner_lifecycle);
-    let posture = build_surreal_admissible_crdt_posture(
-        &owner,
-        scope.workspace.as_ref().expect("workspace").as_str(),
-        "scope-api",
-    )
-    .await
-    .expect("seed production posture");
-    let message = owner
-        .record_message(posture.message.clone())
+    let harness = Harness::create("scope-api").await;
+    let storage = harness.storage.clone();
+    let scope = harness.scope.clone();
+    let owner = harness.store.clone();
+    let posture = harness.posture("scope-api").await;
+    let message = harness.create_record(owner
+        .record_message(posture.message.clone()))
         .await
         .expect("record message");
-    owner
-        .record_recovery_checkpoint(checkpoint(&posture, &message))
+    harness.create_record(owner
+        .record_recovery_checkpoint(checkpoint(&posture, &message)))
         .await
         .expect("record checkpoint");
-    let before = owner
-        .test_scoped_authority_receipts(&posture.run_id, 64)
+    let before = harness.read(owner
+        .test_scoped_authority_receipts(&posture.run_id, 64))
         .await
         .expect("baseline receipts");
 
@@ -457,17 +633,17 @@ async fn recovery_denies_each_scope_mismatch_stale_revoked_and_incomplete_contex
             foreign_scope,
             foreign_lifecycle,
         );
-        assert!(foreign
-            .recover_run_after_restart(&posture.run_id)
+        assert!(harness.recover(foreign
+            .recover_run_after_restart(&posture.run_id))
             .await
             .is_err());
-        assert!(foreign
-            .recover_restartable_runs_at_boot()
+        assert!(harness.read(foreign
+            .recover_restartable_runs_at_boot())
             .await
             .expect("foreign boot scan is non-leaking")
             .is_empty());
-        assert!(foreign
-            .test_scoped_authority_receipts(&posture.run_id, 64)
+        assert!(harness.read(foreign
+            .test_scoped_authority_receipts(&posture.run_id, 64))
             .await
             .expect("foreign receipt scan is non-leaking")
             .is_empty());
@@ -484,8 +660,8 @@ async fn recovery_denies_each_scope_mismatch_stale_revoked_and_incomplete_contex
     stale_lifecycle
         .mark_stale(&exact)
         .expect("mark exact tuple stale");
-    let stale_error = stale
-        .recover_run_after_restart(&posture.run_id)
+    let stale_error = harness.recover(stale
+        .recover_run_after_restart(&posture.run_id))
         .await
         .expect_err("stale exact tuple must deny recovery");
     assert!(matches!(
@@ -502,8 +678,8 @@ async fn recovery_denies_each_scope_mismatch_stale_revoked_and_incomplete_contex
     revoked_lifecycle
         .revoke(&exact)
         .expect("revoke exact tuple");
-    let revoked_error = revoked
-        .recover_run_after_restart(&posture.run_id)
+    let revoked_error = harness.recover(revoked
+        .recover_run_after_restart(&posture.run_id))
         .await
         .expect_err("revoked exact tuple must deny recovery");
     assert!(matches!(
@@ -522,24 +698,24 @@ async fn recovery_denies_each_scope_mismatch_stale_revoked_and_incomplete_contex
     let mut incomplete_scope = scope.clone();
     incomplete_scope.workspace = None;
     let incomplete = ModelLaneStore::new_scoped(storage.clone(), incomplete_scope);
-    assert!(incomplete
-        .recover_run_after_restart(&posture.run_id)
+    assert!(harness.recover(incomplete
+        .recover_run_after_restart(&posture.run_id))
         .await
         .is_err());
 
     let mut conflict = checkpoint(&posture, &message);
     conflict.session_id.push_str("-conflict");
-    assert!(owner.record_recovery_checkpoint(conflict).await.is_err());
+    assert!(harness.create_record(owner.record_recovery_checkpoint(conflict)).await.is_err());
     assert_eq!(
-        owner
-            .test_scoped_authority_receipts(&posture.run_id, 64)
+        harness.read(owner
+            .test_scoped_authority_receipts(&posture.run_id, 64))
             .await
             .expect("denials preserve receipt count"),
         before
     );
     assert_eq!(
-        owner
-            .recover_run_after_restart(&posture.run_id)
+        harness.recover(owner
+            .recover_run_after_restart(&posture.run_id))
             .await
             .expect("owner recovery survives denials")
             .checkpoint
@@ -548,11 +724,11 @@ async fn recovery_denies_each_scope_mismatch_stale_revoked_and_incomplete_contex
     );
 
     drop(owner);
+    drop(stale);
+    drop(revoked);
+    drop(incomplete);
     drop(storage);
-    isolated
-        .cleanup()
-        .await
-        .expect("cleanup recovery scope API");
+    harness.cleanup().await;
 }
 
 fn checkpoint(
@@ -586,11 +762,15 @@ fn checkpoint(
     }
 }
 
-fn exact_scope(label: &str) -> ResourceScope {
-    ResourceScope::new(OwnerAccountId::mint(), ActorPrincipalId::mint())
-        .with_session(AuthenticatedSessionRef::mint())
-        .with_access_space(AccessSpaceRef::mint())
-        .with_workspace(WorkspaceScopeRef::new(format!("workspace-{label}")).expect("workspace"))
+fn exact_scope(context: &LocalSessionContext, workspace: &str) -> ResourceScope {
+    let parse = |id: &str| uuid::Uuid::parse_str(id).expect("canonical identity UUID");
+    ResourceScope {
+        owner_account_id: OwnerAccountId::from_uuid(parse(&context.identity.account_id)),
+        actor_principal_id: ActorPrincipalId::from_uuid(parse(&context.identity.principal_id)),
+        authenticated_session: Some(AuthenticatedSessionRef::from_uuid(parse(&context.session_id))),
+        access_space: Some(AccessSpaceRef::from_uuid(parse(&context.identity.access_space_id))),
+        workspace: Some(WorkspaceScopeRef::new(workspace.to_owned()).expect("canonical workspace")),
+    }
 }
 
 fn active_lifecycle(scope: &ResourceScope) -> ResourceAccessLifecycleRegistry {

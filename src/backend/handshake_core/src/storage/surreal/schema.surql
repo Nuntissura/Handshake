@@ -8516,8 +8516,10 @@ DEFINE FUNCTION OVERWRITE fn::wp012_first_owner_workspace_sources($row: object) 
         OR $o.deadline != $row.first_workspace_deadline OR $o.actor != $row.operator_principal.actor_id
         OR $row.first_workspace.created_at < $row.created_at
         OR $row.first_workspace.created_at > $row.first_workspace_deadline
-        OR $o.capabilities != ['fs.read','fs.write','model_lane.navigation.read','fr.read',
+        OR ($o.capabilities != ['fs.read','fs.write','model_lane.navigation.read','fr.read',
             'fr.ingest.runtime_chat','fr.ingest.native_editor','memory.read','memory.propose','memory.review','memory.commit']
+            AND $o.capabilities != ['fs.read','fs.write','model_lane.navigation.read','fr.read',
+                'fr.ingest.runtime_chat','fr.ingest.native_editor','memory.read','memory.propose','memory.review','memory.commit','model_lane.recovery.execute'])
         OR array::len($o.memory_surfaces) != 5
         OR array::map($o.memory_surfaces, |$surface| $surface.kind) != ['memory_pack','memory_proposal','memory_commit_report','memory_item','memory_item_count']
         { RETURN false; };
@@ -9030,7 +9032,7 @@ DEFINE FUNCTION OVERWRITE fn::mt120_creator_grant($row: object) {
         AND ($auth.principal_id.delegated_capabilities CONTAINS '*' OR $auth.principal_id.delegated_capabilities CONTAINSALL $row.capability_ids)
         AND (($row.resource_id.resource_kind = 'workspace'
              AND ['create','read','update','delete'] CONTAINSALL $row.actions
-             AND ['fs.read','fs.write','fr.read','fr.ingest.runtime_chat','fr.ingest.native_editor','memory.read','memory.propose','memory.review','memory.commit'] CONTAINSALL $row.capability_ids)
+             AND ['fs.read','fs.write','fr.read','fr.ingest.runtime_chat','fr.ingest.native_editor','memory.read','memory.propose','memory.review','memory.commit','model_lane.navigation.read','model_lane.recovery.execute'] CONTAINSALL $row.capability_ids)
           OR ($row.resource_id.resource_kind IN ['memory_pack','memory_proposal','memory_commit_report','memory_item','memory_item_count'] AND ['create','read','update','delete'] CONTAINSALL $row.actions AND ['memory.read','memory.propose','memory.review','memory.commit','fs.write'] CONTAINSALL $row.capability_ids AND $row.actions CONTAINS 'delete' AND $row.capability_ids CONTAINS 'fs.write')
           OR ($row.resource_id.resource_kind = 'rich_document' AND ['create','read','update','delete'] CONTAINSALL $row.actions AND ['fs.read','fs.write'] CONTAINSALL $row.capability_ids)
           OR ($row.resource_id.resource_kind = 'loom_block' AND ['create','read','update','delete'] CONTAINSALL $row.actions AND ['fs.read','fs.write'] CONTAINSALL $row.capability_ids)
