@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-199",
   "created_at_utc": "2026-10-24T16:59:01.024Z",
-  "updated_at_utc": "2026-10-25T20:44:38.038502Z",
+  "updated_at_utc": "2026-10-25T23:03:43.485009Z",
   "identity": {
     "mt_id": "MT-199",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -124,7 +124,10 @@
       "src/frontend/handshake_native/src/settings_dialog.rs",
       "src/frontend/layout_snapshot/Cargo.toml",
       "src/frontend/layout_snapshot/src/lib.rs",
-      "src/frontend/handshake_native/tests/test_layout_persistence.rs"
+      "src/frontend/handshake_native/tests/test_layout_persistence.rs",
+      "src/frontend/handshake_native/src/mcp/argus.rs",
+      "src/frontend/handshake_native/src/mcp/server.rs",
+      "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs"
     ],
     "forbidden_write_paths": [
       "Files outside exact actual owning allocation",
@@ -259,7 +262,7 @@
     "validator_verdict": "PENDING",
     "claimed_by": "01a1738d-2b8e-7151-9e9e-3972429af70c",
     "completed_by": null,
-    "blocked_on": "AC199-5 focused authoritative GPU owner/client binding from MT-203; original independent native Vulkan/runtime/crash-survival admission for AC199-2/3/5/6. Whole MT-203 completion is not a host compilation predecessor."
+    "blocked_on": "D199-ASYNCHRONOUS-FRAME-REVISION-01 remediation; current-source Core plus genuine account/workspace activation for mounted panes. Full shared GPU lifecycle acceptance stays distinct."
   },
   "scope": {
     "summary": "The genuine Handshake native application renders through a supported Vulkan backend and retains required user/model behavior.",
@@ -276,7 +279,10 @@
       "src/frontend/handshake_native/src/settings_dialog.rs",
       "src/frontend/layout_snapshot/Cargo.toml",
       "src/frontend/layout_snapshot/src/lib.rs",
-      "src/frontend/handshake_native/tests/test_layout_persistence.rs"
+      "src/frontend/handshake_native/tests/test_layout_persistence.rs",
+      "src/frontend/handshake_native/src/mcp/argus.rs",
+      "src/frontend/handshake_native/src/mcp/server.rs",
+      "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs"
     ],
     "forbidden_paths": [
       "Files outside exact actual owning allocation",
@@ -764,8 +770,202 @@
           "Shared GPU owner/client binding remains absent in current Product and MT-203 remains pending",
           "Independent runtime/crash-survival admission remains pending"
         ]
+      },
+      {
+        "record_id": "UI199-RUNNABLE-BUILD-01",
+        "executor_role": "KERNEL_BUILDER",
+        "covers": [
+          "MT-199"
+        ],
+        "candidate_commit": "91b403f2e1242a0a4588fd9fb9d8c4b46cd84753",
+        "native_command": "cargo build --locked --manifest-path src/frontend/handshake_native/Cargo.toml --bin handshake-native -j 1 --keep-going --message-format=json",
+        "native_exit_code": 0,
+        "native_binary_sha256": "4abe7bcfa0631470df21457946736d372ca3e3bf5d94e6e37f0c6c76aa006ec7",
+        "watcher_command": "cargo build --locked --manifest-path src/frontend/palmistry/Cargo.toml --bin palmistry -j 1 --keep-going --message-format=json",
+        "watcher_exit_code": 0,
+        "watcher_binary_sha256": "33d4a26febe494ba0899048ce61611158be6531514b6292ec6bf0cc9bb0ee486",
+        "input_count": 525,
+        "inputs_unchanged": true,
+        "artifact_root": "HANDSHAKE_ARTIFACTS_ROOT",
+        "artifact_refs": [
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-host-build-01-inputs.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-host-build-01-result.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/palmistry-host-build-01-result.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/palmistry-build-routing-diagnosis-01.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/palmistry-host-build-02-inputs.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/palmistry-host-build-02-result.json"
+        ]
+      },
+      {
+        "record_id": "UI199-RUNTIME-01",
+        "evidence_kind": "partial_real_native_observation_not_acceptance_pass",
+        "candidate_commit": "91b403f2e1242a0a4588fd9fb9d8c4b46cd84753",
+        "native_pid": 10036,
+        "native_birth_100ns": "134374357601805196",
+        "watcher_pid": 42584,
+        "explicit_human_runtime_request": {
+          "source_thread": "01a17028-cecb-7b90-9c71-bbddd44d722e",
+          "user_message": "01a17486-cfdc-74f3-87a7-dad4d169adab",
+          "verified_via": "read_thread userMessage content"
+        },
+        "actual_adapter": {
+          "backend": "Vulkan",
+          "device_type": "IntegratedGpu",
+          "name": "Qualcomm(R) Adreno(TM) X2-85 GPU",
+          "driver": "Qualcomm Technologies Inc. Adreno Vulkan Driver"
+        },
+        "argus_binding_pid_and_birth_verified": true,
+        "argus_inspect_succeeded": true,
+        "main_window_epoch": 1,
+        "inspected_revision": 1172,
+        "mounted_panes": "NOT_REACHED_REAL_ACCOUNT_WORKSPACE_ACTIVATION_REQUIRED",
+        "screenshot_result": "FAILED_WRAPPED_STALE_REVISION",
+        "startup_focus": "NOT_OBSERVED_RECORDER_FAILED_AFTER_SPAWN",
+        "shutdown_result": {
+          "observer_method": "Existing helper pattern posted WM_CLOSE to all four owned HWNDs",
+          "native_exit_code_hex": "0xC000013A",
+          "canonical_exit_evidence": "Palmistry PostMortemNoContext survivor record",
+          "native_and_watcher_gone": true,
+          "graceful_shutdown_claimed": false
+        },
+        "artifact_root": "HANDSHAKE_ARTIFACTS_ROOT",
+        "artifact_refs": [
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-runtime-01/process.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-runtime-01/native.stdout.log",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-runtime-01/inspect-main-02.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-runtime-01/screenshot-main-01.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-runtime-01/shutdown-observation.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-runtime-01/survivor/survivor-crash-b5eb95f2-efba-4cd2-86d3-0241cd2856db.json"
+        ],
+        "diagnosis": {
+          "diagnosis_id": "D199-ASYNCHRONOUS-FRAME-REVISION-01",
+          "cause": "Next renderer frame advances publication; repeated old revision guard rejects its actual image.",
+          "failure_class": "next_frame_capture_revision_guard",
+          "evidence_refs": [
+            "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-runtime-01/screenshot-main-01.json",
+            "src/frontend/handshake_native/src/mcp/server.rs",
+            "src/frontend/handshake_native/src/mcp/argus.rs",
+            "src/frontend/handshake_native/src/app.rs"
+          ],
+          "remediation": "Admit revision once; validate immutable capture lifetime and privacy generation across worker/await. Retire generation atomically before account-private reset; allow only fresh publications. Preserve real renderer token/viewport path.",
+          "affected_source_refs": [
+            "src/frontend/handshake_native/src/mcp/argus.rs",
+            "src/frontend/handshake_native/src/mcp/server.rs",
+            "src/frontend/handshake_native/src/app.rs"
+          ],
+          "independent_source_diagnosis": "/root/wp012_mt_vulkan_updates",
+          "candidate_patch_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/mcp-frame-capture-01/mcp-frame-capture.patch",
+          "focused_regressions": [
+            "Next publication succeeds",
+            "Initially stale admission fails",
+            "Close and replacement reject capture",
+            "Privacy retirement and republish cannot revive an old capture"
+          ],
+          "status": "SOURCE_PUBLISHED_14_COMPONENT_REGRESSIONS_PROVEN_ACTUAL_RENDERER_CAPTURE_STILL_OPEN"
+        },
+        "observer_correction": "Retain process handle and startup observation before spawn; close only observed main native window, not every owned HWND. No graceful result inferred from PID disappearance.",
+        "eframe_isolation_correction": "Earlier Handshake/data/app.ron observation used the wrong directory; current owner is handshake-native/data/app.ron, which runtime01 wrote. Runtime02 explicitly configures SDK persistence_path and independently preserves that actual existing file."
+      },
+      {
+        "record_id": "UI199-MCP-REGRESSIONS-01",
+        "evidence_kind": "focused_component_regressions_not_real_renderer_acceptance",
+        "executor_role": "KERNEL_BUILDER",
+        "candidate_commit": "19219badee2ee5d84d18719d6926ce96b6ceaa67",
+        "compile_exit_code": 0,
+        "compiled_inputs_unchanged": 525,
+        "component_results": {
+          "initial_run": {
+            "passed": 8,
+            "failed": 6,
+            "cause": "New test request helpers omitted mandatory agent_label; stale-revision assertion initially also accepted that unrelated validation error."
+          },
+          "retained_passes": 7,
+          "repaired_server_run": {
+            "passed": 7,
+            "failed": 0
+          },
+          "distinct_regressions_proven": 14
+        },
+        "artifact_root": "HANDSHAKE_ARTIFACTS_ROOT",
+        "artifact_refs": [
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-mcp-test-compile-02-result.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/mcp-capture-focused-tests-01-result.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/mcp-capture-focused-tests-01.stdout.txt",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-mcp-test-compile-03-result.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/mcp-capture-focused-tests-02-result.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/mcp-capture-focused-tests-02.stdout.txt",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/pushed-mcp-source-02.json"
+        ],
+        "source_review": "Prior independent three-file capture/privacy source review and safe diagnostic-field review are source-clear; runtime remains separate."
+      },
+      {
+        "record_id": "UI199-RUNTIME-02",
+        "evidence_kind": "partial_real_native_observation_not_acceptance_pass",
+        "candidate_commit": "90321046a5d7f19819b7de5b0e5a2f4f47afb4b2",
+        "candidate_tree": "746e46a886b0d083c0703ea04ee644ab50ac3568",
+        "native_build_exit_code": 0,
+        "compiled_inputs_unchanged": 525,
+        "native_binary_sha256": "1ffe270a21c5962a4afacef58ccc5fb26848359d9969ccd5a55a574c5d8c5b92",
+        "native_pid": 7928,
+        "native_birth_100ns": "134374425735072835",
+        "watcher_pid": 25184,
+        "actual_backend": "Vulkan",
+        "actual_adapter": "Qualcomm(R) Adreno(TM) X2-85 GPU",
+        "crash_socket_armed": true,
+        "crash_socket_connect_attempts": 1,
+        "max_derived_crash_socket_utf8_bytes": 106,
+        "startup_foreground_unchanged": true,
+        "shutdown_foreground_unchanged": true,
+        "default_eframe_state_unchanged": true,
+        "actual_default_eframe_path": "Windows RoamingAppData/handshake-native/data/app.ron",
+        "default_eframe_sha256": "08d41bcc68f5f2456ca63d6756bc22fd110ebe5a11b04ac7b7261f57fac8a8c5",
+        "configured_eframe_state_written": true,
+        "native_exit_code": 0,
+        "watcher_exit_code": 1,
+        "watcher_shutdown": "Signed acknowledgement failed; owned kill/reap backstop after five seconds. No normal ACK/drain claimed.",
+        "argus_inspect_succeeded": true,
+        "renderer_screenshot": "FAILED_2000MS_OUTER_BOUNDARY_TIMEOUT",
+        "mounted_panes": "NOT_REACHED_GENUINE_ACCOUNT_WORKSPACE_ACTIVATION_REQUIRED",
+        "diagnoses": [
+          {
+            "diagnosis_id": "D199-SIGNED-PIPE-EMPTY-READ-01",
+            "cause": "Windows PIPE_NOWAIT empty ReadFile maps ERROR_NO_DATA through Rust BrokenPipe and interprocess downgrade_eof to zero-byte read. Signed control path treats live empty pipe as EOF.",
+            "owning_contracts": [
+              "MT-089",
+              "MT-094",
+              "MT-202"
+            ],
+            "remediation": "Use existing Native PeekNamedPipe readiness and equivalent standalone watcher boundary; retain real EOF, signing, identity and deadlines.",
+            "status": "EXTERNAL_SOURCE_CANDIDATE_REVIEW_PENDING"
+          },
+          {
+            "diagnosis_id": "D199-CAPTURE-OUTER-TIMEOUT-02",
+            "cause": "Outer 2000ms covers scheduling, actual frame wait, RGBA conversion and PNG encode; exact phase not yet observed. No lock or encoding root cause claimed.",
+            "remediation": "Add bounded phase timing to existing renderer and outer dispatch paths before another actual capture; preserve all deadlines and actual renderer-only route.",
+            "status": "DIAGNOSTIC_SOURCE_CANDIDATE_PENDING"
+          }
+        ],
+        "artifact_root": "HANDSHAKE_ARTIFACTS_ROOT",
+        "artifact_refs": [
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-host-build-02-inputs.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-host-build-02-result.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-host-build-02-policy.jsonl",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-runtime-02/prelaunch.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-runtime-02/process.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-runtime-02/native.stdout.log",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-runtime-02/inspect-main-01.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-runtime-02/screenshot-main-01.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-runtime-02/close-result.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-runtime-02/result.json"
+        ],
+        "limits": [
+          "No rendered PNG obtained or inspected",
+          "No genuine activated Kumihimo panes reached",
+          "No signed Palmistry association or normal ACK/drain",
+          "Central GPU ownership/client binding and independent final runtime acceptance remain open"
+        ]
       }
     ],
-    "implementation_result": "HOST_SOURCE_PUSHED_COMPILE_GREEN_SHARED_GPU_BINDING_AND_RUNTIME_PENDING"
+    "implementation_result": "REAL_VULKAN_ADAPTER_OBSERVED_CAPTURE_GUARD_REMEDIATION_AND_CURRENT_CORE_ACTIVATION_PENDING"
   }
 }
