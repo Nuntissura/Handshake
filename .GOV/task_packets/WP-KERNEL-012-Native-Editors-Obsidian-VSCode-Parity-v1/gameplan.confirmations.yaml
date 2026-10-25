@@ -7032,3 +7032,10 @@ confirmations:
 - {id: GP-570, head: 791e666350ce03875f4bd2dff9396f09646964a7, at: '2026-10-22T16:27:46Z', by: integration_validator, note: 'Current pins6f3d/0115+4557/935 match independent166 values; SQL86d unchanged; context runtime FAILED, no whole reuse'}
 - {id: GP-653, head: 791e666350ce03875f4bd2dff9396f09646964a7, at: '2026-10-22T16:30:38Z', by: builder, note: 'Verified 20MiB prefix and reviewed Range rejection, bounded continuation, full SHA and exclusive finalization'}
 - {id: GP-656, head: 791e666350ce03875f4bd2dff9396f09646964a7, at: '2026-10-22T17:03:10Z', by: builder, note: EOF222480022 recorded; Root full-segment checks mandatory; acq3 candidate CC review still required}
+- {id: GP-503, head: 791e666350ce03875f4bd2dff9396f09646964a7, at: '2026-10-22T18:30:41Z', by: builder, note: Kernel-only merge; no subprocess cmd checks or dirty snapshot; paths below200; Product untouched}
+- {id: GP-513, head: 791e666350ce03875f4bd2dff9396f09646964a7, at: '2026-10-22T18:30:41Z', by: builder, note: Kernel-only merge; no subprocess cmd checks or dirty snapshot; paths below200; Product untouched}
+- {id: GP-567, head: 791e666350ce03875f4bd2dff9396f09646964a7, at: '2026-10-22T18:30:41Z', by: builder, note: Kernel-only merge; no subprocess cmd checks or dirty snapshot; paths below200; Product untouched}
+- {id: GP-568, head: 791e666350ce03875f4bd2dff9396f09646964a7, at: '2026-10-22T18:30:41Z', by: builder, note: Kernel-only merge; no subprocess cmd checks or dirty snapshot; paths below200; Product untouched}
+- {id: GP-505, head: 791e666350ce03875f4bd2dff9396f09646964a7, at: '2026-10-22T18:30:45Z', by: any, note: Both Git parents and exact fork copies preserved; no Product runtime or acceptance claim}
+- {id: GP-506, head: 791e666350ce03875f4bd2dff9396f09646964a7, at: '2026-10-22T18:30:45Z', by: any, note: Both Git parents and exact fork copies preserved; no Product runtime or acceptance claim}
+- {id: GP-657, head: 791e666350ce03875f4bd2dff9396f09646964a7, at: '2026-10-22T18:31:03Z', by: builder, note: All six existing kernel merge confirmations now bind current Product HEAD791e666}

@@ -1,4 +1,44 @@
 {
+  "operator_primary_successor_20261023_01": {
+    "decision_id": "WP012-PRIMARY-SUCCESSOR-20261023-01",
+    "recorded_at_utc": "2026-10-23T14:44:01.910339Z",
+    "status": "AUTHORIZED_SUCCESSOR_PENDING_EXCLUSIVE_ENTRY",
+    "authority_source": {
+      "kind": "DIRECT_CURRENT_HUMAN_INSTRUCTION",
+      "exact_quote": "you can create new chats if unresponsive, make sure they hav their own team of sub agents. then focus back on actual work, not paperwork and vain bussywork",
+      "message_id": null
+    },
+    "new_primary": {
+      "thread_id": "01a16935-8b0f-7ed2-a45c-a78847ac51b9",
+      "host_id": "local",
+      "title": "WP012-Primary-Execution-successor-20261023",
+      "creation": "Actual Master-created successor chat; no entry or helper-team completion inferred."
+    },
+    "prior_primary": {
+      "thread_id": "01a15e8a-2b54-79a0-91a2-7304d67cbddc",
+      "role": "Historical assignment and late handbacks only; no writer/compiler allocation absent a new explicit reassignment.",
+      "routing_observation": "Supported Worker/Master/Codeleader/Host/Codecheck sends returned CannotSteer/no active turn; original creator verified standalone create_thread, no native handle and no existing Primary heartbeat. No CLI/model-source fallback launched.",
+      "last_owning_facts": "Declared physical windows CLOSED and no Cargo admitted are prior owning facts, not fresh OS/process proof."
+    },
+    "replacement_basis": "This is the specifically human-authorized Primary replacement, not custody inferred from silence or process death.",
+    "current_roles": {
+      "primary": "After required actual entry, the new root alone owns physical Product/Git/shared manifests/locks/compiler scheduling; existing external source ownership remains unchanged.",
+      "code_dev_leader": "01a168a9-05b2-7630-9633-5faac88dd068 retains technical allocation/steering authority.",
+      "worker_parent": "01a165e1-af19-7001-ad2b-b1a744890c83 may execute only the one existing admitted normal owning batch under the actual new Primary slot."
+    },
+    "entry_requirements": [
+      "Establish an actual useful read-only subagent team; helper identities are NOT_YET_REPORTED, not assumed staffed.",
+      "Verify current processes, actual slot and exclusive entry before Product writes or compiler admission; historical closure is not fresh process proof."
+    ],
+    "continuation": "Required record/reread and actual exclusive entry are the continuation conditions; no additional Master GO or checkpoint prerequisite.",
+    "preserve": [
+      "All source, candidates, processes, pins, evidence and retained targets",
+      "Original independent acceptance and finite allowances",
+      "No duplicate owning pipeline, runtime, extra attempt, Native retry or inference",
+      "Metadata operations limited to the separately approved normal resume",
+      "No foreign process-stop or cleanup authority from replacement"
+    ]
+  },
   "operator_worker_metadata_resume_20261023_01": {
     "decision_id": "WP012-WORKER-METADATA-RESUME-20261023-01",
     "recorded_at_utc": "2026-10-23T14:22:54.315442Z",
@@ -13954,6 +13994,18 @@
       {
         "id": "WP012-UI-20261024-023",
         "requirement": "Add no Palmistry app controller, recovery executor, automatic restart, OS remediation or model authority. Reuse unaffected watcher/source proof. Genuine crash-survival proof requires a later separately admitted controlled owned Product test through Primary/original independent route, never an OS crash or foreign-process stop; preserve normal owned shutdown/lifecycle/drain and existing permissions. Normal explicit shutdown must preserve required acknowledgements and actual owned drain; do not infer either from a later empty process query."
+      },
+      {
+        "id": "WP012-UI-20261024-024",
+        "requirement": "All Handshake GUI teams and affected GUI work under the three named WP coverage_sources MUST use KUMIHIMO-ASSET-001 (Kumihimo) through its public contract with an actual Vulkan-backed layer. Preserve existing Handpick and every original GUI/GPU/Settings/diagnostic/Palmistry obligation. A name, catalog entry, configuration label or D3D/OpenGL fallback does not prove Vulkan capability or adoption."
+      },
+      {
+        "id": "WP012-UI-20261024-025",
+        "requirement": "When Handshake needs missing reusable GUI logic, extend the declared canonical Kumihimo original source and reusable public capability FIRST; perform focused owning source proof, normal canonical publication and independent exact remote reread before distinct immutable pinned Handshake host adoption. Consume adequate existing capability without compulsory source changes. No host-local workaround, copied private implementation or host-only fork; host-specific policy/adaptation stays in Handshake under HBR-MODULE-LIFECYCLE-004/007/008."
+      },
+      {
+        "id": "WP012-UI-20261024-026",
+        "requirement": "GUI work MUST follow current build rules using small focused crates/modules with independently selectable source/dependency/build/test/artifact closures and focused typed clients, without large aggregate/sink crates. Bind each implementation MT to its actual owning logical module or existing build unit and respect dependency direction and actual project build budgets under HBR-COMPART-001/002 and HBR-MODULE-LIFECYCLE-001. Preserve the conditional applicability of crate-based rebuild accounting; invent no numerical cap, forced crate split, blanket refactor or all-project hold."
       }
     ],
     "draft_references": [
@@ -14082,8 +14134,8 @@
       "no_new_execution_or_attempt_grant": true,
       "sole_physical_product_git_manifest_lock_compiler_owner": "01a16935-8b0f-7ed2-a45c-a78847ac51b9",
       "hold_budget_ref": "packet.json#/operator_professional_desktop_ui_20261024/requirements/8",
-      "source_vs_host": "MT-198 reuses supported canonical capability when adequate. Only verified reusable gaps need standalone source/proof/publication before MT-199 host adoption. No forced asset/engine.",
-      "canonical_renderer_owner_api_path": "UNKNOWN_PENDING_DESIGN",
+      "source_vs_host": "MT-198 qualifies mandatory Kumihimo public capability for actual Vulkan. Extend/prove/publish only verified missing reusable logic in canonical source before distinct exact pinned MT-199 host adoption; adequate capability needs no redundant source work. See kumihimo_binding.",
+      "canonical_renderer_owner_api_path": "KUMIHIMO-ASSET-001 identity verified in Nuntissura/assets catalog; exact public API/adoption revision/Vulkan readiness UNVERIFIED_PENDING_OWNING_TECHNICAL_QUALIFICATION. See kumihimo_binding.",
       "native_renderer_observation": "Inspected Cargo/main use eframe0.33 Wgpu. Host owning handback reports dx12-only Wgpu feature. Current actual Vulkan is NOT_PROVEN.",
       "native_entry_refs": [
         "src/frontend/handshake_native/src/main.rs:559-569",
@@ -14168,6 +14220,72 @@
       },
       "execution_permission": "No new runtime/process/auth/build grant; genuine owned Product crash-survival later separately admitted through existing route.",
       "identity_and_shutdown_binding": "Existing typed stable event/control IDs, real session/correlation and exact PID/process-birth binding; normal shutdown acknowledgements plus actual owned drain under original diagnostic/process ownership contracts."
+    },
+    "kumihimo_binding": {
+      "requirement_ids": [
+        "WP012-UI-20261024-024",
+        "WP012-UI-20261024-025",
+        "WP012-UI-20261024-026"
+      ],
+      "authority_source": {
+        "kind": "CURRENT_DIRECT_HUMAN_INSTRUCTION_RELAYED_BY_MASTER",
+        "master_thread": "01a16883-1836-7750-8f73-e339eb84751b",
+        "instruction": "All Handshake GUI teams and related MTs must use the Kumihimo asset with actual Vulkan over its public contract. Missing reusable GUI logic grows in the canonical asset first, then separate exact pinned Handshake adoption. Follow current build rules and small focused crates, not large aggregate/sink crates.",
+        "recorded_at_utc": "2026-10-24T20:07:09.827Z"
+      },
+      "applies_to": {
+        "coverage_sources_ref": "packet.json#/operator_professional_desktop_ui_20261024/coverage_sources",
+        "new_mt_refs": [
+          "MT-197.json",
+          "MT-198.json",
+          "MT-199.json",
+          "MT-200.json",
+          "MT-201.json",
+          "MT-202.json",
+          "MT-203.json"
+        ],
+        "original_gui_work": "Applies to all affected original and future Handshake GUI work/teams across the three coverage_sources, including original WP012/CKC/WP1 GUI surfaces reached by MT-197 all-contract coverage and MT-202 integration. Retain each original contract and source/spec/governance pin; this current operator binding adds the named GUI dependency without rewriting legacy bodies, changing old lifecycle or claiming CKC/WP1 automatically import a WP012 JSON field.",
+        "coverage_binding_ref": "MT-197.json#/design_result/all_contract_coverage"
+      },
+      "asset_identity": {
+        "asset_id": "KUMIHIMO-ASSET-001",
+        "name": "Kumihimo",
+        "repository": "Nuntissura/assets",
+        "catalog_path": "assets-index.yaml",
+        "catalog_blob": "7822be8c0f33daab5c9b8bd412a2421bcfa59ace",
+        "catalog_asset_path": "Kumihimo",
+        "entrypoint": "Kumihimo/AGENTS.md",
+        "manual": "Kumihimo/README.md",
+        "discovery_ref": "codex/handpick",
+        "discovery_commit": "c7afb6a44bb4eccb237a43c53263d0f05e0e7ab4",
+        "discovery_role": "Fresh read-only GitHub catalog/README identity and default-branch observation; not an adopted release/pin or technical qualification.",
+        "catalog_status": "source-present",
+        "public_api": null,
+        "adoption_revision": null,
+        "vulkan_readiness": "UNVERIFIED_PENDING_OWNING_TECHNICAL_QUALIFICATION",
+        "qualification_owner": "Existing Codeleader/asset technical owners; exact API/release/proof/embedding adapter follows fresh canonical discovery under their authority."
+      },
+      "ordered_source_adoption": {
+        "source_mt_ref": "MT-198.json",
+        "host_mt_ref": "MT-199.json",
+        "source_required_only_for_verified_reusable_gap": true,
+        "prerequisite": "If reusable capability is missing, exact canonical Kumihimo source/public-contract proof and normal publication with independent immutable remote reread precede affected host implementation/adoption. If adequate, consume its qualified exact revision without redundant source work.",
+        "host_scope": "Existing Handshake-specific policy, storage, diagnostics, Palmistry, authorization and UI bindings remain host adaptations; no source/host custody or pin changes occur from this record.",
+        "affected_stage_only": true
+      },
+      "build_rules_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+      "build_rule_ids": [
+        "HBR-COMPONENT-001",
+        "HBR-COMPART-001",
+        "HBR-COMPART-002",
+        "HBR-MODULE-LIFECYCLE-001",
+        "HBR-MODULE-LIFECYCLE-002",
+        "HBR-MODULE-LIFECYCLE-003",
+        "HBR-MODULE-LIFECYCLE-004",
+        "HBR-MODULE-LIFECYCLE-007",
+        "HBR-MODULE-LIFECYCLE-008"
+      ],
+      "precedence": "Requirement024 concretely selects Kumihimo for the earlier generic canonical-capability choice in requirement006 and affected MT clauses. Earlier no-invented/no-forced-asset wording continues to prohibit additional invented frameworks or compulsory source changes; it does not make Kumihimo optional. All original acceptance/pins/proof/reviews/failures/spent outcomes/custody and actual current admission limits remain unchanged; no new execution, retry, fetch, publication or Product-write grant is created."
     }
   }
 }

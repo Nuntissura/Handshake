@@ -49,7 +49,10 @@
       "WP012-UI-20261024-018",
       "WP012-UI-20261024-021",
       "WP012-UI-20261024-022",
-      "WP012-UI-20261024-023"
+      "WP012-UI-20261024-023",
+      "WP012-UI-20261024-024",
+      "WP012-UI-20261024-025",
+      "WP012-UI-20261024-026"
     ],
     "acceptance_refs": [
       "MT-201.json#/scope/acceptance_criteria/0",
@@ -59,7 +62,32 @@
       "MT-201.json#/scope/acceptance_criteria/4",
       "MT-201.json#/scope/acceptance_criteria/5"
     ],
-    "materialized_acceptance": []
+    "materialized_acceptance": [
+      {
+        "id": "AC201-1",
+        "text": "AC201-1: Inspect and bind current existing Handpick canonical source/API/pins and intended native mount to exact inputs. Native mounting is currently UNVERIFIED. Preserve Handpick behavior/ownership; do not substitute a VS Code-like search control or reimplement its owned mechanic."
+      },
+      {
+        "id": "AC201-2",
+        "text": "AC201-2: Coder A coordinates this Handpick/material interaction slice with MT-200 in its material-docking candidate root; it does not create a third GUI coder. Before physical integration, coordinate exact search/backend_client/shared app hook ownership under current custody."
+      },
+      {
+        "id": "AC201-3",
+        "text": "AC201-3: Prove genuine native mount, keyboard open/focus/selection/dismissal, scoped results/actions and empty/loading/error/denied/recovery states. Preserve existing context permissions and model accessibility without widening access."
+      },
+      {
+        "id": "AC201-4",
+        "text": "AC201-4: Separate workflow tester checks Handpick entry/selection and return to editor/CKC/orchestration multi-step work, including icon/scrollbar, IME/DPI and accessibility behavior. An HTML draft, imported screenshot or unmounted component fixture is insufficient."
+      },
+      {
+        "id": "AC201-5",
+        "text": "AC201-5: Handpick remains reachable from the module/feature Settings hierarchy or equivalent system tree where applicable, with its original controls and typed persistence/error/denied states. Its render/client resources use the shared authoritative GPU owner/accountability contract; no independent device/pool/budget bypass."
+      },
+      {
+        "id": "AC201-6",
+        "text": "AC201-6: Real Handpick entry/focus/selection/dismissal, scoped failure/denial and relevant component states are observable through existing internal_diagnostics and correlated standalone Palmistry records without leaking query/project contents or creating new watcher/control authority."
+      }
+    ]
   },
   "model_routing": {
     "model_tier": "strong",
@@ -439,7 +467,8 @@
     "runtime_permission_inferred": false,
     "new_attempts_granted": false,
     "current_retry_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/current_retry_policy",
-    "interaction_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/interaction_policy"
+    "interaction_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/interaction_policy",
+    "shared_gui_requirement_ref": "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding"
   },
   "spec_basis": {
     "source": "Current operator UI/refactor/Vulkan request relayed by Master, requirement meaning in packet request; no fabricated verbatim message or accepted design.",
@@ -485,7 +514,8 @@
     "owning_module": "src/frontend/handshake_native",
     "module_binding_status": "BOUND_EXISTING_NATIVE_CRATE",
     "module_maintenance_refs": [
-      "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation"
+      "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation",
+      "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding"
     ],
     "original_acceptance_refs": [
       "MT-001.json",
@@ -508,7 +538,24 @@
     ],
     "draft_reference_ref": "packet.json#/operator_professional_desktop_ui_20261024/draft_references",
     "pin_policy": "No original three-WP source/spec/governance pin or verdict changes. New compatible adoption follows owning grounded decision.",
-    "diagnostic_obligation_ref": "packet.json#/operator_professional_desktop_ui_20261024/gui_diagnostics_palmistry_20261024"
+    "diagnostic_obligation_ref": "packet.json#/operator_professional_desktop_ui_20261024/gui_diagnostics_palmistry_20261024",
+    "specification_anchor_refs": [
+      {
+        "id": "WP012-UI-20261024-024",
+        "anchor": "packet.json#/operator_professional_desktop_ui_20261024/requirements/23",
+        "verbatim": "All Handshake GUI teams and affected GUI work under the three named WP coverage_sources MUST use KUMIHIMO-ASSET-001 (Kumihimo) through its public contract with an actual Vulkan-backed layer. Preserve existing Handpick and every original GUI/GPU/Settings/diagnostic/Palmistry obligation. A name, catalog entry, configuration label or D3D/OpenGL fallback does not prove Vulkan capability or adoption."
+      },
+      {
+        "id": "WP012-UI-20261024-025",
+        "anchor": "packet.json#/operator_professional_desktop_ui_20261024/requirements/24",
+        "verbatim": "When Handshake needs missing reusable GUI logic, extend the declared canonical Kumihimo original source and reusable public capability FIRST; perform focused owning source proof, normal canonical publication and independent exact remote reread before distinct immutable pinned Handshake host adoption. Consume adequate existing capability without compulsory source changes. No host-local workaround, copied private implementation or host-only fork; host-specific policy/adaptation stays in Handshake under HBR-MODULE-LIFECYCLE-004/007/008."
+      },
+      {
+        "id": "WP012-UI-20261024-026",
+        "anchor": "packet.json#/operator_professional_desktop_ui_20261024/requirements/25",
+        "verbatim": "GUI work MUST follow current build rules using small focused crates/modules with independently selectable source/dependency/build/test/artifact closures and focused typed clients, without large aggregate/sink crates. Bind each implementation MT to its actual owning logical module or existing build unit and respect dependency direction and actual project build budgets under HBR-COMPART-001/002 and HBR-MODULE-LIFECYCLE-001. Preserve the conditional applicability of crate-based rebuild accounting; invent no numerical cap, forced crate split, blanket refactor or all-project hold."
+      }
+    ]
   },
   "validation": {
     "review_verdict": "PENDING",

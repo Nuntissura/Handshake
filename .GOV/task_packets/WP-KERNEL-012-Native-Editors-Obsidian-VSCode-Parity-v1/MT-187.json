@@ -1,4 +1,1140 @@
 {
+  "checkpoint_cloud_membership_reviewed_source_adoption_20261024": {
+    "decision_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05",
+    "status": "PROSPECTIVE_NODE_SAVED_WINDOW_GUARDS_REQUIRED",
+    "recorded_at_utc": "2026-10-24T10:26:08.885377Z",
+    "authority": {
+      "actual_decision_owner": "01a16883-1836-7750-8f73-e339eb84751b",
+      "current_primary_receiving_assignment": "01a16935-8b0f-7ed2-a45c-a78847ac51b9",
+      "basis": "Master ACTUALLY DECIDES this exact five-file SOURCE-ONLY Product adoption under existing packet adaptive authority after personally rereading the delegated clauses and historical NAV custody_before_start. The record responds to the exact actual Primary blocker requested by Codeleader; it is not permission inferred from Source clearance or a new human waiver.",
+      "refs": [
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/authority",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/scope_expansion",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016/units/1",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016/units/2",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016/units/4"
+      ],
+      "technical_correctness_owners": "Actual Team5 authors/Codeleader/Diagnostics/Codecheck retain technical authorship and Source correctness; Master and this record editor do not author Source or issue those reviews."
+    },
+    "evidenced_adoption_blocker": {
+      "provenance": "Actual Primary handback requested by Codeleader, supplied through Master; this editor did not inspect Product, artifacts or process state.",
+      "blocker": "Product/control/captured-input freeze, external-only -02/-03/-04 boundaries and UNKNOWN historical Product Source owner/release prevent adoption of the already-reviewed candidate.",
+      "actual_resolution": "Current sole physical Primary receives this narrow explicit five-working-tree-file Source-only writer assignment under actual delegation, conditioned on current scoped exclusivity and exact guards.",
+      "historical_limit": "Historical unknown is retained; no foreign personal release, vacancy, unresponsiveness or global freedom is asserted."
+    },
+    "narrow_precedence": {
+      "prior_external_only_refs": [
+        "#/consent_history_external_source_exception_20261024",
+        "#/checkpoint_cloud_membership_external_source_exception_20261024",
+        "#/checkpoint_cloud_membership_external_source_extension_20261024",
+        "#/checkpoint_cloud_membership_external_source_successors_20261024"
+      ],
+      "historic_named_release_ref": "#/recovery_execute_source_order_exception_20261018/custody_before_start",
+      "override": "ONLY current Primary's exact five reviewed working-tree Source writes are carved out of prior external-only/no-adoption/Source-captured-input freeze and historic named NAV personal-release predecessors. All older records/false fields remain verbatim history; all other paths, controls, execution, custody, pin, proof and finite-hold boundaries remain.",
+      "current_exclusivity_required": true,
+      "historical_personal_release_inferred": false
+    },
+    "selected_candidate": {
+      "manifest": {
+        "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-03-manifest.json",
+        "bytes": 12050,
+        "sha256": "c03b35e5c21c1c67dc449c6635393f0f9f65abce32f396ea772f779e3ed0c832"
+      },
+      "mapping": [
+        {
+          "source_id": "facade",
+          "canonical_path": "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs",
+          "base": {
+            "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-facade-base.rs",
+            "bytes": 772599,
+            "sha256": "0b0a06b00d552594867fc95a0bc0978f782c1f6656b68ab317e7f72a59fff606"
+          },
+          "selected_postimage": {
+            "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-facade-postimage.rs",
+            "bytes": 780780,
+            "sha256": "762113e07da794d2e4a37c322b1ad9bf9e4f9a73fb2398fec9aa08bea4e643f0"
+          },
+          "existing_author_relative_handle": "/checkpoint_coder"
+        },
+        {
+          "source_id": "checkpoint-provider",
+          "canonical_path": "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
+          "base": {
+            "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-checkpoint-provider-base.rs",
+            "bytes": 673234,
+            "sha256": "c13af7abc31d48302dc756353925d7ba3c14b058f169048864b3d94a1b972ee6"
+          },
+          "selected_postimage": {
+            "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-checkpoint-provider-postimage.rs",
+            "bytes": 676412,
+            "sha256": "3a972009f0cb83d2da064a8c85bdd9e32f88fe0eb8f8c83e369df0c8ea00a871"
+          },
+          "existing_author_relative_handle": "/checkpoint_coder"
+        },
+        {
+          "source_id": "cloud-provider",
+          "canonical_path": "src/backend/handshake_core/src/storage/surreal/cloud_model_lane.rs",
+          "base": {
+            "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-cloud-provider-base.rs",
+            "bytes": 32277,
+            "sha256": "6fda5b80f20d4c58d14d17009e2c994b90c7151dc4fd3797ec1d3616a6e2ad76"
+          },
+          "selected_postimage": {
+            "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-cloud-provider-postimage.rs",
+            "bytes": 37168,
+            "sha256": "f6cb02039897a23998011bf1430dec194f93b30604c3a7f00d0b3eb963421437"
+          },
+          "existing_author_relative_handle": "/cloud_coder"
+        },
+        {
+          "source_id": "cloud-schema",
+          "canonical_path": "src/backend/handshake_core/src/storage/surreal/cloud_model_lane_schema.surql",
+          "base": {
+            "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-cloud-schema-base.surql",
+            "bytes": 21297,
+            "sha256": "ec417603c3520794a829b2f95e03b570f371db8b2b743ddbb7c61146dfb69b77"
+          },
+          "selected_postimage": {
+            "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-03-cloud-schema-postimage.surql",
+            "bytes": 28512,
+            "sha256": "56c13f1aa6a26f5dca6b76612bf4bb97e44ab26f5a8c3d1360f1a1648b5b23cb"
+          },
+          "existing_author_relative_handle": "/cloud_coder"
+        },
+        {
+          "source_id": "generic-schema",
+          "canonical_path": "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql",
+          "base": {
+            "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-generic-schema-base.surql",
+            "bytes": 234264,
+            "sha256": "7fabff947bccfdad8748591cc9ab85725e9319994011b44626987aa7a1aa4f83"
+          },
+          "selected_postimage": {
+            "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-generic-schema-postimage.surql",
+            "bytes": 234295,
+            "sha256": "a07d10e499d0528c85029ca7d2271743c07462f542f27a5a352a43ecc4493bd1"
+          },
+          "existing_author_relative_handle": "/checkpoint_coder"
+        }
+      ],
+      "mapping_count": 5,
+      "artifact_root_discovery_ref": "#/checkpoint_cloud_membership_external_source_exception_20261024/candidate_binding/artifact_root_discovery",
+      "path_basis": "Resolve Product root from the actual kernel parent to sibling wtc-WP-KERNEL-012 on feat/WP-KERNEL-012. Concrete artifact paths record the current frozen handoff, not runtime defaults.",
+      "base_limit": "Same exact five immutable -02 BASE preimages; never rebase, silently accept drift or edit retained BASE/postimage/manifest artifacts.",
+      "selected_review_provenance": "Exact frozen manifest and postimage bindings were supplied by actual owning handbacks through Master; this record editor did not independently qualify candidate content."
+    },
+    "source_review": {
+      "diagnostics": "Actual named Diagnostics SOURCE_STATIC_CLEAR delivered by its actual owner.",
+      "codecheck_review_id": "WP012-MT187-CLOUD-RECOVERY-SOURCE03-CODECHECK",
+      "codecheck": "Actual current Codecheck, all3 actual independent lenses SOURCE_STATIC_CLEAR with no actionable findings, delivered by actual owners.",
+      "auth_lens_retraction": "Delayed-commit P2 retracted as a stronger excluded universal-snapshot/HWM-commit gate; no serialization repair.",
+      "historical_internal_failures": "Prior internal above-H P2 and literal-null manifest failure remain immutable corrected history, not retroactively cleared.",
+      "reuse": "Reuse exact valid reviews without a repeated green campaign; Source clearance is evidence for this decision, not itself adoption or execution permission."
+    },
+    "actual_handoff_owners": {
+      "team5_parent": "01a14c7d-500b-7770-a841-68387c45f114",
+      "fresh_leader_native_handle": "/root/mt187_cloud_recovery_leader",
+      "fresh_leader_actual_native_id": "01a16d1b-d5f2-7113-bade-3884dadfdb6d",
+      "existing_authors_relative_to_leader": [
+        "/checkpoint_coder",
+        "/cloud_coder"
+      ],
+      "leaf_identity_limit": "Existing actual parent/canonical handles and ownership ACKs identify authors; no unexposed UUID or replacement is invented.",
+      "codeleader": "01a168a9-05b2-7630-9633-5faac88dd068",
+      "primary": "01a16935-8b0f-7ed2-a45c-a78847ac51b9",
+      "diagnostics_nonauthor": "01a165de-05e9-79f1-8287-dfb2ba5427c1",
+      "current_independent_codecheck": "01a16702-3129-7c21-9a20-c6616fb04ed1"
+    },
+    "rules": [
+      {
+        "rule_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05-001",
+        "requirement": "Under existing delegated authority, Master prospectively assigns CURRENT Primary the sole physical writer scope for ONLY the exact five reviewed working-tree Source adoptions bound here, subject to saved record/full readback, genuine owning handoff, CURRENT scoped exclusivity and fresh exact guards. Static clearance does not itself grant adoption, and this decision creates no human waiver or Master/editor Source authorship."
+      },
+      {
+        "rule_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05-002",
+        "requirement": "ONLY these five working-tree writes are carved out of the Source/captured-input freeze. Narrowly supersede earlier no-adoption/external-only and historical named-NAV-personal-release predecessors only for this actual current Primary Source-only adoption; retain all old decisions, false fields and historical unknowns verbatim."
+      },
+      {
+        "rule_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05-003",
+        "requirement": "No foreign owner is declared dead, unresponsive, released or vacant. Infer no release or process transfer from silence, absence or Source clearance; retain UNKNOWN historical custody without fabricating a personal release or global freedom."
+      },
+      {
+        "rule_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05-004",
+        "requirement": "Primary must establish actual CURRENT exclusive physical writer scope for these five paths and no real incompatible captured-input consumer/writer. If a competing writer/consumer exists or scoped exclusivity cannot be established, stop affected adoption and report the exact conflict; do not overwrite foreign work, conduct a blanket process census/crash investigation or stop anything."
+      },
+      {
+        "rule_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05-005",
+        "requirement": "After saved record and scoped canonical readback, Primary personally reads this exact node, receives the genuine selected-manifest/postimage handoff from actual Team5/fresh leader and existing authors, and acknowledges the exact SOURCE_ONLY_PRODUCT_ADOPTION phase/window without writer or author replacement."
+      },
+      {
+        "rule_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05-006",
+        "requirement": "Before ANY write, complete fresh coherent all-five ordinary-file/ALL-ancestor/no-alias/worktree-and-branch/source-BASE-byte-and-hash and selected-manifest/postimage-byte-and-hash guards; recheck each bound target immediately before its write. Unexpected drift, conflict, nonordinary path or alias stops affected adoption while preserving peer work."
+      },
+      {
+        "rule_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05-007",
+        "requirement": "Primary applies ONLY exact selected reviewed bytes into the five canonical working-tree files. Do not manually repair, format, normalize, edit a sixth path, change an expected global pin or make another fix; keep Source execution frozen throughout with no mixed-candidate execution."
+      },
+      {
+        "rule_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05-008",
+        "requirement": "On partial write or error, report exact applied/remaining paths, actual bytes and failure without PASS or fake atomicity. Perform no destructive Git, global rollback or foreign overwrite."
+      },
+      {
+        "rule_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05-009",
+        "requirement": "The SAME Primary may finish only this bound mapping under fresh guards: untouched targets match BASE and its own already-applied targets match reviewed POSTIMAGE. Preserve honest partial state; any Source delta beyond selected bytes returns to actual author, NONAUTHOR, affected review and scope disposition."
+      },
+      {
+        "rule_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05-010",
+        "requirement": "After coherent actual all-five readback matches every selected postimage byte count/hash, report SOURCE_APPLIED_UNCOMPILED_UNRUN to actual owners, Codeleader and Master with actual window completion, retaining Primary custody. An actual owning handback suffices; manufacture no support report, receipt, MT PASS or selected-handoff/packet update."
+      },
+      {
+        "rule_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05-011",
+        "requirement": "Reuse exact valid Source reviews at unchanged selected bytes, including named Diagnostics and all three independent Codecheck lenses. Keep corrected internal above-H P2 and null-manifest failures as immutable history, never retroactively cleared; the auth-lens delayed-commit P2 was retracted as a stronger excluded universal-snapshot/HWM-commit gate and requires no serialization repair."
+      },
+      {
+        "rule_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05-012",
+        "requirement": "Source application proves no compile, runtime, installation, fingerprint, legacy acceptance, whole-MT or whole-WP PASS. Original legacy-positive and genuine-producer compatibility remain OPEN; absent historical membership remains UNKNOWN without backfill, replacement checkpoint, high-water-mark advance or new-checkpoint substitution."
+      },
+      {
+        "rule_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05-013",
+        "requirement": "Retain all other Product/control/captured-input/compiler/Git/shared-manifest/lock/process/resource freeze. Grant no stage, commit, index, HEAD, branch or other Git mutation; control/config/startup_ack_seconds/input-map/controller adoption; global schema.rs/schema.surql/expected production pin; metadata, cache/target/move/delete/network/OS change."
+      },
+      {
+        "rule_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05-014",
+        "requirement": "Grant no Cargo, test, build, query, install, backend, Native, model, HTTP, inference or runtime launch, new allowance, retry or reset; preserve warm targets and perform no cache cleanup."
+      },
+      {
+        "rule_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05-015",
+        "requirement": "Retain MT174's incomplete capture as INCOMPLETE/NOT_QUALIFIED with historical exits/drain UNRECOVERABLE and no reconstructed afterguards. Original config13/map7602/controller references remain immutable historical inputs and do not prove these new Source bytes; old output11 COMPILE_ONLY cannot qualify them."
+      },
+      {
+        "rule_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05-016",
+        "requirement": "Reuse controller04 SOURCE_STATIC_CLEAR only within its proven scope. Operational config/map/ordered CLI/environment/finite values/controller adoption remain UNBOUND_NONADMITTED; compiler permission is separate and NONE current."
+      },
+      {
+        "rule_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05-017",
+        "requirement": "Keep the exact +2 Cloud functions/zero new fields or indexes whole-production fingerprint dependency separate: replacement ENGINE-observed fingerprint remains UNKNOWN_HELD, with no pin invention, global write or SQL measurement. Source adoption establishes no installation, SQL visibility, engine atomicity, reopen or HTTP403 fix."
+      },
+      {
+        "rule_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05-018",
+        "requirement": "Preserve original AC1-AC5/inherited MT007/real proof/independent validator/full WP scope/pins/history, immutable run-wide PREWRITE membership/atomic payload/original retry set, legal memberless-lane absence and all finite budgets/denials including MT174 TOTAL2/2 spent/no-third. Introduce no universal snapshot/earlier-HWM-commit gate or source_event_seq union/alias."
+      },
+      {
+        "rule_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05-019",
+        "requirement": "No Source adoption, Source START or active window is claimed at record creation. After adoption the next proof and authority are separate; no old prompt, adoption or Source clearance renews execution, and no further Master GO is required after this decision's actual predecessors."
+      },
+      {
+        "rule_id": "WP012-MT187-REVIEWED-SOURCE-ADOPTION-20261024-05-020",
+        "requirement": "This disposition edits only the owning MT187 record. Preserve every older node, rule, raw byte and predecessor artifact/map/config/capture/failure/pin; no other governance or support artifact is authorized."
+      }
+    ],
+    "prospective_window": {
+      "phase": "SOURCE_ONLY_PRODUCT_ADOPTION",
+      "observation_is_at_record_creation_only": true,
+      "source_adoption_claimed": false,
+      "source_start_claimed": false,
+      "window_active_claimed": false,
+      "predecessors": "Saved exact record and Master scoped canonical readback; Primary personal exact-node read; genuine selected-manifest/postimage handoff from actual Team5/fresh leader/existing authors; Primary exact-phase ACK; CURRENT five-path exclusivity with no incompatible captured-input consumer/writer; coherent all-five path/ancestor/noalias/worktree+branch/sourceBASE/selectedmanifest+postimage guards before ANY write and per-target recheck.",
+      "conflict_action": "Stop affected adoption for actual competing writer/consumer, inability to establish scoped exclusivity, drift, nonordinary path or alias. Preserve foreign work; no process stop, blanket process census or crash investigation.",
+      "byte_application": "ONLY exact selected reviewed bytes, no normalization/formatting/manual repair/sixth path/other fix. Source execution stays frozen throughout; no mixed candidate execution.",
+      "partial_state": "On error report applied/remaining/actual bytes and failure, no fake atomicity/PASS/destructive Git/global rollback. Same Primary may finish only bound mapping with fresh BASE guards on untouched targets and exact POST guards on its own already-applied targets.",
+      "completion": "Coherent actual readback of all five exact selected postimage byte counts/hashes -> actual owning SOURCE_APPLIED_UNCOMPILED_UNRUN handback to owners/Codeleader/Master and window completion, retaining Primary custody. No support report, MT PASS or selected-v8/packet update."
+    },
+    "remaining_boundaries": {
+      "untouched_freeze": "All Product/control/captured-input/compiler/Git/shared-manifest/lock/process/resources outside exactly these five writes remain frozen.",
+      "no_git_or_control": "No stage/commit/index/HEAD/branch/Git mutation, control/config/startup_ack_seconds/inputmap/controller adoption, global schema.rs/schema.surql/expected-production-pin change.",
+      "no_other_mutation": "No metadata/cache/target/move/delete/network/OS change; preserve warm target and all immutable artifacts/configs/maps/capture inputs/results/history.",
+      "no_execution": "No Cargo/test/build/query/install/backend/Native/model/HTTP/inference/runtime launch, allowance/retry/reset; future proof and authority remain separate.",
+      "original_capture": "MT174 incomplete capture stays INCOMPLETE/NOT_QUALIFIED; historical numeric exits/drain UNRECOVERABLE, no reconstructed afterguards. Config13/map7602/controller refs are immutable historical inputs, not proof of new Source. Old output11 COMPILE_ONLY cannot qualify it.",
+      "controller_binding": "Controller04 SOURCE_STATIC_CLEAR reused in scope; operational config/map/CLI/env/finite values/controller adoption UNBOUND_NONADMITTED and compile permission separate/NONE current.",
+      "fingerprint": "Exact +2 Cloud functions/0 new fields/indexes changes whole-production fingerprint. ENGINE-observed replacement UNKNOWN_HELD; no invented expected pin/global write/SQL measurement or installation/SQL visibility/engine atomicity/reopen/HTTP403-fix claim.",
+      "legacy": "Original legacy-positive and genuine-producer compatibility OPEN; absent historical membership UNKNOWN, no backfill/replacement checkpoint/HWM advance/new-checkpoint substitute.",
+      "proof_floor": "Original AC1-AC5/inherited MT007/full WP scope/real proof/IV/pins/history and all Native/Snapshot/Chat/Source budgets/denials, MT174 TOTAL2/2 spent/no-third, remain. No universal snapshot/earlier-HWM-commit gate or source_event_seq union/alias."
+    },
+    "preservation_refs": {
+      "acceptance": "#/scope/acceptance_criteria",
+      "proof": "#/proof",
+      "attempt_budget": "#/attempt_budget",
+      "four_path_preimages": "#/checkpoint_cloud_membership_external_source_exception_20261024/source_binding/preimages",
+      "fifth_preimage": "#/checkpoint_cloud_membership_external_source_extension_20261024/fifth_source_binding",
+      "successor_controls": "#/checkpoint_cloud_membership_external_source_successors_20261024"
+    },
+    "source_only_product_adoption_authorized_conditionally": true,
+    "execution_or_control_adoption_authorized": false,
+    "git_index_head_branch_commit_authorized": false,
+    "global_schema_expected_pin_or_metadata_authorized": false,
+    "new_allowance_retry_or_reset": false,
+    "extra_governance_or_support_artifacts_authorized": false,
+    "acceptance": "NOT_ACCEPTED"
+  },
+  "checkpoint_cloud_membership_external_source_successors_20261024": {
+    "decision_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04",
+    "status": "SAME_UNIT_IMMUTABLE_EXTERNAL_SUCCESSOR_DISPOSITION_RECORDED_ACTUAL_PHASE_AND_CHECKS_REQUIRED",
+    "recorded_at_utc": "2026-10-24T09:47:46.084905Z",
+    "authority": {
+      "technical_decision_owner": "01a168a9-05b2-7630-9633-5faac88dd068",
+      "recording_master": "01a16883-1836-7750-8f73-e339eb84751b",
+      "basis": "Actual Code Dev Leader SAME-UNIT repair and immutable successor disposition under existing adaptive scope-expansion delegation; this minimum prospective record creates no human waiver, Source acceptance or general Master GO.",
+      "refs": [
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/authority",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/scope_expansion",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016/units/1",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016/units/2",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016/units/4"
+      ]
+    },
+    "narrow_precedence": {
+      "four_path_ref": "#/checkpoint_cloud_membership_external_source_exception_20261024",
+      "fifth_path_ref": "#/checkpoint_cloud_membership_external_source_extension_20261024",
+      "override": "Only fixed predecessor artifact-version/path limitations are superseded for the bounded same-unit immutable successor control and the three exact current -03 outputs. Existing canonical five-path Source scope, authors, exact BASE inputs, semantics, phase/custody/guards/proof and all holds remain; all prior raw bytes and rules are retained.",
+      "unchanged_canonical_source_bindings_refs": [
+        "#/checkpoint_cloud_membership_external_source_exception_20261024/source_binding/preimages",
+        "#/checkpoint_cloud_membership_external_source_extension_20261024/fifth_source_binding"
+      ],
+      "unchanged_authors_ref": "#/checkpoint_cloud_membership_external_source_exception_20261024/actual_owners"
+    },
+    "recorded_source_finding": {
+      "provenance": "Actual internal flow NONAUTHOR static finding and actual Code Dev Leader repair disposition supplied through Master; this record editor did not inspect or execute Source/Product.",
+      "finding": "P2/static counterexample: frozen -02 Cloud SQL postimage validates per-member dependencies/private/lane/fences at221-260 before event_seq<=H eligibility at261, so an excluded above-H row can veto checkpoint capture.",
+      "frozen_postimage": {
+        "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-cloud-schema-postimage.surql",
+        "bytes": 28387,
+        "sha256": "2f2e8f1f8216707cdb0c7f861631041d8771b9485d25b6b7bca4a7507654d338"
+      },
+      "repair": "SAME cloud_coder moves eligibility selection before per-member validation only; every eligible member retains all original fail-closed authentic/private/scope/metadata/hash/receipt/run/lane/fence checks.",
+      "candidate_state_at_observation": "INTERNAL_NOT_PASS",
+      "executed_product_failure": false,
+      "external_dx_or_cc_clear": false
+    },
+    "recorded_packaging_failure": {
+      "provenance": "Actual leader packaging failure supplied by owning handback through Master; not a measurement or diagnosis by this editor.",
+      "frozen_manifest": {
+        "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-manifest.json",
+        "bytes": 4,
+        "sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "literal": "null"
+      },
+      "reported_cause": "Leader used bare true/false in PowerShell.",
+      "repair_owner": "SAME actual fresh coding leader; repair its packaging control and emit a distinct valid non-null manifest object.",
+      "preservation": "The old literal-null manifest and all -02 SQL/postimage/diff evidence remain immutable; never overwrite, quarantine, delete or rebase them.",
+      "validation_limit": "Actual required manifest schema/validator validation belongs the actual author and NONAUTHOR. No schema is invented here, and no missing or unperformed validator is claimed passed."
+    },
+    "actual_owners": {
+      "team5_parent": "01a14c7d-500b-7770-a841-68387c45f114",
+      "leader": {
+        "native_handle": "/root/mt187_cloud_recovery_leader",
+        "actual_native_id": "01a16d1b-d5f2-7113-bade-3884dadfdb6d",
+        "owns": "Successor packaging control and manifest"
+      },
+      "sql_and_diff_owner": {
+        "relative_native_handle": "/cloud_coder",
+        "relative_to_leader": "/root/mt187_cloud_recovery_leader",
+        "leaf_uuid": null
+      },
+      "unchanged_coder_a_relative_handle": "/checkpoint_coder",
+      "unchanged_internal_nonauthors_relative_handles": [
+        "/flow_nonauthor",
+        "/dependency_nonauthor"
+      ],
+      "identity_limit": "Same actual owning parent, leader and canonical handles; leaf UUIDs not exposed here are not invented. No replacement, restart or relabeling follows.",
+      "primary": "01a16935-8b0f-7ed2-a45c-a78847ac51b9",
+      "diagnostics_nonauthor": "01a165de-05e9-79f1-8287-dfb2ba5427c1",
+      "independent_three_lens_codecheck": "01a16702-3129-7c21-9a20-c6616fb04ed1"
+    },
+    "current_explicit_successor_outputs": {
+      "artifact_root_discovery_ref": "#/checkpoint_cloud_membership_external_source_exception_20261024/candidate_binding/artifact_root_discovery",
+      "observed_existing_wp_root": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012",
+      "absolute_values_limit": "Concrete current handoff paths beneath the discovered existing WP root, not portable runtime defaults.",
+      "cloud_schema_postimage": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-03-cloud-schema-postimage.surql",
+      "cloud_schema_diff": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-03-cloud-schema-diff.patch",
+      "manifest": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-03-manifest.json",
+      "primary_guard_provenance": "Actual Code Dev Leader handback reports Primary personally guarded all3 ABSENT, unique, root-contained with ordinary ancestors. No guard receipt ID was exposed and none is invented.",
+      "required_author_guard": "Actual owning author independently refreshes absence/non-reparse/containment/nonoverlap/CreateNew and full-scope phase ACK before writing.",
+      "existence_limit": "This record admits exact current paths but claims no new file, postimage, manifest, fix, phase extension or clearance."
+    },
+    "immutable_input_reuse": {
+      "cloud_schema_base": {
+        "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-cloud-schema-base.surql",
+        "sha256": "ec417603c3520794a829b2f95e03b570f371db8b2b743ddbb7c61146dfb69b77"
+      },
+      "base_bindings_refs": [
+        "#/checkpoint_cloud_membership_external_source_exception_20261024/source_binding/preimages",
+        "#/checkpoint_cloud_membership_external_source_extension_20261024/fifth_source_binding"
+      ],
+      "other_four": "Retain unchanged other FOUR canonical units' existing postimages/diffs and valid proof; no new BASE, canonical input, cache or runtime directory.",
+      "old_generations": "Preserve all predecessor versions and failures; successor lineage must explicitly distinguish retained -02 inputs/history from selected -03 or later bounded artifacts."
+    },
+    "bounded_successor_control": {
+      "canonical_scope": "SAME FIVE admitted canonical Source paths, SAME disjoint actual authors, UNCHANGED EXACT BASE preimages and SAME verified WP artifact root.",
+      "admission": "Existing actual owning leader records exact issue, owner, successor path and lineage in actual successor manifest/owning handback after actual Primary/author absence/non-reparse/containment/nonoverlap guards and existing external-only phase/receiver ACK.",
+      "record_location": "Per-generation issue/path/lineage binding is in the actual successor manifest and owning handback, not repeated governance rewriting.",
+      "permitted_successor_kinds": [
+        "versioned POSTIMAGE",
+        "versioned DIFF",
+        "versioned MANIFEST"
+      ],
+      "limit": "Only genuinely identical-scope artifact repair iterations use this control; conflict, extra canonical Source path, new writer, changed BASE, authority, hold or allowance stops for an exact disposition. No overwrite, rebase, Source-base change, canonical-input change, runtime retry or unbounded artifact permission.",
+      "proof": "Actual independent successor-content/hash/full-manifest/inverse reconstruction plus inherited valid proof; a manifest never grants adoption, execution or acceptance."
+    },
+    "rules": [
+      {
+        "rule_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04-001",
+        "requirement": "The SAME cloud_coder repairs only Cloud SQL membership eligibility selection so event_seq <= H selection occurs BEFORE per-member dependency/private/lane/fence validation; every eligible member retains fail-closed validation and all original authentic authority, private scope, metadata, hash, receipt, run/lane and fence checks."
+      },
+      {
+        "rule_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04-002",
+        "requirement": "Treat the recorded above-H counterexample as actual internal NONAUTHOR P2/static evidence, not an executed Product failure. The five-file candidate remains INTERNAL_NOT_PASS until the repair passes its required checks; this record grants no external Diagnostics or Codecheck clearance."
+      },
+      {
+        "rule_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04-003",
+        "requirement": "Preserve the frozen -02 Cloud SQL postimage/diff, null manifest and every predecessor as immutable history; never overwrite, quarantine, delete, rebase or fabricate their correction or success."
+      },
+      {
+        "rule_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04-004",
+        "requirement": "The SAME actual leader repairs its packaging control and creates a distinct non-null valid successor manifest object. No empty, null or provisional success artifact is allowed, and no invented schema or unperformed manifest-validator PASS substitutes for actual author/NONAUTHOR validation."
+      },
+      {
+        "rule_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04-005",
+        "requirement": "Before manifest publication, check JSON parse, object and actual required schema, selected-five-canonical-path uniqueness, actual BASE/postimage/diff hashes and scopes, authors, lineage, remaining proof, full five-file independent reconstruction and prior -02 failure/supersession history."
+      },
+      {
+        "rule_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04-006",
+        "requirement": "Only the three exact current -03 successor paths below are explicitly admitted by this disposition. The SAME cloud_coder owns new Cloud SQL postimage/diff and the SAME leader owns the new manifest; checkpoint_coder A and the distinct internal flow/dependency NONAUTHORS remain unchanged."
+      },
+      {
+        "rule_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04-007",
+        "requirement": "Reuse the existing -02 Cloud BASE and the unchanged other FOUR postimages/diffs and valid proof. Create no new base, canonical input, cache or runtime directory and add no canonical Source path, feature, writer, grant or runtime change."
+      },
+      {
+        "rule_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04-008",
+        "requirement": "The actual owning leader may admit a distinct versioned POSTIMAGE/DIFF/MANIFEST successor only beneath the SAME verified WP artifact root for the SAME FIVE canonical Source paths, SAME disjoint authors and UNCHANGED EXACT BASE preimages, after actual Primary and author absence/non-reparse/containment/nonoverlap guards and existing exact external-only phase/receiver acknowledgment."
+      },
+      {
+        "rule_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04-009",
+        "requirement": "For each successor, bind the actual recorded issue, owner, exact path and predecessor/base lineage in the actual successor manifest and owning handback. Subsequent genuinely identical-scope artifact iterations use these recorded controls without repeated governance rewrites, general Root/Master GO or per-generation ceremony."
+      },
+      {
+        "rule_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04-010",
+        "requirement": "Every successor preserves all predecessors and exact bases; no overwrite, rebase or new Source base/canonical input follows successor admission. The fixed initial -02 literal paths are immutable history, not a perpetual ban on in-scope same-unit repair generations."
+      },
+      {
+        "rule_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04-011",
+        "requirement": "Require actual independent successor-content/hash, full-manifest and inverse-reconstruction checks plus inherited valid proof; a manifest never grants Product/control adoption, execution or acceptance."
+      },
+      {
+        "rule_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04-012",
+        "requirement": "Stop the affected proposal for actual conflict or any extra canonical Source path, new writer, changed BASE, authority, hold or allowance requiring an exact new disposition; no general runtime retry or unbounded artifact permission follows these successor controls."
+      },
+      {
+        "rule_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04-013",
+        "requirement": "After saved pointer/hash and scoped canonical readback, Primary personally reads this exact node and extends the SAME external-only phase to the SAME actual receivers. Their full-scope ACKs, fresh personal absence/non-reparse/containment/nonoverlap/base guards and CreateNew creation precede the specific repair, without a further Root/Master GO."
+      },
+      {
+        "rule_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04-014",
+        "requirement": "Do not claim a new postimage, manifest, Source fix, phase extension, Source START or clearance from record creation; actual owner handbacks and independent checks establish subsequent state."
+      },
+      {
+        "rule_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04-015",
+        "requirement": "Focus the changed proof on eligibility before member validation, malformed or unauthorized SELECTED-member failure, above-H exclusion from both veto and selected membership, genuine metadata/hash/receipt/run/lane/fences, preserved old null manifest, actual valid full-five-file successor object and inverse reconstruction."
+      },
+      {
+        "rule_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04-016",
+        "requirement": "Reuse unchanged FOUR-unit valid proof and existing +2 SQL-function definition/caller findings; route fresh actual internal NONAUTHOR checks to named Diagnostics NONAUTHOR and current independent three-lens Codecheck without broad Source/catalog replay or review-of-review."
+      },
+      {
+        "rule_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04-017",
+        "requirement": "Keep adoption's exact +2 function and whole-production-fingerprint dependency separate from this Source repair: engine-observed replacement fingerprint remains UNKNOWN/HELD, global Source remains write-excluded, and no expected pin is invented or patched and no query or measurement executes without authority."
+      },
+      {
+        "rule_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04-018",
+        "requirement": "Do not impose runtime-before-Source as a gate. Source P2 repair/precheck does not establish adoption, compiler/runtime proof or engine-observed fingerprint."
+      },
+      {
+        "rule_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04-019",
+        "requirement": "Preserve run-wide coverage, legal memberless-lane absence, immutable server-derived membership, chosen PREWRITE exact high-water mark, atomic canonical payload, original retry set, legacy bytes and original positive legacy acceptance OPEN and producer compatibility OPEN. Keep generic source_event_seq unchanged without a new union, alias, mirror or framework."
+      },
+      {
+        "rule_id": "WP012-MT187-IMMUTABLE-EXTERNAL-SOURCE-SUCCESSORS-20261024-04-020",
+        "requirement": "Retain Product/control/captured-input/Git/compiler/process/resource freeze, UNKNOWN historical Source custody, original AC1-AC5/inherited MT007/independent validation/pins/history and every finite hold including MT174 runtime TOTAL2/2 spent/no-third. Grant no Product/control adoption, test/build/Cargo/runtime/SQL query/Native/model/HTTP/inference/OS/metadata/pool/reset or policy/grant/configuration population, and no governance edit beyond this record."
+      }
+    ],
+    "phase_observation": {
+      "at_record_creation_only": true,
+      "source_start_claimed": false,
+      "phase_extension_claimed": false,
+      "new_postimage_or_manifest_claimed": false,
+      "source_fix_claimed": false,
+      "clearance_claimed": false,
+      "next_action": "Saved pointer/hash plus scoped canonical readback -> Primary personally reads exact node and extends SAME external-only phase -> SAME actual receivers full-scope ACK/fresh guards/CreateNew -> specific repair. No further Root/Master GO.",
+      "custody_limit": "All existing live Product/control/captured-input and process/resource custody remains frozen and unchanged; unknown historical Source custody is not a release."
+    },
+    "focused_proof": {
+      "changed_cases": [
+        "Eligibility precedes member validation",
+        "Malformed or unauthorized SELECTED member still fails",
+        "Excluded above-H row cannot veto capture or enter membership",
+        "Genuine metadata/hash/receipt/run/lane/fences preserved",
+        "Old null manifest preserved",
+        "New actual non-null full-five-file manifest object validates",
+        "Independent inverse reconstruction and exact lineage"
+      ],
+      "reuse": "Unchanged FOUR-unit valid proof and existing +2 SQL-function definition/caller findings; no broad Source/catalog replay.",
+      "route": "Fresh actual internal flow/dependency NONAUTHORS -> named Diagnostics NONAUTHOR -> current independent actual three-lens Codecheck.",
+      "limit": "Source/static checks do not establish compiler/runtime, adoption fingerprint, legacy acceptance or whole-item PASS."
+    },
+    "separate_adoption_dependency": {
+      "added_functions": [
+        "fn::wp012_cloud_checkpoint_dependency_read",
+        "fn::wp012_cloud_checkpoint_denial_membership"
+      ],
+      "added_fields": 0,
+      "added_indexes": 0,
+      "shared_global_catalog": "Unaffected according to actual owning technical handback; no global Source write is admitted.",
+      "whole_production_fingerprint_proof": "AFFECTED",
+      "replacement_engine_observed_fingerprint": "UNKNOWN_HELD",
+      "required_separation": "Do not invent or patch an expected pin or execute a query/measurement without authority. Keep adoption's actual engine-observed fingerprint dependency separate from Source P2 repair/precheck; no runtime-before-Source gate.",
+      "acceptance_limit": "Existing function-definition/caller findings alone do not establish the engine-observed replacement fingerprint."
+    },
+    "preservation_refs": {
+      "original_acceptance": "#/scope/acceptance_criteria",
+      "original_proof": "#/proof",
+      "original_attempt_budget": "#/attempt_budget",
+      "old_one_file": "#/consent_history_external_source_exception_20261024",
+      "four_path": "#/checkpoint_cloud_membership_external_source_exception_20261024",
+      "fifth_path": "#/checkpoint_cloud_membership_external_source_extension_20261024"
+    },
+    "preservation": "Run-wide genuine membership and legal memberless-lane absence, immutable server membership/PREWRITE exact HWM/atomic canonical payload/original retry set/legacy bytes/positive legacy and producer compatibility OPEN, unchanged generic source_event_seq/no union-alias-mirror-framework, original AC1-AC5/inherited MT007/IV/pins/history/all finite holds including MT1742/2 spent/no-third remain. All existing MT187 nodes/raw bytes remain untouched.",
+    "external_same_unit_successors_authorized_conditionally": true,
+    "product_control_adoption_or_execution_authorized": false,
+    "tests_build_cargo_runtime_sql_query_native_model_http_inference_os_metadata_pool_reset_authorized": false,
+    "policy_grant_configuration_population_authorized": false,
+    "extra_governance_edits_authorized": false,
+    "acceptance": "NOT_ACCEPTED"
+  },
+  "checkpoint_cloud_membership_external_source_extension_20261024": {
+    "decision_id": "WP012-MT187-GENERIC-COORDINATION-PURPOSE-EXTERNAL-SOURCE-20261024-03",
+    "status": "PROSPECTIVE_FIFTH_PATH_EXTERNAL_SOURCE_EXTENSION_RECORDED_PHASE_HANDOFF_AND_FRESH_GUARDS_REQUIRED",
+    "recorded_at_utc": "2026-10-24T09:21:15.949601Z",
+    "authority": {
+      "technical_decision_owner": "01a168a9-05b2-7630-9633-5faac88dd068",
+      "recording_master": "01a16883-1836-7750-8f73-e339eb84751b",
+      "basis": "Actual Code Dev Leader explicitly authorized this exact fifth-path EXTERNAL-ONLY extension under existing adaptive scope-expansion delegation. This is the necessary prospective Source record, not a Master Source diagnosis or human waiver.",
+      "refs": [
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/authority",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/scope_expansion",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016/units/1",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016/units/2",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016/units/4"
+      ]
+    },
+    "narrow_precedence": {
+      "extended_decision_ref": "#/checkpoint_cloud_membership_external_source_exception_20261024",
+      "affected_existing_scope_refs": [
+        "#/checkpoint_cloud_membership_external_source_exception_20261024/source_binding/preimages",
+        "#/checkpoint_cloud_membership_external_source_exception_20261024/source_binding/write_exclusions/0",
+        "#/checkpoint_cloud_membership_external_source_exception_20261024/source_binding/private_serialization_boundary",
+        "#/checkpoint_cloud_membership_external_source_exception_20261024/actual_owners/coder_a/owns_source_ids",
+        "#/checkpoint_cloud_membership_external_source_exception_20261024/candidate_binding/source_outputs",
+        "#/checkpoint_cloud_membership_external_source_exception_20261024/candidate_binding/literal_output_count",
+        "#/checkpoint_cloud_membership_external_source_exception_20261024/rules"
+      ],
+      "exact_override": "Only the admitted fifth generic-SQL purpose-union proposal and three new outputs extend existing path/owner/count restrictions. All thirty earlier rules remain byte-exact; their four/thirteen counts and generic-SQL exclusion apply except for this exact new scope. No other exclusion, semantic boundary, hold, custody or proof condition changes."
+    },
+    "technical_assessment": {
+      "provenance": "Actual read-only Code Dev Leader technical assessment and Primary/Team5 guard handbacks supplied by Master; this record editor did not measure or diagnose Product source.",
+      "blocker": "The existing recovery_checkpoint_record Create purpose must be representable in model_lane_context_coordination authority_purpose TYPE union.",
+      "only_delta": "Append | 'recovery_checkpoint_record' to the existing TYPE union at inspected line304.",
+      "preserved_evidence": "Matrix184 already permits the existing purpose/Create; recording571-573 binds recovery_checkpoint; source access1882-1889 keeps original authority/workspace/Create/runtime validation. Session/grant/principal/scope/policy205-213/254-260, holder270-282 and transition/fence324-404 remain unchanged.",
+      "line_anchor_limit": "Line numbers describe the owning assessment against the exact admitted preimage; the Source author still opens and guards that preimage before editing."
+    },
+    "fifth_source_binding": {
+      "repository": "../wtc-WP-KERNEL-012",
+      "branch": "feat/WP-KERNEL-012",
+      "source_id": "generic-schema",
+      "path": "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql",
+      "bytes": 234264,
+      "sha256": "7fabff947bccfdad8748591cc9ab85725e9319994011b44626987aa7a1aa4f83",
+      "scope": "New private external proposal only; Product source remains read-only and frozen.",
+      "guard_provenance": "Primary ec33a4 exited0 after personal exact preimage and ALL ordinary/non-reparse ancestor checks. Actual Team5 checkpoint_coder ACK, guards636303 and corrected full-ancestor b95d24 exited0 independently matched234264 bytes/SHA7fabff947bccfdad8748591cc9ab85725e9319994011b44626987aa7a1aa4f83. These are actual owning handbacks, not editor measurements."
+    },
+    "actual_owners": {
+      "team5_parent": "01a14c7d-500b-7770-a841-68387c45f114",
+      "fresh_leader_native_handle": "/root/mt187_cloud_recovery_leader",
+      "fresh_leader_actual_native_id": "01a16d1b-d5f2-7113-bade-3884dadfdb6d",
+      "added_proposal_owner": {
+        "relative_native_handle": "/checkpoint_coder",
+        "relative_to_leader": "/root/mt187_cloud_recovery_leader",
+        "leaf_uuid": null
+      },
+      "unchanged_coder_b_relative_handle": "/cloud_coder",
+      "unchanged_nonauthors_relative_handles": [
+        "/flow_nonauthor",
+        "/dependency_nonauthor"
+      ],
+      "identity_basis": "Same actual leader, canonical handles, owning parent and ownership ACKs; parent retains actual leaf IDs/phase markers. Unavailable leaf UUID is optional, not an approval gate.",
+      "primary": "01a16935-8b0f-7ed2-a45c-a78847ac51b9",
+      "diagnostics_nonauthor": "01a165de-05e9-79f1-8287-dfb2ba5427c1",
+      "independent_three_lens_codecheck": "01a16702-3129-7c21-9a20-c6616fb04ed1"
+    },
+    "new_external_outputs": {
+      "discovery_basis_ref": "#/checkpoint_cloud_membership_external_source_exception_20261024/candidate_binding/artifact_root_discovery",
+      "absolute_values_limit": "Current concrete handoff observations under the discovered existing WP artifact root; not portable runtime defaults.",
+      "base": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-generic-schema-base.surql",
+      "postimage": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-generic-schema-postimage.surql",
+      "diff": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-generic-schema-diff.patch",
+      "existing_manifest": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-manifest.json",
+      "prior_thirteen_outputs_ref": "#/checkpoint_cloud_membership_external_source_exception_20261024/candidate_binding",
+      "prospective_coherent_output_count": 16,
+      "guard_provenance": "Primary ec33a4 personally confirmed all3 ABSENT, distinct, root-contained, ordinary/non-reparse and without overlap with old BASE or current13. Actual Team5 checkpoint_coder ACK and636303/corrected b95d24 independently confirmed the same source and3 absent destinations.",
+      "existence_limit": "No new BASE, postimage, diff, phase extension or manifest completion is claimed by this record; preserve all existing outputs."
+    },
+    "rules": [
+      {
+        "rule_id": "WP012-MT187-GENERIC-COORDINATION-PURPOSE-EXTERNAL-SOURCE-20261024-03-001",
+        "requirement": "This extension admits only the fifth private external proposal described here. It supersedes the prior four-path restriction, generic model_lane_schema.surql write exclusion and thirteen-output count only as necessary for this exact five-path/sixteen-output unit; retain the old four-path node, all thirty rules and every other obligation unchanged."
+      },
+      {
+        "rule_id": "WP012-MT187-GENERIC-COORDINATION-PURPOSE-EXTERNAL-SOURCE-20261024-03-002",
+        "requirement": "In the fifth proposal, append only | 'recovery_checkpoint_record' to model_lane_context_coordination authority_purpose TYPE union at the bound source's inspected line304. This makes an existing purpose representable; change no other generic SQL field, predicate, list, migration or catalog."
+      },
+      {
+        "rule_id": "WP012-MT187-GENERIC-COORDINATION-PURPOSE-EXTERNAL-SOURCE-20261024-03-003",
+        "requirement": "Preserve existing purpose/Create matrix184, recording571-573 recovery_checkpoint binding, source access1882-1889 original authority/workspace/Create/runtime validation, session/grant/principal/scope/policy205-213 and254-260, holder270-282 and transition/fence324-404. Do not create a fake generic Cloud-history route, broader grant/capability, symmetry expansion or old allowlist patch."
+      },
+      {
+        "rule_id": "WP012-MT187-GENERIC-COORDINATION-PURPOSE-EXTERNAL-SOURCE-20261024-03-004",
+        "requirement": "The SAME checkpoint_coder A under the actual fresh coding leader adds only this generic-SQL external proposal to its existing scope; cloud_coder B and the same distinct flow/dependency NONAUTHORS remain unchanged. Canonical handles, actual parent and ownership ACKs bind identity; unavailable leaf UUIDs are optional and do not block this phase or authorize invented identities, team restart, discard or relabeling."
+      },
+      {
+        "rule_id": "WP012-MT187-GENERIC-COORDINATION-PURPOSE-EXTERNAL-SOURCE-20261024-03-005",
+        "requirement": "Create only the three new exact generic-schema BASE/POSTIMAGE/DIFF paths below and use the existing -02 manifest. The complete prospective coherent set becomes sixteen outputs, prior thirteen plus these three, only through this saved extension and actual phase handoff; no candidate existence or completion is inferred."
+      },
+      {
+        "rule_id": "WP012-MT187-GENERIC-COORDINATION-PURPOSE-EXTERNAL-SOURCE-20261024-03-006",
+        "requirement": "After saved-extension and canonical readback, Primary personally reads this exact extension, freshly binds the affected fifth preimage, three destinations, current coherent paths and freeze, and extends the exact EXTERNAL_SOURCE_CANDIDATE_ONLY scope/pathset/phase through actual Team5 leader to actual A leaf."
+      },
+      {
+        "rule_id": "WP012-MT187-GENERIC-COORDINATION-PURPOSE-EXTERNAL-SOURCE-20261024-03-007",
+        "requirement": "The receiver's full-scope ACK and fresh personal ordinary-file/ancestor/preimage-size/hash/CreateNew-BASE-byte/hash/output-absence guards precede the external write. Do not claim SOURCE START, postimages, phase extension or PASS from record creation, and do not insert another Master/Root GO after the actual predecessor steps."
+      },
+      {
+        "rule_id": "WP012-MT187-GENERIC-COORDINATION-PURPOSE-EXTERNAL-SOURCE-20261024-03-008",
+        "requirement": "Stop the affected proposal on actual drift, aliasing, unexpected existing output or evidenced writer/captured-input conflict; preserve all bytes. Unknown historical Product custody stays UNKNOWN, and universal Product release is not a prerequisite for this external phase's read-only derivation."
+      },
+      {
+        "rule_id": "WP012-MT187-GENERIC-COORDINATION-PURPOSE-EXTERNAL-SOURCE-20261024-03-009",
+        "requirement": "A merely declared or never-created lane without an actual included member requires no fabricated or new generic Lane guard; do not turn legal lane absence into corruption."
+      },
+      {
+        "rule_id": "WP012-MT187-GENERIC-COORDINATION-PURPOSE-EXTERNAL-SOURCE-20261024-03-010",
+        "requirement": "EVERY actual included Cloud member requires genuine run/lane/private/fence proof. On failure report truthful unavailable or unverifiable history, preserve original producer compatibility OPEN, and never synthesize a Lane or metadata or silently narrow capture to the optional checkpoint lane."
+      },
+      {
+        "rule_id": "WP012-MT187-GENERIC-COORDINATION-PURPOSE-EXTERNAL-SOURCE-20261024-03-011",
+        "requirement": "Retain immutable server-derived membership, chosen PREWRITE observation, exact unchanged generic EventLedger high-water mark, atomic canonical checkpoint/hashed-payload binding, original retry membership set, legacy bytes and original positive legacy acceptance OPEN. Keep generic source_event_seq unchanged with no union, alias, mirror, view or framework."
+      },
+      {
+        "rule_id": "WP012-MT187-GENERIC-COORDINATION-PURPOSE-EXTERNAL-SOURCE-20261024-03-012",
+        "requirement": "Review the coherent Source through actual internal flow and dependency NONAUTHORS, named Diagnostics NONAUTHOR and current Codecheck's three actual independent lenses; reuse valid unchanged proof. Source review does not establish compiler, runtime or legacy PASS."
+      },
+      {
+        "rule_id": "WP012-MT187-GENERIC-COORDINATION-PURPOSE-EXTERNAL-SOURCE-20261024-03-013",
+        "requirement": "Preserve original MT187 AC1-AC5, inherited MT007, original runtime proof and independent verdicts, all scope/pins/history and finite holds including MT174 runtime TOTAL2/2 spent/no-third. Preserve old four-path and one-file decisions, the old SQL BASE, all historical Product custody and unrecoverable incomplete-capture truth."
+      },
+      {
+        "rule_id": "WP012-MT187-GENERIC-COORDINATION-PURPOSE-EXTERNAL-SOURCE-20261024-03-014",
+        "requirement": "Primary retains sole physical Product/control/captured-input/Git/manifests/locks/compiler/process/resource custody and freeze. This extension grants no Product/control adoption or release, test/build/Cargo/runtime query/Native/model/inference/HTTP/pool/OS/metadata/Git action or policy/grant/configuration population, and no governance edit beyond this record."
+      }
+    ],
+    "binding_observation": {
+      "observation_is_at_record_creation_only": true,
+      "source_start_claimed": false,
+      "postimages_claimed": false,
+      "phase_extension_claimed": false,
+      "acceptance_claimed": false,
+      "next_required_phase": "Actual saved-extension/canonical readback -> Primary personal exact-node/fifth-preimage/3-destination/current-coherent-path/freeze guards -> exact EXTERNAL_SOURCE_CANDIDATE_ONLY phase extension through Team5/fresh leader to actual A -> full-scope receiver ACK and fresh personal CreateNew BASE byte/hash/ancestor/preimage/output guards -> only the admitted external delta.",
+      "custody": "Primary Product/control/captured-input freeze and UNKNOWN foreign historical Product custody remain; no Product adoption window or universal Product-release gate follows."
+    },
+    "runwide_construction_clarification": {
+      "without_included_member": "A merely declared/never-created lane without an actual included Cloud member needs no fabricated/new generic Lane guard; legal absence is not corruption.",
+      "with_included_member": "Every actual included Cloud member needs genuine run/lane/private/fence proof. Failure is truthful unavailable/unverifiable, original producer compatibility stays OPEN, and no Lane or metadata is synthesized.",
+      "capture_limit": "Optional checkpoint lane must not truncate run-wide membership; all original immutable PREWRITE/HWM/atomic canonical payload/retry/legacy requirements remain."
+    },
+    "preservation_refs": {
+      "original_acceptance": "#/scope/acceptance_criteria",
+      "original_proof": "#/proof",
+      "original_attempt_budget": "#/attempt_budget",
+      "old_one_file_decision": "#/consent_history_external_source_exception_20261024",
+      "four_path_decision": "#/checkpoint_cloud_membership_external_source_exception_20261024"
+    },
+    "preservation": "All existing MT187 bytes, four-path record and30rules, one-file record, old SQL BASE/history and prior proof/custody remain untouched; this exact extension alone admits fifth-path/16-output Source preparation.",
+    "source_external_proposal_authorized_conditionally": true,
+    "product_control_adoption_or_release_authorized": false,
+    "tests_build_cargo_runtime_query_native_model_inference_http_pool_os_metadata_git_authorized": false,
+    "policy_grant_configuration_population_authorized": false,
+    "extra_governance_edits_authorized": false,
+    "new_allowance_or_reset": false,
+    "acceptance": "NOT_ACCEPTED"
+  },
+  "checkpoint_cloud_membership_external_source_exception_20261024": {
+    "decision_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02",
+    "status": "PROSPECTIVE_FOUR_PATH_EXTERNAL_SOURCE_BINDINGS_RECORDED_PHASE_HANDOFF_AND_FRESH_GUARDS_REQUIRED",
+    "recorded_at_utc": "2026-10-24T09:07:33.996724Z",
+    "authority": {
+      "technical_decision_owner": "01a168a9-05b2-7630-9633-5faac88dd068",
+      "recording_master": "01a16883-1836-7750-8f73-e339eb84751b",
+      "basis": "Actual Code Dev Leader prospective FOUR-PATH EXTERNAL-CANDIDATE-ONLY decision and actual Primary confirmation, recorded under existing collaborative adaptive authority; Master records the disposition and does not author Source or create a human waiver.",
+      "refs": [
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/authority",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/scope_expansion",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016/units/1",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016/units/2",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016/units/4"
+      ],
+      "historical_source_order_ref": "#/recovery_execute_source_order_exception_20261018",
+      "previous_external_method_ref": "#/consent_history_external_source_exception_20261024"
+    },
+    "evidenced_failure": {
+      "provenance": "Actual technical failure and decision handbacks supplied by Code Dev Leader, Team5 and Primary through Master; this record author did not inspect or diagnose Product source.",
+      "acceptance_ref": "#/scope/acceptance_criteria/2",
+      "actual_producer": "Genuine Cloud producer consent_denial with lane_id, Cloud schema and event_ledger_event_id.",
+      "recovery_mismatch": "Generic recovery expects cloud_consent_denial with DTO event_id and different kernel/stream provenance. Hypothetical generic SQL rows do not repair actual producer history.",
+      "previous_method_limit": "The old read-scope/missing-RecoveryExecute fix remains resolved. The prior one-file SQL-only method is insufficient; its BASE SHA7fabff947bccfdad8748591cc9ab85725e9319994011b44626987aa7a1aa4f83/234264 bytes and history are retained, with no postimage or diff fabricated.",
+      "proven_scope_limit": "Common numeric allocator and protected transport evidence is retained; allocator evidence alone does not establish committed membership. No universal database-isolation or new source-union law is established."
+    },
+    "source_binding": {
+      "repository": "../wtc-WP-KERNEL-012",
+      "branch": "feat/WP-KERNEL-012",
+      "preimages": [
+        {
+          "source_id": "facade",
+          "path": "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs",
+          "bytes": 772599,
+          "sha256": "0b0a06b00d552594867fc95a0bc0978f782c1f6656b68ab317e7f72a59fff606",
+          "leaf_handle": "/checkpoint_coder"
+        },
+        {
+          "source_id": "checkpoint-provider",
+          "path": "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
+          "bytes": 673234,
+          "sha256": "c13af7abc31d48302dc756353925d7ba3c14b058f169048864b3d94a1b972ee6",
+          "leaf_handle": "/checkpoint_coder"
+        },
+        {
+          "source_id": "cloud-provider",
+          "path": "src/backend/handshake_core/src/storage/surreal/cloud_model_lane.rs",
+          "bytes": 32277,
+          "sha256": "6fda5b80f20d4c58d14d17009e2c994b90c7151dc4fd3797ec1d3616a6e2ad76",
+          "leaf_handle": "/cloud_coder"
+        },
+        {
+          "source_id": "cloud-schema",
+          "path": "src/backend/handshake_core/src/storage/surreal/cloud_model_lane_schema.surql",
+          "bytes": 21297,
+          "sha256": "ec417603c3520794a829b2f95e03b570f371db8b2b743ddbb7c61146dfb69b77",
+          "leaf_handle": "/cloud_coder"
+        }
+      ],
+      "guard_provenance": "Team5 f27b8d and Primary4750aa independently matched all four ordinary/non-reparse source and ancestor guards, exact sizes and hashes. These are actual owning handbacks, not this record author's measurements.",
+      "write_exclusions": [
+        "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql",
+        "global schema.rs/schema.surql",
+        "any extra file inferred by symmetry",
+        "API/error files unless exact actual necessity is separately named and admitted"
+      ],
+      "private_serialization_boundary": "Prefer private owning serialization with unchanged caller inputs/constructors; this record grants only the exact four external proposals."
+    },
+    "actual_owners": {
+      "team5_parent": "01a14c7d-500b-7770-a841-68387c45f114",
+      "fresh_coding_leader": {
+        "native_handle": "/root/mt187_cloud_recovery_leader",
+        "actual_native_id": "01a16d1b-d5f2-7113-bade-3884dadfdb6d"
+      },
+      "coder_a": {
+        "relative_native_handle": "/checkpoint_coder",
+        "relative_to_leader": "/root/mt187_cloud_recovery_leader",
+        "leaf_uuid": null,
+        "owns_source_ids": [
+          "facade",
+          "checkpoint-provider"
+        ]
+      },
+      "coder_b": {
+        "relative_native_handle": "/cloud_coder",
+        "relative_to_leader": "/root/mt187_cloud_recovery_leader",
+        "leaf_uuid": null,
+        "owns_source_ids": [
+          "cloud-provider",
+          "cloud-schema"
+        ]
+      },
+      "flow_nonauthor": {
+        "relative_native_handle": "/flow_nonauthor",
+        "relative_to_leader": "/root/mt187_cloud_recovery_leader",
+        "leaf_uuid": null
+      },
+      "dependency_nonauthor": {
+        "relative_native_handle": "/dependency_nonauthor",
+        "relative_to_leader": "/root/mt187_cloud_recovery_leader",
+        "leaf_uuid": null
+      },
+      "identity_provenance": "Actual Team5 parent, fresh leader and relative native handles bind ownership. Leaf UUIDs were not exposed to Master and are not invented; the actual parent retains them and phase markers.",
+      "activation_limit": "These named roles and ownership ACKs are owning handbacks, not a claim that all roles execute simultaneously. Existing completed assessment readers remain fact sources and are not relabeled authors.",
+      "primary": "01a16935-8b0f-7ed2-a45c-a78847ac51b9",
+      "diagnostics_nonauthor": "01a165de-05e9-79f1-8287-dfb2ba5427c1",
+      "independent_three_lens_codecheck": "01a16702-3129-7c21-9a20-c6616fb04ed1"
+    },
+    "candidate_binding": {
+      "artifact_root_discovery": "Resolve the existing artifact root from HANDSHAKE_ARTIFACTS_ROOT when set, otherwise from the actual kernel parent plus Handshake_Artifacts. The concrete absolute paths below are current handoff observations, not portable runtime defaults.",
+      "observed_existing_wp_root": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012",
+      "source_outputs": [
+        {
+          "source_id": "facade",
+          "owner_relative_leaf": "/checkpoint_coder",
+          "base": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-facade-base.rs",
+          "postimage": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-facade-postimage.rs",
+          "diff": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-facade-diff.patch"
+        },
+        {
+          "source_id": "checkpoint-provider",
+          "owner_relative_leaf": "/checkpoint_coder",
+          "base": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-checkpoint-provider-base.rs",
+          "postimage": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-checkpoint-provider-postimage.rs",
+          "diff": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-checkpoint-provider-diff.patch"
+        },
+        {
+          "source_id": "cloud-provider",
+          "owner_relative_leaf": "/cloud_coder",
+          "base": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-cloud-provider-base.rs",
+          "postimage": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-cloud-provider-postimage.rs",
+          "diff": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-cloud-provider-diff.patch"
+        },
+        {
+          "source_id": "cloud-schema",
+          "owner_relative_leaf": "/cloud_coder",
+          "base": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-cloud-schema-base.surql",
+          "postimage": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-cloud-schema-postimage.surql",
+          "diff": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-cloud-schema-diff.patch"
+        }
+      ],
+      "manifest": {
+        "path": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-recovery-20261024-02-manifest.json",
+        "owner": "Fresh coding leader through actual Team5 parent",
+        "purpose": "Source assembly and exact base/postimage/diff/owner/pathset binding only; no execution or acceptance record."
+      },
+      "literal_output_count": 13,
+      "guard_provenance": "Team5 f27b8d/9273d1 exited0; Primary aaac51 independently confirmed ALL13 ABSENT, distinct, root-contained, every ancestor ordinary/non-reparse, and no Product/GOV/old-SQL overlap. No new output creation was reported at binding.",
+      "retained_original": "Preserve the old single-SQL BASE and all prior immutable source/candidate evidence; do not overwrite or reinterpret it as this new unit."
+    },
+    "binding_observation": {
+      "observation_is_at_record_creation_only": true,
+      "phase": "PROSPECTIVE_BINDINGS_REPORTED_SOURCE_NOT_STARTED",
+      "observed_at_utc": null,
+      "timestamp_limit": "No exact original handback timestamp is exposed; recorded_at_utc dates this record without inventing an observation timestamp.",
+      "holder": "01a16935-8b0f-7ed2-a45c-a78847ac51b9",
+      "source_start_claimed": false,
+      "postimages_or_diffs_claimed": false,
+      "live_custody": "Primary physical Product/control/captured-input custody remains FROZEN; foreign Product custody remains UNKNOWN and no Product adoption window is released.",
+      "required_next_phase": "Actual saved-record/full-owner readback; Primary personal node/freeze read and fresh four-preimage/thirteen-destination guards; exact EXTERNAL_SOURCE_CANDIDATE_ONLY scope/pathset/phase holder-to-fresh-leader/leaf handoff; actual leaf ACKs and fresh personal guards/CreateNew BASE byte/hash matches before writes.",
+      "phase_limit": "No nominal or queued role is counted as executing. Phase handoff is required concrete custody coordination, not a new Master GO or human approval tier."
+    },
+    "implementation_requirements": {
+      "stored_member": "Server-derived immutable STORED optional cloud_consent_denial_membership, versioned chosen PREWRITE observation, checkpoint ID, unchanged generic EventLedger HWM/stream/five-scope and deterministic genuine canonical Cloud receipt refs/identity/seq/payload hash/run/lane/scope metadata.",
+      "capture_order": "Inside actual checkpoint query: validate HWM, capture the run-wide canonical set, then construct canonical ledger/payload/hash and atomically bind checkpoint record plus hashed ledger payload in the retained protected transaction.",
+      "authority": "Original checkpoint Create/recovery_checkpoint_record for capture and existing RecoveryExecute WorkspaceUpdate for replay; no Recovery grant during create or ordinary Read/Create substitution.",
+      "failure_and_retry": "Enumeration/auth/fence failures prevent publication and roll back; same-checkpoint/idempotent retry validates and returns the ORIGINAL bound set without recapture/enlargement/duplicate-conflict bypass.",
+      "recovery": "Inside original callback/task/storage/scope validate ONLY recorded canonical members before orphan/dependent writes; deny missing, tampered, foreign or unverifiable relations before protected publication; later publication/repair is excluded.",
+      "legacy": "Preserve original checkpoint/payload/HWM bytes. Absent membership is UNKNOWN; do not backfill, replace, advance the watermark or infer age corruption. Same-facade RecoveryProvenanceUnverifiable is a proposed truthful outcome, without establishing a required extra error/API Source path.",
+      "legacy_acceptance": "Original positive legacy acceptance remains OPEN for genuine historical evidence or a separately explicit original-AC-preserving compatibility decision. New checkpoint success and forward correctness cannot replace it or close AC3/MT187/WP."
+    },
+    "rules": [
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-001",
+        "requirement": "The named fresh coding leader and its disjoint authors may prepare only the four admitted private external Source proposals for the evidenced MT187 checkpoint/cloud-denial membership gap; Product source stays read-only and frozen."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-002",
+        "requirement": "Derive an immutable STORED optional cloud_consent_denial_membership on the server, containing a versioned chosen PREWRITE observation, actual checkpoint ID, the unchanged exact generic EventLedger high-water mark, stream and five-scope binding, and deterministic genuine canonical Cloud receipt references, identity, sequence, payload hash and run/lane/scope metadata."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-003",
+        "requirement": "Capture membership inside the actual checkpoint query after validating its high-water mark and before creating the canonical ledger record, payload or hash; bind the canonical checkpoint record and hashed ledger payload atomically inside the retained actual protected transaction."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-004",
+        "requirement": "Keep caller input and constructor shapes unchanged where private owning serialization can carry membership; before any genuinely necessary additional Source-path write, name that exact path and obtain its existing-authority disposition."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-005",
+        "requirement": "Capture canonical Cloud-denial coverage for the whole run; an optional checkpoint lane must not truncate membership capture."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-006",
+        "requirement": "Validate every included member's genuine run, lane, five-scope and private-source binding and required fences; no generic or hypothetical row may substitute for actual producer history."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-007",
+        "requirement": "Capture under the ORIGINAL checkpoint Create/recovery_checkpoint_record authority and replay under the existing RecoveryExecute WorkspaceUpdate authority. Do not require a Recovery grant during checkpoint creation, substitute ordinary Read/Create grants, create a broader grant or silently omit inaccessible members."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-008",
+        "requirement": "Any enumeration, authorization or fence failure prevents canonical checkpoint publication and rolls back the protected operation; never present a partial set as empty or complete."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-009",
+        "requirement": "Implement and prove the narrow checkpoint-purpose discovery and fence construction inside the four admitted Source paths; minimum direct read-only definition reads are permitted, but an evidenced extra-file write need stops and returns that exact path before editing."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-010",
+        "requirement": "A valid same-checkpoint/idempotent retry returns and validates the ORIGINAL bound membership set; do not recapture, enlarge or replace it, or bypass a duplicate conflict."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-011",
+        "requirement": "Recovery validates ONLY the recorded canonical members inside the original callback, task, storage and scope before orphan or dependent writes; reject missing, tampered, foreign or unverifiable relations before protected dependent publication."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-012",
+        "requirement": "Later publication or repair cannot enter an already captured membership set; retain coverage for delayed lower-numbered events published after capture."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-013",
+        "requirement": "Keep generic source_event_seq unchanged; do not create an alias, new cursor, source union, mirror, table, view or framework."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-014",
+        "requirement": "Preserve every existing canonical legacy checkpoint, payload and high-water-mark byte. Missing membership is UNKNOWN, never empty, complete, backfilled, a replacement checkpoint, an advanced watermark or corruption inferred from age."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-015",
+        "requirement": "The proposed truthful same-facade RecoveryProvenanceUnverifiable outcome establishes no mandatory extra API or error-file write; those files stay read-only unless actual necessity and an exact additional Source path are admitted first."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-016",
+        "requirement": "Original positive legacy acceptance remains OPEN until genuine historical evidence or a separately explicit original-AC-preserving compatibility decision resolves it. New-checkpoint success, forward correctness or honest missing-history reporting cannot close that predecessor, whole AC3, MT187 or the WP; no original scope is dropped."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-017",
+        "requirement": "The common numeric allocator and protected transport evidence remains reusable within its proven scope. An allocator alone does not prove committed membership; do not invent universal database-isolation or source-union law."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-018",
+        "requirement": "The checkpoint_coder owns only the facade and generic-checkpoint Rust external proposals; the cloud_coder owns only the Cloud Rust and direct Cloud SQL external proposals. The fresh leader assembles exact bindings in the admitted manifest; flow and dependency reviewers remain distinct NONAUTHORS."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-019",
+        "requirement": "Activate useful roles in stages through the actual parent, using native followup for idle unfinished owned roles; nominal or queued roles are not executing, and no forced simultaneous helper count or relabeling of completed assessment readers creates authorship or review."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-020",
+        "requirement": "After this record is saved and fully read back by its owners, Primary personally reads the actual node, confirms its freeze and freshly guards all four preimages and thirteen destinations, then explicitly hands the exact EXTERNAL_SOURCE_CANDIDATE_ONLY scope, path set and phase to the fresh leader and actual leaf receivers."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-021",
+        "requirement": "Each actual leaf acknowledges that same phase before writes, then personally rechecks ordinary-file and ancestor guards, preimage size/hash, CreateNew BASE byte/hash match and output absence. Create only the admitted distinct external postimages, diffs, bases and leader manifest; never overwrite an output."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-022",
+        "requirement": "Stop only the affected proposal or path on actual drift, aliasing, unexpected existing output, unexpected path or evidenced writer/captured-input conflict, preserving all bytes and foreign work. Foreign Product custody remains UNKNOWN; universal Product release is not a prerequisite for this external phase's read-only base capture."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-023",
+        "requirement": "This prospective four-path unit supersedes the old one-file authoring limitation only for these new external proposals and overrides the historical NAV personal-release prerequisite only for their external authoring; preserve the old one-file BASE, decisions and history without fabricating a release, vacancy, postimage or diff."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-024",
+        "requirement": "Primary retains sole physical Product/control/captured-input/shared-manifest/lock/Git/compiler/resource/process custody and its freeze; no Product adoption window is released. Any later genuine Product application requires separate current authority, window and exact affected bindings."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-025",
+        "requirement": "Review the new frozen Source unit through the fresh actual internal flow and dependency NONAUTHORS, then named Diagnostics NONAUTHOR, then the independent actual three-lens current Codecheck team; no author approves its own changed delta."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-026",
+        "requirement": "Review real changed types, ALL caller forms, cfg/features/dependencies and private/authentication/lifecycle boundaries against original new and legacy requirements; reuse valid unchanged proof, including closed controller04, without repeating green Source campaigns."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-027",
+        "requirement": "Retain focused checks of run-wide per-member fences, Create versus Update authority, protected transaction, chosen PREWRITE observation and atomic high-water-mark/canonical-hash binding, genuine receipt identity/payload/scope/run/lane, enumeration failure/rollback, immutable retry sets and duplicate-conflict rejection, delayed lower-numbered publication/repair, no legacy backfill, revocation/Unknown, GET nonmutation and original authenticated negatives."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-028",
+        "requirement": "Preserve original MT187 AC1 through AC5 and inherited MT007 exact prewrite high-water mark, immutable provenance, ordered tails, revocation, idempotency and negative proof. Source checks establish no compiler, runtime, legacy, whole-item or whole-WP PASS."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-029",
+        "requirement": "This decision grants no tests, build, Cargo, runtime query, Native, model/inference, HTTP, new pool, metadata, OS, Git, Product/control adoption, policy/grant/configuration population or governance edit beyond this record."
+      },
+      {
+        "rule_id": "WP012-MT187-CLOUD-CHECKPOINT-MEMBERSHIP-EXTERNAL-SOURCE-20261024-02-030",
+        "requirement": "Preserve all original acceptance, pins, history, independent validation, finite allowances, current MT174 runtime TOTAL2/2 spent/no-third and all other pools/holds. Retain the unrecoverable incomplete-capture truth; no new role, candidate, absent process or missing evidence creates execution permission."
+      }
+    ],
+    "proof_route": {
+      "sequence": "Fresh actual internal flow and dependency NONAUTHOR Source checks -> named Diagnostics NONAUTHOR -> independent actual three-lens current Codecheck.",
+      "coverage": "Changed types, ALL caller forms, cfg/features/dependencies, private/auth/lifecycle boundaries; run-wide per-member fences/Create-vs-Update/protected transaction/chosen-prewrite observation/atomic HWM+canonical hash/genuine receipt identity+payload+scope+RunLane/enumeration failure+rollback/immutable retry set/no duplicate-conflict bypass/delayed lower-number publication or repair/no legacy backfill/revocation+Unknown/GET nonmutation/original authenticated negatives.",
+      "reuse": "Reuse valid unchanged proof including closed controller04; no repeated green Source campaign.",
+      "limit": "Source checks do not establish compile/runtime or new/legacy PASS; original real proof and independent verdicts remain required."
+    },
+    "preservation": {
+      "original_acceptance_ref": "#/scope/acceptance_criteria",
+      "original_proof_ref": "#/proof",
+      "original_attempt_budget_ref": "#/attempt_budget",
+      "old_one_file_decision_ref": "#/consent_history_external_source_exception_20261024",
+      "inherited_mt007": "Original inherited MT007 exact prewrite HWM, immutable provenance, ordered tails, revocation, idempotency and negatives remain fully required; no original acceptance is replaced by this prospective method.",
+      "all_prior_content": "All preexisting MT187 raw bytes, original one-file decision and BASE/history, historical NAV rules, false/blocked fields, lifecycle, scope, pins, proof and finite allowances remain unchanged.",
+      "holds": "Current MT174 runtime TOTAL2/2 spent/no-third and every other pool/hold remain. Current incomplete capture is unrecoverable and cannot be qualified or reset through this record."
+    },
+    "source_proposal_authoring_authorized_conditionally": true,
+    "live_product_or_control_adoption_authorized": false,
+    "tests_build_cargo_runtime_query_native_model_inference_http_authorized": false,
+    "metadata_os_git_policy_grant_configuration_population_authorized": false,
+    "extra_governance_edits_authorized": false,
+    "new_pool_or_allowance_reset": false,
+    "acceptance": "NOT_ACCEPTED"
+  },
+  "consent_history_external_source_exception_20261024": {
+    "decision_id": "WP012-MT187-CONSENT-HISTORY-EXTERNAL-SOURCE-20261024-01",
+    "status": "PROSPECTIVE_EXTERNAL_CANDIDATE_SOURCE_ONLY_BINDINGS_RECORDED_PHASE_HANDOFF_AND_FRESH_GUARDS_REQUIRED",
+    "recorded_at_utc": "2026-10-24T07:55:31.568606Z",
+    "authority": {
+      "decision_owner": "01a168a9-05b2-7630-9633-5faac88dd068",
+      "decision_basis": "Actual Code Dev Leader bounded prospective EXTERNAL-CANDIDATE-ONLY Source disposition, recorded by the Master under existing delegated collaborative delivery authority; no new Operator approval is requested or inferred.",
+      "refs": [
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/authority",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/scope_expansion",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016/units/1",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016/units/2",
+        "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016/units/4"
+      ],
+      "historical_mechanism_ref": "#/recovery_execute_source_order_exception_20261018"
+    },
+    "evidenced_failure": {
+      "provenance": "Current Team5 and current Codecheck failure handbacks supplied by Master; this record author did not diagnose or inspect Product source.",
+      "acceptance_ref": "#/scope/acceptance_criteria/2",
+      "expected": "Original AC3 recovery consumer obtains canonical cloud_consent_denial history through scoped list_run while preserving original authenticated/private/run-lane read fences.",
+      "observed": "Dedicated SQL canonical identity at the inspected lines497-500 and recovery READ at1879-1880 both omit cloud_consent_denial; SELECT at2133 requires both.",
+      "historical_resolved_repair": "The historical read-scope/missing-RecoveryExecute repair remains resolved; this record does not reopen it or infer undone implementation.",
+      "line_anchor_limit": "Line positions identify the owning failure handback against the bound current source and are not a substitute for the author opening that exact source."
+    },
+    "source_binding": {
+      "repository": "../wtc-WP-KERNEL-012",
+      "branch": "feat/WP-KERNEL-012",
+      "path": "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql",
+      "observed_absolute_path": "C:/Projects/LLM Projects/handshake-desktop/wtc-WP-KERNEL-012/src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql",
+      "observed_sha256": "7fabff947bccfdad8748591cc9ab85725e9319994011b44626987aa7a1aa4f83",
+      "observed_bytes": 234264,
+      "primary_observed_last_write_utc": "2026-10-23T07:45:41.0618906Z",
+      "guard_provenance": "Master reports its hash/size and MT187-clause match plus BOTH actual author and Primary independent fresh ordinary-file/all-ancestors-to-C:/ non-reparse/source-hash/size matches. Author evidence c80fa9 and3b9481 exited0. These are owning handbacks, not measurements by this paperwork author.",
+      "sole_source_write_scope": "New external dedicated-SQL POSTIMAGE only; Product source remains read-only and frozen.",
+      "readonly_dependencies": [
+        "src/backend/handshake_core/src/swarm_orchestration/model_lane.rs",
+        "src/backend/handshake_core/src/storage/surreal/model_lane.rs"
+      ]
+    },
+    "actual_owners": {
+      "team5_parent": "01a14c7d-500b-7770-a841-68387c45f114",
+      "source_author_native_handle": "/root/mt187_provider_reader",
+      "source_author_uuid": null,
+      "identity_limit": "Actual owning parent plus actual native handle identify the author; no unexposed UUID is inferred.",
+      "primary": "01a16935-8b0f-7ed2-a45c-a78847ac51b9",
+      "internal_flow_nonauthor": "/root/mt187_flow_checker",
+      "internal_dependency_nonauthor": "/root/mt187_dependency_checker",
+      "facade_readonly_dependency": "facade_reader; parent-owned read-only consumer dependency, no unexposed native handle inferred",
+      "diagnostics_nonauthor": "01a165de-05e9-79f1-8287-dfb2ba5427c1",
+      "affected_independent_codecheck": "01a16702-3129-7c21-9a20-c6616fb04ed1"
+    },
+    "candidate_binding": {
+      "artifact_root_discovery": "HANDSHAKE_ARTIFACTS_ROOT was unset; actual kernel parent plus Handshake_Artifacts resolves the verified existing WP-KERNEL-012 folder. These absolute paths record the current concrete handoff and are not portable runtime defaults.",
+      "observed_wp_artifact_root": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012",
+      "base": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-consent-recovery-base-20261024-01.surql",
+      "postimage": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-consent-recovery-postimage-20261024-01.surql",
+      "diff": "C:/Projects/LLM Projects/handshake-desktop/Handshake_Artifacts/WP-KERNEL-012/mt187-cloud-consent-recovery-diff-20261024-01.patch",
+      "guard_provenance": "BOTH actual author and Primary independently checked all three paths ABSENT, distinct and root-contained with ordinary non-reparse parent and every ancestor. No mkdir or candidate file creation was reported at binding.",
+      "creation_mode": "CreateNew only after phase handoff and fresh personal guards; preserve retained originals and unexpected existing outputs."
+    },
+    "binding_observation": {
+      "phase_at_binding": "READ_ONLY_BINDING_COMPLETE_SOURCE_NOT_STARTED",
+      "observation_is_dated_binding_only": true,
+      "phase_observed_at_utc": null,
+      "observed_at_limit": "No exact original handback timestamp was exposed; recorded_at_utc dates this record rather than inventing the observation time.",
+      "author_personal_ack": "Actual Team5 parent reports the author personally acknowledged the prospective candidate phase and its own pending commands, captures, writes and processes were NONE.",
+      "primary_own_write_observation": "Primary reports no known own pending write; foreign ownership/history remain UNKNOWN.",
+      "live_product_state": "Physical Product/control/captured-input freeze retained; no Product adoption window released.",
+      "source_start_claimed": false,
+      "next_actual_phase": "After saved-record and Master/owner semantic readback, actual Primary-to-Team5/author EXTERNAL_SOURCE_CANDIDATE_ONLY holder-to-receiver handoff, author acknowledgment, fresh guards and CreateNew BASE byte/hash match precede proposal writes."
+    },
+    "rules": [
+      {
+        "rule_id": "WP012-MT187-CONSENT-HISTORY-EXTERNAL-SOURCE-20261024-001",
+        "requirement": "The named Team5 Source author may prepare only a new external one-file immutable proposal for the existing MT187 AC3 cloud_consent_denial history gap in the dedicated model_lane_schema.surql canonical identity and recovery read predicates; do not create a new authentication law or broaden unrelated allowlists."
+      },
+      {
+        "rule_id": "WP012-MT187-CONSENT-HISTORY-EXTERNAL-SOURCE-20261024-002",
+        "requirement": "This prospective decision supersedes the historical NAV personal-release prerequisite only for authoring this new external dedicated-SQL proposal. The old actual Product owner and release remain UNKNOWN; preserve all historical release requirements and records for live Product adoption and every other scope."
+      },
+      {
+        "rule_id": "WP012-MT187-CONSENT-HISTORY-EXTERNAL-SOURCE-20261024-003",
+        "requirement": "Primary retains sole physical Product, inputs, control, Git, shared-manifest/lock, compiler, process and resource custody, including the existing freeze. This external proposal grants no Product adoption or source window and transfers no live Product or process custody."
+      },
+      {
+        "rule_id": "WP012-MT187-CONSENT-HISTORY-EXTERNAL-SOURCE-20261024-004",
+        "requirement": "After the saved decision and semantic readback, Primary hands the exact EXTERNAL_SOURCE_CANDIDATE_ONLY scope, candidate paths and phase to Team5 and its actual author; the receiver acknowledges the same handoff before SOURCE START. This concrete phase handoff is not a fresh Master or Operator approval round."
+      },
+      {
+        "rule_id": "WP012-MT187-CONSENT-HISTORY-EXTERNAL-SOURCE-20261024-005",
+        "requirement": "Before SOURCE START, the author personally rechecks the ordinary source file, every ancestor, exact source hash and size and applicable full guards, and checks the proposed external paths and read-only base capture for evidenced writer or captured-input conflicts. Stop the affected proposal on an actual conflict. Retain the Product/control/capture freeze and foreign Product custody UNKNOWN; universal Product-release proof is not a prerequisite to this external-only phase."
+      },
+      {
+        "rule_id": "WP012-MT187-CONSENT-HISTORY-EXTERNAL-SOURCE-20261024-006",
+        "requirement": "Before candidate creation, the author personally verifies the discovered artifact root, all output parents and ancestors are ordinary non-reparse paths, and the three exact output paths are absent, distinct and root-contained; create each file with CreateNew semantics and do not overwrite or alias any existing path."
+      },
+      {
+        "rule_id": "WP012-MT187-CONSENT-HISTORY-EXTERNAL-SOURCE-20261024-007",
+        "requirement": "The author copies the exact admitted source bytes to the immutable BASE, verifies its byte count and hash match the admitted source, and derives only the dedicated-SQL POSTIMAGE and DIFF from that immutable base. Preserve each frozen candidate and its exact base/postimage/diff bindings."
+      },
+      {
+        "rule_id": "WP012-MT187-CONSENT-HISTORY-EXTERNAL-SOURCE-20261024-008",
+        "requirement": "Stop the affected proposal on source or binding drift, an actual writer or captured-input conflict, aliasing, an unexpected existing output or an unexpected path; preserve all bytes and foreign work, and do not infer release, vacancy or global freedom."
+      },
+      {
+        "rule_id": "WP012-MT187-CONSENT-HISTORY-EXTERNAL-SOURCE-20261024-009",
+        "requirement": "Preserve original MT187 AC1 through AC5, account/private descendants, run/lane and subject fences, reauthentication, consent negatives, checkpoint bounds, ordered replay/idempotency, recovery_event-only writes, Unknown reread, revocation ordering, denial/nonmutation, HBR obligations and original independent proof."
+      },
+      {
+        "rule_id": "WP012-MT187-CONSENT-HISTORY-EXTERNAL-SOURCE-20261024-010",
+        "requirement": "Facade and provider are read-only dependencies for this proposal. Do not edit global schema.rs/schema.surql, tables, authority kinds, write kinds, authentication, blanket allowlists or any other source path; return any generated-pin or integration dependency to its actual owner."
+      },
+      {
+        "rule_id": "WP012-MT187-CONSENT-HISTORY-EXTERNAL-SOURCE-20261024-011",
+        "requirement": "The author returns the frozen dedicated-SQL delta to the distinct internal flow and dependency NONAUTHORS, then named Diagnostics NONAUTHOR and current affected Codecheck review. No author approves its own delta, and unchanged valid proof and reviews remain reusable without a new broad review."
+      },
+      {
+        "rule_id": "WP012-MT187-CONSENT-HISTORY-EXTERNAL-SOURCE-20261024-012",
+        "requirement": "A later Product adoption requires its separate genuine Primary-owned window and actual affected source, dependency, metadata and proof bindings. External source preparation or review does not satisfy runtime, whole-item or whole-WP acceptance."
+      },
+      {
+        "rule_id": "WP012-MT187-CONSENT-HISTORY-EXTERNAL-SOURCE-20261024-013",
+        "requirement": "This decision authorizes no live-control adoption, compiler/build/test/runtime/Native/HTTP/inference execution, metadata mutation, OS action, Git action, new pool, allowance reset or renewed confirmation from general continuation."
+      },
+      {
+        "rule_id": "WP012-MT187-CONSENT-HISTORY-EXTERNAL-SOURCE-20261024-014",
+        "requirement": "Preserve current MT174 runtime TOTAL2/2 spent/no-third, every per-item hold, original scope and Source pins, historical failures and budgets, original proof and independent acceptance. No changed author, candidate, path or absent capture grants an attempt."
+      }
+    ],
+    "preservation": {
+      "historical_source_order_ref": "#/recovery_execute_source_order_exception_20261018",
+      "original_acceptance_ref": "#/scope/acceptance_criteria",
+      "original_proof_ref": "#/proof",
+      "original_attempt_budget_ref": "#/attempt_budget",
+      "retained_dependencies": "Original authenticated MT185/MT186/MT187 and consumed WP012/CKC/WP1 dependencies, proof and independent verdicts remain binding; this source proposal establishes none of them.",
+      "all_other_content": "Every preexisting MT187 byte, clause, false/blocked history, lifecycle and original acceptance/proof field remains unchanged; only this prospective sibling is added."
+    },
+    "source_candidate_authoring_authorized_conditionally": true,
+    "live_product_adoption_authorized": false,
+    "execution_runtime_cargo_tests_metadata_git_os_authorized": false,
+    "new_registry_grant_policy_controller_endpoint_authorized": false,
+    "run_allowance_or_counter_reset": false,
+    "acceptance": "NOT_ACCEPTED"
+  },
   "recovery_execute_source_order_exception_20261018": {
     "decision_id": "WP012-MT187-RECOVERY-EXECUTE-SOURCE-ORDER-20261018",
     "authority": "Current Master ACTUAL decision approved after exact authority read and buddy consultation, under packet operator_adaptive_delivery_delegation_20261014/scope_expansion and operator_absence_full_control_20261016 instruction units002/003/005. Central delegated this helper only the minimum MT187 sibling and exact packet predecessor cross-reference; actual exclusive packet/MT187 writer window granted by Master with no other pending writer.",

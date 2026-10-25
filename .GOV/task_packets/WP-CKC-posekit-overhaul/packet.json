@@ -698,5 +698,15 @@
     ],
     "whole_wp_verdict": "WHOLE_WP_TECHNICAL_PASS_V2 (all 55 impl MTs pass; technically sound at HEAD) -- MERGE_WITHHELD (operator-forbidden + branches off in-development WP-KERNEL-012).",
     "merge_action_taken": "NONE (no merge, no sync-gov-to-main, no push, no gate-commit). Per Operator FORBIDDEN-TO-MERGE."
+  },
+  "operator_gui_shared_requirement_20261024": {
+    "decision_id": "WP-CKC-GUI-SHARED-BINDING-20261024-01",
+    "source": "CURRENT_DIRECT_HUMAN_GUI_REQUIREMENT_RELAYED_BY_MASTER",
+    "shared_requirement_ref": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding",
+    "applies_to": {
+      "microtask_contract_glob_ref": "packet.json#/authority_files/microtask_contract_glob",
+      "scope": "Every affected original or future Handshake GUI MT and GUI team under this packet consumes the referenced current shared requirement. Backend-only unaffected work continues independently."
+    },
+    "preservation": "Reference only: retain all original scope/acceptance/source/spec/governance pins, failures/reviews/lifecycle, spent outcomes, current admission and physical custody. No new execution/attempt grant, repin or duplicated rule body."
   }
 }

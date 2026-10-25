@@ -53,7 +53,10 @@
       "WP012-UI-20261024-018",
       "WP012-UI-20261024-021",
       "WP012-UI-20261024-022",
-      "WP012-UI-20261024-023"
+      "WP012-UI-20261024-023",
+      "WP012-UI-20261024-024",
+      "WP012-UI-20261024-025",
+      "WP012-UI-20261024-026"
     ],
     "acceptance_refs": [
       "MT-197.json#/scope/acceptance_criteria/0",
@@ -65,7 +68,40 @@
       "MT-197.json#/scope/acceptance_criteria/6",
       "MT-197.json#/scope/acceptance_criteria/7"
     ],
-    "materialized_acceptance": []
+    "materialized_acceptance": [
+      {
+        "id": "AC197-1",
+        "text": "AC197-1: Enumerate every canonical MT contract in the three named WPs, including newly added records as applicable, and bind required operator/model workflows, original acceptance/proof refs, valid existing coverage and unresolved cases in this MT design_result. Preserve non-UI obligations by linkage."
+      },
+      {
+        "id": "AC197-2",
+        "text": "AC197-2: The distinct expert UI designer supplies professional materially distinct layouts and shared materials/icons/scrollbars/type/spacing. Docked panes touch with shared dividers and no internal desktop gaps. Drafts remain material references only."
+      },
+      {
+        "id": "AC197-3",
+        "text": "AC197-3: The separate nonauthor workflow tester tries representative prototype actions and multi-step flows and records feasibility/consistency/readability plus empty/loading/error/denied/recovery findings separately from real-app acceptance."
+      },
+      {
+        "id": "AC197-4",
+        "text": "AC197-4: Ground Vulkan API/backend selection in current primary technical sources and actual pinned native renderer/input/accessibility/Handpick contracts. Compare supported existing paths before a verified reusable gap, and bind exact owner/API/source-versus-host disposition. A new engine/asset is not required."
+      },
+      {
+        "id": "AC197-5",
+        "text": "AC197-5: Record two-coder disjoint scopes and one writer for shared app/lib/manifest hooks. Preserve front-to-back/dependency/adversarial responsibilities and all original features/runtime cases. Coordinate exact necessary spec/refinement changes in the owning existing contract before dependent adoption."
+      },
+      {
+        "id": "AC197-6",
+        "text": "AC197-6: Design Settings module tabs with feature subtabs OR an equivalent discoverable system tree. Resolve actual module/feature coverage without a new taxonomy. Keep Engine Profiles INSIDE Settings and full profile dispatch/selection/live-authority contracts; bind discoverability, typed persistence and empty/loading/error/denied/recovery flows."
+      },
+      {
+        "id": "AC197-7",
+        "text": "AC197-7: Ground the existing canonical centralized GPU owner/broker and focused typed client contracts across existing/future modules, with memory accountability and no independent per-module device/pool/budget bypass or new monolith. Resolve allocation/budget/pressure/staging/shared-versus-dedicated/inflight/reclaim/shutdown/device-loss/multiwindow/module-attachment ownership and proof boundaries before adoption; do not assume one adapter/API or relocate unrelated CPU/NPU work."
+      },
+      {
+        "id": "AC197-8",
+        "text": "AC197-8: Bind concrete GUI action/navigation/component/error and Vulkan/GPU memory/lifetime event producers to existing internal_diagnostics and standalone Palmistry correlation/retention contracts. Preserve typed mechanical allowlist/no secret or project content. Reuse MT081–096 and canonical watcher proof; planned crash-survival acceptance is genuine separately admitted owned Product proof, not prototype/OS crash or foreign stop. Bind existing stable event/control IDs, real correlation/session and exact target PID/process-birth identity. Normal explicit shutdown requires its actual acknowledgements and owned drain; no later-empty-process proxy."
+      }
+    ]
   },
   "model_routing": {
     "model_tier": "strong",
@@ -444,7 +480,8 @@
     "runtime_permission_inferred": false,
     "new_attempts_granted": false,
     "current_retry_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/current_retry_policy",
-    "interaction_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/interaction_policy"
+    "interaction_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/interaction_policy",
+    "shared_gui_requirement_ref": "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding"
   },
   "spec_basis": {
     "source": "Current operator UI/refactor/Vulkan request relayed by Master, requirement meaning in packet request; no fabricated verbatim message or accepted design.",
@@ -519,7 +556,8 @@
     "owning_module": "src/frontend/handshake_native",
     "module_binding_status": "BOUND_EXISTING_NATIVE_CRATE",
     "module_maintenance_refs": [
-      "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation"
+      "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation",
+      "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding"
     ],
     "original_acceptance_refs": [
       "MT-001.json",
@@ -542,7 +580,24 @@
     ],
     "draft_reference_ref": "packet.json#/operator_professional_desktop_ui_20261024/draft_references",
     "pin_policy": "No original three-WP source/spec/governance pin or verdict changes. New compatible adoption follows owning grounded decision.",
-    "diagnostic_obligation_ref": "packet.json#/operator_professional_desktop_ui_20261024/gui_diagnostics_palmistry_20261024"
+    "diagnostic_obligation_ref": "packet.json#/operator_professional_desktop_ui_20261024/gui_diagnostics_palmistry_20261024",
+    "specification_anchor_refs": [
+      {
+        "id": "WP012-UI-20261024-024",
+        "anchor": "packet.json#/operator_professional_desktop_ui_20261024/requirements/23",
+        "verbatim": "All Handshake GUI teams and affected GUI work under the three named WP coverage_sources MUST use KUMIHIMO-ASSET-001 (Kumihimo) through its public contract with an actual Vulkan-backed layer. Preserve existing Handpick and every original GUI/GPU/Settings/diagnostic/Palmistry obligation. A name, catalog entry, configuration label or D3D/OpenGL fallback does not prove Vulkan capability or adoption."
+      },
+      {
+        "id": "WP012-UI-20261024-025",
+        "anchor": "packet.json#/operator_professional_desktop_ui_20261024/requirements/24",
+        "verbatim": "When Handshake needs missing reusable GUI logic, extend the declared canonical Kumihimo original source and reusable public capability FIRST; perform focused owning source proof, normal canonical publication and independent exact remote reread before distinct immutable pinned Handshake host adoption. Consume adequate existing capability without compulsory source changes. No host-local workaround, copied private implementation or host-only fork; host-specific policy/adaptation stays in Handshake under HBR-MODULE-LIFECYCLE-004/007/008."
+      },
+      {
+        "id": "WP012-UI-20261024-026",
+        "anchor": "packet.json#/operator_professional_desktop_ui_20261024/requirements/25",
+        "verbatim": "GUI work MUST follow current build rules using small focused crates/modules with independently selectable source/dependency/build/test/artifact closures and focused typed clients, without large aggregate/sink crates. Bind each implementation MT to its actual owning logical module or existing build unit and respect dependency direction and actual project build budgets under HBR-COMPART-001/002 and HBR-MODULE-LIFECYCLE-001. Preserve the conditional applicability of crate-based rebuild accounting; invent no numerical cap, forced crate split, blanket refactor or all-project hold."
+      }
+    ]
   },
   "validation": {
     "review_verdict": "PENDING",

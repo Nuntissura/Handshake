@@ -44,7 +44,10 @@
       "WP012-UI-20261024-018",
       "WP012-UI-20261024-021",
       "WP012-UI-20261024-022",
-      "WP012-UI-20261024-023"
+      "WP012-UI-20261024-023",
+      "WP012-UI-20261024-024",
+      "WP012-UI-20261024-025",
+      "WP012-UI-20261024-026"
     ],
     "acceptance_refs": [
       "MT-199.json#/scope/acceptance_criteria/0",
@@ -54,7 +57,32 @@
       "MT-199.json#/scope/acceptance_criteria/4",
       "MT-199.json#/scope/acceptance_criteria/5"
     ],
-    "materialized_acceptance": []
+    "materialized_acceptance": [
+      {
+        "id": "AC199-1",
+        "text": "AC199-1: Consume the exact supported immutable capability and actual API from MT-198. Perform the actual native GUI migration with coherent dependency/lock adoption under Primary custody. Adapt inspected startup/render ownership without replacing unrelated libraries or editing canonical internals from a host-only lease."
+      },
+      {
+        "id": "AC199-2",
+        "text": "AC199-2: Prove the genuine running Handshake app uses a Vulkan adapter/backend with exact binary/source/dependency/config identity, real frames and resize/minimize/restore/surface recovery. Configuration, a build, a prototype or D3D/OpenGL fallback does not prove Vulkan."
+      },
+      {
+        "id": "AC199-3",
+        "text": "AC199-3: Preserve keyboard/focus/IME, DPI/multiwindow, accessibility, correct rendering, quiet behavior, diagnostics and model-use routes. Explicit platform limitations cannot silently replace original required behavior."
+      },
+      {
+        "id": "AC199-4",
+        "text": "AC199-4: GUI coder B owns the disjoint external vulkan-renderer candidate. Coordinate shared app/lib/manifest integration with coder A and Primary as exact sequential hook handoff. Original runtime/process/finite-pool limits remain unchanged."
+      },
+      {
+        "id": "AC199-5",
+        "text": "AC199-5: Adopt Vulkan through the authoritative shared GPU owner and focused typed client/ownership contract, with accountable allocations/budgets/pressure/staging/shared-versus-dedicated/inflight/reclaim/shutdown/device-loss/recovery/multiwindow/module attach/detach. Prove genuine Vulkan backend/device and required lifecycle behavior; no renamed DX/OpenGL fallback or independent per-module pool bypass. MT-203 owns the central host lifecycle contract and scoped evidence."
+      },
+      {
+        "id": "AC199-6",
+        "text": "AC199-6: Actual Vulkan backend/device, native GUI action/error and affected GPU memory/lifetime failures are observable through existing internal_diagnostics and correlated standalone Palmistry records, under original allowlist/privacy. Neither a source declaration nor configured backend label proves event wiring or crash survival."
+      }
+    ]
   },
   "model_routing": {
     "model_tier": "strong",
@@ -123,7 +151,8 @@
       "prerequisite": "Before affected native adoption, use the grounded actual GPU owner/client/memory contract and exact supported immutable canonical capability; only a verified reusable source gap requires owning source proof/publication first.",
       "whole_MT203_completion_required_before_MT199": false,
       "joint_runtime_acceptance_ref": "MT-202.json#/proof",
-      "completion_policy": "MT-199 and MT-203 integrate jointly; their genuine combined GPU/GUI runtime evidence is accepted at MT-202, not a predecessor runtime-before-compile gate."
+      "completion_policy": "MT-199 and MT-203 integrate jointly; their genuine combined GPU/GUI runtime evidence is accepted at MT-202, not a predecessor runtime-before-compile gate.",
+      "gui_asset_binding_ref": "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding"
     }
   },
   "proof": {
@@ -448,7 +477,8 @@
     "runtime_permission_inferred": false,
     "new_attempts_granted": false,
     "current_retry_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/current_retry_policy",
-    "interaction_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/interaction_policy"
+    "interaction_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/interaction_policy",
+    "shared_gui_requirement_ref": "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding"
   },
   "spec_basis": {
     "source": "Current operator UI/refactor/Vulkan request relayed by Master, requirement meaning in packet request; no fabricated verbatim message or accepted design.",
@@ -501,7 +531,8 @@
     "owning_module": "src/frontend/handshake_native",
     "module_binding_status": "BOUND_EXISTING_NATIVE_CRATE",
     "module_maintenance_refs": [
-      "MT-198.json#/execution/canonical_source_binding"
+      "MT-198.json#/execution/canonical_source_binding",
+      "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding"
     ],
     "original_acceptance_refs": [
       "MT-001.json",
@@ -524,7 +555,24 @@
     ],
     "draft_reference_ref": "packet.json#/operator_professional_desktop_ui_20261024/draft_references",
     "pin_policy": "No original three-WP source/spec/governance pin or verdict changes. New compatible adoption follows owning grounded decision.",
-    "diagnostic_obligation_ref": "packet.json#/operator_professional_desktop_ui_20261024/gui_diagnostics_palmistry_20261024"
+    "diagnostic_obligation_ref": "packet.json#/operator_professional_desktop_ui_20261024/gui_diagnostics_palmistry_20261024",
+    "specification_anchor_refs": [
+      {
+        "id": "WP012-UI-20261024-024",
+        "anchor": "packet.json#/operator_professional_desktop_ui_20261024/requirements/23",
+        "verbatim": "All Handshake GUI teams and affected GUI work under the three named WP coverage_sources MUST use KUMIHIMO-ASSET-001 (Kumihimo) through its public contract with an actual Vulkan-backed layer. Preserve existing Handpick and every original GUI/GPU/Settings/diagnostic/Palmistry obligation. A name, catalog entry, configuration label or D3D/OpenGL fallback does not prove Vulkan capability or adoption."
+      },
+      {
+        "id": "WP012-UI-20261024-025",
+        "anchor": "packet.json#/operator_professional_desktop_ui_20261024/requirements/24",
+        "verbatim": "When Handshake needs missing reusable GUI logic, extend the declared canonical Kumihimo original source and reusable public capability FIRST; perform focused owning source proof, normal canonical publication and independent exact remote reread before distinct immutable pinned Handshake host adoption. Consume adequate existing capability without compulsory source changes. No host-local workaround, copied private implementation or host-only fork; host-specific policy/adaptation stays in Handshake under HBR-MODULE-LIFECYCLE-004/007/008."
+      },
+      {
+        "id": "WP012-UI-20261024-026",
+        "anchor": "packet.json#/operator_professional_desktop_ui_20261024/requirements/25",
+        "verbatim": "GUI work MUST follow current build rules using small focused crates/modules with independently selectable source/dependency/build/test/artifact closures and focused typed clients, without large aggregate/sink crates. Bind each implementation MT to its actual owning logical module or existing build unit and respect dependency direction and actual project build budgets under HBR-COMPART-001/002 and HBR-MODULE-LIFECYCLE-001. Preserve the conditional applicability of crate-based rebuild accounting; invent no numerical cap, forced crate split, blanket refactor or all-project hold."
+      }
+    ]
   },
   "validation": {
     "review_verdict": "PENDING",
