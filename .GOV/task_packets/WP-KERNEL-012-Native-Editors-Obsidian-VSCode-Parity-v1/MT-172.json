@@ -9094,7 +9094,7 @@
       },
       "recovery": {
         "path": "@artifacts/WP-KERNEL-012/MT-172/coding-six-file-conservation-freeze-20261025-01/candidate.handoff.json",
-        "limit": "External candidate; nonauthor coherent v2 clear; saved final root and affected Codecheck reviews pending."
+        "limit": "External recovery A v2/B v2 source clearances are retained in Codeleader turn 01a1755d-ff7d-7b93-afaf-7832de59f5a7: Root opinion WP012-MT172-RECOVERY236-ROOT-NONAUTHOR-20261025-01, flow review c951d8600f560274fa00c2d38b6fac11f36d64ddbd3923a7be70164b324939d1 and actual Codecheck B v2 source-clear turn 01a174af-8cfc-7731-bb56-041f17570f91. The frozen handoff pending labels are historical; final joined routing/auth changes still require coherent affected review. No compile or runtime verdict."
       },
       "routing": {
         "path": "@artifacts/WP-KERNEL-012/MT-172/author-a-connected-routing-20261025/allocation-before-source.v3.json",
@@ -9873,14 +9873,14 @@
             11
           ]
         },
-        "state": "EXTERNAL_CANDIDATE_FINAL_ROOT_AND_AFFECTED_CC_REVIEW_PENDING",
-        "next_action": "Finish the recorded pending reviews of the exact existing candidate, then let Primary compose its core model_lane changes with routing.",
+        "state": "EXTERNAL_RECOVERY_V2_SOURCE_CLEARED_JOINED_ROUTING_AUTH_REVIEW_OPEN",
+        "next_action": "Reuse the existing A v2/B v2 recovery clearances within their verified unchanged scope. Primary composes the recovery with routing; review only the final joined routing/auth changes coherently.",
         "proof": {
           "reuse": [
             "recovery",
             "recovery_conservation"
           ],
-          "remaining": "Changed candidate compile and scoped actual HTTP/runtime recovery proof; source clear alone does not close original recovery."
+          "remaining": "Coherent affected review of final joined routing/auth changes, changed candidate compile and scoped actual HTTP/runtime recovery proof. The unchanged recovery source clearance remains valid; source clear alone does not close original recovery."
         },
         "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/4",
         "owner_template": "current_repair_authors"
