@@ -785,16 +785,21 @@ pub fn merge_loaded_settings_preserving_local_changes(
         }
         match (remote, baseline, local) {
             (Value::Object(mut remote), Value::Object(baseline), Value::Object(local)) => {
-                for (key, local_value) in local {
-                    let baseline_value = baseline.get(key).unwrap_or(&Value::Null);
-                    if baseline_value == local_value {
+                let keys: std::collections::BTreeSet<_> = baseline.keys().chain(local.keys()).collect();
+                for key in keys {
+                    if baseline.get(key) == local.get(key) {
                         continue;
                     }
-                    let remote_value = remote.remove(key).unwrap_or(Value::Null);
-                    remote.insert(
-                        key.clone(),
-                        overlay(remote_value, baseline_value, local_value),
-                    );
+                    match (baseline.get(key), local.get(key)) {
+                        (_, None) => { remote.remove(key); }
+                        (None, Some(local_value)) => {
+                            remote.insert(key.clone(), local_value.clone());
+                        }
+                        (Some(baseline_value), Some(local_value)) => {
+                            let remote_value = remote.remove(key).unwrap_or(Value::Null);
+                            remote.insert(key.clone(), overlay(remote_value, baseline_value, local_value));
+                        }
+                    }
                 }
                 Value::Object(remote)
             }
@@ -1122,7 +1127,7 @@ pub type SettingsLoadCell = Arc<Mutex<Option<SettingsLoadDelivery>>>;
 pub struct SettingsSaveDelivery {
     pub workspace_id: String,
     pub saved_state: WorkspaceSettingsState,
-    pub result: Result<(), String>,
+    pub result: Result<(), SettingsSaveError>,
 }
 
 /// The async delivery cell a spawned settings-SAVE task writes into. The exact saved snapshot lets a
@@ -1141,6 +1146,22 @@ impl std::fmt::Display for SettingsTransportError {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum SettingsSaveError {
+    Transport(SettingsTransportError),
+    ReloadRequired(String),
+    Rejected(String),
+}
+
+impl std::fmt::Display for SettingsSaveError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Transport(error) => write!(f, "{error}"),
+            Self::ReloadRequired(message) | Self::Rejected(message) => f.write_str(message),
+        }
+    }
+}
+
 /// The synchronous settings transport seam the app's background tasks drive. Synchronous so the
 /// load/save bridge stays a pure, directly-unit-testable seam with a stub (no live server). The
 /// production [`SettingsClient`] bridges this onto reqwest + the app's tokio runtime (HBR-QUIET: the
@@ -1153,6 +1174,10 @@ pub trait SettingsTransport: Send + Sync {
     /// `PUT /workspaces/{workspace_id}/settings` with `{ settings_state }` → the persisted blob.
     fn save(&self, workspace_id: &str, settings_state: Value)
         -> Result<(), SettingsTransportError>;
+
+    fn save_attempt(&self, workspace_id: &str, settings_state: Value) -> Result<(), SettingsSaveError> {
+        self.save(workspace_id, settings_state).map_err(SettingsSaveError::Transport)
+    }
 }
 
 /// Production transport: the backend's SurrealDB-authoritative workspace-settings REST surface
@@ -1168,6 +1193,19 @@ pub struct SettingsClient {
     base_url: String,
     runtime: tokio::runtime::Handle,
     authenticated_context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+    revisions: Arc<Mutex<std::collections::BTreeMap<String, SettingsRevision>>>,
+}
+
+struct SettingsRevision {
+    observed_generation: i64,
+    pending: Option<SettingsWriteAttempt>,
+}
+
+#[derive(Clone)]
+struct SettingsWriteAttempt {
+    settings_state: Value,
+    expected_generation: i64,
+    idempotency_key: String,
 }
 
 impl SettingsClient {
@@ -1176,6 +1214,7 @@ impl SettingsClient {
         context: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
     ) -> Self {
         self.authenticated_context = context;
+        self.revisions = Arc::new(Mutex::new(std::collections::BTreeMap::new()));
         self
     }
 
@@ -1187,6 +1226,7 @@ impl SettingsClient {
             base_url: base_url.into(),
             runtime,
             authenticated_context: None,
+            revisions: Arc::new(Mutex::new(std::collections::BTreeMap::new())),
         }
     }
 
@@ -1224,58 +1264,120 @@ impl SettingsTransport for SettingsClient {
         let client = self.client.clone();
         let account = self.authenticated_context.clone();
         self.runtime.block_on(async move {
-            let resp = crate::local_account::AuthenticatedRequest::new(
+            let response = crate::local_account::AuthenticatedRequest::new(
                 client.clone(),
                 account.clone(),
                 client.get(&url).timeout(REQUEST_TIMEOUT),
             )
             .send()
             .await
-            .map_err(|e| SettingsTransportError(e.to_string()))?;
-            if !resp.status().is_success() {
+            .map_err(SettingsTransportError)?;
+            if !response.status().is_success() {
                 return Err(SettingsTransportError(format!(
-                    "GET settings non-success status {}",
-                    resp.status()
+                    "GET settings non-success status {}", response.status()
                 )));
             }
-            let body: Value = resp
-                .json()
-                .await
-                .map_err(|e| SettingsTransportError(e.to_string()))?;
-            // WorkspaceSettingsResponse.settings_state is Option<Value>; null/absent => first run.
-            match body.get("settings_state") {
-                Some(Value::Null) | None => Ok(None),
-                Some(v) => Ok(Some(v.clone())),
+            let body: Value = response.json().await
+                .map_err(|error| SettingsTransportError(error.to_string()))?;
+            if !account.as_ref().is_some_and(|context| context.is_active()) {
+                return Err(SettingsTransportError("Account session is no longer active".into()));
             }
+            let generation = body.get("generation").and_then(Value::as_i64)
+                .filter(|generation| *generation >= 0)
+                .ok_or_else(|| SettingsTransportError("Settings response has no durable generation".into()))?;
+            if body.get("workspace_id").and_then(Value::as_str) != Some(workspace_id) {
+                return Err(SettingsTransportError("Settings response workspace mismatch".into()));
+            }
+            let state = body.get("settings_state").filter(|value| !value.is_null()).cloned();
+            self.revisions.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).insert(
+                workspace_id.to_owned(),
+                SettingsRevision { observed_generation: generation, pending: None },
+            );
+            Ok(state)
         })
     }
 
-    fn save(
-        &self,
-        workspace_id: &str,
-        settings_state: Value,
-    ) -> Result<(), SettingsTransportError> {
+    fn save(&self, workspace_id: &str, settings_state: Value) -> Result<(), SettingsTransportError> {
+        self.save_attempt(workspace_id, settings_state)
+            .map_err(|error| SettingsTransportError(error.to_string()))
+    }
+
+    fn save_attempt(&self, workspace_id: &str, settings_state: Value) -> Result<(), SettingsSaveError> {
+        let attempt = {
+            let mut revisions = self.revisions.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            let revision = revisions.get_mut(workspace_id).ok_or_else(||
+                SettingsSaveError::ReloadRequired("Load the current settings before saving".into()))?;
+            match &revision.pending {
+                Some(pending) if pending.settings_state == settings_state => pending.clone(),
+                Some(_) => return Err(SettingsSaveError::ReloadRequired(
+                    "Resolve the previous settings save before saving newer edits".into())),
+                None => {
+                    let attempt = SettingsWriteAttempt {
+                        settings_state,
+                        expected_generation: revision.observed_generation,
+                        idempotency_key: uuid::Uuid::new_v4().to_string(),
+                    };
+                    revision.pending = Some(attempt.clone());
+                    attempt
+                }
+            }
+        };
         let url = self.settings_url(workspace_id);
         let client = self.client.clone();
-        let request_body = serde_json::json!({ "settings_state": settings_state });
         let account = self.authenticated_context.clone();
         self.runtime.block_on(async move {
-            let resp = crate::local_account::AuthenticatedRequest::new(
+            let request_body = serde_json::json!({
+                "settings_state": attempt.settings_state.clone(),
+                "expected_generation": attempt.expected_generation,
+                "idempotency_key": attempt.idempotency_key.clone(),
+            });
+            let response = crate::local_account::AuthenticatedRequest::new(
                 client.clone(),
                 account.clone(),
-                client
-                    .put(&url)
-                    .timeout(REQUEST_TIMEOUT)
-                    .json(&request_body),
+                client.put(&url).timeout(REQUEST_TIMEOUT).json(&request_body),
             )
             .send()
             .await
-            .map_err(|e| SettingsTransportError(e.to_string()))?;
-            if !resp.status().is_success() {
-                return Err(SettingsTransportError(format!(
-                    "PUT settings non-success status {}",
-                    resp.status()
-                )));
+            .map_err(|error| SettingsSaveError::Transport(SettingsTransportError(error)))?;
+            let status = response.status();
+            if status == reqwest::StatusCode::CONFLICT {
+                self.revisions.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).remove(workspace_id);
+                return Err(SettingsSaveError::ReloadRequired(
+                    "Settings changed remotely; reload and merge before saving".into()));
+            }
+            if status == reqwest::StatusCode::BAD_REQUEST {
+                if let Some(revision) = self.revisions.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).get_mut(workspace_id) {
+                    revision.pending = None;
+                }
+                return Err(SettingsSaveError::Rejected("Settings save was rejected as invalid".into()));
+            }
+            if !status.is_success() {
+                return Err(SettingsSaveError::Transport(SettingsTransportError(format!(
+                    "PUT settings non-success status {status}"
+                ))));
+            }
+            let body: Value = response.json().await
+                .map_err(|error| SettingsSaveError::Transport(SettingsTransportError(error.to_string())))?;
+            if !account.as_ref().is_some_and(|context| context.is_active()) {
+                return Err(SettingsSaveError::Transport(SettingsTransportError(
+                    "Account session is no longer active".into())));
+            }
+            let generation = body.get("generation").and_then(Value::as_i64)
+                .filter(|generation| *generation > attempt.expected_generation);
+            if body.get("workspace_id").and_then(Value::as_str) != Some(workspace_id)
+                || body.get("settings_state") != Some(&attempt.settings_state)
+                || generation.is_none()
+                || !body.get("event_ledger_event_id").and_then(Value::as_str).is_some_and(|id| !id.is_empty())
+            {
+                self.revisions.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).remove(workspace_id);
+                return Err(SettingsSaveError::ReloadRequired(
+                    "Settings save readback changed; reload before retrying".into()));
+            }
+            if let Some(revision) = self.revisions.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).get_mut(workspace_id) {
+                if revision.pending.as_ref().is_some_and(|pending| pending.idempotency_key == attempt.idempotency_key) {
+                    revision.observed_generation = generation.expect("validated durable generation");
+                    revision.pending = None;
+                }
             }
             Ok(())
         })
@@ -1510,6 +1612,30 @@ mod tests {
         assert_eq!(merged.editor_prefs.editor_font_size, 21.0);
         assert_eq!(merged.editor_prefs.tab_size, 8);
         assert_eq!(merged.view_mode, SettingsViewMode::Sfw);
+    }
+
+    #[test]
+    fn reloaded_settings_keep_local_palette_deletion_and_unrelated_remote_changes() {
+        let mut baseline = default_workspace_settings_state();
+        baseline.syntax_palette.mode = SyntaxPaletteMode::Custom;
+        baseline.syntax_palette.set_custom("keyword", [1, 2, 3, 255]);
+        baseline.syntax_palette.set_custom("string", [4, 5, 6, 255]);
+        let mut local = baseline.clone();
+        local.syntax_palette.custom.remove("keyword");
+        let mut remote = baseline.clone();
+        remote.syntax_palette.set_custom("keyword", [20, 30, 40, 255]);
+        remote.syntax_palette.set_custom("string", [50, 60, 70, 255]);
+        remote.syntax_palette.set_custom("comment", [80, 90, 100, 255]);
+        remote.swarm_board_default_open = true;
+
+        let merged = merge_loaded_settings_preserving_local_changes(
+            &remote.to_settings_state(), &baseline, &local,
+        );
+
+        assert_eq!(merged.syntax_palette.custom_for("keyword"), None);
+        assert_eq!(merged.syntax_palette.custom_for("string"), Some([50, 60, 70, 255]));
+        assert_eq!(merged.syntax_palette.custom_for("comment"), Some([80, 90, 100, 255]));
+        assert!(merged.swarm_board_default_open);
     }
 
     /// AC-002: `editor_font_size` is a SEPARATE field from the chrome/UI appearance — it lives ONLY under

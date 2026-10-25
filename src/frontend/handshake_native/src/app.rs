@@ -6360,6 +6360,7 @@ pub struct HandshakeApp {
     /// Latest locally edited, not-yet-durably-saved snapshot per workspace.
     settings_unsaved_by_workspace:
         HashMap<String, crate::workspace_settings::WorkspaceSettingsState>,
+    settings_retry_snapshots: HashMap<String, crate::workspace_settings::WorkspaceSettingsState>,
     /// Workspace ids with unsaved snapshots waiting for their debounced/explicit PUT.
     settings_save_queue: VecDeque<String>,
     /// Persisted failure per workspace so a late A failure is retained but never rendered as B's error.
@@ -8439,6 +8440,7 @@ impl HandshakeApp {
             settings_load_pending: false,
             settings_durable_baselines: HashMap::new(),
             settings_unsaved_by_workspace: HashMap::new(),
+            settings_retry_snapshots: HashMap::new(),
             settings_save_queue: VecDeque::new(),
             settings_failures: HashMap::new(),
             settings_load_cell: Arc::new(Mutex::new(None)),
@@ -8720,6 +8722,18 @@ impl HandshakeApp {
     /// handle and a clean exit ([`eframe::App::on_exit`]) sends the explicit `Shutdown` to the watcher.
     pub fn set_palmistry_handle(&mut self, handle: crate::diagnostics::PalmistryHandle) {
         self.palmistry = Some(handle);
+        self.bind_mcp_diagnostic_owner();
+    }
+
+    fn bind_mcp_diagnostic_owner(&self) {
+        let (Some(server), Some(session), Some(watcher)) = (
+            self.mcp_server.as_ref(), self.diag_session.as_ref(), self.palmistry.as_ref(),
+        ) else {
+            return;
+        };
+        if let Err(error) = server.bind_diagnostic_owner(session, watcher) {
+            tracing::warn!(%error, "MCP diagnostic owner association unavailable");
+        }
     }
 
     /// WP-KERNEL-012 MT-084: bump the UI-thread heartbeat ONE step and publish it into the MT-081 ring
@@ -8894,6 +8908,7 @@ impl HandshakeApp {
             Ok(server) => {
                 tracing::info!(tcp = %server.tcp_addr(), pipe = ?server.pipe_name(), "MCP swarm server bound");
                 self.mcp_server = Some(server);
+                self.bind_mcp_diagnostic_owner();
             }
             Err(e) => {
                 tracing::warn!(error = %e, "MCP swarm server bind failed; model-steering transport disabled this session");
@@ -13506,6 +13521,7 @@ impl HandshakeApp {
             settings_load_pending: false,
             settings_durable_baselines: HashMap::new(),
             settings_unsaved_by_workspace: HashMap::new(),
+            settings_retry_snapshots: HashMap::new(),
             settings_save_queue: VecDeque::new(),
             settings_failures: HashMap::new(),
             settings_load_cell: Arc::new(Mutex::new(None)),
@@ -22743,7 +22759,8 @@ impl HandshakeApp {
             let Some(workspace) = self.settings_save_queue.pop_front() else {
                 return;
             };
-            if let Some(saved_state) = self.settings_unsaved_by_workspace.get(&workspace).cloned() {
+            if let Some(saved_state) = self.settings_retry_snapshots.get(&workspace)
+                .or_else(|| self.settings_unsaved_by_workspace.get(&workspace)).cloned() {
                 break (workspace, saved_state);
             }
             // A later exact save may have retired this stale queue entry. Keep scanning so it cannot
@@ -22770,7 +22787,7 @@ impl HandshakeApp {
                 drop(previous);
             }
             self.settings_io_handle = Some(handle.spawn_blocking(move || {
-                let result = transport.save(&workspace, blob).map_err(|e| e.to_string());
+                let result = transport.save_attempt(&workspace, blob);
                 let mut slot = cell.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
                 *slot = Some(crate::workspace_settings::SettingsSaveDelivery {
                     workspace_id: workspace,
@@ -22949,7 +22966,8 @@ impl HandshakeApp {
             &outcome,
             O::ThemeChanged(_) | O::ViewModeChanged(_) | O::CalendarTimezoneChanged(_)
                 | O::KeybindingChanged { .. } | O::KeybindingReset { .. }
-                | O::SwarmBoardDefaultOpenChanged(_) | O::ResetLayout
+                | O::SwarmBoardDefaultOpenChanged(_) | O::SwarmModelSessionsMaxConcurrentChanged(_)
+                | O::ResetLayout
                 | O::EditorPrefsChanged(_) | O::SyntaxPaletteChanged(_)
                 | O::EditorKeybindingChanged { .. } | O::EditorKeybindingReset { .. }
                 | O::EditorPrefsReset | O::SyntaxPaletteReset
@@ -23313,6 +23331,7 @@ impl HandshakeApp {
             self.workspace_settings = self
                 .settings_unsaved_by_workspace
                 .get(&active_workspace)
+                .or_else(|| self.settings_durable_baselines.get(&active_workspace))
                 .cloned()
                 .unwrap_or_else(crate::workspace_settings::default_workspace_settings_state);
             self.settings_load_pending = true;
@@ -23378,6 +23397,7 @@ impl HandshakeApp {
                                 &baseline,
                                 &local,
                             );
+                            self.settings_retry_snapshots.remove(&delivery.workspace_id);
                             self.settings_durable_baselines
                                 .insert(delivery.workspace_id.clone(), remote.clone());
                             if merged == remote {
@@ -23390,6 +23410,11 @@ impl HandshakeApp {
                             } else {
                                 self.settings_unsaved_by_workspace
                                     .insert(delivery.workspace_id.clone(), merged.clone());
+                                if !self.settings_save_queue.contains(&delivery.workspace_id) {
+                                    self.settings_save_queue.push_back(delivery.workspace_id.clone());
+                                }
+                                self.settings_save_due_at =
+                                    Some(std::time::Instant::now() + SETTINGS_SAVE_DEBOUNCE);
                             }
                             self.workspace_settings = merged;
                             self.swarm_concurrency_refresh_pending = true;
@@ -23448,6 +23473,7 @@ impl HandshakeApp {
                     .store(false, std::sync::atomic::Ordering::SeqCst);
                 match delivery.result {
                     Ok(()) => {
+                        self.settings_retry_snapshots.remove(&delivery.workspace_id);
                         self.settings_durable_baselines
                             .insert(delivery.workspace_id.clone(), delivery.saved_state.clone());
                         self.settings_failures.remove(&delivery.workspace_id);
@@ -23465,13 +23491,25 @@ impl HandshakeApp {
                                 Some(std::time::Instant::now() + SETTINGS_SAVE_DEBOUNCE);
                         }
                     }
-                    Err(msg) => {
+                    Err(error) => {
+                        let operation = match &error {
+                            crate::workspace_settings::SettingsSaveError::ReloadRequired(_) => {
+                                self.settings_retry_snapshots.remove(&delivery.workspace_id);
+                                crate::settings_dialog::SettingsPersistenceOperation::Load
+                            }
+                            crate::workspace_settings::SettingsSaveError::Rejected(_) => {
+                                self.settings_retry_snapshots.remove(&delivery.workspace_id);
+                                crate::settings_dialog::SettingsPersistenceOperation::Save
+                            }
+                            crate::workspace_settings::SettingsSaveError::Transport(_) => {
+                                self.settings_retry_snapshots.insert(
+                                    delivery.workspace_id.clone(), delivery.saved_state.clone(),
+                                );
+                                crate::settings_dialog::SettingsPersistenceOperation::Save
+                            }
+                        };
                         self.settings_failures.insert(
-                            delivery.workspace_id.clone(),
-                            (
-                                crate::settings_dialog::SettingsPersistenceOperation::Save,
-                                msg,
-                            ),
+                            delivery.workspace_id.clone(), (operation, error.to_string()),
                         );
                     }
                 }
@@ -41834,19 +41872,27 @@ impl eframe::App for HandshakeApp {
     /// WP-KERNEL-012 MT-094 (§6.13.3 clean-shutdown rule, AC-014-4): on a clean Handshake exit, send the
     /// explicit `Shutdown` control message to the Palmistry watcher so it exits cleanly and records NO
     /// crash (a clean shutdown is NOT a crash). eframe calls this once on shutdown (after `save`). Taking
-    /// the handle here performs the bounded reap; the handle's `Drop` is the backstop if `on_exit` is
-    /// ever skipped, so the watcher never orphans either way. App-owned Tokio tasks are also drained
+    /// the handle here attempts bounded shutdown and reap; `Drop` attempts a backstop if `on_exit` is
+    /// skipped. The observed outcome retains acknowledgement, exit and reap facts. App-owned Tokio tasks are drained
     /// before their runtime is dropped, avoiding shutdown-time background panics in headless and GUI
     /// teardown paths.
     fn on_exit(&mut self) {
         self.shutdown_mcp_server();
         self.shutdown_runtime_once();
         if let Some(handle) = self.palmistry.take() {
+            let diagnostic_session_id = self.diag_session.as_ref().map(|session| session.session_id.as_str());
+            let watcher_pid = handle.child_id();
+            let watcher_launch_process_instance_id = handle.signed_ready()
+                .map(|ready| ready.identity.process_instance_id);
             tracing::info!(
-                "clean Handshake exit — sending Shutdown to the Palmistry watcher (§6.13.3)"
+                ?diagnostic_session_id, watcher_pid, ?watcher_launch_process_instance_id,
+                "requesting owned Palmistry shutdown"
             );
             let outcome = handle.shutdown();
-            tracing::info!(?outcome, "palmistry watcher reaped on clean exit");
+            tracing::info!(
+                ?diagnostic_session_id, watcher_pid, ?watcher_launch_process_instance_id, ?outcome,
+                "owned Palmistry shutdown observation"
+            );
         }
     }
 
@@ -43035,6 +43081,42 @@ mod mt117_bounded_completion_tests {
 #[cfg(test)]
 mod local_account_workspace_tests {
     use super::*;
+
+    #[test]
+    fn workspace_reentry_edits_start_from_cached_settings_before_load_completes() {
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Error("offline".into()));
+        app.capturing_snapshot = true;
+        let workspace = "settings-reentry".to_owned();
+        let mut baseline = crate::workspace_settings::default_workspace_settings_state();
+        baseline.editor_prefs.editor_font_size = 18.0;
+        baseline.editor_prefs.tab_size = 8;
+        baseline.view_mode = crate::workspace_settings::SettingsViewMode::Sfw;
+        app.settings_durable_baselines.insert(workspace.clone(), baseline.clone());
+        app.settings_loaded_project_id = Some("other-workspace".into());
+        app.active_project_id = workspace.clone();
+        let ctx = egui::Context::default();
+
+        app.drive_settings_dialog(&ctx);
+        assert_eq!(app.workspace_settings, baseline);
+        app.apply_settings_outcome(crate::settings_dialog::SettingsOutcome::ThemeChanged(
+            crate::workspace_settings::WorkspaceTheme::Light,
+        ));
+        let mut remote = baseline.clone();
+        remote.swarm_board_default_open = true;
+        *app.settings_load_cell.lock().unwrap() = Some(crate::workspace_settings::SettingsLoadDelivery {
+            workspace_id: workspace,
+            generation: app.settings_workspace_generation,
+            result: Ok(Some(remote.to_settings_state())),
+        });
+
+        app.drive_settings_dialog(&ctx);
+
+        assert_eq!(app.workspace_settings.theme, crate::workspace_settings::WorkspaceTheme::Light);
+        assert_eq!(app.workspace_settings.editor_prefs.editor_font_size, 18.0);
+        assert_eq!(app.workspace_settings.editor_prefs.tab_size, 8);
+        assert_eq!(app.workspace_settings.view_mode, crate::workspace_settings::SettingsViewMode::Sfw);
+        assert!(app.workspace_settings.swarm_board_default_open);
+    }
 
     fn account(name: &str) -> Arc<crate::local_account::AuthenticatedContext> {
         Arc::new(serde_json::from_value::<crate::local_account::AuthenticatedContext>(serde_json::json!({

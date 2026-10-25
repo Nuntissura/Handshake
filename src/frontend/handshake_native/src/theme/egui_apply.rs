@@ -29,7 +29,7 @@ pub fn apply_to_ctx(palette: &HsPalette, ctx: &Context) {
     visuals.extreme_bg_color = palette.bg;
     visuals.hyperlink_color = palette.accent;
     visuals.selection.bg_fill = palette.accent_soft;
-    visuals.override_text_color = Some(palette.text);
+    visuals.override_text_color = None;
 
     set_widget_colors(&mut visuals, palette);
 
@@ -46,7 +46,10 @@ fn set_widget_colors(visuals: &mut Visuals, palette: &HsPalette) {
     w.inactive.fg_stroke = Stroke::new(1.0_f32, palette.text);
 
     w.active.bg_fill = palette.accent;
-    w.active.fg_stroke = Stroke::new(1.0_f32, palette.surface);
+    w.active.fg_stroke = Stroke::new(
+        1.0_f32,
+        if palette.is_dark() { palette.surface } else { palette.text },
+    );
 
     w.hovered.bg_fill = palette.accent_soft;
     w.hovered.fg_stroke = Stroke::new(1.5_f32, palette.accent);

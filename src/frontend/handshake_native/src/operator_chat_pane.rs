@@ -735,7 +735,7 @@ impl OperatorChatLaunchPaneFactory {
                     }
                 }
             }
-        }
+        };
     }
 
     /// Record the operator's model selection as an auditable decision (F6). Wires

@@ -89,30 +89,30 @@ fn light_palette_tokens_match_react_root() {
 #[test]
 fn dark_palette_tokens_match_react_dark() {
     let p = HsPalette::dark();
-    assert_eq!(p.bg, Color32::from_rgb(0x12, 0x14, 0x18), "dark.bg");
+    assert_eq!(p.bg, Color32::from_rgb(0x16, 0x21, 0x27), "dark.bg");
     assert_eq!(
         p.surface,
-        Color32::from_rgb(0x1d, 0x23, 0x2b),
+        Color32::from_rgb(0x17, 0x21, 0x26),
         "dark.surface"
     );
     assert_eq!(
         p.surface_strong,
-        Color32::from_rgb(0xf8, 0xfa, 0xfc),
+        Color32::from_rgb(0x26, 0x3b, 0x45),
         "dark.surface_strong"
     );
-    assert_eq!(p.border, Color32::from_rgb(0x39, 0x44, 0x52), "dark.border");
+    assert_eq!(p.border, Color32::from_rgb(0x61, 0x77, 0x80), "dark.border");
     assert_eq!(
         p.border_strong,
-        Color32::from_rgb(0xd1, 0xd5, 0xdb),
+        Color32::from_rgb(0x95, 0xdc, 0xff),
         "dark.border_strong"
     );
-    assert_eq!(p.text, Color32::from_rgb(0xf8, 0xfa, 0xfc), "dark.text");
+    assert_eq!(p.text, Color32::from_rgb(0xf0, 0xf4, 0xf4), "dark.text");
     assert_eq!(
         p.text_subtle,
-        Color32::from_rgb(0xba, 0xc5, 0xd1),
+        Color32::from_rgb(0xbd, 0xcb, 0xcf),
         "dark.text_subtle"
     );
-    assert_eq!(p.accent, Color32::from_rgb(0x22, 0xc5, 0x5e), "dark.accent");
+    assert_eq!(p.accent, Color32::from_rgb(0xf4, 0xb9, 0x8b), "dark.accent");
     assert_eq!(
         p.success_text,
         Color32::from_rgb(0x86, 0xef, 0xac),
@@ -150,21 +150,20 @@ fn divider_tokens_exist_for_both_palettes_and_differ() {
         "light.divider_grab"
     );
 
-    // Dark divider tokens: higher idle alpha (0.55) / hover (0.85) to read against the dark bg;
-    // grab = the dark accent (#22c55e).
+    // Dark material divider: opaque idle boundary / focus blue / current warm accent.
     assert_eq!(
         dark.divider_idle,
-        Color32::from_rgba_unmultiplied(148, 163, 184, (0.55 * 255.0_f32).round() as u8),
+        Color32::from_rgb(0x61, 0x77, 0x80),
         "dark.divider_idle",
     );
     assert_eq!(
         dark.divider_hover,
-        Color32::from_rgba_unmultiplied(148, 163, 184, (0.85 * 255.0_f32).round() as u8),
+        Color32::from_rgb(0x95, 0xdc, 0xff),
         "dark.divider_hover",
     );
     assert_eq!(
         dark.divider_grab,
-        Color32::from_rgb(0x22, 0xc5, 0x5e),
+        Color32::from_rgb(0xf4, 0xb9, 0x8b),
         "dark.divider_grab"
     );
 
@@ -204,18 +203,18 @@ fn dark_rgba_tokens_are_premultiplied() {
     // truncated green channel with a rounded blue channel and is internally inconsistent.
     // We delegate premultiplication to egui's own Color32::from_rgba_unmultiplied (the exact
     // compositing math the renderer uses), whose authoritative results are below. The straight
-    // (r,g,b,alpha8) inputs are unchanged from the contract; only the premultiplied bytes
-    // follow egui rather than the contract's bad arithmetic.
+    // success/error inputs retain the contract; the new warm accent keeps alpha8=46. Bytes
+    // follow egui rather than hand-coded conversion.
     let p = HsPalette::dark();
-    // rgba(34,197,94,0.18) -> alpha8 46
+    // rgba(244,185,139,0.18) -> alpha8 46
     assert_eq!(
         p.accent_soft,
-        Color32::from_rgba_unmultiplied(34, 197, 94, 46),
+        Color32::from_rgba_unmultiplied(244, 185, 139, 46),
         "dark.accent_soft"
     );
     assert_eq!(
         p.accent_soft.to_array(),
-        [6, 36, 17, 46],
+        [44, 33, 25, 46],
         "dark.accent_soft premultiplied bytes"
     );
     // rgba(34,197,94,0.2) -> alpha8 51
@@ -498,7 +497,7 @@ fn app_toggle_switches_panel_fill_dark_to_light() {
     assert_eq!(
         harness.ctx.style().visuals.panel_fill,
         HsPalette::dark().bg,
-        "initial panel_fill is dark.bg (#121418)",
+        "initial panel_fill is dark.bg (#162127)",
     );
 
     // The toggle button shows 'Light' while dark is active. Click it.

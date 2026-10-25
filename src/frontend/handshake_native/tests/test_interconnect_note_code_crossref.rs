@@ -218,7 +218,10 @@ fn interconnect_ic06_open_code_block_from_note() {
             .dispatch_palette_action_for_test_with_ctx(&ctx, CMD_VIEW_RICH_NOTE),
         "IC-06: operator-facing rich-note command mounts the note containing the code chip"
     );
-    rich_state.lock().expect("IC-06: rich state").doc = BlockNode::doc(vec![paragraph]);
+    rich_state.lock().expect("IC-06: rich state").edit_document(|document, _history| {
+        *document = BlockNode::doc(vec![paragraph]);
+        Ok::<(), std::convert::Infallible>(())
+    }).expect("edit the mounted canonical document");
     harness.run_steps(3);
     assert!(
         author_ids(&harness).contains(&chip_id),
@@ -446,10 +449,13 @@ fn interconnect_ic07_reference_code_symbol_from_note() {
         // Mounting an unbound rich-note tab intentionally supplies the product demo document. Install
         // the proof document after that mount so Ctrl+V targets the same active state the pane renders.
         let mut rich = rich_state.lock().unwrap();
-        rich.doc = BlockNode::doc(vec![
-            BlockNode::paragraph("see REPLACE_"),
-            BlockNode::paragraph("ME later"),
-        ]);
+        rich.edit_document(|document, _history| {
+            *document = BlockNode::doc(vec![
+                BlockNode::paragraph("see REPLACE_"),
+                BlockNode::paragraph("ME later"),
+            ]);
+            Ok::<(), std::convert::Infallible>(())
+        }).expect("edit the mounted canonical document");
         rich.selection = Selection::text(
             DocPosition::new(vec![0, 0], 4),
             DocPosition::new(vec![1, 0], 2),
@@ -463,20 +469,21 @@ fn interconnect_ic07_reference_code_symbol_from_note() {
         .expect("IC-07: mounted rich editor AccessKit text surface is live")
         .focus();
     harness.run_steps(2);
-    let before_paste = rich_state.lock().unwrap().doc.clone();
+    let before_paste = rich_state.lock().unwrap().document_snapshot().expect("read the mounted canonical document");
     harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::V);
     harness.run_steps(3);
 
     {
         let rich = rich_state.lock().unwrap();
+        let document = rich.document_snapshot().expect("IC-07: mounted canonical document");
         assert_eq!(
-            rich.doc.children.len(),
+            document.children.len(),
             1,
             "IC-07: covered sibling blocks merge; selection={:?}, blocks={:?}",
             rich.selection,
-            rich.doc.children
+            document.children
         );
-        let paragraph = rich.doc.children[0]
+        let paragraph = document.children[0]
             .as_block()
             .expect("IC-07: mounted rich paragraph");
         assert!(
@@ -516,7 +523,7 @@ fn interconnect_ic07_reference_code_symbol_from_note() {
         .unwrap()
         .local_undo_count(&rich_pane);
     assert_eq!(
-        rich_state.lock().unwrap().doc,
+        rich_state.lock().unwrap().document_snapshot().expect("read the mounted canonical document"),
         before_paste,
         "IC-07: mounted Ctrl+Z restores the exact pre-paste selected text and document shape; local undo count after shortcut={undo_count_after_shortcut}"
     );
@@ -541,7 +548,8 @@ fn interconnect_ic07_reference_code_symbol_from_note() {
     harness.run_steps(3);
     {
         let rich = rich_state.lock().unwrap();
-        let paragraph = rich.doc.children[0].as_block().unwrap();
+        let document = rich.document_snapshot().expect("IC-07: mounted canonical document");
+        let paragraph = document.children[0].as_block().unwrap();
         assert!(matches!(
             paragraph.children.as_slice(),
             [Child::Text(prefix), Child::HsLink(link), Child::Text(suffix)]
@@ -560,7 +568,7 @@ fn interconnect_ic07_reference_code_symbol_from_note() {
     );
     harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
     harness.run_steps(3);
-    assert_eq!(rich_state.lock().unwrap().doc, before_paste);
+    assert_eq!(rich_state.lock().unwrap().document_snapshot().expect("read the mounted canonical document"), before_paste);
 
     // Empty and malformed code targets must never become typed atoms. Drive both through the same
     // mounted Ctrl+V route and prove their exact bytes survive as ordinary text, then undo each probe.
@@ -603,7 +611,8 @@ fn interconnect_ic07_reference_code_symbol_from_note() {
                 Some(expected_text.as_str()),
                 "IC-07: malformed code target remains byte-for-byte plain text"
             );
-            let paragraph = rich.doc.children[0].as_block().unwrap();
+            let document = rich.document_snapshot().expect("IC-07: mounted canonical document");
+            let paragraph = document.children[0].as_block().unwrap();
             assert!(
                 paragraph
                     .children
@@ -615,7 +624,7 @@ fn interconnect_ic07_reference_code_symbol_from_note() {
         harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::Z);
         harness.run_steps(3);
         assert_eq!(
-            rich_state.lock().unwrap().doc,
+            rich_state.lock().unwrap().document_snapshot().expect("read the mounted canonical document"),
             before_paste,
             "IC-07: malformed/mixed cross-block plain-text probe is independently undoable"
         );
@@ -641,7 +650,7 @@ fn interconnect_ic07_reference_code_symbol_from_note() {
         .strip_prefix("[[code:")
         .and_then(|s| s.strip_suffix("]]"))
         .expect("IC-07: the real ref has the [[code:…]] shape");
-    let doc = rich_state.lock().unwrap().doc.clone();
+    let doc = rich_state.lock().unwrap().document_snapshot().expect("read the mounted canonical document");
 
     // (3) Structural preflight through the same DocJson shape sent by the native SaveManager.
     use handshake_native::rich_editor::document_model::doc_json::{
@@ -822,9 +831,12 @@ fn interconnect_ic08_shared_find_replace() {
     app.bind_active_project_for_integration_test(workspace_id.clone());
     app.set_active_pane_for_test(Some(PaneId::from("pane-a")));
     let rich_state = app.mounted_rich_state();
-    rich_state.lock().expect("IC-08: rich state").doc = BlockNode::doc(vec![BlockNode::paragraph(
-        &format!("the mounted note mentions {probe} once"),
-    )]);
+    rich_state.lock().expect("IC-08: rich state").edit_document(|document, _history| {
+        *document = BlockNode::doc(vec![BlockNode::paragraph(
+            &format!("the mounted note mentions {probe} once"),
+        )]);
+        Ok::<(), std::convert::Infallible>(())
+    }).expect("edit the mounted canonical document");
 
     // Capture the Context owned by this rendered shell so command dispatch, MT-029 UI input, and bus
     // inspection all address the same real InteractionBus instance.
@@ -1302,7 +1314,10 @@ fn supplemental_mt046_argus_ic06_note_to_code() {
         literal_ref,
         "my_function",
     )));
-    app.mounted_rich_state().lock().unwrap().doc = BlockNode::doc(vec![paragraph]);
+    app.mounted_rich_state().lock().unwrap().edit_document(|document, _history| {
+        *document = BlockNode::doc(vec![paragraph]);
+        Ok::<(), std::convert::Infallible>(())
+    }).expect("edit the mounted canonical document");
     let mut harness = Harness::builder()
         .proof_mt_id("MT-046")
         .with_size(egui::vec2(1100.0, 700.0))
@@ -1588,9 +1603,12 @@ fn supplemental_mt046_argus_ic08_shared_find() {
     app.set_backend_base_url_for_test(&be.base, runtime.handle().clone());
     app.bind_active_project_for_integration_test(workspace_id.clone());
     app.set_active_pane_for_test(Some(PaneId::from("pane-a")));
-    app.mounted_rich_state().lock().unwrap().doc = BlockNode::doc(vec![BlockNode::paragraph(
-        &format!("mounted note contains {probe}"),
-    )]);
+    app.mounted_rich_state().lock().unwrap().edit_document(|document, _history| {
+        *document = BlockNode::doc(vec![BlockNode::paragraph(
+            &format!("mounted note contains {probe}"),
+        )]);
+        Ok::<(), std::convert::Infallible>(())
+    }).expect("edit the mounted canonical document");
     let mut harness = Harness::builder()
         .proof_mt_id("MT-046")
         .with_size(egui::vec2(1100.0, 700.0))

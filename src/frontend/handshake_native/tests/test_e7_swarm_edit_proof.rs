@@ -117,7 +117,7 @@ use handshake_native::rich_editor::save::draft_manager::{
     RichDocumentDraftLoad,
 };
 use handshake_native::rich_editor::save::save_manager::{
-    RichDocLoad, RichDocSaveResult, SaveBackend, SaveFuture, SaveManager, SaveState,
+    RichDocLoad, RichDocSaveResult, SaveBackend, SaveError, SaveFuture, SaveManager, SaveState,
 };
 use handshake_native::tab_bar::TabState;
 

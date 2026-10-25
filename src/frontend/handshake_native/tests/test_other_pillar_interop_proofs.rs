@@ -1606,7 +1606,7 @@ fn other_pillar_op04_swarm_accesskit_other_pillar_interop() {
         other => panic!("OP-04 expected Stage embed, got {other:?}"),
     };
     fixtures.stage_artifact(artifact_id.clone());
-    assert!(to_content_json_value(&rich_state.lock().unwrap().doc)
+    assert!(to_content_json_value(&rich_state.lock().unwrap().document_snapshot().expect("read the mounted canonical document"))
         .to_string()
         .contains(&artifact_id));
     stage_app.run_steps(2);

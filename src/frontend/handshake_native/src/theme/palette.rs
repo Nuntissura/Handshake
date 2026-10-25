@@ -183,32 +183,29 @@ impl HsPalette {
     /// Dark palette — ported from `App.css` `[data-theme='dark']`.
     /// `accent_soft`, `success_bg`, `error_bg` are CSS `rgba(...)` -> premultiplied Color32.
     pub fn dark() -> Self {
-        let bg = Color32::from_rgb(0x12, 0x14, 0x18);
-        let text_subtle = Color32::from_rgb(0xba, 0xc5, 0xd1);
+        let bg = Color32::from_rgb(0x16, 0x21, 0x27);
+        let text_subtle = Color32::from_rgb(0xbd, 0xcb, 0xcf);
         Self {
             bg,
-            surface: Color32::from_rgb(0x1d, 0x23, 0x2b),
-            surface_strong: Color32::from_rgb(0xf8, 0xfa, 0xfc),
-            border: Color32::from_rgb(0x39, 0x44, 0x52),
-            border_strong: Color32::from_rgb(0xd1, 0xd5, 0xdb),
-            text: Color32::from_rgb(0xf8, 0xfa, 0xfc),
+            surface: Color32::from_rgb(0x17, 0x21, 0x26),
+            surface_strong: Color32::from_rgb(0x26, 0x3b, 0x45),
+            border: Color32::from_rgb(0x61, 0x77, 0x80),
+            border_strong: Color32::from_rgb(0x95, 0xdc, 0xff),
+            text: Color32::from_rgb(0xf0, 0xf4, 0xf4),
             text_subtle,
-            accent: Color32::from_rgb(0x22, 0xc5, 0x5e),
-            // rgba(34,197,94,0.18) -> alpha8 46 -> premultiplied (6,35,17,46)
-            accent_soft: rgba_premultiplied(34, 197, 94, 0.18),
+            accent: Color32::from_rgb(0xf4, 0xb9, 0x8b),
+            // Warm material selection retains the existing premultiplied-alpha helper.
+            accent_soft: rgba_premultiplied(244, 185, 139, 0.18),
             // rgba(34,197,94,0.2) -> alpha8 51 -> premultiplied (6,39,18,51)
             success_bg: rgba_premultiplied(34, 197, 94, 0.2),
             success_text: Color32::from_rgb(0x86, 0xef, 0xac),
             // rgba(248,113,113,0.2) -> alpha8 51 -> premultiplied (49,22,22,51)
             error_bg: rgba_premultiplied(248, 113, 113, 0.2),
             error_text: Color32::from_rgb(0xfc, 0xa5, 0xa5),
-            // Divider tokens: React slate gradient (148,163,184). Dark theme needs a touch more
-            // luminance to read against the dark bg, so idle uses a higher alpha (0.55) than light
-            // (0.45) — making the two themes' idle premultiplied bytes genuinely differ (MT-006
-            // divider-token test). Hover strengthens to 0.85; grab = the dark accent (#22c55e).
-            divider_idle: rgba_premultiplied(148, 163, 184, 0.55),
-            divider_hover: rgba_premultiplied(148, 163, 184, 0.85),
-            divider_grab: Color32::from_rgb(0x22, 0xc5, 0x5e),
+            // Opaque shared-edge material: idle boundary, focus blue and warm active divider.
+            divider_idle: Color32::from_rgb(0x61, 0x77, 0x80),
+            divider_hover: Color32::from_rgb(0x95, 0xdc, 0xff),
+            divider_grab: Color32::from_rgb(0xf4, 0xb9, 0x8b),
             // MT-010 dark rail palette (exact spec table).
             scrollbar_idle: rgba_premultiplied(0x2A, 0x2A, 0x2F, 0.6),
             scrollbar_hover: rgba_premultiplied(0x4A, 0x4A, 0x55, 0.85),
@@ -216,10 +213,9 @@ impl HsPalette {
             scrollbar_disabled: rgba_premultiplied(0x1E, 0x1E, 0x22, 0.3),
             syntax: HsSyntaxTokens::dark(text_subtle, bg),
             diagnostics: HsDiagnosticTokens::dark(),
-            // canvas node colour (MT-021): 50/50 mean of accent (#22c55e) and breakpoint red
-            // (rgb 229,60,60), derived here so the graph widget holds no literal.
+            // Existing 50/50 accent + diagnostic breakpoint derivation, with the current accent.
             graph_canvas: blend_channels(
-                Color32::from_rgb(0x22, 0xc5, 0x5e),
+                Color32::from_rgb(0xf4, 0xb9, 0x8b),
                 HsDiagnosticTokens::dark().breakpoint,
             ),
             // <mark> search-highlight amber (MT-028), ported from the React `<mark>` rgb(255,214,0).

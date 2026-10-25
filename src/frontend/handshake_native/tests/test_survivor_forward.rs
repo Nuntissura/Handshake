@@ -96,6 +96,8 @@ fn seam_reads_durable_survivor_records_typed_newest_first() {
     // Newest-first (crash captured_at 2000 before freeze 1000).
     assert_eq!(views[0].kind, PalmistrySurvivorKind::Crash);
     assert_eq!(views[0].exit_code, Some(3221225477));
+    assert!(views[0].last_events.is_empty(), "legacy records default to no snapshot");
+    assert!(views[1].last_events.is_empty(), "legacy records default to no snapshot");
     assert!(!views[0].forwarded);
     assert_eq!(views[1].kind, PalmistrySurvivorKind::Freeze);
     assert_eq!(views[1].stale_ms, 6000);
@@ -126,6 +128,7 @@ fn seam_reads_durable_survivor_records_typed_newest_first() {
 /// the Tier-3 panel.
 #[test]
 fn golden_cross_crate_roundtrip_real_store_writes_native_reader_reads() {
+    use handshake_diag_ring::DiagEvent;
     use palmistry::child_stall::{ChildStallReasonCode, ChildStallReport};
     use palmistry::crash_capture::{CrashDetection, CrashRecord};
     use palmistry::freeze_detect::FreezeReport;
@@ -135,6 +138,19 @@ fn golden_cross_crate_roundtrip_real_store_writes_native_reader_reads() {
     let _g = DirGuard(dir.clone());
 
     let mut store = SurvivorStore::open(&dir).expect("open the REAL palmistry survivor store");
+    let ordinary_events: Vec<_> = (0..70)
+        .map(|offset| DiagEvent::heartbeat(17, u64::MAX - offset, offset, u64::MAX - offset))
+        .collect();
+    let mut nonordinary = ordinary_events[0];
+    nonordinary.event_code = 12;
+    let mut invalid_phase = ordinary_events[0];
+    invalid_phase.phase_marker = 5;
+    let mut invalid_severity = ordinary_events[0];
+    invalid_severity.severity = 3;
+    let mut invalid_reserved = ordinary_events[0];
+    invalid_reserved._reserved = [1, 0, 0, 0];
+    let mut snapshot = vec![nonordinary, invalid_phase, invalid_severity, invalid_reserved];
+    snapshot.extend_from_slice(&ordinary_events);
 
     // 1) FREEZE — through the real MT-091 report type; marked forwarded through the real flag path.
     let freeze = SurvivorRecord::from_freeze(
@@ -145,9 +161,10 @@ fn golden_cross_crate_roundtrip_real_store_writes_native_reader_reads() {
             last_heartbeat_counter: 77,
             last_heartbeat_ts_nanos: 77_000,
         },
-        3,
+        snapshot.len() as u32,
         SurvivorProbeResult::NotResponding,
-    );
+    )
+    .with_last_events(&snapshot);
     let freeze_event_code = freeze.event_code;
     let freeze_path = store.put(freeze).expect("persist the freeze record");
     assert!(
@@ -205,6 +222,9 @@ fn golden_cross_crate_roundtrip_real_store_writes_native_reader_reads() {
          the native reader's Tagged variant decodes; a writer-side serde change must fail here"
     );
     assert_eq!(json["forwarded"], true, "mark_forwarded persisted durably");
+    assert_eq!(json["last_events"].as_array().unwrap().len(), 64);
+    assert_eq!(json["last_events"][0]["sequence_id"].as_u64(), Some(u64::MAX));
+    assert_eq!(json["last_events"][0]["timestamp_nanos"].as_u64(), Some(u64::MAX));
 
     // READ back through the REAL native reader (the panel's projection path).
     let views = read_survivor_records(&dir);
@@ -219,6 +239,13 @@ fn golden_cross_crate_roundtrip_real_store_writes_native_reader_reads() {
     assert_eq!(freeze_view.session_id, "sess-golden-freeze");
     assert_eq!(freeze_view.process_id, 4242);
     assert_eq!(freeze_view.event_code, freeze_event_code);
+    assert_eq!(freeze_view.last_events.as_slice(), &ordinary_events[..64]);
+    assert!(freeze_view.last_events.iter().all(|event| {
+        event.event_code != 12
+            && event.phase_marker <= 4
+            && event.severity <= 2
+            && event._reserved == [0; 4]
+    }));
     assert_eq!(freeze_view.stale_ms, 6543);
     assert_eq!(freeze_view.exit_code, None);
     assert_eq!(freeze_view.minidump_path, None);
@@ -254,6 +281,31 @@ fn golden_cross_crate_roundtrip_real_store_writes_native_reader_reads() {
     assert_eq!(stall_view.last_progress_ts_nanos, Some(777));
     assert_eq!(stall_view.child_stall_reason_code, Some(1));
 
+    // Adversarial parser fixture bypasses the producer's filtering, not a runtime capture.
+    let mut invalid_code = ordinary_events[0];
+    invalid_code.event_code = 13;
+    let mut raw_events = vec![invalid_code];
+    raw_events.extend_from_slice(&snapshot);
+    let mut parser_record = json.clone();
+    parser_record["session_id"] = "sess-parser-only".into();
+    parser_record["last_events"] = serde_json::to_value(&raw_events).unwrap();
+    assert_eq!(parser_record["last_events"].as_array().unwrap().len(), 75);
+    write_record(
+        &dir,
+        "survivor-parser-only.json",
+        &serde_json::to_string(&parser_record).unwrap(),
+    );
+    let parsed = read_survivor_records(&dir)
+        .into_iter()
+        .find(|view| view.session_id == "sess-parser-only")
+        .expect("the raw parser fixture decodes");
+    assert_eq!(parsed.last_events.len(), 64, "the reader enforces its own bound");
+    assert_eq!(
+        parsed.last_events.as_slice(),
+        &ordinary_events[..64],
+        "the reader filters invalid tags before bounding and preserves exact u64 values and order"
+    );
+
     assert_no_local_artifact_dir();
 }
 
@@ -270,6 +322,7 @@ fn panel_tier3_section_populates_from_forwarded_records() {
                 session_id: "sess-freeze".to_owned(),
                 process_id: 4242,
                 event_code: 7,
+                last_events: Vec::new(),
                 stale_ms: 6000,
                 exit_code: None,
                 minidump_path: None,
@@ -286,6 +339,7 @@ fn panel_tier3_section_populates_from_forwarded_records() {
                 session_id: "sess-child".to_owned(),
                 process_id: 4242,
                 event_code: 12,
+                last_events: Vec::new(),
                 stale_ms: 6100,
                 exit_code: None,
                 minidump_path: None,
@@ -302,6 +356,7 @@ fn panel_tier3_section_populates_from_forwarded_records() {
                 session_id: "sess-crash".to_owned(),
                 process_id: 7,
                 event_code: 8,
+                last_events: Vec::new(),
                 stale_ms: 0,
                 exit_code: Some(0xC000_0005),
                 minidump_path: Some("C:/data/palmistry-crash-sess-crash.dmp".to_owned()),

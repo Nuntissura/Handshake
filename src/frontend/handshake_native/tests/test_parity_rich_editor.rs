@@ -844,7 +844,7 @@ fn parity_draft_recovery_native() {
     let draft_content = serde_json::json!({ "type": "doc", "content": [
         { "type": "paragraph", "content": [ { "type": "text", "text": "parity-e2-22-draft-content" } ] } ] });
     let backend = Arc::new(ReqwestDraftBackend::new("http://native"));
-    let mut mgr = DraftManager::new(backend, None, "doc-e2-22", 1, &base_content);
+    let mut mgr = DraftManager::new(backend.clone(), None, "doc-e2-22", 1, &base_content);
 
     // Write path: an unsaved edit becomes a debounced draft upsert carrying the BASE server hash.
     let t0 = Instant::now();
@@ -867,8 +867,7 @@ fn parity_draft_recovery_native() {
         "E2-22: the draft upsert bases on the loaded server version"
     );
 
-    // Simulate the crash + reopen: a fresh GET /draft (staged headlessly) restores the draft content.
-    mgr.deliver_load_for_test(Ok(RichDocumentDraftLoad {
+    let draft_load = RichDocumentDraftLoad {
         current_doc_version: 1,
         draft: Some(RichDocumentDraft {
             base_doc_version: 1,
@@ -876,9 +875,20 @@ fn parity_draft_recovery_native() {
             draft_content_sha256: String::new(),
             content_json: Some(draft_content.clone()),
         }),
-    }));
+    };
+    // Reopen with fresh manager and owner state, as the simulated crash discarded the first manager.
+    drop(mgr);
+    let mut mgr = DraftManager::new(backend, None, "doc-e2-22", 1, &base_content);
+    let owner = handshake_native::rich_editor::document_owner::DocumentEditOwner::new(
+        handshake_native::rich_editor::document_model::doc_json::from_json_value(&base_content)
+            .expect("E2-22: canonical saved document"),
+    );
+    owner.bind_context("workspace-e2-22", "doc-e2-22", "http://native", None, None)
+        .expect("E2-22: bind the reopened component owner");
+    assert!(owner.with_save_gate(|gate| mgr.bind_owner(gate)));
+    owner.with_save_gate(|gate| mgr.deliver_load_for_test(gate, Ok(draft_load)));
     assert!(
-        mgr.drain_load(),
+        owner.with_save_gate(|gate| mgr.drain_load(gate)),
         "E2-22: the staged draft must become available after the simulated crash"
     );
     assert!(

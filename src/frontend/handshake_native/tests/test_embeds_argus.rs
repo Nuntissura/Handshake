@@ -269,12 +269,15 @@ fn mt014_mounted_embed_states_canonical_argus_inspect_steer_reobserve() {
     {
         let rich = harness.state().mounted_rich_state();
         let mut state = rich.lock().unwrap();
-        state.doc = BlockNode::doc(vec![
-            embed_block("images", "loaded1"),
-            embed_block("images", "missing1"),
-            embed_block("images", "corrupt1"),
-            embed_block("images", "loading1"),
-        ]);
+        state.edit_document(|document, _history| {
+            *document = BlockNode::doc(vec![
+                embed_block("images", "loaded1"),
+                embed_block("images", "missing1"),
+                embed_block("images", "corrupt1"),
+                embed_block("images", "loading1"),
+            ]);
+            Ok::<(), std::convert::Infallible>(())
+        }).expect("edit the mounted canonical document");
         state.embeds.resolutions.insert(
             "images:loaded1",
             EmbedResolutionState::Ok(resolved_image("loaded1")),

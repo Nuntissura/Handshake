@@ -484,6 +484,32 @@ fn palmistry_record_row(
                 .color(palette.text_subtle),
         );
     }
+    if !rec.last_events.is_empty() {
+        egui::CollapsingHeader::new(format!("Recorded events ({})", rec.last_events.len()))
+            .id_salt((
+                "palmistry-recorded-events",
+                rec.session_id.as_str(),
+                rec.process_id,
+                rec.captured_at_unix_ms,
+                rec.event_code,
+            ))
+            .default_open(false)
+            .show(ui, |ui| {
+                egui::ScrollArea::vertical()
+                    .max_height(180.0)
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        for event in &rec.last_events {
+                            ui.scope(|ui| event_row(ui, event, palette))
+                                .response
+                                .on_hover_text(format!(
+                                    "Sequence: {}\nTimestamp (ns): {}",
+                                    event.sequence_id, event.timestamp_nanos,
+                                ));
+                        }
+                    });
+            });
+    }
 }
 
 // ── Row + formatting helpers (theme tokens only) ──────────────────────────────────────────────────

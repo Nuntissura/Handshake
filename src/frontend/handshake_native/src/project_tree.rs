@@ -986,7 +986,7 @@ pub struct ProjectTreeColors {
 }
 
 /// Load a workspace's rich documents + canvases + bookmarks over the existing backend HTTP API.
-/// Three sequential GETs (`/knowledge/documents?workspace_id={id}`, `/workspaces/{id}/canvases`,
+/// Sequential reads (`/knowledge/documents?workspace_id={id}`, `/workspaces/{id}/canvases`,
 /// `/workspaces/{id}/loom/views/pins`), each deserialized via `serde_json::Value` so this adds no
 /// dependency on the `handshake_core` crate's types — the same pattern `project_tabs::fetch_workspaces`
 /// uses. Rows missing an `id` are skipped (a malformed row must not fail the whole load); a missing
@@ -1059,79 +1059,91 @@ async fn fetch_rich_document_summaries(
         .map_err(|error| AppError::Http(error.to_string()))
 }
 
-/// GET `/workspaces/{id}/loom/views/pins?limit=100&offset=0` and map the `LoomViewResponse::Pins`
-/// JSON (`{"view_type":"pins","blocks":[ ... ]}`) to [`BookmarkSummary`] rows. Mirrors the React
-/// `queryLoomView(workspaceId, 'pins', { limit:100, offset:0 })` call. Each block's title falls back
-/// `title -> original_filename -> block_id` (the React `blockTitle`); the kind badge is computed
-/// exactly like the React `bookmarkKind()` (document if a `document_id` is present, else the
-/// `content_type` when it is file/tag_hub/journal, else "block"). Blocks missing a `block_id` are
-/// skipped. A non-success status or a parse failure is an error, never a panic.
+/// Load every pins page through the authenticated Loom view. The backend caps pages at 500 and
+/// applies the offset before returning `blocks`; a short raw page ends traversal. Malformed rows
+/// without an id retain the existing skip behavior and do not alter pagination. A failed later page
+/// or repeated block identity rejects the whole load, preserving the tree's previous set.
+/// Offset responses carry no snapshot revision; concurrent server reordering can require a refresh.
 async fn fetch_bookmarks(
     client: &reqwest::Client,
     base_url: &str,
     workspace_id: &str,
     account: Option<std::sync::Arc<crate::local_account::AuthenticatedContext>>,
 ) -> Result<Vec<BookmarkSummary>, AppError> {
-    let url = format!("{base_url}/workspaces/{workspace_id}/loom/views/pins?limit=100&offset=0");
-    let resp = crate::local_account::AuthenticatedRequest::new(
-        client.clone(),
-        account,
-        client.get(&url).timeout(std::time::Duration::from_secs(5)),
-    )
-    .send()
-    .await
-    .map_err(|e| AppError::Http(e.to_string()))?;
-    if !resp.status().is_success() {
-        return Err(AppError::Http(format!(
-            "non-success status {}",
-            resp.status()
-        )));
-    }
-    let v: serde_json::Value = resp
-        .json()
+    const PAGE_SIZE: u32 = 500;
+    let mut offset = 0u32;
+    let mut rows = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    loop {
+        let url = format!(
+            "{base_url}/workspaces/{workspace_id}/loom/views/pins?limit={PAGE_SIZE}&offset={offset}"
+        );
+        let resp = crate::local_account::AuthenticatedRequest::new(
+            client.clone(),
+            account.clone(),
+            client.get(&url).timeout(std::time::Duration::from_secs(5)),
+        )
+        .send()
         .await
-        .map_err(|e| AppError::Parse(e.to_string()))?;
-    let arr = v
-        .get("blocks")
-        .and_then(|b| b.as_array())
-        .ok_or_else(|| AppError::Parse("expected a 'blocks' array in the pins view".to_owned()))?;
-    let rows = arr
-        .iter()
-        .filter_map(|row| {
-            let block_id = row.get("block_id").and_then(|x| x.as_str())?;
-            let document_id = row
-                .get("document_id")
-                .and_then(|x| x.as_str())
-                .map(|s| s.to_owned());
-            let updated_at = row
-                .get("updated_at")
-                .and_then(|x| x.as_str())
+        .map_err(|error| AppError::Http(error.to_string()))?;
+        if !resp.status().is_success() {
+            return Err(AppError::Http(format!("non-success status {}", resp.status())));
+        }
+        let value = decode_bookmark_page(resp, account.as_ref()).await?;
+        if value.get("view_type").and_then(serde_json::Value::as_str) != Some("pins") {
+            return Err(AppError::Parse("expected the pins view".to_owned()));
+        }
+        let page = value.get("blocks").and_then(serde_json::Value::as_array)
+            .ok_or_else(|| AppError::Parse("expected a 'blocks' array in the pins view".to_owned()))?;
+        if page.len() > PAGE_SIZE as usize {
+            return Err(AppError::Parse("pins page exceeds the requested limit".to_owned()));
+        }
+        for row in page {
+            let Some(block_id) = row.get("block_id").and_then(serde_json::Value::as_str) else {
+                continue;
+            };
+            if !seen.insert(block_id.to_owned()) {
+                return Err(AppError::Parse(
+                    "pins changed during pagination or contain a duplicate block; reload".to_owned(),
+                ));
+            }
+            let document_id = row.get("document_id").and_then(serde_json::Value::as_str)
                 .map(str::to_owned);
-            let title = row
-                .get("title")
-                .and_then(|x| x.as_str())
-                .filter(|s| !s.trim().is_empty())
-                .or_else(|| {
-                    row.get("original_filename")
-                        .and_then(|x| x.as_str())
-                        .filter(|s| !s.trim().is_empty())
-                })
-                .unwrap_or(block_id)
-                .to_owned();
-            let content_type = row
-                .get("content_type")
-                .and_then(|x| x.as_str())
+            let updated_at = row.get("updated_at").and_then(serde_json::Value::as_str)
+                .map(str::to_owned);
+            let title = row.get("title").and_then(serde_json::Value::as_str)
+                .filter(|title| !title.trim().is_empty())
+                .or_else(|| row.get("original_filename").and_then(serde_json::Value::as_str)
+                    .filter(|name| !name.trim().is_empty()))
+                .unwrap_or(block_id).to_owned();
+            let content_type = row.get("content_type").and_then(serde_json::Value::as_str)
                 .unwrap_or("");
-            Some(BookmarkSummary {
+            rows.push(BookmarkSummary {
                 block_id: block_id.to_owned(),
                 title,
                 kind: bookmark_kind(document_id.as_deref(), content_type),
                 document_id,
                 updated_at,
-            })
-        })
-        .collect();
-    Ok(rows)
+            });
+        }
+        if page.len() < PAGE_SIZE as usize {
+            return Ok(rows);
+        }
+        offset = offset.checked_add(PAGE_SIZE)
+            .ok_or_else(|| AppError::Parse("pins pagination offset overflow".to_owned()))?;
+    }
+}
+
+async fn decode_bookmark_page(
+    response: reqwest::Response,
+    account: Option<&std::sync::Arc<crate::local_account::AuthenticatedContext>>,
+) -> Result<serde_json::Value, AppError> {
+    let value = response.json().await
+        .map_err(|error| AppError::Parse(error.to_string()))?;
+    if !account.is_some_and(|context| context.is_active()) {
+        return Err(AppError::Http("Account session is no longer active".to_owned()));
+    }
+    Ok(value)
 }
 
 /// Compute the bookmark kind badge exactly like the React `bookmarkKind()` helper
@@ -1202,6 +1214,201 @@ async fn fetch_summaries(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct BookmarkPageServer {
+        base: String,
+        account: std::sync::Arc<crate::local_account::AuthenticatedContext>,
+        stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        worker: Option<std::thread::JoinHandle<Vec<String>>>,
+        body_release: Option<std::sync::mpsc::Sender<()>>,
+    }
+
+    impl BookmarkPageServer {
+        fn new(pages: Vec<(u16, serde_json::Value)>, hold_body: bool) -> Self {
+            use std::io::{Read, Write};
+            use std::sync::atomic::Ordering;
+            use std::time::{Duration, Instant};
+
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            listener.set_nonblocking(true).unwrap();
+            let base = format!("http://{}", listener.local_addr().unwrap());
+            let account = crate::local_account::mock_account_context(&base);
+            let (body_release, body_wait) = std::sync::mpsc::channel();
+            let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let worker_stop = stop.clone();
+            let worker = std::thread::spawn(move || {
+                let mut requests = Vec::new();
+                let deadline = Instant::now() + Duration::from_secs(15);
+                for (status, value) in pages {
+                    let mut stream = loop {
+                        if worker_stop.load(Ordering::Acquire) {
+                            return requests;
+                        }
+                        assert!(Instant::now() < deadline, "bookmark fixture request timed out");
+                        match listener.accept() {
+                            Ok((stream, _)) => break stream,
+                            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                                std::thread::sleep(Duration::from_millis(1));
+                            }
+                            Err(error) => panic!("bookmark fixture accept: {error}"),
+                        }
+                    };
+                    stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+                    stream.set_write_timeout(Some(Duration::from_secs(5))).unwrap();
+                    let mut request = Vec::new();
+                    while !request.windows(4).any(|window| window == b"\r\n\r\n") {
+                        let mut chunk = [0; 4096];
+                        let count = stream.read(&mut chunk).unwrap();
+                        assert!(count > 0 && request.len() + count <= 16_384);
+                        request.extend_from_slice(&chunk[..count]);
+                    }
+                    requests.push(String::from_utf8(request).unwrap());
+                    let body = serde_json::to_string(&value).unwrap();
+                    let headers = format!(
+                        "HTTP/1.1 {status} fixture\r\nContent-Type: application/json\r\nConnection: close\r\nContent-Length: {}\r\n\r\n",
+                        body.len(),
+                    );
+                    stream.write_all(headers.as_bytes()).unwrap();
+                    stream.flush().unwrap();
+                    if hold_body {
+                        body_wait.recv_timeout(Duration::from_secs(5)).expect("release held response body");
+                    }
+                    stream.write_all(body.as_bytes()).unwrap();
+                }
+                requests
+            });
+            Self {
+                base, account, stop, worker: Some(worker),
+                body_release: hold_body.then_some(body_release),
+            }
+        }
+
+        fn fetch(&self) -> Result<Vec<BookmarkSummary>, AppError> {
+            tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(
+                fetch_bookmarks(&reqwest::Client::new(), &self.base, "workspace-1", Some(self.account.clone())),
+            )
+        }
+
+        fn release_body(&mut self) {
+            if let Some(release) = self.body_release.take() {
+                let _ = release.send(());
+            }
+        }
+
+        fn finish(mut self) -> Vec<String> {
+            self.release_body();
+            self.worker.take().unwrap().join().unwrap()
+        }
+    }
+
+    impl Drop for BookmarkPageServer {
+        fn drop(&mut self) {
+            self.release_body();
+            self.stop.store(true, std::sync::atomic::Ordering::Release);
+            if let Some(worker) = self.worker.take() {
+                let _ = worker.join();
+            }
+        }
+    }
+
+    fn bookmark_page(rows: Vec<serde_json::Value>) -> serde_json::Value {
+        serde_json::json!({ "view_type": "pins", "blocks": rows })
+    }
+
+    fn bookmark_rows(count: usize) -> Vec<serde_json::Value> {
+        (0..count).map(|index| serde_json::json!({ "block_id": format!("bookmark-{index}") })).collect()
+    }
+
+    #[test]
+    fn bookmarks_fetch_all_pages_with_auth_and_preserved_row_metadata() {
+        let mut first = bookmark_rows(500);
+        first[0] = serde_json::json!({
+            "block_id": "bookmark-0", "title": "Document", "document_id": "document-1",
+            "content_type": "file", "updated_at": "2026-10-25T10:00:00Z",
+        });
+        first[17] = serde_json::json!({ "title": "malformed row without identity" });
+        let second = vec![
+            serde_json::json!({ "block_id": "bookmark-500", "title": " ", "original_filename": "photo.png", "content_type": "file" }),
+            serde_json::json!({ "block_id": "bookmark-501" }),
+        ];
+        let server = BookmarkPageServer::new(vec![(200, bookmark_page(first)), (200, bookmark_page(second))], false);
+        let rows = server.fetch().expect("fetch the complete pins traversal");
+        assert_eq!(rows.len(), 501, "only the malformed row is skipped, not a later page");
+        assert_eq!(rows[0].title, "Document");
+        assert_eq!(rows[0].kind, "document");
+        assert_eq!(rows[0].document_id.as_deref(), Some("document-1"));
+        assert_eq!(rows[0].updated_at.as_deref(), Some("2026-10-25T10:00:00Z"));
+        assert_eq!(rows[499].block_id, "bookmark-500");
+        assert_eq!(rows[499].title, "photo.png");
+        assert_eq!(rows[499].kind, "file");
+        assert_eq!(rows[500].title, "bookmark-501");
+        let requests = server.finish();
+        assert_eq!(requests.len(), 2, "the short second page terminates traversal");
+        assert!(requests[0].lines().next().unwrap().contains("limit=500&offset=0"));
+        assert!(requests[1].lines().next().unwrap().contains("limit=500&offset=500"));
+        for request in requests {
+            let headers = request.to_ascii_lowercase();
+            assert!(headers.contains(&format!("x-hsk-session-token: {}", "a".repeat(64))));
+            assert!(headers.contains(&format!("x-hsk-channel-binding-token: {}", "b".repeat(64))));
+        }
+    }
+
+    #[test]
+    fn bookmarks_exact_page_ends_on_empty_next_page() {
+        let server = BookmarkPageServer::new(vec![
+            (200, bookmark_page(bookmark_rows(500))), (200, bookmark_page(Vec::new())),
+        ], false);
+        assert_eq!(server.fetch().unwrap().len(), 500);
+        let requests = server.finish();
+        assert_eq!(requests.len(), 2);
+        assert!(requests[1].lines().next().unwrap().contains("offset=500"));
+    }
+
+    #[test]
+    fn bookmarks_later_failure_or_duplicate_rejects_the_whole_load() {
+        for (status, second, expected) in [
+            (503, serde_json::json!({ "error": "unavailable" }), "503"),
+            (200, bookmark_page(bookmark_rows(1)), "duplicate"),
+        ] {
+            let server = BookmarkPageServer::new(vec![
+                (200, bookmark_page(bookmark_rows(500))), (status, second),
+            ], false);
+            let error = server.fetch().expect_err("partial or repeated pages cannot become a complete tree");
+            assert!(error.to_string().contains(expected));
+            assert_eq!(server.finish().len(), 2);
+        }
+    }
+
+    #[test]
+    fn bookmarks_account_retirement_during_response_rejects_the_load() {
+        use std::future::{poll_fn, Future};
+        use std::task::Poll;
+
+        let mut server = BookmarkPageServer::new(vec![(200, bookmark_page(bookmark_rows(1)))], true);
+        let account = server.account.clone();
+        let url = format!("{}/workspaces/workspace-1/loom/views/pins?limit=500&offset=0", server.base);
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let result = runtime.block_on(async {
+            let client = reqwest::Client::new();
+            let response = crate::local_account::AuthenticatedRequest::new(
+                client.clone(), Some(account.clone()),
+                client.get(&url).timeout(std::time::Duration::from_secs(5)),
+            ).send().await.expect("headers complete while account is active");
+            assert!(account.is_active(), "the send-stage guard already accepted this account");
+            let decoding = decode_bookmark_page(response, Some(&account));
+            tokio::pin!(decoding);
+            poll_fn(|context| match decoding.as_mut().poll(context) {
+                Poll::Pending => Poll::Ready(()),
+                Poll::Ready(_) => panic!("the response body must still be held"),
+            }).await;
+            account.invalidate();
+            server.release_body();
+            decoding.await
+        });
+        assert!(matches!(result, Err(AppError::Http(message)) if message.contains("no longer active")),
+            "only the post-body guard can reject this retired account after send succeeded");
+        assert_eq!(server.finish().len(), 1);
+    }
 
     #[test]
     fn stable_part_strips_to_safe_chars() {

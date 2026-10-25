@@ -86,6 +86,18 @@ pub struct ArgusDurabilityBinding {
 
 pub type SharedArgusDurabilityBinding = Arc<Mutex<Option<ArgusDurabilityBinding>>>;
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+struct DiagnosticOwnerAttachment {
+    session_id: String,
+    ring_path: std::path::PathBuf,
+    parent_pid: u32,
+    parent_process_birth: binding::ProcessBirthIdentity,
+    watcher_launch_pid: u32,
+    watcher_launch_process_instance_id: uuid::Uuid,
+    ring_version: u32,
+    record_size: u32,
+}
+
 struct PendingDurableReceipt {
     envelope: crate::backend_client::ArgusActionReceiptEnvelope,
     binding: ArgusDurabilityBinding,
@@ -115,6 +127,7 @@ pub struct SwarmMcpServer {
     /// Exposed so the live shell / diagnostics can read the attributed action log and the concurrent
     /// harness test can assert leasing + attribution after driving N clients over the wire.
     safety: SwarmSafetyState,
+    diagnostic_owner: Arc<Mutex<Option<DiagnosticOwnerAttachment>>>,
 }
 
 /// The shared steering state the server's connection tasks read/write, cloned into each task. MT-028:
@@ -135,6 +148,7 @@ struct ServerState {
     durability: SharedArgusDurabilityBinding,
     pending_receipts: Arc<Mutex<std::collections::HashMap<String, PendingDurableReceipt>>>,
     receipt_slots: Arc<tokio::sync::Semaphore>,
+    diagnostic_owner: Arc<Mutex<Option<DiagnosticOwnerAttachment>>>,
 }
 
 impl SwarmMcpServer {
@@ -215,6 +229,7 @@ impl SwarmMcpServer {
             durability,
             pending_receipts: Arc::new(Mutex::new(std::collections::HashMap::new())),
             receipt_slots: Arc::new(tokio::sync::Semaphore::new(super::action::DEFAULT_ACTION_CAPACITY)),
+            diagnostic_owner: Arc::new(Mutex::new(None)),
         };
 
         // Reserve every advertised endpoint before publication, but do not spawn any detached accept
@@ -284,8 +299,66 @@ impl SwarmMcpServer {
             binding,
             shutdown_tx,
             binding_removed: false,
+            diagnostic_owner: state.diagnostic_owner.clone(),
             safety,
         })
+    }
+
+    /// Attach owned launch facts only. Success is not watcher health, adoption, persistence or shutdown proof.
+    pub fn bind_diagnostic_owner(
+        &self,
+        session: &crate::diagnostics::DiagSession,
+        watcher: &crate::diagnostics::PalmistryHandle,
+    ) -> std::io::Result<()> {
+        use std::io::{Error, ErrorKind};
+        if *self.shutdown_tx.borrow() {
+            return Err(Error::new(ErrorKind::NotConnected, "MCP server is shutting down"));
+        }
+        let signed = watcher.signed_ready().ok_or_else(|| {
+            Error::new(ErrorKind::NotConnected, "Owned watcher signed launch association is unavailable")
+        })?;
+        let session_id = uuid::Uuid::parse_str(&session.session_id)
+            .map_err(|_| Error::new(ErrorKind::InvalidInput, "Diagnostic session identity is invalid"))?;
+        if crate::diagnostics::process_session_id() != Some(session.session_id.as_str())
+            || !crate::diagnostics::has_ring_writer()
+            || signed.identity.session_id != session_id
+            || signed.identity.parent_pid != self.binding.pid
+            || signed.identity.watcher_pid != watcher.child_id()
+        {
+            return Err(Error::new(ErrorKind::InvalidInput, "Diagnostic owner association does not match this process"));
+        }
+        let parent_process_birth = binding::process_birth_identity(self.binding.pid)
+            .map_err(|_| Error::new(ErrorKind::NotConnected, "MCP process identity is unavailable"))?;
+        if parent_process_birth != self.binding.process_birth {
+            return Err(Error::new(ErrorKind::InvalidInput, "MCP process birth identity changed"));
+        }
+        if let binding::ProcessBirthIdentity::Windows { creation_time_100ns } = &parent_process_birth {
+            if signed.identity.parent_os_creation_time_100ns != *creation_time_100ns {
+                return Err(Error::new(ErrorKind::InvalidInput, "Signed watcher parent birth does not match MCP owner"));
+            }
+        }
+        let attachment = DiagnosticOwnerAttachment {
+            session_id: session.session_id.clone(),
+            ring_path: session.ring_path.clone(),
+            parent_pid: self.binding.pid,
+            parent_process_birth,
+            watcher_launch_pid: signed.identity.watcher_pid,
+            watcher_launch_process_instance_id: signed.identity.process_instance_id,
+            ring_version: signed.identity.ring_version,
+            record_size: signed.identity.record_size,
+        };
+        let mut owner = self.diagnostic_owner.lock().unwrap_or_else(|error| error.into_inner());
+        if *self.shutdown_tx.borrow() {
+            return Err(Error::new(ErrorKind::NotConnected, "MCP server is shutting down"));
+        }
+        match owner.as_ref() {
+            Some(current) if current == &attachment => Ok(()),
+            Some(_) => Err(Error::new(ErrorKind::AlreadyExists, "A different diagnostic owner is already attached")),
+            None => {
+                *owner = Some(attachment);
+                Ok(())
+            }
+        }
     }
 
     /// The production OS-window screenshot capture (focus-safe). Pass to [`Self::bind`] in the live app.
@@ -406,8 +479,9 @@ impl SwarmMcpServer {
     /// Stop the accept loops and remove the discovery file. Idempotent.
     pub fn shutdown(&mut self) {
         if let Some(windows) = &self.safety.windows { windows.cancel_all(); }
-        // A send error just means there are no live receivers (loops already stopped) — fine.
-        let _ = self.shutdown_tx.send(true);
+        // Retain the shutdown state even if every accept loop has already stopped.
+        self.shutdown_tx.send_replace(true);
+        self.diagnostic_owner.lock().unwrap_or_else(|error| error.into_inner()).take();
         if !self.binding_removed {
             match binding::remove_binding(&self.binding) {
                 Ok(()) => self.binding_removed = true,
@@ -780,6 +854,20 @@ async fn dispatch_with_session(
                     object.insert("window_id".to_owned(), serde_json::Value::String(window_id.to_owned()));
                     object.insert("window_epoch".to_owned(), serde_json::Value::from(window.epoch));
                     object.insert("revision".to_owned(), serde_json::Value::from(published_revision));
+                    if ArgusMethod::from_wire_name(&request.method) == Some(ArgusMethod::Inspect) {
+                        let owner = state.diagnostic_owner.lock().unwrap_or_else(|error| error.into_inner()).clone();
+                        let observation = owner.map(|owner| serde_json::json!({
+                            "owner_association": owner,
+                            "last_events": crate::diagnostics::snapshot_last_n(64)
+                                .into_iter()
+                                .filter(|event| matches!(event.event_code, 0..=11 | 65535)
+                                    && event.phase_marker <= 4 && event.severity <= 2
+                                    && event._reserved == [0; 4])
+                                .collect::<Vec<_>>(),
+                            "dropped_count": crate::diagnostics::dropped_count(),
+                        }));
+                        object.insert("internal_diagnostics".to_owned(), observation.unwrap_or(serde_json::Value::Null));
+                    }
                 }
             }
             return result;
@@ -928,6 +1016,7 @@ mod tests {
             durability: Arc::new(Mutex::new(None)),
             pending_receipts: Arc::new(Mutex::new(std::collections::HashMap::new())),
             receipt_slots: Arc::new(tokio::sync::Semaphore::new(crate::mcp::action::DEFAULT_ACTION_CAPACITY)),
+            diagnostic_owner: Arc::new(Mutex::new(None)),
         }
     }
 

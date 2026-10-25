@@ -27,7 +27,9 @@
 
 use std::path::{Path, PathBuf};
 
-use serde::Deserialize;
+use handshake_diag_ring::DiagEvent;
+use serde::de::{SeqAccess, Visitor};
+use serde::{Deserialize, Deserializer};
 
 /// The kind of survived event a forwarded record captures (mirrors the palmistry-side
 /// `SurvivorRecordKind`). A small closed enum so the panel renders a typed kind, never a parsed string.
@@ -78,6 +80,8 @@ pub struct PalmistrySurvivorView {
     pub process_id: u32,
     /// The typed ring event code (FreezeSuspected/CrashDetected as a u16).
     pub event_code: u16,
+    /// Bounded ordinary mechanical events in their durable snapshot order.
+    pub last_events: Vec<DiagEvent>,
     /// FREEZE only: how long the heartbeat was stale (ms); 0 for a crash.
     pub stale_ms: u64,
     /// The parent OS exit code, if a crash resolved one (`None` otherwise).
@@ -116,6 +120,8 @@ struct SurvivorRecordOnDisk {
     process_id: u32,
     #[serde(default)]
     event_code: u16,
+    #[serde(default, deserialize_with = "deserialize_last_events")]
+    last_events: Vec<DiagEvent>,
     #[serde(default)]
     stale_ms: u64,
     #[serde(default)]
@@ -136,6 +142,43 @@ struct SurvivorRecordOnDisk {
     captured_at_unix_ms: u128,
     #[serde(default)]
     forwarded: bool,
+}
+
+fn deserialize_last_events<'de, D>(deserializer: D) -> Result<Vec<DiagEvent>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct OrdinaryEvents;
+
+    impl<'de> Visitor<'de> for OrdinaryEvents {
+        type Value = Vec<DiagEvent>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter.write_str("the ordinary Palmistry diagnostic event snapshot")
+        }
+
+        fn visit_seq<A>(self, mut sequence: A) -> Result<Self::Value, A::Error>
+        where
+            A: SeqAccess<'de>,
+        {
+            // Match Palmistry's durable-file allowlist; v2 provenance is not an ordinary event.
+            const MAX_SURVIVOR_EVENTS: usize = 64;
+            let mut events = Vec::new();
+            while let Some(event) = sequence.next_element::<DiagEvent>()? {
+                if events.len() < MAX_SURVIVOR_EVENTS
+                    && matches!(event.event_code, 0..=11 | 65535)
+                    && event.phase_marker <= 4
+                    && event.severity <= 2
+                    && event._reserved == [0; 4]
+                {
+                    events.push(event);
+                }
+            }
+            Ok(events)
+        }
+    }
+
+    deserializer.deserialize_seq(OrdinaryEvents)
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -165,6 +208,7 @@ impl SurvivorRecordOnDisk {
             session_id: self.session_id,
             process_id: self.process_id,
             event_code: self.event_code,
+            last_events: self.last_events,
             stale_ms: self.stale_ms,
             exit_code: self.exit_code,
             // Defensive §6.13.8: a path that looks like a URL is dropped (never surface a non-local ref).

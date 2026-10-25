@@ -931,8 +931,19 @@ pub fn save_rich_document_via_production_manager(
         expected_version,
     );
     save.set_workspace_id(backend.workspace_id.clone());
+    let document = handshake_native::rich_editor::document_model::doc_json::from_json_value(&content_json)
+        .expect("interconnect save content is a canonical rich document");
+    let owner = handshake_native::rich_editor::document_owner::DocumentEditOwner::new(document);
+    owner.bind_context(
+        &backend.workspace_id, document_id, &backend.base, Some(runtime.handle()),
+        Some(backend.account_context.clone()),
+    ).expect("interconnect save owner binds the authenticated workspace");
+    assert!(owner.with_save_gate(|gate| save.bind_owner(gate)));
     save.mark_dirty();
-    save.request_save(content_json);
+    let snapshot = owner.save_snapshot().expect("interconnect owner snapshot");
+    let attempt = owner.with_save_gate(|gate| save.request_save(snapshot, gate))
+        .expect("interconnect save is admitted for the current owner");
+    SaveManager::launch_admitted(attempt);
 
     let deadline = Instant::now() + Duration::from_secs(15);
     loop {
@@ -941,7 +952,11 @@ pub fn save_rich_document_via_production_manager(
         runtime.block_on(async {
             tokio::time::sleep(Duration::from_millis(10)).await;
         });
-        if let Some(outcome) = save.drain() {
+        let transition = owner.with_save_gate(|gate| save.drain(gate));
+        if let Some(attempt) = transition.next_attempt {
+            SaveManager::launch_admitted(attempt);
+        }
+        if let Some(outcome) = transition.outcome {
             return match outcome {
                 SaveOutcome::Saved {
                     doc_version,
@@ -954,11 +969,14 @@ pub fn save_rich_document_via_production_manager(
                     save_receipt_event_id: save_receipt_event_id
                         .expect("production rich save returns an EventLedger receipt"),
                 },
-                SaveOutcome::Conflict => {
+                SaveOutcome::Conflict { .. } => {
                     panic!("production interconnect save unexpectedly version-conflicted")
                 }
-                SaveOutcome::Failed(error) => {
-                    panic!("production interconnect save failed: {error}")
+                SaveOutcome::Failed { error, uncertain, .. } => {
+                    panic!("production interconnect save failed: {error}; uncertain={uncertain}")
+                }
+                SaveOutcome::Stale { .. } => {
+                    panic!("production interconnect save owner changed before acknowledgement")
                 }
             };
         }

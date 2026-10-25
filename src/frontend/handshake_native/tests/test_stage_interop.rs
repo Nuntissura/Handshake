@@ -1737,7 +1737,7 @@ fn live_route_round_trip_real_surrealdb() {
     );
     assert!(
         !handshake_native::rich_editor::document_model::doc_json::to_content_json_value(
-            &rich_state.lock().unwrap().doc,
+            &rich_state.lock().unwrap().document_snapshot().expect("read the mounted canonical document"),
         )
         .to_string()
         .contains(STAGE_CAPTURE_REF_KIND),
@@ -1846,7 +1846,7 @@ fn live_route_round_trip_real_surrealdb() {
 
     let mounted_content =
         handshake_native::rich_editor::document_model::doc_json::to_content_json_value(
-            &rich_state.lock().unwrap().doc,
+            &rich_state.lock().unwrap().document_snapshot().expect("read the mounted canonical document"),
         );
     let mounted_json = mounted_content.to_string();
     assert!(mounted_json.contains(&artifact_id));

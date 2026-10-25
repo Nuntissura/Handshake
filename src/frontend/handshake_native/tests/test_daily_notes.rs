@@ -805,7 +805,10 @@ fn mt019_auto_save_fires_from_edit_through_show_render_path() {
     {
         let st = state.lock().unwrap();
         let mut editor = st.editor.lock().unwrap();
-        editor.doc = BlockNode::doc(vec![BlockNode::paragraph("initial body plus typed words")]);
+        editor.edit_document(|document, _history| {
+            *document = BlockNode::doc(vec![BlockNode::paragraph("initial body plus typed words")]);
+            Ok::<(), std::convert::Infallible>(())
+        }).expect("edit the mounted canonical document");
     }
 
     // Step enough frames to (a) detect the edit, then (b) accrue >180 idle frames so the debounce fires.
@@ -869,7 +872,10 @@ fn mt019_ctrl_s_dispatches_manual_save_through_show_path() {
     {
         let st = state.lock().unwrap();
         let mut editor = st.editor.lock().unwrap();
-        editor.doc = BlockNode::doc(vec![BlockNode::paragraph("body to save edited")]);
+        editor.edit_document(|document, _history| {
+            *document = BlockNode::doc(vec![BlockNode::paragraph("body to save edited")]);
+            Ok::<(), std::convert::Infallible>(())
+        }).expect("edit the mounted canonical document");
     }
     // Press Ctrl+S — the panel's show() consumes the chord (Modifiers::COMMAND == ctrl here) and
     // dispatches an immediate save. Inject the key event the same way the editor keymap tests do.

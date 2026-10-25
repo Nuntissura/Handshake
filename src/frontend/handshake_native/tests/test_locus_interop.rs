@@ -2196,17 +2196,30 @@ fn ac007_reuses_mt032_normalizer_and_mt034_machinery_no_duplicates() {
         "AC-007: the URL id encoding must reuse the MT-034 percent_encode_symbol (no second encoder)"
     );
 
-    // The locus_ref node is the EXISTING hsLink atom (the `locus:` prefix in the shared wikilink table),
-    // NOT an invented node — proven by the parser table carrying the prefix and NO `locus_ref` node type.
-    let parser_src = include_str!("../src/rich_editor/wikilinks/parser.rs");
-    assert!(
-        parser_src.contains("(\"locus\", \"locus\")"),
-        "AC-007: the `locus:` prefix is registered in the SHARED wikilink prefix table (the hsLink atom)"
+    assert_eq!(
+        handshake_native::rich_editor::wikilinks::parser::wikilink_kind_by_prefix().get("locus"),
+        Some(&"locus"),
+        "AC-007: the canonical shared parser registers the locus prefix"
     );
-    let node_src = include_str!("../src/rich_editor/document_model/node.rs");
+    let rich_editor_src = include_str!("../src/rich_editor/mod.rs");
+    let wikilinks_src = include_str!("../src/rich_editor/wikilinks/mod.rs");
     assert!(
-        !node_src.to_lowercase().contains("struct locusrefnode"),
-        "AC-007: there is NO invented LocusRefNode — the locus ref is the existing HsLinkNode atom"
+        rich_editor_src.contains("pub use handshake_rich_document_model as document_model;")
+            && wikilinks_src.contains("pub use handshake_wikilink_semantics::parser;"),
+        "AC-007: the host reexports the canonical model and parser instead of defining copies"
+    );
+    let link: handshake_rich_document_model::node::HsLinkNode =
+        parse_wikilink("[[locus:wp/WP-KERNEL-012]]")
+            .expect("the canonical parser recognizes the locus prefix")
+            .to_hs_link();
+    assert_eq!(link.ref_kind, "locus");
+    assert_eq!(link.ref_value, "wp/WP-KERNEL-012");
+    let mut paragraph = BlockNode::new(NodeKind::Paragraph);
+    paragraph.children.push(Child::HsLink(link));
+    let content = to_content_json_value(&BlockNode::doc(vec![paragraph]));
+    assert_eq!(
+        content["content"][0]["content"][0]["type"], "hsLink",
+        "AC-007: the parsed locus uses the canonical hsLink atom, never a separate locus node"
     );
 
     // (3) `open-locus-ref` routes through the EXISTING command/nav seam (the InteractionBus stage-then-

@@ -15940,10 +15940,10 @@ impl AtelierPanelRuntime {
                 );
                 (json, "live_preview")
             };
-        let openpose_png_artifact_ref = state
-            .pose_last_export
-            .as_ref()
-            .map(|snapshot| snapshot.png_artifact_ref.as_str());
+        let openpose_snapshot = state.pose_last_export.as_ref();
+        let openpose_live_rig_id = posekit_optional_rig_id(&state.pose_rig_id);
+        let openpose_png_artifact_ref =
+            openpose_snapshot.map(|snapshot| snapshot.png_artifact_ref.as_str());
         let split = ui
             .scope_builder(
                 egui::UiBuilder::new().id_salt(ATELIER_POSE_SPLIT_VIEW_AUTHOR_ID),
@@ -15963,14 +15963,18 @@ impl AtelierPanelRuntime {
                             ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID,
                             &openpose_render_json,
                             openpose_bound_source,
-                            &state.pose_source_ref,
-                            posekit_optional_rig_id(&state.pose_rig_id).as_deref(),
-                            state.pose_yaw,
-                            state.pose_pitch,
-                            state.pose_zoom,
-                            state.pose_face,
-                            state.pose_body,
-                            state.pose_hands,
+                            openpose_snapshot.map_or(state.pose_source_ref.as_str(), |snapshot| {
+                                snapshot.source_ref.as_str()
+                            }),
+                            openpose_snapshot.map_or(openpose_live_rig_id.as_deref(), |snapshot| {
+                                snapshot.rig_id.as_deref()
+                            }),
+                            openpose_snapshot.map_or(state.pose_yaw, |snapshot| snapshot.yaw_deg),
+                            openpose_snapshot.map_or(state.pose_pitch, |snapshot| snapshot.pitch_deg),
+                            openpose_snapshot.map_or(state.pose_zoom, |snapshot| snapshot.zoom),
+                            openpose_snapshot.map_or(state.pose_face, |snapshot| snapshot.face),
+                            openpose_snapshot.map_or(state.pose_body, |snapshot| snapshot.body),
+                            openpose_snapshot.map_or(state.pose_hands, |snapshot| snapshot.hands),
                             &openpose_png_render,
                             openpose_png_artifact_ref,
                             &openpose_png_status,

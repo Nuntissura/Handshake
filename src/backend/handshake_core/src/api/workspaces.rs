@@ -4,7 +4,7 @@ use axum::{
     middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::{delete, get, post, put},
-    Json, Router,
+    Extension, Json, Router,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -17,6 +17,9 @@ use crate::ace::validators::atelier_scope::{
 };
 use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
 use crate::runtime_governance::RuntimeGovernancePaths;
+use crate::storage::surreal::{
+    SurrealWorkspaceSettingsError, SurrealWorkspaceSettingsStore, SurrealWorkspaceSettingsWrite,
+};
 use crate::workflows::build_dcc_control_plane_snapshot;
 use crate::{
     diagnostics::{
@@ -28,7 +31,7 @@ use crate::{
     },
     storage::{
         Block, JobKind, JobState, NewBlock, NewWorkspace, StorageError, WorkbenchLayoutStateInput,
-        WorkspaceSearchBookmarkStateInput, WorkspaceSettingsStateInput, WriteActorKind,
+        WorkspaceSearchBookmarkStateInput, WriteActorKind,
         WriteContext,
     },
     AppState,
@@ -80,7 +83,7 @@ pub fn bootstrap_routes(state: crate::AccountBootstrapState) -> Router {
 /// Workspace-specific routes run under the same exact resource grant and record-user boundary.
 async fn workspace_authority(
     State(state): State<AppState>,
-    request: Request,
+    mut request: Request,
     next: Next,
 ) -> Response {
     use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
@@ -118,6 +121,7 @@ async fn workspace_authority(
         Ok(authority) => authority,
         Err(_) => return protected_workspace_denial().into_response(),
     };
+    request.extensions_mut().insert(authority.clone());
     state
         .surreal
         .with_record_user_scope(authority.record_user_scope, next.run(request))
@@ -892,6 +896,7 @@ async fn save_workbench_layout(
 struct WorkspaceSettingsResponse {
     workspace_id: String,
     settings_state: Option<Value>,
+    generation: i64,
     updated_at: Option<chrono::DateTime<chrono::Utc>>,
     event_ledger_event_id: Option<String>,
 }
@@ -899,29 +904,81 @@ struct WorkspaceSettingsResponse {
 #[derive(Debug, Deserialize)]
 struct SaveWorkspaceSettingsRequest {
     settings_state: Value,
+    #[serde(default)]
+    expected_generation: Option<i64>,
+    #[serde(default)]
+    idempotency_key: Option<String>,
+}
+
+fn workspace_settings_scope(
+    authority: &crate::api::authority::AuthorizedResourceContext,
+    workspace_id: &str,
+) -> Result<crate::swarm_orchestration::resource_scope::ResourceScope, (StatusCode, Json<ErrorResponse>)> {
+    use crate::swarm_orchestration::resource_scope::{
+        AccessSpaceRef, ActorPrincipalId, AuthenticatedSessionRef, OwnerAccountId, ResourceScope,
+        WorkspaceScopeRef,
+    };
+    if authority.record_user_scope.workspace_id.as_deref() != Some(workspace_id) {
+        return Err(protected_workspace_denial());
+    }
+    let scope = (|| {
+        Some(ResourceScope::new(
+            OwnerAccountId::from_uuid(Uuid::parse_str(&authority.account_id).ok()?),
+            ActorPrincipalId::from_uuid(Uuid::parse_str(&authority.principal_id).ok()?),
+        )
+        .with_session(AuthenticatedSessionRef::from_uuid(
+            Uuid::parse_str(&authority.session_id).ok()?,
+        ))
+        .with_access_space(AccessSpaceRef::from_uuid(
+            Uuid::parse_str(&authority.access_space_id).ok()?,
+        ))
+        .with_workspace(WorkspaceScopeRef::new(workspace_id).ok()?))
+    })();
+    scope.ok_or_else(protected_workspace_denial)
+}
+
+fn map_workspace_settings_error(
+    error: SurrealWorkspaceSettingsError,
+) -> (StatusCode, Json<ErrorResponse>) {
+    match error {
+        SurrealWorkspaceSettingsError::IncompleteScope
+        | SurrealWorkspaceSettingsError::WorkspaceScopeMismatch => protected_workspace_denial(),
+        SurrealWorkspaceSettingsError::Validation(_) => bad_request_error(),
+        SurrealWorkspaceSettingsError::StaleGeneration { .. }
+        | SurrealWorkspaceSettingsError::IdempotencyConflict => (
+            StatusCode::CONFLICT,
+            Json(ErrorResponse {
+                error: "workspace_settings_conflict",
+            }),
+        ),
+        error => internal_error(error),
+    }
 }
 
 async fn get_workspace_settings(
     State(state): State<AppState>,
+    Extension(authority): Extension<crate::api::authority::AuthorizedResourceContext>,
     Path(workspace_id): Path<String>,
 ) -> Result<Json<WorkspaceSettingsResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let scope = workspace_settings_scope(&authority, &workspace_id)?;
     ensure_workspace_exists(&state, &workspace_id).await?;
-    let record = state
-        .storage
-        .get_workspace_settings_state(&workspace_id)
+    let record = SurrealWorkspaceSettingsStore::new(state.surreal.clone())
+        .get(&scope, &workspace_id)
         .await
-        .map_err(map_storage_error)?;
+        .map_err(map_workspace_settings_error)?;
 
     Ok(Json(match record {
         Some(record) => WorkspaceSettingsResponse {
             workspace_id: record.workspace_id,
             settings_state: Some(record.settings_state),
+            generation: record.generation,
             updated_at: Some(record.updated_at),
             event_ledger_event_id: Some(record.event_ledger_event_id),
         },
         None => WorkspaceSettingsResponse {
             workspace_id,
             settings_state: None,
+            generation: 0,
             updated_at: None,
             event_ledger_event_id: None,
         },
@@ -930,24 +987,38 @@ async fn get_workspace_settings(
 
 async fn save_workspace_settings(
     State(state): State<AppState>,
+    Extension(authority): Extension<crate::api::authority::AuthorizedResourceContext>,
     Path(workspace_id): Path<String>,
     Json(payload): Json<SaveWorkspaceSettingsRequest>,
 ) -> Result<Json<WorkspaceSettingsResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let scope = workspace_settings_scope(&authority, &workspace_id)?;
     ensure_workspace_exists(&state, &workspace_id).await?;
-    let record = state
-        .storage
-        .save_workspace_settings_state(
+    let store = SurrealWorkspaceSettingsStore::new(state.surreal.clone());
+    let expected_generation = match payload.expected_generation {
+        Some(generation) => generation,
+        None => store
+            .get(&scope, &workspace_id)
+            .await
+            .map_err(map_workspace_settings_error)?
+            .map_or(0, |record| record.generation),
+    };
+    let record = store
+        .save(
+            &scope,
             &workspace_id,
-            WorkspaceSettingsStateInput {
+            SurrealWorkspaceSettingsWrite {
                 settings_state: payload.settings_state,
+                expected_generation: Some(expected_generation),
+                idempotency_key: payload.idempotency_key.unwrap_or_else(|| Uuid::new_v4().to_string()),
             },
         )
         .await
-        .map_err(map_storage_error)?;
+        .map_err(map_workspace_settings_error)?;
 
     Ok(Json(WorkspaceSettingsResponse {
         workspace_id: record.workspace_id,
         settings_state: Some(record.settings_state),
+        generation: record.generation,
         updated_at: Some(record.updated_at),
         event_ledger_event_id: Some(record.event_ledger_event_id),
     }))
