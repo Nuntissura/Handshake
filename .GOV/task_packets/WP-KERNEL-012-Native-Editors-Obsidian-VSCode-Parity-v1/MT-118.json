@@ -602,5 +602,26 @@
     "record": "validation_v1",
     "binary_source_binding": "Every binary this session built (cargo steps 02-04, 02:13:50Z-02:41:18Z) was compiled from committed ba03f5638e3f6b1903cb2829c1e846958d0dbf42 plus one uncommitted harness file, src/backend/handshake_core/src/storage/tests.rs, which the builder committed unchanged as c0603cbdba2a79bc04711dca83821b687a152b60 at 03:16:32Z (git diff ba03f563..c0603cbd touches only that file and its sha256 equals the snapshot this lane recorded at 02:42:43Z: 3a3f22d9a71349fb18f3e243eb373d1d55ba19fa085ea815678d0f2502e5b2db). Product code in every executed binary is therefore byte-identical to ba03f563 (C-prime); the embedded test harness equals c0603cbd. The builder's later uncommitted edits to ~53 src/tests files began at 03:16:56Z, after the last build of this lane, and are embedded in NO executed binary; exec-only runs read no source. Rows 30-32 recorded head_at_run=c0603cbd because HEAD moved before they started; rows 10-23 recorded ba03f563.",
     "lane_ledger": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/00-lane.txt (DIRTY_TREE_DETECTED 02:42:43Z, TREE_NOTE, BINDING_NOTE entries)"
-  }
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "2026-10-25 Vulkan GUI assessment MT-118: Backend/typed integration for B6-MT-118-Heal-Legacy-Canonical-Proposal-Artifact-So-Pre-Hardening-Rows-Can-Retry. Preserve original scope and authenticated account/workspace/session caller contract; do not invent a GUI button. The actual affected native workflow consumes real typed outcomes and honest availability/error/denied/recovery through shared Vulkan host."
+    ],
+    "argus_targets": [],
+    "expected_evidence": [
+      "2026-10-25 requirement navigation, NOT runtime proof: MT-118.json#/scope and original acceptance/proof; packet.json#/operator_professional_desktop_ui_20261024; MT-199/200/201/202/203; Master Spec module15 GUI-DESKTOP-001–055.",
+      "Affected host consumers replace legacy GUI with genuine Vulkan through exact published Kumihimo windows/panels; Cabinet owns file-tree mechanics and canonical Handpick owns the portal-equivalent multitool where applicable. Missing reusable capability is implemented/proven/published in its owning asset before distinct pinned host adoption; preserve ALL existing features/adapters. Use small focused modules/crates, scoped SurrealDB/EventLedger, central GPU ownership, no private devices/pools/budgets or extra databases.",
+      "Preserve original backend/standalone/support proof. Downstream GUI/device/auth/persistence/diagnostic binding is DEFERRED pending actual implementation and independent evidence; this record creates no runtime behavior and changes no existing verdict."
+    ],
+    "not_applicable_reason": "This bounded MT owns backend/standalone/diagnostic/support behavior rather than a new GUI. Original affected native consumer/adoption obligations remain required."
+  },
+  "hbr_int_009_tier_obligations": [
+    "2026-10-25 HBR-INT-009 FLIGHT_RECORDER MT-118: DEFERRED until original scoped business-event/receipt emit and authenticated canonical SurrealDB/EventLedger readback are independently proven. Preserve original event/actor/correlation/idempotency and same-transaction obligations where applicable; pure focus/layout/motion is not a business event and needs justified NOT_APPLICABLE, not fabricated events.",
+    "2026-10-25 HBR-INT-009 INTERNAL_DIAGNOSTICS MT-118: DEFERRED until actual B6-MT-118-Heal-Legacy-Canonical-Proposal-Artifact-So-Pre-Hardening-Rows-Can-Retry caller/runtime/GUI outcomes use existing shared internal_diagnostics API and typed mechanical allowlist, including actual navigation/action/state/error and Vulkan/GPU lifecycle failure where affected. Keep stable IDs, real correlation/session and no project content/secrets. Existing independent proof establishes WIRED; this requirement is not a runtime claim.",
+    "2026-10-25 HBR-INT-009 PALMISTRY MT-118: DEFERRED until actual B6-MT-118-Heal-Legacy-Canonical-Proposal-Artifact-So-Pre-Hardening-Rows-Can-Retry outcomes bind canonical ring/survivor/standalone Palmistry event recording and durable later readback. Preserve exact app/watcher PID plus process-birth/correlation, genuine controlled owned Handshake application freeze/crash-survival and normal shutdown ACK/drain. Reuse canonical mechanics; no per-MT watcher, GUI-integrated watcher, app controller, automatic restart or OS remediation."
+  ]
 }

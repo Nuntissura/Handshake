@@ -206,5 +206,24 @@
       "validated_at_utc": null
     },
     "current_candidate_commit": "d96e405170afbba66e864fa86b1a6f3de020deab"
-  }
+  },
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "[WP1-MT-024-VK-001] Exact bounded SurrealDB test-scope cleanup is support-only and creates no new GUI. Preserve its independent leak-free canonical reread and failure isolation so genuine Vulkan lifecycle proof can run without leaked or foreign test state."
+    ],
+    "argus_targets": [],
+    "expected_evidence": [
+      "Direct new rendering/instrumentation is NOT_APPLICABLE to this pure/support-only MT; preserve downstream host consumer obligations and its original source/proof scope. Downstream adopting-host evidence, not a new execution prerequisite for this support-only MT, remains OPEN/NOT_VERIFIED by this record: actual running Vulkan backend/device/frame identity and affected input/resize/reopen/context-change/lifecycle paths; original authenticated persistence, privacy, model navigation, UserManual, Argus and independent verdicts. Use current Master Spec via SPEC_CURRENT.md, module15 GUI-DESKTOP-007–040 and HBR-INT-009/MAN-004. Historical pins, original acceptance, failures and spent attempts are unchanged. Original WP1 work is carried into WP-KERNEL-012, not a new parallel product target."
+    ],
+    "not_applicable_reason": "Support-only scope; Exact bounded SurrealDB test-scope cleanup is support-only and creates no new GUI. Preserve its independent leak-free canonical reread and failure isolation so genuine Vulkan lifecycle proof can run without leaked or foreign test state."
+  },
+  "hbr_int_009_tier_obligations": [
+    "[WP1-MT-024-VK-002] FLIGHT_RECORDER: Direct producer NOT_APPLICABLE because this MT is support-only/pure source with no product runtime effects. Original adopting-host business-event/EventLedger obligations remain required; do not add per-MT events.",
+    "[WP1-MT-024-VK-003] INTERNAL_DIAGNOSTICS: Direct new producer NOT_APPLICABLE to this scope. Future affected host behavior must use the canonical internal_diagnostics producer, typed mechanical allowlist and exact scope/correlation; consumer linkage is NOT_VERIFIED here.",
+    "[WP1-MT-024-VK-004] PALMISTRY: Direct tracker NOT_APPLICABLE to this scope. Preserve the standalone out-of-process Palmistry later-diagnostics recorder and original genuine owned-application freeze/crash-survival proof for affected host runtime; no controller/restart/remediation."
+  ]
 }

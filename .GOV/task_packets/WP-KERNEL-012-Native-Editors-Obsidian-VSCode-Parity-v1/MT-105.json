@@ -118,7 +118,10 @@
       "tier": "PALMISTRY",
       "status": "WIRED",
       "reason": "The StalledOperation event is written to the MT-081 ring with the typed allowlist, so the external Palmistry watcher (Tier 3) sees an in-app stall with zero cooperation — exactly the cross-tier link MT-106 keys on for the end-to-end no-silent-hang capstone. The Palmistry-side child-process stall watch + the capstone proof are MT-106; this MT produces the in-app StalledOperation signal it consumes."
-    }
+    },
+    "2026-10-25 HBR-INT-009 FLIGHT_RECORDER MT-105: DEFERRED until original scoped business-event/receipt emit and authenticated canonical SurrealDB/EventLedger readback are independently proven. Preserve original event/actor/correlation/idempotency and same-transaction obligations where applicable; pure focus/layout/motion is not a business event and needs justified NOT_APPLICABLE, not fabricated events.",
+    "2026-10-25 HBR-INT-009 INTERNAL_DIAGNOSTICS MT-105: DEFERRED until actual D9-MT-105-OperationSubprocessStallWatchdog-DeadlineProgressTicks caller/runtime/GUI outcomes use existing shared internal_diagnostics API and typed mechanical allowlist, including actual navigation/action/state/error and Vulkan/GPU lifecycle failure where affected. Keep stable IDs, real correlation/session and no project content/secrets. Existing independent proof establishes WIRED; this requirement is not a runtime claim.",
+    "2026-10-25 HBR-INT-009 PALMISTRY MT-105: DEFERRED until actual D9-MT-105-OperationSubprocessStallWatchdog-DeadlineProgressTicks outcomes bind canonical ring/survivor/standalone Palmistry event recording and durable later readback. Preserve exact app/watcher PID plus process-birth/correlation, genuine controlled owned Handshake application freeze/crash-survival and normal shutdown ACK/drain. Reuse canonical mechanics; no per-MT watcher, GUI-integrated watcher, app controller, automatic restart or OS remediation."
   ],
   "handoff": {
     "coder_session": "CODEX-20260701-MT105 state-recovery update: focused operation-watchdog proof refreshed. Fresh proof: cargo test -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_operation_watchdog -- --nocapture => 10/10 passed on 2026-07-01, covering bounded StalledOperation emission, no false positives, debounce, shipped backend hang path, diagnostics panel/status-bar surface, and typed/no-free-text payload gates.",
@@ -317,5 +320,21 @@
       ],
       "no_context_instruction": "Read MT-105.json completely, then the WP-KERNEL-012 packet and resolved current Master Spec modules before editing. Implement only the listed product remediation in the MT's allowed paths, run every verification from current HEAD with external artifact directories, and return READY_FOR_VALIDATION without self-issuing PASS."
     }
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "2026-10-25 Vulkan GUI assessment MT-105: Shared diagnostic/standalone-watcher boundary for D9-MT-105-OperationSubprocessStallWatchdog-DeadlineProgressTicks. Preserve canonical ring/event/survivor/lifecycle APIs used by genuine Vulkan producers and the in-app diagnostic projection; no watcher GUI, controller or per-feature logger."
+    ],
+    "argus_targets": [],
+    "expected_evidence": [
+      "2026-10-25 requirement navigation, NOT runtime proof: MT-105.json#/scope and original acceptance/proof; packet.json#/operator_professional_desktop_ui_20261024; MT-199/200/201/202/203; Master Spec module15 GUI-DESKTOP-001–055.",
+      "Affected host consumers replace legacy GUI with genuine Vulkan through exact published Kumihimo windows/panels; Cabinet owns file-tree mechanics and canonical Handpick owns the portal-equivalent multitool where applicable. Missing reusable capability is implemented/proven/published in its owning asset before distinct pinned host adoption; preserve ALL existing features/adapters. Use small focused modules/crates, scoped SurrealDB/EventLedger, central GPU ownership, no private devices/pools/budgets or extra databases.",
+      "Preserve original backend/standalone/support proof. Downstream GUI/device/auth/persistence/diagnostic binding is DEFERRED pending actual implementation and independent evidence; this record creates no runtime behavior and changes no existing verdict."
+    ],
+    "not_applicable_reason": "This bounded MT owns backend/standalone/diagnostic/support behavior rather than a new GUI. Original affected native consumer/adoption obligations remain required."
   }
 }

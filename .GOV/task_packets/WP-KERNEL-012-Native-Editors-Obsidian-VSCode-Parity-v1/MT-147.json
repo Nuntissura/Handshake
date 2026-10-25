@@ -368,9 +368,14 @@
     "operator_surface_required": false,
     "gui_creation_required": false,
     "argus_required": false,
-    "surfaces": [],
+    "surfaces": [
+      "2026-10-25 Vulkan GUI assessment MT-147: Support/proof boundary for B14-MT-147-Repair-The-Branch-CI-Pipeline-So-A-Linux-Build-Of-handshake_core-Can-Be-Cited. New GUI creation is NOT_APPLICABLE to this bounded task. Preserve original inspection/test/compile scope; affected runtime consumers still require genuine Vulkan host and original independent visual/action acceptance."
+    ],
     "expected_evidence": [
-      "CI run conclusions"
+      "CI run conclusions",
+      "2026-10-25 requirement navigation, NOT runtime proof: MT-147.json#/scope and original acceptance/proof; packet.json#/operator_professional_desktop_ui_20261024; MT-199/200/201/202/203; Master Spec module15 GUI-DESKTOP-001–055.",
+      "Affected host consumers replace legacy GUI with genuine Vulkan through exact published Kumihimo windows/panels; Cabinet owns file-tree mechanics and canonical Handpick owns the portal-equivalent multitool where applicable. Missing reusable capability is implemented/proven/published in its owning asset before distinct pinned host adoption; preserve ALL existing features/adapters. Use small focused modules/crates, scoped SurrealDB/EventLedger, central GPU ownership, no private devices/pools/budgets or extra databases.",
+      "Preserve original backend/standalone/support proof. Downstream GUI/device/auth/persistence/diagnostic binding is DEFERRED pending actual implementation and independent evidence; this record creates no runtime behavior and changes no existing verdict."
     ],
     "not_applicable_reason": "Continuous integration configuration with no operator-visible or model-navigable product surface."
   },
@@ -1206,5 +1211,10 @@
     "remediation_required": [],
     "residual_uncertainty": "The final positive cargo check finished in 11.12s because it reused the target dir warmed by the probe step in the same job; cargo's fingerprinting makes that a valid full check of the unchanged tree after probe removal. governance failing check names were not visible in the failed-step log (exit code and receipt only). secret_scan root cause (gitleaks findings vs envelope classification) is not determinable from ci.yml and is carried to its product owner. The validate 'Rust tests' step will need the same store-root env once its earlier product failure is fixed (MT147-V6-C01).",
     "validation_boundary": "WP_VALIDATOR per-MT verdict only; whole-WP verdict, merge readiness, and .GOV/spec remain INTEGRATION_VALIDATOR authority. No local cargo executed; no product files edited; no .GOV commit on the feature branch."
-  }
+  },
+  "hbr_int_009_tier_obligations": [
+    "2026-10-25 HBR-INT-009 FLIGHT_RECORDER MT-147: Direct new business-event producer NOT_APPLICABLE to this bounded support_proof task. Preserve original proof and affected host/business-operation EventLedger obligations; no synthetic event or per-MT logger.",
+    "2026-10-25 HBR-INT-009 INTERNAL_DIAGNOSTICS MT-147: Direct new runtime producer NOT_APPLICABLE unless existing scoped executable behavior changes. Actual host/adoption retains shared typed internal_diagnostics wiring and original proof; paperwork/source is not WIRED evidence.",
+    "2026-10-25 HBR-INT-009 PALMISTRY MT-147: No new watcher/tracker is introduced by this bounded task. Preserve downstream standalone out-of-process Palmistry recorder linkage and original controlled-owned-application crash-survival/normal ACK-drain proof; no controller or automatic restart."
+  ]
 }

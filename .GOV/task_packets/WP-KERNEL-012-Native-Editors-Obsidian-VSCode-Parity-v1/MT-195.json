@@ -235,9 +235,15 @@
     "gui_creation_required": false,
     "argus_required": false,
     "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
+    "surfaces": [
+      "2026-10-25 Vulkan GUI assessment MT-195: Standalone source/capability for Canonical Dexterity Engine Profiles standalone source; do not add a host GUI or parallel state machine. Independently publish/reread the compatible source contract; distinct pinned host adoption owns actual Vulkan presentation and retained adapter proof."
+    ],
     "argus_targets": [],
-    "expected_evidence": [],
+    "expected_evidence": [
+      "2026-10-25 requirement navigation, NOT runtime proof: MT-195.json#/scope and original acceptance/proof; packet.json#/operator_professional_desktop_ui_20261024; MT-199/200/201/202/203; Master Spec module15 GUI-DESKTOP-001–055.",
+      "Affected host consumers replace legacy GUI with genuine Vulkan through exact published Kumihimo windows/panels; Cabinet owns file-tree mechanics and canonical Handpick owns the portal-equivalent multitool where applicable. Missing reusable capability is implemented/proven/published in its owning asset before distinct pinned host adoption; preserve ALL existing features/adapters. Use small focused modules/crates, scoped SurrealDB/EventLedger, central GPU ownership, no private devices/pools/budgets or extra databases.",
+      "Preserve original backend/standalone/support proof. Downstream GUI/device/auth/persistence/diagnostic binding is DEFERRED pending actual implementation and independent evidence; this record creates no runtime behavior and changes no existing verdict."
+    ],
     "not_applicable_reason": "Pure planner source; actual native Settings/chat/Argus belongs to MT196."
   },
   "user_manual_obligation": {
@@ -303,7 +309,10 @@
     {
       "authority_ref": "packet.json#/hbr",
       "requirement": "Preserve applicable original Flight Recorder, diagnostics and Palmistry obligations; actual per-tier evidence or justified applicability is required at readiness."
-    }
+    },
+    "2026-10-25 HBR-INT-009 FLIGHT_RECORDER MT-195: Direct new business-event producer NOT_APPLICABLE to this bounded standalone_source task. Preserve original proof and affected host/business-operation EventLedger obligations; no synthetic event or per-MT logger.",
+    "2026-10-25 HBR-INT-009 INTERNAL_DIAGNOSTICS MT-195: Direct new runtime producer NOT_APPLICABLE unless existing scoped executable behavior changes. Actual host/adoption retains shared typed internal_diagnostics wiring and original proof; paperwork/source is not WIRED evidence.",
+    "2026-10-25 HBR-INT-009 PALMISTRY MT-195: No new watcher/tracker is introduced by this bounded task. Preserve downstream standalone out-of-process Palmistry recorder linkage and original controlled-owned-application crash-survival/normal ACK-drain proof; no controller or automatic restart."
   ],
   "handoff": {
     "coder_session": null,

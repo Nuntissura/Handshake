@@ -212,9 +212,13 @@
     "gui_creation_required": false,
     "argus_required": false,
     "trace_projection_required_when_non_ui": true,
-    "surfaces": [],
+    "surfaces": [
+      "[WP1-MT-028-VK-001] Pure standalone immutable task/retry/per-source policy data mechanics creates no GUI. Distinct future host adoption must retain requested/current identity, ordered policy outcomes and honest denied/retry state for Vulkan diagnostic consumers, without moving authorization into the pure data crate."
+    ],
     "argus_targets": [],
-    "expected_evidence": [],
+    "expected_evidence": [
+      "Direct new rendering/instrumentation is NOT_APPLICABLE to this pure/support-only MT; preserve downstream host consumer obligations and its original source/proof scope. Downstream adopting-host evidence, not a new execution prerequisite for this support-only MT, remains OPEN/NOT_VERIFIED by this record: actual running Vulkan backend/device/frame identity and affected input/resize/reopen/context-change/lifecycle paths; original authenticated persistence, privacy, model navigation, UserManual, Argus and independent verdicts. Use current Master Spec via SPEC_CURRENT.md, module15 GUI-DESKTOP-007–040 and HBR-INT-009/MAN-004. Historical pins, original acceptance, failures and spent attempts are unchanged. Original WP1 work is carried into WP-KERNEL-012, not a new parallel product target."
+    ],
     "not_applicable_reason": "Pure non-UI data mechanics only; original host/native/Argus acceptance retained."
   },
   "user_manual_obligation": {
@@ -260,7 +264,11 @@
     ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-004",
     ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#HBR-MODULE-LIFECYCLE-007"
   ],
-  "hbr_int_009_tier_obligations": [],
+  "hbr_int_009_tier_obligations": [
+    "[WP1-MT-028-VK-002] FLIGHT_RECORDER: Direct producer NOT_APPLICABLE because this MT is support-only/pure source with no product runtime effects. Original adopting-host business-event/EventLedger obligations remain required; do not add per-MT events.",
+    "[WP1-MT-028-VK-003] INTERNAL_DIAGNOSTICS: Direct new producer NOT_APPLICABLE to this scope. Future affected host behavior must use the canonical internal_diagnostics producer, typed mechanical allowlist and exact scope/correlation; consumer linkage is NOT_VERIFIED here.",
+    "[WP1-MT-028-VK-004] PALMISTRY: Direct tracker NOT_APPLICABLE to this scope. Preserve the standalone out-of-process Palmistry later-diagnostics recorder and original genuine owned-application freeze/crash-survival proof for affected host runtime; no controller/restart/remediation."
+  ],
   "handoff": {
     "coder_session": "Composition A/B plus selected prospective Primary exact Cargo/lib only",
     "wp_validator_session": "01a13d23-ceed-72b0-b045-21c4826a4154",

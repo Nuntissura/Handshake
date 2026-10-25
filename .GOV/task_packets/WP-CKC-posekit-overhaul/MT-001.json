@@ -199,5 +199,25 @@
   },
   "status_v1": "PASS_V1",
   "validator_verdict": "PASS_V1",
-  "status_before_v1": "READY_FOR_VALIDATION"
+  "status_before_v1": "READY_FOR_VALIDATION",
+  "gui_obligation": {
+    "operator_surface_required": "NO",
+    "gui_creation_required": "NO",
+    "argus_required": "NO",
+    "trace_projection_required_when_non_ui": false,
+    "surfaces": [
+      "2026-10-25 Vulkan GUI assessment for MT-001: Read-only inventory of existing non-Rust surfaces; this task creates no runtime GUI or observable product behavior. Underlying consumer mapping: Contract remains read-only inventory/proposal or retained hardening tracker as declared; no invented runtime button. Assess underlying GUI dependencies individually, preserve unresolved findings and source scope; Vulkan migration must not mark them accepted or silently resolve them. Direct Vulkan/Argus runtime proof and new diagnostic producer are not added to this support-only task; the affected implementation/proof MTs retain their existing obligations."
+    ],
+    "argus_targets": [],
+    "expected_evidence": [
+      "2026-10-25 source navigation only: src/frontend/handshake_native/src/atelier_panel.rs::show_content_region. Exact native mount/auth/Argus/renderer/diagnostic integration is NOT_VERIFIED by this record. Source bindings are not runtime acceptance.",
+      "Direct runtime instrumentation/rendering is NOT_APPLICABLE to this support-only scope. Keep its original source/proposal/tracker acceptance; underlying native consumer obligations remain in their implementation MTs and shared host contracts."
+    ],
+    "not_applicable_reason": "Read-only inventory of existing non-Rust surfaces; this task creates no runtime GUI or observable product behavior."
+  },
+  "hbr_int_009_tier_obligations": [
+    "2026-10-25 FLIGHT_RECORDER: Direct new producer NOT_APPLICABLE to MT-001 because Read-only inventory of existing non-Rust surfaces; this task creates no runtime GUI or observable product behavior. Preserve underlying business-event/EventLedger obligations in the named implementation MTs; this record does not claim they are wired or accepted.",
+    "2026-10-25 INTERNAL_DIAGNOSTICS: Direct new producer NOT_APPLICABLE to this support-only scope. Underlying GUI/byte-route/schema/runtime consequences, where changed by their owning implementation MT, reuse the shared typed mechanical allowlist. Exact downstream producer binding remains NOT_VERIFIED; no per-MT logger.",
+    "2026-10-25 PALMISTRY: Direct new tracker NOT_APPLICABLE to this support-only scope. Existing standalone out-of-process watcher and original independent genuine application crash-survival proof remain required for affected runtime work; no watcher controller/restart/remediation authority is introduced."
+  ]
 }

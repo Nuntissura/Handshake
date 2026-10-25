@@ -175,7 +175,10 @@
       "tier": "PALMISTRY",
       "status": "WIRED",
       "reason": "This MT IS the Tier 3 child-process stall watch: Palmistry expands from watching only Handshake to watching the spawned children (pid handle alive/exited + a passive per-child progress source), detecting an alive-but-stalled child the MT-091 double-signal way with the no-false-positive gate, and surfacing a typed ChildStall survivor record. The end-to-end no-silent-hang capstone is proven on the real spawned palmistry.exe + the real HandshakeApp. Built + proven here."
-    }
+    },
+    "2026-10-25 HBR-INT-009 FLIGHT_RECORDER MT-106: DEFERRED until original scoped business-event/receipt emit and authenticated canonical SurrealDB/EventLedger readback are independently proven. Preserve original event/actor/correlation/idempotency and same-transaction obligations where applicable; pure focus/layout/motion is not a business event and needs justified NOT_APPLICABLE, not fabricated events.",
+    "2026-10-25 HBR-INT-009 INTERNAL_DIAGNOSTICS MT-106: DEFERRED until actual P6-MT-106-ChildProcessStallWatch-EndToEndNoSilentHangProof caller/runtime/GUI outcomes use existing shared internal_diagnostics API and typed mechanical allowlist, including actual navigation/action/state/error and Vulkan/GPU lifecycle failure where affected. Keep stable IDs, real correlation/session and no project content/secrets. Existing independent proof establishes WIRED; this requirement is not a runtime claim.",
+    "2026-10-25 HBR-INT-009 PALMISTRY MT-106: DEFERRED until actual P6-MT-106-ChildProcessStallWatch-EndToEndNoSilentHangProof outcomes bind canonical ring/survivor/standalone Palmistry event recording and durable later readback. Preserve exact app/watcher PID plus process-birth/correlation, genuine controlled owned Handshake application freeze/crash-survival and normal shutdown ACK/drain. Reuse canonical mechanics; no per-MT watcher, GUI-integrated watcher, app controller, automatic restart or OS remediation."
   ],
   "handoff": {
     "coder_session": "KERNEL_BUILDER-20260630-061317 product_commit=547b29c9; CODEX-20260701 state-recovery proof refresh: built real palmistry.exe with CARGO_TARGET_DIR=../Handshake_Artifacts/handshake-cargo-target, then cargo test -j 1 --manifest-path src/frontend/palmistry/Cargo.toml --test test_child_stall -- --nocapture => 6/6 passed; then HANDSHAKE_PALMISTRY_EXE=../Handshake_Artifacts/handshake-cargo-target/debug/palmistry.exe cargo test -j 1 --manifest-path src/frontend/handshake_native/Cargo.toml --test test_no_silent_hang_end_to_end -- --include-ignored --nocapture => ignored real-binary capstone 1/1 passed in 2.55s on 2026-07-01. Post-review subagents Raman/Kuhn found no MT-106 product blockers after capstone proof; residual clean-shutdown proof is outside the no-silent-hang contract.",
@@ -478,5 +481,21 @@
       "MT108 gitless matrix validation requires HANDSHAKE_PROOF_SOURCE_MANIFEST with exact observed source SHA256 map.",
       "Installed Cargo registry inputs were read from existing C cache during offline run; all configured target/temp/runtime outputs used D. Cache-home policy must be checked before resumed build."
     ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "2026-10-25 Vulkan GUI assessment MT-106: Shared diagnostic/standalone-watcher boundary for P6-MT-106-ChildProcessStallWatch-EndToEndNoSilentHangProof. Preserve canonical ring/event/survivor/lifecycle APIs used by genuine Vulkan producers and the in-app diagnostic projection; no watcher GUI, controller or per-feature logger."
+    ],
+    "argus_targets": [],
+    "expected_evidence": [
+      "2026-10-25 requirement navigation, NOT runtime proof: MT-106.json#/scope and original acceptance/proof; packet.json#/operator_professional_desktop_ui_20261024; MT-199/200/201/202/203; Master Spec module15 GUI-DESKTOP-001–055.",
+      "Affected host consumers replace legacy GUI with genuine Vulkan through exact published Kumihimo windows/panels; Cabinet owns file-tree mechanics and canonical Handpick owns the portal-equivalent multitool where applicable. Missing reusable capability is implemented/proven/published in its owning asset before distinct pinned host adoption; preserve ALL existing features/adapters. Use small focused modules/crates, scoped SurrealDB/EventLedger, central GPU ownership, no private devices/pools/budgets or extra databases.",
+      "Preserve original backend/standalone/support proof. Downstream GUI/device/auth/persistence/diagnostic binding is DEFERRED pending actual implementation and independent evidence; this record creates no runtime behavior and changes no existing verdict."
+    ],
+    "not_applicable_reason": "This bounded MT owns backend/standalone/diagnostic/support behavior rather than a new GUI. Original affected native consumer/adoption obligations remain required."
   }
 }

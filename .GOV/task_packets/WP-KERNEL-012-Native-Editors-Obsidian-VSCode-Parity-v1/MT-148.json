@@ -263,9 +263,14 @@
     "operator_surface_required": false,
     "gui_creation_required": false,
     "argus_required": false,
-    "surfaces": [],
+    "surfaces": [
+      "2026-10-25 Vulkan GUI assessment MT-148: Support/proof boundary for B14-MT-148-Make-A-Fresh-Worktree-Able-To-Build-And-Run-Tests-At-All. New GUI creation is NOT_APPLICABLE to this bounded task. Preserve original inspection/test/compile scope; affected runtime consumers still require genuine Vulkan host and original independent visual/action acceptance."
+    ],
     "expected_evidence": [
-      "check-attr, compile and test output"
+      "check-attr, compile and test output",
+      "2026-10-25 requirement navigation, NOT runtime proof: MT-148.json#/scope and original acceptance/proof; packet.json#/operator_professional_desktop_ui_20261024; MT-199/200/201/202/203; Master Spec module15 GUI-DESKTOP-001–055.",
+      "Affected host consumers replace legacy GUI with genuine Vulkan through exact published Kumihimo windows/panels; Cabinet owns file-tree mechanics and canonical Handpick owns the portal-equivalent multitool where applicable. Missing reusable capability is implemented/proven/published in its owning asset before distinct pinned host adoption; preserve ALL existing features/adapters. Use small focused modules/crates, scoped SurrealDB/EventLedger, central GPU ownership, no private devices/pools/budgets or extra databases.",
+      "Preserve original backend/standalone/support proof. Downstream GUI/device/auth/persistence/diagnostic binding is DEFERRED pending actual implementation and independent evidence; this record creates no runtime behavior and changes no existing verdict."
     ],
     "not_applicable_reason": "Repository configuration and a test helper; no operator-visible or model-navigable surface."
   },
@@ -1234,5 +1239,10 @@
     "commit": "ba03f5638e3f6b1903cb2829c1e846958d0dbf42",
     "record": "validation_v2",
     "reason": "every AC-148-* and PT-148-* now PROVED; the single v1 open item (PT-148-2/AC-148-2) closed by validator-executed cold-export proof under the Operator decision of 2026-09-17; Spec-Realism Gate sub-rules 1-3 PASS"
-  }
+  },
+  "hbr_int_009_tier_obligations": [
+    "2026-10-25 HBR-INT-009 FLIGHT_RECORDER MT-148: Direct new business-event producer NOT_APPLICABLE to this bounded support_proof task. Preserve original proof and affected host/business-operation EventLedger obligations; no synthetic event or per-MT logger.",
+    "2026-10-25 HBR-INT-009 INTERNAL_DIAGNOSTICS MT-148: Direct new runtime producer NOT_APPLICABLE unless existing scoped executable behavior changes. Actual host/adoption retains shared typed internal_diagnostics wiring and original proof; paperwork/source is not WIRED evidence.",
+    "2026-10-25 HBR-INT-009 PALMISTRY MT-148: No new watcher/tracker is introduced by this bounded task. Preserve downstream standalone out-of-process Palmistry recorder linkage and original controlled-owned-application crash-survival/normal ACK-drain proof; no controller or automatic restart."
+  ]
 }

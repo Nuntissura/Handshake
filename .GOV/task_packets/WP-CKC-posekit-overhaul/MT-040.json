@@ -122,9 +122,14 @@
     "argus_required": "NO",
     "trace_projection_required_when_non_ui": false,
     "read_only_argus_evidence_allowed": true,
-    "surfaces": [],
+    "surfaces": [
+      "2026-10-25 Vulkan GUI assessment for MT-040: Read-only module-versus-pane wiring audit; retain its original explicit non-runtime inspection boundary. Underlying consumer mapping: Contract remains read-only inventory/proposal or retained hardening tracker as declared; no invented runtime button. Assess underlying GUI dependencies individually, preserve unresolved findings and source scope; Vulkan migration must not mark them accepted or silently resolve them. Direct Vulkan/Argus runtime proof and new diagnostic producer are not added to this support-only task; the affected implementation/proof MTs retain their existing obligations."
+    ],
     "argus_targets": [],
-    "expected_evidence": [],
+    "expected_evidence": [
+      "2026-10-25 source navigation only: src/frontend/handshake_native/src/atelier_panel.rs::show_content_region. Exact native mount/auth/Argus/renderer/diagnostic integration is NOT_VERIFIED by this record. Source bindings are not runtime acceptance.",
+      "Direct runtime instrumentation/rendering is NOT_APPLICABLE to this support-only scope. Keep its original source/proposal/tracker acceptance; underlying native consumer obligations remain in their implementation MTs and shared host contracts."
+    ],
     "not_applicable_reason": "READ_ONLY_INSPECTION MT. It changes no operator-visible surface; it only inspects existing wiring and emits a governance-side audit artifact. Read-only AccessKit/Argus snapshots MAY be used as inspection evidence but no GUI is created or steered destructively. GUI creation and Argus proof obligations transfer to the follow-on implementation MT(s) identified by AC8."
   },
   "user_manual_obligation": {
@@ -136,7 +141,11 @@
     "not_applicable_reason": "No Handshake product behavior, tool, surface, command, or contract is created or changed by this read-only audit MT, so there is nothing to document in the in-product UserManual. The follow-on implementation MT(s) MUST carry the HBR-MAN UserManual obligation for the Atelier module/sub-module change."
   },
   "hbr_obligations": [],
-  "hbr_int_009_tier_obligations": [],
+  "hbr_int_009_tier_obligations": [
+    "2026-10-25 FLIGHT_RECORDER: Direct new producer NOT_APPLICABLE to MT-040 because Read-only module-versus-pane wiring audit; retain its original explicit non-runtime inspection boundary. Preserve underlying business-event/EventLedger obligations in the named implementation MTs; this record does not claim they are wired or accepted.",
+    "2026-10-25 INTERNAL_DIAGNOSTICS: Direct new producer NOT_APPLICABLE to this support-only scope. Underlying GUI/byte-route/schema/runtime consequences, where changed by their owning implementation MT, reuse the shared typed mechanical allowlist. Exact downstream producer binding remains NOT_VERIFIED; no per-MT logger.",
+    "2026-10-25 PALMISTRY: Direct new tracker NOT_APPLICABLE to this support-only scope. Existing standalone out-of-process watcher and original independent genuine application crash-survival proof remain required for affected runtime work; no watcher controller/restart/remediation authority is introduced."
+  ],
   "hbr_followup_note": "This inspection MT carries no runtime/VIS/QUIET/MAN/SWARM evidence obligations (consistent with the WP's READ_ONLY inspection MTs MT-001/MT-003). The implementation MT(s) recommended by AC8 MUST carry HBR-VIS (Argus), HBR-QUIET (no focus/input steal), HBR-MAN (UserManual), and HBR-SWARM (parallel-agent addressability of the module and its sub-module tabs).",
   "handoff": {
     "status": "READY_FOR_VALIDATION",

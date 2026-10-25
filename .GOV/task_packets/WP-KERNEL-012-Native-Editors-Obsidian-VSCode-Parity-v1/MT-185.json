@@ -180,7 +180,8 @@
     "argus_required": false,
     "trace_projection_required_when_non_ui": true,
     "surfaces": [
-      "Existing native surfaces for changed owning module"
+      "Existing native surfaces for changed owning module",
+      "2026-10-25 Vulkan GUI assessment MT-185: Backend/typed integration for Actual governed registry publication. Preserve original scope and authenticated account/workspace/session caller contract; do not invent a GUI button. The actual affected native workflow consumes real typed outcomes and honest availability/error/denied/recovery through shared Vulkan host."
     ],
     "argus_targets": [
       "Retain original MT exact stable IDs; no replacement name inferred"
@@ -190,7 +191,10 @@
       "argus_screenshot_or_snapshot_reference",
       "renderer_console_error_scan",
       "layout_overlap_state_check",
-      "capture_matrix_or_recorded_not_applicable_reason"
+      "capture_matrix_or_recorded_not_applicable_reason",
+      "2026-10-25 requirement navigation, NOT runtime proof: MT-185.json#/scope and original acceptance/proof; packet.json#/operator_professional_desktop_ui_20261024; MT-199/200/201/202/203; Master Spec module15 GUI-DESKTOP-001–055.",
+      "Affected host consumers replace legacy GUI with genuine Vulkan through exact published Kumihimo windows/panels; Cabinet owns file-tree mechanics and canonical Handpick owns the portal-equivalent multitool where applicable. Missing reusable capability is implemented/proven/published in its owning asset before distinct pinned host adoption; preserve ALL existing features/adapters. Use small focused modules/crates, scoped SurrealDB/EventLedger, central GPU ownership, no private devices/pools/budgets or extra databases.",
+      "Preserve original backend/standalone/support proof. Downstream GUI/device/auth/persistence/diagnostic binding is DEFERRED pending actual implementation and independent evidence; this record creates no runtime behavior and changes no existing verdict."
     ],
     "not_applicable_reason": "Headless host proof retained; native consumer handled by dependent native unit"
   },
@@ -251,7 +255,11 @@
     "HBR-PRIV-001..008",
     "Retained source-MT exact HBR rows; pin adoption assessed before activation"
   ],
-  "hbr_int_009_tier_obligations": [],
+  "hbr_int_009_tier_obligations": [
+    "2026-10-25 HBR-INT-009 FLIGHT_RECORDER MT-185: DEFERRED until original scoped business-event/receipt emit and authenticated canonical SurrealDB/EventLedger readback are independently proven. Preserve original event/actor/correlation/idempotency and same-transaction obligations where applicable; pure focus/layout/motion is not a business event and needs justified NOT_APPLICABLE, not fabricated events.",
+    "2026-10-25 HBR-INT-009 INTERNAL_DIAGNOSTICS MT-185: DEFERRED until actual Actual governed registry publication caller/runtime/GUI outcomes use existing shared internal_diagnostics API and typed mechanical allowlist, including actual navigation/action/state/error and Vulkan/GPU lifecycle failure where affected. Keep stable IDs, real correlation/session and no project content/secrets. Existing independent proof establishes WIRED; this requirement is not a runtime claim.",
+    "2026-10-25 HBR-INT-009 PALMISTRY MT-185: DEFERRED until actual Actual governed registry publication outcomes bind canonical ring/survivor/standalone Palmistry event recording and durable later readback. Preserve exact app/watcher PID plus process-birth/correlation, genuine controlled owned Handshake application freeze/crash-survival and normal shutdown ACK/drain. Reuse canonical mechanics; no per-MT watcher, GUI-integrated watcher, app controller, automatic restart or OS remediation."
+  ],
   "handoff": {
     "coder_session": null,
     "wp_validator_session": null,

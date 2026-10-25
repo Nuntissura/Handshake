@@ -318,9 +318,14 @@
     "operator_surface_required": false,
     "gui_creation_required": false,
     "argus_required": false,
-    "surfaces": [],
+    "surfaces": [
+      "2026-10-25 Vulkan GUI assessment MT-145: Support/proof boundary for B14-MT-145-Restore-The-flight_recorder-And-workflows-In-Crate-Tests-To-Actually-Run-Against-A-Live-Embedded-Store. New GUI creation is NOT_APPLICABLE to this bounded task. Preserve original inspection/test/compile scope; affected runtime consumers still require genuine Vulkan host and original independent visual/action acceptance."
+    ],
     "expected_evidence": [
-      "compile and test output"
+      "compile and test output",
+      "2026-10-25 requirement navigation, NOT runtime proof: MT-145.json#/scope and original acceptance/proof; packet.json#/operator_professional_desktop_ui_20261024; MT-199/200/201/202/203; Master Spec module15 GUI-DESKTOP-001–055.",
+      "Affected host consumers replace legacy GUI with genuine Vulkan through exact published Kumihimo windows/panels; Cabinet owns file-tree mechanics and canonical Handpick owns the portal-equivalent multitool where applicable. Missing reusable capability is implemented/proven/published in its owning asset before distinct pinned host adoption; preserve ALL existing features/adapters. Use small focused modules/crates, scoped SurrealDB/EventLedger, central GPU ownership, no private devices/pools/budgets or extra databases.",
+      "Preserve original backend/standalone/support proof. Downstream GUI/device/auth/persistence/diagnostic binding is DEFERRED pending actual implementation and independent evidence; this record creates no runtime behavior and changes no existing verdict."
     ],
     "not_applicable_reason": "Backend test-only harness repair with no operator-visible or model-navigable surface."
   },
@@ -686,5 +691,10 @@
     "record": "validation_v1",
     "binary_source_binding": "Every binary this session built (cargo steps 02-04, 02:13:50Z-02:41:18Z) was compiled from committed ba03f5638e3f6b1903cb2829c1e846958d0dbf42 plus one uncommitted harness file, src/backend/handshake_core/src/storage/tests.rs, which the builder committed unchanged as c0603cbdba2a79bc04711dca83821b687a152b60 at 03:16:32Z (git diff ba03f563..c0603cbd touches only that file and its sha256 equals the snapshot this lane recorded at 02:42:43Z: 3a3f22d9a71349fb18f3e243eb373d1d55ba19fa085ea815678d0f2502e5b2db). Product code in every executed binary is therefore byte-identical to ba03f563 (C-prime); the embedded test harness equals c0603cbd. The builder's later uncommitted edits to ~53 src/tests files began at 03:16:56Z, after the last build of this lane, and are embedded in NO executed binary; exec-only runs read no source. Rows 30-32 recorded head_at_run=c0603cbd because HEAD moved before they started; rows 10-23 recorded ba03f563.",
     "lane_ledger": "../Handshake_Artifacts/WP-KERNEL-012/MT-142/wpv-b1/logs/00-lane.txt (DIRTY_TREE_DETECTED 02:42:43Z, TREE_NOTE, BINDING_NOTE entries)"
-  }
+  },
+  "hbr_int_009_tier_obligations": [
+    "2026-10-25 HBR-INT-009 FLIGHT_RECORDER MT-145: Direct new business-event producer NOT_APPLICABLE to this bounded support_proof task. Preserve original proof and affected host/business-operation EventLedger obligations; no synthetic event or per-MT logger.",
+    "2026-10-25 HBR-INT-009 INTERNAL_DIAGNOSTICS MT-145: Direct new runtime producer NOT_APPLICABLE unless existing scoped executable behavior changes. Actual host/adoption retains shared typed internal_diagnostics wiring and original proof; paperwork/source is not WIRED evidence.",
+    "2026-10-25 HBR-INT-009 PALMISTRY MT-145: No new watcher/tracker is introduced by this bounded task. Preserve downstream standalone out-of-process Palmistry recorder linkage and original controlled-owned-application crash-survival/normal ACK-drain proof; no controller or automatic restart."
+  ]
 }

@@ -267,5 +267,25 @@
       "MT-063",
       "MT-066"
     ]
-  }
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "2026-10-25 Vulkan GUI assessment for MT-022: All native workflows and all128 immutable atelier-ckc IDs require state-reachable preservation under Vulkan host; static ID presence cannot prove emitted/accessibly mounted controls."
+    ],
+    "argus_targets": [],
+    "expected_evidence": [
+      "2026-10-25 source navigation only: src/frontend/handshake_native/src/atelier_panel.rs::show_tab_strip, src/frontend/handshake_native/src/atelier_panel.rs::show_content_region, src/frontend/handshake_native/src/atelier_panel.rs::show_ckc, src/frontend/handshake_native/src/atelier_panel.rs::show_posekit, src/frontend/handshake_native/src/atelier_panel.rs::show_ingest, src/frontend/handshake_native/src/atelier_panel.rs::show_prompt_feedback, src/frontend/handshake_native/src/atelier_panel.rs::show_model_ops_region. Exact native mount/auth/Argus/renderer/diagnostic integration is NOT_VERIFIED by this record. Source bindings are not runtime acceptance.",
+      "Affected native consumer adopts the shared genuine Vulkan shell and exact published canonical Kumihimo pane/window, Cabinet tree and Handpick multitool bindings where applicable; preserve original workflows, typed authorization, account/workspace scope, stable IDs, keyboard/IME/model navigation, reachable empty/loading/error/denied/recovery states, UserManual and independent acceptance. Preserve shared edges, aligned text/icons/menus/tabs/tree, restrained interruptible transitions and reduced-motion behavior through the actual owning toolkit. No per-feature renderer/device/pool/budget authority."
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_int_009_tier_obligations": [
+    "2026-10-25 FLIGHT_RECORDER: For Make all Atelier tool surfaces parallel-agent safe and Argus steerable, retain the original canonical SurrealDB/EventLedger business-event/receipt identity, same-transaction obligations where applicable, and independent public readback proof. Presentation-only focus/layout/motion changes do not invent business events. Exact current emit-to-consumer binding and runtime proof are NOT_VERIFIED by this record; reuse the canonical producer, never a per-MT logger.",
+    "2026-10-25 INTERNAL_DIAGNOSTICS: Affected native action/navigation/control/error and Vulkan/GPU lifetime outcomes reuse the existing shared diagnostic producer/API and typed mechanical allowlist. Preserve real event/control/correlation/session identity and privacy; record no project content/secrets. Exact producer/caller binding and live output remain NOT_VERIFIED. Existing proof-only tasks observe these outcomes without creating replacement instrumentation.",
+    "2026-10-25 PALMISTRY: Reuse the standalone out-of-process watcher/event recorder and canonical ring/survivor path for later diagnostics. Preserve exact app/watcher PID plus process-birth/correlation binding, normal shutdown acknowledgements/drain and original independent controlled-owned-application freeze/crash-survival proof. Static links, clean shutdown, foreign-process disruption and an empty process query do not prove survival. Exact linkage/proof remains NOT_VERIFIED; no per-MT watcher, app controller, restart or OS remediation."
+  ]
 }

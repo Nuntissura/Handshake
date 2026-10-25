@@ -622,5 +622,26 @@
         "state_effect": "lifecycle.status PASS_V9"
       }
     ]
-  }
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "2026-10-25 Vulkan GUI assessment MT-129: Backend/typed integration for E11-MT-129-Make-The-MCP-Discovery-Binding-Publish-Windows-Long-Path-Safe. Preserve original scope and authenticated account/workspace/session caller contract; do not invent a GUI button. The actual affected native workflow consumes real typed outcomes and honest availability/error/denied/recovery through shared Vulkan host."
+    ],
+    "argus_targets": [],
+    "expected_evidence": [
+      "2026-10-25 requirement navigation, NOT runtime proof: MT-129.json#/scope and original acceptance/proof; packet.json#/operator_professional_desktop_ui_20261024; MT-199/200/201/202/203; Master Spec module15 GUI-DESKTOP-001–055.",
+      "Affected host consumers replace legacy GUI with genuine Vulkan through exact published Kumihimo windows/panels; Cabinet owns file-tree mechanics and canonical Handpick owns the portal-equivalent multitool where applicable. Missing reusable capability is implemented/proven/published in its owning asset before distinct pinned host adoption; preserve ALL existing features/adapters. Use small focused modules/crates, scoped SurrealDB/EventLedger, central GPU ownership, no private devices/pools/budgets or extra databases.",
+      "Preserve original backend/standalone/support proof. Downstream GUI/device/auth/persistence/diagnostic binding is DEFERRED pending actual implementation and independent evidence; this record creates no runtime behavior and changes no existing verdict."
+    ],
+    "not_applicable_reason": "This bounded MT owns backend/standalone/diagnostic/support behavior rather than a new GUI. Original affected native consumer/adoption obligations remain required."
+  },
+  "hbr_int_009_tier_obligations": [
+    "2026-10-25 HBR-INT-009 FLIGHT_RECORDER MT-129: DEFERRED until original scoped business-event/receipt emit and authenticated canonical SurrealDB/EventLedger readback are independently proven. Preserve original event/actor/correlation/idempotency and same-transaction obligations where applicable; pure focus/layout/motion is not a business event and needs justified NOT_APPLICABLE, not fabricated events.",
+    "2026-10-25 HBR-INT-009 INTERNAL_DIAGNOSTICS MT-129: DEFERRED until actual E11-MT-129-Make-The-MCP-Discovery-Binding-Publish-Windows-Long-Path-Safe caller/runtime/GUI outcomes use existing shared internal_diagnostics API and typed mechanical allowlist, including actual navigation/action/state/error and Vulkan/GPU lifecycle failure where affected. Keep stable IDs, real correlation/session and no project content/secrets. Existing independent proof establishes WIRED; this requirement is not a runtime claim.",
+    "2026-10-25 HBR-INT-009 PALMISTRY MT-129: DEFERRED until actual E11-MT-129-Make-The-MCP-Discovery-Binding-Publish-Windows-Long-Path-Safe outcomes bind canonical ring/survivor/standalone Palmistry event recording and durable later readback. Preserve exact app/watcher PID plus process-birth/correlation, genuine controlled owned Handshake application freeze/crash-survival and normal shutdown ACK/drain. Reuse canonical mechanics; no per-MT watcher, GUI-integrated watcher, app controller, automatic restart or OS remediation."
+  ]
 }

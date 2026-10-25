@@ -586,5 +586,24 @@
         ]
       }
     ]
-  }
+  },
+  "gui_obligation": {
+    "operator_surface_required": "YES",
+    "gui_creation_required": "NO",
+    "argus_required": "YES",
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "[WP1-MT-011-VK-001] Update the actual Vulkan in-product UserManual coverage for all original ModelLane behaviors and the three diagnostic tiers. Preserve per-behavior route/schema/event references, truthful deferred/unavailable states, recovery navigation and the canonical coverage matrix; never substitute keyword counts for live manual behavior."
+    ],
+    "argus_targets": [],
+    "expected_evidence": [
+      "Affected existing host consumers run in WP-KERNEL-012 on genuine Vulkan through the exact published Kumihimo window/pane contract, Cabinet file trees and the full portal Handpick searchbar multitool where applicable. Preserve all asset features/adapters; missing reusable mechanics are implemented/proven/published in the owning asset before distinct pinned adoption. Use focused modules/crates and the canonical scoped SurrealDB/EventLedger authority. Keep touching pane edges/shared dividers, coherent Settings module/feature tabs or tree, aligned readable icons/text/controls, restrained interruptible motion, reduced-motion, keyboard/focus/IME/DPI/accessibility and empty/loading/error/denied/recovery states. No separate per-module device/pool/budget authority. Required evidence remains OPEN/NOT_VERIFIED by this record: actual running Vulkan backend/device/frame identity and affected input/resize/reopen/context-change/lifecycle paths; original authenticated persistence, privacy, model navigation, UserManual, Argus and independent verdicts. Use current Master Spec via SPEC_CURRENT.md, module15 GUI-DESKTOP-007–040 and HBR-INT-009/MAN-004. Historical pins, original acceptance, failures and spent attempts are unchanged. Original WP1 work is carried into WP-KERNEL-012, not a new parallel product target."
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_int_009_tier_obligations": [
+    "[WP1-MT-011-VK-002] FLIGHT_RECORDER: Preserve canonical business-event Flight Recorder/EventLedger emissions, exact trace/span/run/lane/message and authenticated account/Principal/AccessSpace/workspace/session identity, atomic mutation/event and replay/idempotency obligations from this MT. Presentation-only focus/layout/motion does not invent business events. Actual emit-to-readback wiring is NOT_VERIFIED by this record.",
+    "[WP1-MT-011-VK-003] INTERNAL_DIAGNOSTICS: Wire the affected native action/state/error and runtime lifecycle outcomes to the shared internal_diagnostics producer/API and typed mechanical allowlist. Preserve exact correlation/session and privacy; record no conversation/project content, credentials or secrets. Reuse module-owned telemetry and meaningful positive/denied/error/recovery proof; actual caller/output binding remains NOT_VERIFIED.",
+    "[WP1-MT-011-VK-004] PALMISTRY: Wire affected liveness/freeze/crash capture through the standalone out-of-process Palmistry watcher/recorder, canonical ring/survivor route and same-session event identity for later diagnostics. Retain genuine app/watcher process-birth binding, normal ACK/drain, durable reopen and original independent owned-application freeze/crash-survival proof. No per-MT watcher, control app, automatic restart, foreign-process disruption or OS remediation; source links do not prove survival."
+  ]
 }

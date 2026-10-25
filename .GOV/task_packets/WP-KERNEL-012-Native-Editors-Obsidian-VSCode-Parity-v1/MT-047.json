@@ -734,5 +734,26 @@
     "limits": "Only the three explicit B paths and Primary-only one manifest binding; no Assets source edits, other source/manifest/lock edits, compiler/Cargo/test/runtime/metadata/Git grant, schema changes, original pin/spec waiver or budget reset. Preserve peers; v6 Master-only.",
     "next": "Normal B source START through T1 immediately after saved binding and actual personal guard/custody ACK, without another Root GO; actual source outcome/changed guards pending. Primary assembles exact pin separately; later proof requires separate actual permission and refreshed affected captured inputs.",
     "recorded_at_utc": "2026-10-18T13:45:16.232Z"
-  }
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": false,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "2026-10-25 Vulkan GUI assessment MT-047: Retain and render existing scoped workflow in the Vulkan host: Inspect signature help at the caret. Exact behavior remains MT-047.json#/scope; source/control presence is not mounted interaction proof."
+    ],
+    "argus_targets": [],
+    "expected_evidence": [
+      "2026-10-25 requirement navigation, NOT runtime proof: MT-047.json#/scope and original acceptance/proof; packet.json#/operator_professional_desktop_ui_20261024; MT-199/200/201/202/203; Master Spec module15 GUI-DESKTOP-001–055.",
+      "Affected host consumers replace legacy GUI with genuine Vulkan through exact published Kumihimo windows/panels; Cabinet owns file-tree mechanics and canonical Handpick owns the portal-equivalent multitool where applicable. Missing reusable capability is implemented/proven/published in its owning asset before distinct pinned host adoption; preserve ALL existing features/adapters. Use small focused modules/crates, scoped SurrealDB/EventLedger, central GPU ownership, no private devices/pools/budgets or extra databases.",
+      "Retain stable model/AccessKit routes, keyboard/focus/IME, DPI/resize/multiwindow, aligned icons/text/panels, touching edges/shared dividers, truthful empty/loading/error/denied/recovery, context/persistence/reopen and same-change UserManual. Keep existing taxonomy; use coherent menus/tabs/trees with restrained interruptible toolkit motion/reduced-motion, no clutter or text bloat. Original independent runtime/auth/privacy/proof remains required."
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_int_009_tier_obligations": [
+    "2026-10-25 HBR-INT-009 FLIGHT_RECORDER MT-047: DEFERRED until original scoped business-event/receipt emit and authenticated canonical SurrealDB/EventLedger readback are independently proven. Preserve original event/actor/correlation/idempotency and same-transaction obligations where applicable; pure focus/layout/motion is not a business event and needs justified NOT_APPLICABLE, not fabricated events.",
+    "2026-10-25 HBR-INT-009 INTERNAL_DIAGNOSTICS MT-047: DEFERRED until actual E1-MT-047-SignatureHelpParameterHints caller/runtime/GUI outcomes use existing shared internal_diagnostics API and typed mechanical allowlist, including actual navigation/action/state/error and Vulkan/GPU lifecycle failure where affected. Keep stable IDs, real correlation/session and no project content/secrets. Existing independent proof establishes WIRED; this requirement is not a runtime claim.",
+    "2026-10-25 HBR-INT-009 PALMISTRY MT-047: DEFERRED until actual E1-MT-047-SignatureHelpParameterHints outcomes bind canonical ring/survivor/standalone Palmistry event recording and durable later readback. Preserve exact app/watcher PID plus process-birth/correlation, genuine controlled owned Handshake application freeze/crash-survival and normal shutdown ACK/drain. Reuse canonical mechanics; no per-MT watcher, GUI-integrated watcher, app controller, automatic restart or OS remediation."
+  ]
 }
