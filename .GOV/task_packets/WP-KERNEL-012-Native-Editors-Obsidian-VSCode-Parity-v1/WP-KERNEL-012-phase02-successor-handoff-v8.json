@@ -20189,7 +20189,7 @@
       "basis": "Explicit human requested latest restart handoff for next session and regular stable commits; later direct resume revoked session pause. Current Master delegated this bounded existing-handoff edit.",
       "author": "/root/paperwork_agent",
       "master": "01a17028-cecb-7b90-9c71-bbddd44d722e",
-      "full_objective_verbatim": "Complete all original WP-KERNEL-012 Phase2 work and carried CKC/WP1 acceptance through Codeleader and the existing owners. use the codex, build rules and kernel builder protocol.\n\n1. Finish MT187 repairs and required independent proof. then move on.\n2. Keep GUI work parallel, including Settings, Handpick, centralized GPU ownership and Palmistry crash-survival proof. palmistry&#x20;\n3. Update Kumihimo in the assets repo first, then adopt its published exact revision in Handshake. Resolve its blocked amendment without bypassing policy.\n4. Finish the latest restart-handoff refresh, preserving all open work, teams, limits and next actions.\n5. Commit and push stable completed changes regularly, respecting active capture holds.\n6. create new teams to speed up parallel work, i prefer new chats/teams with its own domaim specific agents: workers and reviewers through different adversarial lenses, or specialised roles for ui workflow, design,  sub agents\n7. refresh team regularly&#x20;\n8. let the coding team comm with diagnostics team and code check team directly without overhead. keep comm to a minimum, just asign a the mt to a coding team, the coding team hands off to codecheck team, it then notifies the coding dev leader.&#x20;\n9. bundle tests and checks together per cargo build. reuse carge when posilble, clean up old unused cargo build artifacts.\n10. have UI teams work on every applicable UI element for mts inside wp kernel 012, wp ckc, wp 1 multimodel orchestration Vulkan, handshake owns memory and gpu managing.\n11. have a separate kumihimo team\n12. focussed test, reuse proofs, reuse permitions, reuse if this can speed up work, or skip work.\n13. no large crates, a feature or module can have multiple crates.\n14. paperwork and repo ceremony can never block work.",
+      "full_objective_verbatim": "Complete all original WP-KERNEL-012 Phase2 work and carried CKC/WP1 acceptance through Codeleader and the existing owners. use the codex, build rules and kernel builder protocol.\n\n1. Finish MT187 repairs and required independent proof. then move on.\n2. Keep GUI work parallel, including Settings, Handpick, centralized GPU ownership and Palmistry crash-survival proof. palmistry&#x20;\n3. Update Kumihimo in the assets repo first, then adopt its published exact revision in Handshake. Resolve its blocked amendment without bypassing policy.\n4. Finish the latest restart-handoff refresh, preserving all open work, teams, limits and next actions.\n5. Commit and push stable completed changes regularly, respecting active capture holds.\n6. create new teams to speed up parallel work, i prefer new chats/teams with its own domaim specific agents: workers and reviewers through different adversarial lenses, or specialised roles for ui workflow, design,  sub agents\n7. refresh team regularly&#x20;\n8. let the coding team comm with diagnostics team and code check team directly without overhead. keep comm to a minimum, just asign a the mt to a coding team, the coding team hands off to codecheck team, it then notifies the coding dev leader.&#x20;\n9. bundle tests and checks together per cargo build. reuse carge when posilble, clean up old unused cargo build artifacts.\n10. have UI teams work on every applicable UI element for mts inside wp kernel 012, wp ckc, wp 1 multimodel orchestration Vulkan, handshake owns memory and gpu managing.\n11. have a separate kumihimo team\n12. focussed test, reuse proofs, reuse permitions, reuse if this can speed up work, or skip work.\n13. no large crates, a feature or module can have multiple crates.\n14. paperwork and repo ceremony can never block work.\n15. GUI dev leader chat and helpers managing teams with subagents for WP012, CKC and WP1; professional Photoshop/VSCode-shaped Material operator draft; actual Vulkan; Handshake central GPU/memory management; focused GUI modules and small crates.\n16. adjust workflow when bottlenecks appear in comms and code throughput or cargo. update handoff with adjusted workflow (use sub agent)",
       "objective_provenance": "Root get_goal canonical tool response supplied directly by current Master2026-10-25; child get_goal returnednull, not reconstructed from memory.",
       "interpretation": "Complete all 13 requirements with original acceptance/proof floor. Reuse valid unchanged checks/permissions/artifacts and omit redundant support; skip never grants omission of required acceptance. Existing role/process/custody/security/attempt boundaries remain.",
       "lanes": {
@@ -20199,7 +20199,9 @@
       "prior_twelve_item_objective_verbatim": "Complete all original WP-KERNEL-012 Phase2 work and carried CKC/WP1 acceptance through Codeleader and the existing owners. use the codex, build rules and kernel builder protocol.\n\n1. Finish MT187 repairs and required independent proof. then move on.\n2. Keep GUI work parallel, including Settings, Handpick, centralized GPU ownership and Palmistry crash-survival proof. palmistry&#x20;\n3. Update Kumihimo in the assets repo first, then adopt its published exact revision in Handshake. Resolve its blocked amendment without bypassing policy.\n4. Finish the latest restart-handoff refresh, preserving all open work, teams, limits and next actions.\n5. Commit and push stable completed changes regularly, respecting active capture holds.\n6. create new teams to speed up parallel work, i prefer new chats/teams with its own domaim specific agents: workers and reviewers through different adversarial lenses, or specialised roles for ui workflow, design,  sub agents\n7. refresh team regularly&#x20;\n8. let the coding team comm with diagnostics team and code check team directly without overhead. keep comm to a minimum, just asign a the mt to a coding team, the coding team hands off to codecheck team, it then notifies the coding dev leader.&#x20;\n9. bundle tests and checks together per cargo build. reuse carge when posilble, clean up old unused cargo build artifacts.\n10. have UI teams work on every applicable UI element for mts inside wp kernel 012, wp ckc, wp 1 multimodel orchestration\n11. have a separate kumihimo team\n12. focussed test, reuse proofs, reuse permitions, reuse if this can speed up work, or skip work.",
       "latest_objective_delta": "Current Master supplied later explicit human update: item10 now ends Vulkan, handshake owns memory and gpu managing.; new item13 preserved literally. Prior12-item text retained above.",
       "prior_thirteen_item_objective_verbatim": "Complete all original WP-KERNEL-012 Phase2 work and carried CKC/WP1 acceptance through Codeleader and the existing owners. use the codex, build rules and kernel builder protocol.\n\n1. Finish MT187 repairs and required independent proof. then move on.\n2. Keep GUI work parallel, including Settings, Handpick, centralized GPU ownership and Palmistry crash-survival proof. palmistry&#x20;\n3. Update Kumihimo in the assets repo first, then adopt its published exact revision in Handshake. Resolve its blocked amendment without bypassing policy.\n4. Finish the latest restart-handoff refresh, preserving all open work, teams, limits and next actions.\n5. Commit and push stable completed changes regularly, respecting active capture holds.\n6. create new teams to speed up parallel work, i prefer new chats/teams with its own domaim specific agents: workers and reviewers through different adversarial lenses, or specialised roles for ui workflow, design,  sub agents\n7. refresh team regularly&#x20;\n8. let the coding team comm with diagnostics team and code check team directly without overhead. keep comm to a minimum, just asign a the mt to a coding team, the coding team hands off to codecheck team, it then notifies the coding dev leader.&#x20;\n9. bundle tests and checks together per cargo build. reuse carge when posilble, clean up old unused cargo build artifacts.\n10. have UI teams work on every applicable UI element for mts inside wp kernel 012, wp ckc, wp 1 multimodel orchestration Vulkan, handshake owns memory and gpu managing.\n11. have a separate kumihimo team\n12. focussed test, reuse proofs, reuse permitions, reuse if this can speed up work, or skip work.\n13. no large crates, a feature or module can have multiple crates.",
-      "objective14_provenance": "Current direct human addition supplied by Master verbatim2026-10-25; retain original13 and acceptance/proof floor."
+      "objective14_provenance": "Current direct human addition supplied by Master verbatim2026-10-25; retain original13 and acceptance/proof floor.",
+      "prior_fourteen_item_objective_verbatim": "Complete all original WP-KERNEL-012 Phase2 work and carried CKC/WP1 acceptance through Codeleader and the existing owners. use the codex, build rules and kernel builder protocol.\n\n1. Finish MT187 repairs and required independent proof. then move on.\n2. Keep GUI work parallel, including Settings, Handpick, centralized GPU ownership and Palmistry crash-survival proof. palmistry&#x20;\n3. Update Kumihimo in the assets repo first, then adopt its published exact revision in Handshake. Resolve its blocked amendment without bypassing policy.\n4. Finish the latest restart-handoff refresh, preserving all open work, teams, limits and next actions.\n5. Commit and push stable completed changes regularly, respecting active capture holds.\n6. create new teams to speed up parallel work, i prefer new chats/teams with its own domaim specific agents: workers and reviewers through different adversarial lenses, or specialised roles for ui workflow, design,  sub agents\n7. refresh team regularly&#x20;\n8. let the coding team comm with diagnostics team and code check team directly without overhead. keep comm to a minimum, just asign a the mt to a coding team, the coding team hands off to codecheck team, it then notifies the coding dev leader.&#x20;\n9. bundle tests and checks together per cargo build. reuse carge when posilble, clean up old unused cargo build artifacts.\n10. have UI teams work on every applicable UI element for mts inside wp kernel 012, wp ckc, wp 1 multimodel orchestration Vulkan, handshake owns memory and gpu managing.\n11. have a separate kumihimo team\n12. focussed test, reuse proofs, reuse permitions, reuse if this can speed up work, or skip work.\n13. no large crates, a feature or module can have multiple crates.\n14. paperwork and repo ceremony can never block work.",
+      "objectives15_16_provenance": "Current Master relayed explicit human additions2026-10-25. Original1-14 preserved exactly above. Objective15 is complete relayed instruction, not an invented literal quote; objective16 is exact supplied human wording."
     },
     "current_navigation": "Start here, then referenced existing contracts/294+7 state and current owners. Older current/latest/unspent/owner text is dated history unless explicitly reaffirmed here. No all-contract reread, unchanged map regeneration or green-proof replay.",
     "preserved_state_refs": {
@@ -20455,7 +20457,7 @@
       "no_product_or_git_effects": "No build/test/source/runtime/process/Git/index/commit/push from this author.",
       "latest_owner_delta": "Fresh actual Primary original command recovery/release and same asset owner diagnostic correction supplied by Master after initial author write; no source/runtime/new diagnostic action by author."
     },
-    "current_delta_ref": "#/operator_restart_continuation_20261025/current_delivery_delta_20261025",
+    "current_delta_ref": "#/operator_restart_continuation_20261025/gui_delivery_workflow_delta_20261025",
     "current_delivery_delta_20261025": {
       "record_id": "WP012-RESTART-DELIVERY-DELTA-20261025-01",
       "recorded_at_utc": "2026-10-25T13:09:42.573622+00:00",
@@ -20617,6 +20619,153 @@
         "direct_read": "Raw result/test stdout/check+test stderr hashes matched result artifacts; exact actual lock delta and source diff read. No code/build/test/process/automation/Git/index mutation.",
         "prior_preservation": "All prior fields except updated current objective string preserved; prior13 literal saved. New linked delta does not rewrite old source/history/status.",
         "no_extra_ceremony": "Focused JSON/reference/preservation/diff checks only; no broad review, all-team inventory or proof rerun."
+      }
+    },
+    "gui_delivery_workflow_delta_20261025": {
+      "record_id": "WP012-GUI-WORKFLOW-DELTA-20261025-01",
+      "recorded_at_utc": "2026-10-25T13:56:43.002599+00:00",
+      "baseline": {
+        "published_governance_commit": "a6d19ce5",
+        "selected_v8_sha256": "39400cdf099a54b9fe986fa93e2f4b05323882bd23a756b96c29f032d2e192bc"
+      },
+      "previous_current_delta_ref": "#/operator_restart_continuation_20261025/current_delivery_delta_20261025",
+      "scope": "Only this current GUI/runtime/workflow continuation and explicit objectives15/16; all original1-14,294+7/original criteria/history/pins/spents/reviews and roles preserved. Requested paperwork runs parallel and never gates ready Product work.",
+      "objective15": {
+        "instruction": "GUI dev leader chat and helpers managing teams with subagents for WP012, CKC and WP1; professional Photoshop/VSCode-shaped Material operator draft; actual Vulkan; Handshake central GPU/memory management; focused GUI modules and small crates.",
+        "status": "HUMAN_AUTHORIZED; ACTUAL_TEAM_ACTIVITY_REPORTED_BELOW",
+        "not_a_verdict": "Team creation/started helpers is not Product application, complete GUI coverage or acceptance."
+      },
+      "objective16": {
+        "exact_quote": "adjust workflow when bottlenecks appear in comms and code throughput or cargo. update handoff with adjusted workflow (use sub agent)",
+        "status": "HUMAN_AUTHORIZED_WORKFLOW_ADJUSTMENT",
+        "rules": [
+          {
+            "rule_id": "WP012-COMMS-THROUGHPUT-20261025-001",
+            "instruction": "Route technical handoffs through actual current owning parents instead of repeated unloaded-child pings. Retain real leases and overlapping-file/process custody; an unloaded child or silence never releases a whole panel or source window."
+          },
+          {
+            "rule_id": "WP012-COMMS-THROUGHPUT-20261025-002",
+            "instruction": "Deliver coherent feature-flow candidates with all actionable findings batched. Coding communicates directly with actual Diagnostics and independent Codecheck, then lead; avoid one-gap/status ping-pong and repeated green review."
+          },
+          {
+            "rule_id": "WP012-COMMS-THROUGHPUT-20261025-003",
+            "instruction": "Use finite explicit compatible Cargo batches with sole Primary, reusing valid cache/results and one settled handback. No expanded allowance, hidden commands, automatic retry, policy weakening or new execution inferred."
+          },
+          {
+            "rule_id": "WP012-COMMS-THROUGHPUT-20261025-004",
+            "instruction": "Continue dependency-ready disjoint source work while genuine runtime-proof inputs are bound separately. Preserve actual admission/capture/resource boundaries; paperwork/extra controller/audit/ceremony is not a predecessor."
+          }
+        ],
+        "observed_bottlenecks": [
+          "Repeated unloaded-child routing instead of the real parent retains unclear whole-panel custody.",
+          "Fragmented one-gap/status handbacks impede coherent coding and affected independent review.",
+          "Cargo throughput requires explicit compatible batches, reuse and settled owned handback rather than overlapping or unchanged reruns."
+        ],
+        "dispatch_state": {
+          "targets": [
+            "01a168a9-05b2-7630-9633-5faac88dd068",
+            "01a1738d-2b8e-7151-9e9e-3972429af70c"
+          ],
+          "observation": "Master reports delivery timed out while negotiating host. Delivery, acknowledgment and actual application are UNKNOWN pending independent verification. Human authorization is recorded; do not claim teams received/applied it.",
+          "latest_settled_outcome": {
+            "fact_class": "REPORTED_MASTER_ACTUAL_SUPPORTED_TOOL_RESULTS",
+            "gui_leader": {
+              "thread_id": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+              "delivery": "SUCCESS",
+              "acknowledgment_or_application": "NOT_ESTABLISHED_BY_SEND_SUCCESS"
+            },
+            "codeleader": {
+              "thread_id": "01a168a9-05b2-7630-9633-5faac88dd068",
+              "delivery": "FAILED_NOT_CLAIMED",
+              "error": "Could not determine whether Codex thread exists. Unavailable or failed hosts: local",
+              "retry": "No retry planned absent changed relevant state."
+            },
+            "limit": "Prior timed-out negotiation observation above is history. This result proves neither permission cause, team termination nor custody release."
+          }
+        }
+      },
+      "actual_gui_leadership": {
+        "fact_class": "REPORTED_MASTER_DIRECT_CREATION_AND_STARTED_SUBAGENT_READ",
+        "gui_dev_leader": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+        "retained_wp012_host": "01a165da-ecdb-7a40-8504-6918286033ee",
+        "wp012_technical_leader": "01a16ed5-396c-7392-b526-eb79c1fb634d",
+        "ckc_team": "01a1738d-2b8e-7151-9e9e-59250e1fd3f3",
+        "ckc_flow_review": "01a1738d-2b8e-7151-9e9e-892144febd5a",
+        "wp1_team": "01a1738d-2b8e-7151-9e9e-687d84e6c0e8",
+        "wp1_author_settings_candidate": "01a1738d-2b8e-7151-9e9e-84679dc9ba33",
+        "wp1_flow_review": "01a1738d-2b8e-7151-9e9e-8639e1081175",
+        "boundary": "GUI leader manages these domain teams/helpers and cross-WP applicable UI. Codeleader retains technical allocation/proof sequencing; sole Primary retains physical Handshake Product/control/Git/manifests/locks/compiler/process custody. No new source lease or independent verdict follows."
+      },
+      "actual_gui_work": {
+        "fact_class": "REPORTED_ACTUAL_GUI_LEADER_HANDBACK_THROUGH_MASTER",
+        "mt202": "App/survivor work assigned to retained authors; preserve their saved candidates/windows instead of creating duplicate writers. Original actual runtime/survival acceptance remains open.",
+        "ckc_mt065": {
+          "finding": "Actual stale artifact/current metadata mismatch at show_posekit15918,draw15970,loadedPNG18478.",
+          "whole_panel_parent": "01a13d23-bee7-73a1-a9ac-e0b50db5ca93",
+          "custody": "That actual parent owns real whole-panel handoff. Unloaded children are not release.",
+          "next": "Actual owner resolves coherent artifact/metadata/rendered-image identity through same feature flow and affected direct review; no Product application/verified candidate inferred."
+        },
+        "wp1": "Historical Surreal blocker was disproven by current source per actual handback; do not revive it as a current gate. Settings bindings are under actual review, not accepted or proven complete.",
+        "requirements": "Professional Photoshop/VSCode-shaped but materially distinct Material operator draft, actual Vulkan, Handshake-owned centralized memory/GPU lifecycle and focused GUI modules/small crates across every applicable original WP012/CKC/WP1 MT remain required. Existing294+7/map/criteria refs remain scope; no new census or blanket complete claim."
+      },
+      "native_vulkan_runtime_delta": {
+        "fact_class": "SOURCED_NATIVE_MANIFEST; image perception REPORTED_MASTER_DIRECT_VIEW",
+        "status": "NATIVE_VULKAN_CAPTURE_PRODUCED_NOT_YET_INDEPENDENTLY_QUALIFIED",
+        "manifest_ref": ".assets/Kumihimo/.local/wp022-vulkan-proof/native-vulkan/native-manifest.json",
+        "manifest_sha256": "72d4462ebeffbe11287816416f5c6813602a50d1e39951524e511d90c7bf41b3",
+        "requested_backend": "Vulkan",
+        "actual_backend": "Vulkan",
+        "capture_count": 16,
+        "returned": 3,
+        "remaining_native_bindings": 0,
+        "error": null,
+        "cleanup": [
+          {
+            "exists": true,
+            "foreground": 328590,
+            "foreground_owned": false,
+            "foreground_pid": 5800,
+            "hwnd": 10684386,
+            "minimized": false,
+            "no_activate_style": true,
+            "owned_pid": true,
+            "pid": 28392,
+            "taskbar_appwindow_style": false,
+            "taskbar_excluded_toolwindow_style": true,
+            "visible": false
+          }
+        ],
+        "after": {
+          "foreground": 328590,
+          "foreground_owned": false,
+          "foreground_pid": 5800
+        },
+        "not_proven": [
+          "physical touch/pen",
+          "physical GPU fault",
+          "idle CPU/memory release",
+          "external provider devices",
+          "other OS/ARM"
+        ],
+        "image_observation": "Master directly viewed native-contact.png and reported actual rendered content. This author directly opened manifest only and issues no image/visual-quality verdict.",
+        "prior_compile_result": "Earlier results.json runtimeNOT_RUN remains dated compile/focused-test result. It does not negate this later produced native Vulkan capture; neither artifact establishes whole-WP acceptance.",
+        "remaining": "eframe path, final owned process/window drain, publication/independent remote reread/published pin, Handshake adoption and all original runtime acceptance remain UNPROVEN. Manifest cleanup contains one hidden owned HWND exists:true, so no complete process/window closure claim.",
+        "owner_continuity": "Actual source owner01a17374-1d96-7e02-9aea-77b0f62f20dc active turn01a1738d-2b8e-7151-9e9e-02b94e78a560 reviewing images/runtime per Master. No publication verdict; no reset, execute or retry from this record."
+      },
+      "preserved_scope_refs": {
+        "open_work_membership": "#/operator_requested_repo_state_20261025/canonical_work_sets",
+        "gui_scope_and_historical287_map": "#/operator_requested_repo_state_20261025/gui_coverage",
+        "teams_and_composition": "#/operator_requested_repo_state_20261025/teams",
+        "source_ambiguity": "#/operator_requested_repo_state_20261025/existing_source_ambiguities",
+        "time_sinks": "#/operator_requested_repo_state_20261025/evidenced_timesinks",
+        "do_not_repeat": "#/operator_requested_repo_state_20261025/do_not_repeat",
+        "original_scope_and_pins": "#/scope_and_pins",
+        "workflow_history": "#/operator_master_succession_20261025/team_workflow"
+      },
+      "verification": {
+        "authored_path": "Existing selected-v8 only",
+        "checks": "Duplicate-free JSON, local refs, prior-value preservation excluding saved objective/current-delta update, exact external manifest identity and scoped diff check. No new review/census/controller/proof run.",
+        "source_limit": "GUI assignments/findings/delivery timeout/source-owner activity are REPORTED actual handbacks; manifest fields SOURCED, runtime independent qualification UNPROVEN."
       }
     }
   }
