@@ -1,0 +1,774 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-208",
+  "created_at_utc": "2026-10-25T16:25:50.275Z",
+  "updated_at_utc": "2026-10-25T16:26:53.883Z",
+  "identity": {
+    "mt_id": "MT-208",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Legacy workflow replay reconciliation",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "The legacy workflow resume path never repeats an unconfirmed side effect or completes a step from output-file existence; independent real restart evidence proves canonical attempt reconciliation.",
+    "requirement_refs": [
+      "WP012-REL-005",
+      "packet.json#/operator_runtime_reliability_20261025",
+      ".GOV/spec/master-spec-v02.223/spec-modules/02-system-architecture.md#2.6.1",
+      ".GOV/spec/master-spec-v02.223/spec-modules/02-system-architecture.md#2.3.13.8",
+      "MT-187.json#/scope"
+    ],
+    "acceptance_refs": [
+      "MT-208.json#/scope/acceptance_criteria/0",
+      "MT-208.json#/scope/acceptance_criteria/1",
+      "MT-208.json#/scope/acceptance_criteria/2",
+      "MT-208.json#/scope/acceptance_criteria/3",
+      "MT-208.json#/scope/acceptance_criteria/4",
+      "MT-208.json#/scope/acceptance_criteria/5",
+      "MT-208.json#/scope/acceptance_criteria/6"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC208-1",
+        "requirement_ref": "MT-208.json#/scope/acceptance_criteria/0"
+      },
+      {
+        "id": "AC208-2",
+        "requirement_ref": "MT-208.json#/scope/acceptance_criteria/1"
+      },
+      {
+        "id": "AC208-3",
+        "requirement_ref": "MT-208.json#/scope/acceptance_criteria/2"
+      },
+      {
+        "id": "AC208-4",
+        "requirement_ref": "MT-208.json#/scope/acceptance_criteria/3"
+      },
+      {
+        "id": "AC208-5",
+        "requirement_ref": "MT-208.json#/scope/acceptance_criteria/4"
+      },
+      {
+        "id": "AC208-6",
+        "requirement_ref": "MT-208.json#/scope/acceptance_criteria/5"
+      },
+      {
+        "id": "AC208-7",
+        "requirement_ref": "MT-208.json#/scope/acceptance_criteria/6"
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "The owning technical leader assigns the actual implementation and independent review roles; this contract claims no model or session.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": null,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": null,
+      "confirm": null
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "automatic_new_allowance_granted": false,
+    "current_authority_ref": "packet.json#/operator_runtime_reliability_20261025",
+    "permission_policy": "Preserve original three-WP scope, acceptance, source/spec/governance pins, spent attempts and existing holds. This contract grants no source lease, build slot, fetch, runtime execution, process stop or new attempt allowance. Any further run must resolve current recorded human authority and distinct technical-leader/independent-partner agreement in the existing owning admission; no counter reset."
+  },
+  "execution": {
+    "lane": "planned_implementation",
+    "module_ref": "src/backend/handshake_core/src/workflows.rs",
+    "module_change_stage": "host_adaptation",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [
+      "MT-172"
+    ],
+    "allowed_write_paths": [],
+    "forbidden_write_paths": [
+      ".GOV/** from the product implementation lane",
+      "Unallocated shared files, manifests, lockfiles or generated pins",
+      "Canonical reusable asset internals through this host scope",
+      "Unrelated WPs and frozen/private proof outputs"
+    ],
+    "stop_conditions": [
+      "Preserve original three-WP scope, acceptance, source/spec/governance pins, spent attempts and existing holds. This contract grants no source lease, build slot, fetch, runtime execution, process stop or new attempt allowance.",
+      "No writes before exact owner/path allocation. Missing typed contract, canonical resource, auth context or proof route blocks only its dependent step.",
+      "A reusable asset gap requires its own standalone_source change and independent canonical publication proof before distinct pinned host adoption; no host copy or workaround.",
+      "Only the named independent validator executes runtime acceptance. No fixture, mock, static inspection or self-authored status proves product runtime."
+    ],
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "baseline_commit": "3fca9514e8c1bb1d1bb5478f56f27fbc56696d36",
+    "baseline_role": "Parent-verified planning baseline; recheck exact source preimages under existing custody before allocation.",
+    "ownership": {
+      "claimed_by": null,
+      "source_writer": null,
+      "code_leader": "01a168a9-05b2-7630-9633-5faac88dd068",
+      "gui_leader": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+      "physical_custody": "01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
+      "state": "UNCLAIMED",
+      "allocation_policy": "Code leader allocates one Product trio after current MT-172 work. GUI leader owns GUI scope and exact GUI writers. Primary retains physical source/Git/compiler custody. Independent GUI teams continue disjoint work."
+    },
+    "source_adoption": {
+      "status": "NO_ASSET_PIN_CHANGE_AUTHORIZED",
+      "required_if": "A source/dependency adoption is necessary.",
+      "policy": "Consume exact already published compatible contracts. Preserve original pins; record separate source proof and immutable adoption binding before changing any dependency."
+    },
+    "conditional_dependencies": [
+      {
+        "mt_ref": "MT-207.json",
+        "when": "The replay implementation consumes MT-207's published transition/fencing contract; bind its exact version before that integration step."
+      }
+    ]
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-172.json#/proof",
+      "MT-174.json#/proof",
+      "MT-187.json#/proof",
+      "MT-199.json#/proof",
+      "MT-202.json#/proof",
+      "MT-203.json#/proof"
+    ],
+    "checks": [
+      {
+        "check_id": "MT208-COMPILE",
+        "executor_role": "KERNEL_BUILDER",
+        "claim_refs": [
+          "AC208-1",
+          "AC208-4"
+        ],
+        "command_or_method": "cargo check --locked --manifest-path src/backend/handshake_core/Cargo.toml --lib --tests --features app-runtime,surreal-test-support,test-utils -j 1",
+        "configuration_binding": "Use only the current admitted MT-172/Primary compile configuration and target after exact input/path allocation. This inherited command is not a new execution grant.",
+        "expected": "Affected source and tests compile on the exact unchanged candidate; no runtime verdict.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout_no_automatic_retry",
+        "evidence_required": [
+          "Candidate SHA/tree and unchanged before/after input digest",
+          "Exact features/config/toolchain/target and output"
+        ]
+      },
+      {
+        "check_id": "MT208-REPLAY-RECONCILIATION",
+        "executor_role": "INDEPENDENT_VALIDATOR",
+        "claim_refs": [
+          "AC208-1",
+          "AC208-2",
+          "AC208-3",
+          "AC208-4",
+          "AC208-5",
+          "AC208-6",
+          "AC208-7"
+        ],
+        "command_or_method": "Through the existing admitted product test entrypoint with app-runtime,surreal-test-support,test-utils, extend the existing micro_task_executor_tests target. Bind exact checked-in cases before execution for provider-effect-before-output crash, validation-effect-before-output crash, never-started recovery, missing/partial/corrupt/foreign output, duplicate/late completion, concurrent resume and SurrealDB restart. Exercise the real owned Handshake backend, actual managed SurrealDB/EventLedger and the production provider/validation boundary; use deterministic failpoints only to choose the interruption point. Independently reread canonical records and the provider/tool side effect or immutable receipt before and after resume.",
+        "expected": "No blind retry, false completion, duplicate side effect, stale-attempt commit or widened authorization. Unconfirmable external outcomes remain unconfirmed with a governed reconciliation path.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout_preserve_unconfirmed_state_no_automatic_retry",
+        "evidence_required": [
+          "Exact candidate/binary/config and owned process birth identities",
+          "Canonical before/after attempt, node, output hash and EventLedger query results",
+          "Real provider/validation side-effect identity and count or explicit inability to confirm",
+          "Per-case interruption boundary, expected/observed classification and duplicate rejection",
+          "Privacy negatives, three distinct diagnostic-tier records, UserManual linkage",
+          "Named independent verdict; mocks/fixtures are component proof only"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "execution_authority": "Preserve original three-WP scope, acceptance, source/spec/governance pins, spent attempts and existing holds. This contract grants no source lease, build slot, fetch, runtime execution, process stop or new attempt allowance.",
+    "command_binding": "HBR test_environment_prerequisites.test_entrypoint and implementer_check still contain unconfigured placeholders at authoring. Resolve exact checked-in command/config through the existing WP owning admission before any run. The concrete methods below are acceptance requirements, not executable permission or an invented harness.",
+    "relevant_input_paths": [
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/backend/handshake_core/src/workflows/recovery.rs",
+      "src/backend/handshake_core/tests/micro_task_executor_tests.rs",
+      "src/backend/handshake_core/src/storage/surreal/workflow_store.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs",
+      "src/backend/handshake_core/src/backend_runtime/mod.rs"
+    ],
+    "downstream_wp_closure_refs": [
+      "MT-209.json#/proof"
+    ]
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-208.json",
+    "microtask_projection": null,
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "NOT_REQUESTED",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "depends_on": [
+      "MT-172"
+    ],
+    "blocks": [
+      "MT-209"
+    ],
+    "active": false,
+    "validator_verdict": "PENDING",
+    "claimed_by": null,
+    "completed_by": null,
+    "blocked_on": "Code leader 01a168a9 must allocate one Product trio and exact workflows source lease after current MT-172 work; Primary 01a16f0c retains physical custody. No implementation or runtime admission is granted."
+  },
+  "scope": {
+    "summary": "Reconcile the existing legacy workflow executor's interrupted steps against durable attempt and outcome authority, including the provider/validation-before-output crash window.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/backend/handshake_core/src/workflows/recovery.rs",
+      "src/backend/handshake_core/tests/micro_task_executor_tests.rs"
+    ],
+    "forbidden_paths": [
+      ".GOV/** from the product implementation lane",
+      "Unallocated shared files, manifests, lockfiles or generated pins",
+      "Canonical reusable asset internals through this host scope",
+      "Unrelated WPs and frozen/private proof outputs"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC208-1",
+        "requirement": "Replace the existence-only recovery decision in the legacy micro_task_executor path with authenticated canonical reconciliation. Persist stable workflow/job/node/attempt/idempotency and owner-context lineage before dispatch; bind completed provider/validation outcomes and output digest/schema/provenance to that same attempt. Classify confirmed completion, unconfirmed side effect, and proven never-started separately. No output.json existence or absence alone authorizes completion or retry."
+      },
+      {
+        "id": "AC208-2",
+        "requirement": "A controlled owned runtime crash after the provider side effect and separately after validation, each before output publication, preserves the uncertain attempt. On restart, independently re-read canonical SurrealDB/EventLedger and the original provider/tool result when available. Resume or retry only with established idempotence or governed reconciliation. When the provider cannot confirm an outcome and has no idempotent retry contract, keep an actionable unconfirmed state; do not assert exactly-once external execution."
+      },
+      {
+        "id": "AC208-3",
+        "requirement": "Missing, partially written, corrupt, wrong-digest, wrong-schema and foreign-attempt output files cannot complete a step. A valid output whose publication acknowledgement was lost reconciles to its existing attempt without repeating its side effect. Durable completion with missing output is distinguishable from never-started work and can restore the projection from canonical data or retain a precise repair blocker."
+      },
+      {
+        "id": "AC208-4",
+        "requirement": "Duplicate completion, late completion from a superseded attempt, concurrent resume, and database restart do not duplicate execution, overwrite a newer state or emit conflicting terminal receipts. Compare original immutable attempt identity and current owner/fence at commit and protected publication. Resolve unknown commit acknowledgement by canonical reread under the same idempotency key before any retry."
+      },
+      {
+        "id": "AC208-5",
+        "requirement": "Preserve existing verified checkpoint recovery, payload hashes, attributed recovery receipts and startup Running-to-Stalled policy. Consume state_recovery through its existing contract; MT-187's ModelLane recovery authorization and original acceptance remain unchanged. Do not replace all recovery, add a parallel controller or turn every Running step into Pending."
+      },
+      {
+        "id": "AC208-6",
+        "requirement": "Recovery decisions and evidence enforce original account/Principal/AccessSpace/resource context, including revoke/switch races and concurrent accounts. A failed read or denied context cannot silently create a fresh attempt or widen output visibility. Expose stable typed recovery status, reason, provenance and allowed actions for MT-209 without UI-local recovery authority."
+      },
+      {
+        "id": "AC208-7",
+        "requirement": "Publish the legacy replay projection contract and same-change UserManual/Argus obligations with MT-209. Flight Recorder records business decisions and EventLedger linkage; internal_diagnostics records mechanical failure/latency state; standalone Palmistry records owned process liveness/crash evidence only. No fixture, output filename, receipt authored by the implementer or mock provider substitutes for independent real production-boundary proof."
+      }
+    ],
+    "proof_targets": [
+      "Legacy micro_task_executor provider/validation/output-publication/replay boundary, with canonical SurrealDB/EventLedger reread"
+    ],
+    "code_boundary": {
+      "existing_owner": "src/backend/handshake_core/src/workflows.rs",
+      "planned_extraction": "src/backend/handshake_core/src/workflows/recovery.rs",
+      "planned_extraction_status": "PLANNED_NEW_ONLY_IF_SMALL_EXTRACTION_IS_NEEDED",
+      "read_only_dependency_contracts": [
+        "src/backend/handshake_core/src/storage/surreal/workflow_store.rs",
+        "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs",
+        "src/backend/handshake_core/src/backend_runtime/mod.rs"
+      ],
+      "shared_adaptation_policy": "Storage/schema, API projection and UserManual changes, if required by this single workflows owner, need exact separately allocated owning-file adapters under Primary custody. This MT does not grant broad writes to those modules or a new crate."
+    }
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": false,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "Dev Command Center recovery and runtime reliability projections; Operator Consoles drilldown"
+    ],
+    "argus_targets": [
+      "MT-209 recovery row keyed by original workflow/job/attempt identity",
+      "Recovery disposition, wait reason, evidence link and backend-derived action availability"
+    ],
+    "expected_evidence": [
+      "Stable author_id / AccessKit tree and typed backend correlation",
+      "Inspected native capture at normal and constrained viewport plus empty/loading/error/denied/recovery state",
+      "Renderer/runtime error scan for every capture; no overlapping or unreachable controls",
+      "Headless quiet operation and scoped action/result evidence"
+    ],
+    "not_applicable_reason": null,
+    "paired_mt_ref": "MT-209.json",
+    "same_change_contract": "Publish the backend projection/action semantics and UserManual/diagnostic entries with the backend change. MT-209 owns the paired GUI and its downstream runtime/Argus proof.",
+    "backend_acceptance_boundary": "MT-208 acceptance covers published typed state/action schema, own UserManual and three-tier diagnostics. Completed MT-209 Argus proof is downstream WP closure, never a predecessor for MT-208 PASS; MT-209 depends on this published backend contract."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": true,
+    "target_entries": [
+      "Existing in-product workflow recovery entry, including unconfirmed side effect and never-started distinctions",
+      "Dev Command Center recovery navigation and diagnostic evidence links via MT-209"
+    ],
+    "expected_evidence": [
+      "Same-change in-product UserManual diff and MANUAL_VERSION update when declared",
+      "Manual named-contract self-consistency proof",
+      "No-context operator/model navigation and recovery proof",
+      "EventLedger/Flight Recorder evidence links and explicit three-tier diagnostic posture"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "Workflow attempts, provider and validation outcomes",
+      "Output artifacts, checkpoints, EventLedger recovery records and derived DCC rows"
+    ],
+    "identity_and_scope_contexts": [
+      "Authenticated account and acting Principal",
+      "Owner account/Principal, AccessSpace, project/workspace, session and delegated client",
+      "Immutable job/workflow/attempt context and authorization generation"
+    ],
+    "enforcement_boundaries": [
+      "Backend authorization before lookup, mutation and protected result publication",
+      "Scoped projections, traces and evidence links; UI visibility never grants permission"
+    ],
+    "same_project_private_resource_cases": [
+      "Two accounts in the same project retain separate private runs and output/evidence; intentional sharing remains usable."
+    ],
+    "cross_account_negative_cases": [
+      "Unrelated account cannot discover run existence, IDs, counts, tool metadata, payloads or recovery actions."
+    ],
+    "derived_resource_non_widening_cases": [
+      "Output, checkpoint, replay and diagnostic projections retain scopes no broader than their source inputs."
+    ],
+    "revocation_and_context_switch_cases": [
+      "Logout, grant revocation and AccessSpace/view-context switch reject stale action contexts and late protected results; existing jobs retain immutable original context."
+    ],
+    "remote_saas_mcp_sync_cases": [
+      "A remote/provider reconciliation result remains bound to its original job, attempt, audience and resource context; no token or result reuse across scopes."
+    ],
+    "metadata_side_channel_cases": [
+      "internal_diagnostics and Palmistry use typed mechanical metadata only, without project content, secrets, raw prompts, paths or arguments."
+    ],
+    "expected_evidence": [
+      "Canonical owner/scope linkage before and after restart",
+      "Missing/stale/revoked/mismatched-context denial and nonmutation",
+      "Concurrent same-project and unrelated-account isolation",
+      "Derived-output non-widening and redacted metadata",
+      "Argus/typed denial state matching backend authorization"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    {
+      "rule_ref": "HBR-INT-009",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-001",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-002",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-003",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-004",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-005",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-006",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-007",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-008",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-VIS-001",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-VIS-002",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-VIS-003",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-VIS-004",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-VIS-005",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MAN-001",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MAN-002",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MAN-003",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MAN-004",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-QUIET-001",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-QUIET-002",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-SWARM-001",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-SWARM-002",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-COMPART-001",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-COMPART-002",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-001",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-002",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-003",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-004",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-007",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-008",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-208.json#/proof"
+    }
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "required_outcome": "WIRED",
+      "implementation": "Reuse existing business-event emitter and EventLedger links for dispatch/reconciliation/retry-denial/terminal recovery. Do not reopen the recorder schema.",
+      "privacy": "Original authorized business evidence remains scope enforced.",
+      "proof": "Independently query the real linked event/attempt records across crash/restart and duplicate completion; one business outcome per accepted attempt.",
+      "result": "NOT_IMPLEMENTED_NOT_RUN"
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "required_outcome": "WIRED",
+      "implementation": "Use the existing open diagnostic-event API for replay/authority availability, failure and timing with typed mechanical codes.",
+      "privacy": "No prompt, response, project content, raw path, secret or provider arguments in diagnostic records.",
+      "proof": "Capture actual mechanical events at the two crash-window checkpoints, DB loss and failed reconciliation; validate allowlisted payloads.",
+      "result": "NOT_IMPLEMENTED_NOT_RUN"
+    },
+    {
+      "tier": "PALMISTRY",
+      "required_outcome": "WIRED",
+      "implementation": "Reuse the standalone external watcher to record the owned backend/application liveness or crash boundary; Palmistry does not retry or repair workflows.",
+      "privacy": "Preserve typed allowlist and exact PID/start identity; survivor records contain no sensitive/project data.",
+      "proof": "Under separately admitted genuine owned runtime crash, retain correlated survivor records and compare process identity with launch evidence. A clean exit or mock crash is insufficient.",
+      "result": "NOT_IMPLEMENTED_NOT_RUN"
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "blocked_unclaimed_not_implemented",
+    "next_actor": "Code leader allocates one Product trio after current MT-172 work."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "LEGACY_WORKFLOW_SIDE_EFFECT_REPLAY",
+    "risks": [
+      "A crash after provider/validation success but before output.json can repeat an irreversible side effect.",
+      "A foreign or corrupt output can falsely complete the step.",
+      "A late old-attempt completion can overwrite current state after resume.",
+      "A mock provider or synthetic store can hide the production uncertainty window.",
+      "An unrelated recovery rewrite can weaken MT-187 or startup/checkpoint behavior."
+    ],
+    "minimum_controls": [
+      "Persist attempt intent, canonical outcome evidence and provenance; uncertainty blocks unsafe retry.",
+      "Validate output schema/hash/attempt/scope and independently reread canonical authority.",
+      "Fence transitions and terminal publication; reconcile unknown acknowledgement under the original key.",
+      "Require the real production provider/validation path and managed SurrealDB restart proof with independent review.",
+      "Keep one workflows owner and retain checkpoint, startup and ModelLane contracts unchanged."
+    ]
+  },
+  "operator_authority": {
+    "approval_ref": "packet.json#/operator_runtime_reliability_20261025",
+    "scope_approval_recorded": true,
+    "implementation_state": "BLOCKED_UNCLAIMED",
+    "runtime_permission_inferred": false,
+    "new_attempts_granted": false,
+    "preservation": "Preserve original three-WP scope, acceptance, source/spec/governance pins, spent attempts and existing holds. This contract grants no source lease, build slot, fetch, runtime execution, process stop or new attempt allowance."
+  },
+  "context_capsule": {
+    "owning_module": "src/backend/handshake_core/src/workflows.rs",
+    "module_maintenance_refs": [
+      "MT-208.json#/module_maintenance"
+    ],
+    "pillar_refs": [
+      "MT-208.json#/gui_obligation",
+      "MT-208.json#/user_manual_obligation",
+      "MT-208.json#/resource_privacy_obligation",
+      "MT-208.json#/hbr_int_009_tier_obligations"
+    ],
+    "specification_anchor_refs": [
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/02-system-architecture.md",
+        "section": "2.6.1",
+        "lines": "8423-8430",
+        "rules": [
+          "HSK-WF-001",
+          "HSK-WF-002",
+          "HSK-WF-003"
+        ],
+        "meaning": "Durable node/input/output transitions and policy-bound startup recovery."
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/02-system-architecture.md",
+        "section": "2.3.13 / 2.3.13.8",
+        "lines": "2276-2278,2625-2662",
+        "meaning": "SurrealDB/EventLedger authority and projection limits supersede legacy SQLite wording in 2.6.4."
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/10-product-surfaces.md",
+        "section": "10.11.5.15-16",
+        "lines": "6461-6557",
+        "meaning": "Governed recovery, authoritative run history and attempt lineage."
+      }
+    ],
+    "original_acceptance_refs": [
+      "MT-172.json",
+      "MT-174.json",
+      "MT-187.json",
+      "MT-199.json",
+      "MT-202.json",
+      "MT-203.json"
+    ],
+    "pin_policy": "Preserve original three-WP scope, acceptance, source/spec/governance pins, spent attempts and existing holds. This contract grants no source lease, build slot, fetch, runtime execution, process stop or new attempt allowance."
+  },
+  "research_basis": {
+    "source_kind": "operator_supplied_non_authoritative_research",
+    "filename": "Handshake_Codex_Client_Reliability_Lessons.md",
+    "sha256": "40dbdfc18a4b57642f69feb17fb1fb08f0d5b0488a0490c119c21aba146db1cf",
+    "runtime_file_dependency": false,
+    "authority": "packet.json#/operator_runtime_reliability_20261025",
+    "sources_checked": [
+      "Operator-supplied document, especially sections 3, 6, 8, 9, 11, 12, 13 and 16",
+      "Current Master Spec v02.223 topical clauses and cited local source inspected 2026-10-25"
+    ],
+    "external_issue_claim_policy": "The document's Codex issue reports are motivation only, not confirmed Handshake defects or universal Codex diagnoses.",
+    "selected_approach": "Extend the inspected existing owners and typed contracts. No new supervisor daemon, competing scheduler, database or GUI execution authority.",
+    "rejected_options": [
+      "A new daemon/supervisor rewrite despite existing separate backend and native entrypoints",
+      "Treating timeout, missing output, GUI closure or heartbeat absence as proof of completed cleanup or safe retry",
+      "Copying reusable toolkit or diagnostic internals into the host"
+    ],
+    "validation_plan_ref": "MT-208.json#/proof",
+    "relevant_patterns": [
+      "Persist intent and immutable attempt before side effects; reconcile unknown outcomes before retry.",
+      "Fences reject stale writers but do not prove external work stopped.",
+      "Reuse existing checkpoint/storage contracts and independently reread authority after restart."
+    ]
+  },
+  "validation": {
+    "review_verdict": "PENDING",
+    "proof_records": [],
+    "implementation_result": "NOT_IMPLEMENTED_NOT_RUN"
+  },
+  "spec_basis": {
+    "current_spec_entrypoint": ".GOV/spec/SPEC_CURRENT.md",
+    "spec_version": "v02.223",
+    "operator_additive_scope_ref": "packet.json#/operator_runtime_reliability_20261025",
+    "anchors": [
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/02-system-architecture.md",
+        "section": "2.6.1",
+        "lines": "8423-8430",
+        "rules": [
+          "HSK-WF-001",
+          "HSK-WF-002",
+          "HSK-WF-003"
+        ],
+        "meaning": "Durable node/input/output transitions and policy-bound startup recovery."
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/02-system-architecture.md",
+        "section": "2.3.13 / 2.3.13.8",
+        "lines": "2276-2278,2625-2662",
+        "meaning": "SurrealDB/EventLedger authority and projection limits supersede legacy SQLite wording in 2.6.4."
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/10-product-surfaces.md",
+        "section": "10.11.5.15-16",
+        "lines": "6461-6557",
+        "meaning": "Governed recovery, authoritative run history and attempt lineage."
+      }
+    ],
+    "scope_limit": "Only the inspected legacy workflow replay gap is added. Original ModelLane recovery MT-187, checkpoint implementation and startup policy remain in their contracts.",
+    "pin_policy": "Preserve original three-WP scope, acceptance, source/spec/governance pins, spent attempts and existing holds. This contract grants no source lease, build slot, fetch, runtime execution, process stop or new attempt allowance."
+  },
+  "source_evidence": [
+    {
+      "path": "src/backend/handshake_core/src/workflows.rs",
+      "lines": "17922-17943",
+      "observed": "An InProgress ledger step becomes Completed when output.json exists, otherwise Pending."
+    },
+    {
+      "path": "src/backend/handshake_core/src/workflows.rs",
+      "lines": "20096-20111,20177",
+      "observed": "Provider completion and optional MEX validation precede output JSON publication."
+    },
+    {
+      "path": "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs",
+      "lines": "3667-3762",
+      "observed": "Existing canonical checkpoint lookup verifies payload SHA and records an attributed recovery receipt with EventLedger."
+    },
+    {
+      "path": "src/backend/handshake_core/src/backend_runtime/mod.rs",
+      "lines": "525-548",
+      "observed": "Existing startup gate invokes mark_stalled_workflows before recovery completion."
+    },
+    {
+      "path": "src/backend/handshake_core/src/storage/surreal/workflow_store.rs",
+      "lines": "1-93",
+      "observed": "Existing typed Surreal workflow/node storage adapter retains run, node, sequence, input/output and timestamps."
+    },
+    {
+      "path": "src/backend/handshake_core/tests/micro_task_executor_tests.rs",
+      "lines": "1-90",
+      "observed": "Existing executor test target contains a QueuedLlmClient mock; its component cases cannot by themselves prove real provider side effects or production restart behavior."
+    }
+  ],
+  "module_maintenance": {
+    "owner_module": "src/backend/handshake_core/src/workflows.rs",
+    "boundary_change": "Extend the existing workflows logical module; optional small recovery extraction only.",
+    "inputs": [
+      "Original job/workflow/node/attempt/idempotency IDs and immutable authorization context",
+      "Existing canonical workflow/node/EventLedger records and checkpoint contract",
+      "Provider/validation outcome references and exact output digest/provenance"
+    ],
+    "outputs": [
+      "Typed confirmed-complete, unconfirmed-side-effect and never-started reconciliation dispositions",
+      "Stable recovery reason, evidence reference and governed allowed-action projection consumed by MT-209"
+    ],
+    "dependencies": [
+      "src/backend/handshake_core/src/storage/surreal/workflow_store.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/state_recovery.rs"
+    ],
+    "implementation_steps": [
+      "Inspect current source preimages and freeze exact legacy replay scope under Code-leader allocation.",
+      "Bind pre-dispatch attempt intent and post-side-effect outcome to existing canonical storage/events; expose typed unknown outcomes.",
+      "Reconcile output bytes only after schema/hash/attempt/context validation and canonical reread; fence terminal publication.",
+      "Add focused cases in the existing executor target and an admitted real runtime restart route; publish the typed GUI contract.",
+      "Update UserManual and scoped diagnostic producers with their exact owners; submit compile/static evidence for independent runtime review."
+    ],
+    "build_unit": "Existing handshake_core build unit; logical-module scope does not require a new aggregate crate.",
+    "source_dependency_closure": [
+      "src/backend/handshake_core/src/workflows.rs",
+      "src/backend/handshake_core/src/workflows/recovery.rs"
+    ],
+    "test_closure": [
+      "src/backend/handshake_core/tests/micro_task_executor_tests.rs"
+    ],
+    "artifact_closure": "Existing WP-owned target under Primary custody; MT-208 logs/results under the verified sole artifact root. No new per-MT compiler cache.",
+    "public_contract_policy": "Recovery inputs/outcomes/errors, idempotency, authorization, fencing, cancellation and unresolved side effects are explicit. Reusable-module source changes follow separate canonical source/adoption contracts.",
+    "build_budget": "Apply existing project budgets only where compartment build units make HBR-COMPART-002 applicable; no invented numeric cap or blanket crate refactor."
+  }
+}

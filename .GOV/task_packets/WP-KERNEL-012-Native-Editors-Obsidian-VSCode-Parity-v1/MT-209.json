@@ -1,0 +1,932 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-209",
+  "created_at_utc": "2026-10-25T16:25:54.364Z",
+  "updated_at_utc": "2026-10-25T16:26:53.884Z",
+  "identity": {
+    "mt_id": "MT-209",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Dev Command Center runtime reliability GUI",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "Operators and model clients can inspect and steer actual runtime reliability through DCC, with backend-authoritative state, scoped actions, genuine native rendering and proven GUI/runtime independence.",
+    "requirement_refs": [
+      "WP012-REL-006",
+      "packet.json#/operator_runtime_reliability_20261025",
+      ".GOV/spec/master-spec-v02.223/spec-modules/10-product-surfaces.md#10.11",
+      ".GOV/spec/master-spec-v02.223/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md"
+    ],
+    "acceptance_refs": [
+      "MT-209.json#/scope/acceptance_criteria/0",
+      "MT-209.json#/scope/acceptance_criteria/1",
+      "MT-209.json#/scope/acceptance_criteria/2",
+      "MT-209.json#/scope/acceptance_criteria/3",
+      "MT-209.json#/scope/acceptance_criteria/4",
+      "MT-209.json#/scope/acceptance_criteria/5",
+      "MT-209.json#/scope/acceptance_criteria/6",
+      "MT-209.json#/scope/acceptance_criteria/7"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC209-1",
+        "requirement_ref": "MT-209.json#/scope/acceptance_criteria/0"
+      },
+      {
+        "id": "AC209-2",
+        "requirement_ref": "MT-209.json#/scope/acceptance_criteria/1"
+      },
+      {
+        "id": "AC209-3",
+        "requirement_ref": "MT-209.json#/scope/acceptance_criteria/2"
+      },
+      {
+        "id": "AC209-4",
+        "requirement_ref": "MT-209.json#/scope/acceptance_criteria/3"
+      },
+      {
+        "id": "AC209-5",
+        "requirement_ref": "MT-209.json#/scope/acceptance_criteria/4"
+      },
+      {
+        "id": "AC209-6",
+        "requirement_ref": "MT-209.json#/scope/acceptance_criteria/5"
+      },
+      {
+        "id": "AC209-7",
+        "requirement_ref": "MT-209.json#/scope/acceptance_criteria/6"
+      },
+      {
+        "id": "AC209-8",
+        "requirement_ref": "MT-209.json#/scope/acceptance_criteria/7"
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "The owning technical leader assigns the actual implementation and independent review roles; this contract claims no model or session.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": null,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": null,
+      "confirm": null
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "automatic_new_allowance_granted": false,
+    "current_authority_ref": "packet.json#/operator_runtime_reliability_20261025",
+    "permission_policy": "Preserve original three-WP scope, acceptance, source/spec/governance pins, spent attempts and existing holds. This contract grants no source lease, build slot, fetch, runtime execution, process stop or new attempt allowance. Any further run must resolve current recorded human authority and distinct technical-leader/independent-partner agreement in the existing owning admission; no counter reset."
+  },
+  "execution": {
+    "lane": "planned_implementation",
+    "module_ref": "src/frontend/handshake_native/src/dev_command_center",
+    "module_change_stage": "host_adaptation",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [
+      "MT-204",
+      "MT-205",
+      "MT-206",
+      "MT-207",
+      "MT-208"
+    ],
+    "allowed_write_paths": [],
+    "forbidden_write_paths": [
+      ".GOV/** from the product implementation lane",
+      "Unallocated shared files, manifests, lockfiles or generated pins",
+      "Canonical reusable asset internals through this host scope",
+      "Unrelated WPs and frozen/private proof outputs"
+    ],
+    "stop_conditions": [
+      "Preserve original three-WP scope, acceptance, source/spec/governance pins, spent attempts and existing holds. This contract grants no source lease, build slot, fetch, runtime execution, process stop or new attempt allowance.",
+      "No writes before exact owner/path allocation. Missing typed contract, canonical resource, auth context or proof route blocks only its dependent step.",
+      "A reusable asset gap requires its own standalone_source change and independent canonical publication proof before distinct pinned host adoption; no host copy or workaround.",
+      "Only the named independent validator executes runtime acceptance. No fixture, mock, static inspection or self-authored status proves product runtime."
+    ],
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "baseline_commit": "3fca9514e8c1bb1d1bb5478f56f27fbc56696d36",
+    "baseline_role": "Parent-verified planning baseline; recheck exact source preimages under existing custody before allocation.",
+    "ownership": {
+      "claimed_by": null,
+      "source_writer": null,
+      "code_leader": "01a168a9-05b2-7630-9633-5faac88dd068",
+      "gui_leader": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+      "physical_custody": "01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
+      "state": "UNCLAIMED",
+      "allocation_policy": "Code leader allocates one Product trio after current MT-172 work. GUI leader owns GUI scope and exact GUI writers. Primary retains physical source/Git/compiler custody. Independent GUI teams continue disjoint work."
+    },
+    "source_adoption": {
+      "status": "PENDING_EXACT_PUBLISHED_ASSET_BINDING",
+      "asset_id": "KUMIHIMO-ASSET-001",
+      "source_contract_ref": "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding",
+      "immutable_revision": null,
+      "artifact_digest": null,
+      "embedding_adapter": null,
+      "pin_policy": "Resolve the actual compatible published Kumihimo revision, public contract, artifact/dependency digests and native Vulkan adapter through the existing GUI owner before dependent host writes. This MT neither guesses a pin nor changes original pins. Any missing reusable logic requires separate canonical source work and publication proof."
+    },
+    "gui_backend_pairing": {
+      "backend_mt_refs": [
+        "MT-204.json#/closure_unit",
+        "MT-205.json#/closure_unit",
+        "MT-206.json#/closure_unit",
+        "MT-207.json#/closure_unit",
+        "MT-208.json#/closure_unit"
+      ],
+      "contract_publication_required": true,
+      "dependency_granularity": "Only each affected backend integration and its runtime claim waits for that backend contract. Independent layout/accessibility/host preparation may proceed after its exact GUI allocation, without asserting backend behavior or changing this blocked acceptance state.",
+      "parallelism": "GUI teams remain independently scheduled and parallel on disjoint files; no blanket all-GUI stop.",
+      "shared_writer": "GUI leader 01a1738d-2b8e-7151-9e9e-3972429af70c allocates one writer for app.rs/lib.rs/pane_registry.rs and related registration."
+    },
+    "conditional_dependencies": [
+      {
+        "mt_ref": "MT-199.json",
+        "when": "Adopting the actual native Vulkan renderer contract and genuine renderer proof."
+      },
+      {
+        "mt_ref": "MT-203.json",
+        "when": "Binding the DCC native client to central GPU ownership, memory and lifecycle contracts."
+      },
+      {
+        "mt_ref": "MT-202.json",
+        "when": "Joint genuine GUI acceptance and preservation of affected original workflows; not a predecessor for disjoint layout preparation."
+      }
+    ]
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-172.json#/proof",
+      "MT-174.json#/proof",
+      "MT-187.json#/proof",
+      "MT-199.json#/proof",
+      "MT-202.json#/proof",
+      "MT-203.json#/proof"
+    ],
+    "checks": [
+      {
+        "check_id": "MT209-NATIVE-COMPILE",
+        "executor_role": "KERNEL_BUILDER",
+        "claim_refs": [
+          "AC209-1",
+          "AC209-6"
+        ],
+        "command_or_method": "Use the exact current MT-199/Primary admitted native compile/static command and version-controlled feature/config set after resolving the published Kumihimo/Vulkan adapter and allocated source inputs. Include the planned test_dev_command_center_reliability target in compile-only checking; record the concrete checked-in command before dispatch.",
+        "expected": "Focused DCC host and tests compile with unchanged exact inputs and preserved public contracts; no runtime verdict.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout_no_automatic_retry",
+        "evidence_required": [
+          "Actual compile command/feature/config/toolchain/target",
+          "Exact source and published dependency pins",
+          "Candidate SHA/tree and unchanged before/after input digest",
+          "Shared mount writer and affected boundary review"
+        ]
+      },
+      {
+        "check_id": "MT209-REAL-DCC-RELIABILITY",
+        "executor_role": "INDEPENDENT_VALIDATOR",
+        "claim_refs": [
+          "AC209-1",
+          "AC209-2",
+          "AC209-3",
+          "AC209-4",
+          "AC209-5",
+          "AC209-6",
+          "AC209-7",
+          "AC209-8"
+        ],
+        "command_or_method": "Through the existing admitted native Argus/headless route and test entrypoint, use the real candidate GUI and owned backend with managed SurrealDB/EventLedger. Bind checked-in test_dev_command_center_reliability cases before execution. Drive a real queued/running job and observe wait reasons, MCP health/admission and cancel-request/cleanup-pending/settled transitions; exercise MT-208 unknown/reconciled replay and MT-207 stale-transition denial. Independently query canonical rows for every asserted status and action outcome. In distinct owned failure cases close/reopen the GUI, crash the GUI under scoped process authority, and interrupt the owned backend; demonstrate surviving backend work or truthful unknown state and canonical reconstruction. Revoke/switch context with an in-flight action and delayed reply; inspect default-deny and no cross-account metadata. Run two agent clients with labels plus Operator view edits. Capture normal/constrained/edge/DPI states and inspect AccessKit, layout, renderer errors and actual Vulkan/device identity.",
+        "expected": "UI status and allowed actions match backend truth; no duplicate mutation, fake cleanup, context leak, invented health or implied job death. Native controls remain usable and background operation preserves focus.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout_preserve_unknown_state_no_automatic_retry",
+        "evidence_required": [
+          "Published contract versions for MT-204 through MT-208 and exact asset/GPU/Vulkan bindings",
+          "Candidate GUI/backend binaries/config, owned PID/start identities and canonical before/after queries",
+          "Argus action/inspect/capture evidence with actual state and stable IDs",
+          "Normal/constrained/edge-state capture matrix, overlap/accessibility checks, per-capture error scans and zero-focus-change audit",
+          "Context revocation, delayed response, duplicate click and concurrent-client negative evidence",
+          "Three separate diagnostic-tier outcomes and same-change UserManual proof",
+          "Named independent verdict; mocked view data and static/prototype render are not integration proof"
+        ]
+      },
+      {
+        "check_id": "MT209-ORIGINAL-WORKFLOW-PRESERVATION",
+        "executor_role": "INDEPENDENT_VALIDATOR",
+        "claim_refs": [
+          "AC209-6",
+          "AC209-7",
+          "AC209-8"
+        ],
+        "command_or_method": "At the existing MT-202 joint GUI boundary, map this module's source/dependency/config changes to affected original editor, CKC/PoseKit and orchestration acceptance. Reuse unchanged valid proof with exact input reconciliation; run only invalidated required behavior through the original independent route. Include DCC navigation return, simultaneous panes and existing KernelDcc WP/MT content routing.",
+        "expected": "All affected original workflows remain accepted; no subset, stale inventory or replaced placeholder is treated as blanket preservation proof.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout_no_automatic_retry",
+        "evidence_required": [
+          "Original acceptance refs and exact reuse/input-change mapping",
+          "Affected workflow evidence on the same candidate",
+          "MT-202 independent acceptance linkage"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "execution_authority": "Preserve original three-WP scope, acceptance, source/spec/governance pins, spent attempts and existing holds. This contract grants no source lease, build slot, fetch, runtime execution, process stop or new attempt allowance.",
+    "command_binding": "HBR test_environment_prerequisites.test_entrypoint and implementer_check still contain unconfigured placeholders at authoring. Resolve exact checked-in command/config through the existing WP owning admission before any run. The concrete methods below are acceptance requirements, not executable permission or an invented harness.",
+    "relevant_input_paths": [
+      "src/frontend/handshake_native/src/dev_command_center/mod.rs",
+      "src/frontend/handshake_native/src/dev_command_center/projection.rs",
+      "src/frontend/handshake_native/src/dev_command_center/panel.rs",
+      "src/frontend/handshake_native/src/dev_command_center/client.rs",
+      "src/frontend/handshake_native/tests/test_dev_command_center_reliability.rs",
+      "src/frontend/handshake_native/src/pane_registry.rs",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/editor_pane_factories.rs",
+      "src/frontend/handshake_native/src/lib.rs",
+      "src/frontend/handshake_native/src/backend_client.rs",
+      "src/frontend/handshake_native/src/model_runtime_panel.rs",
+      "src/frontend/handshake_native/src/flight_recorder_pane.rs",
+      "src/frontend/handshake_native/src/internal_diagnostics.rs"
+    ]
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-209.json",
+    "microtask_projection": null,
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "NOT_REQUESTED",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "depends_on": [
+      "MT-204",
+      "MT-205",
+      "MT-206",
+      "MT-207",
+      "MT-208"
+    ],
+    "blocks": [],
+    "active": false,
+    "validator_verdict": "PENDING",
+    "claimed_by": null,
+    "completed_by": null,
+    "blocked_on": "Published typed reliability contracts from MT-204, MT-205, MT-206, MT-207 and MT-208 are required for their corresponding backend integration and real acceptance; GUI leader must allocate the focused DCC module and one shared mount writer. Disjoint layout/accessibility preparation may be allocated separately. Exact MT-199 Vulkan and MT-203 GPU bindings gate only their dependent adoption/proof."
+  },
+  "scope": {
+    "summary": "Add the paired native Dev Command Center reliability projection and governed actions for MT-204 through MT-208 while preserving existing Operator Consoles and runtime authority.",
+    "allowed_paths": [
+      "src/frontend/handshake_native/src/dev_command_center/mod.rs",
+      "src/frontend/handshake_native/src/dev_command_center/projection.rs",
+      "src/frontend/handshake_native/src/dev_command_center/panel.rs",
+      "src/frontend/handshake_native/src/dev_command_center/client.rs",
+      "src/frontend/handshake_native/tests/test_dev_command_center_reliability.rs"
+    ],
+    "forbidden_paths": [
+      ".GOV/** from the product implementation lane",
+      "Unallocated shared files, manifests, lockfiles or generated pins",
+      "Canonical reusable asset internals through this host scope",
+      "Unrelated WPs and frozen/private proof outputs"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC209-1",
+        "requirement": "Mount the spec-defined Dev Command Center reliability view through the existing KernelDcc pane and native app/pane-registry owner. DCC owns control/projection and work/session binding; Operator Consoles retain Problems, Jobs, Timeline and Evidence drilldown. Consume published typed contracts from MT-204 through MT-208. No competing execution state, direct tool launch, new scheduler, supervisor daemon or replacement workflow family."
+      },
+      {
+        "id": "AC209-2",
+        "requirement": "Show stable job/workflow/node/attempt/owner/session and correlation IDs with backend revision/freshness, original context and governed allowed-action IDs. Distinguish queued, running, cancel requested, cleanup pending, unknown and settled outcomes using backend vocabulary. Liveness, readiness and meaningful progress are separate values with explicit wait reason; local timers, badge color, window presence or empty filters cannot establish job state."
+      },
+      {
+        "id": "AC209-3",
+        "requirement": "Project MT-204 MCP admission/deadline/reconnect state, MT-205 process ownership/cancellation settlement, MT-206 resource policy and remaining admission/retry budget, MT-207 transition/fence outcomes and MT-208 legacy replay reconciliation. Show health failure, contract mismatch, capability denial and transport loss distinctly. Missing or unpublished contracts produce truthful unavailable/blocked UI only, never invented healthy data."
+      },
+      {
+        "id": "AC209-4",
+        "requirement": "Cancel, reconcile, retry and recovery controls route through the existing governed backend action contract with original account/Principal/AccessSpace/job/attempt/fence context. Show accepted request separately from confirmed cleanup/settlement. Repeated clicks, delayed acknowledgements and stale rows cannot duplicate mutation. A context switch, logout or revocation invalidates stale actions before dispatch and protected result publication; immutable running context is never silently retargeted."
+      },
+      {
+        "id": "AC209-5",
+        "requirement": "Closing or crashing an owned GUI window does not imply job death or cancel backend work. Reopen reconstructs the view from authoritative backend records and preserves attempt lineage. Backend outage leaves the native UI responsive with unknown/unavailable state and evidence links; reconnect rereads backend truth before enabling actions. Demonstrate GUI and runtime failure boundaries using the existing separate processes, without a daemon rewrite."
+      },
+      {
+        "id": "AC209-6",
+        "requirement": "The genuine native GUI consumes the exact published KUMIHIMO-ASSET-001 public contract and actual Vulkan path under MT-199, with central GPU ownership/lifecycle from MT-203. Use small focused GUI modules and typed clients. One GUI writer owns shared app.rs/lib.rs/pane_registry.rs changes. Missing reusable toolkit logic belongs in separate canonical source work before pinned host adoption, never copied into this module."
+      },
+      {
+        "id": "AC209-7",
+        "requirement": "Preserve all original editor, CKC/PoseKit, orchestration and other affected workflows. Prove keyboard/focus/accessibility, stable model author_id routing, simultaneous Operator/two-agent clients, responsive normal/constrained/DPI layouts, readable state and nonoverlapping controls. Inspect empty/loading/error/denied/unknown/recovery views with Argus or native AccessKit/headless routes and renderer/runtime error scans; zero focus theft."
+      },
+      {
+        "id": "AC209-8",
+        "requirement": "UserManual and three diagnostic tiers ship with the affected GUI change. Flight Recorder projects governed business actions and evidence; internal_diagnostics records actual GUI/transport/frame failures; standalone Palmistry records genuine owned-process failure evidence and never becomes a controller/recovery executor. Enforce private-resource and metadata isolation in feed filters, counts, tool details, screenshots and evidence links. Independent real GUI/backend acceptance is required; a prototype or mock projection cannot prove integration."
+      }
+    ],
+    "proof_targets": [
+      "Actual Dev Command Center reliability GUI bound to MT-204 through MT-208 canonical backend contracts"
+    ],
+    "code_boundary": {
+      "owning_logical_module": "Dev Command Center under Master Spec 10.11",
+      "planned_module_root": "src/frontend/handshake_native/src/dev_command_center",
+      "planned_module_status": "PLANNED_NEW_PATH_NOT_EXISTING_IMPLEMENTATION",
+      "existing_mounts": [
+        "src/frontend/handshake_native/src/pane_registry.rs",
+        "src/frontend/handshake_native/src/app.rs",
+        "src/frontend/handshake_native/src/editor_pane_factories.rs",
+        "src/frontend/handshake_native/src/lib.rs"
+      ],
+      "new_module_rationale": "Native source inspection found existing KernelDcc/Problems/Jobs/Timeline pane kinds and a content-aware KernelDcc placeholder, but no dev_command_center or DevCommandCenter implementation. A focused spec-named module prevents adding reliability logic to the already large app.rs or duplicating the Operator Consoles.",
+      "host_mount_policy": "GUI leader assigns one actual writer for the exact shared registration/dispatch edits. Other GUI teams keep disjoint ownership. No shared write lease is granted by this list.",
+      "read_only_dependencies": [
+        "src/frontend/handshake_native/src/backend_client.rs",
+        "src/frontend/handshake_native/src/model_runtime_panel.rs",
+        "src/frontend/handshake_native/src/flight_recorder_pane.rs",
+        "src/frontend/handshake_native/src/internal_diagnostics.rs"
+      ]
+    }
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": true,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "Dev Command Center recovery and runtime reliability projections; Operator Consoles drilldown"
+    ],
+    "argus_targets": [
+      "Existing KernelDcc pane mount and stable per-pane reliability control/row IDs",
+      "Backend-derived job/attempt state, liveness/readiness/progress/wait reason and evidence links",
+      "Scoped cancel/reconcile/retry controls with denial and stale-context state",
+      "MCP health, cleanup ownership and resource/retry budget detail"
+    ],
+    "expected_evidence": [
+      "Stable author_id / AccessKit tree and typed backend correlation",
+      "Inspected native capture at normal and constrained viewport plus empty/loading/error/denied/recovery state",
+      "Renderer/runtime error scan for every capture; no overlapping or unreachable controls",
+      "Headless quiet operation and scoped action/result evidence"
+    ],
+    "not_applicable_reason": null,
+    "paired_mt_ref": null
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": true,
+    "target_entries": [
+      "Dev Command Center tool calls, run history, reliability and recovery navigation",
+      "Operator Consoles Problems/Jobs/Timeline/Evidence drilldown",
+      "Unknown outcome, cancel requested, cleanup pending, backend unavailable and GUI reopen behavior"
+    ],
+    "expected_evidence": [
+      "Same-change in-product UserManual diff and MANUAL_VERSION update when declared",
+      "Manual named-contract self-consistency proof",
+      "No-context operator/model navigation and recovery proof",
+      "EventLedger/Flight Recorder evidence links and explicit three-tier diagnostic posture"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "DCC run/tool/attempt projections and scoped action requests",
+      "Resource budget/health data and recovery evidence links",
+      "Visible counts, filters, captures, diagnostics and UserManual examples"
+    ],
+    "identity_and_scope_contexts": [
+      "Authenticated account and acting Principal",
+      "Owner account/Principal, AccessSpace, project/workspace, session and delegated client",
+      "Immutable job/workflow/attempt context and authorization generation"
+    ],
+    "enforcement_boundaries": [
+      "Backend authorization before lookup, mutation and protected result publication",
+      "Scoped projections, traces and evidence links; UI visibility never grants permission"
+    ],
+    "same_project_private_resource_cases": [
+      "Two accounts in the same project retain separate private runs and output/evidence; intentional sharing remains usable."
+    ],
+    "cross_account_negative_cases": [
+      "Unrelated account cannot discover run existence, IDs, counts, tool metadata, payloads or recovery actions."
+    ],
+    "derived_resource_non_widening_cases": [
+      "Output, checkpoint, replay and diagnostic projections retain scopes no broader than their source inputs."
+    ],
+    "revocation_and_context_switch_cases": [
+      "Logout, grant revocation and AccessSpace/view-context switch reject stale action contexts and late protected results; existing jobs retain immutable original context."
+    ],
+    "remote_saas_mcp_sync_cases": [
+      "A remote/provider reconciliation result remains bound to its original job, attempt, audience and resource context; no token or result reuse across scopes."
+    ],
+    "metadata_side_channel_cases": [
+      "internal_diagnostics and Palmistry use typed mechanical metadata only, without project content, secrets, raw prompts, paths or arguments."
+    ],
+    "expected_evidence": [
+      "Canonical owner/scope linkage before and after restart",
+      "Missing/stale/revoked/mismatched-context denial and nonmutation",
+      "Concurrent same-project and unrelated-account isolation",
+      "Derived-output non-widening and redacted metadata",
+      "Argus/typed denial state matching backend authorization"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    {
+      "rule_ref": "HBR-INT-009",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-001",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-002",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-003",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-004",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-005",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-006",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-007",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-008",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-VIS-001",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-VIS-002",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-VIS-003",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-VIS-004",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-VIS-005",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MAN-001",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MAN-002",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MAN-003",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MAN-004",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-QUIET-001",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-QUIET-002",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-SWARM-001",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-SWARM-002",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-COMPART-001",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-COMPART-002",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-001",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-002",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-003",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-004",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-007",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-008",
+      "disposition": "REQUIRED_WHERE_TRIGGER_APPLIES_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-209.json#/proof"
+    }
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "required_outcome": "WIRED",
+      "implementation": "Read actual governed business action and recovery events with stable EventLedger references; accepted UI requests do not manufacture completed business events.",
+      "privacy": "Redact arguments/results and enforce the original resource grants in feeds, counts and detail.",
+      "proof": "Compare live action/attempt state with canonical backend records and correlated Flight Recorder events after cancel/reconcile/reopen.",
+      "result": "NOT_IMPLEMENTED_NOT_RUN"
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "required_outcome": "WIRED",
+      "implementation": "Use existing diagnostic producers for real GUI action/transport errors, event-loop health, frame timing and Vulkan/GPU client failures.",
+      "privacy": "Typed mechanical allowlist only; no project content, raw args, secret, private name or path.",
+      "proof": "Inspect genuine emitted events for loading/denial/stale response/backend loss and renderer error states; verify exact session/control correlation.",
+      "result": "NOT_IMPLEMENTED_NOT_RUN"
+    },
+    {
+      "tier": "PALMISTRY",
+      "required_outcome": "WIRED",
+      "implementation": "Reuse the canonical standalone out-of-process watcher and event recorder. It remains outside DCC and grants no restart, tool execution or OS remediation authority.",
+      "privacy": "Preserve exact owned PID/process-birth correlation and typed no-secret/no-project-content payloads.",
+      "proof": "Separately admitted controlled owned GUI crash retains genuine watcher records while canonical backend work remains independently observable. Reopen binds back to backend truth; prototype/clean shutdown is not crash-survival proof.",
+      "result": "NOT_IMPLEMENTED_NOT_RUN"
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "blocked_unclaimed_not_implemented",
+    "next_actor": "GUI leader allocates disjoint preparation and binds each published backend contract before its integration."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "DCC_BACKEND_TRUTH_AND_FAILURE_BOUNDARIES",
+    "risks": [
+      "A local badge, hidden row or stale response can misrepresent backend state.",
+      "Cancel acknowledgement can be mistaken for physical cleanup or free budget.",
+      "View/context switching can apply an old action to a new account or attempt.",
+      "GUI loss can accidentally terminate work or encourage a new duplicate run.",
+      "Parallel GUI authors can conflict in shared mount files.",
+      "Prototype or fallback rendering can be misreported as genuine Vulkan and backend proof."
+    ],
+    "minimum_controls": [
+      "Render stable backend IDs, revisions, freshness, explicit unknown and allowed actions; canonical reread on reconnect.",
+      "Keep request, cleanup and settlement separately visible and consume actual owner accounting.",
+      "Bind immutable context/attempt and reject stale dispatch/publication, with real negative proof.",
+      "Keep existing independent process lifecycles; prove controlled owned failure and reopen against canonical state.",
+      "One assigned shared writer; independent teams prepare disjoint modules and integrate only published contracts.",
+      "Require exact published Kumihimo and actual Vulkan/device identity, real backend actions, inspected Argus captures and independent verdict."
+    ]
+  },
+  "operator_authority": {
+    "approval_ref": "packet.json#/operator_runtime_reliability_20261025",
+    "scope_approval_recorded": true,
+    "implementation_state": "BLOCKED_UNCLAIMED",
+    "runtime_permission_inferred": false,
+    "new_attempts_granted": false,
+    "preservation": "Preserve original three-WP scope, acceptance, source/spec/governance pins, spent attempts and existing holds. This contract grants no source lease, build slot, fetch, runtime execution, process stop or new attempt allowance."
+  },
+  "context_capsule": {
+    "owning_module": "src/frontend/handshake_native/src/dev_command_center",
+    "module_maintenance_refs": [
+      "MT-209.json#/module_maintenance"
+    ],
+    "pillar_refs": [
+      "MT-209.json#/gui_obligation",
+      "MT-209.json#/user_manual_obligation",
+      "MT-209.json#/resource_privacy_obligation",
+      "MT-209.json#/hbr_int_009_tier_obligations"
+    ],
+    "specification_anchor_refs": [
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/10-product-surfaces.md",
+        "section": "10.11 / 10.11.0",
+        "lines": "6127-6174",
+        "meaning": "DCC is the canonical control/projection surface; Operator Consoles own Problems, Jobs, Timeline and Evidence; authoritative backend truth and no direct UI tool execution."
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/10-product-surfaces.md",
+        "section": "10.11.5.13",
+        "lines": "6413-6433",
+        "meaning": "Tool-call feed and detail with stable IDs, actor/context, scoped arguments/results, approvals and ordering."
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/10-product-surfaces.md",
+        "section": "10.11.5.15",
+        "lines": "6461-6510",
+        "meaning": "Governed recovery, checkpoints/heartbeats, provider readiness and evidence-backed decisions."
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/10-product-surfaces.md",
+        "section": "10.11.5.16",
+        "lines": "6513-6557",
+        "meaning": "Replay-safe run history, attempt lineage, tool infrastructure health and readiness."
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md",
+        "sections": [
+          "15.1",
+          "15.2",
+          "15.4",
+          "15.5",
+          "15.6",
+          "15.7"
+        ],
+        "rules": [
+          "GUI-DESKTOP-002",
+          "GUI-DESKTOP-003",
+          "GUI-DESKTOP-004",
+          "GUI-DESKTOP-009",
+          "GUI-DESKTOP-012",
+          "GUI-DESKTOP-020",
+          "GUI-DESKTOP-024",
+          "GUI-DESKTOP-025",
+          "GUI-DESKTOP-033",
+          "GUI-DESKTOP-037",
+          "GUI-DESKTOP-041",
+          "GUI-DESKTOP-042",
+          "GUI-DESKTOP-043",
+          "GUI-DESKTOP-045",
+          "GUI-DESKTOP-048",
+          "GUI-DESKTOP-049",
+          "GUI-DESKTOP-051",
+          "GUI-DESKTOP-052",
+          "GUI-DESKTOP-053",
+          "GUI-DESKTOP-054"
+        ]
+      }
+    ],
+    "original_acceptance_refs": [
+      "MT-172.json",
+      "MT-174.json",
+      "MT-187.json",
+      "MT-199.json",
+      "MT-202.json",
+      "MT-203.json"
+    ],
+    "pin_policy": "Preserve original three-WP scope, acceptance, source/spec/governance pins, spent attempts and existing holds. This contract grants no source lease, build slot, fetch, runtime execution, process stop or new attempt allowance."
+  },
+  "research_basis": {
+    "source_kind": "operator_supplied_non_authoritative_research",
+    "filename": "Handshake_Codex_Client_Reliability_Lessons.md",
+    "sha256": "40dbdfc18a4b57642f69feb17fb1fb08f0d5b0488a0490c119c21aba146db1cf",
+    "runtime_file_dependency": false,
+    "authority": "packet.json#/operator_runtime_reliability_20261025",
+    "sources_checked": [
+      "Operator-supplied document, especially sections 3, 6, 8, 9, 11, 12, 13 and 16",
+      "Current Master Spec v02.223 topical clauses and cited local source inspected 2026-10-25"
+    ],
+    "external_issue_claim_policy": "The document's Codex issue reports are motivation only, not confirmed Handshake defects or universal Codex diagnoses.",
+    "selected_approach": "Extend the inspected existing owners and typed contracts. No new supervisor daemon, competing scheduler, database or GUI execution authority.",
+    "rejected_options": [
+      "A new daemon/supervisor rewrite despite existing separate backend and native entrypoints",
+      "Treating timeout, missing output, GUI closure or heartbeat absence as proof of completed cleanup or safe retry",
+      "Copying reusable toolkit or diagnostic internals into the host"
+    ],
+    "validation_plan_ref": "MT-209.json#/proof",
+    "relevant_patterns": [
+      "GUI subscribes to runtime truth and reconstructs after reopen.",
+      "Cancellation request, physical cleanup and settled outcome remain separate.",
+      "Liveness, readiness, progress and wait reason are independently visible.",
+      "Existing separate native/backend processes satisfy the starting failure boundary; no rewrite is inferred."
+    ]
+  },
+  "validation": {
+    "review_verdict": "PENDING",
+    "proof_records": [],
+    "implementation_result": "NOT_IMPLEMENTED_NOT_RUN"
+  },
+  "spec_basis": {
+    "current_spec_entrypoint": ".GOV/spec/SPEC_CURRENT.md",
+    "spec_version": "v02.223",
+    "operator_additive_scope_ref": "packet.json#/operator_runtime_reliability_20261025",
+    "anchors": [
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/10-product-surfaces.md",
+        "section": "10.11 / 10.11.0",
+        "lines": "6127-6174",
+        "meaning": "DCC is the canonical control/projection surface; Operator Consoles own Problems, Jobs, Timeline and Evidence; authoritative backend truth and no direct UI tool execution."
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/10-product-surfaces.md",
+        "section": "10.11.5.13",
+        "lines": "6413-6433",
+        "meaning": "Tool-call feed and detail with stable IDs, actor/context, scoped arguments/results, approvals and ordering."
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/10-product-surfaces.md",
+        "section": "10.11.5.15",
+        "lines": "6461-6510",
+        "meaning": "Governed recovery, checkpoints/heartbeats, provider readiness and evidence-backed decisions."
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/10-product-surfaces.md",
+        "section": "10.11.5.16",
+        "lines": "6513-6557",
+        "meaning": "Replay-safe run history, attempt lineage, tool infrastructure health and readiness."
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/15-native-desktop-gui-vulkan-gpu-ownership.md",
+        "sections": [
+          "15.1",
+          "15.2",
+          "15.4",
+          "15.5",
+          "15.6",
+          "15.7"
+        ],
+        "rules": [
+          "GUI-DESKTOP-002",
+          "GUI-DESKTOP-003",
+          "GUI-DESKTOP-004",
+          "GUI-DESKTOP-009",
+          "GUI-DESKTOP-012",
+          "GUI-DESKTOP-020",
+          "GUI-DESKTOP-024",
+          "GUI-DESKTOP-025",
+          "GUI-DESKTOP-033",
+          "GUI-DESKTOP-037",
+          "GUI-DESKTOP-041",
+          "GUI-DESKTOP-042",
+          "GUI-DESKTOP-043",
+          "GUI-DESKTOP-045",
+          "GUI-DESKTOP-048",
+          "GUI-DESKTOP-049",
+          "GUI-DESKTOP-051",
+          "GUI-DESKTOP-052",
+          "GUI-DESKTOP-053",
+          "GUI-DESKTOP-054"
+        ]
+      }
+    ],
+    "scope_limit": "Reliability GUI is a bounded part of existing DCC, not a new product taxonomy or complete replacement of every DCC feature.",
+    "pin_policy": "Preserve original three-WP scope, acceptance, source/spec/governance pins, spent attempts and existing holds. This contract grants no source lease, build slot, fetch, runtime execution, process stop or new attempt allowance."
+  },
+  "source_evidence": [
+    {
+      "path": "src/frontend/handshake_native/src/pane_registry.rs",
+      "lines": "35-151",
+      "observed": "Existing PaneType includes KernelDcc, Problems, Jobs and Timeline, with stable labels and pane IDs."
+    },
+    {
+      "path": "src/frontend/handshake_native/src/editor_pane_factories.rs",
+      "lines": "2049-2052",
+      "observed": "KernelDcc falls back to its content-aware placeholder; graph view no longer hijacks WP/MT navigation."
+    },
+    {
+      "path": "src/frontend/handshake_native/src/app.rs",
+      "lines": "4594-4661,6117-6158,6502-6520",
+      "observed": "Existing off-thread backend health/load logic and model-session launch state are host integration patterns; neither supplies DCC execution authority."
+    },
+    {
+      "path": "src/frontend/handshake_native/src/model_runtime_panel.rs",
+      "lines": "1-90",
+      "observed": "Existing typed registry/control projection and scoped stable author_id pattern are available for compatible host reuse."
+    },
+    {
+      "path": "src/frontend/handshake_native/src/flight_recorder_pane.rs",
+      "lines": "1-65",
+      "observed": "Existing real Flight Recorder pane has explicit loading/failure/refresh state, stable controls and numeric diagnostic events."
+    },
+    {
+      "path": "src/backend/handshake_core/src/main.rs",
+      "lines": "1-70",
+      "observed": "Backend has its own RuntimeHandle entrypoint and shutdown path."
+    },
+    {
+      "path": "src/frontend/handshake_native/src/main.rs",
+      "lines": "437-490",
+      "observed": "Native GUI has its own entrypoint and diagnostic initialization."
+    },
+    {
+      "search_scope": "src/frontend/handshake_native/src/**/*.rs",
+      "query": "dev_command_center | DevCommandCenter | Dev Command Center",
+      "result": "No matching native implementation found during this scoped inspection; the new module path is planned."
+    }
+  ],
+  "module_maintenance": {
+    "owner_module": "src/frontend/handshake_native/src/dev_command_center",
+    "boundary_change": "Add one focused host-owned DCC logical module at the planned root; mount through existing pane/app owner.",
+    "inputs": [
+      "Published typed backend projection/action contracts from MT-204 through MT-208",
+      "Original immutable account/Principal/AccessSpace/workspace and job/attempt IDs",
+      "Exact published Kumihimo adapter plus MT-199 Vulkan and MT-203 central GPU contracts"
+    ],
+    "outputs": [
+      "Scoped native DCC reliability view and governed action requests",
+      "Stable Argus/AccessKit controls, backend-correlated status and evidence navigation"
+    ],
+    "dependencies": [
+      "Existing native shell pane registry and scoped backend transport",
+      "Existing Flight Recorder/Operator Consoles navigation",
+      "Existing internal_diagnostics producer and standalone Palmistry transport"
+    ],
+    "implementation_steps": [
+      "GUI leader allocates planned module files and one shared mount writer; preserve current pane keys and all workflows.",
+      "Prepare quiet layout, accessibility and empty/loading/error/denied states without fabricated backend claims.",
+      "Bind each backend contract only after publication, preserving attempt/context/freshness and allowed actions.",
+      "Wire governed actions with revision/context checks and reconcile acknowledgement to canonical state.",
+      "Bind exact Kumihimo/Vulkan/GPU contracts; add same-change UserManual and diagnostic producers.",
+      "Submit static/compile evidence, then independent genuine backend/GUI failure-boundary and Argus proof through the existing route."
+    ],
+    "build_unit": "Existing handshake_native build unit with small focused modules; no aggregate/sink crate.",
+    "source_dependency_closure": [
+      "src/frontend/handshake_native/src/dev_command_center"
+    ],
+    "test_closure": [
+      "src/frontend/handshake_native/tests/test_dev_command_center_reliability.rs"
+    ],
+    "artifact_closure": "Existing compatible GUI target under Primary custody; MT-209 result/capture artifacts under the sole verified artifact root, without a new per-MT compiler cache.",
+    "public_contract_policy": "Explicit view inputs, governed action requests, errors, accessibility IDs, headless inspection and context invalidation. Display state is always a projection.",
+    "build_budget": "Use existing conditional compartment build budgets; no numerical cap, forced crate split or all-project hold."
+  }
+}

@@ -1,0 +1,719 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-206",
+  "created_at_utc": "2026-10-25T00:00:00Z",
+  "updated_at_utc": null,
+  "identity": {
+    "mt_id": "MT-206",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Bind production resource policy to swarm admission",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "Configured resource policy governs actual production swarm launches and releases resources only after proven lifecycle settlement.",
+    "requirement_refs": [
+      ".GOV/spec/master-spec-v02.223/spec-modules/04-llm-infrastructure.md#4.3.9 launch requirements; 4.3.9.5.2 MULTI_MODEL_PARALLEL",
+      ".GOV/spec/master-spec-v02.223/spec-modules/05-security-and-observability.md#HSK-PLG-006; HSK-PLG-012; HSK-PLG-013; HSK-PLG-014; HSK-PLG-015; HSK-PLG-016",
+      ".GOV/spec/master-spec-v02.223/spec-modules/05-security-and-observability.md#HSK-PLG-004; HSK-PLG-005"
+    ],
+    "acceptance_refs": [
+      "AC206-1",
+      "AC206-2",
+      "AC206-3",
+      "AC206-4",
+      "AC206-5",
+      "AC206-6",
+      "AC206-7"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC206-1",
+        "requirement": "The genuine backend_runtime -> scoped launch-service -> production_factory -> SwarmCoordinator route receives the actual configured global/run/child policy. Concurrency, lifetime, boot, committed-memory, token and cost settings remain explicit in the effective policy and truthful diagnostics; no silent loss to defaulted(None) or invented default caps. Map each policy dimension to its current spec requirement and owner before adding fields."
+      },
+      {
+        "id": "AC206-2",
+        "requirement": "Parent/run/child policy composes without widening any applicable parent limit or authority. Concurrent child reservations charge the same applicable aggregate owner. When an inspected requirement needs a missing hierarchy dimension, extend only that requirement's existing owner. Do not interpret this as an entire OS quota implementation."
+      },
+      {
+        "id": "AC206-3",
+        "requirement": "Through the real production launch route, saturation returns a typed rejection before a worker, provider call, VM boot or partial lane authority is created. Prove configured concurrency, boot, committed-memory, token and cost cases with a permitted control case. Existing admission, durable ModelLane authority and ProcessLedger registration remain in the path."
+      },
+      {
+        "id": "AC206-4",
+        "requirement": "One saturated scope does not deny unrelated permitted work whose applicable aggregate budget still has headroom. Preserve provider-aware local-memory charging. Cancellation and completion remain serviceable under worker/boot saturation through existing reserved or separate control paths, without bypassing authentication or claiming their current path is universally blocked."
+      },
+      {
+        "id": "AC206-5",
+        "requirement": "Cancellation, failed creation, failed registration, late completion and shutdown retain the owning resource reservation until actual worker/process teardown or quiescent retirement is established. Unknown cleanup remains owned, charged and visible; no permit release on a cancellation request alone, double release, false STOP or false clean shutdown. Reuse WP-1 MT-019/020 lifecycle proof where valid."
+      },
+      {
+        "id": "AC206-6",
+        "requirement": "Expired, revoked, wrong-account, wrong-session and changed-context launch/delegation requests cannot widen quotas, start work or leak private policy/state. Original run attribution is immutable. Reauthorization applies at dispatch and result promotion through current owners; a budget snapshot or DCC projection conveys no authority."
+      },
+      {
+        "id": "AC206-7",
+        "requirement": "Accepted/denied launch and lifecycle business events retain canonical Flight Recorder/EventLedger linkage. internal_diagnostics reports effective limits, measured/unknown usage, rejection, pending cleanup and terminal outcome through bounded allowed metadata. Passive external Palmistry records independently with correlated allowed metadata and actual proof; it performs no retries or recovery. Update the existing UserManual in the same change and publish the typed state/actions MT-209 consumes."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Production authority, concurrency and lifecycle changes require one module owner and independent boundary review.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "preservation": "New contract authoring grants no attempt or runtime allowance and resets no original WP, MT or failure budget. Resolve applicable pinned and Operator-adopted counters before any later run."
+  },
+  "execution": {
+    "lane": "planned_implementation",
+    "module_ref": "src/backend/handshake_core/src/swarm_orchestration",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [],
+    "allowed_write_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/ids.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/tests.rs",
+      "src/backend/handshake_core/src/backend_runtime/mod.rs",
+      "src/backend/handshake_core/src/user_manual/seed.rs",
+      "src/backend/handshake_core/src/user_manual/registry.rs",
+      "src/backend/handshake_core/tests/swarm_lane_diagnostics_surreal_tests.rs",
+      "src/backend/handshake_core/tests/user_manual_behavior_coverage_tests.rs"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/** during Product implementation",
+      "Unallocated shared manifests, lockfiles, global schema and production pins",
+      "Other WPs, canonical reusable-module internals and unrelated Product files",
+      "Private or frozen evidence, other owners' resources and existing process lifetimes"
+    ],
+    "stop_conditions": [
+      "Codeleader allocation after current MT172 single-MT Product work is required before implementation.",
+      "Primary 01a16f0c retains physical Product source, Git and compiler custody. Codeleader 01a168a9 assigns the sole current Product trio; this contract grants no source lease, compiler slot, runtime allowance or independent verdict.",
+      "Preserve original WP-KERNEL-012, CKC and WP-1 requirements, acceptance, source/spec/governance pins, failure history, spent attempts and scoped holds.",
+      "A needed shared schema, manifest, API or configuration change requires the exact owning allocation; do not widen this MT or patch another owner's files.",
+      "If a reusable module gap is found, bind its canonical source and separate source/adoption contract before changing internals. Do not create a host-local copy or second authority."
+    ],
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "observed_baseline_commit": "3fca9514e8c1bb1d1bb5478f56f27fbc56696d36",
+    "approval_ref": "packet.json#/operator_runtime_reliability_20261025",
+    "ownership": {
+      "claimed_by": null,
+      "source_writer": null,
+      "source_custodian": "Primary 01a16f0c",
+      "allocation_owner": "Codeleader 01a168a9",
+      "write_grant": false,
+      "compiler_grant": false,
+      "runtime_grant": false
+    },
+    "conditional_dependencies": [
+      {
+        "mt_ref": "MT-203.json",
+        "when": "Only a changed GPU allocation/budget/retirement binding requires its central GPU owner. General swarm policy work does not wait on unrelated GPU work.",
+        "contract": "Consume the existing GPU owner's published typed client; do not duplicate GPU ownership."
+      },
+      {
+        "mt_ref": "MT-204.json",
+        "when": "Production service readiness/cancellation/cleanup behavior is part of the affected path.",
+        "contract": "Compose the service owner's existing lifecycle controls; no replacement control plane."
+      },
+      {
+        "mt_ref": "MT-205.json",
+        "when": "Affected tool calls need tool-specific deadline/cancellation/byte enforcement.",
+        "contract": "Consume the tool owner's contract; no copied per-tool governor."
+      }
+    ]
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "packet.json#/governance_pin",
+      "MT-137.json",
+      "MT-172.json",
+      "MT-174.json",
+      "MT-187.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-019.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json",
+      "../WP-CKC-posekit-overhaul/packet.json"
+    ],
+    "checks": [
+      {
+        "check_id": "WP012-MT206-SOURCE",
+        "claim_refs": [
+          "AC206-1",
+          "AC206-2"
+        ],
+        "command_or_method": "Review the exact policy call chain and changed typed API. Primary uses only the existing assigned compile/static configuration after allocation; no runtime tests by the implementer. Map changed inputs to the existing owning targets.",
+        "expected": "Configured policy reaches the existing coordinator without defaults erasing it; exactly one owner, unchanged dependency direction and no unallocated writes.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout_under_existing_configuration",
+        "evidence_required": [
+          "Scoped diff and exact caller/type mapping",
+          "Permitted compile/static result or an explicit blocker"
+        ]
+      },
+      {
+        "check_id": "WP012-MT206-PRODUCTION-ADMISSION",
+        "claim_refs": [
+          "AC206-1",
+          "AC206-2",
+          "AC206-3",
+          "AC206-4",
+          "AC206-5",
+          "AC206-6",
+          "AC206-7"
+        ],
+        "command_or_method": "The independent proof owner extends the inspected production_factory and swarm tests, then selects those targets through the later bound checked-in test entrypoint. Exercise the actual backend-runtime/scoped launch-service constructor route with authentic configured policy: concurrent parent/child requests, resource saturation before provider/worker creation, unrelated eligible work, cancellation/completion under saturation, and failed registration/teardown. Independently reread canonical ModelLane/ProcessLedger/EventLedger state and observed worker lifetime. Direct coordinator fake-factory tests remain component proof. Reuse valid WP-1 MT-019/020 evidence for unchanged lifecycle inputs.",
+        "expected": "Every AC206 assertion passes nonvacuously at the genuine production boundary; rejected launches create no worker; unsettled cleanup stays charged; diagnostics and manual agree with canonical state.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout_no_automatic_retry_or_process_disruption",
+        "evidence_required": [
+          "Exact configured global/run/child values and scope",
+          "Actual factory/provider/worker invocation evidence including zero creation on rejection",
+          "Canonical before/after rows, typed receipts and real cleanup outcome",
+          "Parent/child non-widening, unrelated-work control and revocation negatives",
+          "This backend's actual per-tier diagnostic evidence and published typed contract; MT-209 Argus proof follows downstream.",
+          "Structured nonzero test results bound to the candidate"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "execution_status": "NOT_RUN_NO_EXECUTION_GRANT",
+    "test_entrypoint_binding": {
+      "authority_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/test_environment_prerequisites/test_entrypoint",
+      "observed": "Command is a REPLACE_ME placeholder and config_files is empty. No authoritative current replacement was identified in this contract-authoring read.",
+      "status": "UNRESOLVED_FOR_LATER_PROOF_LAUNCH_ONLY",
+      "source_implementation_blocker": false,
+      "required_before_run": "The existing proof owner must record the exact checked-in entrypoint/configuration and target selection before the later proof launch. Do not run historical commands, invent flags/wrappers or treat this configuration gap as a new source-implementation gate."
+    },
+    "feature_binding": {
+      "manifest": "src/backend/handshake_core/Cargo.toml",
+      "observed_features": [
+        "app-runtime",
+        "surreal-test-support",
+        "test-utils"
+      ],
+      "status": "Exact feature selection belongs to the later declared entrypoint; feature availability is not a run grant."
+    },
+    "reuse_policy": "Reuse exact valid proof across bound claims and unchanged relevant inputs. Independent runtime proof remains required. No test count, source inspection, mock factory or seeded record substitutes for the production boundary.",
+    "evidence_required": [
+      "Frozen pushed candidate and relevant source/config/dependency inputs",
+      "Nonzero structured result per required assertion",
+      "Independent canonical reread and scoped before/after state",
+      "Existing per-test timeout and actual outcomes, with infrastructure separate from Product failures"
+    ]
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-206.json",
+    "microtask_projection": null,
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "NOT_REQUESTED",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "Codeleader allocation after current MT172 single-MT Product work",
+    "depends_on": [],
+    "blocks": [
+      "MT-209"
+    ],
+    "active": false,
+    "claimed_by": null,
+    "claim_ref": null,
+    "completed_by": null,
+    "validator_verdict": null,
+    "next_actor": "Codeleader 01a168a9 allocates after current MT172 work; Primary 01a16f0c retains physical Product source/Git/compiler custody."
+  },
+  "scope": {
+    "summary": "Carry the actual configured global, run and child resource policy from the production launch composition into the existing SwarmCoordinator admission and lifecycle accounting.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/swarm_orchestration/ids.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs",
+      "src/backend/handshake_core/src/swarm_orchestration/tests.rs",
+      "src/backend/handshake_core/src/backend_runtime/mod.rs",
+      "src/backend/handshake_core/src/user_manual/seed.rs",
+      "src/backend/handshake_core/src/user_manual/registry.rs",
+      "src/backend/handshake_core/tests/swarm_lane_diagnostics_surreal_tests.rs",
+      "src/backend/handshake_core/tests/user_manual_behavior_coverage_tests.rs"
+    ],
+    "forbidden_paths": [
+      ".GOV/** during Product implementation",
+      "Unallocated shared manifests, lockfiles, global schema and production pins",
+      "Other WPs, canonical reusable-module internals and unrelated Product files",
+      "Private or frozen evidence, other owners' resources and existing process lifetimes"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC206-1",
+        "requirement": "The genuine backend_runtime -> scoped launch-service -> production_factory -> SwarmCoordinator route receives the actual configured global/run/child policy. Concurrency, lifetime, boot, committed-memory, token and cost settings remain explicit in the effective policy and truthful diagnostics; no silent loss to defaulted(None) or invented default caps. Map each policy dimension to its current spec requirement and owner before adding fields."
+      },
+      {
+        "id": "AC206-2",
+        "requirement": "Parent/run/child policy composes without widening any applicable parent limit or authority. Concurrent child reservations charge the same applicable aggregate owner. When an inspected requirement needs a missing hierarchy dimension, extend only that requirement's existing owner. Do not interpret this as an entire OS quota implementation."
+      },
+      {
+        "id": "AC206-3",
+        "requirement": "Through the real production launch route, saturation returns a typed rejection before a worker, provider call, VM boot or partial lane authority is created. Prove configured concurrency, boot, committed-memory, token and cost cases with a permitted control case. Existing admission, durable ModelLane authority and ProcessLedger registration remain in the path."
+      },
+      {
+        "id": "AC206-4",
+        "requirement": "One saturated scope does not deny unrelated permitted work whose applicable aggregate budget still has headroom. Preserve provider-aware local-memory charging. Cancellation and completion remain serviceable under worker/boot saturation through existing reserved or separate control paths, without bypassing authentication or claiming their current path is universally blocked."
+      },
+      {
+        "id": "AC206-5",
+        "requirement": "Cancellation, failed creation, failed registration, late completion and shutdown retain the owning resource reservation until actual worker/process teardown or quiescent retirement is established. Unknown cleanup remains owned, charged and visible; no permit release on a cancellation request alone, double release, false STOP or false clean shutdown. Reuse WP-1 MT-019/020 lifecycle proof where valid."
+      },
+      {
+        "id": "AC206-6",
+        "requirement": "Expired, revoked, wrong-account, wrong-session and changed-context launch/delegation requests cannot widen quotas, start work or leak private policy/state. Original run attribution is immutable. Reauthorization applies at dispatch and result promotion through current owners; a budget snapshot or DCC projection conveys no authority."
+      },
+      {
+        "id": "AC206-7",
+        "requirement": "Accepted/denied launch and lifecycle business events retain canonical Flight Recorder/EventLedger linkage. internal_diagnostics reports effective limits, measured/unknown usage, rejection, pending cleanup and terminal outcome through bounded allowed metadata. Passive external Palmistry records independently with correlated allowed metadata and actual proof; it performs no retries or recovery. Update the existing UserManual in the same change and publish the typed state/actions MT-209 consumes."
+      }
+    ],
+    "proof_targets": [
+      "Existing swarm_orchestration::production_factory::tests and swarm_orchestration::tests in handshake_core",
+      "swarm_lane_diagnostics_surreal_tests",
+      "user_manual_behavior_coverage_tests"
+    ],
+    "non_goals": [
+      "Replacing the existing scheduler, RunBudget, semaphore, cancellation path or process ledger",
+      "Inventing default numerical caps or claiming all control traffic currently waits behind worker admission",
+      "Implementing a general OS quota system or replacing MT-203 central GPU ownership",
+      "Changing service/tool reliability controls owned by MT-204 and MT-205",
+      "Creating automatic recovery or a new watcher"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": false,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "Existing Dev Command Center runtime projection and controls"
+    ],
+    "argus_targets": [
+      "MT-209.json#/gui_obligation"
+    ],
+    "paired_gui_mt": "MT-209",
+    "ownership": "MT-209 owns native display and action binding through this module's published typed contract. This backend MT does not edit GUI files.",
+    "expected_evidence": [
+      "Downstream MT-209/WP closure only: MT-209 Argus inspection/accessibility tree and native capture on the same affected backend candidate",
+      "Downstream MT-209/WP closure only: Visible budget or claimant/fence state agrees with canonical backend state",
+      "Downstream MT-209/WP closure only: Authorized actions and denial/revocation cases use the same backend command owner"
+    ],
+    "not_applicable_reason": null,
+    "acceptance_order": "Backend completion requires this MT's typed state/action contract, same-change UserManual and its own three-tier diagnostic proof. MT-209 consumes that contract afterward. Paired native Argus evidence belongs to downstream MT-209 and whole-WP closure; it is not a prerequisite for this backend MT verdict."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": true,
+    "target_entries": [
+      "swarm-budget-and-spawn-rejection",
+      "Existing operator_chat.swarm.max_concurrent.read/set registrations where affected"
+    ],
+    "expected_evidence": [
+      "Scoped same-change UserManual diff and canonical manual_version",
+      "Affected existing user_manual behavior/self-consistency targets",
+      "No-context procedure for configuration, invocation, denial, cancellation and recovery",
+      "Per-tier Flight Recorder/internal_diagnostics/Palmistry posture with proof references"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "Run and child launch policy",
+      "Resource reservations and usage",
+      "ModelLane/ProcessLedger identities",
+      "Budget/cleanup receipts and diagnostic projections"
+    ],
+    "identity_and_scope_contexts": [
+      "Authenticated account",
+      "Acting and owning Principal",
+      "AccessSpace",
+      "Workspace/project",
+      "Authenticated session",
+      "Original run and child/delegated context"
+    ],
+    "enforcement_boundaries": [
+      "Production launch composition",
+      "SwarmCoordinator admission",
+      "Current grant validation at dispatch/promotion",
+      "Resource lifetime accounting and exact-scope diagnostic lookup"
+    ],
+    "same_project_private_resource_cases": [
+      "Two accounts in one project cannot discover or mutate each other's private runtime state; explicitly shared work remains usable."
+    ],
+    "cross_account_negative_cases": [
+      "A third unrelated account cannot read identifiers, names, counts, budget/fence state, errors or receipts."
+    ],
+    "derived_resource_non_widening_cases": [
+      "Child work and derived diagnostics retain the original scope and cannot widen permissions."
+    ],
+    "revocation_and_context_switch_cases": [
+      "Expired/revoked authority denies further mutation; context switch never retargets an existing run or claim."
+    ],
+    "remote_saas_mcp_sync_cases": [
+      "No new remote/SaaS/MCP route. Existing delegated clients must use the same scoped command owner when affected."
+    ],
+    "metadata_side_channel_cases": [
+      "Typed denial/diagnostic projections do not disclose restricted identifiers, payloads, paths or private counts."
+    ],
+    "expected_evidence": [
+      "Canonical exact-scope before/after state under authentic authority",
+      "Allowed, denied, expired/revoked and switched-context boundary cases",
+      "Scoped receipt and diagnostics inspection with no protected-data leakage"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    {
+      "rule_id": "HBR-INT-001",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-206.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-INT-009",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-206.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-SWARM-001",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-206.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-SWARM-002",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-206.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-PRIV-001",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-206.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-PRIV-002",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-206.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-PRIV-003",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-206.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-PRIV-004",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-206.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-PRIV-005",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-206.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-PRIV-006",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-206.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-PRIV-008",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-206.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-MAN-004",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-206.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-COMPART-001",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-206.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-COMPART-002",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-206.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-MODULE-LIFECYCLE-001",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-206.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-MODULE-LIFECYCLE-004",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-206.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    }
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "Flight Recorder",
+      "required": true,
+      "contract": "Keep business events in the existing Flight Recorder/EventLedger contract. Preserve original attribution, append order and accepted outcomes; no new telemetry database or broad schema reopen.",
+      "required_evidence": "Real production-route business transition, canonical receipt and replay linkage."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "required": true,
+      "contract": "Emit bounded typed mechanical state and failure codes through existing internal_diagnostics. Use its allowlist; no prompts, secrets, project content, private paths or arbitrary sensitive error strings.",
+      "required_evidence": "Actual typed producer capture for admission/fencing/cancellation/cleanup outcomes under authorized and denied scope."
+    },
+    {
+      "tier": "Palmistry",
+      "required": true,
+      "contract": "Reuse the existing passive out-of-process recorder with correlated allowed mechanical metadata. Palmistry observes independently and does not schedule, retry, restart, recover or authorize work.",
+      "required_evidence": "Actual independent Palmistry retained record correlated to producer evidence; separately admitted owned-process failure proves survival where claimed. A unit sink or label cannot prove external recording."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "next_actor": "Codeleader 01a168a9",
+    "product_custody": "Primary 01a16f0c",
+    "acceptance_owner": "Assigned independent validator under the existing WP topology"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "PRODUCTION_RESOURCE_POLICY_BINDING",
+    "risks": [
+      {
+        "risk": "A constructor rebuilds RunBudget and loses configured ceilings.",
+        "control": "Trace the real constructor route and assert effective policy at admission with actual production saturation."
+      },
+      {
+        "risk": "Child reservations race or widen parent authority.",
+        "control": "Atomically charge the applicable aggregate owner, test concurrent children and reject wider or revoked contexts."
+      },
+      {
+        "risk": "A cancellation request releases capacity while the worker still exists.",
+        "control": "Prove actual teardown/quiescence before release; retain charged cleanup ownership and typed failure on uncertainty."
+      },
+      {
+        "risk": "A saturated local resource blocks unrelated cloud work or control completion.",
+        "control": "Prove provider-aware charging and independent control service with real saturation; preserve existing cancellation path."
+      },
+      {
+        "risk": "Diagnostics report inferred zero usage or leak private state.",
+        "control": "Preserve measured/unknown distinctions, scope lookups and typed allowlists; require actual external Palmistry retention."
+      }
+    ],
+    "minimum_controls": [
+      "One swarm_orchestration owner and narrow adapters",
+      "No numerical defaults authored by this contract",
+      "Conditional GPU/service/tool dependencies only",
+      "Independent production proof plus same-change manual and published typed contract for downstream MT-209"
+    ]
+  },
+  "context_capsule": {
+    "owning_module": "src/backend/handshake_core/src/swarm_orchestration",
+    "pillar_refs": [
+      "HBR-INT-001",
+      "HBR-INT-009",
+      "HBR-SWARM-001",
+      "HBR-SWARM-002",
+      "HBR-PRIV-001",
+      "HBR-PRIV-002",
+      "HBR-PRIV-003",
+      "HBR-PRIV-004",
+      "HBR-PRIV-005",
+      "HBR-PRIV-006",
+      "HBR-PRIV-008",
+      "HBR-MAN-004",
+      "HBR-COMPART-001",
+      "HBR-COMPART-002",
+      "HBR-MODULE-LIFECYCLE-001",
+      "HBR-MODULE-LIFECYCLE-004"
+    ],
+    "module_maintenance_refs": [
+      "packet.json#/operator_runtime_reliability_20261025",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-206.json#/module_contract"
+    ],
+    "original_acceptance_refs": [
+      "packet.json#/governance_pin",
+      "MT-137.json",
+      "MT-172.json",
+      "MT-174.json",
+      "MT-187.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-019.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json",
+      "../WP-CKC-posekit-overhaul/packet.json"
+    ],
+    "approval_ref": "packet.json#/operator_runtime_reliability_20261025",
+    "research_basis": {
+      "authority": false,
+      "reference_ref": "packet.json#/operator_runtime_reliability_20261025",
+      "research_document_sha256": "40dbdfc18a4b57642f69feb17fb1fb08f0d5b0488a0490c119c21aba146db1cf",
+      "use": "Research is non-authoritative context. Current spec, inspected source and preserved WP contracts own requirements and acceptance."
+    },
+    "specification_anchor_refs": [
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/04-llm-infrastructure.md",
+        "anchor": "4.3.9 launch requirements; 4.3.9.5.2 MULTI_MODEL_PARALLEL",
+        "requirement": "Production requests reach SwarmCoordinator::spawn_session with coordinator-generated launch authority and explicit max_concurrent_instances/max_concurrent_work_units."
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/05-security-and-observability.md",
+        "anchor": "HSK-PLG-006; HSK-PLG-012; HSK-PLG-013; HSK-PLG-014; HSK-PLG-015; HSK-PLG-016",
+        "requirement": "Bind applicable shared-owner admission, reserved control service, quiescent retirement, scoped pool isolation, failed-spawn ownership and bounded host/event dispatch. These clauses do not authorize a duplicate plugin platform."
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/05-security-and-observability.md",
+        "anchor": "HSK-PLG-004; HSK-PLG-005",
+        "requirement": "Current consent and revocation bind invocation; stale completions do not acquire authority."
+      }
+    ],
+    "source_evidence": [
+      {
+        "path": "src/backend/handshake_core/src/swarm_orchestration/ids.rs",
+        "lines": "431-466",
+        "observed": "RunBudget already has concurrent, cold-start, lifetime, token, cost and committed-memory caps; defaulted leaves token/cost/memory as None."
+      },
+      {
+        "path": "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs",
+        "lines": "241-243,438-448",
+        "observed": "Production construction starts from RunBudget::defaulted; the scoped launch-service builder passes None for its concurrency option."
+      },
+      {
+        "path": "src/backend/handshake_core/src/backend_runtime/mod.rs",
+        "lines": "558-565",
+        "observed": "The actual runtime composes the scoped operator-chat launch service with SurrealStorage, ProcessLedger, sandbox registry and resource lifecycle."
+      },
+      {
+        "path": "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs",
+        "lines": "2512-2575",
+        "observed": "Global budget, memory reservation, lifetime and concurrency admission precede factory creation."
+      },
+      {
+        "path": "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs",
+        "lines": "1799-1825",
+        "observed": "cancel_session cancels a pending spawn or calls terminate without acquiring the worker-admission semaphore."
+      },
+      {
+        "path": "src/backend/handshake_core/src/swarm_orchestration/tests.rs",
+        "lines": "1939-2582,2863-2906",
+        "observed": "Existing tests cover memory rejection before factory, cloud/local separation, reservation release, cold-start limits, budget exhaustion and cancellation. They are component evidence targets, not current runtime results."
+      },
+      {
+        "path": "src/backend/handshake_core/src/user_manual/seed.rs",
+        "lines": "3727 onward",
+        "observed": "Existing swarm-budget-and-spawn-rejection page describes RunBudget, admission order and remaining-budget inspection."
+      }
+    ]
+  },
+  "module_contract": {
+    "owning_module": "src/backend/handshake_core/src/swarm_orchestration",
+    "boundary_change": "Extend the existing owner's typed contract and narrowly bind existing callers; no second scheduler, quota/lease authority or aggregate crate.",
+    "dependency_direction": "Production adapters and native projections consume the owning module's typed contract. The module does not depend on native GUI or Palmistry implementation.",
+    "build_unit_policy": "Keep small focused logical modules or existing independently selectable crates. No giant aggregate crate, arbitrary numeric build cap, compulsory crate split or blanket refactor.",
+    "canonical_source": "Existing WP-declared Product source under the preserved active pin. This contract does not repin or publish reusable source.",
+    "adapter_paths": [
+      {
+        "path": "src/backend/handshake_core/src/backend_runtime/mod.rs",
+        "scope": "Only actual production launch-policy construction and forwarding."
+      },
+      {
+        "path": "src/backend/handshake_core/src/user_manual/seed.rs",
+        "scope": "Only the existing swarm-budget-and-spawn-rejection entry and affected canonical version."
+      },
+      {
+        "path": "src/backend/handshake_core/src/user_manual/registry.rs",
+        "scope": "Only existing affected swarm policy/navigation/action registrations; no parallel manual."
+      }
+    ],
+    "shared_binding_policy": "Only exact named adapter slices may change after owner allocation; ownership stays with the existing module and physical custodian.",
+    "public_contract": {
+      "existing": [
+        "RunBudget",
+        "BudgetRemaining",
+        "SwarmConfig",
+        "SwarmCoordinator::spawn_session",
+        "SwarmCoordinator::cancel_session",
+        "SwarmCoordinator::remaining",
+        "build_production_swarm_coordinator_with_sandbox_registry",
+        "build_scoped_operator_chat_launch_service_with_sandbox_registry_and_lifecycle"
+      ],
+      "change": "Pass validated configured policy through the production constructor chain; expose effective policy and typed rejection/cleanup state through the same owner.",
+      "inputs": [
+        "Original authenticated run/child scope",
+        "Configured resource policy and reservation estimate",
+        "SpawnRequest with existing launch contract"
+      ],
+      "outputs": [
+        "Admitted owner-bound worker or typed denial",
+        "BudgetRemaining with truthful unknown states",
+        "Scoped business receipt and diagnostic state"
+      ],
+      "no_new_authority": "No DCC read projection, research value, process snapshot or caller-authored cap grants launch permission."
+    }
+  }
+}

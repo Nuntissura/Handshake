@@ -1,4 +1,128 @@
 {
+  "operator_runtime_reliability_20261025": {
+    "decision_ref": "packet.json#/operator_runtime_reliability_20261025",
+    "operator_intent": "Prevent the evidenced client/runtime reliability failures while completing the current small-module refactor; preserve existing implementations and pair backend repairs with Dev Command Center GUI work.",
+    "source_snapshot": {
+      "product_commit": "3fca9514e8c1bb1d1bb5478f56f27fbc56696d36",
+      "scope": "Static source inspection only; no runtime failure reproduced by this evaluation."
+    },
+    "new_mt_refs": [
+      "MT-204.json",
+      "MT-205.json",
+      "MT-206.json",
+      "MT-207.json",
+      "MT-208.json",
+      "MT-209.json"
+    ],
+    "research_basis": {
+      "sources": [
+        {
+          "source": "operator supplied document",
+          "ref": "packet.json#/operator_runtime_reliability_20261025/research_input"
+        },
+        {
+          "source": "Tokio spawn_blocking documentation",
+          "url": "https://docs.rs/tokio/latest/tokio/task/fn.spawn_blocking.html",
+          "finding": "Started blocking tasks cannot be aborted; shutdown_timeout stops waiting without establishing physical cancellation."
+        },
+        {
+          "source": "Tokio mpsc documentation",
+          "url": "https://docs.rs/tokio/latest/tokio/sync/mpsc/",
+          "finding": "Bounded channels provide backpressure; unbounded channels do not cap queued messages."
+        },
+        {
+          "source": "MCP cancellation specification",
+          "url": "https://modelcontextprotocol.io/specification/2025-06-18/basic/utilities/cancellation",
+          "finding": "Cancellation is a notification; a receiver may ignore an uncancellable request."
+        },
+        {
+          "source": "Microsoft Job Objects documentation",
+          "url": "https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects",
+          "finding": "Process groups and child inheritance require explicit management and breakaway policy; reuse existing Handshake process supervision rather than infer child cleanup."
+        }
+      ],
+      "selected_approach": "Repair existing MCP, swarm admission, MT executor and workflow recovery owners. Compose their verified typed outcomes into existing Dev Command Center and Operator Consoles.",
+      "rejected_options": [
+        "A new global scheduler/reaper duplicating existing owners.",
+        "Treating closed GUI, elapsed timeout or empty output as proof of physical execution termination.",
+        "Copying the reference architecture verbatim or treating public Codex reports as reproduced Handshake failures.",
+        "Changing all original MT verdicts or rerunning unchanged green checks."
+      ],
+      "existing_capabilities": [
+        "Separate native GUI and backend entrypoints and bounded UI HTTP client.",
+        "Durable process ledger and restart/reclaim ownership.",
+        "Fair MT scheduler, atomic claims and durable starvation watermark.",
+        "Generation-specific routing cleanup, verified checkpoints and existing operation/child watchdogs."
+      ],
+      "implementation_gaps": [
+        {
+          "mt_ref": "MT-204.json",
+          "files": [
+            "src/backend/handshake_core/src/mcp/client.rs",
+            "src/backend/handshake_core/src/mcp/gate.rs",
+            "src/backend/handshake_core/src/mcp/transport/mod.rs",
+            "src/backend/handshake_core/src/mcp/transport/stdio.rs",
+            "src/backend/handshake_core/src/mcp/transport/reconnect.rs"
+          ]
+        },
+        {
+          "mt_ref": "MT-205.json",
+          "files": [
+            "src/backend/handshake_core/src/mcp/transport/stdio.rs",
+            "src/backend/handshake_core/src/mcp/transport/reconnect.rs",
+            "src/backend/handshake_core/src/mcp/client.rs"
+          ],
+          "reuse": "Existing process_ledger ownership, reclaim and scoped adapter."
+        },
+        {
+          "mt_ref": "MT-206.json",
+          "files": [
+            "src/backend/handshake_core/src/swarm_orchestration/production_factory.rs",
+            "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs",
+            "src/backend/handshake_core/src/backend_runtime/mod.rs"
+          ]
+        },
+        {
+          "mt_ref": "MT-207.json",
+          "files": [
+            "src/backend/handshake_core/src/mt_executor/queue.rs",
+            "src/backend/handshake_core/src/mt_executor/scheduler.rs",
+            "src/backend/handshake_core/src/process_ledger/mt_executor.rs"
+          ]
+        },
+        {
+          "mt_ref": "MT-208.json",
+          "files": [
+            "src/backend/handshake_core/src/workflows.rs"
+          ],
+          "reuse": "Existing state_recovery and canonical SurrealDB/EventLedger."
+        },
+        {
+          "mt_ref": "MT-209.json",
+          "spec": ".GOV/spec/master-spec-v02.223/spec-modules/10-product-surfaces.md#10.11",
+          "scope": "Paired native GUI views/actions and fault/reconnect proof; no new execution authority."
+        }
+      ],
+      "limits": "No shipped MCP construction caller was verified during evaluation; do not claim an existing per-agent process explosion. Actual production reachability is an explicit implementation/proof obligation."
+    },
+    "red_team": {
+      "risks": [
+        "Unbounded queues or retries accumulate work and memory.",
+        "Timeout/cancellation releases ownership before external settlement.",
+        "Old executor overwrites newer attempt state.",
+        "Crash between external effect and output write repeats the effect.",
+        "GUI shows fabricated terminal state or leaks cross-scope metadata."
+      ],
+      "controls": [
+        "Bound admission/bytes/deadlines and preserve control capacity.",
+        "Retain exact owner/attempt/generation until observed cleanup or reconcile unknown outcomes.",
+        "Use canonical conditional state transitions with independent-client stale/duplicate tests.",
+        "Bind output and replay decisions to durable attempt provenance, not file presence.",
+        "Use backend-derived DCC state, scoped actions, typed diagnostics and independent owned-process fault proof."
+      ]
+    },
+    "validation_plan": "Each MT materializes its behavior and negative cases. Use existing canonical test entrypoint/configuration and focused affected packages after source stabilizes; later independent production-boundary proof covers real SurrealDB, owned tools and native Vulkan where applicable. No execution or runtime success is asserted by this refinement."
+  },
   "auth_mapping_r2_adoption_20261011": {
     "decision_id": "WP012-P2-AUTH-MAPPING-001-R2",
     "status": "ADOPTED_IMPLEMENTATION_AUTHORIZED",

@@ -1,0 +1,765 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-207",
+  "created_at_utc": "2026-10-25T00:00:00Z",
+  "updated_at_utc": null,
+  "identity": {
+    "mt_id": "MT-207",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Fence microtask state mutations with current claim authority",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "Only the current authorized claimant/attempt can make a legal atomic microtask transition; stale and duplicate actors cannot corrupt successor or terminal state.",
+    "requirement_refs": [
+      ".GOV/spec/master-spec-v02.223/spec-modules/02-system-architecture.md#2.6.8.10.3.3 Role Mailbox executor routing, claim-or-lease semantics, and response authority",
+      ".GOV/spec/master-spec-v02.223/spec-modules/02-system-architecture.md#Authoritative control-plane records; software-delivery Dev Command Center projection requirements",
+      ".GOV/spec/master-spec-v02.223/spec-modules/05-security-and-observability.md#HSK-PLG-004; HSK-PLG-005; HSK-PLG-007; HSK-PLG-012; HSK-PLG-013"
+    ],
+    "acceptance_refs": [
+      "AC207-1",
+      "AC207-2",
+      "AC207-3",
+      "AC207-4",
+      "AC207-5",
+      "AC207-6",
+      "AC207-7"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC207-1",
+        "requirement": "Inventory every authoritative job mutation in the owning queue/executor/outcome/cancellation paths and narrow production adapter. Claim creation binds the winning claimant and attempt/generation to canonical authority. Subsequent running, completion, failure, requeue, escalation, hard-gate and cancellation transitions require the matching current claimant/attempt/generation and expected prior state. No public or internal job-id-only mutation bypass remains; authorized system transitions use their existing explicit authority."
+      },
+      {
+        "id": "AC207-2",
+        "requirement": "The canonical SurrealDB mutation checks the full current authority and transition preconditions in one atomic operation. With two real independent clients against the same Handshake-managed canonical store, A claims, A expires or is explicitly superseded, and B owns the next attempt. Every stale A attempt to mark running, complete, fail or requeue is denied without changing B's job, outcome, receipt or lease. A shared in-process mutex, fake RecordingIo or query-text assertion cannot satisfy this proof."
+      },
+      {
+        "id": "AC207-3",
+        "requirement": "An authorized duplicate completion with the same bound operation identity/payload returns its canonical outcome or a deterministic already-completed result without a second transition. Conflicting retry, stale generation, changed payload/context and illegal prior state cannot overwrite, reopen or relabel a terminal job. Canonical commit/receipt reconciliation handles outcome-unknown acknowledgement before retry; no new lease system."
+      },
+      {
+        "id": "AC207-4",
+        "requirement": "Preserve the existing atomic queued-state claim, FairScheduler priority/fairness behavior and durable starvation watermark. Two independent concurrent claimers cannot both own the same attempt. A denied stale mutation does not consume B's claim, advance the watermark incorrectly, starve unrelated eligible work or destroy historical claim provenance."
+      },
+      {
+        "id": "AC207-5",
+        "requirement": "The production SurrealMtExecutorIo propagates the actual ExecutorIdentity and current existing lease/attempt evidence into transitions instead of discarding it. Expired/revoked session/grant/claim authority, wrong account/Principal/AccessSpace/workspace and a context switch fail closed at mutation commit. Read-only mailbox, navigation or DCC projections cannot mint or extend claim authority."
+      },
+      {
+        "id": "AC207-6",
+        "requirement": "Active, failed, cancelled, never-started and outcome-unknown states remain distinct in canonical results and projections. Lease expiry/revocation is not fabricated completion, failure, cancellation or STOP. Preserve accepted terminal outcomes, partial results and original run/attempt attribution; late worker messages cannot change a successor or terminal state."
+      },
+      {
+        "id": "AC207-7",
+        "requirement": "Accepted business transitions and rejected stale attempts have scoped typed results and canonical Flight Recorder/EventLedger linkage where required. internal_diagnostics records bounded claimant-generation/transition disposition and unknown state without private payloads. Existing passive Palmistry independently retains permitted operational evidence and performs no retries/recovery. Update the same-change UserManual, publish the typed contract for MT-209 display/actions and prove account/revocation negatives without metadata leaks."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Production authority, concurrency and lifecycle changes require one module owner and independent boundary review.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": 2,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": 1,
+      "confirm": 1
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "preservation": "New contract authoring grants no attempt or runtime allowance and resets no original WP, MT or failure budget. Resolve applicable pinned and Operator-adopted counters before any later run."
+  },
+  "execution": {
+    "lane": "planned_implementation",
+    "module_ref": "src/backend/handshake_core/src/mt_executor",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [],
+    "allowed_write_paths": [
+      "src/backend/handshake_core/src/mt_executor/job.rs",
+      "src/backend/handshake_core/src/mt_executor/queue.rs",
+      "src/backend/handshake_core/src/mt_executor/scheduler.rs",
+      "src/backend/handshake_core/src/mt_executor/executor.rs",
+      "src/backend/handshake_core/src/mt_executor/outcome.rs",
+      "src/backend/handshake_core/src/mt_executor/cancellation.rs",
+      "src/backend/handshake_core/src/mt_executor/mod.rs",
+      "src/backend/handshake_core/src/process_ledger/mt_executor.rs",
+      "src/backend/handshake_core/tests/mt_executor_tests.rs",
+      "src/backend/handshake_core/tests/mt_executor_integration_tests.rs",
+      "src/backend/handshake_core/tests/mt_scheduler_tests.rs",
+      "src/backend/handshake_core/src/user_manual/seed.rs",
+      "src/backend/handshake_core/src/user_manual/registry.rs",
+      "src/backend/handshake_core/tests/user_manual_behavior_coverage_tests.rs"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/** during Product implementation",
+      "Unallocated shared manifests, lockfiles, global schema and production pins",
+      "Other WPs, canonical reusable-module internals and unrelated Product files",
+      "Private or frozen evidence, other owners' resources and existing process lifetimes"
+    ],
+    "stop_conditions": [
+      "Codeleader allocation after current MT172 single-MT Product work is required before implementation.",
+      "Primary 01a16f0c retains physical Product source, Git and compiler custody. Codeleader 01a168a9 assigns the sole current Product trio; this contract grants no source lease, compiler slot, runtime allowance or independent verdict.",
+      "Preserve original WP-KERNEL-012, CKC and WP-1 requirements, acceptance, source/spec/governance pins, failure history, spent attempts and scoped holds.",
+      "A needed shared schema, manifest, API or configuration change requires the exact owning allocation; do not widen this MT or patch another owner's files.",
+      "If a reusable module gap is found, bind its canonical source and separate source/adoption contract before changing internals. Do not create a host-local copy or second authority."
+    ],
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "observed_baseline_commit": "3fca9514e8c1bb1d1bb5478f56f27fbc56696d36",
+    "approval_ref": "packet.json#/operator_runtime_reliability_20261025",
+    "ownership": {
+      "claimed_by": null,
+      "source_writer": null,
+      "source_custodian": "Primary 01a16f0c",
+      "allocation_owner": "Codeleader 01a168a9",
+      "write_grant": false,
+      "compiler_grant": false,
+      "runtime_grant": false
+    },
+    "conditional_dependencies": [
+      {
+        "mt_ref": "MT-137.json",
+        "when": "A change depends on migrated process-ledger/store authority or its schema contract.",
+        "contract": "Preserve canonical SurrealDB and immutable original evidence; use exact affected proof or justified reuse."
+      },
+      {
+        "mt_ref": "MT-187.json",
+        "when": "Affected recovery read/execution uses ModelLane claim/run authority.",
+        "contract": "Preserve current original authority, expiry/revocation and navigation-read distinctions; no independent recovery controller."
+      },
+      {
+        "mt_ref": "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json",
+        "when": "Post-checkpoint current/stale lease behavior intersects this transition.",
+        "contract": "Reuse current-lease and stale-owner acceptance without rewriting checkpoint or replay bounds."
+      },
+      {
+        "mt_ref": "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-019.json",
+        "when": "Actual process reclaim or STOP settlement is involved.",
+        "contract": "Use the existing exact owner/process identity and coherent Surreal authority; no process-control grant."
+      },
+      {
+        "mt_ref": "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json",
+        "when": "Terminal outbox/drain/production composition is affected.",
+        "contract": "Preserve exact-scope idempotency, canonical event linkage and truthful shutdown."
+      }
+    ],
+    "conditional_shared_binding": {
+      "paths": [
+        "src/backend/handshake_core/src/storage/surreal/schema.surql",
+        "src/backend/handshake_core/src/storage/surreal/schema.rs"
+      ],
+      "status": "NO_WRITE_GRANT",
+      "condition": "If existing canonical fields cannot bind the required fence, Primary/Codeleader must allocate only kernel_micro_task_job claim/generation/transition definitions and the exact required generated schema lineage through the existing owning schema contract. Preserve original global pins, other tables and current holds. No task-local schema or alternate authority."
+    }
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "packet.json#/governance_pin",
+      "MT-137.json",
+      "MT-172.json",
+      "MT-174.json",
+      "MT-187.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-019.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json",
+      "../WP-CKC-posekit-overhaul/packet.json"
+    ],
+    "checks": [
+      {
+        "check_id": "WP012-MT207-SOURCE",
+        "claim_refs": [
+          "AC207-1",
+          "AC207-4",
+          "AC207-5"
+        ],
+        "command_or_method": "Review every mutation caller in the named owning module and narrow production adapter; ensure no job-id-only bypass and preserve scheduler/watermark behavior. Primary runs only the allocated existing compile/static configuration after the source change. Required shared schema changes stay with their current owner.",
+        "expected": "One mt_executor owner, typed current authority on all state transitions and no new lease or storage authority.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout_under_existing_configuration",
+        "evidence_required": [
+          "Complete changed mutation/caller mapping",
+          "Exact typed public contract and narrow adapter diff",
+          "Permitted compile/static result or explicit blocker"
+        ]
+      },
+      {
+        "check_id": "WP012-MT207-CANONICAL-FENCING",
+        "claim_refs": [
+          "AC207-1",
+          "AC207-2",
+          "AC207-3",
+          "AC207-4",
+          "AC207-5",
+          "AC207-6",
+          "AC207-7"
+        ],
+        "command_or_method": "The independent proof owner adds the required scenarios to the inspected mt_executor_tests, mt_scheduler_tests and production SurrealMtExecutorIo integration cases and runs them through the later bound checked-in entrypoint. Against one real Handshake-managed SurrealDB authority, use two independently authenticated clients: A claims, existing policy expires/supersedes A, B claims a new attempt, then A tries running/completed/failed/requeue mutations while B proceeds. Race authorized transitions, duplicate/conflicting completion, cancellation and revocation. Independently reread canonical job/claim/receipt state after each boundary. Preserve exact current scheduler/watermark cases and reuse unaffected WP-1/MT137/MT187 proof.",
+        "expected": "All stale and unauthorized writes leave successor/terminal state unchanged; legal transitions are atomic and idempotent; existing fairness, watermark and claim exclusivity remain; no state or receipt leaks across scope.",
+        "timeout_seconds": null,
+        "on_timeout": "record_timeout_no_automatic_retry_or_process_disruption",
+        "evidence_required": [
+          "Two real independent client identities and canonical store/config binding",
+          "Per-operation current claim/attempt and expected prior state",
+          "Canonical before/after job, lease and receipt evidence independent of the mutator result",
+          "Nonzero stale-A running/complete/fail/requeue negatives and valid-B control",
+          "Duplicate/conflicting completion, expiry/revocation, context-switch and read-only projection negatives",
+          "Distinct active/failed/cancelled/never-started/unknown results",
+          "This backend's actual three-tier diagnostics, same-change manual and published typed contract; MT-209 Argus proof follows downstream."
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "execution_status": "NOT_RUN_NO_EXECUTION_GRANT",
+    "test_entrypoint_binding": {
+      "authority_ref": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json#/test_environment_prerequisites/test_entrypoint",
+      "observed": "Command is a REPLACE_ME placeholder and config_files is empty. No authoritative current replacement was identified in this contract-authoring read.",
+      "status": "UNRESOLVED_FOR_LATER_PROOF_LAUNCH_ONLY",
+      "source_implementation_blocker": false,
+      "required_before_run": "The existing proof owner must record the exact checked-in entrypoint/configuration and target selection before the later proof launch. Do not run historical commands, invent flags/wrappers or treat this configuration gap as a new source-implementation gate."
+    },
+    "feature_binding": {
+      "manifest": "src/backend/handshake_core/Cargo.toml",
+      "observed_features": [
+        "app-runtime",
+        "surreal-test-support",
+        "test-utils"
+      ],
+      "status": "Exact feature selection belongs to the later declared entrypoint; feature availability is not a run grant."
+    },
+    "reuse_policy": "Reuse exact valid proof across bound claims and unchanged relevant inputs. Independent runtime proof remains required. No test count, source inspection, mock factory or seeded record substitutes for the production boundary.",
+    "evidence_required": [
+      "Frozen pushed candidate and relevant source/config/dependency inputs",
+      "Nonzero structured result per required assertion",
+      "Independent canonical reread and scoped before/after state",
+      "Existing per-test timeout and actual outcomes, with infrastructure separate from Product failures"
+    ]
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-207.json",
+    "microtask_projection": null,
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "NOT_REQUESTED",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "blocked_on": "Codeleader allocation after current MT172 single-MT Product work",
+    "depends_on": [],
+    "blocks": [
+      "MT-209"
+    ],
+    "active": false,
+    "claimed_by": null,
+    "claim_ref": null,
+    "completed_by": null,
+    "validator_verdict": null,
+    "next_actor": "Codeleader 01a168a9 allocates after current MT172 work; Primary 01a16f0c retains physical Product source/Git/compiler custody."
+  },
+  "scope": {
+    "summary": "Require current claimant, execution attempt/generation and expected prior state for every authoritative microtask state transition, atomically enforced by the existing SurrealDB owner.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/mt_executor/job.rs",
+      "src/backend/handshake_core/src/mt_executor/queue.rs",
+      "src/backend/handshake_core/src/mt_executor/scheduler.rs",
+      "src/backend/handshake_core/src/mt_executor/executor.rs",
+      "src/backend/handshake_core/src/mt_executor/outcome.rs",
+      "src/backend/handshake_core/src/mt_executor/cancellation.rs",
+      "src/backend/handshake_core/src/mt_executor/mod.rs",
+      "src/backend/handshake_core/src/process_ledger/mt_executor.rs",
+      "src/backend/handshake_core/tests/mt_executor_tests.rs",
+      "src/backend/handshake_core/tests/mt_executor_integration_tests.rs",
+      "src/backend/handshake_core/tests/mt_scheduler_tests.rs",
+      "src/backend/handshake_core/src/user_manual/seed.rs",
+      "src/backend/handshake_core/src/user_manual/registry.rs",
+      "src/backend/handshake_core/tests/user_manual_behavior_coverage_tests.rs"
+    ],
+    "forbidden_paths": [
+      ".GOV/** during Product implementation",
+      "Unallocated shared manifests, lockfiles, global schema and production pins",
+      "Other WPs, canonical reusable-module internals and unrelated Product files",
+      "Private or frozen evidence, other owners' resources and existing process lifetimes"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC207-1",
+        "requirement": "Inventory every authoritative job mutation in the owning queue/executor/outcome/cancellation paths and narrow production adapter. Claim creation binds the winning claimant and attempt/generation to canonical authority. Subsequent running, completion, failure, requeue, escalation, hard-gate and cancellation transitions require the matching current claimant/attempt/generation and expected prior state. No public or internal job-id-only mutation bypass remains; authorized system transitions use their existing explicit authority."
+      },
+      {
+        "id": "AC207-2",
+        "requirement": "The canonical SurrealDB mutation checks the full current authority and transition preconditions in one atomic operation. With two real independent clients against the same Handshake-managed canonical store, A claims, A expires or is explicitly superseded, and B owns the next attempt. Every stale A attempt to mark running, complete, fail or requeue is denied without changing B's job, outcome, receipt or lease. A shared in-process mutex, fake RecordingIo or query-text assertion cannot satisfy this proof."
+      },
+      {
+        "id": "AC207-3",
+        "requirement": "An authorized duplicate completion with the same bound operation identity/payload returns its canonical outcome or a deterministic already-completed result without a second transition. Conflicting retry, stale generation, changed payload/context and illegal prior state cannot overwrite, reopen or relabel a terminal job. Canonical commit/receipt reconciliation handles outcome-unknown acknowledgement before retry; no new lease system."
+      },
+      {
+        "id": "AC207-4",
+        "requirement": "Preserve the existing atomic queued-state claim, FairScheduler priority/fairness behavior and durable starvation watermark. Two independent concurrent claimers cannot both own the same attempt. A denied stale mutation does not consume B's claim, advance the watermark incorrectly, starve unrelated eligible work or destroy historical claim provenance."
+      },
+      {
+        "id": "AC207-5",
+        "requirement": "The production SurrealMtExecutorIo propagates the actual ExecutorIdentity and current existing lease/attempt evidence into transitions instead of discarding it. Expired/revoked session/grant/claim authority, wrong account/Principal/AccessSpace/workspace and a context switch fail closed at mutation commit. Read-only mailbox, navigation or DCC projections cannot mint or extend claim authority."
+      },
+      {
+        "id": "AC207-6",
+        "requirement": "Active, failed, cancelled, never-started and outcome-unknown states remain distinct in canonical results and projections. Lease expiry/revocation is not fabricated completion, failure, cancellation or STOP. Preserve accepted terminal outcomes, partial results and original run/attempt attribution; late worker messages cannot change a successor or terminal state."
+      },
+      {
+        "id": "AC207-7",
+        "requirement": "Accepted business transitions and rejected stale attempts have scoped typed results and canonical Flight Recorder/EventLedger linkage where required. internal_diagnostics records bounded claimant-generation/transition disposition and unknown state without private payloads. Existing passive Palmistry independently retains permitted operational evidence and performs no retries/recovery. Update the same-change UserManual, publish the typed contract for MT-209 display/actions and prove account/revocation negatives without metadata leaks."
+      }
+    ],
+    "proof_targets": [
+      "Existing handshake_core mt_executor_tests",
+      "Existing handshake_core mt_scheduler_tests",
+      "Existing mt_executor_integration_tests.rs production adapter cases, with target selection bound before proof",
+      "Existing user_manual_behavior_coverage_tests"
+    ],
+    "non_goals": [
+      "Replacing FairScheduler, its durable starvation watermark or the queued-state atomic claim",
+      "A second claim, lease, queue, database or recovery authority",
+      "Treating mailbox/DCC visibility as mutation authority",
+      "Reopening terminal work by duplicate completion or replay",
+      "Broad schema, control-plane or account-system redesign"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": false,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "Existing Dev Command Center runtime projection and controls"
+    ],
+    "argus_targets": [
+      "MT-209.json#/gui_obligation"
+    ],
+    "paired_gui_mt": "MT-209",
+    "ownership": "MT-209 owns native display and action binding through this module's published typed contract. This backend MT does not edit GUI files.",
+    "expected_evidence": [
+      "Downstream MT-209/WP closure only: MT-209 Argus inspection/accessibility tree and native capture on the same affected backend candidate",
+      "Downstream MT-209/WP closure only: Visible budget or claimant/fence state agrees with canonical backend state",
+      "Downstream MT-209/WP closure only: Authorized actions and denial/revocation cases use the same backend command owner"
+    ],
+    "not_applicable_reason": null,
+    "acceptance_order": "Backend completion requires this MT's typed state/action contract, same-change UserManual and its own three-tier diagnostic proof. MT-209 consumes that contract afterward. Paired native Argus evidence belongs to downstream MT-209 and whole-WP closure; it is not a prerequisite for this backend MT verdict."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": true,
+    "target_entries": [
+      "src/backend/handshake_core/src/user_manual/seed.rs and affected registry bindings; no exact existing microtask entry was verified during authoring. Bind the affected entry or add the scoped behavior entry through this existing UserManual owner at allocation.",
+      "Describe current claimant, expiry/takeover, stale denial, terminal retry and outcome-unknown reconciliation"
+    ],
+    "expected_evidence": [
+      "Scoped same-change UserManual diff and canonical manual_version",
+      "Affected existing user_manual behavior/self-consistency targets",
+      "No-context procedure for configuration, invocation, denial, cancellation and recovery",
+      "Per-tier Flight Recorder/internal_diagnostics/Palmistry posture with proof references"
+    ],
+    "not_applicable_reason": null
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "Canonical kernel_micro_task_job record",
+      "Existing claimant/lease/attempt authority",
+      "Transition and terminal receipts",
+      "Scoped queue/claim diagnostic projections"
+    ],
+    "identity_and_scope_contexts": [
+      "Authenticated account",
+      "Acting and owning Principal",
+      "AccessSpace",
+      "Workspace/project",
+      "Authenticated session",
+      "Original run and child/delegated context"
+    ],
+    "enforcement_boundaries": [
+      "Canonical claim creation",
+      "Atomic transition commit",
+      "Production SurrealMtExecutorIo adapter",
+      "Existing lease/recovery owner",
+      "Receipt and read-projection authorization"
+    ],
+    "same_project_private_resource_cases": [
+      "Two accounts in one project cannot discover or mutate each other's private runtime state; explicitly shared work remains usable."
+    ],
+    "cross_account_negative_cases": [
+      "A third unrelated account cannot read identifiers, names, counts, budget/fence state, errors or receipts."
+    ],
+    "derived_resource_non_widening_cases": [
+      "Child work and derived diagnostics retain the original scope and cannot widen permissions."
+    ],
+    "revocation_and_context_switch_cases": [
+      "Expired/revoked authority denies further mutation; context switch never retargets an existing run or claim."
+    ],
+    "remote_saas_mcp_sync_cases": [
+      "No new remote/SaaS/MCP route. Existing delegated clients must use the same scoped command owner when affected."
+    ],
+    "metadata_side_channel_cases": [
+      "Typed denial/diagnostic projections do not disclose restricted identifiers, payloads, paths or private counts."
+    ],
+    "expected_evidence": [
+      "Canonical exact-scope before/after state under authentic authority",
+      "Allowed, denied, expired/revoked and switched-context boundary cases",
+      "Scoped receipt and diagnostics inspection with no protected-data leakage"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    {
+      "rule_id": "HBR-INT-001",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-207.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-INT-009",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-207.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-SWARM-001",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-207.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-SWARM-002",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-207.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-PRIV-001",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-207.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-PRIV-002",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-207.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-PRIV-003",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-207.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-PRIV-004",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-207.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-PRIV-005",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-207.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-PRIV-006",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-207.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-PRIV-008",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-207.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-MAN-004",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-207.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-COMPART-001",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-207.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-COMPART-002",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-207.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-MODULE-LIFECYCLE-001",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-207.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    },
+    {
+      "rule_id": "HBR-MODULE-LIFECYCLE-004",
+      "disposition": "REQUIRED_WITH_PINNED_APPLICABILITY",
+      "proof_ref": "MT-207.json#/proof",
+      "scope": "Changed behavior only. Preserve original acceptance and valid proof reuse; apply conditional crate/build-budget accounting only where the existing build-unit rule applies."
+    }
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "Flight Recorder",
+      "required": true,
+      "contract": "Keep business events in the existing Flight Recorder/EventLedger contract. Preserve original attribution, append order and accepted outcomes; no new telemetry database or broad schema reopen.",
+      "required_evidence": "Real production-route business transition, canonical receipt and replay linkage."
+    },
+    {
+      "tier": "internal_diagnostics",
+      "required": true,
+      "contract": "Emit bounded typed mechanical state and failure codes through existing internal_diagnostics. Use its allowlist; no prompts, secrets, project content, private paths or arbitrary sensitive error strings.",
+      "required_evidence": "Actual typed producer capture for admission/fencing/cancellation/cleanup outcomes under authorized and denied scope."
+    },
+    {
+      "tier": "Palmistry",
+      "required": true,
+      "contract": "Reuse the existing passive out-of-process recorder with correlated allowed mechanical metadata. Palmistry observes independently and does not schedule, retry, restart, recover or authorize work.",
+      "required_evidence": "Actual independent Palmistry retained record correlated to producer evidence; separately admitted owned-process failure proves survival where claimed. A unit sink or label cannot prove external recording."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "next_actor": "Codeleader 01a168a9",
+    "product_custody": "Primary 01a16f0c",
+    "acceptance_owner": "Assigned independent validator under the existing WP topology"
+  },
+  "red_team": {
+    "required": true,
+    "profile": "MICROTASK_MUTATION_FENCING",
+    "risks": [
+      {
+        "risk": "Initial claim is atomic but a later helper mutates by job_id only.",
+        "control": "Inventory and migrate every queue/executor/outcome/cancellation mutation and narrow production adapter; test each stale mutation through canonical storage."
+      },
+      {
+        "risk": "A stale A completes after B takes ownership.",
+        "control": "Atomic current claimant, attempt/generation and prior-state predicates with two real independent clients and canonical reread."
+      },
+      {
+        "risk": "Duplicate completion rewrites terminal state or emits a second durable outcome.",
+        "control": "Bind idempotency to context, payload and preconditions; reconcile the canonical receipt and reject conflicting retry."
+      },
+      {
+        "risk": "A lease check races revocation before the mutation.",
+        "control": "Check current authenticated authority at the commit boundary under existing lease/storage owners; test concurrent expiry and revocation."
+      },
+      {
+        "risk": "Fencing changes break fairness, watermark durability or unrelated work.",
+        "control": "Retain current scheduler/claim/watermark targets and include permitted unrelated work while a stale actor is denied."
+      },
+      {
+        "risk": "Expired or unknown work is displayed as completed/cancelled.",
+        "control": "Preserve explicit lifecycle distinctions and pair MT-209 projections with canonical reads and scoped diagnostic evidence."
+      }
+    ],
+    "minimum_controls": [
+      "One mt_executor owner and narrow explicit adapters",
+      "No second lease service, database, scheduler or automatic recovery",
+      "Two independent real canonical clients; mocks and query text are insufficient",
+      "Current account/claim authority plus expected state in the atomic write",
+      "Same-change UserManual and published typed contract for downstream MT-209 Argus proof"
+    ]
+  },
+  "context_capsule": {
+    "owning_module": "src/backend/handshake_core/src/mt_executor",
+    "pillar_refs": [
+      "HBR-INT-001",
+      "HBR-INT-009",
+      "HBR-SWARM-001",
+      "HBR-SWARM-002",
+      "HBR-PRIV-001",
+      "HBR-PRIV-002",
+      "HBR-PRIV-003",
+      "HBR-PRIV-004",
+      "HBR-PRIV-005",
+      "HBR-PRIV-006",
+      "HBR-PRIV-008",
+      "HBR-MAN-004",
+      "HBR-COMPART-001",
+      "HBR-COMPART-002",
+      "HBR-MODULE-LIFECYCLE-001",
+      "HBR-MODULE-LIFECYCLE-004"
+    ],
+    "module_maintenance_refs": [
+      "packet.json#/operator_runtime_reliability_20261025",
+      ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-207.json#/module_contract"
+    ],
+    "original_acceptance_refs": [
+      "packet.json#/governance_pin",
+      "MT-137.json",
+      "MT-172.json",
+      "MT-174.json",
+      "MT-187.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-017.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-019.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json",
+      "../WP-CKC-posekit-overhaul/packet.json"
+    ],
+    "approval_ref": "packet.json#/operator_runtime_reliability_20261025",
+    "research_basis": {
+      "authority": false,
+      "reference_ref": "packet.json#/operator_runtime_reliability_20261025",
+      "research_document_sha256": "40dbdfc18a4b57642f69feb17fb1fb08f0d5b0488a0490c119c21aba146db1cf",
+      "use": "Research is non-authoritative context. Current spec, inspected source and preserved WP contracts own requirements and acceptance."
+    },
+    "specification_anchor_refs": [
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/02-system-architecture.md",
+        "anchor": "2.6.8.10.3.3 Role Mailbox executor routing, claim-or-lease semantics, and response authority",
+        "requirement": "Current claimant, claim identity, expiry, takeover and response authority remain distinct from read visibility; expiry does not imply completion or cancellation."
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/02-system-architecture.md",
+        "anchor": "Authoritative control-plane records; software-delivery Dev Command Center projection requirements",
+        "requirement": "SurrealDB/EventLedger owns queue/claim state. DCC and mailbox projections cannot authorize linked-state mutation."
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/05-security-and-observability.md",
+        "anchor": "HSK-PLG-004; HSK-PLG-005; HSK-PLG-007; HSK-PLG-012; HSK-PLG-013",
+        "requirement": "Reuse current shared-owner epoch fencing, reauthorization, precondition-bound idempotency and accepted-outcome reconciliation where applicable. No second plugin/lease platform."
+      }
+    ],
+    "source_evidence": [
+      {
+        "path": "src/backend/handshake_core/src/mt_executor/scheduler.rs",
+        "lines": "117-125,268-313",
+        "observed": "FairScheduler atomically claims a queued row and records session/time. Ranking is separate; the guarded write prevents double claim."
+      },
+      {
+        "path": "src/backend/handshake_core/src/mt_executor/scheduler.rs",
+        "lines": "380-410",
+        "observed": "StarvationGuard uses a durable atomic watermark. Preserve it rather than replacing fairness or claiming the scheduler is absent."
+      },
+      {
+        "path": "src/backend/handshake_core/src/mt_executor/queue.rs",
+        "lines": "168-172,317-351",
+        "observed": "UPDATE_STATE_QUERY and update_state take job_id, target state and reason, without claimant, attempt/generation or expected prior-state predicates. The hard_gated guard is not a claimant fence."
+      },
+      {
+        "path": "src/backend/handshake_core/src/process_ledger/mt_executor.rs",
+        "lines": "909-921",
+        "observed": "SurrealMtExecutorIo::mark_running discards _executor_identity and calls queue.update_state by job_id."
+      },
+      {
+        "path": "src/backend/handshake_core/src/process_ledger/mt_executor.rs",
+        "lines": "928-980",
+        "observed": "The adapter already uses mailbox executor routing and acquire/takeover lease methods. Reuse its current authority rather than adding another lease system."
+      },
+      {
+        "path": "src/backend/handshake_core/src/mt_executor/job.rs",
+        "lines": "91-126,140 onward",
+        "observed": "Existing job states and claimed_by_session/claimed_at_utc are explicit; preserve their semantics and bind missing mutation preconditions in the owning contract."
+      },
+      {
+        "path": "src/backend/handshake_core/tests/mt_scheduler_tests.rs",
+        "lines": "315-335,360 onward",
+        "observed": "Existing targets cover guarded claims, priority/fairness and watermark behavior. Current authoring made no runtime claim."
+      },
+      {
+        "path": "src/backend/handshake_core/tests/mt_executor_integration_tests.rs",
+        "lines": "1-28",
+        "observed": "Existing integration target imports the production SurrealMtExecutorIo, executor identity and RoleMailboxClaimLeaseV1; some tests use RecordingIo, which cannot prove canonical storage atomicity."
+      }
+    ]
+  },
+  "module_contract": {
+    "owning_module": "src/backend/handshake_core/src/mt_executor",
+    "boundary_change": "Extend the existing owner's typed contract and narrowly bind existing callers; no second scheduler, quota/lease authority or aggregate crate.",
+    "dependency_direction": "Production adapters and native projections consume the owning module's typed contract. The module does not depend on native GUI or Palmistry implementation.",
+    "build_unit_policy": "Keep small focused logical modules or existing independently selectable crates. No giant aggregate crate, arbitrary numeric build cap, compulsory crate split or blanket refactor.",
+    "canonical_source": "Existing WP-declared Product source under the preserved active pin. This contract does not repin or publish reusable source.",
+    "adapter_paths": [
+      {
+        "path": "src/backend/handshake_core/src/process_ledger/mt_executor.rs",
+        "scope": "Only MtExecutorIo/SurrealMtExecutorIo propagation of current executor/lease/attempt evidence into the mt_executor command contract and affected result mapping; preserve process-ledger ownership."
+      },
+      {
+        "path": "src/backend/handshake_core/src/user_manual/seed.rs",
+        "scope": "Only microtask mutation/claim/recovery guidance through the existing UserManual producer and its canonical version; exact entry binding at allocation, no new manual system."
+      },
+      {
+        "path": "src/backend/handshake_core/src/user_manual/registry.rs",
+        "scope": "Only affected command/navigation/manual registration; read visibility never implies mutation authority."
+      }
+    ],
+    "shared_binding_policy": "Only exact named adapter slices may change after owner allocation; ownership stays with the existing module and physical custodian.",
+    "public_contract": {
+      "existing": [
+        "MicroTaskJob",
+        "MicroTaskJobState",
+        "MicroTaskQueue::claim_next",
+        "MicroTaskQueue::update_state",
+        "MicroTaskQueue::escalate",
+        "MicroTaskQueue::escalate_with_lora",
+        "MicroTaskQueue::hard_gate_after_mailbox_post",
+        "FairScheduler::claim_next_priority",
+        "StarvationGuard::check_with_watermark",
+        "MtExecutorIo",
+        "SurrealMtExecutorIo"
+      ],
+      "change": "Publish a typed mutation precondition from the existing claimant/lease authority with job identity, claimant, execution attempt/generation, current authorization and expected prior state. Return a scoped applied/already-applied/conflict/denied/unknown disposition; exact type names follow the owning implementation.",
+      "inputs": [
+        "Current authenticated resource context",
+        "Canonical winning claim and attempt/generation",
+        "Requested transition with expected prior state and stable operation identity"
+      ],
+      "outputs": [
+        "Atomically accepted transition and linked receipt",
+        "Deterministic fenced/conflict/expired/revoked denial",
+        "Unchanged canonical successor/terminal record on rejected mutation"
+      ],
+      "no_new_authority": "A read projection, stale lease copy, mailbox message, caller-supplied generation or fixture is not proof of current authority."
+    }
+  }
+}

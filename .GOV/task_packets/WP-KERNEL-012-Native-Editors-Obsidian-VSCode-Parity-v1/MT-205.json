@@ -1,0 +1,876 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "artifact_policy": {
+    "authority_surface": "MACHINE_CONTRACT",
+    "legacy_markdown_policy": "SAFETY_NET_ONLY_DO_NOT_COPY_FORWARD",
+    "projection_creation": "ON_DEMAND_OR_CONTRACT_BOUND",
+    "operator_facing_authority": false,
+    "model_created_markdown_authority_allowed": false,
+    "allowed_markdown_exceptions": [
+      "operator_created_notes",
+      "operator_created_research",
+      "operator_created_audits",
+      "explicit_on_demand_projection",
+      "explicit_report_projection_contract",
+      "frozen_legacy_migration_reference"
+    ]
+  },
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-205",
+  "created_at_utc": "2026-10-25T16:19:53.022Z",
+  "updated_at_utc": null,
+  "identity": {
+    "mt_id": "MT-205",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Bind MCP server ownership and cancellation settlement to existing lifecycle owners",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "closure_unit": {
+    "outcome": "MCP server children and requests retain exact ownership through startup, cancellation, reconnect, crash and caller destruction, using existing ProcessOwnershipLedger and SandboxAdapter contracts; stopped/settled is reported only after authoritative observation.",
+    "requirement_refs": [
+      "packet.json#/operator_runtime_reliability_20261025"
+    ],
+    "acceptance_refs": [
+      "MT-205.json#/scope/acceptance_criteria/0",
+      "MT-205.json#/scope/acceptance_criteria/1",
+      "MT-205.json#/scope/acceptance_criteria/2",
+      "MT-205.json#/scope/acceptance_criteria/3",
+      "MT-205.json#/scope/acceptance_criteria/4",
+      "MT-205.json#/scope/acceptance_criteria/5",
+      "MT-205.json#/scope/acceptance_criteria/6",
+      "MT-205.json#/scope/acceptance_criteria/7",
+      "MT-205.json#/scope/acceptance_criteria/8",
+      "MT-205.json#/scope/acceptance_criteria/9",
+      "MT-205.json#/scope/acceptance_criteria/10",
+      "MT-205.json#/scope/acceptance_criteria/11"
+    ],
+    "materialized_acceptance": [
+      {
+        "id": "AC205-1",
+        "text": "Route each new MCP stdio server through the existing approved SandboxAdapter attached-process/stdio contract and ProcessOwnershipLedger ownership path. Preserve CREATE_NO_WINDOW and quiet operation. Bind process_uuid, actual PID generation/executable identity, owner runtime instance, ModelSession, account/resource scope and adapter identity before exposing the child as usable; a bare PID is insufficient."
+      },
+      {
+        "id": "AC205-2",
+        "text": "If spawn succeeds but pipe setup, ownership registration, START durability, dispatcher setup or reconnect adoption fails, retain the exact child cleanup owner or perform bounded authorized compensation. Preserve truthful open/cleanup-failed state on unresolved cleanup; no returned error may silently abandon a created child."
+      },
+      {
+        "id": "AC205-3",
+        "text": "Reuse WP-1 MT-019 running-app reclaim, restart reconcile, exact-owner fencing and periodic recovery, plus WP-KERNEL-012 MT-137 SurrealDB durability. Consume these APIs from mcp. Do not implement a second scanner/reaper, kill by executable name, create private process state, weaken an identity fence or independently rewrite their contracts."
+      },
+      {
+        "id": "AC205-4",
+        "text": "McpCall drop, timeout or user cancellation records cancellation requested and sends protocol-valid notifications/cancelled through MT-204's reserved control capacity. Successful notification delivery, dropping the future and request-map removal do not prove the server stopped work. A cooperative server needs observable request settlement; an ignored or unobservable cancellation remains unknown or cancellation pending under the existing typed status contract."
+      },
+      {
+        "id": "AC205-5",
+        "text": "Terminate a child only through its actual owning adapter and scoped recovery policy when the entire owned session/process may be retired. A single cancelled request on a shared healthy MCP server must not kill that server or interrupt other clients. External/shared/unowned servers remain externally owned; absent request-settlement evidence is explicit uncertainty, never a kill permission."
+      },
+      {
+        "id": "AC205-6",
+        "text": "Reconnect cannot replace an owned server merely after start_kill. Observe old child exit and reap, settle or durably transfer required ownership, and reconcile old-generation requests before releasing its ownership capacity and adopting another generation. Retain partial results and unknown side-effect outcomes; do not replay non-idempotent work blindly."
+      },
+      {
+        "id": "AC205-7",
+        "text": "STOP/stopped_at and released process/reclamation permits require authoritative observed termination/settlement, never cancellation intent, send success, task abort or start_kill success. Failed/timeout kill or reap retains an open durable row and visible typed cleanup failure. Repeated stop, callback and restart replay is idempotent; delayed START cannot erase STOP and an old generation cannot stop a new child."
+      },
+      {
+        "id": "AC205-8",
+        "text": "Real owned-server proof covers cooperative cancellation, ignored cancellation, child crash, owned descendants, broken pipes/reconnect, caller destruction and application restart. Compare OS/adapter process identity and exit/reap state with canonical SurrealDB rows across reopen. Verify owned descendants retire under the existing containment contract while unrelated and shared clients remain running."
+      },
+      {
+        "id": "AC205-9",
+        "text": "Default deny applies to spawn, cancellation, settlement lookup, recovery and diagnostic inspection. Prove wrong account, same-project private resource, wrong process generation, wrong runtime instance, stale/revoked grant and switched context cannot inspect or affect another request/server. Recovery uses original immutable ownership; it cannot relabel a process to the current UI account."
+      },
+      {
+        "id": "AC205-10",
+        "text": "Flight Recorder retains scoped business events for launch, cancellation request, observed completion/stop and unknown/failure outcomes through existing schemas. internal_diagnostics records typed lifecycle, outstanding-settlement, cleanup/ownership failure and timeout health metadata. Existing standalone Palmistry passively records child liveness/stall/crash/survivor state across host failure; observed quietness is not request completion."
+      },
+      {
+        "id": "AC205-11",
+        "text": "Provide the typed backend request/process/settlement state/schema and same-change UserManual interface for MT-209 through Primary. The contract distinguishes requested cancellation, local timeout, unknown remote outcome, observed stop and cleanup failure. Backend acceptance proves those states and backend diagnostic outputs independently. MT-209 owns Dev Command Center/Argus presentation and end-to-end GUI proof required for WP closure; completed MT-209 acceptance is not a prerequisite for this backend MT PASS."
+      },
+      {
+        "id": "AC205-12",
+        "text": "Identify the real production MCP caller and run independently admitted acceptance through that caller with the owning adapter, existing managed SurrealDB and the existing diagnostic tiers. Schema, persistence-owner, shared API, manual and publication changes stay with Primary and their existing module contracts. Missing integration or owning proof blocks acceptance; this MT creates no run allowance or parent-WP PASS."
+      }
+    ]
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Codeleader assigns the current single Coding, Codecheck and Diagnostics trio; this contract assigns no model, new team or execution slot.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "max_attempts_per_failing_check": null,
+    "attempts_counted_per_failing_check_not_per_hypothesis": true,
+    "written_diagnosis_required_before_further_attempts": true,
+    "post_diagnosis_runs": {
+      "probe": null,
+      "confirm": null
+    },
+    "exhausted_budget_outcome": "blocked_with_diagnosis",
+    "permission_policy": "Preserve historical spent outcomes, scoped human decisions and existing per-check counters. Future attempts require current recorded human authority and the actual distinct technical leader plus independent partner agreement in the owning admission. This contract neither refills counters nor imposes a new numeric limit on existing authority.",
+    "allowance_state": "DEFER_TO_CURRENT_RECORDED_HUMAN_AUTHORITY_AND_OWNING_ADMISSION",
+    "automatic_new_allowance_granted": false,
+    "current_authority_ref": "packet.json#/operator_runtime_reliability_20261025"
+  },
+  "execution": {
+    "lane": "planned_implementation",
+    "foreground_or_interactive_tools_forbidden": true,
+    "depends_on": [
+      "MT-204"
+    ],
+    "module_ref": "src/backend/handshake_core/src/mcp",
+    "module_change_stage": "in_flight_mcp_module_change_preserving_existing_pins",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "inspection_baseline_commit": "3fca9514e8c1bb1d1bb5478f56f27fbc56696d36",
+    "allowed_write_paths": [
+      "src/backend/handshake_core/src/mcp/transport/stdio.rs",
+      "src/backend/handshake_core/src/mcp/transport/reconnect.rs",
+      "src/backend/handshake_core/src/mcp/transport/mod.rs",
+      "src/backend/handshake_core/src/mcp/client.rs",
+      "src/backend/handshake_core/src/mcp/gate.rs",
+      "src/backend/handshake_core/src/mcp/errors.rs",
+      "src/backend/handshake_core/src/mcp/fr_events.rs",
+      "src/backend/handshake_core/tests/mcp_gate_tests.rs",
+      "src/backend/handshake_core/tests/mcp_e2e_tests.rs"
+    ],
+    "forbidden_write_paths": [
+      ".GOV/**",
+      "src/frontend/**",
+      "app/**",
+      "src/backend/handshake_core/src/process_ledger/**",
+      "src/backend/handshake_core/src/sandbox/**",
+      "src/backend/handshake_core/src/storage/**",
+      "src/backend/handshake_core/src/main.rs",
+      "src/backend/handshake_core/src/user_manual/**",
+      "Manifests, dependency locks, shared schemas and canonical asset internals outside an explicitly assigned owning change",
+      "Unrelated module source or another actor's work"
+    ],
+    "stop_conditions": [
+      "Codeleader has not allocated this MT after the current MT172 single-MT Product work.",
+      "Exact source lease, input preimages, proof selection, physical custody or applicable runtime authority is missing or conflicts with another actor.",
+      "The required fix crosses the mcp owner boundary; route the exact dependency to Primary instead of writing outside the allocation.",
+      "An implementation needs a new reusable asset capability without its separate canonical source and pinned host-adoption contracts.",
+      "A stale or ambiguous account, grant, session, resource or process owner cannot be reconciled.",
+      "Candidate, dependencies, source pins or proof configuration drift; preserve prior evidence and obtain the owning admission before continuing."
+    ],
+    "ownership": {
+      "claimed_by": null,
+      "source_writer": null,
+      "state": "BLOCKED_UNCLAIMED",
+      "coordination_owner": "Codeleader 01a168a9",
+      "physical_product_custodian": "Primary 01a16f0c",
+      "team_policy": "One current Coding, Codecheck and Diagnostics trio assigned by Codeleader. Creating this MT does not activate another team, release a source lease or grant a compiler/runtime slot.",
+      "shared_write_policy": "Primary owns shared publication, source integration, manifest/schema and UserManual writes. Submit exact typed changes through the existing allocation; do not edit those paths from this MT."
+    },
+    "boundary_change": "Extend the existing mcp request/transport owner and its typed clients. Preserve dependency direction; do not create a second scheduler, reaper, permission authority or diagnostics framework.",
+    "build_unit_policy": "Use small focused files inside the owning logical mcp module and independently select its affected dependency/test closure. No forced crate split, aggregate sink crate or invented build cap. Apply crate build-budget accounting only where the actual project contract makes it applicable.",
+    "module_lifecycle_policy": "Preserve this in-flight WP's original governance/source/spec pins. Reuse existing public ownership APIs. A verified missing reusable asset capability requires a separate canonical-source MT and independently verified immutable publication before a distinct host-adoption MT; this planned contract does not invent a repository or authorize publication.",
+    "conditional_dependencies": [
+      {
+        "mt_ref": "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-019.json",
+        "when": "Reuse exact-scope reclaim/restart/fencing and its valid proof. Any open owning defect or changed dependency requires that owner to resolve it; this MT grants no edits there."
+      },
+      {
+        "mt_ref": "MT-137.json",
+        "when": "Preserve current SurrealDB process-ledger durability and reopen proof; schema/persistence changes remain with Primary."
+      },
+      {
+        "mt_ref": "MT-105.json",
+        "when": "Consume the existing bounded operation-watchdog contract; no duplicated watchdog."
+      },
+      {
+        "mt_ref": "MT-106.json",
+        "when": "Consume existing child registration and Palmistry survivor proof; no watcher authority expansion."
+      },
+      {
+        "mt_ref": "MT-188.json",
+        "when": "MCP drain joins production shutdown. The exact production main consumer and settlement failure reporting remain owned by Primary under the existing held contract."
+      }
+    ],
+    "shared_integration_dependencies": [
+      {
+        "owner": "Primary 01a16f0c",
+        "paths": [
+          "src/backend/handshake_core/src/process_ledger/reclaim.rs",
+          "src/backend/handshake_core/src/process_ledger/runtime.rs",
+          "src/backend/handshake_core/src/sandbox/adapter.rs",
+          "src/backend/handshake_core/src/sandbox/ledger_decorator.rs",
+          "src/backend/handshake_core/src/storage/surreal/process_ledger.rs",
+          "src/backend/handshake_core/src/storage/surreal/process_ledger_schema.surql",
+          "src/backend/handshake_core/src/main.rs",
+          "src/backend/handshake_core/src/user_manual/seed.rs",
+          "src/backend/handshake_core/src/user_manual/mod.rs"
+        ],
+        "requirement": "Read-only integration references. Primary and the existing owning module contracts handle any necessary shared API, schema, production adoption, shutdown and manual publication; no write authority transfers to this MCP MT."
+      },
+      {
+        "owner": "MT-209",
+        "requirement": "MT-209 consumes this backend MT published state/schema/manual interface and owns native Dev Command Center, Argus and end-to-end GUI proof for WP closure. This backend MT owns backend diagnostics proof and can pass independently of completed MT-209 acceptance.",
+        "relation": "DOWNSTREAM_CONSUMER_NOT_BACKEND_ACCEPTANCE_PREREQUISITE"
+      }
+    ]
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-105.json",
+      "MT-106.json",
+      "MT-137.json",
+      "MT-188.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-019.json"
+    ],
+    "checks": [
+      {
+        "check_id": "MCP205-OWNERSHIP-CONTRACT",
+        "claim_refs": [
+          "AC205-1",
+          "AC205-2",
+          "AC205-3",
+          "AC205-4",
+          "AC205-5",
+          "AC205-6",
+          "AC205-7"
+        ],
+        "command_or_method": "Inspect the MCP attached-process binding and existing adapter/reclaim contracts; execute only the permitted owning static/compile check on stable inputs. Review failed-spawn compensation, drop/cancel boundaries, exact process generation and uncertainty accounting.",
+        "expected": "MCP has one process cleanup owner; cancel/send/start_kill cannot produce a STOP or release unsettled process permits. Shared-server requests retain isolation.",
+        "timeout_seconds": null,
+        "timeout_policy": "Resolve the owning checked-in per-test timeout and exact selector at admission. No whole-round wall-clock wrapper; missing timeout/selector blocks that run.",
+        "on_timeout": "record_TIMEOUT_preserve_evidence_and_current_scoped_retry_authority",
+        "evidence_required": [
+          "Exact owner/adapter/ledger call graph and candidate inputs",
+          "Failure-path and generation-fence review",
+          "Primary-owned shared API/schema changes or explicit absence",
+          "Current WP-1 MT-019 and MT-137 dependency proof references"
+        ]
+      },
+      {
+        "check_id": "MCP205-REAL-PROCESS-SETTLEMENT",
+        "claim_refs": [
+          "AC205-1",
+          "AC205-2",
+          "AC205-4",
+          "AC205-5",
+          "AC205-6",
+          "AC205-7",
+          "AC205-8",
+          "AC205-12"
+        ],
+        "command_or_method": "Independent Diagnostics runs real owned MCP server cases through the actual admitted production caller and existing sandbox adapter. Use only owned test children; exercise cooperative/ignored cancellation, crash, descendants, broken pipes, reconnect, caller destruction and failed spawn/registration. Reuse existing process_ledger_surreal_tests, process_runtime_owner_identity_surreal_tests and process_reclaim_real_lifecycle_surreal_tests where their inputs remain valid; owning module changes receive owning proof, not copies here.",
+        "expected": "Observed OS/adapter identity and exit/reap match canonical ledger state. Unknown cancellation stays unknown, failed cleanup remains open, old-generation server cannot be replaced without settlement, and shared/unrelated processes are unaffected.",
+        "timeout_seconds": null,
+        "timeout_policy": "Resolve the owning checked-in per-test timeout and exact selector at admission. No whole-round wall-clock wrapper; missing timeout/selector blocks that run.",
+        "on_timeout": "record_TIMEOUT_preserve_evidence_and_current_scoped_retry_authority",
+        "evidence_required": [
+          "Real process identities, ownership scope, exit/reap observations and canonical SurrealDB reread",
+          "Cooperative versus ignored-cancel results distinguish request and server lifetime",
+          "Owned descendants cleaned through existing containment",
+          "Unaffected shared-client/unrelated-process evidence",
+          "Per-case bounded wait result and nonzero test counts"
+        ]
+      },
+      {
+        "check_id": "MCP205-RESTART-AND-PRIVACY",
+        "claim_refs": [
+          "AC205-3",
+          "AC205-7",
+          "AC205-8",
+          "AC205-9",
+          "AC205-11",
+          "AC205-12"
+        ],
+        "command_or_method": "Independent Diagnostics reopens the actual WP-scoped managed SurrealDB authority and runs existing reclaim/restart recovery with MCP ownership. Exercise wrong generation/runtime/account, revoked grant, duplicate STOP and late START; prove the backend state/schema/manual interface consumed by MT-209 without requiring its completed GUI acceptance.",
+        "expected": "Only exact owned stale children are eligible for reclaim. Terminal and unresolved rows remain truthful across reopen and duplicate events; no unrelated owner or private metadata is exposed.",
+        "timeout_seconds": null,
+        "timeout_policy": "Resolve the owning checked-in per-test timeout and exact selector at admission. No whole-round wall-clock wrapper; missing timeout/selector blocks that run.",
+        "on_timeout": "record_TIMEOUT_preserve_evidence_and_current_scoped_retry_authority",
+        "evidence_required": [
+          "Canonical before/after rows and actual process observation",
+          "Valid reuse references or fresh owning restart proof",
+          "Exact-resource denial and scoped positive cases",
+          "No-context UserManual recovery and published backend request/process/settlement state/schema interface"
+        ]
+      },
+      {
+        "check_id": "MCP205-THREE-TIER",
+        "claim_refs": [
+          "AC205-10",
+          "AC205-11"
+        ],
+        "command_or_method": "Use existing tier consumers during the real owned child lifecycle and separately admitted host-failure case. Reconcile Flight Recorder business events, internal health reports and surviving standalone Palmistry records with the same opaque correlation.",
+        "expected": "Observed cancel-request, unknown, failure and stopped states agree with process/ledger evidence. Palmistry survives to observe; it neither kills nor restarts. Tier-specific output contains no project data.",
+        "timeout_seconds": null,
+        "timeout_policy": "Resolve the owning checked-in per-test timeout and exact selector at admission. No whole-round wall-clock wrapper; missing timeout/selector blocks that run.",
+        "on_timeout": "record_TIMEOUT_preserve_evidence_and_current_scoped_retry_authority",
+        "evidence_required": [
+          "Flight Recorder business history and replay with scoped lookup",
+          "internal_diagnostics cancellation/settlement/cleanup health metadata",
+          "Real Palmistry retained child-stall/crash/survivor record and no-false-positive case",
+          "Typed backend allowlist/privacy review and diagnostic projection/schema evidence; MT-209 Argus proof remains a separate WP closure requirement"
+        ]
+      }
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "execution_authority": "No runtime/build/test/fetch grant is created. Codecheck and Diagnostics are the current independent partners assigned by Codeleader; no implementer self-verdict.",
+    "evidence_policy": "Bind exact commit/tree, relevant input paths, entrypoint/config, actual managed resources and per-check artifacts. Reuse unchanged proof only with empty input intersection. Missing caller, process settlement or tier evidence cannot be replaced by mocks, status text, screenshots alone or declaration.",
+    "artifact_policy": "Resolve the sole Codex artifact root from the live kernel or existing authorized environment, and use the owning WP/MT allocation. Reuse the WP compiler target under physical custody; no per-MT compiler cache or new root.",
+    "required_scope": "Focused module cases precede affected production boundary and independent acceptance. Preserve original WP/CKC/WP-1 held proofs and runtime restrictions.",
+    "backend_acceptance_boundary": "The backend MT owns its actual production caller, typed state/schema/manual interface and three-tier backend diagnostics evidence. Completed MT-209 GUI/Argus acceptance is not a backend PASS prerequisite; it remains independently mandatory for WP closure."
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-205.json",
+    "microtask_projection": null,
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "operator_request": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json#/operator_runtime_reliability_20261025",
+    "template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json",
+    "role_protocol": ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md",
+    "current_spec_entrypoint": ".GOV/spec/SPEC_CURRENT.md"
+  },
+  "markdown_projection": {
+    "path": null,
+    "status": "NOT_REQUESTED",
+    "source_hash": null,
+    "generated_at_utc": null,
+    "generator": null
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "depends_on": [
+      "MT-204"
+    ],
+    "blocks": [
+      "MT-209"
+    ],
+    "active": false,
+    "validator_verdict": null,
+    "claimed_by": null,
+    "claim_ref": null,
+    "completed_by": null,
+    "blocked_on": "Codeleader allocation after current MT172 single-MT Product work",
+    "next_actor": "Codeleader 01a168a9 allocates the single existing trio after MT172; Primary 01a16f0c retains physical Product and shared-write custody."
+  },
+  "scope": {
+    "summary": "MCP server children and requests retain exact ownership through startup, cancellation, reconnect, crash and caller destruction, using existing ProcessOwnershipLedger and SandboxAdapter contracts; stopped/settled is reported only after authoritative observation.",
+    "allowed_paths": [
+      "src/backend/handshake_core/src/mcp/transport/stdio.rs",
+      "src/backend/handshake_core/src/mcp/transport/reconnect.rs",
+      "src/backend/handshake_core/src/mcp/transport/mod.rs",
+      "src/backend/handshake_core/src/mcp/client.rs",
+      "src/backend/handshake_core/src/mcp/gate.rs",
+      "src/backend/handshake_core/src/mcp/errors.rs",
+      "src/backend/handshake_core/src/mcp/fr_events.rs",
+      "src/backend/handshake_core/tests/mcp_gate_tests.rs",
+      "src/backend/handshake_core/tests/mcp_e2e_tests.rs"
+    ],
+    "forbidden_paths": [
+      ".GOV/**",
+      "src/frontend/**",
+      "app/**",
+      "src/backend/handshake_core/src/process_ledger/**",
+      "src/backend/handshake_core/src/sandbox/**",
+      "src/backend/handshake_core/src/storage/**",
+      "src/backend/handshake_core/src/main.rs",
+      "src/backend/handshake_core/src/user_manual/**",
+      "Manifests, dependency locks, shared schemas and canonical asset internals outside an explicitly assigned owning change",
+      "Unrelated module source or another actor's work"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "AC205-1",
+        "text": "Route each new MCP stdio server through the existing approved SandboxAdapter attached-process/stdio contract and ProcessOwnershipLedger ownership path. Preserve CREATE_NO_WINDOW and quiet operation. Bind process_uuid, actual PID generation/executable identity, owner runtime instance, ModelSession, account/resource scope and adapter identity before exposing the child as usable; a bare PID is insufficient."
+      },
+      {
+        "id": "AC205-2",
+        "text": "If spawn succeeds but pipe setup, ownership registration, START durability, dispatcher setup or reconnect adoption fails, retain the exact child cleanup owner or perform bounded authorized compensation. Preserve truthful open/cleanup-failed state on unresolved cleanup; no returned error may silently abandon a created child."
+      },
+      {
+        "id": "AC205-3",
+        "text": "Reuse WP-1 MT-019 running-app reclaim, restart reconcile, exact-owner fencing and periodic recovery, plus WP-KERNEL-012 MT-137 SurrealDB durability. Consume these APIs from mcp. Do not implement a second scanner/reaper, kill by executable name, create private process state, weaken an identity fence or independently rewrite their contracts."
+      },
+      {
+        "id": "AC205-4",
+        "text": "McpCall drop, timeout or user cancellation records cancellation requested and sends protocol-valid notifications/cancelled through MT-204's reserved control capacity. Successful notification delivery, dropping the future and request-map removal do not prove the server stopped work. A cooperative server needs observable request settlement; an ignored or unobservable cancellation remains unknown or cancellation pending under the existing typed status contract."
+      },
+      {
+        "id": "AC205-5",
+        "text": "Terminate a child only through its actual owning adapter and scoped recovery policy when the entire owned session/process may be retired. A single cancelled request on a shared healthy MCP server must not kill that server or interrupt other clients. External/shared/unowned servers remain externally owned; absent request-settlement evidence is explicit uncertainty, never a kill permission."
+      },
+      {
+        "id": "AC205-6",
+        "text": "Reconnect cannot replace an owned server merely after start_kill. Observe old child exit and reap, settle or durably transfer required ownership, and reconcile old-generation requests before releasing its ownership capacity and adopting another generation. Retain partial results and unknown side-effect outcomes; do not replay non-idempotent work blindly."
+      },
+      {
+        "id": "AC205-7",
+        "text": "STOP/stopped_at and released process/reclamation permits require authoritative observed termination/settlement, never cancellation intent, send success, task abort or start_kill success. Failed/timeout kill or reap retains an open durable row and visible typed cleanup failure. Repeated stop, callback and restart replay is idempotent; delayed START cannot erase STOP and an old generation cannot stop a new child."
+      },
+      {
+        "id": "AC205-8",
+        "text": "Real owned-server proof covers cooperative cancellation, ignored cancellation, child crash, owned descendants, broken pipes/reconnect, caller destruction and application restart. Compare OS/adapter process identity and exit/reap state with canonical SurrealDB rows across reopen. Verify owned descendants retire under the existing containment contract while unrelated and shared clients remain running."
+      },
+      {
+        "id": "AC205-9",
+        "text": "Default deny applies to spawn, cancellation, settlement lookup, recovery and diagnostic inspection. Prove wrong account, same-project private resource, wrong process generation, wrong runtime instance, stale/revoked grant and switched context cannot inspect or affect another request/server. Recovery uses original immutable ownership; it cannot relabel a process to the current UI account."
+      },
+      {
+        "id": "AC205-10",
+        "text": "Flight Recorder retains scoped business events for launch, cancellation request, observed completion/stop and unknown/failure outcomes through existing schemas. internal_diagnostics records typed lifecycle, outstanding-settlement, cleanup/ownership failure and timeout health metadata. Existing standalone Palmistry passively records child liveness/stall/crash/survivor state across host failure; observed quietness is not request completion."
+      },
+      {
+        "id": "AC205-11",
+        "text": "Provide the typed backend request/process/settlement state/schema and same-change UserManual interface for MT-209 through Primary. The contract distinguishes requested cancellation, local timeout, unknown remote outcome, observed stop and cleanup failure. Backend acceptance proves those states and backend diagnostic outputs independently. MT-209 owns Dev Command Center/Argus presentation and end-to-end GUI proof required for WP closure; completed MT-209 acceptance is not a prerequisite for this backend MT PASS."
+      },
+      {
+        "id": "AC205-12",
+        "text": "Identify the real production MCP caller and run independently admitted acceptance through that caller with the owning adapter, existing managed SurrealDB and the existing diagnostic tiers. Schema, persistence-owner, shared API, manual and publication changes stay with Primary and their existing module contracts. Missing integration or owning proof blocks acceptance; this MT creates no run allowance or parent-WP PASS."
+      }
+    ],
+    "proof_targets": [
+      "MCP205-OWNERSHIP-CONTRACT",
+      "MCP205-REAL-PROCESS-SETTLEMENT",
+      "MCP205-RESTART-AND-PRIVACY",
+      "MCP205-THREE-TIER"
+    ],
+    "non_goals": [
+      "No native GUI writes; MT-209 owns the existing Dev Command Center presentation and Argus proof.",
+      "No new process reaper, private process database, watcher, scheduler or permission engine.",
+      "No deployment claim from source defects, fixture proof or this planned contract.",
+      "No original WP-KERNEL-012, WP-CKC-posekit-overhaul or WP-1 acceptance, pin, verdict or spent-history rewrite."
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": true,
+    "gui_creation_required": false,
+    "argus_required": true,
+    "trace_projection_required_when_non_ui": true,
+    "surfaces": [
+      "Existing native Dev Command Center (Sidecar Integration), Master Spec section 10.11, and Settings diagnostics projections consumed through MT-209",
+      "2026-10-25 Vulkan GUI assessment MT-205: Backend-only MCP process/cancellation/settlement outcomes feed MT-209; UI must distinguish request intent, timeout, unknown outcome, observed stop and cleanup failure without granting kill or recovery authority."
+    ],
+    "argus_targets": [
+      "MT-209 uses existing stable targets for scoped pending/admission/deadline/reconnect/cancellation/settlement state."
+    ],
+    "expected_evidence": [
+      "Published typed backend state/schema and manual interface for the MT-209 consumer",
+      "Backend contract tests and actual production-caller proof for scoped state, errors and correlation",
+      "Independent backend Flight Recorder, internal_diagnostics and passive Palmistry evidence"
+    ],
+    "not_applicable_reason": null,
+    "gui_mt_ref": "MT-209.json",
+    "write_owner": "MT-209; this MT produces backend contracts only.",
+    "acceptance_policy": "This MT delivers the backend state/schema/manual interface and owns its backend diagnostics proof. Its independent backend PASS does not require completed MT-209 GUI acceptance. MT-209 consumes that contract and independently proves native GUI/Argus behavior for WP closure; backend proof cannot replace that WP closure requirement.",
+    "downstream_wp_closure_evidence": [
+      "MT-209 Argus or AccessKit inspection plus screenshot and state re-observation under scoped authorization",
+      "MT-209 proves no focus theft, stale status or restricted metadata leakage",
+      "MT-209 end-to-end native Dev Command Center presentation consumes actual backend state"
+    ],
+    "backend_acceptance_requires_completed_gui_mt": false,
+    "dependency_direction": "MT-209 depends on the backend typed contracts; neither backend MT depends on completed MT-209 acceptance."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "same_change_update_required": true,
+    "manual_version_bump_required": true,
+    "target_entries": [
+      "Existing MCP/tool invocation, cancellation, error/recovery and diagnostics UserManual entries in src/backend/handshake_core/src/user_manual/seed.rs",
+      "src/backend/handshake_core/src/user_manual/mod.rs UserManual version binding"
+    ],
+    "expected_evidence": [
+      "Same implementation change includes the actual UserManual diff through Primary's shared-file custody",
+      "UserManual content/self-consistency proof matches actual caller, deadlines, admission behavior, cancellation uncertainty and recovery",
+      "No-context operation reads the three-tier diagnostic posture and scoped recovery route"
+    ],
+    "not_applicable_reason": null,
+    "publication_owner": "Primary 01a16f0c; no direct UserManual write lease from this MT."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": true,
+    "resources_touched": [
+      "MCP requests, pending metadata, tool results and reconnect backlog",
+      "Owned server/process references and business-event projections",
+      "Diagnostic counters, survivor records and recovery evidence"
+    ],
+    "identity_and_scope_contexts": [
+      "Authenticated account, acting and owning Principal, AccessSpace, ModelSession, project/workspace, resource and delegation context",
+      "Existing capability intersection, authorization receipt, correlation and revocation epoch"
+    ],
+    "enforcement_boundaries": [
+      "Admission, actual dispatch, retry/reconnect, response delivery, cancellation, settlement lookup and diagnostic projection"
+    ],
+    "same_project_private_resource_cases": [
+      "Two accounts in one project cannot discover or cancel each other's private request/process; an explicitly granted shared resource remains usable."
+    ],
+    "cross_account_negative_cases": [
+      "An unrelated account and missing, invalid, stale, revoked, mismatched or ambiguous context cannot admit, inspect, cancel or recover another request."
+    ],
+    "derived_resource_non_widening_cases": [
+      "Results, error receipts, replay and diagnostic projections retain source scope; late completions cannot widen it."
+    ],
+    "revocation_and_context_switch_cases": [
+      "Queued/reconnecting work rechecks current grants before dispatch and rejects revoked work.",
+      "A context switch never retargets an accepted request; immutable original identity remains bound through settlement."
+    ],
+    "remote_saas_mcp_sync_cases": [
+      "Reconnect preserves server identity, request id, correlation, resource scope and audience-bound delegation; a changed server/grant cannot inherit old authority."
+    ],
+    "metadata_side_channel_cases": [
+      "No command, arguments, prompts, tool payloads, tokens, file names or restricted existence metadata enter internal_diagnostics or Palmistry.",
+      "Flight Recorder and manual/status lookup enforce scope and retain existing redaction rules."
+    ],
+    "expected_evidence": [
+      "Scoped authorized positive case",
+      "Same-project and unrelated-account negative cases",
+      "Revocation during queue/reconnect and late-response case",
+      "Diagnostic typed-allowlist inspection",
+      "No foreign-request cancellation or process disruption"
+    ],
+    "not_applicable_reason": null
+  },
+  "hbr_obligations": [
+    {
+      "rule_ref": "HBR-INT-001",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-INT-007",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-INT-009",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-QUIET-001",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-QUIET-002",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-QUIET-003",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-SWARM-001",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-SWARM-002",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MAN-001",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MAN-002",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MAN-003",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MAN-004",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-001",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-002",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-003",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-004",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-005",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-006",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-007",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-PRIV-008",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-COMPART-001",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-COMPART-002",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-001",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    },
+    {
+      "rule_ref": "HBR-MODULE-LIFECYCLE-002",
+      "disposition": "REQUIRED_IN_AFFECTED_SCOPE_PRESERVE_ORIGINAL_PINS",
+      "proof_ref": "MT-205.json#/proof"
+    }
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "tier": "FLIGHT_RECORDER",
+      "required": true,
+      "status": "NOT_PROVEN",
+      "owner": "Existing mcp/fr_events.rs and scoped EventLedger consumer; Primary owns schema/publication.",
+      "required_behavior": "Business events for MCP child/session launch, cancellation request, observed completion/stop and unknown/cleanup-failed outcomes retain actual ownership and correlation.",
+      "excluded_data": "Preserve existing secret redaction and authorization; never place raw tool payloads in unscoped errors.",
+      "proof_requirement": "Inspect the real consumer's persisted business events and reconstruct the outcome through replay on the admitted candidate; declaration alone is not WIRED."
+    },
+    {
+      "tier": "INTERNAL_DIAGNOSTICS",
+      "required": true,
+      "status": "NOT_PROVEN",
+      "owner": "Existing typed health API and MT-105 watchdog; MCP supplies producer metadata, Primary owns shared schema changes.",
+      "required_behavior": "Typed child ownership, cancel-pending, unknown-outcome, settlement/cleanup latency, failed kill/reap and unresolved durable-row health state.",
+      "excluded_data": "No project/sensitive data, commands, args, tool names/payloads, prompts, secrets, arbitrary free text or restricted resource existence.",
+      "proof_requirement": "Observe actual health events in the existing in-process and ring consumers; prove progressing/completed work does not falsely stall and inspect allowed field values."
+    },
+    {
+      "tier": "PALMISTRY",
+      "required": true,
+      "status": "NOT_PROVEN",
+      "owner": "Existing standalone Palmistry under MT-106 and its child registration/survivor contract; no watcher writes in this MT.",
+      "required_behavior": "Passively observe relevant child/request-owner liveness and retain correlated typed stall/crash/survivor evidence across separately admitted host failure. Palmistry has no kill, restart or permission authority.",
+      "excluded_data": "Only existing allowed typed metadata and opaque correlation; no project data, command/args, payloads or new arbitrary path channels.",
+      "proof_requirement": "Inspect actual retained records from the real standalone watcher after owned failure, plus no-false-positive progressing/exited child cases. Reuse valid existing survival proof only when its inputs and asserted behavior remain unchanged."
+    },
+    "2026-10-25 HBR-INT-009 FLIGHT_RECORDER MT-205: DEFERRED until original scoped business-event/receipt emit and authenticated canonical SurrealDB/EventLedger readback are independently proven. Preserve original event/actor/correlation/idempotency and same-transaction obligations where applicable; pure focus/layout/motion is not a business event and needs justified NOT_APPLICABLE, not fabricated events.",
+    "2026-10-25 HBR-INT-009 INTERNAL_DIAGNOSTICS MT-205: DEFERRED until actual Bind MCP server ownership and cancellation settlement to existing lifecycle owners caller/runtime/GUI outcomes use existing shared internal_diagnostics API and typed mechanical allowlist, including actual navigation/action/state/error and Vulkan/GPU lifecycle failure where affected. Keep stable IDs, real correlation/session and no project content/secrets. Existing independent proof establishes WIRED; this requirement is not a runtime claim.",
+    "2026-10-25 HBR-INT-009 PALMISTRY MT-205: DEFERRED until actual Bind MCP server ownership and cancellation settlement to existing lifecycle owners outcomes bind canonical ring/survivor/standalone Palmistry event recording and durable later readback. Preserve exact app/watcher PID plus process-birth/correlation, genuine controlled owned Handshake application freeze/crash-survival and normal shutdown ACK/drain. Reuse canonical mechanics; no per-MT watcher, GUI-integrated watcher, app controller, automatic restart or OS remediation."
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "review_request_receipt_id": null,
+    "review_response_receipt_id": null,
+    "model_reports": [
+      "observations",
+      "blockers",
+      "attempt_diagnoses",
+      "operator_decision_requests",
+      "residual_risks",
+      "proposed_followups"
+    ],
+    "worker_final_status": "BLOCKED_UNCLAIMED",
+    "downstream_consumer": "MT-209.json",
+    "coordination": "Use the current Codeleader allocation and Primary physical custody. No outgoing external chat, role launch or new team is authorized by this record."
+  },
+  "red_team": {
+    "required": true,
+    "profile": "MCP_PROCESS_OWNERSHIP_CANCELLATION_SETTLEMENT",
+    "risks": [
+      "Cancel notification or start_kill is misreported as stopped while work remains live.",
+      "Reconnecting replaces a child before exit/reap and loses process ownership or permits.",
+      "One request cancellation kills a shared server or unrelated PID generation.",
+      "Failed START/registration/pipe setup leaves an unowned child; durable failure becomes a fabricated STOP.",
+      "A new reaper or hidden store diverges from existing exact-owner reclaim and restart rules."
+    ],
+    "minimum_controls": [
+      "Separate local completion, cancellation requested, unknown remote outcome and observed settlement.",
+      "Retain the actual cleanup owner and process identity until authoritative termination/reap and durable settlement.",
+      "Use existing adapter containment, exact generation/runtime/resource fencing and shared-client negative proof.",
+      "Failed cleanup remains open, observable and recoverable through the existing owner.",
+      "Reuse WP-1 MT-019, MT-137 and MT-105/106; Primary owns shared changes and original acceptance remains independent."
+    ]
+  },
+  "operator_authority": {
+    "approval_ref": "packet.json#/operator_runtime_reliability_20261025",
+    "scope_approval_recorded": true,
+    "implementation_state": "BLOCKED_UNCLAIMED",
+    "runtime_permission_inferred": false,
+    "new_attempts_granted": false,
+    "current_retry_authority_ref": "packet.json#/operator_runtime_reliability_20261025",
+    "preservation": "Original three-WP scope, source/spec/governance pins, held cases, historical verdicts, independent acceptance and spent run history remain unchanged."
+  },
+  "spec_basis": {
+    "current_spec_entrypoint": ".GOV/spec/SPEC_CURRENT.md",
+    "inspected_spec_version": "v02.223",
+    "anchors": [
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/11-shared-dev-platform-and-oss-foundations.md",
+        "section": "11.3.2.3",
+        "meaning": "Pending request tracking, timeout and notifications/cancelled. Sending the notification is a cancellation request; the claim that it ensures remote CPU work stops requires separately observed settlement."
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/05-security-and-observability.md",
+        "section": "5.1.6",
+        "rule_ids": [
+          "HSK-PLG-004",
+          "HSK-PLG-005",
+          "HSK-PLG-006",
+          "HSK-PLG-012",
+          "HSK-PLG-013",
+          "HSK-PLG-014",
+          "HSK-PLG-015"
+        ],
+        "meaning": "Current scoped authority, aggregate admission including waiting producers and reclamation, reserved completion/cancellation service, actual retirement and failed-spawn ownership."
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/06-mechanical-integrations.md",
+        "section": "6.0.2",
+        "meaning": "Preserve canonical tool identity, schemas, side effects, idempotency, capability intersection, ModelSession correlation, payload sizing and typed error behavior."
+      },
+      {
+        "path": ".GOV/spec/master-spec-v02.223/spec-modules/05-security-and-observability.md",
+        "section": "5.7",
+        "meaning": "Every Handshake-spawned process uses ProcessOwnershipLedger and the existing SandboxAdapter reclaim owner; terminal rows require observed outcomes."
+      }
+    ],
+    "operator_requirement_ref": "packet.json#/operator_runtime_reliability_20261025",
+    "pin_policy": "These anchors explain the approved additive work; reading the current bundle does not re-pin original acceptance or rewrite existing MTs."
+  },
+  "context_capsule": {
+    "owning_module": "src/backend/handshake_core/src/mcp",
+    "module_binding_status": "EXISTING_LOGICAL_MODULE_INSPECTED",
+    "module_maintenance_refs": [
+      "MT-205.json#/execution",
+      "MT-205.json#/proof",
+      "packet.json#/operator_runtime_reliability_20261025"
+    ],
+    "pillar_refs": [
+      "MT-205.json#/hbr_obligations",
+      "MT-205.json#/resource_privacy_obligation",
+      "MT-205.json#/gui_obligation"
+    ],
+    "inspection": {
+      "worktree": "../wtc-WP-KERNEL-012",
+      "branch": "feat/WP-KERNEL-012",
+      "baseline_commit": "3fca9514e8c1bb1d1bb5478f56f27fbc56696d36",
+      "source_state": "Inspected source only; no runtime, build, test or deployment result created."
+    },
+    "original_acceptance_refs": [
+      "MT-105.json",
+      "MT-106.json",
+      "MT-137.json",
+      "MT-188.json",
+      "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-019.json",
+      "../WP-CKC-posekit-overhaul/packet.json"
+    ],
+    "source_evidence": [
+      {
+        "path": "src/backend/handshake_core/src/mcp/transport/stdio.rs",
+        "lines": "43-62,69-87",
+        "finding": "Reconnect requests start_kill without observed wait/reap. Direct spawn already uses kill_on_drop and CREATE_NO_WINDOW; preserve these existing safeguards."
+      },
+      {
+        "path": "src/backend/handshake_core/src/mcp/client.rs",
+        "lines": "275-288",
+        "finding": "Drop removes request metadata and sends notifications/cancelled; it observes no remote settlement."
+      },
+      {
+        "path": "src/backend/handshake_core/tests/mcp_gate_tests.rs",
+        "lines": "1641-1697",
+        "finding": "The timeout test proves cancellation notification receipt only."
+      },
+      {
+        "path": "src/backend/handshake_core/src/sandbox/adapter.rs",
+        "symbols": [
+          "SandboxAdapter::spawn_attached_owned_with_stdio",
+          "SandboxAdapter::reclaim_detached",
+          "SandboxAdapter::cleanup_after_restart",
+          "SandboxAdapter::detached_status"
+        ],
+        "finding": "Existing attached ownership, cleanup and restart APIs are the integration boundary."
+      },
+      {
+        "path": "src/backend/handshake_core/src/sandbox/ledger_decorator.rs",
+        "symbols": [
+          "record_stop_once",
+          "spawn_attached_with_stdio"
+        ],
+        "finding": "Existing decorator/attached paths require exact ownership and observed-settlement inspection before adoption. API presence alone does not prove this MCP path is ledger-bound."
+      },
+      {
+        "path": "src/backend/handshake_core/src/process_ledger/reclaim.rs",
+        "symbols": [
+          "KillOutcome",
+          "ScopedKillOutcome"
+        ],
+        "finding": "Existing reclaim outcomes distinguish failure and pending durable STOP; reuse the owner instead of creating a new reaper."
+      }
+    ],
+    "caller_evidence": "Search found GatedMcpClient constructors in MCP/model-session tests and the internal JsonRpc client construction in mcp/gate.rs. No shipped production MCP constructor caller was verified. Establish the actual production adoption path before claiming end-to-end product acceptance; do not assert a deployed process explosion."
+  },
+  "research_basis": {
+    "authority": false,
+    "supplied_document": {
+      "sha256": "40dbdfc18a4b57642f69feb17fb1fb08f0d5b0488a0490c119c21aba146db1cf",
+      "role": "Operator-supplied reliability lessons; non-authoritative research input. Only evaluated lessons bound here become task requirements."
+    },
+    "official_sources": [
+      {
+        "url": "https://modelcontextprotocol.io/specification/2025-06-18/basic/utilities/cancellation",
+        "basis": "Parent's inspected official MCP cancellation research; cancellation can race with completion and recipients may be unable to cancel. Preserve request-id and initialization constraints."
+      },
+      {
+        "url": "https://docs.rs/tokio/latest/tokio/sync/mpsc/",
+        "basis": "Parent's inspected Tokio channel research; bound queues and producer admission rather than moving the unbounded allocation upstream."
+      },
+      {
+        "url": "https://docs.rs/tokio/latest/tokio/process/struct.Child.html",
+        "basis": "Parent's inspected Tokio process research; a kill request and process exit/reap are distinct observations."
+      }
+    ],
+    "selected_approach": "Extend current typed MCP state and consume existing host owners. Preserve the server contract, privacy and correlation while bounding accepted work and reporting uncertain outcomes.",
+    "rejected_options": [
+      "Treat cancellation notification, dropped future or kill request as remote work settlement.",
+      "Add a second reaper/watchdog/permission store or use a static fixture as product adoption proof.",
+      "Copy external sample implementations or unverified proposed limits into product authority."
+    ],
+    "validation_plan_ref": "MT-205.json#/proof"
+  },
+  "validation": {
+    "review_verdict": null,
+    "proof_records": [],
+    "implementation_result": "NOT_IMPLEMENTED_NOT_RUN"
+  },
+  "diagnostic_result_policy": "Record future per-tier WIRED only after its required observed output is inspected. NOT_APPLICABLE needs a concrete reason; DEFERRED names the unresolved owner/dependency and does not satisfy a required acceptance row. This planned record asserts none of those future outcomes."
+}
