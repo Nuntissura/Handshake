@@ -193,6 +193,171 @@ pub enum ControlConnectionError {
     Peer(io::Error),
 }
 
+#[cfg(windows)]
+enum ControlPipeReadiness {
+    Data,
+    Empty,
+    Closed,
+}
+
+#[cfg(windows)]
+fn control_pipe_write_limit(stream: &interprocess::local_socket::Stream) -> io::Result<usize> {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::System::Pipes::{GetNamedPipeInfo, PIPE_SERVER_END, PIPE_TYPE_MESSAGE};
+    let interprocess::local_socket::Stream::NamedPipe(pipe) = stream;
+    let (mut flags, mut output, mut input) = (0, 0, 0);
+    if unsafe { GetNamedPipeInfo(pipe.inner().as_raw_handle(), &mut flags, &mut output, &mut input, std::ptr::null_mut()) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    if flags & PIPE_TYPE_MESSAGE != 0 {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "expected byte control pipe"));
+    }
+    // FilePipeLocalInformation: client writes use InboundQuota; server writes use OutboundQuota.
+    let capacity = if flags & PIPE_SERVER_END != 0 { output } else { input };
+    if capacity == 0 {
+        return Err(io::Error::new(io::ErrorKind::Unsupported, "control pipe reported no bounded write capacity"));
+    }
+    Ok(capacity as usize)
+}
+
+#[cfg(windows)]
+fn control_pipe_readiness(stream: &interprocess::local_socket::Stream) -> io::Result<ControlPipeReadiness> {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Foundation::{GetLastError, ERROR_BROKEN_PIPE, ERROR_PIPE_NOT_CONNECTED};
+    use windows_sys::Win32::System::Pipes::PeekNamedPipe;
+    let interprocess::local_socket::Stream::NamedPipe(pipe) = stream;
+    let mut available = 0;
+    // PIPE_NOWAIT empty reads are ERROR_NO_DATA, which interprocess maps to EOF.
+    // Peek preserves the distinction between an empty live pipe and a closed peer.
+    let ready = unsafe {
+        PeekNamedPipe(
+            pipe.inner().as_raw_handle(),
+            std::ptr::null_mut(),
+            0,
+            std::ptr::null_mut(),
+            &mut available,
+            std::ptr::null_mut(),
+        )
+    };
+    if ready != 0 {
+        return Ok(if available == 0 { ControlPipeReadiness::Empty } else { ControlPipeReadiness::Data });
+    }
+    match unsafe { GetLastError() } {
+        ERROR_BROKEN_PIPE | ERROR_PIPE_NOT_CONNECTED => Ok(ControlPipeReadiness::Closed),
+        code => Err(io::Error::from_raw_os_error(code as i32)),
+    }
+}
+
+fn wait_for_signed_peer_close(
+    stream: &mut interprocess::local_socket::Stream,
+    deadline: std::time::Instant,
+) -> io::Result<()> {
+    use std::io::Read;
+    loop {
+        if std::time::Instant::now() >= deadline {
+            return Err(io::Error::new(io::ErrorKind::TimedOut, "signed shutdown peer-close deadline"));
+        }
+        #[cfg(windows)]
+        match control_pipe_readiness(stream)? {
+            ControlPipeReadiness::Closed => return Ok(()),
+            ControlPipeReadiness::Empty => {
+                std::thread::sleep(std::time::Duration::from_millis(2).min(
+                    deadline.saturating_duration_since(std::time::Instant::now()),
+                ));
+                continue;
+            }
+            ControlPipeReadiness::Data => {}
+        }
+        let mut byte = [0];
+        match stream.read(&mut byte) {
+            Ok(0) => return Ok(()),
+            Ok(_) => return Err(io::Error::new(io::ErrorKind::InvalidData, "unexpected signed shutdown trailing data")),
+            Err(error) if matches!(error.kind(), io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted) => {
+                std::thread::sleep(std::time::Duration::from_millis(2).min(
+                    deadline.saturating_duration_since(std::time::Instant::now()),
+                ));
+            }
+            Err(error) => return Err(error),
+        }
+    }
+}
+
+#[cfg(all(test, windows))]
+struct PipeCensus {
+    actor: &'static str,
+    phase: &'static str,
+    planned_bytes: Option<usize>,
+    pipe: serde_json::Value,
+    written: usize,
+    read: usize,
+    read_calls: usize,
+    zero_reads: usize,
+    empty_polls: usize,
+    write_pairs: std::collections::BTreeMap<String, usize>,
+    errors: std::collections::BTreeMap<String, usize>,
+}
+
+#[cfg(all(test, windows))]
+impl PipeCensus {
+    fn new(actor: &'static str, phase: &'static str, planned_bytes: Option<usize>, stream: &interprocess::local_socket::Stream) -> Self {
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::System::Pipes::{GetNamedPipeHandleStateW, GetNamedPipeInfo};
+        let interprocess::local_socket::Stream::NamedPipe(pipe) = stream;
+        let (mut flags, mut output_capacity, mut input_capacity, mut max_instances, mut state) = (0, 0, 0, 0, 0);
+        let handle = pipe.inner().as_raw_handle();
+        let info_ok = unsafe { GetNamedPipeInfo(handle, &mut flags, &mut output_capacity, &mut input_capacity, &mut max_instances) };
+        let info_error = if info_ok == 0 { io::Error::last_os_error().raw_os_error() } else { None };
+        let state_ok = unsafe { GetNamedPipeHandleStateW(handle, &mut state, std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut(), 0) };
+        let state_error = if state_ok == 0 { io::Error::last_os_error().raw_os_error() } else { None };
+        Self {
+            actor, phase, planned_bytes,
+            pipe: serde_json::json!({
+                "info_ok": info_ok != 0, "info_error": info_error,
+                "state_ok": state_ok != 0, "state_error": state_error,
+                "flags": flags, "state": state, "server_end": flags & 1 != 0,
+                "message_type": flags & 4 != 0, "message_read_mode": state & 2 != 0,
+                "nonblocking": state & 1 != 0, "input_capacity": input_capacity,
+                "output_capacity": output_capacity, "max_instances": max_instances,
+            }),
+            written: 0, read: 0, read_calls: 0, zero_reads: 0, empty_polls: 0,
+            write_pairs: Default::default(), errors: Default::default(),
+        }
+    }
+
+    fn note_write(&mut self, requested: usize, result: &io::Result<usize>) {
+        match result {
+            Ok(count) => {
+                self.written += count;
+                *self.write_pairs.entry(format!("{requested}:{count}")).or_default() += 1;
+            }
+            Err(error) => *self.errors.entry(format!("write:{:?}", error.kind())).or_default() += 1,
+        }
+    }
+
+    fn note_read(&mut self, result: &io::Result<usize>) {
+        self.read_calls += 1;
+        match result {
+            Ok(count) => {
+                self.read += count;
+                self.zero_reads += usize::from(*count == 0);
+            }
+            Err(error) => *self.errors.entry(format!("read:{:?}", error.kind())).or_default() += 1,
+        }
+    }
+}
+
+#[cfg(all(test, windows))]
+impl Drop for PipeCensus {
+    fn drop(&mut self) {
+        eprintln!("PIPE_CENSUS {}", serde_json::json!({
+            "actor": self.actor, "phase": self.phase, "planned_bytes": self.planned_bytes,
+            "pipe": self.pipe, "written_bytes": self.written, "read_bytes": self.read,
+            "read_calls": self.read_calls, "zero_reads": self.zero_reads,
+            "empty_polls": self.empty_polls, "write_pairs": self.write_pairs, "errors": self.errors,
+        }));
+    }
+}
+
 impl ControlServer {
     /// Bind the control socket at `socket_name`. Fails if the name is taken / invalid — the caller
     /// treats a bind failure as a fatal startup error (a watcher with no control channel can never be
@@ -240,11 +405,17 @@ impl ControlServer {
                 .map_err(ControlConnectionError::Listener)?,
         );
         let mut serve_peer = || -> io::Result<ControlOutcome> {
+            #[cfg(all(test, windows))]
+            drop(PipeCensus::new("server", "accepted_before_nonblocking", None, &conn.0));
             conn.0.set_nonblocking(true)?;
+            #[cfg(windows)]
+            let write_limit = control_pipe_write_limit(&conn.0)?;
             let mut frame = Vec::with_capacity(1024);
             loop {
                 let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
                 frame.clear();
+                #[cfg(all(test, windows))]
+                let mut read_census = PipeCensus::new("server", "frame_read", None, &conn.0);
                 loop {
                     if std::time::Instant::now() >= deadline {
                         return Err(io::Error::new(
@@ -252,8 +423,27 @@ impl ControlServer {
                             "signed control frame deadline",
                         ));
                     }
+                    #[cfg(windows)]
+                    match control_pipe_readiness(&conn.0)? {
+                        ControlPipeReadiness::Data => {}
+                        ControlPipeReadiness::Empty => {
+                            #[cfg(all(test, windows))]
+                            { read_census.empty_polls += 1; }
+                            std::thread::sleep(std::time::Duration::from_millis(2).min(
+                                deadline.saturating_duration_since(std::time::Instant::now()),
+                            ));
+                            continue;
+                        }
+                        ControlPipeReadiness::Closed if frame.is_empty() => return Ok(ControlOutcome::Continue),
+                        ControlPipeReadiness::Closed => return Err(io::Error::new(
+                            io::ErrorKind::UnexpectedEof, "partial signed control frame",
+                        )),
+                    }
                     let mut byte = [0u8; 1];
-                    match conn.0.read(&mut byte) {
+                    let read_result = conn.0.read(&mut byte);
+                    #[cfg(all(test, windows))]
+                    read_census.note_read(&read_result);
+                    match read_result {
                         Ok(0) if frame.is_empty() => return Ok(ControlOutcome::Continue),
                         Ok(0) => {
                             return Err(io::Error::new(
@@ -312,17 +502,19 @@ impl ControlServer {
                     }
                     _ => {
                         let (reply, outcome) = handle_message(&msg);
-                        (
-                            match on_message(&msg) {
-                                Ok(()) => reply,
-                                Err(code) => ControlReply::Error { code },
-                            },
-                            outcome,
-                        )
+                        match on_message(&msg) {
+                            Ok(()) => (reply, outcome),
+                            Err(code) => (ControlReply::Error { code }, ControlOutcome::Continue),
+                        }
                     }
                 };
                 let mut output = serde_json::to_vec(&reply).map_err(io::Error::other)?;
                 output.push(b'\n');
+                #[cfg(all(test, windows))]
+                let mut write_census = PipeCensus::new("server", match &reply {
+                    ControlReply::ProvenanceReadyV1 { .. } => "ProvenanceReadyV1",
+                    ControlReply::Pong => "Pong", ControlReply::Ack => "Ack", ControlReply::Error { .. } => "Error",
+                }, Some(output.len()), &conn.0);
                 let mut written = 0;
                 while written < output.len() {
                     if std::time::Instant::now() >= deadline {
@@ -331,8 +523,23 @@ impl ControlServer {
                             "signed control reply deadline",
                         ));
                     }
-                    match conn.0.write(&output[written..]) {
+                    let remaining = &output[written..];
+                    #[cfg(windows)]
+                    let offered = &remaining[..remaining.len().min(write_limit)];
+                    #[cfg(not(windows))]
+                    let offered = remaining;
+                    let write_result = conn.0.write(offered);
+                    #[cfg(all(test, windows))]
+                    write_census.note_write(offered.len(), &write_result);
+                    match write_result {
                         Ok(0) => {
+                            #[cfg(windows)]
+                            if !matches!(control_pipe_readiness(&conn.0)?, ControlPipeReadiness::Closed) {
+                                std::thread::sleep(std::time::Duration::from_millis(2).min(
+                                    deadline.saturating_duration_since(std::time::Instant::now()),
+                                ));
+                                continue;
+                            }
                             return Err(io::Error::new(
                                 io::ErrorKind::WriteZero,
                                 "signed control reply closed",
@@ -354,6 +561,9 @@ impl ControlServer {
                 }
                 // The resolved Stream's flush is a no-op; release is owned, including Windows no-limbo drop.
                 if outcome == ControlOutcome::Shutdown {
+                    // Native verifies this ACK before closing the same owned connection. Keep the
+                    // response owner alive until that close; EOF alone is not a receipt assertion.
+                    wait_for_signed_peer_close(&mut conn.0, deadline)?;
                     return Ok(outcome);
                 }
             }
@@ -794,6 +1004,274 @@ mod signing_bootstrap_tests {
             parent_os_creation_time_100ns: 42,
         }
     }
+
+    #[cfg(windows)]
+    fn signed_pipe(label: &str) -> (ControlServer, WatcherSigningBootstrap) {
+        let name = format!("palmistry-{label}-{}", uuid::Uuid::now_v7());
+        let server = ControlServer::bind(&name).unwrap();
+        server.listener.set_nonblocking(interprocess::local_socket::ListenerNonblockingMode::Accept).unwrap();
+        let signer = WatcherSigningBootstrap::from_private_seed(
+            identity(), zeroize::Zeroizing::new(vec![7; 32]),
+        ).unwrap();
+        (server, signer)
+    }
+
+    #[cfg(windows)]
+    type SignedPeerCompletion = (ControlServer, WatcherSigningBootstrap, Result<ControlOutcome, ControlConnectionError>);
+
+    #[cfg(windows)]
+    fn signed_peer(
+        server: ControlServer, signer: WatcherSigningBootstrap, deadline: std::time::Instant,
+        deny_shutdown: bool,
+    ) -> std::thread::JoinHandle<SignedPeerCompletion> {
+        std::thread::spawn(move || {
+          let result = loop {
+            if std::time::Instant::now() >= deadline {
+                break Err(ControlConnectionError::Listener(io::ErrorKind::TimedOut.into()));
+            }
+            match server.serve_connection_with_signer(&mut |msg| {
+                if deny_shutdown && matches!(msg, ControlMessage::Shutdown) {
+                    Err(ControlErrorCode::SigningUnavailable)
+                } else { Ok(()) }
+            }, Some(&signer)) {
+                Err(ControlConnectionError::Listener(error)) if error.kind() == io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(std::time::Duration::from_millis(2).min(
+                        deadline.saturating_duration_since(std::time::Instant::now()),
+                    ));
+                }
+                result => break result,
+            }
+          };
+          (server, signer, result)
+        })
+    }
+
+    #[cfg(windows)]
+    fn finish_signed_peer(
+        worker: std::thread::JoinHandle<SignedPeerCompletion>,
+        deadline: std::time::Instant,
+    ) -> SignedPeerCompletion {
+        while !worker.is_finished() {
+            assert!(std::time::Instant::now() < deadline, "signed peer completion deadline");
+            std::thread::sleep(std::time::Duration::from_millis(2).min(
+                deadline.saturating_duration_since(std::time::Instant::now()),
+            ));
+        }
+        worker.join().unwrap()
+    }
+
+    #[cfg(windows)]
+    struct SignedPipeClient(interprocess::local_socket::Stream);
+
+    #[cfg(windows)]
+    impl SignedPipeClient {
+        fn connect(name: &str, deadline: std::time::Instant) -> io::Result<Self> {
+            use interprocess::local_socket::traits::Stream as _;
+            use interprocess::os::windows::named_pipe::{local_socket::Stream, pipe_mode::Bytes, DuplexPipeStream};
+            let path = format!(r"\\.\pipe\{name}");
+            loop {
+                if std::time::Instant::now() >= deadline { return Err(io::ErrorKind::TimedOut.into()); }
+                match DuplexPipeStream::<Bytes>::connect_by_path_with_wait_mode(
+                    path.as_str(), interprocess::ConnectWaitMode::Timeout(std::time::Duration::ZERO),
+                ) {
+                    Ok(pipe) => {
+                        let stream = interprocess::local_socket::Stream::from(Stream::from(pipe));
+                        stream.set_nonblocking(true)?;
+                        return Ok(Self(stream));
+                    }
+                    Err(_) => std::thread::sleep(std::time::Duration::from_millis(2).min(
+                        deadline.saturating_duration_since(std::time::Instant::now()),
+                    )),
+                }
+            }
+        }
+
+        fn write(&mut self, mut bytes: &[u8], deadline: std::time::Instant) -> io::Result<()> {
+            let mut census = PipeCensus::new("client", "request_write", Some(bytes.len()), &self.0);
+            let write_limit = control_pipe_write_limit(&self.0)?;
+            while !bytes.is_empty() {
+                if std::time::Instant::now() >= deadline { return Err(io::ErrorKind::TimedOut.into()); }
+                let offered = &bytes[..bytes.len().min(write_limit)];
+                let result = self.0.write(offered);
+                census.note_write(offered.len(), &result);
+                match result {
+                    Ok(0) => {
+                        if matches!(control_pipe_readiness(&self.0)?, ControlPipeReadiness::Closed) {
+                            return Err(io::ErrorKind::WriteZero.into());
+                        }
+                        std::thread::sleep(std::time::Duration::from_millis(2).min(
+                            deadline.saturating_duration_since(std::time::Instant::now()),
+                        ));
+                    }
+                    Ok(count) => bytes = &bytes[count..],
+                    Err(error) if matches!(error.kind(), io::ErrorKind::WouldBlock | io::ErrorKind::Interrupted) => {
+                        std::thread::sleep(std::time::Duration::from_millis(2).min(
+                            deadline.saturating_duration_since(std::time::Instant::now()),
+                        ));
+                    }
+                    Err(error) => return Err(error),
+                }
+            }
+            Ok(())
+        }
+
+        fn read_reply(&mut self, deadline: std::time::Instant) -> io::Result<ControlReply> {
+            use std::io::Read;
+            let mut census = PipeCensus::new("client", "reply_read", None, &self.0);
+            let mut frame = Vec::new();
+            loop {
+                if std::time::Instant::now() >= deadline { return Err(io::ErrorKind::TimedOut.into()); }
+                match control_pipe_readiness(&self.0)? {
+                    ControlPipeReadiness::Empty => {
+                        census.empty_polls += 1;
+                        std::thread::sleep(std::time::Duration::from_millis(2).min(
+                            deadline.saturating_duration_since(std::time::Instant::now()),
+                        ));
+                        continue;
+                    }
+                    ControlPipeReadiness::Closed => return Err(io::ErrorKind::UnexpectedEof.into()),
+                    ControlPipeReadiness::Data => {}
+                }
+                let mut byte = [0];
+                let result = self.0.read(&mut byte);
+                census.note_read(&result);
+                match result? {
+                    0 => return Err(io::ErrorKind::UnexpectedEof.into()),
+                    _ if byte[0] == b'\n' => return serde_json::from_slice(&frame).map_err(io::Error::other),
+                    _ => frame.push(byte[0]),
+                }
+                if frame.len() > 16384 { return Err(io::ErrorKind::InvalidData.into()); }
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    impl Drop for SignedPipeClient {
+        fn drop(&mut self) {
+            let interprocess::local_socket::Stream::NamedPipe(pipe) = &self.0;
+            pipe.inner().assume_flushed();
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn signed_pipe_accepts_delayed_fragmented_frames_and_shutdown() {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        let (server, signer) = signed_pipe("delayed");
+        let name = server.socket_name().to_owned();
+        let worker = signed_peer(server, signer, deadline, false);
+        let mut stream = SignedPipeClient::connect(&name, deadline).unwrap();
+        let challenge = ControlMessage::ProvenanceChallengeV1 {
+            identity: identity(), challenge: [8; 32], transport_public_key: [9; 32],
+        };
+        let frame = encode_message(&challenge).unwrap();
+        let wire_roundtrip = decode_message(frame.trim_end_matches(['\n', '\r']))
+            .map(|decoded| decoded == challenge);
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        stream.write(&frame.as_bytes()[..frame.len() / 2], deadline).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        stream.write(&frame.as_bytes()[frame.len() / 2..], deadline).unwrap();
+        let reply = match stream.read_reply(deadline) {
+            Ok(reply) => reply,
+            Err(error) => {
+                drop(stream);
+                let (_, _, peer_result) = finish_signed_peer(worker, deadline);
+                panic!("signed challenge read failed: {error:?}; actual peer: {peer_result:?}; whole ControlMessage roundtrip: {wire_roundtrip:?}");
+            }
+        };
+        assert_eq!(wire_roundtrip.unwrap(), true, "whole producer/consumer message must roundtrip");
+        match reply {
+            ControlReply::ProvenanceReadyV1 { identity: actual, challenge, transport_public_key, .. } => {
+                assert_eq!(actual, identity());
+                assert_eq!(challenge, [8; 32]);
+                assert_eq!(transport_public_key, [9; 32]);
+            }
+            reply => panic!("expected signed ready, got {reply:?}"),
+        }
+        let unfragmented_message = ControlMessage::ProvenanceChallengeV1 {
+            identity: identity(), challenge: [10; 32], transport_public_key: [9; 32],
+        };
+        let mut unfragmented = encode_message(&unfragmented_message).unwrap();
+        let capacity = control_pipe_write_limit(&stream.0).unwrap();
+        const MAX_FRAME_BYTES: usize = 16384;
+        const MAX_WIRE_BYTES: usize = MAX_FRAME_BYTES + 1;
+        if unfragmented.len() <= capacity && capacity < MAX_WIRE_BYTES {
+            assert_eq!(unfragmented.pop(), Some('\n'));
+            unfragmented.extend(std::iter::repeat_n(' ', capacity - unfragmented.len()));
+            unfragmented.push('\n');
+        }
+        assert!(unfragmented.len() <= MAX_WIRE_BYTES);
+        assert!(unfragmented.len() > capacity || capacity >= MAX_WIRE_BYTES);
+        assert_eq!(decode_message(&unfragmented).unwrap(), unfragmented_message);
+        eprintln!("PIPE_COVERAGE {}", serde_json::json!({
+            "unfragmented_request_bytes": unfragmented.len(), "client_write_capacity": capacity,
+            "oversize_request_covered": unfragmented.len() > capacity,
+            "all_allowed_frames_fit_capacity": capacity >= MAX_WIRE_BYTES,
+            "max_frame_body_bytes": MAX_FRAME_BYTES,
+        }));
+        stream.write(unfragmented.as_bytes(), deadline).unwrap();
+        match stream.read_reply(deadline).unwrap() {
+            ControlReply::ProvenanceReadyV1 { identity: actual, challenge, transport_public_key, .. } => {
+                assert_eq!(actual, identity());
+                assert_eq!(challenge, [10; 32]);
+                assert_eq!(transport_public_key, [9; 32]);
+            }
+            reply => panic!("expected signed reply to unfragmented request, got {reply:?}"),
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        stream.write(b"{", deadline).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        stream.write(b"\"type\":\"Shutdown\"}\n", deadline).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        assert!(!worker.is_finished(), "shutdown cannot retire while the ACK peer remains open");
+        assert_eq!(stream.read_reply(deadline).unwrap(), ControlReply::Ack);
+        drop(stream);
+        assert_eq!(finish_signed_peer(worker, deadline).2.unwrap(), ControlOutcome::Shutdown);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn signed_pipe_failures_keep_listener_available_until_a_drained_shutdown() {
+        let (mut server, mut signer) = signed_pipe("reuse");
+        for case in ["eof", "malformed", "partial-timeout", "denied", "held-ack", "trailing", "shutdown"] {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+            let name = server.socket_name().to_owned();
+            let worker = signed_peer(server, signer, deadline, case == "denied");
+            let mut stream = SignedPipeClient::connect(&name, deadline).unwrap();
+            match case {
+                "eof" => {
+                    stream.write(b"{\"type\":\"Ping\"}\n", deadline).unwrap();
+                    assert_eq!(stream.read_reply(deadline).unwrap(), ControlReply::Pong);
+                }
+                "malformed" => stream.write(b"{malformed}\n", deadline).unwrap(),
+                "partial-timeout" => stream.write(b"{", deadline).unwrap(),
+                _ => {
+                    stream.write(b"{\"type\":\"Shutdown\"}\n", deadline).unwrap();
+                    let reply = stream.read_reply(deadline).unwrap();
+                    if case == "denied" {
+                        assert_eq!(reply, ControlReply::Error { code: ControlErrorCode::SigningUnavailable });
+                    } else { assert_eq!(reply, ControlReply::Ack); }
+                    if case == "trailing" { stream.write(b"x", deadline).unwrap(); }
+                }
+            }
+            let keep_peer_open = matches!(case, "malformed" | "partial-timeout" | "held-ack" | "trailing");
+            let mut peer = Some(stream);
+            if !keep_peer_open { drop(peer.take()); }
+            let (returned_server, returned_signer, result) = finish_signed_peer(worker, deadline);
+            drop(peer);
+            server = returned_server;
+            signer = returned_signer;
+            match (case, result) {
+                ("eof" | "denied", Ok(ControlOutcome::Continue)) => {}
+                ("partial-timeout" | "held-ack", Err(ControlConnectionError::Peer(error))) => assert_eq!(error.kind(), io::ErrorKind::TimedOut),
+                ("malformed", Err(ControlConnectionError::Peer(_))) => {}
+                ("trailing", Err(ControlConnectionError::Peer(error))) => assert_eq!(error.kind(), io::ErrorKind::InvalidData),
+                ("shutdown", Ok(ControlOutcome::Shutdown)) => {}
+                (case, result) => panic!("unexpected signed connection result ({case}): {result:?}"),
+            }
+        }
+    }
+
     #[test]
     fn exact_seed_and_signed_original_identity_fail_closed() {
         let mut invalid = identity();

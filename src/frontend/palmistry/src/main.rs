@@ -960,7 +960,8 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
                 |msg: &control::ControlMessage| -> Result<(), control::ControlErrorCode> {
                     tracing::debug!(?msg, "control message");
                     match msg {
-                        control::ControlMessage::Shutdown => control_state.request_shutdown(),
+                        // The control loop commits lifecycle shutdown after the bounded ACK exchange.
+                        control::ControlMessage::Shutdown => {},
                         control::ControlMessage::RegisterChild {
                             pid,
                             child_session_id,
