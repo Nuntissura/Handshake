@@ -1332,6 +1332,24 @@ const SURFACES: &[SurfaceDescriptor] = &[
     ),
     // -- ModelRuntime registry/control surface (api/model_runtime_registry.rs)
     surface!(
+        "model_runtime.engine_profiles.list",
+        SurfaceGroup::ModelRuntimeRegistry,
+        "GET",
+        "/workspaces/:workspace_id/engine-profiles",
+        "Read the currently authorized workspace's durable Engine Profiles registry.",
+        "workspace_id path; authenticated account session and current workspace read authority.",
+        "JSON EngineProfileRegistryV1: registry_generation, immutable profile revisions/head generations/tombstones, active_generation and optional active identity; scoped authority and receipt integrity checked."
+    ),
+    surface!(
+        "model_runtime.engine_profiles.mutate",
+        SurfaceGroup::ModelRuntimeRegistry,
+        "POST",
+        "/workspaces/:workspace_id/engine-profiles",
+        "Create, append a revision, tombstone or activate an Engine Profile through scoped CAS.",
+        "JSON EngineProfileMutationRequestV1 {request_id, reason, expected_registry_generation, expected_active_generation, mutation}; mutation.operation=create/new_revision/tombstone/activate with snapshot and/or expected_head plus expected_head_generation. Actor/scope are server-derived.",
+        "JSON current EngineProfileRegistryV1; ENGINE_PROFILE_MUTATION_RECORDED evidence. Invalid profile/fingerprint 400, conflict 409, unavailable 404, capacity 413, integrity 500 or storage 503. Failed mutations preserve prior state."
+    ),
+    surface!(
         "model_runtime.registry.list",
         SurfaceGroup::ModelRuntimeRegistry,
         "GET",
@@ -1366,7 +1384,7 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "/operator-chat/models",
         "List the backend-owned operator-chat picker inventory and governed owner-session choices.",
         "None.",
-        "JSON inventory_source, sessions, local, cloud_byok, cloud_cli_bridge, subagents, and excluded rows; unavailable providers and invalid session lineage remain visible but not launchable."
+        "JSON inventory_source, sessions, local, active_engine_profile, cloud_byok, cloud_cli_bridge, subagents, and excluded rows; local profile rows retain engine_profile snapshot/fingerprint and backend readiness; active labels a candidate, not acceptance."
     ),
     surface!(
         "operator_chat.selection.record",
@@ -1383,8 +1401,8 @@ const SURFACES: &[SurfaceDescriptor] = &[
         "POST",
         "/operator-chat/launch",
         "Launch an operator chat lane through the sanctioned OperatorChatLaunchService.",
-        "JSON OperatorChatSelection for local, BYOK/CLI cloud, or subagent lane launch.",
-        "JSON launched run/lane payload; 503 launch_not_wired or fail-closed launch error envelope."
+        "JSON ordinary launch inputs with owner_session_id, working_dir, prompt and lane/model/provider context; local profile launch also carries top-level engine_profile with full canonical snapshot/fingerprint.",
+        "JSON launched run/lane payload echoing engine_profile for profile launches; genuine same-run admission/audit precede factory effects. 503 launch_not_wired or fail-closed launch error envelope."
     ),
     surface!(
         "operator_chat.transcript.get",

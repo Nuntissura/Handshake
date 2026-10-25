@@ -149,9 +149,11 @@ pub struct SurvivorRecord {
     /// The last heartbeat TIMESTAMP (monotonic nanos) read passively from the ring before death (0 if
     /// none). A number, not content.
     pub last_heartbeat_ts_nanos: u64,
-    /// How many of the ring's last-N typed events were bundled as evidence (a COUNT — the events
-    /// themselves are POD integers, never text, so only the count is carried in the durable record).
+    /// Legacy count of all last-N ring records observed, including records omitted from the ordinary snapshot.
     pub last_event_count: u32,
+    /// Bounded ordinary numeric event snapshot from this watched session. Never contains v2 provenance/HMAC.
+    #[serde(default)]
+    pub last_events: Vec<DiagEvent>,
     /// FREEZE only: the OS hung-window probe result at capture (the §6.13.5 second signal).
     /// [`SurvivorProbeResult::NotApplicable`] for a crash record.
     pub probe_result: SurvivorProbeResult,
@@ -192,6 +194,14 @@ pub struct SurvivorRecord {
 
 /// The current survivor-record schema version. A fixed vocabulary string.
 pub const SURVIVOR_SCHEMA_VERSION: &str = "hsk.palmistry.survivor@0.1";
+pub const MAX_SURVIVOR_EVENTS: usize = 64;
+
+fn survivable_ordinary_event(event: &DiagEvent) -> bool {
+    matches!(event.event_code, 0..=11 | 65535)
+        && event.phase_marker <= 4
+        && event.severity <= 2
+        && event._reserved == [0; 4]
+}
 
 impl SurvivorRecord {
     /// Build a FREEZE survivor record from the MT-091 [`FreezeReport`] + the session/process facts +
@@ -213,6 +223,7 @@ impl SurvivorRecord {
             last_heartbeat_counter: report.last_heartbeat_counter,
             last_heartbeat_ts_nanos: report.last_heartbeat_ts_nanos,
             last_event_count,
+            last_events: Vec::new(),
             probe_result,
             crash_detection: None,
             faulting_thread_id: None,
@@ -242,6 +253,7 @@ impl SurvivorRecord {
             last_heartbeat_counter: crash.last_heartbeat_counter,
             last_heartbeat_ts_nanos: crash.last_heartbeat_ts_nanos,
             last_event_count: crash.last_event_count,
+            last_events: Vec::new(),
             probe_result: SurvivorProbeResult::NotApplicable,
             crash_detection: Some(crash.detection),
             faulting_thread_id: Some(crash.faulting_thread_id),
@@ -275,6 +287,7 @@ impl SurvivorRecord {
             last_heartbeat_counter: 0,
             last_heartbeat_ts_nanos: 0,
             last_event_count,
+            last_events: Vec::new(),
             probe_result: SurvivorProbeResult::NotApplicable,
             crash_detection: None,
             faulting_thread_id: None,
@@ -288,6 +301,16 @@ impl SurvivorRecord {
             captured_at_unix_ms: now_unix_ms(),
             forwarded: false,
         }
+    }
+
+    pub fn with_last_events(mut self, events: &[DiagEvent]) -> Self {
+        self.last_events = events
+            .iter()
+            .copied()
+            .filter(survivable_ordinary_event)
+            .take(MAX_SURVIVOR_EVENTS)
+            .collect();
+        self
     }
 
     /// The exact set of JSON object keys a serialized [`SurvivorRecord`] is allowed to carry. The
@@ -305,6 +328,7 @@ impl SurvivorRecord {
             "last_heartbeat_counter",
             "last_heartbeat_ts_nanos",
             "last_event_count",
+            "last_events",
             "probe_result",
             "crash_detection",
             "faulting_thread_id",
@@ -335,6 +359,11 @@ impl SurvivorRecord {
 /// version, local path), so the allowlist is enforced by this explicit key + value scan instead of by
 /// the type system.
 pub fn assert_typed_allowlist(record: &SurvivorRecord) -> Result<(), String> {
+    if record.last_events.len() > MAX_SURVIVOR_EVENTS
+        || record.last_events.iter().any(|event| !survivable_ordinary_event(event))
+    {
+        return Err("survivor ordinary-event snapshot violates its bounded numeric allowlist".to_owned());
+    }
     let value = serde_json::to_value(record).map_err(|e| format!("serialize: {e}"))?;
     let obj = value
         .as_object()

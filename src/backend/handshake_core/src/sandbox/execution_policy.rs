@@ -19,6 +19,7 @@ use super::{
 pub const EXECUTION_POLICY_SCHEMA_ID: &str = "hsk.resolved_execution_policy@1";
 pub const EXECUTION_POLICY_SCHEMA_VERSION: u16 = 1;
 pub const CLI_BRIDGE_POLICY_REVISION: u32 = 1;
+pub const LOCAL_MODEL_POLICY_REVISION: u32 = 1;
 
 pub const LOCAL_REQUESTED_EXECUTION_POLICY_REF: &str = "execution-policy://requested/local";
 pub const LOCAL_EFFECTIVE_EXECUTION_POLICY_REF: &str = "execution-policy://effective/model_runtime";
@@ -85,6 +86,83 @@ pub enum ExecutionPolicyError {
 }
 
 impl ResolvedExecutionPolicy {
+    /// Resolve an explicitly supplied local-model posture against actual adapter
+    /// capabilities. This does not supply policy: the authenticated owning
+    /// caller/config/WorkProfile authority must provide every request field.
+    /// A serialized request, profile or artifact digest is not that authority.
+    pub fn resolve_local(
+        request: ExecutionPolicyRequest,
+        capabilities: &AdapterCapabilities,
+    ) -> Result<Self, ExecutionPolicyError> {
+        if request.requested_ref != LOCAL_REQUESTED_EXECUTION_POLICY_REF {
+            return Err(ExecutionPolicyError::UnknownReference(request.requested_ref));
+        }
+        if request.isolation_tier.rank() < request.trust_class.min_isolation_tier().rank() {
+            return Err(ExecutionPolicyError::PostureMismatch {
+                field: "trust_class_minimum_isolation",
+                expected: format!("{:?}", request.trust_class.min_isolation_tier()),
+                actual: format!("{:?}", request.isolation_tier),
+            });
+        }
+        if request.startup_timeout_ms == 0
+            || !request.resource_limits.timeout_ms.is_some_and(|timeout| timeout > 0)
+            || request.resource_limits.memory_bytes == Some(0)
+            || request.resource_limits.cpu_cores == Some(0)
+        {
+            return Err(ExecutionPolicyError::InvalidResourcePosture(
+                "local model requires positive explicit invocation/startup timeouts and nonzero supplied memory/CPU limits".into(),
+            ));
+        }
+        match (&request.requested_net_policy, request.effective_attached_network_mode) {
+            (NetPolicy::DenyAll, AttachedNetworkMode::DenyAll)
+            | (NetPolicy::HostInherited, AttachedNetworkMode::OutboundInternetClient) => {}
+            _ => return Err(ExecutionPolicyError::PostureMismatch {
+                field: "local_attached_network_contract",
+                expected: "an exact requested/effective network mapping supported by the real attached adapter".into(),
+                actual: format!("{:?}/{:?}", request.requested_net_policy, request.effective_attached_network_mode),
+            }),
+        }
+        // Every declared capability is checked, not merely stdio throughput.
+        for required in &request.required_capabilities {
+            let supported = match required {
+                RequiredCapability::Win32NativeFidelity => capabilities.win32_native_fidelity,
+                RequiredCapability::NvidiaCudaPassthrough =>
+                    capabilities.gpu_passthrough == super::GpuPassthrough::NvidiaCuda,
+                RequiredCapability::VendorAgnosticGpu =>
+                    capabilities.gpu_passthrough == super::GpuPassthrough::VendorAgnostic,
+                RequiredCapability::CrossMachinePortable => capabilities.cross_machine_portable,
+                RequiredCapability::VeryStrongFilesystemIsolation =>
+                    capabilities.filesystem_isolation_strength == super::IsolationStrength::VeryStrong,
+                RequiredCapability::VeryStrongNetworkIsolation =>
+                    capabilities.network_isolation_strength == super::IsolationStrength::VeryStrong,
+                RequiredCapability::HighStdioThroughput =>
+                    capabilities.stdio_throughput_class == ThroughputClass::High,
+            };
+            if !supported {
+                return Err(ExecutionPolicyError::PostureMismatch {
+                    field: "local_required_capability", expected: format!("{required:?}"),
+                    actual: format!("unsupported by {}", capabilities.adapter_id),
+                });
+            }
+        }
+        let resolved = Self {
+            schema_id: EXECUTION_POLICY_SCHEMA_ID.to_string(),
+            schema_version: EXECUTION_POLICY_SCHEMA_VERSION,
+            policy_revision: LOCAL_MODEL_POLICY_REVISION,
+            requested_ref: request.requested_ref,
+            effective_ref: LOCAL_EFFECTIVE_EXECUTION_POLICY_REF.to_string(),
+            trust_class: request.trust_class,
+            isolation_tier: request.isolation_tier,
+            required_capabilities: request.required_capabilities,
+            requested_net_policy: request.requested_net_policy,
+            effective_attached_network_mode: request.effective_attached_network_mode,
+            resource_limits: request.resource_limits,
+            startup_timeout_ms: request.startup_timeout_ms,
+        };
+        resolved.validate_adapter_capabilities(capabilities)?;
+        Ok(resolved)
+    }
+
     /// Resolve the sole production Official-CLI policy. The policy is exact on
     /// trust, tier, capability, and network posture so invocation-supplied
     /// fields cannot silently redefine its meaning.

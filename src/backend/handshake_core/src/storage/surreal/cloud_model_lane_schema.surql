@@ -84,6 +84,7 @@ DEFINE INDEX IF NOT EXISTS model_lane_cloud_authority_consent_scope ON model_lan
 
 DEFINE TABLE OVERWRITE model_lane_cloud_event_ledger SCHEMAFULL
     PERMISSIONS FOR select WHERE fn::wp012_cloud_source_access(object::extend($this, { kind: $this.aggregate_kind }))
+        OR fn::wp012_cloud_checkpoint_dependency_read(object::extend($this, { kind: $this.aggregate_kind }))
     FOR create WHERE fn::wp012_cloud_receipt_create($this)
     FOR update, delete NONE;
 DEFINE FIELD IF NOT EXISTS aggregate_kind ON model_lane_cloud_event_ledger TYPE string;
@@ -175,8 +176,104 @@ DEFINE FUNCTION OVERWRITE fn::wp012_cloud_record_identity($row: object, $record:
     RETURN $row.kind = 'consent_denial' AND $record.lane_id = $row.aggregate_id
         AND $record.provider_call_attempted = false AND $record.partial_authority_state_created = false;
 };
+DEFINE FUNCTION OVERWRITE fn::wp012_cloud_checkpoint_dependency_read($row: object) {
+    IF $row.kind != 'consent_denial' OR !fn::wp012_model_lane_original_operation($row)
+        OR $wp012_original_subject_kind != 'workspace' { RETURN false; };
+    IF !(($wp012_original_purpose = 'recovery_checkpoint_record' AND $wp012_original_action = 'create')
+        OR ($wp012_original_purpose = 'recovery_execute' AND $wp012_original_action = 'update'
+            AND $wp012_original_capability = 'model_lane.recovery.execute')) { RETURN false; };
+    IF $wp012_original_purpose = 'recovery_checkpoint_record'
+        AND type::is_int($expected_last_event_seq) AND $row.event_seq > $expected_last_event_seq {
+        RETURN false;
+    };
+    IF !fn::wp012_context_coordination_fence($row, 'workspace', $row.workspace_id)
+        OR !fn::wp012_context_coordination_fence($row, 'run', $row.run_id)
+        OR !fn::wp012_context_coordination_fence($row, 'lane', $row.aggregate_id) {
+        THROW 'HSK-CLOUD-CHECKPOINT-PROVENANCE-UNVERIFIABLE';
+    };
+    LET $lanes = SELECT * FROM model_lane_authority WHERE record_kind = 'lane'
+        AND aggregate_id = $row.aggregate_id AND run_id = $row.run_id
+        AND owner_account_id = $row.owner_account_id AND actor_principal_id = $row.actor_principal_id
+        AND authenticated_session_id = $row.authenticated_session_id AND access_space_id = $row.access_space_id
+        AND workspace_id = $row.workspace_id;
+    IF array::len($lanes) != 1 { THROW 'HSK-CLOUD-CHECKPOINT-PROVENANCE-UNVERIFIABLE'; };
+    LET $lane = encoding::json::decode($lanes[0].record_json);
+    IF (type::is_string($lane.document_id) AND !fn::mt120_document_access($lane.document_id, $row.workspace_id, 'read', 'fs.read'))
+        OR ($lane.crdt_authority_binding != NONE AND $lane.crdt_authority_binding != NULL
+            AND ($lane.crdt_authority_binding.workspace_id != $row.workspace_id
+                OR !fn::mt120_document_access($lane.crdt_authority_binding.document_id, $row.workspace_id, 'read', 'fs.read'))) {
+        THROW 'HSK-CLOUD-CHECKPOINT-PROVENANCE-UNVERIFIABLE';
+    };
+    RETURN true;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_cloud_checkpoint_denial_membership(
+    $run_id: string, $event_ledger_stream_id: string, $expected_last_event_seq: int, $checkpoint_id: string,
+    $owner_account_id: string, $actor_principal_id: string, $authenticated_session_id: string,
+    $access_space_id: string, $workspace_id: string
+) {
+    LET $scope = { owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id,
+        authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
+    IF $wp012_original_subject_kind != 'workspace' OR $wp012_original_action != 'create'
+        OR $wp012_original_purpose != 'recovery_checkpoint_record'
+        OR !fn::wp012_model_lane_original_operation($scope) OR $expected_last_event_seq <= 0
+        OR string::trim($run_id) = '' OR string::trim($event_ledger_stream_id) = '' OR string::trim($checkpoint_id) = ''
+        OR !fn::wp012_context_coordination_fence($scope, 'workspace', $workspace_id)
+        OR !fn::wp012_context_coordination_fence($scope, 'run', $run_id) {
+        THROW 'HSK-CLOUD-CHECKPOINT-PROVENANCE-UNVERIFIABLE';
+    };
+    LET $ledgers = SELECT * FROM model_lane_cloud_event_ledger WHERE aggregate_kind = 'consent_denial'
+        AND run_id = $run_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id
+        AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id
+        AND workspace_id = $workspace_id AND event_seq <= $expected_last_event_seq ORDER BY event_seq ASC, event_id ASC;
+    LET $receipts = array::map($ledgers, |$ledger| {
+        LET $candidate = object::extend($ledger, { kind: $ledger.aggregate_kind });
+        IF !fn::wp012_cloud_checkpoint_dependency_read($candidate) {
+            THROW 'HSK-CLOUD-CHECKPOINT-PROVENANCE-UNVERIFIABLE';
+        };
+        LET $payload = encoding::json::decode($ledger.payload_json);
+        LET $record = $payload.record;
+        IF $ledger.event_id != record::id($ledger.id) OR $ledger.event_seq <= 0
+            OR $ledger.payload_hash != crypto::sha256($ledger.payload_json)
+            OR $ledger.event_ledger_stream_id != $event_ledger_stream_id
+            OR !type::is_object($record) OR $payload.dexterity_kernel != 'Dexterity'
+            OR $payload.schema_id != 'hsk.model_lane_cloud_consent_denial@1'
+            OR $record.run_id != $run_id OR $record.lane_id != $ledger.aggregate_id
+            OR $record.event_ledger_stream_id != $event_ledger_stream_id
+            OR $record.event_ledger_event_id != $ledger.event_id OR $record.event_ledger_seq != $ledger.event_seq
+            OR $record.provider_call_attempted != false OR $record.partial_authority_state_created != false {
+            THROW 'HSK-CLOUD-CHECKPOINT-PROVENANCE-UNVERIFIABLE';
+        };
+        LET $authorities = SELECT * FROM model_lane_cloud_authority WHERE kind = 'consent_denial'
+            AND event_id = $ledger.event_id AND run_id = $run_id
+            AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id
+            AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id
+            AND workspace_id = $workspace_id;
+        IF array::len($authorities) != 1 { THROW 'HSK-CLOUD-CHECKPOINT-PROVENANCE-UNVERIFIABLE'; };
+        LET $authority = $authorities[0];
+        IF $authority.receipt_id != $ledger.id OR $authority.aggregate_id != $ledger.aggregate_id
+            OR $authority.event_seq != $ledger.event_seq OR $authority.event_payload_json != $ledger.payload_json
+            OR encoding::json::decode($authority.record_json) != $record
+            OR !fn::wp012_cloud_authority_read($authority) {
+            THROW 'HSK-CLOUD-CHECKPOINT-PROVENANCE-UNVERIFIABLE';
+        };
+        RETURN { event_id: $ledger.event_id, event_seq: $ledger.event_seq, payload_hash: $ledger.payload_hash,
+            run_id: $run_id, lane_id: $ledger.aggregate_id, event_ledger_stream_id: $ledger.event_ledger_stream_id,
+            owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id,
+            authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
+    });
+    IF array::len(array::distinct(array::map($receipts, |$receipt| $receipt.event_id))) != array::len($receipts) {
+        THROW 'HSK-CLOUD-CHECKPOINT-PROVENANCE-UNVERIFIABLE';
+    };
+    RETURN { schema_version: 1, observation: 'checkpoint_prewrite', checkpoint_id: $checkpoint_id, run_id: $run_id,
+        event_ledger_stream_id: $event_ledger_stream_id, last_event_ledger_seq: $expected_last_event_seq,
+        owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id,
+        authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id,
+        receipts: $receipts };
+};
+
 DEFINE FUNCTION OVERWRITE fn::wp012_cloud_authority_read($row: object) {
-    IF !fn::wp012_cloud_source_access($row) { RETURN false; };
+    IF !(fn::wp012_cloud_source_access($row) OR fn::wp012_cloud_checkpoint_dependency_read($row)) { RETURN false; };
     LET $record = encoding::json::decode($row.record_json);
     LET $ledger = (SELECT * FROM ONLY $row.receipt_id);
     RETURN fn::wp012_cloud_record_identity($row, $record) AND $ledger != NONE

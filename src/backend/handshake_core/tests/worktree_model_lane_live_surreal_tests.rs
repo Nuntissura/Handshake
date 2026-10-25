@@ -157,6 +157,7 @@ async fn mt023_real_worktree_model_lane_runs_inside_microvm() {
         CloudLaneFactoryConfig::unconfigured(),
         model_lane_store.clone(),
         Some(sandbox_registry),
+        None,
         Some(1),
         Uuid::now_v7(),
         move |event| {

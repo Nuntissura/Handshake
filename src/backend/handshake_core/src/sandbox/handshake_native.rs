@@ -28,11 +28,35 @@ pub use handshake_runtime_instance::process_creation_time_100ns;
 /// rappct AppContainer + Restricted Token + creation-time Job Object. Other
 /// hosts fail closed until they have an equally real Tier-1 implementation.
 #[derive(Debug, Clone, Default)]
-pub struct HandshakeNativeSandboxAdapter;
+pub struct HandshakeNativeSandboxAdapter {
+    baseline_bindings: Option<crate::sandbox::adapter::AttachedBaselineBindings>,
+}
 
 impl HandshakeNativeSandboxAdapter {
     pub fn new() -> Self {
-        Self
+        Self::default()
+    }
+
+    /// Filesystem work: call outside the Preferences gate. Hash configured
+    /// content through the returned lease before publishing this adapter.
+    pub fn capture_baseline_bindings(paths: &[PathBuf])
+        -> Result<crate::sandbox::adapter::AttachedBaselineBindings, SandboxAdapterError>
+    {
+        #[cfg(target_os = "windows")]
+        {
+            crate::sandbox::windows_native_jail::adapter::capture_baseline_bindings(paths)
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            let _ = paths;
+            Err(SandboxAdapterError::AttachedOperationUnsupported {
+                operation: "capture_baseline_bindings requires Windows".into(),
+            })
+        }
+    }
+
+    pub fn with_baseline_bindings(bindings: crate::sandbox::adapter::AttachedBaselineBindings) -> Self {
+        Self { baseline_bindings: Some(bindings) }
     }
 
     fn adapter_id() -> AdapterId {
@@ -88,6 +112,7 @@ impl HandshakeNativeSandboxAdapter {
                 spec,
                 self.capabilities(),
                 ephemeral_cleanup,
+                self.baseline_bindings.clone(),
             )
             .await
         }
@@ -124,6 +149,32 @@ impl SandboxAdapter for HandshakeNativeSandboxAdapter {
         let ephemeral_cleanup = AttachedEphemeralPathGuard::take_from(&mut spec);
         stdio.validate(Self::adapter_id())?;
         self.spawn_attached_owned(spec, ephemeral_cleanup).await
+    }
+
+    async fn spawn_attached_owned_with_stdio(
+        &self, mut spec: AttachedProcessSpec, stdio: AttachedStdioContract,
+        cancel: crate::model_runtime::CancellationToken, deadline: std::time::Instant,
+    ) -> Result<Box<dyn AttachedSandboxProcess>, crate::sandbox::adapter::OwnedAttachedSpawnError> {
+        let mut cleanup = AttachedEphemeralPathGuard::take_from(&mut spec);
+        if let Err(error) = stdio.validate(Self::adapter_id()) {
+            while cleanup.cleanup().is_err() { tokio::time::sleep(std::time::Duration::from_millis(25)).await; }
+            return Err(crate::sandbox::adapter::OwnedAttachedSpawnError::BeforeSpawn(error));
+        }
+        #[cfg(target_os = "windows")]
+        {
+            crate::sandbox::windows_native_jail::adapter::spawn_handshake_native_attached_owned(
+                Self::adapter_id(), spec, self.capabilities(), cleanup, cancel, deadline,
+                self.baseline_bindings.clone(),
+            ).await
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            let _ = (spec, cancel, deadline);
+            while cleanup.cleanup().is_err() { tokio::time::sleep(std::time::Duration::from_millis(25)).await; }
+            Err(crate::sandbox::adapter::OwnedAttachedSpawnError::BeforeSpawn(
+                Self::unavailable("owning attached native execution requires Windows"),
+            ))
+        }
     }
 
     fn validate_attached_network_mode(

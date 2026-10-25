@@ -49,6 +49,11 @@ use crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution;
 use crate::workflows::{SessionRegistry, SessionSchedulerConfig};
 
 type ApiError = (StatusCode, Json<Value>);
+#[derive(Deserialize)]
+struct ScopedOperatorChatLaunchRequest {
+    #[serde(flatten)] request: OperatorChatLaunchRequest,
+    #[serde(default)] local_execution_revisions: Option<(i64, i64)>,
+}
 
 /// Dedicated router state for the operator chat/launch surface.
 #[derive(Clone)]
@@ -167,6 +172,8 @@ pub struct SelectionDecisionRequest {
     /// server resolves all remaining Locus fields from SurrealDB.
     pub run_id: String,
     pub selected_model_id: String,
+    #[serde(default)]
+    pub engine_profile: Option<crate::model_runtime::EngineProfileSnapshotV1>,
     #[serde(default)]
     pub lane_kind: Option<String>,
     #[serde(default)]
@@ -302,7 +309,37 @@ async fn scoped_enumerate_models(
     scope: RequestAccountScope,
 ) -> Result<Json<Value>, ApiError> {
     require_operator_chat_exact_scope(&state, scope.exact())?;
-    Ok(enumerate_models(state).await)
+    let store = operator_chat_store(&state)?;
+    let registry = crate::storage::surreal::SurrealModelRegistryStore::new(
+        store.surreal_storage().clone(),
+    ).list_engine_profiles(scope.exact()).await.map_err(|_| (
+        StatusCode::SERVICE_UNAVAILABLE,
+        Json(json!({"error": "engine_profile_registry_unavailable"})),
+    ))?;
+    let mut inventory = enumerate_inventory(&state).await;
+    inventory.active_engine_profile = registry.active.clone();
+    inventory.local.clear();
+    for definition in registry.profiles.iter().filter(|definition| !definition.tombstoned) {
+        let snapshot = definition.head().map_err(|_| (
+            StatusCode::CONFLICT, Json(json!({"error": "engine_profile_registry_integrity"})),
+        ))?;
+        let runtime_binding = match snapshot.profile.engine {
+            handshake_dexterity::Engine::GenieXQairt => "genie_x_qairt",
+            handshake_dexterity::Engine::GenieXLlamaCpp => "genie_x_llama_cpp",
+        };
+        inventory.local.push(OperatorChatModelRow {
+            model_id: snapshot.profile.model.id.clone(),
+            display_name: snapshot.profile.preset.name.clone(),
+            runtime_binding: runtime_binding.to_string(),
+            ready: state.catalog.as_ref()
+                .and_then(|catalog| catalog.entry_for_stable_anchor(&snapshot.profile.model.content_sha256))
+                .is_some_and(|entry| entry.ready && entry.default_selectable
+                    && entry.runtime_role == crate::model_runtime::registry::ModelRuntimeRole::Completion
+                    && entry.runtime_binding == "genie_x"),
+            engine_profile: Some(snapshot.clone()),
+        });
+    }
+    Ok(Json(json!(inventory)))
 }
 
 async fn scoped_execute_routing_lifecycle(
@@ -348,8 +385,9 @@ async fn scoped_record_selection(
     Json(request): Json<SelectionDecisionRequest>,
 ) -> Result<Json<Value>, ApiError> {
     require_operator_chat_exact_scope(&state, scope.exact())?;
-    let selection_context = selection_context(&request);
     let store = operator_chat_store(&state)?;
+    validate_selection_engine_profile(&request, &store, scope.exact()).await?;
+    let selection_context = selection_context(&request);
     let replay = store.replay_run(&request.run_id).await.map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -410,7 +448,7 @@ async fn scoped_launch_session(
     state: State<OperatorChatState>,
     scope: RequestAccountScope,
     headers: HeaderMap,
-    request: Json<OperatorChatLaunchRequest>,
+    request: Json<ScopedOperatorChatLaunchRequest>,
 ) -> Result<Json<Value>, ApiError> {
     require_operator_chat_exact_scope(&state, scope.exact())?;
     #[cfg(feature = "runtime-full")]
@@ -731,6 +769,7 @@ async fn enumerate_inventory(state: &OperatorChatState) -> OperatorChatModelInve
             display_name: entry.display_name,
             runtime_binding: entry.runtime_binding,
             ready: entry.ready,
+            engine_profile: None,
         })
         .collect();
     let cloud = enumerate_cloud_access(state.cloud_registry.as_ref());
@@ -789,6 +828,7 @@ async fn enumerate_inventory(state: &OperatorChatState) -> OperatorChatModelInve
         .collect::<Vec<_>>();
     session_rows.sort_by(|left, right| left.session_id.cmp(&right.session_id));
     OperatorChatModelInventory {
+        active_engine_profile: None,
         inventory_source: "operator_chat_backend",
         sessions: session_rows,
         local,
@@ -917,6 +957,7 @@ fn validate_launch_request_against_inventory(
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedOperatorChatLineage {
+    pub owner_spawn_depth: i32,
     pub owner_session_id: String,
     pub parent_session_id: String,
 }
@@ -953,6 +994,7 @@ pub async fn resolve_operator_chat_lineage(
         return Err("owner_session_lineage_invalid");
     }
     Ok(ResolvedOperatorChatLineage {
+        owner_spawn_depth: owner.spawn_depth,
         owner_session_id: owner.session_id.clone(),
         parent_session_id: parent.session_id.clone(),
     })
@@ -972,8 +1014,47 @@ async fn record_selection(
     ))
 }
 
+async fn validate_selection_engine_profile(
+    request: &SelectionDecisionRequest,
+    store: &ModelLaneStore,
+    scope: &ExactResourceScopeAttribution,
+) -> Result<(), ApiError> {
+    let denied = |code: &'static str| (
+        StatusCode::CONFLICT, Json(json!({"error": "engine_profile_selection_rejected", "code": code})),
+    );
+    let Some(snapshot) = request.engine_profile.as_ref() else {
+        return if request.lane_kind.as_deref() == Some("local") {
+            Err(denied("engine_profile_required"))
+        } else { Ok(()) };
+    };
+    if request.lane_kind.as_deref() != Some("local") {
+        return Err(denied("engine_profile_lane_mismatch"));
+    }
+    snapshot.validate().map_err(|_| denied("engine_profile_fingerprint_mismatch"))?;
+    if request.selected_model_id != snapshot.profile.model.id
+        || request.model_id.as_deref() != Some(snapshot.profile.model.id.as_str())
+    {
+        return Err(denied("engine_profile_model_mismatch"));
+    }
+    let registry = crate::storage::surreal::SurrealModelRegistryStore::new(
+        store.surreal_storage().clone(),
+    ).list_engine_profiles(scope).await.map_err(|_| (
+        StatusCode::SERVICE_UNAVAILABLE,
+        Json(json!({"error": "engine_profile_registry_unavailable"})),
+    ))?;
+    let definition = registry.profiles.iter().find(|definition| definition.profile_id == snapshot.profile.id)
+        .ok_or_else(|| denied("engine_profile_unknown"))?;
+    if definition.tombstoned { return Err(denied("engine_profile_deleted")); }
+    let head = definition.head().map_err(|_| denied("engine_profile_registry_integrity"))?;
+    if head != snapshot { return Err(denied("engine_profile_stale")); }
+    Ok(())
+}
+
 fn selection_context(req: &SelectionDecisionRequest) -> Value {
     let mut context = serde_json::Map::new();
+    if let Some(snapshot) = req.engine_profile.as_ref() {
+        context.insert("engine_profile".to_string(), json!(snapshot));
+    }
     push_selection_context(&mut context, "lane_kind", req.lane_kind.as_deref());
     push_selection_context(&mut context, "model_id", req.model_id.as_deref());
     push_selection_context(
@@ -1002,10 +1083,10 @@ fn push_selection_context(
 /// ModelLaneStore, or `503` when the launch service is not wired.
 async fn launch_session(
     State(state): State<OperatorChatState>,
-    Json(request): Json<OperatorChatLaunchRequest>,
+    Json(input): Json<ScopedOperatorChatLaunchRequest>,
 ) -> Result<Json<Value>, ApiError> {
     launch_session_for_scope(
-        State(state), Json(request), None,
+        State(state), Json(input), None,
         #[cfg(feature = "runtime-full")]
         None,
     ).await
@@ -1013,7 +1094,7 @@ async fn launch_session(
 
 async fn launch_session_for_scope(
     State(state): State<OperatorChatState>,
-    Json(request): Json<OperatorChatLaunchRequest>,
+    Json(input): Json<ScopedOperatorChatLaunchRequest>,
     request_scope: Option<&ExactResourceScopeAttribution>,
     #[cfg(feature = "runtime-full")]
     authentication: Option<(
@@ -1021,6 +1102,8 @@ async fn launch_session_for_scope(
         crate::storage::surreal::resource_authority::RoleAuthorityAuthInput,
     )>,
 ) -> Result<Json<Value>, ApiError> {
+    let request = input.request;
+    let local_execution_revisions = input.local_execution_revisions;
     let Some(service) = state.launch_service.clone() else {
         return Err((
             StatusCode::SERVICE_UNAVAILABLE,
@@ -1030,7 +1113,48 @@ async fn launch_session_for_scope(
             })),
         ));
     };
-    validate_launch_request_against_inventory(&request, &enumerate_inventory(&state).await)
+    if request.lane_kind == OperatorChatLaneKind::Local {
+        let scope = request_scope.ok_or_else(|| (
+            StatusCode::FORBIDDEN, Json(json!({"error": "engine_profile_scope_required"})),
+        ))?;
+        let snapshot = request.engine_profile.as_ref().ok_or_else(|| (
+            StatusCode::CONFLICT, Json(json!({"error": "engine_profile_required"})),
+        ))?;
+        snapshot.validate().map_err(|_| (
+            StatusCode::CONFLICT, Json(json!({"error": "engine_profile_fingerprint_mismatch"})),
+        ))?;
+        let catalog = state.catalog.as_ref().and_then(|catalog| catalog.entry_for_stable_anchor(&snapshot.profile.model.content_sha256));
+        if snapshot.profile.model.id != request.model_id
+            || catalog.as_ref().map(|entry| entry.artifact_sha256.as_str()) != Some(snapshot.profile.model.content_sha256.as_str())
+        { return Err((StatusCode::CONFLICT, Json(json!({"error": "engine_profile_artifact_mismatch"})))); }
+        let store = operator_chat_store(&state)?;
+        let registry = crate::storage::surreal::SurrealModelRegistryStore::new(
+            store.surreal_storage().clone(),
+        ).list_engine_profiles(scope).await.map_err(|_| (
+            StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error": "engine_profile_registry_unavailable"})),
+        ))?;
+        let definition = registry.profiles.iter().find(|definition| definition.profile_id == snapshot.profile.id)
+            .ok_or_else(|| (StatusCode::CONFLICT, Json(json!({"error": "engine_profile_unknown"}))))?;
+        if definition.tombstoned || definition.head().map_err(|_| (
+            StatusCode::CONFLICT, Json(json!({"error": "engine_profile_registry_integrity"})),
+        ))? != snapshot { return Err((StatusCode::CONFLICT, Json(json!({"error": "engine_profile_deleted_or_stale"})))); }
+    } else if request.engine_profile.is_some() {
+        return Err((StatusCode::CONFLICT, Json(json!({"error": "engine_profile_lane_mismatch"}))));
+    }
+    let mut launch_inventory = enumerate_inventory(&state).await;
+    if let Some(snapshot) = request.engine_profile.as_ref() {
+        if let Some(entry) = state.catalog.as_ref().and_then(|catalog| catalog.entry_for_stable_anchor(&snapshot.profile.model.content_sha256)) {
+            if entry.ready && entry.default_selectable
+                && entry.runtime_role == crate::model_runtime::registry::ModelRuntimeRole::Completion
+                && entry.runtime_binding == "genie_x" {
+                launch_inventory.local.push(OperatorChatModelRow {
+                    model_id: snapshot.profile.model.id.clone(), display_name: entry.display_name,
+                    runtime_binding: "genie_x".into(), ready: true, engine_profile: Some(snapshot.clone()),
+                });
+            }
+        }
+    }
+    validate_launch_request_against_inventory(&request, &launch_inventory)
         .map_err(|code| {
             (
                 StatusCode::CONFLICT,
@@ -1048,12 +1172,17 @@ async fn launch_session_for_scope(
                 Json(json!({"error": "invalid_owner_session", "code": code})),
             )
         })?;
-    let selection =
+    let declaration = if request.engine_profile.is_some() {
+        Some(crate::storage::EngineProfileSessionDeclarationV1::from_owner_depth(lineage.owner_spawn_depth)
+            .map_err(|_| (StatusCode::CONFLICT, Json(json!({"error": "engine_profile_session_policy_invalid"}))))?)
+    } else { None };
+    let mut selection =
         request.into_governed_selection(lineage.owner_session_id, lineage.parent_session_id);
+    selection.engine_profile_session = declaration;
     #[cfg(feature = "runtime-full")]
     let launched = match (request_scope, authentication) {
         (Some(scope), Some((bootstrap, authentication))) => service
-            .launch_authenticated_scoped(&selection, scope, &bootstrap, authentication)
+            .launch_authenticated_scoped(&selection, scope, &bootstrap, authentication, local_execution_revisions)
             .await,
         (Some(scope), None) => service.launch_scoped(&selection, scope).await,
         (None, None) => service.launch(&selection).await,
@@ -1183,6 +1312,7 @@ mod client_safety_tests {
 
     fn request(lane_kind: OperatorChatLaneKind, model_id: &str) -> OperatorChatLaunchRequest {
         OperatorChatLaunchRequest {
+            engine_profile: None,
             lane_kind,
             model_id: model_id.to_owned(),
             cloud_provider: None,
@@ -1198,6 +1328,7 @@ mod client_safety_tests {
 
     fn inventory() -> OperatorChatModelInventory {
         OperatorChatModelInventory {
+            active_engine_profile: None,
             inventory_source: "operator_chat_backend",
             sessions: Vec::new(),
             local: vec![OperatorChatModelRow {
@@ -1205,6 +1336,7 @@ mod client_safety_tests {
                 display_name: "Local ready".to_owned(),
                 runtime_binding: "embedded".to_owned(),
                 ready: true,
+                engine_profile: None,
             }],
             cloud_byok: vec![OperatorChatCloudRow {
                 provider: "anthropic".to_owned(),
@@ -1592,5 +1724,25 @@ mod paired_preparation {
                 *slot = Some(PreparationSlot::PanickedUnknown { original_future, payload });
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod local_execution_revision_wire_contract {
+    use super::*;
+
+    #[test]
+    fn existing_gui_launch_json_does_not_require_client_revision_hints() {
+        let input: ScopedOperatorChatLaunchRequest = serde_json::from_value(json!({
+            "lane_kind":"local","model_id":"fixture-model","working_dir":"fixture-worktree",
+            "prompt":"fixture prompt","owner_session_id":"fixture-owner"
+        })).unwrap();
+        assert!(input.local_execution_revisions.is_none());
+        assert_eq!(input.request.model_id,"fixture-model");
+        let hinted: ScopedOperatorChatLaunchRequest = serde_json::from_value(json!({
+            "lane_kind":"local","model_id":"fixture-model","working_dir":"fixture-worktree",
+            "prompt":"fixture prompt","owner_session_id":"fixture-owner","local_execution_revisions":[7,9]
+        })).unwrap();
+        assert_eq!(hinted.local_execution_revisions,Some((7,9)));
     }
 }

@@ -1220,6 +1220,8 @@ fn launch_request(
 
 fn spawn_contract_from_normalized(launch: &DexterityNormalizedLaunch) -> DexterityLaunchContract {
     DexterityLaunchContract {
+        engine_profile: None,
+        engine_profile_session: None,
         run_id: launch.run_id.clone(),
         lane_id: launch.lane_id.clone(),
         restart_generation: launch.restart_generation,
@@ -1513,10 +1515,7 @@ fn proof_process_engine_kind(request: &SpawnRequest) -> ProcessEngineKind {
         Some(ProviderKind::OfficialCli) => ProcessEngineKind::OfficialCliBridge,
         Some(ProviderKind::ByokCloud) => ProcessEngineKind::HelperSubprocess,
         Some(ProviderKind::ExternalCompat) => ProcessEngineKind::ExternalCompat,
-        Some(ProviderKind::Local) | None => match request.runtime_binding {
-            RuntimeAdapterBinding::Candle => ProcessEngineKind::Candle,
-            RuntimeAdapterBinding::LlamaCpp => ProcessEngineKind::LlamaCpp,
-        },
+        Some(ProviderKind::Local) | None => request.runtime_binding.process_engine_kind(),
     }
 }
 

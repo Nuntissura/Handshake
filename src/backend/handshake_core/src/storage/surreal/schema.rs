@@ -4754,8 +4754,10 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // Added 43 authored closed fields, one function and one collection subtype.
 // Existing collection subtype count also drifted (57 observed source nestings, 56 declared).
 // Live INFO, shared/module catalog ownership and compatible reopen lineage remain unmeasured.
+// MT-174 engine-profile declarations: exact source/catalog pins include five functions,
+// one authored field and one event. Live INFO and compatible reopen remain unmeasured.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "86d70b003a031c84163076b8c99bc8ca957696302907ce88b4723c617a5a944f";
+    "772bc7e698acb6253b658efd6ca4601946676a3f336433dc7717ecaabb80f2b7";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -4783,7 +4785,7 @@ pub const GENERATED_SURREALQL_SHA256: &str =
 // (previous 50d3244b292a63e7928a04ce9fc9f7c575580531f20167441b6e802cdfc27a8e); statically derived
 // with the compiled_schema_catalog_entries algorithm (reproduces the previous pin on the unchanged source).
 pub const DECLARATIVE_SCHEMA_CATALOG_SHA256: &str =
-    "4ee81364add186ee33453775fcc2d0a1885906205aa2ee328d9a7055c7c67a0d";
+    "98a95b84422fe742f13b76c4900ce6c0edb4cbadfa2bce22cad9bc7e3c78d067";
 // MT-142 re-pin: the seed gained the rich_document_title_anchors registry row (63 rows).
 pub const KNOWLEDGE_SCHEMA_REGISTRY_SEED_SHA256: &str =
     "64d0711c5273c6eb103c3d574b2f7ee98d9d0ebfd46e9c25ad65908b46573b75";
@@ -5259,9 +5261,9 @@ const TABLE_DEFINITION_COUNT: usize = 311;
 // applied_update_sha256); pin_order and the quick-switcher kind unions changed in place.
 // MT-158 re-pin: +2 fields (mt_iterations.owner_account_id, dependencies.owner_account_id; D-154-3
 // extension).
-const SOURCE_FIELD_DEFINITION_COUNT: usize = 3673;
+const SOURCE_FIELD_DEFINITION_COUNT: usize = 3674;
 const FLEXIBLE_WILDCARD_FIELD_DEFINITION_COUNT: usize = 253;
-const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 189;
+const FLEXIBLE_FIELD_DEFINITION_COUNT: usize = 190;
 const INTENTIONAL_UNION_ANY_FIELD_DEFINITIONS: [&str; 2] = [
     "DEFINE FIELD OVERWRITE capability_grants ON TABLE atelier_transcript_receipt TYPE any DEFAULT [];",
     "DEFINE FIELD OVERWRITE decisions ON TABLE knowledge_retrieval_traces TYPE any DEFAULT [];",
@@ -5277,14 +5279,14 @@ const FIELD_DEFINITION_COUNT: usize =
     AUTHORED_FIELD_DEFINITION_COUNT + ENGINE_GENERATED_COLLECTION_SUBTYPE_FIELD_COUNT;
 // MT-168: +1 index (protected_resources_parent_idx).
 const INDEX_DEFINITION_COUNT: usize = 859;
-const EVENT_DEFINITION_COUNT: usize = 47;
+const EVENT_DEFINITION_COUNT: usize = 48;
 const VIEW_DEFINITION_COUNT: usize = 2;
 const SEQUENCE_DEFINITION_COUNT: usize = 2;
 const ACCESS_DEFINITION_COUNT: usize = 4;
 // MT-158 re-pin: +1 function (fn::mt158_dependency_graph_scope).
 // MT-159: +2 functions (fn::mt159_locus_key_id, fn::mt159_locus_key_is_own).
 // MT-166: +1 function (fn::mt166_resource_select_grant).
-const FUNCTION_DEFINITION_COUNT: usize = 142;
+const FUNCTION_DEFINITION_COUNT: usize = 147;
 const SOURCE_TABLE_COUNT: usize = 308;
 const SOURCE_VIEW_COUNT: usize = 2;
 const SOURCE_NAMED_INDEX_COUNT: usize = 587;

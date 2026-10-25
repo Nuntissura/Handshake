@@ -273,13 +273,13 @@ pub fn routes(state: AppState) -> Router {
         .merge(debug_adapter_routes)
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 pub(crate) trait MountedRequestExt {
     fn oneshot(self, request: axum::http::Request<axum::body::Body>)
         -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<axum::response::Response, std::convert::Infallible>> + Send>>;
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 impl MountedRequestExt for axum::Router {
     fn oneshot(self, request: axum::http::Request<axum::body::Body>)
         -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<axum::response::Response, std::convert::Infallible>> + Send>> {

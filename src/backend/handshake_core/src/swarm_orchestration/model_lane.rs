@@ -105,6 +105,8 @@ pub enum ModelLaneError {
     AmbiguousLookup(String),
     #[error("model lane not found: {0}")]
     NotFound(String),
+    #[error("model lane recovery provenance unverifiable")]
+    RecoveryProvenanceUnverifiable,
     #[error("model lane integrity violation: {0}")]
     IntegrityViolation(String),
     #[error("model lane storage error: {0}")]
@@ -2771,6 +2773,8 @@ impl ModelLaneStore {
         validate_prepared_launch_pair(&records.0, &records.1)?;
         let current = self.replay_run(&expected.run_id).await?.run;
         if current != *expected || records.0.run_id != current.run_id
+            || records.0.engine_profile != current.engine_profile
+            || records.1.engine_profile != current.engine_profile
             || records.0.trace_id != current.trace_id
             || records.0.coordinator_session_id != current.coordinator_session_id
             || records.0.owner_session != current.owner_session
@@ -6589,6 +6593,38 @@ impl ModelLaneStore {
     }
 
     async fn record_recovery_checkpoint_source(&self, input: NewModelLaneRecoveryCheckpoint) -> ModelLaneResult<ModelLaneRecoveryCheckpointRecord> {
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+        let scope = self.surreal_write_scope("record ModelLane recovery checkpoint")?;
+        let original = crate::storage::surreal::current_record_user_scope()
+            .ok_or_else(|| ModelLaneError::AuthorityDenied("checkpoint capture requires original authenticated Workspace/Create authority".into()))?;
+        if original.action != ResourceAction::Create
+            || original.workspace_id.as_deref() != Some(scope.workspace_id.as_str())
+            || original.session_id != scope.authenticated_session_id
+        {
+            return Err(ModelLaneError::AuthorityDenied("checkpoint capture requires original authenticated Workspace/Create authority".into()));
+        }
+        let subject = crate::storage::surreal::ModelLaneOperationSubject {
+            kind: ResourceKind::Workspace,
+            external_id: scope.workspace_id.clone(),
+        };
+        if crate::storage::surreal::current_model_lane_subject().is_some_and(|current| {
+            current.kind != subject.kind || current.external_id != subject.external_id
+        }) {
+            return Err(ModelLaneError::AuthorityDenied("checkpoint capture subject differs from its original workspace".into()));
+        }
+        let provider = self.provider().await?.clone();
+        let store = self.clone();
+        let run_id = input.run_id.clone();
+        crate::storage::surreal::with_model_lane_subject(subject,
+            provider.with_context_bundle_transaction(
+                crate::storage::surreal::ContextCoordinationPurpose::RecoveryCheckpointRecord,
+                run_id, Vec::new(), scope,
+                move || async move { store.record_recovery_checkpoint_in_transaction(input).await },
+            ),
+        ).await
+    }
+
+    async fn record_recovery_checkpoint_in_transaction(&self, input: NewModelLaneRecoveryCheckpoint) -> ModelLaneResult<ModelLaneRecoveryCheckpointRecord> {
         validate_recovery_checkpoint(&input)?;
         let scope = self.surreal_write_scope("record ModelLane recovery checkpoint")?;
         let provider = self.provider().await?;
@@ -6609,6 +6645,7 @@ impl ModelLaneStore {
             provider
                 .validate_event_link(SurrealRecordKind::RecoveryCheckpoint, &existing, &scope)
                 .await?;
+            let membership: RecoveryCheckpointCloudEnvelope = serde_json::from_str(&existing.record_json)?;
             let existing = surreal_recovery_checkpoint_record(existing)?;
             ensure_idempotent_input_matches(
                 "model_lane_recovery_checkpoint",
@@ -6616,6 +6653,7 @@ impl ModelLaneStore {
                 &existing.inner,
                 &input,
             )?;
+            self.validate_checkpoint_cloud_membership(&existing, membership.cloud_consent_denial_membership.as_ref(), &scope).await?;
             return Ok(existing);
         }
         let run_row = provider
@@ -6675,11 +6713,85 @@ impl ModelLaneStore {
                 prepared.last_event_ledger_seq,
                 &scope,
             )
-            .await?;
+            .await.map_err(recovery_cloud_provenance_error)?;
         provider
             .validate_event_link(SurrealRecordKind::RecoveryCheckpoint, &stored, &scope)
             .await?;
-        surreal_recovery_checkpoint_record(stored)
+        let membership: RecoveryCheckpointCloudEnvelope = serde_json::from_str(&stored.record_json)?;
+        let checkpoint = surreal_recovery_checkpoint_record(stored)?;
+        self.validate_checkpoint_cloud_membership(&checkpoint, membership.cloud_consent_denial_membership.as_ref(), &scope).await?;
+        Ok(checkpoint)
+    }
+
+    async fn validate_checkpoint_cloud_membership(
+        &self,
+        checkpoint: &ModelLaneRecoveryCheckpointRecord,
+        membership: Option<&RecoveryCheckpointCloudMembership>,
+        scope: &SurrealModelLaneScope,
+    ) -> ModelLaneResult<Vec<ModelLaneCloudConsentDenialRecord>> {
+        let membership = membership.ok_or(ModelLaneError::RecoveryProvenanceUnverifiable)?;
+        if membership.schema_version != 1 || membership.observation != "checkpoint_prewrite"
+            || membership.checkpoint_id != checkpoint.checkpoint_id
+            || membership.run_id != checkpoint.run_id
+            || membership.event_ledger_stream_id != checkpoint.event_ledger_stream_id
+            || membership.last_event_ledger_seq != checkpoint.last_event_ledger_seq
+            || membership.owner_account_id != scope.owner_account_id
+            || membership.actor_principal_id != scope.actor_principal_id
+            || membership.authenticated_session_id != scope.authenticated_session_id
+            || membership.access_space_id != scope.access_space_id
+            || membership.workspace_id != scope.workspace_id
+        {
+            return Err(ModelLaneError::RecoveryProvenanceUnverifiable);
+        }
+        let cloud_scope = CloudModelLaneScope {
+            owner_account_id: scope.owner_account_id.clone(),
+            actor_principal_id: scope.actor_principal_id.clone(),
+            authenticated_session_id: scope.authenticated_session_id.clone(),
+            access_space_id: scope.access_space_id.clone(),
+            workspace_id: scope.workspace_id.clone(),
+        };
+        let cloud = &self.cloud_authority;
+        let mut event_ids = BTreeSet::new();
+        let mut previous: Option<(i64, String)> = None;
+        let mut denials = Vec::with_capacity(membership.receipts.len());
+        for member in &membership.receipts {
+            let order = (member.event_seq, member.event_id.clone());
+            if member.event_id.trim().is_empty() || member.lane_id.trim().is_empty()
+                || member.event_seq <= 0 || member.event_seq > checkpoint.last_event_ledger_seq
+                || member.payload_hash.len() != 64
+                || !member.payload_hash.bytes().all(|byte| byte.is_ascii_hexdigit())
+                || member.run_id != checkpoint.run_id
+                || member.event_ledger_stream_id != checkpoint.event_ledger_stream_id
+                || member.owner_account_id != scope.owner_account_id
+                || member.actor_principal_id != scope.actor_principal_id
+                || member.authenticated_session_id != scope.authenticated_session_id
+                || member.access_space_id != scope.access_space_id
+                || member.workspace_id != scope.workspace_id
+                || !event_ids.insert(member.event_id.clone())
+                || previous.as_ref().is_some_and(|previous| previous >= &order)
+            {
+                return Err(ModelLaneError::RecoveryProvenanceUnverifiable);
+            }
+            let row = cloud.validate_checkpoint_denial_member(
+                &member.event_id, member.event_seq, &member.payload_hash,
+                &member.run_id, &member.lane_id, &member.event_ledger_stream_id, &cloud_scope,
+            ).await.map_err(recovery_cloud_provenance_error)?;
+            let record: Value = serde_json::from_str(&row.record_json)?;
+            let reason_code = record.get("reason_code").and_then(Value::as_str)
+                .filter(|value| !value.is_empty()).ok_or(ModelLaneError::RecoveryProvenanceUnverifiable)?;
+            let failure_kind = record.get("failure_kind").and_then(Value::as_str)
+                .filter(|value| !value.is_empty()).ok_or(ModelLaneError::RecoveryProvenanceUnverifiable)?;
+            denials.push(ModelLaneCloudConsentDenialRecord {
+                event_id: row.event_id,
+                event_ledger_seq: row.event_seq,
+                run_id: member.run_id.clone(),
+                lane_id: member.lane_id.clone(),
+                reason_code: reason_code.to_owned(),
+                failure_kind: failure_kind.to_owned(),
+            });
+            previous = Some(order);
+        }
+        Ok(denials)
     }
 
     pub async fn record_recovery_event(
@@ -7244,14 +7356,15 @@ impl ModelLaneStore {
             provider
                 .validate_event_link(SurrealRecordKind::RecoveryCheckpoint, &row, &scope)
                 .await?;
-            checkpoints.push(surreal_recovery_checkpoint_record(row)?);
+            let membership: RecoveryCheckpointCloudEnvelope = serde_json::from_str(&row.record_json)?;
+            checkpoints.push((surreal_recovery_checkpoint_record(row)?, membership.cloud_consent_denial_membership));
         }
-        let checkpoint = checkpoints
+        let (checkpoint, cloud_membership) = checkpoints
             .into_iter()
-            .filter(|checkpoint| {
+            .filter(|(checkpoint, _)| {
                 checkpoint.event_ledger_stream_id == canonical_run.event_ledger_stream_id
             })
-            .max_by_key(|checkpoint| checkpoint.event_ledger_seq)
+            .max_by_key(|(checkpoint, _)| checkpoint.event_ledger_seq)
             .ok_or_else(|| {
                 ModelLaneError::NotFound(format!("recovery checkpoint for run_id {run_id}"))
             })?;
@@ -7271,6 +7384,9 @@ impl ModelLaneStore {
                 checkpoint.checkpoint_id
             )));
         }
+        let cloud_consent_denials = self.validate_checkpoint_cloud_membership(
+            &checkpoint, cloud_membership.as_ref(), &scope,
+        ).await?;
         let replay = self.replay_run(run_id).await?;
         for message in &replay.messages {
             self.validate_surreal_stored_crdt_binding(message, &scope)
@@ -7386,18 +7502,6 @@ impl ModelLaneStore {
             }
         }
         validate_contiguous_recovery_order(run_id, &recovery_events)?;
-        let denial_rows = provider
-            .list_run(SurrealRecordKind::CloudConsentDenial, run_id, &scope)
-            .await?;
-        let mut cloud_consent_denials = Vec::new();
-        for row in denial_rows {
-            provider
-                .validate_event_link(SurrealRecordKind::CloudConsentDenial, &row, &scope)
-                .await?;
-            if row.event_seq <= checkpoint_bound_event_ledger_seq {
-                cloud_consent_denials.push(serde_json::from_str(&row.record_json)?);
-            }
-        }
         let mt_rows = provider
             .list_run(SurrealRecordKind::MtRuntimeStatus, run_id, &scope)
             .await?;
@@ -9010,6 +9114,16 @@ fn surreal_context_bundle_handoff_record(
     Ok(record)
 }
 
+fn recovery_cloud_provenance_error(error: SurrealStorageError) -> ModelLaneError {
+    if matches!(&error, SurrealStorageError::InvalidCloudModelLaneRecord { .. })
+        || error.to_string().contains("HSK-CLOUD-CHECKPOINT-PROVENANCE-UNVERIFIABLE")
+    {
+        ModelLaneError::RecoveryProvenanceUnverifiable
+    } else {
+        ModelLaneError::Surreal(error)
+    }
+}
+
 fn surreal_recovery_checkpoint_record(
     stored: SurrealModelLaneRecord,
 ) -> ModelLaneResult<ModelLaneRecoveryCheckpointRecord> {
@@ -10318,6 +10432,7 @@ impl DexterityNormalizedLaunch {
             .clone();
         let locus = self.locus()?;
         let run = NewModelLaneRun {
+            engine_profile: None,
             run_id: self.run_id.clone(),
             trace_id: self.trace_id.clone(),
             run_span_id: self.run_span_id.clone(),
@@ -10352,6 +10467,7 @@ impl DexterityNormalizedLaunch {
             rejection_reason_refs: self.rejection_reason_refs.clone(),
         };
         let lane = NewModelLane {
+            engine_profile: None,
             lane_id: self.lane_id.clone(),
             run_id: self.run_id,
             trace_id: self.trace_id,
@@ -10913,8 +11029,12 @@ pub struct ModelLaneRoutingMetadata {
     pub ack_for: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DexterityLaunchContract {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub engine_profile_session: Option<crate::storage::EngineProfileSessionDeclarationV1>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub engine_profile: Option<crate::model_runtime::EngineProfileSnapshotV1>,
     pub run_id: String,
     pub lane_id: String,
     #[serde(default)]
@@ -11002,6 +11122,8 @@ impl DexterityLaunchContract {
                 .unwrap_or("no-model-material")
         ));
         Ok(Self {
+            engine_profile: None,
+            engine_profile_session: None,
             run_id: run_id.clone(),
             lane_id: lane_id.clone(),
             restart_generation: 0,
@@ -11045,6 +11167,12 @@ impl DexterityLaunchContract {
         request: &SpawnRequest,
         descriptor: &DexterityLaunchAdapterDescriptor,
     ) -> ModelLaneResult<()> {
+        if let Some(snapshot) = self.engine_profile.as_ref() {
+            snapshot.validate().map_err(|_| ModelLaneError::InvalidInput("invalid engine profile snapshot".into()))?;
+            if request.model_artifact_sha256.as_deref() != Some(snapshot.profile.model.content_sha256.as_str()) {
+                return Err(ModelLaneError::InvalidInput("engine profile artifact digest mismatch".into()));
+            }
+        }
         required_request_field("wp_id", request.wp_id.as_deref())?;
         required_request_field("mt_id", request.mt_id.as_deref())?;
         require_token("parent_session_id", &request.parent_session_id)?;
@@ -11116,6 +11244,7 @@ impl DexterityLaunchContract {
         let micro_task_id = required_request_field("mt_id", request.mt_id.as_deref())?;
         let locus = self.locus(request, live)?;
         Ok(NewModelLaneRun {
+            engine_profile: self.engine_profile.clone(),
             run_id: self.run_id.clone(),
             trace_id: self.trace_id.clone(),
             run_span_id: self.run_span_id.clone(),
@@ -11163,6 +11292,7 @@ impl DexterityLaunchContract {
         let locus = self.failed_locus(request, &model_session_id)?;
         let candidate_model_ids = self.candidate_model_ids(request);
         Ok(NewModelLaneRun {
+            engine_profile: self.engine_profile.clone(),
             run_id: self.run_id.clone(),
             trace_id: self.trace_id.clone(),
             run_span_id: self.run_span_id.clone(),
@@ -11225,6 +11355,7 @@ impl DexterityLaunchContract {
             mapped.runtime_binding.as_str()
         );
         Ok(NewModelLane {
+            engine_profile: self.engine_profile.clone(),
             lane_id: self.lane_id.clone(),
             run_id: self.run_id.clone(),
             trace_id: self.trace_id.clone(),
@@ -11305,6 +11436,7 @@ impl DexterityLaunchContract {
         let effective_execution_policy_ref =
             format!("execution-policy://effective/{}", launch_authority.as_str());
         Ok(NewModelLane {
+            engine_profile: self.engine_profile.clone(),
             lane_id: self.lane_id.clone(),
             run_id: self.run_id.clone(),
             trace_id: self.trace_id.clone(),
@@ -11405,6 +11537,7 @@ impl DexterityLaunchContract {
     }
 
     fn persisted_model_id(&self, request: &SpawnRequest, live: &LiveSession) -> String {
+        if let Some(snapshot) = self.engine_profile.as_ref() { return snapshot.profile.model.id.clone(); }
         if request.provider == Some(ProviderKind::ByokCloud) {
             return self
                 .candidate_model_ids(request)
@@ -11416,8 +11549,126 @@ impl DexterityLaunchContract {
     }
 }
 
+/// Pre-runtime ownership of one ordinary operator launch. This is deliberately
+/// distinct from NewModelLane: no process has been created or claimed here.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub(crate) struct OperatorChatLaunchAdmissionV1 {
+    schema_id: &'static str,
+    operation_id: uuid::Uuid,
+    run_id: String,
+    event_ledger_stream_id: String,
+    run: NewModelLaneRun,
+    planned_lane_id: String,
+    model_session_id: String,
+    scope: super::resource_scope::ExactResourceScopeAttribution,
+    engine_profile: crate::model_runtime::EngineProfileSnapshotV1,
+    session_declaration: crate::storage::EngineProfileSessionDeclarationV1,
+    original_request: serde_json::Value,
+    original_selection: serde_json::Value,
+    original_request_sha256: String,
+    original_selection_sha256: String,
+    expires_at_utc: String,
+}
+
+impl OperatorChatLaunchAdmissionV1 {
+    pub(crate) fn from_original(
+        request: &SpawnRequest,
+        selection: &super::operator_chat::OperatorChatSelection,
+        scope: &super::resource_scope::ExactResourceScopeAttribution,
+        expires_at_utc: chrono::DateTime<chrono::Utc>,
+        operation_id: uuid::Uuid,
+    ) -> ModelLaneResult<Self> {
+        let denied = |reason: &str| ModelLaneError::AuthorityDenied(reason.to_string());
+        if selection.lane_kind != super::operator_chat::OperatorChatLaneKind::Local
+            || selection.prompt.trim().is_empty() || selection.working_dir.trim().is_empty()
+            || request.owner_role != selection.owner_session
+            || request.parent_session_id != selection.parent_session_id
+            || request.working_dir.as_deref() != Some(selection.working_dir.as_str())
+            || request.worktree_id != selection.worktree_id
+            || request.checkout_lease.is_some()
+            || expires_at_utc <= chrono::Utc::now()
+        { return Err(denied("ordinary launch admission differs from original owner or request")); }
+        let contract = request.dexterity_launch.as_ref()
+            .ok_or_else(|| denied("ordinary launch admission requires its original contract"))?;
+        let snapshot = contract.engine_profile.as_ref()
+            .ok_or_else(|| denied("ordinary launch admission requires its immutable engine profile"))?;
+        snapshot.validate().map_err(|_| denied("ordinary launch admission profile is invalid"))?;
+        let declaration = contract.engine_profile_session.as_ref()
+            .ok_or_else(|| denied("ordinary launch session declaration is absent"))?;
+        declaration.validate().map_err(|_| denied("ordinary launch session declaration is invalid"))?;
+        if selection.engine_profile_session.as_ref() != Some(declaration) {
+            return Err(denied("ordinary launch session declaration differs from original"));
+        }
+        if selection.model_id != snapshot.profile.model.id
+            || request.model_artifact_sha256.as_deref() != Some(snapshot.profile.model.content_sha256.as_str())
+        { return Err(denied("ordinary launch admission artifact identity differs")); }
+        let work_packet_id = required_request_field("wp_id", request.wp_id.as_deref())?;
+        let micro_task_id = required_request_field("mt_id", request.mt_id.as_deref())?;
+        let model_session_id = dexterity_spawn_model_session_id(request);
+        let locus = ModelLaneLocusBinding {
+            work_packet_id: work_packet_id.clone(), micro_task_id: micro_task_id.clone(),
+            task_board_id: Some(contract.task_board_id.clone()),
+            coordinator_session_id: request.parent_session_id.clone(),
+            session_id: runtime_session_id(request), model_session_id: model_session_id.clone(),
+            owner_session: request.owner_role.clone(), locus_binding_ref: contract.locus_binding_ref.clone(),
+        };
+        let run = NewModelLaneRun {
+            engine_profile: Some(snapshot.clone()),
+            run_id: contract.run_id.clone(), trace_id: contract.trace_id.clone(),
+            run_span_id: contract.run_span_id.clone(), coordinator_session_id: request.parent_session_id.clone(),
+            routing_policy: contract.routing_policy.clone(), context_bundle_id: contract.context_bundle_id.clone(),
+            lane_ids: vec![contract.lane_id.clone()], event_ledger_stream_id: contract.event_ledger_stream_id.clone(),
+            artifact_namespace: contract.artifact_namespace.clone(), projection_plan_ref: contract.projection_plan_ref.clone(),
+            consent_receipt_ref: contract.consent_receipt_ref.clone(), work_packet_id: Some(work_packet_id),
+            micro_task_id: Some(micro_task_id), task_board_id: Some(contract.task_board_id.clone()),
+            owner_session: request.owner_role.clone(),
+            idempotency_key: format!("dexterity-launch-run:{}:{}", contract.run_id, contract.lane_id),
+            replay_order_key: format!("{}:00000000:run", contract.run_id), replay_after_event_ledger_seq: None,
+            recovery_state: ModelLaneRecoveryState::Restartable, failstate_code: None, reason_ref: None,
+            recovery_hint_ref: contract.run_recovery_hint_ref.clone(), locus_binding: Some(locus),
+            memory_pack_ref: contract.memory_pack_ref.clone(), memory_pack_hash: contract.memory_pack_hash.clone(),
+            determinism_mode: contract.determinism_mode.clone(), budget_summary_ref: contract.budget_summary_ref.clone(),
+            selected_model_id: Some(snapshot.profile.model.id.clone()),
+            candidate_model_ids: contract.candidate_model_ids.clone(),
+            procedural_review_status: contract.procedural_review_status.clone(),
+            truncation_warning_ref: contract.truncation_warning_ref.clone(), rejection_reason_refs: contract.rejection_reason_refs.clone(),
+        };
+        validate_run(&run)?;
+        let original_request = serde_json::to_value(request)?;
+        Ok(Self {
+            schema_id: "hsk.operator_chat_launch_admission@1", operation_id,
+            run_id: run.run_id.clone(), event_ledger_stream_id: run.event_ledger_stream_id.clone(), run,
+            planned_lane_id: contract.lane_id.clone(), model_session_id,
+            scope: scope.clone(), engine_profile: snapshot.clone(), session_declaration: declaration.clone(),
+            original_request_sha256: dexterity_sha256_hex(canonical_json_bytes(&original_request)),
+            original_selection_sha256: dexterity_sha256_hex(canonical_json_bytes(&serde_json::to_value(selection)?)),
+            original_request, original_selection: serde_json::to_value(selection)?, expires_at_utc: expires_at_utc.to_rfc3339(),
+        })
+    }
+
+    pub(crate) fn validate_original(
+        &self,
+        request: &SpawnRequest,
+        selection: &super::operator_chat::OperatorChatSelection,
+        scope: &super::resource_scope::ExactResourceScopeAttribution,
+    ) -> ModelLaneResult<()> {
+        let expiry = parse_utc("admission.expires_at_utc", &self.expires_at_utc)?;
+        if Self::from_original(request, selection, scope, expiry, self.operation_id)? != *self {
+            return Err(ModelLaneError::AuthorityDenied("ordinary launch admission binding differs".into()));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn run(&self) -> &NewModelLaneRun { &self.run }
+    pub(crate) fn lane_id(&self) -> &str { &self.planned_lane_id }
+    pub(crate) fn scope(&self) -> &super::resource_scope::ExactResourceScopeAttribution { &self.scope }
+    pub(crate) fn profile(&self) -> &crate::model_runtime::EngineProfileSnapshotV1 { &self.engine_profile }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NewModelLaneRun {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub engine_profile: Option<crate::model_runtime::EngineProfileSnapshotV1>,
     pub run_id: String,
     pub trace_id: String,
     pub run_span_id: String,
@@ -11470,6 +11721,8 @@ impl Deref for ModelLaneRunRecord {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NewModelLane {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub engine_profile: Option<crate::model_runtime::EngineProfileSnapshotV1>,
     pub lane_id: String,
     pub run_id: String,
     pub trace_id: String,
@@ -12196,6 +12449,45 @@ pub struct ModelLaneCrdtAuthorityBinding {
     pub materialized_projection_hash: String,
     pub update_event_ledger_event_id: String,
     pub crdt_proposal_ref: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RecoveryCheckpointCloudEnvelope {
+    #[serde(default)]
+    cloud_consent_denial_membership: Option<RecoveryCheckpointCloudMembership>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RecoveryCheckpointCloudMembership {
+    schema_version: u32,
+    observation: String,
+    checkpoint_id: String,
+    run_id: String,
+    event_ledger_stream_id: String,
+    last_event_ledger_seq: i64,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+    receipts: Vec<RecoveryCheckpointCloudReceipt>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RecoveryCheckpointCloudReceipt {
+    event_id: String,
+    event_seq: i64,
+    payload_hash: String,
+    run_id: String,
+    lane_id: String,
+    event_ledger_stream_id: String,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -15732,6 +16024,9 @@ fn validate_run_memory_pack(memory_pack_ref: &str, memory_pack_hash: &str) -> Mo
 }
 
 fn validate_run(input: &NewModelLaneRun) -> ModelLaneResult<()> {
+    if let Some(snapshot) = input.engine_profile.as_ref() {
+        snapshot.validate().map_err(|_| ModelLaneError::InvalidInput("invalid engine profile snapshot".into()))?;
+    }
     require_token("run_id", &input.run_id)?;
     require_token("trace_id", &input.trace_id)?;
     require_token("run_span_id", &input.run_span_id)?;
@@ -15772,6 +16067,9 @@ fn validate_run(input: &NewModelLaneRun) -> ModelLaneResult<()> {
 }
 
 fn validate_lane(input: &NewModelLane) -> ModelLaneResult<()> {
+    if let Some(snapshot) = input.engine_profile.as_ref() {
+        snapshot.validate().map_err(|_| ModelLaneError::InvalidInput("invalid engine profile snapshot".into()))?;
+    }
     require_token("lane_id", &input.lane_id)?;
     require_token("run_id", &input.run_id)?;
     require_token("trace_id", &input.trace_id)?;
@@ -15820,6 +16118,10 @@ fn validate_prepared_launch_pair(
     run: &NewModelLaneRun,
     lane: &NewModelLane,
 ) -> ModelLaneResult<()> {
+    if run.engine_profile != lane.engine_profile {
+        return Err(ModelLaneError::InvalidInput("run/lane engine profile mismatch".into()));
+    }
+
     require_equal("lane.run_id", &lane.run_id, "run.run_id", &run.run_id)?;
     if !run.lane_ids.iter().any(|id| id == &lane.lane_id) {
         return Err(ModelLaneError::InvalidInput(format!(
@@ -16963,4 +17265,177 @@ impl ModelLaneStore {
             crate::storage::surreal::resource_authority::ResourceAuthorityError::InvalidInput("association designation result kind differs"))),
     }
 }
+}
+
+/// Owned proof of the atomic pre-runtime run/admission/audit commit. Not cloneable.
+pub(crate) struct PreparedOperatorChatProfileV1 {
+    admission: OperatorChatLaunchAdmissionV1,
+    run: ModelLaneRunRecord,
+    audit: ModelLaneSelectionAuditRecord,
+    generation: i64,
+    status: &'static str,
+}
+impl PreparedOperatorChatProfileV1 {
+    pub(crate) fn run(&self) -> &ModelLaneRunRecord { &self.run }
+    pub(crate) fn audit(&self) -> &ModelLaneSelectionAuditRecord { &self.audit }
+    pub(crate) fn status(&self) -> &'static str { self.status }
+}
+
+#[derive(Serialize)]
+struct OperatorChatAdmissionTransitionV1<'a> {
+    operation_id: uuid::Uuid,
+    transition_id: String,
+    admission_id: &'a str,
+    run_id: &'a str,
+    event_ledger_stream_id: &'a str,
+    original_request_sha256: &'a str,
+    original_selection_sha256: &'a str,
+    engine_profile: &'a crate::model_runtime::EngineProfileSnapshotV1,
+    before: OperatorChatAdmissionStateV1,
+    after: OperatorChatAdmissionStateV1,
+    attached_lane_event_id: Option<&'a str>,
+}
+#[derive(Serialize)]
+struct OperatorChatAdmissionStateV1 { generation: i64, status: &'static str }
+
+impl ModelLaneStore {
+    pub(crate) async fn prepare_operator_chat_profile(
+        &self,
+        request: &SpawnRequest,
+        selection: &super::operator_chat::OperatorChatSelection,
+        scope: &super::resource_scope::ExactResourceScopeAttribution,
+        expires_at_utc: chrono::DateTime<chrono::Utc>,
+        operation_id: uuid::Uuid,
+        original_owner: std::sync::Arc<dyn std::any::Any + Send + Sync>,
+    ) -> ModelLaneResult<PreparedOperatorChatProfileV1> {
+        self.access.authorize_exact_request(scope)?;
+        if !matches!(crate::storage::surreal::current_record_user_scope().map(|authority| authority.action),
+            Some(crate::storage::surreal::resource_authority::ResourceAction::Create)) {
+            return Err(ModelLaneError::AuthorityDenied("ordinary profile admission requires its original authenticated Create".into()));
+        }
+        let admission = OperatorChatLaunchAdmissionV1::from_original(request, selection, scope, expires_at_utc, operation_id)?;
+        let audit = ModelLaneSelectionAuditRecord {
+            inner: NewModelLaneSelectionAudit {
+                audit_id: format!("profile-selection:{}", admission.run_id), run_id: admission.run_id.clone(),
+                selected_model_id: admission.engine_profile.profile.model.id.clone(),
+                actor_ref: format!("principal://{}", scope.actor_principal_id),
+                reason: "operator_chat_launch_selection".to_owned(),
+                selection_context: json!({
+                    "engine_profile": admission.engine_profile,
+                    "session_declaration": admission.session_declaration,
+                    "original_request_sha256": admission.original_request_sha256,
+                    "original_selection_sha256": admission.original_selection_sha256,
+                }),
+                event_ledger_stream_id: admission.event_ledger_stream_id.clone(),
+                work_packet_id: admission.run.work_packet_id.clone().ok_or_else(|| ModelLaneError::AuthorityDenied("profile admission work packet is absent".into()))?,
+                micro_task_id: admission.run.micro_task_id.clone().ok_or_else(|| ModelLaneError::AuthorityDenied("profile admission microtask is absent".into()))?,
+                task_board_id: admission.run.task_board_id.clone().ok_or_else(|| ModelLaneError::AuthorityDenied("profile admission task board is absent".into()))?,
+                owner_session: admission.run.owner_session.clone(),
+                idempotency_key: format!("profile-selection:{}", admission.run_id),
+                created_at_utc: chrono::Utc::now().to_rfc3339(),
+            },
+            event_ledger_event_id: String::new(), event_ledger_seq: 0, event_stream_version: 0, transaction_seq: 0,
+        };
+        crate::storage::surreal::with_model_lane_operation(
+            crate::storage::surreal::ContextCoordinationPurpose::ProfileAdmissionCreate, async {
+                let write_scope = self.surreal_write_scope("ordinary profile admission")?;
+                let writes = [
+                    profile_admission_write(SurrealRecordKind::Run, &admission.run_id, &admission.run_id,
+                        &admission.run.idempotency_key, "hsk.model_lane_run@1", &admission.run, &write_scope)?,
+                    profile_admission_write(SurrealRecordKind::LaunchAdmission, &admission.run_id, &admission.run_id,
+                        &format!("profile-admission:{}", admission.run_id), "hsk.operator_chat_launch_admission@1", &admission, &write_scope)?,
+                    profile_admission_write(SurrealRecordKind::SelectionAudit, &audit.audit_id, &admission.run_id,
+                        &audit.idempotency_key, "hsk.model_lane_selection_audit@1", &audit, &write_scope)?,
+                ];
+                let provider = self.provider().await?;
+                let rows = provider.stage_profile_admission_atomic(writes, &write_scope, operation_id, original_owner).await?;
+                let [run_row, admission_row, audit_row] = rows.as_slice() else {
+                    return Err(ModelLaneError::AuthorityDenied("profile admission triplet is incomplete".into()));
+                };
+                provider.validate_event_link(SurrealRecordKind::Run, run_row, &write_scope).await?;
+                provider.validate_event_link(SurrealRecordKind::LaunchAdmission, admission_row, &write_scope).await?;
+                provider.validate_event_link(SurrealRecordKind::SelectionAudit, audit_row, &write_scope).await?;
+                let run = surreal_run_record(run_row.clone())?;
+                let audit = surreal_selection_audit_record(audit_row.clone())?;
+                if run.inner != admission.run || audit.inner.selection_context.get("engine_profile") != Some(&serde_json::to_value(&admission.engine_profile)?) {
+                    return Err(ModelLaneError::AuthorityDenied("profile admission committed binding differs".into()));
+                }
+                Ok(PreparedOperatorChatProfileV1 { admission, run, audit, generation: 1, status: "staged" })
+            },
+        ).await
+    }
+
+    pub(crate) async fn transition_operator_chat_profile(
+        &self,
+        prepared: &mut PreparedOperatorChatProfileV1,
+        request: &SpawnRequest,
+        selection: &super::operator_chat::OperatorChatSelection,
+        scope: &super::resource_scope::ExactResourceScopeAttribution,
+        next_status: &'static str,
+        attached_lane_event_id: Option<&str>,
+        operation_id: uuid::Uuid,
+        original_owner: std::sync::Arc<dyn std::any::Any + Send + Sync>,
+    ) -> ModelLaneResult<()> {
+        self.access.authorize_exact_request(scope)?;
+        // Expiry/cancellation can close their own immutable origin after its deadline;
+        // consumption must still validate the original fixed expiry.
+        if next_status == "consumed" { prepared.admission.validate_original(request, selection, scope)?; }
+        else if prepared.admission.scope != *scope || prepared.admission.original_request != serde_json::to_value(request)?
+            || prepared.admission.original_selection != serde_json::to_value(selection)? {
+            return Err(ModelLaneError::AuthorityDenied("profile admission terminal binding differs".into()));
+        }
+        let allowed = (prepared.status == "staged" && matches!(next_status, "consumed" | "abandoned" | "failed" | "cancelled" | "expired"))
+            || (prepared.status == "consumed" && matches!(next_status, "runtime_attached" | "failed" | "cancelled" | "expired"));
+        if !allowed { return Err(ModelLaneError::AuthorityDenied("profile admission is already consumed or closed".into())); }
+        let next_generation = prepared.generation.checked_add(1)
+            .ok_or_else(|| ModelLaneError::AuthorityDenied("profile admission generation exhausted".into()))?;
+        if operation_id != prepared.admission.operation_id {
+            return Err(ModelLaneError::AuthorityDenied("profile admission operation identity differs".into()));
+        }
+        let transition = OperatorChatAdmissionTransitionV1 {
+            operation_id,
+            transition_id: format!("{}:{next_generation}", prepared.admission.run_id),
+            admission_id: &prepared.admission.run_id, run_id: &prepared.admission.run_id,
+            event_ledger_stream_id: &prepared.admission.event_ledger_stream_id,
+            original_request_sha256: &prepared.admission.original_request_sha256,
+            original_selection_sha256: &prepared.admission.original_selection_sha256,
+            engine_profile: &prepared.admission.engine_profile,
+            before: OperatorChatAdmissionStateV1 { generation: prepared.generation, status: prepared.status },
+            after: OperatorChatAdmissionStateV1 { generation: next_generation, status: next_status },
+            attached_lane_event_id,
+        };
+        let purpose = if matches!(next_status, "expired" | "cancelled" | "failed") {
+            crate::storage::surreal::ContextCoordinationPurpose::ProfileAdmissionFinalization
+        } else { crate::storage::surreal::ContextCoordinationPurpose::ProfileAdmissionTransition };
+        crate::storage::surreal::with_model_lane_operation(purpose, async {
+                let write_scope = self.surreal_write_scope("ordinary profile admission transition")?;
+                let write = profile_admission_write(SurrealRecordKind::LaunchAdmissionTransition,
+                    &transition.transition_id, transition.run_id, &transition.transition_id,
+                    "hsk.operator_chat_launch_admission_transition@1", &transition, &write_scope)?;
+                self.provider().await?.transition_profile_admission_atomic(
+                    &write_scope, &prepared.admission.run_id, serde_json::to_string(&prepared.admission)?,
+                    prepared.generation, prepared.status, next_status, write, operation_id, original_owner,
+                ).await?;
+                Ok::<_, ModelLaneError>(())
+            },
+        ).await?;
+        prepared.generation = next_generation;
+        prepared.status = next_status;
+        Ok(())
+    }
+}
+
+fn profile_admission_write<T: Serialize>(
+    kind: SurrealRecordKind, aggregate_id: &str, run_id: &str, idempotency_key: &str,
+    schema_id: &str, record: &T, scope: &SurrealModelLaneScope,
+) -> ModelLaneResult<SurrealModelLaneWrite> {
+    let value = serde_json::to_value(record)?;
+    let stream = value.get("event_ledger_stream_id").and_then(Value::as_str)
+        .ok_or_else(|| ModelLaneError::AuthorityDenied("profile admission has no canonical stream".into()))?;
+    Ok(SurrealModelLaneWrite {
+        kind, aggregate_id: aggregate_id.to_owned(), run_id: run_id.to_owned(),
+        event_ledger_stream_id: Some(stream.to_owned()), idempotency_key: idempotency_key.to_owned(),
+        record_json: serde_json::to_string(record)?, search_terms: Vec::new(),
+        event_payload_json: scoped_surreal_event_payload(schema_id, record, scope)?,
+    })
 }

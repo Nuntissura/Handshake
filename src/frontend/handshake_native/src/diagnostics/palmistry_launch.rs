@@ -935,14 +935,50 @@ fn record_marker(code: DiagEventCode, phase: DiagPhase, severity: DiagSeverity, 
     );
 }
 
-/// The outcome of reaping the watcher on shutdown.
+/// Control acknowledgement is independent of the owned child's OS exit status.
+#[derive(Debug)]
+pub enum ShutdownAcknowledgement {
+    SignedConfirmed,
+    SignedUnconfirmed(io::Error),
+    /// Legacy unsigned launchers send Shutdown without requiring an acknowledgement.
+    UnsignedNotApplicable,
+}
+
+/// A confirmed owned exit retains control evidence independently of the OS status.
+#[derive(Debug)]
+pub struct ShutdownExit {
+    pub acknowledgement: ShutdownAcknowledgement,
+    pub status: ExitStatus,
+}
+
+impl ShutdownExit {
+    pub fn success(&self) -> bool {
+        self.status.success()
+    }
+
+    pub fn code(&self) -> Option<i32> {
+        self.status.code()
+    }
+}
+
+/// The outcome of the bounded shutdown of the original owned watcher.
 #[derive(Debug)]
 pub enum ShutdownOutcome {
-    /// Palmistry received `Shutdown` and exited within the bounded window (the clean-shutdown path).
-    ExitedCleanly(ExitStatus),
-    /// Palmistry did not exit within the bounded window and was killed as a backstop (no orphan leak).
-    Killed,
-    /// Shutdown was already performed (idempotent).
+    /// Successful owned reap, with Shutdown acknowledged when the launcher is signed.
+    ExitedCleanly(ShutdownExit),
+    /// The child was reaped, but its exit failed or its signed Shutdown was not acknowledged.
+    ExitedUncleanly {
+        acknowledgement: ShutdownAcknowledgement,
+        status: ExitStatus,
+    },
+    /// Backstop attempts are reported separately from confirmed exit and reap.
+    Backstop {
+        acknowledgement: ShutdownAcknowledgement,
+        initial_wait_error: Option<io::Error>,
+        kill_result: io::Result<()>,
+        reap_result: io::Result<Option<ExitStatus>>,
+    },
+    /// Shutdown was already requested; this is not new acknowledgement or drain evidence.
     AlreadyDone,
 }
 
@@ -1145,57 +1181,75 @@ impl PalmistryHandle {
         }
     }
 
-    /// Send the explicit `Shutdown` control message (§6.13.3 "closes only on explicit command") so
-    /// Palmistry exits cleanly + records NO crash, then wait (bounded by `wait`) for it to exit, killing
-    /// it as a backstop if it overruns. Idempotent.
+    /// Request Shutdown once, then report acknowledgement and the bounded owned reap separately.
     pub fn request_shutdown_and_wait(&mut self, wait: Duration) -> ShutdownOutcome {
         if self.shutdown_done {
             return ShutdownOutcome::AlreadyDone;
         }
         self.shutdown_done = true;
 
-        if self.signed_expected.is_some() {
-            if let Err(error) = self.send_control_expect_ack(
+        let acknowledgement = if self.signed_expected.is_some() {
+            match self.send_control_expect_ack(
                 &LauncherControlMessage::Shutdown,
                 "signed watcher shutdown",
             ) {
-                tracing::warn!(%error, "signed watcher Shutdown not confirmed; retaining owned wait/reap outcome");
+                Ok(()) => ShutdownAcknowledgement::SignedConfirmed,
+                Err(error) => {
+                    tracing::warn!(%error, "signed watcher Shutdown not confirmed; retaining owned wait/reap outcome");
+                    ShutdownAcknowledgement::SignedUnconfirmed(error)
+                }
             }
-        } else if let Some(reader) = self.control.as_mut() {
-            if let Err(err) = write_message(reader.get_mut(), &LauncherControlMessage::Shutdown) {
-                tracing::warn!(
-                    %err,
-                    "failed to send Shutdown to palmistry over the held control connection; reaping by \
-                     wait/kill"
+        } else {
+            if let Some(reader) = self.control.as_mut() {
+                if let Err(error) = write_message(reader.get_mut(), &LauncherControlMessage::Shutdown) {
+                    tracing::warn!(%error, "unsigned watcher Shutdown send failed; retaining owned wait/reap outcome");
+                }
+            } else if let Ok(mut stream) = connect_control(&self.socket_name, SHUTDOWN_CONNECT_DEADLINE) {
+                let _ = write_message(&mut stream, &LauncherControlMessage::Shutdown);
+            }
+            ShutdownAcknowledgement::UnsignedNotApplicable
+        };
+
+        let initial_wait = wait_for_exit_observed(&mut self.child, wait);
+        match initial_wait {
+            Ok(Some(status)) => {
+                let clean = status.success()
+                    && !matches!(&acknowledgement, ShutdownAcknowledgement::SignedUnconfirmed(_));
+                tracing::info!(
+                    child_pid = self.child.id(),
+                    ?acknowledgement,
+                    exit_code = ?status.code(),
+                    success = status.success(),
+                    "owned Palmistry watcher reaped"
                 );
+                if clean {
+                    record_marker(
+                        DiagEventCode::Shutdown,
+                        DiagPhase::End,
+                        DiagSeverity::Info,
+                        self.child.id() as u64,
+                    );
+                    ShutdownOutcome::ExitedCleanly(ShutdownExit { acknowledgement, status })
+                } else {
+                    ShutdownOutcome::ExitedUncleanly { acknowledgement, status }
+                }
             }
-        } else if let Ok(mut stream) = connect_control(&self.socket_name, SHUTDOWN_CONNECT_DEADLINE)
-        {
-            // No live connection (handshake was unconfirmed): best-effort reconnect to send Shutdown.
-            let _ = write_message(&mut stream, &LauncherControlMessage::Shutdown);
-        }
-
-        record_marker(
-            DiagEventCode::Shutdown,
-            DiagPhase::End,
-            DiagSeverity::Info,
-            self.child.id() as u64,
-        );
-
-        match wait_for_exit(&mut self.child, wait) {
-            Some(status) => ShutdownOutcome::ExitedCleanly(status),
-            None => {
+            pending => {
                 tracing::warn!(
                     child_pid = self.child.id(),
-                    "palmistry did not exit within the bounded shutdown window; killing (backstop)"
+                    "Palmistry exit unconfirmed within shutdown window; attempting owned kill and reap"
                 );
-                let _ = self.child.kill();
-                let _ = wait_for_exit(&mut self.child, Duration::from_secs(1));
-                ShutdownOutcome::Killed
+                let kill_result = self.child.kill();
+                let reap_result = wait_for_exit_observed(&mut self.child, Duration::from_secs(1));
+                ShutdownOutcome::Backstop {
+                    acknowledgement,
+                    initial_wait_error: pending.err(),
+                    kill_result,
+                    reap_result,
+                }
             }
         }
     }
-
     /// Consume the handle: send `Shutdown` and reap with the default bound. The clean-shutdown path
     /// `HandshakeApp::on_exit` calls (AC-014-4).
     pub fn shutdown(mut self) -> ShutdownOutcome {
@@ -1216,17 +1270,20 @@ impl Drop for PalmistryHandle {
 /// Bounded wait for a child to exit: poll `try_wait` until it exits or `timeout` elapses. NEVER an
 /// unbounded `Child::wait`, so a stuck child cannot hang the caller (the MANDATORY MT-092/094 bound).
 fn wait_for_exit(child: &mut Child, timeout: Duration) -> Option<ExitStatus> {
+    wait_for_exit_observed(child, timeout).ok().flatten()
+}
+
+fn wait_for_exit_observed(child: &mut Child, timeout: Duration) -> io::Result<Option<ExitStatus>> {
     let deadline = Instant::now() + timeout;
     loop {
-        match child.try_wait() {
-            Ok(Some(status)) => return Some(status),
-            Ok(None) => {
+        match child.try_wait()? {
+            Some(status) => return Ok(Some(status)),
+            None => {
                 if Instant::now() >= deadline {
-                    return None;
+                    return Ok(None);
                 }
                 std::thread::sleep(Duration::from_millis(20));
             }
-            Err(_) => return None,
         }
     }
 }

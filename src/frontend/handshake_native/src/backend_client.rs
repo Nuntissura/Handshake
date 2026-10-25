@@ -15912,7 +15912,8 @@ impl OperatorChatClient {
                 "cli_provider": &selection.cli_provider,
                 "working_dir": working_dir,
                 "prompt": prompt,
-                "owner_session_id": owner_session_id
+                "owner_session_id": owner_session_id,
+                "engine_profile": &selection.engine_profile
             })),
         }
     }
@@ -15927,6 +15928,7 @@ impl OperatorChatClient {
             url: format!("{}/operator-chat/selection", self.base_url),
             body: Some(serde_json::json!({
                 "selected_model_id": &selection.model_id,
+                "engine_profile": &selection.engine_profile,
                 "lane_kind": &selection.lane_kind,
                 "model_id": &selection.model_id,
                 "cloud_provider": &selection.cloud_provider,
@@ -16059,11 +16061,31 @@ fn sanitize_operator_chat_inventory(
         }
     }
 
-    let mut local_model_ids = std::collections::BTreeSet::new();
-    for row in &inventory.local {
-        if row.model_id.trim().is_empty() || !local_model_ids.insert(row.model_id.clone()) {
+    let mut profiles = std::collections::BTreeSet::new();
+    let mut unavailable_models = std::collections::BTreeSet::new();
+    for row in &mut inventory.local {
+        let Some(snapshot) = row.engine_profile.as_ref() else {
+            row.ready = false;
+            if row.model_id.trim().is_empty()
+                || !unavailable_models.insert(row.model_id.clone())
+            {
+                return Err(AppError::Parse(
+                    "operator-chat inventory contains an invalid unavailable model".to_owned(),
+                ));
+            }
+            continue;
+        };
+        let canonical = handshake_dexterity::Registry::new(vec![snapshot.profile.clone()])
+            .and_then(|registry| registry.resolve(&snapshot.profile.id))
+            .map_err(|_| AppError::Parse("operator-chat profile is invalid".to_owned()))?;
+        let identity = (snapshot.profile.id.clone(), snapshot.profile.revision,
+            snapshot.fingerprint.clone());
+        if row.model_id != snapshot.profile.model.id
+            || canonical.fingerprint() != snapshot.fingerprint
+            || !profiles.insert(identity)
+        {
             return Err(AppError::Parse(
-                "operator-chat inventory contains an invalid local model identity".to_owned(),
+                "operator-chat inventory contains an invalid profile identity".to_owned(),
             ));
         }
     }
@@ -16091,6 +16113,9 @@ fn sanitize_operator_chat_inventory(
 }
 
 impl crate::operator_chat_pane::OperatorChatBackend for OperatorChatClient {
+    fn launch_recovery_scope_is_active(&self) -> bool {
+        self.authenticated_context.as_ref().is_some_and(|context| context.is_active())
+    }
     /// Fetch the picker inventory into `cell`.
     fn fetch_models(&self, cell: crate::operator_chat_pane::ModelsCell) {
         let spec = self.models_request();
@@ -22709,6 +22734,115 @@ impl AtelierClient {
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(result);
             }
+        });
+    }
+}
+
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EngineProfileSnapshotV1 {
+    pub profile: handshake_dexterity::EngineProfile,
+    pub fingerprint: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EngineProfileIdentityV1 {
+    pub profile_id: String,
+    pub revision: u64,
+    pub fingerprint: String,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EngineProfileDefinitionV1 {
+    pub profile_id: String,
+    pub revisions: Vec<EngineProfileSnapshotV1>,
+    pub head_generation: u64,
+    pub tombstoned: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EngineProfileRegistryV1 {
+    pub registry_generation: u64,
+    pub profiles: Vec<EngineProfileDefinitionV1>,
+    pub active_generation: u64,
+    pub active: Option<EngineProfileIdentityV1>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "operation", rename_all = "snake_case", deny_unknown_fields)]
+pub enum EngineProfileMutationV1 {
+    Create { snapshot: EngineProfileSnapshotV1 },
+    NewRevision {
+        expected_head: EngineProfileIdentityV1,
+        expected_head_generation: u64,
+        snapshot: EngineProfileSnapshotV1,
+    },
+    Tombstone {
+        expected_head: EngineProfileIdentityV1,
+        expected_head_generation: u64,
+    },
+    Activate {
+        expected_head: EngineProfileIdentityV1,
+        expected_head_generation: u64,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EngineProfileMutationRequestV1 {
+    pub request_id: uuid::Uuid,
+    pub reason: String,
+    pub expected_registry_generation: u64,
+    pub expected_active_generation: u64,
+    pub mutation: EngineProfileMutationV1,
+}
+
+pub type EngineProfileRegistryCell =
+    Arc<Mutex<Option<Result<EngineProfileRegistryV1, String>>>>;
+
+impl ModelRuntimeRegistryClient {
+    pub fn fetch_engine_profiles(&self, workspace_id: &str, cell: EngineProfileRegistryCell) {
+        let client = self.client.clone();
+        let account = self.authenticated_context.clone();
+        let url = format!("{}/workspaces/{}/engine-profiles",
+            self.base_url, encode_path_segment(workspace_id));
+        self.runtime.spawn(async move {
+            let result = authenticated_json_expect_success(
+                &client, account, "GET",
+                client.get(&url).timeout(Duration::from_secs(5)),
+            ).await
+                .and_then(|value| serde_json::from_value(value)
+                    .map_err(|error| AppError::Parse(error.to_string())))
+                .map_err(|_| "Engine profile registry could not be loaded.".to_owned());
+            if let Ok(mut slot) = cell.lock() { *slot = Some(result); }
+        });
+    }
+
+    pub fn mutate_engine_profiles(
+        &self,
+        workspace_id: &str,
+        request: &EngineProfileMutationRequestV1,
+        cell: EngineProfileRegistryCell,
+    ) {
+        let client = self.client.clone();
+        let account = self.authenticated_context.clone();
+        let url = format!("{}/workspaces/{}/engine-profiles",
+            self.base_url, encode_path_segment(workspace_id));
+        let request = request.clone();
+        self.runtime.spawn(async move {
+            let result = authenticated_json_expect_success(
+                &client, account, "POST",
+                client.post(&url).timeout(Duration::from_secs(5)).json(&request),
+            ).await
+                .and_then(|value| serde_json::from_value(value)
+                    .map_err(|error| AppError::Parse(error.to_string())))
+                .map_err(|_| "Engine profile change was not accepted. Refresh before retrying."
+                    .to_owned());
+            if let Ok(mut slot) = cell.lock() { *slot = Some(result); }
         });
     }
 }

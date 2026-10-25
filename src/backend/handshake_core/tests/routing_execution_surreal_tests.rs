@@ -868,6 +868,7 @@ fn sample_run(label: &str) -> NewModelLaneRun {
     let coordinator_session_id = format!("coordinator-{suffix}");
     let owner_session = format!("owner-session-{suffix}");
     NewModelLaneRun {
+        engine_profile: None,
         run_id: run_id.clone(),
         trace_id: format!("trace-{suffix}"),
         run_span_id: format!("run-span-{suffix}"),

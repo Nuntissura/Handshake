@@ -16,7 +16,7 @@ use std::sync::{Arc, Mutex};
 use egui::accesskit;
 use serde::{Deserialize, Serialize};
 
-use crate::backend_client::OperatorChatClient;
+use crate::backend_client::{OperatorChatClient, EngineProfileSnapshotV1, EngineProfileIdentityV1};
 use crate::pane_registry::{PaneFactory, PaneRenderContext, PaneType};
 
 pub const SURFACE_CONTRACT_ID: &str = "native_operator_chat_launch";
@@ -58,6 +58,10 @@ pub fn model_selection_author_id(
         token(provider.unwrap_or("none")),
         token(model_id)
     )
+}
+
+pub fn profile_selection_author_id(profile: &EngineProfileSnapshotV1) -> String {
+    format!("operator-chat.profile.{}", profile.fingerprint)
 }
 
 pub fn session_selection_author_id(session_id: &str) -> String {
@@ -107,6 +111,8 @@ pub struct OperatorChatModelRow {
     pub runtime_binding: String,
     #[serde(default)]
     pub ready: bool,
+    #[serde(default)]
+    pub engine_profile: Option<EngineProfileSnapshotV1>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -133,7 +139,7 @@ pub struct OperatorChatCloudRow {
     pub status: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OperatorChatLaunchSelection {
     pub lane_kind: String,
     pub model_id: String,
@@ -141,15 +147,18 @@ pub struct OperatorChatLaunchSelection {
     pub cloud_provider: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cli_provider: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub engine_profile: Option<EngineProfileSnapshotV1>,
 }
 
 impl OperatorChatLaunchSelection {
-    pub fn local(model_id: impl Into<String>) -> Self {
+    pub fn local(profile: EngineProfileSnapshotV1) -> Self {
         Self {
             lane_kind: "local".to_string(),
-            model_id: model_id.into(),
+            model_id: profile.profile.model.id.clone(),
             cloud_provider: None,
             cli_provider: None,
+            engine_profile: Some(profile),
         }
     }
 
@@ -159,6 +168,7 @@ impl OperatorChatLaunchSelection {
             model_id: model_id.into(),
             cloud_provider: Some(provider.into()),
             cli_provider: None,
+            engine_profile: None,
         }
     }
 
@@ -168,6 +178,7 @@ impl OperatorChatLaunchSelection {
             model_id: model_id.into(),
             cloud_provider: None,
             cli_provider: Some(provider.into()),
+            engine_profile: None,
         }
     }
 
@@ -177,12 +188,15 @@ impl OperatorChatLaunchSelection {
             model_id: model_id.into(),
             cloud_provider: None,
             cli_provider: None,
+            engine_profile: None,
         }
     }
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct OperatorChatModelInventory {
+    #[serde(default)]
+    pub active_engine_profile: Option<EngineProfileIdentityV1>,
     #[serde(default)]
     pub inventory_source: String,
     #[serde(default)]
@@ -213,6 +227,8 @@ pub struct OperatorChatSubagentRow {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct OperatorChatLaunched {
+    #[serde(default)]
+    pub engine_profile: Option<EngineProfileSnapshotV1>,
     #[serde(default)]
     pub instance_id: String,
     #[serde(default)]
@@ -263,6 +279,8 @@ pub trait OperatorChatBackend: Send + Sync {
     /// `GET /operator-chat/transcript/:run_id`).
     fn fetch_transcript(&self, run_id: &str, cell: TranscriptCell);
     fn record_diagnostic_observation(&self, _run_id: &str, _lane_id: &str) {}
+    /// Production checks the captured authenticated context; component backends own their scope.
+    fn launch_recovery_scope_is_active(&self) -> bool { true }
     fn routing_action(
         &self,
         action: OperatorChatRoutingAction,
@@ -281,8 +299,32 @@ pub enum OperatorChatRoutingAction {
 
 pub type RoutingCell = Arc<Mutex<Option<Result<serde_json::Value, String>>>>;
 
+struct PendingLaunch {
+    selection: OperatorChatLaunchSelection,
+    display: String,
+    workspace_id: String,
+    owner_session_id: String,
+    working_dir: String,
+    prompt: String,
+    cell: LaunchCell,
+}
+
+struct PendingSelection {
+    selection: OperatorChatLaunchSelection,
+    display: String,
+    workspace_id: String,
+    owner_session_id: Option<String>,
+    working_dir: String,
+    prompt: String,
+    cell: SelectionCell,
+}
+
 #[derive(Default)]
 struct OperatorChatUiState {
+    workspace_id: String,
+    models_cell: ModelsCell,
+    transcript_cell: TranscriptCell,
+    routing_cell: RoutingCell,
     inventory: OperatorChatModelInventory,
     selected_model: String,
     selected: Option<OperatorChatLaunchSelection>,
@@ -293,8 +335,10 @@ struct OperatorChatUiState {
     transcript: Vec<TranscriptRow>,
     error: Option<String>,
     pending_models: bool,
-    pending_selection: Option<(OperatorChatLaunchSelection, String)>,
+    pending_selection: Option<PendingSelection>,
     pending_launch: bool,
+    pending_launch_request: Option<PendingLaunch>,
+    local_candidate: Option<(OperatorChatLaunchSelection, String)>,
     pending_transcript: bool,
     routing_request_json: String,
     routing_status: Option<String>,
@@ -321,11 +365,13 @@ impl OperatorChatUiState {
 
     fn selection_is_canonical_and_available(&self, selected: &OperatorChatLaunchSelection) -> bool {
         match selected.lane_kind.as_str() {
-            "local" => self
-                .inventory
-                .local
-                .iter()
-                .any(|row| row.model_id == selected.model_id && row.ready),
+            "local" => selected.engine_profile.as_ref().is_some_and(|profile| {
+                self.inventory.local.iter().any(|row| {
+                    row.ready && row.model_id == selected.model_id
+                        && row.model_id == profile.profile.model.id
+                        && row.engine_profile.as_ref() == Some(profile)
+                })
+            }),
             "cloud" => self.inventory.cloud_byok.iter().any(|row| {
                 row.model_id == selected.model_id
                     && selected.cloud_provider.as_deref() == Some(row.provider.as_str())
@@ -362,10 +408,17 @@ impl OperatorChatUiState {
         if self
             .pending_selection
             .as_ref()
-            .is_some_and(|(selection, _)| !self.selection_is_canonical_and_available(selection))
+            .is_some_and(|pending| !self.selection_is_canonical_and_available(&pending.selection))
         {
             self.pending_selection = None;
             invalidated.push("pending model selection is no longer ready or available");
+        }
+        if self.local_candidate.as_ref().is_some_and(|(selection, _)|
+            !self.selection_is_canonical_and_available(selection))
+        {
+            self.local_candidate = None;
+            self.selected_model.clear();
+            invalidated.push("candidate profile is no longer available");
         }
         if !invalidated.is_empty() {
             self.error = Some(format!(
@@ -381,6 +434,7 @@ impl OperatorChatUiState {
         self.selected_model.clear();
         self.selected_owner_session_id = None;
         self.pending_selection = None;
+        self.local_candidate = None;
         self.error = Some(
             "Model inventory refresh failed; all model and session selections were cleared."
                 .to_owned(),
@@ -427,15 +481,22 @@ fn subagent_row_state(row: &OperatorChatSubagentRow) -> (bool, &'static str) {
     }
 }
 
+const LAUNCH_RECOVERY_CAPACITY: usize = 8;
+
+struct LaunchRecoveryEntry {
+    ui_key: u64,
+    workspace_id: String,
+    cell: LaunchCell,
+    returned: Option<OperatorChatLaunched>,
+}
+
 /// The Operator Chat / Launch pane factory.
 pub struct OperatorChatLaunchPaneFactory {
     state: Arc<Mutex<OperatorChatUiState>>,
     client: Option<Arc<dyn OperatorChatBackend>>,
-    models_cell: ModelsCell,
-    launch_cell: LaunchCell,
-    selection_cell: SelectionCell,
-    transcript_cell: TranscriptCell,
-    routing_cell: RoutingCell,
+    // Account lifetime is the factory lifetime. Workspace changes retain only bounded receipts.
+    launch_recovery: Mutex<Vec<LaunchRecoveryEntry>>,
+    launch_recovery_ui_sequence: Mutex<u64>,
 }
 
 impl OperatorChatLaunchPaneFactory {
@@ -445,11 +506,8 @@ impl OperatorChatLaunchPaneFactory {
         Self {
             state: Arc::new(Mutex::new(OperatorChatUiState::default())),
             client: None,
-            models_cell: Arc::new(Mutex::new(None)),
-            launch_cell: Arc::new(Mutex::new(None)),
-            selection_cell: Arc::new(Mutex::new(None)),
-            transcript_cell: Arc::new(Mutex::new(None)),
-            routing_cell: Arc::new(Mutex::new(None)),
+            launch_recovery: Mutex::new(Vec::new()),
+            launch_recovery_ui_sequence: Mutex::new(0),
         }
     }
 
@@ -464,16 +522,63 @@ impl OperatorChatLaunchPaneFactory {
         Self {
             state: Arc::new(Mutex::new(OperatorChatUiState::default())),
             client: Some(client),
-            models_cell: Arc::new(Mutex::new(None)),
-            launch_cell: Arc::new(Mutex::new(None)),
-            selection_cell: Arc::new(Mutex::new(None)),
-            transcript_cell: Arc::new(Mutex::new(None)),
-            routing_cell: Arc::new(Mutex::new(None)),
+            launch_recovery: Mutex::new(Vec::new()),
+            launch_recovery_ui_sequence: Mutex::new(0),
         }
     }
 
+    fn recovery_scope_is_active(&self) -> bool {
+        self.client.as_ref().is_some_and(|client| client.launch_recovery_scope_is_active())
+    }
+
+    fn forget_launch_receipt(&self, cell: &LaunchCell) {
+        if let Ok(mut entries) = self.launch_recovery.lock() {
+            entries.retain(|entry| !Arc::ptr_eq(&entry.cell, cell));
+        }
+    }
+
+    fn retain_launch_result(&self, cell: &LaunchCell, result: &Result<OperatorChatLaunched, String>) {
+        if !self.recovery_scope_is_active() {
+            if let Ok(mut entries) = self.launch_recovery.lock() { entries.clear(); }
+            return;
+        }
+        match result {
+            Ok(returned) => {
+                if let Ok(mut entries) = self.launch_recovery.lock() {
+                    if let Some(entry) = entries.iter_mut().find(|entry| Arc::ptr_eq(&entry.cell, cell)) {
+                        entry.returned = Some(returned.clone());
+                    }
+                }
+            }
+            Err(_) => self.forget_launch_receipt(cell),
+        }
+    }
+
+    fn drain_detached_launches(&self, active: Option<&LaunchCell>) {
+        let Ok(mut entries) = self.launch_recovery.lock() else { return; };
+        if !self.recovery_scope_is_active() { entries.clear(); return; }
+        entries.retain_mut(|entry| {
+            if entry.returned.is_some() || active.is_some_and(|cell| Arc::ptr_eq(cell, &entry.cell)) {
+                return true;
+            }
+            let result = entry.cell.lock().ok().and_then(|mut slot| slot.take());
+            match result {
+                Some(Ok(returned)) => { entry.returned = Some(returned); true }
+                Some(Err(_)) => false,
+                None => true,
+            }
+        });
+    }
+
     fn drain_cells(&self) {
-        if let Ok(mut slot) = self.models_cell.lock() {
+        let (models_cell, launch_cell, transcript_cell, routing_cell) = {
+            let Ok(state) = self.state.lock() else { return; };
+            (state.models_cell.clone(),
+             state.pending_launch_request.as_ref().map(|pending| pending.cell.clone()),
+             state.transcript_cell.clone(), state.routing_cell.clone())
+        };
+        self.drain_detached_launches(launch_cell.as_ref());
+        if let Ok(mut slot) = models_cell.lock() {
             if let Some(result) = slot.take() {
                 if let Ok(mut state) = self.state.lock() {
                     state.pending_models = false;
@@ -484,25 +589,27 @@ impl OperatorChatLaunchPaneFactory {
                 }
             }
         }
-        if let Ok(mut slot) = self.selection_cell.lock() {
-            if let Some(result) = slot.take() {
+        let selection_cell = self.state.lock().ok().and_then(|state|
+            state.pending_selection.as_ref().map(|pending| pending.cell.clone()));
+        if let Some(cell) = selection_cell {
+            let result = cell.lock().ok().and_then(|mut cell| cell.take());
+            if let Some(result) = result {
                 if let Ok(mut state) = self.state.lock() {
-                    let candidate = state.pending_selection.take();
-                    match (result, candidate) {
-                        (Ok(()), Some((selection, display))) => {
-                            state.selected_model = display;
-                            state.selected = Some(selection);
+                    if !state.pending_selection.as_ref().is_some_and(|pending|
+                        Arc::ptr_eq(&pending.cell, &cell)) { return; }
+                    if let Some(pending) = state.pending_selection.take() {
+                        let current = pending.workspace_id == state.workspace_id
+                            && pending.owner_session_id == state.selected_owner_session_id
+                            && pending.working_dir == state.folder
+                            && pending.prompt == state.prompt
+                            && state.selection_is_canonical_and_available(&pending.selection);
+                        if result.is_ok() && current {
+                            state.selected_model = pending.display;
+                            state.selected = Some(pending.selection);
                             state.error = None;
-                        }
-                        (Ok(()), None) => {
+                        } else {
                             state.error = Some(
-                                "selection audit completed without a pending model candidate"
-                                    .to_owned(),
-                            );
-                        }
-                        (Err(_), _) => {
-                            state.error = Some(
-                                "Model selection was not accepted because its audit record failed. Retry the selection."
+                                "Model selection was not accepted. Complete the current inputs and retry."
                                     .to_owned(),
                             );
                         }
@@ -513,31 +620,72 @@ impl OperatorChatLaunchPaneFactory {
         // A successful launch triggers a transcript fetch so the pane renders the
         // captured ModelLaneMessage rows (F8), not just a local echo.
         let mut fetch_run: Option<String> = None;
-        if let Ok(mut slot) = self.launch_cell.lock() {
-            if let Some(result) = slot.take() {
+        if let Some(cell) = launch_cell {
+            let result = cell.lock().ok().and_then(|mut cell| cell.take());
+            if let Some(result) = result {
+                self.retain_launch_result(&cell, &result);
                 if let Ok(mut state) = self.state.lock() {
-                    state.pending_launch = false;
-                    match result {
-                        Ok(launched) => {
-                            state.launch_status = Some(format!(
-                                "launched run {} lane {} (instance {})",
-                                launched.run_id, launched.lane_id, launched.instance_id
-                            ));
-                            if !launched.run_id.trim().is_empty() {
-                                fetch_run = Some(launched.run_id.clone());
+                    if !state.pending_launch_request.as_ref().is_some_and(|pending|
+                        Arc::ptr_eq(&pending.cell, &cell)) { return; }
+                    if let Some(pending) = state.pending_launch_request.take() {
+                        state.pending_launch = false;
+                        let current_context = pending.workspace_id == state.workspace_id
+                            && Some(pending.owner_session_id.as_str())
+                                == state.selected_owner_session_id.as_deref()
+                            && pending.working_dir == state.folder
+                            && pending.prompt == state.prompt;
+                        if current_context {
+                            match result {
+                                Ok(launched) => {
+                                    let current_choice = state.local_candidate.as_ref()
+                                        .is_some_and(|(selection, _)| selection == &pending.selection)
+                                        || state.selected.as_ref() == Some(&pending.selection);
+                                    let accepted = self.recovery_scope_is_active() && current_choice
+                                        && state.selection_is_canonical_and_available(&pending.selection)
+                                        && launched.engine_profile == pending.selection.engine_profile
+                                        && !launched.run_id.trim().is_empty()
+                                        && !launched.lane_id.trim().is_empty()
+                                        && !launched.instance_id.trim().is_empty();
+                                    if accepted {
+                                        self.forget_launch_receipt(&cell);
+                                        state.selected = Some(pending.selection.clone());
+                                        state.selected_model = pending.display;
+                                        state.local_candidate = None;
+                                    }
+                                    state.launch_status = Some(if accepted {
+                                        format!("launched run {} lane {} (instance {})",
+                                            launched.run_id, launched.lane_id, launched.instance_id)
+                                    } else {
+                                        format!("Backend returned run {} lane {} (instance {})",
+                                            launched.run_id, launched.lane_id, launched.instance_id)
+                                    });
+                                    if accepted {
+                                        fetch_run = Some(launched.run_id.clone());
+                                        if let Some(client) = &self.client {
+                                            client.record_diagnostic_observation(
+                                                &launched.run_id, &launched.lane_id,
+                                            );
+                                        }
+                                        state.error = None;
+                                    } else {
+                                        state.error = Some(
+                                            "Launch response did not match the current complete request and profile. Returned run references are shown for recovery; selection remains pending."
+                                                .to_owned(),
+                                        );
+                                    }
+                                }
+                                Err(_) => {
+                                    if pending.selection.lane_kind == "local" {
+                                        state.local_candidate = None;
+                                        state.selected = None;
+                                        state.selected_model.clear();
+                                    }
+                                    state.error = Some(
+                                        "Launch was not accepted; no audited local selection was applied."
+                                            .to_owned(),
+                                    );
+                                }
                             }
-                            if let Some(client) = &self.client {
-                                client.record_diagnostic_observation(
-                                    &launched.run_id,
-                                    &launched.lane_id,
-                                );
-                            }
-                        }
-                        Err(_) => {
-                            state.error = Some(
-                                "Operator-chat launch failed; refresh inventory and retry."
-                                    .to_owned(),
-                            )
                         }
                     }
                 }
@@ -548,11 +696,11 @@ impl OperatorChatLaunchPaneFactory {
                 if let Ok(mut state) = self.state.lock() {
                     state.pending_transcript = true;
                 }
-                client.fetch_transcript(&run_id, self.transcript_cell.clone());
+                client.fetch_transcript(&run_id, transcript_cell.clone());
             }
         }
         // Drain fetched transcript rows: append each captured turn so it renders.
-        if let Ok(mut slot) = self.transcript_cell.lock() {
+        if let Ok(mut slot) = transcript_cell.lock() {
             if let Some(result) = slot.take() {
                 if let Ok(mut state) = self.state.lock() {
                     state.pending_transcript = false;
@@ -572,7 +720,7 @@ impl OperatorChatLaunchPaneFactory {
                 }
             }
         }
-        if let Ok(mut slot) = self.routing_cell.lock() {
+        if let Ok(mut slot) = routing_cell.lock() {
             if let Some(result) = slot.take() {
                 if let Ok(mut state) = self.state.lock() {
                     state.pending_routing = false;
@@ -596,20 +744,24 @@ impl OperatorChatLaunchPaneFactory {
         &self,
         selection: OperatorChatLaunchSelection,
         working_dir: Option<String>,
+        cell: SelectionCell,
     ) {
         if let Some(client) = &self.client {
-            client.record_selection(selection, working_dir, self.selection_cell.clone());
+            client.record_selection(selection, working_dir, cell);
         }
     }
 
     fn refresh_models(&self) {
         match &self.client {
             Some(client) => {
-                if let Ok(mut state) = self.state.lock() {
+                let cell = {
+                    let Ok(mut state) = self.state.lock() else { return; };
+                    if state.pending_models { return; }
                     state.pending_models = true;
                     state.error = None;
-                }
-                client.fetch_models(self.models_cell.clone());
+                    state.models_cell.clone()
+                };
+                client.fetch_models(cell);
             }
             None => {
                 if let Ok(mut state) = self.state.lock() {
@@ -620,53 +772,60 @@ impl OperatorChatLaunchPaneFactory {
     }
 
     fn launch(&self) {
-        let (selected, owner_session_id, selection_is_current, folder, prompt) = {
-            let Ok(state) = self.state.lock() else {
+        let pending = {
+            let Ok(mut state) = self.state.lock() else { return; };
+            if state.pending_launch { return; }
+            let choice = state.local_candidate.clone().or_else(||
+                state.selected.clone().map(|selection| (selection, state.selected_model.clone())));
+            let Some((selection, display)) = choice else { return; };
+            if !state.owner_session_is_canonical_and_available()
+                || !state.selection_is_canonical_and_available(&selection)
+                || state.folder.trim().is_empty() || state.prompt.trim().is_empty()
+            {
+                state.error = Some("Choose an available profile and owner, folder and prompt.".to_owned());
+                return;
+            }
+            let Some(owner_session_id) = state.selected_owner_session_id.clone() else { return; };
+            let pending = PendingLaunch {
+                selection, display, workspace_id: state.workspace_id.clone(),
+                owner_session_id, working_dir: state.folder.clone(), prompt: state.prompt.clone(),
+                cell: Arc::new(Mutex::new(None)),
+            };
+            let args = (pending.selection.clone(), pending.owner_session_id.clone(),
+                pending.working_dir.clone(), pending.prompt.clone(), pending.cell.clone());
+            if !self.recovery_scope_is_active() {
+                state.error = Some("The captured launch account is no longer active.".to_owned());
+                return;
+            }
+            let Ok(mut entries) = self.launch_recovery.lock() else { return; };
+            if entries.len() >= LAUNCH_RECOVERY_CAPACITY {
+                state.error = Some("Launch recovery is full. Review and dismiss completed returned references in their original workspaces before launching again.".to_owned());
+                return;
+            }
+            let Ok(mut next_ui_key) = self.launch_recovery_ui_sequence.lock() else { return; };
+            let Some(following_ui_key) = next_ui_key.checked_add(1) else {
+                state.error = Some("Launch recovery UI identity is exhausted. No new launch was dispatched.".to_owned());
                 return;
             };
-            (
-                state.selected.clone(),
-                state.selected_owner_session_id.clone(),
-                state.owner_session_is_canonical_and_available()
-                    && state.selected_model_is_canonical_and_available(),
-                state.folder.clone(),
-                state.prompt.clone(),
-            )
+            let ui_key = *next_ui_key;
+            *next_ui_key = following_ui_key;
+            entries.push(LaunchRecoveryEntry {
+                ui_key,
+                workspace_id: pending.workspace_id.clone(), cell: pending.cell.clone(), returned: None,
+            });
+            state.pending_launch_request = Some(pending);
+            state.pending_launch = true;
+            state.error = None;
+            state.launch_status = None;
+            args
         };
-        if selected.is_none()
-            || owner_session_id.is_none()
-            || !selection_is_current
-            || folder.trim().is_empty()
-            || prompt.trim().is_empty()
-        {
-            if let Ok(mut state) = self.state.lock() {
-                state.error =
-                    Some("select an available governed session, a model, a folder/worktree, and enter a prompt".to_string());
-            }
-            return;
-        }
-        match &self.client {
-            Some(client) => {
-                if let Ok(mut state) = self.state.lock() {
-                    state.pending_launch = true;
-                    state.error = None;
-                    state.launch_status = None;
-                }
-                client.launch(
-                    selected.expect("checked selected"),
-                    owner_session_id
-                        .as_deref()
-                        .expect("checked governed owner session"),
-                    &folder,
-                    &prompt,
-                    self.launch_cell.clone(),
-                );
-            }
-            None => {
-                if let Ok(mut state) = self.state.lock() {
-                    state.error = Some("backend not wired (offline pane)".to_string());
-                }
-            }
+        if let Some(client) = &self.client {
+            client.launch(pending.0, &pending.1, &pending.2, &pending.3, pending.4);
+        } else if let Ok(mut state) = self.state.lock() {
+            state.pending_launch = false;
+            state.pending_launch_request = None;
+            self.forget_launch_receipt(&pending.4);
+            state.error = Some("backend not wired (offline pane)".to_owned());
         }
     }
 
@@ -690,7 +849,10 @@ impl OperatorChatLaunchPaneFactory {
                     state.routing_status = None;
                     state.error = None;
                 }
-                client.routing_action(action, request_json, self.routing_cell.clone());
+                let cell = self.state.lock().ok().map(|state| state.routing_cell.clone());
+                if let Some(cell) = cell {
+                    client.routing_action(action, request_json, cell);
+                }
             }
             None => {
                 if let Ok(mut state) = self.state.lock() {
@@ -760,6 +922,16 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
     }
 
     fn render(&self, ui: &mut egui::Ui, ctx: &PaneRenderContext) {
+        if let Ok(mut state) = self.state.lock() {
+            if state.workspace_id != ctx.record.project_id
+                || (self.client.is_some() && !self.recovery_scope_is_active())
+            {
+                *state = OperatorChatUiState {
+                    workspace_id: ctx.record.project_id.clone(),
+                    ..Default::default()
+                };
+            }
+        }
         self.drain_cells();
 
         let surface_id = ctx.egui_id.with("operator-chat-surface");
@@ -774,13 +946,16 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
         let mut routing_action = None;
         let mut select_model: Option<(OperatorChatLaunchSelection, String)> = None;
         let mut select_session: Option<String> = None;
-        let mut audit_selection: Option<(OperatorChatLaunchSelection, Option<String>)> = None;
+        let mut audit_selection: Option<(OperatorChatLaunchSelection, Option<String>, SelectionCell)> = None;
 
         let Ok(mut state) = self.state.lock() else {
             ui.label("Operator chat state unavailable");
             return;
         };
 
+        let previous_owner = state.selected_owner_session_id.clone();
+        let previous_folder = state.folder.clone();
+        let previous_prompt = state.prompt.clone();
         ui.vertical(|ui| {
             ui.heading("Operator Chat / Launch");
 
@@ -797,7 +972,7 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                 let author = session_selection_author_id(&row.session_id);
                 let (available, status) = session_row_state(row);
                 let label = format!("SESSION  {}  [{}]", row.label, status);
-                if available && labelled_button(ui, &author, &label) {
+                if available && !state.pending_launch && labelled_button(ui, &author, &label) {
                     // Applied effect: the owner session is selected below (unconditional). Ack so an
                     // out-of-process argus.click on this row resolves Applied.
                     crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author);
@@ -807,7 +982,13 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                 }
             }
 
-            // Model picker: selected id + refresh + enumerated rows.
+            if let Some(active) = state.inventory.active_engine_profile.as_ref() {
+                ui.label(format!(
+                    "Workspace active profile: {} / revision {}",
+                    active.profile_id, active.revision,
+                ));
+            }
+            // Model picker: a local row is a candidate until ordinary launch succeeds.
             ui.horizontal(|ui| {
                 ui.label("Model");
                 labelled_text_edit(
@@ -831,24 +1012,39 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                 ui.label("Enumerating models...");
             }
             for row in &state.inventory.local {
-                let author = model_selection_author_id("local", None, &row.model_id);
-                let status = if row.ready {
+                let author = row.engine_profile.as_ref().map(profile_selection_author_id)
+                    .unwrap_or_else(|| model_selection_author_id("local", None, &row.model_id));
+                let row_ready = row.ready && row.engine_profile.is_some();
+                let status = if row_ready {
                     "ready"
                 } else {
                     "runtime not ready"
                 };
-                let label = format!("LOCAL  {}  ({})  [{}]", row.display_name, row.runtime_binding, status);
-                if row.ready && labelled_button(ui, &author, &label) {
-                    // Ack only when the selection will actually be recorded (a selection audit is not
-                    // already in flight), matching the applied-effect guard below the render closure.
+                let detail = row.engine_profile.as_ref().map(|snapshot| format!(
+                    "{} / revision {} / {:?} / {:?} / {}",
+                    snapshot.profile.id, snapshot.profile.revision,
+                    snapshot.profile.engine, snapshot.profile.device,
+                    snapshot.profile.preset.name,
+                )).unwrap_or_else(|| row.runtime_binding.clone());
+                let active = row.engine_profile.as_ref().is_some_and(|snapshot|
+                    state.inventory.active_engine_profile.as_ref().is_some_and(|active|
+                        active.profile_id == snapshot.profile.id
+                        && active.revision == snapshot.profile.revision
+                        && active.fingerprint == snapshot.fingerprint));
+                let label = format!("LOCAL  {}  ({})  [{}]{}",
+                    row.display_name, detail, status, if active { " [active]" } else { "" });
+                if row_ready && !state.pending_launch && labelled_button(ui, &author, &label) {
+                    // Acknowledge the candidate UI effect only. The ordinary launch owns local audit.
                     if state.pending_selection.is_none() {
                         crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author);
                     }
-                    select_model = Some((
-                        OperatorChatLaunchSelection::local(row.model_id.clone()),
-                        row.model_id.clone(),
-                    ));
-                } else if !row.ready {
+                    if let Some(profile) = row.engine_profile.clone() {
+                        select_model = Some((
+                            OperatorChatLaunchSelection::local(profile),
+                            detail,
+                        ));
+                    }
+                } else if !row_ready || state.pending_launch {
                     labelled_disabled_button(ui, &author, &label);
                 }
             }
@@ -857,7 +1053,7 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                     model_selection_author_id("cloud", Some(&row.provider), &row.model_id);
                 let (available, status) = byok_row_state(row);
                 let label = format!("CLOUD  {}  [{}]", row.label, status);
-                if available && labelled_button(ui, &author, &label) {
+                if available && !state.pending_launch && labelled_button(ui, &author, &label) {
                     if state.pending_selection.is_none() {
                         crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author);
                     }
@@ -876,7 +1072,7 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                 let author = model_selection_author_id("cli", Some(&row.provider), &row.model_id);
                 let (available, status) = cli_row_state(row);
                 let label = format!("CLI  {}  [{}]", row.label, status);
-                if available && labelled_button(ui, &author, &label) {
+                if available && !state.pending_launch && labelled_button(ui, &author, &label) {
                     if state.pending_selection.is_none() {
                         crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author);
                     }
@@ -895,7 +1091,7 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                 let author = model_selection_author_id("subagent", Some(&row.role), &row.model_id);
                 let (available, status) = subagent_row_state(row);
                 let label = format!("SUBAGENT  {}  [{}]", row.label, status);
-                if available && labelled_button(ui, &author, &label) {
+                if available && !state.pending_launch && labelled_button(ui, &author, &label) {
                     if state.pending_selection.is_none() {
                         crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author);
                     }
@@ -908,6 +1104,8 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                 }
             }
 
+            // Keep the complete ordinary request immutable while awaiting its result.
+            ui.add_enabled_ui(!state.pending_launch, |ui| {
             // Focus-safe folder/worktree injection; this is an ordinary text
             // field and never invokes a native foreground picker.
             ui.horizontal(|ui| {
@@ -935,9 +1133,12 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                 480.0,
             );
 
+            });
             // Launch.
             let launch_ready = state.owner_session_is_canonical_and_available()
-                && state.selected_model_is_canonical_and_available()
+                && (state.local_candidate.as_ref().is_some_and(|(selection, _)|
+                        state.selection_is_canonical_and_available(selection))
+                    || state.selected_model_is_canonical_and_available())
                 && state.pending_selection.is_none()
                 && !state.folder.trim().is_empty()
                 && !state.prompt.trim().is_empty()
@@ -948,11 +1149,26 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                     do_launch = true;
                 }
             });
+            if state.local_candidate.is_some() && !state.pending_launch {
+                ui.label("Pending profile. Complete owner, folder and prompt, then launch.");
+            }
             if state.pending_launch {
-                ui.label("Launching...");
+                ui.label("Launching and recording the selection audit...");
             }
             if state.pending_selection.is_some() {
                 ui.label("Recording model-selection audit before accepting the selection...");
+            }
+            if self.recovery_scope_is_active() {
+                if let Ok(mut entries) = self.launch_recovery.lock() {
+                    entries.retain(|entry| {
+                        if entry.workspace_id != state.workspace_id { return true; }
+                        let Some(returned) = entry.returned.as_ref() else { return true; };
+                        ui.label(format!("Unaccepted launch response: run {} lane {} (instance {}). Selection was not activated; execution was not cancelled.",
+                            returned.run_id, returned.lane_id, returned.instance_id));
+                        let author = format!("operator-chat.launch-recovery.dismiss.{}", entry.ui_key);
+                        !labelled_button(ui, &author, "Dismiss returned launch references")
+                    });
+                }
             }
             if let Some(status) = state.launch_status.clone() {
                 let resp = ui.label(status.clone());
@@ -1043,21 +1259,38 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
             }
         });
 
-        if let Some((selection, display)) = select_model {
-            if state.pending_selection.is_none() {
-                let working_dir = (!state.folder.trim().is_empty()).then(|| state.folder.clone());
-                audit_selection = Some((selection.clone(), working_dir));
-                state.pending_selection = Some((selection, display));
-                state.error = None;
-            }
-        }
         if let Some(session_id) = select_session {
             state.selected_owner_session_id = Some(session_id);
         }
+        if previous_owner != state.selected_owner_session_id
+            || previous_folder != state.folder || previous_prompt != state.prompt
+        {
+            state.pending_selection = None;
+        }
+        if let Some((selection, display)) = select_model {
+            if !state.pending_launch && selection.lane_kind == "local" {
+                state.pending_selection = None;
+                state.selected = None;
+                state.selected_model = format!("Pending profile: {display}");
+                state.local_candidate = Some((selection, display));
+                state.error = None;
+            } else if !state.pending_launch && state.pending_selection.is_none() {
+                state.local_candidate = None;
+                let cell = Arc::new(Mutex::new(None));
+                let working_dir = (!state.folder.trim().is_empty()).then(|| state.folder.clone());
+                audit_selection = Some((selection.clone(), working_dir, cell.clone()));
+                state.pending_selection = Some(PendingSelection {
+                    selection, display, workspace_id: state.workspace_id.clone(),
+                    owner_session_id: state.selected_owner_session_id.clone(),
+                    working_dir: state.folder.clone(), prompt: state.prompt.clone(), cell,
+                });
+                state.error = None;
+            }
+        }
         drop(state);
 
-        if let Some((selection, working_dir)) = audit_selection {
-            self.record_selection(selection, working_dir);
+        if let Some((selection, working_dir, cell)) = audit_selection {
+            self.record_selection(selection, working_dir, cell);
         }
         if do_refresh {
             self.refresh_models();
@@ -1089,10 +1322,13 @@ mod client_safety_tests {
             selected_model: "gpt-5-codex".to_owned(),
             selected: Some(OperatorChatLaunchSelection::cli("gpt-5-codex", "codex")),
             selected_owner_session_id: Some("owner".to_owned()),
-            pending_selection: Some((
-                OperatorChatLaunchSelection::cli("gpt-5-codex", "codex"),
-                "GPT/Codex subscription".to_owned(),
-            )),
+            pending_selection: Some(PendingSelection {
+                selection: OperatorChatLaunchSelection::cli("gpt-5-codex", "codex"),
+                display: "GPT/Codex subscription".to_owned(),
+                workspace_id: String::new(), owner_session_id: None,
+                working_dir: String::new(), prompt: String::new(),
+                cell: Arc::new(Mutex::new(None)),
+            }),
             ..Default::default()
         };
 
@@ -1110,10 +1346,13 @@ mod client_safety_tests {
     #[test]
     fn successful_refresh_clears_a_pending_selection_that_became_unavailable() {
         let mut state = OperatorChatUiState {
-            pending_selection: Some((
-                OperatorChatLaunchSelection::cli("gpt-5-codex", "codex"),
-                "GPT/Codex subscription".to_owned(),
-            )),
+            pending_selection: Some(PendingSelection {
+                selection: OperatorChatLaunchSelection::cli("gpt-5-codex", "codex"),
+                display: "GPT/Codex subscription".to_owned(),
+                workspace_id: String::new(), owner_session_id: None,
+                working_dir: String::new(), prompt: String::new(),
+                cell: Arc::new(Mutex::new(None)),
+            }),
             ..Default::default()
         };
         let inventory = OperatorChatModelInventory {

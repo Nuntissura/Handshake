@@ -208,6 +208,8 @@ pub enum PreferenceConstraint {
     SyntaxColorMap(&'static [&'static str]),
     /// Accepts a JSON object mapping a non-empty action id string to a non-empty chord string.
     ChordMap,
+    WorkProfileRegistry,
+    WorkProfileSelection,
 }
 
 impl PreferenceConstraint {
@@ -218,7 +220,8 @@ impl PreferenceConstraint {
             PreferenceConstraint::IntRange { .. } => PreferenceValueType::Int,
             PreferenceConstraint::FloatRange { .. } => PreferenceValueType::Float,
             PreferenceConstraint::Enum(_) => PreferenceValueType::Enum,
-            PreferenceConstraint::SyntaxColorMap(_) | PreferenceConstraint::ChordMap => {
+            PreferenceConstraint::SyntaxColorMap(_) | PreferenceConstraint::ChordMap
+            | PreferenceConstraint::WorkProfileRegistry | PreferenceConstraint::WorkProfileSelection => {
                 PreferenceValueType::JsonObject
             }
         }
@@ -282,6 +285,16 @@ impl PreferenceSchemaEntry {
             message,
         };
         match &self.constraint {
+            PreferenceConstraint::WorkProfileRegistry => validate_work_profile_registry_value(value)
+                .map_err(|message| err("invalid_work_profile_registry", message))?,
+            PreferenceConstraint::WorkProfileSelection => {
+                let selection: WorkProfileSelectionV1 = serde_json::from_value(value.clone())
+                    .map_err(|error| err("invalid_work_profile_selection", error.to_string()))?;
+                if selection.profile_id.trim().is_empty() || selection.role_id.trim().is_empty()
+                    || selection.profile_version == 0 || selection.registry_revision <= 0 {
+                    return Err(err("invalid_work_profile_selection", "selection requires a profile, role, positive version and registry revision".into()));
+                }
+            }
             PreferenceConstraint::Bool => {
                 if !value.is_boolean() {
                     return Err(err(
@@ -719,6 +732,7 @@ pub fn editor_preference_registry() -> Vec<PreferenceSchemaEntry> {
 
 /// Look up a registry schema entry by preference id, if defined.
 pub fn lookup_editor_preference(preference_id: &str) -> Option<PreferenceSchemaEntry> {
+    if let Some(entry) = work_profile_preference_entry(preference_id) { return Some(entry); }
     editor_preference_registry()
         .into_iter()
         .find(|entry| entry.preference_id == preference_id)
@@ -832,4 +846,80 @@ mod tests {
         assert!(new_ref.starts_with("sha256:"));
         assert_ne!(new_ref, "secret");
     }
+}
+
+
+pub const PREF_WORK_PROFILE_REGISTRY: &str = "work-profiles.registry";
+pub const PREF_WORK_PROFILE_SELECTION: &str = "work-profiles.selection";
+
+pub fn is_work_profile_preference(id: &str) -> bool {
+    matches!(id, PREF_WORK_PROFILE_REGISTRY | PREF_WORK_PROFILE_SELECTION)
+}
+
+pub fn work_profile_preference_entry(id: &str) -> Option<PreferenceSchemaEntry> {
+    let (preference_id, label, constraint) = match id {
+        PREF_WORK_PROFILE_REGISTRY => (PREF_WORK_PROFILE_REGISTRY, "Work profile registry", PreferenceConstraint::WorkProfileRegistry),
+        PREF_WORK_PROFILE_SELECTION => (PREF_WORK_PROFILE_SELECTION, "Work profile selection", PreferenceConstraint::WorkProfileSelection),
+        _ => return None,
+    };
+    Some(PreferenceSchemaEntry { preference_id, namespace: "work-profiles", scope_kind: PreferenceScopeKind::Workspace,
+        label, constraint, redaction_class: RedactionClass::Public, default_value: json!({}) })
+}
+
+pub fn validate_work_profile_registry_value(value: &Value) -> Result<(), String> {
+    use crate::kernel::work_profiles::{validate_work_profiles, WorkProfileRegistryV1};
+    let registry: WorkProfileRegistryV1 = serde_json::from_value(value.clone()).map_err(|error| error.to_string())?;
+    if !registry.profile_receipts.is_empty() || !registry.action_requests.is_empty() {
+        return Err("client registry must not carry profile receipts or action requests".into());
+    }
+    if let Err(errors) = validate_work_profiles(&registry) {
+        let errors: Vec<_> = errors.into_iter().filter(|error|
+            !matches!(error.field, "profile_receipts" | "action_requests")).collect();
+        if !errors.is_empty() { return Err(format!("{errors:?}")); }
+    }
+    Ok(())
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WorkProfileSelectionV1 {
+    pub profile_id: String,
+    pub profile_version: u32,
+    pub role_id: String,
+    pub registry_revision: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct LocalExecutionAuthorityRequest {
+    pub workspace_id: String,
+    pub expected_registry_revision: i64,
+    pub expected_selection_revision: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct LocalExecutionAuthoritySnapshot {
+    pub owner_account_id: String,
+    pub actor_principal_id: String,
+    pub actor_id: String,
+    pub registry_record: PreferenceRecord,
+    pub selection_record: PreferenceRecord,
+    pub registry: crate::kernel::work_profiles::WorkProfileRegistryV1,
+    pub selection: WorkProfileSelectionV1,
+    pub registry_receipt: PreferenceChangeReceipt,
+    pub selection_receipt: PreferenceChangeReceipt,
+}
+
+/// The backend owns construction. Hold only across pure verification; release before starting work.
+pub struct LocalExecutionAuthorityLease {
+    snapshot: LocalExecutionAuthoritySnapshot,
+    _gate: handshake_storage_support::keyed_lock::KeyedLockGuard,
+    _publication: tokio::sync::OwnedRwLockReadGuard<()>,
+}
+
+impl LocalExecutionAuthorityLease {
+    pub(crate) fn new(snapshot: LocalExecutionAuthoritySnapshot, gate: handshake_storage_support::keyed_lock::KeyedLockGuard, publication: tokio::sync::OwnedRwLockReadGuard<()>) -> Self {
+        Self { snapshot, _gate: gate, _publication: publication }
+    }
+    pub fn snapshot(&self) -> &LocalExecutionAuthoritySnapshot { &self.snapshot }
+    pub fn release(self) -> LocalExecutionAuthoritySnapshot { self.snapshot }
 }

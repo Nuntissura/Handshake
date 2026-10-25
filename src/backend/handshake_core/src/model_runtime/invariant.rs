@@ -14,6 +14,7 @@ use super::{LoadSpec, ModelRuntime, ModelRuntimeError, ProviderKind, RuntimeKind
 const DEFAULT_SIGNATURE_MAX_AGE_DAYS: i64 = 30;
 pub const LLAMA_CPP_LOCAL_ENGINE_ORIGIN: &str = "handshake://model-runtime/llama_cpp";
 pub const CANDLE_LOCAL_ENGINE_ORIGIN: &str = "handshake://model-runtime/candle";
+pub const GENIE_X_LOCAL_ENGINE_ORIGIN: &str = "handshake://model-runtime/genie_x";
 
 const ABLITERATION_FORBIDDEN_HOT_PATH_REFERENCES: &[&str] = &[
     "distillation::abliterate",
@@ -86,7 +87,7 @@ impl LocalModelAdapterInvariant {
         engine_kind: ProcessEngineKind,
     ) -> Result<(), ModelRuntimeError> {
         match engine_kind {
-            ProcessEngineKind::LlamaCpp | ProcessEngineKind::Candle => Ok(()),
+            ProcessEngineKind::LlamaCpp | ProcessEngineKind::Candle | ProcessEngineKind::GenieX => Ok(()),
             ProcessEngineKind::AbliterationTool => Err(ModelRuntimeError::AdapterMismatch {
                 expected:
                     "offline-only abliteration artifact re-registered as a regular local model runtime"
@@ -355,6 +356,7 @@ impl EngineOriginValidator {
         let (expected_origin, engine_kind) = match runtime_kind {
             RuntimeKind::LlamaCpp => (LLAMA_CPP_LOCAL_ENGINE_ORIGIN, ProcessEngineKind::LlamaCpp),
             RuntimeKind::Candle => (CANDLE_LOCAL_ENGINE_ORIGIN, ProcessEngineKind::Candle),
+            RuntimeKind::GenieX => (GENIE_X_LOCAL_ENGINE_ORIGIN, ProcessEngineKind::GenieX),
         };
         if origin != expected_origin {
             return Err(ModelRuntimeError::AdapterMismatch {

@@ -8,7 +8,7 @@ use std::{
     ptr::{null, null_mut},
     sync::{
         atomic::{AtomicU8, Ordering},
-        Mutex, OnceLock,
+        Arc, Mutex, OnceLock,
     },
 };
 
@@ -22,14 +22,15 @@ use windows_sys::{
         },
         Security::{
             Authorization::{
-                ConvertStringSidToSidW, GetNamedSecurityInfoW, SetEntriesInAclW,
-                SetNamedSecurityInfoW, EXPLICIT_ACCESS_W, REVOKE_ACCESS, SE_FILE_OBJECT,
+                ConvertStringSidToSidW, GetNamedSecurityInfoW, GetSecurityInfo, SetSecurityInfo, SetEntriesInAclW,
+                SetNamedSecurityInfoW, EXPLICIT_ACCESS_W, GRANT_ACCESS, REVOKE_ACCESS, SE_FILE_OBJECT,
                 TRUSTEE_IS_SID, TRUSTEE_IS_UNKNOWN, TRUSTEE_W,
             },
             ACL, DACL_SECURITY_INFORMATION, PSECURITY_DESCRIPTOR, PSID,
         },
         Storage::FileSystem::{
-            FileIdInfo, GetFileInformationByHandleEx, MoveFileExW, FILE_FLAG_BACKUP_SEMANTICS,
+            FileIdInfo, FileAttributeTagInfo, FILE_ATTRIBUTE_TAG_INFO, FILE_ATTRIBUTE_REPARSE_POINT,
+            GetFileInformationByHandleEx, MoveFileExW, FILE_FLAG_OPEN_REPARSE_POINT, FILE_FLAG_BACKUP_SEMANTICS,
             FILE_ID_INFO, FILE_SHARE_READ, FILE_SHARE_WRITE, MOVEFILE_REPLACE_EXISTING,
             MOVEFILE_WRITE_THROUGH,
         },
@@ -285,7 +286,11 @@ pub(super) struct AppContainerAclTransaction {
     journal: AclGrantJournal,
     lock_file: Option<File>,
     profile: Option<rappct::AppContainerProfile>,
-    target_handles: Vec<File>,
+    target_handles: Vec<Arc<File>>,
+    baseline_bindings: Option<crate::sandbox::adapter::AttachedBaselineBindings>,
+    acl_revoked: bool,
+    profile_deleted: bool,
+    journal_removed: bool,
     completed: bool,
 }
 
@@ -333,8 +338,24 @@ impl AppContainerAclTransaction {
             lock_file: Some(lock_file),
             profile: None,
             target_handles: Vec::new(),
+            baseline_bindings: None,
+            acl_revoked: false,
+            profile_deleted: false,
+            journal_removed: false,
             completed: false,
         })
+    }
+
+    pub(super) fn bind_baseline(
+        &mut self, bindings: Option<crate::sandbox::adapter::AttachedBaselineBindings>,
+    ) -> Result<(), String> {
+        if let Some(bindings) = bindings.as_ref() {
+            for target in &self.journal.targets {
+                validate_baseline_path(bindings, &target.path)?;
+            }
+        }
+        self.baseline_bindings = bindings;
+        Ok(())
     }
 
     pub(super) fn create_profile(
@@ -384,7 +405,15 @@ impl AppContainerAclTransaction {
                     self.journal.targets[index].path.display()
                 )));
             }
-            let (handle, identity) = match lock_target_identity(&self.journal.targets[index]) {
+            let target = &self.journal.targets[index];
+            let locked = if let Some(bindings) = self.baseline_bindings.as_ref() {
+                baseline_target(bindings, &target.path).and_then(|handle| {
+                    identity_from_handle(handle.as_ref(), &target.path).map(|identity| (handle, identity))
+                })
+            } else {
+                lock_target_identity(target).map(|(handle, identity)| (Arc::new(handle), identity))
+            };
+            let (handle, identity) = match locked {
                 Ok(locked) => locked,
                 Err(error) => return Err(self.rollback_grant_failure(error)),
             };
@@ -393,7 +422,9 @@ impl AppContainerAclTransaction {
                 return Err(self.rollback_grant_failure(error));
             }
             self.target_handles.push(handle);
-            if let Err(error) = grant_target_to_package(&self.journal.targets[index], &sid) {
+            if let Err(error) = grant_target_on_handle(
+                &self.journal.targets[index], self.target_handles[index].as_ref(), &sid,
+            ) {
                 return Err(self.rollback_grant_failure(error));
             }
             if cancellation
@@ -437,17 +468,27 @@ impl AppContainerAclTransaction {
             .as_ref()
             .map(|profile| profile.sid.as_string().to_string())
             .or_else(|| self.journal.package_sid_sddl.clone());
-        if let Some(sid_sddl) = sid_sddl.as_deref() {
-            revoke_all_targets(&self.journal.targets, sid_sddl)?;
+        if !self.acl_revoked {
+            if let Some(sid_sddl) = sid_sddl.as_deref() {
+                revoke_all_targets_on_handles(&self.journal.targets, &self.target_handles, sid_sddl)?;
+            }
+            self.acl_revoked = true;
+            self.target_handles.clear();
         }
-        self.target_handles.clear();
-        if let Some(profile) = self.profile.take() {
-            delete_appcontainer_profile(profile)?;
-        } else if self.journal.package_sid_sddl.is_some() {
-            let profile = derive_appcontainer_profile(&self.journal.profile_name)?;
-            delete_appcontainer_profile(profile)?;
+        if !self.profile_deleted {
+            if self.profile.is_some() || self.journal.package_sid_sddl.is_some() {
+                // Derive a deletion handle; retain the original profile/SID
+                // in this transaction until the OS acknowledges deletion.
+                let profile = derive_appcontainer_profile(&self.journal.profile_name)?;
+                delete_appcontainer_profile(profile)?;
+            }
+            self.profile_deleted = true;
+            self.profile.take();
         }
-        self.store.remove(&self.journal.profile_name)?;
+        if !self.journal_removed {
+            self.store.remove(&self.journal.profile_name)?;
+            self.journal_removed = true;
+        }
         drop(self.lock_file.take());
         self.store.remove_lock(&self.journal.profile_name)?;
         self.completed = true;
@@ -644,36 +685,188 @@ fn validate_profile_name(profile_name: &str) -> Result<(), String> {
     }
 }
 
-fn grant_target_to_package(
-    target: &AclGrantTarget,
-    sid: &rappct::sid::AppContainerSid,
-) -> Result<(), String> {
-    let _guard = APP_CONTAINER_ACL_API_LOCK
-        .lock()
-        .map_err(|_| "AppContainer ACL API lock poisoned".to_string())?;
-    set_acl_grant_stage_detail("DACL inspection", &target.path);
-    require_non_null_dacl(&target.path)?;
-    let resource = match target.kind {
-        AclGrantTargetKind::File => rappct::acl::ResourcePath::File(target.path.clone()),
-        AclGrantTargetKind::Directory => rappct::acl::ResourcePath::Directory(target.path.clone()),
-    };
-    set_acl_grant_stage_detail("DACL grant write", &target.path);
-    rappct::acl::grant_to_package(resource, sid, rappct::acl::AccessMask(target.access_mask))
-        .map_err(|error| {
-            format!(
-                "rappct AppContainer ACL grant failed for {}: {error}",
-                target.path.display()
-            )
-        })
+fn baseline_path(path: &Path) -> Result<PathBuf, String> {
+    if !path.is_absolute() || path.components().any(|part|
+        matches!(part, std::path::Component::ParentDir | std::path::Component::CurDir))
+    {
+        return Err("baseline path must be absolute without dot components".into());
+    }
+    Ok(super::adapter::windows_named_security_path(path.to_path_buf()))
 }
 
-fn require_non_null_dacl(path: &Path) -> Result<(), String> {
-    let path_w = to_wide(path.as_os_str());
+fn checked_handle(path: &Path, acl_write: bool) -> Result<File, String> {
+    let access = if acl_write { 0x0002_0000 | 0x0004_0000 | 0x80 | 1 } else { 0x0002_0000 | 0x80 };
+    let file = OpenOptions::new().access_mode(access)
+        .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
+        .custom_flags(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT)
+        .open(path).map_err(|error| format!("open no-reparse object {}: {error}", path.display()))?;
+    require_no_reparse(&file, path)?;
+    Ok(file)
+}
+
+fn require_no_reparse(file: &File, path: &Path) -> Result<(), String> {
+    let mut info = FILE_ATTRIBUTE_TAG_INFO::default();
+    if unsafe { GetFileInformationByHandleEx(
+        file.as_raw_handle() as _, FileAttributeTagInfo,
+        (&mut info as *mut FILE_ATTRIBUTE_TAG_INFO).cast(),
+        std::mem::size_of::<FILE_ATTRIBUTE_TAG_INFO>() as u32,
+    ) } == 0 {
+        return Err(format!("query reparse attributes {}: {}", path.display(), std::io::Error::last_os_error()));
+    }
+    if info.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT != 0 || info.ReparseTag != 0 {
+        return Err(format!("reparse object forbidden at baseline boundary: {}", path.display()));
+    }
+    Ok(())
+}
+
+fn baseline_identity(file: &File, path: &Path)
+    -> Result<crate::sandbox::adapter::AttachedObjectIdentity, String>
+{
+    let identity = identity_from_handle(file, path)?;
+    Ok(crate::sandbox::adapter::AttachedObjectIdentity {
+        volume_serial_number: identity.volume_serial_number, file_id: identity.file_id,
+    })
+}
+
+pub(super) fn capture_baseline_bindings(paths: &[PathBuf])
+    -> Result<crate::sandbox::adapter::AttachedBaselineBindings, String>
+{
+    use crate::sandbox::adapter::{AttachedAncestorLease, AttachedBaselineBindings, AttachedObjectLease};
+    if paths.is_empty() { return Err("baseline path set is empty".into()); }
+    let mut objects = std::collections::BTreeMap::new();
+    for original in paths {
+        let path = baseline_path(original)?;
+        if objects.contains_key(&path) { continue; }
+        let mut ancestors = Vec::new();
+        for ancestor in path.ancestors().skip(1).collect::<Vec<_>>().into_iter().rev() {
+            let file = Arc::new(checked_handle(ancestor, false)?);
+            let identity = baseline_identity(file.as_ref(), ancestor)?;
+            ancestors.push(AttachedAncestorLease { path: ancestor.to_path_buf(), identity, file });
+        }
+        let file = Arc::new(checked_handle(&path, true)?);
+        let identity = baseline_identity(file.as_ref(), &path)?;
+        let content_file = if file.metadata().map_err(|error| error.to_string())?.is_file() {
+            let content = OpenOptions::new().access_mode(1 | 0x80)
+                .share_mode(FILE_SHARE_READ)
+                .custom_flags(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT)
+                .open(&path).map_err(|error| format!(
+                    "open baseline content read lease {}: {error}", path.display()))?;
+            require_no_reparse(&content, &path)?;
+            if baseline_identity(&content, &path)? != identity {
+                return Err(format!("content lease identity changed: {}", path.display()));
+            }
+            Some(Arc::new(content))
+        } else { None };
+        objects.insert(path, AttachedObjectLease { identity, file, content_file, ancestors });
+    }
+    let bindings = AttachedBaselineBindings { objects: Arc::new(objects) };
+    for path in bindings.objects.keys() { validate_baseline_path(&bindings, path)?; }
+    Ok(bindings)
+}
+
+pub(super) fn validate_baseline_path(
+    bindings: &crate::sandbox::adapter::AttachedBaselineBindings, path: &Path,
+) -> Result<(), String> {
+    let path = baseline_path(path)?;
+    let lease = bindings.objects.get(&path).ok_or_else(||
+        format!("path absent from captured adapter baseline: {}", path.display()))?;
+    for ancestor in &lease.ancestors {
+        require_no_reparse(ancestor.file.as_ref(), &ancestor.path)?;
+        if baseline_identity(ancestor.file.as_ref(), &ancestor.path)? != ancestor.identity {
+            return Err("retained ancestor handle identity drift".into());
+        }
+        let current = checked_handle(&ancestor.path, false)?;
+        if baseline_identity(&current, &ancestor.path)? != ancestor.identity {
+            return Err(format!("ancestor identity changed: {}", ancestor.path.display()));
+        }
+    }
+    require_no_reparse(lease.file.as_ref(), &path)?;
+    if baseline_identity(lease.file.as_ref(), &path)? != lease.identity {
+        return Err("retained target handle identity drift".into());
+    }
+    if let Some(content) = &lease.content_file {
+        require_no_reparse(content.as_ref(), &path)?;
+        if baseline_identity(content.as_ref(), &path)? != lease.identity {
+            return Err("retained content handle identity drift".into());
+        }
+    }
+    let current = checked_handle(&path, false)?;
+    if baseline_identity(&current, &path)? != lease.identity {
+        return Err(format!("target identity differs from captured baseline: {}", path.display()));
+    }
+    Ok(())
+}
+
+fn baseline_target(
+    bindings: &crate::sandbox::adapter::AttachedBaselineBindings, path: &Path,
+) -> Result<Arc<File>, String> {
+    validate_baseline_path(bindings, path)?;
+    let path = baseline_path(path)?;
+    Ok(bindings.objects.get(&path).ok_or("baseline target disappeared")?.file.clone())
+}
+
+pub(super) fn baseline_file(
+    bindings: &crate::sandbox::adapter::AttachedBaselineBindings, path: &Path,
+) -> Result<File, String> {
+    validate_baseline_path(bindings, path)?;
+    let path = baseline_path(path)?;
+    let lease = bindings.objects.get(&path).ok_or("baseline target disappeared")?;
+    lease.content_file.as_ref().ok_or("baseline content read requires a regular file")?
+        .try_clone().map_err(|error| error.to_string())
+}
+
+fn grant_target_to_package(
+    target: &AclGrantTarget, sid: &rappct::sid::AppContainerSid,
+) -> Result<(), String> {
+    let (handle, _) = lock_target_identity(target)?;
+    grant_target_on_handle(target, &handle, sid)
+}
+
+fn grant_target_on_handle(
+    target: &AclGrantTarget, handle: &File, sid: &rappct::sid::AppContainerSid,
+) -> Result<(), String> {
+    let _guard = APP_CONTAINER_ACL_API_LOCK.lock()
+        .map_err(|_| "AppContainer ACL API lock poisoned".to_string())?;
+    require_no_reparse(handle, &target.path)?;
+    require_non_null_dacl_on_handle(handle, &target.path)?;
+    let sid_w = to_wide(std::ffi::OsStr::new(sid.as_string()));
+    let mut raw_sid: PSID = null_mut();
+    if unsafe { ConvertStringSidToSidW(sid_w.as_ptr(), &mut raw_sid) } == 0 {
+        return Err("convert grant package SID failed".into());
+    }
+    let _sid_guard = LocalAllocGuard::new(raw_sid);
+    let mut old_dacl: *mut ACL = null_mut();
+    let mut descriptor: PSECURITY_DESCRIPTOR = null_mut();
+    let status = unsafe { GetSecurityInfo(handle.as_raw_handle() as _, SE_FILE_OBJECT,
+        DACL_SECURITY_INFORMATION, null_mut(), null_mut(), &mut old_dacl, null_mut(), &mut descriptor) };
+    if status != ERROR_SUCCESS { return Err(format!("GetSecurityInfo grant: {status}")); }
+    let _descriptor = LocalAllocGuard::new(descriptor);
+    let mut trustee = TRUSTEE_W::default();
+    trustee.TrusteeForm = TRUSTEE_IS_SID;
+    trustee.TrusteeType = TRUSTEE_IS_UNKNOWN;
+    trustee.ptstrName = raw_sid.cast::<u16>() as PWSTR;
+    let entry = EXPLICIT_ACCESS_W {
+        grfAccessPermissions: target.access_mask, grfAccessMode: GRANT_ACCESS,
+        // Same inheritance as rappct's existing file/directory grant.
+        grfInheritance: if target.kind == AclGrantTargetKind::Directory { 3 } else { 0 },
+        Trustee: trustee,
+    };
+    let mut new_dacl: *mut ACL = null_mut();
+    let status = unsafe { SetEntriesInAclW(1, &entry, old_dacl, &mut new_dacl) };
+    if status != ERROR_SUCCESS { return Err(format!("SetEntriesInAclW grant: {status}")); }
+    let _new_dacl = LocalAllocGuard::new(new_dacl);
+    let status = unsafe { SetSecurityInfo(handle.as_raw_handle() as _, SE_FILE_OBJECT,
+        DACL_SECURITY_INFORMATION, null_mut(), null_mut(), new_dacl, null_mut()) };
+    if status != ERROR_SUCCESS { return Err(format!("SetSecurityInfo grant: {status}")); }
+    Ok(())
+}
+
+fn require_non_null_dacl_on_handle(handle: &File, path: &Path) -> Result<(), String> {
     let mut dacl: *mut ACL = null_mut();
     let mut descriptor: PSECURITY_DESCRIPTOR = null_mut();
     let status = unsafe {
-        GetNamedSecurityInfoW(
-            path_w.as_ptr(),
+        GetSecurityInfo(
+            handle.as_raw_handle() as _,
             SE_FILE_OBJECT,
             DACL_SECURITY_INFORMATION,
             null_mut(),
@@ -700,17 +893,11 @@ fn require_non_null_dacl(path: &Path) -> Result<(), String> {
 }
 
 fn lock_target_identity(target: &AclGrantTarget) -> Result<(File, AclObjectIdentity), String> {
-    let handle = OpenOptions::new()
-        .read(true)
-        .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
-        .custom_flags(FILE_FLAG_BACKUP_SEMANTICS)
-        .open(&target.path)
-        .map_err(|error| {
-            format!(
-                "open AppContainer ACL target {} with rename/delete exclusion: {error}",
-                target.path.display()
-            )
-        })?;
+    let path = baseline_path(&target.path)?;
+    for ancestor in path.ancestors().skip(1) {
+        let _ancestor = checked_handle(ancestor, false)?;
+    }
+    let handle = checked_handle(&path, true)?;
     let identity = identity_from_handle(&handle, &target.path)?;
     Ok((handle, identity))
 }
@@ -739,13 +926,19 @@ fn identity_from_handle(handle: &File, path: &Path) -> Result<AclObjectIdentity,
 }
 
 fn revoke_package_sid(target: &AclGrantTarget, sid_sddl: &str) -> Result<(), String> {
+    let (handle, _) = lock_target_identity(target)?;
+    revoke_package_sid_on_handle(target, &handle, sid_sddl)
+}
+
+fn revoke_package_sid_on_handle(target: &AclGrantTarget, handle: &File, sid_sddl: &str) -> Result<(), String> {
     let expected_identity = target.identity.as_ref().ok_or_else(|| {
         format!(
             "refusing AppContainer SID revoke for {} because its durable file identity is absent",
             target.path.display()
         )
     })?;
-    let (_identity_lock, actual_identity) = lock_target_identity(target)?;
+    require_no_reparse(handle, &target.path)?;
+    let actual_identity = identity_from_handle(handle, &target.path)?;
     if &actual_identity != expected_identity {
         return Err(format!(
             "refusing AppContainer SID revoke for {} because the current path identity does not match the journaled grant target",
@@ -757,13 +950,12 @@ fn revoke_package_sid(target: &AclGrantTarget, sid_sddl: &str) -> Result<(), Str
     // applied. Inspecting first avoids an unnecessary DACL rewrite (and its
     // directory inheritance propagation) while still revoking every SID that
     // is actually present.
-    if !acl_contains_sid(&target.path, sid_sddl)? {
+    if !acl_contains_sid_on_handle(handle, &target.path, sid_sddl)? {
         return Ok(());
     }
     let _guard = APP_CONTAINER_ACL_API_LOCK
         .lock()
         .map_err(|_| "AppContainer ACL API lock poisoned".to_string())?;
-    let path_w = to_wide(target.path.as_os_str());
     let sid_w = to_wide(std::ffi::OsStr::new(sid_sddl));
     let mut sid: PSID = null_mut();
     if unsafe { ConvertStringSidToSidW(sid_w.as_ptr(), &mut sid) } == 0 {
@@ -777,8 +969,8 @@ fn revoke_package_sid(target: &AclGrantTarget, sid_sddl: &str) -> Result<(), Str
     let mut old_dacl: *mut ACL = null_mut();
     let mut security_descriptor: PSECURITY_DESCRIPTOR = null_mut();
     let status = unsafe {
-        GetNamedSecurityInfoW(
-            path_w.as_ptr(),
+        GetSecurityInfo(
+            handle.as_raw_handle() as _,
             SE_FILE_OBJECT,
             DACL_SECURITY_INFORMATION,
             null_mut(),
@@ -816,8 +1008,8 @@ fn revoke_package_sid(target: &AclGrantTarget, sid_sddl: &str) -> Result<(), Str
     }
     let _new_dacl_guard = LocalAllocGuard::new(new_dacl);
     let status = unsafe {
-        SetNamedSecurityInfoW(
-            path_w.as_ptr(),
+        SetSecurityInfo(
+            handle.as_raw_handle() as _,
             SE_FILE_OBJECT,
             DACL_SECURITY_INFORMATION,
             null_mut(),
@@ -836,6 +1028,11 @@ fn revoke_package_sid(target: &AclGrantTarget, sid_sddl: &str) -> Result<(), Str
 }
 
 fn acl_contains_sid(path: &Path, sid_sddl: &str) -> Result<bool, String> {
+    let handle = checked_handle(path, false)?;
+    acl_contains_sid_on_handle(&handle, path, sid_sddl)
+}
+
+fn acl_contains_sid_on_handle(handle: &File, path: &Path, sid_sddl: &str) -> Result<bool, String> {
     use windows_sys::Win32::Security::{
         AclSizeInformation, EqualSid, GetAce, GetAclInformation, ACCESS_ALLOWED_ACE, ACE_HEADER,
         ACL_SIZE_INFORMATION,
@@ -843,7 +1040,6 @@ fn acl_contains_sid(path: &Path, sid_sddl: &str) -> Result<bool, String> {
 
     const ACCESS_ALLOWED_ACE_TYPE_VALUE: u8 = 0;
 
-    let path_w = to_wide(path.as_os_str());
     let sid_w = to_wide(std::ffi::OsStr::new(sid_sddl));
     let mut sid: PSID = null_mut();
     if unsafe { ConvertStringSidToSidW(sid_w.as_ptr(), &mut sid) } == 0 {
@@ -856,8 +1052,8 @@ fn acl_contains_sid(path: &Path, sid_sddl: &str) -> Result<bool, String> {
     let mut dacl: *mut ACL = null_mut();
     let mut descriptor: PSECURITY_DESCRIPTOR = null_mut();
     let status = unsafe {
-        GetNamedSecurityInfoW(
-            path_w.as_ptr(),
+        GetSecurityInfo(
+            handle.as_raw_handle() as _,
             SE_FILE_OBJECT,
             DACL_SECURITY_INFORMATION,
             null_mut(),
@@ -913,6 +1109,21 @@ fn acl_contains_sid(path: &Path, sid_sddl: &str) -> Result<bool, String> {
         }
     }
     Ok(false)
+}
+
+fn revoke_all_targets_on_handles(
+    targets: &[AclGrantTarget], handles: &[Arc<File>], sid_sddl: &str,
+) -> Result<(), String> {
+    let mut errors = Vec::new();
+    for (index, target) in targets.iter().enumerate().rev() {
+        if target.identity.is_none() { continue; }
+        let result = match handles.get(index) {
+            Some(handle) => revoke_package_sid_on_handle(target, handle.as_ref(), sid_sddl),
+            None => revoke_package_sid(target, sid_sddl), // genuine restart/journal recovery
+        };
+        if let Err(error) = result { errors.push(error); }
+    }
+    if errors.is_empty() { Ok(()) } else { Err(errors.join(" | ")) }
 }
 
 fn revoke_all_targets(targets: &[AclGrantTarget], sid_sddl: &str) -> Result<(), String> {

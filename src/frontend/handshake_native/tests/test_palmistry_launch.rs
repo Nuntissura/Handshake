@@ -498,7 +498,13 @@ fn signed_current_owned_launch_binds_actual_child_and_retains_clean_shutdown() {
     .is_err());
 
     match failed.request_shutdown_and_wait(Duration::from_secs(10)) {
-        ShutdownOutcome::ExitedCleanly(status) => assert_eq!(status.code(), Some(2)),
+        ShutdownOutcome::ExitedUncleanly { acknowledgement, status } => {
+            assert_eq!(status.code(), Some(2));
+            assert!(matches!(
+                acknowledgement,
+                diagnostics::palmistry_launch::ShutdownAcknowledgement::SignedUnconfirmed(_),
+            ));
+        }
         other => panic!("failed startup must reap its actual child: {other:?}"),
     }
     assert_eq!(failed.child_id(), failed_pid);

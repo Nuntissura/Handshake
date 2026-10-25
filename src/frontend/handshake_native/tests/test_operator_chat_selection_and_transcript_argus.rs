@@ -1,10 +1,6 @@
-//! WP-1 MT-012 — F6 (selection audit fires from the UI) + F8 (pane renders
-//! fetched ModelLaneMessage transcript rows), proven headlessly through Argus.
-//!
-//! A recording `OperatorChatBackend` is injected via `HandshakeApp::set_pane_factory`
-//! so the pane's real wiring is exercised without a live backend: clicking a model
-//! row fires `record_selection` (F6, the previously-dead selection path), and a
-//! launch triggers a transcript fetch whose rows the pane RENDERS (F8).
+//! Component coverage for local pending-profile launch timing and transcript rendering.
+//! A recording backend simulates the internal audit before its launch response.
+//! These mocks provide no backend admission, process, device or runtime proof.
 
 use std::sync::{Arc, Mutex};
 
@@ -13,7 +9,7 @@ use egui_kittest::Harness;
 use handshake_native::app::{HandshakeApp, HealthDisplayState};
 use handshake_native::backend_client::HealthInfo;
 use handshake_native::operator_chat_pane::{
-    model_selection_author_id, session_selection_author_id, transcript_row_author_id_for,
+    model_selection_author_id, profile_selection_author_id, session_selection_author_id, transcript_row_author_id_for,
     LaunchCell, ModelsCell, OperatorChatBackend, OperatorChatCloudRow,
     OperatorChatLaunchPaneFactory, OperatorChatLaunchSelection, OperatorChatLaunched,
     OperatorChatModelInventory, OperatorChatModelRow, OperatorChatRoutingAction,
@@ -22,6 +18,37 @@ use handshake_native::operator_chat_pane::{
     PROMPT_INPUT_AUTHOR_ID, REFRESH_MODELS_AUTHOR_ID,
 };
 use handshake_native::pane_registry::PaneType;
+
+
+// Component-only profile fixture. No real artifact, inference or device proof is asserted.
+fn component_profile(model_id: &str) -> handshake_native::backend_client::EngineProfileSnapshotV1 {
+    let profile = handshake_dexterity::EngineProfile {
+        id: format!("component-{model_id}"),
+        revision: 1,
+        model: handshake_dexterity::Model {
+            id: model_id.to_owned(),
+            format: handshake_dexterity::ModelFormat::GgufQ4_0,
+            content_sha256: "1".repeat(64),
+            compiled_context: None,
+        },
+        engine: handshake_dexterity::Engine::GenieXLlamaCpp,
+        device: handshake_dexterity::Device::Cpu,
+        preset: handshake_dexterity::Preset {
+            name: "component-fixture".to_owned(),
+            context_limit: 2048,
+            max_tokens: 128,
+            sampling: handshake_dexterity::Sampling::LlamaCpp {
+                temperature: 0.7, top_k: 40, top_p: 0.95, min_p: 0.05,
+            },
+        },
+    };
+    let resolved = handshake_dexterity::Registry::new(vec![profile.clone()])
+        .and_then(|registry| registry.resolve(&profile.id))
+        .expect("valid component profile");
+    handshake_native::backend_client::EngineProfileSnapshotV1 {
+        profile, fingerprint: resolved.fingerprint().to_owned(),
+    }
+}
 
 /// A recording backend: delivers a fixed inventory + transcript, and records every
 /// model selection the pane sends so F6 is provable.
@@ -61,6 +88,12 @@ impl OperatorChatBackend for RecordingBackend {
         prompt: &str,
         cell: LaunchCell,
     ) {
+        if selection.lane_kind == "local" {
+            // Component simulation of the backend's internal launch-audit boundary.
+            self.selections.lock().expect("selections lock")
+                .push((selection.clone(), Some(working_dir.to_owned())));
+        }
+        let engine_profile = selection.engine_profile.clone();
         self.launches.lock().expect("launches lock").push((
             selection,
             owner_session_id.to_string(),
@@ -69,6 +102,7 @@ impl OperatorChatBackend for RecordingBackend {
         ));
         if let Ok(mut slot) = cell.lock() {
             *slot = Some(Ok(OperatorChatLaunched {
+                engine_profile,
                 instance_id: "inst-1".to_string(),
                 run_id: self.run_id.clone(),
                 lane_id: "lane-1".to_string(),
@@ -149,12 +183,13 @@ impl OperatorChatBackend for RejectingSelectionBackend {
             inventory_source: "selection-rejection-probe".to_owned(),
             sessions: vec![OperatorChatSessionRow {
                 session_id: "session-ready".to_owned(),
-                parent_session_id: None,
+                parent_session_id: Some("component-root".to_owned()),
                 label: "Ready session".to_owned(),
                 status: "available".to_owned(),
             }],
             local: vec![OperatorChatModelRow {
                 model_id: "local-model-rejected".to_owned(),
+                engine_profile: Some(component_profile("local-model-rejected")),
                 display_name: "Rejected local model".to_owned(),
                 runtime_binding: "candle".to_owned(),
                 ready: true,
@@ -176,13 +211,20 @@ impl OperatorChatBackend for RejectingSelectionBackend {
 
     fn launch(
         &self,
-        _selection: OperatorChatLaunchSelection,
-        _owner_session_id: &str,
-        _working_dir: &str,
-        _prompt: &str,
-        _cell: LaunchCell,
+        selection: OperatorChatLaunchSelection,
+        owner_session_id: &str,
+        working_dir: &str,
+        prompt: &str,
+        cell: LaunchCell,
     ) {
-        panic!("a rejected selection must never become launchable");
+        assert_eq!(selection,
+            OperatorChatLaunchSelection::local(component_profile("local-model-rejected")));
+        assert_eq!(owner_session_id, "session-ready");
+        assert_eq!(working_dir, "D:/work/rejected-repo");
+        assert_eq!(prompt, "exercise component audit rejection");
+        // This mock models an audit rejection, not a process factory or runtime proof.
+        *cell.lock().expect("launch rejection cell") =
+            Some(Err("component_selection_audit_failed".to_owned()));
     }
 
     fn fetch_transcript(&self, _run_id: &str, _cell: TranscriptCell) {}
@@ -221,13 +263,28 @@ fn operator_chat_rejects_model_selection_when_audit_persistence_fails() {
     harness.run();
     harness.run();
 
-    let model_author = model_selection_author_id("local", None, "local-model-rejected");
+    let model_author = profile_selection_author_id(&component_profile("local-model-rejected"));
     node_by_author(&harness, &model_author).click_accesskit();
     harness.run();
     harness.run();
 
+    node_by_author(&harness, &session_selection_author_id("session-ready")).click_accesskit();
+    harness.run();
+    node_by_author(&harness, FOLDER_PICKER_AUTHOR_ID).focus();
+    harness.run();
+    node_by_author(&harness, FOLDER_PICKER_AUTHOR_ID).type_text("D:/work/rejected-repo");
+    harness.run();
+    node_by_author(&harness, PROMPT_INPUT_AUTHOR_ID).focus();
+    harness.run();
+    node_by_author(&harness, PROMPT_INPUT_AUTHOR_ID)
+        .type_text("exercise component audit rejection");
+    harness.run();
+    node_by_author(&harness, LAUNCH_AUTHOR_ID).click_accesskit();
+    harness.run();
+    harness.run();
+
     harness.get_by_label(
-        "Model selection was not accepted because its audit record failed. Retry the selection.",
+        "Launch was not accepted; no audited local selection was applied.",
     );
     assert!(
         node_by_author(&harness, LAUNCH_AUTHOR_ID)
@@ -259,12 +316,14 @@ fn operator_chat_model_select_fires_audit_and_launch_renders_fetched_transcript(
             local: vec![
                 OperatorChatModelRow {
                     model_id: "local-model-1".to_string(),
+                engine_profile: Some(component_profile("local-model-1")),
                     display_name: "Local Model 1".to_string(),
                     runtime_binding: "candle".to_string(),
                     ready: true,
                 },
                 OperatorChatModelRow {
                     model_id: "local-model-unavailable".to_string(),
+                engine_profile: Some(component_profile("local-model-unavailable")),
                     display_name: "Unavailable Local Model".to_string(),
                     runtime_binding: "candle".to_string(),
                     ready: false,
@@ -333,9 +392,9 @@ fn operator_chat_model_select_fires_audit_and_launch_renders_fetched_transcript(
     node_by_author(&harness, REFRESH_MODELS_AUTHOR_ID).click_accesskit();
     harness.run();
     harness.run();
-    let model_author = model_selection_author_id("local", None, "local-model-1");
+    let model_author = profile_selection_author_id(&component_profile("local-model-1"));
     let unavailable_model_author =
-        model_selection_author_id("local", None, "local-model-unavailable");
+        profile_selection_author_id(&component_profile("local-model-unavailable"));
     let session_author = session_selection_author_id("child-a");
     let unavailable_session_author = session_selection_author_id("paused-child");
     let cloud_author = model_selection_author_id("cloud", Some("anthropic"), "claude-sonnet-4");
@@ -416,18 +475,14 @@ fn operator_chat_model_select_fires_audit_and_launch_renders_fetched_transcript(
         "subagent selection audit carries the no-OS lane/model context: {selections:?}"
     );
 
-    // F6: click the model row -> the selection-audit path fires.
+    // Local choice is pending; the complete ordinary launch owns its audit.
     node_by_author(&harness, &model_author).click_accesskit();
     harness.run();
     harness.run();
     assert!(
-        backend
-            .selections
-            .lock()
-            .expect("selections")
-            .iter()
-            .any(|(selection, _)| selection == &OperatorChatLaunchSelection::local("local-model-1")),
-        "clicking a local model row fires the selection-decision audit (F6)"
+        !backend.selections.lock().expect("selections").iter()
+            .any(|(selection, _)| selection.lane_kind == "local"),
+        "a local profile stays pending before a complete ordinary launch"
     );
 
     // Type folder + prompt (in-app AccessKit focus only; HBR-QUIET).
@@ -446,11 +501,21 @@ fn operator_chat_model_select_fires_audit_and_launch_renders_fetched_transcript(
     harness.run();
     harness.run();
 
+    assert!(
+        backend
+            .selections
+            .lock()
+            .expect("selections")
+            .iter()
+            .any(|(selection, _)| selection == &OperatorChatLaunchSelection::local(component_profile("local-model-1"))),
+        "the complete ordinary local launch carries the exact selection into the component audit"
+    );
+
     let launches = backend.launches.lock().expect("launches");
     assert_eq!(
         launches.as_slice(),
         &[(
-            OperatorChatLaunchSelection::local("local-model-1"),
+            OperatorChatLaunchSelection::local(component_profile("local-model-1")),
             "child-a".to_string(),
             "D:/work/repo".to_string(),
             "audit the repo".to_string(),
@@ -588,4 +653,145 @@ fn operator_chat_model_select_fires_audit_and_launch_renders_fetched_transcript(
             .any(|l| l.contains("system: launched run operator-run-42")),
         "launch status is not injected as a synthetic transcript row"
     );
+}
+
+
+// Deferred cells model response order only. No backend admission or runtime is asserted.
+#[derive(Default)]
+struct DeferredLaunchBackend {
+    models: Mutex<Vec<ModelsCell>>,
+    launches: Mutex<Vec<(OperatorChatLaunchSelection, LaunchCell)>>,
+    transcript_calls: Mutex<Vec<String>>,
+}
+
+impl OperatorChatBackend for DeferredLaunchBackend {
+    fn fetch_models(&self, cell: ModelsCell) {
+        self.models.lock().expect("model cells").push(cell);
+    }
+    fn record_selection(&self, _: OperatorChatLaunchSelection, _: Option<String>, _: SelectionCell) {
+        panic!("a local candidate must not audit before its complete ordinary launch");
+    }
+    fn launch(&self, selection: OperatorChatLaunchSelection, owner: &str, folder: &str,
+        prompt: &str, cell: LaunchCell) {
+        assert_eq!(owner, "component-owner");
+        assert_eq!(folder, "D:/work/deferred-component");
+        assert_eq!(prompt, "deferred component request");
+        self.launches.lock().expect("launch cells").push((selection, cell));
+    }
+    fn fetch_transcript(&self, run: &str, cell: TranscriptCell) {
+        self.transcript_calls.lock().expect("transcript calls").push(run.to_owned());
+        *cell.lock().expect("transcript cell") = Some(Ok(Vec::new()));
+    }
+    fn routing_action(&self, _: OperatorChatRoutingAction, _: String, cell: RoutingCell) {
+        *cell.lock().expect("routing cell") = Some(Err("unused component route".to_owned()));
+    }
+}
+
+fn deferred_inventory(owner_available: bool) -> OperatorChatModelInventory {
+    OperatorChatModelInventory {
+        local: vec![OperatorChatModelRow {
+            model_id: "deferred-component-model".to_owned(),
+            engine_profile: Some(component_profile("deferred-component-model")),
+            display_name: "Deferred component profile".to_owned(),
+            runtime_binding: "component-only".to_owned(), ready: true,
+        }],
+        sessions: vec![OperatorChatSessionRow {
+            session_id: "component-owner".to_owned(),
+            parent_session_id: Some("component-root".to_owned()),
+            status: if owner_available { "available" } else { "unavailable" }.to_owned(),
+            ..Default::default()
+        }],
+        ..Default::default()
+    }
+}
+
+#[test]
+fn deferred_local_launch_recovery_does_not_accept_stale_or_mismatched_reply_or_consume_b() {
+    for case in ["owner-disappeared", "mismatched-profile", "empty-run-id"] {
+        let backend = Arc::new(DeferredLaunchBackend::default());
+        let mut app = HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+            status: "ok".to_owned(), db_status: "ok".to_owned(), migration_version: Some(1),
+        }));
+        app.set_pane_factory(PaneType::OperatorChatLaunch,
+            Box::new(OperatorChatLaunchPaneFactory::with_backend(backend.clone())));
+        let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+        harness.run();
+        harness.get_by_label("MODELS").click(); harness.run();
+        harness.get_by_label("Open Operator Chat").click(); harness.run();
+        node_by_author(&harness, REFRESH_MODELS_AUTHOR_ID).click_accesskit(); harness.run();
+        let models = backend.models.lock().expect("model cells").last().expect("refresh").clone();
+        *models.lock().expect("models") = Some(Ok(deferred_inventory(true)));
+        harness.run(); harness.run();
+        let profile = component_profile("deferred-component-model");
+        node_by_author(&harness, &profile_selection_author_id(&profile)).click_accesskit(); harness.run();
+        node_by_author(&harness, &session_selection_author_id("component-owner")).click_accesskit(); harness.run();
+        node_by_author(&harness, FOLDER_PICKER_AUTHOR_ID).focus(); harness.run();
+        node_by_author(&harness, FOLDER_PICKER_AUTHOR_ID).type_text("D:/work/deferred-component"); harness.run();
+        node_by_author(&harness, PROMPT_INPUT_AUTHOR_ID).focus(); harness.run();
+        node_by_author(&harness, PROMPT_INPUT_AUTHOR_ID).type_text("deferred component request"); harness.run();
+        node_by_author(&harness, LAUNCH_AUTHOR_ID).click_accesskit(); harness.run();
+        let a = backend.launches.lock().expect("launch cells")[0].1.clone();
+        assert!(backend.transcript_calls.lock().expect("transcript calls").is_empty());
+        if case == "owner-disappeared" {
+            // Deliver inventory and A together: the native drain reads models first.
+            node_by_author(&harness, REFRESH_MODELS_AUTHOR_ID).click_accesskit(); harness.run();
+            let models = backend.models.lock().expect("model cells").last().expect("refresh").clone();
+            *models.lock().expect("models") = Some(Ok(deferred_inventory(false)));
+        }
+        *a.lock().expect("A") = Some(Ok(OperatorChatLaunched {
+            engine_profile: Some(if case == "mismatched-profile" {
+                component_profile("different-component-model")
+            } else { profile.clone() }),
+            instance_id: "component-instance-A".to_owned(),
+            run_id: if case == "empty-run-id" { "" } else { "component-run-A" }.to_owned(),
+            lane_id: "component-lane-A".to_owned(),
+        }));
+        harness.run(); harness.run();
+        assert!(live_labels(&harness).iter().any(|label|
+            label.contains("Unaccepted launch response:") && label.contains("component-instance-A")), "{case}");
+        assert!(backend.transcript_calls.lock().expect("transcript calls").is_empty(), "{case}");
+        // Restore current inputs, begin B, then publish a duplicate late result into A's own cell.
+        node_by_author(&harness, REFRESH_MODELS_AUTHOR_ID).click_accesskit(); harness.run();
+        let models = backend.models.lock().expect("model cells").last().expect("refresh").clone();
+        *models.lock().expect("models") = Some(Ok(deferred_inventory(true)));
+        harness.run(); harness.run();
+        node_by_author(&harness, &session_selection_author_id("component-owner")).click_accesskit(); harness.run();
+        node_by_author(&harness, LAUNCH_AUTHOR_ID).click_accesskit(); harness.run();
+        let b = backend.launches.lock().expect("launch cells")[1].1.clone();
+        *a.lock().expect("late A") = Some(Ok(OperatorChatLaunched {
+            engine_profile: Some(profile.clone()), instance_id: "late-instance-A".to_owned(),
+            run_id: "late-run-A".to_owned(), lane_id: "late-lane-A".to_owned(),
+        }));
+        harness.run(); harness.run();
+        assert!(node_by_author(&harness, LAUNCH_AUTHOR_ID).accesskit_node().is_disabled());
+        assert!(backend.transcript_calls.lock().expect("transcript calls").is_empty());
+        *b.lock().expect("B") = Some(Ok(OperatorChatLaunched {
+            engine_profile: Some(profile), instance_id: "component-instance-B".to_owned(),
+            run_id: "component-run-B".to_owned(), lane_id: "component-lane-B".to_owned(),
+        }));
+        harness.run(); harness.run();
+        assert_eq!(*backend.transcript_calls.lock().expect("transcript calls"), vec!["component-run-B".to_owned()]);
+        assert!(!live_labels(&harness).iter().any(|label| label.contains("late-run-A")));
+        // Registration keys survive removal of an earlier recovery entry.
+        node_by_author(&harness, LAUNCH_AUTHOR_ID).click_accesskit(); harness.run();
+        let c = backend.launches.lock().expect("launch cells")[2].1.clone();
+        *c.lock().expect("C") = Some(Ok(OperatorChatLaunched {
+            engine_profile: None, instance_id: "component-instance-C".to_owned(),
+            run_id: "component-run-C".to_owned(), lane_id: "component-lane-C".to_owned(),
+        }));
+        harness.run(); harness.run();
+        let c_dismiss = "operator-chat.launch-recovery.dismiss.2";
+        assert!(live_author_ids(&harness).iter().any(|id| id == c_dismiss));
+        node_by_author(&harness, "operator-chat.launch-recovery.dismiss.0").click_accesskit();
+        harness.run(); harness.run();
+        assert!(!live_author_ids(&harness).iter()
+            .any(|id| id == "operator-chat.launch-recovery.dismiss.0"));
+        assert!(live_author_ids(&harness).iter().any(|id| id == c_dismiss),
+            "dismissing A must not rename C's automation target");
+        node_by_author(&harness, c_dismiss).click_accesskit(); harness.run(); harness.run();
+        assert!(!live_labels(&harness).iter().any(|label|
+            label.contains("Unaccepted launch response:") && label.contains("component-instance-C")));
+        assert_eq!(*backend.transcript_calls.lock().expect("transcript calls"),
+            vec!["component-run-B".to_owned()]);
+    }
 }

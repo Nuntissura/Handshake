@@ -1051,6 +1051,7 @@ fn promoted_artifact_hash(label: &str) -> String {
 
 fn sample_run(label: &str) -> NewModelLaneRun {
     NewModelLaneRun {
+        engine_profile: None,
         run_id: format!("run-mt004-{label}"),
         trace_id: format!("trace-mt004-{label}"),
         run_span_id: format!("span-run-mt004-{label}"),
@@ -1090,6 +1091,7 @@ fn sample_lane(label: &str) -> NewModelLane {
     let session = format!("session-mt004-{label}");
     let model_session = format!("model-session-mt004-{label}");
     NewModelLane {
+        engine_profile: None,
         lane_id: format!("lane-mt004-{label}"),
         run_id: format!("run-mt004-{label}"),
         trace_id: format!("trace-mt004-{label}"),

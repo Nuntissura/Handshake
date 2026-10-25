@@ -921,8 +921,58 @@ impl TryFrom<&str> for SessionMessageRole {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EngineProfileSessionDeclarationV1 {
+    pub spawn_depth: i32,
+    pub parameter_class: String,
+    pub execution_mode: String,
+    pub memory_policy: String,
+}
+impl EngineProfileSessionDeclarationV1 {
+    pub(crate) fn from_owner_depth(spawn_depth: i32) -> StorageResult<Self> {
+        let declared = Self { spawn_depth, parameter_class: "PUnknown".into(),
+            execution_mode: "SINGLE_MODEL_MULTI_ROLE".into(), memory_policy: "EPHEMERAL".into() };
+        declared.validate()?;
+        Ok(declared)
+    }
+    pub fn validate(&self) -> StorageResult<()> {
+        if self.spawn_depth < 0 || self.parameter_class != "PUnknown"
+            || self.execution_mode != "SINGLE_MODEL_MULTI_ROLE" || self.memory_policy != "EPHEMERAL" {
+            return Err(StorageError::Validation("invalid declared ordinary engine profile session policy"));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EngineProfileSessionBindingV1 {
+    pub declaration: EngineProfileSessionDeclarationV1,
+    pub run_id: String,
+    pub lane_id: String,
+    pub scope: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    pub run_event_id: String,
+    pub lane_event_id: String,
+    pub snapshot: crate::model_runtime::EngineProfileSnapshotV1,
+}
+
+impl EngineProfileSessionBindingV1 {
+    pub fn validate(&self, model_id: &str) -> StorageResult<()> {
+        self.declaration.validate()?;
+        self.snapshot.validate().map_err(|_| StorageError::Validation("invalid engine profile session fingerprint"))?;
+        if self.run_id.trim().is_empty() || self.lane_id.trim().is_empty()
+            || self.run_event_id.trim().is_empty() || self.lane_event_id.trim().is_empty()
+            || self.snapshot.profile.model.id != model_id
+        { return Err(StorageError::Validation("invalid engine profile session binding")); }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ModelSession {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub engine_profile_binding: Option<EngineProfileSessionBindingV1>,
     pub session_id: String,
     pub parent_session_id: Option<String>,
     pub spawn_depth: i32,
@@ -968,6 +1018,7 @@ pub struct ModelSession {
 
 #[derive(Clone, Debug)]
 pub struct NewModelSession {
+    pub engine_profile_binding: Option<EngineProfileSessionBindingV1>,
     pub session_id: String,
     pub parent_session_id: Option<String>,
     pub spawn_depth: i32,
@@ -1938,6 +1989,41 @@ pub trait Database: Send + Sync {
     // EventLedger receipts, and revisions, not re-validation of user input semantics.
     /// Resolve the record for `entry` in `scope`; returns the registry-default record (revision 0) when
     /// unset (SET-REC-003 — never null for a defined preference).
+    async fn local_execution_authority_snapshot(
+        &self,
+        request: &crate::preferences::LocalExecutionAuthorityRequest,
+    ) -> StorageResult<crate::preferences::LocalExecutionAuthorityLease> {
+        Err(StorageError::NotImplemented("local execution authority snapshot"))
+    }
+
+    async fn preference_set_expected(
+        &self,
+        scope: &crate::preferences::PreferenceScope,
+        entry: &crate::preferences::PreferenceSchemaEntry,
+        value: Value,
+        source: crate::preferences::PreferenceSource,
+        actor: &str,
+        expected_revision: Option<i64>,
+    ) -> StorageResult<(crate::preferences::PreferenceRecord, crate::preferences::PreferenceChangeReceipt)> {
+        if expected_revision.is_some() || crate::preferences::is_work_profile_preference(entry.preference_id) {
+            return Err(StorageError::NotImplemented("preference revision CAS"));
+        }
+        self.preference_set(scope, entry, value, source, actor).await
+    }
+
+    async fn preference_reset_expected(
+        &self,
+        scope: &crate::preferences::PreferenceScope,
+        entry: &crate::preferences::PreferenceSchemaEntry,
+        actor: &str,
+        expected_revision: Option<i64>,
+    ) -> StorageResult<(crate::preferences::PreferenceRecord, crate::preferences::PreferenceChangeReceipt)> {
+        if expected_revision.is_some() || crate::preferences::is_work_profile_preference(entry.preference_id) {
+            return Err(StorageError::NotImplemented("preference revision CAS"));
+        }
+        self.preference_reset(scope, entry, actor).await
+    }
+
     async fn preference_get(
         &self,
         _scope: &crate::preferences::PreferenceScope,

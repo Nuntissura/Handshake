@@ -320,6 +320,7 @@ fn kernel_dcc_session_spawn_tree_mt043_cascade_cancel_event_adds_root_session_to
 fn model_session_for_test(session_id: &str, capability_grants: Vec<String>) -> ModelSession {
     let now = Utc::now();
     ModelSession {
+        engine_profile_binding: None,
         session_id: session_id.to_string(),
         parent_session_id: None,
         spawn_depth: 0,

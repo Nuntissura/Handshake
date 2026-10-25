@@ -1,3 +1,4 @@
+use std::future::{Future, IntoFuture};
 use chrono::Utc;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -19,6 +20,35 @@ const PREFERENCE_CHANGE_RECEIPTS_TABLE: &str = "preference_change_receipts";
 const KERNEL_EVENT_LEDGER_TABLE: &str = "kernel_event_ledger";
 const PREFERENCE_REVISION_CONFLICT: &str = "HSK-PREFERENCE-REVISION-CONFLICT";
 const PREFERENCE_WRITE_MAX_ATTEMPTS: usize = 8;
+
+tokio::task_local! {
+    static WORK_PROFILE_WRITE_CANCELLATION: tokio_util::sync::CancellationToken;
+}
+
+#[cfg(feature = "test-utils")]
+tokio::task_local! {
+    static WORK_PROFILE_WRITE_PROOF: std::sync::Arc<WorkProfileWriteProof>;
+}
+
+#[cfg(feature = "test-utils")]
+struct WorkProfileWriteProof {
+    dispatched: tokio::sync::Notify,
+    responded: tokio::sync::Notify,
+    release: tokio::sync::Semaphore,
+    rollback: bool,
+}
+
+#[cfg(feature = "test-utils")]
+impl WorkProfileWriteProof {
+    fn new(rollback: bool) -> std::sync::Arc<Self> {
+        std::sync::Arc::new(Self { dispatched: tokio::sync::Notify::new(), responded: tokio::sync::Notify::new(),
+            release: tokio::sync::Semaphore::new(0), rollback })
+    }
+}
+
+fn work_profile_write_cancelled() -> bool {
+    WORK_PROFILE_WRITE_CANCELLATION.try_with(|token| token.is_cancelled()).unwrap_or(false)
+}
 
 #[derive(Debug, SurrealValue)]
 struct PreferenceRecordRow {
@@ -214,6 +244,7 @@ impl SurrealDataContext<'_> {
         value: Value,
         source: PreferenceSource,
         actor: &str,
+        expected_revision: Option<i64>,
     ) -> Result<(PreferenceRecord, PreferenceChangeReceipt), SurrealStorageError> {
         let preference_key = preference_record_key(scope, entry.preference_id);
         let aggregate_id = format!(
@@ -301,6 +332,9 @@ COMMIT TRANSACTION;
         for attempt in 0..PREFERENCE_WRITE_MAX_ATTEMPTS {
             let before = self.get_preference_record(scope, entry).await?;
             let expected_before_revision = before.as_ref().map(|record| record.revision);
+            if expected_revision.is_some_and(|revision| revision != expected_before_revision.unwrap_or(0)) {
+                return Err(SurrealStorageError::InvalidPreferenceRecord { reason: "HSK-PREFERENCE-REVISION-CONFLICT" });
+            }
             let after_revision = expected_before_revision.unwrap_or(0) + 1;
             let old_value = before.as_ref().map(|record| record.value.clone());
             let receipt_id = Uuid::now_v7().to_string();
@@ -394,11 +428,36 @@ COMMIT TRANSACTION;
                 authority_action: ledger_write.authority_action,
             };
 
-            let mut response = self
-                .client
-                .query(statement)
-                .bind(SurrealValue::into_value(bindings))
-                .await?;
+            if work_profile_write_cancelled() {
+                return Err(SurrealStorageError::TransactionCancelled);
+            }
+            let owned = WORK_PROFILE_WRITE_CANCELLATION.try_with(|_| ()).is_ok();
+            if owned { super::authority_mutation_submitted(); }
+            #[cfg(feature = "test-utils")]
+            let proof = WORK_PROFILE_WRITE_PROOF.try_with(std::sync::Arc::clone).ok();
+            #[cfg(feature = "test-utils")]
+            let statement = match &proof {
+                Some(proof) => statement.replace("LET $before =", if proof.rollback {
+                    "SLEEP 200ms; THROW 'MT196-ROLLBACK'; LET $before ="
+                } else { "SLEEP 200ms; LET $before =" }),
+                None => statement.to_owned(),
+            };
+            let query = self.client.query(statement).bind(SurrealValue::into_value(bindings)).into_future();
+            tokio::pin!(query);
+            let response = futures::future::poll_fn(|cx| {
+                let result = query.as_mut().poll(cx);
+                #[cfg(feature = "test-utils")]
+                if result.is_pending() {
+                    if let Some(proof) = &proof { proof.dispatched.notify_one(); }
+                }
+                result
+            }).await;
+            #[cfg(feature = "test-utils")]
+            if let Some(proof) = &proof {
+                proof.responded.notify_one();
+                if let Ok(permit) = proof.release.acquire().await { permit.forget(); }
+            }
+            let mut response = response.map_err(|error| if owned { super::authority_mutation_error(error) } else { error })?;
             // A THROW aborts the transaction and every earlier slot then reads "The query was not
             // executed due to a failed transaction"; `check()` returns that first slot and hides
             // the THROWn code (HSK-403 silent-deny guard, revision conflict). Pick the meaningful
@@ -416,14 +475,18 @@ COMMIT TRANSACTION;
                 .unwrap_or(0);
             if !errors.is_empty() {
                 let (_, error) = errors.swap_remove(meaningful);
+                let error = if owned { super::authority_mutation_error(error) } else { error };
                 if error.to_string().contains(PREFERENCE_REVISION_CONFLICT)
-                    && attempt + 1 < PREFERENCE_WRITE_MAX_ATTEMPTS
+                    && expected_revision.is_none() && attempt + 1 < PREFERENCE_WRITE_MAX_ATTEMPTS
                 {
                     continue;
                 }
                 return Err(error.into());
             }
 
+            // The response proves this inline transaction committed, independently
+            // of the fallible post-commit record/receipt reads.
+            if owned { super::authority_mutation_settled(); }
             let record = self.get_preference_record(scope, entry).await?.ok_or(
                 SurrealStorageError::InvalidPreferenceRecord {
                     reason: "committed preference record is missing",
@@ -466,6 +529,32 @@ COMMIT TRANSACTION;
     }
 }
 
+fn preference_write_operation(
+    scope: PreferenceScope, entry: PreferenceSchemaEntry, value: Value, source: PreferenceSource,
+    actor: String, expected_revision: Option<i64>, special: bool,
+) -> impl for<'a> FnOnce(SurrealDataContext<'a>) -> super::SurrealOperation<'a, (PreferenceRecord, PreferenceChangeReceipt)> + Send {
+    move |database| {
+            Box::pin(async move {
+                if special {
+                    let identity = database.work_profile_identity(&scope.scope_ref).await?;
+                    if identity.actor_id != actor { return Err(invalid_authority("work profile actor does not match authenticated session")); }
+                    if entry.preference_id == crate::preferences::PREF_WORK_PROFILE_SELECTION && value != entry.default_value {
+                        let selection: crate::preferences::WorkProfileSelectionV1 = serde_json::from_value(value.clone()).map_err(|_| invalid_authority("invalid selection"))?;
+                        let registry_entry = crate::preferences::work_profile_preference_entry(crate::preferences::PREF_WORK_PROFILE_REGISTRY).unwrap();
+                        let record = database.get_preference_record(&scope, &registry_entry).await?.ok_or_else(|| invalid_authority("work profile registry unconfigured"))?;
+                        let registry: crate::kernel::work_profiles::WorkProfileRegistryV1 = serde_json::from_value(record.value).map_err(|_| invalid_authority("invalid registry"))?;
+                        if record.revision != selection.registry_revision || registry.selected_profile_id != selection.profile_id
+                            || !registry.profiles.iter().any(|profile| profile.profile_id == selection.profile_id && profile.profile_version == selection.profile_version
+                                && profile.role_routes.iter().any(|route| route.role_id == selection.role_id)) {
+                            return Err(invalid_authority("HSK-PREFERENCE-REVISION-CONFLICT"));
+                        }
+                    }
+                }
+                database.write_preference_record(&scope, &entry, value, source, &actor, expected_revision).await
+            })
+    }
+}
+
 impl SurrealStorage {
     pub async fn preference_get(
         &self,
@@ -490,55 +579,77 @@ impl SurrealStorage {
     }
 
     pub async fn preference_set(
-        &self,
-        scope: &PreferenceScope,
-        entry: &PreferenceSchemaEntry,
-        value: Value,
-        source: PreferenceSource,
-        actor: &str,
+        &self, scope: &PreferenceScope, entry: &PreferenceSchemaEntry, value: Value,
+        source: PreferenceSource, actor: &str,
     ) -> StorageResult<(PreferenceRecord, PreferenceChangeReceipt)> {
-        entry
-            .validate(&value)
-            .map_err(|_| StorageError::Validation("preference value failed registry validation"))?;
-        let resource_id = format!(
-            "{}:{}:{}",
-            scope.kind.as_str(),
-            scope.scope_ref,
-            entry.preference_id
-        );
-        self.inner
-            .guard
-            .validate_write(&WriteContext::human(non_empty_actor(actor)), &resource_id)
-            .await
-            .map_err(StorageError::from)?;
+        self.preference_set_expected(scope, entry, value, source, actor, None).await
+    }
+
+    pub async fn preference_set_expected(
+        &self, scope: &PreferenceScope, entry: &PreferenceSchemaEntry, value: Value,
+        source: PreferenceSource, actor: &str, expected_revision: Option<i64>,
+    ) -> StorageResult<(PreferenceRecord, PreferenceChangeReceipt)> {
+        use crate::preferences::{is_work_profile_preference, work_profile_preference_entry};
+        let special = is_work_profile_preference(entry.preference_id);
+        let canonical_entry = if special { work_profile_preference_entry(entry.preference_id).unwrap() } else { entry.clone() };
+        let entry = &canonical_entry;
+        if special && (scope.kind != PreferenceScopeKind::Workspace || scope.scope_ref.trim().is_empty()
+            || expected_revision.is_none() || expected_revision.is_some_and(|revision| revision < 0)) {
+            return Err(StorageError::Validation("work profiles require workspace scope and expected revision"));
+        }
+        if !(special && value == entry.default_value) {
+            entry.validate(&value).map_err(|_| StorageError::Validation("preference value failed registry validation"))?;
+        }
+        let resource_id = format!("{}:{}:{}", scope.kind.as_str(), scope.scope_ref, entry.preference_id);
+        self.inner.guard.validate_write(&WriteContext::human(non_empty_actor(actor)), &resource_id)
+            .await.map_err(StorageError::from)?;
         let scope = scope.clone();
         let entry = entry.clone();
         let actor = actor.to_owned();
-        self.with_data_operation(move |database| {
-            Box::pin(async move {
-                database
-                    .write_preference_record(&scope, &entry, value, source, &actor)
-                    .await
-            })
-        })
-        .await
-        .map_err(map_storage_error)
+        let workspace = scope.scope_ref.clone();
+        let operation = preference_write_operation(scope, entry, value, source, actor, expected_revision, special);
+        if !special {
+            return self.with_data_operation(operation).await.map_err(map_storage_error);
+        }
+        let cancellation = tokio_util::sync::CancellationToken::new();
+        let _cancel_on_drop = cancellation.clone().drop_guard();
+        let timeout = self.effective_statement_timeout();
+        if timeout.is_zero() {
+            return Err(map_storage_error(SurrealStorageError::StatementBudgetExhausted { budget_ms: self.config().statement_timeout().as_millis() }));
+        }
+        #[cfg(feature = "test-utils")]
+        let proof = WORK_PROFILE_WRITE_PROOF.try_with(std::sync::Arc::clone).ok();
+        let owned = self.with_owned_authority_mutation(move |storage| async move {
+            let gate = tokio::select! {
+                biased;
+                _ = cancellation.cancelled() => return Err(SurrealStorageError::TransactionCancelled),
+                gate = storage.inner.work_profile_authority_gate.acquire(super::keyed_lock::LockKey::workspace(&workspace)) => gate,
+            };
+            if gate.is_noop() { return Err(invalid_authority("work profile authority gate unavailable")); }
+            if cancellation.is_cancelled() { return Err(SurrealStorageError::TransactionCancelled); }
+            let operation = WORK_PROFILE_WRITE_CANCELLATION.scope(cancellation, storage.with_data_operation_until_settled(operation));
+            #[cfg(feature = "test-utils")]
+            if let Some(proof) = proof { return WORK_PROFILE_WRITE_PROOF.scope(proof, operation).await; }
+            operation.await
+        });
+        match tokio::time::timeout(timeout, owned).await {
+            Ok(result) => result.map_err(map_storage_error)?.map_err(map_storage_error),
+            Err(_) => Err(map_storage_error(SurrealStorageError::StatementTimeout { waited_ms: timeout.as_millis() })),
+        }
     }
 
     pub async fn preference_reset(
-        &self,
-        scope: &PreferenceScope,
-        entry: &PreferenceSchemaEntry,
-        actor: &str,
+        &self, scope: &PreferenceScope, entry: &PreferenceSchemaEntry, actor: &str,
     ) -> StorageResult<(PreferenceRecord, PreferenceChangeReceipt)> {
-        self.preference_set(
-            scope,
-            entry,
-            entry.default_value.clone(),
-            PreferenceSource::Operator,
-            actor,
-        )
-        .await
+        self.preference_reset_expected(scope, entry, actor, None).await
+    }
+
+    pub async fn preference_reset_expected(
+        &self, scope: &PreferenceScope, entry: &PreferenceSchemaEntry, actor: &str, expected_revision: Option<i64>,
+    ) -> StorageResult<(PreferenceRecord, PreferenceChangeReceipt)> {
+        let entry = crate::preferences::work_profile_preference_entry(entry.preference_id).unwrap_or_else(|| entry.clone());
+        let source = if crate::preferences::is_work_profile_preference(entry.preference_id) { PreferenceSource::Default } else { PreferenceSource::Operator };
+        self.preference_set_expected(scope, &entry, entry.default_value.clone(), source, actor, expected_revision).await
     }
 
     pub async fn preference_history(
@@ -784,4 +895,111 @@ mod mt154_account_preference_tests {
             std::panic::resume_unwind(panic.into_panic());
         }
     }
+}
+
+
+fn invalid_authority(reason: &'static str) -> SurrealStorageError {
+    SurrealStorageError::InvalidPreferenceRecord { reason }
+}
+
+#[derive(SurrealValue)]
+struct WorkProfileIdentity { owner_account_id: String, actor_principal_id: String, actor_id: String }
+
+impl SurrealDataContext<'_> {
+    async fn work_profile_identity(&self, workspace_id: &str) -> Result<WorkProfileIdentity, SurrealStorageError> {
+        let scope = super::current_record_user_scope().ok_or_else(|| invalid_authority("authenticated workspace scope required"))?;
+        if scope.workspace_id.as_deref() != Some(workspace_id) { return Err(invalid_authority("workspace scope mismatch")); }
+        let mut result = self.client.query("SELECT record::id(account_id) AS owner_account_id, record::id(principal_id) AS actor_principal_id, principal_id.actor_id AS actor_id FROM authenticated_sessions WHERE id = $auth.id AND id = $session LIMIT 2;")
+            .bind(("session", RecordId::new("authenticated_sessions", scope.session_id))).await?.check()?;
+        let mut rows: Vec<WorkProfileIdentity> = result.take(0)?;
+        if rows.len() != 1 { return Err(invalid_authority("authenticated identity missing or ambiguous")); }
+        Ok(rows.remove(0))
+    }
+
+    async fn verified_work_profile_receipt(&self, record: &PreferenceRecord, identity: &WorkProfileIdentity) -> Result<PreferenceChangeReceipt, SurrealStorageError> {
+        let scope = PreferenceScope::workspace(&record.scope_ref);
+        let receipts = self.preference_receipts(&scope, &record.preference_id).await?;
+        let mut matching = receipts.into_iter().filter(|receipt| receipt.after_revision == record.revision);
+        let receipt = matching.next().ok_or_else(|| invalid_authority("canonical work profile receipt missing"))?;
+        if matching.next().is_some() || receipt.preference_id != record.preference_id || receipt.scope != "workspace"
+            || receipt.scope_ref != record.scope_ref || receipt.new_value != record.value || receipt.actor != record.updated_by
+            || receipt.source != record.source || receipt.event_ledger_event_id != record.event_ledger_event_id
+            || receipt.before_revision.unwrap_or(0) != record.revision - 1 {
+            return Err(invalid_authority("canonical work profile receipt mismatch"));
+        }
+        let mut response = self.client.query(r#"
+RETURN array::len((SELECT id FROM preference_records WHERE id = $record AND owner_account_id = $owner)) = 1
+    AND array::len((SELECT id FROM preference_change_receipts WHERE id = $receipt AND owner_account_id = $owner)) = 1
+    AND array::len((SELECT id FROM kernel_event_ledger WHERE id = $event AND event_id = $event_id
+        AND event_type = 'PREFERENCE_RECORD_CHANGED' AND source_component = 'preferences' AND actor_kind = 'operator' AND actor_id = $actor
+        AND authority_session_id.account_id = $owner AND actor_id = authority_session_id.principal_id.actor_id
+        AND aggregate_type = 'preference_record' AND aggregate_id = $aggregate
+        AND wsids = [$workspace] AND payload.workspace_id = $workspace AND payload.receipt_id = $receipt_id
+        AND payload.preference_id = $preference_id AND payload.scope = 'workspace' AND payload.scope_ref = $workspace
+        AND payload.actor = $actor AND payload.revision = $revision AND payload.source = $source
+        AND payload.before_revision = $before_revision
+        AND payload.new_value_ref = $value)) = 1;
+"#).bind(("record", RecordId::new(PREFERENCE_RECORDS_TABLE, preference_record_key(&scope, &record.preference_id))))
+            .bind(("receipt", RecordId::new(PREFERENCE_CHANGE_RECEIPTS_TABLE, receipt.receipt_id.clone())))
+            .bind(("owner", RecordId::new("local_accounts", identity.owner_account_id.clone())))
+            .bind(("event", RecordId::new(KERNEL_EVENT_LEDGER_TABLE, receipt.event_ledger_event_id.clone())))
+            .bind(("event_id", receipt.event_ledger_event_id.clone())).bind(("actor", receipt.actor.clone()))
+            .bind(("aggregate", format!("workspace:{}:{}", record.scope_ref, record.preference_id)))
+            .bind(("workspace", record.scope_ref.clone())).bind(("receipt_id", receipt.receipt_id.clone()))
+            .bind(("preference_id", record.preference_id.clone())).bind(("revision", record.revision))
+            .bind(("source", record.source.clone())).bind(("before_revision", serde_json::json!(receipt.before_revision)))
+            .bind(("value", record.value.clone())).await?.check()?;
+        let valid: Option<bool> = response.take(0)?;
+        if valid != Some(true) { return Err(invalid_authority("canonical work profile event or ownership mismatch")); }
+        Ok(receipt)
+    }
+}
+
+impl SurrealStorage {
+    pub async fn local_execution_authority_snapshot(&self, request: &crate::preferences::LocalExecutionAuthorityRequest)
+        -> StorageResult<crate::preferences::LocalExecutionAuthorityLease> {
+        use crate::preferences::*;
+        if request.workspace_id.trim().is_empty() || request.expected_registry_revision <= 0 || request.expected_selection_revision <= 0 {
+            return Err(StorageError::Validation("configured work profile revisions required"));
+        }
+        let publication = self.authority_publication_read().await.map_err(map_storage_error)?;
+        let gate = self.inner.work_profile_authority_gate.acquire(super::keyed_lock::LockKey::workspace(&request.workspace_id)).await;
+        if gate.is_noop() { return Err(StorageError::Validation("work profile authority gate unavailable")); }
+        let request = request.clone();
+        let snapshot = self.with_data_operation(move |database| Box::pin(async move {
+            let identity = database.work_profile_identity(&request.workspace_id).await?;
+            let scope = PreferenceScope::workspace(&request.workspace_id);
+            let registry_entry = work_profile_preference_entry(PREF_WORK_PROFILE_REGISTRY).unwrap();
+            let selection_entry = work_profile_preference_entry(PREF_WORK_PROFILE_SELECTION).unwrap();
+            let registry_record = database.get_preference_record(&scope, &registry_entry).await?.ok_or_else(|| invalid_authority("work profile registry unconfigured"))?;
+            let selection_record = database.get_preference_record(&scope, &selection_entry).await?.ok_or_else(|| invalid_authority("work profile selection unconfigured"))?;
+            for (record, entry, revision) in [(&registry_record, &registry_entry, request.expected_registry_revision), (&selection_record, &selection_entry, request.expected_selection_revision)] {
+                if record.revision != revision || record.source != PreferenceSource::Operator.as_str() || record.scope != "workspace"
+                    || record.scope_ref != request.workspace_id || record.preference_id != entry.preference_id
+                    || record.namespace != entry.namespace || record.value_type != entry.value_type().as_str() || record.value == entry.default_value {
+                    return Err(invalid_authority("work profile canonical record mismatch"));
+                }
+                entry.validate(&record.value).map_err(|_| invalid_authority("work profile domain validation failed"))?;
+            }
+            let registry: crate::kernel::work_profiles::WorkProfileRegistryV1 = serde_json::from_value(registry_record.value.clone()).map_err(|_| invalid_authority("invalid registry"))?;
+            let selection: WorkProfileSelectionV1 = serde_json::from_value(selection_record.value.clone()).map_err(|_| invalid_authority("invalid selection"))?;
+            if selection.registry_revision != registry_record.revision || registry.selected_profile_id != selection.profile_id
+                || !registry.profiles.iter().any(|profile| profile.profile_id == selection.profile_id && profile.profile_version == selection.profile_version
+                    && profile.role_routes.iter().any(|route| route.role_id == selection.role_id)) {
+                return Err(invalid_authority("work profile selection is stale or route missing"));
+            }
+            let registry_receipt = database.verified_work_profile_receipt(&registry_record, &identity).await?;
+            let selection_receipt = database.verified_work_profile_receipt(&selection_record, &identity).await?;
+            Ok(LocalExecutionAuthoritySnapshot { registry_record, selection_record, registry, selection, registry_receipt, selection_receipt,
+                owner_account_id: identity.owner_account_id, actor_principal_id: identity.actor_principal_id, actor_id: identity.actor_id })
+        })).await.map_err(map_storage_error)?;
+        Ok(LocalExecutionAuthorityLease::new(snapshot, gate, publication))
+    }
+}
+
+#[cfg(any(test, feature = "test-utils"))]
+pub mod mt196_local_execution_authority_contract {
+    use crate as handshake_core;
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/local_execution_authority_surreal_tests.rs"));
+    authenticated_store_contract_tests!();
 }

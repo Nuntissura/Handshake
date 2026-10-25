@@ -1046,6 +1046,7 @@ async fn build_surreal_admissible_crdt_posture_with_operations(
     };
     run_crdt_fixture_operation(operations.map(|(workspace, _)| workspace), store
         .record_run(NewModelLaneRun {
+            engine_profile: None,
             run_id: run_id.clone(),
             trace_id: trace_id.clone(),
             run_span_id: format!("run-span-mt018-{label}"),
@@ -1081,6 +1082,7 @@ async fn build_surreal_admissible_crdt_posture_with_operations(
         })).await?;
     run_crdt_fixture_operation(operations.map(|(workspace, _)| workspace), store
         .record_lane(NewModelLane {
+            engine_profile: None,
             lane_id: lane_id.clone(),
             run_id: run_id.clone(),
             trace_id: trace_id.clone(),

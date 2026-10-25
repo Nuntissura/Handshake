@@ -86,6 +86,8 @@ pub struct RoutingAttemptIdentity {
 /// factory is ever called.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct SpawnRequest {
+    #[serde(skip)]
+    pub(crate) local_execution_authority: Option<LocalExecutionInvocationAuthority>,
     pub instance_id: ModelInstanceId,
     pub runtime_binding: RuntimeBinding,
     /// Provider lane the production factory dispatches on. `None` means a local
@@ -242,6 +244,7 @@ impl SpawnRequest {
             warm_vm_restore_manifest: None,
             dexterity_launch: None,
             routing_attempt: None,
+            local_execution_authority: None,
         }
     }
 
@@ -517,4 +520,55 @@ pub struct BudgetRemaining {
     #[serde(default)]
     pub committed_memory_bytes_remaining: Option<u64>,
     pub exhausted: bool,
+}
+
+#[derive(Clone)]
+pub(crate) struct LocalExecutionInvocationAuthority {
+    scope: super::resource_scope::ExactResourceScopeAttribution,
+    record_user: std::sync::Arc<crate::storage::surreal::resource_authority::RecordUserScope>,
+    expected_registry_revision: i64,
+    expected_selection_revision: i64,
+    capability_profile_ref: String,
+    create_record_user: std::sync::Arc<crate::storage::surreal::resource_authority::RecordUserScope>,
+}
+impl LocalExecutionInvocationAuthority {
+    pub(super) fn authenticated(
+        scope: super::resource_scope::ExactResourceScopeAttribution,
+        record_user: crate::storage::surreal::resource_authority::RecordUserScope,
+        create_record_user: crate::storage::surreal::resource_authority::RecordUserScope,
+        expected_registry_revision: i64, expected_selection_revision: i64,
+        capability_profile_ref: String,
+    ) -> Result<Self, &'static str> {
+        if expected_registry_revision <= 0 || expected_selection_revision <= 0 || capability_profile_ref.is_empty() {
+            return Err("explicit current WorkProfile revisions and capability required");
+        }
+        Ok(Self { scope, record_user: std::sync::Arc::new(record_user), expected_registry_revision,
+            expected_selection_revision, capability_profile_ref, create_record_user: std::sync::Arc::new(create_record_user) })
+    }
+    pub(super) fn create_record_user(&self) -> crate::storage::surreal::resource_authority::RecordUserScope { self.create_record_user.as_ref().clone() }
+    pub(super) fn capability_profile_ref(&self) -> &str { &self.capability_profile_ref }
+    pub(super) fn record_user(&self) -> crate::storage::surreal::resource_authority::RecordUserScope { self.record_user.as_ref().clone() }
+    pub(super) fn scope(&self) -> &super::resource_scope::ExactResourceScopeAttribution { &self.scope }
+    pub(super) fn request(&self) -> crate::preferences::LocalExecutionAuthorityRequest {
+        crate::preferences::LocalExecutionAuthorityRequest {
+            workspace_id: self.scope.workspace_id.to_string(),
+            expected_registry_revision: self.expected_registry_revision,
+            expected_selection_revision: self.expected_selection_revision,
+        }
+    }
+}
+
+impl std::fmt::Debug for LocalExecutionInvocationAuthority {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LocalExecutionInvocationAuthority").field("scope", &self.scope).finish_non_exhaustive()
+    }
+}
+impl PartialEq for LocalExecutionInvocationAuthority {
+    fn eq(&self, other: &Self) -> bool {
+        self.scope == other.scope && self.expected_registry_revision == other.expected_registry_revision
+            && self.expected_selection_revision == other.expected_selection_revision
+            && self.capability_profile_ref == other.capability_profile_ref
+            && std::sync::Arc::ptr_eq(&self.record_user, &other.record_user)
+            && std::sync::Arc::ptr_eq(&self.create_record_user, &other.create_record_user)
+    }
 }

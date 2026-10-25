@@ -94,7 +94,7 @@ impl Ac9RoleAuthorityRuntime {
             .with_official_cli_provider_replay_captured(provider.id(), spawner, config, None);
         let (service, events) = build_scoped_operator_chat_launch_service_with_sandbox_registry_and_lifecycle(
             storage.clone(), recorder, None, process.ledger(), process.reclaim(), cloud,
-            Some(registry), storage.resource_access_lifecycle(), scope, uuid::Uuid::now_v7(),
+            Some(registry), None, storage.resource_access_lifecycle(), scope, uuid::Uuid::now_v7(),
         );
         Ok(Self { service, provider, working_dir, model, process, events })
     }
@@ -198,6 +198,8 @@ impl Ac9RoleAuthorityFixture {
                 serde_json::to_string(&serde_json::json!({"artifact": artifact.payload_json,
                     "subject": subject, "run": binding, "expected": expected})).map_err(prerequisite)?);
             let selection = OperatorChatSelection {
+                engine_profile: None,
+                engine_profile_session: None,
                 lane_kind: OperatorChatLaneKind::Cli, model_id: runtime.model.clone(), cloud_provider: None,
                 cli_provider: Some(runtime.provider.id().into()),
                 working_dir: runtime.working_dir.to_str().ok_or_else(|| prerequisite("CLI directory is not UTF-8"))?.into(),

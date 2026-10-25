@@ -817,3 +817,5 @@ fn payload_hash(payload: &Value) -> String {
 fn is_sha256_hex(value: &str) -> bool {
     value.len() == 64 && value.chars().all(|character| character.is_ascii_hexdigit())
 }
+
+pub mod local_execution_authority;

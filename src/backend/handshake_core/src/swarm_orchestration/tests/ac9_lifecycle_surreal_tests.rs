@@ -994,6 +994,7 @@ fn promoted_artifact_hash(label: &str) -> String {
 
 fn ac9_input_run(label: &str) -> NewModelLaneRun {
     NewModelLaneRun {
+        engine_profile: None,
         run_id: format!("run-ac9-negative-{label}"),
         trace_id: format!("trace-ac9-negative-{label}"),
         run_span_id: format!("span-run-ac9-negative-{label}"),
@@ -1033,6 +1034,7 @@ fn ac9_input_lane(label: &str) -> NewModelLane {
     let session = format!("session-ac9-negative-{label}");
     let model_session = format!("model-session-ac9-negative-{label}");
     NewModelLane {
+        engine_profile: None,
         lane_id: format!("lane-ac9-negative-{label}"),
         run_id: format!("run-ac9-negative-{label}"),
         trace_id: format!("trace-ac9-negative-{label}"),

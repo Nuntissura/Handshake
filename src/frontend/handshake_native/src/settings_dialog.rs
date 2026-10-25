@@ -636,6 +636,11 @@ pub enum SettingsPersistenceOperation {
 /// compares with `==` (which `PartialEq` satisfies); no `Eq`-requiring use exists.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SettingsOutcome {
+    EngineProfilesRefreshRequested,
+    EngineProfileMutationRequested {
+        token: EngineProfileUiToken,
+        request: EngineProfileMutationRequestV1,
+    },
     /// Nothing happened this frame; keep the dialog open.
     None,
     CloudByokKeySaveRequested {
@@ -705,6 +710,7 @@ pub enum SettingsOutcome {
 /// Result of one Settings frame. The shell retains `query` so its fresh, side-effect-free canonical
 /// MCP capture context reproduces the same filtered dialog the operator and model just changed.
 pub struct SettingsFrame {
+    pub orphaned_engine_profile_operations: Vec<EngineProfileUiToken>,
     pub outcome: SettingsOutcome,
     pub query: String,
 }
@@ -719,6 +725,7 @@ pub struct SwarmModelSessionsSettingsState {
 /// Read-only inputs the dialog renders from (the live settings + the open generation). The dialog never
 /// borrows `&mut HandshakeApp`; the shell applies the returned [`SettingsOutcome`].
 pub struct SettingsView<'a> {
+    pub engine_profiles: &'a mut EngineProfilesSettingsState,
     pub cloud: &'a mut CloudModelsSettingsState,
     pub swarm_model_sessions: &'a SwarmModelSessionsSettingsState,
     /// Monotonic open generation; a new value resets the dialog's transient state.
@@ -858,6 +865,7 @@ pub fn show_detached(ctx: &egui::Context, view: SettingsView<'_>) -> SettingsFra
 }
 
 fn show_host(ctx: &egui::Context, mut view: SettingsView<'_>, detached: bool) -> SettingsFrame {
+    view.engine_profiles.begin_open(view.open_count);
     let state_id = egui::Id::new("settings.state");
     let mut state: DialogState = ctx
         .data_mut(|d| d.get_temp::<DialogState>(state_id))
@@ -928,7 +936,9 @@ fn show_host(ctx: &egui::Context, mut view: SettingsView<'_>, detached: bool) ->
         if !popup_open {
             clear_cloud_key_state(ctx, view.cloud);
             persist(ctx, state_id, &state);
+            view.engine_profiles.exit();
             return SettingsFrame {
+                orphaned_engine_profile_operations: view.engine_profiles.take_orphaned(),
                 outcome: SettingsOutcome::Close,
                 query: state.query,
             };
@@ -952,7 +962,9 @@ fn show_host(ctx: &egui::Context, mut view: SettingsView<'_>, detached: bool) ->
     if backdrop.is_some_and(|backdrop| backdrop.inner.clicked()) {
         persist(ctx, state_id, &state);
         clear_cloud_key_state(ctx, view.cloud);
+        view.engine_profiles.exit();
         return SettingsFrame {
+            orphaned_engine_profile_operations: view.engine_profiles.take_orphaned(),
             outcome: SettingsOutcome::Close,
             query: state.query,
         };
@@ -983,6 +995,20 @@ fn show_host(ctx: &egui::Context, mut view: SettingsView<'_>, detached: bool) ->
                 });
             });
             ui.add_space(6.0);
+
+            ui.add_enabled_ui(outcome == SettingsOutcome::None, |ui| {
+                ui.horizontal(|ui| {
+                    let general = ui.selectable_value(
+                        &mut view.engine_profiles.tab, EngineProfilesTab::General, "General",
+                    );
+                    set_author_id(ui, general.id, "settings.tab.general");
+                    let profiles = ui.selectable_value(
+                        &mut view.engine_profiles.tab,
+                        EngineProfilesTab::EngineProfiles, "Engine Profiles",
+                    );
+                    set_author_id(ui, profiles.id, "settings.tab.engine-profiles");
+                });
+            });
 
             // Search input, pinned to the fixed search id so its AccessKit NodeId is stable.
             ui.label(egui::RichText::new("Search settings").small().weak());
@@ -1038,14 +1064,14 @@ fn show_host(ctx: &egui::Context, mut view: SettingsView<'_>, detached: bool) ->
                     .max_height(if detached { ui.available_height() } else { 440.0 })
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
-                        outcome = render_sections(
-                            ui,
-                            &query,
-                            &mut state,
-                            &mut view,
-                            &mut editor_section,
-                            outcome.clone(),
-                        );
+                        if view.engine_profiles.tab == EngineProfilesTab::General {
+                            outcome = render_sections(
+                                ui, &query, &mut state, &mut view,
+                                &mut editor_section, outcome.clone(),
+                            );
+                        } else if outcome == SettingsOutcome::None {
+                            outcome = render_engine_profiles_tab(ui, view.engine_profiles);
+                        }
                     });
             });
             emit_list_node(ui.ctx(), list_egui_id);
@@ -1078,7 +1104,13 @@ fn show_host(ctx: &egui::Context, mut view: SettingsView<'_>, detached: bool) ->
     ) {
         clear_cloud_key_state(ctx, view.cloud);
     }
-    SettingsFrame { outcome, query }
+    if outcome == SettingsOutcome::Close {
+        view.engine_profiles.exit();
+    }
+    SettingsFrame {
+        orphaned_engine_profile_operations: view.engine_profiles.take_orphaned(),
+        outcome, query,
+    }
 }
 
 /// Seed the fresh canonical MCP capture context with the query last rendered by the live Settings
@@ -2404,4 +2436,604 @@ mod tests {
         assert_eq!(RESET_LAYOUT_AUTHOR_ID, "settings.reset-layout");
         assert_eq!(CLOSE_AUTHOR_ID, "settings.close");
     }
+}
+
+
+use handshake_dexterity::{Device, Engine, EngineProfile, Model, ModelFormat, Preset, Sampling};
+use crate::backend_client::{
+    EngineProfileSnapshotV1, EngineProfileIdentityV1, EngineProfileRegistryV1,
+    EngineProfileMutationV1, EngineProfileMutationRequestV1,
+};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EngineProfilesScope {
+    pub account_id: String,
+    pub principal_id: String,
+    pub session_id: String,
+    pub access_space_id: String,
+    pub workspace_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EngineProfileUiToken {
+    pub scope: EngineProfilesScope,
+    pub open_count: u64,
+    pub editor_generation: u64,
+    pub sequence: u64,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+enum EngineProfilesTab {
+    #[default]
+    General,
+    EngineProfiles,
+}
+
+#[derive(Debug, Clone)]
+struct EngineProfileEditor {
+    expected: Option<EngineProfileSnapshotV1>,
+    expected_head_generation: u64,
+    registry_generation: u64,
+    active_generation: u64,
+    profile: EngineProfile,
+    inspect_only: bool,
+}
+
+impl EngineProfileEditor {
+    fn create(registry: &EngineProfileRegistryV1) -> Self {
+        Self {
+            expected: None,
+            expected_head_generation: 0,
+            registry_generation: registry.registry_generation,
+            active_generation: registry.active_generation,
+            inspect_only: false,
+            profile: EngineProfile {
+                id: String::new(), revision: 1,
+                model: Model {
+                    id: String::new(), format: ModelFormat::QairtW4a16,
+                    content_sha256: String::new(), compiled_context: None,
+                },
+                engine: Engine::GenieXQairt, device: Device::Npu,
+                preset: Preset {
+                    name: String::new(), context_limit: 0, max_tokens: 0,
+                    sampling: Sampling::Qairt { temperature: 0.0, seed: 0 },
+                },
+            },
+        }
+    }
+
+    fn request(&self) -> Option<EngineProfileMutationRequestV1> {
+        if self.inspect_only { return None; }
+        let mut profile = self.profile.clone();
+        if let Some(expected) = &self.expected {
+            if profile.id != expected.profile.id { return None; }
+            profile.id = expected.profile.id.clone();
+            profile.revision = expected.profile.revision.checked_add(1)?;
+        } else {
+            profile.revision = 1;
+        }
+        let resolved = handshake_dexterity::Registry::new(vec![profile.clone()])
+            .and_then(|registry| registry.resolve(&profile.id)).ok()?;
+        let snapshot = EngineProfileSnapshotV1 {
+            profile: resolved.profile().clone(),
+            fingerprint: resolved.fingerprint().to_owned(),
+        };
+        let mutation = match &self.expected {
+            Some(expected) => EngineProfileMutationV1::NewRevision {
+                expected_head: engine_profile_identity(expected),
+                expected_head_generation: self.expected_head_generation,
+                snapshot,
+            },
+            None => EngineProfileMutationV1::Create { snapshot },
+        };
+        Some(EngineProfileMutationRequestV1 {
+            request_id: uuid::Uuid::new_v4(),
+            reason: "operator_engine_profile_save".to_owned(),
+            expected_registry_generation: self.registry_generation,
+            expected_active_generation: self.active_generation,
+            mutation,
+        })
+    }
+
+    fn head_request(&self, activate: bool) -> Option<EngineProfileMutationRequestV1> {
+        let expected = self.expected.as_ref()?;
+        let identity = engine_profile_identity(expected);
+        let mutation = if activate {
+            EngineProfileMutationV1::Activate {
+                expected_head: identity,
+                expected_head_generation: self.expected_head_generation,
+            }
+        } else {
+            EngineProfileMutationV1::Tombstone {
+                expected_head: identity,
+                expected_head_generation: self.expected_head_generation,
+            }
+        };
+        Some(EngineProfileMutationRequestV1 {
+            request_id: uuid::Uuid::new_v4(),
+            reason: if activate { "operator_engine_profile_activate" }
+                else { "operator_engine_profile_delete" }.to_owned(),
+            expected_registry_generation: self.registry_generation,
+            expected_active_generation: self.active_generation,
+            mutation,
+        })
+    }
+}
+
+fn engine_profile_identity(snapshot: &EngineProfileSnapshotV1) -> EngineProfileIdentityV1 {
+    EngineProfileIdentityV1 {
+        profile_id: snapshot.profile.id.clone(),
+        revision: snapshot.profile.revision,
+        fingerprint: snapshot.fingerprint.clone(),
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct EngineProfilesSettingsState {
+    scope: Option<EngineProfilesScope>,
+    open_count: u64,
+    editor_generation: u64,
+    sequence: u64,
+    exhausted: bool,
+    tab: EngineProfilesTab,
+    pub registry: Option<EngineProfileRegistryV1>,
+    refresh_attempted: bool,
+    editor: Option<EngineProfileEditor>,
+    delete_candidate: Option<EngineProfileEditor>,
+    pending: Option<(EngineProfileUiToken, bool)>,
+    orphaned: Vec<EngineProfileUiToken>,
+    error: Option<String>,
+}
+
+impl EngineProfilesSettingsState {
+    pub fn snapshot_projection(&self) -> Self { self.clone() }
+
+    pub fn is_general_tab(&self) -> bool { self.tab == EngineProfilesTab::General }
+
+    pub fn bind_scope(&mut self, scope: Option<EngineProfilesScope>) {
+        if self.scope != scope {
+            self.exit();
+            self.scope = scope;
+            self.registry = None;
+            self.refresh_attempted = false;
+            self.error = None;
+        }
+    }
+
+    pub fn begin_open(&mut self, open_count: u64) {
+        if self.open_count != open_count {
+            self.exit();
+            self.open_count = open_count;
+            self.editor_generation = 0;
+            self.sequence = 0;
+            self.exhausted = false;
+            self.registry = None;
+            self.refresh_attempted = false;
+            self.tab = EngineProfilesTab::General;
+        }
+    }
+
+    pub fn exit(&mut self) {
+        if let Some((token, _)) = self.pending.take() { self.orphaned.push(token); }
+        self.editor = None;
+        self.delete_candidate = None;
+    }
+
+    fn replace_editor(&mut self, editor: Option<EngineProfileEditor>) {
+        if let Some((token, _)) = self.pending.take() { self.orphaned.push(token); }
+        let Some(generation) = self.editor_generation.checked_add(1) else {
+            self.exhausted = true;
+            self.error = Some("Close and reopen Settings to continue editing profiles.".to_owned());
+            return;
+        };
+        self.editor_generation = generation;
+        self.editor = editor;
+        self.delete_candidate = None;
+        self.error = None;
+    }
+
+    pub fn take_orphaned(&mut self) -> Vec<EngineProfileUiToken> {
+        std::mem::take(&mut self.orphaned)
+    }
+
+    pub fn needs_registry_refresh(&self) -> bool {
+        self.registry.is_none() && self.pending.is_none()
+            && self.scope.is_some() && !self.exhausted && !self.refresh_attempted
+    }
+
+    fn begin_pending(&mut self, clear_editor: bool) -> Option<EngineProfileUiToken> {
+        if self.pending.is_some() || self.exhausted { return None; }
+        let scope = self.scope.clone()?;
+        let Some(sequence) = self.sequence.checked_add(1) else {
+            self.exhausted = true;
+            self.error = Some("Close and reopen Settings to continue editing profiles.".to_owned());
+            return None;
+        };
+        self.sequence = sequence;
+        let token = EngineProfileUiToken {
+            scope, open_count: self.open_count,
+            editor_generation: self.editor_generation, sequence,
+        };
+        self.pending = Some((token.clone(), clear_editor));
+        self.error = None;
+        Some(token)
+    }
+
+    pub fn begin_refresh(&mut self) -> Option<EngineProfileUiToken> {
+        let token = self.begin_pending(false)?;
+        self.refresh_attempted = true;
+        Some(token)
+    }
+
+    fn emit(
+        &mut self,
+        request: EngineProfileMutationRequestV1,
+        clear_editor: bool,
+    ) -> SettingsOutcome {
+        let Some(token) = self.begin_pending(clear_editor) else {
+            return SettingsOutcome::None;
+        };
+        SettingsOutcome::EngineProfileMutationRequested { token, request }
+    }
+
+    pub fn complete(
+        &mut self,
+        token: &EngineProfileUiToken,
+        result: Result<EngineProfileRegistryV1, String>,
+    ) {
+        use crate::diagnostics::gui_events::{record_gui_observation, GuiDiagnosticOperation as GuiOp, GuiDiagnosticPhase as GuiPhase};
+        let Some((expected, clear_editor)) = self.pending.as_ref() else {
+            record_gui_observation(GuiOp::SettingsOutcome, GuiPhase::Stale);
+            return;
+        };
+        if expected != token
+            || self.scope.as_ref() != Some(&token.scope)
+            || self.open_count != token.open_count
+            || self.editor_generation != token.editor_generation
+        {
+            record_gui_observation(GuiOp::SettingsOutcome, GuiPhase::Stale);
+            return;
+        }
+        let clear_editor = *clear_editor;
+        self.pending = None;
+        match result {
+            Ok(registry) => {
+                self.registry = Some(registry);
+                if clear_editor { self.editor = None; }
+                self.delete_candidate = None;
+                self.error = None;
+                record_gui_observation(GuiOp::SettingsOutcome, GuiPhase::Completed);
+            }
+            Err(_) => {
+                self.error = Some(
+                    "Engine profile request failed. Refresh and choose a current profile; failed edits remain available."
+                        .to_owned(),
+                );
+                record_gui_observation(GuiOp::SettingsOutcome, GuiPhase::Failed);
+            }
+        }
+    }
+}
+
+fn render_engine_profiles_tab(
+    ui: &mut egui::Ui,
+    state: &mut EngineProfilesSettingsState,
+) -> SettingsOutcome {
+    ui.heading("Engine Profiles");
+    if state.scope.is_none() {
+        ui.label("Sign in and open a workspace to manage Engine Profiles.");
+        return SettingsOutcome::None;
+    }
+    let mut outcome = SettingsOutcome::None;
+    if let Some(error) = &state.error {
+        ui.colored_label(ui.visuals().error_fg_color, error);
+    }
+    if state.pending.is_some() { ui.label("Saving Engine Profiles..."); }
+
+    let mut refresh = false;
+    let mut create = false;
+    ui.add_enabled_ui(state.pending.is_none() && !state.exhausted, |ui| {
+        refresh = engine_profile_button(ui, "settings.engine-profiles.refresh", "Refresh");
+        create = engine_profile_button(ui, "settings.engine-profiles.create", "Create profile")
+            && state.registry.is_some();
+    });
+    if refresh { return SettingsOutcome::EngineProfilesRefreshRequested; }
+    if create {
+        if let Some(registry) = state.registry.as_ref() {
+            let editor = EngineProfileEditor::create(registry);
+            state.replace_editor(Some(editor));
+        }
+    }
+
+    let Some(registry) = state.registry.clone() else {
+        ui.label("Refresh to load the workspace profile registry.");
+        return outcome;
+    };
+    for definition in &registry.profiles {
+        if definition.tombstoned { continue; }
+        let Some(snapshot) = definition.revisions.last() else { continue; };
+        let captured = EngineProfileEditor {
+            expected: Some(snapshot.clone()),
+            expected_head_generation: definition.head_generation,
+            registry_generation: registry.registry_generation,
+            active_generation: registry.active_generation,
+            profile: snapshot.profile.clone(),
+            inspect_only: false,
+        };
+        let profile = &snapshot.profile;
+        let prefix = format!("settings.engine-profiles.{}", snapshot.fingerprint);
+        ui.separator();
+        ui.label(format!(
+            "{} · revision {} · {} · {:?} · {:?} · {}",
+            profile.id, profile.revision, profile.model.id,
+            profile.engine, profile.device, profile.preset.name,
+        ));
+        let active = registry.active.as_ref() == Some(&engine_profile_identity(snapshot));
+        if active { ui.label("Active"); }
+        let mut inspect = false;
+        let mut edit = false;
+        let mut delete = false;
+        let mut activate = false;
+        ui.add_enabled_ui(state.pending.is_none() && !state.exhausted, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                inspect = engine_profile_button(ui, &format!("{prefix}.inspect"), "Inspect");
+                edit = engine_profile_button(ui, &format!("{prefix}.edit"), "Edit");
+                delete = engine_profile_button(ui, &format!("{prefix}.delete"), "Delete");
+                if !active {
+                    activate = engine_profile_button(
+                        ui, &format!("{prefix}.activate"), "Make active",
+                    );
+                }
+            });
+        });
+        if inspect || edit {
+            let mut editor = captured.clone();
+            editor.inspect_only = inspect;
+            state.replace_editor(Some(editor));
+        } else if delete {
+            state.delete_candidate = Some(captured.clone());
+        } else if activate {
+            if let Some(request) = captured.head_request(true) {
+                return state.emit(request, false);
+            }
+        }
+    }
+
+    if let Some(candidate) = state.delete_candidate.clone() {
+        ui.separator();
+        ui.label(format!("Delete {} revision {}?",
+            candidate.profile.id, candidate.profile.revision));
+        ui.label("Started runs retain their original profile snapshot.");
+        let mut confirm = false;
+        let mut cancel = false;
+        ui.add_enabled_ui(state.pending.is_none(), |ui| {
+            confirm = engine_profile_button(
+                ui, "settings.engine-profiles.delete.confirm", "Confirm delete",
+            );
+            cancel = engine_profile_button(
+                ui, "settings.engine-profiles.delete.cancel", "Cancel delete",
+            );
+        });
+        if cancel { state.delete_candidate = None; }
+        if confirm {
+            if let Some(request) = candidate.head_request(false) {
+                return state.emit(request, false);
+            }
+        }
+    }
+
+    let mut close_editor = false;
+    let mut request = None;
+    if let Some(editor) = state.editor.as_mut() {
+        ui.separator();
+        ui.add_enabled_ui(state.pending.is_none() && !state.exhausted, |ui| {
+            render_engine_profile_editor(ui, editor);
+            let can_save = !editor.inspect_only && !candidate_profile_invalid(editor);
+            ui.add_enabled_ui(can_save, |ui| {
+                if engine_profile_button(
+                    ui, "settings.engine-profiles.draft.save", "Save profile",
+                ) { request = editor.request(); }
+            });
+            if !editor.inspect_only && candidate_profile_invalid(editor) {
+                ui.label("Complete the identity, artifact digest and compatible settings.");
+            }
+        });
+        close_editor = engine_profile_button(
+            ui, "settings.engine-profiles.draft.close", "Close editor",
+        );
+    }
+    if close_editor {
+        state.replace_editor(None);
+    } else if let Some(request) = request {
+        outcome = state.emit(request, true);
+    }
+    outcome
+}
+
+fn candidate_profile_invalid(editor: &EngineProfileEditor) -> bool {
+    if editor.profile.validate().is_err() { return true; }
+    editor.expected.as_ref().is_some_and(|expected|
+        editor.profile.id != expected.profile.id
+        || expected.profile.revision.checked_add(1).is_none())
+}
+
+fn engine_profile_button(
+    ui: &mut egui::Ui,
+    author_id: &str,
+    label: &str,
+) -> bool {
+    let response = ui.button(label);
+    set_author_id(ui, response.id, author_id);
+    response.clicked()
+}
+
+fn engine_profile_text(
+    ui: &mut egui::Ui,
+    author_id: &str,
+    label: &str,
+    value: &mut String,
+) {
+    ui.label(label);
+    let id = ui.make_persistent_id(author_id);
+    if let Some(replacement) = crate::mcp::accesskit_string_set_value(ui, id) {
+        *value = replacement;
+    }
+    let response = ui.add(egui::TextEdit::singleline(value).id(id));
+    set_author_id(ui, response.id, author_id);
+}
+
+fn engine_profile_u32(
+    ui: &mut egui::Ui,
+    author_id: &str,
+    label: &str,
+    value: &mut u32,
+) {
+    ui.label(label);
+    let response = ui.add(egui::DragValue::new(value));
+    set_author_id(ui, response.id, author_id);
+}
+
+fn engine_profile_f64(
+    ui: &mut egui::Ui,
+    author_id: &str,
+    label: &str,
+    value: &mut f64,
+) {
+    ui.label(label);
+    let response = ui.add(egui::DragValue::new(value).speed(0.01));
+    set_author_id(ui, response.id, author_id);
+}
+
+fn render_engine_profile_editor(ui: &mut egui::Ui, editor: &mut EngineProfileEditor) {
+    ui.add_enabled_ui(!editor.inspect_only, |ui| {
+        ui.add_enabled_ui(editor.expected.is_none(), |ui| {
+            engine_profile_text(
+                ui, "settings.engine-profiles.draft.id", "Profile ID",
+                &mut editor.profile.id,
+            );
+        });
+        engine_profile_text(
+            ui, "settings.engine-profiles.draft.model", "Registered model ID",
+            &mut editor.profile.model.id,
+        );
+        engine_profile_text(
+            ui, "settings.engine-profiles.draft.digest", "Model artifact SHA-256",
+            &mut editor.profile.model.content_sha256,
+        );
+        engine_profile_text(
+            ui, "settings.engine-profiles.draft.preset", "Preset name",
+            &mut editor.profile.preset.name,
+        );
+
+        ui.label(format!("Revision: {}", editor.profile.revision));
+
+        ui.horizontal(|ui| {
+            ui.label("Engine");
+            let qairt = ui.selectable_value(
+                &mut editor.profile.engine, Engine::GenieXQairt, "GenieX QAIRT",
+            );
+            set_author_id(ui, qairt.id, "settings.engine-profiles.draft.engine.qairt");
+            let llama = ui.selectable_value(
+                &mut editor.profile.engine, Engine::GenieXLlamaCpp, "GenieX llama_cpp",
+            );
+            set_author_id(ui, llama.id, "settings.engine-profiles.draft.engine.llama-cpp");
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Device");
+            let cpu = ui.selectable_value(
+                &mut editor.profile.device, Device::Cpu, "CPU",
+            );
+            set_author_id(ui, cpu.id, "settings.engine-profiles.draft.device.cpu");
+            let npu = ui.selectable_value(
+                &mut editor.profile.device, Device::Npu, "NPU",
+            );
+            set_author_id(ui, npu.id, "settings.engine-profiles.draft.device.npu");
+        });
+
+        ui.horizontal(|ui| {
+            ui.label("Artifact format");
+            let qairt = ui.selectable_value(
+                &mut editor.profile.model.format,
+                ModelFormat::QairtW4a16,
+                "QAIRT W4A16",
+            );
+            set_author_id(ui, qairt.id, "settings.engine-profiles.draft.format.qairt");
+            let gguf = ui.selectable_value(
+                &mut editor.profile.model.format,
+                ModelFormat::GgufQ4_0,
+                "GGUF Q4_0",
+            );
+            set_author_id(ui, gguf.id, "settings.engine-profiles.draft.format.gguf");
+        });
+
+        let mut compiled = editor.profile.model.compiled_context.is_some();
+        let response = ui.checkbox(&mut compiled, "Compiled context limit");
+        set_author_id(ui, response.id, "settings.engine-profiles.draft.compiled-context.enabled");
+        if response.changed() {
+            editor.profile.model.compiled_context = compiled.then_some(0);
+        }
+        if let Some(limit) = &mut editor.profile.model.compiled_context {
+            engine_profile_u32(
+                ui, "settings.engine-profiles.draft.compiled-context",
+                "Compiled context", limit,
+            );
+        }
+
+        engine_profile_u32(
+            ui, "settings.engine-profiles.draft.context",
+            "Context limit", &mut editor.profile.preset.context_limit,
+        );
+        engine_profile_u32(
+            ui, "settings.engine-profiles.draft.max-tokens",
+            "Maximum generated tokens", &mut editor.profile.preset.max_tokens,
+        );
+
+        ui.horizontal(|ui| {
+            let is_qairt = matches!(
+                editor.profile.preset.sampling, Sampling::Qairt { .. }
+            );
+            if engine_profile_button(
+                ui, "settings.engine-profiles.draft.sampling.qairt", "QAIRT sampling",
+            ) && !is_qairt {
+                editor.profile.preset.sampling =
+                    Sampling::Qairt { temperature: 0.0, seed: 0 };
+            }
+            if engine_profile_button(
+                ui, "settings.engine-profiles.draft.sampling.llama-cpp",
+                "llama_cpp sampling",
+            ) && is_qairt {
+                editor.profile.preset.sampling = Sampling::LlamaCpp {
+                    temperature: 0.0, top_k: 0, top_p: 0.0, min_p: 0.0,
+                };
+            }
+        });
+
+        match &mut editor.profile.preset.sampling {
+            Sampling::Qairt { temperature, seed } => {
+                engine_profile_f64(
+                    ui, "settings.engine-profiles.draft.temperature",
+                    "Temperature", temperature,
+                );
+                ui.label("Seed");
+                let response = ui.add(egui::DragValue::new(seed));
+                set_author_id(ui, response.id, "settings.engine-profiles.draft.seed");
+            }
+            Sampling::LlamaCpp { temperature, top_k, top_p, min_p } => {
+                engine_profile_f64(
+                    ui, "settings.engine-profiles.draft.temperature",
+                    "Temperature", temperature,
+                );
+                engine_profile_u32(
+                    ui, "settings.engine-profiles.draft.top-k", "Top K", top_k,
+                );
+                engine_profile_f64(
+                    ui, "settings.engine-profiles.draft.top-p", "Top P", top_p,
+                );
+                engine_profile_f64(
+                    ui, "settings.engine-profiles.draft.min-p", "Min P", min_p,
+                );
+            }
+        }
+    });
 }

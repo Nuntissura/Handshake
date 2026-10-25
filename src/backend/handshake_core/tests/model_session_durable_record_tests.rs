@@ -21,6 +21,7 @@ use uuid::Uuid;
 
 fn new_session(session_id: &str) -> NewModelSession {
     NewModelSession {
+        engine_profile_binding: None,
         session_id: session_id.to_string(),
         parent_session_id: None,
         spawn_depth: 0,

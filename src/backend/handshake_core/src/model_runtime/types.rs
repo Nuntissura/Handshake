@@ -55,6 +55,7 @@ impl fmt::Display for ModelId {
 pub enum RuntimeKind {
     LlamaCpp,
     Candle,
+    GenieX,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

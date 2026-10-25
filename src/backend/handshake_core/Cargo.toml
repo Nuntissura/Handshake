@@ -164,7 +164,10 @@ path = "src/bin/cwd-probe.rs"
 test = false
 
 [dependencies]
-handshake_dexterity = { git = "https://github.com/Nuntissura/assets.git", rev = "dc053f69bbe0e4117588f8d2d6d559f3629adbd4" }
+handshake_dexterity = { git = "https://github.com/Nuntissura/assets.git", rev = "30089b4d506861e4b3bcdd1f72805b17ebfc2324" }
+hsk-studio-worker = { git = "https://github.com/Nuntissura/assets.git", rev = "ec3ba13f19cf3d1ac9497c55178b2030c9502675", features = ["job-caps"] }
+hsk-studio-accord = { git = "https://github.com/Nuntissura/assets.git", rev = "ec3ba13f19cf3d1ac9497c55178b2030c9502675", default-features = false }
+model-manager-core = { git = "https://github.com/qualcomm/GenieX.git", rev = "7b234f6c2f75c64b64bcbfd24eb47e6dec4028dd" }
 handshake-account-activation = { path = "../../shared/handshake_account_activation" }
 handshake_member_enrollment = { git = "https://github.com/Nuntissura/Handshake.git", rev = "74d130af75b2735351005d240dc7f793f2433961" }
 handshake_producer_association = { git = "https://github.com/Nuntissura/Handshake.git", rev = "74d130af75b2735351005d240dc7f793f2433961" }

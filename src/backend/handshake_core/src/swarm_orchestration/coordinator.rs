@@ -310,6 +310,7 @@ pub struct SessionHandle {
     /// Held for the lifetime of the slot; dropping it returns the permit.
     permit: Option<OwnedSemaphorePermit>,
     started_at: DateTime<Utc>,
+    profile_deadline: Option<tokio::time::Instant>,
     /// Board/lineage grouping (rank-2): the swarm + VM/sandbox worktree this
     /// session belongs to, copied from the SpawnRequest. Lets the operator board
     /// group sessions into swimlanes, the ledger STOP metadata record the
@@ -1244,6 +1245,34 @@ fn reserves_host_committed_memory(request: &SpawnRequest) -> bool {
     matches!(request.provider, None | Some(ProviderKind::Local))
 }
 
+
+struct OperatorChatProfileAdmissionOwnerV1 {
+    prepared: super::model_lane::PreparedOperatorChatProfileV1,
+    original_request: SpawnRequest,
+    selection: super::operator_chat::OperatorChatSelection,
+    scope: super::resource_scope::ExactResourceScopeAttribution,
+    original: Arc<super::operator_chat::CapturedOperatorChatLaunch>,
+    deadline: std::time::Instant,
+    cancellation: CancellationToken,
+    operation_id: uuid::Uuid,
+}
+impl OperatorChatProfileAdmissionOwnerV1 {
+    async fn transition(&mut self, store: &super::model_lane::ModelLaneStore,
+        status: &'static str, lane_event_id: Option<&str>) -> SwarmResult<()> {
+        let owner: Arc<dyn std::any::Any + Send + Sync> = self.original.clone();
+        let operation = store.transition_operator_chat_profile(&mut self.prepared, &self.original_request,
+            &self.selection, &self.scope, status, lane_event_id, self.operation_id, owner);
+        let result = if matches!(status, "expired" | "cancelled" | "failed") {
+            store.surreal_storage().with_profile_admission_finalization(operation).await
+        } else {
+            crate::storage::surreal::with_profile_admission_window(
+                self.deadline, self.cancellation.clone(), operation,
+            ).await
+        };
+        result.map_err(|error| SwarmError::LedgerFailed(format!("ordinary profile admission transition failed: {error}")))
+    }
+}
+
 impl SwarmCoordinator {
     pub(crate) async fn spawn_session_with_original_operator_chat_launch(
         &self,
@@ -2073,6 +2102,9 @@ impl SwarmCoordinator {
                 self.inner.config.teardown_timeout
             ));
         }
+        if let Err(error) = self.inner.factory.drain_pending_creates().await {
+            errors.push(format!("pending factory create drain failed: {error}"));
+        }
         if let Err(error) = self
             .cancel_live_snapshot("drain_all late materialization")
             .await
@@ -2166,6 +2198,7 @@ impl SwarmCoordinator {
                 teardown: Some(live.teardown),
                 permit: Some(permit),
                 started_at: now,
+                profile_deadline: None,
                 swarm_id: request.swarm_id.clone(),
                 worktree_id: request.worktree_id.clone(),
                 committed_memory_bytes,
@@ -2409,11 +2442,22 @@ impl SwarmCoordinator {
     }
 
     async fn spawn_session_with_run(
-        &self, mut request: SpawnRequest, existing_run: Option<ModelLaneRunRecord>,
+        &self, mut request: SpawnRequest, mut existing_run: Option<ModelLaneRunRecord>,
         original: Option<Arc<super::operator_chat::CapturedOperatorChatLaunch>>,
     ) -> SwarmResult<(ModelInstanceId, u64)> {
         let inner = Arc::clone(&self.inner);
         let instance_id = request.instance_id;
+        let is_profile_launch = request.dexterity_launch.as_ref().is_some_and(|contract| contract.engine_profile.is_some());
+        let (profile_deadline, profile_wall_deadline) = if is_profile_launch {
+            let lifetime = request.time_box.unwrap_or(inner.config.lease_ttl);
+            let duration = chrono::Duration::from_std(lifetime).map_err(|_| SwarmError::LedgerFailed("ordinary profile lifetime is invalid".into()))?;
+            let deadline = tokio::time::Instant::now().checked_add(lifetime)
+                .ok_or_else(|| SwarmError::LedgerFailed("ordinary profile deadline overflow".into()))?;
+            let wall = Utc::now().checked_add_signed(duration)
+                .ok_or_else(|| SwarmError::LedgerFailed("ordinary profile wall deadline overflow".into()))?;
+            if lifetime.is_zero() { return Err(SwarmError::LedgerFailed("ordinary profile lifetime is exhausted".into())); }
+            (Some(deadline), Some(wall))
+        } else { (None, None) };
         if inner.spawn_admission_closed.load(Ordering::SeqCst) {
             return Err(SwarmError::LedgerFailed(
                 "spawn rejected: coordinator is draining".to_string(),
@@ -2680,6 +2724,60 @@ impl SwarmCoordinator {
                 )));
             }
         }
+        let mut profile_admission: Option<OperatorChatProfileAdmissionOwnerV1> = None;
+        let outcome = async {
+        if is_profile_launch {
+            if existing_run.is_some() { return Err(SwarmError::LedgerFailed("ordinary profile cannot substitute an existing run".into())); }
+            let original = original.as_ref().filter(|original| original.matches_request(&request))
+                .ok_or_else(|| SwarmError::LedgerFailed("ordinary profile requires its same original".into()))?.clone();
+            let selection = original.original_selection().clone();
+            let scope = original.scope().clone();
+            let store = inner.model_lane_store.as_ref().ok_or_else(|| SwarmError::LedgerFailed("ordinary profile requires canonical storage".into()))?;
+            let owner: Arc<dyn std::any::Any + Send + Sync> = original.clone();
+            let admission_operation_id = uuid::Uuid::now_v7();
+            let (prepared, stop) = {
+                let prepare = crate::storage::surreal::with_profile_admission_window(
+                    profile_deadline.expect("profile deadline assigned").into_std(), create_cancel.clone(),
+                    store.prepare_operator_chat_profile(&request, &selection, &scope,
+                        profile_wall_deadline.expect("profile deadline assigned"), admission_operation_id, owner));
+                tokio::pin!(prepare);
+                tokio::select! {
+                    biased;
+                    _ = create_cancel.cancelled() => (prepare.await, Some("cancelled")),
+                    _ = tokio::time::sleep_until(profile_deadline.expect("profile deadline assigned")) => {
+                        create_cancel.cancel(); (prepare.await, Some("expired"))
+                    },
+                    result = &mut prepare => (result, None),
+                }
+            };
+            let prepared = prepared.map_err(|error| SwarmError::LedgerFailed(format!("ordinary profile prelaunch audit failed: {error}")))?;
+            profile_admission = Some(OperatorChatProfileAdmissionOwnerV1 {
+                prepared, original_request: request.clone(), selection, scope, original,
+                deadline: profile_deadline.expect("profile deadline assigned").into_std(),
+                cancellation: create_cancel.clone(), operation_id: admission_operation_id,
+            });
+            if let Some(status) = stop {
+                profile_admission.as_mut().expect("profile owner installed").transition(store, status, None).await?;
+                return Err(SwarmError::LedgerFailed("ordinary profile stopped before consumption".into()));
+            }
+            {
+                let owner = profile_admission.as_mut().expect("profile owner installed");
+                let consume = owner.transition(store, "consumed", None);
+                tokio::pin!(consume);
+                tokio::select! {
+                    biased;
+                    _ = create_cancel.cancelled() => { consume.await?; },
+                    _ = tokio::time::sleep_until(profile_deadline.expect("profile deadline assigned")) => {
+                        create_cancel.cancel(); consume.await?;
+                    },
+                    result = &mut consume => { result?; },
+                }
+            }
+            if create_cancel.is_cancelled() || tokio::time::Instant::now() >= profile_deadline.expect("profile deadline assigned") {
+                return Err(SwarmError::LedgerFailed("ordinary profile stopped before factory".into()));
+            }
+            existing_run = Some(profile_admission.as_ref().expect("profile owner installed").prepared.run().clone());
+        }
         // Exclusive checkout ownership is acquired after every pure/durable
         // preflight but before factory.create crosses a runtime side-effect
         // boundary. The guard is first owned by pending-spawn state, then moves
@@ -2699,17 +2797,39 @@ impl SwarmCoordinator {
             spawn.checkout_lease = checkout_lease;
         }
         let (create_result, cancelled_during_create, create_abandoned) = {
-            let _boot_permit = inner
-                .cold_start_semaphore
-                .clone()
-                .acquire_owned()
-                .await
-                .expect("cold-start semaphore is never closed");
-            let create = inner.factory.create(&request);
+            let boot = inner.cold_start_semaphore.clone().acquire_owned();
+            tokio::pin!(boot);
+            let _boot_permit = if let Some(deadline) = profile_deadline {
+                tokio::select! {
+                    biased;
+                    _ = create_cancel.cancelled() => return Err(SwarmError::LedgerFailed("ordinary profile cancelled before factory admission".into())),
+                    _ = tokio::time::sleep_until(deadline) => {
+                        create_cancel.cancel(); return Err(SwarmError::LedgerFailed("ordinary profile expired before factory admission".into()));
+                    },
+                    permit = &mut boot => permit.expect("cold-start semaphore is never closed"),
+                }
+            } else { boot.await.expect("cold-start semaphore is never closed") };
+            let create_entered = AtomicBool::new(false);
+            let create = async {
+                create_entered.store(true, Ordering::Release);
+                inner.factory.create(&request).await
+            };
             tokio::pin!(create);
+            let cancelled_or_expired = async {
+                if let Some(deadline) = profile_deadline {
+                    tokio::select! { biased;
+                        _ = create_cancel.cancelled() => {},
+                        _ = tokio::time::sleep_until(deadline) => create_cancel.cancel(),
+                    }
+                } else { create_cancel.cancelled().await; }
+            };
+            tokio::pin!(cancelled_or_expired);
             tokio::select! {
                 biased;
-                _ = create_cancel.cancelled() => {
+                _ = &mut cancelled_or_expired => {
+                    if is_profile_launch && !create_entered.load(Ordering::Acquire) {
+                        return Err(SwarmError::LedgerFailed("ordinary profile stopped before factory creation".into()));
+                    }
                     // `create` may already have crossed an external side-effect
                     // boundary. Do not drop it IMMEDIATELY: give it a bounded
                     // grace period to resolve so any resulting live session can
@@ -2749,7 +2869,8 @@ impl SwarmCoordinator {
                     ))
                 })?;
         }
-        let create_result = match (cancelled_during_create, create_result) {
+        let create_result = match (cancelled_during_create
+            || profile_deadline.is_some_and(|deadline| tokio::time::Instant::now() >= deadline), create_result) {
             (false, result) => result,
             (true, Err(_)) => {
                 if !create_abandoned {
@@ -2885,6 +3006,7 @@ impl SwarmCoordinator {
                     committed_memory_reservation,
                     checkout_generation,
                     original,
+                    profile_wall_deadline, profile_deadline,
                 );
                 match inserted {
                     Ok(()) => {
@@ -2908,10 +3030,27 @@ impl SwarmCoordinator {
                                 ));
                             };
                             let persisted = if let Some(run) = existing_run.as_ref() {
-                                store.record_existing_run_launch(run, records).await
+                                if is_profile_launch {
+                                    crate::storage::surreal::with_model_lane_operation(
+                                        crate::storage::surreal::ContextCoordinationPurpose::ProfileAdmissionTransition,
+                                        store.record_existing_run_launch(run, records),
+                                    ).await
+                                } else {
+                                    store.record_existing_run_launch(run, records).await
+                                }
                             } else {
                                 store.record_prepared_launch(records).await
                             };
+                            if let Ok((_, lane)) = persisted.as_ref() {
+                                if let Some(owner) = profile_admission.as_mut() {
+                                    if let Err(error) = owner.transition(store, "runtime_attached", Some(&lane.event_ledger_event_id)).await {
+                                        return match self.terminate(instance_id, ModelSessionState::Cancelled, "profile_admission_attach_failed", -1).await {
+                                            Ok(()) => Err(error),
+                                            Err(cleanup) => Err(SwarmError::LedgerFailed(format!("{error}; owned cleanup failed: {cleanup}"))),
+                                        };
+                                    }
+                                }
+                            }
                             if let Err(err) = persisted {
                                 if let Err(cleanup_err) = self
                                     .terminate(
@@ -3070,7 +3209,14 @@ impl SwarmCoordinator {
                             },
                         )?;
                         let persisted = if let Some(run) = existing_run.as_ref() {
-                            store.record_existing_run_launch(run, records).await
+                            if is_profile_launch {
+                                crate::storage::surreal::with_model_lane_operation(
+                                    crate::storage::surreal::ContextCoordinationPurpose::ProfileAdmissionTransition,
+                                    store.record_existing_run_launch(run, records),
+                                ).await
+                            } else {
+                                store.record_existing_run_launch(run, records).await
+                            }
                         } else {
                             store.record_prepared_launch(records).await
                         };
@@ -3132,6 +3278,23 @@ impl SwarmCoordinator {
                 Err(err)
             }
         }
+        }.await;
+        if outcome.is_err() {
+            if let Some(owner) = profile_admission.as_mut() {
+                if matches!(owner.prepared.status(), "staged" | "consumed") {
+                    let status = if profile_deadline.is_some_and(|deadline| tokio::time::Instant::now() >= deadline) { "expired" }
+                        else if create_cancel.is_cancelled() { "cancelled" }
+                        else { "failed" };
+                    if let Some(store) = inner.model_lane_store.as_ref() {
+                        if let Err(close) = owner.transition(store, status, None).await {
+                            return Err(SwarmError::LedgerFailed(format!("ordinary profile failed ({:?}); admission closure unconfirmed: {close}", outcome.err())));
+                        }
+                    }
+                }
+            }
+        }
+        outcome
+
     }
 
     pub async fn spawn_cloud_consent_batch(
@@ -3617,6 +3780,23 @@ impl SwarmCoordinator {
         self.inner
             .fail_next_sibling_cancellation_persistence
             .store(true, Ordering::SeqCst);
+    }
+
+    pub(crate) fn begin_profile_invocation(
+        &self, instance_id: ModelInstanceId,
+    ) -> SwarmResult<(Arc<dyn LlmClient>, ModelId, CancellationToken, tokio::time::Instant)> {
+        let mut registry = self.inner.registry.lock().expect("registry poisoned");
+        let handle = registry.get_mut(&instance_id).ok_or(SwarmError::UnknownInstance(instance_id))?;
+        let deadline = handle.profile_deadline
+            .ok_or_else(|| SwarmError::LedgerFailed("profile invocation lacks its original deadline".into()))?;
+        if handle.state != ModelSessionState::Ready || handle.cleanup.is_some()
+            || handle.cancel.is_cancelled() || tokio::time::Instant::now() >= deadline {
+            return Err(SwarmError::LedgerFailed("profile invocation is not currently admitted".into()));
+        }
+        self.emit_event(SwarmEvent::SessionStateChanged { instance_id,
+            from: ModelSessionState::Ready, to: ModelSessionState::Generating })?;
+        handle.state = ModelSessionState::Generating;
+        Ok((handle.llm_client.clone(), handle.model_id, handle.cancel.clone(), deadline))
     }
 
     #[cfg(any(test, feature = "test-utils"))]
@@ -6025,15 +6205,17 @@ impl SwarmCoordinator {
         checkout_lease: Option<CheckoutLeaseGuard>,
         spawn_generation: u64,
         original: Option<Arc<super::operator_chat::CapturedOperatorChatLaunch>>,
+        absolute_profile_expiry: Option<chrono::DateTime<Utc>>,
+        profile_deadline: Option<tokio::time::Instant>,
     ) -> Result<(), TryInsertLoadingError> {
         let now = Utc::now();
         // rank-7: a per-spawn time_box overrides the configured lease_ttl, so a
         // time-boxed (e.g. calendar-scheduled) session expires after its box and
         // the existing reaper reclaims it -- no new teardown path.
         let lease_lifetime = request.time_box.unwrap_or(self.inner.config.lease_ttl);
-        let expires_at = now
+        let expires_at = absolute_profile_expiry.unwrap_or_else(|| now
             + chrono::Duration::from_std(lease_lifetime)
-                .unwrap_or_else(|_| chrono::Duration::seconds(300));
+                .unwrap_or_else(|_| chrono::Duration::seconds(300)));
         let instance_id = request.instance_id;
         let process_uuid = live.process_record_id.as_uuid();
         let process_engine_kind = live
@@ -6098,6 +6280,7 @@ impl SwarmCoordinator {
                 cleanup: None,
                 permit: Some(permit),
                 started_at: now,
+                profile_deadline,
                 swarm_id: request.swarm_id.clone(),
                 worktree_id: request.worktree_id.clone(),
                 committed_memory_bytes,
@@ -6126,6 +6309,8 @@ impl SwarmCoordinator {
         mut committed_memory_reservation: CommittedMemoryReservation,
         spawn_generation: u64,
         original: Option<Arc<super::operator_chat::CapturedOperatorChatLaunch>>,
+        absolute_profile_expiry: Option<chrono::DateTime<Utc>>,
+        profile_deadline: Option<tokio::time::Instant>,
     ) -> Result<(), (TryInsertLoadingError, CommittedMemoryReservation)> {
         match self.try_insert_loading(
             request,
@@ -6135,6 +6320,7 @@ impl SwarmCoordinator {
             checkout_lease,
             spawn_generation,
             original,
+            absolute_profile_expiry, profile_deadline,
         ) {
             Ok(()) => {
                 // `SessionHandle::committed_memory_bytes` and its owned permit
@@ -6256,6 +6442,8 @@ impl SwarmCoordinator {
             committed_memory_reservation,
             spawn_generation,
             None,
+            None,
+            None,
         ) {
             Ok(()) => Err(SwarmError::Internal(format!(
                 "duplicate insertion test seam expected a live winner for {}",
@@ -6332,6 +6520,8 @@ impl SwarmCoordinator {
             None,
             committed_memory_reservation,
             spawn_generation,
+            None,
+            None,
             None,
         ) {
             Ok(()) => {

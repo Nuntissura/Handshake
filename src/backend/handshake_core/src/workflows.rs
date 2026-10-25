@@ -8366,6 +8366,7 @@ pub async fn create_session_checkpoint(
     let session = state
         .storage
         .upsert_model_session(NewModelSession {
+            engine_profile_binding: session.engine_profile_binding,
             session_id: session.session_id,
             parent_session_id: session.parent_session_id,
             spawn_depth: session.spawn_depth,
@@ -8435,6 +8436,7 @@ pub async fn recover_session_from_checkpoint(
     let session = state
         .storage
         .upsert_model_session(NewModelSession {
+            engine_profile_binding: checkpointed_session.engine_profile_binding,
             session_id: checkpointed_session.session_id,
             parent_session_id: checkpointed_session.parent_session_id,
             spawn_depth: checkpointed_session.spawn_depth,
@@ -9122,6 +9124,7 @@ async fn ensure_model_session_artifact_refs(
     let session = state
         .storage
         .upsert_model_session(NewModelSession {
+            engine_profile_binding: None,
             session_id: metadata.session_id.clone(),
             parent_session_id: metadata.parent_session_id.clone(),
             spawn_depth: metadata.spawn_depth,
@@ -30173,6 +30176,7 @@ mod tests {
         state
             .storage
             .upsert_model_session(NewModelSession {
+                engine_profile_binding: None,
                 session_id: session_id.clone(),
                 parent_session_id: None,
                 spawn_depth: 0,
@@ -30756,6 +30760,7 @@ mod tests {
         let session = state
             .storage
             .upsert_model_session(NewModelSession {
+                engine_profile_binding: None,
                 session_id: Uuid::now_v7().to_string(),
                 parent_session_id: None,
                 spawn_depth: 0,
@@ -30834,6 +30839,7 @@ mod tests {
 
     fn test_model_session(session_id: &str, capability_grants: &[&str]) -> ModelSession {
         ModelSession {
+            engine_profile_binding: None,
             session_id: session_id.to_string(),
             parent_session_id: None,
             spawn_depth: 0,

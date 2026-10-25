@@ -78,6 +78,8 @@ mod mt136_registry_integrity_proof;
 #[cfg(any(test, feature = "surreal-test-support"))]
 mod mt136_rich_document_delete_proof;
 mod preferences;
+#[cfg(any(test, feature = "test-utils"))]
+pub use preferences::mt196_local_execution_authority_contract as work_profile_contract_test_support;
 mod promotion_store;
 pub mod resource_authority;
 pub mod retry;
@@ -1145,6 +1147,24 @@ tokio::task_local! {
     /// underneath clamps its own bound to the remaining budget so a retry loop
     /// cannot multiply `statement_timeout` by its attempt count.
     static OPERATION_DEADLINE: Instant;
+    static PROFILE_ADMISSION_CANCELLATION: Arc<ContextOperationCancellation>;
+}
+
+pub(crate) async fn with_profile_admission_window<T, F>(
+    deadline: Instant, cancellation: crate::model_runtime::CancellationToken, operation: F,
+) -> T
+where F: Future<Output = T> {
+    let owned = ContextOperationCancellation::new();
+    let worker_cancel = owned.clone();
+    PROFILE_ADMISSION_CANCELLATION.scope(owned, SurrealStorage::with_operation_deadline(deadline, async move {
+        tokio::pin!(operation);
+        tokio::select! {
+            biased;
+            _ = cancellation.cancelled() => { worker_cancel.cancel(); operation.await },
+            _ = tokio::time::sleep_until(deadline.into()) => { worker_cancel.cancel(); operation.await },
+            result = &mut operation => result,
+        }
+    })).await
 }
 
 pub(crate) fn current_record_user_scope() -> Option<resource_authority::RecordUserScope> {
@@ -2021,6 +2041,7 @@ enum TransactionSettlementMode {
 }
 
 struct SurrealStorageInner {
+    work_profile_authority_gate: keyed_lock::KeyedLockRegistry,
     watcher_admission_credentials: Option<Arc<WatcherAdmissionCredentials>>,
     watcher_admission_configured: AtomicBool,
     watcher_admission_bootstrap_failure: StdMutex<Option<WatcherAdmissionBootstrapFailure>>,
@@ -2500,6 +2521,7 @@ impl SurrealStorage {
     fn from_open_client(config: SurrealStorageConfig, guard: Arc<dyn StorageGuard>, client: SurrealClient) -> Self {
         Self {
             inner: Arc::new(SurrealStorageInner {
+                work_profile_authority_gate: keyed_lock::KeyedLockRegistry::keyed(),
                 watcher_admission_credentials: load_watcher_admission_credentials_from_environment().ok().map(Arc::new),
                 watcher_admissions: StdMutex::new(BTreeMap::new()),
                 watcher_admission_configured: AtomicBool::new(false),
@@ -2655,6 +2677,22 @@ impl SurrealStorage {
         T: Send,
         F: for<'a> FnOnce(SurrealDataContext<'a>) -> SurrealOperation<'a, T> + Send,
     {
+        self.with_data_operation_policy(operation, false).await
+    }
+
+    async fn with_data_operation_until_settled<T, F>(&self, operation: F) -> Result<T, SurrealStorageError>
+    where
+        T: Send,
+        F: for<'a> FnOnce(SurrealDataContext<'a>) -> SurrealOperation<'a, T> + Send,
+    {
+        self.with_data_operation_policy(operation, true).await
+    }
+
+    async fn with_data_operation_policy<T, F>(&self, operation: F, owned: bool) -> Result<T, SurrealStorageError>
+    where
+        T: Send,
+        F: for<'a> FnOnce(SurrealDataContext<'a>) -> SurrealOperation<'a, T> + Send,
+    {
         let timeout = self.effective_statement_timeout();
         if timeout.is_zero() {
             // Never dispatch with a zero budget: a `timeout(0, ..)` would report
@@ -2736,6 +2774,11 @@ impl SurrealStorage {
                 })
                 .await
         };
+        if owned {
+            // Only the canonical owned worker calls this path. Its caller is
+            // bounded separately; the original SDK future and lease must settle.
+            return leased_operation.await;
+        }
         match tokio::time::timeout(timeout, leased_operation).await {
             Ok(result) => result,
             Err(_elapsed) => Err(SurrealStorageError::StatementTimeout {
@@ -3259,7 +3302,8 @@ impl SurrealStorage {
             owner: retention, binding: None, proof: None, finalized: None,
             value: None, error: None, finished: false,
         }));
-        let result = self.authenticated_transaction(operation_id, None,
+        let cancellation = PROFILE_ADMISSION_CANCELLATION.try_with(Clone::clone).ok();
+        let result = self.authenticated_transaction(operation_id, cancellation,
             Some(AuthenticatedTransactionRetention::OriginalRunCreate(retained.clone())), operation).await;
         let mut state = retained.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         if state.finished && state.finalized == Some(OriginalRunCreateFinalization::Commit)
@@ -3285,6 +3329,53 @@ impl SurrealStorage {
             }
         }
         OriginalRunCreateOutcome { result, proof: None }
+    }
+
+    pub(crate) async fn with_profile_admission_finalization<T, E, F>(
+        &self, operation: F,
+    ) -> Result<T, E>
+    where F: Future<Output = Result<T, E>>, E: From<SurrealStorageError> {
+        let budget = self.inner.config.statement_timeout;
+        let deadline = Instant::now().checked_add(budget)
+            .filter(|_| !budget.is_zero())
+            .ok_or_else(|| E::from(SurrealStorageError::StatementBudgetExhausted { budget_ms: 0 }))?;
+        let owned = ContextOperationCancellation::new();
+        let worker_cancel = owned.clone();
+        PROFILE_ADMISSION_CANCELLATION.scope(owned,
+            Self::with_operation_deadline(deadline, async move {
+                tokio::pin!(operation);
+                tokio::select! {
+                    biased;
+                    _ = tokio::time::sleep_until(deadline.into()) => {
+                        worker_cancel.cancel(); operation.await
+                    },
+                    result = &mut operation => result,
+                }
+            }),
+        ).await
+    }
+
+    pub(crate) fn acknowledge_profile_admission_finalization(
+        &self, proof: OriginalRunCreateFinalizationProof,
+        owner: &Arc<dyn std::any::Any + Send + Sync>,
+    ) -> Result<(), SurrealStorageError> {
+        match self.acknowledge_original_runcreate_finalization(proof, owner) {
+            Ok(()) => Ok(()),
+            Err((error, proof)) => {
+                // Preserve the exact returned witness in its existing owner retention.
+                let settlements = self.inner.transaction_settlements.lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                if let Some(Some(AuthenticatedTransactionRetention::OriginalRunCreate(retained))) =
+                    settlements.get(&proof.binding.operation_id) {
+                    let mut state = retained.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+                    if state.binding.as_ref().is_some_and(|binding| Arc::ptr_eq(binding, &proof.binding))
+                        && state.proof.is_none() {
+                        state.proof = Some(proof);
+                    }
+                }
+                Err(error)
+            }
+        }
     }
 
     pub(crate) fn acknowledge_original_runcreate_finalization(
@@ -3607,9 +3698,18 @@ impl SurrealStorage {
         if budget.is_zero() {
             return Err(E::from(SurrealStorageError::StatementBudgetExhausted { budget_ms: 0 }));
         }
+        if cancellation.as_ref().is_some_and(|cancellation| cancellation.is_cancelled()) {
+            return Err(E::from(SurrealStorageError::TransactionCancelled));
+        }
+        let now = Instant::now();
+        let deadline = OPERATION_DEADLINE.try_with(|deadline| (*deadline).min(now + budget))
+            .unwrap_or(now + budget);
+        if deadline <= now {
+            return Err(E::from(SurrealStorageError::StatementBudgetExhausted { budget_ms: 0 }));
+        }
         self.reserve_transaction_settlement(operation_id, retention).map_err(E::from)?;
         self.transaction_worker(TransactionInvocation::Authenticated {
-            scope, deadline: Instant::now() + budget, operation_id,
+            scope, deadline, operation_id,
         }, Some(operation_id), cancellation, TransactionSettlementMode::Mutation, operation).await
     }
 

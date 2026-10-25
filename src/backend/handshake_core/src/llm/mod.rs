@@ -257,6 +257,19 @@ impl LlmInvocationControl {
 
     fn token(&self) -> CancellationToken { self.inner.cancel.clone() }
 
+    pub(crate) fn register_native_generation(
+        &self,
+        tracker: &crate::model_runtime::activity::RuntimeActivityTracker,
+        model_id: crate::model_runtime::ModelId,
+    ) -> Result<(CancellationToken, crate::model_runtime::activity::RuntimeActivityGuard),
+        crate::model_runtime::activity::RuntimeActivityRegistrationError> {
+        let token = self.token();
+        let guard = tracker.try_register(model_id,
+            crate::model_runtime::activity::RuntimeActivityKind::Generate, Some(token.clone()))?;
+        self.mark_dispatch(InvocationResourceKind::Native);
+        Ok((token, guard))
+    }
+
     pub fn resource_settlements(&self) -> Vec<(crate::model_runtime::RuntimeActivityId, Option<tokio::time::Instant>)> {
         self.inner.observer.receipts().iter().map(|receipt| (receipt.id(), receipt.settled_at())).collect()
     }

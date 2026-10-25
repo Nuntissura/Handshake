@@ -112,6 +112,7 @@ fn registry_session(
     state: ModelSessionState,
 ) -> ModelSession {
     ModelSession {
+        engine_profile_binding: None,
         session_id: session_id.to_string(),
         parent_session_id: parent_session_id.map(str::to_string),
         spawn_depth,

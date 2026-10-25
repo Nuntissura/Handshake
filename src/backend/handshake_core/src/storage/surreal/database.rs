@@ -1644,6 +1644,35 @@ impl Database for SurrealDatabase {
         super::visual_debug_store::snapshot(self, workspace_id, start_block_id, query, limit).await
     }
 
+    async fn local_execution_authority_snapshot(
+        &self,
+        request: &crate::preferences::LocalExecutionAuthorityRequest,
+    ) -> StorageResult<crate::preferences::LocalExecutionAuthorityLease> {
+        self.storage.local_execution_authority_snapshot(request).await
+    }
+
+    async fn preference_set_expected(
+        &self,
+        scope: &crate::preferences::PreferenceScope,
+        entry: &crate::preferences::PreferenceSchemaEntry,
+        value: Value,
+        source: crate::preferences::PreferenceSource,
+        actor: &str,
+        expected_revision: Option<i64>,
+    ) -> StorageResult<(crate::preferences::PreferenceRecord, crate::preferences::PreferenceChangeReceipt)> {
+        self.storage.preference_set_expected(scope, entry, value, source, actor, expected_revision).await
+    }
+
+    async fn preference_reset_expected(
+        &self,
+        scope: &crate::preferences::PreferenceScope,
+        entry: &crate::preferences::PreferenceSchemaEntry,
+        actor: &str,
+        expected_revision: Option<i64>,
+    ) -> StorageResult<(crate::preferences::PreferenceRecord, crate::preferences::PreferenceChangeReceipt)> {
+        self.storage.preference_reset_expected(scope, entry, actor, expected_revision).await
+    }
+
     async fn preference_get(
         &self,
         scope: &crate::preferences::PreferenceScope,

@@ -100,6 +100,57 @@ impl AttachedStdioContract {
     }
 }
 
+/// Captured OS object identity. This is not a serialized policy or path grant.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AttachedObjectIdentity {
+    pub(crate) volume_serial_number: u64,
+    pub(crate) file_id: [u8; 16],
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct AttachedAncestorLease {
+    pub(crate) path: PathBuf,
+    pub(crate) identity: AttachedObjectIdentity,
+    pub(crate) file: Arc<std::fs::File>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct AttachedObjectLease {
+    pub(crate) identity: AttachedObjectIdentity,
+    pub(crate) file: Arc<std::fs::File>,
+    // File-only read lease excludes data writers for the binding lifetime.
+    pub(crate) content_file: Option<Arc<std::fs::File>>,
+    pub(crate) ancestors: Vec<AttachedAncestorLease>,
+}
+
+/// Immutable baseline handles retained by the configured native adapter Arc.
+/// Capture and file reads perform filesystem IO and must occur outside the
+/// Preferences gate. No serde or AttachedProcessSpec field carries this authority.
+#[derive(Debug, Clone)]
+pub struct AttachedBaselineBindings {
+    pub(crate) objects: Arc<BTreeMap<PathBuf, AttachedObjectLease>>,
+}
+
+impl AttachedBaselineBindings {
+    /// Duplicate the captured object handle, never reopen the supplied pathname.
+    /// The caller can hash this handle before publishing its configured binding.
+    pub fn try_clone_file(&self, path: &std::path::Path)
+        -> Result<std::fs::File, SandboxAdapterError>
+    {
+        #[cfg(target_os = "windows")]
+        {
+            crate::sandbox::windows_native_jail::adapter::baseline_file(self, path)
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            let _ = path;
+            Err(SandboxAdapterError::AttachedOperationUnsupported {
+                operation: "baseline_file requires Windows object identity".into(),
+            })
+        }
+    }
+}
+
 /// Exact launch input for a process whose stdio and lifecycle remain attached
 /// to the caller. `env` replaces the child environment in full.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -216,8 +267,44 @@ impl Drop for AttachedEphemeralPathGuard {
 
 /// Owning live-process contract. Implementations retain the process-tree
 /// authority until `wait`, `terminate_tree_and_wait`, or Drop reaps it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AttachedSandboxReceipt {
+    pub adapter_id: AdapterId,
+    pub capabilities: AdapterCapabilities,
+    pub sandbox_internal_id: String,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct AttachedTerminationOutcome {
+    pub status: ExitStatus,
+    /// Sticky acknowledgement of an actual successful tree-termination call.
+    pub killed: bool,
+}
+
+pub enum OwnedAttachedSpawnError {
+    /// No child was created; startup joined and pre-child cleanup completed.
+    BeforeSpawn(SandboxAdapterError),
+    /// A real child was created, including a suspended or already-exited child.
+    AfterSpawn {
+        process: Box<dyn AttachedSandboxProcess>,
+        error: SandboxAdapterError,
+    },
+}
+
 pub trait AttachedSandboxProcess: Send {
     fn pid(&self) -> u32;
+    fn receipt(&self) -> Option<AttachedSandboxReceipt> { None }
+    fn take_stdout_file(&mut self) -> Option<std::fs::File> { None }
+    fn take_stderr_file(&mut self) -> Option<std::fs::File> { None }
+    /// Success acknowledges root reap, an empty owned tree and all cleanup.
+    /// Errors must retain the same process/tree/cleanup ownership for retry.
+    fn terminate_tree_and_wait_with_timeout(
+        &mut self, _timeout: std::time::Duration,
+    ) -> Result<AttachedTerminationOutcome, SandboxAdapterError> {
+        Err(SandboxAdapterError::AttachedOperationUnsupported {
+            operation: "terminate_tree_and_wait_with_timeout".to_string(),
+        })
+    }
     fn take_stdout(&mut self) -> Option<Box<dyn Read + Send>>;
     fn take_stderr(&mut self) -> Option<Box<dyn Read + Send>>;
     fn try_wait(&mut self) -> Result<Option<ExitStatus>, SandboxAdapterError>;
@@ -376,6 +463,25 @@ pub trait SandboxAdapter: Send + Sync {
         stdio.validate(self.capabilities().adapter_id)?;
         ephemeral_cleanup.return_to(&mut spec);
         self.spawn_attached(spec).await
+    }
+
+    /// The caller must keep this future owned through cancellation/deadline
+    /// until startup joins and all pre-child cleanup is acknowledged.
+    async fn spawn_attached_owned_with_stdio(
+        &self,
+        mut spec: AttachedProcessSpec,
+        _stdio: AttachedStdioContract,
+        _cancel: crate::model_runtime::CancellationToken,
+        _deadline: std::time::Instant,
+    ) -> Result<Box<dyn AttachedSandboxProcess>, OwnedAttachedSpawnError> {
+        let mut cleanup = AttachedEphemeralPathGuard::take_from(&mut spec);
+        while cleanup.cleanup().is_err() {
+            tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        }
+        Err(OwnedAttachedSpawnError::BeforeSpawn(SandboxAdapterError::SpawnFailed {
+            adapter_id: self.capabilities().adapter_id,
+            reason: "sandbox adapter does not implement owning attached startup".into(),
+        }))
     }
 
     /// Proves that the adapter can enforce an attached child's network

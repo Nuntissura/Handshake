@@ -154,6 +154,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "net", "io-util", "sync", "time", "process"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+handshake_dexterity = { git = "https://github.com/Nuntissura/assets.git", rev = "30089b4d506861e4b3bcdd1f72805b17ebfc2324" }
 # WP-KERNEL-012 MT-011 rich-text document model: `thiserror` derives the error enums
 # (SchemaError / TransformError / DocJsonError) in src/rich_editor/document_model/*.
 # Pinned to "2" to match the thiserror 2.x ALREADY in the locked graph (the workspace

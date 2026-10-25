@@ -69,10 +69,11 @@ impl LocalRouter {
         }
     }
 
-    fn runtime_slot(&self, binding: RuntimeBinding) -> &Arc<Mutex<Option<Arc<dyn ModelRuntime>>>> {
+    fn runtime_slot(&self, binding: RuntimeBinding) -> Result<&Arc<Mutex<Option<Arc<dyn ModelRuntime>>>>, LlmError> {
         match binding {
-            RuntimeBinding::LlamaCpp => &self.llama_runtime,
-            RuntimeBinding::Candle => &self.candle_runtime,
+            RuntimeBinding::LlamaCpp => Ok(&self.llama_runtime),
+            RuntimeBinding::Candle => Ok(&self.candle_runtime),
+            RuntimeBinding::GenieX => Err(LlmError::ProviderError("GenieX requires its owned full-profile worker session".into())),
         }
     }
 
@@ -80,7 +81,7 @@ impl LocalRouter {
         &self,
         binding: RuntimeBinding,
     ) -> Result<MutexGuard<'_, Option<Arc<dyn ModelRuntime>>>, LlmError> {
-        self.runtime_slot(binding).lock().map_err(|_| {
+        self.runtime_slot(binding)?.lock().map_err(|_| {
             LlmError::ProviderError(format!(
                 "local {} runtime ownership slot is poisoned",
                 binding.adapter_id()
@@ -618,6 +619,7 @@ impl LocalModelRuntimeLlmClient {
             match registration.runtime_binding {
                 RuntimeBinding::LlamaCpp => llama_models.push(model_id),
                 RuntimeBinding::Candle => candle_models.push(model_id),
+                RuntimeBinding::GenieX => return Err(LlmError::ProviderError("GenieX worker ownership cannot enter embedded unload".into())),
             }
         }
 

@@ -570,6 +570,8 @@ fn launch_request(
 
 fn spawn_contract_from_normalized(launch: &DexterityNormalizedLaunch) -> DexterityLaunchContract {
     DexterityLaunchContract {
+        engine_profile: None,
+        engine_profile_session: None,
         run_id: launch.run_id.clone(),
         lane_id: launch.lane_id.clone(),
         restart_generation: launch.restart_generation,
@@ -950,6 +952,8 @@ fn spawn_contract_for_adapter(
     adapter_id: &str,
 ) -> DexterityLaunchContract {
     DexterityLaunchContract {
+        engine_profile: None,
+        engine_profile_session: None,
         run_id: run_id.into(),
         lane_id: lane_id.into(),
         restart_generation: 0,

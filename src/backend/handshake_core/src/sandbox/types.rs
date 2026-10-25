@@ -294,6 +294,8 @@ pub struct Command {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Error)]
 pub enum SandboxAdapterError {
+    #[error("attached sandbox operation unsupported: {operation}")]
+    AttachedOperationUnsupported { operation: String },
     #[error("sandbox image or root missing: {image_or_root}")]
     ImageMissing { image_or_root: ImageRef },
     #[error("sandbox bind host path missing: {}", host_path.display())]

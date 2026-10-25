@@ -42,6 +42,7 @@
 // `self.ui(ctx)`, measuring its WORK time so the MT-084 idle keep-alive is NOT mis-flagged as slow).
 pub mod frame_timing;
 pub mod gpu_info;
+pub mod gui_events;
 // WP-KERNEL-012 MT-105 (D2 — generalized operation/subprocess stall watchdog): per-operation
 // deadline/progress-tick liveness monitoring. Emits the typed StalledOperation event through the
 // MT-082 recorder on a dedicated poll thread; register/tick/complete never emit or block on work.

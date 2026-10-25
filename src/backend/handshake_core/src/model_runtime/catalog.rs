@@ -189,6 +189,47 @@ impl ModelCatalog {
         })
     }
 
+    pub(crate) fn snapshot_role_bound_registrations(
+        &self,
+    ) -> Result<(Vec<super::RoleBoundModelRegistration>, Option<ModelId>), super::ModelRegistryPersistenceError> {
+        let availability = self.runtime_availability.read().map_err(|_| {
+            super::ModelRegistryPersistenceError::InvalidRegistration("catalog availability binding is poisoned".into())
+        })?;
+        let registrations = availability.snapshot_role_bound_registrations(&self.registry, &self.runtime_roles)?;
+        if let Some(id) = self.active_embedding_model_id {
+            if !registrations.iter().any(|item| item.registration.model_id == id
+                && item.runtime_role == ModelRuntimeRole::Embedding) {
+                return Err(super::ModelRegistryPersistenceError::InvalidRegistration(
+                    "catalog embedding default is absent from its complete committed role-bound set".into()));
+            }
+        }
+        Ok((registrations, self.active_embedding_model_id))
+    }
+
+    /// Call only after the complete original-plus-additional boot set has been
+    /// durably persisted and read back, and every supplied runtime load succeeded.
+    pub(crate) fn publish_loaded_registrations(
+        &self, additions: &[super::RoleBoundModelRegistration],
+        loaded_runtimes: &[(ModelId, Arc<dyn super::ModelRuntime>)],
+    ) -> Result<u64, super::ModelRegistryPersistenceError> {
+        let invalid = |reason: &str| super::ModelRegistryPersistenceError::InvalidRegistration(reason.into());
+        if additions.len() != loaded_runtimes.len() {
+            return Err(invalid("additional registrations require an exact loaded-runtime set"));
+        }
+        let mut checked_ids = std::collections::HashSet::new();
+        for (id, runtime) in loaded_runtimes {
+            if !checked_ids.insert(*id) { return Err(invalid("loaded-runtime set contains a duplicate model identity")); }
+            let registration = additions.iter().find(|item| item.registration.model_id == *id)
+                .ok_or_else(|| invalid("loaded runtime does not belong to the additional registration set"))?;
+            let actual = runtime.capabilities(*id).map_err(|error| invalid(&error.to_string()))?;
+            if actual != &registration.registration.declared_capabilities {
+                return Err(invalid("loaded runtime capabilities differ from its committed registration"));
+            }
+        }
+        let availability = self.runtime_availability.read().map_err(|_| invalid("catalog availability binding is poisoned"))?;
+        availability.publish_loaded_registrations(&self.registry, &self.runtime_roles, additions)
+    }
+
     pub fn bind_runtime_availability(&self, availability: Arc<ModelRuntimeAvailability>) {
         *self
             .runtime_availability

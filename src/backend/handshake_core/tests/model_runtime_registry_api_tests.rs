@@ -1133,3 +1133,274 @@ async fn provider_and_closed_storage_errors_are_redacted() {
     let _ = server.await;
     fixture.close().await;
 }
+
+#[path = "account_session_support/mod.rs"]
+mod engine_profile_account_session_support;
+
+// MT196-DURABLE-AUDIT: real authenticated storage/HTTP boundary, no model execution.
+mod engine_profile_durable_boundary {
+    use super::*;
+    use super::engine_profile_account_session_support::{AccountFixture, OwnerSession};
+    use handshake_core::{
+        capabilities::CapabilityRegistry,
+        diagnostics::{DiagFilter, Diagnostic, DiagnosticsStore, ProblemGroup},
+        flight_recorder::{EventFilter, FlightRecorder, FlightRecorderEvent, RecorderError},
+        model_runtime::{EngineProfileMutationRequestV1, EngineProfileMutationV1,
+            EngineProfileRegistryV1, EngineProfileSnapshotV1},
+        storage::surreal::SurrealDatabase,
+        workflows::{SessionRegistry, SessionSchedulerConfig},
+        AppState,
+    };
+    use surrealdb::types::SurrealValue;
+
+    // Neither service participates in profile persistence. Unexpected inference fails the test.
+    struct BoundaryServices { profile: ModelProfile }
+    #[async_trait]
+    impl LlmClient for BoundaryServices {
+        async fn completion(&self, _: CompletionRequest) -> Result<CompletionResponse, LlmError> {
+            panic!("profile CRUD must not invoke a model")
+        }
+        fn profile(&self) -> &ModelProfile { &self.profile }
+    }
+    #[async_trait]
+    impl FlightRecorder for BoundaryServices {
+        async fn record_event(&self, _: FlightRecorderEvent) -> Result<(), RecorderError> { Ok(()) }
+        async fn enforce_retention(&self) -> Result<u64, RecorderError> { Ok(0) }
+        async fn list_events(&self, _: EventFilter) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+            Ok(Vec::new())
+        }
+    }
+    #[async_trait]
+    impl DiagnosticsStore for BoundaryServices {
+        async fn record_diagnostic(&self, _: Diagnostic) -> Result<(), handshake_core::storage::StorageError> { Ok(()) }
+        async fn list_problems(&self, _: DiagFilter) -> Result<Vec<ProblemGroup>, handshake_core::storage::StorageError> { Ok(Vec::new()) }
+        async fn get_diagnostic(&self, _: Uuid) -> Result<Diagnostic, handshake_core::storage::StorageError> {
+            Err(handshake_core::storage::StorageError::NotFound("diagnostic"))
+        }
+        async fn list_diagnostics(&self, _: DiagFilter) -> Result<Vec<Diagnostic>, handshake_core::storage::StorageError> { Ok(Vec::new()) }
+    }
+
+    fn state(storage: SurrealStorage) -> AppState {
+        let services = Arc::new(BoundaryServices { profile: ModelProfile::new("no-inference".into(), 2048) });
+        AppState {
+            storage: Arc::new(SurrealDatabase::new(storage.clone())), surreal: storage,
+            flight_recorder: services.clone(), diagnostics: services.clone(), llm_client: services,
+            capability_registry: Arc::new(CapabilityRegistry::new()),
+            session_registry: Arc::new(SessionRegistry::new(SessionSchedulerConfig::default())),
+        }
+    }
+
+    async fn server(storage: SurrealStorage) -> (String, tokio::task::JoinHandle<()>) {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("profile listener");
+        let base = format!("http://{}", listener.local_addr().expect("profile address"));
+        let router = model_runtime_registry::engine_profile_routes(state(storage));
+        let task = tokio::spawn(async move { axum::serve(listener, router).await.expect("profile router"); });
+        (base, task)
+    }
+
+    struct Fixture {
+        allocator: IsolatedSurrealTestStore,
+        account: AccountFixture,
+        workspace: String,
+        base: String,
+        server: tokio::task::JoinHandle<()>,
+    }
+    impl Fixture {
+        async fn open() -> Self {
+            let allocator = IsolatedSurrealTestStore::create().await.expect("isolated profile store");
+            bootstrap_model_registry_schema(allocator.storage()).await.expect("profile schema");
+            let account = AccountFixture::install(allocator.storage()).await;
+            let workspace = account.create_workspace(&state(allocator.storage().clone())).await;
+            let (base, server) = server(allocator.storage().clone()).await;
+            Self { allocator, account, workspace, base, server }
+        }
+        fn url(&self) -> String { format!("{}/workspaces/{}/engine-profiles", self.base, self.workspace) }
+        fn scope(&self) -> ExactResourceScopeAttribution {
+            ExactResourceScopeAttribution {
+                owner_account_id: OwnerAccountId::from_uuid(Uuid::parse_str(&self.account.account_id).expect("account UUID")),
+                actor_principal_id: ActorPrincipalId::from_uuid(Uuid::parse_str(&self.account.principal_id).expect("principal UUID")),
+                authenticated_session_id: AuthenticatedSessionRef::from_uuid(Uuid::parse_str(&self.account.session_id).expect("session UUID")),
+                access_space_id: AccessSpaceRef::from_uuid(Uuid::parse_str(&self.account.access_space_id).expect("access-space UUID")),
+                workspace_id: WorkspaceScopeRef::new(self.workspace.clone()).expect("workspace scope"),
+            }
+        }
+        async fn read(&self) -> EngineProfileRegistryV1 {
+            let response = self.account.client().get(self.url()).send().await.expect("GET profiles");
+            assert_eq!(response.status(), reqwest::StatusCode::OK);
+            let routed: EngineProfileRegistryV1 = response.json().await.expect("profile registry response");
+            let canonical = SurrealModelRegistryStore::new(self.allocator.storage().clone())
+                .list_engine_profiles(&self.scope()).await.expect("independent canonical readback");
+            assert_eq!(routed, canonical);
+            routed
+        }
+        async fn mutate(&self, request: &EngineProfileMutationRequestV1) -> EngineProfileRegistryV1 {
+            let response = self.account.client().post(self.url()).json(request).send().await.expect("POST profile mutation");
+            let status = response.status();
+            let body: Value = response.json().await.expect("profile mutation response");
+            assert_eq!(status, reqwest::StatusCode::OK, "{body}");
+            let result = serde_json::from_value(body).expect("typed registry result");
+            assert_eq!(result, self.read().await);
+            result
+        }
+        async fn reject(&self, request: &EngineProfileMutationRequestV1, status: reqwest::StatusCode, code: &str) {
+            let before = self.read().await;
+            let receipts = receipt_rows(self.allocator.storage()).await;
+            let response = self.account.client().post(self.url()).json(request).send().await.expect("rejected mutation");
+            assert_eq!(response.status(), status);
+            let body: Value = response.json().await.expect("typed mutation rejection");
+            assert_eq!(body["error"], code);
+            assert_eq!(self.read().await, before);
+            assert_eq!(receipt_rows(self.allocator.storage()).await, receipts);
+        }
+        async fn reopen(&mut self) {
+            self.server.abort();
+            let _ = (&mut self.server).await;
+            self.allocator.reopen().await.expect("durable profile reopen");
+            let (base, task) = server(self.allocator.storage().clone()).await;
+            self.base = base;
+            self.server = task;
+        }
+        async fn close(mut self) {
+            self.server.abort();
+            let _ = (&mut self.server).await;
+            let receipt = self.allocator.cleanup().await.expect("profile store cleanup");
+            assert!(receipt.database_absent);
+            assert!(receipt.namespace_absent_after_reopen);
+        }
+    }
+
+    #[derive(Debug, PartialEq, SurrealValue)]
+    struct ProfileReceipt { id: RecordId, payload: Value, payload_hash: String }
+    async fn receipt_rows(storage: &SurrealStorage) -> Vec<ProfileReceipt> {
+        storage.with_data_operation(|database| Box::pin(async move {
+            database.query_values::<ProfileReceipt, _>(
+                "SELECT id, payload, payload_hash FROM kernel_event_ledger WHERE source_component = 'engine_profiles' AND aggregate_type = 'engine_profile_registry' ORDER BY id;", ()
+            ).await
+        })).await.expect("independent canonical profile receipts")
+    }
+
+    fn snapshot(id: &str, revision: u64) -> EngineProfileSnapshotV1 {
+        EngineProfileSnapshotV1::new(handshake_dexterity::EngineProfile {
+            id: id.into(), revision,
+            model: handshake_dexterity::Model {
+                id: "storage-only-model".into(), format: handshake_dexterity::ModelFormat::GgufQ4_0,
+                content_sha256: "1".repeat(64), compiled_context: None,
+            },
+            engine: handshake_dexterity::Engine::GenieXLlamaCpp,
+            device: handshake_dexterity::Device::Cpu,
+            preset: handshake_dexterity::Preset {
+                name: format!("storage-revision-{revision}"), context_limit: 2048, max_tokens: 128,
+                sampling: handshake_dexterity::Sampling::LlamaCpp { temperature: 0.7, top_k: 40, top_p: 0.95, min_p: 0.05 },
+            },
+        }).expect("valid storage-only profile, no artifact/device proof")
+    }
+    fn request(state: &EngineProfileRegistryV1, mutation: EngineProfileMutationV1) -> EngineProfileMutationRequestV1 {
+        EngineProfileMutationRequestV1 {
+            request_id: Uuid::now_v7(), reason: "explicit profile boundary test".into(),
+            expected_registry_generation: state.registry_generation,
+            expected_active_generation: state.active_generation, mutation,
+        }
+    }
+
+    #[tokio::test]
+    async fn engine_profile_definitions_active_and_immutable_history_survive_reopen() {
+        let mut fixture = Fixture::open().await;
+        let empty = fixture.read().await;
+        assert_eq!(empty, EngineProfileRegistryV1::default());
+        let first = snapshot("durable-profile", 1);
+        let created = fixture.mutate(&request(&empty, EngineProfileMutationV1::Create { snapshot: first.clone() })).await;
+        assert_eq!(created.registry_generation, 1);
+        let active = fixture.mutate(&request(&created, EngineProfileMutationV1::Activate { expected_head: first.identity(), expected_head_generation: 1 })).await;
+        assert_eq!(active.active, Some(first.identity()));
+        fixture.reopen().await;
+        assert_eq!(fixture.read().await, active);
+        let second = snapshot("durable-profile", 2);
+        let revised = fixture.mutate(&request(&active, EngineProfileMutationV1::NewRevision {
+            expected_head: first.identity(), expected_head_generation: 1, snapshot: second.clone(),
+        })).await;
+        assert_eq!(revised.profiles[0].revisions, vec![first.clone(), second.clone()]);
+        assert_eq!(revised.profiles[0].head_generation, 2);
+        assert_eq!(revised.active, None);
+        assert_eq!(revised.active_generation, active.active_generation + 1);
+        assert_ne!(first.fingerprint, second.fingerprint);
+        fixture.reject(&request(&revised, EngineProfileMutationV1::Activate {
+            expected_head: first.identity(), expected_head_generation: 1,
+        }), reqwest::StatusCode::CONFLICT, "engine_profile_conflict").await;
+        let selected = fixture.mutate(&request(&revised, EngineProfileMutationV1::Activate {
+            expected_head: second.identity(), expected_head_generation: 2,
+        })).await;
+        let deleted = fixture.mutate(&request(&selected, EngineProfileMutationV1::Tombstone {
+            expected_head: second.identity(), expected_head_generation: 2,
+        })).await;
+        assert!(deleted.profiles[0].tombstoned);
+        assert_eq!(deleted.profiles[0].revisions, vec![first.clone(), second.clone()]);
+        assert_eq!(deleted.active, None);
+        fixture.reject(&request(&deleted, EngineProfileMutationV1::Activate {
+            expected_head: second.identity(), expected_head_generation: 3,
+        }), reqwest::StatusCode::NOT_FOUND, "engine_profile_unavailable").await;
+        fixture.reopen().await;
+        assert_eq!(fixture.read().await, deleted);
+        fixture.close().await;
+    }
+
+    #[tokio::test]
+    async fn engine_profile_retry_after_later_mutation_returns_current_state_without_rewriting_receipt() {
+        let mut fixture = Fixture::open().await;
+        let a = request(&fixture.read().await, EngineProfileMutationV1::Create { snapshot: snapshot("replay-profile", 1) });
+        let state_a = fixture.mutate(&a).await;
+        let receipt_a = receipt_rows(fixture.allocator.storage()).await;
+        assert_eq!(receipt_a.len(), 1);
+        assert_eq!(receipt_a[0].payload["request"], serde_json::to_value(&a).unwrap());
+        assert_eq!(receipt_a[0].payload["after"], serde_json::to_value(&state_a).unwrap());
+        let b = request(&state_a, EngineProfileMutationV1::Activate { expected_head: snapshot("replay-profile", 1).identity(), expected_head_generation: 1 });
+        let state_b = fixture.mutate(&b).await;
+        let receipts_b = receipt_rows(fixture.allocator.storage()).await;
+        assert_eq!(receipts_b.len(), 2);
+        assert_ne!(state_a, state_b);
+        assert_eq!(fixture.mutate(&a).await, state_b);
+        assert_eq!(receipt_rows(fixture.allocator.storage()).await, receipts_b);
+        assert!(receipts_b.iter().any(|row| row == &receipt_a[0]));
+        fixture.reopen().await;
+        assert_eq!(fixture.mutate(&a).await, state_b);
+        assert_eq!(receipt_rows(fixture.allocator.storage()).await, receipts_b);
+        let mut altered = a.clone();
+        altered.reason = "same request ID with changed payload".into();
+        fixture.reject(&altered, reqwest::StatusCode::CONFLICT, "engine_profile_conflict").await;
+        let stale_cas = request(&state_a, EngineProfileMutationV1::Create { snapshot: snapshot("stale-cas-profile", 1) });
+        fixture.reject(&stale_cas, reqwest::StatusCode::CONFLICT, "engine_profile_conflict").await;
+        fixture.close().await;
+    }
+
+    #[tokio::test]
+    async fn engine_profile_scope_and_invalid_snapshot_denials_leave_canonical_state_unchanged() {
+        let fixture = Fixture::open().await;
+        let create = request(&fixture.read().await, EngineProfileMutationV1::Create { snapshot: snapshot("private-profile", 1) });
+        let current = fixture.mutate(&create).await;
+        let receipts = receipt_rows(fixture.allocator.storage()).await;
+        let other = OwnerSession::provision(fixture.allocator.storage(), fixture.account.binding_token()).await;
+        let denied = other.client().get(fixture.url()).send().await.expect("other-account GET");
+        assert_eq!(denied.status(), reqwest::StatusCode::FORBIDDEN);
+        let foreign_post = other.client().post(fixture.url()).json(&create).send().await.expect("other-account POST");
+        assert_eq!(foreign_post.status(), reqwest::StatusCode::FORBIDDEN);
+        let anonymous = reqwest::Client::new().post(fixture.url()).json(&create).send().await.expect("anonymous POST");
+        assert_eq!(anonymous.status(), reqwest::StatusCode::FORBIDDEN);
+        let second_workspace = fixture.account.create_workspace(&state(fixture.allocator.storage().clone())).await;
+        let other_url = format!("{}/workspaces/{second_workspace}/engine-profiles", fixture.base);
+        let response = fixture.account.client().get(&other_url).send().await.expect("other workspace GET");
+        assert_eq!(response.status(), reqwest::StatusCode::OK);
+        assert_eq!(response.json::<EngineProfileRegistryV1>().await.unwrap(), EngineProfileRegistryV1::default());
+        let unavailable = request(&EngineProfileRegistryV1::default(), EngineProfileMutationV1::Activate {
+            expected_head: snapshot("private-profile", 1).identity(), expected_head_generation: 1,
+        });
+        let response = fixture.account.client().post(&other_url).json(&unavailable).send().await.expect("other workspace activation");
+        assert_eq!(response.status(), reqwest::StatusCode::NOT_FOUND);
+        assert_eq!(response.json::<Value>().await.unwrap()["error"], "engine_profile_unavailable");
+        let mut invalid = snapshot("invalid-profile", 1);
+        invalid.fingerprint = "0".repeat(64);
+        fixture.reject(&request(&current, EngineProfileMutationV1::Create { snapshot: invalid }),
+            reqwest::StatusCode::BAD_REQUEST, "engine_profile_fingerprint_mismatch").await;
+        assert_eq!(fixture.read().await, current);
+        assert_eq!(receipt_rows(fixture.allocator.storage()).await, receipts);
+        fixture.close().await;
+    }
+}

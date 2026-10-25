@@ -191,6 +191,7 @@ pub fn receipt(
 
 pub fn cloud_lane(run_id: &str, lane_id: &str) -> NewModelLane {
     NewModelLane {
+        engine_profile: None,
         lane_id: lane_id.into(),
         run_id: run_id.into(),
         trace_id: format!("trace-{run_id}"),

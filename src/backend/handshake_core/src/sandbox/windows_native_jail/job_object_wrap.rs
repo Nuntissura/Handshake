@@ -7,6 +7,8 @@ use windows_sys::Win32::{
     System::JobObjects::{
         AssignProcessToJobObject, CreateJobObjectW, JobObjectBasicUIRestrictions,
         JobObjectCpuRateControlInformation, JobObjectExtendedLimitInformation,
+        QueryInformationJobObject, JobObjectBasicAccountingInformation,
+        JOBOBJECT_BASIC_ACCOUNTING_INFORMATION,
         SetInformationJobObject, TerminateJobObject, JOBOBJECT_BASIC_UI_RESTRICTIONS,
         JOBOBJECT_CPU_RATE_CONTROL_INFORMATION, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
         JOB_OBJECT_CPU_RATE_CONTROL_ENABLE, JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP,
@@ -84,6 +86,20 @@ impl WindowsNativeJobGuard {
             return Err(last_error("TerminateJobObject"));
         }
         Ok(())
+    }
+
+    pub(crate) fn active_processes(&self) -> Result<u32, String> {
+        let mut accounting = JOBOBJECT_BASIC_ACCOUNTING_INFORMATION::default();
+        let ok = unsafe {
+            QueryInformationJobObject(
+                self.handle, JobObjectBasicAccountingInformation,
+                &mut accounting as *mut _ as *mut c_void,
+                size_u32::<JOBOBJECT_BASIC_ACCOUNTING_INFORMATION>(),
+                std::ptr::null_mut(),
+            )
+        };
+        if ok == 0 { return Err(last_error("QueryInformationJobObject(accounting)")); }
+        Ok(accounting.ActiveProcesses)
     }
 
     pub(crate) fn assign_process(&self, process: HANDLE) -> Result<(), String> {

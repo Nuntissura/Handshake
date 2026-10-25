@@ -18,6 +18,7 @@ pub use handshake_runtime_instance::ProcessRuntimeOwner;
 pub enum ProcessEngineKind {
     LlamaCpp,
     Candle,
+    GenieX,
     AbliterationTool,
     SandboxContainer,
     MechanicalJob,
@@ -39,6 +40,7 @@ impl ProcessEngineKind {
         match self {
             Self::LlamaCpp => "llamacpp",
             Self::Candle => "candle",
+            Self::GenieX => "genie_x",
             Self::AbliterationTool => "abliteration_tool",
             Self::SandboxContainer => "sandbox_container",
             Self::MechanicalJob => "mechanical_job",
@@ -53,7 +55,7 @@ impl ProcessEngineKind {
     }
 
     pub fn is_regular_model_runtime_engine(self) -> bool {
-        matches!(self, Self::LlamaCpp | Self::Candle)
+        matches!(self, Self::LlamaCpp | Self::Candle | Self::GenieX)
     }
 }
 
@@ -64,6 +66,7 @@ impl TryFrom<&str> for ProcessEngineKind {
         match value.trim() {
             "llamacpp" | "llama_cpp" => Ok(Self::LlamaCpp),
             "candle" => Ok(Self::Candle),
+            "genie_x" => Ok(Self::GenieX),
             "abliteration_tool" => Ok(Self::AbliterationTool),
             "sandbox_container" => Ok(Self::SandboxContainer),
             "mechanical_job" => Ok(Self::MechanicalJob),

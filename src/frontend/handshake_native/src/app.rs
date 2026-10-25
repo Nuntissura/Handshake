@@ -6293,6 +6293,8 @@ pub struct HandshakeApp {
     pending_backlink_open_retry: VecDeque<String>,
     /// Whether the settings overlay is requested open (MT-015 HELP menu sets this; UI is MT-018).
     settings_open: bool,
+    engine_profiles: crate::settings_dialog::EngineProfilesSettingsState,
+    engine_profiles_response: Option<PendingEngineProfileResponse>,
     swarm_model_sessions: crate::settings_dialog::SwarmModelSessionsSettingsState,
     swarm_concurrency_epoch: u64,
     swarm_concurrency_pending: Option<(u64, String, Arc<crate::local_account::AuthenticatedContext>, crate::backend_client::SwarmConcurrencyCell)>,
@@ -8400,6 +8402,8 @@ impl HandshakeApp {
             nav_pending_label: None,
             pending_backlink_open_retry: VecDeque::new(),
             settings_open: false,
+            engine_profiles: crate::settings_dialog::EngineProfilesSettingsState::default(),
+            engine_profiles_response: None,
             swarm_model_sessions: crate::settings_dialog::SwarmModelSessionsSettingsState::default(),
             swarm_concurrency_epoch: 0,
             swarm_concurrency_pending: None,
@@ -13463,6 +13467,8 @@ impl HandshakeApp {
             nav_pending_label: None,
             pending_backlink_open_retry: VecDeque::new(),
             settings_open: false,
+            engine_profiles: crate::settings_dialog::EngineProfilesSettingsState::default(),
+            engine_profiles_response: None,
             cloud_models: crate::settings_dialog::CloudModelsSettingsState::default(),
             swarm_model_sessions: crate::settings_dialog::SwarmModelSessionsSettingsState::default(),
             swarm_concurrency_epoch: 0,
@@ -22939,8 +22945,25 @@ impl HandshakeApp {
     /// debounced `PUT`; `Close` clears the open flag (flushing a pending save); `None` is a no-op.
     fn apply_settings_outcome(&mut self, outcome: crate::settings_dialog::SettingsOutcome) -> bool {
         use crate::settings_dialog::SettingsOutcome as O;
-        match outcome {
+        let local_edit = matches!(
+            &outcome,
+            O::ThemeChanged(_) | O::ViewModeChanged(_) | O::CalendarTimezoneChanged(_)
+                | O::KeybindingChanged { .. } | O::KeybindingReset { .. }
+                | O::SwarmBoardDefaultOpenChanged(_) | O::ResetLayout
+                | O::EditorPrefsChanged(_) | O::SyntaxPaletteChanged(_)
+                | O::EditorKeybindingChanged { .. } | O::EditorKeybindingReset { .. }
+                | O::EditorPrefsReset | O::SyntaxPaletteReset
+        );
+        let changed = match outcome {
             O::None => false,
+            O::EngineProfilesRefreshRequested => {
+                self.request_engine_profile_refresh();
+                true
+            }
+            O::EngineProfileMutationRequested { token, request } => {
+                self.dispatch_engine_profile_request(token, Some(request));
+                true
+            }
             O::SwarmModelSessionsMaxConcurrentChanged(value) => {
                 let desired = value.max(1);
                 self.workspace_settings.swarm_model_sessions_max_concurrent = Some(desired);
@@ -23053,6 +23076,12 @@ impl HandshakeApp {
                     self.workspace_settings
                         .set_chord(&action_id, action.default_chord.to_owned());
                     self.schedule_settings_save();
+                    if !self.capturing_snapshot {
+                        crate::diagnostics::gui_events::record_gui_observation(
+                            crate::diagnostics::gui_events::GuiDiagnosticOperation::SettingsOutcome,
+                            crate::diagnostics::gui_events::GuiDiagnosticPhase::Accepted,
+                        );
+                    }
                     return true;
                 }
                 false
@@ -23149,6 +23178,12 @@ impl HandshakeApp {
                 {
                     self.settings_persist_error = Some(message);
                     self.settings_retry_operation = None;
+                    if !self.capturing_snapshot {
+                        crate::diagnostics::gui_events::record_gui_observation(
+                            crate::diagnostics::gui_events::GuiDiagnosticOperation::SettingsOutcome,
+                            crate::diagnostics::gui_events::GuiDiagnosticPhase::Rejected,
+                        );
+                    }
                     return true;
                 }
                 // The override map is persisted as the single canonical
@@ -23181,6 +23216,12 @@ impl HandshakeApp {
                             ),
                         },
                     );
+                    if !self.capturing_snapshot {
+                        crate::diagnostics::gui_events::record_gui_observation(
+                            crate::diagnostics::gui_events::GuiDiagnosticOperation::SettingsOutcome,
+                            crate::diagnostics::gui_events::GuiDiagnosticPhase::Accepted,
+                        );
+                    }
                     return true;
                 }
                 false
@@ -23244,7 +23285,14 @@ impl HandshakeApp {
                     }
                 }
             }
+        };
+        if changed && local_edit && !self.capturing_snapshot {
+            crate::diagnostics::gui_events::record_gui_observation(
+                crate::diagnostics::gui_events::GuiDiagnosticOperation::SettingsOutcome,
+                crate::diagnostics::gui_events::GuiDiagnosticPhase::Accepted,
+            );
         }
+        changed
     }
 
     /// Drive settings persistence every frame and render the dialog only while it is open. Persistence
@@ -23633,7 +23681,107 @@ impl HandshakeApp {
         );
     }
 
+
+    fn dispatch_engine_profile_request(
+        &mut self,
+        token: crate::settings_dialog::EngineProfileUiToken,
+        request: Option<crate::backend_client::EngineProfileMutationRequestV1>,
+    ) {
+        use crate::diagnostics::gui_events::{record_gui_observation, GuiDiagnosticOperation as GuiOp, GuiDiagnosticPhase as GuiPhase};
+        let operation = if request.is_some() { GuiOp::EngineProfileMutation } else { GuiOp::EngineProfileRefresh };
+        let Some(account) = self.local_account.context.clone()
+            .filter(|account| account.is_active())
+        else {
+            if !self.capturing_snapshot { record_gui_observation(operation, GuiPhase::Rejected); }
+            self.engine_profiles.complete(&token, Err("Account login required".to_owned()));
+            return;
+        };
+        let scope = &token.scope;
+        if scope.workspace_id != self.active_project_id
+            || scope.account_id != account.account_id
+            || scope.principal_id != account.principal_id
+            || scope.session_id != account.session_id
+            || scope.access_space_id != account.access_space_id
+        {
+            if !self.capturing_snapshot { record_gui_observation(operation, GuiPhase::Rejected); }
+            self.engine_profiles.complete(&token, Err("Account context changed".to_owned()));
+            return;
+        }
+        let Some(handle) = self.runtime_handle.clone() else {
+            if !self.capturing_snapshot { record_gui_observation(operation, GuiPhase::Unavailable); }
+            self.engine_profiles.complete(&token, Err("Backend unavailable".to_owned()));
+            return;
+        };
+        let client = crate::backend_client::ModelRuntimeRegistryClient::new(
+            &self.rich_doc_base_url, handle,
+        ).with_authenticated_context(Some(account.clone()));
+        let cell: crate::backend_client::EngineProfileRegistryCell =
+            Arc::new(Mutex::new(None));
+        if let Some(request) = request {
+            client.mutate_engine_profiles(&self.active_project_id, &request, cell.clone());
+        } else {
+            client.fetch_engine_profiles(&self.active_project_id, cell.clone());
+        }
+        self.engine_profiles_response = Some(PendingEngineProfileResponse {
+            token, workspace_id: self.active_project_id.clone(), account, cell,
+        });
+        if !self.capturing_snapshot { record_gui_observation(operation, GuiPhase::Pending); }
+    }
+
+    fn request_engine_profile_refresh(&mut self) {
+        if let Some(token) = self.engine_profiles.begin_refresh() {
+            self.dispatch_engine_profile_request(token, None);
+        }
+    }
+
+    fn pump_engine_profile_response(&mut self, ctx: &egui::Context) {
+        let Some(pending) = self.engine_profiles_response.as_ref() else { return; };
+        let current = pending.workspace_id == self.active_project_id
+            && pending.token.open_count == self.settings_open_count
+            && pending.account.is_active()
+            && self.local_account.context.as_ref()
+                .is_some_and(|account| Arc::ptr_eq(account, &pending.account));
+        if !current {
+            if !self.capturing_snapshot {
+                crate::diagnostics::gui_events::record_gui_observation(
+                    crate::diagnostics::gui_events::GuiDiagnosticOperation::SettingsOutcome,
+                    crate::diagnostics::gui_events::GuiDiagnosticPhase::Stale,
+                );
+            }
+            self.engine_profiles_response = None;
+            self.engine_profiles.exit();
+            return;
+        }
+        let delivered = pending.cell.try_lock().ok().and_then(|mut cell| cell.take());
+        if let Some(result) = delivered {
+            if let Some(pending) = self.engine_profiles_response.take() {
+                self.engine_profiles.complete(&pending.token, result);
+            }
+            ctx.request_repaint();
+        } else {
+            ctx.request_repaint_after(std::time::Duration::from_millis(50));
+        }
+    }
+
     fn render_settings_surface(&mut self, ctx: &egui::Context, detached: bool) {
+        if !self.capturing_snapshot {
+            let scope = self.local_account.context.as_ref()
+                .filter(|account| account.is_active())
+                .map(|account| crate::settings_dialog::EngineProfilesScope {
+                    account_id: account.account_id.clone(),
+                    principal_id: account.principal_id.clone(),
+                    session_id: account.session_id.clone(),
+                    access_space_id: account.access_space_id.clone(),
+                    workspace_id: self.active_project_id.clone(),
+                });
+            self.engine_profiles.bind_scope(scope);
+            self.engine_profiles.begin_open(self.settings_open_count);
+            self.pump_engine_profile_response(ctx);
+            if self.engine_profiles.needs_registry_refresh() {
+                self.request_engine_profile_refresh();
+            }
+        }
+        let was_general_tab = self.engine_profiles.is_general_tab();
         let diagnostics_view = self.diagnostics_view();
         if self.backend_is_down() {
             self.settings_diagnostics_force_open = true;
@@ -23650,7 +23798,14 @@ impl HandshakeApp {
         } else {
             &mut self.cloud_models
         };
+        let mut profiles_projection = self.engine_profiles.snapshot_projection();
+        let engine_profiles = if self.capturing_snapshot {
+            &mut profiles_projection
+        } else {
+            &mut self.engine_profiles
+        };
         let mut view = crate::settings_dialog::SettingsView {
+            engine_profiles,
             open_count: self.settings_open_count,
             swarm_model_sessions: &self.swarm_model_sessions,
             cloud,
@@ -23676,7 +23831,20 @@ impl HandshakeApp {
             crate::settings_dialog::show(ctx, view)
         };
         if !self.capturing_snapshot {
+            if was_general_tab != self.engine_profiles.is_general_tab() {
+                crate::diagnostics::gui_events::record_gui_observation(
+                    crate::diagnostics::gui_events::GuiDiagnosticOperation::SettingsTab,
+                    crate::diagnostics::gui_events::GuiDiagnosticPhase::Accepted,
+                );
+            }
             self.settings_snapshot_query = frame.query;
+            for token in frame.orphaned_engine_profile_operations {
+                if self.engine_profiles_response.as_ref()
+                    .is_some_and(|pending| pending.token == token)
+                {
+                    self.engine_profiles_response = None;
+                }
+            }
         }
         if detached && self.settings_detached_exit_pending.is_some() {
             ctx.request_repaint();
@@ -42952,4 +43120,11 @@ mod local_account_workspace_tests {
         assert!(Arc::ptr_eq(&old_channel, &app.mcp_action_channel));
         assert!(Arc::ptr_eq(&old_snapshot, &app.mcp_snapshot));
     }
+}
+
+struct PendingEngineProfileResponse {
+    token: crate::settings_dialog::EngineProfileUiToken,
+    workspace_id: String,
+    account: Arc<crate::local_account::AuthenticatedContext>,
+    cell: crate::backend_client::EngineProfileRegistryCell,
 }

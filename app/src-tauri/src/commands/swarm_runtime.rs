@@ -261,6 +261,14 @@ impl ModelSessionFactory for TrackingFactory {
             .insert(request.instance_id, tracked);
         Ok(live)
     }
+
+    async fn cancel_pending_create(&self, request: &SpawnRequest) -> SwarmResult<()> {
+        ModelSessionFactory::cancel_pending_create(&self.inner, request).await
+    }
+
+    async fn drain_pending_creates(&self) -> SwarmResult<()> {
+        ModelSessionFactory::drain_pending_creates(&self.inner).await
+    }
 }
 
 /// Managed app state holding the production swarm coordinator + its ledger
@@ -4524,15 +4532,12 @@ mod tests {
             build_spawn_request(&cloud_request("claude-sonnet-4")).expect("valid cloud request");
 
         // Local spawn (instance 1) — nonexistent artifact fails the real load.
-        let local_req = build_spawn_request(&local_request(
+        let mut local_req = build_spawn_request(&local_request(
             "D:/__handshake_no_such_mixed_model__/model.safetensors",
         ))
         .expect("valid local request");
         // Distinct instance index so the two sessions are independent.
-        let local_req = SpawnRequest {
-            instance_id: ModelInstanceId::new(local_req.instance_id.model_id, 1),
-            ..local_req
-        };
+        local_req.instance_id = ModelInstanceId::new(local_req.instance_id.model_id, 1);
 
         let c1 = coordinator.clone();
         let c2 = coordinator.clone();

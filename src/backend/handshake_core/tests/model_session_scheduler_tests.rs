@@ -361,6 +361,7 @@ async fn seed_active_model_session(
     let session = state
         .storage
         .upsert_model_session(NewModelSession {
+            engine_profile_binding: None,
             session_id: session_id.to_string(),
             parent_session_id: parent_session_id.map(ToString::to_string),
             spawn_depth: 0,
@@ -2299,6 +2300,7 @@ async fn model_session_memory_policy_is_immutable() -> Result<(), Box<dyn std::e
     let created = state
         .storage
         .upsert_model_session(NewModelSession {
+            engine_profile_binding: None,
             session_id: session_id.clone(),
             parent_session_id: None,
             spawn_depth: 0,
@@ -2330,6 +2332,7 @@ async fn model_session_memory_policy_is_immutable() -> Result<(), Box<dyn std::e
     let err = state
         .storage
         .upsert_model_session(NewModelSession {
+            engine_profile_binding: None,
             session_id: session_id.clone(),
             parent_session_id: None,
             spawn_depth: 0,

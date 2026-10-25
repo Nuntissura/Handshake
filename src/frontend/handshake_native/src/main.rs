@@ -3,6 +3,9 @@
 
 use handshake_native::app::HandshakeApp;
 use handshake_native::diagnostics;
+use handshake_native::diagnostics::gui_events::{
+    record_gui_observation, GuiDiagnosticOperation, GuiDiagnosticPhase,
+};
 use handshake_native::installer;
 use handshake_native::quiet_mode::focus_guard;
 
@@ -562,10 +565,26 @@ fn main() -> eframe::Result<()> {
         ..Default::default()
     };
 
+    let pending_renderer_observation = std::sync::Arc::new(std::sync::Mutex::new(None::<GuiDiagnosticPhase>));
+    let pending_renderer_slot = std::sync::Arc::clone(&pending_renderer_observation);
+
     let result = eframe::run_native(
         "handshake-native",
         native_options,
         Box::new(move |cc| {
+            let phase = if cc.wgpu_render_state.is_some() {
+                GuiDiagnosticPhase::Accepted
+            } else {
+                GuiDiagnosticPhase::Unavailable
+            };
+            let pending = if record_gui_observation(GuiDiagnosticOperation::RendererBinding, phase) {
+                None
+            } else {
+                Some(phase)
+            };
+            *pending_renderer_slot
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()) = pending;
             let mut app = HandshakeApp::new_with_diagnostic_provenance(cc, diagnostic_provenance);
             // Hand the running shell the Palmistry handle so a clean exit (`HandshakeApp::on_exit`) sends
             // the explicit Shutdown control message (§6.13.3). `None` when the watcher was not launched
@@ -578,5 +597,14 @@ fn main() -> eframe::Result<()> {
     );
     // The app and its watcher finish shutdown/reaping before the native lease is released.
     drop(native_runtime_lease);
+    let pending = pending_renderer_observation
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .take();
+    if let Some(phase) = pending {
+        if !record_gui_observation(GuiDiagnosticOperation::RendererBinding, phase) {
+            tracing::warn!("renderer binding observation unavailable: diagnostic ring writer not ready");
+        }
+    }
     result
 }

@@ -181,7 +181,8 @@ DEFINE FUNCTION OVERWRITE fn::wp012_context_coordination_key($row: object) {
 };
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_operation_matrix($kind: string, $purpose: string, $action: string) {
     RETURN ($kind = 'workspace' AND $purpose IN ['consume', 'source_read', 'navigation_read'] AND $action = 'read')
-        OR ($kind = 'workspace' AND $purpose IN ['artifact_binding', 'handoff', 'guarded_message', 'run_create', 'lane_create', 'workspace_claim', 'index_run_claim', 'cloud_projection_plan', 'cloud_consent_receipt', 'cloud_run', 'cloud_lane', 'cloud_consent_denial', 'diagnostic_record', 'recovery_checkpoint_record'] AND $action = 'create')
+        OR ($kind = 'workspace' AND $purpose IN ['artifact_binding', 'handoff', 'guarded_message', 'run_create', 'lane_create', 'profile_admission_create', 'profile_admission_transition', 'profile_admission_finalization', 'workspace_claim', 'index_run_claim', 'cloud_projection_plan', 'cloud_consent_receipt', 'cloud_run', 'cloud_lane', 'cloud_consent_denial', 'diagnostic_record', 'recovery_checkpoint_record'] AND $action = 'create')
+        OR ($kind = 'workspace' AND $purpose = 'profile_session_write' AND $action IN ['create', 'update'])
         OR ($kind = 'workspace' AND $purpose = 'recovery_execute' AND $action = 'update')
         OR ($kind = 'rich_document' AND $purpose IN ['crdt_update', 'crdt_snapshot', 'document_claim', 'proposal_record', 'proposal_decide', 'proposal_apply'] AND $action = 'update')
         OR ($kind IN ['workspace', 'rich_document'] AND $purpose IN ['lease_renew', 'lease_release', 'lease_expiry'] AND $action = 'update');
@@ -300,7 +301,7 @@ DEFINE FIELD OVERWRITE authority_grant_id ON model_lane_context_coordination TYP
 DEFINE FIELD OVERWRITE authority_session_id ON model_lane_context_coordination TYPE record<authenticated_sessions>;
 DEFINE FIELD OVERWRITE authority_capability_id ON model_lane_context_coordination TYPE string;
 DEFINE FIELD OVERWRITE authority_action ON model_lane_context_coordination TYPE 'read' | 'create' | 'update';
-DEFINE FIELD OVERWRITE authority_purpose ON model_lane_context_coordination TYPE 'consume' | 'recovery_execute' | 'artifact_binding' | 'handoff' | 'guarded_message' | 'document_claim' | 'workspace_claim' | 'index_run_claim' | 'lease_renew' | 'lease_release' | 'lease_expiry' | 'crdt_update' | 'crdt_snapshot' | 'proposal_record' | 'proposal_decide' | 'proposal_apply' | 'cloud_projection_plan' | 'cloud_consent_receipt' | 'cloud_run' | 'cloud_lane' | 'cloud_consent_denial';
+DEFINE FIELD OVERWRITE authority_purpose ON model_lane_context_coordination TYPE 'consume' | 'recovery_execute' | 'artifact_binding' | 'handoff' | 'guarded_message' | 'document_claim' | 'workspace_claim' | 'index_run_claim' | 'lease_renew' | 'lease_release' | 'lease_expiry' | 'crdt_update' | 'crdt_snapshot' | 'proposal_record' | 'proposal_decide' | 'proposal_apply' | 'cloud_projection_plan' | 'cloud_consent_receipt' | 'cloud_run' | 'cloud_lane' | 'cloud_consent_denial' | 'recovery_checkpoint_record';
 DEFINE FIELD OVERWRITE state ON model_lane_context_coordination TYPE 'held' | 'released';
 DEFINE FIELD OVERWRITE holder_operation_id ON model_lane_context_coordination TYPE uuid;
 DEFINE FIELD OVERWRITE generation ON model_lane_context_coordination TYPE int ASSERT $value > 0;
@@ -436,7 +437,7 @@ DEFINE TABLE OVERWRITE model_lane_schema_registry SCHEMAFULL
     FOR create, update, delete NONE;
 
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_source_kind($kind: string) {
-    RETURN $kind IN ['run', 'lane', 'message', 'context_artifact', 'context_handoff'];
+    RETURN $kind IN ['run', 'lane', 'message', 'context_artifact', 'context_handoff', 'launch_admission', 'launch_admission_transition', 'selection_audit'];
 };
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_crdt_admission($row: object) {
     LET $record = encoding::json::decode($row.record_json);
@@ -495,7 +496,8 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_crdt_admission($row: object) {
 -- the immutable source row and its canonical receipt, not caller provenance.
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_canonical_record_identity($row: object) {
     IF $row.record_kind NOT IN ['run', 'lane', 'message', 'context_artifact', 'context_handoff',
-            'recovery_checkpoint', 'recovery_event', 'lease', 'diagnostic_tier', 'mt_runtime_status']
+            'recovery_checkpoint', 'recovery_event', 'lease', 'diagnostic_tier', 'mt_runtime_status',
+            'launch_admission', 'launch_admission_transition']
         OR !type::is_string($row.aggregate_id) OR string::trim($row.aggregate_id) = ''
         OR !type::is_string($row.run_id) OR string::trim($row.run_id) = ''
         OR !type::is_string($row.idempotency_key) OR string::trim($row.idempotency_key) = '' { RETURN false; };
@@ -529,6 +531,8 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_canonical_record_identity($row: o
     LET $body = IF $row.record_kind = 'message' { $record.inner } ELSE { $record };
     LET $identity = IF $row.record_kind = 'run' { $body.run_id }
         ELSE IF $row.record_kind = 'lane' { $body.lane_id }
+        ELSE IF $row.record_kind = 'launch_admission' { $body.run_id }
+        ELSE IF $row.record_kind = 'launch_admission_transition' { $body.transition_id }
         ELSE IF $row.record_kind = 'message' { $body.message_id }
         ELSE IF $row.record_kind = 'context_artifact' { $body.artifact_binding_id }
         ELSE IF $row.record_kind = 'context_handoff' { $body.handoff_id }
@@ -539,6 +543,8 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_canonical_record_identity($row: o
         ELSE { $body.mt_status_id };
     LET $schemas = IF $row.record_kind = 'run' { ['hsk.model_lane_run@1', 'hsk.model_lane_run_extension@1'] }
         ELSE IF $row.record_kind = 'lane' { ['hsk.model_lane@1'] }
+        ELSE IF $row.record_kind = 'launch_admission' { ['hsk.operator_chat_launch_admission@1'] }
+        ELSE IF $row.record_kind = 'launch_admission_transition' { ['hsk.operator_chat_launch_admission_transition@1'] }
         ELSE IF $row.record_kind = 'message' { ['hsk.model_lane_message@1'] }
         ELSE IF $row.record_kind = 'context_artifact' { ['hsk.model_lane_context_bundle_artifact@1'] }
         ELSE IF $row.record_kind = 'context_handoff' { ['hsk.model_lane_context_bundle_handoff@1'] }
@@ -1824,6 +1830,22 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_ledger_create($row: object) 
 };
 
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_source_access($row: object, $write: bool) {
+    IF $wp012_original_purpose = 'profile_session_write' {
+        RETURN !$write AND $row.record_kind IN ['run', 'lane', 'launch_admission']
+            AND $wp012_original_subject_kind = 'workspace' AND $wp012_original_action IN ['create', 'update']
+            AND $wp012_original_capability = 'fs.write' AND fn::wp012_model_lane_original_operation($row);
+    };
+    IF $wp012_original_purpose IN ['profile_admission_create', 'profile_admission_transition', 'profile_admission_finalization'] {
+        IF !fn::wp012_model_lane_original_operation($row) OR $wp012_original_action != 'create'
+            OR $wp012_original_subject_kind != 'workspace' OR $wp012_original_capability != 'fs.write' { RETURN false; };
+        IF $wp012_original_purpose = 'profile_admission_create' {
+            RETURN $row.record_kind IN ['run', 'launch_admission', 'selection_audit']
+                AND (!$write OR fn::wp012_profile_admission_origin_piece($row));
+        };
+        IF !$write { RETURN $row.record_kind IN ['run', 'launch_admission', 'selection_audit', 'launch_admission_transition', 'lane']; };
+        RETURN $row.record_kind = 'launch_admission_transition'
+            AND record::tb($row.id) = 'kernel_event_ledger' AND fn::wp012_profile_admission_transition_record($row, true);
+    };
     IF $wp012_original_purpose = 'navigation_read' {
         IF $write OR $navigation_selection = NONE OR !fn::wp012_model_lane_original_operation($row) { RETURN false; };
         LET $sources = SELECT * FROM model_lane_authority
@@ -1848,19 +1870,23 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_source_access($row: object, $writ
         IF $binding != NONE AND $binding != NULL
             AND ($binding.workspace_id != $row.workspace_id
                 OR !fn::mt120_document_access($binding.document_id, $row.workspace_id, 'read', 'fs.read')) { RETURN false; };
+        IF !$write AND $row.record_kind = 'recovery_checkpoint'
+            AND !fn::wp012_profile_checkpoint_runtime($row) { RETURN false; };
         IF $write {
             RETURN $row.record_kind = 'recovery_event'
                 AND ($body.lane_id = NONE OR fn::wp012_context_coordination_fence($row, 'lane', $body.lane_id));
         };
         RETURN $row.record_kind IN ['run', 'lane', 'message', 'context_artifact',
-            'recovery_checkpoint', 'recovery_event', 'lease', 'mt_runtime_status'];
+            'recovery_checkpoint', 'recovery_event', 'lease', 'mt_runtime_status', 'launch_admission_transition'];
     };
     IF $wp012_original_purpose IN ['diagnostic_record', 'recovery_checkpoint_record'] {
+        IF $write AND $row.record_kind = 'recovery_checkpoint'
+            AND !fn::wp012_profile_checkpoint_runtime($row) { RETURN false; };
         RETURN fn::wp012_model_lane_original_operation($row)
             AND $wp012_original_subject_kind = 'workspace' AND $wp012_original_action = 'create'
             AND (fn::wp012_model_lane_recording_kind($row.record_kind)
                 OR (!$write AND ($row.record_kind = 'run'
-                    OR ($wp012_original_purpose = 'recovery_checkpoint_record' AND $row.record_kind = 'lane'))));
+                    OR ($wp012_original_purpose = 'recovery_checkpoint_record' AND $row.record_kind IN ['lane', 'launch_admission_transition']))));
     };
     IF !fn::wp012_model_lane_original_operation($row)
         OR !fn::wp012_model_lane_source_kind($row.record_kind) { RETURN false; };
@@ -1895,7 +1921,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_source_identity($row: object) {
         RETURN fn::wp012_model_lane_canonical_record_identity($row);
     };
     IF $wp012_original_purpose IN ['diagnostic_record', 'recovery_checkpoint_record'] {
-        RETURN (fn::wp012_model_lane_recording_kind($row.record_kind) OR $row.record_kind IN ['run', 'lane'])
+        RETURN (fn::wp012_model_lane_recording_kind($row.record_kind) OR $row.record_kind IN ['run', 'lane', 'launch_admission_transition'])
             AND fn::wp012_model_lane_canonical_record_identity($row);
     };
     IF !fn::wp012_model_lane_source_kind($row.record_kind)
@@ -2593,4 +2619,189 @@ DEFINE EVENT OVERWRITE wp012_model_lane_proposal_transition ON knowledge_crdt_ai
             THROW 'HSK-403-MODEL-LANE-PROPOSAL-APPLICATION';
         };
     };
+};
+
+-- A pre-runtime admission is not a normal lane and never grants process ownership.
+DEFINE FUNCTION OVERWRITE fn::wp012_profile_admission_origin_piece($row: object) {
+    LET $record = encoding::json::decode($row.record_json);
+    IF $row.record_kind = 'run' {
+        RETURN fn::wp012_engine_profile_snapshot($record.engine_profile)
+            AND $record.selected_model_id = $record.engine_profile.profile.model.id
+            AND array::len($record.lane_ids) = 1 AND $record.locus_binding != NONE
+            AND $record.locus_binding.work_packet_id = $record.work_packet_id
+            AND $record.locus_binding.micro_task_id = $record.micro_task_id
+            AND $record.locus_binding.task_board_id = $record.task_board_id
+            AND $record.locus_binding.owner_session = $record.owner_session;
+    };
+    LET $run_key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'run', $row.run_id,
+        $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id, $row.access_space_id, $row.workspace_id], '\u0000'));
+    LET $run_rows = SELECT * FROM type::record('model_lane_authority', $run_key);
+    IF array::len($run_rows) != 1 OR !fn::wp012_model_lane_source_identity($run_rows[0]) { RETURN false; };
+    LET $run = encoding::json::decode($run_rows[0].record_json);
+    IF $row.record_kind = 'launch_admission' {
+        RETURN $record.schema_id = 'hsk.operator_chat_launch_admission@1'
+            AND $record.run = $run AND $record.run_id = $run.run_id
+            AND $record.event_ledger_stream_id = $run.event_ledger_stream_id
+            AND $record.planned_lane_id IN $run.lane_ids
+            AND $record.model_session_id = $run.locus_binding.model_session_id
+            AND $record.scope.owner_account_id = $row.owner_account_id
+            AND $record.scope.actor_principal_id = $row.actor_principal_id
+            AND $record.scope.authenticated_session_id = $row.authenticated_session_id
+            AND $record.scope.access_space_id = $row.access_space_id AND $record.scope.workspace_id = $row.workspace_id
+            AND $record.engine_profile = $run.engine_profile AND fn::wp012_engine_profile_snapshot($record.engine_profile)
+            AND $record.original_request.dexterity_launch.engine_profile = $record.engine_profile
+            AND $record.original_request.dexterity_launch.engine_profile_session = $record.session_declaration
+            AND $record.original_selection.engine_profile_session = $record.session_declaration
+            AND $record.session_declaration.execution_mode = 'SINGLE_MODEL_MULTI_ROLE'
+            AND $record.session_declaration.memory_policy = 'EPHEMERAL'
+            AND $record.session_declaration.parameter_class = 'PUnknown'
+            AND $record.session_declaration.spawn_depth >= 0
+            AND $record.original_request.dexterity_launch.run_id = $run.run_id
+            AND $record.original_request.dexterity_launch.lane_id = $record.planned_lane_id
+            AND $record.original_request.owner_role = $run.owner_session
+            AND $record.original_request.parent_session_id = $run.coordinator_session_id
+            AND $record.original_request.model_artifact_sha256 = $record.engine_profile.profile.model.content_sha256
+            AND crypto::sha256(encoding::json::encode($record.original_request)) = $record.original_request_sha256
+            AND crypto::sha256(encoding::json::encode($record.original_selection)) = $record.original_selection_sha256
+            AND $record.original_selection.model_id = $record.engine_profile.profile.model.id
+            AND string::trim($record.original_selection.prompt) != ''
+            AND $record.original_selection.working_dir = $record.original_request.working_dir
+            AND type::datetime($record.expires_at_utc) > time::now();
+    };
+    IF $row.record_kind != 'selection_audit' { RETURN false; };
+    LET $admission_key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'launch_admission', $row.run_id,
+        $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id, $row.access_space_id, $row.workspace_id], '\u0000'));
+    LET $admissions = SELECT record_json FROM type::record('model_lane_authority', $admission_key);
+    IF array::len($admissions) != 1 { RETURN false; };
+    LET $admission = encoding::json::decode($admissions[0].record_json);
+    RETURN $record.run_id = $run.run_id AND $record.event_ledger_stream_id = $run.event_ledger_stream_id
+        AND $record.selected_model_id = $admission.engine_profile.profile.model.id
+        AND $record.selection_context.engine_profile = $admission.engine_profile
+        AND $record.selection_context.session_declaration = $admission.session_declaration
+        AND $record.selection_context.original_request_sha256 = $admission.original_request_sha256
+        AND $record.selection_context.original_selection_sha256 = $admission.original_selection_sha256
+        AND $record.work_packet_id = $run.work_packet_id AND $record.micro_task_id = $run.micro_task_id
+        AND $record.task_board_id = $run.task_board_id AND $record.owner_session = $run.owner_session
+        AND $record.actor_ref = string::concat('principal://', $row.actor_principal_id);
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_profile_admission_current_head($origin: object) {
+    LET $registries = SELECT data FROM engine_profile_registry
+        WHERE owner_account_id = $origin.scope.owner_account_id AND actor_principal_id = $origin.scope.actor_principal_id
+        AND access_space_id = $origin.scope.access_space_id AND workspace_id = $origin.scope.workspace_id;
+    IF array::len($registries) != 1 { RETURN false; };
+    LET $definitions = array::filter($registries[0].data.profiles, |$profile| $profile.profile_id = $origin.engine_profile.profile.id);
+    RETURN array::len($definitions) = 1 AND !$definitions[0].tombstoned
+        AND array::last($definitions[0].revisions) = $origin.engine_profile;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_profile_admission_transition_record($row: object, $write: bool) {
+    LET $record = encoding::json::decode($row.record_json);
+    LET $origin_key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'launch_admission', $record.run_id,
+        $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id, $row.access_space_id, $row.workspace_id], '\u0000'));
+    LET $origins = SELECT * FROM type::record('model_lane_authority', $origin_key);
+    IF array::len($origins) != 1 OR !fn::wp012_model_lane_source_identity($origins[0]) { RETURN false; };
+    LET $origin = encoding::json::decode($origins[0].record_json);
+    IF $record.operation_id != $origin.operation_id OR $record.admission_id != $origin.run_id OR $record.run_id != $origin.run_id
+        OR $record.event_ledger_stream_id != $origin.event_ledger_stream_id
+        OR $record.original_request_sha256 != $origin.original_request_sha256
+        OR $record.original_selection_sha256 != $origin.original_selection_sha256
+        OR $record.engine_profile != $origin.engine_profile
+        OR $record.after.generation != $record.before.generation + 1
+        OR $record.transition_id != string::concat($origin.run_id, ':', <string>$record.after.generation) { RETURN false; };
+    IF !$write { RETURN true; };
+    IF $wp012_original_purpose = 'profile_admission_finalization'
+        AND ($record.after.status NOT IN ['expired', 'cancelled', 'failed'] OR $record.attached_lane_event_id != NONE) { RETURN false; };
+    LET $states = SELECT * FROM type::record('model_lane_profile_admission_state', $origin_key);
+    IF array::len($states) != 1 OR $states[0].generation != $record.before.generation
+        OR $states[0].status != $record.before.status { RETURN false; };
+    LET $allowed = ($record.before.status = 'staged' AND $record.after.status IN ['consumed', 'abandoned', 'failed', 'cancelled', 'expired'])
+        OR ($record.before.status = 'consumed' AND $record.after.status IN ['runtime_attached', 'failed', 'cancelled', 'expired']);
+    IF !$allowed { RETURN false; };
+    IF $record.after.status = 'expired' { RETURN type::datetime($origin.expires_at_utc) <= time::now(); };
+    IF $record.after.status = 'consumed' {
+        IF type::datetime($origin.expires_at_utc) <= time::now() OR !fn::wp012_profile_admission_current_head($origin) { RETURN false; };
+        LET $audit_key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'selection_audit',
+            string::concat('profile-selection:', $origin.run_id), $row.owner_account_id, $row.actor_principal_id,
+            $row.authenticated_session_id, $row.access_space_id, $row.workspace_id], '\u0000'));
+        LET $audits = SELECT * FROM type::record('model_lane_authority', $audit_key);
+        RETURN array::len($audits) = 1 AND fn::wp012_model_lane_source_identity($audits[0])
+            AND fn::wp012_profile_admission_origin_piece($audits[0]);
+    };
+    IF $record.after.status = 'runtime_attached' {
+        LET $lane_key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'lane', $origin.planned_lane_id,
+            $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id, $row.access_space_id, $row.workspace_id], '\u0000'));
+        LET $lanes = SELECT * FROM type::record('model_lane_authority', $lane_key);
+        IF array::len($lanes) != 1 OR !fn::wp012_model_lane_source_identity($lanes[0]) { RETURN false; };
+        LET $lane = encoding::json::decode($lanes[0].record_json);
+        RETURN $lane.run_id = $origin.run_id AND $lane.model_session_id = $origin.model_session_id
+            AND $lane.engine_profile = $origin.engine_profile AND $lane.process_ownership_ref != NONE
+            AND $lane.no_os_process_reason_ref = NONE AND $record.attached_lane_event_id = $lanes[0].event_id;
+    };
+    RETURN true;
+};
+
+DEFINE FUNCTION OVERWRITE fn::wp012_profile_admission_state_access($row: object, $write: bool) {
+    LET $origin = $row.origin_id;
+    IF $origin = NONE OR $origin.record_kind != 'launch_admission'
+        OR record::id($row.id) != record::id($origin.id)
+        OR !fn::wp012_model_lane_original_operation($origin)
+        OR !fn::wp012_model_lane_source_identity($origin) { RETURN false; };
+    IF $write { RETURN $wp012_original_action = 'create'
+        AND $wp012_original_purpose IN ['profile_admission_create', 'profile_admission_transition', 'profile_admission_finalization']; };
+    RETURN $wp012_original_purpose IN ['source_read', 'profile_admission_create', 'profile_admission_transition', 'profile_admission_finalization'];
+};
+DEFINE TABLE OVERWRITE model_lane_profile_admission_state SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::wp012_profile_admission_state_access($this, false)
+    FOR create, update WHERE fn::wp012_profile_admission_state_access($this, true)
+    FOR delete NONE;
+DEFINE FIELD OVERWRITE origin_id ON TABLE model_lane_profile_admission_state TYPE record<model_lane_authority>;
+DEFINE FIELD OVERWRITE generation ON TABLE model_lane_profile_admission_state TYPE int ASSERT $value > 0;
+DEFINE FIELD OVERWRITE status ON TABLE model_lane_profile_admission_state TYPE 'staged' | 'consumed' | 'runtime_attached' | 'abandoned' | 'failed' | 'cancelled' | 'expired';
+DEFINE FIELD OVERWRITE receipt_id ON TABLE model_lane_profile_admission_state TYPE record<kernel_event_ledger>;
+DEFINE EVENT OVERWRITE profile_admission_state_preimage_guard ON TABLE model_lane_profile_admission_state
+    WHEN $event IN ['CREATE', 'UPDATE'] THEN {
+        IF $event = 'CREATE' {
+            IF $wp012_original_purpose != 'profile_admission_create' OR $after.generation != 1 OR $after.status != 'staged'
+                OR $after.receipt_id != $after.origin_id.event_ledger_event_id { THROW 'PROFILE_ADMISSION_INITIAL_STATE_INVALID'; };
+        } ELSE {
+            LET $receipt = $after.receipt_id;
+            LET $record = encoding::json::decode($receipt.payload.event_payload_json).record;
+            IF $wp012_original_purpose NOT IN ['profile_admission_transition', 'profile_admission_finalization'] OR $before.origin_id != $after.origin_id
+                OR $before.generation >= 9223372036854775807 OR $after.generation != $before.generation + 1
+                OR $before.receipt_id = $after.receipt_id OR $receipt.aggregate_type != 'launch_admission_transition'
+                OR !fn::wp012_model_lane_receipt($receipt, false)
+                OR $record.before != {generation: $before.generation, status: $before.status}
+                OR $record.after != {generation: $after.generation, status: $after.status}
+                OR $record.run_id != $after.origin_id.run_id { THROW 'PROFILE_ADMISSION_TRANSITION_PREIMAGE_MISMATCH'; };
+        };
+    };
+
+DEFINE FUNCTION OVERWRITE fn::wp012_profile_checkpoint_runtime($row: object) {
+    LET $run_key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'run', $row.run_id,
+        $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id, $row.access_space_id, $row.workspace_id], '\u0000'));
+    LET $runs = SELECT * FROM type::record('model_lane_authority', $run_key);
+    IF array::len($runs) != 1 OR !fn::wp012_model_lane_canonical_record_identity($runs[0]) { RETURN false; };
+    LET $run = encoding::json::decode($runs[0].record_json);
+    IF $run.engine_profile = NONE OR $run.engine_profile = NULL { RETURN true; };
+    IF array::len($run.lane_ids) != 1 OR !fn::wp012_engine_profile_snapshot($run.engine_profile) { RETURN false; };
+    LET $transition_key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'launch_admission_transition',
+        string::concat($row.run_id, ':3'), $row.owner_account_id, $row.actor_principal_id,
+        $row.authenticated_session_id, $row.access_space_id, $row.workspace_id], '\u0000'));
+    LET $transitions = SELECT * FROM type::record('model_lane_authority', $transition_key);
+    IF array::len($transitions) != 1 OR !fn::wp012_model_lane_canonical_record_identity($transitions[0]) { RETURN false; };
+    LET $transition = encoding::json::decode($transitions[0].record_json);
+    IF $transition.run_id != $run.run_id OR $transition.engine_profile != $run.engine_profile
+        OR $transition.before != {generation: 2, status: 'consumed'}
+        OR $transition.after != {generation: 3, status: 'runtime_attached'} { RETURN false; };
+    LET $lane_key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'lane', $run.lane_ids[0],
+        $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id, $row.access_space_id, $row.workspace_id], '\u0000'));
+    LET $lanes = SELECT * FROM type::record('model_lane_authority', $lane_key);
+    IF array::len($lanes) != 1 OR !fn::wp012_model_lane_canonical_record_identity($lanes[0]) { RETURN false; };
+    LET $lane = encoding::json::decode($lanes[0].record_json);
+    RETURN $lane.run_id = $run.run_id AND $lane.engine_profile = $run.engine_profile
+        AND $lane.process_ownership_ref != NONE AND string::trim($lane.process_ownership_ref) != ''
+        AND $lane.no_os_process_reason_ref = NONE
+        AND $transition.attached_lane_event_id = $lanes[0].event_id
+        AND $lane.locus_binding.model_session_id = $run.locus_binding.model_session_id;
 };

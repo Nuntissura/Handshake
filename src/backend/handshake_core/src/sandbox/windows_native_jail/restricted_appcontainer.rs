@@ -63,6 +63,7 @@ const STARTUP_RESUME_CLAIMED: u8 = 2;
 
 #[derive(Debug)]
 pub(crate) struct StartupCancellation {
+    original_deadline: Option<Instant>,
     cancelled: AtomicBool,
     resume_state: AtomicU8,
 }
@@ -70,6 +71,7 @@ pub(crate) struct StartupCancellation {
 impl Default for StartupCancellation {
     fn default() -> Self {
         Self {
+            original_deadline: None,
             cancelled: AtomicBool::new(false),
             resume_state: AtomicU8::new(STARTUP_RESUME_INITIAL),
         }
@@ -77,8 +79,12 @@ impl Default for StartupCancellation {
 }
 
 impl StartupCancellation {
+    pub(crate) fn with_deadline(deadline: Instant) -> Self {
+        Self { original_deadline: Some(deadline), ..Self::default() }
+    }
     pub(crate) fn is_cancelled(&self) -> bool {
         self.cancelled.load(Ordering::Acquire)
+            || self.original_deadline.is_some_and(|deadline| Instant::now() >= deadline)
     }
 
     /// Returns true when cancellation won before the suspended process was
@@ -101,6 +107,7 @@ impl StartupCancellation {
     /// across `ResumeThread`, so a stalled Win32 call cannot block the async
     /// timeout path from recording cancellation and returning within its bound.
     fn try_claim_resume(&self) -> bool {
+        if self.is_cancelled() { return false; }
         self.resume_state
             .compare_exchange(
                 STARTUP_RESUME_INITIAL,
@@ -149,12 +156,19 @@ pub(crate) struct WindowsNativeLaunchedIo {
     pub(crate) stderr: Option<File>,
     pub(crate) job_guard: Option<WindowsNativeJobGuard>,
     process: OwnedHandle,
+    startup_thread: Option<OwnedHandle>,
 }
 
 impl WindowsNativeLaunchedIo {
-    pub(crate) fn wait(self, timeout: Option<Duration>) -> Result<u32, String> {
+    pub(crate) fn wait(mut self, timeout: Option<Duration>) -> Result<u32, String> {
+        self.wait_borrowed(timeout)
+    }
+
+    /// Root-process observation only. Detached callers must separately prove
+    /// their retained shared Job Object empty before releasing any ownership.
+    pub(crate) fn wait_root_borrowed(&mut self, timeout: Option<Duration>) -> Result<u32, String> {
         let millis = timeout
-            .map(|duration| duration.as_millis().min(u128::from(u32::MAX)) as u32)
+            .map(|duration| duration.as_millis().min(u128::from(u32::MAX - 1)) as u32)
             .unwrap_or(INFINITE);
         let wait = unsafe { WaitForSingleObject(self.process.raw(), millis) };
         if wait == WAIT_FAILED {
@@ -163,11 +177,26 @@ impl WindowsNativeLaunchedIo {
         if wait == WAIT_TIMEOUT {
             return Err("WaitForSingleObject timed out".to_string());
         }
+        if wait != 0 { return Err(format!("unexpected process wait result {wait}")); }
 
         let mut exit_code = STILL_ACTIVE as u32;
         let ok = unsafe { GetExitCodeProcess(self.process.raw(), &mut exit_code) };
         if ok == 0 {
             return Err(last_error("GetExitCodeProcess"));
+        }
+        Ok(exit_code)
+    }
+
+    pub(crate) fn wait_borrowed(&mut self, timeout: Option<Duration>) -> Result<u32, String> {
+        let started = Instant::now();
+        let exit_code = self.wait_root_borrowed(timeout)?;
+        let job = self.job_guard.as_ref()
+            .ok_or_else(|| "owned process lost its creation-time Job Object".to_string())?;
+        while job.active_processes()? != 0 {
+            if timeout.is_some_and(|budget| started.elapsed() >= budget) {
+                return Err("owned Job Object still contains active processes".to_string());
+            }
+            std::thread::sleep(Duration::from_millis(5));
         }
         Ok(exit_code)
     }
@@ -193,6 +222,30 @@ pub(super) fn launch_restricted_appcontainer_with_io(
     security: &rappct::SecurityCapabilities,
     options: WindowsNativeLaunchOptions,
 ) -> Result<WindowsNativeLaunchedIo, String> {
+    let mut child = None;
+    let result = launch_restricted_appcontainer_into(security, options, &mut child);
+    match result {
+        Ok(()) => child.ok_or_else(|| "native launch returned no owned child".to_string()),
+        Err(error) => {
+            // Legacy caller has no error-side custody channel. Retain the same
+            // native owner here until its tree is reaped before returning.
+            if let Some(mut child) = child {
+                loop {
+                    if let Some(job) = child.job_guard.as_ref() { let _ = job.terminate(JOB_TERMINATED_EXIT_CODE); }
+                    if child.wait_borrowed(Some(Duration::from_secs(5))).is_ok() { break; }
+                    std::thread::sleep(Duration::from_millis(25));
+                }
+            }
+            Err(error)
+        }
+    }
+}
+
+pub(crate) fn launch_restricted_appcontainer_into(
+    security: &rappct::SecurityCapabilities,
+    options: WindowsNativeLaunchOptions,
+    created: &mut Option<WindowsNativeLaunchedIo>,
+) -> Result<(), String> {
     let launch_started = Instant::now();
     if options.startup_timeout == Some(Duration::ZERO) {
         return Err("startup timeout must be greater than zero".to_string());
@@ -288,79 +341,35 @@ pub(super) fn launch_restricted_appcontainer_with_io(
         ));
     }
 
-    let process = OwnedHandle::from_raw(process_info.hProcess, "process")?;
-    let thread = OwnedHandle::from_raw(process_info.hThread, "thread")?;
-    if let Err(error) = stdio.clear_child_inheritance() {
-        let _ = unsafe {
-            windows_sys::Win32::System::Threading::TerminateProcess(
-                process.raw(),
-                JOB_TERMINATED_EXIT_CODE,
-            )
-        };
-        drop(inheritable_handle_guard);
-        return Err(format!(
-            "failed to clear child pipe inheritance after process creation: {error}"
-        ));
-    }
+    // Win32 reports these handles/PID on successful creation. Capture custody
+    // before any fallible inheritance, cancellation or resume operation.
+    *created = Some(WindowsNativeLaunchedIo {
+        pid: process_info.dwProcessId,
+        stdin: stdio.parent_stdin.take().map(OwnedHandle::into_file),
+        stdout: stdio.parent_stdout.take().map(OwnedHandle::into_file),
+        stderr: stdio.parent_stderr.take().map(OwnedHandle::into_file),
+        job_guard: job_guard.take(),
+        process: OwnedHandle { handle: process_info.hProcess },
+        startup_thread: Some(OwnedHandle { handle: process_info.hThread }),
+    });
+    let child = created.as_mut().expect("created child custody was just installed");
+    stdio.clear_child_inheritance()?;
     drop(inheritable_handle_guard);
-    if options
-        .startup_cancellation
-        .as_ref()
+    if options.startup_cancellation.as_ref()
         .is_some_and(|cancellation| !cancellation.try_claim_resume())
     {
-        let _ = unsafe {
-            windows_sys::Win32::System::Threading::TerminateProcess(
-                process.raw(),
-                JOB_TERMINATED_EXIT_CODE,
-            )
-        };
-        wait_for_process_termination_bounded(
-            process.raw(),
-            "attached startup cancellation cleanup",
-        )?;
         return Err("attached startup cancelled before suspended-process resume".to_string());
     }
+    let thread = child.startup_thread.as_ref()
+        .ok_or_else(|| "created child lost its startup thread".to_string())?;
     let resumed = unsafe { ResumeThread(thread.raw()) };
-    if resumed == u32::MAX {
-        let _ = unsafe {
-            windows_sys::Win32::System::Threading::TerminateProcess(
-                process.raw(),
-                JOB_TERMINATED_EXIT_CODE,
-            )
-        };
-        return Err(last_error("ResumeThread"));
-    }
-
+    if resumed == u32::MAX { return Err(last_error("ResumeThread")); }
+    child.startup_thread.take();
     drop(attr_list);
-    drop(thread);
-    let parent_stdin = stdio.parent_stdin.take().map(OwnedHandle::into_file);
-    let parent_stdout = stdio.parent_stdout.take().map(OwnedHandle::into_file);
-    let parent_stderr = stdio.parent_stderr.take().map(OwnedHandle::into_file);
-
-    if let Some(timeout) = options.startup_timeout {
-        if launch_started.elapsed() > timeout {
-            if let Some(job) = job_guard.as_ref() {
-                let _ = job.terminate(JOB_TERMINATED_EXIT_CODE);
-            }
-            wait_for_process_termination_bounded(
-                process.raw(),
-                "AppContainer startup-timeout cleanup",
-            )?;
-            return Err(format!(
-                "AppContainer process creation exceeded startup timeout of {} ms",
-                timeout.as_millis()
-            ));
-        }
+    if options.startup_timeout.is_some_and(|timeout| launch_started.elapsed() > timeout) {
+        return Err("AppContainer process creation exceeded the original startup timeout".to_string());
     }
-
-    Ok(WindowsNativeLaunchedIo {
-        pid: process_info.dwProcessId,
-        stdin: parent_stdin,
-        stdout: parent_stdout,
-        stderr: parent_stderr,
-        job_guard: job_guard.take(),
-        process,
-    })
+    Ok(())
 }
 
 fn attribute_count(

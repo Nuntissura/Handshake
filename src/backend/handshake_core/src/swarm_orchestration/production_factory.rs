@@ -215,6 +215,7 @@ where
         cloud,
         model_lane_store,
         None,
+        None,
         concurrency,
         trace_id,
         emit_fn,
@@ -229,6 +230,7 @@ pub fn build_production_swarm_coordinator_with_sandbox_registry<F>(
     cloud: CloudLaneFactoryConfig,
     model_lane_store: ModelLaneStore,
     sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
+    genie_x: Option<GenieXFactoryConfig>,
     concurrency: Option<usize>,
     trace_id: uuid::Uuid,
     emit_fn: F,
@@ -246,10 +248,12 @@ where
         .unwrap_or_else(|error| {
             panic!("production ModelLaneStore has incomplete projection scope: {error}")
         });
-    let factory = Arc::new(
-        ProductionModelSessionFactory::new(ledger.clone(), cloud, sandbox_registry)
-            .with_durable_worktree_vm_store(&model_lane_store),
-    );
+    let factory = ProductionModelSessionFactory::new(ledger.clone(), cloud, sandbox_registry)
+        .with_durable_worktree_vm_store(&model_lane_store);
+    let factory = Arc::new(match genie_x {
+        Some(config) => factory.with_genie_x_worker(config),
+        None => factory,
+    });
     // The durable Flight Recorder sink runs FIRST so its terminal-persistence
     // rejection still propagates to the lifecycle producer (the fanout returns on
     // the first child error). The NON-AUTHORITATIVE console tee runs AFTER: it
@@ -343,6 +347,7 @@ pub fn build_scoped_operator_chat_launch_service_with_sandbox_registry(
         cloud,
         sandbox_registry,
         None,
+        None,
         exact_scope,
         trace_id,
     )
@@ -362,6 +367,7 @@ pub fn build_scoped_operator_chat_launch_service_with_sandbox_registry_and_lifec
     process_reclaimer: Arc<crate::process_ledger::ScopedReclaim>,
     cloud: CloudLaneFactoryConfig,
     sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
+    genie_x_resolver: Option<Arc<dyn GenieXHostBindingResolver>>,
     lifecycle: ResourceAccessLifecycleRegistry,
     exact_scope: ExactResourceScopeAttribution,
     trace_id: uuid::Uuid,
@@ -377,6 +383,7 @@ pub fn build_scoped_operator_chat_launch_service_with_sandbox_registry_and_lifec
         process_reclaimer,
         cloud,
         sandbox_registry,
+        genie_x_resolver,
         Some(lifecycle),
         exact_scope,
         trace_id,
@@ -391,6 +398,7 @@ fn build_scoped_operator_chat_launch_service_with_sandbox_registry_inner(
     process_reclaimer: Arc<crate::process_ledger::ScopedReclaim>,
     cloud: CloudLaneFactoryConfig,
     sandbox_registry: Option<Arc<SandboxAdapterRegistry>>,
+    genie_x_resolver: Option<Arc<dyn GenieXHostBindingResolver>>,
     lifecycle: Option<ResourceAccessLifecycleRegistry>,
     exact_scope: ExactResourceScopeAttribution,
     trace_id: uuid::Uuid,
@@ -426,11 +434,13 @@ fn build_scoped_operator_chat_launch_service_with_sandbox_registry_inner(
             outbox,
             1024,
         );
+    let genie_x = genie_x_resolver.map(|resolver| GenieXFactoryConfig::new(resolver, recorder.clone()));
     let coordinator = build_production_swarm_coordinator_with_sandbox_registry(
         ledger,
         cloud,
         model_lane_store,
         sandbox_registry,
+        genie_x,
         None,
         trace_id,
         move |event| terminal_bridge.emit(event),
@@ -1165,6 +1175,8 @@ pub struct ProductionModelSessionFactory {
     /// — there is no separate OS process). A monotonic offset keeps ledger pids
     /// distinct per instance so START/STOP rows correlate one-to-one.
     pid_base: u32,
+    genie_x: Option<GenieXFactoryConfig>,
+    genie_x_creates: Mutex<HashMap<ModelInstanceId, Arc<PendingGenieXCreate>>>,
 }
 
 impl ProductionModelSessionFactory {
@@ -1186,6 +1198,8 @@ impl ProductionModelSessionFactory {
             worktree_vm_registries: Mutex::new(HashMap::new()),
             pending_warm_vm_creates: Mutex::new(HashMap::new()),
             pid_base: 50_000,
+            genie_x: None,
+            genie_x_creates: Mutex::new(HashMap::new()),
         }
     }
 
@@ -2281,6 +2295,9 @@ impl ProductionModelSessionFactory {
 impl ModelSessionFactory for ProductionModelSessionFactory {
     async fn create(&self, request: &SpawnRequest) -> SwarmResult<LiveSession> {
         self.require_active_model_lane_lifecycle()?;
+        if request.runtime_binding == RuntimeBinding::GenieX {
+            return self.create_genie_x(request).await;
+        }
         match request.provider {
             None | Some(ProviderKind::Local) if request.wants_warm_vm_execution() => {
                 self.create_warm_vm_local(request).await
@@ -2300,6 +2317,7 @@ impl ModelSessionFactory for ProductionModelSessionFactory {
             None | Some(ProviderKind::Local) => match request.runtime_binding {
                 RuntimeBinding::Candle => self.create_local_candle(request).await,
                 RuntimeBinding::LlamaCpp => self.create_local_llama(request).await,
+                RuntimeBinding::GenieX => self.create_genie_x(request).await,
             },
             Some(ProviderKind::ExternalCompat) => Err(SwarmError::ProviderNotConfigured {
                 provider: "external_compat".to_string(),
@@ -2313,7 +2331,20 @@ impl ModelSessionFactory for ProductionModelSessionFactory {
         }
     }
 
+    async fn drain_pending_creates(&self) -> SwarmResult<()> {
+        self.drain_genie_x_creates().await
+    }
+
     async fn cancel_pending_create(&self, request: &SpawnRequest) -> SwarmResult<()> {
+        if request.runtime_binding == RuntimeBinding::GenieX {
+            let pending = self.genie_x_creates.lock().map_err(|_| {
+                SwarmError::FactoryFailed("GenieX session owner is poisoned".into())
+            })?.get(&request.instance_id).filter(|pending| pending.request == *request).cloned();
+            return match pending {
+                Some(pending) => pending.compensate().await,
+                None => Ok(()),
+            };
+        }
         let pending = self
             .pending_warm_vm_creates
             .lock()
@@ -6423,5 +6454,1920 @@ mod tests {
         .with_isolation_tier(crate::sandbox::adapter::IsolationTier::Tier3Microvm);
         let err = create_err(&factory, &req).await;
         assert!(matches!(err, SwarmError::FactoryFailed(_)), "got {err}");
+    }
+}
+
+// External integration fragment only. Primary owns source pins and entrypoint integration.
+// This does not implement ModelRuntime, LiveSession, readiness or token decoding.
+
+#[derive(Clone, Copy, Debug)]
+struct RawExecutionControl {
+    bounds: hsk_studio_worker::OutputBounds,
+    deadline: std::time::Instant,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RawExecutionFailure {
+    InvalidOutputBounds,
+    CleanupPending,
+    Canceled,
+    Deadline,
+    OutputLimit(hsk_studio_worker::OutputStream),
+    Io,
+    NonzeroExit { code: Option<i32> },
+    InconsistentTerminal,
+}
+
+impl RawExecutionControl {
+    fn new(
+        chunk_bytes: std::num::NonZeroUsize,
+        stdout_bytes: std::num::NonZeroU64,
+        stderr_bytes: std::num::NonZeroU64,
+        deadline: std::time::Instant,
+    ) -> Result<Self, RawExecutionFailure> {
+        if chunk_bytes.get() > 65_536 {
+            return Err(RawExecutionFailure::InvalidOutputBounds);
+        }
+        if std::time::Instant::now() >= deadline {
+            return Err(RawExecutionFailure::Deadline);
+        }
+        Ok(Self {
+            bounds: hsk_studio_worker::OutputBounds {
+                chunk_bytes,
+                stdout_bytes: stdout_bytes.get(),
+                stderr_bytes: stderr_bytes.get(),
+            },
+            deadline,
+        })
+    }
+}
+
+// The caller retains this same immutable plan for fingerprint attribution through cleanup.
+// No configuration, model lookup, environment merge or profile reconstruction occurs here.
+fn worker_request<'a>(
+    plan: &'a handshake_dexterity::LaunchPlan,
+    owner_session: &'a str,
+    control: RawExecutionControl,
+    keepalive: Option<Box<dyn Send>>,
+) -> hsk_studio_worker::OneShotRequest<'a> {
+    let binding = plan.binding();
+    hsk_studio_worker::OneShotRequest {
+        owner_session,
+        launch: hsk_studio_worker::ExactLaunch {
+            executable: &binding.executable,
+            cwd: &binding.cwd,
+            args: plan.arguments(),
+            env: &binding.environment,
+        },
+        bounds: control.bounds,
+        keepalive,
+    }
+}
+
+// Proof of a successful raw child exit only. It carries no token or inference-completion claim.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct ReapedRawExit {
+    exit_code: i32,
+}
+
+fn validate_worker_terminal(
+    terminal: hsk_studio_worker::OneShotTerminal,
+) -> Result<ReapedRawExit, RawExecutionFailure> {
+    use hsk_studio_worker::OneShotReason;
+    if !terminal.cleanup.reaped {
+        return Err(RawExecutionFailure::CleanupPending);
+    }
+    match terminal.reason {
+        OneShotReason::Exited { success: true, code: Some(0) }
+            if !terminal.cleanup.killed && terminal.cleanup.exit_code == Some(0) => {
+                Ok(ReapedRawExit { exit_code: 0 })
+            }
+        OneShotReason::Exited { success: false, code }
+            if code != Some(0) && terminal.cleanup.exit_code == code => {
+                Err(RawExecutionFailure::NonzeroExit { code })
+            }
+        OneShotReason::Canceled => Err(RawExecutionFailure::Canceled),
+        OneShotReason::Deadline => Err(RawExecutionFailure::Deadline),
+        OneShotReason::OutputLimit(stream) => Err(RawExecutionFailure::OutputLimit(stream)),
+        OneShotReason::Io => Err(RawExecutionFailure::Io),
+        OneShotReason::ReclamationPending | OneShotReason::Exited { .. } => {
+            Err(RawExecutionFailure::InconsistentTerminal)
+        }
+    }
+}
+
+// External same-factory execution fragment. Primary owns integration and source pins.
+// Prospective Sandbox owned-start/file/bounded-cleanup APIs must land before integration.
+
+#[derive(Clone)]
+pub struct GenieXSandboxLaunchBinding {
+    adapter: std::sync::Arc<dyn crate::sandbox::adapter::SandboxAdapter>,
+    template: crate::sandbox::adapter::AttachedProcessSpec,
+}
+
+impl GenieXSandboxLaunchBinding {
+    pub fn new(
+        adapter: std::sync::Arc<dyn crate::sandbox::adapter::SandboxAdapter>,
+        template: crate::sandbox::adapter::AttachedProcessSpec,
+    ) -> Result<Self, &'static str> {
+        let binding = Self { adapter, template };
+        binding.validate(&binding.template)?;
+        Ok(binding)
+    }
+
+    pub fn validate_request(&self, request: &crate::swarm_orchestration::ids::SpawnRequest)
+        -> Result<(), &'static str> {
+        self.validate(&self.template)?;
+        let policy = self.template.resolved_execution_policy.as_ref()
+            .ok_or("GenieX resolved Sandbox policy missing")?;
+        // None remains unsupplied request authority; the checked configured template still applies.
+        if request.isolation_tier.is_some_and(|tier| self.template.requested_isolation_tier.rank() < tier.rank()) {
+            return Err("GenieX Sandbox template is weaker than requested isolation tier");
+        }
+        if request.requested_trust_class.is_some_and(|trust| trust != self.template.trust_class) {
+            return Err("GenieX requested trust does not match Sandbox template");
+        }
+        if request.requested_sandbox_capabilities.as_ref()
+            .is_some_and(|required| required != &self.template.required_capabilities) {
+            return Err("GenieX requested capabilities do not match Sandbox template");
+        }
+        if request.requested_net_policy.as_ref()
+            .is_some_and(|network| network != &self.template.requested_net_policy) {
+            return Err("GenieX requested network policy does not match Sandbox template");
+        }
+        if request.requested_execution_policy_ref.as_deref()
+            .is_some_and(|reference| reference != policy.requested_ref) {
+            return Err("GenieX requested execution policy does not match resolved Sandbox policy");
+        }
+        Ok(())
+    }
+
+    fn validate(&self, spec: &crate::sandbox::adapter::AttachedProcessSpec) -> Result<(), &'static str> {
+        // A cloneable launch template cannot assign the same cleanup-owned paths to concurrent children.
+        if !spec.ephemeral_cleanup_paths.is_empty() {
+            return Err("GenieX reusable Sandbox template cannot own ephemeral cleanup paths");
+        }
+        let policy = spec.resolved_execution_policy.as_ref().ok_or("GenieX resolved Sandbox policy missing")?;
+        policy.validate_adapter_capabilities(&self.adapter.capabilities())
+            .map_err(|_| "GenieX Sandbox capabilities do not satisfy policy")?;
+        policy.validate_attached_spec(spec).map_err(|_| "GenieX Sandbox policy/spec mismatch")?;
+        self.adapter.validate_attached_network_mode(spec.network_mode)
+            .map_err(|_| "GenieX Sandbox attached network contract unavailable")
+    }
+
+    fn launch_spec(&self, launch: hsk_studio_worker::ExactLaunch<'_>)
+        -> Result<crate::sandbox::adapter::AttachedProcessSpec, ()> {
+        let mut spec = self.template.clone();
+        spec.executable_path = launch.executable.to_path_buf();
+        spec.cwd = Some(launch.cwd.to_path_buf());
+        // The current attached Sandbox spec is String-based; reject unsupported native data.
+        spec.args = launch.args.iter().map(|arg| arg.to_str().map(str::to_owned).ok_or(())).collect::<Result<_, _>>()?;
+        spec.env = launch.env.iter().map(|(key, value)| {
+            Ok((key.to_str().ok_or(())?.to_owned(), value.to_str().ok_or(())?.to_owned()))
+        }).collect::<Result<_, ()>>()?;
+        self.validate(&spec).map_err(|_| ())?;
+        Ok(spec)
+    }
+
+    fn validate_receipt(&self, receipt: &crate::sandbox::adapter::AttachedSandboxReceipt) -> bool {
+        !receipt.sandbox_internal_id.is_empty()
+            && receipt.adapter_id == receipt.capabilities.adapter_id
+            && receipt.adapter_id == self.adapter.capabilities().adapter_id
+            && self.template.resolved_execution_policy.as_ref()
+                .is_some_and(|policy| policy.validate_adapter_capabilities(&receipt.capabilities).is_ok())
+    }
+}
+
+#[cfg(windows)]
+struct GenieXSandboxProcess {
+    process: Box<dyn crate::sandbox::adapter::AttachedSandboxProcess>,
+    stdout: Option<std::fs::File>,
+    stderr: Option<std::fs::File>,
+    observed_exit: Option<std::process::ExitStatus>,
+    confirmed_killed: bool,
+}
+
+#[cfg(windows)]
+impl hsk_studio_worker::OneShotProcess for GenieXSandboxProcess {
+    fn pid(&self) -> u32 { self.process.pid() }
+
+    fn try_wait(&mut self) -> std::io::Result<Option<std::process::ExitStatus>> {
+        let status = self.process.try_wait().map_err(|_| std::io::Error::other("Sandbox exit observation failed"))?;
+        if status.is_some() { self.observed_exit = status; }
+        Ok(status)
+    }
+
+    fn terminate(&mut self, patience: std::time::Duration) -> hsk_studio_worker::Terminated {
+        self.stdout.take();
+        self.stderr.take();
+        // This additive Sandbox method must retain native/tree/ACL/ephemeral custody on Err.
+        match self.process.terminate_tree_and_wait_with_timeout(patience) {
+            Ok(outcome) => {
+                self.observed_exit = Some(outcome.status);
+                self.confirmed_killed |= outcome.killed;
+                hsk_studio_worker::Terminated {
+                    killed: self.confirmed_killed, reaped: true, exit_code: outcome.status.code(),
+                }
+            }
+            Err(_) => hsk_studio_worker::Terminated {
+                killed: self.confirmed_killed, reaped: false,
+                exit_code: self.observed_exit.and_then(|status| status.code()),
+            },
+        }
+    }
+
+    fn try_read(&mut self, stream: hsk_studio_worker::OutputStream, buffer: &mut [u8]) -> std::io::Result<usize> {
+        let pipe = match stream {
+            hsk_studio_worker::OutputStream::Stdout => &mut self.stdout,
+            hsk_studio_worker::OutputStream::Stderr => &mut self.stderr,
+        };
+        match pipe.as_mut() {
+            Some(pipe) => hsk_studio_worker::try_read_native_pipe(pipe, buffer),
+            None => Ok(0),
+        }
+    }
+}
+
+fn genie_x_sandbox_spawn(
+    binding: &GenieXSandboxLaunchBinding,
+    runtime: &tokio::runtime::Handle,
+    launch: hsk_studio_worker::ExactLaunch<'_>,
+    cancel: &hsk_studio_accord::CancellationToken,
+    host_cancel: &crate::model_runtime::CancellationToken,
+    receipt_slot: &std::sync::Mutex<Option<crate::sandbox::adapter::AttachedSandboxReceipt>>,
+    deadline: std::time::Instant,
+) -> Result<Box<dyn hsk_studio_worker::OneShotProcess>, hsk_studio_worker::OneShotLaunchError> {
+    #[cfg(not(windows))]
+    { let _ = (binding, runtime, launch, cancel, host_cancel, receipt_slot, deadline); Err(hsk_studio_worker::OneShotLaunchError::BeforeSpawn) }
+    #[cfg(windows)]
+    {
+        if cancel.check().is_err() { host_cancel.cancel(); }
+        let spec = binding.launch_spec(launch).map_err(|_| hsk_studio_worker::OneShotLaunchError::BeforeSpawn)?;
+        // The already-owned invocation blocking task waits through startup cancellation. The
+        // adapter must join its native startup task and preserve any created child in AfterSpawn.
+        let (mut process, failed) = match runtime.block_on(binding.adapter.spawn_attached_owned_with_stdio(
+            spec, crate::sandbox::adapter::AttachedStdioContract::null_stdin_piped_output(),
+            host_cancel.clone(), deadline,
+        )) {
+            Ok(process) => (process, false),
+            Err(crate::sandbox::adapter::OwnedAttachedSpawnError::BeforeSpawn(_)) =>
+                return Err(hsk_studio_worker::OneShotLaunchError::BeforeSpawn),
+            Err(crate::sandbox::adapter::OwnedAttachedSpawnError::AfterSpawn { process, .. }) => (process, true),
+        };
+        let receipt = process.receipt();
+        let receipt_valid = receipt.as_ref().is_some_and(|receipt| binding.validate_receipt(receipt));
+        *genie_x_lock(receipt_slot) = receipt;
+        let stdout = process.take_stdout_file();
+        let stderr = process.take_stderr_file();
+        let failed = failed || !receipt_valid || stdout.is_none() || stderr.is_none();
+        let process: Box<dyn hsk_studio_worker::OneShotProcess> = Box::new(GenieXSandboxProcess {
+            process, stdout, stderr, observed_exit: None, confirmed_killed: false,
+        });
+        if failed { Err(hsk_studio_worker::OneShotLaunchError::AfterSpawn(process)) } else { Ok(process) }
+    }
+}
+
+struct GenieXRawCompletion {
+    plan: std::sync::Arc<handshake_dexterity::LaunchPlan>,
+    stdout: Vec<u8>,
+    stderr: Vec<u8>,
+    terminal: hsk_studio_worker::OneShotTerminal,
+}
+
+type GenieXExecutionResult = Result<GenieXRawCompletion, crate::llm::LlmError>;
+
+fn genie_x_execution_error() -> crate::llm::LlmError {
+    crate::llm::LlmError::ProviderError("GenieX execution or durable cleanup failed".into())
+}
+
+fn genie_x_lock<T>(value: &std::sync::Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    value.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+fn genie_x_launch_binding_sha256(plan: &handshake_dexterity::LaunchPlan) -> String {
+    use sha2::Digest;
+    fn field(hash: &mut sha2::Sha256, bytes: &[u8]) {
+        hash.update(u64::try_from(bytes.len()).unwrap_or(u64::MAX).to_le_bytes());
+        hash.update(bytes);
+    }
+    let mut hash = sha2::Sha256::new();
+    let binding = plan.binding();
+    field(&mut hash, b"genie_x_native_launch_v1");
+    field(&mut hash, plan.resolved().fingerprint().as_bytes());
+    field(&mut hash, binding.executable.as_os_str().as_encoded_bytes());
+    field(&mut hash, binding.cwd.as_os_str().as_encoded_bytes());
+    field(&mut hash, binding.data.as_os_str().as_encoded_bytes());
+    field(&mut hash, binding.model_selector.as_bytes());
+    field(&mut hash, binding.content_sha256.as_bytes());
+    field(&mut hash, b"argv");
+    hash.update(u64::try_from(plan.arguments().len()).unwrap_or(u64::MAX).to_le_bytes());
+    for argument in plan.arguments() { field(&mut hash, argument.as_encoded_bytes()); }
+    field(&mut hash, b"environment");
+    hash.update(u64::try_from(binding.environment.len()).unwrap_or(u64::MAX).to_le_bytes());
+    for (key, value) in &binding.environment {
+        field(&mut hash, key.as_encoded_bytes());
+        field(&mut hash, value.as_encoded_bytes());
+    }
+    format!("{:x}", hash.finalize())
+}
+
+struct GenieXLedgerLifecycle {
+    active: std::sync::Arc<crate::process_ledger::ActiveProcessLifecycle>,
+    start_ack: Option<crate::process_ledger::ProcessLedgerDurabilityAck>,
+}
+
+struct GenieXBlockingOutcome {
+    result: GenieXExecutionResult,
+    reaped: bool,
+    ledger_identity_missing: bool,
+}
+
+struct GenieXSpawnObservation {
+    pid: u32,
+    birth_100ns: Option<u64>,
+    failure: Option<hsk_studio_worker::OneShotObservedFailure>,
+    cleanup: Option<hsk_studio_worker::Terminated>,
+    birth_query_failed: bool,
+    worker_ledger_identity: Option<GenieXWorkerLedgerIdentity>,
+}
+
+#[derive(Clone)]
+struct GenieXWorkerLedgerIdentity {
+    index: usize,
+    owner_session: String,
+    started_unix_ms: u64,
+    pid: u32,
+}
+
+struct GenieXOperationInner {
+    _verified: Arc<crate::kernel::local_execution_authority::VerifiedLocalExecutionInvocation>,
+    plan: std::sync::Arc<handshake_dexterity::LaunchPlan>,
+    host_cancel: crate::model_runtime::CancellationToken,
+    worker_cancel: hsk_studio_accord::CancellationToken,
+    deadline: std::time::Instant,
+    supervisor: hsk_studio_worker::Supervisor,
+    cleanup_gate: std::sync::Arc<std::sync::Mutex<()>>,
+    blocking: tokio::sync::Mutex<Option<tokio::task::JoinHandle<GenieXBlockingOutcome>>>,
+    lifecycle: std::sync::Mutex<Option<GenieXLedgerLifecycle>>,
+    spawn_observation: std::sync::Mutex<Option<GenieXSpawnObservation>>,
+    sandbox_receipt: std::sync::Mutex<Option<crate::sandbox::adapter::AttachedSandboxReceipt>>,
+    activity: std::sync::Mutex<Option<crate::model_runtime::activity::RuntimeActivityGuard>>,
+    result: std::sync::Mutex<Option<GenieXExecutionResult>>,
+    cleanup_confirmed: std::sync::atomic::AtomicBool,
+    settled: std::sync::atomic::AtomicBool,
+}
+
+// The driver captures Inner only. Inner contains neither this entry nor its driver handle.
+struct GenieXOperationEntry {
+    inner: std::sync::Arc<GenieXOperationInner>,
+    driver: tokio::sync::Mutex<Option<tokio::task::JoinHandle<()>>>,
+}
+
+#[derive(Default)]
+struct GenieXPendingOperations {
+    entries: std::sync::Mutex<Vec<std::sync::Arc<GenieXOperationEntry>>>,
+}
+
+impl GenieXPendingOperations {
+    fn retain(&self, entry: std::sync::Arc<GenieXOperationEntry>) {
+        entry.inner.worker_cancel.cancel();
+        entry.inner.host_cancel.cancel();
+        if !entry.inner.settled.load(std::sync::atomic::Ordering::Acquire) {
+            genie_x_lock(&self.entries).push(entry);
+        }
+    }
+
+    // The factory retains this registry through its actual drain_pending_creates hook.
+    fn drain(&self) -> impl std::future::Future<Output = super::error::SwarmResult<()>> + Send + '_ {
+        let entries = genie_x_lock(&self.entries).clone();
+        for entry in &entries { entry.inner.worker_cancel.cancel(); entry.inner.host_cancel.cancel(); }
+        async move {
+        let mut complete = true;
+        for entry in &entries {
+            if !genie_x_join_entry(entry).await { genie_x_retry_entry(entry).await; }
+            complete &= genie_x_join_entry(entry).await;
+        }
+        genie_x_lock(&self.entries).retain(|entry| !entry.inner.settled.load(std::sync::atomic::Ordering::Acquire));
+        if complete { Ok(()) } else {
+            Err(super::error::SwarmError::FactoryFailed("GenieX pending process or ledger cleanup remains owned".into()))
+        }
+        }
+    }
+}
+
+struct GenieXOperationGate {
+    accepting: bool,
+    entries: Vec<std::sync::Arc<GenieXOperationEntry>>,
+}
+
+fn genie_x_live_decision_matches(
+    scope: &ExactResourceScopeAttribution,
+    record: &crate::storage::surreal::resource_authority::RecordUserScope,
+    decision: &crate::storage::surreal::resource_authority::AuthorizationDecision,
+    capability_profile_ref: &str,
+) -> bool {
+    decision.account_id == scope.owner_account_id.to_string()
+        && decision.principal_id == scope.actor_principal_id.to_string()
+        && decision.session_id == scope.authenticated_session_id.to_string()
+        && decision.access_space_id == scope.access_space_id.to_string()
+        && decision.resource_id == record.resource_id
+        && record.grant_id.as_deref() == Some(decision.grant_id.as_str())
+        && !decision.grant_id.is_empty()
+        && (record.action != crate::storage::surreal::resource_authority::ResourceAction::Create
+            || decision.capability_profile_id == capability_profile_ref)
+}
+#[derive(Clone)]
+struct GenieXLiveAuthority {
+    store: DurableWorktreeVmStore,
+    authentication: super::ids::LocalExecutionInvocationAuthority,
+}
+
+struct GenieXInvocationPreflight {
+    owner: Arc<GenieXOperationOwner>,
+    plan: Arc<handshake_dexterity::LaunchPlan>,
+    publication: tokio::sync::OwnedRwLockReadGuard<()>,
+}
+struct GenieXOperationOwner {
+    supervisor: hsk_studio_worker::Supervisor,
+    cleanup_gate: std::sync::Arc<std::sync::Mutex<()>>,
+    ledger: crate::process_ledger::LedgerBatcher,
+    owner_session: String,
+    child_start_template: crate::process_ledger::ProcessStart,
+    pending: std::sync::Arc<GenieXPendingOperations>,
+    bounds: hsk_studio_worker::OutputBounds,
+    admission_bytes: u64,
+    sandbox: Option<GenieXSandboxLaunchBinding>,
+    verified: Option<Arc<crate::kernel::local_execution_authority::VerifiedLocalExecutionInvocation>>,
+    live_authority: Option<GenieXLiveAuthority>,
+    gate: std::sync::Mutex<GenieXOperationGate>,
+}
+
+impl GenieXOperationOwner {
+    fn new(
+        supervisor: hsk_studio_worker::Supervisor,
+        ledger: crate::process_ledger::LedgerBatcher,
+        owner_session: String,
+        child_start_template: crate::process_ledger::ProcessStart,
+        pending: std::sync::Arc<GenieXPendingOperations>,
+        bounds: hsk_studio_worker::OutputBounds,
+        admission_bytes: u64,
+        sandbox: Option<GenieXSandboxLaunchBinding>,
+        verified: Option<crate::kernel::local_execution_authority::VerifiedLocalExecutionInvocation>,
+        live_authority: Option<GenieXLiveAuthority>,
+    ) -> std::sync::Arc<Self> {
+        std::sync::Arc::new(Self {
+            supervisor, ledger, owner_session, child_start_template, pending, bounds, admission_bytes, sandbox,
+            verified: verified.map(Arc::new), live_authority,
+            cleanup_gate: std::sync::Arc::new(std::sync::Mutex::new(())),
+            gate: std::sync::Mutex::new(GenieXOperationGate { accepting: true, entries: Vec::new() }),
+        })
+    }
+
+    async fn preflight(self: &Arc<Self>, plan: Arc<handshake_dexterity::LaunchPlan>)
+        -> Result<GenieXInvocationPreflight, crate::llm::LlmError> {
+        use crate::storage::surreal::resource_authority::{AuthorizationRequest, ResourceKind};
+        let live = self.live_authority.as_ref().ok_or_else(genie_x_execution_error)?;
+        let verified = self.verified.as_ref().ok_or_else(genie_x_execution_error)?;
+        let scope = live.authentication.scope();
+        if scope != verified.scope() { return Err(genie_x_execution_error()); }
+        live.store.access.authorize_exact_request(scope).map_err(|_| genie_x_execution_error())?;
+        let request = live.authentication.request();
+        let lease = live.store.storage.with_record_user_scope(live.authentication.record_user(),
+            live.store.storage.local_execution_authority_snapshot(&request)).await.map_err(|_| genie_x_execution_error())?;
+        let registry = crate::storage::surreal::SurrealModelRegistryStore::new(live.store.storage.clone());
+        let current = live.store.storage.with_record_user_scope(live.authentication.record_user(),
+            registry.list_engine_profiles(scope)).await.map_err(|_| genie_x_execution_error())?;
+        let definition = current.profiles.iter().find(|definition| definition.profile_id == verified.engine().profile.id)
+            .ok_or_else(genie_x_execution_error)?;
+        if definition.tombstoned || !verified.matches_current_canonical(lease.snapshot(),
+            definition.head().map_err(|_| genie_x_execution_error())?) { return Err(genie_x_execution_error()); }
+        drop(lease.release());
+        // This distinct guard protects the final canonical permission validation.
+        let publication = live.store.storage.authority_publication_read().await.map_err(|_| genie_x_execution_error())?;
+        for record in [live.authentication.record_user(), live.authentication.create_record_user()] {
+            let decision = live.store.storage.authorize_protected_resource(AuthorizationRequest {
+                session_token: record.session_token.clone(), channel_binding_hash: record.channel_binding_hash.clone(),
+                capability_id: record.capability_id.clone(), resource_kind: ResourceKind::Workspace,
+                external_resource_id: scope.workspace_id.to_string(), action: record.action,
+            }).await.map_err(|_| genie_x_execution_error())?;
+            if !genie_x_live_decision_matches(scope, &record, &decision,
+                live.authentication.capability_profile_ref()) { return Err(genie_x_execution_error()); }
+        }
+        live.store.access.authorize_exact_request(scope).map_err(|_| genie_x_execution_error())?;
+        Ok(GenieXInvocationPreflight { owner: Arc::clone(self), plan, publication })
+    }
+    fn execute(
+        self: &std::sync::Arc<Self>,
+        preflight: GenieXInvocationPreflight,
+        plan: std::sync::Arc<handshake_dexterity::LaunchPlan>,
+        expected_input: String,
+        cancel: crate::model_runtime::CancellationToken,
+        activity_guard: crate::model_runtime::activity::RuntimeActivityGuard,
+        deadline: std::time::Instant,
+    ) -> impl std::future::Future<Output = GenieXExecutionResult> + Send + 'static {
+        let worker_cancel = hsk_studio_accord::CancellationToken::default();
+        let cancel_on_drop = GenieXFutureCancellation(worker_cancel.clone(), cancel.clone());
+        let entry = (|| {
+            if !Arc::ptr_eq(&preflight.owner, self) || !Arc::ptr_eq(&preflight.plan, &plan) {
+                return Err(genie_x_execution_error());
+            }
+            let sandbox = self.sandbox.clone().ok_or_else(genie_x_execution_error)?;
+            let verified = self.verified.as_ref().ok_or_else(genie_x_execution_error)?.clone();
+            let policy = sandbox.template.resolved_execution_policy.as_ref().ok_or_else(genie_x_execution_error)?;
+            if !verified.validates_execution(&self.owner_session, policy, &sandbox.adapter.capabilities(), &plan) {
+                return Err(genie_x_execution_error());
+            }
+            // One-use last-pre-effect handoff. Later revocation is not atomic with physical spawn;
+            // this invocation keeps the existing cancellation and cleanup contract.
+            drop(preflight.publication);
+            let mut gate = genie_x_lock(&self.gate);
+            if !gate.accepting || cancel.is_cancelled() || std::time::Instant::now() >= deadline {
+                return Err(genie_x_execution_error());
+            }
+            // Reserve both ledger events and worker admission before the only spawn boundary.
+            let mut reservations = self.ledger.try_reserve_lifecycles(1).map_err(|_| genie_x_execution_error())?;
+            let reservation = reservations.pop().ok_or_else(genie_x_execution_error)?;
+            let permit = self.supervisor.admit(self.admission_bytes).map_err(|_| genie_x_execution_error())?;
+            let inner = std::sync::Arc::new(GenieXOperationInner {
+                _verified: verified,
+                plan: plan.clone(), host_cancel: cancel, worker_cancel: worker_cancel.clone(), deadline,
+                supervisor: self.supervisor.clone(), cleanup_gate: self.cleanup_gate.clone(),
+                blocking: tokio::sync::Mutex::new(None),
+                lifecycle: std::sync::Mutex::new(None), spawn_observation: std::sync::Mutex::new(None),
+                sandbox_receipt: std::sync::Mutex::new(None),
+                activity: std::sync::Mutex::new(Some(activity_guard)),
+                result: std::sync::Mutex::new(None),
+                cleanup_confirmed: std::sync::atomic::AtomicBool::new(false),
+                settled: std::sync::atomic::AtomicBool::new(false),
+            });
+            let operation = inner.clone();
+            let start_template = self.child_start_template.clone();
+            let owner_session = self.owner_session.clone();
+            let bounds = self.bounds;
+            let runtime = tokio::runtime::Handle::current();
+            let blocking = tokio::task::spawn_blocking(move || {
+                genie_x_run_child(&operation, permit, reservation, start_template, owner_session, bounds, sandbox, runtime)
+            });
+            // No await can interrupt installing either handle in its owner.
+            let mut blocking_slot = inner.blocking.try_lock().map_err(|_| genie_x_execution_error())?;
+            *blocking_slot = Some(blocking);
+            drop(blocking_slot);
+            let driver_inner = inner.clone();
+            let driver = tokio::spawn(async move { genie_x_drive(driver_inner).await; });
+            let entry = std::sync::Arc::new(GenieXOperationEntry {
+                inner, driver: tokio::sync::Mutex::new(Some(driver)),
+            });
+            gate.entries.retain(|entry| !entry.inner.settled.load(std::sync::atomic::Ordering::Acquire));
+            gate.entries.push(entry.clone());
+            Ok(entry)
+        })();
+        async move {
+            // Captured synchronously, including when this returned future is never polled.
+            let _cancel_on_drop = cancel_on_drop;
+            let _expected_input = expected_input;
+            let entry = entry?;
+            let settled = genie_x_join_entry(&entry).await;
+            let result = genie_x_lock(&entry.inner.result).take().unwrap_or_else(|| Err(genie_x_execution_error()));
+            if settled { result } else { match result {
+                Err(error) => Err(error),
+                Ok(_) => Err(genie_x_execution_error()),
+            } }
+        }
+    }
+
+    fn stop_admission(&self) {
+        let mut gate = genie_x_lock(&self.gate);
+        gate.accepting = false;
+        for entry in &gate.entries { entry.inner.worker_cancel.cancel(); entry.inner.host_cancel.cancel(); }
+    }
+
+    fn drain(&self, timeout: std::time::Duration)
+        -> impl std::future::Future<Output = Result<(), crate::model_runtime::activity::RuntimeQuiesceError>> + Send + '_ {
+        self.stop_admission();
+        let entries = genie_x_lock(&self.gate).entries.clone();
+        async move {
+            let drain = async {
+                let mut complete = true;
+                for entry in &entries { complete &= genie_x_join_entry(entry).await; }
+                complete
+            };
+            if matches!(tokio::time::timeout(timeout, drain).await, Ok(true)) {
+                genie_x_lock(&self.gate).entries.retain(|entry| !entry.inner.settled.load(std::sync::atomic::Ordering::Acquire));
+                Ok(())
+            } else {
+                Err(crate::model_runtime::activity::RuntimeQuiesceError::Unsupported {
+                    adapter: "genie_x: process or durable ledger cleanup remains pending".into(),
+                })
+            }
+        }
+    }
+
+    fn resume(&self) -> Result<(), crate::model_runtime::activity::RuntimeQuiesceError> {
+        let mut gate = genie_x_lock(&self.gate);
+        if gate.entries.iter().any(|entry| !entry.inner.settled.load(std::sync::atomic::Ordering::Acquire)) {
+            return Err(crate::model_runtime::activity::RuntimeQuiesceError::Unsupported {
+                adapter: "genie_x: unsettled native generation".into(),
+            });
+        }
+        gate.entries.clear();
+        gate.accepting = true;
+        Ok(())
+    }
+}
+
+impl Drop for GenieXOperationOwner {
+    fn drop(&mut self) {
+        let gate = self.gate.get_mut().unwrap_or_else(std::sync::PoisonError::into_inner);
+        for entry in gate.entries.drain(..) { self.pending.retain(entry); }
+    }
+}
+
+struct GenieXFutureCancellation(hsk_studio_accord::CancellationToken, crate::model_runtime::CancellationToken);
+impl Drop for GenieXFutureCancellation {
+    fn drop(&mut self) { self.0.cancel(); self.1.cancel(); }
+}
+
+fn genie_x_run_child(
+    inner: &GenieXOperationInner,
+    permit: hsk_studio_worker::Permit,
+    reservation: crate::process_ledger::ReservedProcessLifecycle,
+    mut start: crate::process_ledger::ProcessStart,
+    owner_session: String,
+    bounds: hsk_studio_worker::OutputBounds,
+    sandbox: GenieXSandboxLaunchBinding,
+    runtime: tokio::runtime::Handle,
+) -> GenieXBlockingOutcome {
+    if inner.host_cancel.is_cancelled() { inner.worker_cancel.cancel(); }
+    let child_id = uuid::Uuid::now_v7();
+    let worker_owner_session = child_id.to_string();
+    start.process_uuid = child_id;
+    let binding = inner.plan.binding();
+    let request = hsk_studio_worker::OneShotRequest {
+        owner_session: &worker_owner_session,
+        launch: hsk_studio_worker::ExactLaunch {
+            executable: &binding.executable, cwd: &binding.cwd,
+            args: inner.plan.arguments(), env: &binding.environment,
+        },
+        bounds, keepalive: Some(Box::new(inner.plan.clone())),
+    };
+    let observer = |pid: u32| -> Result<(), ()> {
+        *genie_x_lock(&inner.spawn_observation) = Some(GenieXSpawnObservation {
+            pid, birth_100ns: None, failure: None, cleanup: None, birth_query_failed: false,
+            worker_ledger_identity: None,
+        });
+        let ledger = inner.supervisor.ledger();
+        let mut matches = ledger.iter().enumerate().filter(|(_, row)| row.owner_session == worker_owner_session);
+        let Some((index, row)) = matches.next() else { return Err(()); };
+        if matches.next().is_some() || row.pid != pid { return Err(()); }
+        if let Some(observation) = genie_x_lock(&inner.spawn_observation).as_mut() {
+            observation.worker_ledger_identity = Some(GenieXWorkerLedgerIdentity {
+                index, owner_session: row.owner_session.clone(), started_unix_ms: row.started_unix_ms, pid,
+            });
+        }
+        let birth = match crate::sandbox::handshake_native::process_creation_time_100ns(pid) {
+            Ok(birth) => birth,
+            Err(_) => {
+                if let Some(observation) = genie_x_lock(&inner.spawn_observation).as_mut() {
+                    observation.birth_query_failed = true;
+                }
+                return Err(());
+            }
+        };
+        if let Some(observation) = genie_x_lock(&inner.spawn_observation).as_mut() {
+            observation.birth_100ns = Some(birth);
+        }
+        start.engine_kind = crate::process_ledger::ProcessEngineKind::GenieX;
+        let receipt = genie_x_lock(&inner.sandbox_receipt);
+        let receipt_valid = receipt.as_ref().is_some_and(|receipt| sandbox.validate_receipt(receipt));
+        start.sandbox_adapter_id = receipt.as_ref().map(|receipt| receipt.adapter_id.to_string());
+        start.sandbox_internal_id = receipt.as_ref().map(|receipt| receipt.sandbox_internal_id.clone());
+        start.os_pid = Some(pid);
+        start.started_at = chrono::Utc::now();
+        start.model_artifact_sha256 = Some(binding.content_sha256.clone());
+        if !start.metadata_jsonb.is_object() { start.metadata_jsonb = serde_json::json!({}); }
+        start.metadata_jsonb["os_creation_time_100ns"] = serde_json::json!(birth);
+        start.metadata_jsonb["session_id"] = serde_json::json!(owner_session);
+        start.metadata_jsonb["worker_owner_session"] = serde_json::json!(worker_owner_session);
+        start.metadata_jsonb["profile_fingerprint"] = serde_json::json!(inner.plan.resolved().fingerprint());
+        start.metadata_jsonb["launch_binding_sha256"] = serde_json::json!(genie_x_launch_binding_sha256(&inner.plan));
+        start.metadata_jsonb["sandbox_receipt_valid"] = serde_json::json!(receipt_valid);
+        if let Some(receipt) = receipt.as_ref() {
+            start.metadata_jsonb["sandbox_capabilities"] = serde_json::json!(receipt.capabilities);
+        }
+        drop(receipt);
+        match reservation.begin_with_durable_ack(start) {
+            Ok((active, ack)) => {
+                *genie_x_lock(&inner.lifecycle) = Some(GenieXLedgerLifecycle {
+                    active: std::sync::Arc::new(active), start_ack: Some(ack),
+                });
+                // Even a missing receipt records the real adopted PID/birth before rejection.
+                if receipt_valid { Ok(()) } else { Err(()) }
+            }
+            Err(_) => Err(()),
+        }
+    };
+    let mut session = match inner.supervisor.start_one_shot_with_spawner(
+        permit, request, inner.worker_cancel.clone(), inner.deadline,
+        |launch, cancel, deadline| genie_x_sandbox_spawn(&sandbox, &runtime, launch, cancel,
+            &inner.host_cancel, &inner.sandbox_receipt, deadline), observer,
+    ) {
+        Ok(session) => session,
+        Err(hsk_studio_worker::OneShotObservedStartError::BeforeSpawn(_)) => {
+            return GenieXBlockingOutcome {
+                result: Err(genie_x_execution_error()), reaped: true, ledger_identity_missing: false,
+            };
+        }
+        Err(hsk_studio_worker::OneShotObservedStartError::AfterSpawn { pid, cause, cleanup }) => {
+            inner.worker_cancel.cancel();
+            let mut observation = genie_x_lock(&inner.spawn_observation);
+            let observation = observation.get_or_insert(GenieXSpawnObservation {
+                pid, birth_100ns: None, failure: None, cleanup: None, birth_query_failed: false,
+                worker_ledger_identity: None,
+            });
+            let identity_mismatch = observation.pid != pid;
+            observation.failure = Some(cause);
+            observation.cleanup = Some(cleanup);
+            let birth_missing = observation.birth_100ns.is_none();
+            let error = if observation.birth_query_failed {
+                crate::llm::LlmError::ProviderError("GenieX OS process birth query failed; exact child identity needs reconciliation".into())
+            } else { genie_x_execution_error() };
+            return GenieXBlockingOutcome {
+                result: Err(error), reaped: cleanup.reaped,
+                ledger_identity_missing: identity_mismatch || birth_missing || observation.worker_ledger_identity.is_none()
+                    || genie_x_lock(&inner.lifecycle).is_none(),
+            };
+        }
+    };
+    let identity_missing = genie_x_lock(&inner.lifecycle).is_none();
+    let mut stdout = Vec::new();
+    let mut stderr = Vec::new();
+    for event in &mut session {
+        match event {
+            hsk_studio_worker::OneShotEvent::Output { stream, mut bytes } => match stream {
+                hsk_studio_worker::OutputStream::Stdout => stdout.append(&mut bytes),
+                hsk_studio_worker::OutputStream::Stderr => stderr.append(&mut bytes),
+            },
+            hsk_studio_worker::OneShotEvent::Terminal(terminal) => {
+                drop(session);
+                if let Some(observation) = genie_x_lock(&inner.spawn_observation).as_mut() {
+                    observation.cleanup = Some(terminal.cleanup);
+                }
+                return GenieXBlockingOutcome {
+                    reaped: terminal.cleanup.reaped, ledger_identity_missing: identity_missing,
+                    result: if identity_missing { Err(genie_x_execution_error()) } else {
+                        Ok(GenieXRawCompletion { plan: inner.plan.clone(), stdout, stderr, terminal })
+                    },
+                };
+            }
+        }
+    }
+    drop(session);
+    GenieXBlockingOutcome { result: Err(genie_x_execution_error()), reaped: false, ledger_identity_missing: identity_missing }
+}
+
+async fn genie_x_drive(inner: std::sync::Arc<GenieXOperationInner>) {
+    let mut slot = inner.blocking.lock().await;
+    let Some(task) = slot.as_mut() else { return; };
+    let mut canceled = false;
+    let mut expired = false;
+    let deadline = tokio::time::Instant::from_std(inner.deadline);
+    let mut outcome = loop {
+        tokio::select! {
+            result = &mut *task => break match result {
+                Ok(outcome) => outcome,
+                Err(_) => GenieXBlockingOutcome {
+                    result: Err(genie_x_execution_error()), reaped: false,
+                    ledger_identity_missing: !genie_x_identity_captured(&inner),
+                },
+            },
+            _ = inner.host_cancel.cancelled(), if !canceled => {
+                canceled = true;
+                inner.worker_cancel.cancel();
+            }
+            _ = tokio::time::sleep_until(deadline), if !expired => {
+                expired = true;
+                inner.worker_cancel.cancel();
+                inner.host_cancel.cancel();
+            }
+        }
+    };
+    slot.take();
+    if !outcome.reaped {
+        let supervisor = inner.supervisor.clone();
+        let cleanup_gate = inner.cleanup_gate.clone();
+        *slot = Some(tokio::task::spawn_blocking(move || {
+            let _cleanup = genie_x_lock(&cleanup_gate);
+            let _ = supervisor.retry_cleanup();
+            GenieXBlockingOutcome {
+                result: Err(genie_x_execution_error()), reaped: false,
+                ledger_identity_missing: false,
+            }
+        }));
+        if let Some(task) = slot.as_mut() {
+            let _ = task.await;
+        }
+        // The aggregate result drives cleanup only. Recovery rereads the exact adopted row.
+        slot.take();
+    }
+    drop(slot);
+    let recovered_cleanup = if !outcome.reaped { genie_x_exact_reap(&inner) } else { None };
+    outcome.reaped |= recovered_cleanup.is_some();
+    let clean = if outcome.ledger_identity_missing || !outcome.reaped {
+        false
+    } else {
+        let exit_code = match recovered_cleanup {
+            Some(cleanup) => cleanup.exit_code,
+            None => match &outcome.result {
+                Ok(raw) => raw.terminal.cleanup.exit_code,
+                Err(_) => genie_x_lock(&inner.spawn_observation).as_ref().and_then(|observation| observation.cleanup).and_then(|cleanup| cleanup.exit_code),
+            },
+        };
+        genie_x_close_ledger(&inner, exit_code).await
+    };
+    if !clean && outcome.result.is_ok() {
+        outcome.result = Err(if !outcome.reaped {
+            crate::llm::LlmError::ProviderError("GenieX exact child reap is unconfirmed; canonical reconciliation remains pending".into())
+        } else { genie_x_execution_error() });
+    }
+    *genie_x_lock(&inner.result) = Some(outcome.result);
+    inner.cleanup_confirmed.store(clean, std::sync::atomic::Ordering::Release);
+}
+
+async fn genie_x_close_ledger(inner: &GenieXOperationInner, exit_code: Option<i32>) -> bool {
+    let lifecycle = {
+        let mut lifecycle = genie_x_lock(&inner.lifecycle);
+        lifecycle.as_mut().map(|lifecycle| (lifecycle.active.clone(), lifecycle.start_ack.take()))
+    };
+    if let Some((active, Some(ack))) = lifecycle {
+        if ack.wait_unbounded().await.is_ok() {
+            matches!(active.stop_with_durable_ack(exit_code, "genie_x_child_reaped", PIDLESS_SESSION_START_DURABILITY_TIMEOUT).await,
+                Ok(crate::process_ledger::StopRecordOutcome::Recorded))
+        } else { false }
+    } else {
+        // No child was spawned, so there is no START/STOP to manufacture.
+        genie_x_lock(&inner.lifecycle).is_none()
+    }
+}
+
+async fn genie_x_retry_entry(entry: &GenieXOperationEntry) {
+    let mut driver_slot = entry.driver.lock().await;
+    if driver_slot.is_some() || entry.inner.cleanup_confirmed.load(std::sync::atomic::Ordering::Acquire) {
+        return;
+    }
+    // A missing identity or a consumed failed durability acknowledgement needs canonical
+    // reconciliation, not a second invented START/STOP. Retain the entry and report failure.
+    if !genie_x_lock(&entry.inner.lifecycle).as_ref().is_some_and(|lifecycle| lifecycle.start_ack.is_some()) {
+        return;
+    }
+    let inner = entry.inner.clone();
+    *driver_slot = Some(tokio::spawn(async move {
+        let mut slot = inner.blocking.lock().await;
+        let mut cleanup = genie_x_exact_reap(&inner);
+        if let Some(task) = slot.as_mut() {
+            let _ = task.await;
+            slot.take();
+            cleanup = genie_x_exact_reap(&inner);
+        }
+        if cleanup.is_none() {
+        let supervisor = inner.supervisor.clone();
+        let cleanup_gate = inner.cleanup_gate.clone();
+        *slot = Some(tokio::task::spawn_blocking(move || {
+            let _cleanup = genie_x_lock(&cleanup_gate);
+            let _ = supervisor.retry_cleanup();
+            GenieXBlockingOutcome {
+                result: Err(genie_x_execution_error()), reaped: false,
+                ledger_identity_missing: false,
+            }
+        }));
+        if let Some(task) = slot.as_mut() { let _ = task.await; }
+        slot.take();
+        cleanup = genie_x_exact_reap(&inner);
+        }
+        drop(slot);
+        if let Some(cleanup) = cleanup {
+        if genie_x_close_ledger(&inner, cleanup.exit_code).await {
+            inner.cleanup_confirmed.store(true, std::sync::atomic::Ordering::Release);
+        }
+        }
+    }));
+}
+
+fn genie_x_identity_captured(inner: &GenieXOperationInner) -> bool {
+    let observation = genie_x_lock(&inner.spawn_observation);
+    let Some(observation) = observation.as_ref() else { return false; };
+    if observation.birth_100ns.is_none() || observation.worker_ledger_identity.is_none() { return false; }
+    genie_x_lock(&inner.lifecycle).as_ref()
+        .is_some_and(|lifecycle| lifecycle.active.start().os_pid == Some(observation.pid))
+}
+
+fn genie_x_exact_reap(inner: &GenieXOperationInner) -> Option<hsk_studio_worker::Terminated> {
+    let identity = {
+        let observation = genie_x_lock(&inner.spawn_observation);
+        let observation = observation.as_ref()?;
+        if observation.birth_100ns.is_none() { return None; }
+        let identity = observation.worker_ledger_identity.clone()?;
+        if identity.pid != observation.pid { return None; }
+        identity
+    };
+    if !genie_x_lock(&inner.lifecycle).as_ref()
+        .is_some_and(|lifecycle| lifecycle.active.start().os_pid == Some(identity.pid)) { return None; }
+    let ledger = inner.supervisor.ledger();
+    let row = ledger.get(identity.index)?;
+    if row.owner_session != identity.owner_session || row.started_unix_ms != identity.started_unix_ms
+        || row.pid != identity.pid || !row.reaped
+        || ledger.iter().filter(|candidate| candidate.owner_session == identity.owner_session).count() != 1 {
+        return None;
+    }
+    Some(hsk_studio_worker::Terminated { killed: row.killed, reaped: true, exit_code: row.exit_code })
+}
+
+async fn genie_x_join_entry(entry: &GenieXOperationEntry) -> bool {
+    let mut slot = entry.driver.lock().await;
+    if let Some(driver) = slot.as_mut() {
+        let joined = driver.await.is_ok();
+        slot.take();
+        if !joined { return false; }
+    }
+    if entry.inner.cleanup_confirmed.load(std::sync::atomic::Ordering::Acquire) {
+        // Only this join boundary releases the actual activity guard, never the raw exit path.
+        genie_x_lock(&entry.inner.activity).take();
+        entry.inner.settled.store(true, std::sync::atomic::Ordering::Release);
+        true
+    } else { false }
+}
+
+// External same-factory fragment. Integrate only with the independently pinned planner API
+// providing TestModeJsonV1 and the concrete GenieXOperationOwner from the IO fragment.
+// Registration is an in-process adapter handle. It never claims a resident engine process.
+
+fn genie_x_registration_error() -> crate::model_runtime::ModelRuntimeError {
+    crate::model_runtime::ModelRuntimeError::LoadError("invalid GenieX adapter registration".into())
+}
+
+fn genie_x_unsupported(capability: &str) -> crate::model_runtime::ModelRuntimeError {
+    crate::model_runtime::ModelRuntimeError::CapabilityNotSupported {
+        capability: capability.to_owned(), adapter: "genie_x".into(),
+    }
+}
+
+fn validate_genie_x_registration(
+    spec: &crate::model_runtime::LoadSpec,
+    content_sha256: &str,
+    capabilities: &crate::model_runtime::ModelCapabilities,
+) -> Result<(), crate::model_runtime::ModelRuntimeError> {
+    if spec.runtime_kind != crate::model_runtime::RuntimeKind::GenieX
+        || spec.provider != crate::model_runtime::ProviderKind::Local
+        || spec.engine_origin.as_deref()
+            != Some(crate::model_runtime::invariant::GENIE_X_LOCAL_ENGINE_ORIGIN)
+        || spec.sha256_expected != content_sha256
+        || &spec.declared_capabilities != capabilities
+        || spec.sampling_defaults != crate::model_runtime::SamplingParams::default() {
+        return Err(genie_x_registration_error());
+    }
+    Ok(())
+}
+
+// Boot registration precedes profile authoring. This type deliberately has no profile, preset,
+// completion client or engine-load operation. The root owns catalog/registry publication.
+struct GenieXModelRegistrationRuntime {
+    state: std::sync::Arc<GenieXModelRegistrationState>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum GenieXModelRegistrationStatus {
+    Unregistered,
+    Registered(crate::model_runtime::ModelId),
+    Retiring(crate::model_runtime::ModelId),
+    Retired(crate::model_runtime::ModelId),
+}
+
+struct GenieXModelRegistrationState {
+    binding: handshake_dexterity::HostBinding,
+    operations: std::sync::Arc<GenieXOperationOwner>,
+    operation_timeout: std::time::Duration,
+    status: std::sync::Mutex<GenieXModelRegistrationStatus>,
+    retirement: tokio::sync::Mutex<()>,
+    capabilities: crate::model_runtime::ModelCapabilities,
+}
+
+impl GenieXModelRegistrationRuntime {
+    fn new(
+        binding: handshake_dexterity::HostBinding,
+        operations: std::sync::Arc<GenieXOperationOwner>,
+        operation_timeout: std::time::Duration,
+    ) -> Result<Self, crate::model_runtime::ModelRuntimeError> {
+        let digest = &binding.content_sha256;
+        if operation_timeout.is_zero()
+            || digest.len() != 64
+            || !digest.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            || !digest.bytes().any(|byte| byte != b'0') {
+            return Err(genie_x_registration_error());
+        }
+        Ok(Self { state: std::sync::Arc::new(GenieXModelRegistrationState {
+            binding, operations, operation_timeout,
+            status: std::sync::Mutex::new(GenieXModelRegistrationStatus::Unregistered),
+            retirement: tokio::sync::Mutex::new(()),
+            capabilities: crate::model_runtime::ModelCapabilities::default(),
+        }) })
+    }
+}
+
+impl GenieXModelRegistrationState {
+    fn ensure_registered(&self, id: crate::model_runtime::ModelId)
+        -> Result<(), crate::model_runtime::ModelRuntimeError> {
+        let status = self.status.lock().map_err(|_| genie_x_registration_error())?;
+        if *status == GenieXModelRegistrationStatus::Registered(id) {
+            Ok(())
+        } else { Err(genie_x_registration_error()) }
+    }
+
+    fn retire(&self, id: crate::model_runtime::ModelId)
+        -> impl std::future::Future<Output = Result<(), crate::model_runtime::ModelRuntimeError>> + Send + '_ {
+        // Close admission before returning the future, including a future never polled by its caller.
+        let preparation = (|| {
+            let mut status = self.status.lock().map_err(|_| genie_x_registration_error())?;
+            match *status {
+                GenieXModelRegistrationStatus::Registered(current)
+                    | GenieXModelRegistrationStatus::Retiring(current) if current == id => {
+                    *status = GenieXModelRegistrationStatus::Retiring(id);
+                    self.operations.stop_admission();
+                    Ok(())
+                }
+                GenieXModelRegistrationStatus::Retired(current) if current == id => Ok(()),
+                _ => Err(genie_x_registration_error()),
+            }
+        })();
+        async move {
+            preparation?;
+            let _retirement = self.retirement.lock().await;
+            {
+                let status = self.status.lock().map_err(|_| genie_x_registration_error())?;
+                match *status {
+                    GenieXModelRegistrationStatus::Retired(current) if current == id => return Ok(()),
+                    GenieXModelRegistrationStatus::Retiring(current) if current == id => {},
+                    _ => return Err(genie_x_registration_error()),
+                }
+            }
+            self.operations.drain(self.operation_timeout).await.map_err(|_|
+                crate::model_runtime::ModelRuntimeError::UnloadError("GenieX registration cleanup remains pending".into()))?;
+            let mut status = self.status.lock().map_err(|_| genie_x_registration_error())?;
+            if *status != GenieXModelRegistrationStatus::Retiring(id) {
+                return Err(genie_x_registration_error());
+            }
+            *status = GenieXModelRegistrationStatus::Retired(id);
+            Ok(())
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl crate::model_runtime::ModelRuntime for GenieXModelRegistrationRuntime {
+    async fn load(&mut self, spec: crate::model_runtime::LoadSpec)
+        -> Result<crate::model_runtime::ModelId, crate::model_runtime::ModelRuntimeError> {
+        validate_genie_x_registration(&spec, &self.state.binding.content_sha256, &self.state.capabilities)?;
+        let mut status = self.state.status.lock().map_err(|_| genie_x_registration_error())?;
+        if *status != GenieXModelRegistrationStatus::Unregistered { return Err(genie_x_registration_error()); }
+        self.state.operations.resume().map_err(|_| genie_x_registration_error())?;
+        let id = crate::model_runtime::ModelId::new_v7();
+        *status = GenieXModelRegistrationStatus::Registered(id);
+        Ok(id)
+    }
+
+    async fn unload(&mut self, id: crate::model_runtime::ModelId)
+        -> Result<(), crate::model_runtime::ModelRuntimeError> {
+        self.state.retire(id).await
+    }
+
+    fn generate(&self, req: crate::model_runtime::GenerateRequest) -> crate::model_runtime::TokenStream {
+        let result = if req.cancel.is_cancelled() {
+            Err(crate::model_runtime::ModelRuntimeError::Cancelled)
+        } else {
+            Err(genie_x_unsupported("profile_required_completion"))
+        };
+        Box::pin(futures::stream::once(async move { result }))
+    }
+    async fn score(&self, _id: crate::model_runtime::ModelId, _sequence: Vec<u32>)
+        -> Result<crate::model_runtime::Score, crate::model_runtime::ModelRuntimeError> {
+        Err(genie_x_unsupported("score"))
+    }
+    async fn embed(&self, _id: crate::model_runtime::ModelId, _text: &str)
+        -> Result<crate::model_runtime::Embedding, crate::model_runtime::ModelRuntimeError> {
+        Err(genie_x_unsupported("embedding"))
+    }
+    async fn quiesce(&self, timeout: std::time::Duration)
+        -> Result<(), crate::model_runtime::activity::RuntimeQuiesceError> {
+        self.state.operations.stop_admission();
+        self.state.operations.drain(timeout).await
+    }
+    async fn quiesce_model(&self, id: crate::model_runtime::ModelId, timeout: std::time::Duration)
+        -> Result<(), crate::model_runtime::activity::RuntimeQuiesceError> {
+        self.state.ensure_registered(id).map_err(|_|
+            crate::model_runtime::activity::RuntimeQuiesceError::Unsupported { adapter: "genie_x".into() })?;
+        self.state.operations.stop_admission();
+        self.state.operations.drain(timeout).await
+    }
+    fn resume_model_admission(&self, id: crate::model_runtime::ModelId)
+        -> Result<(), crate::model_runtime::activity::RuntimeQuiesceError> {
+        let status = self.state.status.lock().map_err(|_|
+            crate::model_runtime::activity::RuntimeQuiesceError::Unsupported { adapter: "genie_x".into() })?;
+        if *status != GenieXModelRegistrationStatus::Registered(id) {
+            return Err(crate::model_runtime::activity::RuntimeQuiesceError::Unsupported { adapter: "genie_x".into() });
+        }
+        self.state.operations.resume()
+    }
+    fn capabilities(&self, id: crate::model_runtime::ModelId)
+        -> Result<&crate::model_runtime::ModelCapabilities, crate::model_runtime::ModelRuntimeError> {
+        self.state.ensure_registered(id)?;
+        Ok(&self.state.capabilities)
+    }
+    fn kv_cache(&self, _id: crate::model_runtime::ModelId)
+        -> Result<crate::model_runtime::KvCacheHandle, crate::model_runtime::ModelRuntimeError> {
+        Err(genie_x_unsupported("kv_cache"))
+    }
+    fn lora_stack(&self, _id: crate::model_runtime::ModelId)
+        -> Result<crate::model_runtime::LoraStackHandle, crate::model_runtime::ModelRuntimeError> {
+        Err(genie_x_unsupported("lora_stack"))
+    }
+    fn steering_hooks(&self, _id: crate::model_runtime::ModelId)
+        -> Result<crate::model_runtime::SteeringHookHandle, crate::model_runtime::ModelRuntimeError> {
+        Err(genie_x_unsupported("steering_hooks"))
+    }
+    fn cancel(&self, token: crate::model_runtime::CancellationToken) { token.cancel(); }
+}
+
+struct GenieXRuntimeState {
+    resolved: handshake_dexterity::ResolvedProfile,
+    binding: handshake_dexterity::HostBinding,
+    operations: std::sync::Arc<GenieXOperationOwner>,
+    registration: std::sync::Mutex<Option<crate::model_runtime::ModelId>>,
+    capabilities: crate::model_runtime::ModelCapabilities,
+    operation_timeout: std::time::Duration,
+    activity: crate::model_runtime::activity::RuntimeActivityTracker,
+}
+
+impl GenieXRuntimeState {
+    fn new(
+        resolved: handshake_dexterity::ResolvedProfile,
+        binding: handshake_dexterity::HostBinding,
+        operations: std::sync::Arc<GenieXOperationOwner>,
+        operation_timeout: std::time::Duration,
+    ) -> Result<std::sync::Arc<Self>, crate::model_runtime::ModelRuntimeError> {
+        resolved.profile().validate().map_err(|_| Self::load_error())?;
+        if operation_timeout.is_zero() { return Err(Self::load_error()); }
+        Ok(std::sync::Arc::new(Self {
+            resolved, binding, operations,
+            registration: std::sync::Mutex::new(None),
+            capabilities: crate::model_runtime::ModelCapabilities::default(),
+            operation_timeout,
+            activity: crate::model_runtime::activity::RuntimeActivityTracker::new(),
+        }))
+    }
+
+    fn load_error() -> crate::model_runtime::ModelRuntimeError {
+        genie_x_registration_error()
+    }
+
+    fn ensure_model(&self, id: crate::model_runtime::ModelId)
+        -> Result<(), crate::model_runtime::ModelRuntimeError> {
+        let slot = self.registration.lock().map_err(|_| Self::load_error())?;
+        if *slot == Some(id) { Ok(()) } else { Err(Self::load_error()) }
+    }
+
+    fn unsupported(capability: &str) -> crate::model_runtime::ModelRuntimeError {
+        genie_x_unsupported(capability)
+    }
+}
+
+struct GenieXRuntime {
+    state: std::sync::Arc<GenieXRuntimeState>,
+}
+
+#[async_trait::async_trait]
+impl crate::model_runtime::ModelRuntime for GenieXRuntime {
+    async fn load(&mut self, spec: crate::model_runtime::LoadSpec)
+        -> Result<crate::model_runtime::ModelId, crate::model_runtime::ModelRuntimeError> {
+        validate_genie_x_registration(&spec, &self.state.resolved.profile().model.content_sha256,
+            &self.state.capabilities)?;
+        let mut slot = self.state.registration.lock().map_err(|_| genie_x_registration_error())?;
+        if slot.is_some() { return Err(genie_x_registration_error()); }
+        self.state.operations.resume().map_err(|_| genie_x_registration_error())?;
+        let id = crate::model_runtime::ModelId::new_v7();
+        *slot = Some(id);
+        Ok(id)
+    }
+
+    async fn unload(&mut self, id: crate::model_runtime::ModelId)
+        -> Result<(), crate::model_runtime::ModelRuntimeError> {
+        self.state.ensure_model(id)?;
+        self.state.operations.stop_admission();
+        self.state.operations.drain(self.state.operation_timeout).await.map_err(|_|
+            crate::model_runtime::ModelRuntimeError::UnloadError("GenieX cleanup remains pending".into()))?;
+        self.state.activity.quiesce_model(id, std::time::Duration::ZERO).await.map_err(|_|
+            crate::model_runtime::ModelRuntimeError::UnloadError("GenieX activity remains pending".into()))?;
+        let mut slot = self.state.registration.lock().map_err(|_| genie_x_registration_error())?;
+        if *slot != Some(id) { return Err(genie_x_registration_error()); }
+        *slot = None;
+        Ok(())
+    }
+
+    fn generate(&self, req: crate::model_runtime::GenerateRequest) -> crate::model_runtime::TokenStream {
+        let result = if req.cancel.is_cancelled() {
+            Err(crate::model_runtime::ModelRuntimeError::Cancelled)
+        } else {
+            Err(genie_x_unsupported("engine_token_id_stream"))
+        };
+        Box::pin(futures::stream::once(async move { result }))
+    }
+
+    async fn score(&self, _id: crate::model_runtime::ModelId, _sequence: Vec<u32>)
+        -> Result<crate::model_runtime::Score, crate::model_runtime::ModelRuntimeError> {
+        Err(genie_x_unsupported("score"))
+    }
+    async fn embed(&self, _id: crate::model_runtime::ModelId, _text: &str)
+        -> Result<crate::model_runtime::Embedding, crate::model_runtime::ModelRuntimeError> {
+        Err(genie_x_unsupported("embedding"))
+    }
+    async fn quiesce(&self, timeout: std::time::Duration)
+        -> Result<(), crate::model_runtime::activity::RuntimeQuiesceError> {
+        self.state.operations.stop_admission();
+        self.state.operations.drain(timeout).await?;
+        let id = *self.state.registration.lock().map_err(|_|
+            crate::model_runtime::activity::RuntimeQuiesceError::Unsupported { adapter: "genie_x".into() })?;
+        if let Some(id) = id {
+            self.state.activity.quiesce_model(id, std::time::Duration::ZERO).await?;
+        }
+        Ok(())
+    }
+    async fn quiesce_model(&self, id: crate::model_runtime::ModelId, timeout: std::time::Duration)
+        -> Result<(), crate::model_runtime::activity::RuntimeQuiesceError> {
+        self.state.ensure_model(id).map_err(|_|
+            crate::model_runtime::activity::RuntimeQuiesceError::Unsupported { adapter: "genie_x".into() })?;
+        self.state.operations.stop_admission();
+        self.state.operations.drain(timeout).await?;
+        self.state.activity.quiesce_model(id, std::time::Duration::ZERO).await
+    }
+    fn resume_model_admission(&self, id: crate::model_runtime::ModelId)
+        -> Result<(), crate::model_runtime::activity::RuntimeQuiesceError> {
+        self.state.ensure_model(id).map_err(|_|
+            crate::model_runtime::activity::RuntimeQuiesceError::Unsupported { adapter: "genie_x".into() })?;
+        self.state.operations.resume()?;
+        self.state.activity.resume_model(id);
+        Ok(())
+    }
+    fn capabilities(&self, id: crate::model_runtime::ModelId)
+        -> Result<&crate::model_runtime::ModelCapabilities, crate::model_runtime::ModelRuntimeError> {
+        self.state.ensure_model(id)?;
+        Ok(&self.state.capabilities)
+    }
+    fn kv_cache(&self, _id: crate::model_runtime::ModelId)
+        -> Result<crate::model_runtime::KvCacheHandle, crate::model_runtime::ModelRuntimeError> {
+        Err(genie_x_unsupported("kv_cache"))
+    }
+    fn lora_stack(&self, _id: crate::model_runtime::ModelId)
+        -> Result<crate::model_runtime::LoraStackHandle, crate::model_runtime::ModelRuntimeError> {
+        Err(genie_x_unsupported("lora_stack"))
+    }
+    fn steering_hooks(&self, _id: crate::model_runtime::ModelId)
+        -> Result<crate::model_runtime::SteeringHookHandle, crate::model_runtime::ModelRuntimeError> {
+        Err(genie_x_unsupported("steering_hooks"))
+    }
+    fn cancel(&self, token: crate::model_runtime::CancellationToken) { token.cancel(); }
+}
+
+// Exact Go ProfileData from GenieX commit 7b234f6c2f75c64b64bcbfd24eb47e6dec4028dd,
+// bindings/go/common.go:16–28. Required fields have no defaults or case aliases.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "PascalCase", deny_unknown_fields)]
+struct GenieXTestProfile {
+    #[serde(rename = "TTFT")] ttft: i64,
+    media_time: i64,
+    prompt_time: i64,
+    decode_time: i64,
+    prompt_tokens: i64,
+    generated_tokens: i64,
+    prefill_speed: f64,
+    decoding_speed: f64,
+    draft_n_total: i64,
+    draft_n_accepted: i64,
+    stop_reason: String,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "PascalCase", deny_unknown_fields)]
+struct GenieXTestRecord {
+    input: String,
+    output: String,
+    profile: GenieXTestProfile,
+    error: serde_json::Value,
+}
+
+fn genie_x_error() -> crate::llm::LlmError {
+    crate::llm::LlmError::ProviderError("GenieX execution or output contract failed".into())
+}
+
+fn parse_genie_x_completion(
+    stderr: &[u8],
+    expected_input: &str,
+    terminal: hsk_studio_worker::OneShotTerminal,
+) -> Result<(String, crate::llm::TokenUsage), crate::llm::LlmError> {
+    validate_worker_terminal(terminal).map_err(|_| genie_x_error())?;
+    let mut record = None;
+    // Logs and human hints share stderr. Only complete JSON object lines are candidates.
+    for line in stderr.split(|byte| *byte == b'\n') {
+        let line = line.trim_ascii();
+        if line.first() != Some(&b'{') { continue; }
+        let value: serde_json::Value = serde_json::from_slice(line).map_err(|_| genie_x_error())?;
+        let Some(object) = value.as_object() else { continue; };
+        if !["Input", "Output", "Profile", "Error"].iter().any(|key| object.contains_key(*key)) {
+            continue;
+        }
+        if record.is_some() { return Err(genie_x_error()); }
+        // Deserialize the original bytes, so duplicate required fields cannot be normalized away.
+        record = Some(serde_json::from_slice::<GenieXTestRecord>(line).map_err(|_| genie_x_error())?);
+    }
+    let record = record.ok_or_else(genie_x_error)?;
+    if record.input != expected_input || !record.error.is_null() { return Err(genie_x_error()); }
+    let profile = record.profile;
+    // Metadata remains typed and required, without inventing host limits or rewriting its values.
+    let _engine_metadata = (profile.ttft, profile.media_time, profile.prompt_time, profile.decode_time,
+        profile.prefill_speed, profile.decoding_speed, profile.draft_n_total,
+        profile.draft_n_accepted, profile.stop_reason);
+    // Preserve engine-reported EOS accounting; callback chunks and text are not token IDs.
+    let prompt_tokens = u32::try_from(profile.prompt_tokens).map_err(|_| genie_x_error())?;
+    let completion_tokens = u32::try_from(profile.generated_tokens).map_err(|_| genie_x_error())?;
+    let total_tokens = prompt_tokens.checked_add(completion_tokens).ok_or_else(genie_x_error)?;
+    Ok((record.output, crate::llm::TokenUsage { prompt_tokens, completion_tokens, total_tokens }))
+}
+
+struct GenieXLlmClient {
+    state: std::sync::Arc<GenieXRuntimeState>,
+    model_id: crate::model_runtime::ModelId,
+    profile: crate::llm::ModelProfile,
+    recorder: std::sync::Arc<dyn crate::flight_recorder::FlightRecorder>,
+}
+
+impl GenieXLlmClient {
+    fn new(
+        state: std::sync::Arc<GenieXRuntimeState>,
+        model_id: crate::model_runtime::ModelId,
+        recorder: std::sync::Arc<dyn crate::flight_recorder::FlightRecorder>,
+    ) -> Result<Self, crate::llm::LlmError> {
+        state.ensure_model(model_id).map_err(|_| genie_x_error())?;
+        let profile = crate::llm::ModelProfile::new(model_id.to_string(),
+            state.resolved.profile().preset.context_limit);
+        Ok(Self { state, model_id, profile, recorder })
+    }
+
+    async fn execute_completion(&self, req: crate::llm::CompletionRequest,
+        cancel: crate::model_runtime::CancellationToken,
+        activity_guard: crate::model_runtime::activity::RuntimeActivityGuard,
+        invocation_deadline: std::time::Instant)
+        -> Result<crate::llm::CompletionResponse, crate::llm::LlmError> {
+        self.state.ensure_model(self.model_id).map_err(|_| genie_x_error())?;
+        let pinned = self.state.resolved.profile();
+        let temperature = match &pinned.preset.sampling {
+            handshake_dexterity::Sampling::Qairt { temperature, .. }
+                | handshake_dexterity::Sampling::LlamaCpp { temperature, .. } => *temperature as f32,
+        };
+        if req.model_id != self.profile.model_id
+            || req.max_tokens.is_some_and(|limit| limit != pinned.preset.max_tokens)
+            || !req.temperature.is_finite() || req.temperature != temperature
+            || !req.stop_sequences.is_empty() || req.cloud_escalation.is_some() {
+            return Err(genie_x_error());
+        }
+        let started = std::time::Instant::now();
+        let deadline = started.checked_add(self.state.operation_timeout)
+            .ok_or_else(genie_x_error)?.min(invocation_deadline);
+        let plan = self.state.resolved.plan_with_output_contract(self.state.binding.clone(), &req.prompt,
+            handshake_dexterity::OutputContract::TestModeJsonV1).map_err(|_| genie_x_error())?;
+        let expected_profile = self.state.resolved.fingerprint();
+        if plan.resolved().fingerprint() != expected_profile { return Err(genie_x_error()); }
+        let plan = std::sync::Arc::new(plan);
+        let preflight = self.state.operations.preflight(plan.clone()).await?;
+        let raw = self.state.operations.execute(preflight, plan.clone(), req.prompt.clone(),
+            cancel, activity_guard, deadline).await?;
+        if !std::sync::Arc::ptr_eq(&raw.plan, &plan)
+            || raw.plan.output_contract_fingerprint() != plan.output_contract_fingerprint()
+            || raw.plan.output_contract() != handshake_dexterity::OutputContract::TestModeJsonV1 {
+            return Err(genie_x_error());
+        }
+        let (text, usage) = parse_genie_x_completion(&raw.stderr, &req.prompt, raw.terminal)?;
+        if usage.total_tokens > pinned.preset.context_limit {
+            return Err(crate::llm::LlmError::BudgetExceeded(
+                usage.total_tokens.saturating_sub(pinned.preset.context_limit)));
+        }
+        let latency_ms = u64::try_from(started.elapsed().as_millis()).map_err(|_| genie_x_error())?;
+        let payload = crate::flight_recorder::LlmInferenceEvent {
+            event_type: "llm_inference".into(), trace_id: req.trace_id, model_id: req.model_id.clone(),
+            token_usage: crate::flight_recorder::LlmInferenceTokenUsage {
+                prompt_tokens: u64::from(usage.prompt_tokens),
+                completion_tokens: u64::from(usage.completion_tokens),
+                total_tokens: u64::from(usage.total_tokens),
+            },
+            prompt_hash: None, response_hash: None, latency_ms: Some(latency_ms),
+        };
+        let event = crate::flight_recorder::FlightRecorderEvent::new(
+            crate::flight_recorder::FlightRecorderEventType::LlmInference,
+            crate::flight_recorder::FlightRecorderActor::Agent, req.trace_id,
+            serde_json::to_value(payload).map_err(|_| genie_x_error())?,
+        ).with_model_id(&req.model_id);
+        self.recorder.record_event(event).await.map_err(|_| genie_x_error())?;
+        Ok(crate::llm::CompletionResponse { text, usage, latency_ms })
+    }
+}
+
+#[async_trait::async_trait]
+impl crate::llm::LlmClient for GenieXLlmClient {
+    async fn completion(&self, req: crate::llm::CompletionRequest)
+        -> Result<crate::llm::CompletionResponse, crate::llm::LlmError> {
+        let deadline = std::time::Instant::now().checked_add(self.state.operation_timeout)
+            .ok_or_else(genie_x_error)?;
+        let cancel = crate::model_runtime::CancellationToken::new();
+        let guard = self.state.activity.try_register(self.model_id,
+            crate::model_runtime::activity::RuntimeActivityKind::Generate, Some(cancel.clone()))
+            .map_err(|_| genie_x_error())?;
+        self.execute_completion(req, cancel, guard, deadline).await
+    }
+
+    async fn completion_with_control(&self, req: crate::llm::CompletionRequest,
+        control: crate::llm::LlmInvocationControl)
+        -> Result<crate::llm::CompletionResponse, crate::llm::LlmError> {
+        let (cancel, guard) = control.register_native_generation(&self.state.activity, self.model_id)
+            .map_err(|_| genie_x_error())?;
+        self.execute_completion(req, cancel, guard, control.deadline().into_std()).await
+    }
+
+    fn profile(&self) -> &crate::llm::ModelProfile { &self.profile }
+    fn shutdown(&self) { self.state.operations.stop_admission(); }
+}
+
+pub trait GenieXHostBindingResolver: Send + Sync {
+    fn resource_scope(&self) -> &ExactResourceScopeAttribution;
+
+    fn resolve(
+        &self,
+        request: &SpawnRequest,
+        snapshot: &crate::model_runtime::EngineProfileSnapshotV1,
+    ) -> SwarmResult<handshake_dexterity::HostBinding>;
+
+    fn execution_policy(&self) -> GenieXExecutionPolicy;
+    fn local_execution_policy_source(&self) -> &crate::kernel::local_execution_authority::LocalExecutionPolicySource;
+    fn sandbox_adapter(&self) -> Arc<dyn crate::sandbox::SandboxAdapter>;
+    fn sandbox_binds(&self, request: &SpawnRequest, snapshot: &crate::model_runtime::EngineProfileSnapshotV1) -> SwarmResult<Vec<crate::sandbox::BindSpec>>;
+}
+
+#[derive(Clone)]
+pub struct GenieXExecutionPolicy {
+    supervisor: hsk_studio_worker::Supervisor,
+    bounds: hsk_studio_worker::OutputBounds,
+    operation_timeout: Duration,
+}
+
+impl GenieXExecutionPolicy {
+    pub fn new(
+        supervisor: hsk_studio_worker::Supervisor,
+        bounds: hsk_studio_worker::OutputBounds,
+        operation_timeout: Duration,
+        ) -> SwarmResult<Self> {
+        if bounds.chunk_bytes.get() > 65_536 || bounds.stdout_bytes == 0
+            || bounds.stderr_bytes == 0 || operation_timeout.is_zero()
+        {
+            return Err(SwarmError::FactoryFailed("invalid GenieX execution bounds".into()));
+        }
+        Ok(Self { supervisor, bounds, operation_timeout })
+    }
+}
+
+#[derive(Clone)]
+pub struct GenieXFactoryConfig {
+    resolver: Arc<dyn GenieXHostBindingResolver>,
+    supervisor: hsk_studio_worker::Supervisor,
+    bounds: hsk_studio_worker::OutputBounds,
+    operation_timeout: Duration,
+    recorder: Arc<dyn crate::flight_recorder::FlightRecorder>,
+    pending: Arc<GenieXPendingOperations>,
+}
+
+impl GenieXFactoryConfig {
+    pub fn new(
+        resolver: Arc<dyn GenieXHostBindingResolver>,
+        recorder: Arc<dyn crate::flight_recorder::FlightRecorder>,
+    ) -> Self {
+        let policy = resolver.execution_policy();
+        Self { resolver, supervisor: policy.supervisor, bounds: policy.bounds,
+            operation_timeout: policy.operation_timeout, recorder,
+            pending: Arc::new(GenieXPendingOperations::default()) }
+    }
+
+    pub async fn drain_pending_operations(&self) -> SwarmResult<()> {
+        self.pending.drain().await
+    }
+
+    pub async fn load_configured_model(
+        &self,
+        binding: handshake_dexterity::HostBinding,
+        spec: crate::model_runtime::LoadSpec,
+        ledger: LedgerBatcher,
+        owner_session: String,
+        child_start: ProcessStart,
+        admission_bytes: u64,
+    ) -> SwarmResult<GenieXConfiguredModel> {
+        let operations = GenieXOperationOwner::new(self.supervisor.clone(), ledger,
+            owner_session, child_start, self.pending.clone(), self.bounds, admission_bytes, None, None, None);
+        let mut runtime = GenieXModelRegistrationRuntime::new(binding, operations,
+            self.operation_timeout).map_err(|_| {
+                SwarmError::FactoryFailed("GenieX model registration configuration failed".into())
+            })?;
+        let model_id = runtime.load(spec).await.map_err(|_| {
+            SwarmError::FactoryFailed("GenieX model registration failed".into())
+        })?;
+        let registration = runtime.state.clone();
+        Ok(GenieXConfiguredModel { model_id, runtime: Arc::new(runtime), registration, retirement_model_id: model_id })
+    }
+}
+
+pub struct GenieXConfiguredModel {
+    pub model_id: ModelId,
+    pub runtime: Arc<dyn ModelRuntime>,
+    registration: Arc<GenieXModelRegistrationState>,
+    retirement_model_id: ModelId,
+}
+
+impl GenieXConfiguredModel {
+    /// Retain this owner on failure; registration clears only after successful drainage.
+    pub fn retire(&self) -> impl std::future::Future<
+        Output = Result<(), crate::model_runtime::ModelRuntimeError>,
+    > + Send + '_ {
+        self.registration.retire(self.retirement_model_id)
+    }
+}
+
+#[derive(Clone)]
+enum GenieXStartFailure {
+    Rejected(String),
+    Unconfirmed(String),
+}
+
+impl GenieXStartFailure {
+    fn into_swarm(self) -> SwarmError {
+        match self { Self::Rejected(message) | Self::Unconfirmed(message) =>
+            SwarmError::LedgerFailed(message) }
+    }
+}
+
+type GenieXStartAck = std::pin::Pin<Box<dyn std::future::Future<
+    Output = Result<(), crate::process_ledger::ProcessLedgerError>,
+> + Send>>;
+
+type GenieXCloseFuture = std::pin::Pin<Box<dyn std::future::Future<
+    Output = SwarmResult<()>,
+> + Send>>;
+
+struct PendingGenieXCreate {
+    request: SpawnRequest,
+    runtime: Arc<GenieXRuntimeState>,
+    model_id: ModelId,
+    lifecycle: Arc<ActiveProcessLifecycle>,
+    start_ack: tokio::sync::Mutex<Option<GenieXStartAck>>,
+    start_result: Mutex<Option<Result<(), GenieXStartFailure>>>,
+    close: tokio::sync::Mutex<Option<GenieXCloseFuture>>,
+    unloaded: Arc<std::sync::atomic::AtomicBool>,
+    abandoned: std::sync::atomic::AtomicBool,
+    closed: std::sync::atomic::AtomicBool,
+}
+
+impl PendingGenieXCreate {
+    async fn await_start(&self) -> SwarmResult<()> {
+        let mut slot = self.start_ack.lock().await;
+        if let Some(result) = self.start_result.lock().map_err(|_| {
+            SwarmError::FactoryFailed("GenieX START result is poisoned".into())
+        })?.as_ref() {
+            return result.clone().map_err(GenieXStartFailure::into_swarm);
+        }
+        let ack = slot.as_mut().ok_or_else(|| {
+            SwarmError::LedgerFailed("GenieX START acknowledgement is missing".into())
+        })?;
+        let result = ack.await.map_err(|error| match error {
+            crate::process_ledger::ProcessLedgerError::DurabilityRejected { .. } =>
+                GenieXStartFailure::Rejected(error.to_string()),
+            _ => GenieXStartFailure::Unconfirmed(error.to_string()),
+        });
+        slot.take();
+        *self.start_result.lock().map_err(|_| {
+            SwarmError::FactoryFailed("GenieX START result is poisoned".into())
+        })? = Some(result.clone());
+        result.map_err(GenieXStartFailure::into_swarm)
+    }
+
+    fn cancel(&self) {
+        self.abandoned.store(true, std::sync::atomic::Ordering::Release);
+        self.runtime.operations.stop_admission();
+    }
+
+    async fn compensate(&self) -> SwarmResult<()> {
+        self.cancel();
+        if self.closed.load(std::sync::atomic::Ordering::Acquire) { return Ok(()); }
+        let start_result = self.await_start().await;
+        let start_rejected = matches!(self.start_result.lock().map_err(|_| {
+            SwarmError::FactoryFailed("GenieX START result is poisoned".into())
+        })?.as_ref(), Some(Err(GenieXStartFailure::Rejected(_))));
+        let mut slot = self.close.lock().await;
+        if self.closed.load(std::sync::atomic::Ordering::Acquire) { return Ok(()); }
+        if slot.is_none() {
+            let runtime = self.runtime.clone();
+            let model_id = self.model_id;
+            let lifecycle = self.lifecycle.clone();
+            let unloaded = self.unloaded.clone();
+            let start_accepted = start_result.is_ok();
+            *slot = Some(Box::pin(async move {
+                if !unloaded.load(std::sync::atomic::Ordering::Acquire) {
+                    let mut facade = GenieXRuntime { state: runtime };
+                    facade.unload(model_id).await.map_err(|_| {
+                        SwarmError::FactoryFailed("GenieX resource cleanup remains pending".into())
+                    })?;
+                    unloaded.store(true, std::sync::atomic::Ordering::Release);
+                }
+                if !start_accepted && !start_rejected {
+                    return Err(SwarmError::LedgerFailed(
+                        "GenieX START durability requires authoritative reconciliation".into()));
+                }
+                if start_accepted {
+                    let outcome = lifecycle.stop_with_durable_ack(None, "genie-x-session-closed",
+                        PIDLESS_SESSION_START_DURABILITY_TIMEOUT).await
+                        .map_err(|error| SwarmError::LedgerFailed(error.to_string()))?;
+                    if !matches!(outcome, crate::process_ledger::StopRecordOutcome::Recorded
+                        | crate::process_ledger::StopRecordOutcome::AlreadyStopped)
+                    {
+                        return Err(SwarmError::LedgerFailed("GenieX STOP durability is unconfirmed".into()));
+                    }
+                }
+                Ok(())
+            }));
+        }
+        let result = slot.as_mut().ok_or_else(|| {
+            SwarmError::FactoryFailed("GenieX cleanup future is missing".into())
+        })?.await;
+        slot.take();
+        if result.is_ok() { self.closed.store(true, std::sync::atomic::Ordering::Release); }
+        result
+    }
+}
+
+struct GenieXCreateCancellation {
+    pending: Arc<PendingGenieXCreate>,
+    armed: bool,
+}
+
+impl Drop for GenieXCreateCancellation {
+    fn drop(&mut self) {
+        if self.armed { self.pending.cancel(); }
+    }
+}
+
+impl ProductionModelSessionFactory {
+    pub fn with_genie_x_worker(mut self, config: GenieXFactoryConfig) -> Self {
+        self.genie_x = Some(config);
+        self
+    }
+
+    async fn create_genie_x(&self, request: &SpawnRequest) -> SwarmResult<LiveSession> {
+        self.require_active_model_lane_lifecycle()?;
+        if request.runtime_binding != RuntimeBinding::GenieX
+            || !matches!(request.provider, None | Some(ProviderKind::Local))
+            || request.wants_warm_vm_execution()
+            || request.isolation_tier.is_some_and(|tier|
+                tier == crate::sandbox::adapter::IsolationTier::Tier3Microvm)
+        {
+            return Err(SwarmError::FactoryFailed("GenieX execution posture mismatch".into()));
+        }
+        let snapshot = request.dexterity_launch.as_ref()
+            .and_then(|launch| launch.engine_profile.as_ref())
+            .ok_or_else(|| SwarmError::FactoryFailed("GenieX requires a pinned Engine Profile".into()))?;
+        snapshot.validate().map_err(|_| {
+            SwarmError::FactoryFailed("GenieX Engine Profile fingerprint mismatch".into())
+        })?;
+        if request.model_artifact_sha256.as_deref() != Some(snapshot.profile.model.content_sha256.as_str()) {
+            return Err(SwarmError::FactoryFailed("GenieX artifact identity mismatch".into()));
+        }
+        let config = self.genie_x.as_ref().ok_or_else(|| {
+            SwarmError::FactoryFailed("GenieX host binding is not configured".into())
+        })?;
+        let scope = self.require_cloud_resource_scope().map_err(|_| {
+            SwarmError::FactoryFailed("RESOURCE_SCOPE_EXACT_REQUIRED: GenieX dispatch".into())
+        })?;
+        if config.resolver.resource_scope() != &scope {
+            return Err(SwarmError::FactoryFailed("RESOURCE_SCOPE_MISMATCH: GenieX resolver".into()));
+        }
+        let denied = |message: &str| SwarmError::FactoryFailed(message.to_owned());
+        let authority = request.local_execution_authority.as_ref()
+            .ok_or_else(|| denied("authenticated WorkProfile invocation authority required"))?;
+        if authority.scope() != &scope { return Err(denied("WorkProfile invocation scope mismatch")); }
+        let store = self.durable_worktree_vm_store.as_ref()
+            .ok_or_else(|| denied("canonical WorkProfile storage required"))?;
+        store.access.authorize_exact_request(&scope).map_err(|_| denied("WorkProfile access denied"))?;
+        let lease = store.storage.with_record_user_scope(authority.record_user(),
+            store.storage.local_execution_authority_snapshot(&authority.request())).await
+            .map_err(|_| denied("canonical WorkProfile snapshot rejected"))?;
+        let registry_store = crate::storage::surreal::SurrealModelRegistryStore::new(store.storage.clone());
+        let current_registry = store.storage.with_record_user_scope(authority.record_user(),
+            registry_store.list_engine_profiles(&scope)).await.map_err(|_| denied("current Engine Profile registry unavailable"))?;
+        let current = current_registry.profiles.iter().find(|profile| profile.profile_id == snapshot.profile.id)
+            .ok_or_else(|| denied("current Engine Profile missing"))?;
+        if current.tombstoned || current.head().map_err(|_| denied("current Engine Profile invalid"))? != snapshot {
+            return Err(denied("current Engine Profile deleted or stale"));
+        }
+        let adapter = config.resolver.sandbox_adapter();
+        let verified = config.resolver.local_execution_policy_source()
+            .resolve_invocation(&scope, lease.snapshot(), snapshot, &adapter.capabilities(), authority.capability_profile_ref(), request)
+            .map_err(denied)?;
+        let policy = verified.policy().clone();
+        let binding = config.resolver.resolve(request, snapshot)?;
+        let policy_memory = policy.resource_limits.memory_bytes.ok_or_else(|| denied("explicit policy memory required"))?;
+        if !policy.resource_limits.timeout_ms.is_some_and(|timeout| u128::from(timeout) <= config.operation_timeout.as_millis()) {
+            return Err(denied("local execution policy exceeds host operation timeout"));
+        }
+        let sandbox = GenieXSandboxLaunchBinding::new(adapter, crate::sandbox::AttachedProcessSpec {
+            executable_path: std::path::PathBuf::new(), args: Vec::new(), env: Default::default(), cwd: None,
+            binds: config.resolver.sandbox_binds(request, snapshot)?, network_mode: policy.effective_attached_network_mode,
+            trust_class: policy.trust_class, required_capabilities: policy.required_capabilities.clone(),
+            requested_isolation_tier: policy.isolation_tier, requested_net_policy: policy.requested_net_policy.clone(),
+            resource_limits: policy.resource_limits.clone(), startup_timeout_ms: policy.startup_timeout_ms,
+            ephemeral_cleanup_paths: Vec::new(), execution_policy_ref: policy.effective_ref.clone(),
+            resolved_execution_policy: Some(policy), swarm_id: request.swarm_id.clone(),
+            worktree_id: request.worktree_id.clone(), checkout_lease_id: None,
+            checkout_lease_owner_generation: None, checkout_lease_canonical_working_dir: None,
+        }).map_err(denied)?;
+        sandbox.validate_request(request).map_err(denied)?;
+
+        if binding.content_sha256 != snapshot.profile.model.content_sha256
+            || !binding.capabilities.contains(&handshake_dexterity::RuntimeCapability {
+                engine: snapshot.profile.engine, device: snapshot.profile.device,
+            })
+        {
+            return Err(SwarmError::FactoryFailed("GenieX configured capability mismatch".into()));
+        }
+        let resolved = handshake_dexterity::Registry::new(vec![snapshot.profile.clone()])
+            .and_then(|registry| registry.resolve(&snapshot.profile.id))
+            .map_err(|_| SwarmError::FactoryFailed("GenieX profile resolution failed".into()))?;
+        let admission_bytes = request.committed_memory_bytes.ok_or_else(|| {
+            SwarmError::FactoryFailed("GenieX requires committed-memory admission".into())
+        })?;
+        if admission_bytes == 0 || policy_memory > admission_bytes {
+            return Err(denied("local execution policy exceeds admitted memory"));
+        }
+        // execute() starts blocking work synchronously. Release before create effects.
+        drop(lease.release());
+        store.access.authorize_exact_request(&scope).map_err(|_| denied("WorkProfile access revoked"))?;
+        let reservation = self.ledger.try_reserve_lifecycles(1)
+            .map_err(|error| SwarmError::LedgerFailed(error.to_string()))?.pop()
+            .ok_or_else(|| SwarmError::LedgerFailed("GenieX session reservation is empty".into()))?;
+        let session_id = ProcessOwnershipRecordId::new_v7();
+        let mut child_start = genie_x_process_start(request, snapshot, &scope);
+        child_start.parent_process_id = Some(session_id.as_uuid());
+        let operations = GenieXOperationOwner::new(
+            config.supervisor.clone(), self.ledger.clone(), request.instance_id.to_string(),
+            child_start, config.pending.clone(), config.bounds, admission_bytes,
+            Some(sandbox), Some(verified),
+            Some(GenieXLiveAuthority { store: store.clone(), authentication: authority.clone() }),
+        );
+        let runtime = GenieXRuntimeState::new(resolved, binding, operations, config.operation_timeout)
+            .map_err(|_| SwarmError::FactoryFailed("GenieX adapter configuration failed".into()))?;
+        let mut facade = GenieXRuntime { state: runtime.clone() };
+        let model_id = facade.load(crate::model_runtime::LoadSpec {
+            artifact_path: request.model_artifact_path.clone().ok_or_else(|| {
+                SwarmError::FactoryFailed("GenieX registered artifact path is missing".into())
+            })?.into(),
+            sha256_expected: snapshot.profile.model.content_sha256.clone(),
+            runtime_kind: crate::model_runtime::RuntimeKind::GenieX,
+            sampling_defaults: crate::model_runtime::SamplingParams::default(),
+            kv_cache_policy: crate::model_runtime::KvCachePolicy::default(),
+            declared_capabilities: crate::model_runtime::ModelCapabilities::default(),
+            provider: ProviderKind::Local,
+            engine_origin: Some(crate::model_runtime::invariant::GENIE_X_LOCAL_ENGINE_ORIGIN.into()),
+            external_engine_import: None,
+        }).await.map_err(|_| SwarmError::FactoryFailed("GenieX adapter registration failed".into()))?;
+        let mut start = genie_x_process_start(request, snapshot, &scope)
+            .with_process_uuid(session_id.as_uuid());
+        start.metadata_jsonb["lifecycle_kind"] = json!("in_process_genie_x_adapter_session");
+        start.metadata_jsonb["execution_model"] = json!("on_demand_one_shot_no_residency_claim");
+        start.metadata_jsonb["model_id"] = json!(model_id.to_string());
+        let pending = {
+            let mut sessions = self.genie_x_creates.lock().map_err(|_| {
+                SwarmError::FactoryFailed("GenieX session owner is poisoned".into())
+            })?;
+            if sessions.get(&request.instance_id).is_some_and(|session|
+                !session.closed.load(std::sync::atomic::Ordering::Acquire))
+            {
+                return Err(SwarmError::FactoryFailed("GenieX session attempt already exists".into()));
+            }
+            let (lifecycle, ack) = reservation.begin_with_durable_ack(start.clone())
+                .map_err(|error| SwarmError::LedgerFailed(error.to_string()))?;
+            let pending = Arc::new(PendingGenieXCreate {
+            request: request.clone(), runtime: runtime.clone(), model_id,
+            lifecycle: Arc::new(lifecycle),
+            start_ack: tokio::sync::Mutex::new(Some(Box::pin(ack.wait_unbounded()))),
+            start_result: Mutex::new(None), close: tokio::sync::Mutex::new(None),
+            unloaded: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            abandoned: std::sync::atomic::AtomicBool::new(false),
+            closed: std::sync::atomic::AtomicBool::new(false),
+            });
+            sessions.insert(request.instance_id, pending.clone());
+            pending
+        };
+        let mut cancellation = GenieXCreateCancellation { pending: pending.clone(), armed: true };
+        tokio::time::timeout(PIDLESS_SESSION_START_DURABILITY_TIMEOUT, pending.await_start()).await
+            .map_err(|_| SwarmError::LedgerFailed("GenieX START acknowledgement remains pending".into()))??;
+        if pending.abandoned.load(std::sync::atomic::Ordering::Acquire) {
+            return Err(SwarmError::FactoryFailed("GenieX creation was canceled".into()));
+        }
+        let client = Arc::new(GenieXLlmClient::new(runtime.clone(), model_id, config.recorder.clone())
+            .map_err(|_| SwarmError::FactoryFailed("GenieX completion client registration failed".into()))?);
+        let teardown_pending = pending.clone();
+        let teardown: SessionTeardown = Arc::new(move || {
+            let pending = teardown_pending.clone();
+            Box::pin(async move { pending.compensate().await })
+        });
+        let runtime_facade: Arc<dyn ModelRuntime> = Arc::new(facade);
+        let live = LiveSession::new(runtime_facade, model_id, CancellationToken::new(),
+            teardown, session_id, self.synthetic_pid(request))
+            .with_pidless_reserved_ledger(ProcessEngineKind::GenieX, start, pending.lifecycle.clone())
+            .with_llm_client(client);
+        cancellation.armed = false;
+        Ok(live)
+    }
+
+    async fn drain_genie_x_creates(&self) -> SwarmResult<()> {
+        let sessions: Vec<_> = self.genie_x_creates.lock().map_err(|_| {
+            SwarmError::FactoryFailed("GenieX session owner is poisoned".into())
+        })?.values().cloned().collect();
+        for session in &sessions { session.cancel(); }
+        let mut failure = None;
+        for session in sessions {
+            if let Err(error) = session.compensate().await { failure = Some(error); }
+        }
+        if let Some(config) = &self.genie_x { config.pending.drain().await?; }
+        self.genie_x_creates.lock().map_err(|_| {
+            SwarmError::FactoryFailed("GenieX session owner is poisoned".into())
+        })?.retain(|_, session| !session.closed.load(std::sync::atomic::Ordering::Acquire));
+        match failure { Some(error) => Err(error), None => Ok(()) }
+    }
+}
+
+fn genie_x_process_start(
+    request: &SpawnRequest,
+    snapshot: &crate::model_runtime::EngineProfileSnapshotV1,
+    scope: &ExactResourceScopeAttribution,
+) -> ProcessStart {
+    let mut start = ProcessStart::new(ProcessEngineKind::GenieX, request.owner_role.clone(),
+        request.owner_wp.clone())
+        .with_parent_session_id(request.parent_session_id.clone())
+        .with_model_artifact_sha256(snapshot.profile.model.content_sha256.clone())
+        .with_metadata_jsonb(json!({
+            "instance_id": request.instance_id.to_string(),
+            "engine_profile": snapshot,
+            "runtime_binding": "genie_x",
+            "owner_account_id": scope.owner_account_id.as_uuid(),
+            "actor_principal_id": scope.actor_principal_id.as_uuid(),
+            "authenticated_session_id": scope.authenticated_session_id.as_uuid(),
+            "access_space_id": scope.access_space_id.as_uuid(),
+            "workspace_id": scope.workspace_id.as_str(),
+            "checkout_lease_id": request.checkout_lease().map(|lease| lease.lease_id),
+            "checkout_lease_owner_generation": request.checkout_lease().map(|lease| lease.owner_generation),
+        }));
+    if let Some(value) = request.role_id.clone() { start = start.with_role_id(value); }
+    if let Some(value) = request.wp_id.clone() { start = start.with_wp_id(value); }
+    if let Some(value) = request.mt_id.clone() { start = start.with_mt_id(value); }
+    start
+}
+
+#[cfg(test)]
+mod genie_x_live_authority_contract {
+    use super::*;
+    use crate::storage::surreal::resource_authority::{AuthorizationDecision,RecordUserScope,ResourceAction};
+
+    #[test]
+    fn live_decision_requires_the_original_session_grant_resource_and_capability_profile() {
+        let scope: ExactResourceScopeAttribution = serde_json::from_value(json!({
+            "owner_account_id":uuid::Uuid::from_u128(1),"actor_principal_id":uuid::Uuid::from_u128(2),
+            "authenticated_session_id":uuid::Uuid::from_u128(3),"access_space_id":uuid::Uuid::from_u128(4),
+            "workspace_id":"fixture-workspace"
+        })).unwrap();
+        let record = RecordUserScope { grant_id:Some("original-grant".into()),workspace_id:Some(scope.workspace_id.to_string()),
+            session_token:"fixture-token".into(),channel_binding_hash:None,resource_id:"original-resource".into(),
+            session_id:scope.authenticated_session_id.to_string(),capability_id:"fs.write".into(),action:ResourceAction::Create };
+        let decision = AuthorizationDecision { decision_id:"fixture-decision".into(),account_id:scope.owner_account_id.to_string(),
+            principal_id:scope.actor_principal_id.to_string(),session_id:scope.authenticated_session_id.to_string(),
+            access_space_id:scope.access_space_id.to_string(),resource_id:record.resource_id.clone(),actor_kind:"operator".into(),
+            actor_id:"fixture-actor".into(),capability_profile_id:"original-profile".into(),delegation_chain:vec![],
+            policy_version:1,grant_id:"original-grant".into() };
+        assert!(genie_x_live_decision_matches(&scope,&record,&decision,"original-profile"));
+        for changed in 0..4 {
+            let mut foreign = decision.clone();
+            match changed { 0 => foreign.grant_id="replacement-grant".into(),
+                1 => foreign.session_id=uuid::Uuid::from_u128(9).to_string(),
+                2 => foreign.resource_id="foreign-resource".into(),
+                _ => foreign.capability_profile_id="replacement-profile".into() }
+            assert!(!genie_x_live_decision_matches(&scope,&record,&foreign,"original-profile"));
+        }
     }
 }

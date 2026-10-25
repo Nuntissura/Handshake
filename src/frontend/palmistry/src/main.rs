@@ -428,6 +428,26 @@ enum WatcherRingEvents {
     V2(Vec<handshake_diag_ring::schema::DiagEventV2>),
 }
 impl WatcherRingEvents {
+    fn ordinary_events(&self) -> Vec<handshake_diag_ring::DiagEvent> {
+        use handshake_diag_ring::{schema::DiagEventV2, DiagEventCode};
+        match self {
+            Self::V1(events) => events
+                .iter()
+                .copied()
+                .filter(|event| event.event_code != DiagEventCode::ModelLaneBehaviorObservation.as_u16())
+                .take(survivor_store::MAX_SURVIVOR_EVENTS)
+                .collect(),
+            Self::V2(events) => events
+                .iter()
+                .filter_map(|record| {
+                    let ordinary = DiagEventV2::ordinary(record.event)?;
+                    (ordinary == *record).then_some(record.event)
+                })
+                .take(survivor_store::MAX_SURVIVOR_EVENTS)
+                .collect(),
+        }
+    }
+
     fn count(&self) -> u32 {
         match self {
             Self::V1(events) => events.len() as u32,
@@ -800,9 +820,13 @@ fn drain_and_forward(store: &Arc<Mutex<SurvivorStore>>, forwarder: &FrForwarder)
 /// store opened. Best-effort: a `None` store (open failed) or a write error is logged, never fatal — the
 /// ring-sibling crash record still covers the crash. The durable survivor record is what a later recovery
 /// (or the next Palmistry instance's startup drain) forwards to the Tier-1 Flight Recorder.
-fn put_crash_survivor(store: &Option<Arc<Mutex<SurvivorStore>>>, crash: &CrashRecord) {
+fn put_crash_survivor(
+    store: &Option<Arc<Mutex<SurvivorStore>>>,
+    crash: &CrashRecord,
+    events: &[handshake_diag_ring::DiagEvent],
+) {
     let Some(store) = store else { return };
-    let record = survivor_store::SurvivorRecord::from_crash(crash);
+    let record = survivor_store::SurvivorRecord::from_crash(crash).with_last_events(events);
     match store.lock().unwrap_or_else(|e| e.into_inner()).put(record) {
         Ok(path) => tracing::warn!(
             path = %path.display(),
@@ -1255,6 +1279,7 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
     // minidump was captured we do NOT also write a floor record for the same crash.
     let last_heartbeat = ring_reader.read_heartbeat();
     let last_events = ring_reader.read_last_events(ring_reader.capacity().min(64));
+    let survivor_events = last_events.ordinary_events();
     if crash_captured.load(Ordering::SeqCst) {
         // (a) RICH: a CrashContext-driven out-of-process minidump was written. Record it.
         let faulting_thread_id = crash_thread_id.load(Ordering::SeqCst);
@@ -1280,7 +1305,7 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
         // store, so the next recovery (this session's recovery edge, or — after the process exits — the
         // NEXT Palmistry instance's startup drain) forwards it to the Tier-1 Flight Recorder. The store
         // record reuses the crash record's typed fields (minidump path is a LOCAL reference only).
-        put_crash_survivor(&survivor_store, &crash);
+        put_crash_survivor(&survivor_store, &crash, &survivor_events);
     } else if state.parent_exit_abnormal() {
         // (b) FLOOR: abnormal parent death, no CrashContext — best-effort post-mortem record. Surface a
         // crash-socket write error if one occurred so a missed RICH dump is visible.
@@ -1308,7 +1333,7 @@ pub fn run_watcher(config: PalmistryConfig, options: RunOptions) -> std::io::Res
         }
         // MT-093: also persist the post-mortem crash as a durable survivor record (forwarded by the next
         // recovery / the next Palmistry instance's startup drain).
-        put_crash_survivor(&survivor_store, &crash);
+        put_crash_survivor(&survivor_store, &crash, &survivor_events);
     } else {
         // CLEAN shutdown: NO crash record, NO minidump (§6.13 clean-shutdown rule, AC-012-2). The crash
         // server never wrote a dump (no CrashContext arrived) and the exit was not abnormal, so there is

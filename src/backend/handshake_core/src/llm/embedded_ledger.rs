@@ -230,6 +230,7 @@ impl EmbeddedModelProcess {
         let engine_kind = match binding {
             RuntimeBinding::LlamaCpp => ProcessEngineKind::LlamaCpp,
             RuntimeBinding::Candle => ProcessEngineKind::Candle,
+            RuntimeBinding::GenieX => return Err(ProcessLedgerError::InvalidConfig("GenieX requires real worker process ownership, not embedded ownership".into())),
         };
 
         let mut metadata = json!({

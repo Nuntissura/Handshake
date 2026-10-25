@@ -507,6 +507,7 @@ pub(crate) const fn runtime_binding_token(binding: RuntimeBinding) -> &'static s
     match binding {
         RuntimeBinding::LlamaCpp => "llama_cpp",
         RuntimeBinding::Candle => "candle",
+        RuntimeBinding::GenieX => "genie_x",
     }
 }
 
@@ -516,6 +517,7 @@ pub(crate) fn parse_runtime_binding(
     match token {
         "llama_cpp" => Ok(RuntimeBinding::LlamaCpp),
         "candle" => Ok(RuntimeBinding::Candle),
+        "genie_x" => Ok(RuntimeBinding::GenieX),
         _ => Err(ModelRegistryPersistenceError::CorruptRow(format!(
             "unknown runtime_binding `{token}`"
         ))),

@@ -793,6 +793,7 @@ async fn mcp_tool_call_allows_when_session_scoped_grants_satisfy_required_caps(
     let trace_id = Uuid::now_v7();
     let session_id = "sess-1";
     db.upsert_model_session(NewModelSession {
+        engine_profile_binding: None,
         session_id: session_id.to_string(),
         parent_session_id: None,
         spawn_depth: 0,
@@ -890,6 +891,7 @@ async fn mcp_tool_call_denies_when_session_scoped_grants_do_not_satisfy_required
     let trace_id = Uuid::now_v7();
     let session_id = "sess-1";
     db.upsert_model_session(NewModelSession {
+        engine_profile_binding: None,
         session_id: session_id.to_string(),
         parent_session_id: None,
         spawn_depth: 0,
@@ -1062,6 +1064,7 @@ async fn mcp_tool_call_denies_and_records_tool_call_when_child_session_widens_vs
     let child_session_id = "sess-child";
 
     db.upsert_model_session(NewModelSession {
+        engine_profile_binding: None,
         session_id: parent_session_id.to_string(),
         parent_session_id: None,
         spawn_depth: 0,
@@ -1088,6 +1091,7 @@ async fn mcp_tool_call_denies_and_records_tool_call_when_child_session_widens_vs
     .await?;
 
     db.upsert_model_session(NewModelSession {
+        engine_profile_binding: None,
         session_id: child_session_id.to_string(),
         parent_session_id: Some(parent_session_id.to_string()),
         spawn_depth: 1,

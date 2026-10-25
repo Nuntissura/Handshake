@@ -91,6 +91,8 @@ async fn start_scoped_server(
 
 fn cloud_selection(provider: &str, model_id: &str, suffix: &str) -> OperatorChatSelection {
     OperatorChatSelection {
+        engine_profile: None,
+        engine_profile_session: None,
         lane_kind: OperatorChatLaneKind::Cloud,
         model_id: model_id.into(),
         cloud_provider: Some(provider.into()),

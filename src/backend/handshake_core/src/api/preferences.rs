@@ -138,6 +138,12 @@ fn require_entry(
 }
 
 fn db_error(err: crate::storage::StorageError) -> ApiError {
+    if err.to_string().contains("HSK-PREFERENCE-REVISION-CONFLICT") {
+        return error(StatusCode::CONFLICT, "preference_revision_conflict", "preference revision changed; reload before writing");
+    }
+    if matches!(&err, crate::storage::StorageError::Validation(_)) {
+        return error(StatusCode::BAD_REQUEST, "preference_validation_failed", &err.to_string());
+    }
     // MT-154 silent-deny ruling: a record-user write the table permissions dropped is the constant
     // 403, never 200/500.
     if matches!(err, crate::storage::StorageError::Guard(_))
@@ -160,7 +166,8 @@ async fn list_preferences(
     let authority =
         preference_workspace(&state, &headers, &workspace_id, ResourceAction::Read).await?;
     let scope = PreferenceScope::workspace(&workspace_id);
-    let entries = editor_preference_registry();
+    let mut entries = editor_preference_registry();
+    entries.extend([crate::preferences::PREF_WORK_PROFILE_REGISTRY, crate::preferences::PREF_WORK_PROFILE_SELECTION].into_iter().filter_map(crate::preferences::work_profile_preference_entry));
     let rows = run_scoped(
         &state,
         &authority,
@@ -200,6 +207,7 @@ async fn get_preference(
 #[derive(Debug, Deserialize)]
 struct SetPreferenceRequest {
     value: Value,
+    expected_revision: Option<i64>,
 }
 
 async fn set_preference(
@@ -227,12 +235,13 @@ async fn set_preference(
         &state,
         &authority,
         &workspace_id,
-        state.storage.preference_set(
+        state.storage.preference_set_expected(
             &scope,
             &entry,
             payload.value,
             PreferenceSource::Operator,
             &actor,
+            payload.expected_revision,
         ),
     )
     .await
@@ -240,10 +249,14 @@ async fn set_preference(
     Ok(Json(json!({ "record": record, "receipt": receipt })))
 }
 
+#[derive(Debug, Deserialize)]
+struct ResetPreferenceRequest { expected_revision: Option<i64> }
+
 async fn reset_preference(
     State(state): State<AppState>,
     Path((workspace_id, preference_id)): Path<(String, String)>,
     headers: HeaderMap,
+    payload: Option<Json<ResetPreferenceRequest>>,
 ) -> Result<Json<Value>, ApiError> {
     let authority =
         preference_workspace(&state, &headers, &workspace_id, ResourceAction::Update).await?;
@@ -254,7 +267,7 @@ async fn reset_preference(
         &state,
         &authority,
         &workspace_id,
-        state.storage.preference_reset(&scope, &entry, &actor),
+        state.storage.preference_reset_expected(&scope, &entry, &actor, payload.and_then(|Json(body)| body.expected_revision)),
     )
     .await
     .map_err(db_error)?;

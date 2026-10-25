@@ -189,6 +189,8 @@ fn existing_working_dir() -> &'static str {
 
 fn cli_selection(working_dir: &str, prompt: &str, owner: &str) -> OperatorChatSelection {
     OperatorChatSelection {
+        engine_profile: None,
+        engine_profile_session: None,
         lane_kind: OperatorChatLaneKind::Cli,
         model_id: "claude-sonnet-4".into(),
         cloud_provider: None,

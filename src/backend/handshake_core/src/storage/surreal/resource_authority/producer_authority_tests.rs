@@ -619,6 +619,7 @@ fn producer_source_capture_keeps_ordered_real_grants_and_rejects_invalid_pairs()
         let session_id = current.session.session_id.clone();
         let run_id = run_operation.to_string();
         let expected = NewModelLaneRun {
+            engine_profile: None,
             run_id: run_id.clone(), trace_id: run_id.clone(), run_span_id: run_id.clone(),
             coordinator_session_id: session_id.clone(), routing_policy: "RoundRobin".into(),
             context_bundle_id: second.clone(), lane_ids: vec![format!("{run_id}-lane")],

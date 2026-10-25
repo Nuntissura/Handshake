@@ -294,6 +294,7 @@ async fn run_mcp_e2e(db: Arc<dyn Database>) -> Result<(), Box<dyn std::error::Er
 
     let session_id = "sess-1".to_string();
     db.upsert_model_session(NewModelSession {
+        engine_profile_binding: None,
         session_id: session_id.clone(),
         parent_session_id: None,
         spawn_depth: 0,

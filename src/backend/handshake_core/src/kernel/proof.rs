@@ -496,6 +496,7 @@ impl KernelProofRunner {
     async fn ensure_model_session(&self, session: &SessionRun) -> KernelResult<()> {
         self.db
             .upsert_model_session(NewModelSession {
+                engine_profile_binding: None,
                 session_id: session.session_run_id.clone(),
                 parent_session_id: None,
                 spawn_depth: 0,

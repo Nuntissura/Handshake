@@ -12,6 +12,7 @@ const SESSION_MESSAGES: &str = "model_session_messages";
 
 #[derive(SurrealValue)]
 struct ModelSessionRow {
+    engine_profile_binding: Option<serde_json::Value>,
     id: RecordId,
     parent_session_id: Option<RecordId>,
     spawn_depth: i32,
@@ -44,6 +45,7 @@ struct ModelSessionRow {
 
 #[derive(SurrealValue)]
 struct SessionUpsertBindings {
+    engine_profile_binding: Option<serde_json::Value>,
     record: RecordId,
     parent_session: Option<RecordId>,
     spawn_depth: i32,
@@ -151,13 +153,16 @@ pub(crate) async fn upsert_model_session(
     storage: &SurrealStorage,
     session: NewModelSession,
 ) -> StorageResult<ModelSession> {
+    super::with_model_lane_operation(super::ContextCoordinationPurpose::ProfileSessionWrite, async {
     if session.session_id.trim().is_empty() || session.memory_policy.trim().is_empty() {
         return Err(StorageError::Validation(
             "session_id and memory_policy are required",
         ));
     }
+    if let Some(binding) = session.engine_profile_binding.as_ref() { binding.validate(&session.model_id)?; }
     let now = chrono::Utc::now();
     let bindings = SessionUpsertBindings {
+        engine_profile_binding: session.engine_profile_binding.map(serde_json::to_value).transpose()?,
         record: RecordId::new(MODEL_SESSIONS, session.session_id),
         parent_session: session
             .parent_session_id
@@ -197,7 +202,7 @@ pub(crate) async fn upsert_model_session(
                             THROW 'HSK-MODEL-SESSION-MEMORY-POLICY-CONFLICT'; \
                          }; \
                          UPSERT $record SET parent_session_id = $parent_session, spawn_depth = $spawn_depth, \
-                            state = $state, model_id = $model_id, backend = $backend, \
+                            state = $state, model_id = $model_id, backend = $backend, engine_profile_binding = $engine_profile_binding, \
                             parameter_class = $parameter_class, role = $role, wp_id = $wp_id, mt_id = $mt_id, \
                             work_profile_id = $work_profile_id, execution_mode = $execution_mode, \
                             memory_policy = $memory_policy, consent_receipt_id = $consent_receipt_id, \
@@ -220,12 +225,14 @@ pub(crate) async fn upsert_model_session(
         .map(map_model_session)
         .transpose()?
         .ok_or_else(|| StorageError::Database("model session upsert returned no row".to_owned()))
+    }).await
 }
 
 pub(crate) async fn get_model_session(
     storage: &SurrealStorage,
     session_id: &str,
 ) -> StorageResult<ModelSession> {
+    super::with_model_lane_operation(super::ContextCoordinationPurpose::SourceRead, async {
     let row: Option<ModelSessionRow> = storage
         .with_data_operation({
             let session_id = session_id.to_owned();
@@ -238,6 +245,7 @@ pub(crate) async fn get_model_session(
     row.map(map_model_session)
         .transpose()?
         .ok_or(StorageError::NotFound("model_session"))
+    }).await
 }
 
 pub(crate) async fn get_model_session_by_job_id(
@@ -271,6 +279,7 @@ pub(crate) async fn update_model_session_state(
     job_id: Option<uuid::Uuid>,
     merge_back_artifact: Option<MergeBackArtifact>,
 ) -> StorageResult<ModelSession> {
+    super::with_model_lane_operation(super::ContextCoordinationPurpose::ProfileSessionWrite, async {
     let bindings = SessionStateBindings {
         record: RecordId::new(MODEL_SESSIONS, session_id.to_owned()),
         state: state.as_str().to_owned(),
@@ -296,6 +305,7 @@ pub(crate) async fn update_model_session_state(
     row.map(map_model_session)
         .transpose()?
         .ok_or(StorageError::NotFound("model_session"))
+    }).await
 }
 
 pub(crate) async fn close_model_session(
@@ -305,6 +315,7 @@ pub(crate) async fn close_model_session(
     close_reason: &str,
     actor: &str,
 ) -> StorageResult<ModelSession> {
+    super::with_model_lane_operation(super::ContextCoordinationPurpose::ProfileSessionWrite, async {
     if !state.is_terminal() {
         return Err(StorageError::Validation(
             "model session close state must be terminal",
@@ -339,6 +350,7 @@ pub(crate) async fn close_model_session(
     row.map(map_model_session)
         .transpose()?
         .ok_or(StorageError::NotFound("model_session"))
+    }).await
 }
 
 pub(crate) async fn create_session_checkpoint(
@@ -530,7 +542,11 @@ fn key(record: RecordId) -> StorageResult<String> {
 }
 
 fn map_model_session(row: ModelSessionRow) -> StorageResult<ModelSession> {
+    let engine_profile_binding: Option<crate::storage::EngineProfileSessionBindingV1> = row.engine_profile_binding
+        .map(serde_json::from_value).transpose()?;
+    if let Some(binding) = engine_profile_binding.as_ref() { binding.validate(&row.model_id)?; }
     Ok(ModelSession {
+        engine_profile_binding,
         session_id: key(row.id)?,
         parent_session_id: row.parent_session_id.map(key).transpose()?,
         spawn_depth: row.spawn_depth,
@@ -642,6 +658,7 @@ mod tests {
 
     fn new_session(memory_policy: &str) -> NewModelSession {
         NewModelSession {
+            engine_profile_binding: None,
             session_id: "mt-137-model-session".to_owned(),
             parent_session_id: None,
             spawn_depth: 0,

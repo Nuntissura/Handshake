@@ -74,6 +74,7 @@ fn new_job() -> NewAiJob {
 
 fn model_session(job_id: Uuid) -> NewModelSession {
     NewModelSession {
+        engine_profile_binding: None,
         session_id: "mt136-proof-c-session".to_owned(),
         parent_session_id: None,
         spawn_depth: 0,

@@ -914,6 +914,8 @@ async fn model_runtime_registry_behaviors_have_canonical_manual_coverage() {
             .map(|row| row.behavior_id)
             .collect::<BTreeSet<_>>(),
         BTreeSet::from([
+            "model_runtime.engine_profiles.list",
+            "model_runtime.engine_profiles.mutate",
             "wp1.model_runtime_registry.persistent_adapter_selection",
             "wp1.model_runtime_registry.restart_recovery",
             "wp1.model_runtime_registry.fail_closed_selection_conflict",
@@ -1036,6 +1038,7 @@ const EVIDENCE_OWNER: &str = "KERNEL_BUILDER-mt011-evidence";
 /// tier records can attach to it.
 fn evidence_run(run_id: &str) -> NewModelLaneRun {
     NewModelLaneRun {
+        engine_profile: None,
         run_id: run_id.into(),
         trace_id: format!("trace-{run_id}"),
         run_span_id: format!("span-{run_id}"),

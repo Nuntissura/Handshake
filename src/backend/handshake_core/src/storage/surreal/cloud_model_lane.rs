@@ -99,6 +99,17 @@ struct AuthorityWriteBindings {
 }
 
 #[derive(Debug, SurrealValue)]
+struct CheckpointDenialLookupBindings {
+    event_id: String,
+    run_id: String,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+}
+
+#[derive(Debug, SurrealValue)]
 struct ScopedLookupBindings {
     kind: String,
     aggregate_id: String,
@@ -350,6 +361,86 @@ impl CloudModelLaneStore {
                 bindings,
             ).await
         })).await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn validate_checkpoint_denial_member(
+        &self,
+        event_id: &str,
+        event_seq: i64,
+        payload_hash: &str,
+        run_id: &str,
+        lane_id: &str,
+        event_ledger_stream_id: &str,
+        scope: &CloudModelLaneScope,
+    ) -> Result<CloudModelLaneStoredRow, SurrealStorageError> {
+        let sealed = super::PROTECTED_TRANSACTION
+            .try_with(|transaction| std::sync::Arc::ptr_eq(&transaction.storage.inner, &self.storage.inner))
+            .unwrap_or(false);
+        let purpose = super::MODEL_LANE_OPERATION_PURPOSE.try_with(|purpose| {
+            matches!(purpose,
+                super::model_lane::ContextCoordinationPurpose::RecoveryCheckpointRecord
+                    | super::model_lane::ContextCoordinationPurpose::RecoveryExecute)
+        }).unwrap_or(false);
+        if !sealed || !purpose {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        if event_id.trim().is_empty() || event_seq <= 0 || payload_hash.len() != 64
+            || run_id.trim().is_empty() || lane_id.trim().is_empty()
+            || event_ledger_stream_id.trim().is_empty()
+        {
+            return Err(SurrealStorageError::InvalidCloudModelLaneRecord {
+                reason: "checkpoint cloud receipt identity is incomplete",
+            });
+        }
+        let bindings = CheckpointDenialLookupBindings {
+            event_id: event_id.to_owned(),
+            run_id: run_id.to_owned(),
+            owner_account_id: scope.owner_account_id.clone(),
+            actor_principal_id: scope.actor_principal_id.clone(),
+            authenticated_session_id: scope.authenticated_session_id.clone(),
+            access_space_id: scope.access_space_id.clone(),
+            workspace_id: scope.workspace_id.clone(),
+        };
+        let rows = self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_values::<StoredRowValue, _>(
+                "SELECT record_json, event_id, event_seq, event_payload_json FROM model_lane_cloud_authority WHERE kind = 'consent_denial' AND event_id = $event_id AND run_id = $run_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;",
+                bindings,
+            ).await
+        })).await?;
+        if rows.len() != 1 {
+            return Err(SurrealStorageError::InvalidCloudModelLaneRecord {
+                reason: "checkpoint cloud receipt has no unique canonical authority",
+            });
+        }
+        let row: CloudModelLaneStoredRow = rows.into_iter().next().expect("one cloud receipt").into();
+        self.validate_actual_receipt(CloudModelLaneRecordKind::ConsentDenial, lane_id, run_id, scope, &row).await?;
+        let record: serde_json::Value = serde_json::from_str(&row.record_json)
+            .map_err(|_| SurrealStorageError::InvalidCloudModelLaneRecord {
+                reason: "checkpoint cloud receipt record is malformed",
+            })?;
+        let payload: serde_json::Value = serde_json::from_str(&row.event_payload_json)
+            .map_err(|_| SurrealStorageError::InvalidCloudModelLaneRecord {
+                reason: "checkpoint cloud receipt payload is malformed",
+            })?;
+        let actual_hash = {
+            use sha2::{Digest, Sha256};
+            hex::encode(Sha256::digest(row.event_payload_json.as_bytes()))
+        };
+        if payload.get("dexterity_kernel").and_then(serde_json::Value::as_str) != Some("Dexterity")
+            || payload.get("schema_id").and_then(serde_json::Value::as_str) != Some("hsk.model_lane_cloud_consent_denial@1")
+            || row.event_id != event_id || row.event_seq != event_seq || actual_hash != payload_hash
+            || record.get("run_id").and_then(serde_json::Value::as_str) != Some(run_id)
+            || record.get("lane_id").and_then(serde_json::Value::as_str) != Some(lane_id)
+            || record.get("event_ledger_stream_id").and_then(serde_json::Value::as_str) != Some(event_ledger_stream_id)
+            || record.get("provider_call_attempted").and_then(serde_json::Value::as_bool) != Some(false)
+            || record.get("partial_authority_state_created").and_then(serde_json::Value::as_bool) != Some(false)
+        {
+            return Err(SurrealStorageError::InvalidCloudModelLaneRecord {
+                reason: "checkpoint cloud receipt does not match its immutable membership",
+            });
+        }
+        Ok(row)
     }
 
     pub(crate) async fn get(

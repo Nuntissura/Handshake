@@ -44,6 +44,7 @@ impl OperatorId {
 pub enum RuntimeBinding {
     LlamaCpp,
     Candle,
+    GenieX,
 }
 
 /// Authoritative runtime role assigned when a model is registered.
@@ -77,6 +78,7 @@ impl RuntimeBinding {
         match self {
             Self::LlamaCpp => RuntimeKind::LlamaCpp,
             Self::Candle => RuntimeKind::Candle,
+            Self::GenieX => RuntimeKind::GenieX,
         }
     }
 
@@ -84,6 +86,7 @@ impl RuntimeBinding {
         match self {
             Self::LlamaCpp => "llama_cpp",
             Self::Candle => "candle",
+            Self::GenieX => "genie_x",
         }
     }
 
@@ -91,6 +94,7 @@ impl RuntimeBinding {
         match self {
             Self::LlamaCpp => ProcessEngineKind::LlamaCpp,
             Self::Candle => ProcessEngineKind::Candle,
+            Self::GenieX => ProcessEngineKind::GenieX,
         }
     }
 }
@@ -125,6 +129,80 @@ pub struct ModelRuntimeAvailability {
 }
 
 impl ModelRuntimeAvailability {
+    pub(crate) fn snapshot_role_bound_registrations(
+        &self, registry: &ModelRegistry, roles: &HashMap<ModelId, ModelRuntimeRole>,
+    ) -> Result<Vec<super::RoleBoundModelRegistration>, super::ModelRegistryPersistenceError> {
+        let replacements = self.replacements.lock().map_err(|_| {
+            super::ModelRegistryPersistenceError::InvalidRegistration("runtime registration projection is poisoned".into())
+        })?;
+        Self::validated_role_bound_snapshot(registry, roles, &replacements)
+    }
+
+    pub(crate) fn publish_loaded_registrations(
+        &self, registry: &ModelRegistry, roles: &HashMap<ModelId, ModelRuntimeRole>,
+        additions: &[super::RoleBoundModelRegistration],
+    ) -> Result<u64, super::ModelRegistryPersistenceError> {
+        let mut replacements = self.replacements.lock().map_err(|_| {
+            super::ModelRegistryPersistenceError::InvalidRegistration("runtime registration projection is poisoned".into())
+        })?;
+        let mut whole = Self::validated_role_bound_snapshot(registry, roles, &replacements)?;
+        let unavailable = self.unavailable.lock().map_err(|_| {
+            super::ModelRegistryPersistenceError::InvalidRegistration("runtime availability state is poisoned".into())
+        })?;
+        if additions.iter().any(|item| unavailable.contains(&item.registration.model_id)) {
+            return Err(super::ModelRegistryPersistenceError::InvalidRegistration(
+                "additional registration identity is already unavailable or retired".into()));
+        }
+        let mut validated = ModelRegistry::default();
+        for item in whole.iter().chain(additions) {
+            validated.register(item.registration.clone()).map_err(|error| {
+                super::ModelRegistryPersistenceError::InvalidRegistration(error.to_string())
+            })?;
+        }
+        whole.extend_from_slice(additions);
+        super::registry_persistence::validate_role_bound_registration_set(&whole)?;
+        if additions.is_empty() { return Ok(self.revision()); }
+        let mut next = replacements.clone();
+        for item in additions {
+            if next.insert(item.registration.model_id, (item.registration.clone(), item.runtime_role)).is_some() {
+                return Err(super::ModelRegistryPersistenceError::InvalidRegistration(
+                    "additional registration collides with the current runtime projection".into()));
+            }
+        }
+        let previous = self.revision.fetch_update(Ordering::AcqRel, Ordering::Acquire,
+            |revision| revision.checked_add(1)).map_err(|_| {
+                super::ModelRegistryPersistenceError::InvalidRegistration("runtime availability revision exhausted".into())
+            })?;
+        *replacements = next;
+        Ok(previous + 1)
+    }
+
+    fn validated_role_bound_snapshot(
+        registry: &ModelRegistry, roles: &HashMap<ModelId, ModelRuntimeRole>,
+        replacements: &HashMap<ModelId, (ModelRegistration, ModelRuntimeRole)>,
+    ) -> Result<Vec<super::RoleBoundModelRegistration>, super::ModelRegistryPersistenceError> {
+        let invalid = |reason: &str| super::ModelRegistryPersistenceError::InvalidRegistration(reason.into());
+        if roles.keys().any(|id| registry.lookup(*id).is_none()) {
+            return Err(invalid("runtime role map contains an identity absent from the original registry"));
+        }
+        let mut whole = Vec::with_capacity(registry.list().len() + replacements.len());
+        for registration in registry.list() {
+            let runtime_role = roles.get(&registration.model_id).copied()
+                .ok_or_else(|| invalid("original model registration lacks its committed runtime role"))?;
+            whole.push(super::RoleBoundModelRegistration { registration: registration.clone(), runtime_role });
+        }
+        for (registration, runtime_role) in replacements.values() {
+            whole.push(super::RoleBoundModelRegistration { registration: registration.clone(), runtime_role: *runtime_role });
+        }
+        let mut validated = ModelRegistry::default();
+        for item in &whole {
+            validated.register(item.registration.clone()).map_err(|error| invalid(&error.to_string()))?;
+        }
+        super::registry_persistence::validate_role_bound_registration_set(&whole)?;
+        whole.sort_by_key(|item| item.registration.model_id.to_string());
+        Ok(whole)
+    }
+
     pub fn is_available(&self, id: ModelId) -> bool {
         !self
             .unavailable

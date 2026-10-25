@@ -590,6 +590,8 @@ async fn dexterity_launch_records_real_swarm_spawn_session_runtime_path() {
     .with_wp(WP_ID)
     .with_mt("MT-003")
     .with_dexterity_launch(DexterityLaunchContract {
+        engine_profile: None,
+        engine_profile_session: None,
         run_id: "run-runtime-001".into(),
         lane_id: "lane-runtime-local".into(),
         restart_generation: 0,
@@ -1571,6 +1573,7 @@ fn sample_run(label: &str) -> NewModelLaneRun {
 
 fn sample_run_with_lanes(label: &str, lane_ids: Vec<String>, cloud: bool) -> NewModelLaneRun {
     NewModelLaneRun {
+        engine_profile: None,
         run_id: run_id(label),
         trace_id: format!("trace-mt002-{label}"),
         run_span_id: format!("span-run-mt002-{label}"),
@@ -1636,6 +1639,7 @@ fn scoped_lane(
     let session_id = session_id_for(lane_id);
     let model_session_id = model_session_id_for(lane_id);
     NewModelLane {
+        engine_profile: None,
         lane_id: lane_id.into(),
         run_id: run_id(label),
         trace_id: format!("trace-mt002-{label}"),

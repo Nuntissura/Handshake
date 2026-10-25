@@ -441,6 +441,7 @@ pub async fn build_default_local_client(
     // required capability contract, and UUIDv7 identity before publishing the
     // model in its runtime cache.
     let primary_attested = match local.runtime_binding {
+        RuntimeBinding::GenieX => Err(ModelRuntimeError::LoadError("GenieX requires an authorized full-profile worker launch".into())),
         RuntimeBinding::LlamaCpp => llama_runtime
             .load_attested(load_spec, &primary_required_capabilities)
             .await
@@ -614,6 +615,7 @@ pub async fn build_default_local_client(
             external_engine_import: None,
         };
         let embedding_attested = match embedding_model.runtime_binding {
+            RuntimeBinding::GenieX => Err(ModelRuntimeError::LoadError("GenieX profile worker cannot enter embedded embedding load".into())),
             RuntimeBinding::LlamaCpp => llama_runtime
                 .load_attested(embedding_load_spec, &embedding_capabilities)
                 .await
@@ -1007,6 +1009,7 @@ async fn unload_loaded_model(
     let result = match binding {
         RuntimeBinding::LlamaCpp => llama_runtime.unload(model_id).await,
         RuntimeBinding::Candle => candle_runtime.unload(model_id).await,
+        RuntimeBinding::GenieX => Err(ModelRuntimeError::UnloadError("GenieX requires its owned worker teardown".into())),
     };
     if let Err(err) = &result {
         tracing::error!(

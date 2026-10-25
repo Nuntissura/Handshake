@@ -209,6 +209,15 @@ pub trait ModelSessionFactory: Send + Sync + 'static {
     /// must record the matching STOP before returning the error.
     async fn create(&self, request: &SpawnRequest) -> SwarmResult<LiveSession>;
 
+    /// Cancel and settle factory-owned work retained beyond a `create` future.
+    /// Factories retaining such work MUST override this hook, confirm resource
+    /// cleanup and required ledger settlement before success, and retain unresolved
+    /// cleanup ownership on error. The default applies only to factories retaining
+    /// no pending create work.
+    async fn drain_pending_creates(&self) -> SwarmResult<()> {
+        Ok(())
+    }
+
     /// Compensate an abandoned [`Self::create`] future after coordinator
     /// cancellation. The default is intentionally a no-op because most
     /// factories do not cross an external process boundary before returning a

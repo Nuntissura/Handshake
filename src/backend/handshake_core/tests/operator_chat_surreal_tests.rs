@@ -140,10 +140,7 @@ impl ModelSessionFactory for ProofFactory {
             Some(ProviderKind::OfficialCli) => ProcessEngineKind::OfficialCliBridge,
             Some(ProviderKind::ByokCloud) => ProcessEngineKind::HelperSubprocess,
             Some(ProviderKind::ExternalCompat) => ProcessEngineKind::ExternalCompat,
-            Some(ProviderKind::Local) | None => match request.runtime_binding {
-                RuntimeAdapterBinding::Candle => ProcessEngineKind::Candle,
-                RuntimeAdapterBinding::LlamaCpp => ProcessEngineKind::LlamaCpp,
-            },
+            Some(ProviderKind::Local) | None => request.runtime_binding.process_engine_kind(),
         };
         let start = ProcessStart::new(engine, request.owner_role.clone(), request.owner_wp.clone())
             .with_process_uuid(process_id.as_uuid())
@@ -410,6 +407,8 @@ fn selection(
         OperatorChatLaneKind::Local | OperatorChatLaneKind::Subagent => (None, None),
     };
     OperatorChatSelection {
+        engine_profile: None,
+        engine_profile_session: None,
         lane_kind,
         model_id: model_id.into(),
         cloud_provider,
@@ -1131,6 +1130,7 @@ fn registry_session(
     state: ModelSessionState,
 ) -> ModelSession {
     ModelSession {
+        engine_profile_binding: None,
         session_id: session_id.to_owned(),
         parent_session_id: parent_session_id.map(str::to_owned),
         spawn_depth,

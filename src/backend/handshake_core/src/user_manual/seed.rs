@@ -4014,6 +4014,21 @@ fn page_model_runtime_registry_and_loom_degrade() -> NewUserManualPage {
         sections: vec![
             section(
                 "workflows",
+                "Engine Profiles: durable definitions and active choice",
+                "Open Settings > Engine Profiles (settings.tab.engine-profiles) while signed in to the intended workspace. Refresh (settings.engine-profiles.refresh) reads GET /workspaces/:workspace_id/engine-profiles; Create profile (settings.engine-profiles.create) opens the editor. Enter a registered model ID, artifact SHA-256, engine, device and complete preset/options. The editor validates the canonical EngineProfile and fingerprint; model ID alone is not a profile. Save profile uses settings.engine-profiles.draft.save. Inspect/Edit/Delete/Make active use settings.engine-profiles.<fingerprint>.inspect, .edit, .delete, .activate. Confirm or cancel deletion with settings.engine-profiles.delete.confirm / settings.engine-profiles.delete.cancel. Close editor is settings.engine-profiles.draft.close.\n\nPOST /workspaces/:workspace_id/engine-profiles accepts EngineProfileMutationRequestV1: request_id, reason, expected_registry_generation, expected_active_generation and mutation. The mutation operation tag is create/new_revision/tombstone/activate. Create carries snapshot; new_revision carries expected_head, expected_head_generation and snapshot; tombstone/activate carry expected_head and expected_head_generation. Snapshot contains the entire canonical profile and fingerprint. Both methods return EngineProfileRegistryV1: registry_generation, profiles with immutable revisions/head_generation/tombstoned, active_generation and optional active identity. Create starts at revision 1; edit keeps the ID and appends exactly N+1. Delete tombstones the head while retaining history. Editing/deleting the active head clears active atomically; explicitly make the desired current revision active again. Started work retains its original snapshot. Engine Profiles are distinct from WorkProfileV1 role routes and the application/default model switch.\n\nDefinitions and active choice are durable scoped SurrealDB state with ENGINE_PROFILE_MUTATION_RECORDED receipts. Authentication/workspace authorization derives the actor and exact scope on every operation; the body cannot grant another account, principal, access space or workspace. Historical receipts retain original authenticated-session attribution; persistence does not grant a new login access without current authorization. Same-model profiles remain distinct by ID/revision/fingerprint, engine, device and preset/options. Active labels a candidate in Operator Chat; it does not silently accept or execute it.",
+            ),
+            section(
+                "recovery",
+                "Engine Profiles: conflicts, stale scope and recovery",
+                "On 409 engine_profile_conflict, Refresh and compare the current registry/head/active generations before making a deliberate new edit. Never overwrite another revision or reuse a request ID for different content. Edits/deletes invalidate pending choices; started runs retain their captured snapshot. Workspace/account switches and late replies must not activate an unrelated request. Reopen Settings to refresh canonical state rather than copying a different workspace cache.\n\nInvalid profile/fingerprint returns 400, unavailable profile 404, capacity exhaustion 413, integrity failure 500 and storage unavailable 503. Protected-resource authorization may return the constant denial envelope. Preserve the prior choice on failure; restore current authorized access and inspect the canonical registry/receipt chain. Do not alter stored generations/tombstones/EventLedger references to bypass checks. Resolve the actual conflict or dependency before retry. Before execution, validate current profile identity/revision, artifact digest, capabilities, engine/device/policy and availability; an unavailable device never authorizes silent engine/device fallback.",
+            ),
+            section(
+                "purpose",
+                "Configured availability and actual profile execution",
+                "Configured availability is separate from a profile and from a child execution result. The bootstrap contract preserves the complete original role-bound registration set, embedding/default identities and shared availability projection. Validate duplicate IDs/artifacts and roles, persist/read back the whole original-plus-additional boot set, and genuinely load configured runtimes before publishing additions. Publication does not retire legacy models or replace generic defaults. Separate catalog revision/list reads are not a coherent pair; revalidate at admission.\n\nA GenieX configured registration can be profileless at boot; session launch still requires the full immutable snapshot. Adapter availability or PID-less on-demand registration metadata does not prove child execution, selected CPU/NPU use or cleanup. Actual child PID/ownership, selected-profile result/device attribution and confirmed cleanup require operation-specific execution evidence. Source/manual coverage, component/storage checks, compilation, production runtime and independent WP acceptance remain separate. This manual change executes no proof target and supplies no runtime PASS.",
+            ),
+            section(
+                "workflows",
                 "Inspect the durable model runtime registry",
                 "In the Rust-native app choose `MODELS` then `Open Model Runtime` \
                  (`menu.models.model-runtime`), choose `STUDIO` then `Model Runtime`, or choose \
@@ -4096,6 +4111,9 @@ fn page_model_runtime_registry_and_loom_degrade() -> NewUserManualPage {
             ),
         ],
         anchors: vec![
+            route_anchor("GET", "/workspaces/:workspace_id/engine-profiles"),
+            route_anchor("POST", "/workspaces/:workspace_id/engine-profiles"),
+            page_link("operator-chat-launch"),
             route_anchor("GET", "/model-runtime/registry"),
             route_anchor("POST", "/model-runtime/selection"),
             route_anchor("POST", "/model-runtime/control"),
@@ -4502,6 +4520,11 @@ fn page_operator_chat_launch() -> NewUserManualPage {
         spec_anchors: vec!["4.3.9.2.5".into(), "4.3.9.4.4".into()],
         sections: vec![
             section(
+                "workflows",
+                "Local Engine Profile choice and ordinary audited launch",
+                "First create/inspect the intended workspace profile in Settings > Engine Profiles. Refresh models (operator-chat.action.refresh-models) reads backend inventory. A local row uses operator-chat.profile.<fingerprint> and displays profile ID/revision, engine, device and preset. Same-model distinct profiles remain separate. A local row requires both the backend ready flag and a validated full snapshot. Active is only a candidate label; it does not override readiness or accept automatically. Clicking a local row is pending choice, not an audited launch.\n\nSelect a genuine owner session, folder/worktree (operator-chat.picker.folder), and prompt (operator-chat.input.prompt), then Launch (operator-chat.action.launch). The ordinary POST /operator-chat/launch request carries top-level engine_profile with the entire canonical snapshot/fingerprint and these complete original inputs. Coordinator-owned genuine run/lane/Locus preparation and selection audit precede the factory; consume the same original request/run binding once. Audit or validation failure must not create a runtime. Retain full ID/revision, artifact digest, engine, preset/options, device and fingerprint in audit/run/lane/session lineage. Recovery uses that pinned snapshot, never a later active lookup. GenieX QAIRT and GenieX llama_cpp use the profile executor, with no model-ID-only Candle or official-CLI substitute.\n\nOnly a matching successful response echoing the captured engine_profile promotes the local candidate. Request ownership and current account/workspace context reject late acknowledgements. Inspect operator-chat.launch.status, operator-chat.error and durable transcript; a click is not launch success. Dropping a client response or changing workspace does not cancel backend execution. Returned but unaccepted references can remain visible as Unaccepted launch response after switching back to their original workspace only while the original account and factory lifetime remain active. Inactive-account handling clears entries, and account binding replaces the factory; this in-memory retention promises no recovery across logout/relogin or app restart. operator-chat.launch-recovery.dismiss.<ui_key> dismisses returned references only: ui_key is a stable client recovery identity, not a run ID or cancellation receipt. Within that same active account/factory lifetime, return to the original workspace to inspect retained references; never infer cleanup from a closed pane or blindly launch again.\n\nThese are source-declared workflow/correlation contracts. Coverage does not prove selected engine/device success, process cleanup or independent acceptance; obtain actual operation evidence separately.",
+            ),
+            section(
                 "purpose",
                 "What this surface is",
                 "The operator chat/launch pane (native egui, PaneType::OperatorChatLaunch, opened \
@@ -4529,7 +4552,7 @@ fn page_operator_chat_launch() -> NewUserManualPage {
                  executable is found on PATH, and a SUBAGENT row for SubagentManager-owned lanes. \
                  An unconfigured cloud or CLI provider degrades to \
                  `unavailable`, never a mock. \
-                 2. Selecting a model records an auditable selection decision \
+                 2. For non-profile rows, selecting a model records an auditable selection decision \
                  (`ModelCatalog::record_selection_decision_with_context` -> \
                  `FR-EVT-MODEL-SELECTION-RECORDED`) with typed `selection_context` fields for \
                  `lane_kind`, `model_id`, `cloud_provider`, `cli_provider`, and the selected \
@@ -4658,9 +4681,10 @@ fn page_operator_chat_launch() -> NewUserManualPage {
                  and retry `POST /operator-chat/selection` before launch so selection evidence is \
                  never silently skipped. The official-CLI lane selects a provider-specific \
                  `CliBridgeConfig` from `cli_provider` and fails closed with `ProviderNotConfigured` \
-                 until the matching provider executable/config is available; Local lanes resolve the \
-                 selected `ModelCatalog` entry to its artifact path/hash and launch through the real \
-                 candle/llama path. SUBAGENT lanes must record `RuntimeBinding::Subagent`, \
+                 until the matching provider executable/config is available; ordinary Local chat requires a \
+                 full Engine Profile before inventory validation and follows the immutable-profile \
+                 workflow above. A profileless local row is disabled in the native picker; retained \
+                 generic runtimes do not provide a profileless route through this ordinary launch API. SUBAGENT lanes must record `RuntimeBinding::Subagent`, \
                  `LaunchAuthority::SubagentManager`, and no `process_ownership_ref`; routing them \
                  through a process factory is a failure. HBR-INT-009 posture: Tier-1 Flight Recorder / \
                  EventLedger is WIRED (agent-activity events + ModelLaneMessage authority + the \
@@ -4786,6 +4810,7 @@ fn page_operator_chat_launch() -> NewUserManualPage {
             ),
         ],
         anchors: vec![
+            page_link("model-runtime-registry-and-loom-degrade"),
             page_link("manual-toc"),
             page_link("model-lane-launch-adapters"),
             spec_anchor("4.3.9.2.5"),
@@ -9211,7 +9236,8 @@ fn seed_feature_entries() -> Vec<UserManualFeatureEntry> {
         "Tier-3 Palmistry is WIRED through the authenticated watcher and survivor recovery importer.",
         " The coverage validator checks this typed-event and WIRED declaration against ",
         "compiled canonical anchors and the deployed UserManual row; it does not claim to query ",
-        "live EventLedger or diagnostic-tier rows."
+        "live EventLedger or diagnostic-tier rows.",
+        " ENGINE PROFILES: Scoped Engine Profiles reads return immutable histories and active identity. Scoped Engine Profiles mutations preserve revisions and emit ENGINE_PROFILE_MUTATION_RECORDED. Settings uses the authenticated workspace GET/POST route and CAS conflict recovery. Operator Chat retains the full immutable snapshot through the same ordinary audited launch and rejects stale acknowledgements. Configured availability is not child/device/cleanup proof; Engine Profiles runtime/diagnostic evidence remains separately required. Coverage declares targets, never execution."
     )
     .to_string();
     let content_hash = sha256_hex(

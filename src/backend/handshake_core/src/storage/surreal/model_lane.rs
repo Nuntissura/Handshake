@@ -248,9 +248,15 @@ IF array::len($existing) = 1 {
         LET $lane = IF $has_lane { (SELECT VALUE id FROM type::record('model_lane_authority', $lane_record_id) WHERE record_kind = 'lane' AND aggregate_id = $lane_id AND run_id = $run_id AND encoding::json::decode(record_json).event_ledger_stream_id = $event_ledger_stream_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 2) } ELSE { [true] };
         LET $head = (SELECT event_sequence AS event_seq FROM kernel_event_ledger WHERE source_component = 'model_lane' AND kernel_task_run_id = $run_id AND session_run_id = $event_ledger_stream_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id ORDER BY event_sequence DESC LIMIT 1);
         IF array::len($run) != 1 OR array::len($lane) != 1 OR array::len($head) != 1 OR $head[0].event_seq != $expected_last_event_seq { THROW 'model-lane recovery checkpoint authority or high watermark changed'; };
-        LET $ledger = CREATE type::record('kernel_event_ledger', $event_id) CONTENT { event_id: $event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $run_id, session_run_id: IF $event_ledger_stream_id = NONE { $run_id } ELSE { $event_ledger_stream_id }, aggregate_type: 'recovery_checkpoint', aggregate_id: $aggregate_id, idempotency_key: $event_id, event_type: 'MODEL_LANE_RECOVERY_CHECKPOINT_RECORDED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: NONE, correlation_id: NONE, payload_hash: $event_payload_hash, source_component: 'model_lane', payload: { record_kind: 'recovery_checkpoint', run_id: $run_id, event_stream_version: 1, event_payload_json: $event_payload_json }, authority_resource_id: type::record('protected_resources', $wp012_original_resource), authority_grant_id: type::record('resource_grants', $wp012_original_grant), authority_session_id: $auth.id, authority_capability_id: $wp012_original_capability, authority_action: $wp012_original_action, wsids: [$workspace_id], owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
+        LET $membership = fn::wp012_cloud_checkpoint_denial_membership($run_id, $event_ledger_stream_id, $expected_last_event_seq, $aggregate_id, $owner_account_id, $actor_principal_id, $authenticated_session_id, $access_space_id, $workspace_id);
+        LET $checkpoint_record = object::extend(encoding::json::decode($record_json), { cloud_consent_denial_membership: $membership });
+        LET $checkpoint_record_json = encoding::json::encode($checkpoint_record);
+        LET $checkpoint_payload = object::extend(encoding::json::decode($event_payload_json), { record: $checkpoint_record });
+        LET $checkpoint_payload_json = encoding::json::encode($checkpoint_payload);
+        LET $checkpoint_payload_hash = crypto::sha256($checkpoint_payload_json);
+        LET $ledger = CREATE type::record('kernel_event_ledger', $event_id) CONTENT { event_id: $event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $run_id, session_run_id: IF $event_ledger_stream_id = NONE { $run_id } ELSE { $event_ledger_stream_id }, aggregate_type: 'recovery_checkpoint', aggregate_id: $aggregate_id, idempotency_key: $event_id, event_type: 'MODEL_LANE_RECOVERY_CHECKPOINT_RECORDED', actor_kind: 'principal', actor_id: $actor_principal_id, causation_id: NONE, correlation_id: NONE, payload_hash: $checkpoint_payload_hash, source_component: 'model_lane', payload: { record_kind: 'recovery_checkpoint', run_id: $run_id, event_stream_version: 1, event_payload_json: $checkpoint_payload_json }, authority_resource_id: type::record('protected_resources', $wp012_original_resource), authority_grant_id: type::record('resource_grants', $wp012_original_grant), authority_session_id: $auth.id, authority_capability_id: $wp012_original_capability, authority_action: $wp012_original_action, wsids: [$workspace_id], owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
         LET $seq = $ledger[0].event_sequence;
-        RETURN CREATE type::record('model_lane_authority', $record_id) CONTENT { record_kind: 'recovery_checkpoint', aggregate_id: $aggregate_id, run_id: $run_id, idempotency_key: $idempotency_key, record_json: $record_json, search_terms: $search_terms, event_id: $event_id, event_ledger_event_id: type::record('kernel_event_ledger', $event_id), event_seq: $seq, event_stream_version: 1, transaction_seq: $seq, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }
+        RETURN CREATE type::record('model_lane_authority', $record_id) CONTENT { record_kind: 'recovery_checkpoint', aggregate_id: $aggregate_id, run_id: $run_id, idempotency_key: $idempotency_key, record_json: $checkpoint_record_json, search_terms: $search_terms, event_id: $event_id, event_ledger_event_id: type::record('kernel_event_ledger', $event_id), event_seq: $seq, event_stream_version: 1, transaction_seq: $seq, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }
     };
 COMMIT TRANSACTION;
 "#;
@@ -473,6 +479,8 @@ pub(crate) enum ModelLaneRecordKind {
     MtRuntimeStatus,
     SessionCleanupReceipt,
     SelectionAudit,
+    LaunchAdmission,
+    LaunchAdmissionTransition,
     RoutingExecution,
     CloudProjectionPlan,
     CloudConsentReceipt,
@@ -498,6 +506,8 @@ impl ModelLaneRecordKind {
             Self::MtRuntimeStatus => "mt_runtime_status",
             Self::SessionCleanupReceipt => "session_cleanup_receipt",
             Self::SelectionAudit => "selection_audit",
+            Self::LaunchAdmission => "launch_admission",
+            Self::LaunchAdmissionTransition => "launch_admission_transition",
             Self::RoutingExecution => "routing_execution",
             Self::CloudProjectionPlan => "cloud_projection_plan",
             Self::CloudConsentReceipt => "cloud_consent_receipt",
@@ -1231,7 +1241,7 @@ impl ContextGuardObservation {
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub(crate) enum ContextCoordinationPurpose {
-    Consume, SourceRead, NavigationRead, RecoveryExecute, DiagnosticRecord, RecoveryCheckpointRecord, ArtifactBinding, Handoff, GuardedMessage, RunCreate, LaneCreate, CrdtUpdate, CrdtSnapshot,
+    Consume, SourceRead, NavigationRead, RecoveryExecute, DiagnosticRecord, RecoveryCheckpointRecord, ArtifactBinding, Handoff, GuardedMessage, RunCreate, LaneCreate, ProfileSessionWrite, ProfileAdmissionCreate, ProfileAdmissionTransition, ProfileAdmissionFinalization, CrdtUpdate, CrdtSnapshot,
     DocumentClaim, WorkspaceClaim, SourceRootClaim, IndexRunClaim, LeaseRenew, LeaseRelease, LeaseExpiry,
     ProposalRecord, ProposalDecide, ProposalApply,
     CloudProjectionPlan, CloudConsentReceipt, CloudRun, CloudLane, CloudConsentDenial,
@@ -1245,6 +1255,9 @@ impl ContextCoordinationPurpose {
             Self::DiagnosticRecord => "diagnostic_record", Self::RecoveryCheckpointRecord => "recovery_checkpoint_record",
             Self::Handoff => "handoff", Self::GuardedMessage => "guarded_message",
             Self::RunCreate => "run_create", Self::LaneCreate => "lane_create",
+            Self::ProfileSessionWrite => "profile_session_write",
+            Self::ProfileAdmissionCreate => "profile_admission_create", Self::ProfileAdmissionTransition => "profile_admission_transition",
+            Self::ProfileAdmissionFinalization => "profile_admission_finalization",
             Self::CrdtUpdate => "crdt_update", Self::CrdtSnapshot => "crdt_snapshot",
             Self::ProposalRecord => "proposal_record", Self::ProposalDecide => "proposal_decide", Self::ProposalApply => "proposal_apply",
             Self::CloudProjectionPlan => "cloud_projection_plan", Self::CloudConsentReceipt => "cloud_consent_receipt",
@@ -1259,6 +1272,7 @@ impl ContextCoordinationPurpose {
         action: super::resource_authority::ResourceAction) -> bool {
         use super::resource_authority::{ResourceAction, ResourceKind};
         match self {
+            Self::ProfileSessionWrite => kind == ResourceKind::Workspace && matches!(action, ResourceAction::Create | ResourceAction::Update),
             Self::Consume | Self::SourceRead | Self::NavigationRead => kind == ResourceKind::Workspace && action == ResourceAction::Read,
             Self::DocumentClaim | Self::CrdtUpdate | Self::CrdtSnapshot
                 | Self::ProposalRecord | Self::ProposalDecide | Self::ProposalApply =>
@@ -1266,7 +1280,7 @@ impl ContextCoordinationPurpose {
             Self::LeaseRenew | Self::LeaseRelease | Self::LeaseExpiry =>
                 matches!(kind, ResourceKind::Workspace | ResourceKind::RichDocument) && action == ResourceAction::Update,
             Self::WorkspaceClaim | Self::IndexRunClaim | Self::ArtifactBinding | Self::Handoff
-                | Self::GuardedMessage | Self::RunCreate | Self::LaneCreate | Self::DiagnosticRecord | Self::RecoveryCheckpointRecord
+                | Self::GuardedMessage | Self::RunCreate | Self::LaneCreate | Self::ProfileAdmissionCreate | Self::ProfileAdmissionTransition | Self::ProfileAdmissionFinalization | Self::DiagnosticRecord | Self::RecoveryCheckpointRecord
                 | Self::CloudProjectionPlan | Self::CloudConsentReceipt | Self::CloudRun | Self::CloudLane | Self::CloudConsentDenial =>
                 kind == ResourceKind::Workspace && action == ResourceAction::Create,
             Self::RecoveryExecute => kind == ResourceKind::Workspace && action == ResourceAction::Update,
@@ -2905,6 +2919,8 @@ const CANONICAL_MODEL_LANE_SCHEMAS: &[(&str, i64)] = &[
     ("hsk.model_lane_mt_runtime_status@1", 1),
     ("hsk.swarm_session_cleanup_receipt@1", 1),
     ("hsk.model_lane_selection_audit@1", 1),
+    ("hsk.operator_chat_launch_admission@1", 1),
+    ("hsk.operator_chat_launch_admission_transition@1", 1),
     ("hsk.model_lane_cloud_projection_plan@2", 2),
     ("hsk.model_lane_cloud_consent_receipt@2", 2),
     ("hsk.model_lane_recovery_event@2", 2),
@@ -4290,7 +4306,7 @@ impl SurrealModelLaneStore {
                             return Err(E::from(error));
                         }
                     }
-                    if purpose == ContextCoordinationPurpose::RecoveryExecute && kind == "run" {
+                    if matches!(purpose, ContextCoordinationPurpose::RecoveryExecute | ContextCoordinationPurpose::RecoveryCheckpointRecord) && kind == "run" {
                         let current = std::sync::Arc::new(std::sync::Mutex::new(guards.clone()));
                         let discovered = super::MODEL_LANE_CURRENT_GUARDS.scope(current, async {
                             let run = provider.get(ModelLaneRecordKind::Run, &id, &scope).await?
@@ -4813,7 +4829,7 @@ impl SurrealModelLaneStore {
         let subject = super::MODEL_LANE_OPERATION_SUBJECT.try_with(Clone::clone).ok()
             .or_else(|| matches!(purpose, ContextCoordinationPurpose::Consume | ContextCoordinationPurpose::ArtifactBinding
                 | ContextCoordinationPurpose::Handoff | ContextCoordinationPurpose::GuardedMessage
-                | ContextCoordinationPurpose::RunCreate | ContextCoordinationPurpose::LaneCreate
+                | ContextCoordinationPurpose::RunCreate | ContextCoordinationPurpose::LaneCreate | ContextCoordinationPurpose::ProfileSessionWrite | ContextCoordinationPurpose::ProfileAdmissionCreate | ContextCoordinationPurpose::ProfileAdmissionTransition | ContextCoordinationPurpose::ProfileAdmissionFinalization
                 | ContextCoordinationPurpose::CloudProjectionPlan | ContextCoordinationPurpose::CloudConsentReceipt
                 | ContextCoordinationPurpose::CloudRun | ContextCoordinationPurpose::CloudLane | ContextCoordinationPurpose::CloudConsentDenial
                 | ContextCoordinationPurpose::WorkspaceClaim | ContextCoordinationPurpose::IndexRunClaim)
@@ -5089,6 +5105,11 @@ impl SurrealModelLaneStore {
             });
         }
         validate_identity(&write.aggregate_id, &write.idempotency_key)?;
+        let caller_record: Value = serde_json::from_str(&write.record_json)
+            .map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "checkpoint input JSON is malformed" })?;
+        if caller_record.get("cloud_consent_denial_membership").is_some() {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "checkpoint membership is server-derived only" });
+        }
         let expected = write.clone();
         let event_payload_hash = sha256_hex(write.event_payload_json.as_bytes());
         let lane_id = lane_id.unwrap_or_default();
@@ -5137,7 +5158,7 @@ impl SurrealModelLaneStore {
                 reason: "atomic recovery checkpoint write returned no row",
             },
         )?;
-        if !record_matches_write(&row, &expected) {
+        if !checkpoint_record_matches_write(&row, &expected, scope) {
             return Err(SurrealStorageError::InvalidModelLaneRecord {
                 reason: "recovery checkpoint immutable identity or idempotency conflict",
             });
@@ -8356,6 +8377,34 @@ fn validate_pair_result(
     Ok((first_row, second_row))
 }
 
+fn checkpoint_record_matches_write(
+    row: &SurrealModelLaneRecord,
+    write: &SurrealModelLaneWrite,
+    scope: &ModelLaneScope,
+) -> bool {
+    if row.aggregate_id != write.aggregate_id || row.run_id != write.run_id
+        || row.idempotency_key != write.idempotency_key
+    {
+        return false;
+    }
+    let Ok(mut actual) = serde_json::from_str::<Value>(&row.record_json) else { return false; };
+    let Ok(expected) = serde_json::from_str::<Value>(&write.record_json) else { return false; };
+    let Some(membership) = actual.as_object_mut().and_then(|record| record.remove("cloud_consent_denial_membership")) else { return false; };
+    actual == expected
+        && membership.get("schema_version").and_then(Value::as_u64) == Some(1)
+        && membership.get("observation").and_then(Value::as_str) == Some("checkpoint_prewrite")
+        && membership.get("checkpoint_id").and_then(Value::as_str) == Some(write.aggregate_id.as_str())
+        && membership.get("run_id").and_then(Value::as_str) == Some(write.run_id.as_str())
+        && membership.get("event_ledger_stream_id") == expected.get("event_ledger_stream_id")
+        && membership.get("last_event_ledger_seq") == expected.get("last_event_ledger_seq")
+        && membership.get("owner_account_id").and_then(Value::as_str) == Some(scope.owner_account_id.as_str())
+        && membership.get("actor_principal_id").and_then(Value::as_str) == Some(scope.actor_principal_id.as_str())
+        && membership.get("authenticated_session_id").and_then(Value::as_str) == Some(scope.authenticated_session_id.as_str())
+        && membership.get("access_space_id").and_then(Value::as_str) == Some(scope.access_space_id.as_str())
+        && membership.get("workspace_id").and_then(Value::as_str) == Some(scope.workspace_id.as_str())
+        && membership.get("receipts").and_then(Value::as_array).is_some()
+}
+
 fn record_matches_write(row: &SurrealModelLaneRecord, write: &SurrealModelLaneWrite) -> bool {
     row.aggregate_id == write.aggregate_id
         && row.run_id == write.run_id
@@ -9583,3 +9632,189 @@ pub(super) fn validator_association_native_binding_data(
     Ok((record_id, envelope.record_json, envelope.outer_json))
 }
 
+
+#[derive(SurrealValue)]
+struct ProfileAdmissionStateBindings {
+    state_record: String,
+    origin_record: String,
+    expected_origin_json: String,
+    expected_generation: i64,
+    expected_status: String,
+    next_status: String,
+    transition: WriteBindings,
+}
+
+impl SurrealModelLaneStore {
+    pub(crate) async fn stage_profile_admission_atomic(
+        &self,
+        writes: [SurrealModelLaneWrite; 3],
+        scope: &ModelLaneScope,
+        operation_id: uuid::Uuid,
+        original_owner: std::sync::Arc<dyn std::any::Any + Send + Sync>,
+    ) -> Result<Vec<SurrealModelLaneRecord>, SurrealStorageError> {
+        validate_scope(scope)?;
+        if writes[0].kind != ModelLaneRecordKind::Run
+            || writes[1].kind != ModelLaneRecordKind::LaunchAdmission
+            || writes[2].kind != ModelLaneRecordKind::SelectionAudit
+            || writes.iter().any(|write| write.run_id != writes[0].run_id)
+        { return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "profile admission requires its same-run origin/admission/audit triplet" }); }
+        let expected = writes.clone();
+        let mut bindings = Vec::new();
+        for write in writes {
+            validate_identity(&write.aggregate_id, &write.idempotency_key)?;
+            checked_write_stream(&write)?;
+            bindings.push(WriteBindings {
+                record_id: stable_record_id(write.kind.as_str(), &write.aggregate_id, scope),
+                event_id: format!("evt-model-lane-{}", uuid::Uuid::now_v7()),
+                record_kind: write.kind.as_str().to_owned(), aggregate_id: write.aggregate_id,
+                run_id: write.run_id, event_ledger_stream_id: write.event_ledger_stream_id,
+                idempotency_key: write.idempotency_key, record_json: write.record_json,
+                search_terms: write.search_terms,
+                event_payload_hash: sha256_hex(write.event_payload_json.as_bytes()),
+                event_payload_json: write.event_payload_json,
+                owner_account_id: scope.owner_account_id.clone(), actor_principal_id: scope.actor_principal_id.clone(),
+                authenticated_session_id: scope.authenticated_session_id.clone(),
+                access_space_id: scope.access_space_id.clone(), workspace_id: scope.workspace_id.clone(),
+            });
+        }
+        let owner_for_proof = original_owner.clone();
+        let origin_record = bindings[1].record_id.clone();
+        let storage = self.storage.clone();
+        let outcome = self.storage.with_original_runcreate_transaction(
+            operation_id, original_owner, move |transaction| Box::pin(async move {
+                let mut result = Vec::new();
+                for binding in bindings {
+                    let rows = transaction.query_values_at::<StoredRow, _>(PROFILE_ADMISSION_ORIGIN_PIECE, binding, 1).await?;
+                    let [row] = rows.as_slice() else { return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "profile admission triplet piece is absent or duplicated" }); };
+                    let index = result.len();
+                    if row.aggregate_id != expected[index].aggregate_id || row.run_id != expected[index].run_id
+                        || row.idempotency_key != expected[index].idempotency_key || row.record_json != expected[index].record_json
+                    { return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "profile admission immutable origin or idempotency conflict" }); }
+                    result.push(SurrealModelLaneRecord::from(rows.into_iter().next().expect("one row checked")));
+                }
+                transaction.query_values_at::<StoredRow, _>(
+                    "LET $origin = SELECT * FROM type::record('model_lane_authority', $record_id); IF array::len($origin) != 1 { THROW 'PROFILE_ADMISSION_ORIGIN_MISSING'; }; LET $existing = SELECT * FROM type::record('model_lane_profile_admission_state', $record_id); IF array::len($existing) = 0 { CREATE type::record('model_lane_profile_admission_state', $record_id) CONTENT { origin_id: type::record('model_lane_authority', $record_id), generation: 1, status: 'staged', receipt_id: $origin[0].event_ledger_event_id }; }; RETURN [];",
+                    ProfileAdmissionRecordBinding { record_id: origin_record }, 4,
+                ).await?;
+                Ok::<_, SurrealStorageError>(result)
+            }),
+        ).await;
+        let (result, proof) = outcome.into_parts();
+        let proof = proof.ok_or(SurrealStorageError::InvalidModelLaneRecord { reason: "profile admission transaction finalization remains unproven" })?;
+        if !proof.matches_original(&storage, operation_id, &owner_for_proof)
+            || !matches!((result.is_ok(), proof.finalization()),
+                (true, super::OriginalRunCreateFinalization::Commit)
+                    | (false, super::OriginalRunCreateFinalization::Rollback))
+        { return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "profile admission lacks its original outcome-matched finalization proof" }); }
+        storage.acknowledge_profile_admission_finalization(proof, &owner_for_proof)?;
+        result
+    }
+
+    pub(crate) async fn transition_profile_admission_atomic(
+        &self,
+        scope: &ModelLaneScope,
+        origin_id: &str,
+        expected_origin_json: String,
+        expected_generation: i64,
+        expected_status: &str,
+        next_status: &str,
+        transition: SurrealModelLaneWrite,
+        operation_id: uuid::Uuid,
+        original_owner: std::sync::Arc<dyn std::any::Any + Send + Sync>,
+    ) -> Result<(), SurrealStorageError> {
+        validate_scope(scope)?;
+        if transition.kind != ModelLaneRecordKind::LaunchAdmissionTransition || expected_generation < 1 || expected_generation.checked_add(1).is_none() {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "profile admission transition identity is invalid" });
+        }
+        checked_write_stream(&transition)?;
+        let state_record = stable_record_id("launch_admission", origin_id, scope);
+        let binding = ProfileAdmissionStateBindings {
+            origin_record: state_record.clone(), state_record, expected_origin_json,
+            expected_generation, expected_status: expected_status.to_owned(), next_status: next_status.to_owned(),
+            transition: WriteBindings {
+                record_id: stable_record_id(transition.kind.as_str(), &transition.aggregate_id, scope),
+                event_id: format!("evt-model-lane-{}", uuid::Uuid::now_v7()),
+                record_kind: transition.kind.as_str().to_owned(), aggregate_id: transition.aggregate_id,
+                run_id: transition.run_id, event_ledger_stream_id: transition.event_ledger_stream_id,
+                idempotency_key: transition.idempotency_key, record_json: transition.record_json,
+                search_terms: transition.search_terms,
+                event_payload_hash: sha256_hex(transition.event_payload_json.as_bytes()), event_payload_json: transition.event_payload_json,
+                owner_account_id: scope.owner_account_id.clone(), actor_principal_id: scope.actor_principal_id.clone(),
+                authenticated_session_id: scope.authenticated_session_id.clone(), access_space_id: scope.access_space_id.clone(),
+                workspace_id: scope.workspace_id.clone(),
+            },
+        };
+        let owner_for_proof = original_owner.clone();
+        let storage = self.storage.clone();
+        let outcome = self.storage.with_original_runcreate_transaction(operation_id, original_owner, move |transaction| Box::pin(async move {
+            let rows = transaction.query_values_at::<ProfileAdmissionGenerationRow, _>(PROFILE_ADMISSION_TRANSITION, binding, 4).await?;
+            if rows.len() != 1 || rows[0].generation != expected_generation + 1 {
+                return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "profile admission transition CAS was not confirmed" });
+            }
+            Ok::<_, SurrealStorageError>(())
+        })).await;
+        let (result, proof) = outcome.into_parts();
+        let proof = proof.ok_or(SurrealStorageError::InvalidModelLaneRecord { reason: "profile admission transition finalization remains unproven" })?;
+        if !proof.matches_original(&storage, operation_id, &owner_for_proof)
+            || !matches!((result.is_ok(), proof.finalization()),
+                (true, super::OriginalRunCreateFinalization::Commit)
+                    | (false, super::OriginalRunCreateFinalization::Rollback))
+        { return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "profile admission transition lacks its original outcome-matched finalization proof" }); }
+        storage.acknowledge_profile_admission_finalization(proof, &owner_for_proof)?;
+        result
+    }
+}
+
+#[derive(SurrealValue)]
+struct ProfileAdmissionRecordBinding { record_id: String }
+#[derive(SurrealValue)]
+struct ProfileAdmissionGenerationRow { generation: i64 }
+
+const PROFILE_ADMISSION_ORIGIN_PIECE: &str = r#"
+LET $existing = SELECT aggregate_id, run_id, idempotency_key, record_json, event_id, event_seq, event_stream_version, transaction_seq
+    FROM type::record('model_lane_authority', $record_id);
+IF array::len($existing) > 0 { RETURN $existing; } ELSE {
+    LET $ledger = CREATE type::record('kernel_event_ledger', $event_id) CONTENT {
+        event_id: $event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $run_id,
+        session_run_id: $event_ledger_stream_id, aggregate_type: $record_kind, aggregate_id: $aggregate_id,
+        idempotency_key: $event_id, event_type: 'MODEL_LANE_AUTHORITY_RECORDED', actor_kind: 'principal', actor_id: $actor_principal_id,
+        payload_hash: $event_payload_hash, source_component: 'model_lane',
+        payload: { record_kind: $record_kind, run_id: $run_id, event_stream_version: 1, event_payload_json: $event_payload_json },
+        authority_resource_id: type::record('protected_resources', $wp012_original_resource),
+        authority_grant_id: type::record('resource_grants', $wp012_original_grant),
+        owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id,
+        authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id
+    };
+    LET $seq = $ledger[0].event_sequence;
+    RETURN CREATE type::record('model_lane_authority', $record_id) CONTENT {
+        record_kind: $record_kind, aggregate_id: $aggregate_id, run_id: $run_id, idempotency_key: $idempotency_key,
+        record_json: $record_json, search_terms: $search_terms, event_id: $event_id,
+        event_ledger_event_id: type::record('kernel_event_ledger', $event_id), event_seq: $seq, event_stream_version: 1, transaction_seq: $seq,
+        owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id,
+        authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id
+    };
+};
+"#;
+
+const PROFILE_ADMISSION_TRANSITION: &str = r#"
+LET $current = SELECT * FROM type::record('model_lane_profile_admission_state', $state_record);
+LET $origin = SELECT record_json FROM type::record('model_lane_authority', $origin_record);
+IF array::len($current) != 1 OR array::len($origin) != 1 OR $origin[0].record_json != $expected_origin_json
+    OR $current[0].generation != $expected_generation OR $current[0].status != $expected_status {
+    THROW 'PROFILE_ADMISSION_CAS_CONFLICT';
+};
+LET $ledger = CREATE type::record('kernel_event_ledger', $transition.event_id) CONTENT {
+    event_id: $transition.event_id, event_version: 'kernel_event_v1', kernel_task_run_id: $transition.run_id,
+    session_run_id: $transition.event_ledger_stream_id, aggregate_type: $transition.record_kind, aggregate_id: $transition.aggregate_id,
+    idempotency_key: $transition.event_id, event_type: 'MODEL_LANE_AUTHORITY_RECORDED', actor_kind: 'principal', actor_id: $transition.actor_principal_id,
+    payload_hash: $transition.event_payload_hash, source_component: 'model_lane',
+    payload: { record_kind: $transition.record_kind, run_id: $transition.run_id, event_stream_version: 1, event_payload_json: $transition.event_payload_json },
+    authority_resource_id: type::record('protected_resources', $wp012_original_resource),
+    authority_grant_id: type::record('resource_grants', $wp012_original_grant),
+    owner_account_id: $transition.owner_account_id, actor_principal_id: $transition.actor_principal_id,
+    authenticated_session_id: $transition.authenticated_session_id, access_space_id: $transition.access_space_id, workspace_id: $transition.workspace_id
+};
+UPDATE type::record('model_lane_profile_admission_state', $state_record)
+    SET generation = $expected_generation + 1, status = $next_status, receipt_id = type::record('kernel_event_ledger', $transition.event_id)
+    WHERE generation = $expected_generation AND status = $expected_status RETURN generation;
+"#;

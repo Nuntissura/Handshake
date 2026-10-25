@@ -323,7 +323,7 @@ pub fn dropped_count() -> u64 {
 /// Used by tests + the install site's logging; not a hot-path API.
 #[inline]
 pub fn has_ring_writer() -> bool {
-    RECORDER.get().map(|r| r.writer.is_some()).unwrap_or(false)
+    RECORDER.get().map(|r| r.writer.is_some() || r.writer_v2.is_some()).unwrap_or(false)
 }
 
 #[cfg(test)]

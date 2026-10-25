@@ -556,7 +556,7 @@ async fn scoped_production_factory_retains_actual_scope_and_paired_durable_drain
         let (actual_service, actual_drain) = build_scoped_operator_chat_launch_service_with_sandbox_registry_and_lifecycle(
             storage.clone(), recorder.as_ref().expect("owned recorder").clone(), catalog.clone(),
             process.ledger(), process.reclaim(), CloudLaneFactoryConfig::unconfigured(),
-            Some(process.sandbox_registry()), storage.resource_access_lifecycle(), workspace.exact.clone(), Uuid::now_v7(),
+            Some(process.sandbox_registry()), None, storage.resource_access_lifecycle(), workspace.exact.clone(), Uuid::now_v7(),
         );
         *service = Some(actual_service);
         *drain = Some(actual_drain);
@@ -675,6 +675,7 @@ async fn scoped_production_factory_retains_actual_scope_and_paired_durable_drain
             &state.session_registry, &owner.session_id,
         ).await.expect("public producer must have made both real sessions active with valid depth");
         let selection = handshake_core::swarm_orchestration::operator_chat::OperatorChatLaunchRequest {
+            engine_profile: None,
             lane_kind: handshake_core::swarm_orchestration::operator_chat::OperatorChatLaneKind::Local,
             model_id: selected.model_id,
             cloud_provider: None, cli_provider: None,

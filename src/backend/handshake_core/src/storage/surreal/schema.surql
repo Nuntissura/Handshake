@@ -247,12 +247,88 @@ DEFINE INDEX OVERWRITE idx_ai_jobs_gc ON TABLE ai_jobs FIELDS status, created_at
 -- MT-159 (02-system-architecture.md:2773; every job kind under the account session): a job-bound model
 -- session and its checkpoints/messages follow the job workspace grant (fn::mt154_job_access, as
 -- workflow_runs); unbound (job_id NONE) sessions stay root-only.
-DEFINE TABLE OVERWRITE model_sessions SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_job_access(job_id.entity_refs, job_id.job_inputs, 'read', 'fs.read') OR fn::mt154_job_access(job_id.entity_refs, job_id.job_inputs, 'read', 'fr.read') FOR create, update WHERE fn::mt154_job_access(job_id.entity_refs, job_id.job_inputs, 'update', 'fs.write') FOR delete NONE;
+DEFINE FUNCTION OVERWRITE fn::wp012_engine_profile_session($row: object, $write: bool) {
+    IF $row.job_id != NONE OR $row.engine_profile_binding = NONE { RETURN false; };
+    LET $binding = $row.engine_profile_binding;
+    LET $scope = $binding.scope;
+    IF $scope.owner_account_id != record::id($auth.account_id) OR $scope.actor_principal_id != record::id($auth.principal_id)
+        OR $scope.authenticated_session_id != record::id($auth.id) OR $scope.access_space_id != record::id($auth.access_space_id)
+        OR !fn::mt109_has_workspace_access($scope.workspace_id, IF $write { 'update' } ELSE { 'read' }, IF $write { 'fs.write' } ELSE { 'fs.read' })
+        OR !fn::wp012_engine_profile_snapshot($binding.snapshot) { RETURN false; };
+    IF $write AND ($wp012_original_purpose != 'profile_session_write'
+        OR $wp012_original_action NOT IN ['create', 'update'] OR $wp012_original_capability != 'fs.write') { RETURN false; };
+    IF !$write AND $wp012_original_purpose NOT IN ['source_read', 'profile_session_write'] { RETURN false; };
+    LET $run_key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'run', $binding.run_id,
+        $scope.owner_account_id, $scope.actor_principal_id, $scope.authenticated_session_id,
+        $scope.access_space_id, $scope.workspace_id], '\u0000'));
+    LET $lane_key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'lane', $binding.lane_id,
+        $scope.owner_account_id, $scope.actor_principal_id, $scope.authenticated_session_id,
+        $scope.access_space_id, $scope.workspace_id], '\u0000'));
+    LET $run_rows = SELECT * FROM type::record('model_lane_authority', $run_key);
+    LET $lane_rows = SELECT * FROM type::record('model_lane_authority', $lane_key);
+    IF array::len($run_rows) != 1 OR array::len($lane_rows) != 1 { RETURN false; };
+    LET $run_row = $run_rows[0]; LET $lane_row = $lane_rows[0];
+    IF !fn::wp012_model_lane_source_identity($run_row) OR !fn::wp012_model_lane_source_identity($lane_row)
+        OR !fn::wp012_model_lane_original_operation($run_row) OR !fn::wp012_model_lane_original_operation($lane_row)
+        OR $run_row.event_id != $binding.run_event_id OR $lane_row.event_id != $binding.lane_event_id { RETURN false; };
+    LET $run = encoding::json::decode($run_row.record_json);
+    LET $lane = encoding::json::decode($lane_row.record_json);
+    LET $admission_key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'launch_admission', $binding.run_id,
+        $scope.owner_account_id, $scope.actor_principal_id, $scope.authenticated_session_id,
+        $scope.access_space_id, $scope.workspace_id], '\u0000'));
+    LET $origins = SELECT * FROM type::record('model_lane_authority', $admission_key);
+    IF array::len($origins) != 1 OR !fn::wp012_model_lane_source_identity($origins[0]) { RETURN false; };
+    LET $origin = encoding::json::decode($origins[0].record_json);
+    IF $origin.session_declaration != $binding.declaration
+        OR $origin.original_request.dexterity_launch.engine_profile_session != $binding.declaration
+        OR $row.spawn_depth != $binding.declaration.spawn_depth
+        OR $row.parameter_class != $binding.declaration.parameter_class
+        OR $row.execution_mode != 'SINGLE_MODEL_MULTI_ROLE' OR $row.memory_policy != 'EPHEMERAL'
+        OR $binding.declaration.execution_mode != $row.execution_mode OR $binding.declaration.memory_policy != $row.memory_policy
+        OR record::id($row.parent_session_id) != $origin.original_request.parent_session_id { RETURN false; };
+    RETURN $run.run_id = $binding.run_id AND $lane.run_id = $run.run_id AND $lane.lane_id = $binding.lane_id
+        AND $lane.lane_id IN $run.lane_ids AND $lane.model_session_id = record::id($row.id)
+        AND $run.engine_profile = $binding.snapshot AND $lane.engine_profile = $binding.snapshot
+        AND $row.model_id = $binding.snapshot.profile.model.id AND $row.backend = $lane.backend
+        AND $row.wp_id = $run.work_packet_id AND $row.mt_id = $run.micro_task_id
+        AND $lane.locus_binding.model_session_id = record::id($row.id)
+        AND $lane.locus_binding.work_packet_id = $run.work_packet_id
+        AND $lane.locus_binding.micro_task_id = $run.micro_task_id
+        AND $lane.locus_binding.task_board_id = $run.task_board_id
+        AND $lane.locus_binding.owner_session = $run.owner_session
+        AND $lane.process_ownership_ref != NONE AND $lane.no_os_process_reason_ref = NONE;
+};
+DEFINE TABLE OVERWRITE model_sessions SCHEMAFULL PERMISSIONS FOR select WHERE fn::mt154_job_access(job_id.entity_refs, job_id.job_inputs, 'read', 'fs.read') OR fn::mt154_job_access(job_id.entity_refs, job_id.job_inputs, 'read', 'fr.read') OR fn::wp012_engine_profile_session($this, false) FOR create, update WHERE fn::mt154_job_access(job_id.entity_refs, job_id.job_inputs, 'update', 'fs.write') OR fn::wp012_engine_profile_session($this, true) FOR delete NONE;
 DEFINE FIELD OVERWRITE parent_session_id ON TABLE model_sessions TYPE option<record<model_sessions>> ASSERT $value = NONE OR record::exists($value) REFERENCE ON DELETE REJECT;
 DEFINE FIELD OVERWRITE spawn_depth ON TABLE model_sessions TYPE int ASSERT $value >= 0;
 DEFINE FIELD OVERWRITE state ON TABLE model_sessions TYPE 'CREATED' | 'ACTIVE' | 'PAUSED' | 'BLOCKED' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 DEFINE FIELD OVERWRITE model_id ON TABLE model_sessions TYPE string;
+DEFINE FIELD OVERWRITE engine_profile_binding ON TABLE model_sessions FLEXIBLE TYPE option<object>;
 DEFINE FIELD OVERWRITE backend ON TABLE model_sessions TYPE string;
+DEFINE EVENT OVERWRITE engine_profile_session_origin_guard ON TABLE model_sessions
+    WHEN $event IN ['CREATE', 'UPDATE'] AND ($after.engine_profile_binding != NONE OR $before.engine_profile_binding != NONE) THEN {
+        IF ($event = 'CREATE' AND $after.state != 'CREATED')
+            OR $after.job_id != NONE OR !fn::wp012_engine_profile_session($after, true)
+            OR ($event = 'UPDATE' AND ($before.engine_profile_binding != $after.engine_profile_binding
+                OR $before.model_id != $after.model_id OR $before.backend != $after.backend
+                OR $before.wp_id != $after.wp_id OR $before.mt_id != $after.mt_id
+                OR $before.parent_session_id != $after.parent_session_id)) {
+            THROW 'ENGINE_PROFILE_SESSION_ORIGIN_MISMATCH';
+        };
+        IF $event = 'UPDATE' AND $before.state != $after.state
+            AND !(($before.state = 'CREATED' AND $after.state IN ['ACTIVE', 'FAILED', 'CANCELLED'])
+                OR ($before.state = 'ACTIVE' AND $after.state IN ['COMPLETED', 'FAILED', 'CANCELLED'])) {
+            THROW 'ENGINE_PROFILE_SESSION_TRANSITION_INVALID';
+        };
+        IF $event = 'UPDATE' AND $before.state IN ['COMPLETED', 'FAILED', 'CANCELLED']
+            AND $before != $after { THROW 'ENGINE_PROFILE_SESSION_ALREADY_TERMINAL'; };
+        IF $after.state IN ['COMPLETED', 'FAILED', 'CANCELLED']
+            AND ($after.closed_at = NONE OR $after.close_reason = NONE OR string::trim($after.close_reason) = ''
+                OR $after.closed_by_actor != string::concat('principal://', record::id($auth.principal_id))) {
+            THROW 'ENGINE_PROFILE_SESSION_TERMINAL_ATTRIBUTION_REQUIRED';
+        };
+    };
+
 DEFINE FIELD OVERWRITE parameter_class ON TABLE model_sessions TYPE string;
 DEFINE FIELD OVERWRITE role ON TABLE model_sessions TYPE string;
 DEFINE FIELD OVERWRITE wp_id ON TABLE model_sessions TYPE option<string>;
@@ -10014,12 +10090,18 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_receipt($row: object, $write: boo
     LET $identity = IF $row.aggregate_type = 'run' { $record.run_id }
         ELSE IF $row.aggregate_type = 'lane' { $record.lane_id }
         ELSE IF $row.aggregate_type = 'message' { $record.message_id }
+        ELSE IF $row.aggregate_type = 'launch_admission' { $record.run_id }
+        ELSE IF $row.aggregate_type = 'launch_admission_transition' { $record.transition_id }
+        ELSE IF $row.aggregate_type = 'selection_audit' { $record.audit_id }
         ELSE IF $row.aggregate_type = 'context_artifact' { $record.artifact_binding_id }
         ELSE IF $row.aggregate_type = 'diagnostic_tier' { $record.diagnostic_status_id }
         ELSE IF $row.aggregate_type = 'recovery_checkpoint' { $record.checkpoint_id } ELSE { $record.handoff_id };
     LET $schema = IF $row.aggregate_type = 'run' { 'hsk.model_lane_run@1' }
         ELSE IF $row.aggregate_type = 'lane' { 'hsk.model_lane@1' }
         ELSE IF $row.aggregate_type = 'message' { 'hsk.model_lane_message@1' }
+        ELSE IF $row.aggregate_type = 'launch_admission' { 'hsk.operator_chat_launch_admission@1' }
+        ELSE IF $row.aggregate_type = 'launch_admission_transition' { 'hsk.operator_chat_launch_admission_transition@1' }
+        ELSE IF $row.aggregate_type = 'selection_audit' { 'hsk.model_lane_selection_audit@1' }
         ELSE IF $row.aggregate_type = 'context_artifact' { 'hsk.model_lane_context_bundle_artifact@1' }
         ELSE IF $row.aggregate_type = 'diagnostic_tier' { 'hsk.model_lane_diagnostic_tier@1' }
         ELSE IF $row.aggregate_type = 'recovery_checkpoint' { 'hsk.model_lane_recovery_checkpoint@1' } ELSE { 'hsk.model_lane_context_bundle_handoff@1' };

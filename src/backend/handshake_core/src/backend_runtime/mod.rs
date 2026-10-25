@@ -39,6 +39,7 @@ use tower_http::cors::{Any, CorsLayer};
 const HTTP_CONNECTION_DRAIN_TIMEOUT: Duration = Duration::from_secs(30);
 
 mod configuration;
+mod genie_x;
 mod proof_transport;
 mod startup_recovery;
 #[cfg(feature = "os-keychain")]
@@ -437,13 +438,49 @@ async fn run(
             ModelRegistryStore::new(control_plane.surreal.clone()),
             product_local_scope.exact().clone(),
         );
-        let llm_client = init_llm_client(
+        let mut llm_client = init_llm_client(
             flight_recorder.clone(),
             Some(process_runtime.ledger().ledger()),
-            Some(model_registry_authority),
+            Some(model_registry_authority.clone()),
             Some(process_runtime.runtime_instance().clone()),
         )
         .await;
+        let mut genie_x_resolver = None;
+        let configured_result: Result<(), String> = async {
+            if let Some(path) = std::env::var_os("HANDSHAKE_GENIEX_CONFIG_PATH") {
+                let configured = genie_x::GenieXBootClient::prepare(
+                    PathBuf::from(path),
+                    llm_client.clone(),
+                    model_registry_authority.clone(),
+                    process_runtime.ledger().ledger(),
+                    flight_recorder.clone(),
+                    process_runtime.sandbox_registry(),
+                )
+                .await?;
+                // Retain the full owner before any load, START or persistence can fail.
+                llm_client = configured.clone();
+                configured
+                    .initialize(process_runtime.ledger().ledger())
+                    .await?;
+                genie_x_resolver = Some(configured.binding_resolver());
+            }
+            Ok(())
+        }
+        .await;
+        if let Err(error) = configured_result {
+            tracing::error!(target: "handshake_core::model_runtime", error = %error,
+                "configured GenieX startup failed; no activation acknowledgement published");
+            drain_unpublished_runtime(&process_runtime, Some(llm_client.as_ref()), &terminal).await;
+            activation.unavailable();
+            drop(llm_client);
+            drop(process_runtime);
+            activation = tokio::select! {
+                request = activation_rx.recv() => retain_on_error!(request.ok_or("workspace activation channel closed")),
+                result = &mut server => { retain_on_error!(server_result(result)); break; },
+                _ = &mut connection_drain_deadline => { retain_failed_runtime(&terminal, "account HTTP drain timed out").await; },
+            };
+            continue;
+        }
         let session_registry = Arc::new(workflows::SessionRegistry::new(
             workflows::SessionSchedulerConfig::from_env(),
         ));
@@ -522,7 +559,8 @@ async fn run(
             build_scoped_operator_chat_launch_service_with_sandbox_registry_and_lifecycle(
                 state.surreal.clone(), state.flight_recorder.clone(), catalog.clone(),
                 process_runtime.ledger(), process_runtime.reclaim(), cloud,
-                Some(process_runtime.sandbox_registry()), state.surreal.resource_access_lifecycle(),
+                Some(process_runtime.sandbox_registry()), genie_x_resolver,
+                state.surreal.resource_access_lifecycle(),
                 product_local_scope.exact().clone(), uuid::Uuid::now_v7(),
             );
         let operator_chat_state = api::operator_chat::OperatorChatState::with_production_dependencies(

@@ -926,6 +926,10 @@ pub enum OperatorChatLaneKind {
 /// One operator launch request assembled from the pane selection.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OperatorChatSelection {
+    #[serde(default, skip_deserializing, skip_serializing_if = "Option::is_none")]
+    pub engine_profile_session: Option<crate::storage::EngineProfileSessionDeclarationV1>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub engine_profile: Option<crate::model_runtime::EngineProfileSnapshotV1>,
     pub lane_kind: OperatorChatLaneKind,
     /// Concrete model id the operator selected (local model id or cloud model name).
     pub model_id: String,
@@ -959,6 +963,8 @@ pub struct OperatorChatSelection {
 /// owner id; trusted owner/parent lineage is resolved by the API from SessionRegistry.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OperatorChatLaunchRequest {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub engine_profile: Option<crate::model_runtime::EngineProfileSnapshotV1>,
     pub lane_kind: OperatorChatLaneKind,
     pub model_id: String,
     #[serde(default)]
@@ -983,6 +989,8 @@ impl OperatorChatLaunchRequest {
         parent_session_id: String,
     ) -> OperatorChatSelection {
         OperatorChatSelection {
+            engine_profile_session: None,
+            engine_profile: self.engine_profile,
             lane_kind: self.lane_kind,
             model_id: self.model_id,
             cloud_provider: self.cloud_provider,
@@ -1052,6 +1060,8 @@ impl OperatorChatSelection {
 /// pane can bind its transcript to the run.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OperatorChatLaunched {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub engine_profile: Option<crate::model_runtime::EngineProfileSnapshotV1>,
     pub instance_id: String,
     pub run_id: String,
     pub lane_id: String,
@@ -1117,6 +1127,8 @@ pub struct OperatorChatTranscriptRow {
 #[derive(Debug, Clone, Serialize)]
 pub struct OperatorChatModelInventory {
     pub inventory_source: &'static str,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_engine_profile: Option<crate::model_runtime::EngineProfileIdentityV1>,
     pub sessions: Vec<OperatorChatSessionRow>,
     pub local: Vec<OperatorChatModelRow>,
     pub cloud_byok: Vec<OperatorChatCloudRow>,
@@ -1138,6 +1150,8 @@ pub struct OperatorChatSessionRow {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct OperatorChatModelRow {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub engine_profile: Option<crate::model_runtime::EngineProfileSnapshotV1>,
     pub model_id: String,
     pub display_name: String,
     pub runtime_binding: String,
@@ -1650,6 +1664,21 @@ impl ModelLaneCaptureRecorder {
         activity: &AgentActivity,
     ) -> Result<crate::swarm_orchestration::model_lane::ModelLaneMessageRecord, OperatorChatError>
     {
+        self.record_activity_with_adapter(run, lane, model_id, request_id, ordered_index,
+            activity, OPERATOR_CHAT_CLI_ADAPTER).await
+    }
+
+    async fn record_activity_with_adapter(
+        &self,
+        run: &ModelLaneRunRecord,
+        lane: &ModelLaneRecord,
+        model_id: ModelId,
+        request_id: Uuid,
+        ordered_index: u64,
+        activity: &AgentActivity,
+        adapter: &str,
+    ) -> Result<crate::swarm_orchestration::model_lane::ModelLaneMessageRecord, OperatorChatError>
+    {
         // Build both representations before either write, but persist ModelLane
         // authority first so cancellation/terminal guards fail closed without a
         // phantom activity event.
@@ -1658,7 +1687,7 @@ impl ModelLaneCaptureRecorder {
             request_id,
             ordered_index,
             Some(lane.model_session_id.as_str()),
-            OPERATOR_CHAT_CLI_ADAPTER,
+            adapter,
             activity,
             self.redactor.as_ref(),
         );
@@ -1916,6 +1945,7 @@ fn operator_lane_for_owner(run: &ModelLaneRunRecord, owner_session: &str) -> Res
         locus_binding_ref: format!("locus://operator-chat/{}/{lane_id}", run.run_id),
     };
     Ok(NewModelLane {
+        engine_profile: None,
         lane_id: lane_id.clone(),
         run_id: run.run_id.clone(),
         trace_id: run.trace_id.clone(),
@@ -2101,6 +2131,7 @@ pub(crate) struct CapturedOperatorChatLaunch {
     selection_json: Value,
     original_request_json: Value,
     original_request: SpawnRequest,
+    original_selection: OperatorChatSelection,
 }
 
 impl CapturedOperatorChatLaunch {
@@ -2116,7 +2147,7 @@ impl CapturedOperatorChatLaunch {
             scope,
             selection_json: serde_json::to_value(selection).map_err(encode)?,
             original_request_json: serde_json::to_value(request).map_err(encode)?,
-            original_request: request.clone(),
+            original_request: request.clone(), original_selection: selection.clone(),
         }))
     }
 
@@ -2126,6 +2157,7 @@ impl CapturedOperatorChatLaunch {
 
     pub(crate) fn scope(&self) -> &ExactResourceScopeAttribution { &self.scope }
 
+    pub(crate) fn original_selection(&self) -> &OperatorChatSelection { &self.original_selection }
     pub(crate) fn selection_json(&self) -> &Value { &self.selection_json }
 
     pub(crate) fn original_request_json(&self) -> &Value {
@@ -3146,7 +3178,7 @@ impl OperatorChatLaunchService {
         &self,
         selection: &OperatorChatSelection,
     ) -> Result<OperatorChatLaunched, OperatorChatError> {
-        self.launch_for_scope(selection, None).await
+        self.launch_for_scope(selection, None, None).await
     }
 
     /// Launch through an HTTP boundary whose exact resource attribution has
@@ -3157,7 +3189,7 @@ impl OperatorChatLaunchService {
         selection: &OperatorChatSelection,
         request_scope: &ExactResourceScopeAttribution,
     ) -> Result<OperatorChatLaunched, OperatorChatError> {
-        self.launch_for_scope(selection, Some(request_scope)).await
+        self.launch_for_scope(selection, Some(request_scope), None).await
     }
 
     #[cfg(feature = "runtime-full")]
@@ -3167,6 +3199,7 @@ impl OperatorChatLaunchService {
         request_scope: &ExactResourceScopeAttribution,
         bootstrap: &crate::AccountBootstrapState,
         authentication: crate::storage::surreal::resource_authority::RoleAuthorityAuthInput,
+        local_execution_revisions: Option<(i64, i64)>,
     ) -> Result<OperatorChatLaunched, OperatorChatError> {
         let denied = || OperatorChatError::Invalid("authenticated scoped launch authority unavailable".into());
         let store = self.coordinator.model_lane_store().ok_or_else(denied)?;
@@ -3176,10 +3209,66 @@ impl OperatorChatLaunchService {
             || store.access().exact_read_scope() != Some(request_scope)
         { return Err(denied()); }
         store.access().authorize_exact_request(request_scope).map_err(|_| denied())?;
+        let profile_authority = profile_launch_authority(selection.engine_profile.as_ref().map(|snapshot| matches!(snapshot.profile.engine,
+            handshake_dexterity::Engine::GenieXQairt | handshake_dexterity::Engine::GenieXLlamaCpp)));
+        if let ProfileLaunchAuthority::HumanCreate { local_execution } = profile_authority {
+            let authorization = authentication.workspace_creation_request(request_scope.workspace_id.as_str());
+            let session_token = authorization.session_token.clone();
+            let channel_binding_hash = authorization.channel_binding_hash.clone();
+            let read_record_user = if local_execution {
+                let mut read_authorization = authorization.clone();
+                read_authorization.capability_id = "fs.read".into();
+                read_authorization.action = crate::storage::surreal::resource_authority::ResourceAction::Read;
+                let read_decision = bootstrap.surreal.authorize_protected_resource(read_authorization).await.map_err(|_| denied())?;
+                if read_decision.account_id != request_scope.owner_account_id.to_string()
+                    || read_decision.principal_id != request_scope.actor_principal_id.to_string()
+                    || read_decision.session_id != request_scope.authenticated_session_id.to_string()
+                    || read_decision.access_space_id != request_scope.access_space_id.to_string()
+                    || read_decision.grant_id.is_empty() || read_decision.resource_id.is_empty()
+                    || !bootstrap.capability_registry.profile_can(&read_decision.capability_profile_id, "fs.read").unwrap_or(false)
+                { return Err(denied()); }
+                let read_record_user = crate::storage::surreal::resource_authority::RecordUserScope {
+                    grant_id: Some(read_decision.grant_id), workspace_id: Some(request_scope.workspace_id.to_string()),
+                    session_token: session_token.clone(), channel_binding_hash: channel_binding_hash.clone(),
+                    resource_id: read_decision.resource_id, session_id: read_decision.session_id,
+                    capability_id: "fs.read".into(), action: crate::storage::surreal::resource_authority::ResourceAction::Read,
+                };
+                Some(read_record_user)
+                } else { None };
+            let decision = bootstrap.surreal.authorize_protected_resource(authorization).await.map_err(|_| denied())?;
+            if decision.account_id != request_scope.owner_account_id.to_string()
+                || decision.principal_id != request_scope.actor_principal_id.to_string()
+                || decision.session_id != request_scope.authenticated_session_id.to_string()
+                || decision.access_space_id != request_scope.access_space_id.to_string()
+                || decision.grant_id.is_empty() || decision.resource_id.is_empty()
+                || !bootstrap.capability_registry.profile_can(&decision.capability_profile_id, "fs.write").unwrap_or(false)
+            { return Err(denied()); }
+            let record_user = crate::storage::surreal::resource_authority::RecordUserScope {
+                grant_id: Some(decision.grant_id), workspace_id: Some(request_scope.workspace_id.to_string()),
+                session_token, channel_binding_hash, resource_id: decision.resource_id, session_id: decision.session_id,
+                capability_id: "fs.write".into(), action: crate::storage::surreal::resource_authority::ResourceAction::Create,
+            };
+            let invocation_authority = if let Some(read_record_user) = read_record_user {
+                let revisions = capture_initial_local_execution_revisions(
+                    &bootstrap.surreal, &read_record_user, request_scope, local_execution_revisions,
+                ).await?;
+                Some(super::ids::LocalExecutionInvocationAuthority::authenticated(
+                    request_scope.clone(), read_record_user, record_user.clone(),
+                    revisions.expected_registry_revision, revisions.expected_selection_revision,
+                    decision.capability_profile_id.clone(),
+                ).map_err(|_| denied())?)
+            } else { None };
+            return bootstrap.surreal.with_record_user_scope(record_user.clone(), crate::storage::surreal::with_model_lane_subject(
+                crate::storage::surreal::ModelLaneOperationSubject {
+                    kind: crate::storage::surreal::resource_authority::ResourceKind::Workspace,
+                    external_id: request_scope.workspace_id.to_string(),
+                }, self.launch_for_scope(selection, Some(request_scope), invocation_authority),
+            )).await;
+        }
         bootstrap.surreal.authorize_validator_delegation_parent(
             &bootstrap.capability_registry, authentication, request_scope,
         ).await.map_err(|_| denied())?;
-        self.launch_for_scope(selection, Some(request_scope)).await
+        self.launch_for_scope(selection, Some(request_scope), None).await
     }
 
     #[cfg(feature = "runtime-full")]
@@ -3227,7 +3316,7 @@ impl OperatorChatLaunchService {
         bootstrap.surreal.authorize_validator_delegation_parent(
             &bootstrap.capability_registry, auth.clone(), &designation.scope,
         ).await.map_err(|error| denied(error.to_string()))?;
-        bootstrap.surreal.with_record_user_scope(record_user, crate::storage::surreal::with_model_lane_subject(
+        bootstrap.surreal.with_record_user_scope(record_user.clone(), crate::storage::surreal::with_model_lane_subject(
             crate::storage::surreal::ModelLaneOperationSubject {
                 kind: crate::storage::surreal::resource_authority::ResourceKind::Workspace,
                 external_id: designation.scope.workspace_id.to_string(),
@@ -3377,7 +3466,7 @@ impl OperatorChatLaunchService {
         bootstrap.surreal.authorize_validator_delegation_parent(
             &bootstrap.capability_registry, authentication, request_scope,
         ).await.map_err(|_| denied())?;
-        bootstrap.surreal.with_record_user_scope(record_user, crate::storage::surreal::with_model_lane_subject(
+        bootstrap.surreal.with_record_user_scope(record_user.clone(), crate::storage::surreal::with_model_lane_subject(
             crate::storage::surreal::ModelLaneOperationSubject {
                 kind: crate::storage::surreal::resource_authority::ResourceKind::Workspace,
                 external_id: request_scope.workspace_id.to_string(),
@@ -3531,11 +3620,13 @@ impl OperatorChatLaunchService {
         &self,
         selection: &OperatorChatSelection,
         request_scope: Option<&ExactResourceScopeAttribution>,
+        local_execution_authority: Option<super::ids::LocalExecutionInvocationAuthority>,
     ) -> Result<OperatorChatLaunched, OperatorChatError> {
         if selection.lane_kind == OperatorChatLaneKind::Subagent {
             return self.launch_subagent(selection).await;
         }
         let mut request = self.build_spawn_request(selection)?;
+        request.local_execution_authority = local_execution_authority;
         self.attach_cloud_launch_authority(selection, &mut request, request_scope)
             .await?;
         let cloud_artifact_binding_plan =
@@ -3595,6 +3686,7 @@ impl OperatorChatLaunchService {
         let captured_message_count = match captured_result {
             Ok(count) => {
                 self.coordinator.complete_session(instance_id).await?;
+                self.close_profile_session(selection, &contract.run_id, crate::storage::ModelSessionState::Completed, "completed").await?;
                 count
             }
             Err(err) => {
@@ -3607,18 +3699,22 @@ impl OperatorChatLaunchService {
                     )
                     .await
                 {
-                    Ok(()) | Err(SwarmError::UnknownInstance(_)) => {}
+                    Ok(()) => {},
+                    Err(SwarmError::UnknownInstance(_)) if selection.engine_profile.is_none() => {},
                     Err(cleanup_err) => {
                         return Err(OperatorChatError::Invalid(format!(
                             "operator-chat capture failed ({err_text}); session cleanup failed: {cleanup_err}"
                         )));
                     }
                 }
+                self.close_profile_session(selection, &contract.run_id, crate::storage::ModelSessionState::Failed,
+                    "ordinary profile invocation failed after owned cleanup").await?;
                 return Err(err);
             }
         };
 
         Ok(OperatorChatLaunched {
+            engine_profile: selection.engine_profile.clone(),
             instance_id: instance_id.to_string(),
             run_id: contract.run_id,
             lane_id: contract.lane_id,
@@ -3673,6 +3769,7 @@ impl OperatorChatLaunchService {
             .unwrap_or_else(|| "dexterity-lane-subagent-missing".to_string());
         let trace_id = run.trace_id.clone();
         Ok(OperatorChatLaunched {
+            engine_profile: selection.engine_profile.clone(),
             instance_id: format!("no-os:{run_id}"),
             run_id,
             lane_id,
@@ -3687,6 +3784,95 @@ impl OperatorChatLaunchService {
     /// number of captured model messages. A coordinator without a `ModelLaneStore`,
     /// or a session that is not runnable, fails closed instead of returning a
     /// partial launch without capture authority.
+    async fn close_profile_session(
+        &self, selection: &OperatorChatSelection, run_id: &str,
+        state: crate::storage::ModelSessionState, reason: &str,
+    ) -> Result<(), OperatorChatError> {
+        if selection.engine_profile.is_none() { return Ok(()); }
+        let store = self.coordinator.model_lane_store()
+            .ok_or_else(|| OperatorChatError::Invalid("profile session store unavailable".into()))?;
+        let replay = store.replay_run(run_id).await?;
+        let lane = replay.lanes.iter().find(|lane| lane.engine_profile == selection.engine_profile)
+            .ok_or_else(|| OperatorChatError::Invalid("profile session canonical lane absent".into()))?;
+        let database = crate::storage::surreal::SurrealDatabase::new(store.surreal_storage().clone());
+        store.access().require_lifecycle_active()
+            .map_err(|error| OperatorChatError::Invalid(error.to_string()))?;
+        let authority = store.access().exact_read_scope()
+            .ok_or_else(|| OperatorChatError::Invalid("profile session current authority absent".into()))?;
+        crate::storage::Database::close_model_session(&database, &lane.model_session_id,
+            state, reason, &format!("principal://{}", authority.actor_principal_id.as_uuid()))
+            .await.map_err(|error| OperatorChatError::Invalid(error.to_string()))?;
+        Ok(())
+    }
+
+    async fn drive_profile_completion(
+        &self, selection: &OperatorChatSelection, run: &ModelLaneRunRecord, lane: &ModelLaneRecord,
+        instance_id: ModelInstanceId, model_id: ModelId, request_id: Uuid,
+        capture: &ModelLaneCaptureRecorder,
+        snapshot: &crate::model_runtime::EngineProfileSnapshotV1,
+    ) -> Result<usize, OperatorChatError> {
+        let declaration = selection.engine_profile_session.as_ref()
+            .ok_or_else(|| OperatorChatError::Invalid("profile session declaration absent".into()))?;
+        declaration.validate().map_err(|error| OperatorChatError::Invalid(error.to_string()))?;
+        if lane.engine_profile.as_ref() != Some(snapshot) || run.engine_profile.as_ref() != Some(snapshot)
+            || lane.process_ownership_ref.as_deref().is_none_or(str::is_empty) {
+            return Err(OperatorChatError::Invalid("profile session immutable runtime binding differs".into()));
+        }
+        let store = self.coordinator.model_lane_store()
+            .ok_or_else(|| OperatorChatError::Invalid("profile session store unavailable".into()))?;
+        let scope = store.access().exact_read_scope()
+            .ok_or_else(|| OperatorChatError::Invalid("profile session exact scope absent".into()))?.clone();
+        let database = crate::storage::surreal::SurrealDatabase::new(store.surreal_storage().clone());
+        crate::storage::Database::upsert_model_session(&database, crate::storage::NewModelSession {
+            engine_profile_binding: Some(crate::storage::EngineProfileSessionBindingV1 {
+                declaration: declaration.clone(), run_id: run.run_id.clone(), lane_id: lane.lane_id.clone(),
+                scope, run_event_id: run.event_ledger_event_id.clone(), lane_event_id: lane.event_ledger_event_id.clone(),
+                snapshot: snapshot.clone(),
+            }),
+            session_id: lane.model_session_id.clone(), parent_session_id: Some(selection.parent_session_id.clone()),
+            spawn_depth: declaration.spawn_depth, state: crate::storage::ModelSessionState::Created,
+            model_id: snapshot.profile.model.id.clone(), backend: lane.backend.clone(),
+            parameter_class: declaration.parameter_class.clone(), role: lane.role.clone(),
+            wp_id: run.work_packet_id.clone(), mt_id: run.micro_task_id.clone(), work_profile_id: None,
+            execution_mode: declaration.execution_mode.clone(), memory_policy: declaration.memory_policy.clone(),
+            consent_receipt_id: None, capability_grants: vec![], capability_token_ids: None,
+            job_id: None, checkpoint_artifact_id: None, last_checkpoint_at: None, checkpoint_count: 0,
+            agent: Some(selection.owner_session.clone()), purpose: Some("ordinary_engine_profile_one_shot".into()),
+        }).await.map_err(|error| OperatorChatError::Invalid(error.to_string()))?;
+        let (client, actual_model_id, cancel, deadline) = self.coordinator.begin_profile_invocation(instance_id)?;
+        if actual_model_id != model_id { return Err(OperatorChatError::Invalid("profile live model identity changed".into())); }
+        crate::storage::Database::update_model_session_state(&database, &lane.model_session_id,
+            crate::storage::ModelSessionState::Active, None).await
+            .map_err(|error| OperatorChatError::Invalid(error.to_string()))?;
+        // EPHEMERAL uses only the original prompt. This branch has no MemoryPack,
+        // capsule, cached KV prefix, override or memory-write proposal path.
+        let temperature = match &snapshot.profile.preset.sampling {
+            handshake_dexterity::Sampling::Qairt { temperature, .. }
+                | handshake_dexterity::Sampling::LlamaCpp { temperature, .. } => *temperature as f32,
+        };
+        let request = crate::llm::CompletionRequest::new(request_id, selection.prompt.clone(),
+            actual_model_id.to_string()).with_max_tokens(snapshot.profile.preset.max_tokens)
+            .with_temperature(temperature);
+        let (mut future, control) = client.owned_completion(request, deadline).into_parts();
+        let outcome = tokio::select! { biased;
+            _ = cancel.cancelled() => { control.cancel(); Err(crate::llm::LlmError::ProviderError("profile invocation cancelled".into())) },
+            _ = tokio::time::sleep_until(deadline) => { control.cancel(); Err(crate::llm::LlmError::ProviderError("profile invocation expired".into())) },
+            result = &mut future => result,
+        };
+        drop(future);
+        let drain = control.drain().await;
+        if !matches!(drain, crate::llm::InvocationDrainOutcome::LocalResourcesSettled {
+            remote_acknowledgement: crate::llm::RemoteAcknowledgement::NotApplicable, deadline_exceeded: false, ..
+        }) { return Err(OperatorChatError::Invalid(format!("profile invocation native settlement unconfirmed: {drain:?}"))); }
+        let response = outcome.map_err(|error| OperatorChatError::Invalid(error.to_string()))?;
+        if cancel.is_cancelled() || tokio::time::Instant::now() >= deadline {
+            return Err(OperatorChatError::Invalid("profile output arrived after its original lifetime".into()));
+        }
+        capture.record_activity_with_adapter(run, lane, model_id, request_id, 1,
+            &AgentActivity::Text { text: response.text }, "genie_x").await?;
+        Ok(1)
+    }
+
     async fn drive_and_capture(
         &self,
         selection: &OperatorChatSelection,
@@ -3728,6 +3914,10 @@ impl OperatorChatLaunchService {
                 ))
             })?;
         let capture_request_id = Uuid::new_v4();
+        if let Some(snapshot) = selection.engine_profile.as_ref() {
+            return self.drive_profile_completion(selection, &run, &lane, instance_id,
+                model_id, capture_request_id, &capture, snapshot).await;
+        }
         // `generate_session` replaces this placeholder token with the
         // coordinator-owned session token before the runtime receives it.
         // Callers therefore cannot bypass the coordinator's terminal ledger
@@ -3940,12 +4130,17 @@ fn build_spawn_request_with_catalog(
                 "local operator-chat launch requires a ModelCatalog".to_string(),
             )
         })?;
-        let entry = catalog.entry(&selection.model_id).ok_or_else(|| {
+        let entry = if let Some(snapshot) = selection.engine_profile.as_ref() {
+            catalog.entry_for_stable_anchor(&snapshot.profile.model.content_sha256)
+        } else { catalog.entry(&selection.model_id) }.ok_or_else(|| {
             OperatorChatError::Invalid(format!(
                 "local model_id '{}' is not registered in the live ModelCatalog",
                 selection.model_id
             ))
         })?;
+        if selection.engine_profile.is_some() && entry.runtime_binding != "genie_x" {
+            return Err(OperatorChatError::Invalid("engine_profile_worker_registration_unavailable".into()));
+        }
         if !entry.ready {
             return Err(OperatorChatError::Invalid(format!(
                 "local model_id '{}' is registered but not ready",
@@ -3971,6 +4166,7 @@ fn build_spawn_request_with_catalog(
     {
         Some("candle") => RuntimeAdapterBinding::Candle,
         Some("llama_cpp") => RuntimeAdapterBinding::LlamaCpp,
+        Some("genie_x") if selection.engine_profile.is_some() => RuntimeAdapterBinding::GenieX,
         Some(other) => {
             return Err(OperatorChatError::Invalid(format!(
                 "local model_id '{}' has unsupported runtime_binding '{}'",
@@ -4039,8 +4235,20 @@ fn build_spawn_request_with_catalog(
         }
     };
 
-    let contract =
+    let mut contract =
         DexterityLaunchContract::from_spawn_request(&request).map_err(OperatorChatError::from)?;
+    if let Some(snapshot) = selection.engine_profile.as_ref() {
+        if selection.lane_kind != OperatorChatLaneKind::Local
+            || snapshot.profile.model.id != selection.model_id
+            || request.model_artifact_sha256.as_deref() != Some(snapshot.profile.model.content_sha256.as_str())
+        { return Err(OperatorChatError::Invalid("engine profile model or artifact identity differs".into())); }
+        snapshot.validate().map_err(|_| OperatorChatError::Invalid("engine profile fingerprint differs".into()))?;
+        let declaration = selection.engine_profile_session.as_ref()
+            .ok_or_else(|| OperatorChatError::Invalid("server-issued ordinary session policy required".into()))?;
+        declaration.validate().map_err(|error| OperatorChatError::Invalid(error.to_string()))?;
+        contract.engine_profile_session = Some(declaration.clone());
+        contract.engine_profile = Some(snapshot.clone());
+    }
     Ok(request.with_dexterity_launch(contract))
 }
 
@@ -4170,6 +4378,8 @@ mod tests {
     #[test]
     fn build_spawn_request_cli_sets_provider_working_dir_and_contract() {
         let selection = OperatorChatSelection {
+            engine_profile_session: None,
+            engine_profile: None,
             lane_kind: OperatorChatLaneKind::Cli,
             model_id: "claude-sonnet-4".into(),
             cloud_provider: None,
@@ -4229,6 +4439,8 @@ mod tests {
     #[test]
     fn build_spawn_request_local_requires_catalog_resolution() {
         let selection = OperatorChatSelection {
+            engine_profile_session: None,
+            engine_profile: None,
             lane_kind: OperatorChatLaneKind::Local,
             model_id: Uuid::now_v7().to_string(),
             cloud_provider: None,
@@ -4269,6 +4481,8 @@ mod tests {
         registry.mark_loaded(model_id).expect("mark model loaded");
         let catalog = ModelCatalog::from_registry(Arc::new(registry));
         let selection = OperatorChatSelection {
+            engine_profile_session: None,
+            engine_profile: None,
             lane_kind: OperatorChatLaneKind::Local,
             model_id: model_id.to_string(),
             cloud_provider: None,
@@ -4337,6 +4551,8 @@ mod tests {
         assert!(entry.ready);
         assert!(!entry.default_selectable);
         let selection = OperatorChatSelection {
+            engine_profile_session: None,
+            engine_profile: None,
             lane_kind: OperatorChatLaneKind::Local,
             model_id: model_id.to_string(),
             cloud_provider: None,
@@ -4363,6 +4579,8 @@ mod tests {
     #[test]
     fn build_spawn_request_rejects_empty_working_dir() {
         let selection = OperatorChatSelection {
+            engine_profile_session: None,
+            engine_profile: None,
             lane_kind: OperatorChatLaneKind::Local,
             model_id: "m".into(),
             cloud_provider: None,
@@ -4599,5 +4817,128 @@ impl OperatorChatLaunchService {
                 producer_registered_principal: producer.registered_principal().clone(),
             },
         })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum ProfileLaunchAuthority {
+    Delegation,
+    HumanCreate { local_execution: bool },
+}
+
+fn profile_launch_authority(engine_is_genie_x: Option<bool>) -> ProfileLaunchAuthority {
+    match engine_is_genie_x {
+        Some(local_execution) => ProfileLaunchAuthority::HumanCreate { local_execution },
+        None => ProfileLaunchAuthority::Delegation,
+    }
+}
+
+#[cfg(test)]
+mod profile_launch_authority_tests {
+    use super::{profile_launch_authority, ProfileLaunchAuthority};
+
+    #[test]
+    fn human_profile_creation_does_not_depend_on_genie_x_supplier_requirements() {
+        assert_eq!(profile_launch_authority(Some(false)),
+            ProfileLaunchAuthority::HumanCreate { local_execution: false });
+        assert_eq!(profile_launch_authority(Some(true)),
+            ProfileLaunchAuthority::HumanCreate { local_execution: true });
+        assert_eq!(profile_launch_authority(None), ProfileLaunchAuthority::Delegation);
+    }
+}
+fn initial_local_execution_revision_request(
+    workspace_id: &str,
+    hints: Option<(i64,i64)>,
+    records: Option<(&crate::preferences::PreferenceRecord,&crate::preferences::PreferenceRecord)>,
+) -> Result<crate::preferences::LocalExecutionAuthorityRequest,OperatorChatError> {
+    let denied = || OperatorChatError::Invalid("configured canonical WorkProfile revisions required".into());
+    let (registry,selection) = match hints {
+        Some(revisions) => revisions,
+        None => {
+            let (registry,selection) = records.ok_or_else(denied)?;
+            for (record,key) in [(registry,crate::preferences::PREF_WORK_PROFILE_REGISTRY),
+                (selection,crate::preferences::PREF_WORK_PROFILE_SELECTION)] {
+                if record.preference_id != key || record.scope != "workspace" || record.scope_ref != workspace_id
+                    || record.revision <= 0 || record.source != "operator" || record.value == record.default_value {
+                    return Err(denied());
+                }
+            }
+            (registry.revision,selection.revision)
+        }
+    };
+    if workspace_id.trim().is_empty() || registry <= 0 || selection <= 0 { return Err(denied()); }
+    Ok(crate::preferences::LocalExecutionAuthorityRequest {workspace_id:workspace_id.to_owned(),
+        expected_registry_revision:registry,expected_selection_revision:selection})
+}
+
+#[cfg(feature = "runtime-full")]
+async fn capture_initial_local_execution_revisions(
+    storage: &crate::storage::surreal::SurrealStorage,
+    read_scope: &crate::storage::surreal::resource_authority::RecordUserScope,
+    scope: &ExactResourceScopeAttribution,
+    hints: Option<(i64,i64)>,
+) -> Result<crate::preferences::LocalExecutionAuthorityRequest,OperatorChatError> {
+    use crate::preferences::{PreferenceScope,work_profile_preference_entry,PREF_WORK_PROFILE_REGISTRY,PREF_WORK_PROFILE_SELECTION};
+    let denied = || OperatorChatError::Invalid("canonical WorkProfile revision capture rejected".into());
+    let workspace = scope.workspace_id.to_string();
+    let request = if hints.is_some() {
+        initial_local_execution_revision_request(&workspace,hints,None)?
+    } else {
+        // Sequential reads select expected revisions only. The guarded snapshot below is authoritative.
+        let preference_scope = PreferenceScope::workspace(&workspace);
+        let registry_entry = work_profile_preference_entry(PREF_WORK_PROFILE_REGISTRY).ok_or_else(denied)?;
+        let selection_entry = work_profile_preference_entry(PREF_WORK_PROFILE_SELECTION).ok_or_else(denied)?;
+        let registry = storage.with_record_user_scope(read_scope.clone(),
+            storage.preference_get(&preference_scope,&registry_entry)).await.map_err(|_| denied())?;
+        let selection = storage.with_record_user_scope(read_scope.clone(),
+            storage.preference_get(&preference_scope,&selection_entry)).await.map_err(|_| denied())?;
+        initial_local_execution_revision_request(&workspace,None,Some((&registry,&selection)))?
+    };
+    let lease = storage.with_record_user_scope(read_scope.clone(),
+        storage.local_execution_authority_snapshot(&request)).await.map_err(|_| denied())?;
+    if lease.snapshot().owner_account_id != scope.owner_account_id.to_string()
+        || lease.snapshot().actor_principal_id != scope.actor_principal_id.to_string() {
+        return Err(denied());
+    }
+    // Capture once; a racing edit fails the gated expected-revision check without retry or rebase.
+    drop(lease.release());
+    Ok(request)
+}
+#[cfg(test)]
+mod initial_local_execution_capture_contract {
+    use super::*;
+    use crate::preferences::{PreferenceRecord,PREF_WORK_PROFILE_REGISTRY,PREF_WORK_PROFILE_SELECTION};
+
+    fn record(key: &str,revision: i64) -> PreferenceRecord {
+        serde_json::from_value(json!({"schema_id":"fixture","preference_id":key,"namespace":"work-profiles",
+            "value_type":"object","value":{"configured":true},"scope":"workspace","scope_ref":"fixture-workspace",
+            "default_value":{},"source":"operator","revision":revision,"redaction_class":"public",
+            "updated_by":"fixture-actor","event_ledger_event_id":"fixture-event"})).unwrap()
+    }
+
+    #[test]
+    fn omitted_hints_capture_real_record_revisions_and_supplied_hints_never_rebase() {
+        let registry = record(PREF_WORK_PROFILE_REGISTRY,7);
+        let selection = record(PREF_WORK_PROFILE_SELECTION,9);
+        let captured = initial_local_execution_revision_request("fixture-workspace",None,Some((&registry,&selection))).unwrap();
+        assert_eq!(captured.expected_registry_revision,7);
+        assert_eq!(captured.expected_selection_revision,9);
+        // These stale hints remain stale for the authoritative guarded snapshot to reject.
+        let hinted = initial_local_execution_revision_request("fixture-workspace",Some((1,2)),Some((&registry,&selection))).unwrap();
+        assert_eq!(hinted.expected_registry_revision,1);
+        assert_eq!(hinted.expected_selection_revision,2);
+    }
+
+    #[test]
+    fn absent_default_and_foreign_prefilter_records_cannot_supply_revision_authority() {
+        let registry = record(PREF_WORK_PROFILE_REGISTRY,7);
+        let selection = record(PREF_WORK_PROFILE_SELECTION,9);
+        assert!(initial_local_execution_revision_request("fixture-workspace",None,None).is_err());
+        for changed in 0..4 {
+            let mut invalid = selection.clone();
+            match changed { 0 => invalid.revision=0,1 => invalid.source="default".into(),
+                2 => invalid.scope_ref="foreign-workspace".into(),_ => invalid.value=invalid.default_value.clone() }
+            assert!(initial_local_execution_revision_request("fixture-workspace",None,Some((&registry,&invalid))).is_err());
+        }
     }
 }

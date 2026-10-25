@@ -36,6 +36,24 @@ use crate::sandbox::{
 };
 
 #[cfg(target_os = "windows")]
+pub(crate) fn capture_baseline_bindings(paths: &[PathBuf])
+    -> Result<crate::sandbox::adapter::AttachedBaselineBindings, SandboxAdapterError>
+{
+    super::acl_transaction::capture_baseline_bindings(paths)
+        .map_err(|reason| attached_spawn_failed(
+            &AdapterId::new(crate::sandbox::HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID), reason))
+}
+
+#[cfg(target_os = "windows")]
+pub(crate) fn baseline_file(
+    bindings: &crate::sandbox::adapter::AttachedBaselineBindings, path: &std::path::Path,
+) -> Result<std::fs::File, SandboxAdapterError> {
+    super::acl_transaction::baseline_file(bindings, path)
+        .map_err(|reason| attached_spawn_failed(
+            &AdapterId::new(crate::sandbox::HANDSHAKE_NATIVE_SANDBOX_ADAPTER_ID), reason))
+}
+
+#[cfg(target_os = "windows")]
 static ATTACHED_STARTUP_ADMISSION: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(1);
 #[cfg(target_os = "windows")]
 const ATTACHED_TERMINATION_REAP_TIMEOUT: Duration = Duration::from_secs(5);
@@ -330,18 +348,21 @@ impl SandboxAdapter for WindowsNativeJailAdapter {
         #[cfg(target_os = "windows")]
         {
             let process = self.process_for_handle(handle)?;
-            *process
-                .killed_by
-                .lock()
-                .map_err(|_| spawn_failed("WindowsNativeJailAdapter killed state poisoned"))? =
-                Some(signal);
-            let guard = process
-                .job_guard
-                .lock()
-                .map_err(|_| spawn_failed("WindowsNativeJailAdapter job guard poisoned"))?
-                .take();
-            if let Some(guard) = guard {
-                let _ = guard.terminate(1);
+            let guard = process.job_guard.lock()
+                .map_err(|_| spawn_failed("WindowsNativeJailAdapter job guard poisoned"))?;
+            match guard.as_ref() {
+                Some(job) => {
+                    job.terminate(1).map_err(spawn_failed)?;
+                    *process.killed_by.lock()
+                        .map_err(|_| spawn_failed("WindowsNativeJailAdapter killed state poisoned"))? = Some(signal);
+                }
+                None => {
+                    if process.exit_code.lock()
+                        .map_err(|_| spawn_failed("WindowsNativeJailAdapter exit state poisoned"))?.is_none()
+                    {
+                        return Err(spawn_failed("detached process lost shared Job Object before terminal acknowledgement"));
+                    }
+                }
             }
             Ok(())
         }
@@ -504,7 +525,7 @@ fn spawn_windows_native_process(
         .insert(internal_id.clone(), process);
 
     let profile = profile_cleanup.into_profile();
-    spawn_waiter(child, profile, exit_code.clone());
+    spawn_waiter(child, profile, exit_code.clone(), job_guard.clone());
     spawn_timeout_guard(
         spec.resource_limits.timeout_ms,
         exit_code,
@@ -546,6 +567,8 @@ struct WindowsAttachedProcess {
     acl_transaction: Option<AppContainerAclTransaction>,
     ephemeral_cleanup: AttachedEphemeralPathGuard,
     observed_exit: Option<ExitStatus>,
+    receipt: crate::sandbox::adapter::AttachedSandboxReceipt,
+    confirmed_killed: bool,
 }
 
 #[cfg(target_os = "windows")]
@@ -570,19 +593,15 @@ impl WindowsAttachedProcess {
     }
 
     fn finish_acl_cleanup(&mut self) -> Result<(), SandboxAdapterError> {
-        let acl_result = if let Some(mut transaction) = self.acl_transaction.take() {
-            transaction
-                .cleanup()
-                .map_err(|reason| self.error("AppContainer ACL cleanup", reason))
-        } else {
-            Ok(())
-        };
-        let ephemeral_result = self
-            .ephemeral_cleanup
-            .cleanup()
-            .map_err(|reason| self.error("ephemeral data-root cleanup", reason));
-        acl_result?;
-        ephemeral_result
+        if let Some(transaction) = self.acl_transaction.as_mut() {
+            if let Err(reason) = transaction.cleanup() {
+                return Err(self.error("AppContainer ACL cleanup", reason));
+            }
+        }
+        self.ephemeral_cleanup.cleanup()
+            .map_err(|reason| self.error("ephemeral data-root cleanup", reason))?;
+        self.acl_transaction.take();
+        Ok(())
     }
 }
 
@@ -590,6 +609,36 @@ impl WindowsAttachedProcess {
 impl AttachedSandboxProcess for WindowsAttachedProcess {
     fn pid(&self) -> u32 {
         self.pid
+    }
+
+    fn receipt(&self) -> Option<crate::sandbox::adapter::AttachedSandboxReceipt> {
+        Some(self.receipt.clone())
+    }
+
+    fn take_stdout_file(&mut self) -> Option<std::fs::File> {
+        self.child.as_mut().and_then(|child| child.stdout.take())
+    }
+
+    fn take_stderr_file(&mut self) -> Option<std::fs::File> {
+        self.child.as_mut().and_then(|child| child.stderr.take())
+    }
+
+    fn terminate_tree_and_wait_with_timeout(
+        &mut self, timeout: Duration,
+    ) -> Result<crate::sandbox::adapter::AttachedTerminationOutcome, SandboxAdapterError> {
+        let started = std::time::Instant::now();
+        if let Some(child) = self.child.as_ref() {
+            let job = child.job_guard.as_ref()
+                .ok_or_else(|| self.error("terminate", "creation-time Job Object missing"))?;
+            if job.active_processes().map_err(|reason| self.error("tree observation", reason))? != 0 {
+                job.terminate(1).map_err(|reason| self.error("TerminateJobObject", reason))?;
+                self.confirmed_killed = true;
+            }
+        }
+        let status = self.wait_with_timeout(Some(timeout.saturating_sub(started.elapsed())))?;
+        Ok(crate::sandbox::adapter::AttachedTerminationOutcome {
+            status, killed: self.confirmed_killed,
+        })
     }
 
     fn take_stdout(&mut self) -> Option<Box<dyn Read + Send>> {
@@ -626,34 +675,8 @@ impl AttachedSandboxProcess for WindowsAttachedProcess {
     }
 
     fn terminate_tree_and_wait(&mut self) -> Result<ExitStatus, SandboxAdapterError> {
-        if self.try_wait()?.is_some() {
-            return self.wait();
-        }
-        let adapter_id = self.adapter_id.clone();
-        let child = match self.child.as_mut() {
-            Some(child) => child,
-            None => return Err(self.error("terminate", "already reaped")),
-        };
-        let terminate_result = child
-            .job_guard
-            .as_ref()
-            .ok_or_else(|| SandboxAdapterError::SpawnFailed {
-                adapter_id: adapter_id.clone(),
-                reason: "attached process lost its creation-time Job Object".to_string(),
-            })?
-            .terminate(1)
-            .map_err(|reason| SandboxAdapterError::SpawnFailed {
-                adapter_id,
-                reason: format!("attached process TerminateJobObject: {reason}"),
-            });
-        // Cleanup is itself part of timeout/cancellation/unwind recovery. Never
-        // turn a failed or ineffective TerminateJobObject into an unbounded
-        // WaitForSingleObject(INFINITE). Consuming the child closes its process
-        // and Job Object handles; a timeout remains an explicit unreaped error,
-        // so GuardedCliChild leaves the ProcessOwnershipLedger START open.
-        let wait_result = self.wait_with_timeout(Some(ATTACHED_TERMINATION_REAP_TIMEOUT));
-        terminate_result?;
-        wait_result
+        self.terminate_tree_and_wait_with_timeout(ATTACHED_TERMINATION_REAP_TIMEOUT)
+            .map(|outcome| outcome.status)
     }
 }
 
@@ -663,20 +686,15 @@ impl WindowsAttachedProcess {
         &mut self,
         timeout: Option<Duration>,
     ) -> Result<ExitStatus, SandboxAdapterError> {
-        let child = self
-            .child
-            .take()
-            .ok_or_else(|| self.error("wait", "already reaped"))?;
-        let result = child
-            .wait(timeout)
-            .map(windows_exit_status)
-            .map_err(|reason| self.error("wait", reason));
-        let cleanup_result = self.finish_acl_cleanup();
-        if let Ok(status) = result {
-            self.observed_exit = Some(status);
-        }
-        let status = result?;
-        cleanup_result?;
+        let status = match self.child.as_mut() {
+            Some(child) => child.wait_borrowed(timeout).map(windows_exit_status)
+                .map_err(|reason| self.error("wait", reason))?,
+            None => self.observed_exit.ok_or_else(|| self.error("wait", "no reaped child"))?,
+        };
+        self.observed_exit = Some(status);
+        self.finish_acl_cleanup()?;
+        // Release process/job handles only after both OS and cleanup acknowledgements.
+        self.child.take();
         Ok(status)
     }
 }
@@ -684,10 +702,13 @@ impl WindowsAttachedProcess {
 #[cfg(target_os = "windows")]
 impl Drop for WindowsAttachedProcess {
     fn drop(&mut self) {
-        if self.child.is_some() {
-            let _ = self.terminate_tree_and_wait();
+        while self.child.is_some() {
+            if self.terminate_tree_and_wait().is_ok() { break; }
+            std::thread::sleep(Duration::from_millis(25));
         }
-        let _ = self.finish_acl_cleanup();
+        while self.finish_acl_cleanup().is_err() {
+            std::thread::sleep(Duration::from_millis(25));
+        }
     }
 }
 
@@ -701,146 +722,171 @@ fn windows_exit_status(code: u32) -> ExitStatus {
 /// `Command` path: it composes rappct AppContainer capabilities, a restricted
 /// primary token, and creation-time Job Object assignment before resuming the
 /// child. The async boundary is deadline-bounded; if Win32 creation outlives
-/// the deadline, the worker observes cancellation and reclaims any late child.
+/// the deadline, this same worker is joined and returns ownership of any late child.
 #[cfg(target_os = "windows")]
 pub(crate) async fn spawn_handshake_native_attached(
-    adapter_id: AdapterId,
-    spec: AttachedProcessSpec,
-    adapter_capabilities: AdapterCapabilities,
-    ephemeral_cleanup: AttachedEphemeralPathGuard,
+    adapter_id: AdapterId, spec: AttachedProcessSpec,
+    adapter_capabilities: AdapterCapabilities, ephemeral_cleanup: AttachedEphemeralPathGuard,
+    baseline_bindings: Option<crate::sandbox::adapter::AttachedBaselineBindings>,
 ) -> Result<Box<dyn AttachedSandboxProcess>, SandboxAdapterError> {
-    let authorized_spec =
-        authorize_attached_process_creation(&adapter_id, spec, &adapter_capabilities)?;
-    let timeout_ms = authorized_spec.0.startup_timeout_ms;
-    if timeout_ms == 0 {
-        return Err(SandboxAdapterError::SpawnFailed {
-            adapter_id,
-            reason: "attached startup_timeout_ms must be greater than zero".to_string(),
-        });
+    let deadline = std::time::Instant::now().checked_add(Duration::from_millis(spec.startup_timeout_ms))
+        .unwrap_or_else(std::time::Instant::now);
+    match spawn_handshake_native_attached_owned(
+        adapter_id, spec, adapter_capabilities, ephemeral_cleanup,
+        crate::model_runtime::CancellationToken::new(), deadline, baseline_bindings,
+    ).await {
+        Ok(process) => Ok(process),
+        Err(crate::sandbox::adapter::OwnedAttachedSpawnError::BeforeSpawn(error)) => Err(error),
+        Err(crate::sandbox::adapter::OwnedAttachedSpawnError::AfterSpawn { mut process, error }) => {
+            // Legacy API has no ownership-bearing error. It must settle this
+            // same child before it can return a status-only failure.
+            loop {
+                if process.terminate_tree_and_wait_with_timeout(ATTACHED_TERMINATION_REAP_TIMEOUT).is_ok() {
+                    return Err(error);
+                }
+                tokio::time::sleep(Duration::from_millis(25)).await;
+            }
+        }
     }
-    let startup_budget = Duration::from_millis(timeout_ms);
-    let startup_started = std::time::Instant::now();
-    let admission = match tokio::time::timeout(startup_budget, ATTACHED_STARTUP_ADMISSION.acquire())
-        .await
-    {
-        Ok(Ok(admission)) => admission,
-        Ok(Err(_)) => {
-            return Err(SandboxAdapterError::SpawnFailed {
-                adapter_id,
-                reason: "Handshake-native attached startup admission is closed".to_string(),
-            });
-        }
-        Err(_) => {
-            return Err(SandboxAdapterError::SpawnFailed {
-                adapter_id,
-                reason: format!(
-                    "attached process startup exceeded its {timeout_ms} ms deadline while waiting for bounded Handshake-native startup admission"
-                ),
-            });
-        }
+}
+
+#[cfg(target_os = "windows")]
+struct AttachedStartupOwnership {
+    child: Option<WindowsNativeLaunchedIo>,
+    acl_transaction: Option<AppContainerAclTransaction>,
+    ephemeral_cleanup: Option<AttachedEphemeralPathGuard>,
+    internal_id: Option<String>,
+    baseline_bindings: Option<crate::sandbox::adapter::AttachedBaselineBindings>,
+}
+
+#[cfg(target_os = "windows")]
+async fn settle_prechild_cleanup(ownership: &Arc<Mutex<AttachedStartupOwnership>>) {
+    loop {
+        let owned = ownership.clone();
+        // This handle is always joined. No timeout/cancel branch drops cleanup.
+        let settled = tokio::task::spawn_blocking(move || {
+            let mut state = owned.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            if let Some(acl) = state.acl_transaction.as_mut() { acl.cleanup()?; }
+            if let Some(ephemeral) = state.ephemeral_cleanup.as_mut() { ephemeral.cleanup()?; }
+            Ok::<(), String>(())
+        }).await;
+        if matches!(settled, Ok(Ok(()))) { return; }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+}
+
+#[cfg(target_os = "windows")]
+pub(crate) async fn spawn_handshake_native_attached_owned(
+    adapter_id: AdapterId, spec: AttachedProcessSpec,
+    adapter_capabilities: AdapterCapabilities, ephemeral_cleanup: AttachedEphemeralPathGuard,
+    cancel: crate::model_runtime::CancellationToken, deadline: std::time::Instant,
+    baseline_bindings: Option<crate::sandbox::adapter::AttachedBaselineBindings>,
+) -> Result<Box<dyn AttachedSandboxProcess>, crate::sandbox::adapter::OwnedAttachedSpawnError> {
+    use crate::sandbox::adapter::OwnedAttachedSpawnError;
+    let ownership = Arc::new(Mutex::new(AttachedStartupOwnership {
+        child: None, acl_transaction: None, ephemeral_cleanup: Some(ephemeral_cleanup),
+        internal_id: None, baseline_bindings,
+    }));
+    let reject = |reason: String| attached_spawn_failed(&adapter_id, reason);
+    let authorized = match authorize_attached_process_creation(&adapter_id, spec, &adapter_capabilities) {
+        Ok(spec) => spec,
+        Err(error) => { settle_prechild_cleanup(&ownership).await; return Err(OwnedAttachedSpawnError::BeforeSpawn(error)); }
     };
-    let remaining_startup_budget = startup_budget.saturating_sub(startup_started.elapsed());
-    if remaining_startup_budget.is_zero() {
-        return Err(SandboxAdapterError::SpawnFailed {
-            adapter_id,
-            reason: format!(
-                "attached process startup exhausted its {timeout_ms} ms deadline while waiting for bounded Handshake-native startup admission"
-            ),
-        });
+    if authorized.0.resolved_execution_policy.as_ref().is_some_and(|policy|
+        policy.requested_ref == crate::sandbox::LOCAL_REQUESTED_EXECUTION_POLICY_REF)
+        && ownership.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).baseline_bindings.is_none()
+    {
+        settle_prechild_cleanup(&ownership).await;
+        return Err(OwnedAttachedSpawnError::BeforeSpawn(reject("local model requires captured adapter baseline handles".into())));
     }
-    // Move the permit into the blocking closure so a dropped/cancelled async
-    // caller cannot admit another AppContainer startup until the current Win32
-    // worker has actually finished or reclaimed its late child.
-    let cancellation = Arc::new(StartupCancellation::default());
-    let startup_stage = Arc::new(AtomicU8::new(ATTACHED_STARTUP_STAGE_VALIDATION));
-    let worker_cancellation = cancellation.clone();
-    let worker_startup_stage = startup_stage.clone();
-    let worker_adapter_id = adapter_id.clone();
+    // Validate native String representation and exact environment before ACL,
+    // profile, pipe, Job Object or process effects.
+    if authorized.0.executable_path.to_str().is_none_or(|path| path.contains('\0'))
+        || authorized.0.cwd.as_ref().is_some_and(|cwd| cwd.to_str().is_none_or(|path| path.contains('\0')))
+        || authorized.0.args.iter().any(|arg| arg.contains('\0'))
+        || authorized.0.binds.iter().any(|bind| bind.host_path.to_str().is_none_or(|path| path.contains('\0')))
+    {
+        settle_prechild_cleanup(&ownership).await;
+        return Err(OwnedAttachedSpawnError::BeforeSpawn(reject("unsupported native path or argument encoding".to_string())));
+    }
+    if let Err(error) = exact_attached_env(&adapter_id, &authorized.0.env) {
+        settle_prechild_cleanup(&ownership).await;
+        return Err(OwnedAttachedSpawnError::BeforeSpawn(error));
+    }
+    let startup_deadline = std::time::Instant::now()
+        .checked_add(Duration::from_millis(authorized.0.startup_timeout_ms))
+        .map(|budget| budget.min(deadline)).unwrap_or(deadline);
+    if authorized.0.startup_timeout_ms == 0 || cancel.is_cancelled()
+        || std::time::Instant::now() >= startup_deadline
+    {
+        settle_prechild_cleanup(&ownership).await;
+        return Err(OwnedAttachedSpawnError::BeforeSpawn(reject("startup cancelled or original deadline exhausted".to_string())));
+    }
+    let admission = tokio::select! {
+        permit = ATTACHED_STARTUP_ADMISSION.acquire() => permit.ok(),
+        _ = cancel.cancelled() => None,
+        _ = tokio::time::sleep_until(tokio::time::Instant::from_std(startup_deadline)) => None,
+    };
+    let Some(admission) = admission else {
+        settle_prechild_cleanup(&ownership).await;
+        return Err(OwnedAttachedSpawnError::BeforeSpawn(reject("startup admission cancelled, closed or expired".to_string())));
+    };
+    let cancellation = Arc::new(StartupCancellation::with_deadline(startup_deadline));
+    let worker_cancel = cancellation.clone();
+    let worker_owner = ownership.clone();
+    let worker_id = adapter_id.clone();
     let mut worker = tokio::task::spawn_blocking(move || {
         let _admission = admission;
-        let mut result = spawn_windows_attached_process(
-            worker_adapter_id.clone(),
-            authorized_spec,
-            worker_startup_stage.as_ref(),
-            worker_cancellation.clone(),
-            ephemeral_cleanup,
-        );
-        if worker_cancellation.is_cancelled() {
-            if let Ok(process) = result.as_mut() {
-                process.terminate_tree_and_wait().map_err(|cleanup_error| {
-                    SandboxAdapterError::SpawnFailed {
-                        adapter_id: worker_adapter_id.clone(),
-                        reason: format!(
-                            "attached process creation completed after its startup deadline, but deterministic terminate/reap failed: {cleanup_error}"
-                        ),
-                    }
-                })?;
-            }
-            return Err(SandboxAdapterError::SpawnFailed {
-                adapter_id: worker_adapter_id,
-                reason: "attached process creation completed after its startup deadline and was reclaimed"
-                    .to_string(),
-            });
-        }
-        result
+        let mut state = worker_owner.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let stage = AtomicU8::new(ATTACHED_STARTUP_STAGE_VALIDATION);
+        spawn_windows_attached_process(worker_id, authorized, &stage, worker_cancel, &mut state)
     });
-
-    match tokio::time::timeout(remaining_startup_budget, &mut worker).await {
-        Ok(Ok(result)) => result,
-        Ok(Err(join_error)) => Err(SandboxAdapterError::SpawnFailed {
-            adapter_id,
-            reason: format!("attached process creation worker failed: {join_error}"),
-        }),
-        Err(_) => {
-            let cancelled_before_resume = cancellation.cancel_before_resume();
-            if !cancelled_before_resume {
-                // Resume already crossed the side-effect boundary. Do not
-                // return merely because cancellation was requested: wait a
-                // second, bounded interval for the worker to prove terminate
-                // and reap, and propagate its cleanup result.
-                const POST_RESUME_CLEANUP_TIMEOUT: Duration = Duration::from_secs(7);
-                return match tokio::time::timeout(POST_RESUME_CLEANUP_TIMEOUT, &mut worker).await {
-                    Ok(Ok(Err(cleanup_result))) => Err(cleanup_result),
-                    Ok(Ok(Ok(mut late_process))) => {
-                        late_process.terminate_tree_and_wait()?;
-                        Err(SandboxAdapterError::SpawnFailed {
-                            adapter_id,
-                            reason: format!(
-                                "attached process creation exceeded startup deadline of {timeout_ms} ms after suspended-process resume; late child was deterministically terminated and reaped"
-                            ),
-                        })
-                    }
-                    Ok(Err(join_error)) => Err(SandboxAdapterError::SpawnFailed {
-                        adapter_id,
-                        reason: format!(
-                            "attached process creation exceeded startup deadline after resume and cleanup worker failed: {join_error}"
-                        ),
-                    }),
-                    Err(_) => Err(SandboxAdapterError::SpawnFailed {
-                        adapter_id,
-                        reason: format!(
-                            "attached process creation exceeded startup deadline after resume and deterministic cleanup did not complete within {} ms",
-                            POST_RESUME_CLEANUP_TIMEOUT.as_millis()
-                        ),
-                    }),
-                };
-            }
-            let stage_id = startup_stage.load(Ordering::Acquire);
-            let stage = if stage_id == ATTACHED_STARTUP_STAGE_ACL_RECOVERY {
-                format!("ACL recovery ({})", default_acl_recovery_stage_name())
-            } else if stage_id == ATTACHED_STARTUP_STAGE_ACL_GRANTS {
-                format!("ACL grant application ({})", acl_grant_stage_detail())
-            } else {
-                attached_startup_stage_name(stage_id).to_string()
-            };
-            Err(SandboxAdapterError::SpawnFailed {
-                adapter_id,
-                reason: format!(
-                    "attached process creation exceeded startup deadline of {timeout_ms} ms during {stage}"
-                ),
-            })
+    let mut cancelled = false;
+    let mut expired = false;
+    let result = loop {
+        tokio::select! {
+            result = &mut worker => break match result {
+                Ok(result) => result,
+                Err(error) => Err(reject(format!("native startup worker failed: {error}"))),
+            },
+            _ = cancel.cancelled(), if !cancelled => {
+                cancelled = true;
+                cancellation.cancel_before_resume();
+            },
+            _ = tokio::time::sleep_until(tokio::time::Instant::from_std(startup_deadline)), if !expired => {
+                expired = true;
+                cancellation.cancel_before_resume();
+            },
         }
+    };
+    // Startup is joined here, even after the original deadline/cancellation.
+    let process = {
+        let mut state = ownership.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        state.child.take().map(|child| {
+            let receipt = crate::sandbox::adapter::AttachedSandboxReceipt {
+                adapter_id: adapter_id.clone(), capabilities: adapter_capabilities,
+                sandbox_internal_id: state.internal_id.take().expect("created child's real ACL instance exists"),
+            };
+            WindowsAttachedProcess {
+                adapter_id: adapter_id.clone(), pid: child.pid, child: Some(child),
+                acl_transaction: state.acl_transaction.take(),
+                ephemeral_cleanup: state.ephemeral_cleanup.take().expect("startup cleanup guard retained"),
+                observed_exit: None, receipt, confirmed_killed: false,
+            }
+        })
+    };
+    if let Some(process) = process {
+        let failure = result.err().or_else(|| (cancelled || expired || cancellation.is_cancelled())
+            .then(|| reject("startup completed after cancellation or original deadline".to_string())));
+        let process: Box<dyn AttachedSandboxProcess> = Box::new(process);
+        return match failure {
+            Some(error) => Err(OwnedAttachedSpawnError::AfterSpawn { process, error }),
+            None => Ok(process),
+        };
     }
+    settle_prechild_cleanup(&ownership).await;
+    Err(OwnedAttachedSpawnError::BeforeSpawn(result.err()
+        .unwrap_or_else(|| reject("native startup returned no child".to_string()))))
 }
 
 #[cfg(target_os = "windows")]
@@ -859,8 +905,7 @@ fn authorize_attached_process_creation(
             "attached process creation requires typed resolved_execution_policy authority",
         )
     })?;
-    let canonical = crate::sandbox::ResolvedExecutionPolicy::resolve_official_cli(
-        crate::sandbox::ExecutionPolicyRequest {
+    let request = crate::sandbox::ExecutionPolicyRequest {
             requested_ref: policy.requested_ref.clone(),
             trust_class: policy.trust_class,
             isolation_tier: policy.isolation_tier,
@@ -869,9 +914,14 @@ fn authorize_attached_process_creation(
             effective_attached_network_mode: policy.effective_attached_network_mode,
             resource_limits: policy.resource_limits.clone(),
             startup_timeout_ms: policy.startup_timeout_ms,
-        },
-    )
-    .map_err(|error| {
+        };
+    let canonical = match policy.requested_ref.as_str() {
+        crate::sandbox::LOCAL_REQUESTED_EXECUTION_POLICY_REF =>
+            crate::sandbox::ResolvedExecutionPolicy::resolve_local(request, adapter_capabilities),
+        crate::sandbox::CLI_BRIDGE_REQUESTED_EXECUTION_POLICY_REF =>
+            crate::sandbox::ResolvedExecutionPolicy::resolve_official_cli(request),
+        _ => Err(crate::sandbox::ExecutionPolicyError::UnknownReference(policy.requested_ref.clone())),
+    }.map_err(|error| {
         attached_spawn_failed(
             adapter_id,
             format!("attached execution-policy boundary rejected launch: {error}"),
@@ -948,8 +998,8 @@ fn spawn_windows_attached_process(
     authorized_spec: AuthorizedAttachedProcessSpec,
     startup_stage: &AtomicU8,
     cancellation: Arc<StartupCancellation>,
-    ephemeral_cleanup: AttachedEphemeralPathGuard,
-) -> Result<Box<dyn AttachedSandboxProcess>, SandboxAdapterError> {
+    ownership: &mut AttachedStartupOwnership,
+) -> Result<(), SandboxAdapterError> {
     let spec = authorized_spec.0;
     if spec.executable_path.as_os_str().is_empty() || !spec.executable_path.is_absolute() {
         return Err(attached_spawn_failed(
@@ -1021,6 +1071,16 @@ fn spawn_windows_attached_process(
         }
     }
 
+    if let Some(bindings) = ownership.baseline_bindings.as_ref() {
+        for path in spec.binds.iter().map(|bind| bind.host_path.as_path())
+            .chain(std::iter::once(spec.executable_path.as_path()))
+            .chain(spec.cwd.as_deref())
+        {
+            super::acl_transaction::validate_baseline_path(bindings, path)
+                .map_err(|reason| attached_spawn_failed(&adapter_id, reason))?;
+        }
+    }
+
     startup_stage.store(ATTACHED_STARTUP_STAGE_ACL_RECOVERY, Ordering::Release);
     ensure_default_acl_recovery().map_err(|error| {
         attached_spawn_failed(
@@ -1034,12 +1094,16 @@ fn spawn_windows_attached_process(
         uuid::Uuid::now_v7().simple()
     );
     startup_stage.store(ATTACHED_STARTUP_STAGE_ACL_PREPARE, Ordering::Release);
-    let mut acl_transaction = AppContainerAclTransaction::begin(
+    ownership.acl_transaction = Some(AppContainerAclTransaction::begin(
         internal_id.clone(),
         acl_grant_targets(&spec.binds, Some(&spec.executable_path))
             .map_err(|reason| attached_spawn_failed(&adapter_id, reason))?,
     )
-    .map_err(|reason| attached_spawn_failed(&adapter_id, reason))?;
+    .map_err(|reason| attached_spawn_failed(&adapter_id, reason))?);
+    ownership.internal_id = Some(internal_id);
+    let acl_transaction = ownership.acl_transaction.as_mut().expect("ACL transaction just installed");
+    acl_transaction.bind_baseline(ownership.baseline_bindings.clone())
+        .map_err(|reason| attached_spawn_failed(&adapter_id, reason))?;
     ensure_attached_startup_active(
         &adapter_id,
         &cancellation,
@@ -1096,7 +1160,7 @@ fn spawn_windows_attached_process(
         "before restricted AppContainer process creation",
     )?;
     startup_stage.store(ATTACHED_STARTUP_STAGE_PROCESS_LAUNCH, Ordering::Release);
-    let mut child = launch_restricted_appcontainer_with_io(
+    let result = super::restricted_appcontainer::launch_restricted_appcontainer_into(
         &security,
         WindowsNativeLaunchOptions {
             exe: spec.executable_path,
@@ -1107,18 +1171,10 @@ fn spawn_windows_attached_process(
             startup_timeout: Some(Duration::from_millis(spec.startup_timeout_ms)),
             startup_cancellation: Some(cancellation),
         },
-    )
-    .map_err(|reason| attached_spawn_failed(&adapter_id, reason))?;
-    drop(child.stdin.take());
-    let pid = child.pid;
-    Ok(Box::new(WindowsAttachedProcess {
-        adapter_id,
-        pid,
-        child: Some(child),
-        acl_transaction: Some(acl_transaction),
-        ephemeral_cleanup,
-        observed_exit: None,
-    }))
+        &mut ownership.child,
+    );
+    if let Some(child) = ownership.child.as_mut() { child.stdin.take(); }
+    result.map_err(|reason| attached_spawn_failed(&adapter_id, reason))
 }
 
 #[cfg(target_os = "windows")]
@@ -1306,7 +1362,7 @@ fn acl_grant_targets(
 }
 
 #[cfg(target_os = "windows")]
-fn windows_named_security_path(path: PathBuf) -> PathBuf {
+pub(super) fn windows_named_security_path(path: PathBuf) -> PathBuf {
     use std::path::{Component, Prefix};
 
     let mut components = path.components();
@@ -1487,16 +1543,82 @@ fn drain_pipe(pipe: Option<std::fs::File>) {
 
 #[cfg(target_os = "windows")]
 fn spawn_waiter(
-    child: WindowsNativeLaunchedIo,
+    mut child: WindowsNativeLaunchedIo,
     profile: rappct::AppContainerProfile,
     exit_code: Arc<Mutex<Option<i32>>>,
+    job_guard: Arc<Mutex<Option<WindowsNativeJobGuard>>>,
 ) {
     thread::spawn(move || {
-        let code = child.wait(None).map(|code| code as i32).unwrap_or(1);
-        if let Ok(mut slot) = exit_code.lock() {
-            *slot = Some(code);
+        let mut observed_exit = None;
+        let mut profile_deleted = false;
+        loop {
+            if observed_exit.is_none() {
+                match child.wait_root_borrowed(Some(ATTACHED_TERMINATION_REAP_TIMEOUT)) {
+                    Ok(code) => observed_exit = Some(code as i32),
+                    Err(error) => {
+                        tracing::error!(%error, "detached root reap unconfirmed; ownership retained");
+                        thread::sleep(Duration::from_millis(25));
+                        continue;
+                    }
+                }
+            }
+            let mut guard = match job_guard.lock() {
+                Ok(guard) => guard,
+                Err(error) => {
+                    tracing::error!(%error, "detached shared job lock unavailable; ownership retained");
+                    thread::sleep(Duration::from_millis(25));
+                    continue;
+                }
+            };
+            let tree_empty = match guard.as_ref() {
+                Some(job) => match job.active_processes() {
+                    Ok(active) => active == 0,
+                    Err(error) => {
+                        tracing::error!(%error, "detached Job Object accounting unconfirmed; ownership retained");
+                        false
+                    }
+                },
+                None => {
+                    tracing::error!("detached shared Job Object missing before terminal acknowledgement; ownership retained");
+                    false
+                }
+            };
+            if !tree_empty {
+                drop(guard);
+                thread::sleep(Duration::from_millis(25));
+                continue;
+            }
+            if !profile_deleted {
+                // Keep the original profile/SID until OS deletion is confirmed.
+                // Derivation opens no new profile and does not recreate it.
+                let deletion = rappct::derive_sid_from_name(&profile.name)
+                    .map_err(|error| error.to_string())
+                    .and_then(|sid| delete_appcontainer_profile(rappct::AppContainerProfile {
+                        name: profile.name.clone(), sid,
+                    }));
+                if let Err(error) = deletion {
+                    drop(guard);
+                    tracing::error!(%error, "detached profile cleanup unconfirmed; ownership retained");
+                    thread::sleep(Duration::from_millis(25));
+                    continue;
+                }
+                profile_deleted = true;
+            }
+            match exit_code.lock() {
+                Ok(mut slot) => {
+                    // Publish only the real root exit after empty-tree and
+                    // profile cleanup ACK. Kill/timeout use this same job lock.
+                    *slot = observed_exit;
+                    guard.take();
+                    return;
+                }
+                Err(error) => {
+                    tracing::error!(%error, "detached terminal publication unavailable; ownership retained");
+                    drop(guard);
+                    thread::sleep(Duration::from_millis(25));
+                }
+            }
         }
-        let _ = delete_appcontainer_profile(profile);
     });
 }
 
@@ -1514,12 +1636,16 @@ fn spawn_timeout_guard(
             if exited {
                 return;
             }
-            if let Ok(mut signal) = killed_by.lock() {
-                *signal = Some(Signal::Kill);
-            }
-            if let Ok(mut guard) = job_guard.lock() {
-                if let Some(guard) = guard.take() {
-                    let _ = guard.terminate(1);
+            if let Ok(guard) = job_guard.lock() {
+                if let Some(job) = guard.as_ref() {
+                    match job.terminate(1) {
+                        Ok(()) => {
+                            if let Ok(mut signal) = killed_by.lock() {
+                                *signal = Some(Signal::Kill);
+                            }
+                        }
+                        Err(error) => tracing::error!(%error, "detached timeout termination unconfirmed; shared job retained"),
+                    }
                 }
             }
         });

@@ -2711,6 +2711,8 @@ pub fn model_runtime_registry_behavior_coverage_matrix(
                eventledger_event_type,
                eventledger_evidence_path,
                response_code| {
+        let engine_profiles = matches!(behavior_id,
+            "model_runtime.engine_profiles.list" | "model_runtime.engine_profiles.mutate");
         ModelRuntimeRegistryBehaviorCoverageRow {
             behavior_id,
             runtime_surface_id,
@@ -2728,14 +2730,39 @@ pub fn model_runtime_registry_behavior_coverage_matrix(
                 ModelRuntimeProofExecutionStatus::DeclaredNotExecuted
             },
             manual_version: USER_MANUAL_VERSION,
-            internal_diagnostics_posture: DiagnosticTierPosture::Wired,
-            palmistry_posture: DiagnosticTierPosture::Wired,
-            diagnostic_reason: DIAGNOSTIC_REASON,
+            internal_diagnostics_posture: if engine_profiles {
+                DiagnosticTierPosture::DeferredWithReason
+            } else { DiagnosticTierPosture::Wired },
+            palmistry_posture: if engine_profiles {
+                DiagnosticTierPosture::DeferredWithReason
+            } else { DiagnosticTierPosture::Wired },
+            diagnostic_reason: if engine_profiles {
+                "Engine Profiles-specific runtime/diagnostic proof is not executed by manual coverage; verify scoped receipts and diagnostic observers independently."
+            } else { DIAGNOSTIC_REASON },
             follow_up_ref,
         }
     };
 
     vec![
+        row(
+            "model_runtime.engine_profiles.list",
+            "/workspaces/:workspace_id/engine-profiles",
+            "Scoped Engine Profiles reads return immutable histories and active identity.",
+            "model_runtime_registry_behaviors_have_canonical_manual_coverage",
+            "WP-KERNEL-012/MT-196/AC196-7",
+            None, None, None, None,
+        ),
+        row(
+            "model_runtime.engine_profiles.mutate",
+            "/workspaces/:workspace_id/engine-profiles",
+            "Scoped Engine Profiles mutations preserve revisions and emit ENGINE_PROFILE_MUTATION_RECORDED.",
+            "model_runtime_registry_behaviors_have_canonical_manual_coverage",
+            "WP-KERNEL-012/MT-196/AC196-7",
+            None,
+            Some(KernelEventType::EngineProfileMutationRecorded.as_str()),
+            Some("eventledger://kernel/ENGINE_PROFILE_MUTATION_RECORDED"),
+            None,
+        ),
         row(
             "wp1.model_runtime_registry.persistent_adapter_selection",
             "ModelRegistryStore::persist_boot_set_and_read_back",
@@ -2935,6 +2962,8 @@ fn model_runtime_registry_compiled_surface_anchors() {
     let _ = ModelRegistryStore::persist_boot_set_and_read_back;
     let _ = ModelRegistryStore::rebind_selection_after_verified_unload;
     let _ = crate::api::model_runtime_registry::routes;
+    let _ = crate::api::model_runtime_registry::engine_profile_routes;
+    let _ = KernelEventType::EngineProfileMutationRecorded;
     let _ = MODEL_RUNTIME_SELECTION_INVALID_CODE;
     let _ = MODEL_RUNTIME_SELECTION_REJECTED_CODE;
     let _ = MODEL_RUNTIME_REGISTRY_INTEGRITY_ERROR_CODE;
@@ -2998,6 +3027,10 @@ pub fn verify_model_runtime_registry_behavior_coverage(
             });
         }
         let expected_contract = match row.behavior_id {
+            "model_runtime.engine_profiles.list" => (None, None),
+            "model_runtime.engine_profiles.mutate" => (
+                None, Some(KernelEventType::EngineProfileMutationRecorded.as_str()),
+            ),
             "wp1.model_runtime_registry.persistent_adapter_selection"
             | "wp1.model_runtime_registry.restart_recovery" => (
                 Some(MODEL_RUNTIME_REGISTRY_SCHEMA_ID),
@@ -3046,6 +3079,9 @@ pub fn verify_model_runtime_registry_behavior_coverage(
             });
         }
         let expected_runtime_surface = match row.behavior_id {
+            "model_runtime.engine_profiles.list" | "model_runtime.engine_profiles.mutate" => {
+                "/workspaces/:workspace_id/engine-profiles"
+            }
             "wp1.model_runtime_registry.persistent_adapter_selection" => {
                 "ModelRegistryStore::persist_boot_set_and_read_back"
             }
@@ -3118,7 +3154,7 @@ pub fn verify_model_runtime_registry_behavior_coverage(
         }
         match (row.eventledger_event_type, row.eventledger_evidence_path) {
             (Some(event_type), Some(path))
-                if event_type == KernelEventType::ModelRuntimeSelectionRecorded.as_str()
+                if Some(event_type) == expected_contract.1
                     && path.ends_with(event_type) => {}
             (None, None) => {}
             _ => {
@@ -3171,9 +3207,15 @@ pub fn verify_model_runtime_registry_behavior_coverage(
                 });
             }
         }
-        if row.internal_diagnostics_posture != DiagnosticTierPosture::Wired
-            || row.palmistry_posture != DiagnosticTierPosture::Wired
+        let expected_posture = if matches!(row.behavior_id,
+            "model_runtime.engine_profiles.list" | "model_runtime.engine_profiles.mutate")
+        {
+            DiagnosticTierPosture::DeferredWithReason
+        } else { DiagnosticTierPosture::Wired };
+        if row.internal_diagnostics_posture != expected_posture
+            || row.palmistry_posture != expected_posture
             || row.diagnostic_reason.trim().is_empty()
+            || row.follow_up_ref.trim().is_empty()
         {
             errors.push(BehaviorCoverageError {
                 behavior_id: row.behavior_id,
