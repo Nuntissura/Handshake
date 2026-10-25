@@ -9011,5 +9011,3526 @@
   "actual": "Private canonical runtime micro_task_id acquired and consumed with original require_token before scalar/ambiguity. No wrapper/map/public producer changes. Same schema9 batch and source/receipt/full hash/selector authorization preserved.",
   "next": "Primary original finite compiler/backfill/shared fingerprint proof plus separate canonical producer ownproof/publication/independent reread then exact pinned caller adoption. All17direct+6API/UserManual/liveArgus/recovery/original independent acceptance OPEN.",
   "fr_scope": "Original four FR assertions are URI-string observables, not UUID identity assertions. Each needs actual canonical family producer/row/receipt/readgrant/validator binding; inspected method UUID signatures are not substitute or universal absence proof. No additional unchanged FR acquisition authorized."
-}
+},
+  "picotask_plan": {
+    "plan_id": "WP012-MT172-PICOTASK-PLAN-V1",
+    "recorded_at_utc": "2026-10-25T23:14:26.936Z",
+    "purpose": "Operator-requested child execution breakdown and dependency matrix of the complete existing MT172 scope.",
+    "authority_effect": "Tracking only. Original contracts, parent lifecycle, source pins, admission, actual ownership, review independence, attempt limits, holds and acceptance remain unchanged. Picotask IDs grant no execution, retry, allocation, cleanup or permission authority.",
+    "indexing": "All array indices and inclusive ranges are zero-based. Scope groups are navigation labels over existing paths, not new product modules or automatic rewrite assignments.",
+    "parent_refs": [
+      "#/scope",
+      "#/source_import_binding",
+      "#/proof",
+      "#/closure_unit",
+      "#/implementation_record/backend_test_retirement_20261011"
+    ],
+    "owner_bindings": {
+      "codeleader": {
+        "thread_id": "01a168a9-05b2-7630-9633-5faac88dd068",
+        "responsibility": "Technical allocation and proof sequencing"
+      },
+      "coding": {
+        "thread_id": "01a17387-13d3-7091-951e-c06728fb7e94",
+        "responsibility": "Existing MT172 coding parent; retain actual A/B authors in their bounded allocation artifacts"
+      },
+      "codecheck": {
+        "thread_id": "01a17387-9d99-7e61-8987-42feab10e18a",
+        "responsibility": "Independent affected source review within existing assignment"
+      },
+      "diagnostics": {
+        "thread_id": "01a17387-4eb3-7b81-bcc4-87402c80779f",
+        "responsibility": "Existing diagnostics peer; independent runtime verdict binding remains explicit"
+      },
+      "primary": {
+        "thread_id": "01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
+        "responsibility": "Sole physical Product, common Git, manifests, locks, compiler and process owner"
+      },
+      "gui": {
+        "thread_id": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+        "responsibility": "Independent GUI lane; only exact consumed interfaces/proofs depend on this MT"
+      },
+      "original_acceptance": {
+        "responsibility": "Original consuming MT owner and independent WP_VALIDATOR, plus whole-WP INTEGRATION_VALIDATOR; unresolved per-proof actor/candidate bindings require Codeleader allocation"
+      }
+    },
+    "owner_source_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_restart_continuation_20261025/team_workflow/single_mt_delivery_mode/active_actors",
+    "reuse_and_execution": {
+      "retained_proof_refs": [
+        "#/proof/consumed_source_checks",
+        "#/proof/runtime_acceptance",
+        "#/proof/duplicate_parent_proof_forbidden",
+        "#/round42_actual_core_20261012",
+        "#/proof/moved_component_unit_selectors_20261015"
+      ],
+      "unchanged_reuse": "Keep exact unchanged valid source reviews and compatible owned compiler artifacts. A candidate change invalidates only dependent assertions. No status-only re-review, repeated unchanged checks or duplicate parent proof.",
+      "proof_levels": "Mechanical coverage, source equivalence/review, compile, component tests and real runtime/independent acceptance are distinct. No picotask is marked accepted from source or compilation alone.",
+      "runtime_binding": "Before an existing proof executes, its owning MT supplies actual actor, candidate/input/config, original command, process custody and unused or valid scoped retry authority; unknown fields remain unbound. One Primary compiler slot; x64 application target on the current ARM64 build host.",
+      "combined_gate_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/combined_acceptance_binding",
+      "source_preservation_requires_original_runtime_pass": false,
+      "gui_parallelism": "GUI and the separate canonical Kumihimo lane continue independently. Only a particular host consumer/native acceptance depends on the interfaces and original proof it consumes.",
+      "historical_state": "Old FAIL/BLOCKED/PASS labels and retired backend commands are history, not present candidate verdicts. CKC027/028 were reopened for Surreal port; CKC066 remains carried shared integration."
+    },
+    "evidence": {
+      "reconciliation": {
+        "path": "@artifacts/WP-KERNEL-012/MT-172/nonauthor-301-reconciliation-20261025/mt172-source-paths-301-f16cfdcb.v3.json",
+        "limit": "Frozen f16cfdcb mechanical301 complete with explicit changed/missing/deletion dispositions; semantic301 NOT_ESTABLISHED. Reused zero semantic metadata verdicts and zero runtime proofs."
+      },
+      "conservation_a": {
+        "path": "@artifacts/WP-KERNEL-012/MT-172/author-a-source-conservation-20261025/source-conservation-focused-051-196-198-227.v2.json",
+        "limit": "Source-owner/assertion mapping for source indices 50,195,197,226; runtime open."
+      },
+      "conservation_b": {
+        "path": "@artifacts/WP-KERNEL-012/MT-172/author-b-ac1-source-conservation-20261025/bounded-eight-source-conservation.v3.json",
+        "limit": "Source mapping for indices 213,233,239,259,267,281,283,291; no runtime verdict."
+      },
+      "recovery_conservation": {
+        "path": "@artifacts/WP-KERNEL-012/MT-172/coding-recovery-conservation-236-237-20261025/complete-bounded-handback.v2.json",
+        "limit": "Two remaining recovery assertion gaps have external source fixes; scoped HTTP/runtime proof remains."
+      },
+      "outbox": {
+        "path": "@artifacts/WP-KERNEL-012/MT-172/coding-outbox-conservation-freeze-20261025-01/candidate.handoff.json",
+        "limit": "External unapplied candidate; unchanged nonauthor v3, root and affected Codecheck source reviews reusable; no compile/runtime result."
+      },
+      "recovery": {
+        "path": "@artifacts/WP-KERNEL-012/MT-172/coding-six-file-conservation-freeze-20261025-01/candidate.handoff.json",
+        "limit": "External candidate; nonauthor coherent v2 clear; saved final root and affected Codecheck reviews pending."
+      },
+      "routing": {
+        "path": "@artifacts/WP-KERNEL-012/MT-172/author-a-connected-routing-20261025/allocation-before-source.v3.json",
+        "limit": "Existing author A allocation with 13 base hashes and draft signatures; not an immutable final candidate."
+      },
+      "schema": {
+        "path": "@artifacts/WP-KERNEL-012/MT-172/author-b-routing-schema-20261025/allocation-before-write.v2.json",
+        "limit": "Existing author B allocation after A released exactly three schema files; not live engine proof."
+      },
+      "diagnostics": {
+        "path": "@artifacts/WP-KERNEL-012/MT-172/author-b-routing-diagnostics-20261025/candidate.v2.json",
+        "limit": "Source candidate not compiled or executed."
+      },
+      "schema_catalog": {
+        "path": "@artifacts/WP-KERNEL-012/MT-172/coding-schema-pin-freeze-20261025-01/candidate.v2.json",
+        "limit": "Source-derived 5300-entry catalog; engine_info_observed=false. Rebind only after final changed schema bytes."
+      },
+      "current_check": {
+        "path": "@artifacts/WP-KERNEL-012/MT-172/shared-check-capture-20261025-01/result.json",
+        "limit": "cargo_exit=101; normalizer_exit=101; source_drift=[]; control_drift=[]; tests_executed=false; runtime_verdict=NOT_ISSUED."
+      }
+    },
+    "scope_groups": [
+      {
+        "id": "WP012-MT172-SG001",
+        "label": "account-route-composition",
+        "source_path_indices": [
+          0
+        ],
+        "extra_allowed_path_indices": [
+          1
+        ],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT002",
+          "WP012-MT172-PT035"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG002",
+        "label": "operator-chat-console",
+        "source_path_indices": [
+          1,
+          13,
+          22,
+          125,
+          132,
+          177,
+          256,
+          257,
+          258,
+          299,
+          300
+        ],
+        "extra_allowed_path_indices": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT028",
+          "WP012-MT172-PT032",
+          "WP012-MT172-PT037"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG003",
+        "label": "debug-mcp",
+        "source_path_indices": [
+          2,
+          214,
+          215,
+          216,
+          274
+        ],
+        "extra_allowed_path_indices": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT013",
+          "WP012-MT172-PT031",
+          "WP012-MT172-PT038"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG004",
+        "label": "diagnostics-outbox-recorder",
+        "source_path_indices": [
+          3,
+          4,
+          14,
+          25,
+          120,
+          227,
+          255,
+          259,
+          281,
+          282,
+          283,
+          284
+        ],
+        "extra_allowed_path_indices": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT006",
+          "WP012-MT172-PT012",
+          "WP012-MT172-PT013",
+          "WP012-MT172-PT014",
+          "WP012-MT172-PT037",
+          "WP012-MT172-PT038",
+          "WP012-MT172-PT041"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG005",
+        "label": "process-executor",
+        "source_path_indices": [
+          5,
+          87,
+          217,
+          254
+        ],
+        "extra_allowed_path_indices": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT026",
+          "WP012-MT172-PT035"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG006",
+        "label": "knowledge-crdt",
+        "source_path_indices": [
+          6,
+          7,
+          8,
+          9,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          38,
+          39,
+          40,
+          179,
+          180,
+          181,
+          183,
+          184,
+          185,
+          186,
+          187,
+          188,
+          189,
+          190,
+          191,
+          192,
+          193,
+          194,
+          195,
+          196,
+          197,
+          198
+        ],
+        "extra_allowed_path_indices": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT009",
+          "WP012-MT172-PT033"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG007",
+        "label": "cloud-cli-model-access",
+        "source_path_indices": [
+          10,
+          64,
+          65,
+          66,
+          67,
+          68,
+          69,
+          70,
+          159,
+          160,
+          161,
+          162,
+          163,
+          164,
+          166,
+          168,
+          169,
+          170,
+          171,
+          172,
+          173,
+          174,
+          175,
+          220,
+          222,
+          223
+        ],
+        "extra_allowed_path_indices": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT026",
+          "WP012-MT172-PT027",
+          "WP012-MT172-PT032"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG008",
+        "label": "model-lane-navigation",
+        "source_path_indices": [
+          11,
+          230,
+          231,
+          232
+        ],
+        "extra_allowed_path_indices": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT015",
+          "WP012-MT172-PT021",
+          "WP012-MT172-PT023",
+          "WP012-MT172-PT024",
+          "WP012-MT172-PT025",
+          "WP012-MT172-PT036"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG009",
+        "label": "model-registry-runtime",
+        "source_path_indices": [
+          12,
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          51,
+          62,
+          63,
+          79,
+          80,
+          81,
+          82,
+          83,
+          84,
+          85,
+          86,
+          176,
+          208,
+          209,
+          221,
+          243,
+          244,
+          245,
+          246,
+          247,
+          248,
+          249,
+          250
+        ],
+        "extra_allowed_path_indices": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT008",
+          "WP012-MT172-PT016",
+          "WP012-MT172-PT026",
+          "WP012-MT172-PT027",
+          "WP012-MT172-PT035"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG010",
+        "label": "checkout-worktree",
+        "source_path_indices": [
+          15,
+          117,
+          131,
+          297,
+          298
+        ],
+        "extra_allowed_path_indices": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT034"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG011",
+        "label": "user-manual",
+        "source_path_indices": [
+          16,
+          138,
+          139,
+          140,
+          141,
+          142,
+          143,
+          144,
+          145,
+          146,
+          147,
+          148,
+          167,
+          285,
+          286,
+          287,
+          288,
+          289,
+          290,
+          291
+        ],
+        "extra_allowed_path_indices": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT015",
+          "WP012-MT172-PT029",
+          "WP012-MT172-PT030",
+          "WP012-MT172-PT031",
+          "WP012-MT172-PT036"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG012",
+        "label": "workspace-work-profiles",
+        "source_path_indices": [
+          17,
+          37,
+          151,
+          182,
+          295,
+          296
+        ],
+        "extra_allowed_path_indices": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT026",
+          "WP012-MT172-PT027",
+          "WP012-MT172-PT028"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG013",
+        "label": "atelier-persistence",
+        "source_path_indices": [
+          18,
+          19
+        ],
+        "extra_allowed_path_indices": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT031"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG014",
+        "label": "sandbox-native-isolation",
+        "source_path_indices": [
+          20,
+          21,
+          97,
+          98,
+          99,
+          100,
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          108,
+          109,
+          110,
+          111,
+          112,
+          113,
+          114,
+          115,
+          116,
+          165,
+          276,
+          292,
+          293,
+          294
+        ],
+        "extra_allowed_path_indices": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT026"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG015",
+        "label": "loom-distillation",
+        "source_path_indices": [
+          23,
+          24,
+          48,
+          49,
+          210,
+          211,
+          212,
+          251,
+          252,
+          253
+        ],
+        "extra_allowed_path_indices": [
+          0
+        ],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT027"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG016",
+        "label": "retired-database-support",
+        "source_path_indices": [
+          50,
+          213
+        ],
+        "extra_allowed_path_indices": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT007"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG017",
+        "label": "candle-runtime",
+        "source_path_indices": [
+          52,
+          53,
+          54,
+          55,
+          56,
+          57,
+          58,
+          59,
+          60,
+          61,
+          152,
+          153,
+          154,
+          155,
+          156,
+          157,
+          158
+        ],
+        "extra_allowed_path_indices": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT026"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG018",
+        "label": "llama-cpp-runtime",
+        "source_path_indices": [
+          71,
+          72,
+          73,
+          74,
+          75,
+          76,
+          77,
+          78,
+          199,
+          200,
+          201,
+          202,
+          203,
+          204,
+          205,
+          206,
+          207,
+          277
+        ],
+        "extra_allowed_path_indices": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT026"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG019",
+        "label": "process-lifecycle-reclaim",
+        "source_path_indices": [
+          88,
+          89,
+          90,
+          91,
+          92,
+          93,
+          94,
+          95,
+          96,
+          260,
+          261,
+          262,
+          263,
+          264,
+          265,
+          266,
+          267,
+          268,
+          269,
+          270,
+          271,
+          272,
+          273
+        ],
+        "extra_allowed_path_indices": [
+          2,
+          3
+        ],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT007",
+          "WP012-MT172-PT017",
+          "WP012-MT172-PT018",
+          "WP012-MT172-PT019",
+          "WP012-MT172-PT035"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG020",
+        "label": "swarm-coordinator-routing",
+        "source_path_indices": [
+          118,
+          119,
+          121,
+          122,
+          123,
+          126,
+          128,
+          129,
+          130,
+          218,
+          219,
+          275
+        ],
+        "extra_allowed_path_indices": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT002",
+          "WP012-MT172-PT034",
+          "WP012-MT172-PT035"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG021",
+        "label": "model-lane-state-authority",
+        "source_path_indices": [
+          124,
+          127,
+          224,
+          225,
+          226,
+          228,
+          229,
+          233,
+          234,
+          239,
+          240,
+          241,
+          242
+        ],
+        "extra_allowed_path_indices": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT002",
+          "WP012-MT172-PT005",
+          "WP012-MT172-PT009",
+          "WP012-MT172-PT010",
+          "WP012-MT172-PT033",
+          "WP012-MT172-PT034"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG022",
+        "label": "shared-proof-support",
+        "source_path_indices": [
+          133,
+          134,
+          135,
+          136,
+          137,
+          149,
+          150,
+          178,
+          278,
+          279,
+          280
+        ],
+        "extra_allowed_path_indices": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT002",
+          "WP012-MT172-PT008",
+          "WP012-MT172-PT039"
+        ]
+      },
+      {
+        "id": "WP012-MT172-SG023",
+        "label": "model-lane-recovery",
+        "source_path_indices": [
+          235,
+          236,
+          237,
+          238
+        ],
+        "extra_allowed_path_indices": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT005",
+          "WP012-MT172-PT011",
+          "WP012-MT172-PT019",
+          "WP012-MT172-PT034"
+        ]
+      }
+    ],
+    "items": [
+      {
+        "id": "WP012-MT172-PT001",
+        "title": "Exact imported-source conservation",
+        "outcome": "Every original path/blob and four extra allowed paths has a preserved or evidenced current disposition with unchanged protections and history.",
+        "scope": {
+          "all_scope_groups": true,
+          "parent_ac_indices": [
+            0
+          ],
+          "refs": [
+            "#/source_import_binding/source_paths",
+            "#/scope/allowed_paths",
+            "#/implementation_record"
+          ]
+        },
+        "state": "MECHANICAL_BASELINE_RECORDED_SEMANTIC_CLOSURE_OPEN",
+        "next_action": "Use the existing 301-row reconciliation and newer bounded resolutions; act only on changed or unresolved semantic bindings. Do not reopen unchanged reconciled rows.",
+        "proof": {
+          "reuse": [
+            "reconciliation",
+            "conservation_a",
+            "conservation_b",
+            "recovery_conservation"
+          ],
+          "remaining": "Current semantic/assertion ownership for all consumed rows, including the 18 explicit gaps and four null-blob destinations; original source preservation and current auth/schema/error/rollback/durability protections."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/0",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT002",
+        "title": "Connected routing and authenticated context",
+        "outcome": "Actual API, direct and captured asynchronous routing uses the configured transport and original authenticated resource/action context.",
+        "scope": {
+          "source_indices": [
+            118,
+            124,
+            129,
+            133
+          ],
+          "extra_allowed_indices": [
+            1
+          ],
+          "additional_path_keys": [
+            "surreal_provider",
+            "resource_authority",
+            "api_authority",
+            "event_ledger",
+            "surreal_exports"
+          ],
+          "contract_indices": [
+            4,
+            5,
+            10,
+            11
+          ],
+          "refs": [
+            "#/resource_privacy_obligation"
+          ]
+        },
+        "state": "ALLOCATED_DRAFT_NO_FINAL_COHERENT_CANDIDATE",
+        "next_action": "Existing author A completes the bounded routing candidate and layers recovery core model_lane plus outbox exports without overwriting either.",
+        "proof": {
+          "reuse": [
+            "routing",
+            "recovery",
+            "outbox"
+          ],
+          "remaining": "Affected coherent source review, changed-input compile and actual authenticated routing positives/negatives with genuine configured LocalModel and registered CLI Validator."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/1",
+        "owner_template": "current_repair_authors"
+      },
+      {
+        "id": "WP012-MT172-PT003",
+        "title": "Routing action and schema policies",
+        "outcome": "The released three schema files enforce the original action/identity contract with preserved schema lineage and accurate source catalog.",
+        "scope": {
+          "additional_path_keys": [
+            "model_lane_schema",
+            "schema_sql",
+            "schema_rust"
+          ],
+          "contract_indices": [
+            4,
+            5,
+            10,
+            11
+          ]
+        },
+        "state": "ALLOCATED_TO_EXISTING_AUTHOR_B",
+        "next_action": "Complete the three released schema files in parallel with routing Rust work; rebind only the source catalog affected by final schema bytes.",
+        "proof": {
+          "reuse": [
+            "schema",
+            "schema_catalog"
+          ],
+          "remaining": "Affected source/schema review, compatible compilation, and separate actual engine INFO / authenticated policy behavior where required; source catalog is not engine observation."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/2",
+        "owner_template": "current_repair_authors"
+      },
+      {
+        "id": "WP012-MT172-PT004",
+        "title": "Public routing lifecycle regressions",
+        "outcome": "The real public authenticated lifecycle demonstrates failed, cancelled and awaiting behavior plus corrupt-outbox handling through the configured transport.",
+        "scope": {
+          "additional_path_keys": [
+            "diagnostics_tests",
+            "diagnostics_harness",
+            "role_authority_harness"
+          ],
+          "contract_indices": [
+            5,
+            6,
+            11
+          ],
+          "refs": [
+            "#/hbr_int_009_tier_obligations"
+          ]
+        },
+        "state": "SOURCE_CANDIDATE_NOT_COMPILED_NOT_EXECUTED",
+        "next_action": "Preserve author B candidate v2, compose against final routing/schema and obtain only affected review.",
+        "proof": {
+          "reuse": [
+            "diagnostics"
+          ],
+          "remaining": "Actual public HTTP/direct composition with genuine LocalModel, official CLI Validator, actual host scope and original lifecycle assertions; no canned authority or output."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/3",
+        "owner_template": "current_repair_authors"
+      },
+      {
+        "id": "WP012-MT172-PT005",
+        "title": "Recovery witness and bounded replay repair",
+        "outcome": "Ordinary canonical payload witnesses, temporal fencing and bounded replay preserve five old assertions and four new regressions.",
+        "scope": {
+          "source_indices": [
+            124,
+            238
+          ],
+          "contract_indices": [
+            6,
+            11
+          ]
+        },
+        "state": "EXTERNAL_CANDIDATE_FINAL_ROOT_AND_AFFECTED_CC_REVIEW_PENDING",
+        "next_action": "Finish the recorded pending reviews of the exact existing candidate, then let Primary compose its core model_lane changes with routing.",
+        "proof": {
+          "reuse": [
+            "recovery",
+            "recovery_conservation"
+          ],
+          "remaining": "Changed candidate compile and scoped actual HTTP/runtime recovery proof; source clear alone does not close original recovery."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/4",
+        "owner_template": "current_repair_authors"
+      },
+      {
+        "id": "WP012-MT172-PT006",
+        "title": "Ordered outbox and committed acknowledgement repair",
+        "outcome": "Durable ordering and typed AlreadyCommitted acknowledgement preserve the original eight tests and three regressions without late duplicate effects.",
+        "scope": {
+          "source_indices": [
+            120,
+            282
+          ],
+          "additional_path_keys": [
+            "swarm_outbox",
+            "surreal_exports"
+          ],
+          "contract_indices": [
+            5,
+            6,
+            11
+          ]
+        },
+        "state": "SOURCE_REVIEWED_EXTERNAL_CANDIDATE_UNAPPLIED_UNCOMPILED",
+        "next_action": "Reuse existing nonauthor/root/affected Codecheck source clears and compose the exact outbox candidate through Primary.",
+        "proof": {
+          "reuse": [
+            "outbox"
+          ],
+          "remaining": "Compile plus actual ordered delivery, committed duplicate acknowledgement and live retry behavior on the current backend."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/5",
+        "owner_template": "current_repair_authors"
+      },
+      {
+        "id": "WP012-MT172-PT007",
+        "title": "Retired database lifecycle assertion conservation",
+        "outcome": "Backend-neutral shutdown, cleanup, lease and foreign-owner/reclaim assertions survive the PG retirement in their actual Surreal owners.",
+        "scope": {
+          "source_indices": [
+            50,
+            213
+          ],
+          "group_ids": [
+            "WP012-MT172-SG016"
+          ],
+          "refs": [
+            "#/implementation_record/backend_test_retirement_20261011"
+          ],
+          "contract_indices": [
+            4,
+            6,
+            12
+          ]
+        },
+        "state": "SOURCE_OWNER_MAPPING_RECORDED_RUNTIME_OPEN",
+        "next_action": "Use SurrealStorage shutdown/run_shutdown/perform_shutdown, isolated-store cleanup and handshake_runtime_instance lease ownership already mapped; do not restore PG.",
+        "proof": {
+          "reuse": [
+            "conservation_a",
+            "conservation_b"
+          ],
+          "remaining": "Combined same-Surreal shutdown/cleanup/lifecycle/reclaim assertions with actual process ownership."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/6",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT008",
+        "title": "Model selection replacement harness",
+        "outcome": "Retired model-selection harness assertions have an executed current-backend replacement with real selection and recovery.",
+        "scope": {
+          "source_indices": [
+            135
+          ],
+          "group_ids": [
+            "WP012-MT172-SG009",
+            "WP012-MT172-SG022"
+          ],
+          "contract_indices": [
+            4,
+            10
+          ]
+        },
+        "state": "REPLACEMENT_EXECUTION_NOT_ESTABLISHED",
+        "next_action": "Bind the current model-selection/recovery proof owner and exact replacement assertions; preserve retired harness history.",
+        "proof": {
+          "reuse": [
+            "reconciliation"
+          ],
+          "remaining": "Actual default/selected/missing model and recovery behavior under the supported backend."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/7",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT009",
+        "title": "Knowledge and CRDT helper conservation",
+        "outcome": "Moved ingestion support and retired PG/CRDT helpers preserve authenticated isolated-store behavior and assertion meaning.",
+        "scope": {
+          "source_indices": [
+            195,
+            197,
+            226
+          ],
+          "group_ids": [
+            "WP012-MT172-SG006",
+            "WP012-MT172-SG021"
+          ],
+          "contract_indices": [
+            5,
+            11,
+            13
+          ]
+        },
+        "state": "BOUNDED_SOURCE_MAPPING_RECORDED_RUNTIME_OPEN",
+        "next_action": "Reuse the source mappings to current ingestion support and isolated Surreal helpers; repair only a newly evidenced missing assertion.",
+        "proof": {
+          "reuse": [
+            "conservation_a"
+          ],
+          "remaining": "Real CRDT/ingestion behavior and cleanup under the same authenticated store; moved source alone is not runtime proof."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/8",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT010",
+        "title": "Promotion and exact-scope assertion conservation",
+        "outcome": "Stale/missing/scoped-away promotion and exact-five-scope boot/derive cases retain their original durable outcomes.",
+        "scope": {
+          "source_indices": [
+            233,
+            239
+          ],
+          "group_ids": [
+            "WP012-MT172-SG021"
+          ],
+          "contract_indices": [
+            5,
+            10,
+            11
+          ],
+          "refs": [
+            "#/resource_privacy_obligation"
+          ]
+        },
+        "state": "SOURCE_DISPOSITION_RECORDED_RUNTIME_OPEN",
+        "next_action": "Retain PRE_ADMISSION_INTEGRITY_REJECTION_NO_PROMOTION_DECISION for corrupt canonical receipts; retain durable InputRefMismatch for missing/scoped-away input.",
+        "proof": {
+          "reuse": [
+            "conservation_b"
+          ],
+          "remaining": "Actual authenticated promotion/derive/boot negatives; no restoration of old unscoped privilege and no semantic waiver."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/9",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT011",
+        "title": "Recovery API and retired assertion closure",
+        "outcome": "Original recovery/API assertions run against the supported recovery implementation, including the two previously missing behaviors.",
+        "scope": {
+          "source_indices": [
+            235,
+            236
+          ],
+          "group_ids": [
+            "WP012-MT172-SG023"
+          ],
+          "contract_indices": [
+            6,
+            11
+          ],
+          "refs": [
+            "#/implementation_record/backend_test_retirement_20261011"
+          ]
+        },
+        "state": "EXTERNAL_REPAIR_SOURCE_AVAILABLE_ORIGINAL_RUNTIME_OPEN",
+        "next_action": "Attach the repair's proof to the old assertion rows, preserving each original negative HTTP case rather than duplicating a new suite.",
+        "proof": {
+          "reuse": [
+            "recovery_conservation",
+            "recovery"
+          ],
+          "remaining": "Scoped recovery HTTP and runtime assertions after the exact repair is composed; the component candidate is insufficient."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/10",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT012",
+        "title": "Independent Palmistry lifecycle survival",
+        "outcome": "Native watcher/recorder survives the owned restart/reattach and abnormal-host chain, with importer ACK and durable STOP before retirement.",
+        "scope": {
+          "source_indices": [
+            259
+          ],
+          "group_ids": [
+            "WP012-MT172-SG004"
+          ],
+          "contract_indices": [
+            6,
+            12
+          ],
+          "refs": [
+            "#/hbr_int_009_tier_obligations",
+            "#/gui_obligation"
+          ]
+        },
+        "state": "FULL_NATIVE_SURVIVAL_CHAIN_OPEN",
+        "next_action": "Bind the existing native proof owner and process targets from the owning acceptance; reuse component evidence only for its actual assertions.",
+        "proof": {
+          "reuse": [
+            "conservation_b"
+          ],
+          "remaining": "Actual independent Palmistry watcher survival, restart/reattach, abnormal survivor, importer ACK and durable STOP-before-retire chain."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/11",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT013",
+        "title": "Diagnostics public/native executable composition",
+        "outcome": "The identified public helper and native executable caller carry original diagnostic assertions through real authenticated composition.",
+        "scope": {
+          "source_indices": [
+            281
+          ],
+          "group_ids": [
+            "WP012-MT172-SG003",
+            "WP012-MT172-SG004"
+          ],
+          "additional_path_keys": [
+            "diagnostics_tests",
+            "diagnostics_harness",
+            "role_authority_harness"
+          ],
+          "contract_indices": [
+            5,
+            6,
+            11
+          ]
+        },
+        "state": "EXECUTABLE_CALLER_FOUND_SOURCE_CANDIDATE_RUNTIME_OPEN",
+        "next_action": "Preserve the discovered caller and candidate v2; replace only the historical no-caller claim, not the outstanding runtime verdict.",
+        "proof": {
+          "reuse": [
+            "conservation_b",
+            "diagnostics"
+          ],
+          "remaining": "Actual composed public/native lifecycle diagnostics; no duplicate run when the same bound proof satisfies PT004."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/12",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT014",
+        "title": "Terminal outbox assertion closure",
+        "outcome": "Old terminal outbox assertions retain ordered durable effects and acknowledgement semantics under the current backend.",
+        "scope": {
+          "source_indices": [
+            283
+          ],
+          "group_ids": [
+            "WP012-MT172-SG004"
+          ],
+          "contract_indices": [
+            5,
+            6,
+            11
+          ]
+        },
+        "state": "SOURCE_REPAIR_REVIEWED_ORIGINAL_RUNTIME_OPEN",
+        "next_action": "Map each old terminal assertion to the existing ordered outbox repair's exact tests/proof.",
+        "proof": {
+          "reuse": [
+            "conservation_b",
+            "outbox"
+          ],
+          "remaining": "Current-backend terminal ordering, duplicate commit acknowledgement and live retry assertions; reuse the same bound PT006 run."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/13",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT015",
+        "title": "Manual helper and original manual acceptance",
+        "outcome": "Moved manual support preserves same-engine store/shutdown affinity and the original versioned manual and navigation obligations.",
+        "scope": {
+          "source_indices": [
+            291
+          ],
+          "group_ids": [
+            "WP012-MT172-SG008",
+            "WP012-MT172-SG011"
+          ],
+          "contract_indices": [
+            0,
+            7,
+            8,
+            13
+          ],
+          "refs": [
+            "#/user_manual_obligation"
+          ]
+        },
+        "state": "HELPER_SOURCE_MAPPING_RECORDED_CONSUMED_ACCEPTANCE_OPEN",
+        "next_action": "Keep tests/user_manual_support/mod.rs mapping; join original manual proof rather than create a second manual surface.",
+        "proof": {
+          "reuse": [
+            "conservation_b"
+          ],
+          "remaining": "Actual cleanup affinity, canonical alias/version, navigation, native Argus/manual pixels, and required generated coverage under their original owners."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/14",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT016",
+        "title": "Retained Ollama destination and default boot",
+        "outcome": "The null source-blob row retains the current test-only destination and original default-boot behavior.",
+        "scope": {
+          "source_indices": [
+            46
+          ],
+          "group_ids": [
+            "WP012-MT172-SG009"
+          ],
+          "contract_indices": [
+            4
+          ]
+        },
+        "state": "DESTINATION_RETAINED_DEFAULT_BOOT_PROOF_OPEN",
+        "next_action": "Preserve src/llm/ollama.rs as the recorded destination; bind genuine MT003 default boot and missing-model behavior.",
+        "proof": {
+          "reuse": [
+            "reconciliation"
+          ],
+          "remaining": "Original default embedded runtime and missing-model Disabled behavior; no deletion inferred from null source_blob."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/15",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT017",
+        "title": "Retained process reclaim destination",
+        "outcome": "The null source-blob process reclaim destination remains preserved with its original assertion ownership.",
+        "scope": {
+          "source_indices": [
+            264
+          ],
+          "group_ids": [
+            "WP012-MT172-SG019"
+          ],
+          "contract_indices": [
+            6,
+            12
+          ]
+        },
+        "state": "DESTINATION_RETAINED_NO_NEW_FEATURE_VERDICT",
+        "next_action": "Keep the unchanged destination and bind the existing reclaim proof; do not rewrite it because the source row lacks a blob.",
+        "proof": {
+          "reuse": [
+            "reconciliation"
+          ],
+          "remaining": "Original real PID generation, healthy-owner fence and scoped reclaim behavior under the owning proof."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/16",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT018",
+        "title": "Durable writer, overflow and reopen assertions",
+        "outcome": "Retained backend-neutral ProcessLedger writer/overflow assertions remain true across same-backend reopen.",
+        "scope": {
+          "source_indices": [
+            267
+          ],
+          "group_ids": [
+            "WP012-MT172-SG019"
+          ],
+          "contract_indices": [
+            6,
+            12
+          ]
+        },
+        "state": "ASSERTIONS_RETAINED_PG_DDL_RETIRED_RUNTIME_OPEN",
+        "next_action": "Reuse bounded source conservation, retain retired PG DDL history and bind supported-backend writer/reopen proof.",
+        "proof": {
+          "reuse": [
+            "conservation_b"
+          ],
+          "remaining": "Real durable writer/overflow/reopen behavior; no PG replay or replacement with compilation."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/17",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT019",
+        "title": "Supported-backend restart and resume",
+        "outcome": "Retired PG executor assertions are conserved by the current restart/resume path.",
+        "scope": {
+          "source_indices": [
+            272
+          ],
+          "extra_allowed_indices": [
+            2,
+            3
+          ],
+          "group_ids": [
+            "WP012-MT172-SG019",
+            "WP012-MT172-SG023"
+          ],
+          "contract_indices": [
+            6,
+            12
+          ]
+        },
+        "state": "PG_EXECUTOR_RETIRED_SUPPORTED_RUNTIME_PROOF_OPEN",
+        "next_action": "Bind the existing current-backend restart/resume owner and original assertions, including actual runtime child/chaos inputs.",
+        "proof": {
+          "reuse": [
+            "reconciliation"
+          ],
+          "remaining": "Crash/restart/lease/takeover/cancel/never-start state and payload/context recovery, including exact same-Surreal lifecycle."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/18",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT020",
+        "title": "Actual MemoryPack workflow witness",
+        "outcome": "Successful real MemoryPack persistence yields the opaque private witness and carries original memory.commit context through the actual starter callset.",
+        "scope": {
+          "refs": [
+            "#/consumed_memory_pack_workflow_source_wave_20261018",
+            "#/consumed_memory_pack_workflow_source_wave_20261018/authenticated_ingress_source_extension_20261018",
+            "#/consumed_memory_pack_workflow_source_wave_20261018/actual_five_file_source_outcome_20261018",
+            "#/consumed_memory_pack_workflow_source_wave_20261018/complete_existing_starter_callset_source_extension_20261018",
+            "#/consumed_memory_pack_workflow_source_wave_20261018/external_starter_arity_and_positive_fixture_source_extension_20261018"
+          ],
+          "contract_indices": [
+            7,
+            11
+          ]
+        },
+        "state": "SOURCE_CLEAR_CONSUMER_INTEGRATION_OPEN_NOT_ACCEPTED",
+        "next_action": "Preserve current source handbacks and bind the actual MT173 producer/callset candidate rather than synthesize successful data.",
+        "proof": {
+          "reuse": [
+            "#/consumed_memory_pack_workflow_source_wave_20261018"
+          ],
+          "remaining": "Real success/persistence, positive and denied original grants, opaque witness propagation and existing direct/API assertions."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/19",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT021",
+        "title": "Private navigation membership and document links",
+        "outcome": "Private MemoryPack/DocBlock navigation checks real membership and source grants using canonical string record IDs and actual document links.",
+        "scope": {
+          "refs": [
+            "#/consumed_memory_pack_workflow_source_wave_20261018/navigation_consumer_source_allocation_ref_20261018",
+            "#/consumed_memory_pack_workflow_source_wave_20261018/navigation_serial_sql_source_allocation_ref_20261018",
+            "#/consumed_memory_pack_workflow_source_wave_20261018/navigation_docblock_document_links_sql_repair_20261018"
+          ],
+          "group_ids": [
+            "WP012-MT172-SG008"
+          ],
+          "contract_indices": [
+            7,
+            11
+          ]
+        },
+        "state": "SOURCE_ALLOCATION_AND_REPAIR_RECORDED_HOST_ACCEPTANCE_OPEN",
+        "next_action": "Use the existing MT173 consumer/SQL bindings and exact published NAV revision; retain the actual fs.read descendants and no UUID fallback.",
+        "proof": {
+          "reuse": [
+            "#/consumed_memory_pack_workflow_source_wave_20261018"
+          ],
+          "remaining": "Genuine authorized and denied host HTTP navigation, exact five-field links, immutable public @2 bytes/redaction/404, 17 direct plus 6 API proof under original bindings."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/20",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT022",
+        "title": "Canonical Artifact producer and registrations",
+        "outcome": "Original WorkspaceCreate fs.write ingress causes all six actual writes and eight immutable registrations with persisted manifest/hash/lineage.",
+        "scope": {
+          "refs": [
+            "#/consumed_memory_pack_workflow_source_wave_20261018/artifact_canonical_producer_execution_20261018",
+            "#/consumed_memory_pack_workflow_source_wave_20261018/artifact_manifest_persisted_issuer_input_20261018",
+            "#/consumed_memory_pack_workflow_source_wave_20261018/artifact_resource_defining_edge_input_20261018"
+          ],
+          "contract_indices": [
+            7,
+            11
+          ]
+        },
+        "state": "CANONICAL_PRODUCER_SOURCE_RECORDED_RUNTIME_OPEN",
+        "next_action": "Retain actual original T3 grants and durable producer bindings before consumer SourceRef; do not fabricate ArtifactCreate authority.",
+        "proof": {
+          "reuse": [
+            "#/consumed_memory_pack_workflow_source_wave_20261018"
+          ],
+          "remaining": "Genuine persisted writes/registrations, fresh durable grants and downstream real SourceRef behavior on the original producer."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/21",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT023",
+        "title": "Private run-memory witness",
+        "outcome": "Private run-memory selectors preserve token/SHA ordering before scalar/ambiguity without granting MemoryPack descendants.",
+        "scope": {
+          "refs": [
+            "#/private_run_memory_witness_source_20261018",
+            "#/private_run_memory_witness_source_handback_20261018"
+          ],
+          "contract_indices": [
+            7,
+            11
+          ]
+        },
+        "state": "SOURCE_REVIEWED_COMPILER_AND_RUNTIME_NOT_ACCEPTED",
+        "next_action": "Reuse the exact source review and source hashes; bind the private selector path to the existing host proof.",
+        "proof": {
+          "reuse": [
+            "#/private_run_memory_witness_source_handback_20261018"
+          ],
+          "remaining": "Exact token/SHA, scalar/ambiguity, stale/private-denied cases with public @2 unchanged."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/22",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT024",
+        "title": "Private Artifact payload witness",
+        "outcome": "Private eleven-field Artifact payload validates canonical JSON/ref/hash after fresh Yjs and before ambiguity.",
+        "scope": {
+          "refs": [
+            "#/private_artifact_payload_witness_source_20261018",
+            "#/private_artifact_payload_witness_handback_20261018"
+          ],
+          "contract_indices": [
+            7,
+            11
+          ]
+        },
+        "state": "SOURCE_REVIEWED_COMPILER_AND_RUNTIME_NOT_ACCEPTED",
+        "next_action": "Preserve the actual private payload shape and existing owner; bind producer publication/host proof independently.",
+        "proof": {
+          "reuse": [
+            "#/private_artifact_payload_witness_handback_20261018"
+          ],
+          "remaining": "Exact eleven-field/hash/source authorization, 1 MiB boundary and numeric fidelity, private/redaction/404 negatives with public @2 unchanged."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/23",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT025",
+        "title": "Private microtask witness",
+        "outcome": "Private seven-field decoding preserves exact canonical runtime micro_task_id, selector and source receipt with original require_token.",
+        "scope": {
+          "refs": [
+            "#/private_microtask_witness_source_20261018",
+            "#/private_microtask_witness_handback_20261018"
+          ],
+          "contract_indices": [
+            7,
+            11
+          ]
+        },
+        "state": "SOURCE_REVIEWED_COMPILER_AND_RUNTIME_NOT_ACCEPTED",
+        "next_action": "Preserve exact seven-field shape and public @2; bind canonical producer proof/publication then pinned caller adoption.",
+        "proof": {
+          "reuse": [
+            "#/private_microtask_witness_handback_20261018"
+          ],
+          "remaining": "Existing 17 direct plus 6 API/native/recovery proof and genuine four FR URI-string assertions; UUID signatures alone do not prove those assertions."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/24",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT026",
+        "title": "Original real-model launch and runtime ownership",
+        "outcome": "Consumed MT003 launch, local/cloud/CLI/vault/tool/budget/cancel/embedding and default embedded runtime requirements retain actual configured ownership.",
+        "scope": {
+          "group_ids": [
+            "WP012-MT172-SG005",
+            "WP012-MT172-SG007",
+            "WP012-MT172-SG009",
+            "WP012-MT172-SG012",
+            "WP012-MT172-SG014",
+            "WP012-MT172-SG017",
+            "WP012-MT172-SG018"
+          ],
+          "contract_indices": [
+            4
+          ]
+        },
+        "state": "ORIGINAL_CONSUMED_RUNTIME_ACCEPTANCE_BINDINGS_OPEN",
+        "next_action": "Bind each consumed MT003 requirement to its actual current candidate, actor and original proof; record any genuinely unconsumed work explicitly.",
+        "proof": {
+          "reuse": [
+            "#/source_import_binding/source_acceptance_records/4",
+            "#/proof/consumed_source_checks"
+          ],
+          "remaining": "All current MT003 AC0..22 and original proof targets, including genuine configured models, default boot, disabled/unready state, denied authority and nonauthoritative external_compat."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/25",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT027",
+        "title": "Canonical model registry and provider selection",
+        "outcome": "Consumed MT014 UUID registry, provider selection and WorkProfile migration reach genuine runtime transport and lifecycle.",
+        "scope": {
+          "group_ids": [
+            "WP012-MT172-SG007",
+            "WP012-MT172-SG009",
+            "WP012-MT172-SG012",
+            "WP012-MT172-SG015"
+          ],
+          "contract_indices": [
+            10
+          ]
+        },
+        "state": "GENUINE_PUBLICATION_AND_NATIVE_CONSUMER_PROOF_OPEN",
+        "next_action": "Bind authentic MT185 publication for the dependent consumer and preserve Banach MT016 embedding/completion plus Loom as original consumer dependencies.",
+        "proof": {
+          "reuse": [
+            "#/source_import_binding/source_acceptance_records/10"
+          ],
+          "remaining": "Current MT014 AC0..9: exact-five-field privacy/revocation, CAS/idempotence/rebind/quiesce/unload/restart, manual and real native selection."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/26",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT028",
+        "title": "Actual native Operator Chat",
+        "outcome": "Consumed MT012 native pane/selectors use concrete model, WorkProfile and workspace through the canonical same-Surreal backend factory.",
+        "scope": {
+          "group_ids": [
+            "WP012-MT172-SG002"
+          ],
+          "contract_indices": [
+            9
+          ],
+          "refs": [
+            "#/gui_obligation"
+          ]
+        },
+        "state": "ORIGINAL_NATIVE_ACCEPTANCE_OPEN_GUI_PARALLEL",
+        "next_action": "GUI owner continues independent pane work; bind only the actual backend factory/model selection interfaces this acceptance consumes.",
+        "proof": {
+          "reuse": [
+            "#/source_import_binding/source_acceptance_records/9"
+          ],
+          "remaining": "Current MT012 AC0..7 including live native Argus, typed payload/event refs, atomic tier behavior, cancellation/recovery and manual/review."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/27",
+        "owner_template": "native_consumer_owners"
+      },
+      {
+        "id": "WP012-MT172-PT029",
+        "title": "Consumed CKC identity acceptance binding",
+        "outcome": "The consumed shared manual/identity intersection retains genuine model identity analysis and original conditional smoke semantics.",
+        "scope": {
+          "group_ids": [
+            "WP012-MT172-SG011"
+          ],
+          "contract_indices": [
+            1
+          ]
+        },
+        "state": "ORIGINAL_CKC027_REOPENED_FOR_SURREAL_PORT",
+        "next_action": "Bind only actually consumed shared paths to original CKC027 ownership; facial implementation outside MT172 is not newly allocated.",
+        "proof": {
+          "reuse": [
+            "#/source_import_binding/source_acceptance_records/1"
+          ],
+          "remaining": "CKC027 AC0..4: genuine loaded model/SHA/detector/threshold/boxes/quality/landmarks, no fake verdict without model, portability and original conditional smoke."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/28",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT030",
+        "title": "Consumed CKC review and export acceptance binding",
+        "outcome": "The consumed shared review/manual intersection preserves claims, durable replay decisions, native montage and source lineage.",
+        "scope": {
+          "group_ids": [
+            "WP012-MT172-SG011"
+          ],
+          "contract_indices": [
+            2
+          ]
+        },
+        "state": "ORIGINAL_CKC028_REOPENED_FOR_SURREAL_PORT",
+        "next_action": "Retain actual CKC028 owner and bind shared consumption; do not allocate the whole facial workflow to this MT.",
+        "proof": {
+          "reuse": [
+            "#/source_import_binding/source_acceptance_records/2"
+          ],
+          "remaining": "CKC028 AC0..4: hash/source IDs, disjoint expiring claims, replayable decisions, native montage/Argus and source-preserving export lineage."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/29",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT031",
+        "title": "Carried CKC shared integration obligations",
+        "outcome": "CKC066's zero mapped AC rows retain the real shared integration, manual and three-tier obligations.",
+        "scope": {
+          "group_ids": [
+            "WP012-MT172-SG003",
+            "WP012-MT172-SG004",
+            "WP012-MT172-SG011",
+            "WP012-MT172-SG013"
+          ],
+          "contract_indices": [
+            3
+          ],
+          "refs": [
+            "#/hbr_obligations",
+            "#/user_manual_obligation"
+          ]
+        },
+        "state": "ORIGINAL_SHARED_INTEGRATION_PENDING_NO_EMPTY_MAP_EXEMPTION",
+        "next_action": "Bind actual shared-path consumption to CKC066 scope/queued pass; retain original ownership and once-per-owning-batch proof.",
+        "proof": {
+          "reuse": [
+            "#/source_import_binding/source_acceptance_records/3"
+          ],
+          "remaining": "Shared reexports/event families, required-feature declarations, eleven-table overview/manual obligations and Atelier proof already required by the original contract."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/30",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT032",
+        "title": "SingleRun consent, vault and frontend secrecy",
+        "outcome": "Original cloud consent target scope and revocation remain consistent across lanes while the UI never owns secrets.",
+        "scope": {
+          "group_ids": [
+            "WP012-MT172-SG002",
+            "WP012-MT172-SG007"
+          ],
+          "contract_indices": [
+            4,
+            11
+          ],
+          "contract_ac_selections": [
+            {
+              "contract_index": 11,
+              "indices": [
+                0,
+                10,
+                11
+              ]
+            }
+          ],
+          "refs": [
+            "#/resource_privacy_obligation"
+          ]
+        },
+        "state": "ORIGINAL_CONSUMED_ACCEPTANCE_OPEN",
+        "next_action": "Bind real original ingress grants and platform vault canary proof; evaluate permission grouping separately without weakening existing checks.",
+        "proof": {
+          "reuse": [
+            "#/source_import_binding/source_acceptance_records/11"
+          ],
+          "remaining": "SingleRun target-set/idempotency/revocation, nonzero actual platform canary tests, and frontend submit/error/clear/drop secret non-retention."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/31",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT033",
+        "title": "CRDT snapshot and real update conservation",
+        "outcome": "Original compaction metadata/hash/link/restart and actual update/state-vector/convergence/duplicate behavior survive the refactor.",
+        "scope": {
+          "group_ids": [
+            "WP012-MT172-SG006",
+            "WP012-MT172-SG021"
+          ],
+          "contract_indices": [
+            5,
+            11
+          ],
+          "contract_ac_selections": [
+            {
+              "contract_index": 11,
+              "indices": [
+                1,
+                2
+              ]
+            }
+          ]
+        },
+        "state": "ORIGINAL_CONSUMED_ACCEPTANCE_OPEN",
+        "next_action": "Reuse source and helper conservation; bind actual CRDT payload/snapshot proof to the current supported backend.",
+        "proof": {
+          "reuse": [
+            "conservation_a",
+            "#/source_import_binding/source_acceptance_records/11"
+          ],
+          "remaining": "Actual snapshot and update bytes, linked metadata/hash, restart, convergence and duplicate negatives; no source-only substitute."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/32",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT034",
+        "title": "All six routing waves, cancellation and leases",
+        "outcome": "The six original authorized routing policies retain content adjudication, lineage, bounded retry, committed-prefix cancellation and lease fencing.",
+        "scope": {
+          "group_ids": [
+            "WP012-MT172-SG010",
+            "WP012-MT172-SG020",
+            "WP012-MT172-SG021",
+            "WP012-MT172-SG023"
+          ],
+          "contract_indices": [
+            5,
+            11
+          ],
+          "contract_ac_selections": [
+            {
+              "contract_index": 11,
+              "indices": [
+                3,
+                8,
+                9
+              ]
+            }
+          ]
+        },
+        "state": "ORIGINAL_SIX_WAVE_RUNTIME_ACCEPTANCE_OPEN",
+        "next_action": "Use the current connected routing/recovery/outbox candidate for its affected proof; retain all original six-wave cases and owners.",
+        "proof": {
+          "reuse": [
+            "#/source_import_binding/source_acceptance_records/5",
+            "#/source_import_binding/source_acceptance_records/11"
+          ],
+          "remaining": "Actual six-policy routing, advisory/authority separation, stale promotion rejection, duplicate/reorder behavior, exactly one terminal/no late effects, post-checkpoint lease and crash recovery."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/33",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT035",
+        "title": "Native DTO, canonical router and embedded lifecycle",
+        "outcome": "Original generated DTO/live-route negatives, symbol/router consistency and visible disabled state accompany durable embedded boot.",
+        "scope": {
+          "group_ids": [
+            "WP012-MT172-SG001",
+            "WP012-MT172-SG009",
+            "WP012-MT172-SG019",
+            "WP012-MT172-SG020"
+          ],
+          "contract_indices": [
+            4,
+            11,
+            12
+          ],
+          "contract_ac_selections": [
+            {
+              "contract_index": 11,
+              "indices": [
+                4,
+                6,
+                12,
+                13
+              ]
+            }
+          ]
+        },
+        "state": "ORIGINAL_RUNTIME_AND_NATIVE_ACCEPTANCE_OPEN",
+        "next_action": "Bind the actual backend/native artifact and same-Surreal process proof, retaining durable ProcessLedger-before-artifact order.",
+        "proof": {
+          "reuse": [
+            "#/source_import_binding/source_acceptance_records/11",
+            "#/source_import_binding/source_acceptance_records/12"
+          ],
+          "remaining": "Live DTO boundary negatives, real anchored symbols/router, unready/ungoverned visible-disabled ownership, start/stop/drain/reclaim/restart and original MT019 scope/PID/deadline/fail-open requirements."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/34",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT036",
+        "title": "Canonical manual and behavior coverage",
+        "outcome": "Actual manual self-consistency, versions/aliases, generated behavior coverage and derived Knowledge records match the shipped behaviors.",
+        "scope": {
+          "group_ids": [
+            "WP012-MT172-SG008",
+            "WP012-MT172-SG011"
+          ],
+          "contract_indices": [
+            0,
+            7,
+            8,
+            13
+          ],
+          "contract_ac_selections": [
+            {
+              "contract_index": 11,
+              "indices": [
+                5,
+                7,
+                14
+              ]
+            }
+          ],
+          "refs": [
+            "#/user_manual_obligation"
+          ]
+        },
+        "state": "ORIGINAL_MANUAL_AND_NATIVE_ACCEPTANCE_OPEN",
+        "next_action": "Reuse owning generated registry/manual proofs; record honest deferred rows, and bind derived Knowledge scope separately from the unscoped global manual.",
+        "proof": {
+          "reuse": [
+            "#/source_import_binding/source_acceptance_records/0",
+            "#/source_import_binding/source_acceptance_records/7",
+            "#/source_import_binding/source_acceptance_records/8",
+            "#/source_import_binding/source_acceptance_records/13"
+          ],
+          "remaining": "CKC002 manual AC0..5; WP1 MT010 AC0..10, MT011 AC0..13, MT022 AC0..9; actual inverse-symbol/24-behavior guards, private derived Knowledge atomic events and A-B-A/reopen, native pixels."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/35",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT037",
+        "title": "Operator Chat event cardinality",
+        "outcome": "Actual canonical Operator Chat factory emits exactly one canonical activity and one Flight Recorder activity without duplicate agents.",
+        "scope": {
+          "group_ids": [
+            "WP012-MT172-SG002",
+            "WP012-MT172-SG004"
+          ],
+          "contract_indices": [
+            9,
+            11
+          ],
+          "contract_ac_selections": [
+            {
+              "contract_index": 11,
+              "indices": [
+                15
+              ]
+            }
+          ]
+        },
+        "state": "ORIGINAL_EVENT_CARDINALITY_ACCEPTANCE_OPEN",
+        "next_action": "Bind this assertion to the same actual factory run used by the original Operator Chat proof.",
+        "proof": {
+          "reuse": [
+            "#/source_import_binding/source_acceptance_records/11"
+          ],
+          "remaining": "Exact canonical/FR activity cardinality with concrete model/WorkProfile/workspace and same-Surreal factory; no duplicate independent suite."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/36",
+        "owner_template": "native_consumer_owners"
+      },
+      {
+        "id": "WP012-MT172-PT038",
+        "title": "Flight Recorder, internal diagnostics and Palmistry bindings",
+        "outcome": "Every applicable consumed requirement retains distinct business-event, mechanical-diagnostic and independent observer responsibilities.",
+        "scope": {
+          "all_scope_groups": true,
+          "refs": [
+            "#/hbr_int_009_tier_obligations",
+            "#/resource_privacy_obligation",
+            "#/hbr_obligations",
+            "#/gui_obligation"
+          ]
+        },
+        "state": "EXISTING_TIER_DECLARATIONS_DEFERRED_UNTIL_OWNING_EVIDENCE",
+        "next_action": "Join existing per-requirement source/runtime evidence to each declared tier; no per-MT watcher, controller or new generic GUI control.",
+        "proof": {
+          "reuse": [
+            "#/hbr_int_009_tier_obligations"
+          ],
+          "remaining": "Canonical FR events and payload refs; content/secret-free internal_diagnostics; independent Palmistry PID/birth, survival and normal ACK/drain proof. Reuse the exact same original proof across applicable rows."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/37",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT039",
+        "title": "One coherent changed-candidate compile",
+        "outcome": "Primary's exact reconciled x64 candidate passes the owned shared check with its configuration and source/control capture intact.",
+        "scope": {
+          "parent_ac_indices": [
+            1
+          ],
+          "refs": [
+            "#/proof/checks/0",
+            "#/scope/proof_targets/0",
+            "#/proof/parent_proof_refs"
+          ],
+          "additional_path_keys": [
+            "workspaces"
+          ]
+        },
+        "state": "LAST_CAPTURE_CARGO101_NO_RUNTIME_VERDICT",
+        "next_action": "After the bounded current repair batch and affected reviews stabilize, Primary uses the single owned compiler slot and compatible artifacts; preserve current failed capture and retry history.",
+        "proof": {
+          "reuse": [
+            "current_check",
+            "schema_catalog",
+            "#/round42_actual_core_20261012"
+          ],
+          "remaining": "The original owned check on the final composed candidate, changed-input/source/control binding, nonzero intended selectors when executed, and separate runtime outcomes; MT187 capture03 is not MT172 proof."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/38",
+        "owner_template": "primary_composed_check"
+      },
+      {
+        "id": "WP012-MT172-PT040",
+        "title": "Join all consumed original acceptance",
+        "outcome": "Every consumed original contract requirement has an actual consumer/candidate, owning proof/input/config and independent verdict or justified unchanged reuse before combined acceptance.",
+        "scope": {
+          "all_scope_groups": true,
+          "contract_indices": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ],
+          "parent_ac_indices": [
+            0,
+            1
+          ],
+          "refs": [
+            "#/source_import_binding/source_acceptance_records",
+            "#/proof/consumed_source_checks",
+            "#/proof/runtime_acceptance"
+          ]
+        },
+        "state": "COMBINED_ACCEPTANCE_NOT_ESTABLISHED",
+        "next_action": "Bind exact original pointers and current consumers; explicitly record truly unconsumed unfinished scope under existing Phase08 terms. Do not turn this final gate into an import prerequisite.",
+        "proof": {
+          "reuse": [
+            "#/proof/consumed_source_checks"
+          ],
+          "remaining": "Both parent ACs plus all consumed original acceptance, independent WP_VALIDATOR and whole-WP INTEGRATION_VALIDATOR bindings; unknowns stay open."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/39",
+        "owner_template": "original_consuming_owner"
+      },
+      {
+        "id": "WP012-MT172-PT041",
+        "title": "Moved swarm event-ID proof ownership",
+        "outcome": "Moved event-ID selectors keep their owning crate and retained core bridge assertions without duplicate helper tests.",
+        "scope": {
+          "refs": [
+            "#/implementation_record/swarm_event_ids_crate_extraction_20261015",
+            "#/proof/moved_component_unit_selectors_20261015"
+          ],
+          "group_ids": [
+            "WP012-MT172-SG004"
+          ],
+          "contract_indices": [
+            3,
+            11
+          ]
+        },
+        "state": "DECLARATION_MAPPING_CLEAR_SELECTORS_NOT_RUN",
+        "next_action": "Retain the three owning-crate selector names and two core bridge selectors from the existing declaration; bind a changed compatible proof batch only when required.",
+        "proof": {
+          "reuse": [
+            "#/proof/moved_component_unit_selectors_20261015"
+          ],
+          "remaining": "Original event-ID round-trip/canonical-kebab/worktree-scheduled lifecycle and durable retry/bridge assertions; zero matched tests is not proof."
+        },
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/40",
+        "owner_template": "original_consuming_owner"
+      }
+    ],
+    "dependency_matrix": [
+      {
+        "pico": "WP012-MT172-PT001",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": [
+          {
+            "ref": "#/source_import_binding/source_paths",
+            "required_for_stage": "source_ready",
+            "requirement": "Frozen source rows and their original blob/path/history protections remain authoritative; null blobs do not authorize deletion."
+          }
+        ]
+      },
+      {
+        "pico": "WP012-MT172-PT002",
+        "hard_predecessors": [
+          {
+            "pico": "WP012-MT172-PT005",
+            "stage": "source_ready",
+            "required_for_stage": "composed_candidate",
+            "reason": "Both modify core swarm_orchestration/model_lane.rs; the existing recovery changes must survive the connected-routing composition.",
+            "evidence_refs": [
+              "routing",
+              "recovery"
+            ]
+          },
+          {
+            "pico": "WP012-MT172-PT006",
+            "stage": "source_ready",
+            "required_for_stage": "composed_candidate",
+            "reason": "The shared surreal export surface must include the reviewed typed outbox acknowledgement.",
+            "evidence_refs": [
+              "routing",
+              "outbox"
+            ]
+          },
+          {
+            "pico": "WP012-MT172-PT039",
+            "stage": "compile_bound",
+            "required_for_stage": "original_proof",
+            "reason": "The original proof must run against the compiled composed candidate; the failed shared capture supplies no runtime verdict.",
+            "evidence_refs": [
+              "current_check"
+            ]
+          }
+        ],
+        "acceptance_dependencies": [],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT003",
+        "hard_predecessors": [
+          {
+            "pico": "WP012-MT172-PT039",
+            "stage": "compile_bound",
+            "required_for_stage": "original_proof",
+            "reason": "The original proof must run against the compiled composed candidate; the failed shared capture supplies no runtime verdict.",
+            "evidence_refs": [
+              "current_check"
+            ]
+          }
+        ],
+        "acceptance_dependencies": [],
+        "external_bindings": [
+          {
+            "ref": "schema_catalog",
+            "required_for_stage": "source_ready",
+            "requirement": "Recompute the existing source-derived catalog only after final schema bytes; actual Engine INFO remains separately required where its owning proof calls for it."
+          }
+        ]
+      },
+      {
+        "pico": "WP012-MT172-PT004",
+        "hard_predecessors": [
+          {
+            "pico": "WP012-MT172-PT002",
+            "stage": "composed_candidate",
+            "required_for_stage": "composed_candidate",
+            "reason": "The public lifecycle harness requires the configured transport and authenticated context implemented by the routing candidate.",
+            "evidence_refs": [
+              "diagnostics",
+              "routing"
+            ]
+          },
+          {
+            "pico": "WP012-MT172-PT003",
+            "stage": "source_ready",
+            "required_for_stage": "composed_candidate",
+            "reason": "The public proof must exercise the final released schema/action policy, not an earlier permissive schema.",
+            "evidence_refs": [
+              "diagnostics",
+              "schema"
+            ]
+          },
+          {
+            "pico": "WP012-MT172-PT039",
+            "stage": "compile_bound",
+            "required_for_stage": "original_proof",
+            "reason": "The original proof must run against the compiled composed candidate; the failed shared capture supplies no runtime verdict.",
+            "evidence_refs": [
+              "current_check"
+            ]
+          }
+        ],
+        "acceptance_dependencies": [],
+        "external_bindings": [
+          {
+            "ref": "#/resource_privacy_obligation",
+            "required_for_stage": "original_proof",
+            "requirement": "Actual configured LocalModel, registered official CLI Validator and genuine authenticated runtime host/resource scope must exist for the dependent live proof."
+          }
+        ]
+      },
+      {
+        "pico": "WP012-MT172-PT005",
+        "hard_predecessors": [
+          {
+            "pico": "WP012-MT172-PT039",
+            "stage": "compile_bound",
+            "required_for_stage": "original_proof",
+            "reason": "The original proof must run against the compiled composed candidate; the failed shared capture supplies no runtime verdict.",
+            "evidence_refs": [
+              "current_check"
+            ]
+          }
+        ],
+        "acceptance_dependencies": [],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT006",
+        "hard_predecessors": [
+          {
+            "pico": "WP012-MT172-PT039",
+            "stage": "compile_bound",
+            "required_for_stage": "original_proof",
+            "reason": "The original proof must run against the compiled composed candidate; the failed shared capture supplies no runtime verdict.",
+            "evidence_refs": [
+              "current_check"
+            ]
+          }
+        ],
+        "acceptance_dependencies": [],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT007",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT008",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT009",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT010",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT011",
+        "hard_predecessors": [
+          {
+            "pico": "WP012-MT172-PT039",
+            "stage": "compile_bound",
+            "required_for_stage": "original_proof",
+            "reason": "The original proof must run against the compiled composed candidate; the failed shared capture supplies no runtime verdict.",
+            "evidence_refs": [
+              "current_check"
+            ]
+          },
+          {
+            "pico": "WP012-MT172-PT005",
+            "stage": "source_ready",
+            "required_for_stage": "original_proof",
+            "reason": "The two actual old recovery gaps are addressed by this repair; reuse its bound proof for conserved assertions.",
+            "evidence_refs": [
+              "recovery_conservation",
+              "recovery"
+            ]
+          }
+        ],
+        "acceptance_dependencies": [
+          {
+            "pico": "WP012-MT172-PT005",
+            "reason": "Use the repair's exact original runtime proof where assertion/input bindings match."
+          }
+        ],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT012",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": [
+          {
+            "ref": "#/hbr_int_009_tier_obligations",
+            "required_for_stage": "original_proof",
+            "requirement": "Existing native owner must bind the independent watcher, actual process IDs/birth identities, import ACK and durable stop/retirement authority."
+          }
+        ]
+      },
+      {
+        "pico": "WP012-MT172-PT013",
+        "hard_predecessors": [
+          {
+            "pico": "WP012-MT172-PT039",
+            "stage": "compile_bound",
+            "required_for_stage": "original_proof",
+            "reason": "The original proof must run against the compiled composed candidate; the failed shared capture supplies no runtime verdict.",
+            "evidence_refs": [
+              "current_check"
+            ]
+          }
+        ],
+        "acceptance_dependencies": [
+          {
+            "pico": "WP012-MT172-PT004",
+            "reason": "A correctly bound public/native lifecycle run may satisfy the existing diagnostics assertions; do not duplicate it."
+          }
+        ],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT014",
+        "hard_predecessors": [
+          {
+            "pico": "WP012-MT172-PT039",
+            "stage": "compile_bound",
+            "required_for_stage": "original_proof",
+            "reason": "The original proof must run against the compiled composed candidate; the failed shared capture supplies no runtime verdict.",
+            "evidence_refs": [
+              "current_check"
+            ]
+          },
+          {
+            "pico": "WP012-MT172-PT006",
+            "stage": "source_ready",
+            "required_for_stage": "original_proof",
+            "reason": "The terminal assertions consume the reviewed order/commit/retry fix and its same proof.",
+            "evidence_refs": [
+              "outbox",
+              "conservation_b"
+            ]
+          }
+        ],
+        "acceptance_dependencies": [
+          {
+            "pico": "WP012-MT172-PT006",
+            "reason": "Use the outbox repair's exact original runtime proof where assertion/input bindings match."
+          }
+        ],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT015",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT016",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT017",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT018",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT019",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT020",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": [
+          {
+            "ref": "#/consumed_memory_pack_workflow_source_wave_20261018",
+            "required_for_stage": "original_proof",
+            "requirement": "Actual MT173 persistence success and original memory.commit context; preserve immutable schema164, measured165 and independent pin confirmation before166."
+          }
+        ]
+      },
+      {
+        "pico": "WP012-MT172-PT021",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": [
+          {
+            "ref": "#/consumed_memory_pack_workflow_source_wave_20261018/navigation_consumer_source_allocation_ref_20261018",
+            "required_for_stage": "original_proof",
+            "requirement": "Use published NAV revision 00cb5f5b5ad18094699d65638ff2e2016cbe9f29 and unchanged six-test asset proof only for asset behavior; current host membership/source authorization and HTTP negatives remain open."
+          }
+        ]
+      },
+      {
+        "pico": "WP012-MT172-PT022",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": [
+          {
+            "ref": "#/consumed_memory_pack_workflow_source_wave_20261018/artifact_canonical_producer_execution_20261018",
+            "required_for_stage": "original_proof",
+            "requirement": "Original genuine WorkspaceCreate fs.write ingress and T3 grants precede the actual six writes/eight immutable registrations and consumer SourceRef."
+          }
+        ]
+      },
+      {
+        "pico": "WP012-MT172-PT023",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": [
+          {
+            "ref": "#/private_run_memory_witness_source_handback_20261018",
+            "required_for_stage": "original_proof",
+            "requirement": "Retain existing private source hashes and producer/consumer boundaries; acquire required canonical producer proof/publication/independent reread before exact pinned public caller adoption where the original handback requires it."
+          }
+        ]
+      },
+      {
+        "pico": "WP012-MT172-PT024",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": [
+          {
+            "ref": "#/private_artifact_payload_witness_handback_20261018",
+            "required_for_stage": "original_proof",
+            "requirement": "Retain existing private source hashes and producer/consumer boundaries; acquire required canonical producer proof/publication/independent reread before exact pinned public caller adoption where the original handback requires it."
+          }
+        ]
+      },
+      {
+        "pico": "WP012-MT172-PT025",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": [
+          {
+            "ref": "#/private_microtask_witness_handback_20261018",
+            "required_for_stage": "original_proof",
+            "requirement": "Retain existing private source hashes and producer/consumer boundaries; acquire required canonical producer proof/publication/independent reread before exact pinned public caller adoption where the original handback requires it."
+          }
+        ]
+      },
+      {
+        "pico": "WP012-MT172-PT026",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT027",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": [
+          {
+            "ref": "#/source_import_binding/source_acceptance_records/10",
+            "required_for_stage": "original_proof",
+            "requirement": "Authentic MT185 model publication and original MT016 embedding/completion plus Loom consumer bindings are existing dependent-consumer requirements, not wholesale MT172 or GUI blocks."
+          }
+        ]
+      },
+      {
+        "pico": "WP012-MT172-PT028",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": [
+          {
+            "ref": "#/gui_obligation",
+            "required_for_stage": "original_proof",
+            "requirement": "Only the actual pane's consumed backend/model interface and native proof constrain this GUI acceptance; other GUI work remains parallel."
+          }
+        ]
+      },
+      {
+        "pico": "WP012-MT172-PT029",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT030",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT031",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT032",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": [
+          {
+            "ref": "#/resource_privacy_obligation",
+            "required_for_stage": "original_proof",
+            "requirement": "Real original grant/consent target set, current account/workspace/session scope and actual platform vault are required; no synthetic authority."
+          }
+        ]
+      },
+      {
+        "pico": "WP012-MT172-PT033",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT034",
+        "hard_predecessors": [
+          {
+            "pico": "WP012-MT172-PT039",
+            "stage": "compile_bound",
+            "required_for_stage": "original_proof",
+            "reason": "The original proof must run against the compiled composed candidate; the failed shared capture supplies no runtime verdict.",
+            "evidence_refs": [
+              "current_check"
+            ]
+          }
+        ],
+        "acceptance_dependencies": [],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT035",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": [
+          {
+            "ref": "#/source_import_binding/source_acceptance_records/12",
+            "required_for_stage": "original_proof",
+            "requirement": "Bind actual process generation, same-Surreal lifecycle, healthy-owner fence, exact claim row and KillFailed-only fail-open from MT019."
+          }
+        ]
+      },
+      {
+        "pico": "WP012-MT172-PT036",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT037",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [
+          {
+            "pico": "WP012-MT172-PT028",
+            "reason": "Factory cardinality is part of actual Operator Chat acceptance, not a separate UI project."
+          }
+        ],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT038",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": []
+      },
+      {
+        "pico": "WP012-MT172-PT039",
+        "hard_predecessors": [
+          {
+            "pico": "WP012-MT172-PT002",
+            "stage": "composed_candidate",
+            "required_for_stage": "compile_bound",
+            "reason": "Only the affected stable source candidate and required existing reviews enter Primary's one coherent current repair batch.",
+            "evidence_refs": [
+              "routing"
+            ]
+          },
+          {
+            "pico": "WP012-MT172-PT003",
+            "stage": "source_ready",
+            "required_for_stage": "compile_bound",
+            "reason": "Only the affected stable source candidate and required existing reviews enter Primary's one coherent current repair batch.",
+            "evidence_refs": [
+              "schema"
+            ]
+          },
+          {
+            "pico": "WP012-MT172-PT004",
+            "stage": "composed_candidate",
+            "required_for_stage": "compile_bound",
+            "reason": "Only the affected stable source candidate and required existing reviews enter Primary's one coherent current repair batch.",
+            "evidence_refs": [
+              "diagnostics"
+            ]
+          },
+          {
+            "pico": "WP012-MT172-PT005",
+            "stage": "source_ready",
+            "required_for_stage": "compile_bound",
+            "reason": "Only the affected stable source candidate and required existing reviews enter Primary's one coherent current repair batch.",
+            "evidence_refs": [
+              "recovery"
+            ]
+          },
+          {
+            "pico": "WP012-MT172-PT006",
+            "stage": "source_ready",
+            "required_for_stage": "compile_bound",
+            "reason": "Only the affected stable source candidate and required existing reviews enter Primary's one coherent current repair batch.",
+            "evidence_refs": [
+              "outbox"
+            ]
+          }
+        ],
+        "acceptance_dependencies": [],
+        "external_bindings": [
+          {
+            "ref": "#/proof/checks/0",
+            "required_for_stage": "compile_bound",
+            "requirement": "Primary binds stable source/control/config/target and required reviews plus actual available retry authority; this plan grants no new attempt. App target remains x64."
+          }
+        ]
+      },
+      {
+        "pico": "WP012-MT172-PT040",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [
+          {
+            "pico": "WP012-MT172-PT001"
+          },
+          {
+            "pico": "WP012-MT172-PT002"
+          },
+          {
+            "pico": "WP012-MT172-PT003"
+          },
+          {
+            "pico": "WP012-MT172-PT004"
+          },
+          {
+            "pico": "WP012-MT172-PT005"
+          },
+          {
+            "pico": "WP012-MT172-PT006"
+          },
+          {
+            "pico": "WP012-MT172-PT007"
+          },
+          {
+            "pico": "WP012-MT172-PT008"
+          },
+          {
+            "pico": "WP012-MT172-PT009"
+          },
+          {
+            "pico": "WP012-MT172-PT010"
+          },
+          {
+            "pico": "WP012-MT172-PT011"
+          },
+          {
+            "pico": "WP012-MT172-PT012"
+          },
+          {
+            "pico": "WP012-MT172-PT013"
+          },
+          {
+            "pico": "WP012-MT172-PT014"
+          },
+          {
+            "pico": "WP012-MT172-PT015"
+          },
+          {
+            "pico": "WP012-MT172-PT016"
+          },
+          {
+            "pico": "WP012-MT172-PT017"
+          },
+          {
+            "pico": "WP012-MT172-PT018"
+          },
+          {
+            "pico": "WP012-MT172-PT019"
+          },
+          {
+            "pico": "WP012-MT172-PT020"
+          },
+          {
+            "pico": "WP012-MT172-PT021"
+          },
+          {
+            "pico": "WP012-MT172-PT022"
+          },
+          {
+            "pico": "WP012-MT172-PT023"
+          },
+          {
+            "pico": "WP012-MT172-PT024"
+          },
+          {
+            "pico": "WP012-MT172-PT025"
+          },
+          {
+            "pico": "WP012-MT172-PT026"
+          },
+          {
+            "pico": "WP012-MT172-PT027"
+          },
+          {
+            "pico": "WP012-MT172-PT028"
+          },
+          {
+            "pico": "WP012-MT172-PT029"
+          },
+          {
+            "pico": "WP012-MT172-PT030"
+          },
+          {
+            "pico": "WP012-MT172-PT031"
+          },
+          {
+            "pico": "WP012-MT172-PT032"
+          },
+          {
+            "pico": "WP012-MT172-PT033"
+          },
+          {
+            "pico": "WP012-MT172-PT034"
+          },
+          {
+            "pico": "WP012-MT172-PT035"
+          },
+          {
+            "pico": "WP012-MT172-PT036"
+          },
+          {
+            "pico": "WP012-MT172-PT037"
+          },
+          {
+            "pico": "WP012-MT172-PT038"
+          },
+          {
+            "pico": "WP012-MT172-PT039"
+          },
+          {
+            "pico": "WP012-MT172-PT041"
+          }
+        ],
+        "external_bindings": [
+          {
+            "ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/combined_acceptance_binding",
+            "required_for_stage": "combined_acceptance",
+            "requirement": "Every consumed source pointer needs consumer/module/MT/candidate or explicit unconsumed scope, original proof/input/config and independent verdict or unchanged reuse. Original owner WP_VALIDATOR plus whole-WP INTEGRATION_VALIDATOR remain required."
+          }
+        ],
+        "acceptance_dependency_reason": "All consumed scope and parent proofs require original independent verdict or justified unchanged reuse. Explicit unconsumed scope follows the existing contract; none is an import prerequisite."
+      },
+      {
+        "pico": "WP012-MT172-PT041",
+        "hard_predecessors": [],
+        "acceptance_dependencies": [],
+        "external_bindings": [
+          {
+            "ref": "#/proof/moved_component_unit_selectors_20261015",
+            "required_for_stage": "original_proof",
+            "requirement": "Exact existing crate/core selectors, feature configuration and nonzero match count; source declaration is not an execution grant."
+          }
+        ]
+      }
+    ],
+    "original_contract_coverage": [
+      {
+        "source_acceptance_record_index": 0,
+        "source_contract_ref": "#/source_import_binding/source_acceptance_records/0",
+        "complete_mapped_requirements_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records/175/acceptance_and_requirement_map",
+        "current_original_ac_range_inclusive": [
+          0,
+          5
+        ],
+        "consumed_source_check_range_inclusive": [
+          0,
+          4
+        ],
+        "original_proof_pointers": [
+          "/verification/commands"
+        ],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT015",
+          "WP012-MT172-PT036",
+          "WP012-MT172-PT040"
+        ]
+      },
+      {
+        "source_acceptance_record_index": 1,
+        "source_contract_ref": "#/source_import_binding/source_acceptance_records/1",
+        "complete_mapped_requirements_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records/200/acceptance_and_requirement_map",
+        "current_original_ac_range_inclusive": [
+          0,
+          4
+        ],
+        "consumed_source_check_range_inclusive": [
+          5,
+          9
+        ],
+        "original_proof_pointers": [
+          "/scope/proof_targets",
+          "/scope/verification"
+        ],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT029",
+          "WP012-MT172-PT040"
+        ]
+      },
+      {
+        "source_acceptance_record_index": 2,
+        "source_contract_ref": "#/source_import_binding/source_acceptance_records/2",
+        "complete_mapped_requirements_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records/201/acceptance_and_requirement_map",
+        "current_original_ac_range_inclusive": [
+          0,
+          4
+        ],
+        "consumed_source_check_range_inclusive": [
+          10,
+          12
+        ],
+        "original_proof_pointers": [
+          "/scope/proof_targets",
+          "/scope/verification"
+        ],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT030",
+          "WP012-MT172-PT040"
+        ]
+      },
+      {
+        "source_acceptance_record_index": 3,
+        "source_contract_ref": "#/source_import_binding/source_acceptance_records/3",
+        "complete_mapped_requirements_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records/239/acceptance_and_requirement_map",
+        "current_original_ac_range_inclusive": null,
+        "consumed_source_check_range_inclusive": null,
+        "original_proof_pointers": [],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT031",
+          "WP012-MT172-PT038",
+          "WP012-MT172-PT041",
+          "WP012-MT172-PT040"
+        ],
+        "non_ac_requirement_pointers": [
+          "/scope/summary",
+          "/scope/owned_files",
+          "/queued_shared_file_pass/items"
+        ],
+        "non_ac_item_range_inclusive": [
+          0,
+          4
+        ],
+        "zero_map_disposition": "Zero mapped AC rows is not exemption from real shared-integration, manual, privacy and tier obligations; no new allocation of its whole original implementation scope."
+      },
+      {
+        "source_acceptance_record_index": 4,
+        "source_contract_ref": "#/source_import_binding/source_acceptance_records/4",
+        "complete_mapped_requirements_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records/246/acceptance_and_requirement_map",
+        "current_original_ac_range_inclusive": [
+          0,
+          22
+        ],
+        "consumed_source_check_range_inclusive": [
+          13,
+          52
+        ],
+        "original_proof_pointers": [
+          "/scope/proof_targets"
+        ],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT002",
+          "WP012-MT172-PT008",
+          "WP012-MT172-PT016",
+          "WP012-MT172-PT026",
+          "WP012-MT172-PT032",
+          "WP012-MT172-PT035",
+          "WP012-MT172-PT040"
+        ]
+      },
+      {
+        "source_acceptance_record_index": 5,
+        "source_contract_ref": "#/source_import_binding/source_acceptance_records/5",
+        "complete_mapped_requirements_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records/247/acceptance_and_requirement_map",
+        "current_original_ac_range_inclusive": [
+          0,
+          9
+        ],
+        "consumed_source_check_range_inclusive": [
+          53,
+          64
+        ],
+        "original_proof_pointers": [
+          "/scope/proof_targets"
+        ],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT002",
+          "WP012-MT172-PT003",
+          "WP012-MT172-PT004",
+          "WP012-MT172-PT006",
+          "WP012-MT172-PT010",
+          "WP012-MT172-PT014",
+          "WP012-MT172-PT033",
+          "WP012-MT172-PT034",
+          "WP012-MT172-PT040"
+        ]
+      },
+      {
+        "source_acceptance_record_index": 6,
+        "source_contract_ref": "#/source_import_binding/source_acceptance_records/6",
+        "complete_mapped_requirements_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records/250/acceptance_and_requirement_map",
+        "current_original_ac_range_inclusive": [
+          0,
+          12
+        ],
+        "consumed_source_check_range_inclusive": [
+          65,
+          70
+        ],
+        "original_proof_pointers": [
+          "/scope/proof_targets"
+        ],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT004",
+          "WP012-MT172-PT005",
+          "WP012-MT172-PT007",
+          "WP012-MT172-PT011",
+          "WP012-MT172-PT012",
+          "WP012-MT172-PT017",
+          "WP012-MT172-PT018",
+          "WP012-MT172-PT019",
+          "WP012-MT172-PT034",
+          "WP012-MT172-PT040"
+        ]
+      },
+      {
+        "source_acceptance_record_index": 7,
+        "source_contract_ref": "#/source_import_binding/source_acceptance_records/7",
+        "complete_mapped_requirements_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records/253/acceptance_and_requirement_map",
+        "current_original_ac_range_inclusive": [
+          0,
+          10
+        ],
+        "consumed_source_check_range_inclusive": [
+          71,
+          77
+        ],
+        "original_proof_pointers": [
+          "/scope/proof_targets"
+        ],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT015",
+          "WP012-MT172-PT020",
+          "WP012-MT172-PT021",
+          "WP012-MT172-PT022",
+          "WP012-MT172-PT023",
+          "WP012-MT172-PT024",
+          "WP012-MT172-PT025",
+          "WP012-MT172-PT036",
+          "WP012-MT172-PT040"
+        ]
+      },
+      {
+        "source_acceptance_record_index": 8,
+        "source_contract_ref": "#/source_import_binding/source_acceptance_records/8",
+        "complete_mapped_requirements_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records/254/acceptance_and_requirement_map",
+        "current_original_ac_range_inclusive": [
+          0,
+          13
+        ],
+        "consumed_source_check_range_inclusive": [
+          78,
+          90
+        ],
+        "original_proof_pointers": [
+          "/scope/proof_targets"
+        ],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT015",
+          "WP012-MT172-PT036",
+          "WP012-MT172-PT038",
+          "WP012-MT172-PT040"
+        ]
+      },
+      {
+        "source_acceptance_record_index": 9,
+        "source_contract_ref": "#/source_import_binding/source_acceptance_records/9",
+        "complete_mapped_requirements_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records/255/acceptance_and_requirement_map",
+        "current_original_ac_range_inclusive": [
+          0,
+          7
+        ],
+        "consumed_source_check_range_inclusive": [
+          91,
+          95
+        ],
+        "original_proof_pointers": [
+          "/scope/proof_commands"
+        ],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT028",
+          "WP012-MT172-PT037",
+          "WP012-MT172-PT040"
+        ]
+      },
+      {
+        "source_acceptance_record_index": 10,
+        "source_contract_ref": "#/source_import_binding/source_acceptance_records/10",
+        "complete_mapped_requirements_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records/257/acceptance_and_requirement_map",
+        "current_original_ac_range_inclusive": [
+          0,
+          9
+        ],
+        "consumed_source_check_range_inclusive": [
+          96,
+          120
+        ],
+        "original_proof_pointers": [
+          "/scope/proof_targets"
+        ],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT002",
+          "WP012-MT172-PT008",
+          "WP012-MT172-PT010",
+          "WP012-MT172-PT027",
+          "WP012-MT172-PT040"
+        ],
+        "historical_preservation": "Mapped historical_scope_v5_superseded AC0..5 and proof0..4 remain history; PG execution retirement stays effective."
+      },
+      {
+        "source_acceptance_record_index": 11,
+        "source_contract_ref": "#/source_import_binding/source_acceptance_records/11",
+        "complete_mapped_requirements_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records/260/acceptance_and_requirement_map",
+        "current_original_ac_range_inclusive": [
+          0,
+          15
+        ],
+        "consumed_source_check_range_inclusive": [
+          121,
+          153
+        ],
+        "original_proof_pointers": [
+          "/scope/proof_commands"
+        ],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT002",
+          "WP012-MT172-PT003",
+          "WP012-MT172-PT004",
+          "WP012-MT172-PT005",
+          "WP012-MT172-PT006",
+          "WP012-MT172-PT009",
+          "WP012-MT172-PT010",
+          "WP012-MT172-PT011",
+          "WP012-MT172-PT020",
+          "WP012-MT172-PT021",
+          "WP012-MT172-PT022",
+          "WP012-MT172-PT023",
+          "WP012-MT172-PT024",
+          "WP012-MT172-PT025",
+          "WP012-MT172-PT032",
+          "WP012-MT172-PT033",
+          "WP012-MT172-PT034",
+          "WP012-MT172-PT035",
+          "WP012-MT172-PT036",
+          "WP012-MT172-PT037",
+          "WP012-MT172-PT038",
+          "WP012-MT172-PT041",
+          "WP012-MT172-PT040"
+        ],
+        "historical_preservation": "Mapped historical_scope_v5_superseded AC0..15 remain history; current proof_commands0..15 are also retained even though not included in the 32 mapped AC rows.",
+        "current_ac_picotask_partition": [
+          {
+            "ac_indices": [
+              0,
+              10,
+              11
+            ],
+            "pico": "WP012-MT172-PT032"
+          },
+          {
+            "ac_indices": [
+              1,
+              2
+            ],
+            "pico": "WP012-MT172-PT033"
+          },
+          {
+            "ac_indices": [
+              3,
+              8,
+              9
+            ],
+            "pico": "WP012-MT172-PT034"
+          },
+          {
+            "ac_indices": [
+              4,
+              6,
+              12,
+              13
+            ],
+            "pico": "WP012-MT172-PT035"
+          },
+          {
+            "ac_indices": [
+              5,
+              7,
+              14
+            ],
+            "pico": "WP012-MT172-PT036"
+          },
+          {
+            "ac_indices": [
+              15
+            ],
+            "pico": "WP012-MT172-PT037"
+          }
+        ]
+      },
+      {
+        "source_acceptance_record_index": 12,
+        "source_contract_ref": "#/source_import_binding/source_acceptance_records/12",
+        "complete_mapped_requirements_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records/262/acceptance_and_requirement_map",
+        "current_original_ac_range_inclusive": [
+          0,
+          12
+        ],
+        "consumed_source_check_range_inclusive": [
+          154,
+          155
+        ],
+        "original_proof_pointers": [
+          "/scope/proof_commands"
+        ],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT007",
+          "WP012-MT172-PT012",
+          "WP012-MT172-PT017",
+          "WP012-MT172-PT018",
+          "WP012-MT172-PT019",
+          "WP012-MT172-PT035",
+          "WP012-MT172-PT040"
+        ]
+      },
+      {
+        "source_acceptance_record_index": 13,
+        "source_contract_ref": "#/source_import_binding/source_acceptance_records/13",
+        "complete_mapped_requirements_ref": "WP-KERNEL-012-phase-01-source-reconciliation-v1.json#/original_contract_records/265/acceptance_and_requirement_map",
+        "current_original_ac_range_inclusive": [
+          0,
+          9
+        ],
+        "consumed_source_check_range_inclusive": [
+          156,
+          156
+        ],
+        "original_proof_pointers": [
+          "/scope/proof_commands"
+        ],
+        "covered_by_picotasks": [
+          "WP012-MT172-PT009",
+          "WP012-MT172-PT015",
+          "WP012-MT172-PT036",
+          "WP012-MT172-PT038",
+          "WP012-MT172-PT040"
+        ]
+      }
+    ],
+    "parent_acceptance_coverage": [
+      {
+        "parent_ref": "#/scope/acceptance_criteria/0",
+        "parent_id": "WP012-P1-MT-172-AC1",
+        "covered_by_picotasks": [
+          "WP012-MT172-PT001",
+          "WP012-MT172-PT007",
+          "WP012-MT172-PT008",
+          "WP012-MT172-PT009",
+          "WP012-MT172-PT010",
+          "WP012-MT172-PT011",
+          "WP012-MT172-PT012",
+          "WP012-MT172-PT013",
+          "WP012-MT172-PT014",
+          "WP012-MT172-PT015",
+          "WP012-MT172-PT016",
+          "WP012-MT172-PT017",
+          "WP012-MT172-PT018",
+          "WP012-MT172-PT019",
+          "WP012-MT172-PT040"
+        ],
+        "condition": "All exact source/blob/protection/history dispositions including newer bounded repairs; mechanical coverage is preserved, semantic closure remains evidence-dependent."
+      },
+      {
+        "parent_ref": "#/scope/acceptance_criteria/1",
+        "parent_id": "WP012-P1-MT-172-AC2",
+        "covered_by_picotasks": [
+          "WP012-MT172-PT039",
+          "WP012-MT172-PT040"
+        ],
+        "condition": "Owned current candidate compile plus every consumed original acceptance owner/proof/independent verdict binding before combined acceptance; no runtime-first import gate."
+      }
+    ],
+    "additional_allocated_paths": [
+      {
+        "key": "swarm_outbox",
+        "path": "src/backend/handshake_core/src/storage/surreal/swarm_outbox.rs",
+        "allocation_evidence": [
+          "outbox"
+        ],
+        "picotask_refs": [
+          "WP012-MT172-PT006",
+          "WP012-MT172-PT014"
+        ]
+      },
+      {
+        "key": "surreal_provider",
+        "path": "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
+        "allocation_evidence": [
+          "routing"
+        ],
+        "picotask_refs": [
+          "WP012-MT172-PT002",
+          "WP012-MT172-PT023",
+          "WP012-MT172-PT024",
+          "WP012-MT172-PT025"
+        ]
+      },
+      {
+        "key": "model_lane_schema",
+        "path": "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql",
+        "allocation_evidence": [
+          "schema"
+        ],
+        "picotask_refs": [
+          "WP012-MT172-PT003",
+          "WP012-MT172-PT025"
+        ]
+      },
+      {
+        "key": "resource_authority",
+        "path": "src/backend/handshake_core/src/storage/surreal/resource_authority.rs",
+        "allocation_evidence": [
+          "routing"
+        ],
+        "picotask_refs": [
+          "WP012-MT172-PT002"
+        ]
+      },
+      {
+        "key": "schema_sql",
+        "path": "src/backend/handshake_core/src/storage/surreal/schema.surql",
+        "allocation_evidence": [
+          "schema"
+        ],
+        "picotask_refs": [
+          "WP012-MT172-PT003"
+        ]
+      },
+      {
+        "key": "schema_rust",
+        "path": "src/backend/handshake_core/src/storage/surreal/schema.rs",
+        "allocation_evidence": [
+          "schema"
+        ],
+        "picotask_refs": [
+          "WP012-MT172-PT003"
+        ]
+      },
+      {
+        "key": "event_ledger",
+        "path": "src/backend/handshake_core/src/storage/surreal/event_ledger.rs",
+        "allocation_evidence": [
+          "routing"
+        ],
+        "picotask_refs": [
+          "WP012-MT172-PT002"
+        ]
+      },
+      {
+        "key": "surreal_exports",
+        "path": "src/backend/handshake_core/src/storage/surreal.rs",
+        "allocation_evidence": [
+          "routing",
+          "outbox"
+        ],
+        "picotask_refs": [
+          "WP012-MT172-PT002",
+          "WP012-MT172-PT006"
+        ]
+      },
+      {
+        "key": "api_authority",
+        "path": "src/backend/handshake_core/src/api/authority.rs",
+        "allocation_evidence": [
+          "routing"
+        ],
+        "picotask_refs": [
+          "WP012-MT172-PT002"
+        ]
+      },
+      {
+        "key": "diagnostics_tests",
+        "path": "src/backend/handshake_core/tests/swarm_lane_diagnostics_surreal_tests.rs",
+        "allocation_evidence": [
+          "diagnostics"
+        ],
+        "picotask_refs": [
+          "WP012-MT172-PT004",
+          "WP012-MT172-PT013"
+        ]
+      },
+      {
+        "key": "diagnostics_harness",
+        "path": "src/backend/handshake_core/src/test_harness/swarm_lane_diagnostics.rs",
+        "allocation_evidence": [
+          "diagnostics"
+        ],
+        "picotask_refs": [
+          "WP012-MT172-PT004",
+          "WP012-MT172-PT013"
+        ]
+      },
+      {
+        "key": "role_authority_harness",
+        "path": "src/backend/handshake_core/src/test_harness/ac9_role_authority.rs",
+        "allocation_evidence": [
+          "diagnostics"
+        ],
+        "picotask_refs": [
+          "WP012-MT172-PT004",
+          "WP012-MT172-PT013"
+        ]
+      },
+      {
+        "key": "workspaces",
+        "path": "src/backend/handshake_core/src/storage/surreal/workspaces.rs",
+        "allocation_evidence": [
+          "schema_catalog"
+        ],
+        "picotask_refs": [
+          "WP012-MT172-PT039"
+        ]
+      }
+    ],
+    "semantic_retention_gaps": [
+      {
+        "source_path_index": 50,
+        "pico": "WP012-MT172-PT007",
+        "evidence_refs": [
+          "conservation_a"
+        ],
+        "disposition": "Source-owner mapping to actual Surreal shutdown and isolated-store cleanup recorded; neutral foreign-owner/reclaim runtime remains open.",
+        "original_history_ref": "reconciliation"
+      },
+      {
+        "source_path_index": 135,
+        "pico": "WP012-MT172-PT008",
+        "evidence_refs": [
+          "reconciliation"
+        ],
+        "disposition": "Retired model-selection harness needs executed replacement proof; do not restore PG harness.",
+        "original_history_ref": "reconciliation"
+      },
+      {
+        "source_path_index": 195,
+        "pico": "WP012-MT172-PT009",
+        "evidence_refs": [
+          "conservation_a"
+        ],
+        "disposition": "Current tests/knowledge_ingestion_support/mod.rs source mapping recorded; actual behavior/cleanup proof remains.",
+        "original_history_ref": "reconciliation"
+      },
+      {
+        "source_path_index": 197,
+        "pico": "WP012-MT172-PT009",
+        "evidence_refs": [
+          "conservation_a"
+        ],
+        "disposition": "Retired PG helper mapped to actual isolated Surreal helpers; no restore.",
+        "original_history_ref": "reconciliation"
+      },
+      {
+        "source_path_index": 213,
+        "pico": "WP012-MT172-PT007",
+        "evidence_refs": [
+          "conservation_b"
+        ],
+        "disposition": "Current backend_runtime, runtime-instance lease and Surreal process-ledger owners mapped; combined lifecycle runtime remains.",
+        "original_history_ref": "reconciliation"
+      },
+      {
+        "source_path_index": 226,
+        "pico": "WP012-MT172-PT009",
+        "evidence_refs": [
+          "conservation_a"
+        ],
+        "disposition": "Retired CRDT helper mapped to authenticated Surreal helper; runtime remains.",
+        "original_history_ref": "reconciliation"
+      },
+      {
+        "source_path_index": 233,
+        "pico": "WP012-MT172-PT010",
+        "evidence_refs": [
+          "conservation_b"
+        ],
+        "disposition": "Preserve PRE_ADMISSION_INTEGRITY_REJECTION_NO_PROMOTION_DECISION qualifier for corrupt receipts; missing/scoped-away InputRefMismatch remains durable.",
+        "original_history_ref": "reconciliation"
+      },
+      {
+        "source_path_index": 235,
+        "pico": "WP012-MT172-PT011",
+        "evidence_refs": [
+          "recovery_conservation"
+        ],
+        "disposition": "Two recovery gaps have external witness/bounded replay repairs; full old scoped HTTP/runtime assertions remain.",
+        "original_history_ref": "reconciliation"
+      },
+      {
+        "source_path_index": 236,
+        "pico": "WP012-MT172-PT011",
+        "evidence_refs": [
+          "recovery_conservation"
+        ],
+        "disposition": "Two recovery gaps have external witness/bounded replay repairs; full old scoped HTTP/runtime assertions remain.",
+        "original_history_ref": "reconciliation"
+      },
+      {
+        "source_path_index": 239,
+        "pico": "WP012-MT172-PT010",
+        "evidence_refs": [
+          "conservation_b"
+        ],
+        "disposition": "Actual authenticated exact-five-scope/derive/boot proof remains; no old unscoped privilege restoration.",
+        "original_history_ref": "reconciliation"
+      },
+      {
+        "source_path_index": 259,
+        "pico": "WP012-MT172-PT012",
+        "evidence_refs": [
+          "conservation_b"
+        ],
+        "disposition": "Full native independent watcher survival/restart/reattach/import ACK/durable STOP chain remains; component proof is insufficient.",
+        "original_history_ref": "reconciliation"
+      },
+      {
+        "source_path_index": 281,
+        "pico": "WP012-MT172-PT013",
+        "evidence_refs": [
+          "conservation_b"
+        ],
+        "disposition": "Actual executable caller now found and newer diagnostics candidate exists; historical absence claim superseded, runtime remains.",
+        "original_history_ref": "reconciliation"
+      },
+      {
+        "source_path_index": 283,
+        "pico": "WP012-MT172-PT014",
+        "evidence_refs": [
+          "outbox"
+        ],
+        "disposition": "Order/AlreadyCommitted/live retry external repair has source review; runtime remains.",
+        "original_history_ref": "reconciliation"
+      },
+      {
+        "source_path_index": 291,
+        "pico": "WP012-MT172-PT015",
+        "evidence_refs": [
+          "conservation_b"
+        ],
+        "disposition": "Current tests/user_manual_support/mod.rs retains same-engine store/shutdown affinity; runtime cleanup remains.",
+        "original_history_ref": "reconciliation"
+      },
+      {
+        "source_path_index": 46,
+        "pico": "WP012-MT172-PT016",
+        "evidence_refs": [
+          "reconciliation"
+        ],
+        "disposition": "Null source_blob; retain current test-only Ollama destination, no deletion authority; default boot proof remains.",
+        "original_history_ref": "reconciliation"
+      },
+      {
+        "source_path_index": 264,
+        "pico": "WP012-MT172-PT017",
+        "evidence_refs": [
+          "reconciliation"
+        ],
+        "disposition": "Null source_blob; retain current process reclaim destination unchanged; no feature verdict inferred.",
+        "original_history_ref": "reconciliation"
+      },
+      {
+        "source_path_index": 267,
+        "pico": "WP012-MT172-PT018",
+        "evidence_refs": [
+          "conservation_b"
+        ],
+        "disposition": "Null source_blob; backend-neutral writer/overflow assertions retained, PG DDL retired; writer/reopen runtime remains.",
+        "original_history_ref": "reconciliation"
+      },
+      {
+        "source_path_index": 272,
+        "pico": "WP012-MT172-PT019",
+        "evidence_refs": [
+          "reconciliation"
+        ],
+        "disposition": "Null source_blob; PG executor retired, current supported-backend restart/resume proof remains.",
+        "original_history_ref": "reconciliation"
+      }
+    ],
+    "later_source_coverage": [
+      {
+        "parent_ref": "#/consumed_memory_pack_workflow_source_wave_20261018",
+        "picotask_refs": [
+          "WP012-MT172-PT020",
+          "WP012-MT172-PT021",
+          "WP012-MT172-PT022"
+        ],
+        "coverage": "Entire wave retained, including producer/consumer/schema/config and genuine grant dependencies; no host acceptance inferred from source-clear or standalone asset proof."
+      },
+      {
+        "parent_ref": "#/private_run_memory_witness_source_20261018",
+        "handback_ref": "#/private_run_memory_witness_source_handback_20261018",
+        "picotask_refs": [
+          "WP012-MT172-PT023"
+        ]
+      },
+      {
+        "parent_ref": "#/private_artifact_payload_witness_source_20261018",
+        "handback_ref": "#/private_artifact_payload_witness_handback_20261018",
+        "picotask_refs": [
+          "WP012-MT172-PT024"
+        ]
+      },
+      {
+        "parent_ref": "#/private_microtask_witness_source_20261018",
+        "handback_ref": "#/private_microtask_witness_handback_20261018",
+        "picotask_refs": [
+          "WP012-MT172-PT025"
+        ]
+      },
+      {
+        "parent_ref": "#/implementation_record/swarm_event_ids_crate_extraction_20261015",
+        "handback_ref": "#/proof/moved_component_unit_selectors_20261015",
+        "picotask_refs": [
+          "WP012-MT172-PT041"
+        ]
+      }
+    ],
+    "operator_design_question": {
+      "state": "EVALUATION_ONLY_NO_REQUIREMENT_CHANGE",
+      "question": "Can existing module/tool capability profiles and cached approvals simplify the carried grant without weakening resource/action enforcement?",
+      "disposition": "Current spec already permits broad profiles and cached job/model/workspace approvals. Exact current resource/action, authenticated context, revocation/delegation and transaction/publication continuity remain original requirements. No permission rewrite or additional dependency is activated.",
+      "affected_picos": [
+        "WP012-MT172-PT002",
+        "WP012-MT172-PT003",
+        "WP012-MT172-PT032"
+      ]
+    },
+    "dependency_semantics": {
+      "stage_names": [
+        "source_ready",
+        "composed_candidate",
+        "compile_bound",
+        "original_proof",
+        "combined_acceptance"
+      ],
+      "hard_edge_format": "Each hard predecessor names predecessor pico and stage, the dependent stage and the evidenced reason. Stage edges avoid falsely requiring runtime closure before source composition.",
+      "acceptance_dependency_format": "An acceptance dependency is a final proof join only; it is not a source-authoring or import blocker.",
+      "unlisted_edges": "No prerequisite is inferred between unrelated groups. Original contract depends_on edges are retained by reference and apply only within their original scope.",
+      "all_items_stages": "Only stages explicitly named by a matrix edge are scheduling nodes. The pico outcome remains subject to its listed remaining original proof."
+    },
+    "coverage_totals": {
+      "original_source_paths": 301,
+      "extra_allowed_paths": 4,
+      "primary_path_groups": 23,
+      "original_contracts": 14,
+      "current_original_ac_items": 144,
+      "mapped_requirement_and_proof_rows": 212,
+      "consumed_source_check_records": 157,
+      "historical_explicit_support_gaps": 18,
+      "additional_bounded_candidate_paths": 13,
+      "picotasks": 41,
+      "meaning": "Coverage counts only, never PASS or completion counts."
+    },
+    "item_defaults": {
+      "execution_binding": "Existing owning proof and current candidate/input/config; no new command or run grant.",
+      "unknown_acceptance_owner": "Codeleader binds actual original consuming owner and independent verdict actor; no inferred reassignment."
+    },
+    "owner_templates": {
+      "original_consuming_owner": {
+        "coordinator": "codeleader",
+        "source": "Allocation required only for an evidenced remaining source gap; preserve existing authors",
+        "acceptance": "original_acceptance",
+        "runtime": "Per-consumed-proof actor/input/config binding required; no inferred reassignment",
+        "physical": "primary"
+      },
+      "current_repair_authors": {
+        "coordinator": "codeleader",
+        "source": "coding",
+        "author_binding": "Exact author and release remain in cited candidate/allocation",
+        "review": "codecheck",
+        "runtime": "diagnostics subject to original independent verdict binding",
+        "physical": "primary"
+      },
+      "native_consumer_owners": {
+        "coordinator": "codeleader",
+        "source": "Existing backend author plus gui owner for actual native consumer",
+        "acceptance": "original_acceptance",
+        "physical": "primary"
+      },
+      "primary_composed_check": {
+        "coordinator": "codeleader",
+        "physical": "primary",
+        "source": "coding",
+        "review": "codecheck",
+        "runtime": "diagnostics subject to original independent verdict binding"
+      }
+    },
+    "original_contract_coverage_defaults": {
+      "original_scope_and_dependencies": "Retain the entire referenced original scope, depends_on, proof and historical evidence; only already-consumed/shared MT172 intersection is allocated.",
+      "current_independent_verdict_binding": "UNBOUND_IN_THIS_PLAN; require current consumed candidate/input/config or justified unchanged reuse, not an old contract label.",
+      "current_original_ac_pointer": "/scope/acceptance_criteria"
+    },
+    "path_group_defaults": {
+      "coverage_state": "Existing row dispositions preserved; grouping neither requires rewriting every path nor claims semantic/runtime acceptance."
+    },
+    "additional_path_defaults": {
+      "scope_effect": "Existing bounded candidate/allocation provenance only; not added to original301 or four extra allowed-path rows."
+    },
+    "change_basis": {
+      "parent_file_sha256_before_addition": "a4109cb400878eca0975a138faa91a6c902e54508eb0b72eda704d7093568f59",
+      "parent_file_bytes_before_addition": 770625
+    }
+  }
 }
