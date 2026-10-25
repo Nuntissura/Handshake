@@ -133,12 +133,12 @@
       "shared_paths": "One actual writer per app/lib/manifest/backend_client hook, explicit current-holder release and receiver acknowledgement. Primary alone physically applies Product and owns compiler/Git."
     },
     "canonical_source_binding": {
-      "owner": null,
+      "owner": "KUMIHIMO-ASSET-001",
       "repository": "Nuntissura/assets",
       "path": "Kumihimo",
-      "api": null,
-      "status": "IDENTITY_VERIFIED_API_PIN_VULKAN_UNQUALIFIED",
-      "condition": "Mandatory Kumihimo public GUI capability with actual Vulkan per shared binding. Exact API/adoption pin/proof/author remain unqualified; only a verified reusable gap requires canonical source work before separate pinned host adoption.",
+      "api": "kumihimo_egui::native::{NativeBackend,EframeNativeCoordinator}",
+      "status": "PUBLISHED_SCOPED_VULKAN_CAPABILITY_VERIFIED",
+      "condition": "Use immutable 8a97b9ae445872e4143fad1eb92f9ad082017595 and its exact SDK patches. Scoped asset proof is reusable; host compilation and genuine combined GUI/GPU runtime acceptance remain separate.",
       "shared_requirement_ref": "packet.json#/operator_professional_desktop_ui_20261024/kumihimo_binding"
     },
     "interaction_policy": {
@@ -266,7 +266,7 @@
     ],
     "code_boundary": {
       "native_crate": "src/frontend/handshake_native",
-      "canonical_renderer_owner": "KUMIHIMO-ASSET-001 in Nuntissura/assets/Kumihimo; exact public API/pin/Vulkan qualification remains pending.",
+      "canonical_renderer_owner": "KUMIHIMO-ASSET-001, kumihimo-egui 0.2.0 at 8a97b9ae445872e4143fad1eb92f9ad082017595",
       "basis": "Existing native Cargo/main/layout/search contracts; exact source files narrow under actual allocation."
     },
     "activation_state": "PLANNED_UNCLAIMED_UNVERIFIED",
@@ -561,11 +561,48 @@
     "implementation_result": "NOT_IMPLEMENTED_NOT_RUN"
   },
   "renderer_capability": {
-    "status": "UNRESOLVED",
-    "existing_capability_reuse": null,
+    "status": "VERIFIED_SCOPED_CANONICAL_SOURCE",
+    "existing_capability_reuse": true,
     "verified_reusable_gap": null,
-    "canonical_owner_and_api": null,
-    "immutable_source_and_proof": null,
-    "new_source_required": null
+    "canonical_owner_and_api": {
+      "asset_id": "KUMIHIMO-ASSET-001",
+      "repository": "https://github.com/Nuntissura/assets",
+      "path": "Kumihimo/product/kumihimo-egui",
+      "package_version": "0.2.0",
+      "api": [
+        "native::NativeBackend::Vulkan",
+        "native::NativeBackend::configuration",
+        "native::NativeBackend::validate_actual",
+        "native::EframeNativeCoordinator"
+      ]
+    },
+    "immutable_source_and_proof": {
+      "revision": "8a97b9ae445872e4143fad1eb92f9ad082017595",
+      "tree": "86e3f11e3532f21e722eff2beb5b51b6e7a6a81e",
+      "product_files": 197,
+      "product_fingerprint_sha256": "067b70afde8af4712318bc64905ba1f6c6940c0a21ac8cf35b1da8068b65de67",
+      "evidence_repository": "Nuntissura/assets",
+      "evidence_paths": [
+        "Kumihimo/.local/wp022-vulkan-proof/publication-result.json",
+        "Kumihimo/.local/wp022-vulkan-proof/eframe-vulkan-attempt8/eframe-native-manifest.json",
+        "Kumihimo/.local/wp022-vulkan-proof/eframe-attempt8-result.json"
+      ],
+      "observed": {
+        "build_exit": 0,
+        "affected_contract_tests_passed": 10,
+        "actual_backend": "Vulkan",
+        "genuine_captures": 9,
+        "runtime_exit": 0,
+        "remaining_native_bindings": 0,
+        "owned_windows_destroyed": true,
+        "foreground_unchanged": true
+      },
+      "limits": [
+        "Scoped standalone asset proof only",
+        "Handshake source adoption and genuine host/runtime/GPU acceptance remain pending",
+        "WindowSlots, SDK registry and OS windows are distinct observations"
+      ]
+    },
+    "new_source_required": false
   }
 }

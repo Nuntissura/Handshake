@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-199",
   "created_at_utc": "2026-10-24T16:59:01.024Z",
-  "updated_at_utc": "2026-10-24T17:29:17.190Z",
+  "updated_at_utc": "2026-10-25T20:44:38.038502Z",
   "identity": {
     "mt_id": "MT-199",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -117,7 +117,14 @@
       "src/frontend/handshake_native/src/main.rs",
       "src/frontend/handshake_native/src/lib.rs",
       "src/frontend/handshake_native/src/app.rs",
-      "src/frontend/handshake_native/src/diagnostics/"
+      "src/frontend/handshake_native/src/diagnostics/",
+      "src/frontend/handshake_native/src/kumihimo.rs",
+      "src/frontend/handshake_native/src/split_layout.rs",
+      "src/frontend/handshake_native/src/layout_persistence.rs",
+      "src/frontend/handshake_native/src/settings_dialog.rs",
+      "src/frontend/layout_snapshot/Cargo.toml",
+      "src/frontend/layout_snapshot/src/lib.rs",
+      "src/frontend/handshake_native/tests/test_layout_persistence.rs"
     ],
     "forbidden_write_paths": [
       "Files outside exact actual owning allocation",
@@ -134,9 +141,9 @@
     "product_worktree": "../wtc-WP-KERNEL-012",
     "product_branch": "feat/WP-KERNEL-012",
     "ownership": {
-      "claimed_by": null,
-      "source_writer": null,
-      "state": "PLANNED_UNCLAIMED_NO_CURRENT_PRODUCT_WRITE_LEASE",
+      "claimed_by": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+      "source_writer": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+      "state": "OPERATOR_DIRECT_TAKEOVER_HOST_SOURCE_PUSHED_COMPILE_GREEN",
       "candidate_scope": "vulkan-renderer/**",
       "shared_paths": "One actual writer per app/lib/manifest/backend_client hook, explicit current-holder release and receiver acknowledgement. Primary alone physically applies Product and owns compiler/Git."
     },
@@ -240,7 +247,7 @@
     "generator": null
   },
   "lifecycle": {
-    "status": "PENDING",
+    "status": "BLOCKED",
     "depends_on": [
       "MT-197",
       "MT-198"
@@ -250,9 +257,9 @@
     ],
     "active": false,
     "validator_verdict": "PENDING",
-    "claimed_by": null,
+    "claimed_by": "01a1738d-2b8e-7151-9e9e-3972429af70c",
     "completed_by": null,
-    "blocked_on": null
+    "blocked_on": "AC199-5 focused authoritative GPU owner/client binding from MT-203; original independent native Vulkan/runtime/crash-survival admission for AC199-2/3/5/6. Whole MT-203 completion is not a host compilation predecessor."
   },
   "scope": {
     "summary": "The genuine Handshake native application renders through a supported Vulkan backend and retains required user/model behavior.",
@@ -262,7 +269,14 @@
       "src/frontend/handshake_native/src/main.rs",
       "src/frontend/handshake_native/src/lib.rs",
       "src/frontend/handshake_native/src/app.rs",
-      "src/frontend/handshake_native/src/diagnostics/"
+      "src/frontend/handshake_native/src/diagnostics/",
+      "src/frontend/handshake_native/src/kumihimo.rs",
+      "src/frontend/handshake_native/src/split_layout.rs",
+      "src/frontend/handshake_native/src/layout_persistence.rs",
+      "src/frontend/handshake_native/src/settings_dialog.rs",
+      "src/frontend/layout_snapshot/Cargo.toml",
+      "src/frontend/layout_snapshot/src/lib.rs",
+      "src/frontend/handshake_native/tests/test_layout_persistence.rs"
     ],
     "forbidden_paths": [
       "Files outside exact actual owning allocation",
@@ -282,7 +296,7 @@
     ],
     "code_boundary": {
       "native_crate": "src/frontend/handshake_native",
-      "canonical_renderer_owner": "UNKNOWN_PENDING_DESIGN; no invented new asset",
+      "canonical_renderer_owner": "KUMIHIMO-ASSET-001 native configuration plus its eframe/egui-wgpu 0.33.3 and accesskit_windows 0.29.2 patches at 8a97b9ae445872e4143fad1eb92f9ad082017595",
       "basis": "Existing native Cargo/main/layout/search contracts; exact source files narrow under actual allocation."
     },
     "activation_state": "PLANNED_UNCLAIMED_UNVERIFIED",
@@ -584,7 +598,174 @@
   },
   "validation": {
     "review_verdict": "PENDING",
-    "proof_records": [],
-    "implementation_result": "NOT_IMPLEMENTED_NOT_RUN"
+    "proof_records": [
+      {
+        "record_id": "UI199-IMPLEMENTER-COMPILE-01",
+        "executor_role": "KERNEL_BUILDER",
+        "executor_session": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+        "covers": [
+          "MT-199"
+        ],
+        "evidence_kind": "compile_static_only_not_acceptance",
+        "candidate_base_commit": "6b339577b6989731e418cf9795700fab24fe7ad0",
+        "candidate_source_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/merged-source-inputs-02.json",
+        "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1 --keep-going --message-format=json",
+        "started_at": "2026-10-25T20:27:34.0591243Z",
+        "completed_at": "2026-10-25T20:28:42.6139359Z",
+        "exit_code": 101,
+        "inputs_unchanged": true,
+        "input_count": 525,
+        "artifact_root": "HANDSHAKE_ARTIFACTS_ROOT",
+        "artifact_refs": [
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-host-check-01-inputs.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-host-check-01.stdout.jsonl",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-host-check-01-result.json"
+        ],
+        "diagnosis": {
+          "diagnosis_id": "D199-GPU-ALLOCATOR-WINDOWS-ABI-01",
+          "cause": "wgpu-hal DX12 uses Windows0.58; gpu-allocator resolved Windows0.57 types.",
+          "failure_class": "dependency_windows_abi_mismatch",
+          "distinct_from": [],
+          "evidence_refs": [
+            "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-host-check-01.stdout.jsonl",
+            "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/resolved-cargo-metadata-01.json"
+          ],
+          "remediation": "Re-resolve the existing allocator dependency closure through genuine Cargo; preserve all package versions and source pins.",
+          "resolution_command": "cargo update --manifest-path src/frontend/handshake_native/Cargo.toml gpu-allocator@0.27.0 --recursive --offline",
+          "resolution_exit_code": 0,
+          "resolution_lock_sha256": "f95da3c8556049cb3d47bba019f05b701601c1812a719a3429741bb34ac524b9",
+          "resolution_changes": [
+            "gpu-allocator.windows 0.57.0 to 0.58.0",
+            "iana-time-zone.windows-core 0.57.0 to 0.58.0"
+          ],
+          "resolution_evidence_refs": [
+            "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/dependency-resolution-05-before.lock",
+            "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/dependency-resolution-05-result.json",
+            "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/resolved-cargo-metadata-02.json"
+          ],
+          "status": "SOURCE_RESOLUTION_CHANGED_COMPILE_PENDING"
+        }
+      },
+      {
+        "record_id": "UI199-IMPLEMENTER-ABI-COMPILE-01",
+        "executor_role": "KERNEL_BUILDER",
+        "covers": [
+          "MT-199"
+        ],
+        "evidence_kind": "focused_compile_static_not_acceptance",
+        "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --package wgpu-hal -j 1 --message-format=json",
+        "exit_code": 0,
+        "completed_at": "2026-10-25T20:33:03.5344067Z",
+        "inputs_unchanged": true,
+        "input_count": 525,
+        "observed_features": [
+          "dx12",
+          "gpu-allocator",
+          "portable-atomic",
+          "renderdoc",
+          "vulkan"
+        ],
+        "diagnosis_refs": [
+          "D199-GPU-ALLOCATOR-WINDOWS-ABI-01"
+        ],
+        "artifact_root": "HANDSHAKE_ARTIFACTS_ROOT",
+        "artifact_refs": [
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-allocator-abi-check-01-inputs.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-allocator-abi-check-01.stdout.jsonl",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-allocator-abi-check-01-result.json"
+        ]
+      },
+      {
+        "record_id": "UI199-IMPLEMENTER-COMPILE-02",
+        "executor_role": "KERNEL_BUILDER",
+        "covers": [
+          "MT-199"
+        ],
+        "evidence_kind": "compile_static_only_not_acceptance",
+        "candidate_base_commit": "6b339577b6989731e418cf9795700fab24fe7ad0",
+        "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1 --keep-going --message-format=json",
+        "started_at": "2026-10-25T20:33:28.8919046Z",
+        "completed_at": "2026-10-25T20:36:18.5494144Z",
+        "exit_code": 101,
+        "inputs_unchanged": true,
+        "input_count": 525,
+        "artifact_root": "HANDSHAKE_ARTIFACTS_ROOT",
+        "artifact_refs": [
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-host-check-02-inputs.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-host-check-02.stdout.jsonl",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-host-check-02-result.json"
+        ],
+        "diagnosis": {
+          "diagnosis_id": "D199-FRAME-ID-PRIVATE-CTOR-01",
+          "cause": "Corruption test constructs private FrameId tuple instead of public from_raw.",
+          "failure_class": "test_private_sdk_constructor",
+          "distinct_from": [
+            "D199-GPU-ALLOCATOR-WINDOWS-ABI-01"
+          ],
+          "evidence_refs": [
+            "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-host-check-02.stdout.jsonl"
+          ],
+          "remediation": "Use the exact pinned SDK public FrameId::from_raw constructor in the corruption test.",
+          "affected_source_ref": "src/frontend/handshake_native/src/kumihimo.rs",
+          "repaired_source_sha256": "5e60df5310803b136ddc51508d3ae06a368d90d8453da3faac3be9c22ea31c13",
+          "status": "SOURCE_REPAIRED_COMPILE_PENDING"
+        }
+      },
+      {
+        "record_id": "UI199-IMPLEMENTER-COMPILE-03",
+        "executor_role": "KERNEL_BUILDER",
+        "executor_session": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+        "covers": [
+          "MT-199"
+        ],
+        "evidence_kind": "compile_static_only_not_runtime_acceptance",
+        "candidate_commit": "91b403f2e1242a0a4588fd9fb9d8c4b46cd84753",
+        "candidate_tree": "b130ecd45b5fc1f8de9b4787cfb3067f67c062e6",
+        "command": "cargo check --locked --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1 --keep-going --message-format=json",
+        "started_at": "2026-10-25T20:38:17.4189622Z",
+        "completed_at": "2026-10-25T20:41:06.1545641Z",
+        "exit_code": 0,
+        "input_count": 525,
+        "inputs_unchanged": true,
+        "canonical_inputs_match": 525,
+        "fresh_remote_commit_verified": true,
+        "fetched_source_content_match": "13 files identical after Git CRLF normalization; five files require newline normalization",
+        "canonical_asset_revision": "8a97b9ae445872e4143fad1eb92f9ad082017595",
+        "host_profile_sha256": "61cf1b2ae4889684c6f8403f1d60ad9d651b36a1e77ccdeded5fd6b99e8e082e",
+        "artifact_root": "HANDSHAKE_ARTIFACTS_ROOT",
+        "artifact_refs": [
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-host-check-03-inputs.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-host-check-03.stdout.jsonl",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-host-check-03-result.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/compile-settings-01/bundle-sha256.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/canonical-adoption-01.json"
+        ],
+        "diagnosis_refs": [
+          "D199-GPU-ALLOCATOR-WINDOWS-ABI-01",
+          "D199-FRAME-ID-PRIVATE-CTOR-01"
+        ],
+        "source_reviews": [
+          {
+            "reviewer": "/root/wp012_mt_vulkan_updates",
+            "scope": "Four recorded maximize/tab/divider/popout findings",
+            "result": "SOURCE_CLEAR_TESTS_UNRUN",
+            "artifact_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/review-four-fixes-01/bundle-sha256.json"
+          },
+          {
+            "reviewer": "/root/wp012_mt_vulkan_updates",
+            "scope": "Detached Settings caller/content/lifecycle/privacy; public FrameId constructor repair",
+            "result": "SOURCE_CLEAR_TESTS_UNRUN",
+            "artifact_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/review-settings-01/bundle-sha256.json"
+          }
+        ],
+        "limits": [
+          "Test targets compiled; no test bodies executed",
+          "No genuine Handshake Vulkan frame/window/runtime acceptance claimed",
+          "Shared GPU owner/client binding remains absent in current Product and MT-203 remains pending",
+          "Independent runtime/crash-survival admission remains pending"
+        ]
+      }
+    ],
+    "implementation_result": "HOST_SOURCE_PUSHED_COMPILE_GREEN_SHARED_GPU_BINDING_AND_RUNTIME_PENDING"
   }
 }
