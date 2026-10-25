@@ -1,5 +1,5 @@
 {
-  "current_team_workflow_ref": "#/operator_restart_continuation_20261025/team_workflow",
+  "current_team_workflow_ref": "#/operator_restart_continuation_20261025/team_workflow/single_mt_delivery_mode",
   "operator_code_dev_leader_team_workflow_20261023": {
     "decision_id": "WP012-CODE-DEV-LEADER-TEAM-WORKFLOW-20261023",
     "revision": 1,
@@ -20055,7 +20055,7 @@
     },
     "teams": {
       "leadership_ref": "#/operator_master_succession_20261025/leadership_and_custody",
-      "required_composition_ref": "#/operator_master_succession_20261025/team_workflow",
+      "required_composition_ref": "#/operator_restart_continuation_20261025/team_workflow/single_mt_delivery_mode/required_composition",
       "master": "01a17028-cecb-7b90-9c71-bbddd44d722e",
       "technical_allocator": "01a168a9-05b2-7630-9633-5faac88dd068",
       "sole_primary": "01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
@@ -20241,7 +20241,274 @@
       "test_and_cache_policy": "Bundle compatible focused tests/checks per build, reuse unchanged qualified proof and compatible Cargo artifacts/permissions. Preserve independent runtime acceptance and genuine changed-input/custody/admission checks. Clean only verified released disposable owned artifacts under existing exact authority; no foreign/live target deletion or blanket cleanup.",
       "checkpoint_policy": "Regular stable completed scoped checkpoints, preserve active captured refs/index/inputs; no constant empty commits/status churn, broad staging or force push. Commit/push has its own actual custody interval, separate from this noncaptured handoff edit.",
       "tick": "Existing Master heartbeat active15-minute schedule, direct resume removed pauseguard per Master owning readback. No duplicate monitor.",
-      "monitor_resume_boundary": "Direct human resume applies current Master execution; archived AUTO_PAUSED status is not a continuing human global stop. Other-team monitor pauses remain unchanged until their own actual owner/human-authorized rearm; do not rearm foreign monitors by inference."
+      "monitor_resume_boundary": "Direct human resume applies current Master execution; archived AUTO_PAUSED status is not a continuing human global stop. Other-team monitor pauses remain unchanged until their own actual owner/human-authorized rearm; do not rearm foreign monitors by inference.",
+      "required_team_composition": {
+        "record_id": "WP012-TEAM-COMPOSITION-20261025-01",
+        "recorded_at_utc": "2026-10-25T14:30:46.684Z",
+        "kind": "EXECUTION_COORDINATION_COMPOSITION_ONLY",
+        "authority_source": {
+          "kind": "DIRECT_OPERATOR_INSTRUCTION_IN_CODELEADER_CHAT",
+          "chat_id": "01a168a9-05b2-7630-9633-5faac88dd068",
+          "request_quotes": [
+            "many of you teams dont use sub agents. instruct them to use them so we have better code and catch failures, gaps and prevent making the same mistakes as we did the last couple of days.",
+            "instruct the junior coding dev leader to instruct it teams to do the same.",
+            "if another role or more role could  prevent timesinks, easy mistakes we aleady made in the past. add them to the coding teams or code check teams. use a sub agent to update the team comp. when this happens."
+          ]
+        },
+        "precedence": "Current mandatory helper use, reporting boundary and Cargo-cycle order supersede inherited optional-helper wording, direct managed-team Master reporting and any generic pre-Codecheck Diagnostics gate within this authorized workflow. Original acceptance, authors, custody, independent technical checks, finite attempts and final IV/runtime verdicts are unchanged.",
+        "required_roles": {
+          "coding": [
+            "two_disjoint_coders",
+            "front_to_back_nonauthor_checker",
+            "dependency_nonauthor_checker"
+          ],
+          "diagnostics": [
+            "actual_failure_feature_caller_auth_diagnosis_helper",
+            "actual_failure_lifecycle_dependency_proof_diagnosis_helper"
+          ],
+          "independent_codecheck": [
+            "correctness_types_unchanged_callers_cfg_dependencies",
+            "authentication_privacy_lineage",
+            "runtime_state_lifecycle_tests_proof_fit"
+          ]
+        },
+        "conditional_roles": [
+          {
+            "role": "integration_proof_entrypoint_reviewer",
+            "rule_ref": "WP012-TEAM-COMPOSITION-20261025-006",
+            "trigger": "Changed cross-module APIs, callers, authentication context, lifecycle or composed proof entrypoints.",
+            "coverage": "Trace unchanged callers and production consumers, exact auth/session propagation, executable test selectors and proof entrypoints across the whole affected feature flow."
+          },
+          {
+            "role": "capture_control_reviewer",
+            "rule_ref": "WP012-TEAM-COMPOSITION-20261025-007",
+            "trigger": "Changed execution controller, configuration, declared/effective environment or capture/custody method.",
+            "coverage": "Check bound source/config/tool/environment identities, terminal/postguard/owned-drain ordering and actual release evidence before qualifying the owning capture."
+          },
+          {
+            "role": "asset_boundary_modularity_reviewer",
+            "rule_ref": "WP012-TEAM-COMPOSITION-20261025-008",
+            "trigger": "Reusable asset capability, logic, adapter, crate boundary or pinned host integration changes.",
+            "coverage": "Check canonical asset ownership and missing capability first, focused module/crate boundaries, owning proof/publication/independent reread and exact host pin/adapter compatibility."
+          }
+        ],
+        "rules": [
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-001",
+            "requirement": "Codeleader and Junior assign each actual open WP012 MT a Coding, own Diagnostics and opposing independent Codecheck parent with real subagents; preserve actual existing authors and direct owning-parent routes."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-002",
+            "requirement": "Each active Coding parent uses two actual coders with disjoint owned write scopes, a front-to-back NONAUTHOR checker and a dependency NONAUTHOR checker; its parent remains responsible for their code and prehandoff findings."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-003",
+            "requirement": "Each independent Codecheck parent uses three distinct actual read-only helpers for correctness/types/unchanged callers/cfg/dependencies, authentication/privacy/lineage, and runtime/state/lifecycle/tests/proof fit; no helper approves its own authored delta."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-004",
+            "requirement": "Each Diagnostics parent uses distinct actual read-only helpers for feature/caller/auth and lifecycle/dependency/proof diagnosis of its actual failing MT after the shared compile; required owning capture qualification remains separate from Codecheck and final runtime acceptance."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-005",
+            "requirement": "A leader verifies actual helper identity, assigned scope, activity and returned findings before claiming its team composition or checks complete; an accepted spawn, roster, ACK, idle state or completed reader is not coding or proof."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-006",
+            "requirement": "For changed cross-module API, caller, authentication, lifecycle or composed-proof work, the parent assigns integration/proof-entrypoint review to an actual NONAUTHOR helper that checks unchanged callers and executable selectors; use a distinct specialist only when existing independent coverage does not cover that work."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-007",
+            "requirement": "For changed controller/configuration/environment/capture work, the parent assigns capture/control review to an actual NONAUTHOR helper covering declared and effective bindings, real terminals, postguards, owned drain and custody release; do not reconstruct missing history or turn a declared digest into live proof."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-008",
+            "requirement": "For asset capability/adapter/crate/pin work, the parent assigns actual asset-boundary/modularity review and uses create-assets; missing reusable features, logic or adapters are implemented and proven in their canonical asset, published and independently reread before exact pinned host adoption, with focused modules/crates and no divergent host workaround."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-009",
+            "requirement": "When a leader adds or changes a role to prevent an evidenced time sink or repeated mistake, it uses a subagent to update this existing composition unit with the role, trigger, responsibility and evidence; preserve the current single file writer and keep the update parallel to unrelated ready source work."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-010",
+            "requirement": "Every affected review covers production logic, unchanged callers, authentication, lifecycle, tests and proof entrypoints across the full affected feature flow."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-011",
+            "requirement": "Review helpers return all actionable findings within that scope together; do not narrow discovery to the first blocker or expand into an unrelated broad audit."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-012",
+            "requirement": "Coding batches compatible fixes into a coherent candidate before the next affected review or separately admitted Cargo batch; reuse valid unchanged proof and review."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-013",
+            "requirement": "Serialize only actual conflicting writes, the compiler slot and genuine execution prerequisites; preserve sole Primary physical Product/control/manifests/locks/common-Git/compiler/process custody."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-014",
+            "requirement": "Coding, Diagnostics, Codecheck and exact dependency owners communicate directly about necessary findings and repairs; routine messages do not require Root or Master relay."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-015",
+            "requirement": "Routine handoffs to Codeleader or Junior occur only after opposing Codecheck has cleared the coherent unit as Cargo-ready; keep required actual custody, tool or authority blocker escalation exact and terse, and send no ACKs, periodic status, ceremony or repeated green review."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-016",
+            "requirement": "Junior instructs and checks its managed teams under this same actual-helper composition and communication policy; Root and Junior bundle meaningful reports to Master instead of per-team spam."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-017",
+            "requirement": "After each actual Cargo cycle, leaders refresh current inputs, ownership, dependencies, proof and useful helper assignments; preserve actual authors and valid results without duplicate chats, simultaneous filler work or revival of finished work."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-018",
+            "requirement": "Teams keep large aggregate crates out of new work and rewire actual affected PostgreSQL or relational SQL remnants to SurrealDB with equivalent behavior and proof; this composition change grants no Product refactor, execution, attempt, policy bypass or acceptance."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-019",
+            "requirement": "Managed teams and their helpers do not communicate with Master Dev Leader; they coordinate necessary work and next-cycle handoffs with their managing Codeleader or sibling technical chats, while Root and Junior alone bundle meaningful reports to Master."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-020",
+            "requirement": "Keep disjoint Source work parallel, hand the coherent affected feature unit to its opposing independent Codecheck, and only after actual Codecheck clearance submit a compatible reviewed batch for one shared compile under sole Primary."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-021",
+            "requirement": "Do not require a generic Diagnostics approval before Codecheck; independent Codecheck retains the actual technical authentication, privacy, lineage, dependency, lifecycle and proof-entrypoint checks required for its changed unit."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-022",
+            "requirement": "Primary alone admits and executes the one compatible shared Cargo batch; do not start per-MT compilers, overlap the slot or duplicate green compile checks, and preserve actual execution prerequisites, input freeze, finite attempts, terminal, postguard and owned-drain requirements."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-023",
+            "requirement": "After the actual shared compile, route each actual failing MT to its Diagnostics parent and real diagnosis helpers; do not launch unchanged per-MT diagnostic reviews merely to fill the roster."
+          },
+          {
+            "rule_id": "WP012-TEAM-COMPOSITION-20261025-024",
+            "requirement": "Affected Coding teams use the actual Diagnostics findings for the next compatible repair batch and opposing Codecheck handoff; no cycle grants an automatic retry, resets attempts or replaces final independent IV/runtime acceptance."
+          }
+        ],
+        "evidence_basis": {
+          "recorded_time_sinks_ref": "#/operator_requested_repo_state_20261025/evidenced_timesinks",
+          "preserved_do_not_repeat_ref": "#/operator_requested_repo_state_20261025/do_not_repeat",
+          "prior_composition_ref": "#/operator_effective_current_state_20261023/teams/required_active_coding_composition",
+          "partner_workflow_ref": "#/operator_effective_current_state_20261023/team_workflow/operator_partner_team_workflow_20261024",
+          "latest_flow_batching_ref": "#/operator_restart_continuation_20261025/gui_delivery_workflow_delta_20261025/objective16",
+          "additional_current_examples": "Codeleader supplied current MT187 unconverted callers, orphaned composed proof helper and stale declared environment digest; these motivate targeted helper coverage, not new Product verdicts."
+        },
+        "qualification": "Required composition and responsibilities only. This record does not assert completed team rollout, actual current child activity, reviewed Source, compile/runtime admission or Product acceptance.",
+        "cargo_cycle_order": [
+          "parallel_source_work",
+          "opposing_independent_codecheck",
+          "one_primary_owned_reviewed_compatible_shared_compile",
+          "diagnostics_for_actual_failing_mts",
+          "affected_compatible_repairs_and_next_codecheck"
+        ],
+        "reporting_boundary": {
+          "managed_teams": "Managing Codeleader or sibling technical chats only; no Master Dev Leader messages.",
+          "master_reports": "Root and Junior bundle meaningful reports only."
+        }
+      },
+      "single_mt_delivery_mode": {
+        "record_id": "WP012-SINGLE-MT-DELIVERY-20261025-01",
+        "recorded_at_utc": "2026-10-25T16:09:26.597Z",
+        "kind": "CURRENT_PRODUCT_COORDINATION_SUPERSESSION_ONLY",
+        "authority_source": "Current direct human instruction relayed by Codeleader to the assigned team-composition editing subagent.",
+        "scope": {
+          "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+          "active_product_mt": "MT-172",
+          "gui_teams_and_work": "UNCHANGED. This cancellation and retirement do not stop, alter, reallocate or review GUI teams or their work.",
+          "original_acceptance_and_history": "Preserved for every original WP/MT; this workflow change records no acceptance, failure repair or closed task."
+        },
+        "precedence": "This current single-MT Product mode supersedes prior all-open-MT Product allocation, Junior management, broad rollout, role-expansion and Root/Junior Master-reporting instructions and navigation for Product coordination. Those values remain dated history. GUI coordination/work, original acceptance, actual admitted operations, ownership and execution boundaries remain unchanged.",
+        "active_actors": {
+          "root": "01a168a9-05b2-7630-9633-5faac88dd068",
+          "coding": "01a17387-13d3-7091-951e-c06728fb7e94",
+          "precompile_codecheck": "01a17387-9d99-7e61-8987-42feab10e18a",
+          "diagnostics": "01a17387-4eb3-7b81-bcc4-87402c80779f",
+          "qualification": "Existing selected MT172 actors only. This edit does not establish current helper activity, clean stops or a new source/execution lease."
+        },
+        "required_composition": {
+          "coding": [
+            "existing_two_disjoint_coders",
+            "existing_front_to_back_nonauthor_checker",
+            "existing_dependency_nonauthor_checker"
+          ],
+          "precompile_codecheck": [
+            "existing_correctness_callers_types_cfg_dependency_reviewer",
+            "existing_authentication_privacy_lineage_reviewer",
+            "existing_lifecycle_runtime_tests_proof_reviewer"
+          ],
+          "diagnostics": "Existing useful distinct helpers assigned to a concrete precompile or compile failure; no generic extra review tier or new role expansion.",
+          "helper_use": "Use and inspect actual useful helper work/results; a roster or successful dispatch is not completed review or running code."
+        },
+        "communication": {
+          "allowed_product_peers": [
+            "01a17387-13d3-7091-951e-c06728fb7e94",
+            "01a17387-9d99-7e61-8987-42feab10e18a",
+            "01a17387-4eb3-7b81-bcc4-87402c80779f",
+            "01a168a9-05b2-7630-9633-5faac88dd068"
+          ],
+          "prohibited_product_routes": "No Master, Junior or other team-leader messages from the retained MT172 trio. Previous broad Product reporting routes are superseded.",
+          "style": "Necessary technical findings, exact blockers and coherent handoffs only; no ACK, periodic status, ceremony or bloat."
+        },
+        "retirement": {
+          "requested_scope": "Junior and managed per-MT Product rollout teams except the retained MT172 trio; GUI teams and GUI work are excluded.",
+          "method": "Each retiring parent reaches its own clean stop and preserves its work and existing paperwork. Do not manufacture a new support artifact or infer release from cancellation, silence or dispatch.",
+          "confirmation": "NOT_ESTABLISHED_BY_THIS_EDIT. Actual per-owner clean-stop, process/window/handle and writer release evidence remains with its owning actor."
+        },
+        "rules": [
+          {
+            "rule_id": "WP012-SINGLE-MT-DELIVERY-20261025-001",
+            "requirement": "Cancel the multi-MT Product rollout; Root retains only the existing MT172 Coding, precompile Codecheck and Diagnostics trio for this Product coordination mode."
+          },
+          {
+            "rule_id": "WP012-SINGLE-MT-DELIVERY-20261025-002",
+            "requirement": "Retire Junior and managed per-MT Product teams at their own clean stops with their own existing paperwork, preserving original source, proof and history; do not claim all stopped from a dispatch."
+          },
+          {
+            "rule_id": "WP012-SINGLE-MT-DELIVERY-20261025-003",
+            "requirement": "Do not change, stop, retire, reallocate or review GUI teams or GUI work under this Product rollout cancellation."
+          },
+          {
+            "rule_id": "WP012-SINGLE-MT-DELIVERY-20261025-004",
+            "requirement": "The retained MT172 trio communicates only within that trio and with Root, not with Master, Junior or other team leaders."
+          },
+          {
+            "rule_id": "WP012-SINGLE-MT-DELIVERY-20261025-005",
+            "requirement": "MT172 Coding uses its actual useful disjoint authors and front-to-back/dependency NONAUTHOR helpers, preserving exact current source ownership and other authors edits."
+          },
+          {
+            "rule_id": "WP012-SINGLE-MT-DELIVERY-20261025-006",
+            "requirement": "Opposing precompile Codecheck reviews the full affected production code, unchanged callers, authentication, lifecycle, dependencies, compiler/configuration and executable test/proof entrypoints, returning all actionable findings together before one separately admitted compatible shared compile."
+          },
+          {
+            "rule_id": "WP012-SINGLE-MT-DELIVERY-20261025-007",
+            "requirement": "MT172 Diagnostics uses its own actual useful helpers for concrete precompile or compile failures; do not add a generic Diagnostics approval gate before Codecheck or duplicate unaffected green review."
+          },
+          {
+            "rule_id": "WP012-SINGLE-MT-DELIVERY-20261025-008",
+            "requirement": "Batch compatible MT172 repairs and reviewed inputs; only sole Primary admits and owns the one shared compiler operation, with no per-MT duplicate compiler or automatic repeat."
+          },
+          {
+            "rule_id": "WP012-SINGLE-MT-DELIVERY-20261025-009",
+            "requirement": "Preserve sole Primary physical Product/control/manifests/locks/common-Git/compiler/process custody and any actually admitted in-flight operation; cancellation does not terminate a foreign or owning admitted process or infer its drain/release."
+          },
+          {
+            "rule_id": "WP012-SINGLE-MT-DELIVERY-20261025-010",
+            "requirement": "Preserve actual permissions, input freeze, execution prerequisites, finite attempts, denials, real terminals/postguards/owned drain and final independent IV/runtime acceptance; this change grants no new execution or acceptance."
+          },
+          {
+            "rule_id": "WP012-SINGLE-MT-DELIVERY-20261025-011",
+            "requirement": "Create no new teams, broad audits, support artifacts, role expansion or ongoing paperwork activity for this supersession; the assigned composition helper applies and verifies this exact existing-file delta, releases its writer and stops."
+          }
+        ],
+        "superseded_product_composition_ref": "#/operator_restart_continuation_20261025/team_workflow/required_team_composition",
+        "preserved_gui_workflow_ref": "#/operator_restart_continuation_20261025/gui_delivery_workflow_delta_20261025",
+        "preserved_original_scope_ref": "#/scope_and_pins"
+      }
     },
     "source_delivery": {
       "base_state_ref": "#/operator_requested_repo_state_20261025/current_delivery",
@@ -20457,7 +20724,7 @@
       "no_product_or_git_effects": "No build/test/source/runtime/process/Git/index/commit/push from this author.",
       "latest_owner_delta": "Fresh actual Primary original command recovery/release and same asset owner diagnostic correction supplied by Master after initial author write; no source/runtime/new diagnostic action by author."
     },
-    "current_delta_ref": "#/operator_restart_continuation_20261025/gui_delivery_workflow_delta_20261025",
+    "current_delta_ref": "#/operator_restart_verified_delta_20261025",
     "current_delivery_delta_20261025": {
       "record_id": "WP012-RESTART-DELIVERY-DELTA-20261025-01",
       "recorded_at_utc": "2026-10-25T13:09:42.573622+00:00",
@@ -20767,6 +21034,220 @@
         "checks": "Duplicate-free JSON, local refs, prior-value preservation excluding saved objective/current-delta update, exact external manifest identity and scoped diff check. No new review/census/controller/proof run.",
         "source_limit": "GUI assignments/findings/delivery timeout/source-owner activity are REPORTED actual handbacks; manifest fields SOURCED, runtime independent qualification UNPROVEN."
       }
+    }
+  },
+  "operator_restart_verified_delta_20261025": {
+    "record_id": "WP012-RESTART-VERIFIED-DELTA-20261025-01",
+    "recorded_at_utc": "2026-10-25T22:52:54.269Z",
+    "scope": "Requested restart-handoff refresh only. Additive observations and next actions; no lifecycle, original acceptance, custody, permission, source pin or attempt-limit change.",
+    "previous_current_delta_ref": "#/operator_restart_continuation_20261025/gui_delivery_workflow_delta_20261025",
+    "authority_refs": [
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-VERIFY-001",
+      ".GOV/codex/Handshake_Codex_v1.4.md#CX-VERIFY-002",
+      ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md#KB-STATE-001",
+      ".GOV/roles/kernel_builder/KERNEL_BUILDER_PROTOCOL.md#KB-HANDOFF-001",
+      "packet.json"
+    ],
+    "preserved_refs": {
+      "original_open_work": "#/operator_requested_repo_state_20261025/canonical_work_sets",
+      "original_scope_and_pins": "#/scope_and_pins",
+      "all_gui_obligations": "#/operator_requested_repo_state_20261025/gui_coverage",
+      "single_mt_backend_workflow": "#/operator_restart_continuation_20261025/team_workflow/single_mt_delivery_mode",
+      "gui_workflow": "#/operator_restart_continuation_20261025/gui_delivery_workflow_delta_20261025",
+      "attempts_denials_and_runtime_limits": "#/operator_restart_continuation_20261025/proof_and_runtime/limits",
+      "time_sinks": "#/operator_requested_repo_state_20261025/evidenced_timesinks",
+      "do_not_repeat": "#/operator_requested_repo_state_20261025/do_not_repeat"
+    },
+    "backend_mt172": {
+      "owner_ref": "#/operator_restart_continuation_20261025/team_workflow/single_mt_delivery_mode/active_actors",
+      "codeleader": "01a168a9-05b2-7630-9633-5faac88dd068",
+      "sole_primary": "01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
+      "contract_refs": [
+        "MT-172.json#/closure_unit",
+        "MT-172.json#/source_import_binding",
+        "MT-172.json#/proof/consumed_source_checks"
+      ],
+      "current_evidence": [
+        "@artifacts/WP-KERNEL-012/MT-172/author-a-connected-routing-20261025/allocation-before-source.v3.json",
+        "@artifacts/WP-KERNEL-012/MT-172/author-b-recovery-regressions-20261025/candidate.v2.json"
+      ],
+      "observed": "A has the configured-registry transport allocation and external DRAFT files; inspected allocation retains the missing actual CapabilityRegistry transport guard. B v2 is SOURCE_CANDIDATE_NOT_EXECUTED and preserves original assertions/authorship. These artifacts do not establish a complete applied or accepted connected repair.",
+      "latest_review_context": {
+        "fact_class": "REPORTED_MASTER_DIRECT_CODELEADER_READ_NOT_REVIEWED_AGAIN_HERE",
+        "findings": "Configured-registry transport remains missing in B tests; by-ID assertions must observe actual HTTP results; navigation/default-authority rejection coverage needs repair. A has no complete candidate handoff in that observation."
+      },
+      "next": "Existing MT172 authors finish one coherent connected production/test repair, then existing nonauthors and Codecheck return all actionable findings together. Only current Codeleader and sole Primary sequence exact nonoverlapping adoption and the admitted shared compile. Preserve original independent runtime proof; GUI continues separately.",
+      "rework_history_refs": [
+        "MT-172.json#/remediation_record",
+        "MT-174.json#/remediation_record/session_reauthentication_diagnostic_probe_20261023",
+        "MT-174.json#/remediation_record/session_authentication_compile_capture_recovery_20261023"
+      ]
+    },
+    "mt187": {
+      "evidence_ref": "#/operator_restart_continuation_20261025/proof_and_runtime/latest_mt187",
+      "capture_root": "@artifacts/WP-KERNEL-012/MT-187/shared-check-capture-20261025-03",
+      "fresh_read": "result.json, terminal-handoff.json and private-job-final.json retain the exact hashes already recorded in the referenced evidence.",
+      "observed": {
+        "cargo_exit": 0,
+        "normalizer_exit": 0,
+        "tests_executed": false,
+        "source_drift": [],
+        "control_drift": [],
+        "head_unchanged": true,
+        "index_unchanged": true,
+        "private_job": {
+          "active": 0,
+          "terminated": 0,
+          "total": 503
+        },
+        "runtime_verdict": "NOT_ISSUED",
+        "terminal_qualification": "NOT_ISSUED"
+      },
+      "next": "Reuse this exact cfg09/map05 compile-only success; preserve original recovery/composed-authentication acceptance and named independent qualification/runtime ownership. Do not rerun its unchanged check or reconstruct prior incomplete captures."
+    },
+    "kumihimo": {
+      "actual_owner": "01a17374-1d96-7e02-9aea-77b0f62f20dc",
+      "publication_ref": ".assets/Kumihimo/.local/wp022-vulkan-proof/publication-result.json",
+      "source_binding_ref": ".assets/Kumihimo/.local/wp022-vulkan-proof/publication-source-binding.json",
+      "revision": "8a97b9ae445872e4143fad1eb92f9ad082017595",
+      "tree": "86e3f11e3532f21e722eff2beb5b51b6e7a6a81e",
+      "product_files": 197,
+      "canonical_product_content_sha256": "067b70afde8af4712318bc64905ba1f6c6940c0a21ac8cf35b1da8068b65de67",
+      "publication": "PUBLISHED_INDEPENDENTLY_REREAD in owning record; independent canonical remote/commit/tree read was completed earlier in this helper session and is reused, not represented as a new network read.",
+      "runtime_refs": [
+        ".assets/Kumihimo/.local/wp022-vulkan-proof/build-attempt10-result.json",
+        ".assets/Kumihimo/.local/wp022-vulkan-proof/eframe-attempt8-result.json",
+        ".assets/Kumihimo/.local/wp022-vulkan-proof/eframe-vulkan-attempt8/eframe-native-manifest.json"
+      ],
+      "observed": "Actual asset Vulkan; 9 captures; owned/recorded HWNDs destroyed; foreground unchanged; native bindings0; process exit0, handle disposed, PID absent. Prior invalid build attempts remain invalid. Asset proof is distinct from Handshake host acceptance.",
+      "published_url": "https://github.com/Nuntissura/assets/commit/8a97b9ae445872e4143fad1eb92f9ad082017595"
+    },
+    "handshake_gui": {
+      "owner_ref": "#/operator_restart_continuation_20261025/gui_delivery_workflow_delta_20261025/actual_gui_leadership",
+      "gui_leader": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+      "product_worktree": "../wtc-WP-KERNEL-012",
+      "branch": "feat/WP-KERNEL-012",
+      "adoption_commit": "91b403f2e1242a0a4588fd9fb9d8c4b46cd84753",
+      "adoption_tree": "b130ecd45b5fc1f8de9b4787cfb3067f67c062e6",
+      "published_url": "https://github.com/Nuntissura/Handshake/commit/91b403f2e1242a0a4588fd9fb9d8c4b46cd84753",
+      "commit_evidence": "Exact immutable local commit object freshly read and SHA1 matched; prior independent matching origin branch read retained. This checkpoint does not assert current HEAD or clean working tree.",
+      "proof_root": "@artifacts/WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01",
+      "adoption": "13-file Kumihimo native mount/detached Settings adoption; canonical manifest and lock retain exact asset8a97 pin, including eframe/egui-wgpu/accesskit patches. Earlier independent 13-file/525-input reconciliation is reused.",
+      "proof_refs": [
+        "canonical-adoption-01.json",
+        "native-host-check-03.json",
+        "native-host-check-03-result.json",
+        "native-host-check-03-inputs.json",
+        "native-host-build-01.json",
+        "native-host-build-01-result.json",
+        "native-host-build-01-inputs.json",
+        "native-runtime-01/process.json",
+        "native-runtime-01/native.stdout.log",
+        "native-runtime-01/inspect-main-02.json",
+        "native-runtime-01/screenshot-main-01.json"
+      ],
+      "compile_and_build": "Check03 cargo check --locked --tests and native build01 both terminal exit0; 525 held inputs unchanged, changed_inputs[]. Check does not execute tests. Their immutable source binding does not qualify subsequent source edits.",
+      "native_startup": {
+        "binary_sha256": "4abe7bcfa0631470df21457946736d372ca3e3bf5d94e6e37f0c6c76aa006ec7",
+        "pid": 10036,
+        "source_commit": "91b403f2e1242a0a4588fd9fb9d8c4b46cd84753",
+        "actual_adapter": "Qualcomm(R) Adreno(TM) X2-85 GPU",
+        "actual_backend": "Vulkan",
+        "observation": "native.stdout.log selected-adapter line15, not just a requested backend. Same-process recovery record retains the recorder failure; startup foreground observation was unavailable. This is a historical run, not a claim that PID10036 is live."
+      },
+      "remaining": "Renderer screenshot failed with Argus window revision stale; inspected runtime root has no successful renderer PNG and visual-debug is empty. Authenticated admitted workspace, mounted pane flows/persistence, centralized GPU ownership/accounting, full lifecycle/cleanup and Palmistry acceptance remain open. That session logged crash-socket path too long and unavailable signed watcher association. Preserve original MT199/202/203 criteria; asset probe and disconnected native startup cannot replace them.",
+      "next": "GUI owner continues the existing renderer repair and genuine current-source-bound backend/account/workspace admission, then hands exact real host proof to the existing independent owner. Reuse stable captures/build inputs; no new runner, acceptance shortcut or unchanged test replay.",
+      "latest_checkpoint_ref": "#/operator_restart_verified_delta_20261025/handshake_gui/successor_checkpoint",
+      "successor_checkpoint": {
+        "record_id": "WP012-GUI-CAPTURE-SUCCESSOR-20261025-01",
+        "recorded_at_utc": "2026-10-25T22:54:41.608Z",
+        "commit": "43405a902e87ffa9f0351b7396e066c5af654348",
+        "tree": "4a9e9cfb284d9ccdd9f199bcee859a1cef6a8c04",
+        "parent": "91b403f2e1242a0a4588fd9fb9d8c4b46cd84753",
+        "published_url": "https://github.com/Nuntissura/Handshake/commit/43405a902e87ffa9f0351b7396e066c5af654348",
+        "publication_binding": {
+          "fact_class": "REUSED_MASTER_INDEPENDENT_CANONICAL_READ",
+          "observation": "Master independently matched remote feat/WP-KERNEL-012 and all525 compile02 inputs to this published commit modulo EOL. No duplicate525-input audit or new remote read in this handoff update."
+        },
+        "proof_refs": [
+          "native-mcp-test-compile-02-inputs.json",
+          "native-mcp-test-compile-02-result.json",
+          "mcp-capture-focused-tests-01-result.json",
+          "mcp-capture-focused-tests-01.stdout.txt",
+          "native-mcp-test-compile-03-inputs.json",
+          "native-mcp-test-compile-03.json",
+          "native-mcp-test-compile-03-result.json"
+        ],
+        "compile02": "Fresh result read: terminal exit0,525held inputs unchanged. Compile-only, no runtime acceptance.",
+        "focused_tests01": {
+          "commit": "43405a902e87ffa9f0351b7396e066c5af654348",
+          "exit_code": 101,
+          "passed": 8,
+          "failed": 6,
+          "ignored": 0,
+          "observation": "Actual stdout confirms8pass/6fail. Master independent diagnosis: six fail before capture because agent_label is missing; the nominally passing initial-stale test is also a false-positive because it checks the same generic error code. Seven direct ownership/privacy tests passed. Retain this failed result; no capture-fix PASS follows."
+        },
+        "successor_source": {
+          "fact_class": "REUSED_MASTER_SCOPED_SOURCE_AND_INPUT_RECONCILIATION",
+          "observation": "Current mcp/server.rs successor supplies labels and checks the specific stale-revision message; only that input changed in compile03. Existing GUI owner retains the repair."
+        },
+        "compile03": {
+          "fact_class": "NEW_TERMINAL_ARTIFACT_FRESHLY_READ",
+          "completed_at": "2026-10-25T22:52:50.3319431Z",
+          "exit_code": 0,
+          "held_inputs": 525,
+          "unchanged_inputs": true,
+          "changed_inputs": [],
+          "command_kind": "cargo test --lib --no-run",
+          "acceptance": "Compile-only. No focused-test successor result or real renderer runtime verdict inspected here."
+        },
+        "next": "Existing GUI owner and proof owners continue the changed-input focused proof and actual renderer/workspace acceptance under existing authority. Reuse the seven valid unaffected ownership/privacy results; no unchanged whole replay or fresh framework from this handoff. Original runtime, GPU/lifecycle and full acceptance remain open."
+      }
+    },
+    "architecture": {
+      "operator_direction": "ARM64 host; Handshake applications target x64. ARM application support is later.",
+      "profile_ref": "@artifacts/WP-KERNEL-012/MT-174/kb-phase02/primary-durable-capture-20261021-01/schema166-b-stack32m-host-profile-01.json",
+      "toolchain": "1.97.1-x86_64-pc-windows-msvc",
+      "VSCMD_ARG_HOST_ARCH": "arm64",
+      "VSCMD_ARG_TGT_ARCH": "x64",
+      "binary_root": "@artifacts/WP-KERNEL-012/MT-174/kb-phase02/target/debug",
+      "observed_binaries": [
+        {
+          "name": "handshake-native.exe",
+          "sha256": "4abe7bcfa0631470df21457946736d372ca3e3bf5d94e6e37f0c6c76aa006ec7",
+          "pe_machine": "0x8664",
+          "optional_magic": "0x20b"
+        },
+        {
+          "name": "palmistry.exe",
+          "sha256": "33d4a26febe494ba0899048ce61611158be6531514b6292ec6bf0cc9bb0ee486",
+          "pe_machine": "0x8664",
+          "optional_magic": "0x20b"
+        },
+        {
+          "name": "handshake_core.exe",
+          "sha256": "3bc083f0988cf7c7fcb3fdda67e320731a7bc4e36f85f119d9b3b32b1627fbb9",
+          "pe_machine": "0x8664",
+          "optional_magic": "0x20b"
+        }
+      ],
+      "limit": "PE headers and SHA256 freshly read without executing binaries. ARM64 Python is a host proof helper, not application architecture. Existing Core x64 binary remains historical and is not current-source-qualified by this header check."
+    },
+    "queued_work": {
+      "refs": [
+        "MT-204.json#/lifecycle",
+        "MT-205.json#/lifecycle",
+        "MT-206.json#/lifecycle",
+        "MT-207.json#/lifecycle",
+        "MT-208.json#/lifecycle",
+        "MT-209.json#/lifecycle"
+      ],
+      "observed": "All six BLOCKED, active:false, unclaimed; retained queued work. Backend allocation follows current MT172 mode; MT209 retains its own GUI/dependency allocation boundaries. No activation, cancellation or scope reduction from this handoff."
+    },
+    "verification": {
+      "method": "Focused authority and artifact reads; exact immutable commit-object digest, executable PE/hash reads, targeted JSON/ref/preservation/diff checks. No build/test/runtime, source rereview, process control, new chat, Git mutation or publication.",
+      "preservation": "Only the existing restart current_delta_ref changes and this additive object is inserted. All prior bytes outside those two edits and all existing lifecycle fields remain intact.",
+      "writer": "Released after successful exact guarded write and readback; no ongoing writer reservation."
     }
   }
 }
