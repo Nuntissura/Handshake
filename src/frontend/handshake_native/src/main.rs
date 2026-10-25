@@ -564,6 +564,9 @@ fn main() -> eframe::Result<()> {
         viewport: root_viewport,
         renderer: eframe::Renderer::Wgpu,
         wgpu_options: requested_backend.configuration(),
+        persistence_path: std::env::var_os("HANDSHAKE_NATIVE_PERSISTENCE_PATH")
+            .filter(|path| !path.is_empty())
+            .map(std::path::PathBuf::from),
         ..Default::default()
     };
 
