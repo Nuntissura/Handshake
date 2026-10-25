@@ -3,7 +3,7 @@
 mod surreal_test_store_support;
 
 use handshake_core::storage::surreal::resource_authority::{
-    AuthorizationRequest, RecordUserScope, ResourceAction, ResourceKind,
+    AuthorizationRequest, ResourceAction, ResourceKind,
 };
 use handshake_core::test_harness::crdt_workspace::AuthenticatedModelLaneTestOperation;
 
@@ -513,16 +513,10 @@ impl Harness {
         let context = storage.authenticate_local_session(&session.token, &channel_hash)
             .await.expect("authenticate issued session");
         assert_eq!(context.session_id, session.session_id);
-        let workspace = storage.create_account_workspace(&context, &RecordUserScope {
-            workspace_id: Some(uuid::Uuid::now_v7().to_string()),
-            resource_id: uuid::Uuid::now_v7().to_string(),
-            session_id: context.session_id.clone(),
-            session_token: session.token.clone(),
-            channel_binding_hash: Some(channel_hash.clone()),
-            capability_id: "fs.write".into(),
-            action: ResourceAction::Create,
-            grant_id: None,
-        }, NewWorkspace { name: format!("recovery-{label}") })
+        let workspace = AuthenticatedModelLaneTestOperation::create_workspace(
+            &storage, &session.token, &channel_hash,
+            NewWorkspace { name: format!("recovery-{label}") },
+        )
             .await.expect("canonical workspace and creator grant");
         let scope = exact_scope(&context, &workspace.id);
         let lifecycle = storage.resource_access_lifecycle();

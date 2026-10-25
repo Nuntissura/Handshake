@@ -56,6 +56,26 @@ pub struct AuthenticatedModelLaneTestOperation {
 
 #[cfg(feature = "test-utils")]
 impl AuthenticatedModelLaneTestOperation {
+    pub async fn create_workspace(
+        storage: &crate::storage::surreal::SurrealStorage,
+        session_token: &str,
+        channel_binding_hash: &str,
+        workspace: crate::storage::NewWorkspace,
+    ) -> Result<crate::storage::Workspace, crate::storage::surreal::resource_authority::ResourceAuthorityError> {
+        let context = storage.authenticate_local_session(session_token, channel_binding_hash).await?;
+        let scope = crate::storage::surreal::resource_authority::RecordUserScope {
+            workspace_id: Some(uuid::Uuid::now_v7().to_string()),
+            resource_id: uuid::Uuid::now_v7().to_string(),
+            session_id: context.session_id.clone(),
+            session_token: session_token.to_owned(),
+            channel_binding_hash: Some(channel_binding_hash.to_owned()),
+            capability_id: "fs.write".to_owned(),
+            action: crate::storage::surreal::resource_authority::ResourceAction::Create,
+            grant_id: None,
+        };
+        storage.create_account_workspace(&context, &scope, workspace).await
+    }
+
     pub async fn authorize(
         storage: crate::storage::surreal::SurrealStorage,
         request: crate::storage::surreal::resource_authority::AuthorizationRequest,

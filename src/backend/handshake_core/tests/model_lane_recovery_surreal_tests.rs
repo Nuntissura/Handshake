@@ -8,7 +8,7 @@ use handshake_core::storage::knowledge::{KnowledgeStore, NewKnowledgeRichDocumen
 use handshake_core::storage::surreal::{SurrealDatabase, SurrealStorage};
 use handshake_core::storage::surreal::local_accounts::{password_verifier, LocalSessionContext};
 use handshake_core::storage::surreal::resource_authority::{
-    AuthorizationRequest, RecordUserScope, ResourceAction, ResourceKind,
+    AuthorizationRequest, ResourceAction, ResourceKind,
 };
 use handshake_core::storage::NewWorkspace;
 use handshake_core::swarm_orchestration::model_lane::{
@@ -70,16 +70,10 @@ impl Harness {
         let context = storage.authenticate_local_session(&session.token, &channel_hash)
             .await.expect("authenticate issued session");
         assert_eq!(context.session_id, session.session_id);
-        let workspace = storage.create_account_workspace(&context, &RecordUserScope {
-            workspace_id: Some(uuid::Uuid::now_v7().to_string()),
-            resource_id: uuid::Uuid::now_v7().to_string(),
-            session_id: context.session_id.clone(),
-            session_token: session.token.clone(),
-            channel_binding_hash: Some(channel_hash.clone()),
-            capability_id: "fs.write".into(),
-            action: ResourceAction::Create,
-            grant_id: None,
-        }, NewWorkspace { name: format!("recovery-{label}") })
+        let workspace = AuthenticatedModelLaneTestOperation::create_workspace(
+            &storage, &session.token, &channel_hash,
+            NewWorkspace { name: format!("recovery-{label}") },
+        )
             .await.expect("canonical workspace and creator grant");
         let scope = exact_scope(&context, &workspace.id);
         let lifecycle = storage.resource_access_lifecycle();
