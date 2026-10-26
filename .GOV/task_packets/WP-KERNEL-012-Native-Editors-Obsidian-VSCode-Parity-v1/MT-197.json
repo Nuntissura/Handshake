@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-197",
   "created_at_utc": "2026-10-24T16:59:01.024Z",
-  "updated_at_utc": "2026-10-24T17:29:17.190Z",
+  "updated_at_utc": "2026-10-26T12:38:22.8162028Z",
   "identity": {
     "mt_id": "MT-197",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -614,7 +614,29 @@
   },
   "design_result": {
     "status": "NOT_STARTED",
-    "all_contract_coverage": [],
+    "all_contract_coverage": [
+      {
+        "artifact_ref": "WP-KERNEL-012/ui-design-candidates-20261024-01/gui-contract-sequencing/wp012-current-all-mt-vulkan-reconciliation-candidate.json",
+        "artifact_sha256": "0cffb1e0f15294e2582d013b489afd55a03a28141fb7d1a24f04a688c0e0edc6",
+        "rows_pointer": "#/rows",
+        "schema": "handshake.gui_coverage_reconciliation_candidate@1",
+        "authority": "CANDIDATE_FOR_RETAINED_MT197_AUTHOR_NOT_STATUS_OR_VERDICT"
+      },
+      {
+        "artifact_ref": "WP-KERNEL-012/ui-design-candidates-20261024-01/frontend-interaction/original-workflow-coverage-candidate.json",
+        "artifact_sha256": "bff62b24439187d94707b125305a410a840ce7db1b518e05ab0f40548f9833bc",
+        "rows_pointer": "#/microtasks",
+        "artifact_kind": "EXTERNAL_UI_DESIGN_INPUT_CANDIDATE",
+        "authority": "NON_AUTHORITATIVE_DESIGN_CANDIDATE"
+      },
+      {
+        "artifact_ref": "WP-CKC-posekit-overhaul/ckc-gui-team/all-mt-coverage.json",
+        "artifact_sha256": "0f9198dddec516629d5e733c124763cbb5b950073854a2c3661974ad2c8cdec8",
+        "rows_pointer": "#/rows",
+        "artifact_kind": "ckc-all-mt-vulkan-gui-reconciliation-candidate",
+        "authority": "NON_AUTHORITATIVE_CANDIDATE_FOR_EXISTING_COVERAGE_OWNER"
+      }
+    ],
     "design": null,
     "prototype_workflow_feedback": [],
     "renderer_decision": null,
@@ -622,6 +644,35 @@
     "spec_refinement_disposition": null,
     "note": "Populate this owning result without duplicate report/inventory. Prototype feedback is not real-app acceptance.",
     "settings_hierarchy": null,
-    "central_gpu_ownership_and_memory_contract": null
+    "central_gpu_ownership_and_memory_contract": null,
+    "coverage_snapshot_limit": "References resolve beneath the verified Handshake_Artifacts root. Preserve original coverage IDs, acceptance/proof anchors, historical source/contract hashes, held cases and non-UI obligations. Overlaps are references, never additional contract counts. Snapshot hashes differ from current contracts; these links establish neither fresh completeness, implementation, runtime nor acceptance. Lifecycle, verdict and design status unchanged.",
+    "bounded_current_source_deltas_20261026": [
+      {
+        "original_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-102.json#/scope/acceptance_criteria/0",
+        "snapshot_row": "all_contract_coverage/0#/rows/101",
+        "source": "src/frontend/handshake_native/src/visual_debugger/mod.rs",
+        "finding": "LayoutTreeInspection/from_snapshot discard existing typed Kumihimo Captured/CaptureFailed state, leaving legacy summaries in the layout-tree dump.",
+        "state": "SOURCE_VERIFIED_IMPLEMENTATION_OPEN_RUNTIME_NOT_RUN",
+        "reader": "/root/wp012_gui_coverage_reuse"
+      },
+      {
+        "original_contract": ".GOV/task_packets/WP-CKC-posekit-overhaul/MT-050.json#/gui_obligation/expected_evidence/1",
+        "snapshot_row": "all_contract_coverage/2#/rows/49",
+        "source": "src/frontend/handshake_native/src/atelier_panel.rs",
+        "source_sha256": "cb4b11b7b821b9c3293881635db2f6cb33ddbfd7bd1dd3842113c3d9d32098b5",
+        "finding": "A failed exported PNG byte fetch retains the observed artifact ref; sync cannot fetch the same ref again and no explicit retry control exists. Preserve export-snapshot pose metadata, which is already present.",
+        "state": "SOURCE_VERIFIED_IMPLEMENTATION_OPEN_RUNTIME_NOT_RUN",
+        "reader": "/root/ckc_gui_contract_delta"
+      },
+      {
+        "original_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-021.json#/scope/acceptance_criteria/3",
+        "snapshot_row": "all_contract_coverage/1#/microtasks/277",
+        "source": "src/frontend/handshake_native/src/settings_dialog.rs",
+        "source_sha256": "fdefdbbde4d0c584c0a2bc48eccb1b828dcd2dd52629f7331d6034e77c47f29c",
+        "finding": "settings.engine-profiles.create opens the editor but supplies no required action-effect acknowledgement after successful draft opening.",
+        "state": "SOURCE_VERIFIED_IMPLEMENTATION_OPEN_RUNTIME_NOT_RUN",
+        "reader": "/root/wp1_gui_contract_delta"
+      }
+    ]
   }
 }

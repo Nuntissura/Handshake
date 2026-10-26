@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-200",
   "created_at_utc": "2026-10-24T16:59:01.024Z",
-  "updated_at_utc": "2026-10-24T17:29:17.190Z",
+  "updated_at_utc": "2026-10-26T12:38:22.9273099Z",
   "identity": {
     "mt_id": "MT-200",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -123,7 +123,7 @@
     "current_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/current_retry_policy"
   },
   "execution": {
-    "lane": "planned_implementation",
+    "lane": "implementation",
     "foreground_or_interactive_tools_forbidden": false,
     "depends_on": [
       "MT-197"
@@ -155,17 +155,25 @@
     "product_worktree": "../wtc-WP-KERNEL-012",
     "product_branch": "feat/WP-KERNEL-012",
     "ownership": {
-      "claimed_by": null,
-      "source_writer": null,
-      "state": "PLANNED_UNCLAIMED_NO_CURRENT_PRODUCT_WRITE_LEASE",
-      "candidate_scope": "material-docking/**",
-      "shared_paths": "One actual writer per app/lib/manifest/backend_client hook, explicit current-holder release and receiver acknowledgement. Primary alone physically applies Product and owns compiler/Git."
+      "claimed_by": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+      "source_writer": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+      "state": "OPERATOR_WAIVER_RESET02_SOURCE_PUBLISHED_STATIC_QUALIFIED",
+      "candidate_scope": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-200/layout-reset-confirmation-02",
+      "shared_paths": "This actual GUI author serialized the exact five-file reviewed reset02 adoption under the direct Operator waiver. Foreign processes and actual source/compiler holds remain protected; no runtime authority inferred."
     },
     "interaction_policy": {
       "prototype": "Controlled quiet isolated prototype interaction with owned test window/session, preserve Operator focus/input and explicit actual owner.",
       "genuine_product": "Only separately admitted genuine Product GUI proof under current named independent route, resource/auth/process safeguards and actual allowance. Prototype permission is not a runtime grant.",
       "source_stage": "No arbitrary app launch or authority bypass from source work."
-    }
+    },
+    "allowed_paths": [
+      null,
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/kumihimo.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_top_menu_bar.rs",
+      "src/frontend/handshake_native/tests/test_backend_down_responsive.rs"
+    ]
   },
   "proof": {
     "parent_proof_refs": [
@@ -261,9 +269,9 @@
     "blocks": [
       "MT-202"
     ],
-    "active": false,
+    "active": true,
     "validator_verdict": "PENDING",
-    "claimed_by": null,
+    "claimed_by": "01a1738d-2b8e-7151-9e9e-3972429af70c",
     "completed_by": null,
     "blocked_on": null
   },
@@ -279,7 +287,11 @@
       "src/frontend/handshake_native/src/theme/",
       "src/frontend/handshake_native/src/top_menu_bar.rs",
       "src/frontend/handshake_native/src/accessibility/",
-      "src/frontend/handshake_native/src/settings_dialog.rs"
+      "src/frontend/handshake_native/src/settings_dialog.rs",
+      "src/frontend/handshake_native/src/kumihimo.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_top_menu_bar.rs",
+      "src/frontend/handshake_native/tests/test_backend_down_responsive.rs"
     ],
     "forbidden_paths": [
       "Files outside exact actual owning allocation",
@@ -304,7 +316,7 @@
       "canonical_renderer_owner": "UNKNOWN_PENDING_DESIGN; no invented new asset",
       "basis": "Existing native Cargo/main/layout/search contracts; exact source files narrow under actual allocation."
     },
-    "activation_state": "PLANNED_UNCLAIMED_UNVERIFIED",
+    "activation_state": "PARTIAL_SOURCE_APPLIED_STATIC_QUALIFIED_FULL_ACCEPTANCE_PENDING",
     "diagnostics_boundary": "Existing internal_diagnostics GUI event producers and canonical standalone Palmistry watcher/event transport. No new watcher/controller/automatic restart/OS remediation/model authority or blanket source lease."
   },
   "gui_obligation": {
@@ -500,7 +512,7 @@
   "operator_authority": {
     "approval_ref": "packet.json#/operator_professional_desktop_ui_20261024",
     "scope_approval_recorded": true,
-    "implementation_state": "PLANNED_UNCLAIMED_UNVERIFIED",
+    "implementation_state": "SOURCE_PUBLISHED_X64_STATIC_QUALIFIED_PARTIAL_MT200",
     "runtime_permission_inferred": false,
     "new_attempts_granted": false,
     "current_retry_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/current_retry_policy",
@@ -609,7 +621,72 @@
   },
   "validation": {
     "review_verdict": "PENDING",
-    "proof_records": [],
-    "implementation_result": "NOT_IMPLEMENTED_NOT_RUN"
+    "proof_records": [
+      {
+        "proof_record_id": "UI200-RESET02-X64-STATIC-20261026-01",
+        "batch_owner": "MT-200",
+        "covers": [
+          "MT-199",
+          "MT-200",
+          "MT-202"
+        ],
+        "claim": "Five-file native reset confirmation, pinned maximized/floating reconciliation, late-layout retirement, snapshot/live separation and affected manual compile/static only",
+        "command": "cargo check --locked --offline --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1 --keep-going --message-format=json",
+        "result_ref": "gui_reset02_owned_adoption_20261026#/qualification_result",
+        "published_product_commit": "58bfe38014c9b1ab7d4e13a1f570affd21c4fd8e",
+        "tests_run": false,
+        "runtime_run": false,
+        "independent_verdict": "PENDING_UNCHANGED"
+      }
+    ],
+    "implementation_result": "Reset Layout02 source published and x64-static-qualified; focused genuine GUI/persistence/lifecycle proof and remaining original MT200 behavior unresolved"
+  },
+  "gui_reset02_owned_adoption_20261026": {
+    "record_id": "UI200-RESET02-OWNED-20261026-01",
+    "owner": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+    "operator_waiver": "you dont need ownership hand off, you just take it. my waiver",
+    "authorization": "preserve the existing catalog edits, fix the bootstrap conflict and continue the vulkan gui. work in parallel while the compile runs, and dont notify other team leaders.",
+    "batch_owner": "MT-200",
+    "covered_mts": [
+      "MT-199",
+      "MT-200",
+      "MT-202"
+    ],
+    "original_behavior_ref": ".GOV/task_packets/WP-KERNEL-011-Native-WorkSurface-Shell-v1/MT-015.json AC7/MC7/R7; inherited existing Reset Layout menu/palette/Settings routes; WP012 MT097 saved-layout reset context",
+    "candidate": "Handshake_Artifacts/WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-200/layout-reset-confirmation-02",
+    "binding_sha256": "4a873311c148b1e88ced7392e135565b741db54867be68a731385eb7c735038d",
+    "source_review_ref": "layout-reset-confirmation-02/source-review.json",
+    "source_review_sha256": "154b871e6d0d7fe5fa6c0580e40bee7f389821af9d4e5ecfd584948aa6c56931",
+    "source_base_commit": "4b624aa925b0e1f06a4b1e001d828295d17eddf2",
+    "candidate_paths": [
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/kumihimo.rs",
+      "src/frontend/handshake_native/src/manual_content_editors.rs",
+      "src/frontend/handshake_native/tests/test_top_menu_bar.rs",
+      "src/frontend/handshake_native/tests/test_backend_down_responsive.rs"
+    ],
+    "state": "SOURCE_PUBLISHED_X64_STATIC_QUALIFIED_FULL_ACCEPTANCE_PENDING",
+    "qualification": "One permitted x64 native cargo check --locked --offline --tests on changed reset inputs, same existing target/config and fixed export; no runnable tests or runtime",
+    "preserved": "Original acceptance, dependency and release pins, historical outcomes, independent verdict and full three-WP runtime obligations unchanged",
+    "runtime_permission_inferred": false,
+    "source_custody": "Apply only after fresh exact preimage and actual process checks; no foreign hold or source release inferred",
+    "published_product_commit": "58bfe38014c9b1ab7d4e13a1f570affd21c4fd8e",
+    "proof_record_id": "UI200-RESET02-X64-STATIC-20261026-01",
+    "qualification_result": {
+      "artifact_root_relative": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-200/native-check-01",
+      "result": "result.json",
+      "source_review": "layout-reset-confirmation-02/source-review.json",
+      "input_manifest_sha256": "fd3bd30a89320233a92c17c1b2a1d5bb7333d58cf2585f27630df8f3f26ba9f9",
+      "exit_code": 0,
+      "unchanged_inputs": true,
+      "compiler_pid": 33180,
+      "completed_at_utc": "2026-10-26T12:35:09.674323Z",
+      "released_handles": 1079,
+      "released_at_utc": "2026-10-26T12:35:09.7385759Z",
+      "tests_run": false,
+      "runtime_run": false,
+      "publication": "publication-01.json",
+      "test_body_status": "Focused reset tests typechecked, not executed; no runnable test binaries produced"
+    }
   }
 }

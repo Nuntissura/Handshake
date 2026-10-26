@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-201",
   "created_at_utc": "2026-10-24T16:59:01.024Z",
-  "updated_at_utc": "2026-10-24T17:29:17.190Z",
+  "updated_at_utc": "2026-10-26T12:38:22.9714747Z",
   "identity": {
     "mt_id": "MT-201",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -110,7 +110,7 @@
     "current_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/current_retry_policy"
   },
   "execution": {
-    "lane": "planned_implementation",
+    "lane": "implementation",
     "foreground_or_interactive_tools_forbidden": false,
     "depends_on": [
       "MT-197"
@@ -119,7 +119,17 @@
       "src/frontend/handshake_native/src/search_rail.rs",
       "src/frontend/handshake_native/src/backend_client.rs",
       "src/frontend/handshake_native/src/command_palette.rs",
-      "src/frontend/handshake_native/src/quick_switcher.rs"
+      "src/frontend/handshake_native/src/quick_switcher.rs",
+      "src/frontend/handshake_native/Cargo.toml",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/diagnostics/gui_events.rs",
+      "src/frontend/handshake_native/src/editor_pane_factories.rs",
+      "src/frontend/handshake_native/src/rich_editor/document_owner.rs",
+      "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/handshake_native/src/rich_editor/save/draft_manager.rs",
+      "src/frontend/handshake_native/src/search_rail/composition.rs",
+      "src/frontend/handshake_native/src/split_layout.rs",
+      "src/frontend/handshake_native/Cargo.lock"
     ],
     "forbidden_write_paths": [
       "Files outside exact actual owning allocation",
@@ -136,11 +146,11 @@
     "product_worktree": "../wtc-WP-KERNEL-012",
     "product_branch": "feat/WP-KERNEL-012",
     "ownership": {
-      "claimed_by": null,
-      "source_writer": null,
-      "state": "PLANNED_UNCLAIMED_NO_CURRENT_PRODUCT_WRITE_LEASE",
-      "candidate_scope": "material-docking/**",
-      "shared_paths": "One actual writer per app/lib/manifest/backend_client hook, explicit current-holder release and receiver acknowledgement. Primary alone physically applies Product and owns compiler/Git."
+      "claimed_by": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+      "source_writer": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+      "state": "OPERATOR_WAIVER_SOURCE_PUBLISHED_STATIC_QUALIFIED",
+      "candidate_scope": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-201\\handpick-native-composition-04",
+      "shared_paths": "This actual GUI author serializes the frozen ten-file Handpick04 adoption and required native lock resolution. Reset Layout app.rs candidate is frozen separately. Existing foreign processes and actual compile/source holds are not released by allocation."
     },
     "interaction_policy": {
       "prototype": "Controlled quiet isolated prototype interaction with owned test window/session, preserve Operator focus/input and explicit actual owner.",
@@ -240,9 +250,9 @@
     "blocks": [
       "MT-202"
     ],
-    "active": false,
+    "active": true,
     "validator_verdict": "PENDING",
-    "claimed_by": null,
+    "claimed_by": "01a1738d-2b8e-7151-9e9e-3972429af70c",
     "completed_by": null,
     "blocked_on": null
   },
@@ -252,7 +262,17 @@
       "src/frontend/handshake_native/src/search_rail.rs",
       "src/frontend/handshake_native/src/backend_client.rs",
       "src/frontend/handshake_native/src/command_palette.rs",
-      "src/frontend/handshake_native/src/quick_switcher.rs"
+      "src/frontend/handshake_native/src/quick_switcher.rs",
+      "src/frontend/handshake_native/Cargo.toml",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/diagnostics/gui_events.rs",
+      "src/frontend/handshake_native/src/editor_pane_factories.rs",
+      "src/frontend/handshake_native/src/rich_editor/document_owner.rs",
+      "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/handshake_native/src/rich_editor/save/draft_manager.rs",
+      "src/frontend/handshake_native/src/search_rail/composition.rs",
+      "src/frontend/handshake_native/src/split_layout.rs",
+      "src/frontend/handshake_native/Cargo.lock"
     ],
     "forbidden_paths": [
       "Files outside exact actual owning allocation",
@@ -275,7 +295,7 @@
       "canonical_renderer_owner": "UNKNOWN_PENDING_DESIGN; no invented new asset",
       "basis": "Existing native Cargo/main/layout/search contracts; exact source files narrow under actual allocation."
     },
-    "activation_state": "PLANNED_UNCLAIMED_UNVERIFIED",
+    "activation_state": "SOURCE_APPLIED_STATIC_QUALIFIED_FULL_ACCEPTANCE_PENDING",
     "diagnostics_boundary": "Existing internal_diagnostics GUI event producers and canonical standalone Palmistry watcher/event transport. No new watcher/controller/automatic restart/OS remediation/model authority or blanket source lease."
   },
   "gui_obligation": {
@@ -452,7 +472,7 @@
       "residual_risks",
       "proposed_followups"
     ],
-    "worker_final_status": "PLANNED_UNCLAIMED_UNVERIFIED"
+    "worker_final_status": "PARTIAL_SOURCE_PUBLISHED_STATIC_QUALIFIED_ACCEPTANCE_PENDING"
   },
   "red_team": {
     "required": true,
@@ -471,7 +491,7 @@
   "operator_authority": {
     "approval_ref": "packet.json#/operator_professional_desktop_ui_20261024",
     "scope_approval_recorded": true,
-    "implementation_state": "PLANNED_UNCLAIMED_UNVERIFIED",
+    "implementation_state": "SOURCE_PUBLISHED_X64_STATIC_QUALIFIED_FULL_ACCEPTANCE_PENDING",
     "runtime_permission_inferred": false,
     "new_attempts_granted": false,
     "current_retry_authority_ref": "packet.json#/operator_professional_desktop_ui_20261024/authority_and_preservation/current_retry_policy",
@@ -567,7 +587,86 @@
   },
   "validation": {
     "review_verdict": "PENDING",
-    "proof_records": [],
-    "implementation_result": "NOT_IMPLEMENTED_NOT_RUN"
+    "proof_records": [
+      {
+        "record_id": "UI201-HANDPICK04-X64-STATIC-20261026-01",
+        "executor_role": "KERNEL_BUILDER",
+        "executor_session": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+        "scope": "Applied Handpick04 and affected x64 native compile/static qualification only",
+        "command": [
+          "cargo",
+          "check",
+          "--locked",
+          "--offline",
+          "--manifest-path",
+          "src/frontend/handshake_native/Cargo.toml",
+          "--tests",
+          "-j",
+          "1",
+          "--keep-going",
+          "--message-format=json"
+        ],
+        "exit_code": 0,
+        "input_manifest_sha256": "3333c83c25ef853f5de2e16d16c7190d64037c8de6ec594496eac92bc83cd18c",
+        "input_ref": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-201\\native-check-01\\inputs.json",
+        "result_ref": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-201\\native-check-01\\result.json",
+        "release_ref": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-201\\native-check-01\\released.json",
+        "adoption_ref": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-201\\handpick04-adoption-01.json",
+        "lock_delta_ref": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-201\\lock-resolution-01\\minimal-lock-delta.json",
+        "source_review_ref": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-201\\handpick-native-composition-04\\source-review.json",
+        "published_product_commit": "4b624aa925b0e1f06a4b1e001d828295d17eddf2",
+        "publication_ref": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-201\\publication-01.json",
+        "relevant_inputs_unchanged": true,
+        "canonical_head_after_unrelated_backend_commit": "f96d076e3d102089d49d0124446e2857635f31c9",
+        "index_and_refs_held": false,
+        "tests": "Four settlement test bodies typechecked by cargo check --tests only. No new runnable test binary or test execution; the existing named independent owner/admitted route remains required.",
+        "runtime": "NOT_RUN; full Handpick workflow and three-WP GUI/workbench/Palmistry acceptance remain open."
+      }
+    ],
+    "implementation_result": "SOURCE_APPLIED_PUBLISHED_X64_STATIC_QUALIFIED_PARTIAL_MT201"
+  },
+  "gui_handpick04_owned_adoption_20261026": {
+    "record_id": "UI201-OWNED-HANDPICK04-20261026-01",
+    "operator_waiver": "you dont need ownership hand off, you just take it. my waiver",
+    "authorization": "Direct operator waiver in this chat for assigned three-WP GUI work, preserving independent proof and genuine resource conflicts.",
+    "owner": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+    "candidate": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-201\\handpick-native-composition-04",
+    "binding_sha256": "6545999f880056ac585aecb7cfe6bb44bc9d8b97b9957d77ea040af562d90e59",
+    "source_review_ref": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\per-mt-teams-20261024-01\\WP012\\MT-201\\handpick-native-composition-04\\source-review.json",
+    "candidate_paths": [
+      "src/frontend/handshake_native/Cargo.toml",
+      "src/frontend/handshake_native/src/app.rs",
+      "src/frontend/handshake_native/src/diagnostics/gui_events.rs",
+      "src/frontend/handshake_native/src/editor_pane_factories.rs",
+      "src/frontend/handshake_native/src/rich_editor/document_owner.rs",
+      "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs",
+      "src/frontend/handshake_native/src/rich_editor/save/draft_manager.rs",
+      "src/frontend/handshake_native/src/search_rail/composition.rs",
+      "src/frontend/handshake_native/src/search_rail.rs",
+      "src/frontend/handshake_native/src/split_layout.rs"
+    ],
+    "required_lock_companion": "src/frontend/handshake_native/Cargo.lock",
+    "manifest_and_lock_policy": "Only this actual guarded application/resolution owner changes these native inputs; no foreign process or shared-source release is inferred.",
+    "draft_settlement_prerequisite": "src/frontend/handshake_native/src/rich_editor/save/draft_manager.rs",
+    "qualification": "Affected x64 compile/static check with existing target/config only after actual preimage/process/source guards.",
+    "runtime": "NOT_GRANTED_BY_THIS_RECORD; four settlement tests require original named independent proof owner/admitted route.",
+    "preserved": "Original acceptance, source pins, historical outcomes and full three-WP GUI/workbench/Palmistry proof remain open.",
+    "state": "SOURCE_APPLIED_PUBLISHED_X64_STATIC_QUALIFIED_RUNTIME_AND_FULL_PARITY_OPEN",
+    "proof_record_id": "UI201-HANDPICK04-X64-STATIC-20261026-01",
+    "published_product_commit": "4b624aa925b0e1f06a4b1e001d828295d17eddf2",
+    "independent_proof_route": {
+      "authority_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_master_succession_20261025/leadership_and_custody/independent_validator",
+      "existing_owner_thread": "01a16b9e-0d1e-7b81-b116-05291184319b",
+      "existing_owner_title": "WP012-Independent-Validation-Control-successor-20261024",
+      "state": "OWNER_IDENTIFIED_EXECUTION_ADMISSION_NOT_BOUND",
+      "candidate_commit": "4b624aa925b0e1f06a4b1e001d828295d17eddf2",
+      "test_selector": "rich_editor::save::draft_manager::write_settlement_tests",
+      "missing": [
+        "Actual scoped command/config/profile/tool/output binding",
+        "Actual technical-leader and distinct independent-partner agreement",
+        "Applicable independent execution allowance and physical slot"
+      ],
+      "limit": "Read-only route lookup is not assignment, agreement, allowance or runtime permission; original genuine GUI/workbench/Palmistry acceptance remains separate."
+    }
   }
 }

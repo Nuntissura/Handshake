@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-202",
   "created_at_utc": "2026-10-24T16:59:01.024Z",
-  "updated_at_utc": "2026-10-26T00:20:32.801792Z",
+  "updated_at_utc": "2026-10-26T12:38:23.0180165Z",
   "identity": {
     "mt_id": "MT-202",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -641,5 +641,16 @@
       }
     ],
     "implementation_result": "ACCOUNT_PRIVATE_INPUT_AND_ACTIVATION_READBACK_SOURCE_ADOPTED_RUNTIME_ACCEPTANCE_PENDING"
+  },
+  "gui_reset02_owned_adoption_20261026": {
+    "batch_owner": "MT-200",
+    "covered_mts": [
+      "MT-199",
+      "MT-200",
+      "MT-202"
+    ],
+    "owner": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+    "record_ref": "MT-200.json#/gui_reset02_owned_adoption_20261026",
+    "scope": "Affected built-in UserManual and focused proof pointers; no acceptance execution"
   }
 }
