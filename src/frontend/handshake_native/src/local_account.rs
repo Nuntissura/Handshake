@@ -412,6 +412,90 @@ async fn checked_json(response: reqwest::Response) -> Result<serde_json::Value, 
 }
 
 #[derive(Default)]
+struct AccountTextCompletion {
+    generation: u64,
+    applied: Option<String>,
+}
+
+impl AccountTextCompletion {
+    fn invalidate(&mut self) {
+        if let Some(mut applied) = self.applied.take() {
+            zeroize::Zeroize::zeroize(&mut applied);
+        }
+        self.generation = self.generation.saturating_add(1);
+    }
+
+    fn reconcile(&mut self, value: &str) {
+        if self.applied.as_deref().is_some_and(|applied| applied != value) {
+            self.invalidate();
+        }
+    }
+
+    fn record_application(&mut self, value: &str) {
+        let can_advance = self.generation.checked_add(1).is_some();
+        self.invalidate();
+        if can_advance { self.applied = Some(value.to_owned()); }
+    }
+}
+
+fn account_text_edit(
+    ui: &mut egui::Ui,
+    label: &str,
+    author_id: &str,
+    value: &mut String,
+    completion: &mut AccountTextCompletion,
+    allow_actions: bool,
+) {
+    completion.reconcile(value);
+    let id = egui::Id::new(author_id);
+    let replacement = allow_actions.then(|| crate::mcp::accesskit_string_set_value(ui, id)).flatten();
+    let label = ui.label(label);
+    let response = ui.add(egui::TextEdit::singleline(value)
+        .id(id).desired_width(150.0)).labelled_by(label.id);
+    if let Some(replacement) = replacement {
+        *value = replacement;
+        completion.record_application(value);
+        ui.ctx().request_repaint();
+    } else {
+        completion.reconcile(value);
+    }
+    crate::accessibility::emit_interactive_node(ui.ctx(), response.id, author_id);
+    ui.ctx().accesskit_node_builder(response.id, |node| {
+        node.add_action(egui::accesskit::Action::SetValue);
+        node.set_value(value.clone());
+    });
+    let observer = crate::mcp::action::set_value_completion_author_id(author_id);
+    let token = crate::mcp::action::serialize_set_value_completion(
+        author_id, completion.generation, completion.applied.as_deref());
+    ui.ctx().accesskit_node_builder(egui::Id::new(&observer), |node| {
+        node.set_role(egui::accesskit::Role::Status);
+        node.set_author_id(observer);
+        node.set_label("Account input completion");
+        if let Some(token) = token { node.set_value(token); }
+    });
+}
+
+fn account_password_edit(ui: &mut egui::Ui, password: &mut String, allow_actions: bool) {
+    let id = egui::Id::new("account.password");
+    if allow_actions {
+        if let Some(replacement) = crate::mcp::accesskit_string_set_value(ui, id) {
+            zeroize::Zeroize::zeroize(password);
+            *password = replacement;
+            crate::mcp::argus::acknowledge_secret_set_value(
+                ui.ctx(), "account.password", id, password);
+        }
+    }
+    let label = ui.label("Password");
+    let response = ui.add(egui::TextEdit::singleline(password)
+        .id(id).desired_width(150.0).password(true)).labelled_by(label.id);
+    crate::accessibility::emit_interactive_node(ui.ctx(), response.id, "account.password");
+    ui.ctx().accesskit_node_builder(response.id, |node| {
+        node.add_action(egui::accesskit::Action::SetValue);
+        node.set_value("");
+    });
+}
+
+#[derive(Default)]
 pub struct AccountUi {
     pub context: Option<std::sync::Arc<AuthenticatedContext>>,
     reset_requested: bool,
@@ -420,6 +504,10 @@ pub struct AccountUi {
     workspace_created: bool,
     account_name: String,
     password: String,
+    account_name_completion: AccountTextCompletion,
+    workspace_name_completion: AccountTextCompletion,
+    completion_owner: Option<std::sync::Weak<AuthenticatedContext>>,
+    completion_owner_active: bool,
     setup_required: Option<bool>,
     error: Option<String>,
     pending: Option<std::sync::mpsc::Receiver<Result<AccountResult, String>>>,
@@ -435,6 +523,24 @@ enum AccountResult {
 }
 
 impl AccountUi {
+    fn refresh_text_completions(&mut self) {
+        let same_owner = match (&self.completion_owner, &self.context) {
+            (None, None) => true,
+            (Some(previous), Some(current)) =>
+                std::sync::Weak::ptr_eq(previous, &std::sync::Arc::downgrade(current)),
+            _ => false,
+        };
+        let active = self.context.as_ref().is_some_and(|context| context.is_active());
+        if !same_owner || active != self.completion_owner_active {
+            self.account_name_completion.invalidate();
+            self.workspace_name_completion.invalidate();
+            self.completion_owner = self.context.as_ref().map(std::sync::Arc::downgrade);
+            self.completion_owner_active = active;
+        }
+        self.account_name_completion.reconcile(&self.account_name);
+        self.workspace_name_completion.reconcile(&self.workspace_name);
+    }
+
     /// MT-109 C2 (diagnosis e): the bound context state and last account error, for proofs that must
     /// tell an account-gated frame from a swallowed UI intent.
     pub fn diagnostic(&self) -> (Option<bool>, Option<String>) {
@@ -459,6 +565,7 @@ impl AccountUi {
         runtime: Option<&tokio::runtime::Handle>,
         allow_actions: bool,
     ) {
+        self.refresh_text_completions();
         if allow_actions {
             if let Some(receiver) = &self.pending {
                 let result = match receiver.try_recv() {
@@ -489,12 +596,14 @@ impl AccountUi {
                         Ok(AccountResult::WorkspaceCreated) => {
                             self.workspace_created = true;
                             self.workspace_name.clear();
+                            self.workspace_name_completion.invalidate();
                         }
                         Err(error) => self.error = Some(error),
                     }
                 }
             }
         }
+        self.refresh_text_completions();
         let mut action = if allow_actions
             && self.pending.is_none()
             && self.context.as_ref().is_some_and(|context| {
@@ -506,10 +615,14 @@ impl AccountUi {
         } else {
             None
         };
+        let mut action_author = None;
+        let authenticated = self.context.is_some();
+        let account_error = self.error.clone();
+        let pending = self.pending.is_some();
         egui::TopBottomPanel::top("local-account").show(ctx, |ui| {
-            ui.horizontal_wrapped(|ui| {
+            let mut controls = |ui: &mut egui::Ui| { ui.horizontal_wrapped(|ui| {
                 if let Some(context) = &self.context {
-                    let current = ui.label(format!(
+                    let current = ui.label("Signed in").on_hover_text(format!(
                         "Account {} · Space {}",
                         context.account_id, context.access_space_id
                     ));
@@ -521,27 +634,19 @@ impl AccountUi {
                         check.id,
                         "account.check-session",
                     );
-                    if check.clicked() {
+                    if allow_actions && check.clicked() {
                         action = Some(4);
+                        action_author = Some("account.check-session");
                     }
                     let button =
                         ui.add_enabled(self.pending.is_none(), egui::Button::new("Log out"));
                     crate::accessibility::emit_interactive_node(ctx, button.id, "account.logout");
-                    if button.clicked() {
+                    if allow_actions && button.clicked() {
                         self.confirm_discard = true;
+                        crate::mcp::argus::acknowledge_action_effect_allow_target_transition(ctx, "account.logout");
                     }
-                    let name_label = ui.label("New workspace name");
-                    let name = ui
-                        .add(
-                            egui::TextEdit::singleline(&mut self.workspace_name)
-                                .desired_width(150.0),
-                        )
-                        .labelled_by(name_label.id);
-                    crate::accessibility::emit_interactive_node(
-                        ctx,
-                        name.id,
-                        "account.workspace-name",
-                    );
+                    account_text_edit(ui, "New workspace name", "account.workspace-name",
+                        &mut self.workspace_name, &mut self.workspace_name_completion, allow_actions);
                     let create = ui.add_enabled(
                         self.pending.is_none() && !self.workspace_name.trim().is_empty(),
                         egui::Button::new("Create workspace"),
@@ -551,32 +656,15 @@ impl AccountUi {
                         create.id,
                         "account.create-workspace",
                     );
-                    if create.clicked() {
+                    if allow_actions && create.clicked() {
                         action = Some(5);
+                        action_author = Some("account.create-workspace");
                     }
                 } else {
                     ui.label("Account (Owner setup password: 12–1024 UTF-8 bytes)");
-                    let name_label = ui.label("Account name");
-                    let name = ui
-                        .add(
-                            egui::TextEdit::singleline(&mut self.account_name).desired_width(150.0),
-                        )
-                        .labelled_by(name_label.id);
-                    crate::accessibility::emit_interactive_node(ctx, name.id, "account.name");
-                    let password_label = ui.label("Password");
-                    let password = ui
-                        .add(
-                            egui::TextEdit::singleline(&mut self.password)
-                                .desired_width(150.0)
-                                .password(true),
-                        )
-                        .labelled_by(password_label.id);
-                    crate::accessibility::emit_interactive_node(
-                        ctx,
-                        password.id,
-                        "account.password",
-                    );
-                    ctx.accesskit_node_builder(password.id, |node| node.set_value(""));
+                    account_text_edit(ui, "Account name", "account.name", &mut self.account_name,
+                        &mut self.account_name_completion, allow_actions);
+                    account_password_edit(ui, &mut self.password, allow_actions);
                     let button = ui.add_enabled(
                         self.pending.is_none(),
                         egui::Button::new(if self.setup_required == Some(true) {
@@ -586,11 +674,13 @@ impl AccountUi {
                         }),
                     );
                     crate::accessibility::emit_interactive_node(ctx, button.id, "account.submit");
-                    if button.clicked() {
+                    if allow_actions && button.clicked() {
                         if self.setup_required == Some(true) {
                             action = Some(1);
+                            action_author = Some("account.submit");
                         } else {
                             self.confirm_discard = true;
+                            crate::mcp::argus::acknowledge_action_effect_allow_target_transition(ctx, "account.submit");
                         }
                     }
                     let check =
@@ -600,8 +690,9 @@ impl AccountUi {
                         check.id,
                         "account.check-setup",
                     );
-                    if check.clicked() {
+                    if allow_actions && check.clicked() {
                         action = Some(0);
+                        action_author = Some("account.check-setup");
                     }
                 }
                 if self.confirm_discard {
@@ -616,8 +707,9 @@ impl AccountUi {
                         confirm.id,
                         "account.confirm-discard",
                     );
-                    if confirm.clicked() {
+                    if allow_actions && confirm.clicked() {
                         action = Some(if self.context.is_some() { 3 } else { 2 });
+                        action_author = Some("account.confirm-discard");
                         self.confirm_discard = false;
                     }
                     let cancel = ui.button("Cancel");
@@ -626,8 +718,9 @@ impl AccountUi {
                         cancel.id,
                         "account.cancel-discard",
                     );
-                    if cancel.clicked() {
+                    if allow_actions && cancel.clicked() {
                         self.confirm_discard = false;
+                        crate::mcp::argus::acknowledge_action_effect_allow_target_transition(ctx, "account.cancel-discard");
                     }
                 }
                 if self.pending.is_some() {
@@ -637,7 +730,31 @@ impl AccountUi {
                     let label = ui.label(error);
                     crate::accessibility::emit_interactive_node(ctx, label.id, "account.error");
                 }
-            });
+            }); };
+            if authenticated {
+                ui.horizontal(|ui| {
+                    let label = if account_error.is_some() {
+                        egui::RichText::new("Account").color(ui.visuals().error_fg_color)
+                    } else { egui::RichText::new("Account") };
+                    let (response, menu) = egui::containers::menu::MenuButton::new(label)
+                        .config(egui::containers::menu::MenuConfig::new()
+                            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside))
+                        .ui(ui, |ui| {
+                            ui.set_min_width(240.0);
+                            ui.set_max_width(360.0);
+                            controls(ui);
+                        });
+                    crate::accessibility::emit_interactive_node(ctx, response.id, "account.menu");
+                    if allow_actions && response.clicked() {
+                        crate::mcp::argus::acknowledge_action_effect_allow_target_transition(ctx, "account.menu");
+                    }
+                    if let Some(error) = &account_error {
+                        ctx.accesskit_node_builder(response.id, |node| node.set_description(error.clone()));
+                        response.on_hover_text(error);
+                    }
+                    if pending && menu.is_none() { ui.spinner(); }
+                });
+            } else { controls(ui); }
         });
         if !allow_actions {
             return;
@@ -661,6 +778,7 @@ impl AccountUi {
                 if let Some(context) = self.context.take() {
                     context.invalidate();
                 }
+                self.refresh_text_completions();
                 self.reset_requested = true;
             }
             let repaint = ctx.clone();
@@ -711,6 +829,9 @@ impl AccountUi {
                 let _ = sender.send(result);
                 repaint.request_repaint();
             });
+            if let Some(author_id) = action_author {
+                crate::mcp::argus::acknowledge_action_effect_allow_target_transition(ctx, author_id);
+            }
         }
     }
 }
@@ -725,6 +846,249 @@ pub(crate) fn mock_account_context(base: &str) -> std::sync::Arc<AuthenticatedCo
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn account_argus_frame(
+        account: &mut AccountUi,
+        ctx: &egui::Context,
+        events: Vec<egui::Event>,
+        allow_actions: bool,
+    ) -> crate::accessibility::UiTreeSnapshot {
+        let output = ctx.run(egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1200.0, 800.0))),
+            events,
+            ..Default::default()
+        }, |ctx| account.show(ctx, "http://127.0.0.1:9911", "b".repeat(64), None, allow_actions));
+        crate::accessibility::collect_ui_tree_snapshot(
+            &output.platform_output.accesskit_update.expect("actual account frame"))
+    }
+
+    fn account_text_argus_frame(
+        value: &mut String,
+        completion: &mut AccountTextCompletion,
+        ctx: &egui::Context,
+        events: Vec<egui::Event>,
+    ) -> crate::accessibility::UiTreeSnapshot {
+        let output = ctx.run(egui::RawInput { events, focused: true, ..Default::default() }, |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                account_text_edit(ui, "New workspace name", "account.workspace-name", value, completion, true);
+            });
+        });
+        crate::accessibility::collect_ui_tree_snapshot(&output.platform_output.accesskit_update.unwrap())
+    }
+
+    #[test]
+    fn account_text_clear_and_manual_edit_retire_payload_and_cannot_revive_old_receipt() {
+        let canary = "prior-workspace-input-completion-canary";
+        for change in ["clear", "replace", "typing"] {
+            let ctx = egui::Context::default();
+            ctx.enable_accesskit();
+            let mut value = String::new();
+            let mut completion = AccountTextCompletion::default();
+            let snapshot = account_text_argus_frame(&mut value, &mut completion, &ctx, Vec::new());
+            let mut channel = crate::mcp::ActionChannel::new();
+            channel.enqueue(&snapshot, "account.workspace-name",
+                crate::mcp::UiAction::SetValue { text: canary.to_owned() }).unwrap();
+            let events = channel.drain_revalidated_into_live_events(&snapshot, &ctx, egui::ViewportId::ROOT);
+            account_text_argus_frame(&mut value, &mut completion, &ctx, events);
+            let applied_generation = completion.generation;
+            assert_eq!(completion.applied.as_deref(), Some(canary));
+            let events = match change {
+                "clear" => { value.clear(); Vec::new() },
+                "replace" => { value = "Operator replacement".to_owned(); Vec::new() },
+                "typing" => {
+                    ctx.memory_mut(|memory| memory.request_focus(egui::Id::new("account.workspace-name")));
+                    vec![egui::Event::Text("-operator-edit".to_owned())]
+                }
+                _ => unreachable!(),
+            };
+            let changed = account_text_argus_frame(&mut value, &mut completion, &ctx, events);
+            assert!(completion.applied.is_none(), "{change}");
+            assert!(completion.generation > applied_generation, "{change}");
+            let observer = changed.find_by_author_id("account.workspace-name.set-value-completion").unwrap();
+            assert!(!observer.value.as_deref().unwrap().contains(canary), "{change}");
+            value = canary.to_owned();
+            let later = account_text_argus_frame(&mut value, &mut completion, &ctx, Vec::new());
+            channel.acknowledge_after_live_render(&later, Some(&ctx));
+            assert_ne!(channel.receipts()[0].status, crate::mcp::ActionReceiptStatus::Applied, "{change}");
+        }
+    }
+
+    #[test]
+    fn account_workspace_created_clears_completion_while_menu_is_closed() {
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let mut account = AccountUi {
+            context: Some(std::sync::Arc::new(context("one"))),
+            ..AccountUi::default()
+        };
+        account_argus_frame(&mut account, &ctx, Vec::new(), true);
+        let canary = "created-workspace-completion-canary";
+        account.workspace_name = canary.to_owned();
+        account.workspace_name_completion.record_application(canary);
+        let generation = account.workspace_name_completion.generation;
+        let (sender, receiver) = std::sync::mpsc::channel();
+        assert!(sender.send(Ok(AccountResult::WorkspaceCreated)).is_ok());
+        account.pending = Some(receiver);
+        account_argus_frame(&mut account, &ctx, Vec::new(), true);
+        assert!(account.take_workspace_created());
+        assert!(account.workspace_name.is_empty());
+        assert!(account.workspace_name_completion.applied.is_none());
+        assert!(account.workspace_name_completion.generation > generation);
+        let later = account_text_argus_frame(&mut account.workspace_name,
+            &mut account.workspace_name_completion, &ctx, Vec::new());
+        assert!(!later.to_json().contains(canary));
+    }
+
+    #[test]
+    fn account_owner_transitions_fence_preserved_completion_state_without_reusing_generations() {
+        for transition in ["rebind", "login", "logout", "reject", "invalidate"] {
+            let ctx = egui::Context::default();
+            ctx.enable_accesskit();
+            let mut account = AccountUi {
+                context: Some(std::sync::Arc::new(context("same"))),
+                ..AccountUi::default()
+            };
+            account_argus_frame(&mut account, &ctx, Vec::new(), true);
+            account.account_name = "prior-owner-account-completion-canary".to_owned();
+            account.workspace_name = "prior-owner-workspace-completion-canary".to_owned();
+            account.account_name_completion.record_application(&account.account_name);
+            account.workspace_name_completion.record_application(&account.workspace_name);
+            let generations = (account.account_name_completion.generation, account.workspace_name_completion.generation);
+            match transition {
+                "rebind" => account.context = Some(std::sync::Arc::new(context("same"))),
+                "invalidate" => account.context.as_ref().unwrap().invalidate(),
+                other => {
+                    let result = match other {
+                        "login" => AccountResult::Login(context("same")),
+                        "logout" => AccountResult::Logout,
+                        "reject" => AccountResult::Current(false),
+                        _ => unreachable!(),
+                    };
+                    let (sender, receiver) = std::sync::mpsc::channel();
+                    assert!(sender.send(Ok(result)).is_ok());
+                    account.pending = Some(receiver);
+                }
+            }
+            let mut transferred = std::mem::take(&mut account);
+            account_argus_frame(&mut transferred, &ctx, Vec::new(), true);
+            assert!(transferred.account_name_completion.applied.is_none(), "{transition}");
+            assert!(transferred.workspace_name_completion.applied.is_none(), "{transition}");
+            assert!(transferred.account_name_completion.generation > generations.0, "{transition}");
+            assert!(transferred.workspace_name_completion.generation > generations.1, "{transition}");
+            transferred.refresh_text_completions();
+            assert!(transferred.account_name_completion.applied.is_none());
+            assert!(transferred.workspace_name_completion.applied.is_none());
+        }
+        let mut completion = AccountTextCompletion { generation: u64::MAX - 1, applied: None };
+        completion.record_application("last-generation");
+        assert_eq!(completion.generation, u64::MAX);
+        completion.invalidate();
+        completion.record_application("must-not-wrap");
+        assert_eq!(completion.generation, u64::MAX);
+        assert!(completion.applied.is_none());
+    }
+
+    #[test]
+    fn account_argus_applies_name_and_private_password_through_actual_controls() {
+        let mut account = AccountUi::default();
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        for (target, value) in [("account.name", "Owner input"),
+            ("account.password", "private-account-input-canary")] {
+            let snapshot = account_argus_frame(&mut account, &ctx, Vec::new(), true);
+            let mut channel = crate::mcp::ActionChannel::new();
+            channel.enqueue(&snapshot, target, crate::mcp::UiAction::SetValue { text: value.to_owned() }).unwrap();
+            let events = channel.drain_revalidated_into_live_events(&snapshot, &ctx, egui::ViewportId::ROOT);
+            let applied = account_argus_frame(&mut account, &ctx, events, true);
+            channel.acknowledge_after_live_render(&applied, Some(&ctx));
+            let later = account_argus_frame(&mut account, &ctx, Vec::new(), true);
+            channel.acknowledge_after_live_render(&later, Some(&ctx));
+            assert_eq!(channel.receipts()[0].status, crate::mcp::ActionReceiptStatus::Applied);
+            if target == "account.password" {
+                assert_eq!(account.password, value);
+                assert_eq!(later.find_by_author_id(target).unwrap().value, None);
+                assert!(!later.to_json().contains(value));
+                assert!(!serde_json::to_string(&channel.receipts()).unwrap().contains(value));
+            } else { assert_eq!(account.account_name, value); }
+        }
+    }
+
+    #[test]
+    fn account_argus_capture_cannot_apply_or_acknowledge_private_input() {
+        let mut account = AccountUi::default();
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let snapshot = account_argus_frame(&mut account, &ctx, Vec::new(), true);
+        let mut channel = crate::mcp::ActionChannel::new();
+        let secret = "capture-must-not-consume-account-password";
+        channel.enqueue(&snapshot, "account.password", crate::mcp::UiAction::SetValue { text: secret.to_owned() }).unwrap();
+        let events = channel.drain_revalidated_into_live_events(&snapshot, &ctx, egui::ViewportId::ROOT);
+        let capture = account_argus_frame(&mut account, &ctx, events, false);
+        channel.acknowledge_after_render(&capture);
+        let later = account_argus_frame(&mut account, &ctx, Vec::new(), true);
+        channel.acknowledge_after_live_render(&later, Some(&ctx));
+        assert!(account.password.is_empty());
+        assert_ne!(channel.receipts()[0].status, crate::mcp::ActionReceiptStatus::Applied);
+        assert!(!later.to_json().contains(secret));
+        assert!(!serde_json::to_string(&channel.receipts()).unwrap().contains(secret));
+    }
+
+    #[test]
+    fn account_argus_confirmation_clicks_acknowledge_actual_local_transitions() {
+        let mut account = AccountUi::default();
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        for target in ["account.submit", "account.cancel-discard"] {
+            let snapshot = account_argus_frame(&mut account, &ctx, Vec::new(), true);
+            let mut channel = crate::mcp::ActionChannel::new();
+            channel.enqueue(&snapshot, target, crate::mcp::UiAction::Click).unwrap();
+            let events = channel.drain_revalidated_into_live_events(&snapshot, &ctx, egui::ViewportId::ROOT);
+            let applied = account_argus_frame(&mut account, &ctx, events, true);
+            channel.acknowledge_after_live_render(&applied, Some(&ctx));
+            let later = account_argus_frame(&mut account, &ctx, Vec::new(), true);
+            channel.acknowledge_after_live_render(&later, Some(&ctx));
+            assert_eq!(channel.receipts()[0].status, crate::mcp::ActionReceiptStatus::Applied);
+            assert_eq!(account.confirm_discard, target == "account.submit");
+        }
+        let snapshot = account_argus_frame(&mut account, &ctx, Vec::new(), true);
+        let mut channel = crate::mcp::ActionChannel::new();
+        channel.enqueue(&snapshot, "account.check-setup", crate::mcp::UiAction::Click).unwrap();
+        let events = channel.drain_revalidated_into_live_events(&snapshot, &ctx, egui::ViewportId::ROOT);
+        let failed = account_argus_frame(&mut account, &ctx, events, true);
+        channel.acknowledge_after_live_render(&failed, Some(&ctx));
+        let later = account_argus_frame(&mut account, &ctx, Vec::new(), true);
+        channel.acknowledge_after_live_render(&later, Some(&ctx));
+        assert_eq!(account.error.as_deref(), Some("Backend runtime unavailable"));
+        assert!(account.pending.is_none());
+        assert_ne!(channel.receipts()[0].status, crate::mcp::ActionReceiptStatus::Applied);
+    }
+
+    #[test]
+    fn account_argus_workspace_name_uses_the_same_production_text_binding() {
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let mut value = String::new();
+        let mut completion = AccountTextCompletion::default();
+        let mut frame = |events| {
+            let output = ctx.run(egui::RawInput { events, ..Default::default() }, |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    account_text_edit(ui, "New workspace name", "account.workspace-name", &mut value,
+                        &mut completion, true);
+                });
+            });
+            crate::accessibility::collect_ui_tree_snapshot(&output.platform_output.accesskit_update.unwrap())
+        };
+        let snapshot = frame(Vec::new());
+        let mut channel = crate::mcp::ActionChannel::new();
+        channel.enqueue(&snapshot, "account.workspace-name", crate::mcp::UiAction::SetValue { text: "Owned workspace".to_owned() }).unwrap();
+        let events = channel.drain_revalidated_into_live_events(&snapshot, &ctx, egui::ViewportId::ROOT);
+        let applied = frame(events);
+        channel.acknowledge_after_live_render(&applied, Some(&ctx));
+        let later = frame(Vec::new());
+        channel.acknowledge_after_live_render(&later, Some(&ctx));
+        assert_eq!(channel.receipts()[0].status, crate::mcp::ActionReceiptStatus::Applied);
+        assert_eq!(value, "Owned workspace");
+    }
 
     fn context(account: &str) -> AuthenticatedContext {
         serde_json::from_value::<AuthenticatedContext>(serde_json::json!({
@@ -783,6 +1147,46 @@ mod tests {
         assert!(account.pending.is_none());
         assert!(account.error.as_deref().unwrap().contains("interrupted"));
         assert!(!account.take_reset_requested());
+    }
+
+    #[test]
+    fn authenticated_account_controls_start_inside_a_stable_compact_menu() {
+        let mut account = AccountUi {
+            context: Some(std::sync::Arc::new(context("one"))),
+            ..AccountUi::default()
+        };
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let output = ctx.run(egui::RawInput::default(), |ctx| {
+            account.show(ctx, "http://127.0.0.1:9911", "b".repeat(64), None, true)
+        });
+        let update = output.platform_output.accesskit_update.unwrap();
+        let snapshot = crate::accessibility::collect_ui_tree_snapshot(&update);
+        assert!(snapshot.find_by_author_id("account.menu").is_some());
+        for id in ["account.current", "account.check-session", "account.logout",
+            "account.workspace-name", "account.create-workspace"] {
+            assert!(snapshot.find_by_author_id(id).is_none(), "closed Account menu exposed {id}");
+        }
+        assert!(account.context.as_ref().unwrap().is_active());
+    }
+
+    #[test]
+    fn closed_account_menu_does_not_pause_pending_session_rejection() {
+        let context = std::sync::Arc::new(context("one"));
+        let (sender, receiver) = std::sync::mpsc::channel();
+        assert!(sender.send(Ok(AccountResult::Current(false))).is_ok());
+        let mut account = AccountUi {
+            context: Some(context.clone()), pending: Some(receiver),
+            ..AccountUi::default()
+        };
+        let ctx = egui::Context::default();
+        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+            account.show(ctx, "http://127.0.0.1:9911", "b".repeat(64), None, true)
+        });
+        assert!(account.pending.is_none());
+        assert!(account.context.is_none());
+        assert!(!context.is_active());
+        assert_eq!(account.error.as_deref(), Some("Session rejected. Log in again."));
     }
 
     #[test]

@@ -68,6 +68,80 @@ impl MountedReadinessCapture {
     }
 }
 
+/// Read-only host binding for the retained real activation. No credential is serialized.
+pub(crate) struct WorkspaceActivationReadback {
+    capture: MountedReadinessCapture,
+    backend: String,
+    in_flight: tokio::sync::Mutex<()>,
+}
+
+impl WorkspaceActivationReadback {
+    pub(crate) fn new(
+        account: Arc<AuthenticatedContext>,
+        workspace_id: String,
+        operation_id: uuid::Uuid,
+        generation: u64,
+        backend: String,
+    ) -> Result<Self, WorkspaceActivationObservationError> {
+        Ok(Self {
+            capture: MountedReadinessCapture::new(account, workspace_id, operation_id, generation)?,
+            backend,
+            in_flight: tokio::sync::Mutex::new(()),
+        })
+    }
+
+    pub(crate) fn matches_owner(&self, account: &Arc<AuthenticatedContext>, workspace_id: &str) -> bool {
+        self.capture.is_current(account, workspace_id, self.capture.operation_id, self.capture.generation)
+    }
+
+    pub(crate) fn matches_original(
+        &self, account: &Arc<AuthenticatedContext>, workspace_id: &str,
+        operation_id: uuid::Uuid, generation: u64, backend: &str,
+    ) -> bool {
+        self.capture.is_current(account, workspace_id, operation_id, generation) && self.backend == backend
+    }
+
+    pub(crate) async fn fetch(&self) -> serde_json::Value {
+        let Ok(_in_flight) = self.in_flight.try_lock() else {
+            return serde_json::json!({"status":"busy"});
+        };
+        let result = tokio::time::timeout(std::time::Duration::from_secs(5), self.capture.fetch(
+            &crate::backend_client::shared_http_client(), &self.backend,
+        )).await;
+        let observation = match result {
+            Err(_) => return serde_json::json!({"status":"error","reason":"timeout"}),
+            Ok(Err(error)) => {
+                let (reason, status) = match error {
+                    WorkspaceActivationObservationError::ContextChanged => ("context_changed", None),
+                    WorkspaceActivationObservationError::Request(_) => ("request_unavailable", None),
+                    WorkspaceActivationObservationError::Transport(_) => ("transport", None),
+                    WorkspaceActivationObservationError::Status(status) => ("http_status", Some(status.as_u16())),
+                    WorkspaceActivationObservationError::InvalidObservation => ("invalid_observation", None),
+                };
+                return serde_json::json!({"status":"error","reason":reason,"http_status":status});
+            }
+            Ok(Ok(observation)) => observation,
+        };
+        let Ok(observation) = observation.to_value() else {
+            return serde_json::json!({"status":"error","reason":"encoding"});
+        };
+        let account = &self.capture.account;
+        serde_json::json!({
+            "status":"observed", "source":"fresh_canonical_get", "cached":false,
+            "host_generation":self.capture.generation,
+            "expected":{
+                "operation_id":self.capture.operation_id,
+                "owner_account_id":account.account_id,
+                "actor_principal_id":account.principal_id,
+                "authenticated_session_id":account.session_id,
+                "access_space_id":account.access_space_id,
+                "workspace_id":self.capture.workspace_id,
+            },
+            "observation":observation,
+        })
+    }
+}
+
 pub(crate) async fn fetch_workspace_activation_observation(
     _client: &reqwest::Client,
     backend: &str,

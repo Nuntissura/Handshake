@@ -379,13 +379,27 @@ fn perform_signed_watcher_handshake(
     })
     .map_err(io::Error::other)?;
     request.push(b'\n');
+    #[cfg(windows)]
+    let write_limit = control_pipe_write_limit(stream)?;
     let mut written = 0;
     while written < request.len() {
         if Instant::now() >= deadline {
             return Err(timeout_error());
         }
-        match stream.write(&request[written..]) {
+        let remaining = &request[written..];
+        #[cfg(windows)]
+        let offered = &remaining[..remaining.len().min(write_limit)];
+        #[cfg(not(windows))]
+        let offered = remaining;
+        match stream.write(offered) {
             Ok(0) => {
+                #[cfg(windows)]
+                if !matches!(control_pipe_readiness(stream)?, ControlPipeReadiness::Closed) {
+                    std::thread::sleep(Duration::from_millis(2).min(
+                        deadline.saturating_duration_since(Instant::now()),
+                    ));
+                    continue;
+                }
                 return Err(io::Error::new(
                     io::ErrorKind::WriteZero,
                     "signed watcher request closed",
@@ -500,13 +514,27 @@ fn perform_signed_watcher_operation(
         ));
     }
     bytes.push(b'\n');
+    #[cfg(windows)]
+    let write_limit = control_pipe_write_limit(stream)?;
     let mut written = 0;
     while written < bytes.len() {
         if Instant::now() >= deadline {
             return Err(timed_out());
         }
-        match stream.write(&bytes[written..]) {
+        let remaining = &bytes[written..];
+        #[cfg(windows)]
+        let offered = &remaining[..remaining.len().min(write_limit)];
+        #[cfg(not(windows))]
+        let offered = remaining;
+        match stream.write(offered) {
             Ok(0) => {
+                #[cfg(windows)]
+                if !matches!(control_pipe_readiness(stream)?, ControlPipeReadiness::Closed) {
+                    std::thread::sleep(Duration::from_millis(2).min(
+                        deadline.saturating_duration_since(Instant::now()),
+                    ));
+                    continue;
+                }
                 return Err(io::Error::new(
                     io::ErrorKind::WriteZero,
                     "signed operation closed",
@@ -764,6 +792,25 @@ enum ControlPipeReadiness {
     Data,
     Empty,
     Closed,
+}
+
+#[cfg(windows)]
+fn control_pipe_write_limit(stream: &LocalStream) -> io::Result<usize> {
+    use windows_sys::Win32::System::Pipes::{GetNamedPipeInfo, PIPE_SERVER_END, PIPE_TYPE_MESSAGE};
+    let LocalStream::NamedPipe(pipe) = stream;
+    let (mut flags, mut output, mut input) = (0, 0, 0);
+    if unsafe { GetNamedPipeInfo(pipe.inner().as_raw_handle(), &mut flags, &mut output, &mut input, std::ptr::null_mut()) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    if flags & PIPE_TYPE_MESSAGE != 0 {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "expected byte control pipe"));
+    }
+    // FilePipeLocalInformation: client writes use InboundQuota; server writes use OutboundQuota.
+    let capacity = if flags & PIPE_SERVER_END != 0 { output } else { input };
+    if capacity == 0 {
+        return Err(io::Error::new(io::ErrorKind::Unsupported, "control pipe reported no bounded write capacity"));
+    }
+    Ok(capacity as usize)
 }
 
 #[cfg(windows)]

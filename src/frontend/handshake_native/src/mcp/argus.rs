@@ -25,6 +25,7 @@ pub(crate) struct ActionEffectTicket {
     live: AtomicBool,
     acknowledged: AtomicBool,
     secret_mutation: AtomicBool,
+    allow_target_transition: AtomicBool,
     epoch: u64,
 }
 
@@ -45,10 +46,15 @@ impl ActionEffectTicket {
         self.secret_mutation.load(Ordering::Acquire)
     }
 
+    pub(crate) fn allows_target_transition(&self) -> bool {
+        self.allow_target_transition.load(Ordering::Acquire)
+    }
+
     pub(crate) fn release(&self) {
         self.live.store(false, Ordering::Release);
         self.acknowledged.store(false, Ordering::Release);
         self.secret_mutation.store(false, Ordering::Release);
+        self.allow_target_transition.store(false, Ordering::Release);
     }
 
     pub(crate) fn acknowledged_after_frame(&self, ctx: &egui::Context, receipt_id: u64) -> bool {
@@ -105,6 +111,7 @@ pub(crate) fn register_admitted_action_effect(
         live: AtomicBool::new(true),
         acknowledged: AtomicBool::new(false),
         secret_mutation: AtomicBool::new(false),
+        allow_target_transition: AtomicBool::new(false),
         epoch,
     });
     ctx.data_mut(|data| {
@@ -133,6 +140,15 @@ pub(crate) fn register_admitted_action_effect(
 /// Signal the exact dispatched request only after the named production handler applies its effect.
 /// A signal remains nonterminal until the channel observes a later completed live frame.
 pub fn acknowledge_action_effect(ctx: &egui::Context, author_id: &str) {
+    acknowledge_action_effect_with_policy(ctx, author_id, false);
+}
+
+/// Opt in only after a click's applied host effect intentionally disables or removes its control.
+pub(crate) fn acknowledge_action_effect_allow_target_transition(ctx: &egui::Context, author_id: &str) {
+    acknowledge_action_effect_with_policy(ctx, author_id, true);
+}
+
+fn acknowledge_action_effect_with_policy(ctx: &egui::Context, author_id: &str, allow_transition: bool) {
     let viewport = ctx.viewport_id();
     let reservations = ctx.data(|data| {
         data.get_temp::<Vec<ActionEffectReservation>>(egui::Id::new("argus.action-effect-reservations"))
@@ -146,6 +162,9 @@ pub fn acknowledge_action_effect(ctx: &egui::Context, author_id: &str) {
                     if request == &ticket.request)
             }))
         {
+            if allow_transition && ticket.request.action == egui::accesskit::Action::Click {
+                ticket.allow_target_transition.store(true, Ordering::Release);
+            }
             ticket.acknowledged.store(true, Ordering::Release);
         }
     }
@@ -155,7 +174,7 @@ pub(crate) fn acknowledge_secret_set_value(
     ctx: &egui::Context, author_id: &str, widget_id: egui::Id, owned_value: &str,
 ) {
     if !crate::accessibility::is_sensitive_author_id(author_id)
-        || !matches!(author_id, "settings.cloud.byok.anthropic.key" | "settings.cloud.byok.openai.key") {
+        || !matches!(author_id, "settings.cloud.byok.anthropic.key" | "settings.cloud.byok.openai.key" | "account.password") {
         return;
     }
     let viewport = ctx.viewport_id();
@@ -250,6 +269,36 @@ pub(crate) struct WindowCaptureTicket {
     account: Option<Arc<crate::local_account::AuthenticatedContext>>,
 }
 
+pub(crate) struct WorkspaceActivationReadbackTicket {
+    privacy: WindowCaptureTicket,
+    binding: Option<Arc<crate::workspace_activation_observation::WorkspaceActivationReadback>>,
+}
+
+impl WorkspaceActivationReadbackTicket {
+    fn is_current(&self) -> bool {
+        if self.privacy.validate().is_err() { return false; }
+        let context = self.privacy.registry.capture_context.lock().unwrap_or_else(|e| e.into_inner());
+        if context.generation != self.privacy.context_generation { return false; }
+        match (&self.binding, &context.activation_readback) {
+            (None, None) => true,
+            (Some(binding), Some(current)) if Arc::ptr_eq(binding, current) => {
+                context.account.as_ref().is_some_and(|account| binding.matches_owner(account, &context.workspace_id))
+            }
+            _ => false,
+        }
+    }
+
+    pub(crate) async fn fetch(&self) -> serde_json::Value {
+        if !self.is_current() { return serde_json::json!({"status":"stale"}); }
+        let value = match &self.binding {
+            Some(binding) => binding.fetch().await,
+            None => serde_json::json!({"status":"unavailable","reason":"no_admitted_original"}),
+        };
+        if !self.is_current() { return serde_json::json!({"status":"stale"}); }
+        value
+    }
+}
+
 impl WindowCaptureTicket {
     /// Returns an observed UI publication revision, not an exact renderer-image revision.
     pub(crate) fn validate(&self) -> Result<u64, String> {
@@ -293,10 +342,12 @@ struct CaptureContext {
     generation: u64,
     account: Option<Arc<crate::local_account::AuthenticatedContext>>,
     workspace_id: String,
+    activation_readback: Option<Arc<crate::workspace_activation_observation::WorkspaceActivationReadback>>,
 }
 
 impl CaptureContext {
     fn retire(&mut self, state: &WindowRegistryState) {
+        self.activation_readback = None;
         let next = self.generation.checked_add(1);
         for window in state.windows.values() {
             window.published.store(false, Ordering::Release);
@@ -323,6 +374,42 @@ impl WindowSnapshotRegistry {
 
     pub(crate) fn admit_capture(&self, window: &RegisteredWindow, expected_revision: u64) -> Result<WindowCaptureTicket, String> {
         self.admit_capture_revision(window, Some(expected_revision)).map(|(_, ticket)| ticket)
+    }
+
+    pub(crate) fn admit_workspace_activation_readback(
+        &self, window: &RegisteredWindow, expected_revision: u64,
+    ) -> Result<WorkspaceActivationReadbackTicket, String> {
+        if window.descriptor.window_id != MAIN_WINDOW_ID {
+            return Err("Workspace activation readback requires the main window".to_owned());
+        }
+        let privacy = self.admit_capture(window, expected_revision)?;
+        let binding = self.capture_context.lock().unwrap_or_else(|e| e.into_inner()).activation_readback.clone();
+        let ticket = WorkspaceActivationReadbackTicket { privacy, binding };
+        if !ticket.is_current() { return Err("Workspace activation readback context is stale".to_owned()); }
+        Ok(ticket)
+    }
+
+    pub(crate) fn bind_workspace_activation_readback(
+        &self, account: Arc<crate::local_account::AuthenticatedContext>, workspace_id: &str,
+        operation_id: uuid::Uuid, generation: u64, backend: &str,
+    ) -> bool {
+        let mut context = self.capture_context.lock().unwrap_or_else(|e| e.into_inner());
+        if context.workspace_id != workspace_id
+            || !context.account.as_ref().is_some_and(|current| Arc::ptr_eq(current, &account))
+        { context.activation_readback = None; return false; }
+        if context.activation_readback.as_ref().is_some_and(|current| {
+            current.matches_original(&account, workspace_id, operation_id, generation, backend)
+        }) { return true; }
+        context.activation_readback = None;
+        let Ok(binding) = crate::workspace_activation_observation::WorkspaceActivationReadback::new(
+            account, workspace_id.to_owned(), operation_id, generation, backend.to_owned(),
+        ) else { return false; };
+        context.activation_readback = Some(Arc::new(binding));
+        true
+    }
+
+    pub(crate) fn clear_workspace_activation_readback(&self) {
+        self.capture_context.lock().unwrap_or_else(|e| e.into_inner()).activation_readback = None;
     }
 
     /// Selectorless compatibility captures admit the actual current main publication atomically.
@@ -761,6 +848,152 @@ mod tests {
         assert!(first.is_active(), "the old guard need not be revoked for owner replacement to retire it");
         assert!(ticket.validate().is_err());
         assert!(registry.admit_capture(&window, window.revision()).is_ok());
+    }
+
+    #[tokio::test]
+    async fn activation_readback_requires_admitted_owner_and_retires_original_tickets() {
+        let registry = capture_registry();
+        let window = registry.get(MAIN_WINDOW_ID).unwrap();
+        let ticket = registry.admit_workspace_activation_readback(&window, window.revision()).unwrap();
+        assert_eq!(ticket.fetch().await["status"], "unavailable");
+        let account = crate::local_account::mock_account_context("http://127.0.0.1:9911");
+        let operation = uuid::Uuid::new_v4();
+        assert!(!registry.bind_workspace_activation_readback(account.clone(), "workspace", operation, 1,
+            "http://127.0.0.1:9911"));
+        registry.bind_capture_owner(Some(account.clone()), "workspace");
+        registry.note_root_publication_locked(None);
+        assert!(!registry.bind_workspace_activation_readback(account.clone(), "other-workspace", operation, 1,
+            "http://127.0.0.1:9911"));
+        assert!(!registry.bind_workspace_activation_readback(account.clone(), "workspace", uuid::Uuid::nil(), 1,
+            "http://127.0.0.1:9911"));
+        assert!(registry.bind_workspace_activation_readback(account.clone(), "workspace", operation, 1,
+            "http://127.0.0.1:9911"));
+        let ticket = registry.admit_workspace_activation_readback(&window, window.revision()).unwrap();
+        assert!(ticket.is_current());
+        assert!(registry.bind_workspace_activation_readback(account.clone(), "workspace", operation, 1,
+            "http://127.0.0.1:9911"));
+        assert!(ticket.is_current(), "rebinding the identical original does not invalidate a live read");
+        registry.note_root_publication_locked(None);
+        assert!(ticket.is_current(), "ordinary frames preserve the exact original read authority");
+        registry.clear_workspace_activation_readback();
+        assert_eq!(ticket.fetch().await["status"], "stale");
+        assert!(registry.bind_workspace_activation_readback(account.clone(), "workspace", operation, 1,
+            "http://127.0.0.1:9911"));
+        assert!(!ticket.is_current(), "clear then rebind cannot revive the previous ticket");
+        let replaced = registry.admit_workspace_activation_readback(&window, window.revision()).unwrap();
+        assert!(registry.bind_workspace_activation_readback(account.clone(), "workspace", uuid::Uuid::new_v4(), 2,
+            "http://127.0.0.1:9911"));
+        assert!(!replaced.is_current(), "a new original cannot revive an in-flight read");
+        let reset = registry.admit_workspace_activation_readback(&window, window.revision()).unwrap();
+        registry.retire_capture_context();
+        registry.note_root_publication_locked(None);
+        assert!(!reset.is_current());
+        assert!(registry.capture_context.lock().unwrap().activation_readback.is_none());
+        assert!(registry.bind_workspace_activation_readback(account.clone(), "workspace", operation, 3,
+            "http://127.0.0.1:9911"));
+        let revoked = registry.admit_workspace_activation_readback(&window, window.revision()).unwrap();
+        account.invalidate();
+        assert_eq!(revoked.fetch().await["status"], "stale");
+    }
+
+    #[test]
+    fn activation_readback_rejects_same_id_new_guard_workspace_and_closing_window() {
+        let registry = capture_registry();
+        let first = crate::local_account::mock_account_context("http://127.0.0.1:9911");
+        registry.bind_capture_owner(Some(first.clone()), "workspace");
+        registry.note_root_publication_locked(None);
+        let window = registry.get(MAIN_WINDOW_ID).unwrap();
+        assert!(registry.bind_workspace_activation_readback(first.clone(), "workspace", uuid::Uuid::new_v4(), 1,
+            "http://127.0.0.1:9911"));
+        let ticket = registry.admit_workspace_activation_readback(&window, window.revision()).unwrap();
+        let replacement = crate::local_account::mock_account_context("http://127.0.0.1:9911");
+        assert_eq!(first.account_id, replacement.account_id);
+        registry.bind_capture_owner(Some(replacement.clone()), "workspace");
+        registry.note_root_publication_locked(None);
+        assert!(!ticket.is_current());
+        assert!(registry.bind_workspace_activation_readback(replacement.clone(), "workspace", uuid::Uuid::new_v4(), 2,
+            "http://127.0.0.1:9911"));
+        let ticket = registry.admit_workspace_activation_readback(&window, window.revision()).unwrap();
+        registry.bind_capture_owner(Some(replacement.clone()), "workspace-2");
+        registry.note_root_publication_locked(None);
+        assert!(!ticket.is_current());
+        assert!(registry.bind_workspace_activation_readback(replacement, "workspace-2", uuid::Uuid::new_v4(), 3,
+            "http://127.0.0.1:9911"));
+        let ticket = registry.admit_workspace_activation_readback(&window, window.revision()).unwrap();
+        registry.begin_close(MAIN_WINDOW_ID);
+        assert!(!ticket.is_current());
+    }
+
+    async fn serve_readback_reply(
+        listener: tokio::net::TcpListener, operation: uuid::Uuid, body: String,
+        received: tokio::sync::oneshot::Sender<()>, release: tokio::sync::oneshot::Receiver<()>,
+    ) {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let (mut stream, _) = tokio::time::timeout(Duration::from_secs(2), listener.accept()).await.unwrap().unwrap();
+        let mut request = Vec::new();
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while !request.ends_with(b"\r\n\r\n") {
+                assert!(request.len() < 8192);
+                let byte = stream.read_u8().await.unwrap();
+                request.push(byte);
+            }
+        }).await.unwrap();
+        let request = String::from_utf8(request).unwrap();
+        assert!(request.starts_with(&format!("GET /authority/workspaces/workspace/activation/{operation} HTTP/1.1\r\n")));
+        assert!(request.contains(&format!("x-hsk-session-token: {}\r\n", "a".repeat(64))));
+        assert!(request.contains(&format!("x-hsk-channel-binding-token: {}\r\n", "b".repeat(64))));
+        received.send(()).unwrap();
+        tokio::time::timeout(Duration::from_secs(2), release).await.unwrap().unwrap();
+        let response = format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+        tokio::time::timeout(Duration::from_secs(2), stream.write_all(response.as_bytes())).await.unwrap().unwrap();
+    }
+
+    #[tokio::test]
+    async fn activation_readback_fetches_original_once_and_revalidates_after_await() {
+        for (retire_while_pending, mismatched_original) in [(false, false), (true, false), (false, true)] {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let base = format!("http://{}", listener.local_addr().unwrap());
+            let account = crate::local_account::mock_account_context(&base);
+            let registry = capture_registry();
+            registry.bind_capture_owner(Some(account.clone()), "workspace");
+            registry.note_root_publication_locked(None);
+            let operation = uuid::Uuid::new_v4();
+            assert!(registry.bind_workspace_activation_readback(account.clone(), "workspace", operation, 7, &base));
+            let window = registry.get(MAIN_WINDOW_ID).unwrap();
+            let ticket = registry.admit_workspace_activation_readback(&window, window.revision()).unwrap();
+            let body = serde_json::json!({"schema_id":"hsk.workspace_activation.observation@1",
+                "operation_id":if mismatched_original { uuid::Uuid::new_v4() } else { operation },"owner_account_id":account.account_id,
+                "actor_principal_id":account.principal_id,"authenticated_session_id":account.session_id,
+                "access_space_id":account.access_space_id,"workspace_id":"workspace",
+                "readiness":{"status":"unavailable"},"outcome":{"status":"unresolved"}}).to_string();
+            let (received_tx, received_rx) = tokio::sync::oneshot::channel();
+            let (release_tx, release_rx) = tokio::sync::oneshot::channel();
+            let server = tokio::spawn(serve_readback_reply(listener, operation, body, received_tx, release_rx));
+            let fetch = tokio::spawn(async move { ticket.fetch().await });
+            tokio::time::timeout(Duration::from_secs(2), received_rx).await.unwrap().unwrap();
+            let concurrent = registry.admit_workspace_activation_readback(&window, window.revision()).unwrap();
+            assert_eq!(concurrent.fetch().await["status"], "busy");
+            if retire_while_pending { registry.retire_capture_context(); }
+            release_tx.send(()).unwrap();
+            let value = tokio::time::timeout(Duration::from_secs(2), fetch).await.unwrap().unwrap();
+            if retire_while_pending {
+                assert_eq!(value, serde_json::json!({"status":"stale"}));
+            } else if mismatched_original {
+                assert_eq!(value["status"], "error");
+                assert_eq!(value["reason"], "invalid_observation");
+                assert!(value.get("expected").is_none() && value.get("observation").is_none());
+            } else {
+                assert_eq!(value["status"], "observed");
+                assert_eq!(value["source"], "fresh_canonical_get");
+                assert_eq!(value["cached"], false);
+                assert_eq!(value["expected"]["operation_id"], operation.to_string());
+                assert_eq!(value["observation"]["outcome"]["status"], "unresolved",
+                    "a canonical read must not project applied success");
+            }
+            let encoded = value.to_string();
+            assert!(!encoded.contains(&"a".repeat(64)) && !encoded.contains(&"b".repeat(64)));
+            tokio::time::timeout(Duration::from_secs(2), server).await.unwrap().unwrap();
+        }
     }
 
 }

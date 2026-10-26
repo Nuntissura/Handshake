@@ -562,13 +562,21 @@ impl<F: FnMut(&mut egui::Ui,&PaneId,egui::Rect)> kumihimo_egui::DesktopHost for 
 }
 
 #[derive(Clone,Copy)]
-enum LegacyShape { Split {axis:core::Axis,count:usize}, Grid }
+enum LegacyShape { Split {axis:core::Axis,count:usize}, Grid, PrimaryAndStack {stack:core::NodeId} }
 fn legacy_shape(plan:&core::LayoutPlan)->Option<LegacyShape> {
     let root=plan.root?;
     let leaf=|node:&core::NodeId|matches!(plan.nodes.get(node),Some(core::LayoutNode::Leaf(core::LayoutItem::Frame(_))));
     match plan.nodes.get(&root)? {
         core::LayoutNode::Split {axis,children} if (children.len()==2||children.len()==3)
             &&children.iter().all(|child|leaf(&child.node))=>Some(LegacyShape::Split {axis:*axis,count:children.len()}),
+        core::LayoutNode::Split {axis:core::Axis::Horizontal,children} if children.len()==2&&leaf(&children[0].node)=>{
+            let stack=children[1].node;
+            match plan.nodes.get(&stack)? {
+                core::LayoutNode::Split {axis:core::Axis::Vertical,children} if children.len()==2
+                    &&children.iter().all(|child|leaf(&child.node))=>Some(LegacyShape::PrimaryAndStack {stack}),
+                _=>None,
+            }
+        }
         core::LayoutNode::Grid {rows,columns,cells} if rows.len()==2&&columns.len()==2&&cells.len()==4
             &&cells.iter().all(|cell|leaf(&cell.node))=>Some(LegacyShape::Grid),
         _=>None,
@@ -576,6 +584,19 @@ fn legacy_shape(plan:&core::LayoutPlan)->Option<LegacyShape> {
 }
 fn update_legacy_weights(plan:&mut core::LayoutPlan,shape:LegacyShape,weights:SplitWeights)->Result<()> {
     let scalar=|value|core::Scalar::new(value).map_err(|error|error.to_string());
+    if let LegacyShape::PrimaryAndStack {stack}=shape {
+        for (node,axis,fraction) in [(plan.root.ok_or("Canonical root is missing")?,core::Axis::Horizontal,weights.vertical),
+            (stack,core::Axis::Vertical,weights.horizontal)] {
+            match plan.nodes.get_mut(&node) {
+                Some(core::LayoutNode::Split {axis:actual,children}) if *actual==axis&&children.len()==2=>{
+                    children[0].weight=scalar(fraction as f64)?;
+                    children[1].weight=scalar(1.0-fraction as f64)?;
+                }
+                _=>return Err("Canonical topology changed before legacy resize".into()),
+            }
+        }
+        return Ok(());
+    }
     match (plan.nodes.get_mut(&plan.root.ok_or("Canonical root is missing")?).ok_or("Canonical root node is missing")?,shape) {
         (core::LayoutNode::Split {children,..},LegacyShape::Split {axis,count})=>{
             let fraction=match axis {core::Axis::Horizontal=>weights.vertical,core::Axis::Vertical=>weights.horizontal} as f64;
@@ -603,6 +624,12 @@ fn export_legacy_weights(plan:&core::LayoutPlan,shape:LegacyShape,weights:&mut S
             weights.horizontal=(rows[0].get()/(rows[0].get()+rows[1].get())) as f32;
             weights.vertical=(columns[0].get()/(columns[0].get()+columns[1].get())) as f32;
         }
+        (core::LayoutNode::Split {children,..},LegacyShape::PrimaryAndStack {stack})=>{
+            weights.vertical=(children[0].weight.get()/(children[0].weight.get()+children[1].weight.get())) as f32;
+            if let core::LayoutNode::Split {children,..}=&plan.nodes[&stack] {
+                weights.horizontal=(children[0].weight.get()/(children[0].weight.get()+children[1].weight.get())) as f32;
+            }
+        }
         _=>(),
     }
 }
@@ -627,6 +654,18 @@ fn legacy_hits(plan:&core::LayoutPlan,geometry:&core::GeometryOutput,shape:Legac
             Ok((Some(horizontal(((first.bottom()+bottom.y())/2.0) as f32)),
                 Some(vertical(((first.right()+right.x())/2.0) as f32))))
         }
+        (core::LayoutNode::Split {children,..},LegacyShape::PrimaryAndStack {stack})=>{
+            let left=geometry.nodes.get(&children[0].node).ok_or("Canonical primary pane bounds are missing")?;
+            let right=geometry.nodes.get(&stack).ok_or("Canonical stacked pane bounds are missing")?;
+            let core::LayoutNode::Split {children,..}=&plan.nodes[&stack]
+                else {return Err("Canonical stacked divider topology changed".into());};
+            let upper=geometry.nodes.get(&children[0].node).ok_or("Canonical upper pane bounds are missing")?;
+            let lower=geometry.nodes.get(&children[1].node).ok_or("Canonical lower pane bounds are missing")?;
+            let y=((upper.bottom()+lower.y())/2.0) as f32;
+            let stacked_horizontal=egui::Rect::from_min_max(egui::pos2(right.x() as f32,y-half),
+                egui::pos2(right.right() as f32,y+half));
+            Ok((Some(stacked_horizontal),Some(vertical(((left.right()+right.x())/2.0) as f32))))
+        }
         _=>Err("Canonical divider topology changed".into()),
     }
 }
@@ -641,12 +680,21 @@ fn plan(frames: &[FrameId], weights: SplitWeights) -> Result<core::LayoutPlan> {
     let v = weights.vertical as f64;
     let h = weights.horizontal as f64;
     let scalar = |value| core::Scalar::new(value).map_err(|error| error.to_string());
-    let layout = if frames.len() == 4 {
+    let layout = if frames.len() == 3 {
+        let stack=core::NodeId(5);
+        nodes.insert(stack,core::LayoutNode::Split {axis:core::Axis::Vertical,children:vec![
+            core::WeightedNode {node:core::NodeId(2),weight:scalar(h)?},
+            core::WeightedNode {node:core::NodeId(3),weight:scalar(1.0-h)?},
+        ]});
+        core::LayoutNode::Split {axis:core::Axis::Horizontal,children:vec![
+            core::WeightedNode {node:core::NodeId(1),weight:scalar(v)?},
+            core::WeightedNode {node:stack,weight:scalar(1.0-v)?},
+        ]}
+    } else if frames.len() == 4 {
         core::LayoutNode::Grid { rows: vec![scalar(h)?,scalar(1.0-h)?], columns: vec![scalar(v)?,scalar(1.0-v)?],
             cells: (0..4).map(|index| core::Cell { row:index/2, column:index%2, node:core::NodeId(index as u64+1) }).collect() }
     } else {
-        let shares = if frames.len()==3 { vec![v/2.0,v/2.0,1.0-v] }
-            else if frames.len()==2 { vec![v,1.0-v] } else { vec![1.0;frames.len()] };
+        let shares = if frames.len()==2 { vec![v,1.0-v] } else { vec![1.0;frames.len()] };
         core::LayoutNode::Split { axis:core::Axis::Horizontal, children: shares.into_iter().enumerate()
             .map(|(index,weight)| Ok(core::WeightedNode { node:core::NodeId(index as u64+1), weight:scalar(weight)? }))
             .collect::<Result<_>>()? }
@@ -705,13 +753,22 @@ mod tests {
         let first=owner.project(egui::ViewportId::ROOT,&panes,area(),SplitWeights::default()).unwrap();
         assert_eq!(first.panes.len(),3);
         assert_eq!(first.panes[0].1.right(),first.panes[1].1.left());
-        assert_eq!(first.panes[1].1.right(),first.panes[2].1.left());
+        assert_eq!(first.panes[0].1.right(),first.panes[2].1.left());
+        assert_eq!(first.panes[1].1.bottom(),first.panes[2].1.top());
         assert_eq!(first.panes[0].1.top(),area().top());
+        assert_eq!(first.panes[0].1.bottom(),area().bottom());
+        assert_eq!(first.panes[1].1.top(),area().top());
         assert_eq!(first.panes[2].1.bottom(),area().bottom());
+        assert_eq!(first.panes[1].1.right(),area().right());
+        assert_eq!(first.panes[2].1.right(),area().right());
+        assert!(first.horizontal.unwrap().left()>=first.panes[1].1.left());
         let frame=owner.windows[&egui::ViewportId::ROOT].frames[&panes[0]];
-        owner.resize(egui::ViewportId::ROOT,SplitWeights{vertical:0.7,horizontal:0.55}).unwrap();
-        let resized=owner.project(egui::ViewportId::ROOT,&panes,area(),SplitWeights{vertical:0.7,horizontal:0.55}).unwrap();
+        owner.resize(egui::ViewportId::ROOT,SplitWeights{vertical:0.7,horizontal:0.65}).unwrap();
+        let resized=owner.project(egui::ViewportId::ROOT,&panes,area(),SplitWeights{vertical:0.7,horizontal:0.65}).unwrap();
         assert!(resized.panes[2].1.width()<first.panes[2].1.width());
+        assert!(resized.panes[1].1.height()>first.panes[1].1.height());
+        assert_eq!(resized.panes[0].1.height(),area().height());
+        assert_eq!(resized.panes[1].1.bottom(),resized.panes[2].1.top());
         assert_eq!(owner.windows[&egui::ViewportId::ROOT].frames[&panes[0]],frame);
     }
     #[test]

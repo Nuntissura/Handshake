@@ -336,13 +336,14 @@ fn node_actions(node: &accesskit::Node) -> Vec<String> {
         .collect()
 }
 
-/// Whether an AccessKit `author_id` denotes a secret-bearing input whose value must never be
-/// projected or mutated through the generic Argus surface.
+/// Whether an AccessKit `author_id` denotes an input whose value must never be projected.
 ///
 /// BYOK key inputs are intentionally addressable for visibility/click proof, but key material may
 /// cross only the dedicated OS-keychain submission path. Keeping this predicate beside snapshot
-/// projection gives both the read and write boundaries one canonical classification rule.
+/// projection gives reads, receipts and proof exports one classification rule. The account password
+/// explicitly accepts SetValue through its private production handler without publishing its value.
 pub fn is_sensitive_author_id(author_id: &str) -> bool {
+    if author_id == "account.password" { return true; }
     let mut parts = author_id.split('.');
     matches!(
         (
@@ -368,6 +369,7 @@ pub fn is_sensitive_author_id(author_id: &str) -> bool {
 fn leaf_node(node_id: accesskit::NodeId, node: &accesskit::Node) -> UiTreeNode {
     let author_id = node.author_id().map(|a| a.to_owned());
     let sensitive = author_id.as_deref().is_some_and(is_sensitive_author_id);
+    let secret_set_value = author_id.as_deref() == Some("account.password");
     let id = author_id
         .clone()
         .unwrap_or_else(|| format!("node:{}", node_id.0));
@@ -403,7 +405,7 @@ fn leaf_node(node_id: accesskit::NodeId, node: &accesskit::Node) -> UiTreeNode {
         disabled: node.is_disabled(),
         actions: node_actions(node)
             .into_iter()
-            .filter(|action| !(sensitive && action == "SetValue"))
+            .filter(|action| !(sensitive && !secret_set_value && action == "SetValue"))
             .collect(),
         bounds,
         children: Vec::new(),
@@ -729,6 +731,28 @@ mod ui_tree_tests {
         assert!(!snapshot.to_json().contains(canary));
         assert!(is_sensitive_author_id("settings.cloud.byok.anthropic.key"));
         assert!(!is_sensitive_author_id("settings.cloud.byok.openai.save"));
+    }
+
+    #[test]
+    fn account_password_keeps_private_set_value_without_projecting_value() {
+        let mut root = node(accesskit::Role::Window);
+        root.set_children([accesskit::NodeId(2)]);
+        let mut password = node(accesskit::Role::PasswordInput);
+        password.set_author_id("account.password".to_owned());
+        password.set_value("account-password-projection-canary".to_owned());
+        password.add_action(accesskit::Action::SetValue);
+        let update = accesskit::TreeUpdate {
+            nodes: vec![(accesskit::NodeId(1), root), (accesskit::NodeId(2), password)],
+            tree: Some(accesskit::Tree::new(accesskit::NodeId(1))),
+            focus: accesskit::NodeId(2),
+        };
+        let snapshot = collect_ui_tree_snapshot(&update);
+        let password = snapshot.find_by_author_id("account.password").unwrap();
+        assert!(is_sensitive_author_id("account.password"));
+        assert!(!is_sensitive_author_id("account.name"));
+        assert_eq!(password.value, None);
+        assert!(password.actions.iter().any(|action| action == "SetValue"));
+        assert!(!snapshot.to_json().contains("account-password-projection-canary"));
     }
 
     /// The node cap bounds output and appends a single visible overflow marker (no silent truncation,

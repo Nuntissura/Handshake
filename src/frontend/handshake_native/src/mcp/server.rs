@@ -76,6 +76,18 @@ fn apply_durable_record(value: &mut serde_json::Value, record: &crate::backend_c
     }
 }
 
+fn workspace_activation_readback_requested(request: &McpRequest) -> Result<bool, &'static str> {
+    let requested = match request.params.get("include_workspace_activation_readback") {
+        None | Some(serde_json::Value::Bool(false)) => false,
+        Some(serde_json::Value::Bool(true)) => true,
+        _ => return Err("include_workspace_activation_readback must be a boolean"),
+    };
+    if requested && super::argus::ArgusMethod::from_wire_name(&request.method)
+        != Some(super::argus::ArgusMethod::Inspect)
+    { return Err("Workspace activation readback is available only through argus.inspect"); }
+    Ok(requested)
+}
+
 #[derive(Clone)]
 pub struct ArgusDurabilityBinding {
     pub generation: u64,
@@ -706,6 +718,18 @@ async fn dispatch_with_session(
         if !state.safety.token.matches(&request.session_token) {
             return McpResponse::error(request.id.clone(), McpError::general(ERR_UNAUTHORIZED, "Unauthorized"));
         }
+        let include_workspace_activation_readback = match workspace_activation_readback_requested(request) {
+            Ok(requested) => requested,
+            Err(error) => return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, error)),
+        };
+        if include_workspace_activation_readback && (
+            request.params.get("window_id").and_then(|value| value.as_str()) != Some(MAIN_WINDOW_ID)
+                || request.params.get("window_epoch").and_then(|value| value.as_u64()).is_none()
+                || request.params.get("action_id").is_some()
+        ) {
+            return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS,
+                "Workspace activation readback requires the main window epoch and no action reconciliation selector"));
+        }
         // Preserve selectorless screenshot requests on registered production servers without
         // bypassing main-window/account/workspace lifetime admission.
         let implicit_capture = if ArgusMethod::from_wire_name(&request.method) == Some(ArgusMethod::Screenshot)
@@ -795,6 +819,12 @@ async fn dispatch_with_session(
                         Ok(ticket) => Some(ticket),
                         Err(error) => return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, error)),
                     },
+                }
+            } else { None };
+            let activation_readback_ticket = if include_workspace_activation_readback {
+                match windows.admit_workspace_activation_readback(&window, expected) {
+                    Ok(ticket) => Some(ticket),
+                    Err(error) => return McpResponse::error(request.id.clone(), McpError::general(ERR_INVALID_PARAMS, error)),
                 }
             } else { None };
             let mut reservation = if ArgusMethod::from_wire_name(&request.method).is_some_and(|m| m.is_mutating()) {
@@ -895,6 +925,17 @@ async fn dispatch_with_session(
                 }
             } else if ArgusMethod::from_wire_name(&request.method) == Some(ArgusMethod::Inspect) {
                 if let Ok(value) = &mut result.payload { *value = serde_json::json!({"snapshot": value.clone()}); }
+            }
+            if let Some(ticket) = activation_readback_ticket.as_ref().filter(|_| result.payload.is_ok()) {
+                let readback = ticket.fetch().await;
+                if readback["status"] == "stale" {
+                    // Do not return the pre-await tree after a privacy/window retirement.
+                    result = McpResponse::ok_value(request.id.clone(), serde_json::json!({
+                        "snapshot":null,"workspace_activation_readback":readback,
+                    }));
+                } else if let Ok(serde_json::Value::Object(value)) = &mut result.payload {
+                    value.insert("workspace_activation_readback".to_owned(), readback);
+                }
             }
             if let Ok(value) = &mut result.payload {
                 if let Some(object) = value.as_object_mut() {
@@ -1020,6 +1061,29 @@ impl RateLimiter {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn workspace_activation_readback_is_explicit_read_only_and_alias_consistent() {
+        let mut request = McpRequest { id: serde_json::json!(1), method:"argus.inspect".into(),
+            params:serde_json::json!({}),session_token:String::new() };
+        assert_eq!(workspace_activation_readback_requested(&request), Ok(false));
+        request.params = serde_json::json!({"include_workspace_activation_readback":false});
+        assert_eq!(workspace_activation_readback_requested(&request), Ok(false));
+        for method in ["argus.inspect", "list_widgets"] {
+            request.method = method.into();
+            request.params = serde_json::json!({"include_workspace_activation_readback":true});
+            assert_eq!(workspace_activation_readback_requested(&request), Ok(true));
+        }
+        for method in ["argus.click", "click_widget", "argus.set_value", "set_value", "argus.screenshot", "unknown"] {
+            request.method = method.into();
+            assert!(workspace_activation_readback_requested(&request).is_err());
+        }
+        request.method = "argus.inspect".into();
+        for invalid in [serde_json::Value::Null, serde_json::json!(1), serde_json::json!("true"), serde_json::json!({})] {
+            request.params = serde_json::json!({"include_workspace_activation_readback":invalid});
+            assert!(workspace_activation_readback_requested(&request).is_err());
+        }
+    }
     use crate::accessibility::{UiTreeNode, UiTreeSnapshot};
 
     fn snap() -> UiTreeSnapshot {

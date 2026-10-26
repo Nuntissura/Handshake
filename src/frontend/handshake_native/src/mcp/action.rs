@@ -1452,7 +1452,7 @@ impl ActionChannel {
             let node = fresh_snapshot.find_unique_by_author_id(&pending.author_id);
             let secret_set_value = matches!(pending.action, UiAction::SetValue { .. })
                 && crate::accessibility::is_sensitive_author_id(&pending.author_id)
-                && matches!(pending.author_id.as_str(), "settings.cloud.byok.anthropic.key" | "settings.cloud.byok.openai.key");
+                && matches!(pending.author_id.as_str(), "settings.cloud.byok.anthropic.key" | "settings.cloud.byok.openai.key" | "account.password");
             if (is_effect_activation(&pending.action) || secret_set_value)
                 && self.handler_tickets.contains_key(&pending.outcome.receipt_id)
             {
@@ -1466,8 +1466,18 @@ impl ActionChannel {
                         } else { ticket.acknowledged_after_frame(ctx, pending.outcome.receipt_id) }
                     })
                 });
+                let acknowledged_transition = acknowledged && is_click_activation(&pending.action)
+                    && self.handler_tickets.get(&pending.outcome.receipt_id)
+                        .is_some_and(|ticket| ticket.allows_target_transition())
+                    && (fresh_snapshot.author_id_match_count(&pending.author_id) == 0
+                        || node.is_some_and(|node| node.node_id == pending.outcome.request.target.0
+                        && node.role == pending.expected_role
+                        && (node.disabled || node.actions.iter().any(|action| action == &pending.expected_action))));
                 if production_ctx.is_none() {
                     self.in_flight.push(pending);
+                } else if acknowledged_transition {
+                    self.update_receipt(pending.outcome.receipt_id, ActionReceiptStatus::Applied,
+                        node.and_then(|node| node.value.clone()), None);
                 } else if node.is_none_or(|node| !post_render_target_identity_matches(&pending, node)) {
                     self.update_receipt(pending.outcome.receipt_id, ActionReceiptStatus::Rejected,
                         node.and_then(|node| node.value.clone()),
@@ -1667,7 +1677,9 @@ impl ActionChannel {
             receipt.observed_value = if crate::accessibility::is_sensitive_author_id(&receipt.target) {
                 None
             } else { observed_value };
-            receipt.rejection = rejection;
+            receipt.rejection = if crate::accessibility::is_sensitive_author_id(&receipt.target) {
+                rejection.map(|_| "secret input action was not acknowledged".to_owned())
+            } else { rejection };
         }
     }
 
@@ -2401,6 +2413,99 @@ fn observed_value_matches(author_id: &str, observed: &Option<String>, requested:
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn account_click_transition_keeps_exact_ticket_and_present_identity_guards() {
+        for (transition, opt_in, expected) in [
+            ("disabled", true, ActionReceiptStatus::Applied),
+            ("removed", true, ActionReceiptStatus::Applied),
+            ("replacement", true, ActionReceiptStatus::Rejected),
+            ("ambiguous", true, ActionReceiptStatus::Rejected),
+            ("role", true, ActionReceiptStatus::Rejected),
+            ("action", true, ActionReceiptStatus::Rejected),
+            ("disabled", false, ActionReceiptStatus::Rejected),
+            ("removed", false, ActionReceiptStatus::Rejected),
+        ] {
+            let snapshot = fixture_snapshot();
+            let ctx = egui::Context::default();
+            let mut channel = ActionChannel::new();
+            channel.enqueue(&snapshot, "btn", UiAction::Click).unwrap();
+            let events = channel.drain_revalidated_into_live_events(&snapshot, &ctx, egui::ViewportId::ROOT);
+            let _ = ctx.run(egui::RawInput { events, ..Default::default() }, |ctx| {
+                if opt_in { super::super::argus::acknowledge_action_effect_allow_target_transition(ctx, "btn"); }
+                else { super::super::argus::acknowledge_action_effect(ctx, "btn"); }
+            });
+            let mut changed = snapshot.clone();
+            match transition {
+                "disabled" => changed.root.children[0].disabled = true,
+                "removed" => { changed.root.children.remove(0); },
+                "replacement" => changed.root.children[0].node_id += 1,
+                "ambiguous" => {
+                    let mut replacement = changed.root.children[0].clone();
+                    replacement.node_id += 100;
+                    changed.root.children.push(replacement);
+                },
+                "role" => changed.root.children[0].role = "TextInput".to_owned(),
+                "action" => changed.root.children[0].actions.clear(),
+                _ => unreachable!(),
+            }
+            let _ = ctx.run(egui::RawInput::default(), |ctx| {
+                channel.acknowledge_after_live_render(&changed, Some(ctx));
+            });
+            assert_eq!(channel.receipts()[0].status, expected, "{transition}, opt-in={opt_in}");
+        }
+        for invalid_signal in ["before-dispatch", "wrong-context", "no-event", "wrong-event", "cancelled"] {
+            let snapshot = fixture_snapshot();
+            let ctx = egui::Context::default();
+            let mut channel = ActionChannel::new();
+            channel.enqueue(&snapshot, "btn", UiAction::Click).unwrap();
+            if invalid_signal == "before-dispatch" {
+                super::super::argus::acknowledge_action_effect_allow_target_transition(&ctx, "btn");
+            }
+            let mut events = channel.drain_revalidated_into_live_events(&snapshot, &ctx, egui::ViewportId::ROOT);
+            if invalid_signal == "cancelled" {
+                channel.in_flight[0].enqueued_at = Instant::now() - ACTION_LEASE_TIMEOUT;
+                channel.expire_stale_actions();
+            }
+            if invalid_signal == "no-event" || invalid_signal == "before-dispatch" { events.clear(); }
+            if invalid_signal == "wrong-event" {
+                if let egui::Event::AccessKitActionRequest(request) = &mut events[0] {
+                    request.target = egui::accesskit::NodeId(request.target.0 + 1);
+                }
+            }
+            let other = egui::Context::default();
+            let signal_ctx = if invalid_signal == "wrong-context" { &other } else { &ctx };
+            let _ = signal_ctx.run(egui::RawInput { events, ..Default::default() }, |ctx| {
+                super::super::argus::acknowledge_action_effect_allow_target_transition(ctx, "btn");
+            });
+            let _ = ctx.run(egui::RawInput::default(), |ctx| {
+                channel.acknowledge_after_live_render(&snapshot, Some(ctx));
+            });
+            assert_ne!(channel.receipts()[0].status, ActionReceiptStatus::Applied, "{invalid_signal}");
+        }
+    }
+
+    #[test]
+    fn account_password_unacknowledged_receipt_never_retains_requested_value() {
+        let mut snapshot = fixture_snapshot();
+        let node = &mut snapshot.root.children[0];
+        node.author_id = Some("account.password".to_owned());
+        node.role = "PasswordInput".to_owned();
+        node.actions = vec!["SetValue".to_owned()];
+        node.value = None;
+        let secret = "password-rejected-receipt-canary";
+        let mut channel = ActionChannel::new();
+        channel.enqueue(&snapshot, "account.password", UiAction::SetValue { text: secret.to_owned() }).unwrap();
+        channel.drain_revalidated_into_events(&snapshot);
+        channel.acknowledge_after_render(&snapshot);
+        let receipts = channel.receipts();
+        assert_eq!(receipts[0].status, ActionReceiptStatus::Rejected);
+        assert_eq!(receipts[0].observed_value, None);
+        assert!(!serde_json::to_string(&receipts).unwrap().contains(secret));
+        assert!(!format!("{:?}", ActionError::InvalidValue {
+            author_id: "account.password".to_owned(), value: secret.to_owned(), reason: secret.to_owned(),
+        }).contains(secret));
+    }
 
     #[test]
     fn handler_ack_requires_exact_live_context_and_later_completed_frame() {

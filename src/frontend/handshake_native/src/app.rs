@@ -20362,6 +20362,7 @@ impl HandshakeApp {
     fn refresh_mcp_durability_binding(&mut self, base_url: &str) {
         self.mcp_durability_generation = self.mcp_durability_generation.wrapping_add(1);
         if self.workspace_activation.required() && !self.workspace_activation_is_admitted() {
+            self.mcp_windows.lock().unwrap_or_else(|e| e.into_inner()).clear_workspace_activation_readback();
             *self.mcp_durability.lock().unwrap_or_else(|e| e.into_inner()) = None;
             return;
         }
@@ -35770,6 +35771,7 @@ impl HandshakeApp {
         }
         if !self.workspace_activation.queue_workspace(workspace_id) {
             if self.workspace_activation_is_admitted() {
+                self.mcp_windows.lock().unwrap_or_else(|e| e.into_inner()).clear_workspace_activation_readback();
                 self.workspace_activation.invalidate();
                 self.mcp_durability_generation = self.mcp_durability_generation.wrapping_add(1);
                 *self.mcp_durability.lock().unwrap_or_else(|e| e.into_inner()) = None;
@@ -35790,6 +35792,7 @@ impl HandshakeApp {
             return false;
         };
         let generation = self.workspace_activation.start_request(workspace_id);
+        self.mcp_windows.lock().unwrap_or_else(|e| e.into_inner()).clear_workspace_activation_readback();
         self.mcp_durability_generation = self.mcp_durability_generation.wrapping_add(1);
         *self.mcp_durability.lock().unwrap_or_else(|e| e.into_inner()) = None;
         self.project_tabs.set_active_id("");
@@ -35923,6 +35926,10 @@ impl HandshakeApp {
             }
             let base = self.rich_doc_base_url.clone();
             self.refresh_mcp_durability_binding(&base);
+            self.mcp_windows.lock().unwrap_or_else(|e| e.into_inner()).bind_workspace_activation_readback(
+                request.account.clone(), &request.workspace_id, request.operation_id,
+                self.workspace_activation.generation(), &base,
+            );
             self.workspace_activation.reinsert_request(index, request);
             index += 1;
         }
@@ -37050,6 +37057,7 @@ impl HandshakeApp {
             // Down edge: reachable -> unreachable.
             self.backend_down = true;
             self.workspace_activation.mark_backend_readiness_lost();
+            self.mcp_windows.lock().unwrap_or_else(|e| e.into_inner()).clear_workspace_activation_readback();
             self.mcp_durability_generation = self.mcp_durability_generation.wrapping_add(1);
             *self.mcp_durability.lock().unwrap_or_else(|e| e.into_inner()) = None;
             self.record_backend_event(true);
@@ -37909,8 +37917,20 @@ impl HandshakeApp {
     }
 
     fn bind_mcp_capture_owner(&self, workspace_id: &str) {
-        self.mcp_windows.lock().unwrap_or_else(|e| e.into_inner())
-            .bind_capture_owner(self.local_account.context.clone(), workspace_id);
+        let windows = self.mcp_windows.lock().unwrap_or_else(|e| e.into_inner());
+        windows.bind_capture_owner(self.local_account.context.clone(), workspace_id);
+        if self.backend_down { windows.clear_workspace_activation_readback(); return; }
+        if let Some((account, admitted)) = self.workspace_activation.admitted().filter(|(account, admitted)| {
+            *admitted == workspace_id && account.is_active()
+                && self.local_account.context.as_ref().is_some_and(|current| Arc::ptr_eq(current, account))
+        }) {
+            if let Some(original) = self.workspace_activation.requests().iter().find(|request| {
+                request.workspace_id == admitted && Arc::ptr_eq(&request.account, account)
+            }) {
+                windows.bind_workspace_activation_readback(account.clone(), workspace_id,
+                    original.operation_id, self.workspace_activation.generation(), &self.rich_doc_base_url);
+            }
+        }
     }
 
     fn reset_account_workspace(&mut self, ctx: &egui::Context) {
