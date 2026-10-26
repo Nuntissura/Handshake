@@ -6533,19 +6533,14 @@ impl RichEditorPaneFactory {
     }
 }
 
-impl PaneFactory for RichEditorPaneFactory {
-    fn pane_type(&self) -> PaneType {
-        PaneType::LoomWikiPage
-    }
-
-    fn render(&self, ui: &mut egui::Ui, ctx: &PaneRenderContext) {
+impl RichEditorPaneFactory {
+    pub fn render_for_view(&self, ui: &mut egui::Ui, pane_id: crate::pane_registry::PaneId) -> egui::Response {
         use std::sync::atomic::Ordering;
         // MT-031 (E5 melt-together) LIVE WIRING: a MOUNTED rich-text pane retrieves the ONE shared bus
         // and publishes its selection + registers its command set every frame — the real per-frame bus
         // consumer the contract requires (not test-only dead code). The bus is in egui app data keyed by
         // INTERACTION_BUS_KEY, so every mounted pane sees the same instance.
         let bus = crate::interop::interaction_bus::InteractionBus::get_or_init(ui.ctx());
-        let pane_id: crate::pane_registry::PaneId = Arc::from(ctx.record.pane_id.as_ref());
         // MT-035 (E5 — unified undo): install the live pane id on the editor state so its undo entries are
         // recorded + routed under THIS pane's ring on the shared bus (POLICY-1). Idempotent.
         {
@@ -6579,6 +6574,17 @@ impl PaneFactory for RichEditorPaneFactory {
         ) {
             ui.ctx().request_repaint();
         }
+        response
+    }
+}
+
+impl PaneFactory for RichEditorPaneFactory {
+    fn pane_type(&self) -> PaneType {
+        PaneType::LoomWikiPage
+    }
+
+    fn render(&self, ui: &mut egui::Ui, ctx: &PaneRenderContext) {
+        self.render_for_view(ui, Arc::from(ctx.record.pane_id.as_ref()));
     }
 
     fn accesskit_role(&self) -> accesskit::Role {

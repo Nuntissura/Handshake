@@ -1,46 +1,16 @@
-//! Bottom search rail for the native Handshake shell (WP-KERNEL-011 MT-022).
+//! Persistent Handpick header with an attached grouped graph-result picker.
+//! Shared Handpick owns request fences and picker state. This host owns authorization,
+//! offset paging and the existing typed navigation bus; native Notes retains writing ownership.
 //!
-//! ## What this provides (no-context model navigation — HBR-VIS / HBR-SWARM)
-//!
-//! A persistent, always-visible horizontal strip pinned to the BOTTOM of the shell window (a fixed
-//! [`egui::TopBottomPanel::bottom`], 32px high, registered before the central panel). It is the shell's
-//! one-click search-anywhere surface: a scope-selector pill strip, a free-text query input, a clear
-//! (`x`) button, and a `Loom` shortcut that forces the `project:` scope. Its sole job is query input +
-//! scope selection.
-//!
-//! ### The rail EMITS a search INTENT — it does NOT execute a search (AC-022-9)
-//!
-//! On an explicit fire (Enter OR the Loom button) the rail PARSES the input into a [`RailQuery`]
-//! (`{ free_text, scope, tag_ids, path, kind_filters }`) and EMITS that intent — it makes NO HTTP or
-//! IPC backend call and renders NO results. Search EXECUTION and results display are deliberately
-//! deferred to a downstream consumer (a future search-results surface / pane overlay), exactly as the
-//! contract defers (`binds_backend_api: None`, implementation_notes "Do NOT make backend search calls
-//! inside this MT", "Backend wiring ... belongs to the pane or overlay that consumes the rail's
-//! output"). The downstream consumer will call `POST /workspaces/:workspace_id/loom/search-v2` and/or
-//! `GET /workspaces/:workspace_id/loom/graph-search`; this rail never does.
-//!
-//! ## Emitted-intent slot (HBR-SWARM — observable out-of-process)
-//!
-//! The emitted [`RailQuery`] is written into a lock-guarded shared slot on the app
-//! (`app_state.search_rail_query: Arc<Mutex<Option<RailQuery>>>`, the alias [`RailQuerySlot`]). The
-//! fire path WRITES the slot; a downstream consumer / concurrent swarm thread CLONES-and-READS it off
-//! the same lock (the writer holds the lock only briefly, never across egui calls — no deadlock with a
-//! concurrent reader). The `x` clear button writes `None` back into the slot (AC-022-6).
-//!
-//! ## Stable AccessKit ids (out-of-process steering — HBR-VIS)
-//!
-//! Three FIXED container/control nodes in the fresh 22..=24 band (disjoint from every other declared
-//! identity, all `< PANE_NODE_ID_BASE`):
-//! - the query input ([`RAIL_INPUT_NODE_ID`] = 22, Role::TextInput),
-//! - the clear button ([`RAIL_CLEAR_NODE_ID`] = 23, Role::Button),
-//! - the Loom shortcut ([`RAIL_LOOM_NODE_ID`] = 24, Role::Button).
-//!
-//! The nine scope pills are a FIXED-COUNT set but addressed by stable author_id STRINGS
-//! (`bottom-rail.scope.{name}`, Role::Button) in egui's hashed id space, the same dynamic-author_id
-//! pattern the MT-007 tab rows / MT-012-adjacent author_id-derived nodes use, so they are
-//! discoverable/clickable out-of-process and pass the MT-025 interactive-naming gate without consuming a
-//! fixed band. The three fixed control ids ARE enumerated in
-//! [`crate::accessibility::DECLARED_IDENTITIES`].
+//! Public legacy controls retain NodeIds 22 (input), 23 (clear), 24 (Loom) and their
+//! bottom-rail.* author IDs. The nine scope IDs remain reachable through the scope menu.
+//! RailQuerySlot still receives explicit Enter/Loom intents and clears on Clear or context retirement.
+//! Project/file graph providers run off-frame with the authenticated account, session/workspace
+//! fences, cancellation and a post-body active check. Other providers report their missing binding.
+//! Each page supplies loaded rows; the API supplies no canonical total or snapshot revision.
+//! Errors retain the literal query; access denial discards result content. No writing/save is faked.
+use crate::diagnostics::gui_events::{record_gui_observation, GuiDiagnosticOperation as GuiOp, GuiDiagnosticPhase as GuiPhase};
+mod composition;
 
 use std::fmt;
 use std::sync::{Arc, Mutex};
@@ -66,8 +36,8 @@ pub const RAIL_LOOM_AUTHOR_ID: &str = "bottom-rail.loom";
 /// The author_id PREFIX for a scope pill: `bottom-rail.scope.{scope_name}` (Role::Button).
 pub const SCOPE_AUTHOR_ID_PREFIX: &str = "bottom-rail.scope.";
 
-/// The fixed pixel height of the bottom rail strip (the contract's 32px always-visible strip).
-pub const RAIL_HEIGHT: f32 = 32.0;
+/// Persistent header height in logical pixels.
+pub const RAIL_HEIGHT: f32 = 44.0;
 
 // ===========================================================================
 // Scope enum (the nine fixed rail scopes).
@@ -76,7 +46,7 @@ pub const RAIL_HEIGHT: f32 = 32.0;
 /// The nine fixed search scopes the rail's pill strip exposes (the contract's
 /// `project: file: pane: window: stash: trace: terminal: stage: layout:`). The scope narrows WHAT a
 /// query searches; the active scope is set by clicking a pill OR by typing its colon-prefix into the
-/// input (`project:foo`). The scope is part of the emitted [`RailQuery`] intent — a downstream consumer
+/// input (`project:foo`). The scope is part of the emitted [`RailQuery`] intent â€” a downstream consumer
 /// decides how to apply it when it executes the search.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum SearchScope {
@@ -147,11 +117,11 @@ impl SearchScope {
     }
 
     /// The `content_type` facet this scope maps onto, if any (for the downstream consumer that will
-    /// execute the search). A scope with no direct `content_type` (the cross-surface scopes —
+    /// execute the search). A scope with no direct `content_type` (the cross-surface scopes â€”
     /// pane/window/trace/terminal/stage/layout, plus stash which has no distinct content_type) returns
     /// `None` and the consumer searches the whole graph with the typed query. `Project` is whole-project
     /// (no content_type filter). This is the rail's HONEST scope->facet mapping carried on the intent; it
-    /// is NOT a backend request — the rail makes no backend call.
+    /// is NOT a backend request â€” the rail makes no backend call.
     pub fn content_type(self) -> Option<&'static str> {
         match self {
             // file / annotated_file blocks.
@@ -175,7 +145,7 @@ impl fmt::Display for SearchScope {
 
 /// A parsed rail query: the residual free-text plus the resolved scope and the extracted operator
 /// facets. Produced by [`parse_rail_query`]; this IS the search INTENT the rail emits and a downstream
-/// pane/overlay consumes (the contract's `RailQuery`). The rail only PRODUCES this struct — it does not
+/// pane/overlay consumes (the contract's `RailQuery`). The rail only PRODUCES this struct â€” it does not
 /// execute a search.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct RailQuery {
@@ -188,7 +158,7 @@ pub struct RailQuery {
     pub tag_ids: Vec<String>,
     /// Path filter from a `path:` / `folder:` operator (a downstream consumer decides how to apply it;
     /// the verified `search-v2` body has no dedicated path field, so the consumer folds it into the query
-    /// — see [`effective_query`](Self::effective_query)).
+    /// â€” see [`effective_query`](Self::effective_query)).
     pub path: Option<String>,
     /// Content-kind filters from a `kind:` operator. A value that is a recognized `content_type`
     /// promotes to the resolved content_type (see [`resolved_content_type`](Self::resolved_content_type));
@@ -203,7 +173,7 @@ pub struct RailQuery {
 impl RailQuery {
     /// The `content_type` the emitted intent resolves to (for the downstream consumer): a valid `kind:`
     /// operator wins (most specific), else the active scope's mapping. `None` => whole-graph query. A
-    /// pure helper over the parsed intent — no backend call.
+    /// pure helper over the parsed intent â€” no backend call.
     pub fn resolved_content_type(&self) -> Option<String> {
         // The first VALID kind: filter wins over the scope's mapping.
         for k in &self.kind_filters {
@@ -217,7 +187,7 @@ impl RailQuery {
     /// The effective query string a downstream consumer would search with: the free-text plus any
     /// `path:` term folded in (the verified `search-v2` body has no path field, so the path narrows the
     /// FTS query honestly rather than a fabricated parameter). Empty path => just the free-text. A pure
-    /// helper over the parsed intent — no backend call.
+    /// helper over the parsed intent â€” no backend call.
     pub fn effective_query(&self) -> String {
         match &self.path {
             Some(p) if !p.is_empty() => {
@@ -262,7 +232,7 @@ pub fn is_known_content_type(value: &str) -> bool {
 /// - any other token (non-operator, or an unrecognized operator) stays as free-text.
 ///
 /// The `scope` argument is the pill-selected scope used UNLESS a typed scope-prefix overrides it
-/// (typed prefix wins — AC-022-4). Never panics on malformed input (PROOF-022-1e).
+/// (typed prefix wins â€” AC-022-4). Never panics on malformed input (PROOF-022-1e).
 pub fn parse_rail_query(raw: &str, scope: SearchScope) -> RailQuery {
     let mut out = RailQuery {
         scope,
@@ -391,7 +361,7 @@ fn split_operator_values(value: &str) -> Vec<String> {
 /// scope/clear/fire changes through this outcome so the shell writes/clears the slot.
 #[derive(Debug, Clone, PartialEq)]
 pub enum RailOutcome {
-    /// No actionable change this frame (typing is reflected in the returned query).
+    /// No explicit action this frame; the header host observes live input.
     None,
     /// The user pressed Enter or clicked Loom: EMIT this parsed query as the search intent (the shell
     /// writes it into the [`RailQuerySlot`]). The rail makes no backend call. The Loom shortcut forces
@@ -425,6 +395,12 @@ pub struct RailVisuals {
 /// The result of rendering a frame: the outcome PLUS the current parsed query + active scope, so the
 /// shell can observe the live intent without owning the egui memory.
 pub struct RailFrame {
+    pub literal: String,
+    pub input_changed: bool,
+    pub anchor: egui::Rect,
+    pub focused: bool,
+    pub select_current: bool,
+    pub composing: bool,
     /// What the shell should do (fire / clear / nothing).
     pub outcome: RailOutcome,
     /// The CURRENT parsed query this frame (free-text + scope + facets).
@@ -437,6 +413,7 @@ pub struct RailFrame {
 struct RailUiState {
     /// The current raw query text in the input.
     query: String,
+    composing: bool,
     /// The pill-selected scope (overridden by a typed colon-prefix at parse time). Defaults to
     /// [`SearchScope::Project`] (the rail's default scope).
     active_scope: SearchScope,
@@ -447,51 +424,46 @@ fn state_id() -> egui::Id {
     egui::Id::new("bottom-rail.state")
 }
 
-/// Render the bottom search rail INSIDE an already-opened bottom panel `ui` (the shell registers the
-/// `TopBottomPanel::bottom` so the panel claims its space before the central panel — see the module
-/// docs). Returns the [`RailFrame`] for this frame.
-///
-/// Layout (left -> right): the nine scope pills, the free-text input (filling the remaining width), the
-/// `x` clear button, and the `Loom` shortcut. The rail renders NO results — it only emits an intent
-/// (AC-022-9). The strip height never changes (AC-022-1).
+/// Render the persistent field and legacy controls inside the host header panel.
 pub fn show(ui: &mut egui::Ui, view: RailView) -> RailFrame {
     let mut state: RailUiState = ui
         .ctx()
         .data_mut(|d| d.get_temp::<RailUiState>(state_id()))
         .unwrap_or_default();
 
+    let mut anchor = egui::Rect::NOTHING;
+    let mut focused = false;
+    let mut composing_frame = false;
+    let mut input_changed = false;
     let mut outcome = RailOutcome::None;
     let mut fire = false;
     let mut clear = false;
     let mut loom = false;
+    let ime_frame = ui.input(|input| input.events.iter().any(|event| matches!(event, egui::Event::Ime(_))));
 
     let input_egui_id = unsafe { egui::Id::from_high_entropy_bits(RAIL_INPUT_NODE_ID) };
     let clear_egui_id = unsafe { egui::Id::from_high_entropy_bits(RAIL_CLEAR_NODE_ID) };
     let loom_egui_id = unsafe { egui::Id::from_high_entropy_bits(RAIL_LOOM_NODE_ID) };
 
     ui.horizontal_centered(|ui| {
-        // ── Scope pills (left), then the input + clear + Loom (right). ──
-        // The pills render left-to-right; the input + buttons live in the right_to_left group below,
-        // which egui lays out FIRST (reserving their width from the right edge), so the free-text input
-        // is ALWAYS visible even when the nine pills are wide on a narrow window (RISK-022-B). A
-        // horizontal egui ScrollArea was intentionally NOT used here: its viewport acquires an anonymous
-        // (role Unknown, Action::Click) AccessKit node that trips the MT-025 interactive-naming gate;
-        // the reserve-input-first layout meets the same "input never clipped" goal without that node.
-        for &scope in SearchScope::all() {
-            let selected = state.active_scope == scope;
-            let resp = scope_pill(ui, scope, selected, &view.colors);
-            if resp.clicked() {
-                // Clicking a pill sets the scope; it does NOT fire a search (AC-022-3).
-                state.active_scope = scope;
+        // Compact scope menu preserves the original scope identities.
+        let menu = ui.menu_button(state.active_scope.to_string(), |ui| {
+            for &scope in SearchScope::all() {
+                if scope_pill(ui, scope, state.active_scope == scope, &view.colors).clicked() && !state.composing && !ime_frame {
+                    input_changed |= state.active_scope != scope;
+                    state.active_scope = scope;
+                    ui.close();
+                }
             }
-        }
+        });
+        ui.ctx().accesskit_node_builder(menu.response.id, |node| node.set_author_id("handpick.scopes"));
 
         ui.separator();
 
-        // ── The Loom shortcut + clear button, right-aligned so the input fills the middle. ──
+        // â”€â”€ The Loom shortcut + clear button, right-aligned so the input fills the middle. â”€â”€
         // Laid out right-to-left so the input's `desired_width(INFINITY)` fills the gap to the left of
-        // these fixed-size buttons (egui right_to_left reserves them first — so the input is ALWAYS
-        // visible regardless of how many pills render to the left — RISK-022-B).
+        // these fixed-size buttons (egui right_to_left reserves them first â€” so the input is ALWAYS
+        // visible regardless of how many pills render to the left â€” RISK-022-B).
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             // Loom shortcut at its FIXED id (NodeId 24): forces project: scope + emits (one click from
             // any surface). Uses the codebase's fixed-id button pattern (allocate + interact at the fixed
@@ -522,40 +494,62 @@ pub fn show(ui: &mut egui::Ui, view: RailView) -> RailFrame {
                 clear = true;
             }
 
-            // ── The free-text input fills the remaining middle width at its FIXED id (NodeId 22). ──
+            // â”€â”€ The free-text input fills the remaining middle width at its FIXED id (NodeId 22). â”€â”€
             let edit = egui::TextEdit::singleline(&mut state.query)
                 .id(input_egui_id)
-                .hint_text("Search…  (try project:foo, tag:x, kind:note)")
+                .hint_text("Search your workspaceâ€¦")
                 .desired_width(f32::INFINITY);
             let edit_response = ui.add(edit);
+            input_changed |= edit_response.changed();
+            anchor = edit_response.rect;
+            focused = edit_response.gained_focus();
+            if edit_response.has_focus() || edit_response.lost_focus() {
+                ui.input(|input| {
+                    for event in &input.events {
+                        if let egui::Event::Ime(ime) = event {
+                            match ime {
+                                egui::ImeEvent::Enabled | egui::ImeEvent::Preedit(_) => state.composing = true,
+                                egui::ImeEvent::Commit(_) | egui::ImeEvent::Disabled => state.composing = false,
+                            }
+                        }
+                    }
+                });
+            }
+            composing_frame = state.composing || ime_frame;
+            if edit_response.lost_focus() { state.composing = false; }
             emit_interactive_node(ui.ctx(), input_egui_id, RAIL_INPUT_AUTHOR_ID);
             ui.ctx().accesskit_node_builder(input_egui_id, |node| {
                 node.add_action(egui::accesskit::Action::SetValue);
             });
-            if let Some(replacement) = crate::mcp::accesskit_string_set_value(ui, input_egui_id) {
+            if let Some(replacement) = crate::mcp::accesskit_string_set_value(ui, input_egui_id).filter(|_| !state.composing && !ime_frame) {
+                input_changed |= state.query != replacement;
                 state.query = replacement;
                 ui.ctx().request_repaint();
             }
             // Enter emits the search intent (AC-022-3: only Enter or Loom fires).
-            if edit_response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+            if !composing_frame && edit_response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                 fire = true;
             }
         });
     });
 
-    // ── Apply the Loom shortcut: force project: scope, then fire. ──
-    if loom {
+    let select_current = fire && !loom;
+    // â”€â”€ Apply the Loom shortcut: force project: scope, then fire. â”€â”€
+    if loom && !composing_frame {
+        input_changed |= state.active_scope != SearchScope::Project;
         state.active_scope = SearchScope::Project;
         fire = true;
     }
 
     // Parse the live query against the active (pill) scope; a typed colon-prefix overrides it.
-    let parsed = parse_rail_query(&state.query, state.active_scope);
+    let mut parsed = parse_rail_query(&state.query, state.active_scope);
 
-    // ── Clear: empty the input, reset the scope to default, signal the shell to clear the slot. ──
-    if clear {
+    // â”€â”€ Clear: empty the input, reset the scope to default, signal the shell to clear the slot. â”€â”€
+    if clear && !composing_frame {
+        input_changed |= !state.query.is_empty() || state.active_scope != SearchScope::default();
         state.query.clear();
         state.active_scope = SearchScope::default();
+        parsed = parse_rail_query(&state.query, state.active_scope);
         outcome = RailOutcome::Clear;
     } else if fire {
         outcome = RailOutcome::Fire(Box::new(parsed.clone()));
@@ -566,6 +560,12 @@ pub fn show(ui: &mut egui::Ui, view: RailView) -> RailFrame {
         .data_mut(|d| d.insert_temp(state_id(), state.clone()));
 
     RailFrame {
+        literal: state.query.clone(),
+        input_changed,
+        anchor,
+        focused,
+        select_current,
+        composing: composing_frame,
         outcome,
         query: parsed,
     }
@@ -670,7 +670,7 @@ fn fixed_id_button(
 mod tests {
     use super::*;
 
-    // ── Fixed control ids in the fresh disjoint band ──────────────────────────────────────────────
+    // â”€â”€ Fixed control ids in the fresh disjoint band â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn rail_control_ids_in_disjoint_fresh_band() {
@@ -689,7 +689,7 @@ mod tests {
         assert_ne!(RAIL_CLEAR_NODE_ID, RAIL_LOOM_NODE_ID);
     }
 
-    // ── Scope enum: Display, default, all(), keyword round-trip ────────────────────────────────────
+    // â”€â”€ Scope enum: Display, default, all(), keyword round-trip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn scope_display_is_colon_suffixed() {
@@ -716,7 +716,7 @@ mod tests {
         assert_eq!(SearchScope::from_keyword("nope"), None);
     }
 
-    // ── parse_rail_query: PROOF-022-1 (a)..(e) + AC-022-4 ─────────────────────────────────────────
+    // â”€â”€ parse_rail_query: PROOF-022-1 (a)..(e) + AC-022-4 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn parse_free_text_no_operators() {
@@ -826,7 +826,7 @@ mod tests {
         assert!(q.tag_ids.is_empty());
     }
 
-    // ── content_type + effective_query mapping (intent-derived helpers, no backend call) ───────────
+    // â”€â”€ content_type + effective_query mapping (intent-derived helpers, no backend call) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn file_scope_maps_to_file_content_type() {
@@ -842,7 +842,7 @@ mod tests {
         assert_eq!(only_path.effective_query(), "docs");
     }
 
-    // ── Emitted-intent slot: the fire path WRITES, a reader CLONES-and-READS (HBR-SWARM) ──────────
+    // â”€â”€ Emitted-intent slot: the fire path WRITES, a reader CLONES-and-READS (HBR-SWARM) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn rail_query_slot_write_then_read_clone() {
@@ -883,7 +883,7 @@ mod tests {
     #[test]
     fn rail_query_slot_shared_across_clones() {
         // A second Arc clone (held by a downstream consumer / swarm thread) observes a write made
-        // through the first handle — the slot is genuinely shared, not copied.
+        // through the first handle â€” the slot is genuinely shared, not copied.
         let writer: RailQuerySlot = Arc::new(Mutex::new(None));
         let reader = writer.clone();
         let emitted = parse_rail_query("tag:t1 docs", SearchScope::Project);
@@ -896,5 +896,671 @@ mod tests {
                 .expect("reader sees the write"),
             emitted
         );
+    }
+}
+
+
+type Hit = crate::quick_switcher::LoomGraphSearchHit;
+enum HeaderFetchError {
+    Denied,
+    Retired,
+    Message(String),
+}
+impl From<String> for HeaderFetchError {
+    fn from(message: String) -> Self { Self::Message(message) }
+}
+impl From<&str> for HeaderFetchError {
+    fn from(message: &str) -> Self { Self::Message(message.to_owned()) }
+}
+type HeaderPage = (Arc<()>, handpick::Fence, Result<Vec<Hit>, HeaderFetchError>);
+
+struct AdmittedHeaderQuery {
+    parsed: RailQuery,
+    draft_revision: u64,
+}
+
+/// Account-bound host state; shared Handpick owns query fences and grouped presentation.
+#[derive(Default)]
+pub struct HandpickHost {
+    notes: composition::MountedNotes,
+    account: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    workspace: String,
+    backend: String,
+    binding: Arc<()>,
+    input_seen: bool,
+    pub binding_changed: bool,
+    session: Option<handpick::Session>,
+    picker: handpick::Picker,
+    rows: Vec<Hit>,
+    delivery: Arc<Mutex<Option<HeaderPage>>>,
+    task: Option<tokio::task::JoinHandle<()>>,
+    query: Option<AdmittedHeaderQuery>,
+    due: Option<std::time::Instant>,
+    error: Option<String>,
+    open: bool,
+    exhausted: bool,
+    skip_focus_open: bool,
+    observations: bool,
+}
+
+impl Drop for HandpickHost {
+    fn drop(&mut self) {
+        if let Some(task) = self.task.take() {
+            task.abort();
+            if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Stale); }
+        }
+        if let Some(session) = &mut self.session { session.revoke(); }
+    }
+}
+
+impl HandpickHost {
+    pub fn matches_context(&self, workspace: &str,
+        account: Option<&Arc<crate::local_account::AuthenticatedContext>>, base: &str) -> bool {
+        self.workspace == workspace && self.backend == base && match (&self.account, account) {
+            (Some(previous), Some(current)) => Arc::ptr_eq(previous, current) && current.is_active(),
+            (None, None) => true,
+            _ => false,
+        }
+    }
+
+    pub fn retained_note_bindings(&self) -> Vec<(String, String)> {
+        self.notes.retained_bindings()
+    }
+
+    pub fn visible_note_binding(&self) -> Option<(String, String)> {
+        self.notes.visible_binding()
+    }
+
+    pub fn focused_note_binding(&self) -> Option<(String, String)> {
+        self.notes.focused_binding()
+    }
+
+    pub fn take_released_note_bindings(&mut self) -> Vec<(String, String)> {
+        self.notes.take_released_bindings()
+    }
+
+    fn bind(&mut self, ctx: &egui::Context, workspace: &str,
+        account: Option<Arc<crate::local_account::AuthenticatedContext>>, base: &str) {
+        let same = self.matches_context(workspace, account.as_ref(), base);
+        self.binding_changed = !same;
+        if same { return; }
+        let mut notes = std::mem::take(&mut self.notes);
+        notes.retire_session();
+        *self = Self::default();
+        self.notes = notes;
+        self.binding_changed = true;
+        ctx.data_mut(|data| data.remove::<RailUiState>(state_id()));
+        let input = unsafe { egui::Id::from_high_entropy_bits(RAIL_INPUT_NODE_ID) };
+        egui::TextEdit::store_state(ctx, input, egui::text_edit::TextEditState::default());
+        ctx.memory_mut(|memory| memory.surrender_focus(input));
+        self.workspace = workspace.to_owned();
+        self.backend = base.to_owned();
+        self.account = account.filter(|account| account.is_active());
+        if let Some(account) = &self.account {
+            match handpick::ContextId::new(account.session_id.clone()) {
+                Ok(context) => self.session = Some(handpick::Session::new(context, handpick::Limits {
+                    max_text_bytes: 65536, max_pins: 0, max_items: 1024,
+                    max_item_bytes: 65536, max_actions_per_item: 1,
+                })),
+                Err(_) => self.error = Some("Invalid authenticated search context".into()),
+            }
+        }
+    }
+
+    fn replace_input(&mut self, frame: &RailFrame) {
+        let changed = frame.input_changed || !self.input_seen;
+        if !changed { return; }
+        self.input_seen = true;
+        // Retire all prior admission and delivery before attempting the exact new literal.
+        self.query = None;
+        if let Some(task) = self.task.take() {
+            task.abort();
+            if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Stale); }
+        }
+        self.delivery = Arc::new(Mutex::new(None));
+        self.rows.clear();
+        self.picker = handpick::Picker::new();
+        self.error = None;
+        self.exhausted = false;
+        self.open = !frame.literal.trim().is_empty();
+        self.due = None;
+        if let Some(session) = &mut self.session {
+            if let Err(error) = session.begin().and_then(|_| session.set_draft(frame.literal.clone())) {
+                self.error = Some(error.to_string());
+                if self.observations && frame.input_changed { record_gui_observation(GuiOp::HandpickInput, GuiPhase::Rejected); }
+                return;
+            }
+            self.query = Some(AdmittedHeaderQuery {
+                parsed: frame.query.clone(),
+                draft_revision: session.draft_revision(),
+            });
+        }
+        if self.observations && frame.input_changed { record_gui_observation(GuiOp::HandpickInput, GuiPhase::Accepted); }
+        if self.open {
+            self.due = Some(std::time::Instant::now() + std::time::Duration::from_millis(150));
+        }
+    }
+
+    fn admitted_query(&self, literal: &str) -> Option<&AdmittedHeaderQuery> {
+        self.query.as_ref().filter(|admitted| self.session.as_ref().is_some_and(|session|
+            session.draft() == literal && session.draft_revision() == admitted.draft_revision))
+    }
+
+    fn fence_legacy_intent(&self, frame: &mut RailFrame) {
+        if matches!(&frame.outcome, RailOutcome::Fire(_)) && self.admitted_query(&frame.literal).is_none() {
+            frame.outcome = RailOutcome::None;
+        }
+    }
+
+    fn request(&mut self, ctx: &egui::Context, runtime: Option<&tokio::runtime::Handle>, literal: &str) {
+        self.due = None;
+        if self.task.is_some() { return; }
+        let Some(admitted) = self.admitted_query(literal) else {
+            if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Rejected); }
+            self.error = Some("Current input has not been admitted; edit the query before searching".into());
+            return;
+        };
+        let query = admitted.parsed.clone();
+        if !matches!(query.scope, SearchScope::Project | SearchScope::File) {
+            if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Unavailable); }
+            self.error = Some("This scope has no graph provider yet. Its existing search intent remains available.".into());
+            return;
+        }
+        if !query.kind_errors.is_empty() {
+            if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Rejected); }
+            self.error = Some("Unsupported kind filter; query retained".into()); return;
+        }
+        if query.free_text.trim().is_empty() {
+            if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Rejected); }
+            self.error = Some("Enter search text to query the graph".into()); return;
+        }
+        use unicode_normalization::UnicodeNormalization;
+        let normalized: String = query.free_text.nfc().collect();
+        match handpick::parse_query(&normalized) {
+            Ok(parsed) if parsed.incomplete || !parsed.unsupported.is_empty()
+                || matches!(parsed.purpose, handpick::QueryPurpose::Commands | handpick::QueryPurpose::Settings)
+                || parsed.result_type.is_some() || parsed.area.is_some() || parsed.task.is_some() => {
+                if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Unavailable); }
+                self.error = Some("This query mode needs its native provider; query retained".into()); return;
+            }
+            Err(error) => {
+                if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Rejected); }
+                self.error = Some(error.to_string()); return;
+            }
+            Ok(_) => {}
+        }
+        let (Some(account), Some(runtime), Some(session)) = (&self.account, runtime, &mut self.session) else {
+            if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Unavailable); }
+            self.error = Some("Connect an authenticated workspace to search".into()); return;
+        };
+        if !account.is_active() || self.workspace.is_empty() {
+            if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Rejected); }
+            return;
+        }
+        let fence = match session.begin() {
+            Ok(fence) => fence,
+            Err(error) => {
+                if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Rejected); }
+                self.error = Some(error.to_string()); return;
+            }
+        };
+        if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Accepted); }
+        self.error = None;
+        let offset = self.rows.len();
+        let account = account.clone();
+        let workspace = self.workspace.clone();
+        let base = self.backend.clone();
+        let binding = self.binding.clone();
+        let delivery = self.delivery.clone();
+        let repaint = ctx.clone();
+        self.task = Some(runtime.spawn(async move {
+            let result = fetch_header_page(&base, &workspace, account, &query, offset).await;
+            if let Ok(mut slot) = delivery.lock() { *slot = Some((binding, fence, result)); }
+            repaint.request_repaint();
+        }));
+        if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Pending); }
+    }
+
+    fn restart(&mut self, ctx: &egui::Context, runtime: Option<&tokio::runtime::Handle>, literal: &str) {
+        if let Some(task) = self.task.take() {
+            task.abort();
+            if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Stale); }
+        }
+        self.delivery = Arc::new(Mutex::new(None));
+        self.rows.clear();
+        self.picker = handpick::Picker::new();
+        self.exhausted = false;
+        self.request(ctx, runtime, literal);
+    }
+
+    fn drain(&mut self) {
+        let delivery = self.delivery.lock().ok().and_then(|mut slot| slot.take());
+        let Some((binding, fence, result)) = delivery else { return; };
+        let Some(session) = &mut self.session else {
+            if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Stale); }
+            return;
+        };
+        if !Arc::ptr_eq(&self.binding, &binding)
+            || !self.account.as_ref().is_some_and(|account| account.is_active())
+            || !self.query.as_ref().is_some_and(|admitted| admitted.draft_revision == session.draft_revision())
+            || session.fence() != fence {
+            if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Stale); }
+            return;
+        }
+        self.task = None;
+        let page = match result {
+            Ok(page) => page,
+            Err(error) => {
+                if self.observations {
+                    let phase = match &error {
+                        HeaderFetchError::Denied => GuiPhase::Rejected,
+                        HeaderFetchError::Retired => GuiPhase::Stale,
+                        HeaderFetchError::Message(_) => GuiPhase::Failed,
+                    };
+                    record_gui_observation(GuiOp::HandpickRetrieval, phase);
+                }
+                self.error = Some(match error {
+                    HeaderFetchError::Denied | HeaderFetchError::Retired => {
+                        self.rows.clear();
+                        self.picker = handpick::Picker::new();
+                        let _ = session.deliver(&fence, handpick::Channel::Search, handpick::DeliveryStatus::Failed, Vec::new());
+                        "Search access denied or account retired; reconnect or change workspace".to_owned()
+                    }
+                    HeaderFetchError::Message(message) => message,
+                });
+                return;
+            }
+        };
+        let exhausted = page.len() < 50;
+        let mut rows = self.rows.clone();
+        rows.extend(page);
+        let descriptors = match rows.iter().map(header_item).collect::<Result<Vec<_>, _>>() {
+            Ok(items) => items,
+            Err(error) => {
+                if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Rejected); }
+                self.error = Some(error); return;
+            }
+        };
+        let status = if exhausted { handpick::DeliveryStatus::Complete } else { handpick::DeliveryStatus::Partial };
+        if let Err(error) = session.deliver(&fence, handpick::Channel::Search, status, descriptors.clone()) {
+            if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Rejected); }
+            self.error = Some(format!("Search admission failed ({error}); restart the search or narrow the query"));
+            return;
+        }
+        let items: Vec<_> = descriptors.into_iter().zip(&rows).map(|(item, hit)| handpick::PickerItem {
+            item, category: header_category(hit), location: None, highlights: Vec::new(), preview: None,
+        }).collect();
+        let coverage = handpick::ResultCategory::ALL.into_iter().filter_map(|category| {
+            let loaded = items.iter().filter(|row| row.category == category).count() as u32;
+            (loaded > 0).then_some(handpick::PickerCoverage { category, status, loaded,
+                total: None })
+        }).collect();
+        if let Err(error) = self.picker.set_results(items, coverage) {
+            if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Rejected); }
+            self.error = Some(error.to_string()); return;
+        }
+        self.rows = rows;
+        self.exhausted = exhausted;
+        // Accepted transport/projection transition only; this says nothing about corpus coverage.
+        if self.observations { record_gui_observation(GuiOp::HandpickRetrieval, GuiPhase::Completed); }
+    }
+}
+
+/// Mount the persistent field and attached grouped dropdown without owning native Notes drafts.
+pub fn show_header(ctx: &egui::Context, view: RailView, host: &mut HandpickHost,
+    workspace: &str, account: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    runtime: Option<&tokio::runtime::Handle>, base: &str, observations: bool,
+    current_note: Option<Arc<Mutex<crate::rich_editor::renderer::rich_editor_widget::RichEditorState>>>,
+    notes_store: &crate::editor_pane_factories::RichEditorDocumentStore,
+    notes_mount: &crate::editor_pane_factories::RichEditorPaneMount) -> (RailFrame, Option<Hit>) {
+    host.observations = observations;
+    host.bind(ctx, workspace, account, base);
+    host.observations = observations;
+    host.drain();
+    let input_id = unsafe { egui::Id::from_high_entropy_bits(RAIL_INPUT_NODE_ID) };
+    let native_popup_open = egui::Popup::is_any_open(ctx);
+    let composing = ctx.data_mut(|data| data.get_temp::<RailUiState>(state_id()))
+        .is_some_and(|state| state.composing)
+        || ctx.input(|input| input.events.iter().any(|event| matches!(event, egui::Event::Ime(_))));
+    if host.open && !native_popup_open && !composing && ctx.memory(|memory| memory.has_focus(input_id)) {
+        for (key, delta) in [(egui::Key::ArrowDown, 1), (egui::Key::ArrowUp, -1)] {
+            if ctx.input_mut(|input| input.consume_key(egui::Modifiers::NONE, key)) { host.picker.move_selection(delta); }
+        }
+    }
+    let mut frame = egui::TopBottomPanel::top("handshake_handpick_header")
+        .exact_height(RAIL_HEIGHT).show(ctx, |ui| ui.horizontal(|ui| {
+            let width = (ui.available_width() - 76.0).max(32.0);
+            let frame = ui.allocate_ui_with_layout(egui::vec2(width, RAIL_HEIGHT),
+                egui::Layout::top_down(egui::Align::Min), |ui| show(ui, view)).inner;
+            let notes = ui.add_enabled(host.account.as_ref().is_some_and(|account| account.is_active()), egui::Button::new("Notes"));
+            ctx.accesskit_node_builder(notes.id, |node| node.set_author_id("handpick.notes.open"));
+            if notes.clicked() { host.notes.requested = true; }
+            frame
+        }).inner).inner;
+    host.replace_input(&frame);
+    ctx.accesskit_node_builder(input_id, |node| node.set_expanded(host.open));
+    let skip_focus_open = std::mem::take(&mut host.skip_focus_open);
+    if frame.focused && !skip_focus_open && !frame.literal.trim().is_empty() { host.open = true; }
+    let mut picked = None;
+    if host.open && !frame.composing && !native_popup_open && !egui::Popup::is_any_open(ctx) {
+        if ctx.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
+            host.open = false;
+            host.skip_focus_open = true;
+            ctx.memory_mut(|memory| memory.request_focus(input_id));
+        }
+    }
+    if matches!(&frame.outcome, RailOutcome::Clear) {
+        host.open = false;
+    } else if matches!(&frame.outcome, RailOutcome::Fire(_)) && !frame.composing {
+        if host.open && frame.select_current {
+            if let Some(key) = host.picker.view().selected {
+                picked = host.rows.iter().find(|hit| header_key(hit).ok().as_ref() == Some(&key)
+                    && crate::quick_switcher::resolve_open_target(hit).enabled()).cloned();
+            }
+        }
+        if picked.is_none() { host.restart(ctx, runtime, &frame.literal); host.open = true; }
+    }
+    if !frame.composing && host.due.is_some_and(|due| std::time::Instant::now() >= due) {
+        host.request(ctx, runtime, &frame.literal);
+    }
+    if let Some(due) = host.due { ctx.request_repaint_after(due.saturating_duration_since(std::time::Instant::now())); }
+    host.notes.show(ctx, workspace, host.account.as_ref(), base, current_note, notes_store, notes_mount, runtime, observations);
+    if host.open && !egui::Popup::is_any_open(ctx) {
+        let popup = egui::Area::new(egui::Id::new("handpick.results"))
+            .order(egui::Order::Foreground).fixed_pos(frame.anchor.left_bottom())
+            .show(ctx, |ui| egui::Frame::popup(ui.style()).show(ui, |ui| {
+                ui.set_width(frame.anchor.width().min(720.0));
+                ctx.accesskit_node_builder(ui.id(), |node| {
+                    node.set_role(accesskit::Role::ListBox);
+                    node.set_author_id("handpick.results");
+                    node.set_label("Workspace search results");
+                });
+                egui::ScrollArea::vertical().max_height((ctx.content_rect().height() * 0.55).min(480.0))
+                    .show(ui, |ui| {
+                        if let Some(session) = &host.session {
+                            if let Ok(handpick::InputState::Source { form, .. }) = session.input_state(&session.fence(), frame.composing) {
+                                ui.label(match form { handpick::SourceForm::Prefix => "Source address prefix", handpick::SourceForm::Url => "Source address" });
+                                let source = ui.add_enabled(false, egui::Button::new("Add source"));
+                                ctx.accesskit_node_builder(source.id, |node| node.set_author_id("handpick.source.add"));
+                                source.on_hover_text("The native source-management owner is not bound to this header");
+                            }
+                        }
+                        if host.task.is_some() || host.due.is_some() { ui.label("Searchingâ€¦"); }
+                        if let Some(error) = &host.error {
+                            ui.colored_label(ui.visuals().error_fg_color, error);
+                            if host.task.is_none() {
+                                let retry = ui.button("Retry");
+                                ctx.accesskit_node_builder(retry.id, |node| node.set_author_id("handpick.retry"));
+                                if retry.clicked() { host.request(ctx, runtime, &frame.literal); }
+                            }
+                        }
+                        let view = host.picker.view();
+                        if host.exhausted && host.rows.is_empty() { ui.label("No graph matches"); }
+                        for group in view.groups {
+                            let label = category_label(group.category);
+                            let count = group.total.map_or_else(|| format!("{} loaded Â· total unknown", group.loaded), |total| total.to_string());
+                            let heading = ui.button(format!("{label} Â· {count}"));
+                            ctx.accesskit_node_builder(heading.id, |node| {
+                                node.set_author_id(format!("handpick.group.{label}"));
+                                node.set_expanded(!group.collapsed);
+                            });
+                            if heading.clicked() { host.picker.toggle(group.category); }
+                            for row in group.items {
+                                let selected = view.selected.as_ref() == Some(&row.item.key);
+                                if let Some(hit) = host.rows.iter().find(|hit| header_key(hit).ok().as_ref() == Some(&row.item.key)) {
+                                    let supported = crate::quick_switcher::resolve_open_target(hit).enabled();
+                                    let response = ui.push_id(
+                                        (row.item.key.provider.as_str(), row.item.key.result.as_str()),
+                                        |ui| ui.add_enabled(supported && !frame.composing,
+                                            egui::Button::new(&row.item.label).selected(selected)),
+                                    ).inner;
+                                    ctx.accesskit_node_builder(response.id, |node| {
+                                        node.set_role(accesskit::Role::ListBoxOption);
+                                        node.set_author_id(format!("handpick.result.{}:{}", row.item.key.provider.as_str(), row.item.key.result.as_str()));
+                                        node.set_selected(selected);
+                                    });
+                                    if response.clicked() { picked = Some(hit.clone()); }
+                                    if let Some(detail) = row.item.detail { ui.small(detail); }
+                                }
+                            }
+                            if group.has_more {
+                                let more = ui.button(format!("Show more {label}"));
+                                ctx.accesskit_node_builder(more.id, |node| node.set_author_id(format!("handpick.more.{label}")));
+                                if more.clicked() { host.picker.show_more(group.category); }
+                            }
+                        }
+                        if !host.rows.is_empty() && !host.exhausted && host.task.is_none() {
+                            let next = ui.button("Load next graph page");
+                            ctx.accesskit_node_builder(next.id, |node| node.set_author_id("handpick.next-page"));
+                            if next.clicked() { host.request(ctx, runtime, &frame.literal); }
+                            ui.small("Offset pages have no snapshot revision. Concurrent changes can require a new search.");
+                        }
+                    });
+            })).response;
+        if ctx.input(|input| input.pointer.any_pressed()) && !popup.contains_pointer()
+            && !frame.anchor.contains(ctx.input(|input| input.pointer.interact_pos().unwrap_or(egui::Pos2::ZERO))) {
+            host.open = false;
+        }
+    }
+    if !host.account.as_ref().is_some_and(|account| account.is_active()) { picked = None; }
+    if picked.is_some() { host.open = false; }
+    ctx.accesskit_node_builder(input_id, |node| node.set_expanded(host.open));
+    host.fence_legacy_intent(&mut frame);
+    (frame, picked)
+}
+
+fn header_key(hit: &Hit) -> Result<handpick::ResultKey, String> {
+    Ok(handpick::ResultKey {
+        provider: handpick::ProviderId::new(hit.source_kind.clone()).map_err(str::to_owned)?,
+        result: handpick::ResultId::new(hit.ref_id.clone()).map_err(str::to_owned)?,
+    })
+}
+fn header_item(hit: &Hit) -> Result<handpick::SearchItem, String> {
+    Ok(handpick::SearchItem { key: header_key(hit)?, label: hit.title.clone(),
+        detail: (!hit.excerpt.is_empty()).then(|| hit.excerpt.clone()), actions: Vec::new() })
+}
+fn header_category(hit: &Hit) -> handpick::ResultCategory {
+    match hit.source_kind.as_str() {
+        "file" => handpick::ResultCategory::Files,
+        "tag_hub" => handpick::ResultCategory::Tags,
+        "document" | "loom_block" => handpick::ResultCategory::Notes,
+        _ => handpick::ResultCategory::Actions,
+    }
+}
+fn category_label(category: handpick::ResultCategory) -> &'static str {
+    match category {
+        handpick::ResultCategory::Notes => "Notes", handpick::ResultCategory::Files => "Files",
+        handpick::ResultCategory::Folders => "Folders", handpick::ResultCategory::Tags => "Tags",
+        handpick::ResultCategory::Actions => "Actions", handpick::ResultCategory::Tasks => "Tasks",
+        handpick::ResultCategory::Feeds => "Feeds",
+    }
+}
+
+async fn fetch_header_page(base: &str, workspace: &str,
+    account: Arc<crate::local_account::AuthenticatedContext>, query: &RailQuery, offset: usize)
+    -> Result<Vec<Hit>, HeaderFetchError> {
+    let mut url = reqwest::Url::parse(base).map_err(|_| "Invalid backend address".to_owned())?;
+    {
+        let mut segments = url.path_segments_mut().map_err(|_| "Invalid backend address".to_owned())?;
+        segments.pop_if_empty().push("workspaces").push(workspace).push("loom").push("graph-search");
+    }
+    let mut params = vec![("q", query.free_text.clone()), ("limit", "50".into()), ("offset", offset.to_string())];
+    if let Some(content_type) = query.resolved_content_type() { params.push(("content_type", content_type)); }
+    if !query.tag_ids.is_empty() { params.push(("tag_ids", query.tag_ids.join(","))); }
+    if let Some(path) = &query.path { params.push(("path", path.clone())); }
+    let client = crate::backend_client::shared_http_client();
+    let response = crate::local_account::AuthenticatedRequest::new(client.clone(), Some(account.clone()),
+        client.get(url).query(&params).timeout(std::time::Duration::from_secs(5)))
+        .send().await.map_err(|_| "Search connection failed; query retained".to_owned())?;
+    if matches!(response.status().as_u16(), 401 | 403) { return Err(HeaderFetchError::Denied); }
+    if !response.status().is_success() {
+        return Err(format!("Search failed (HTTP {}); query retained", response.status().as_u16()).into());
+    }
+    let rows: Vec<Hit> = response.json().await.map_err(|_| "Invalid search response; query retained".to_owned())?;
+    if !account.is_active() { return Err(HeaderFetchError::Retired); }
+    if rows.len() > 50 { return Err("Search page exceeds the requested limit".into()); }
+    Ok(rows)
+}
+
+
+#[cfg(test)]
+mod handpick_boundary_tests {
+    use super::*;
+
+    fn frame(literal: String) -> RailFrame {
+        RailFrame {
+            query: parse_rail_query(&literal, SearchScope::Project),
+            literal,
+            input_changed: true,
+            anchor: egui::Rect::NOTHING,
+            focused: false,
+            select_current: false,
+            composing: false,
+            outcome: RailOutcome::None,
+        }
+    }
+
+    fn hit(id: &str) -> Hit {
+        Hit {
+            result_kind: "loom_block".into(),
+            source_kind: "loom_block".into(),
+            ref_id: id.into(),
+            title: "Authorized row".into(),
+            excerpt: String::new(),
+            block: serde_json::Value::Null,
+            score: 1.0,
+            metadata: serde_json::Value::Null,
+        }
+    }
+
+    #[test]
+    fn rejected_literal_blocks_enter_retry_and_recovers_on_valid_edit() {
+        // The current-thread runtime is never driven: a mistakenly spawned HTTP task is observable
+        // through the real dispatch handle without polling network work in this boundary test.
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let ctx = egui::Context::default();
+        let base = "http://127.0.0.1:9911";
+        let mut host = HandpickHost::default();
+        host.bind(&ctx, "workspace", Some(crate::local_account::mock_account_context(base)), base);
+        host.replace_input(&frame("x".into()));
+        host.request(&ctx, Some(runtime.handle()), "x");
+        assert!(host.task.is_some(), "valid input reaches the actual dispatch boundary");
+
+        let rejected = format!("x{}", " ".repeat(65536));
+        let rejected_frame = frame(rejected.clone());
+        assert_eq!(rejected_frame.query.free_text, "x", "the compacted query alone cannot prove literal admission");
+        host.replace_input(&rejected_frame);
+        assert!(host.task.is_none());
+        assert!(host.query.is_none());
+        assert!(host.rows.is_empty());
+        assert!(host.due.is_none());
+        assert_eq!(host.session.as_ref().unwrap().draft(), "x", "core rejection retains its previous literal");
+        let rejected_fence = host.session.as_ref().unwrap().fence();
+
+        host.restart(&ctx, Some(runtime.handle()), &rejected); // Enter/Loom path.
+        assert!(host.task.is_none(), "Enter cannot dispatch rejected input under the old draft");
+        host.request(&ctx, Some(runtime.handle()), &rejected); // Retry/page path.
+        assert!(host.task.is_none(), "Retry cannot bypass literal admission");
+        assert_eq!(host.session.as_ref().unwrap().fence(), rejected_fence);
+        let mut rejected_intent = frame(rejected.clone());
+        rejected_intent.outcome = RailOutcome::Fire(Box::new(rejected_intent.query.clone()));
+        host.fence_legacy_intent(&mut rejected_intent);
+        assert!(matches!(rejected_intent.outcome, RailOutcome::None), "legacy consumers cannot dispatch rejected input either");
+
+        let mut unchanged = frame(rejected);
+        unchanged.input_changed = false;
+        host.replace_input(&unchanged);
+        assert!(host.query.is_none());
+        assert_eq!(host.session.as_ref().unwrap().fence(), rejected_fence, "a rejected unchanged frame does not retry admission");
+
+        host.replace_input(&frame("recovered".into()));
+        assert_eq!(host.session.as_ref().unwrap().draft(), "recovered");
+        host.request(&ctx, Some(runtime.handle()), "recovered");
+        assert!(host.task.is_some(), "a genuine valid edit can dispatch normally");
+        let mut valid_intent = frame("recovered".into());
+        valid_intent.outcome = RailOutcome::Fire(Box::new(valid_intent.query.clone()));
+        host.fence_legacy_intent(&mut valid_intent);
+        assert!(matches!(valid_intent.outcome, RailOutcome::Fire(_)));
+    }
+
+    #[test]
+    fn dispatch_requires_exact_core_literal_and_admitted_revision() {
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let ctx = egui::Context::default();
+        let base = "http://127.0.0.1:9911";
+        let mut host = HandpickHost::default();
+        host.bind(&ctx, "workspace", Some(crate::local_account::mock_account_context(base)), base);
+        host.replace_input(&frame("x".into()));
+        let fence = host.session.as_ref().unwrap().fence();
+
+        host.request(&ctx, Some(runtime.handle()), &format!("x{}", " ".repeat(65536)));
+        assert!(host.task.is_none(), "removing the exact-literal guard would spawn this compactable request");
+        assert_eq!(host.session.as_ref().unwrap().fence(), fence);
+
+        host.session.as_mut().unwrap().set_draft("x".into()).unwrap();
+        assert_ne!(host.query.as_ref().unwrap().draft_revision, host.session.as_ref().unwrap().draft_revision());
+        host.request(&ctx, Some(runtime.handle()), "x");
+        assert!(host.task.is_none(), "matching text with a replaced core revision is not the admitted query");
+
+        host.replace_input(&frame("x".into()));
+        host.request(&ctx, Some(runtime.handle()), "x");
+        assert!(host.task.is_some());
+    }
+
+    #[test]
+    fn backend_rebind_retires_private_state_and_rejects_old_delivery_identity() {
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let ctx = egui::Context::default();
+        let base = "http://127.0.0.1:9911";
+        let rebound = "http://127.0.0.1:9911/rebound";
+        let account = crate::local_account::mock_account_context(base);
+        let mut host = HandpickHost::default();
+        host.bind(&ctx, "workspace", Some(account.clone()), base);
+        host.replace_input(&frame("x".into()));
+        let old_binding = host.binding.clone();
+        let old_delivery = host.delivery.clone();
+        let first_fence = host.session.as_ref().unwrap().fence();
+        *host.delivery.lock().unwrap() = Some((old_binding.clone(), first_fence, Ok(vec![hit("old")])));
+        host.drain();
+        assert_eq!(host.rows.len(), 1);
+        host.request(&ctx, Some(runtime.handle()), "x");
+        assert!(host.task.is_some(), "the backend rebind must also retire a real pending dispatch");
+        let old_fence = host.session.as_ref().unwrap().fence();
+
+        ctx.data_mut(|data| data.insert_temp(state_id(), RailUiState {
+            query: "private old input".into(), ..RailUiState::default()
+        }));
+        host.bind(&ctx, "workspace", Some(account.clone()), rebound);
+        assert!(host.binding_changed);
+        assert_eq!(host.backend, rebound);
+        assert!(!Arc::ptr_eq(&host.binding, &old_binding));
+        assert!(!Arc::ptr_eq(&host.delivery, &old_delivery));
+        assert!(host.rows.is_empty());
+        assert!(host.picker.view().groups.is_empty());
+        assert!(host.query.is_none());
+        assert!(host.due.is_none());
+        assert!(host.task.is_none());
+        assert!(host.session.as_ref().unwrap().draft().is_empty());
+        assert!(ctx.data_mut(|data| data.get_temp::<RailUiState>(state_id())).is_none());
+
+        host.replace_input(&frame("x".into()));
+        host.request(&ctx, Some(runtime.handle()), "x");
+        let fresh_fence = host.session.as_ref().unwrap().fence();
+        assert_eq!(old_fence, fresh_fence, "same account/workspace/literal can recreate the shared-core fence");
+        *old_delivery.lock().unwrap() = Some((old_binding.clone(), old_fence.clone(), Ok(vec![hit("late-isolated")])));
+        host.drain();
+        assert!(host.rows.is_empty(), "the retired response slot is disconnected");
+        *host.delivery.lock().unwrap() = Some((old_binding, old_fence, Ok(vec![hit("stale-origin")])));
+        host.drain();
+        assert!(host.rows.is_empty(), "removing the binding-token check would admit the old backend's row");
+        assert!(host.task.is_some(), "a rejected old delivery cannot clear the current pending dispatch");
+        host.task.take().unwrap().abort();
+
+        *host.delivery.lock().unwrap() = Some((host.binding.clone(), fresh_fence, Ok(vec![hit("current-origin")])));
+        host.drain();
+        assert_eq!(host.rows[0].ref_id, "current-origin");
+        host.bind(&ctx, "workspace", Some(account), rebound);
+        assert!(!host.binding_changed, "unchanged backend binding preserves the current result");
+        assert_eq!(host.rows[0].ref_id, "current-origin");
     }
 }

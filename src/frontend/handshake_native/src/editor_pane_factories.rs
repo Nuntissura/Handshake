@@ -1790,20 +1790,11 @@ impl RichEditorPaneMount {
     }
 }
 
-impl PaneFactory for RichEditorPaneMount {
-    fn pane_type(&self) -> PaneType {
-        PaneType::LoomWikiPage
-    }
-
-    fn render(&self, ui: &mut egui::Ui, ctx: &PaneRenderContext) {
+impl RichEditorPaneMount {
+    pub fn render_view(&self, ui: &mut egui::Ui, content_id: Option<&str>, pane_id: &str) -> Option<egui::Response> {
         // Thread session context BEFORE the inner render, so the first live frame already has the
         // embed + wikilink context wired (AC-079-2).
-        let content_id = ctx
-            .record
-            .content_id
-            .as_deref()
-            .filter(|id| !id.trim().is_empty());
-        let pane_id = ctx.record.pane_id.as_ref();
+        let content_id = content_id.filter(|id| !id.trim().is_empty());
         let state = self.documents.state_for_view(content_id, pane_id);
         if let Some(document_id) = content_id {
             self.documents
@@ -1820,7 +1811,7 @@ impl PaneFactory for RichEditorPaneMount {
             let Some(incarnation) = self.documents.view_incarnations.lock()
                 .unwrap_or_else(|e| e.into_inner())
                 .get(&(document_id.to_owned(), pane_id.to_owned())).copied()
-            else { return };
+            else { return None };
             incarnation
         } else {
             self.documents.base_view_incarnation
@@ -1829,12 +1820,7 @@ impl PaneFactory for RichEditorPaneMount {
         // MT-042: the shell has already opened the exact rich-document identity as soon as the tab is
         // inserted. Publish that authoritative target immediately instead of waiting for the async body
         // load to construct SaveManager. The widget reuses this same node id once loading completes.
-        if let Some(document_id) = ctx
-            .record
-            .content_id
-            .as_deref()
-            .filter(|document_id| !document_id.trim().is_empty())
-        {
+        if let Some(document_id) = content_id {
             let document_id = document_id.to_owned();
             let author_id =
                 crate::rich_editor::scoped_author_id(format!("rich-editor.document.{document_id}"));
@@ -1869,7 +1855,7 @@ impl PaneFactory for RichEditorPaneMount {
                 // across the loading gate so stale link/tag activations are routed instead of being
                 // stranded until the view becomes ready (MT-079 remediation).
                 self.drain_events(&state, pane_id, content_id);
-                return;
+                return None;
             }
         }
         // WP-KERNEL-012 MT-055 REMEDIATION (reading mode reachable in the mounted editor): render the
@@ -1878,13 +1864,7 @@ impl PaneFactory for RichEditorPaneMount {
         // into the widget's read-only flag. The store key is the open document's content id (per-document
         // isolation — RISK-004/MC-004); a fresh Notes pane with no document yet keys on its stable pane id
         // so the toggle is still operable there without leaking state onto a later real document.
-        let doc_key = ctx
-            .record
-            .content_id
-            .as_deref()
-            .filter(|id| !id.trim().is_empty())
-            .map(|id| id.to_owned())
-            .unwrap_or_else(|| format!("pane:{}", ctx.record.pane_id));
+        let doc_key = content_id.map(str::to_owned).unwrap_or_else(|| format!("pane:{pane_id}"));
         let mut store = crate::rich_editor::reading_mode::reading_mode_store(ui.ctx());
         // WP-KERNEL-012 MT-035 wave-7: seed a FRESHLY-opened document (one with no remembered per-document
         // choice) from the operator's `editor_prefs.reading_mode_default` preference (threaded onto the
@@ -1899,7 +1879,7 @@ impl PaneFactory for RichEditorPaneMount {
         }
         let mode = crate::rich_editor::reading_mode::view_mode_toggle(ui, &doc_key, &mut store);
         crate::rich_editor::reading_mode::write_reading_mode_store(ui.ctx(), &store);
-        if mode.is_read_only() {
+        let response = if mode.is_read_only() {
             // Reading view: render the SAME shared state through the widget's read-only branch (MT-055's
             // `with_read_only` path — no second renderer). The editable inner-factory render is skipped
             // this frame: reading mode applies no edit dispatch, so the per-frame bus command
@@ -1908,14 +1888,14 @@ impl PaneFactory for RichEditorPaneMount {
                 &state,
             ))
             .with_read_only(true)
-            .show(ui);
+            .show(ui)
         } else {
             // Delegate to the EXISTING rich factory render: it installs the unified-undo pane id,
             // publishes selection to the shared bus, registers the rich command set, and runs the editor
             // widget — the real per-frame consumers MT-031/035 already prove. The mount adds session
             // threading + the pending_events drain; it does not re-implement editor logic.
-            RichEditorPaneFactory::new(Arc::clone(&state)).render(ui, ctx);
-        }
+            RichEditorPaneFactory::new(Arc::clone(&state)).render_for_view(ui, Arc::from(pane_id))
+        };
         // DRAIN + route (AC-079-5): the editor enqueued any WikilinkActivated/BacklinkActivated/
         // TagActivated this frame; move them to the shell's outbound queue so the shell routes them to
         // the nav bus after the pane host. No event is left unrouted (reading mode keeps link chips
@@ -1937,6 +1917,17 @@ impl PaneFactory for RichEditorPaneMount {
                 }
             }
         }
+        Some(response)
+    }
+}
+
+impl PaneFactory for RichEditorPaneMount {
+    fn pane_type(&self) -> PaneType {
+        PaneType::LoomWikiPage
+    }
+
+    fn render(&self, ui: &mut egui::Ui, ctx: &PaneRenderContext) {
+        let _ = self.render_view(ui, ctx.record.content_id.as_deref(), ctx.record.pane_id.as_ref());
     }
 
     fn accesskit_role(&self) -> accesskit::Role {

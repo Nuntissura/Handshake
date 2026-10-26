@@ -6577,6 +6577,7 @@ pub struct HandshakeApp {
     /// clones-and-reads this slot off the same lock to EXECUTE the search and display results (search
     /// execution + results display are deferred to that consumer per the contract).
     search_rail_query: crate::search_rail::RailQuerySlot,
+    handpick_header: crate::search_rail::HandpickHost,
     /// MT-023 bottom drawer stash shelf (C6): the collapsible panel ABOVE the MT-022 rail with the four
     /// typed cards (Agenda/Mail/Lists/Notes). Owns the resizable height + per-card live data; the app
     /// owns the persisted open flag ([`bottom_drawer_open`](Self::bottom_drawer_open), MT-014
@@ -7064,6 +7065,7 @@ struct EditorMountHandles {
     /// Per-document rich editor states behind the mounted Notes panes. The base state remains the
     /// untitled/demo compatibility seam; file-backed tabs are isolated by content id.
     rich_documents: Arc<RichEditorDocumentStore>,
+    rich_embedded_mount: crate::editor_pane_factories::RichEditorPaneMount,
     /// The receiver half of the code pane's command channel (Save/Undo/Redo/OpenCommandPalette). The
     /// shell drains it each frame and dispatches to the WP-011 command bus + MT-035 unified undo.
     command_rx: std::sync::mpsc::Receiver<CodeEditorHostCommand>,
@@ -7403,6 +7405,9 @@ fn install_editor_mounts(map: &mut HashMap<PaneType, Box<dyn PaneFactory>>) -> E
         String::new(),
     );
     map.insert(PaneType::LoomWikiPage, Box::new(rich_mount));
+    let rich_embedded_mount = RichEditorPaneMount::from_document_store(
+        Arc::clone(&rich_documents), Arc::clone(&session), rich_events.clone(), String::new(),
+    );
 
     // WP-KERNEL-012 MT-041 REMEDIATION: construct the ONE shared EditorActionRegistry and install it on
     // BOTH mounted editors (code pane instance 0, rich pane instance 0) so the canonical
@@ -7424,6 +7429,7 @@ fn install_editor_mounts(map: &mut HashMap<PaneType, Box<dyn PaneFactory>>) -> E
         code_panel,
         code_documents,
         rich_documents,
+        rich_embedded_mount,
         command_rx,
         rich_events,
         secondary,
@@ -8567,6 +8573,7 @@ impl HandshakeApp {
             // MT-022: the rail emits a RailQuery intent into this lock-guarded slot (AC-022-9). It makes
             // NO backend call; a downstream search-results consumer reads the slot and executes the search.
             search_rail_query: Arc::new(Mutex::new(None)),
+            handpick_header: crate::search_rail::HandpickHost::default(),
             // MT-023: the bottom drawer + its off-thread card-data client bridged onto the app runtime
             // (the MT-009 off-thread pattern). The drawer is collapsed by default (only the affordance
             // shows); the fetches fire when it opens.
@@ -13648,6 +13655,7 @@ impl HandshakeApp {
             // MT-022: the rail emits a RailQuery intent into this lock-guarded slot (AC-022-9); it makes
             // no backend call, so the headless shell needs no transport — only the shared slot.
             search_rail_query: Arc::new(Mutex::new(None)),
+            handpick_header: crate::search_rail::HandpickHost::default(),
             // MT-023: headless/test shell — no runtime to bridge the drawer-data client onto, so card
             // fetches are a disclosed no-op (the cards show their pre-fetch state). A test injects a
             // runtime via `set_runtime_handle` to drive live fetches.
@@ -15939,7 +15947,20 @@ impl HandshakeApp {
 
     /// Exact mounted Notes view identity. Document identity alone is insufficient when the same note
     /// is open in two split panes because selection, scroll, popup, undo, and load lifecycle are per view.
+    fn handpick_notes_context_is_current(&self) -> bool {
+        self.handpick_header.matches_context(&self.active_project_id,
+            self.local_account.context.as_ref(), &self.rich_doc_base_url)
+    }
+
+    fn focused_handpick_note_binding(&self) -> Option<RichDocumentViewKey> {
+        self.handpick_notes_context_is_current()
+            .then(|| self.handpick_header.focused_note_binding()).flatten()
+    }
+
     fn active_rich_document_binding(&self) -> Option<RichDocumentViewKey> {
+        if let Some(binding) = self.focused_handpick_note_binding() {
+            return Some(binding);
+        }
         let pane_id = self.active_pane.as_ref()?;
         let tab = self.tab_bar_states.get(pane_id)?.active()?;
         if !matches!(tab.pane_type, PaneType::LoomWikiPage) {
@@ -15973,6 +15994,9 @@ impl HandshakeApp {
                 Some((pane_id.to_string(), document_id))
             })
             .collect();
+        if self.handpick_notes_context_is_current() {
+            bindings.extend(self.handpick_header.visible_note_binding());
+        }
         bindings.sort();
         bindings.dedup();
         self.editor_mounts
@@ -15985,6 +16009,20 @@ impl HandshakeApp {
             }
         }
         bindings
+    }
+
+    fn retained_rich_document_views(&self, document_id: &str) -> Vec<String> {
+        let mut remaining: Vec<_> = self.tab_bar_states.iter().filter_map(|(id, bar)| {
+            bar.tabs.iter().any(|tab| matches!(tab.pane_type, PaneType::LoomWikiPage)
+                && tab.content_id.as_deref() == Some(document_id)).then(|| id.to_string())
+        }).collect();
+        if self.handpick_notes_context_is_current() {
+            remaining.extend(self.handpick_header.retained_note_bindings().into_iter()
+                .filter_map(|(view, document)| (document == document_id).then_some(view)));
+        }
+        remaining.sort();
+        remaining.dedup();
+        remaining
     }
 
     fn rich_state_for_document(&self, document_id: Option<&str>) -> Arc<Mutex<RichEditorState>> {
@@ -19610,6 +19648,9 @@ impl HandshakeApp {
     }
 
     fn active_editor_target(&self, ctx: &egui::Context) -> Option<ActiveEditorTarget> {
+        if self.focused_handpick_note_binding().is_some() {
+            return Some(ActiveEditorTarget::Rich);
+        }
         // Use the same focus authority as unified undo: the shell's explicit active pane wins, while
         // a genuinely focused detached viewport may supply its own bus owner. Preferring the raw bus
         // owner here lets a background editor's stale publication disable or misroute menu commands
@@ -20128,6 +20169,10 @@ impl HandshakeApp {
     }
 
     fn editor_target_for_pane(&self, pane_id: &PaneId) -> Option<ActiveEditorTarget> {
+        if self.focused_handpick_note_binding()
+            .is_some_and(|(view, _)| view == pane_id.as_ref()) {
+            return Some(ActiveEditorTarget::Rich);
+        }
         self.pane_type_for(pane_id)
             .as_ref()
             .and_then(Self::editor_target_for_pane_type)
@@ -21165,17 +21210,9 @@ impl HandshakeApp {
         }
     }
 
-    /// Drive one frame of the always-visible bottom search rail (MT-022): register the pinned bottom
-    /// panel and render the rail (scope pills + query input + clear + Loom shortcut). The rail makes NO
-    /// backend call (AC-022-9) and renders NO results — on an explicit fire (Enter / Loom) it EMITS the
-    /// parsed [`crate::search_rail::RailQuery`] into the lock-guarded `search_rail_query` slot; on clear
-    /// it writes `None`. Search EXECUTION + results display are deferred to a downstream search-results
-    /// consumer that reads the slot. The slot write holds the lock only briefly and never across `ui.*`
-    /// (HBR-QUIET / HBR-SWARM lock-discipline: a concurrent swarm reader can clone-and-read it safely).
+    /// Mount the persistent Handpick header and retain the legacy search intent.
     fn drive_search_rail(&mut self, ctx: &egui::Context) {
         let has_workspace = !self.active_project_id.is_empty();
-
-        // Render the pinned bottom panel (registered before the central panel so it claims its space).
         let palette = self.current_theme.palette();
         let colors = crate::search_rail::RailVisuals {
             active_pill_bg: palette.accent_soft,
@@ -21183,23 +21220,66 @@ impl HandshakeApp {
             text: palette.text,
             accent: palette.accent,
         };
-        let frame = egui::TopBottomPanel::bottom("handshake_bottom_search_rail")
-            .exact_height(crate::search_rail::RAIL_HEIGHT)
-            .show(ctx, |ui| {
-                crate::search_rail::show(
-                    ui,
-                    crate::search_rail::RailView {
-                        has_workspace,
-                        colors,
-                    },
-                )
-            })
-            .inner;
+        let current_note = self
+            .active_rich_document_id()
+            .map(|_| self.active_rich_state());
+        let (frame, picked) = crate::search_rail::show_header(
+            ctx,
+            crate::search_rail::RailView {
+                has_workspace,
+                colors,
+            },
+            &mut self.handpick_header,
+            &self.active_project_id,
+            self.local_account.context.clone(),
+            self.runtime_handle.as_ref(),
+            &self.rich_doc_base_url,
+            !self.capturing_snapshot,
+            current_note,
+            &self.editor_mounts.rich_documents,
+            &self.editor_mounts.rich_embedded_mount,
+        );
+        for (view_id, document_id) in self.handpick_header.take_released_note_bindings() {
+            let store = &self.editor_mounts.rich_documents;
+            if store.view_keys_for_content_id(&document_id).iter().any(|(view, _)| view == &view_id) {
+                let remaining = self.retained_rich_document_views(&document_id);
+                store.retire_closed_view(&document_id, &view_id, &remaining);
+            }
+            self.rich_doc_loads.remove(&(view_id, document_id));
+        }
+        if self.handpick_header.binding_changed || frame.input_changed {
+            if let Ok(mut slot) = self.search_rail_query.lock() {
+                *slot = None;
+            }
+        }
+        if let Some(hit) = picked.filter(|_| {
+            self.local_account
+                .context
+                .as_ref()
+                .is_some_and(|account| account.is_active())
+        }) {
+            let target = crate::quick_switcher::resolve_open_target(&hit);
+            self.nav_pending_label = Some(hit.title);
+            let outcome = crate::quick_switcher::dispatch_target(self, &target);
+            // Mechanical publication of a typed navigation intent, never an open/save receipt.
+            if !self.capturing_snapshot {
+                crate::diagnostics::gui_events::record_gui_observation(
+                    crate::diagnostics::gui_events::GuiDiagnosticOperation::HandpickNavigation,
+                    crate::diagnostics::gui_events::GuiDiagnosticPhase::Accepted,
+                );
+            }
+            self.nav_pending_label = None;
+            self.quick_switcher_nav_status = match outcome {
+                crate::quick_switcher::NavDispatchOutcome::Opened { .. } => None,
+                other => Some(format!("{other:?}")),
+            };
+            ctx.request_repaint();
+        }
 
-        // Apply the rail outcome by WRITING the emitted intent into the shared slot (no backend call).
+        // Preserve the public intent slot alongside the mounted result host.
         //   - Fire (Enter / Loom — AC-022-3: ONLY these fire) writes the parsed RailQuery intent.
         //   - Clear writes None back (AC-022-6).
-        // The downstream search-results consumer reads this slot and executes the search (deferred).
+        // Existing consumers retain the same typed intent.
         match frame.outcome {
             crate::search_rail::RailOutcome::Clear => {
                 if let Ok(mut slot) = self.search_rail_query.lock() {
@@ -24199,18 +24279,7 @@ impl HandshakeApp {
         let Some(tab) = tab else { return true };
         if matches!(tab.pane_type, PaneType::LoomWikiPage) {
             if let Some(document_id) = tab.content_id.as_deref().filter(|id| !id.is_empty()) {
-                let mut remaining_panes: Vec<String> = self
-                    .tab_bar_states
-                    .iter()
-                    .filter_map(|(id, bar)| {
-                        bar.tabs.iter().any(|candidate| {
-                            matches!(candidate.pane_type, PaneType::LoomWikiPage)
-                                && candidate.content_id.as_deref() == Some(document_id)
-                        }).then(|| id.as_ref().to_owned())
-                    })
-                    .collect();
-                remaining_panes.sort();
-                remaining_panes.dedup();
+                let remaining_panes = self.retained_rich_document_views(document_id);
                 self.editor_mounts.rich_documents.retire_closed_view(
                     document_id,
                     pane_id.as_ref(),
@@ -25176,6 +25245,7 @@ impl HandshakeApp {
     /// mounted, the editor menu/palette items render DISABLED (honest, not fake-enabled). A poisoned/locked
     /// registry is treated as "no editor available" (fail-closed) rather than panicking on the frame.
     pub fn editor_available(&self) -> bool {
+        if self.focused_handpick_note_binding().is_some() { return true }
         self.pane_registry
             .lock()
             .map(|reg| {
@@ -25233,6 +25303,9 @@ impl HandshakeApp {
                 .is_some_and(|pane| self.popout_manager.is_popped_out(pane))
         {
             return bus_owner;
+        }
+        if let Some((view_id, _)) = self.focused_handpick_note_binding() {
+            return Some(Arc::from(view_id));
         }
         self.active_pane.clone().or(bus_owner)
     }
@@ -38631,11 +38704,7 @@ impl HandshakeApp {
             }
         }
 
-        // ── Bottom search rail (MT-022) ─────────────────────────────────────────────────────────────
-        // A pinned, always-visible 32px bottom panel registered ABOVE the status bar (egui stacks bottom
-        // panels in registration order, so this sits just above the status strip) and BEFORE the central
-        // panel, so it claims its space first and never collapses (AC-022-1). It owns query input + scope
-        // selection and emits a parsed RailQuery search intent; the result popup floats above the strip.
+        // Persistent Handpick header and attached results retain the search intent facade.
         self.drive_search_rail(ctx);
 
         // ── Bottom drawer stash shelf (MT-023, C6) ───────────────────────────────────────────────────

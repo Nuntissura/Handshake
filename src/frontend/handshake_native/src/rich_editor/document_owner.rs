@@ -265,6 +265,17 @@ impl DocumentEditOwner {
         }
     }
 
+    /// Read-only authority check for an additional mounted view. Never rebinds an owner.
+    pub fn has_active_binding(&self, workspace_id: &str, endpoint: &str,
+        authentication: &Arc<AuthenticatedContext>) -> bool {
+        let state = self.inner.lock().unwrap_or_else(|error| error.into_inner());
+        authentication.is_active() && state.current_context().is_some()
+            && state.binding.as_ref().is_some_and(|binding| {
+                binding.workspace_id == workspace_id && binding.endpoint == endpoint
+                    && binding.authentication.as_ref().is_some_and(|bound| Arc::ptr_eq(bound, authentication))
+            })
+    }
+
     pub fn same_owner(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.inner, &other.inner)
     }

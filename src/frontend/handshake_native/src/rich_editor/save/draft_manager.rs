@@ -257,7 +257,59 @@ pub struct AdmittedDraftLoad {
     admission: DraftLoadAdmission,
 }
 
+#[derive(Default)]
+struct DraftWrites {
+    pending: Vec<Arc<()>>,
+    latest: Option<Arc<()>>,
+    unresolved: bool,
+    confirmed_clear: bool,
+}
+
+struct DraftWrite {
+    writes: Arc<Mutex<DraftWrites>>,
+    token: Arc<()>,
+    exclusive: bool,
+    clear: bool,
+    completed: bool,
+}
+
+impl DraftWrite {
+    fn admit(writes: &Arc<Mutex<DraftWrites>>, clear: bool) -> Self {
+        let token = Arc::new(());
+        let mut state = writes.lock().unwrap_or_else(|error| error.into_inner());
+        let exclusive = state.pending.is_empty();
+        if !exclusive { state.unresolved = true; }
+        state.confirmed_clear = false;
+        state.pending.push(token.clone());
+        state.latest = Some(token.clone());
+        Self { writes: writes.clone(), token, exclusive, clear, completed: false }
+    }
+
+    fn complete(mut self, result: Result<(), DraftError>) {
+        let mut state = self.writes.lock().unwrap_or_else(|error| error.into_inner());
+        state.pending.retain(|token| !Arc::ptr_eq(token, &self.token));
+        if result.is_err() {
+            state.unresolved = true;
+        } else if self.clear && self.exclusive && state.pending.is_empty()
+            && state.latest.as_ref().is_some_and(|token| Arc::ptr_eq(token, &self.token)) {
+            // A later DELETE cannot fence a prior unknown remote PUT.
+            state.confirmed_clear = true;
+        }
+        self.completed = true;
+    }
+}
+
+impl Drop for DraftWrite {
+    fn drop(&mut self) {
+        if self.completed { return; }
+        let mut state = self.writes.lock().unwrap_or_else(|error| error.into_inner());
+        state.pending.retain(|token| !Arc::ptr_eq(token, &self.token));
+        state.unresolved = true;
+    }
+}
+
 pub struct DraftCleanupAction {
+    write: DraftWrite,
     backend: Arc<dyn DraftBackend>,
     runtime: Option<tokio::runtime::Handle>,
     document_id: String,
@@ -295,6 +347,8 @@ pub struct DraftUpsertRequest {
 
 /// The persistent draft coordinator owned by the editor.
 pub struct DraftManager {
+    recovery_loaded: bool,
+    writes: Arc<Mutex<DraftWrites>>,
     backend: Arc<dyn DraftBackend>,
     runtime: Option<tokio::runtime::Handle>,
     document_id: String,
@@ -330,6 +384,8 @@ impl DraftManager {
         base_content: &JsonValue,
     ) -> Self {
         Self {
+            writes: Arc::new(Mutex::new(DraftWrites::default())),
+            recovery_loaded: false,
             backend,
             runtime,
             document_id: document_id.into(),
@@ -452,6 +508,7 @@ impl DraftManager {
             return false;
         }
         self.pending_load = None;
+        self.recovery_loaded = delivered.result.is_ok();
         match delivered.result {
             Ok(load) => match load.draft {
                 Some(draft)
@@ -518,11 +575,12 @@ impl DraftManager {
             content_json: content_json.clone(),
         };
         self.last_upsert = Some(request.clone());
+        let write = DraftWrite::admit(&self.writes, false);
         if let Some(rt) = &self.runtime {
             let backend = Arc::clone(&self.backend);
             let document_id = self.document_id.clone();
             rt.spawn(async move {
-                let _ = backend
+                let result = backend
                     .upsert_draft(
                         &document_id,
                         request.base_doc_version,
@@ -530,6 +588,7 @@ impl DraftManager {
                         request.content_json,
                     )
                     .await;
+                write.complete(result);
             });
         }
         self.dirty_since = None; // reset the window; the next dirty change starts a fresh one.
@@ -611,6 +670,7 @@ impl DraftManager {
 
     fn cleanup_action(&self) -> DraftCleanupAction {
         DraftCleanupAction {
+            write: DraftWrite::admit(&self.writes, true),
             backend: Arc::clone(&self.backend),
             runtime: self.runtime.clone(),
             document_id: self.document_id.clone(),
@@ -620,9 +680,19 @@ impl DraftManager {
     pub fn launch_clear(action: DraftCleanupAction) {
         if let Some(rt) = action.runtime {
             rt.spawn(async move {
-                let _ = action.backend.clear_draft(&action.document_id).await;
+                let result = action.backend.clear_draft(&action.document_id).await;
+                action.write.complete(result);
             });
         }
+    }
+
+    /// Final owner release requires actual completed writes, not just a hidden recovery banner.
+    pub fn release_ready(&self) -> bool {
+        let writes = self.writes.lock().unwrap_or_else(|error| error.into_inner());
+        self.pending_load.is_none() && self.dirty_since.is_none()
+            && matches!(&self.state, DraftState::None | DraftState::Discarded)
+            && (self.recovery_loaded || writes.confirmed_clear)
+            && writes.pending.is_empty() && !writes.unresolved
     }
 
     /// The document id (for tests).
@@ -939,5 +1009,113 @@ mod tests {
         owner.bind_context("workspace-test", "DOC-1", "http://reconnected", None, None).unwrap();
         assert!(!owner.with_save_gate(|gate| manager.drain_load(gate)));
         assert_eq!(manager.state, DraftState::None);
+    }
+}
+
+#[cfg(test)]
+mod write_settlement_tests {
+    use super::*;
+    use tokio::sync::{mpsc, oneshot};
+
+    struct ControlledWrites {
+        calls: mpsc::UnboundedSender<oneshot::Sender<Result<(), DraftError>>>,
+    }
+
+    impl ControlledWrites {
+        fn request(&self) -> DraftWriteFuture {
+            let calls = self.calls.clone();
+            Box::pin(async move {
+                let (complete, response) = oneshot::channel();
+                calls.send(complete).map_err(|_| DraftError::Network("test closed".into()))?;
+                response.await.map_err(|_| DraftError::Network("response lost".into()))?
+            })
+        }
+    }
+
+    impl DraftBackend for ControlledWrites {
+        fn load_draft(&self, _: &str) -> DraftLoadFuture {
+            Box::pin(async { Ok(RichDocumentDraftLoad { current_doc_version: 1, draft: None }) })
+        }
+        fn upsert_draft(&self, _: &str, _: u64, _: String, _: JsonValue) -> DraftWriteFuture {
+            self.request()
+        }
+        fn clear_draft(&self, _: &str) -> DraftWriteFuture { self.request() }
+    }
+
+    fn manager() -> (DraftManager, mpsc::UnboundedReceiver<oneshot::Sender<Result<(), DraftError>>>) {
+        let (calls, receive) = mpsc::unbounded_channel();
+        (DraftManager::new(Arc::new(ControlledWrites { calls }),
+            Some(tokio::runtime::Handle::current()), "note", 1, &serde_json::json!({})), receive)
+    }
+
+    async fn next_write(calls: &mut mpsc::UnboundedReceiver<oneshot::Sender<Result<(), DraftError>>>)
+        -> oneshot::Sender<Result<(), DraftError>> {
+        tokio::time::timeout(Duration::from_secs(1), calls.recv()).await
+            .expect("draft write was not launched").expect("draft backend stopped")
+    }
+
+    async fn writes_finished(manager: &DraftManager) {
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while !manager.writes.lock().unwrap().pending.is_empty() {
+                tokio::task::yield_now().await;
+            }
+        }).await.expect("draft backend completion was not consumed");
+    }
+
+    #[tokio::test]
+    async fn final_owner_waits_for_the_actual_successful_clear_response() {
+        let (manager, mut calls) = manager();
+        let action = manager.cleanup_action();
+        assert!(!manager.release_ready(), "admitted DELETE has not completed");
+        DraftManager::launch_clear(action);
+        let response = next_write(&mut calls).await;
+        assert!(!manager.release_ready());
+        response.send(Ok(())).unwrap();
+        writes_finished(&manager).await;
+        assert!(manager.release_ready());
+    }
+
+    #[tokio::test]
+    async fn overlapping_upsert_and_clear_retain_the_owner_after_later_success() {
+        let (mut manager, mut calls) = manager();
+        let now = Instant::now();
+        manager.mark_dirty(now - DRAFT_DEBOUNCE);
+        assert!(manager.maybe_upsert(serde_json::json!({}), now, false));
+        let upsert = next_write(&mut calls).await;
+        DraftManager::launch_clear(manager.cleanup_action());
+        let clear = next_write(&mut calls).await;
+        clear.send(Ok(())).unwrap();
+        upsert.send(Ok(())).unwrap();
+        writes_finished(&manager).await;
+        assert!(!manager.release_ready(), "completion order does not prove draft deletion");
+        DraftManager::launch_clear(manager.cleanup_action());
+        next_write(&mut calls).await.send(Ok(())).unwrap();
+        writes_finished(&manager).await;
+        assert!(!manager.release_ready(), "a later success cannot erase uncertain ordering");
+    }
+
+    #[tokio::test]
+    async fn an_unlaunched_cleanup_action_does_not_become_a_success() {
+        let (manager, mut calls) = manager();
+        drop(manager.cleanup_action());
+        assert!(!manager.release_ready());
+        assert!(calls.try_recv().is_err());
+        DraftManager::launch_clear(manager.cleanup_action());
+        next_write(&mut calls).await.send(Ok(())).unwrap();
+        writes_finished(&manager).await;
+        assert!(!manager.release_ready(), "abandoned admission remains unresolved");
+    }
+
+    #[tokio::test]
+    async fn lost_write_response_cannot_be_erased_by_a_later_delete_response() {
+        let (manager, mut calls) = manager();
+        DraftManager::launch_clear(manager.cleanup_action());
+        next_write(&mut calls).await.send(Err(DraftError::Network("response lost".into()))).unwrap();
+        writes_finished(&manager).await;
+        assert!(!manager.release_ready());
+        DraftManager::launch_clear(manager.cleanup_action());
+        next_write(&mut calls).await.send(Ok(())).unwrap();
+        writes_finished(&manager).await;
+        assert!(!manager.release_ready(), "remote completion order is still unknown");
     }
 }

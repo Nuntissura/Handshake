@@ -523,6 +523,10 @@ impl SplitLayoutWidget {
                 }
                 if header_resp.focus_requested {
                     *active_pane = Some(pane_id.clone());
+                    let bus = crate::interop::InteractionBus::get_or_init(ui.ctx());
+                    crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+                        bus.set_undo_focus_owner(pane_id.clone(), false);
+                    });
                 }
             }
 
@@ -566,8 +570,12 @@ impl SplitLayoutWidget {
             // `factory.render` shadowed secondary clicks on every nested context surface while still
             // exposing those dead surfaces in AccessKit.
             let pane_response = child.interact(body_rect, pane_egui_id, egui::Sense::click());
-            if pane_response.clicked() {
+            if pane_response.clicked() || (child.rect_contains_pointer(body_rect) && child.input(|input| input.pointer.any_pressed())) {
                 *active_pane = Some(pane_id.clone());
+                    let bus = crate::interop::InteractionBus::get_or_init(ui.ctx());
+                    crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+                        bus.set_undo_focus_owner(pane_id.clone(), false);
+                    });
             }
             factory.render(&mut child, &render_ctx);
             emit_accesskit(ui.ctx(), pane_egui_id, pane_id.as_ref(), role, &label);
@@ -586,6 +594,10 @@ impl SplitLayoutWidget {
                 if let Some(idx) = resp.activated_index {
                     bar.activate(idx);
                     *active_pane = Some(pane_id.clone());
+                    let bus = crate::interop::InteractionBus::get_or_init(ui.ctx());
+                    crate::interop::InteractionBus::with_try_lock(&bus, |bus| {
+                        bus.set_undo_focus_owner(pane_id.clone(), false);
+                    });
                 }
                 if let Some((idx, pin)) = resp.pin_toggled {
                     if pin {
