@@ -5298,6 +5298,41 @@
         "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-020.json",
         "map_pointer": "/original_contract_records/263",
         "acceptance_map_pointer": "/original_contract_records/263/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-081.json",
+        "map_pointer": "/original_contract_records/82",
+        "acceptance_map_pointer": "/original_contract_records/82/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-089.json",
+        "map_pointer": "/original_contract_records/90",
+        "acceptance_map_pointer": "/original_contract_records/90/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-090.json",
+        "map_pointer": "/original_contract_records/91",
+        "acceptance_map_pointer": "/original_contract_records/91/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-093.json",
+        "map_pointer": "/original_contract_records/94",
+        "acceptance_map_pointer": "/original_contract_records/94/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-094.json",
+        "map_pointer": "/original_contract_records/95",
+        "acceptance_map_pointer": "/original_contract_records/95/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json",
+        "map_pointer": "/original_contract_records/242",
+        "acceptance_map_pointer": "/original_contract_records/242/acceptance_and_requirement_map"
+      },
+      {
+        "source_contract": ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-009.json",
+        "map_pointer": "/original_contract_records/252",
+        "acceptance_map_pointer": "/original_contract_records/252/acceptance_and_requirement_map"
       }
     ],
     "historical_requirements_policy": "Exact source requirements retained in source map; bind consumed items before combined acceptance; no blanket Phase08 deferral",
