@@ -5844,6 +5844,16 @@ type WorkspaceActivationState = handshake_workspace_activation::WorkspaceActivat
     WorkspaceActivationHandle,
 >;
 
+enum ResetLayoutPhase { Confirm, ClosingPopouts }
+
+struct ResetLayoutRequest {
+    workspace_id: String,
+    account: Option<Arc<crate::local_account::AuthenticatedContext>>,
+    phase: ResetLayoutPhase,
+    focus_cancel: bool,
+    error: Option<String>,
+}
+
 pub struct HandshakeApp {
     health_status: HealthDisplayState,
     /// Canonical `/health` endpoint retained across manual refreshes and periodic re-probes. Tests may
@@ -6438,7 +6448,7 @@ pub struct HandshakeApp {
     /// action (`confirm_reset_layout`) so a swarm agent arrow-keying the menu cannot wipe the layout by
     /// accident (red-team R7). No foreground dialog is popped (HBR-QUIET) — the confirm is a flag a
     /// future overlay/agent path reads.
-    reset_layout_pending: bool,
+    reset_layout_pending: Option<ResetLayoutRequest>,
     /// MT-020 explorer-row bookmark rename client (PATCH off the UI thread). Document rows use the
     /// consolidated knowledge-document client through the same delivery cell.
     loom_block_client: Option<crate::backend_client::LoomBlockClient>,
@@ -8517,7 +8527,7 @@ impl HandshakeApp {
             worksurface_inspector_pending: None,
             pending_theme_change: None,
             about_open: false,
-            reset_layout_pending: false,
+            reset_layout_pending: None,
             loom_block_client: Some(crate::backend_client::LoomBlockClient::production(
                 rt_handle.clone(),
             )),
@@ -13603,7 +13613,7 @@ impl HandshakeApp {
             worksurface_inspector_pending: None,
             pending_theme_change: None,
             about_open: false,
-            reset_layout_pending: false,
+            reset_layout_pending: None,
             // Headless/test shell: no runtime to bridge the rename PATCH onto, so rename is a disclosed
             // no-op (a test injects a runtime via `set_runtime_handle` if it wants live rename).
             loom_block_client: None,
@@ -14873,7 +14883,7 @@ impl HandshakeApp {
             "layout.reset" => {
                 // Mirror the VIEW > Reset Layout arm-then-confirm safety (red-team MC7): arming, not an
                 // immediate wipe.
-                self.reset_layout_pending = true;
+                self.arm_reset_layout();
                 true
             }
             "swarmboard.open" => self.navigate_to_tab("swarm"),
@@ -23259,7 +23269,7 @@ impl HandshakeApp {
             O::ResetLayout => {
                 // Same action as VIEW > Reset Layout: arm the confirmation (red-team MC7), do not wipe
                 // here. A future confirmation overlay / agent path triggers `confirm_reset_layout`.
-                self.reset_layout_pending = true;
+                self.arm_reset_layout();
                 true
             }
             O::OpenModelSessionLaunch => {
@@ -24089,26 +24099,112 @@ impl HandshakeApp {
     /// Whether a Reset-Layout confirmation is currently armed (MT-015 VIEW menu; red-team MC7/R7). The
     /// reset does not happen until [`confirm_reset_layout`](Self::confirm_reset_layout) is called.
     pub fn reset_layout_pending(&self) -> bool {
-        self.reset_layout_pending
+        self.reset_layout_pending.is_some()
     }
 
-    /// Confirm the armed Reset-Layout request (red-team MC7): resets the live work surface to the active
-    /// project's seeded default. No-op (returns `false`) when no reset is armed, so a stray confirm
-    /// cannot wipe the layout. The arm step is `MenuBarAction::ResetLayout`; this is the second,
-    /// deliberate confirm a future confirmation overlay / agent path triggers.
+    /// Retain the workspace and account that requested the confirmation.
+    fn arm_reset_layout(&mut self) {
+        self.reset_layout_pending = Some(ResetLayoutRequest {
+            workspace_id: self.active_project_id.clone(),
+            account: self.local_account.context.clone(),
+            phase: ResetLayoutPhase::Confirm, focus_cancel: true, error: None,
+        });
+    }
+
+    fn reset_layout_request_is_current(&self) -> bool {
+        self.reset_layout_pending.as_ref().is_some_and(|request| {
+            request.workspace_id == self.active_project_id && match (&request.account, &self.local_account.context) {
+                (Some(previous), Some(current)) => Arc::ptr_eq(previous, current) && current.is_active(),
+                (None, None) => true,
+                _ => false,
+            }
+        })
+    }
+
+    /// Apply an explicit confirmation only after the original context and pop-out drain are current.
     pub fn confirm_reset_layout(&mut self) -> bool {
-        if !self.reset_layout_pending {
+        if !self.reset_layout_request_is_current() {
+            self.cancel_reset_layout();
             return false;
         }
-        self.reset_layout_pending = false;
+        let popouts = self.popout_manager.popped_out_ids();
+        if !popouts.is_empty() {
+            for pane in popouts { self.popout_manager.merge_back(&pane); }
+            self.reset_layout_pending.as_mut().unwrap().phase = ResetLayoutPhase::ClosingPopouts;
+            return false;
+        }
+        let panes: Vec<PaneId> = default_panes().into_iter().map(|pane| pane.pane_id).collect();
+        if let Some(owner) = &self.kumihimo_host {
+            let result = owner.lock().unwrap_or_else(|error| error.into_inner())
+                .reset_root_layout(&panes, SplitWeights::default());
+            if let Err(error) = result {
+                let request = self.reset_layout_pending.as_mut().unwrap();
+                request.phase = ResetLayoutPhase::Confirm;
+                request.focus_cancel = true;
+                request.error = Some(format!("Layout reset failed: {error}"));
+                return false;
+            }
+        }
+        self.reset_layout_pending = None;
         let project = self.active_project_id.clone();
         self.reset_to_default_layout(&project);
+        self.retire_layout_load_generation();
+        self.loaded_project_id = Some(project);
+        self.signal_layout_changed();
         true
     }
 
-    /// Cancel an armed Reset-Layout request without resetting (red-team MC7).
     pub fn cancel_reset_layout(&mut self) {
-        self.reset_layout_pending = false;
+        self.reset_layout_pending = None;
+    }
+
+    fn drive_reset_layout_dialog(&mut self, ctx: &egui::Context) {
+        if self.reset_layout_pending.is_none() { return; }
+        let live = !self.capturing_snapshot;
+        if live && !self.reset_layout_request_is_current() {
+            self.cancel_reset_layout();
+            return;
+        }
+        if live && self.reset_layout_pending.as_ref().is_some_and(|request| matches!(request.phase, ResetLayoutPhase::ClosingPopouts))
+            && self.popout_manager.is_empty() {
+            self.confirm_reset_layout();
+            if self.reset_layout_pending.is_none() { return; }
+        }
+        let request = self.reset_layout_pending.as_mut().unwrap();
+        let closing = matches!(request.phase, ResetLayoutPhase::ClosingPopouts);
+        let focus_cancel = live && std::mem::take(&mut request.focus_cancel);
+        let mut confirm = false;
+        let mut cancel = false;
+        let modal = egui::Modal::new(egui::Id::new("layout-reset-dialog")).show(ctx, |ui| {
+            ui.ctx().accesskit_node_builder(ui.id(), |node| {
+                node.set_role(egui::accesskit::Role::Dialog);
+                node.set_author_id("layout.reset.dialog");
+                node.set_label("Reset Layout");
+            });
+            ui.heading("Reset Layout");
+            if closing {
+                ui.label("Closing detached panes before restoring the default layout...");
+                if live { ui.spinner(); }
+                return;
+            }
+            ui.label("Restore the default pane arrangement and tabs for this workspace?");
+            ui.label("Save your work before resetting. Detached panes close after confirmation.");
+            if let Some(error) = &request.error { ui.colored_label(ui.visuals().error_fg_color, error); }
+            ui.horizontal(|ui| {
+                let response = ui.button("Cancel");
+                ui.ctx().accesskit_node_builder(response.id, |node| node.set_author_id("layout.reset.cancel"));
+                if focus_cancel { response.request_focus(); }
+                cancel = response.clicked();
+                let response = ui.button("Reset layout");
+                ui.ctx().accesskit_node_builder(response.id, |node| node.set_author_id("layout.reset.confirm"));
+                confirm = response.clicked();
+            });
+        });
+        if live {
+            if !closing && (cancel || modal.should_close()) { self.cancel_reset_layout(); }
+            else if !closing && confirm { self.confirm_reset_layout(); }
+            if closing { ctx.request_repaint_after(std::time::Duration::from_millis(50)); }
+        }
     }
 
     /// Move the active pane focus to the next (or previous) pane in stable id order, wrapping at the
@@ -25098,8 +25194,8 @@ impl HandshakeApp {
             }
             MenuBarAction::ResetLayout => {
                 // Arm the confirmation (red-team MC7/R7) — do NOT reset here. The actual reset requires
-                // a deliberate second confirm via `confirm_reset_layout`.
-                self.reset_layout_pending = true;
+                // the rendered confirmation through `confirm_reset_layout`.
+                self.arm_reset_layout();
                 true
             }
             MenuBarAction::OpenQuickSwitcher => {
@@ -35766,6 +35862,7 @@ impl HandshakeApp {
     /// entered project DOES have a stored layout, the lifecycle load then overwrites this default with
     /// the restored layout; when it does not, this fresh default is what remains.
     fn reset_to_default_layout(&mut self, project_id: &str) {
+        self.cancel_reset_layout();
         self.mcp_windows.lock().unwrap_or_else(|e| e.into_inner()).retire_capture_context();
         self.bind_mcp_capture_owner(project_id);
         self.active_project_id = project_id.to_owned();
@@ -39330,6 +39427,7 @@ impl HandshakeApp {
         // flushes a pending save immediately (red-team MC2). Closed by default, so the default-seed live
         // tree is unchanged (MT-025 default snapshot stays at its baseline node count).
         self.drive_settings_dialog(ctx);
+        self.drive_reset_layout_dialog(ctx);
 
         // ── Layout persistence lifecycle (MT-009 BLOCKER) ───────────────────────────────────────────
         // Runs AFTER the frame's interactions (split drag, tab reorder/active/pin, pop-out/merge) are

@@ -415,9 +415,8 @@ fn reset_layout_arms_then_confirms() {
     );
 
     // The explicit confirm performs the reset to the seeded default split.
-    let did = harness.state_mut().confirm_reset_layout();
+    harness.get_by_label("Reset layout").click();
     harness.run();
-    assert!(did, "confirm performed the reset");
     assert!(
         !harness.state().reset_layout_pending(),
         "confirm cleared the pending flag"
@@ -427,6 +426,74 @@ fn reset_layout_arms_then_confirms() {
         (harness.state().split_weights().vertical - default_v).abs() < 1e-6,
         "confirm reset the split weights to the seeded default"
     );
+}
+
+#[test]
+fn reset_layout_capture_preserves_cancel_focus_for_the_live_dialog() {
+    let mut harness = shell_harness();
+    harness.run();
+    harness.state_mut().split_weights_mut().vertical = 0.2;
+    harness.run();
+    assert!(harness.state_mut().dispatch_palette_action_for_test("layout.reset"));
+
+    let snapshot = harness.state_mut().capture_mcp_snapshot_for_navigation();
+    assert!(snapshot.iter_nodes().any(|node| node.author_id.as_deref() == Some("layout.reset.dialog")));
+    assert!(harness.state().reset_layout_pending());
+    assert!((harness.state().split_weights().vertical - 0.2).abs() < 1e-6);
+
+    harness.run();
+    assert!(harness.get_by_label("Cancel").is_focused(),
+        "snapshot projection must leave the initial Cancel focus request for the live context");
+    harness.key_press(egui::Key::Enter);
+    harness.run();
+    assert!(!harness.state().reset_layout_pending());
+    assert!((harness.state().split_weights().vertical - 0.2).abs() < 1e-6);
+}
+
+#[test]
+fn reset_layout_cancel_keeps_the_live_arrangement() {
+    let mut harness = shell_harness();
+    harness.state_mut().split_weights_mut().vertical = 0.2;
+    harness.run();
+    harness.get_by_label("VIEW").click(); harness.run();
+    harness.get_by_label("Reset Layout…").click(); harness.run();
+    harness.get_by_label("Cancel").click(); harness.run();
+    assert!(!harness.state().reset_layout_pending());
+    assert!((harness.state().split_weights().vertical - 0.2).abs() < 1e-6);
+}
+
+#[test]
+fn reset_layout_escape_cancels_without_applying() {
+    let mut harness = shell_harness();
+    harness.state_mut().split_weights_mut().vertical = 0.2; harness.run();
+    harness.get_by_label("VIEW").click(); harness.run();
+    harness.get_by_label("Reset Layout…").click(); harness.run();
+    harness.key_press(egui::Key::Escape); harness.run();
+    assert!(!harness.state().reset_layout_pending());
+    assert!((harness.state().split_weights().vertical - 0.2).abs() < 1e-6);
+}
+
+#[test]
+fn returning_to_the_original_workspace_does_not_revive_a_reset_request() {
+    let mut harness = shell_harness(); harness.run();
+    harness.get_by_label("VIEW").click(); harness.run();
+    harness.get_by_label("Reset Layout…").click(); harness.run();
+    harness.state_mut().switch_project("other-workspace");
+    harness.state_mut().switch_project(handshake_native::app::DEFAULT_PROJECT_ID);
+    harness.state_mut().split_weights_mut().vertical = 0.31;
+    assert!(!harness.state_mut().confirm_reset_layout());
+    assert!((harness.state().split_weights().vertical - 0.31).abs() < 1e-6);
+}
+
+#[test]
+fn a_reset_request_cannot_follow_a_workspace_switch() {
+    let mut harness = shell_harness(); harness.run();
+    harness.get_by_label("VIEW").click(); harness.run();
+    harness.get_by_label("Reset Layout…").click(); harness.run();
+    harness.state_mut().switch_project("other-workspace");
+    harness.state_mut().split_weights_mut().vertical = 0.31;
+    assert!(!harness.state_mut().confirm_reset_layout());
+    assert!((harness.state().split_weights().vertical - 0.31).abs() < 1e-6);
 }
 
 // ── No fake-enable: disabled leaves render; terminal blocker is clickable and typed ─────────────────

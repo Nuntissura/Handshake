@@ -929,8 +929,9 @@ manufacture a PASS receipt."
 
 fn notes_worksurface_and_chat_body() -> String {
     "The default WP-KERNEL-012 worksurface is editor-first and minimal: pane-a is the Code editor, \
-pane-b is the Notes rich editor (LoomWikiPage / loom.wikipage class), and pane-c is Runtime Chat beside \
-the editors. The manual and diagnostics are not docked into this default worksurface. A model discovers \
+pane-b is the Notes rich editor (LoomWikiPage / loom.wikipage class), and pane-c is Runtime Chat. \
+Kumihimo places Code at full height on the left, Notes at the upper right, and Chat at the lower right \
+in a fresh layout. Adjacent panes share resize dividers. Saved layouts keep their existing arrangement. The manual and diagnostics are not docked into this default worksurface. A model discovers \
 the current panes with list_widgets and addresses the seeded panes by pane-a / pane-b / pane-c, then uses \
 the stable widget ids inside them: editor.code.* for code actions, editor.rich.* for Notes actions, \
 runtime-chat-panel for the chat pane container, runtime-chat-status for the current chat route state, \
@@ -939,7 +940,12 @@ Cancel control shown while a request is active. Cancelling aborts the exact acti
 changes runtime-chat-status to Cancelled, ignores any late completion from that generation, and leaves the \
 input ready for a new send. Runtime Chat is honest in this build: no native HTTP assistant-chat endpoint \
 exists, so a send probes the planned route and returns EndpointMissing instead of fabricating an assistant \
-reply. Keep the main screen quiet and work-focused; advanced diagnostics stay behind Settings -> Diagnostics."
+reply. Keep the main screen quiet and work-focused; advanced diagnostics stay behind Settings -> Diagnostics. \
+To restore the default pane arrangement and tabs, choose VIEW > Reset Layout or the Layout: Reset command. \
+Save your work before you select Reset layout in the confirmation dialog. Before confirmation, Cancel, Escape, or a click outside \
+the dialog keeps the layout. A workspace or account change cancels the request. Detached panes close through \
+their normal lifecycle before the reset applies. Models inspect layout.reset.dialog, then use \
+layout.reset.cancel or layout.reset.confirm and inspect the resulting panes again."
         .to_owned()
 }
 

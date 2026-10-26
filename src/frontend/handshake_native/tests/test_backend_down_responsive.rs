@@ -3866,6 +3866,71 @@ fn stale_layout_generation_cannot_publish_or_clear_replacement_ownership() {
     assert_no_local_artifact_dir();
 }
 
+/// A confirmed same-workspace reset retires a GET that already returned but has not published yet.
+/// Arming/cancelling leaves that generation intact. Resetting an already-default layout must still
+/// schedule the default snapshot for saving, and releasing the retired GET cannot restore its layout.
+#[test]
+fn confirmed_reset_retires_a_late_same_workspace_layout_load_and_marks_defaults_dirty() {
+    let _guard = lock_backend_event_tests();
+    assert_eq!(HandshakeApp::global_layout_workers_in_flight_for_test(), 0);
+    let health_live = TestBackend::start(BackendMode::Live);
+    let mut harness: Harness<HandshakeApp> = Harness::builder().build_eframe(|_| {
+        HandshakeApp::with_health(HealthDisplayState::Ok(HealthInfo {
+            status: "ok".to_owned(),
+            db_status: "ok".to_owned(),
+            migration_version: Some(1),
+        }))
+    });
+    let mut stale_snapshot = harness.state().capture_layout_snapshot();
+    stale_snapshot.split_weights = SplitWeights { vertical: 0.27, horizontal: 0.33 };
+    let layout = TestBackend::start_with_layout_body(layout_response_body(stale_snapshot.to_layout_state()));
+    harness.state().pause_next_layout_load_before_publication_for_test();
+    harness.state_mut().set_backend_endpoints_with_layout_account_for_test(
+        &health_live.base_url(), &layout.base_url(), Some(mock_account_context(&layout.base_url())),
+    );
+    step_until_phase(&mut harness, "same-workspace layout GET paused before publication",
+        CLIENT_REQUEST_TIMEOUT + Duration::from_secs(3), |app| {
+            layout.layout_request_count() >= 1 && app.paused_layout_load_generation_for_test().is_some()
+        });
+    let original_ownership = harness.state().layout_load_ownership_for_test();
+    let old_generation = harness.state().paused_layout_load_generation_for_test().unwrap();
+    assert_eq!(original_ownership.0, old_generation);
+    assert!(original_ownership.2);
+    let defaults = SplitWeights::default();
+    assert_eq!(harness.state().split_weights(), defaults);
+    assert!(!harness.state().layout_manager().lock().unwrap().is_dirty());
+
+    assert!(harness.state_mut().dispatch_palette_action_for_test("layout.reset"));
+    assert_eq!(harness.state().layout_load_ownership_for_test(), original_ownership);
+    harness.state_mut().cancel_reset_layout();
+    assert_eq!(harness.state().layout_load_ownership_for_test(), original_ownership);
+    assert!(harness.state_mut().dispatch_palette_action_for_test("layout.reset"));
+    assert!(harness.state_mut().confirm_reset_layout());
+    let committed_ownership = harness.state().layout_load_ownership_for_test();
+    assert!(committed_ownership.0 > old_generation);
+    assert_eq!(committed_ownership.1, original_ownership.1);
+    assert!(!committed_ownership.2);
+    assert_eq!(harness.state().split_weights(), defaults);
+    harness.step();
+    assert!(harness.state().layout_manager().lock().unwrap().is_dirty(),
+        "a confirmed reset must persist even when the live layout was already default");
+
+    harness.state().release_paused_layout_load_publication_for_test();
+    step_until(&mut harness, Duration::from_secs(4), |app| {
+        app.paused_layout_load_generation_for_test().is_none() && app.layout_workers_in_flight_for_test() == 0
+    });
+    harness.run_steps(3);
+    assert_eq!(harness.state().split_weights(), defaults,
+        "the late pre-reset GET must not replace confirmed defaults");
+    assert_eq!(harness.state().layout_load_ownership_for_test(), committed_ownership,
+        "reset marks this project loaded so the lifecycle cannot launch another old-layout GET");
+    drop(harness);
+    health_live.stop();
+    layout.stop();
+    assert_eq!(HandshakeApp::global_layout_workers_in_flight_for_test(), 0);
+    assert_no_local_artifact_dir();
+}
+
 /// App teardown owns every layout generation, not only the newest one. Hold two real accepted layout
 /// sockets across an endpoint rebind and drop the mounted app while both workers are active; production
 /// request bounds must reclaim both without releasing either server to manufacture completion.

@@ -177,6 +177,34 @@ impl NativeHost {
         observe(HostEvent::Layout);Ok(())
     }
 
+    pub fn reset_root_layout(&mut self, panes: &[PaneId], weights: SplitWeights) -> Result<()> {
+        if let Some(window) = self.windows.get(&egui::ViewportId::ROOT) {
+            let snapshot = self.controller.as_ref().ok_or("Kumihimo owner has shut down")?.snapshot();
+            let mut workspaces = BTreeSet::from([window.root, window.retained]);
+            let mut floats = Vec::new();
+            for frame in window.frames.values() {
+                let record = snapshot.frames.get(frame).ok_or("Kumihimo pane frame is missing")?;
+                workspaces.insert(record.workspace);
+                if snapshot.floats.contains_key(frame) { floats.push(*frame); }
+            }
+            for workspace in workspaces { self.command(Command::RestoreLayout { workspace })?; }
+            for frame in floats { self.command(Command::Dock(core::DockIntent::Redock { frame }))?; }
+        }
+        self.reconcile_window(egui::ViewportId::ROOT, panes)?;
+        let window = &self.windows[&egui::ViewportId::ROOT];
+        let root = window.root;
+        let frames = panes.iter().map(|pane| window.frames[pane]).collect::<Vec<_>>();
+        let plan = plan(&frames, weights)?;
+        observe(HostEvent::LayoutPending);
+        if let Err(error) = self.command(Command::SetLayout { workspace: root, plan }) {
+            observe(HostEvent::LayoutFailed);
+            return Err(error);
+        }
+        self.windows.get_mut(&egui::ViewportId::ROOT).unwrap().imported = Some(weights);
+        observe(HostEvent::Layout);
+        Ok(())
+    }
+
     pub fn project(&mut self, viewport: egui::ViewportId, panes: &[PaneId], area: egui::Rect,
                    weights: SplitWeights) -> Result<PaneProjection> {
         self.reconcile_window(viewport, panes)?;
@@ -932,6 +960,113 @@ mod tests {
         let projected=owner.project(egui::ViewportId::ROOT,&panes,area(),changed).unwrap();
         assert!(projected.horizontal.is_none()&&projected.vertical.is_none());
         assert_eq!(owner.controller.as_ref().unwrap().snapshot().layouts[&root],before);
+    }
+
+    #[test]
+    fn explicit_reset_restores_default_geometry_after_arbitrary_docking() {
+        let mut owner = NativeHost::new().unwrap();
+        let panes: Vec<PaneId> = vec![Arc::from("pane-a"), Arc::from("pane-b"), Arc::from("pane-c")];
+        let weights = SplitWeights::default();
+        let before = owner.project(egui::ViewportId::ROOT, &panes, area(), weights).unwrap();
+        owner.dock(egui::ViewportId::ROOT, &panes[0], &panes[1], core::Edge::Bottom).unwrap();
+        owner.reset_root_layout(&panes, weights).unwrap();
+        let after = owner.project(egui::ViewportId::ROOT, &panes, area(), weights).unwrap();
+        assert_eq!(before.panes, after.panes);
+        assert_eq!(before.horizontal, after.horizontal);
+        assert_eq!(before.vertical, after.vertical);
+    }
+
+    #[test]
+    fn explicit_reset_restores_f10_maximized_root_before_reconciling_panes() {
+        let mut owner = NativeHost::new().unwrap();
+        let ctx = egui::Context::default();
+        let panes: Vec<PaneId> = vec![Arc::from("pane-a"), Arc::from("pane-b"), Arc::from("pane-c")];
+        let mut weights = SplitWeights::default();
+        let before = owner.project(egui::ViewportId::ROOT, &panes, area(), weights).unwrap();
+        let mut expanded = panes.clone();
+        let extra: PaneId = Arc::from("pane-extra");
+        expanded.push(extra.clone());
+        owner.project(egui::ViewportId::ROOT, &expanded, area(), weights).unwrap();
+        let bars = expanded.iter().map(|pane| (pane.clone(), TabBarState::new(pane.clone(),
+            vec![TabState::new(PaneType::Workspace)]))).collect();
+        owner.reconcile_tabs(egui::ViewportId::ROOT, &bars).unwrap();
+        let frames = owner.windows[&egui::ViewportId::ROOT].frames.clone();
+        let views = owner.views.clone();
+        let root = owner.windows[&egui::ViewportId::ROOT].root;
+        let retained = owner.windows[&egui::ViewportId::ROOT].retained;
+        owner.windows.get_mut(&egui::ViewportId::ROOT).unwrap().input.focused_view = Some(*owner.views.values().next().unwrap());
+        render_input(&mut owner, &ctx, &expanded, &mut weights, Some(egui::Key::F10), |_,_,_| {});
+        assert!(owner.controller.as_ref().unwrap().snapshot().maximized.contains_key(&root));
+
+        owner.reset_root_layout(&panes, SplitWeights::default()).unwrap();
+        let after = owner.project(egui::ViewportId::ROOT, &panes, area(), SplitWeights::default()).unwrap();
+        let snapshot = owner.controller.as_ref().unwrap().snapshot();
+        assert!(!snapshot.maximized.contains_key(&root));
+        assert_eq!(snapshot.frames[&frames[&extra]].workspace, retained);
+        assert_eq!(owner.windows[&egui::ViewportId::ROOT].frames, frames);
+        assert_eq!(owner.views, views);
+        assert_eq!(before.panes, after.panes);
+        assert_eq!(before.horizontal, after.horizontal);
+        assert_eq!(before.vertical, after.vertical);
+    }
+
+    #[test]
+    fn explicit_reset_restores_retained_and_frame_source_workspaces_before_moves() {
+        let mut owner = NativeHost::new().unwrap();
+        let panes: Vec<PaneId> = vec![Arc::from("pane-a"), Arc::from("pane-b"), Arc::from("pane-c")];
+        let weights = SplitWeights::default();
+        let before = owner.project(egui::ViewportId::ROOT, &panes, area(), weights).unwrap();
+        let mut expanded = panes.clone();
+        let retained_pane: PaneId = Arc::from("retained-pane");
+        expanded.push(retained_pane.clone());
+        owner.project(egui::ViewportId::ROOT, &expanded, area(), weights).unwrap();
+        owner.project(egui::ViewportId::ROOT, &panes, area(), weights).unwrap();
+        expanded.pop();
+        let removed_pane: PaneId = Arc::from("removed-pane");
+        expanded.push(removed_pane.clone());
+        owner.project(egui::ViewportId::ROOT, &expanded, area(), weights).unwrap();
+        let root = owner.windows[&egui::ViewportId::ROOT].root;
+        let retained = owner.windows[&egui::ViewportId::ROOT].retained;
+        let frames = owner.windows[&egui::ViewportId::ROOT].frames.clone();
+        let source = owner.workspace().unwrap();
+        owner.command(Command::MoveFrame { frame: frames[&panes[0]], destination: source, index: 0 }).unwrap();
+        owner.command(Command::Maximize { frame: frames[&panes[0]] }).unwrap();
+        owner.command(Command::Maximize { frame: frames[&retained_pane] }).unwrap();
+
+        owner.reset_root_layout(&panes, weights).unwrap();
+        let after = owner.project(egui::ViewportId::ROOT, &panes, area(), weights).unwrap();
+        let snapshot = owner.controller.as_ref().unwrap().snapshot();
+        assert!(!snapshot.maximized.contains_key(&source));
+        assert!(!snapshot.maximized.contains_key(&retained));
+        assert_eq!(snapshot.frames[&frames[&panes[0]]].workspace, root);
+        assert_eq!(snapshot.frames[&frames[&removed_pane]].workspace, retained);
+        assert_eq!(owner.windows[&egui::ViewportId::ROOT].frames, frames);
+        assert_eq!(before.panes, after.panes);
+        assert_eq!(before.horizontal, after.horizontal);
+        assert_eq!(before.vertical, after.vertical);
+    }
+
+    #[test]
+    fn explicit_reset_redocks_floating_frames_before_replacing_the_plan() {
+        let mut owner = NativeHost::new().unwrap();
+        let panes: Vec<PaneId> = vec![Arc::from("pane-a"), Arc::from("pane-b"), Arc::from("pane-c")];
+        let weights = SplitWeights::default();
+        let before = owner.project(egui::ViewportId::ROOT, &panes, area(), weights).unwrap();
+        let frames = owner.windows[&egui::ViewportId::ROOT].frames.clone();
+        owner.dock(egui::ViewportId::ROOT, &panes[0], &panes[1], core::Edge::Bottom).unwrap();
+        let preview = owner.controller.as_ref().unwrap().core().preview(core::DockIntent::Float {
+            frame: frames[&panes[1]], rect: core::Rect::new(700.0, 300.0, 250.0, 250.0).unwrap(),
+        }).unwrap();
+        owner.command(Command::CommitPreview(preview)).unwrap();
+        assert!(owner.controller.as_ref().unwrap().snapshot().floats.contains_key(&frames[&panes[1]]));
+
+        owner.reset_root_layout(&panes, weights).unwrap();
+        let after = owner.project(egui::ViewportId::ROOT, &panes, area(), weights).unwrap();
+        assert!(owner.controller.as_ref().unwrap().snapshot().floats.is_empty());
+        assert_eq!(owner.windows[&egui::ViewportId::ROOT].frames, frames);
+        assert_eq!(before.panes, after.panes);
+        assert_eq!(before.horizontal, after.horizontal);
+        assert_eq!(before.vertical, after.vertical);
     }
 
     #[test]
