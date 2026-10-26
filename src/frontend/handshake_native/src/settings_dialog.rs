@@ -55,6 +55,9 @@
 
 use egui::accesskit;
 
+use crate::module_switcher::{ModuleId, MODULE_DEFINITIONS, pane_type_tab_id};
+use crate::pane_registry::PaneType;
+
 use crate::workspace_settings::{
     find_keybinding_conflicts, keybinding_label_for_conflict, normalize_chord_input,
     setting_matches_query, Keybinding, NotYetWiredSetting, SettingsViewMode,
@@ -663,6 +666,7 @@ pub enum SettingsOutcome {
     CliBridgeLoginPanelClosed {
         provider: String,
     },
+    OpenModuleFeature(PaneType),
     PopOut,
     Redock,
     /// The Theme / appearance ComboBox selected a (different) theme. WIRED.
@@ -727,6 +731,7 @@ pub struct SwarmModelSessionsSettingsState {
 /// borrows `&mut HandshakeApp`; the shell applies the returned [`SettingsOutcome`].
 pub struct SettingsView<'a> {
     pub engine_profiles: &'a mut EngineProfilesSettingsState,
+    pub registered_features: &'a [PaneType],
     pub cloud: &'a mut CloudModelsSettingsState,
     pub swarm_model_sessions: &'a SwarmModelSessionsSettingsState,
     /// Monotonic open generation; a new value resets the dialog's transient state.
@@ -1013,17 +1018,7 @@ fn show_host(
             ui.add_space(6.0);
 
             ui.add_enabled_ui(outcome == SettingsOutcome::None, |ui| {
-                ui.horizontal(|ui| {
-                    let general = ui.selectable_value(
-                        &mut view.engine_profiles.tab, EngineProfilesTab::General, "General",
-                    );
-                    set_author_id(ui, general.id, "settings.tab.general");
-                    let profiles = ui.selectable_value(
-                        &mut view.engine_profiles.tab,
-                        EngineProfilesTab::EngineProfiles, "Engine Profiles",
-                    );
-                    set_author_id(ui, profiles.id, "settings.tab.engine-profiles");
-                });
+                render_settings_tabs(ui, view.engine_profiles);
             });
 
             // Search input, pinned to the fixed search id so its AccessKit NodeId is stable.
@@ -1032,6 +1027,7 @@ fn show_host(
             // this frame. Reading it after `ui.add(edit)` leaves the current widget snapshot on the
             // pre-action value and can cause the action channel's post-render receipt to reject an
             // otherwise valid canonical Argus SetValue.
+            let previous_query = state.query.clone();
             if let Some(value) = crate::mcp::accesskit_string_set_value(ui, search_egui_id) {
                 state.query = value;
                 ui.ctx().request_repaint();
@@ -1045,7 +1041,26 @@ fn show_host(
                 _edit_response.request_focus();
                 state.focus_requested = true;
             }
+            if previous_query != state.query {
+                let was_general = view.engine_profiles.is_general_tab();
+                let navigated = view.engine_profiles.tab != EngineProfilesTab::General
+                    || view.engine_profiles.section.is_some();
+                view.engine_profiles.tab = EngineProfilesTab::General;
+                view.engine_profiles.section = None;
+                view.engine_profiles.navigation_error = None;
+                if navigated {
+                    record_settings_navigation(ui, was_general);
+                }
+            }
             emit_search_node(ui.ctx(), search_egui_id);
+            if !state.query.trim().is_empty()
+                && (view.engine_profiles.tab != EngineProfilesTab::General
+                    || view.engine_profiles.section.is_some())
+            {
+                let label = "Search paused. Edit Search settings or select General to search all settings.";
+                let response = ui.add(egui::Label::new(label).wrap());
+                set_author_id_and_label(ui, response.id, "settings.search.scope", label);
+            }
 
             // Persistence error row (HBR: important state visible; surfaces a save/load failure).
             if let Some(err) = view.persist_error {
@@ -1077,16 +1092,37 @@ fn show_host(
             // The scrollable body region (Role::Group container at the fixed list id).
             ui.push_id(list_egui_id, |ui| {
                 egui::ScrollArea::vertical()
-                    .max_height(if detached || mounted { ui.available_height() } else { 440.0 })
+                    .max_height(if detached || mounted { ui.available_height() } else { ui.available_height().min(440.0) }.max(1.0))
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
-                        if view.engine_profiles.tab == EngineProfilesTab::General {
-                            outcome = render_sections(
-                                ui, &query, &mut state, &mut view,
-                                &mut editor_section, outcome.clone(),
-                            );
-                        } else if outcome == SettingsOutcome::None {
-                            outcome = render_engine_profiles_tab(ui, view.engine_profiles);
+                        if matches!(view.engine_profiles.tab, EngineProfilesTab::General | EngineProfilesTab::SharedFeature)
+                            && view.engine_profiles.section.is_none()
+                        {
+                            render_registered_features(ui, view.registered_features, &query, view.engine_profiles);
+                        }
+                        match view.engine_profiles.tab {
+                            EngineProfilesTab::General => {
+                                if view.engine_profiles.section.is_some() {
+                                    ui.label("Showing the selected section.");
+                                }
+                                let section_query = if view.engine_profiles.section.is_some() { "" } else { query.as_str() };
+                                outcome = render_sections(
+                                    ui, section_query, &mut state, &mut view,
+                                    &mut editor_section, outcome.clone(),
+                                );
+                            }
+                            EngineProfilesTab::EngineProfiles if outcome == SettingsOutcome::None => {
+                                outcome = render_engine_profiles_tab(ui, view.engine_profiles);
+                            }
+                            EngineProfilesTab::Module(module) if outcome == SettingsOutcome::None => {
+                                outcome = render_module_settings(ui, module, view.engine_profiles);
+                            }
+                            EngineProfilesTab::SharedFeature if outcome == SettingsOutcome::None => {
+                                if let Some(feature) = view.engine_profiles.feature.clone() {
+                                    outcome = render_feature_settings(ui, feature, view.engine_profiles, false);
+                                }
+                            }
+                            _ => {}
                         }
                     });
             });
@@ -1131,6 +1167,234 @@ fn show_host(
     }
 }
 
+
+pub fn module_settings_author_id(module: ModuleId) -> String {
+    format!("settings.module.{}", module.definition().data_id)
+}
+
+pub fn module_feature_author_id(module: ModuleId, feature: &PaneType) -> String {
+    format!("settings.feature.{}.{}", module.definition().data_id, pane_type_tab_id(feature))
+}
+
+pub fn feature_open_author_id(feature: &PaneType) -> String {
+    format!("settings.feature.open.{}", pane_type_tab_id(feature))
+}
+
+pub fn feature_from_open_author_id(author_id: &str) -> Option<PaneType> {
+    let tab_id = author_id.strip_prefix("settings.feature.open.")?;
+    MODULE_DEFINITIONS.iter().flat_map(|module| module.tabs.iter())
+        .find(|feature| pane_type_tab_id(feature) == tab_id && feature_has_context_free_route(feature)).cloned()
+}
+
+fn feature_has_context_free_route(feature: &PaneType) -> bool {
+    !matches!(feature, PaneType::CalendarEvent | PaneType::LoomBlock | PaneType::KernelDcc
+        | PaneType::Wp1OrchestrationConsole | PaneType::Placeholder(_))
+}
+
+fn section_visible(selected: Option<&str>, section: &str) -> bool {
+    selected.is_none() || selected == Some(section)
+}
+
+fn record_settings_navigation(ui: &egui::Ui, unchanged_general_posture: bool) {
+    if unchanged_general_posture {
+        crate::diagnostics::gui_events::record_gui_observation(
+            crate::diagnostics::gui_events::GuiDiagnosticOperation::SettingsTab,
+            crate::diagnostics::gui_events::GuiDiagnosticPhase::Accepted,
+        );
+    }
+    ui.ctx().request_repaint();
+}
+
+fn render_settings_tabs(ui: &mut egui::Ui, state: &mut EngineProfilesSettingsState) {
+    ui.horizontal_wrapped(|ui| {
+        for (tab, label, author) in [
+            (EngineProfilesTab::General, "General", "settings.tab.general"),
+            (EngineProfilesTab::EngineProfiles, "Engine Profiles", "settings.tab.engine-profiles"),
+        ] {
+            let selected = state.tab == tab && (tab != EngineProfilesTab::General || state.section.is_none());
+            let response = ui.selectable_label(selected, label);
+            set_author_id(ui, response.id, author);
+            if response.clicked() && !selected {
+                let was_general = state.is_general_tab();
+                state.tab = tab;
+                state.section = None;
+                state.navigation_error = None;
+                record_settings_navigation(ui, was_general == state.is_general_tab());
+                crate::mcp::argus::acknowledge_action_effect(ui.ctx(), author);
+            }
+        }
+        for module in &MODULE_DEFINITIONS {
+            let selected = state.tab == EngineProfilesTab::Module(module.id);
+            let response = ui.selectable_label(selected, module.label);
+            let author = module_settings_author_id(module.id);
+            set_author_id(ui, response.id, &author);
+            if response.clicked() && !selected {
+                let was_general = state.is_general_tab();
+                state.tab = EngineProfilesTab::Module(module.id);
+                state.feature = Some(module.default_tab.clone());
+                state.section = None;
+                state.navigation_error = None;
+                record_settings_navigation(ui, was_general == state.is_general_tab());
+                crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author);
+            }
+        }
+    });
+}
+
+fn shared_section_link(ui: &mut egui::Ui, state: &mut EngineProfilesSettingsState, key: &'static str, label: &str) {
+    let response = ui.button(label);
+    let author = format!("settings.feature.section.{key}");
+    set_author_id(ui, response.id, &author);
+    if response.clicked() {
+        let was_general = state.is_general_tab();
+        state.tab = EngineProfilesTab::General;
+        state.section = Some(key);
+        state.navigation_error = None;
+        record_settings_navigation(ui, was_general == state.is_general_tab());
+        crate::mcp::argus::acknowledge_action_effect_allow_target_transition(ui.ctx(), &author);
+    }
+}
+
+pub fn registered_feature_author_id(feature: &PaneType) -> String {
+    match feature {
+        PaneType::Placeholder(label) => format!("settings.feature.shared.placeholder.{label}"),
+        _ => format!("settings.feature.shared.{}", pane_type_tab_id(feature)),
+    }
+}
+
+fn render_registered_features(ui: &mut egui::Ui, registered: &[PaneType], query: &str, state: &mut EngineProfilesSettingsState) {
+    let matches: Vec<_> = registered.iter().filter(|feature| {
+        let assigned = MODULE_DEFINITIONS.iter().any(|module| module.tabs.contains(feature));
+        if query.is_empty() { !assigned } else { feature.label().to_lowercase().contains(query) }
+    }).collect();
+    if matches.is_empty() { return; }
+    let header = egui::CollapsingHeader::new("Features")
+        .default_open(false)
+        .open((!query.is_empty() || state.tab == EngineProfilesTab::SharedFeature).then_some(true))
+        .show(ui, |ui| {
+            ui.label("Select a feature to view its settings.");
+            ui.horizontal_wrapped(|ui| {
+                for feature in matches {
+                    let selected = state.tab == EngineProfilesTab::SharedFeature
+                        && state.feature.as_ref() == Some(feature);
+                    let response = ui.selectable_label(selected, feature.label());
+                    let author = registered_feature_author_id(feature);
+                    set_author_id(ui, response.id, &author);
+                    if response.clicked() && !selected {
+                        let was_general = state.is_general_tab();
+                        state.tab = EngineProfilesTab::SharedFeature;
+                        state.feature = Some(feature.clone());
+                        state.section = None;
+                        state.navigation_error = None;
+                        record_settings_navigation(ui, was_general == state.is_general_tab());
+                        crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author);
+                    }
+                }
+            });
+        });
+    set_author_id(ui, header.header_response.id, "settings.features.shared");
+    if header.header_response.clicked() && query.is_empty() && state.tab != EngineProfilesTab::SharedFeature {
+        record_settings_navigation(ui, true);
+        crate::mcp::argus::acknowledge_action_effect(ui.ctx(), "settings.features.shared");
+    }
+}
+
+fn render_module_settings(ui: &mut egui::Ui, module: ModuleId, state: &mut EngineProfilesSettingsState) -> SettingsOutcome {
+    let definition = module.definition();
+    ui.horizontal_wrapped(|ui| {
+        for feature in definition.tabs {
+            let selected = state.feature.as_ref() == Some(feature);
+            let response = ui.selectable_label(selected, feature.label());
+            let author = module_feature_author_id(module, feature);
+            set_author_id(ui, response.id, &author);
+            if response.clicked() && !selected {
+                state.feature = Some(feature.clone());
+                state.navigation_error = None;
+                record_settings_navigation(ui, true);
+                crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author);
+            }
+        }
+    });
+    let feature = state.feature.clone().unwrap_or_else(|| definition.default_tab.clone());
+    let can_open = feature_has_context_free_route(&feature);
+    render_feature_settings(ui, feature, state, can_open)
+}
+
+fn render_feature_settings(ui: &mut egui::Ui, feature: PaneType, state: &mut EngineProfilesSettingsState, can_open: bool) -> SettingsOutcome {
+    ui.heading(feature.label());
+    let note = match &feature {
+        PaneType::CodeSymbol => "Font size is shared with rich documents. Other code settings remain in Editor, Syntax and Keybindings.",
+        PaneType::LoomWikiPage => "Shared Editor and Keybindings settings. Generated Wiki Projection is read-only; annotations remain additive.",
+        PaneType::LoomDailyJournal => "Calendar timezone is in Appearance. Edit journal content in its pane.",
+        PaneType::CalendarEvent => "Select an event to open its details. Calendar timezone is in Appearance.",
+        PaneType::LoomSearchV2 => "Query and facet options are in Notes Search.",
+        PaneType::FindInFiles => "Search and replace-preview options are in Find in Files.",
+        PaneType::RuntimeChat => "Chat is unavailable. No dedicated preference.",
+        PaneType::OperatorChatLaunch => "Choose models, profiles and folders in Operator Chat / Launch. Provider access and concurrency use shared settings.",
+        PaneType::Wp1OrchestrationConsole => "Opening from Settings is unavailable. Filters remain in the console.",
+        PaneType::AtelierEditor | PaneType::MediaDownloader => "Open Atelier and expand Settings / Defaults for Atelier, CKC, PoseKit and Ingest defaults.",
+        PaneType::ModelRuntime => "Model selection and lifecycle controls are in Model Runtime. Engine Profiles and Cloud Models are shared settings.",
+        PaneType::Swarm => "Concurrency is in Swarm settings. This native board view is unavailable; the startup option is saved but not applied.",
+        PaneType::SwarmLaneDiagnostics => "Run, lane and message filters are in Swarm Lane Diagnostics.",
+        PaneType::FlightRecorder => "No dedicated preference. Flight Recorder follows the active workspace and actor.",
+        PaneType::VisualDebugger => "Use Visual Debugger or shared Diagnostics. Diagnostics is read-only.",
+        PaneType::KernelDcc | PaneType::InferenceLab | PaneType::FontManager => "Configuration is unavailable in this native view.",
+        _ => "Settings controls are unavailable here.",
+    };
+    let response = ui.add(egui::Label::new(note).wrap());
+    set_author_id_and_label(ui, response.id, "settings.feature.disposition", note);
+    match &feature {
+        PaneType::CodeSymbol => {
+            ui.horizontal_wrapped(|ui| {
+                shared_section_link(ui, state, "editor", "Editor");
+                shared_section_link(ui, state, "syntax", "Syntax");
+                shared_section_link(ui, state, "keybindings", "Keybindings");
+            });
+        }
+        PaneType::LoomWikiPage => {
+            ui.horizontal_wrapped(|ui| {
+                shared_section_link(ui, state, "editor", "Editor");
+                shared_section_link(ui, state, "keybindings", "Keybindings");
+            });
+        }
+        PaneType::LoomDailyJournal | PaneType::CalendarEvent => shared_section_link(ui, state, "appearance", "Appearance"),
+        PaneType::Swarm => shared_section_link(ui, state, "swarm", "Swarm settings"),
+        PaneType::OperatorChatLaunch => {
+            ui.horizontal_wrapped(|ui| {
+                shared_section_link(ui, state, "cloud-models", "Cloud Models");
+                shared_section_link(ui, state, "swarm", "Swarm settings");
+            });
+        }
+        PaneType::ModelRuntime => {
+            ui.horizontal_wrapped(|ui| {
+                shared_section_link(ui, state, "cloud-models", "Cloud Models");
+                shared_section_link(ui, state, "model-session", "Model Session");
+            });
+        }
+        PaneType::SwarmLaneDiagnostics | PaneType::FlightRecorder | PaneType::VisualDebugger => {
+            shared_section_link(ui, state, "diagnostics", "Diagnostics");
+        }
+        PaneType::AtelierEditor | PaneType::MediaDownloader => {
+            ui.label("Defaults: landing tab, book mode, PoseKit framing and markers, and Ingest tags and policy. Facial review stays in Ingest.");
+        }
+        _ => {}
+    }
+    if let Some(error) = state.navigation_error {
+        let response = ui.colored_label(ui.visuals().error_fg_color, error);
+        set_author_id_and_label(ui, response.id, "settings.navigation.error", error);
+    }
+    if can_open {
+        let response = ui.button(format!("Open {}", feature.label()));
+        set_author_id(ui, response.id, &feature_open_author_id(&feature));
+        if response.clicked() {
+            return SettingsOutcome::OpenModuleFeature(feature);
+        }
+    } else {
+        ui.label("Opening is unavailable here.");
+    }
+    SettingsOutcome::None
+}
+
 /// Seed the fresh canonical MCP capture context with the query last rendered by the live Settings
 /// context. The capture pass is intentionally a different egui context, so context-local transient
 /// memory must be copied explicitly or canonical Argus sees an empty query after a successful SetValue.
@@ -1156,6 +1420,7 @@ fn render_sections(
     mut outcome: SettingsOutcome,
 ) -> SettingsOutcome {
     let settings = view.settings;
+    let selected_section = view.engine_profiles.section;
 
     // MT-072: the read-only editor view the three new sections render from (the live settings + the
     // surfaced auto-save interval label).
@@ -1165,7 +1430,7 @@ fn render_sections(
         provenance: view.preference_provenance,
     };
 
-    if setting_matches_query(
+    if section_visible(selected_section, "cloud-models") && setting_matches_query(
         query,
         &[
             "cloud",
@@ -1181,7 +1446,7 @@ fn render_sections(
     ) {
         let header = egui::CollapsingHeader::new("Cloud Models")
             .default_open(true)
-            .open((!query.is_empty()).then_some(true))
+            .open((!query.is_empty() || selected_section.is_some()).then_some(true))
             .show(ui, |ui| {
                 outcome = render_cloud_models_body(ui, view.cloud, outcome.clone());
             });
@@ -1216,9 +1481,10 @@ fn render_sections(
         query,
         &["appearance", "calendar", "timezone", "iana", "tzid"],
     );
-    if show_appearance {
+    if section_visible(selected_section, "appearance") && show_appearance {
         let appearance_header = egui::CollapsingHeader::new("Appearance")
             .default_open(true)
+            .open(selected_section.map(|_| true))
             .show(ui, |ui| {
                 if show_view_mode_row {
                     ui.horizontal(|ui| {
@@ -1321,9 +1587,10 @@ fn render_sections(
             query,
             &["keybinding", "keybindings", "shortcut", "shortcuts"],
         );
-    if show_keybindings {
+    if section_visible(selected_section, "keybindings") && show_keybindings {
         let keybindings_header = egui::CollapsingHeader::new("Keybindings")
             .default_open(true)
+            .open(selected_section.map(|_| true))
             .show(ui, |ui| {
                 // Conflict banner computed from the CURRENT drafts (normalized — red-team R3/MC3).
                 let draft_settings = state.draft_settings(settings);
@@ -1464,9 +1731,10 @@ fn render_sections(
             "concurrency", "concurrent",
         ],
     );
-    if show_swarm {
+    if section_visible(selected_section, "swarm") && show_swarm {
         let swarm_header = egui::CollapsingHeader::new("Swarm")
             .default_open(true)
+            .open(selected_section.map(|_| true))
             .show(ui, |ui| {
                 not_yet_wired_row(ui, &SWARM_RECONCILE_INTERVAL_SETTING);
                 not_yet_wired_row(ui, &SWARM_RESOURCE_POLL_INTERVAL_SETTING);
@@ -1588,9 +1856,10 @@ fn render_sections(
     // ── [4] Terminal (not-yet-wired rows) ──────────────────────────────────────────────────────────
     let show_terminal =
         setting_matches_query(query, &["terminal", "shell", "scrollback", "logging"]);
-    if show_terminal {
+    if section_visible(selected_section, "terminal") && show_terminal {
         let terminal_header = egui::CollapsingHeader::new("Terminal")
             .default_open(true)
+            .open(selected_section.map(|_| true))
             .show(ui, |ui| {
                 not_yet_wired_row(ui, &TERMINAL_DEFAULT_SHELL_SETTING);
                 not_yet_wired_row(ui, &TERMINAL_MAX_SCROLLBACK_SETTING);
@@ -1605,9 +1874,10 @@ fn render_sections(
 
     // ── [5] Layout (wired Reset panes & drawers button) ────────────────────────────────────────────
     let show_layout = setting_matches_query(query, &["layout", "reset", "panes", "drawers"]);
-    if show_layout {
+    if section_visible(selected_section, "layout") && show_layout {
         let layout_header = egui::CollapsingHeader::new("Layout")
             .default_open(true)
+            .open(selected_section.map(|_| true))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.vertical(|ui| {
@@ -1637,9 +1907,10 @@ fn render_sections(
         query,
         &["model", "session", "launch", "local", "cloud", "wrapper"],
     );
-    if show_model_session {
+    if section_visible(selected_section, "model-session") && show_model_session {
         let model_header = egui::CollapsingHeader::new("Model Session")
             .default_open(true)
+            .open(selected_section.map(|_| true))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.vertical(|ui| {
@@ -1723,11 +1994,11 @@ fn render_sections(
             "route",
         ],
     );
-    if show_editor {
+    if section_visible(selected_section, "editor") && show_editor {
         // FORCE open while a search query is active (`.open(Some(true))` overrides egui's persisted
         // collapsed state — `default_open` would be ignored after the user manually closed it). With
         // no query, leave egui's own open/close state alone (`.open(None)`) so that choice sticks.
-        let force_open = (!query.is_empty()).then_some(true);
+        let force_open = (!query.is_empty() || selected_section.is_some()).then_some(true);
         let editor_header = egui::CollapsingHeader::new("Editor")
             .default_open(true)
             .open(force_open)
@@ -1762,8 +2033,8 @@ fn render_sections(
             "highlight",
         ],
     );
-    if show_syntax {
-        let force_open = (!query.is_empty()).then_some(true);
+    if section_visible(selected_section, "syntax") && show_syntax {
+        let force_open = (!query.is_empty() || selected_section.is_some()).then_some(true);
         let syntax_header = egui::CollapsingHeader::new("Syntax")
             .default_open(true)
             .open(force_open)
@@ -1784,9 +2055,10 @@ fn render_sections(
     // MT-072 Fix 2: About now renders AFTER the contiguous Editor + Syntax group (it previously rendered
     // BEFORE them). Section content + author_id are unchanged — this is an ordering-only move.
     let show_about = setting_matches_query(query, &["about", "app", "version"]);
-    if show_about {
+    if section_visible(selected_section, "about") && show_about {
         let about_header = egui::CollapsingHeader::new("About")
             .default_open(true)
+            .open(selected_section.map(|_| true))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label(egui::RichText::new("App").small().weak());
@@ -1820,8 +2092,8 @@ fn render_sections(
         query,
         crate::settings_diagnostics_section::DIAGNOSTICS_SEARCH_KEYWORDS,
     );
-    if show_diagnostics {
-        let force_open = (!query.is_empty() || view.diagnostics_force_open).then_some(true);
+    if section_visible(selected_section, "diagnostics") && show_diagnostics {
+        let force_open = (!query.is_empty() || selected_section.is_some() || view.diagnostics_force_open).then_some(true);
         let diagnostics_header = egui::CollapsingHeader::new("Diagnostics")
             .default_open(false)
             .open(force_open)
@@ -2486,6 +2758,8 @@ enum EngineProfilesTab {
     #[default]
     General,
     EngineProfiles,
+    SharedFeature,
+    Module(ModuleId),
 }
 
 #[derive(Debug, Clone)]
@@ -2595,6 +2869,9 @@ pub struct EngineProfilesSettingsState {
     sequence: u64,
     exhausted: bool,
     tab: EngineProfilesTab,
+    feature: Option<PaneType>,
+    section: Option<&'static str>,
+    navigation_error: Option<&'static str>,
     pub registry: Option<EngineProfileRegistryV1>,
     refresh_attempted: bool,
     editor: Option<EngineProfileEditor>,
@@ -2608,6 +2885,14 @@ impl EngineProfilesSettingsState {
     pub fn snapshot_projection(&self) -> Self { self.clone() }
 
     pub fn is_general_tab(&self) -> bool { self.tab == EngineProfilesTab::General }
+
+    pub fn navigation_failed(&mut self) {
+        crate::diagnostics::gui_events::record_gui_observation(
+            crate::diagnostics::gui_events::GuiDiagnosticOperation::SettingsTab,
+            crate::diagnostics::gui_events::GuiDiagnosticPhase::Rejected,
+        );
+        self.navigation_error = Some("The feature could not be opened. Finish any pending navigation, then retry.");
+    }
 
     pub fn bind_scope(&mut self, scope: Option<EngineProfilesScope>) {
         if self.scope != scope {
@@ -2629,6 +2914,9 @@ impl EngineProfilesSettingsState {
             self.registry = None;
             self.refresh_attempted = false;
             self.tab = EngineProfilesTab::General;
+            self.feature = None;
+            self.section = None;
+            self.navigation_error = None;
         }
     }
 

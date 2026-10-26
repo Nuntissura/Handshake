@@ -696,3 +696,198 @@ fn live_backend_settings_round_trips_through_surrealdb() {
 
 #[path = "backend_proof_support/mod.rs"]
 mod backend_proof_support;
+
+
+#[test]
+fn settings_module_features_and_profile_destination_remain_reachable() {
+    use handshake_native::{module_switcher::MODULE_DEFINITIONS, settings_dialog};
+    let mut app = ok_app();
+    app.set_runtime_handle(leak_runtime_handle());
+    app.set_settings_transport(StubSettingsTransport::with_loaded(None));
+    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    harness.run_steps(3);
+    for module in &MODULE_DEFINITIONS {
+        let author = settings_dialog::module_settings_author_id(module.id);
+        harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+            node.author_id() == Some(author.as_str())
+        }).next().expect("actual module has a Settings route").click();
+        harness.run_steps(3);
+        for feature in module.tabs {
+            let author = settings_dialog::module_feature_author_id(module.id, feature);
+            assert!(harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+                node.author_id() == Some(author.as_str())
+            }).next().is_some(), "actual module feature is addressable: {}", feature.label());
+        }
+        assert!(harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+            node.author_id() == Some("settings.feature.disposition")
+        }).next().is_some(), "feature has a visible configuration disposition");
+    }
+    harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        node.author_id() == Some("settings.tab.engine-profiles")
+    }).next().expect("Engine Profiles stays inside Settings").click();
+    harness.run_steps(3);
+    assert!(harness.query_by_label("Sign in and open a workspace to manage Engine Profiles.").is_some(),
+        "profile destination preserves its real account/workspace prerequisite");
+    harness.state_mut().close_settings();
+    harness.state_mut().open_settings();
+    harness.run_steps(3);
+    assert!(harness.query_by_label("Theme / appearance").is_some(), "reopen restores shared General controls");
+}
+
+#[test]
+fn settings_module_editor_link_keeps_search_and_renders_actual_preference() {
+    use handshake_native::{module_switcher::ModuleId, pane_registry::PaneType, settings_dialog};
+    let mut app = ok_app();
+    app.set_runtime_handle(leak_runtime_handle());
+    app.set_settings_transport(StubSettingsTransport::with_loaded(None));
+    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    harness.run_steps(3);
+    harness.get_by_label("Search settings").type_text("swarm");
+    harness.run_steps(3);
+    let module = settings_dialog::module_settings_author_id(ModuleId::Ckc);
+    harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        node.author_id() == Some(module.as_str())
+    }).next().expect("CKC Settings route").click();
+    harness.run_steps(3);
+    let feature = settings_dialog::module_feature_author_id(ModuleId::Ckc, &PaneType::CodeSymbol);
+    harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        node.author_id() == Some(feature.as_str())
+    }).next().expect("Code Symbol Settings feature").click();
+    harness.run_steps(3);
+    harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        node.author_id() == Some("settings.feature.section.editor")
+    }).next().expect("shared Editor destination").click();
+    harness.run_steps(3);
+    let root = harness.root();
+    assert!(root.children_recursive().any(|node| {
+        node.accesskit_node().author_id() == Some("settings.search")
+            && node.accesskit_node().value().as_deref() == Some("swarm")
+    }), "navigation retains the real search value");
+    assert!(root.children_recursive().any(|node| {
+        node.accesskit_node().author_id() == Some("settings-editor-font-size")
+    }), "a nonmatching retained query cannot hide the explicit Editor destination");
+    assert!(!root.children_recursive().any(|node| {
+        node.accesskit_node().author_id() == Some(settings_dialog::SWARM_BOARD_CHECKBOX_AUTHOR_ID)
+    }), "direct Editor navigation shows its destination rather than unrelated search results");
+
+    harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        node.author_id() == Some(module.as_str())
+    }).next().expect("return to CKC module").click();
+    harness.run_steps(3);
+    harness.get_by_label("Search settings").focus();
+    harness.run_steps(3);
+    harness.get_by_label("Search settings").type_text(" ");
+    harness.run_steps(3);
+    assert!(harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        node.author_id() == Some(settings_dialog::SWARM_BOARD_CHECKBOX_AUTHOR_ID)
+    }).next().is_some(), "editing search from a module returns to matching global settings");
+    assert!(harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        node.author_id() == Some(feature.as_str())
+    }).next().is_none(), "the module body yields to global search results");
+}
+
+
+#[test]
+fn registered_shared_console_is_discoverable_without_bypassing_route_hold() {
+    use handshake_native::{pane_registry::PaneType, settings_dialog};
+    let mut app = ok_app();
+    app.set_runtime_handle(leak_runtime_handle());
+    app.set_settings_transport(StubSettingsTransport::with_loaded(None));
+    app.set_wp1_console_entries_for_test(Vec::new());
+    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    harness.run_steps(3);
+    harness.get_by_label("Search settings").type_text("Orchestration");
+    harness.run_steps(3);
+    let feature = PaneType::Wp1OrchestrationConsole;
+    let author = settings_dialog::registered_feature_author_id(&feature);
+    harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        node.author_id() == Some(author.as_str())
+    }).next().expect("registered non-module console is in shared discovery").click();
+    harness.run_steps(3);
+    assert!(harness.query_by_label("Opening from Settings is unavailable. Filters remain in the console.").is_some());
+    let open = settings_dialog::feature_open_author_id(&feature);
+    assert!(harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        node.author_id() == Some(open.as_str())
+    }).next().is_none(), "discovery does not create a Settings console-opening bypass");
+    assert!(harness.state().settings_open(), "read-only discovery preserves the current Settings session");
+}
+
+
+#[test]
+fn selected_appearance_opens_after_a_prior_collapse() {
+    use handshake_native::{module_switcher::ModuleId, pane_registry::PaneType, settings_dialog};
+    let mut app = ok_app();
+    app.set_runtime_handle(leak_runtime_handle());
+    app.set_settings_transport(StubSettingsTransport::with_loaded(None));
+    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.state_mut().open_settings();
+    harness.run_steps(3);
+    harness.get_by_label("Search settings").type_text("appearance");
+    harness.run_steps(3);
+    assert!(harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        node.author_id() == Some(settings_dialog::THEME_COMBO_AUTHOR_ID)
+    }).next().is_some(), "Appearance starts expanded");
+    harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        node.author_id() == Some("settings.section.appearance")
+    }).next().expect("Appearance header").click();
+    harness.run_steps(3);
+    assert!(harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        node.author_id() == Some(settings_dialog::THEME_COMBO_AUTHOR_ID)
+    }).next().is_none(), "pointer collapse hides the actual Appearance control");
+    let module = settings_dialog::module_settings_author_id(ModuleId::Main);
+    harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        node.author_id() == Some(module.as_str())
+    }).next().expect("MAIN Settings route").click();
+    harness.run_steps(3);
+    let feature = settings_dialog::module_feature_author_id(ModuleId::Main, &PaneType::LoomDailyJournal);
+    harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        node.author_id() == Some(feature.as_str())
+    }).next().expect("Loom Daily Journal feature").click();
+    harness.run_steps(3);
+    harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        node.author_id() == Some("settings.feature.section.appearance")
+    }).next().expect("journal Appearance link").click();
+    harness.run_steps(3);
+    assert!(harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        node.author_id() == Some(settings_dialog::THEME_COMBO_AUTHOR_ID)
+    }).next().is_some(), "explicit navigation reopens the collapsed section and its actual controls");
+}
+
+#[test]
+fn successive_pointer_feature_opens_work_without_mcp_snapshot_refresh() {
+    use handshake_native::{module_switcher::ModuleId, pane_registry::PaneType, settings_dialog};
+    let mut app = ok_app();
+    app.set_runtime_handle(leak_runtime_handle());
+    app.set_settings_transport(StubSettingsTransport::with_loaded(None));
+    let mut harness = Harness::builder().build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    assert!(harness.state().mcp_server().is_none());
+    // Node.click emits primary pointer events. No MCP driver or snapshot capture runs between opens.
+    for (module_id, feature) in [(ModuleId::Ckc, PaneType::CodeSymbol), (ModuleId::Main, PaneType::UserManual)] {
+        harness.state_mut().open_settings();
+        harness.run_steps(3);
+        let module = settings_dialog::module_settings_author_id(module_id);
+        harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+            node.author_id() == Some(module.as_str())
+        }).next().expect("module route").click();
+        harness.run_steps(3);
+        let feature_id = settings_dialog::module_feature_author_id(module_id, &feature);
+        harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+            node.author_id() == Some(feature_id.as_str())
+        }).next().expect("feature route").click();
+        harness.run_steps(3);
+        let open = settings_dialog::feature_open_author_id(&feature);
+        harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+            node.author_id() == Some(open.as_str())
+        }).next().expect("feature open action").click();
+        harness.run_steps(3);
+        assert!(!harness.state().settings_open(), "each pointer open completes independently");
+        let app = harness.state();
+        let pane = app.active_pane().expect("active opened pane");
+        let tab = app.tab_bar_states().get(pane).and_then(|bar| bar.active()).expect("active opened tab");
+        assert_eq!(tab.pane_type, feature, "the actual live tab owns the requested feature");
+        assert!(app.mcp_server().is_none());
+    }
+}

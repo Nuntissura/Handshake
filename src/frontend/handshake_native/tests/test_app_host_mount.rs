@@ -4857,3 +4857,42 @@ fn mt079_rich_pending_events_canonical_argus() {
     argus.finish();
     assert_no_local_artifact_dir();
 }
+
+
+#[test]
+fn settings_feature_open_has_exact_canonical_argus_mount_completion() {
+    use egui_kittest::kittest::Queryable;
+    use handshake_native::{module_switcher::ModuleId, settings_dialog};
+    let (app, _runtime) = editor_shell();
+    let mut harness = Harness::builder().with_size(egui::vec2(1400.0, 900.0))
+        .build_state(|ctx, app: &mut HandshakeApp| app.ui(ctx), app);
+    harness.run_steps(3);
+    harness.state_mut().open_settings();
+    harness.run_steps(3);
+    let module = settings_dialog::module_settings_author_id(ModuleId::Ckc);
+    harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        node.author_id() == Some(module.as_str())
+    }).next().expect("CKC Settings route").click();
+    harness.run_steps(3);
+    let feature = settings_dialog::module_feature_author_id(ModuleId::Ckc, &PaneType::CodeSymbol);
+    harness.query_all_by(|node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        node.author_id() == Some(feature.as_str())
+    }).next().expect("Code Symbol Settings feature").click();
+    harness.run_steps(3);
+    let target = settings_dialog::feature_open_author_id(&PaneType::CodeSymbol);
+    let mut argus = CanonicalArgusDriver::bind(harness.state(), "wp012-settings-feature-open");
+    argus.click_expect_applied_and_reinspect(&mut harness, &target);
+    argus.assert_latest_terminal_predicate(
+        &mut harness,
+        "settings.feature-open.exact-mount-and-editor",
+        |after| mt079_applied_for(after, &target)
+            && json_has_author_id(after, CODE_EDITOR_TEXT_AUTHOR_ID),
+    );
+    assert!(!harness.state().settings_open());
+    let app = harness.state();
+    let pane = app.active_pane().expect("active code pane");
+    let tab = app.tab_bar_states().get(pane).and_then(|bar| bar.active()).expect("active code tab");
+    assert_eq!(tab.pane_type, PaneType::CodeSymbol);
+    argus.finish();
+    assert_no_local_artifact_dir();
+}

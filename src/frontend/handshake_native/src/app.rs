@@ -11949,6 +11949,9 @@ impl HandshakeApp {
     /// deliberately absent: with no bound projection it opens the Quick Switcher rather than a pane,
     /// so a pane-delta expectation would be a lie about what that leaf does.
     fn mt079_view_surface_pane_type(author_id: &str) -> Option<PaneType> {
+        if let Some(pane_type) = crate::settings_dialog::feature_from_open_author_id(author_id) {
+            return Some(pane_type);
+        }
         let pane_type = match author_id {
             "menu.view.open-code-editor" => PaneType::CodeSymbol,
             "menu.view.open-rich-note" => PaneType::LoomWikiPage,
@@ -23146,6 +23149,18 @@ impl HandshakeApp {
                 self.request_swarm_concurrency(Some(desired));
                 true
             }
+            O::OpenModuleFeature(pane_type) => {
+                let author = crate::settings_dialog::feature_open_author_id(&pane_type);
+                let attributed = self.mt033_dispatched_target().as_deref() == Some(author.as_str());
+                if attributed && !self.mt079_begin_open_surface(&author) {
+                    self.engine_profiles.navigation_failed();
+                } else if self.open_content_on_active_pane(pane_type, None) {
+                    self.close_settings();
+                } else {
+                    self.engine_profiles.navigation_failed();
+                }
+                true
+            }
             O::PopOut => self.detach_settings(),
             O::Redock => self.redock_settings(),
             O::CloudByokKeySaveRequested { provider } => {
@@ -24007,8 +24022,13 @@ impl HandshakeApp {
         } else {
             &mut self.engine_profiles
         };
+        let mut registered_features: Vec<_> = self.factories.keys()
+            .filter(|feature| !matches!(feature, PaneType::Placeholder(label) if label.is_empty()))
+            .cloned().collect();
+        registered_features.sort_by_key(|feature| feature.label());
         let mut view = crate::settings_dialog::SettingsView {
             engine_profiles,
+            registered_features: &registered_features,
             open_count: self.settings_open_count,
             swarm_model_sessions: &self.swarm_model_sessions,
             cloud,

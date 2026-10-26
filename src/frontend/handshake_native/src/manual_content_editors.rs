@@ -2158,7 +2158,26 @@ manual-pane; and menu.operator.settings opens settings.dialog."
 }
 
 fn editor_settings_body() -> String {
-    "Editor preferences live in the Settings dialog (open from HELP > Open Settings, the command settings.open, \
+    "Settings keeps General and Engine Profiles as shared destinations and exposes the current MAIN, \
+CKC, INGEST, STAGE, LAB and STUDIO module tabs. Module routes use settings.module.{module-data-id}; feature \
+leaves use settings.feature.{module-data-id}.{pane-tab-id}. Select a feature to read its configuration \
+disposition. Shared section links use settings.feature.section.{section-key}; original section headers \
+and controls retain their IDs. Editing Search settings shows global results from shared setting terms \
+and registered feature labels, including from a module or feature view. Direct navigation retains the text \
+and pauses filtering so the selected destination remains visible. Select General or edit the search to \
+resume global results. General > Features discovers actual registered capabilities outside module tabs; \
+searching also finds registered module features. Builtin shared IDs use settings.feature.shared.{pane-tab-id}; \
+named placeholder entries append their exact existing label after settings.feature.shared.placeholder. \
+The empty generic fallback is not a feature. Context-dependent/unassigned entries are view-only; console \
+opening is unavailable from Settings. Module/feature selection resets on reopen and writes no preference. \
+Open-feature controls use settings.feature.open.{pane-tab-id}, open the existing owning pane through the \
+shared host mount, and close Settings after the pane route applies. For Atelier / CKC / PoseKit / Ingest, \
+open the existing Atelier pane and expand Settings / Defaults (atelier-settings-region); its thirteen \
+defaults retain account authority, buffers and save/reset handlers. Facial review remains an inline Ingest \
+operation. Model Runtime registry actions remain inline and distinct from Engine Profiles; immutable \
+profile revisions and full-profile dispatch remain inside settings.tab.engine-profiles. Unavailable \
+Settings configuration does not imply that configuration elsewhere is absent.\n\n\
+Editor preferences live in the Settings dialog (open from HELP > Open Settings, the command settings.open, \
 or the settings chrome; filter with settings.search). The Editor section exposes settings-editor-font-size, \
 settings-editor-tab-size, settings-editor-insert-spaces (tabs vs spaces), settings-editor-word-wrap (Off / On / \
 Bounded column, with settings-editor-wrap-column), settings-editor-render-whitespace (None / Boundary / All), \
