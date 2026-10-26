@@ -36,6 +36,7 @@ use futures::FutureExt;
 use uuid::Uuid;
 
 type PromotionAuthorities = Arc<Mutex<BTreeMap<String, HeldPromotionAuthority>>>;
+type PromotionDecisionFuture<'a> = futures::future::LocalBoxFuture<'a, ModelLaneResult<ModelLanePromotionDecisionRecord>>;
 
 struct HeldPromotionAuthority {
     operations: BTreeMap<String, Uuid>,
@@ -71,14 +72,19 @@ impl AuthenticatedPromotionStore {
         input.operator_authority_ref = Some(held.selectors.operator.evidence_ref.as_str().into());
         input.validator_authority_ref = Some(held.selectors.validator.evidence_ref.as_str().into());
         match held.runtime.as_ref() {
-            Some(runtime) => self.operation(ResourceAction::Create).await?
-                .run_with_configured_registry(self.bootstrap.capability_registry.clone(),
-                    runtime.record_promotion_decision(&self.bootstrap, self.authorization.clone(), operation_id, input)).await,
-            None => self.store.retry_committed_promotion_decision(&self.bootstrap, self.authorization.clone(),
-                operation_id, held.selectors.clone(), input).await,
+            Some(runtime) => {
+                let operation = self.operation(ResourceAction::Create).await?;
+                let decision: PromotionDecisionFuture<'_> = Box::pin(runtime.record_promotion_decision(
+                    &self.bootstrap, self.authorization.clone(), operation_id, input));
+                operation.run_with_configured_registry(self.bootstrap.capability_registry.clone(), decision).await
+            }
+            None => {
+                let retry: PromotionDecisionFuture<'_> = Box::pin(self.store.retry_committed_promotion_decision(
+                    &self.bootstrap, self.authorization.clone(), operation_id, held.selectors.clone(), input));
+                retry.await
+            }
         }
     }
-
     async fn record_message(&self, mut input: NewModelLaneMessage) -> ModelLaneResult<ModelLaneMessageRecord> {
         if input.authority == ModelLaneAuthority::Promoted {
             let authorities = self.authorities.lock().await;
@@ -510,7 +516,16 @@ async fn promotion_same_scope_cross_run_input_is_a_durable_typed_denial() {
             let held = harness.authorities.lock().await;
             assert!(held["run-mt004-mixed-run-a"].runtime.is_none(), "original actual role owner was shut down before reopen");
             assert_eq!(held["run-mt004-mixed-run-a"].operations["decision-mixed-run"], original_operation);
-            assert_eq!(held["run-mt004-mixed-run-a"].selectors, original_selectors);
+            let retained = &held["run-mt004-mixed-run-a"].selectors;
+            for (role, actual, original) in [
+                ("Operator", &retained.operator, &original_selectors.operator),
+                ("Validator", &retained.validator, &original_selectors.validator),
+            ] {
+                assert_eq!(actual.evidence_ref, original.evidence_ref, "{role} evidence ref changed on reopen");
+                assert_eq!(actual.expectation, original.expectation, "{role} resolution expectation changed on reopen");
+                assert_eq!(actual.designation_ref, original.designation_ref, "{role} designation ref changed on reopen");
+                assert_eq!(actual.producer, original.producer, "{role} producer registration changed on reopen");
+            }
         }
         assert_eq!(harness.store.replay_promotion_decisions("run-mt004-mixed-run-a").await.unwrap(), vec![denied.clone()]);
         assert_eq!(harness.store.record_promotion_decision(candidate).await.unwrap(), denied,

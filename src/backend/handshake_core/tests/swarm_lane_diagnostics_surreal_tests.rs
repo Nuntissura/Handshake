@@ -1376,6 +1376,7 @@ fn emit_completed_projection(wire: Value) {
 #[cfg(all(feature = "runtime-full", feature = "duckdb-flight-recorder"))]
 mod routing_conservation {
     use super::*;
+    use surrealdb::types::SurrealValue;
     use std::time::Duration;
     use handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder;
     use handshake_core::llm::{boot, LlmClient};
