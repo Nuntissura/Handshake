@@ -21346,5 +21346,6 @@
       "preservation": "Only the existing restart current_delta_ref changes and this additive object is inserted. All prior bytes outside those two edits and all existing lifecycle fields remain intact.",
       "writer": "Released after successful exact guarded write and readback; no ongoing writer reservation."
     }
-  }
+  },
+  "latest_session_handoff_ref": "WP-KERNEL-012-phase02-session-handoff-20261026.json"
 }

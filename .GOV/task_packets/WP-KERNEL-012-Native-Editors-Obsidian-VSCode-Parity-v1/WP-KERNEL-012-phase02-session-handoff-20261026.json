@@ -1,0 +1,739 @@
+{
+  "file_id": "WP012-PHASE02-SESSION-HANDOFF-20261026",
+  "file_kind": "handshake_product_session_handoff",
+  "title": "Handshake Phase2 product, GUI and team session handoff",
+  "session_dates": [
+    "2026-10-25",
+    "2026-10-26"
+  ],
+  "recorded_at_utc": "2026-10-26T06:39:50.929715+00:00",
+  "purpose": "Continue the Handshake work from the current source and proof state without repeating unchanged reviews or losing original acceptance. This requested session handoff is stored in the kernel.",
+  "authority_effect": "Navigation and dated observations only. The selected v8 handoff, packet and affected original contracts retain authority. This file grants no execution, retry, cleanup, custody, permission or acceptance change.",
+  "navigation": {
+    "packet_ref": "packet.json",
+    "selected_handoff_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json",
+    "prior_restart_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_restart_continuation_20261025",
+    "prior_verified_delta_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_restart_verified_delta_20261025",
+    "original_scope_and_pins_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/scope_and_pins",
+    "original_work_sets_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_requested_repo_state_20261025/canonical_work_sets",
+    "mt172_execution_breakdown_ref": "MT-172.json#/picotask_plan",
+    "reliability_additions_ref": "packet.json#/operator_runtime_reliability_20261025",
+    "source_expansion_ref": "packet.json#/operator_scope_expansion_20261023_02",
+    "current_precedence": "Use the dated session deltas below for continuation, then the owning contract and actual owner for its next action. Older blocked, latest or unspent wording is historical when a later exact binding supersedes it."
+  },
+  "preserved_scope": {
+    "product": "All original WP-KERNEL-012 Phase2, carried WP-CKC and WP-1 Multi-Model Orchestration acceptance, plus approved additions and GUI work remain in scope.",
+    "original_membership_snapshot": {
+      "evidence_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_requested_repo_state_20261025/canonical_work_sets",
+      "recorded_contract_members": 294,
+      "recorded_by_wp": [
+        {
+          "wp": "WP-KERNEL-012",
+          "members": 196,
+          "recorded_unresolved": 56
+        },
+        {
+          "wp": "WP-CKC",
+          "members": 68,
+          "recorded_unresolved": 65
+        },
+        {
+          "wp": "WP-1",
+          "members": 30,
+          "recorded_unresolved": 29
+        }
+      ],
+      "limit": "Historical membership and recorded-state snapshot, not a current pass count or a new census. Later MT197–209 additions are listed separately below."
+    },
+    "reserved_intents": {
+      "mt_ids": [
+        "MT-176",
+        "MT-177",
+        "MT-178",
+        "MT-179",
+        "MT-180",
+        "MT-181",
+        "MT-182"
+      ],
+      "state": "Seven carried reserved intents; no materialization or execution inferred.",
+      "evidence_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_requested_repo_state_20261025"
+    },
+    "later_contracts": [
+      {
+        "mt_id": "MT-171",
+        "contract_ref": "MT-171.json",
+        "title": "Reconcile CKC-owned core import paths",
+        "recorded_lifecycle": "BLOCKED"
+      },
+      {
+        "mt_id": "MT-172",
+        "contract_ref": "MT-172.json",
+        "title": "Reconcile WP1-owned core import paths",
+        "recorded_lifecycle": "BLOCKED"
+      },
+      {
+        "mt_id": "MT-173",
+        "contract_ref": "MT-173.json",
+        "title": "Reconcile shared storage/schema/migration import paths",
+        "recorded_lifecycle": "BLOCKED"
+      },
+      {
+        "mt_id": "MT-174",
+        "contract_ref": "MT-174.json",
+        "title": "Reconcile shared core/bootstrap/manifests import paths",
+        "recorded_lifecycle": "BLOCKED"
+      },
+      {
+        "mt_id": "MT-175",
+        "contract_ref": "MT-175.json",
+        "title": "Reconcile native import paths preserving current native host",
+        "recorded_lifecycle": "BLOCKED"
+      },
+      {
+        "mt_id": "MT-183",
+        "contract_ref": "MT-183.json",
+        "title": "Complete predecessor schema reconciliation and minimum repair",
+        "recorded_lifecycle": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-184",
+        "contract_ref": "MT-184.json",
+        "title": "Final core compilation on frozen reconciled candidate",
+        "recorded_lifecycle": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-185",
+        "contract_ref": "MT-185.json",
+        "title": "Actual governed registry publication",
+        "recorded_lifecycle": "PENDING"
+      },
+      {
+        "mt_id": "MT-186",
+        "contract_ref": "MT-186.json",
+        "title": "Genuine native deployment and authenticated-context admission",
+        "recorded_lifecycle": "BLOCKED"
+      },
+      {
+        "mt_id": "MT-187",
+        "contract_ref": "MT-187.json",
+        "title": "Explicit ModelLane recovery execution authorization",
+        "recorded_lifecycle": "BLOCKED"
+      },
+      {
+        "mt_id": "MT-188",
+        "contract_ref": "MT-188.json",
+        "title": "Consume swarm drain failure in production shutdown",
+        "recorded_lifecycle": "BLOCKED"
+      },
+      {
+        "mt_id": "MT-189",
+        "contract_ref": "MT-189.json",
+        "title": "Standalone canonical handshake_text_mechanics",
+        "recorded_lifecycle": "BLOCKED"
+      },
+      {
+        "mt_id": "MT-190",
+        "contract_ref": "MT-190.json",
+        "title": "Pinned host adoption of handshake_text_mechanics",
+        "recorded_lifecycle": "BLOCKED"
+      },
+      {
+        "mt_id": "MT-191",
+        "contract_ref": "MT-191.json",
+        "title": "Standalone canonical handshake_rich_document_model",
+        "recorded_lifecycle": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-192",
+        "contract_ref": "MT-192.json",
+        "title": "Pinned host adoption of handshake_rich_document_model",
+        "recorded_lifecycle": "BLOCKED"
+      },
+      {
+        "mt_id": "MT-193",
+        "contract_ref": "MT-193.json",
+        "title": "Standalone canonical handshake_rich_formatting",
+        "recorded_lifecycle": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-194",
+        "contract_ref": "MT-194.json",
+        "title": "Pinned host adoption of handshake_rich_formatting",
+        "recorded_lifecycle": "BLOCKED"
+      },
+      {
+        "mt_id": "MT-195",
+        "contract_ref": "MT-195.json",
+        "title": "Canonical Dexterity Engine Profiles standalone source",
+        "recorded_lifecycle": "PASS_V1"
+      },
+      {
+        "mt_id": "MT-196",
+        "contract_ref": "MT-196.json",
+        "title": "Pinned Dexterity Engine Profiles Settings and chat host adoption",
+        "recorded_lifecycle": "BLOCKED"
+      },
+      {
+        "mt_id": "MT-197",
+        "contract_ref": "MT-197.json",
+        "title": "All-contract desktop UI coverage, design and grounded renderer decision",
+        "recorded_lifecycle": "PENDING"
+      },
+      {
+        "mt_id": "MT-198",
+        "contract_ref": "MT-198.json",
+        "title": "Canonical Vulkan capability reuse and conditional standalone source gap",
+        "recorded_lifecycle": "PENDING"
+      },
+      {
+        "mt_id": "MT-199",
+        "contract_ref": "MT-199.json",
+        "title": "Pinned Vulkan-backed native GUI host migration",
+        "recorded_lifecycle": "BLOCKED"
+      },
+      {
+        "mt_id": "MT-200",
+        "contract_ref": "MT-200.json",
+        "title": "Shared-edge professional native workbench and materials",
+        "recorded_lifecycle": "PENDING"
+      },
+      {
+        "mt_id": "MT-201",
+        "contract_ref": "MT-201.json",
+        "title": "Existing Handpick native mount and workbench integration",
+        "recorded_lifecycle": "PENDING"
+      },
+      {
+        "mt_id": "MT-202",
+        "contract_ref": "MT-202.json",
+        "title": "Cross-WP desktop UI behavior, accessibility and real-app proof",
+        "recorded_lifecycle": "PENDING"
+      },
+      {
+        "mt_id": "MT-203",
+        "contract_ref": "MT-203.json",
+        "title": "Central GPU ownership, memory accountability and native lifecycle integration",
+        "recorded_lifecycle": "PENDING"
+      },
+      {
+        "mt_id": "MT-204",
+        "contract_ref": "MT-204.json",
+        "title": "Bound MCP admission, request deadlines and reconnect recovery",
+        "recorded_lifecycle": "BLOCKED"
+      },
+      {
+        "mt_id": "MT-205",
+        "contract_ref": "MT-205.json",
+        "title": "Bind MCP server ownership and cancellation settlement to existing lifecycle owners",
+        "recorded_lifecycle": "BLOCKED"
+      },
+      {
+        "mt_id": "MT-206",
+        "contract_ref": "MT-206.json",
+        "title": "Bind production resource policy to swarm admission",
+        "recorded_lifecycle": "BLOCKED"
+      },
+      {
+        "mt_id": "MT-207",
+        "contract_ref": "MT-207.json",
+        "title": "Fence microtask state mutations with current claim authority",
+        "recorded_lifecycle": "BLOCKED"
+      },
+      {
+        "mt_id": "MT-208",
+        "contract_ref": "MT-208.json",
+        "title": "Legacy workflow replay reconciliation",
+        "recorded_lifecycle": "BLOCKED"
+      },
+      {
+        "mt_id": "MT-209",
+        "contract_ref": "MT-209.json",
+        "title": "Dev Command Center runtime reliability GUI",
+        "recorded_lifecycle": "BLOCKED"
+      }
+    ],
+    "lifecycle_limit": "The above values are the current contract lifecycle fields inspected for this handoff. A later source change, compile, component result or screenshot does not rewrite those fields or substitute for the original independent verdict.",
+    "original_verdicts": "Retain each consumed contract's WP_VALIDATOR proof and input/configuration binding, and whole-WP INTEGRATION_VALIDATOR acceptance. Keep historical verdicts, invalid attempts, allowances, explicit stops and unresolved proof separate.",
+    "diagnostics": "Preserve applicable Flight Recorder and internal_diagnostics integration, privacy boundaries, and independent Palmistry watcher/recorder survival acceptance; component checks do not close the complete production chain."
+  },
+  "actual_teams": {
+    "master": {
+      "thread_id": "01a17028-cecb-7b90-9c71-bbddd44d722e",
+      "responsibility": "Steering, requested session handoff and own paperwork/reminder helpers."
+    },
+    "codeleader": {
+      "thread_id": "01a168a9-05b2-7630-9633-5faac88dd068",
+      "responsibility": "Technical allocation, coherent integration, publication and proof sequencing."
+    },
+    "primary": {
+      "thread_id": "01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
+      "responsibility": "Sole physical Handshake Product/control/common-Git/manifests/locks/compiler/process custodian. Exact delegated ownership remains binding."
+    },
+    "non_gui_mt172": {
+      "coding": "01a17387-13d3-7091-951e-c06728fb7e94",
+      "codecheck": "01a17387-9d99-7e61-8987-42feab10e18a",
+      "diagnostics": "01a17387-4eb3-7b81-bcc4-87402c80779f",
+      "rust_author_A": "01a1738a-5784-7641-8522-b747875f87a5",
+      "schema_author_B": "01a1738a-8fd1-7ea3-abce-4da85992fe2d",
+      "mounted_test_author": "01a1758e-553e-7050-8268-0cc0cf8b01b4",
+      "authorship": "A owns the allocated Rust/authority/provider/API candidate. B owns the three allocated schema files. These are authors, not independent reviewers.",
+      "review_structure": "Coding retains disjoint authors and its actual nonauthor flow/dependency reviewers; Codecheck retains correctness, authority/privacy and lifecycle/proof lenses. Diagnostics follows real failures.",
+      "reporting": "Trio peers communicate directly and report to Codeleader. Paperwork helpers report only to Master.",
+      "evidence_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_restart_continuation_20261025/team_workflow/single_mt_delivery_mode"
+    },
+    "gui": {
+      "leader": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+      "retained_host": "01a165da-ecdb-7a40-8504-6918286033ee",
+      "wp012_technical_leader": "01a16ed5-396c-7392-b526-eb79c1fb634d",
+      "ckc_team": "01a1738d-2b8e-7151-9e9e-59250e1fd3f3",
+      "ckc_flow_review": "01a1738d-2b8e-7151-9e9e-892144febd5a",
+      "wp1_team": "01a1738d-2b8e-7151-9e9e-687d84e6c0e8",
+      "wp1_settings_author": "01a1738d-2b8e-7151-9e9e-84679dc9ba33",
+      "wp1_flow_review": "01a1738d-2b8e-7151-9e9e-8639e1081175",
+      "boundary": "GUI domain teams remain parallel to the single-MT non-GUI trio. This record does not issue source leases or replace Primary's physical custody.",
+      "evidence_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_restart_continuation_20261025/gui_delivery_workflow_delta_20261025/actual_gui_leadership",
+      "retained_team_status": "The inspected CKC and WP1 helpers were notLoaded/interrupted; that is not evidence of release or of active execution. Retain their authorship and clean-stop obligations.",
+      "ckc_coverage_helper": "01a1738d-2b8f-7151-9e9f-0feae7a1a9fc",
+      "ckc_record_writer": "01a1738d-2b8f-7151-9e9f-56d86dca9a16",
+      "wp1_record_writer": "01a1738d-2b8f-7151-9e9f-568d4a5acef5",
+      "retained_work_limit": "The earlier 68 CKC MT record updates are documentation, not acceptance. The inspected WP1 Settings author's handback explicitly says no candidate was written.",
+      "current_helpers": [
+        {
+          "thread_id": "01a17540-a3c9-76d2-86bf-12bccdbe5076",
+          "existing_name": "core_build_wrapper",
+          "actual_current_role": "Handpick candidate author and nonauthor bootstrap reviewer."
+        },
+        {
+          "thread_id": "01a17540-cec1-7510-a41a-697d6ad4a128",
+          "existing_name": "native_runtime_observer",
+          "actual_current_role": "Completed Account review, then authored activation-readback/workspace-driver candidate; not its own independent reviewer."
+        },
+        {
+          "thread_id": "01a17542-885e-7281-b252-b676d4f31073",
+          "existing_name": "core_runtime_prerequisites",
+          "actual_current_role": "Bootstrap repair author."
+        }
+      ]
+    },
+    "kumihimo": {
+      "owner": "01a17374-1d96-7e02-9aea-77b0f62f20dc",
+      "responsibility": "Separate canonical asset work; published revision is consumed separately by the host.",
+      "evidence_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_restart_verified_delta_20261025/kumihimo"
+    },
+    "retired_rollout": "The junior-led multi-MT non-GUI rollout is superseded by the one-MT trio. Retire each old owner only at its actual clean stop, preserving its records and checkpoints. Silence, quota failure and unloaded chats do not release custody."
+  },
+  "session_changes": {
+    "product_source_checkpoints": {
+      "commits": [
+        "3fca9514e",
+        "f42c10bc8",
+        "f16cfdcbf",
+        "6b339577b"
+      ],
+      "status": "Recorded source milestones only; none is substituted for the unresolved combined runtime acceptance.",
+      "evidence_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_restart_verified_delta_20261025"
+    },
+    "mt172_picotasks": {
+      "introduced_commit": "8b1b54ea",
+      "recovery_review_correction_commit": "2a21f608",
+      "plan_ref": "MT-172.json#/picotask_plan",
+      "item_count": 41,
+      "dependency_matrix_rows": 41,
+      "accepted_or_completed_items": 0,
+      "coverage": {
+        "original_source_paths": 301,
+        "extra_allowed_paths": 4,
+        "source_groups": 23,
+        "original_contracts": 14,
+        "current_original_acceptance_items": 144,
+        "mapped_requirement_and_proof_rows": 212,
+        "consumed_source_check_records": 157,
+        "historical_retention_gap_rows": 18,
+        "separately_allocated_additional_paths": 13
+      },
+      "coverage_refs": [
+        "MT-172.json#/picotask_plan/original_contract_coverage",
+        "MT-172.json#/picotask_plan/parent_acceptance_coverage",
+        "MT-172.json#/picotask_plan/semantic_retention_gaps",
+        "MT-172.json#/picotask_plan/later_source_coverage",
+        "MT-172.json#/picotask_plan/owner_bindings",
+        "MT-172.json#/picotask_plan/dependency_semantics"
+      ],
+      "purpose": "Child execution breakdown under MT172. No new approval system or acceptance surface.",
+      "correction": "PT005 now reuses the already-clear unchanged recovery candidate and actual B-v2 Codecheck opinion. The coherent joined routing/authentication review remains required.",
+      "proof_limit": "Mechanical source coverage is not semantic or runtime acceptance. Preserve resolved rows and remaining assertion-conservation obligations without restoring retired PostgreSQL/SQLite execution."
+    },
+    "reliability_contracts": {
+      "decision_id": "WP012-RUNTIME-RELIABILITY-20261025",
+      "contract_refs": [
+        "MT-204.json",
+        "MT-205.json",
+        "MT-206.json",
+        "MT-207.json",
+        "MT-208.json",
+        "MT-209.json"
+      ],
+      "state": "Authored, queued and not allocated for non-GUI execution while MT172 remains current.",
+      "scope": "MCP admission/deadlines/reconnect; process ownership/cancellation; production resource policy; fenced microtask mutations; legacy workflow replay; Dev Command Center reliability views/actions.",
+      "execution_edges": [
+        [
+          "MT-204",
+          "MT-205"
+        ],
+        [
+          "MT-172",
+          "MT-208"
+        ],
+        [
+          "MT-204",
+          "MT-209"
+        ],
+        [
+          "MT-205",
+          "MT-209"
+        ],
+        [
+          "MT-206",
+          "MT-209"
+        ],
+        [
+          "MT-207",
+          "MT-209"
+        ],
+        [
+          "MT-208",
+          "MT-209"
+        ]
+      ],
+      "gui_limit": "MT209's corresponding backend bindings gate dependent integration/runtime only. Separately allocated disjoint GUI preparation can continue; exact MT199 Vulkan and MT203 GPU dependencies remain local to affected work.",
+      "evidence_ref": "packet.json#/operator_runtime_reliability_20261025"
+    },
+    "mt187": {
+      "capture_ref": "@artifacts/WP-KERNEL-012/MT-187/shared-check-capture-20261025-03",
+      "cargo_exit": 0,
+      "normalizer_exit": 0,
+      "tests_executed": false,
+      "source_drift": [],
+      "control_drift": [],
+      "runtime_verdict": "NOT_ISSUED",
+      "qualification": "NOT_ISSUED",
+      "private_job": {
+        "active": 0,
+        "terminated": 0,
+        "total": 503
+      },
+      "interpretation": "The cfg09/map05 compile repair passed. Reuse the unchanged bound check. Genuine recovery/composed-authentication runtime and its independent qualification remain open.",
+      "evidence_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_restart_continuation_20261025/proof_and_runtime/latest_mt187"
+    },
+    "kumihimo": {
+      "revision": "8a97b9ae445872e4143fad1eb92f9ad082017595",
+      "tree": "86e3f11e3532f21e722eff2beb5b51b6e7a6a81e",
+      "product_files": 197,
+      "canonical_product_content_sha256": "067b70afde8af4712318bc64905ba1f6c6940c0a21ac8cf35b1da8068b65de67",
+      "state": "Published and independently reread in the owning evidence; actual asset Vulkan proof exists.",
+      "asset_runtime": "Nine captures; owned HWNDs destroyed, foreground unchanged, native bindings zero, process exit zero and handle disposed in the recorded proof.",
+      "host_boundary": "Use this exact published asset revision in Handshake. The asset result does not establish the host's authenticated workbench, GPU ownership or Palmistry acceptance.",
+      "evidence_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_restart_verified_delta_20261025/kumihimo"
+    },
+    "gui_prior_checkpoint": {
+      "evidence_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_restart_verified_delta_20261025/handshake_gui/successor_checkpoint_native03_palmistry05",
+      "native_runtime03": {
+        "product_commit": "2ddb2a72a02d0040a4317a67d3d5223a78f11bc0",
+        "application_architecture": "x64",
+        "backend": "Actual Vulkan on Adreno X2-85",
+        "argus_png_sha256": "0c64c127bd89b112529edf4edeababefd78202d35bd5dfe1cc230a7113ecf439",
+        "pixels": [
+          2560,
+          1600
+        ],
+        "capture_elapsed_ms": 1605.7925,
+        "visible_surface": "Activation/login; not an authenticated workspace acceptance frame.",
+        "palmistry": "Used the older binary; signed launch and shutdown failed. Trusted GPU ownership/accounting was not bound."
+      },
+      "palmistry_repair": {
+        "published_commit": "3b11e35c34b9ae8f3896de07b71a7514604b86d0",
+        "tree": "797fbd2610c65e35db511eb55b470d5b7a6e21c7",
+        "changed_files": [
+          "src/frontend/palmistry/src/control.rs",
+          "src/frontend/palmistry/src/main.rs"
+        ],
+        "compile05_exit": 0,
+        "signed_pipe_tests05": {
+          "passed": 2,
+          "failed": 0,
+          "exit": 0
+        },
+        "host_build03_exit": 0,
+        "proof_limit": "Delayed/fragmented frame handling and failure recovery/drain component proof. Full signed production launch/recording/crash-survival/shutdown is still owed."
+      }
+    },
+    "current_core_build": {
+      "artifact_ref": "@artifacts/WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/core-current-build-01/result.json",
+      "completed_at_utc": "2026-10-26T01:01:41.5810702Z",
+      "exit": 0,
+      "source_manifest_sha256": "7363f80954ac19e360cf0d5904974a734d07a9660b9cc2310721883592cace6f",
+      "binary_sha256": "d76e37bce03271d1efb16576d18ffc4e6370dd72034538acfd9e6c60ca6f635f",
+      "pe_machine": "0x8664",
+      "architecture": "x64",
+      "verification": "Master directly inspected the result and binary PE header. Reuse that observation; this is not an MT172 joined-candidate or runtime verdict."
+    },
+    "gui_session_source": {
+      "host_asset_adoption_commit": "91b403f2e1242a0a4588fd9fb9d8c4b46cd84753",
+      "native_capture_checkpoint": "19219badee2ee5d84d18719d6926ce96b6ceaa67",
+      "native_capture_regressions": {
+        "distinct_cases": 14,
+        "scope": "Retained and corrected runs together, not a claim that one fresh run executed all cases."
+      },
+      "persistence_commit": "90321046a5d7f19819b7de5b0e5a2f4f47afb4b2",
+      "host_pipe_commit": "2ddb2a72a02d0040a4317a67d3d5223a78f11bc0",
+      "native_test_compile04": {
+        "result_ref": "@artifacts/WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-mcp-test-compile-04-result.json",
+        "completed_at_utc": "2026-10-26T01:10:53.2419391Z",
+        "exit": 0,
+        "held_inputs": 525,
+        "unchanged_inputs": true,
+        "changed_inputs": [],
+        "bundle_ref": "@artifacts/WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/compile-workbench-account-01/bundle-sha256.json",
+        "bundle_scope": "Seven changed inputs and retained reviews.",
+        "limit": "Test compilation only. It does not establish an activated workspace or the later uncompiled activation candidate."
+      },
+      "evidence_basis": "Master's GUI reader inspected the owning artifacts and source bindings; this writer directly reread the compile04 result."
+    }
+  },
+  "continuation": {
+    "mt172": {
+      "source_state": "PT002/PT003/PT004 joined source is not frozen, compiled or independently runtime-validated. PT039 retains its own last Cargo101/no-runtime proof; the separate current Core build does not replace that candidate binding. PT040 combined acceptance is not established.",
+      "current_decision_id": "WP012-MT172-ACK-BASE-AND-CURRENT-PROMOTION-CONSUMPTION-SOURCE-DISPOSITION-20261026-01",
+      "decision_turn": "01a175b1-6161-74d0-9e16-55f1bd04c6a4",
+      "requirement": "Role ExpectedBase stays tied to the prior message with a separate captured execution fence. Current-operation protected consumption binds both actual immutable Operator and Validator receipts in the same transaction.",
+      "author_A_next": "Hand stable actual serialized types/signatures to schema B and the mounted-test author as soon as that interface is ready; do not wait for the full Rust bundle.",
+      "author_B_state": "ACK schema updated; promotion admission awaits A's actual representation. Drafts are unfrozen and successor INFO is unset.",
+      "test_author_next": "Bind the actual ACK operation ID, current-consumption negative and stale-capture interfaces, then complete the real mounted tests.",
+      "evidence_turns": [
+        "01a175bf-a6a6-7293-aee5-30ca53ce02d8",
+        "01a175b7-c0ad-7ef0-a8af-05732e50dcde"
+      ],
+      "next_sequence": [
+        "A/B/test authors finish the connected source and test candidate.",
+        "Freeze the coherent candidate with original author and changed-input bindings.",
+        "Existing nonauthors and affected Codecheck return actionable findings together; reuse unchanged valid clear work.",
+        "Primary alone applies the approved coherent candidate and sequences the separately admitted compatible shared compile.",
+        "Original independent runtime proofs bind their actual source, models, configuration and authenticated owners before combined acceptance."
+      ],
+      "schema_order": "Preserve schema166→167 ordering. Existing INFO evidence remains bound to its old source; successor engine INFO is not yet measured.",
+      "model_selection": {
+        "state": "HUMAN_SELECTION_RESOLVED_OWNER_BINDING_PENDING",
+        "selection_source": "Direct human answer, freshly read and hashed by Master; exact selection and GGUF hash delivered to Codeleader.",
+        "input_scope": "Operator-selected machine-local proof inputs only; not portable hardcoded Product defaults. Rebind configured paths after moving the model store.",
+        "candle": {
+          "path": "C:/Projects/LLM Projects/Tanuki/.local/geniex/model-source/qwen3-4b-abliterated/Qwen3-4B-abliterated-q4_0.gguf",
+          "bytes": 2269269216,
+          "sha256": "83df045fb0254aeb17feba1c693bd2d51bfc4f610e213d9414623d26673beafa"
+        },
+        "geniex_npu": {
+          "path": "C:/Projects/LLM Projects/Tanuki/.local/geniex/model-source/qwen3_0_6b-geniex_qairt-w4a16-qualcomm_snapdragon_x2_elite",
+          "path_type": "Ordinary directory observed by Master",
+          "model": "Qwen3-0.6B / qwen3_0_6b",
+          "backend": "geniex_qairt",
+          "quantization": "w4a16",
+          "qairt_version": "2.50.0.260828221209",
+          "chipset": "qualcomm-snapdragon-x2-elite",
+          "files": [
+            {
+              "name": "config.json",
+              "sha256": "1d0b3a8acb0234dcae6781dc67b49020153d3a5beaf5861b4d48d88a73a51239"
+            },
+            {
+              "name": "genie_config.json",
+              "sha256": "4c1db5ac7fa3020461897a49398b88d14c4c13149c6238964594910d6e4b3e3a"
+            },
+            {
+              "name": "htp_backend_ext_config.json",
+              "sha256": "8bf233a057d029193976b3d04aa2eb766cb037fd466e5207efd29969dc521c54"
+            },
+            {
+              "name": "metadata.json",
+              "sha256": "1a238c9ca2c0481e4fec8313538da86d2ae255b621b8f1799acb24949a9737e8"
+            },
+            {
+              "name": "part1_of_2.bin",
+              "bytes": 311328768,
+              "sha256": "9e2614e1e14aad90bb4a6838cdfff964fa4e2951b06bc53646f8f2a68b1f26dc"
+            },
+            {
+              "name": "part2_of_2.bin",
+              "bytes": 440877056,
+              "sha256": "a6100c905b80eb226b6f910adec77e0aa3fdc79493cf88be88614873a3bcd825"
+            },
+            {
+              "name": "tokenizer_config.json",
+              "sha256": "9b301a839b6dc74e9cdce131a46482c4975831feb43449514c020505e0dbf290"
+            },
+            {
+              "name": "tokenizer.json",
+              "sha256": "be75606093db2094d7cd20f3c2f385c212750648bd6ea4fb2bf507a6a4c55506"
+            },
+            {
+              "name": "sample_prompt.txt",
+              "sha256": "bcba092776d028282fad37d8778d128834a309691f8118c08a762ccd0c4f54ac"
+            }
+          ]
+        },
+        "cli_configuration": "Separately recovered; preserve its own existing binding.",
+        "remaining": "Owning configuration binding, runtime compatibility and execution admission remain unproven for both selected backends. x64 application first; no Tanuki task restart is requested."
+      },
+      "permission_design": "Evaluation only. Broad capability profiles and cached approvals already exist in the specification. No approved rewrite removes exact resource/current-action checks, identity, revocation, private-child or transaction/publication continuity."
+    },
+    "gui": {
+      "remaining": [
+        "Authenticated reference-matching workbench with shared-edge docked panes.",
+        "Module/feature Settings, Engine Profiles and complete-profile dispatch; existing Handpick mount.",
+        "Centralized trusted GPU lifecycle ownership and memory accounting.",
+        "Repaired production Palmistry signed launch, recording, restart/reattach, abnormal-host survival and durable shutdown.",
+        "Independent native UI/runtime acceptance for all applicable original workflows.",
+        "MT202 cross-WP keyboard/focus/IME/DPI/multiwindow/recovery/privacy, Engine Profiles and diagnostics proof."
+      ],
+      "owner": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+      "parallelism": "Continue independently allocated GUI work alongside MT172. Only actual shared files/resources or explicit dependent runtime gates serialize them.",
+      "evidence_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_restart_continuation_20261025/gui_delivery_workflow_delta_20261025",
+      "latest_candidates": [
+        {
+          "name": "Activation readback and actual workspace driver",
+          "patch_ref": "@artifacts/WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/workbench-activation-readback-01/activation-readback.patch",
+          "patch_sha256": "cc3fa8fe2931d7fc27f819034ef1481c8b245ffaf47cbc4420e30338045de2eb",
+          "driver_ref": "@artifacts/WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/workbench-runtime-flow-01/workbench_flow.py",
+          "proof": "Patch applicability and Python syntax only.",
+          "remaining": "Rust compile, test and actual activated-workspace runtime are unrun."
+        },
+        {
+          "name": "Existing Handpick native integration",
+          "binding_ref": "@artifacts/WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-201/handpick-native-rebased-01/binding.json",
+          "state": "SEARCH_FOUNDATION_REBASED_FULL_PARITY_IN_PROGRESS",
+          "patch_sha256": "3d358ce4fee2f2409d3e13f6eb7f108f2c360c7bdfbc16bee90f628e5186272e",
+          "asset_revision": "6f24d9b16f7675f2193115935ea35ae844828735",
+          "source": "External candidate, not integrated.",
+          "compile": "NOT_RUN",
+          "tests": "NOT_RUN",
+          "runtime": "NOT_RUN",
+          "acceptance": "Full MT201 remains open."
+        },
+        {
+          "name": "Bootstrap catalog repair02",
+          "source": "Source-reviewed candidate, unpublished and unapplied.",
+          "focused_result": "Exit1: 14 named tests, 13 passed; two assertions failed in the one staged-overlap preservation test concerning exact .git/index bytes.",
+          "next": "Fix that observed failure under the existing author/reviewer ownership before adoption; do not call the focused suite passed."
+        }
+      ],
+      "operator_waiver_boundary": "Retain the GUI owner's existing scoped waiver and no-leader-notification instruction. Neither is a blanket source/process/compiler custody release."
+    },
+    "checkpoint_order": {
+      "operator_requested_sequence": [
+        "Finish this Handshake session handoff.",
+        "Primary checkpoints the exact released kernel files on gov_kernel.",
+        "Only after that checkpoint, Master assigns agents to inspect Cargo artifacts and their actual ownership/nonuse.",
+        "Primary checkpoints and pushes stable WP012 Product changes at a safe capture boundary."
+      ],
+      "preparation": "Primary reported both indexes empty and is waiting for this exact writer release. That observation is not a grant to include another owner's active changes.",
+      "cleanup_limit": "Cargo inspection is not cleanup permission. No deletion, reset, target removal or foreign-process disruption follows from this handoff."
+    }
+  },
+  "execution_boundaries": {
+    "topology": {
+      "kernel_worktree": "wt-gov-kernel",
+      "kernel_branch": "gov_kernel",
+      "product_worktree": "../wtc-WP-KERNEL-012",
+      "product_branch": "feat/WP-KERNEL-012",
+      "asset_root": "Resolve the canonical asset location through the selected v8 Kumihimo record and its actual owner; the published revision is pinned in session_changes.kumihimo.",
+      "artifact_root": "HANDSHAKE_ARTIFACTS_ROOT or verified kernel-parent/Handshake_Artifacts"
+    },
+    "architecture": "ARM64 host builds x64 Handshake applications with the existing x64 profile/toolchain. ARM application support is later.",
+    "compiler": "One existing compiler slot under Primary. Bundle compatible focused checks and reuse compatible owned artifacts; no parallel cache/compiler claim is created.",
+    "held_resources": "Use actual owning handbacks for source windows, locks, child processes, captures and compiler slots. A completed command or unloaded chat does not prove another resource released.",
+    "proofs": "Source written, source reviewed, compiled, component-tested, production-runtime-proven and independently accepted are separate states.",
+    "stops": "Retain explicit stops, spent allowances, attempt history, source pins and original independent verdicts. Retry only under its actual scoped partner agreement and changed input or evidenced hypothesis.",
+    "source_history": "No PostgreSQL/SQLite replay or deletion solely to satisfy an old path. Preserve original backend-independent assertions and their current supported-backend owners.",
+    "workflow": "One non-GUI MT172 Coding/Codecheck/Diagnostics trio; parallel GUI and separate Kumihimo. No unallocated multi-MT Product fanout, routine status relays or extra review gates.",
+    "team_refresh_cadence": {
+      "operator_instruction": "Refresh teams every Cargo cycle.",
+      "recorded_on": "2026-10-26",
+      "execution": "Codeleader and the existing GUI leader arrange refreshes at each completed Cargo cycle's actual handoff boundary. Preserve authorship, unfinished candidates, valid reviews, proof pins and the existing one-MT non-GUI allocation. Each actual owner hands over its files and resources before replacement; refreshing a team does not restart a build or grant process/compiler custody."
+    }
+  },
+  "evidenced_time_sinks": [
+    {
+      "id": "WP012-TS-001",
+      "cause": "A's actual interface/serialized representation reached schema and test authors late.",
+      "effect": "Dependent source work waits although disjoint work can proceed.",
+      "next_action": "Share the stable interface immediately, then finish the full coherent Rust candidate.",
+      "evidence_turns": [
+        "01a175bf-a6a6-7293-aee5-30ca53ce02d8",
+        "01a175b7-c0ad-7ef0-a8af-05732e50dcde"
+      ]
+    },
+    {
+      "id": "WP012-TS-002",
+      "cause": "Expensive compiles exposed field, caller and configuration mismatches after source work.",
+      "effect": "Repeated preparation and repair before a usable binary.",
+      "next_action": "Review actual affected callers/types/cfg as one coherent batch; compile only changed stable inputs.",
+      "evidence_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_requested_repo_state_20261025/evidenced_timesinks"
+    },
+    {
+      "id": "WP012-TS-003",
+      "cause": "Capture identity, terminal and drain qualification gaps.",
+      "effect": "Some execution could not be reused as the required proof.",
+      "next_action": "Retain the actual terminal/owning evidence and spent attempt; do not reconstruct missing success or repeat unchanged invalid attempts.",
+      "evidence_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_requested_repo_state_20261025/evidenced_timesinks"
+    },
+    {
+      "id": "WP012-TS-004",
+      "cause": "Historical asset scope/topology and outgoing-handoff authorization confusion.",
+      "effect": "Delayed source handoffs and publication before the canonical asset route was established.",
+      "next_action": "Reuse the established canonical asset owner and exact published revision; do not reopen resolved admission or unchanged reviews.",
+      "evidence_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_requested_repo_state_20261025/evidenced_timesinks"
+    },
+    {
+      "id": "WP012-TS-005",
+      "cause": "A Vulkan activation frame and Palmistry component proof cover less than full authenticated native acceptance.",
+      "effect": "Separate workbench, trusted GPU and production watcher proof still needed.",
+      "next_action": "Continue the exact missing production behavior with existing owners and retain successful bounded proof.",
+      "evidence_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_restart_verified_delta_20261025/handshake_gui/successor_checkpoint_native03_palmistry05"
+    },
+    {
+      "id": "WP012-TS-006",
+      "cause": "Current-source Core compilation occupied the existing build window.",
+      "measured_window_utc": [
+        "2026-10-26T00:09:26Z",
+        "2026-10-26T01:01:41Z"
+      ],
+      "duration": "Approximately 52 minutes.",
+      "next_action": "Reuse this valid unchanged x64 build and compatible owned compiler artifacts.",
+      "evidence_ref": "@artifacts/WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/core-current-build-01/result.json"
+    },
+    {
+      "id": "WP012-TS-007",
+      "cause": "Missing agent_label test setup, eframe persistence location differing from APPDATA assumptions, named-pipe EOF/capacity/shutdown handling, and action admission being mistaken for actual account activation.",
+      "effect": "Each required a bounded correction before its particular native proof could advance.",
+      "next_action": "Keep the corrected setup, real persistence binding and repaired pipe component proof; test the actual activated workspace and production watcher boundary separately.",
+      "evidence_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_restart_verified_delta_20261025/handshake_gui/successor_checkpoint_native03_palmistry05",
+      "evidence_basis": "GUI reader's inspected owner/source/proof handback for this session."
+    }
+  ],
+  "time_sink_limit": "The Core build has the measured window above. Other bottlenecks are qualitative; no whole-session duration ranking is claimed.",
+  "do_not_repeat": [
+    "Do not repeat unchanged green checks, source reviews, whole-source censuses or status-only loops.",
+    "Do not restore the retired multi-MT non-GUI hierarchy or treat authors A/B as reviewers.",
+    "Do not treat source, compilation, fixtures, component tests or activation/login pixels as full runtime acceptance.",
+    "Do not infer custody release from silence, quota failure, unloaded chats or a prior command's exit.",
+    "Do not restore retired backend execution, fabricate grants/context/receipts, widen authority or replace actual Vulkan with a label.",
+    "Do not implement a divergent host copy of reusable Kumihimo behavior.",
+    "Do not remove old build artifacts without exact ownership, nonuse/release and required cleanup authority.",
+    "Do not rename product surfaces: the reliability GUI addition is Dev Command Center.",
+    "Do not silently drop original WP012, CKC or WP1 workflows, reserved intents, added MTs or independent verdicts."
+  ],
+  "evidence_policy": {
+    "sources": "Inspected current contracts and selected v8; bounded source/proof facts independently verified by Master's assigned readers and actual owning turns.",
+    "history": "Prior v8 and original contract evidence remain linked rather than copied. This handoff does not recertify earlier source or runtime results.",
+    "validation": "Focused JSON parse, local contract/pointer resolution, expected MT/picotask coverage, scoped diff and preservation check only. No product build, runtime test, Git write or remote verification by this writer."
+  },
+  "snapshot_limit": "Dated source/proof observations, not a claim that every named team or process is currently live. The selected models below are the later human answer; ownership and execution admission still require their existing actual bindings."
+}
