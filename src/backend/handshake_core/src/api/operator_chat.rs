@@ -767,10 +767,14 @@ async fn complete_routing_authority(
             session.session_token,
             session.channel_binding_hash,
         );
-        let batch = routing_service(&state)?
-            .complete_routing_authority(bootstrap, authentication, request)
-            .await
-            .map_err(launch_api_error)?;
+        let service = routing_service(&state)?;
+        let completion: std::pin::Pin<Box<dyn std::future::Future<Output = Result<
+            crate::swarm_orchestration::routing_execution::ModelLaneRoutingDispatchBatch,
+            OperatorChatError,
+        >> + Send + '_>> = Box::pin(
+            service.complete_routing_authority(bootstrap, authentication, request),
+        );
+        let batch = completion.await.map_err(launch_api_error)?;
         Ok(Json(
             serde_json::to_value(batch).unwrap_or_else(|_| json!({})),
         ))

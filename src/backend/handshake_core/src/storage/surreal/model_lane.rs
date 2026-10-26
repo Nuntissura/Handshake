@@ -694,6 +694,13 @@ struct RoleEvidenceLookupBindings {
 }
 
 #[derive(SurrealValue)]
+struct ValidatorDesignationLookupBindings {
+    event_id: String,
+    owner_account_id: String,
+    workspace_id: String,
+}
+
+#[derive(SurrealValue)]
 struct RoutingPriorLookupBindings {
     routing_prior_stage_id: String,
     event_id: String,
@@ -6467,7 +6474,7 @@ COMMIT TRANSACTION;
         let scope = &selector.expectation.receipt_scope;
         let rows = query.query_values::<StoredRow, _>(
             "SELECT aggregate_id, run_id, idempotency_key, record_json, event_id, event_seq, event_stream_version, transaction_seq FROM model_lane_authority WHERE record_kind = 'validator_designation' AND event_id = $event_id AND event_ledger_event_id = type::record('kernel_event_ledger', $event_id) AND owner_account_id = $owner_account_id AND workspace_id = $workspace_id LIMIT 2;",
-            RoutingPriorLookupBindings { event_id: event_id.to_owned(), owner_account_id: scope.owner_account_id.to_string(), workspace_id: scope.workspace_id.as_str().to_owned() },
+            ValidatorDesignationLookupBindings { event_id: event_id.to_owned(), owner_account_id: scope.owner_account_id.to_string(), workspace_id: scope.workspace_id.as_str().to_owned() },
         ).await?;
         let [row] = rows.as_slice() else { return Err(SurrealStorageError::TransactionAuthorityRequired); };
         let value: Value = serde_json::from_str(&row.record_json).map_err(|_| SurrealStorageError::InvalidModelLaneRecord { reason: "canonical designation is malformed" })?;
