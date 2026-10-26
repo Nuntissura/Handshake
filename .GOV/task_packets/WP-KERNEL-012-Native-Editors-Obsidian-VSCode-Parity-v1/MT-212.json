@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-212",
   "created_at_utc": "2026-10-26T12:53:14.7419363Z",
-  "updated_at_utc": "2026-10-26T12:53:14.7419363Z",
+  "updated_at_utc": "2026-10-26T15:48:41.491439+00:00",
   "identity": {
     "mt_id": "MT-212",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -705,14 +705,133 @@
         "GUI-CKC-MT-050-png-recovery",
         "GUI-WP1-MT021-003"
       ],
-      "state": "INDEPENDENT_CODECHECK_SOURCE_CLEAR_READY_FOR_CODING_COMPOSITION_NOT_APPLIED_NOT_COMPILED",
+      "state": "SOURCE_PUBLISHED_NATIVE_CHECK_QUALIFIED_ORIGINAL_RUNTIME_ACCEPTANCE_OPEN",
       "independent_codecheck": "01a17387-9d99-7e61-8987-42feab10e18a",
       "direct_coding_handoff": "01a17387-13d3-7091-951e-c06728fb7e94",
-      "observed_product_head": "a9e5c052830072268720a37c9cee282e74c2c3e6",
+      "observed_product_head": "7278e4e75b58c4dddbcbd095fb2b0307d66c0747",
       "actual_preimages_matched": true,
       "tests_run": false,
       "runtime_run": false,
-      "compiler_or_custody_grant": false
+      "compiler_or_custody_grant": false,
+      "ready_handback_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/gui-source-batch-02/ready-handback.json",
+      "ready_handback_sha256": "363ef6833b9376e888911af8806f68cfb57edb915242cb8ee3d60a7b360460b1",
+      "canonical_applied": true,
+      "native_static_proof": {
+        "check_id": "GUI212-COMBINED-STATIC",
+        "executor": "01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
+        "covers": [
+          "GUI-CKC-MT-050-png-recovery",
+          "GUI-WP1-MT021-003"
+        ],
+        "previous_recorded_state": "INDEPENDENT_CODECHECK_SOURCE_CLEAR_READY_FOR_CODING_COMPOSITION_NOT_APPLIED_NOT_COMPILED",
+        "artifacts": {
+          "result.json": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-check-20261026-01/result.json",
+            "sha256": "4251ee229f41a6f7fcca1338a59610e99669c196860a47310bbc2ebdfbb99da3"
+          },
+          "released.json": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-check-20261026-01/released.json",
+            "sha256": "58674f32cf26ad8235df57b59565cfe16b0975101e0a57a17834be141412eb94"
+          },
+          "private-job-final.json": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-check-20261026-01/private-job-final.json",
+            "sha256": "91739a21cc79d0119b88fd48308198c204df2afc38b5e01fa0e0ade4a4ead83f"
+          },
+          "postguards.json": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-check-20261026-01/postguards.json",
+            "sha256": "6913fbcf76fc243dc62e605042a62003b20ca648dd18ee26f559a067cdccc520"
+          }
+        },
+        "argv": [
+          "C:\\Users\\iljas\\.rustup\\toolchains\\1.97.1-x86_64-pc-windows-msvc\\bin\\cargo.exe",
+          "check",
+          "--locked",
+          "--offline",
+          "--manifest-path",
+          "src/frontend/handshake_native/Cargo.toml",
+          "--tests",
+          "-j",
+          "1",
+          "--keep-going",
+          "--message-format=json"
+        ],
+        "cargo_exit": 0,
+        "qualified": true,
+        "input_drift": [],
+        "release_observed_at_utc": "2026-10-26T14:59:02.218317+00:00",
+        "tests_compiled": true,
+        "test_bodies_run": false,
+        "runtime_run": false,
+        "scope_limit": "This proves the exact GUI batch02 native check only; no other pico or original runtime acceptance is satisfied, and no next invocation/custody/admission is granted."
+      }
+    },
+    {
+      "candidate": "mt172-routing-gui-02",
+      "artifact_root_relative": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/mt172-routing-gui-02/binding.json",
+      "binding_sha256": "4605aa872947389bdab9a14cf05c22f991ddd885a9d862c242e55b17c6d3bd16",
+      "pico_refs": [
+        "GUI-WP012-172-ROUTING"
+      ],
+      "author": "/root/handpick_independent_proof_route",
+      "distinct_source_review_sha256": "199e035f30b10f34a57cde7462c662fde699af517a1e9c7bc5684908b1451f0c",
+      "state": "INDEPENDENT_CODECHECK_THREE_LENS_SOURCE_CLEAR_NOT_APPLIED_NOT_COMPILED",
+      "independent_codecheck": {
+        "thread_id": "01a17387-9d99-7e61-8987-42feab10e18a",
+        "turn_id": "01a17875-2782-72c1-908e-42b1228d774f",
+        "verdict": "SOURCE_CLEAR_ONLY",
+        "observed": "All three retained reviewers cleared dispatch-gated acknowledgements, concurrent action cells, revision tracking and typed safe errors. No compile or runtime."
+      },
+      "canonical_applied": false,
+      "compile_tests_runtime": "NOT_RUN",
+      "does_not_block_separate_source_batch02": true
+    },
+    {
+      "candidate": "worksurface-kumihimo-tree-02",
+      "artifact_root_relative": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/worksurface-kumihimo-tree-02/binding.json",
+      "binding_sha256": "a422204a79edfe654c3298b415791182d3856cb7e69b159a1105527c9056a5e6",
+      "pico_refs": [
+        "GUI-WP012-inspect-layout"
+      ],
+      "state": "INDEPENDENT_CODECHECK_SOURCE_CLEAR_NOT_APPLIED_NOT_COMPILED",
+      "independent_codecheck": {
+        "thread_id": "01a17387-9d99-7e61-8987-42feab10e18a",
+        "turn_id": "01a178a2-dff3-7780-b486-8768b0cad35f",
+        "verdict": "SOURCE_CLEAR_ONLY"
+      },
+      "canonical_applied": false,
+      "tests_run": false,
+      "runtime_run": false,
+      "compile_or_next_writer_admission": false,
+      "original_contract_ref": "MT-102.json#/scope/acceptance_criteria/0",
+      "limited_change": "Preserve actual typed Kumihimo capture state through the existing layout-tree inspection and artifact-owner configuration; no genuine renderer/runtime proof."
+    },
+    {
+      "candidate": "wp1-console-route-02",
+      "artifact_root_relative": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/wp1-console-route-02/binding.json",
+      "binding_sha256": "4a708b8b1512aae20e375624fc1c6d8eab53d1a07e5c1ae2613e964091dd84bb",
+      "pico_refs": [
+        "GUI-WP1-MT021-001"
+      ],
+      "state": "TECHNICAL_SOURCE_CLEAR_REQUIREMENT_HOLD_NOT_READY_TO_APPLY",
+      "independent_codecheck": {
+        "thread_id": "01a17387-9d99-7e61-8987-42feab10e18a",
+        "turn_id": "01a178af-286c-7710-8c06-c232575ca02c",
+        "verdict": "SOURCE_CLEAR_ONLY"
+      },
+      "canonical_applied": false,
+      "tests_run": false,
+      "runtime_run": false,
+      "compile_or_next_writer_admission": false,
+      "operator_decision_request": {
+        "id": "WP1-CONSOLE-REQ-001",
+        "status": "PENDING_EXISTING_HUMAN_QUESTION_NO_DEFAULT_CONSENT",
+        "question": "Use current Spec OPERATOR parent while retaining menu.models.wp1-orchestration-console, or retain original WP1 MODELS parent?",
+        "requirements": [
+          ".GOV/spec/master-spec-v02.223/spec-modules/14-studio-creative-suite.md#STU-SHL-004",
+          ".GOV/task_packets/WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/MT-021.json#/scope/acceptance_criteria/0"
+        ],
+        "scope": "Only Console route candidate held; other GUI work continues."
+      }
     }
   ],
   "picotask_plan": {
@@ -1019,6 +1138,9 @@
           "#/picotask_plan/domain_overlap_links/wp1/7",
           "#/picotask_plan/domain_overlap_links/wp1/15",
           "#/picotask_plan/domain_overlap_links/wp1/16"
+        ],
+        "source_delivery_refs": [
+          "#/source_candidates/3"
         ]
       },
       {
@@ -31226,6 +31348,40 @@
       "observed_source": "main.rs609-610 leaves trusted GPU ownership/accounting unbound; actual MT203 gpu_contract_result canonical_owner=null/typed_clients=[]",
       "request": "Supply actual existing typed owner/API contract or owning worker implementing only missing feature under MT203/asset-first boundaries",
       "state": "REQUESTED_NO_WORKER_OR_API_RETURNED_YET",
+      "global_stop": false
+    },
+    {
+      "pico_scope": "MT209 DCC additional reliability projections/actions only; base DccControlPlaneSnapshot@1 and diagnostics/routing remain reusable",
+      "owner_requested": "01a168a9-05b2-7630-9633-5faac88dd068",
+      "observed_gaps": [
+        {
+          "mt": "MT204/205",
+          "path": "src/backend/handshake_core/src/mcp/client.rs",
+          "evidence": "Pending/deadline/reconnect/owned-child/cancellation settlement not consumable; McpCall::drop sends cancel without settled projection"
+        },
+        {
+          "mt": "MT206",
+          "path": "src/backend/handshake_core/src/swarm_orchestration/coordinator.rs:1855",
+          "evidence": "Reuse remaining()->BudgetRemaining; expose actual policy/headroom instead of only budget_summary_ref"
+        },
+        {
+          "mt": "MT207",
+          "path": "src/backend/handshake_core/src/mt_executor/queue.rs:317",
+          "evidence": "update_state lacks claimant/attempt-generation/expected-prior-state action contract; existing guard at168"
+        },
+        {
+          "mt": "MT208",
+          "path": "src/backend/handshake_core/src/workflows.rs:17922",
+          "evidence": "Interrupted attempt currently infers completion/pending from output_abs.exists; canonical reconciliation disposition required"
+        }
+      ],
+      "existing_reusable_interfaces": [
+        "GET /dcc/control-plane DccControlPlaneSnapshot@1",
+        "ModelLaneDiagnosticsProjection@3 and SwarmLaneDiagnosticsClient",
+        "Existing routing lifecycle/recover/authority/cancel and concurrency GET/PUT"
+      ],
+      "request": "Use exact existing MT owners/asset-first source stages; assign missing-feature worker(s) or return actual adequate typed publication; worker and GUI communicate directly",
+      "state": "REQUESTED_ACTUAL_WORKER_OR_API_INPUT_PENDING",
       "global_stop": false
     }
   ]
