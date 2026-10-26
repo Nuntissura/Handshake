@@ -661,6 +661,7 @@ pub const ATELIER_POSE_SPLIT_VIEW_AUTHOR_ID: &str = "atelier-pose-split-view";
 pub const ATELIER_POSE_3D_VIEWPORT_AUTHOR_ID: &str = "atelier-pose-3d-viewport";
 pub const ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID: &str = "atelier-pose-openpose-viewport";
 pub const ATELIER_POSE_OPENPOSE_PNG_STATUS_AUTHOR_ID: &str = "atelier-pose-openpose-png-status";
+pub const ATELIER_POSE_OPENPOSE_PNG_RETRY_AUTHOR_ID: &str = "atelier-pose-openpose-png-retry";
 pub const ATELIER_POSE_EXPORT_AUTHOR_ID: &str = "atelier-pose-export-openpose";
 pub const ATELIER_POSE_EXPORT_STATUS_AUTHOR_ID: &str = "atelier-pose-export-status";
 pub const ATELIER_POSE_EXPORT_REF_AUTHOR_ID: &str = "atelier-pose-export-ref";
@@ -3675,6 +3676,7 @@ struct AtelierPanelState {
     pose_export_png_fetch_seq: u64,
     pose_active_export_png_fetch: Option<u64>,
     pose_export_png_loaded_ref: Option<String>,
+    pose_export_png_retry_ref: Option<String>,
     pose_export_png_status: String,
     /// MT-043 Posekit source-image byte fetch. `pose_source_loaded_ref` is the trimmed source ref we
     /// last acted on (so a fetch fires once per ref change, not every frame); `pose_source_fetch_seq`
@@ -4019,6 +4021,7 @@ impl Default for AtelierPanelState {
             pose_export_png_fetch_seq: 0,
             pose_active_export_png_fetch: None,
             pose_export_png_loaded_ref: None,
+            pose_export_png_retry_ref: None,
             pose_export_png_status: "No exported OpenPose PNG artifact loaded.".to_owned(),
             pose_source_fetch_seq: 0,
             pose_active_source_fetch: None,
@@ -9742,6 +9745,7 @@ impl AtelierPanelRuntime {
                 state.pose_active_export_png_fetch = None;
                 match result {
                     Ok(bytes) => {
+                        state.pose_export_png_retry_ref = None;
                         state.pose_export_png_status = format!(
                             "Loaded literal exported OpenPose PNG bytes from ArtifactStore ({} bytes).",
                             bytes.len()
@@ -9749,6 +9753,7 @@ impl AtelierPanelRuntime {
                         set_bytes = Some(bytes);
                     }
                     Err(err) => {
+                        state.pose_export_png_retry_ref = state.pose_export_png_loaded_ref.clone();
                         state.pose_export_png_status = format!(
                             "Exported OpenPose PNG fetch failed (right viewport kept explicit non-loaded state): {err}"
                         );
@@ -9824,6 +9829,7 @@ impl AtelierPanelRuntime {
     /// honest keypoint-preview state, never treated as persisted bytes.
     fn sync_pose_export_png_fetch(&self, state: &mut AtelierPanelState) {
         let Some(snapshot) = state.pose_last_export.as_ref() else {
+            state.pose_export_png_retry_ref = None;
             if state.pose_export_png_loaded_ref.is_some() {
                 state.pose_export_png_loaded_ref = None;
                 state.pose_active_export_png_fetch = None;
@@ -9838,6 +9844,7 @@ impl AtelierPanelRuntime {
             return;
         }
         state.pose_export_png_loaded_ref = Some(artifact_ref.clone());
+        state.pose_export_png_retry_ref = None;
         state.pose_active_export_png_fetch = None;
         self.set_pose_openpose_image_bytes(None);
 
@@ -9857,8 +9864,12 @@ impl AtelierPanelRuntime {
                 "Backend offline; cannot fetch exported OpenPose PNG bytes.".to_owned();
             return;
         };
-        state.pose_export_png_fetch_seq = state.pose_export_png_fetch_seq.saturating_add(1);
-        let request_id = state.pose_export_png_fetch_seq;
+        let Some(request_id) = state.pose_export_png_fetch_seq.checked_add(1) else {
+            state.pose_export_png_status =
+                "Cannot fetch exported OpenPose PNG: request sequence exhausted.".to_owned();
+            return;
+        };
+        state.pose_export_png_fetch_seq = request_id;
         state.pose_active_export_png_fetch = Some(request_id);
         state.pose_export_png_status =
             format!("Fetching exported OpenPose PNG bytes for {artifact_ref} ...");
@@ -15420,6 +15431,33 @@ impl AtelierPanelRuntime {
             "Posekit source image byte-fetch status",
             &source_status,
         );
+        let can_retry_png = self.ckc_client.is_some()
+            && !state.pose_export_pending
+            && state.pose_active_export_png_fetch.is_none()
+            && state.pose_export_png_retry_ref.as_deref().is_some_and(|failed_ref| {
+                state.pose_last_export.as_ref().is_some_and(|snapshot| {
+                    snapshot.png_artifact_ref.trim() == failed_ref
+                })
+            });
+        let retry_png = ui.add_enabled(can_retry_png, egui::Button::new("Retry PNG load"));
+        emit_node(
+            ui.ctx(),
+            retry_png.id,
+            accesskit::Role::Button,
+            ATELIER_POSE_OPENPOSE_PNG_RETRY_AUTHOR_ID,
+            "Retry exported OpenPose PNG load",
+            false,
+        );
+        if can_retry_png && retry_png.clicked() {
+            state.pose_export_png_loaded_ref = None;
+            self.sync_pose_export_png_fetch(&mut state);
+            if state.pose_active_export_png_fetch.is_some() {
+                crate::mcp::argus::acknowledge_action_effect_allow_target_transition(
+                    ui.ctx(),
+                    ATELIER_POSE_OPENPOSE_PNG_RETRY_AUTHOR_ID,
+                );
+            }
+        }
         let openpose_png_status = state.pose_export_png_status.clone();
         let openpose_png_status_response =
             ui.label(egui::RichText::new(&openpose_png_status).color(palette.text_subtle));

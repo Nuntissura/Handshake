@@ -103,6 +103,7 @@ pub fn swarm_model_session_option_author_id(value: usize) -> String {
 pub const RESET_LAYOUT_AUTHOR_ID: &str = "settings.reset-layout";
 /// Stable author_id for the Settings -> Model Session action that opens the real launch dialog.
 pub const MODEL_SESSION_OPEN_LAUNCH_AUTHOR_ID: &str = "settings.model-session.open-launch";
+pub const ENGINE_PROFILE_CREATE_AUTHOR_ID: &str = "settings.engine-profiles.create";
 /// Stable author_id for the Close button.
 pub const CLOSE_AUTHOR_ID: &str = "settings.close";
 /// Author_id prefix for a per-action keybinding text input (`{prefix}{action_id}`).
@@ -2452,6 +2453,7 @@ mod tests {
         );
         assert_eq!(RESET_LAYOUT_AUTHOR_ID, "settings.reset-layout");
         assert_eq!(CLOSE_AUTHOR_ID, "settings.close");
+        assert_eq!(ENGINE_PROFILE_CREATE_AUTHOR_ID, "settings.engine-profiles.create");
     }
 }
 
@@ -2751,14 +2753,21 @@ fn render_engine_profiles_tab(
     let mut create = false;
     ui.add_enabled_ui(state.pending.is_none() && !state.exhausted, |ui| {
         refresh = engine_profile_button(ui, "settings.engine-profiles.refresh", "Refresh");
-        create = engine_profile_button(ui, "settings.engine-profiles.create", "Create profile")
+        create = engine_profile_button(ui, ENGINE_PROFILE_CREATE_AUTHOR_ID, "Create profile")
             && state.registry.is_some();
     });
     if refresh { return SettingsOutcome::EngineProfilesRefreshRequested; }
     if create {
         if let Some(registry) = state.registry.as_ref() {
+            let previous_generation = state.editor_generation;
             let editor = EngineProfileEditor::create(registry);
             state.replace_editor(Some(editor));
+            if state.editor_generation != previous_generation {
+                crate::mcp::argus::acknowledge_action_effect(
+                    ui.ctx(),
+                    "settings.engine-profiles.create",
+                );
+            }
         }
     }
 

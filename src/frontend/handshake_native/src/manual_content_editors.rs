@@ -606,7 +606,7 @@ expected typed blocker, not a spinner or silent failure."
 }
 
 fn recovery_steps_body() -> String {
-    "Re-mount the pane from the docking menu (top_menu_bar.rs view menu / pane_registry.rs), or reset the \
+    let mut body = "Re-mount the pane from the docking menu (top_menu_bar.rs view menu / pane_registry.rs), or reset the \
 layout from Settings. Re-run with a present display + clipboard (a GPU/clipboard host) when a headless \
 runner lacked them. Re-query the live AccessKit registry with list_widgets to get the CURRENT author_id \
 for a node after a layout change — never reuse a stale id; the canonical id source is \
@@ -635,7 +635,22 @@ receipts; retries reuse one immutable event envelope and same-id queued retries 
 successful load records a fresh receipt. A Locus record-not-found stays an unresolved chip, while a \
 route failure is a distinct typed unavailable state; restore the route and reload the document. Runtime Chat \
 assistant generation remains EndpointMissing in this build and must not be reported as a completed reply."
-        .to_owned()
+        .to_owned();
+    body.push_str(&format!(
+        "\n\nIn Atelier, select the Posekit tab ({tab}). The source viewport uses source-image bytes; the right \
+viewport uses the exported OpenPose PNG. If PNG fetching fails, restore backend connectivity and inspect \
+{status} with argus.inspect. Retry PNG load ({retry}) is enabled only for the current failed artifact \
+when a backend client is configured and neither export nor PNG fetching is in flight. Use argus.click on \
+{retry} once to request the same exported artifact again. This does not export a new pose or change its \
+artifact/receipt identity. A click receipt does not prove that the PNG loaded: use a fresh argus.inspect \
+of {status} and {viewport} to distinguish fetching, fetch failure, decode error, and loaded artifact \
+pixels with their artifact ref and export metadata. There is no automatic per-frame retry.",
+        tab = crate::atelier_panel::ATELIER_TAB_POSEKIT_AUTHOR_ID,
+        status = crate::atelier_panel::ATELIER_POSE_OPENPOSE_PNG_STATUS_AUTHOR_ID,
+        retry = crate::atelier_panel::ATELIER_POSE_OPENPOSE_PNG_RETRY_AUTHOR_ID,
+        viewport = crate::atelier_panel::ATELIER_POSE_OPENPOSE_VIEWPORT_AUTHOR_ID,
+    ));
+    body
 }
 
 fn interop_edges_body() -> String {
