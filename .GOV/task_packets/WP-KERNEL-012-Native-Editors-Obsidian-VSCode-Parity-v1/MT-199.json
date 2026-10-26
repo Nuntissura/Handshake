@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-199",
   "created_at_utc": "2026-10-24T16:59:01.024Z",
-  "updated_at_utc": "2026-10-25T23:03:43.485009Z",
+  "updated_at_utc": "2026-10-26T00:20:32.798792Z",
   "identity": {
     "mt_id": "MT-199",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -127,7 +127,8 @@
       "src/frontend/handshake_native/tests/test_layout_persistence.rs",
       "src/frontend/handshake_native/src/mcp/argus.rs",
       "src/frontend/handshake_native/src/mcp/server.rs",
-      "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs"
+      "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+      "src/frontend/handshake_native/src/local_account.rs"
     ],
     "forbidden_write_paths": [
       "Files outside exact actual owning allocation",
@@ -262,7 +263,7 @@
     "validator_verdict": "PENDING",
     "claimed_by": "01a1738d-2b8e-7151-9e9e-3972429af70c",
     "completed_by": null,
-    "blocked_on": "D199-ASYNCHRONOUS-FRAME-REVISION-01 remediation; current-source Core plus genuine account/workspace activation for mounted panes. Full shared GPU lifecycle acceptance stays distinct."
+    "blocked_on": "Current-source Core fresh bootstrap/INFO verification, real Owner/workspace activation and actual workbench pixels. Central GPU lifecycle, correlated persistence/crash survival and independent final runtime verdict remain open."
   },
   "scope": {
     "summary": "The genuine Handshake native application renders through a supported Vulkan backend and retains required user/model behavior.",
@@ -282,7 +283,8 @@
       "src/frontend/handshake_native/tests/test_layout_persistence.rs",
       "src/frontend/handshake_native/src/mcp/argus.rs",
       "src/frontend/handshake_native/src/mcp/server.rs",
-      "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs"
+      "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
+      "src/frontend/handshake_native/src/local_account.rs"
     ],
     "forbidden_paths": [
       "Files outside exact actual owning allocation",
@@ -326,7 +328,7 @@
       "renderer_console_error_scan",
       "layout_overlap_state_check",
       "capture_matrix_or_recorded_not_applicable_reason",
-      "2026-10-25 requirement navigation, NOT runtime proof: MT-199.json#/scope and original acceptance/proof; packet.json#/operator_professional_desktop_ui_20261024; MT-199/200/201/202/203; Master Spec module15 GUI-DESKTOP-001–055.",
+      "2026-10-25 requirement navigation, NOT runtime proof: MT-199.json#/scope and original acceptance/proof; packet.json#/operator_professional_desktop_ui_20261024; MT-199/200/201/202/203; Master Spec module15 GUI-DESKTOP-001â€“055.",
       "Affected host consumers replace legacy GUI with genuine Vulkan through exact published Kumihimo windows/panels; Cabinet owns file-tree mechanics and canonical Handpick owns the portal-equivalent multitool where applicable. Missing reusable capability is implemented/proven/published in its owning asset before distinct pinned host adoption; preserve ALL existing features/adapters. Use small focused modules/crates, scoped SurrealDB/EventLedger, central GPU ownership, no private devices/pools/budgets or extra databases.",
       "Retain stable model/AccessKit routes, keyboard/focus/IME, DPI/resize/multiwindow, aligned icons/text/panels, touching edges/shared dividers, truthful empty/loading/error/denied/recovery, context/persistence/reopen and same-change UserManual. Keep existing taxonomy; use coherent menus/tabs/trees with restrained interruptible toolkit motion/reduced-motion, no clutter or text bloat. Original independent runtime/auth/privacy/proof remains required."
     ],
@@ -964,8 +966,52 @@
           "No signed Palmistry association or normal ACK/drain",
           "Central GPU ownership/client binding and independent final runtime acceptance remain open"
         ]
+      },
+      {
+        "record_id": "UI199-WORKBENCH-SOURCE-AND-SIGNED-ACK-20261026-01",
+        "executor_role": "KERNEL_BUILDER",
+        "executor_session": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+        "evidence_kind": "implementer_component_and_owned_runtime_observations_not_final_acceptance",
+        "source_commit": "9ccbcef54343e4aea87a34023943b92382561d46",
+        "candidate_base_commit": "3b11e35c34b9ae8f3896de07b71a7514604b86d0",
+        "candidate_bundle_sha256": "3acd89a03c9a19798b9acfa051efd2dd1eb84aac875b3aba1a9016361c0cf9a2",
+        "input_count": 525,
+        "canonical_native_inputs_equal_to_compiled": true,
+        "native_build_exit_code": 0,
+        "native_sha256": "6620cb29368e1d2a4c9781e1db3fe20eece12b42ac0862168eaae20ba6abfffb",
+        "focused_test_count": 44,
+        "focused_tests_failed": 0,
+        "runtime": {
+          "native_pid": 29248,
+          "native_exit_code": 0,
+          "watcher_pid": 35040,
+          "watcher_exit_code": 0,
+          "shutdown_acknowledgement": "SignedConfirmed",
+          "foreground_and_default_eframe_unchanged": true,
+          "binding_removed": true
+        },
+        "artifact_root": "HANDSHAKE_ARTIFACTS_ROOT",
+        "artifact_refs": [
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-source-adoption-05.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/compile-workbench-readback-01/bundle-sha256.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-host-build-05-result.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-readback-tests-01-result.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-account-current-result.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-runtime-04/prelaunch.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-runtime-04/process.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-runtime-04/native.stdout.log",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-runtime-04/result.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/core-runtime-01/result.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/core-runtime-01/core.stdout.log"
+        ],
+        "limits": [
+          "No genuine activated workbench pixels obtained: Core fresh initialization exited1 on field-clause grammar before listener",
+          "ACK and clean exit observed; correlated Core persistence, full drain and crash-survival acceptance remain open",
+          "Central GPU ownership/client accounting and independent final three-WP acceptance remain open"
+        ],
+        "next_proof": "Current-source Core bootstrap/INFO and actual Owner/workspace activation, then exact-session canonical readiness before/after actual workbench renderer PNG."
       }
     ],
-    "implementation_result": "REAL_VULKAN_ADAPTER_OBSERVED_CAPTURE_GUARD_REMEDIATION_AND_CURRENT_CORE_ACTIVATION_PENDING"
+    "implementation_result": "KUMIHIMO_WORKBENCH_SOURCE_ADOPTED_SIGNED_ACK_PROVEN_FRESH_CORE_AND_VISUAL_ACCEPTANCE_PENDING"
   }
 }

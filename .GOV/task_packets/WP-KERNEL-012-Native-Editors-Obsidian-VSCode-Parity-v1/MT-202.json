@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-202",
   "created_at_utc": "2026-10-24T16:59:01.024Z",
-  "updated_at_utc": "2026-10-24T17:29:17.190Z",
+  "updated_at_utc": "2026-10-26T00:20:32.801792Z",
   "identity": {
     "mt_id": "MT-202",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -134,7 +134,9 @@
       "src/frontend/handshake_native/src/manual_pane.rs",
       "src/frontend/handshake_native/src/accessibility/",
       "src/frontend/handshake_native/src/visual_debugger/",
-      "src/frontend/handshake_native/src/mcp/"
+      "src/frontend/handshake_native/src/mcp/",
+      "src/frontend/handshake_native/src/local_account.rs",
+      "src/frontend/handshake_native/src/workspace_activation_observation.rs"
     ],
     "forbidden_write_paths": [
       "Files outside exact actual owning allocation",
@@ -272,7 +274,9 @@
       "src/frontend/handshake_native/src/manual_pane.rs",
       "src/frontend/handshake_native/src/accessibility/",
       "src/frontend/handshake_native/src/visual_debugger/",
-      "src/frontend/handshake_native/src/mcp/"
+      "src/frontend/handshake_native/src/mcp/",
+      "src/frontend/handshake_native/src/local_account.rs",
+      "src/frontend/handshake_native/src/workspace_activation_observation.rs"
     ],
     "forbidden_paths": [
       "Files outside exact actual owning allocation",
@@ -317,7 +321,7 @@
       "renderer_console_error_scan",
       "layout_overlap_state_check",
       "capture_matrix_or_recorded_not_applicable_reason",
-      "2026-10-25 requirement navigation, NOT runtime proof: MT-202.json#/scope and original acceptance/proof; packet.json#/operator_professional_desktop_ui_20261024; MT-199/200/201/202/203; Master Spec module15 GUI-DESKTOP-001–055.",
+      "2026-10-25 requirement navigation, NOT runtime proof: MT-202.json#/scope and original acceptance/proof; packet.json#/operator_professional_desktop_ui_20261024; MT-199/200/201/202/203; Master Spec module15 GUI-DESKTOP-001Ã¢â‚¬â€œ055.",
       "Affected host consumers replace legacy GUI with genuine Vulkan through exact published Kumihimo windows/panels; Cabinet owns file-tree mechanics and canonical Handpick owns the portal-equivalent multitool where applicable. Missing reusable capability is implemented/proven/published in its owning asset before distinct pinned host adoption; preserve ALL existing features/adapters. Use small focused modules/crates, scoped SurrealDB/EventLedger, central GPU ownership, no private devices/pools/budgets or extra databases.",
       "Retain stable model/AccessKit routes, keyboard/focus/IME, DPI/resize/multiwindow, aligned icons/text/panels, touching edges/shared dividers, truthful empty/loading/error/denied/recovery, context/persistence/reopen and same-change UserManual. Keep existing taxonomy; use coherent menus/tabs/trees with restrained interruptible toolkit motion/reduced-motion, no clutter or text bloat. Original independent runtime/auth/privacy/proof remains required."
     ],
@@ -617,7 +621,25 @@
   },
   "validation": {
     "review_verdict": "PENDING",
-    "proof_records": [],
-    "implementation_result": "NOT_IMPLEMENTED_NOT_RUN"
+    "proof_records": [
+      {
+        "record_id": "UI202-ADOPTED-ACCOUNT-READBACK-20261026-01",
+        "evidence_kind": "shared_implementer_proof_reference_not_duplicate_acceptance",
+        "source_commit": "9ccbcef54343e4aea87a34023943b92382561d46",
+        "parent_record_ref": "MT-199.json#/validation/proof_records/8",
+        "parent_record_id": "UI199-WORKBENCH-SOURCE-AND-SIGNED-ACK-20261026-01",
+        "artifact_root": "HANDSHAKE_ARTIFACTS_ROOT",
+        "artifact_refs": [
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-readback-tests-01-result.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-account-current-result.json",
+          "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-199/kumihimo-native-01/native-runtime-04/result.json"
+        ],
+        "limits": [
+          "Actual authenticated workspace activation/readback and workbench capture pending fresh Core startup",
+          "Independent runtime verdict and correlated persistence/crash-survival remain pending"
+        ]
+      }
+    ],
+    "implementation_result": "ACCOUNT_PRIVATE_INPUT_AND_ACTIVATION_READBACK_SOURCE_ADOPTED_RUNTIME_ACCEPTANCE_PENDING"
   }
 }
