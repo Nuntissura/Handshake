@@ -300,6 +300,28 @@
       "ckc_record_writer": "01a1738d-2b8f-7151-9e9f-56d86dca9a16",
       "wp1_record_writer": "01a1738d-2b8f-7151-9e9f-568d4a5acef5",
       "retained_work_limit": "The earlier 68 CKC MT record updates are documentation, not acceptance. The inspected WP1 Settings author's handback explicitly says no candidate was written.",
+      "original_mt_gui_continuation_20261026": {
+        "record_id": "WP012-GUI-ORIGINAL-MT-CONTINUATION-20261026-01",
+        "recorded_at_utc": "2026-10-26T12:32:42Z",
+        "operator_clarification": "Read the original MTs in WP012, WP-CKC and WP-1 Multi-Model Orchestration to catch omitted GUI elements; implement applicable missing GUI in ../wtc-WP-KERNEL-012 on feat/WP-KERNEL-012.",
+        "authority_effect": "Confirms existing MT-197 AC197-1; no new requirements, acceptance criteria or gates. Reuse valid existing coverage instead of requiring a repeated census.",
+        "original_source_refs": [
+          "MT-197.json#/scope/acceptance_criteria/0",
+          "packet.json#/microtasks",
+          "../WP-CKC-posekit-overhaul/packet.json",
+          "../WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1/packet.json"
+        ],
+        "observed_parent": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+        "observed_parent_turn": "01a177cc-ac18-78f2-83e6-9dd30d3f39dc",
+        "observation_state": "STARTED_OBSERVED_AT_PARENT",
+        "coverage_readers": [
+          { "agent": "/root/ckc_gui_contract_delta", "thread_id": "01a1782f-9100-7a40-8dba-1174a2b5f04b" },
+          { "agent": "/root/wp1_gui_contract_delta", "thread_id": "01a1782f-b9e6-7570-9c06-b129c52ee5a8" },
+          { "agent": "/root/wp012_gui_coverage_reuse", "thread_id": "01a1782f-e3b3-7ab0-b58b-6170a8643c5d" }
+        ],
+        "observation_basis": "Master's inspected GUI-parent start events and relayed direct human clarification; source-only observation.",
+        "limits": "Start events do not prove completed or currently running coverage, Product changes or acceptance. Existing teams, source custody, authorship and saved findings remain preserved; no new multi-MT non-GUI fanout."
+      },
       "current_helpers": [
         {
           "thread_id": "01a17540-a3c9-76d2-86bf-12bccdbe5076",
