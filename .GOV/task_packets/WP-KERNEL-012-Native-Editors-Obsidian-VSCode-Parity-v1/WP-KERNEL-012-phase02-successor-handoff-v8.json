@@ -21157,7 +21157,7 @@
       },
       "remaining": "Renderer screenshot failed with Argus window revision stale; inspected runtime root has no successful renderer PNG and visual-debug is empty. Authenticated admitted workspace, mounted pane flows/persistence, centralized GPU ownership/accounting, full lifecycle/cleanup and Palmistry acceptance remain open. That session logged crash-socket path too long and unavailable signed watcher association. Preserve original MT199/202/203 criteria; asset probe and disconnected native startup cannot replace them.",
       "next": "GUI owner continues the existing renderer repair and genuine current-source-bound backend/account/workspace admission, then hands exact real host proof to the existing independent owner. Reuse stable captures/build inputs; no new runner, acceptance shortcut or unchanged test replay.",
-      "latest_checkpoint_ref": "#/operator_restart_verified_delta_20261025/handshake_gui/successor_checkpoint",
+      "latest_checkpoint_ref": "#/operator_restart_verified_delta_20261025/handshake_gui/successor_checkpoint_native03_palmistry05",
       "successor_checkpoint": {
         "record_id": "WP012-GUI-CAPTURE-SUCCESSOR-20261025-01",
         "recorded_at_utc": "2026-10-25T22:54:41.608Z",
@@ -21202,6 +21202,103 @@
           "acceptance": "Compile-only. No focused-test successor result or real renderer runtime verdict inspected here."
         },
         "next": "Existing GUI owner and proof owners continue the changed-input focused proof and actual renderer/workspace acceptance under existing authority. Reuse the seven valid unaffected ownership/privacy results; no unchanged whole replay or fresh framework from this handoff. Original runtime, GPU/lifecycle and full acceptance remain open."
+      },
+      "successor_checkpoint_native03_palmistry05": {
+        "record_id": "WP012-GUI-NATIVE03-PALMISTRY05-SUCCESSOR-V1",
+        "recorded_at_utc": "2026-10-26T00:09:54.660411+00:00",
+        "previous_checkpoint_ref": "#/operator_restart_verified_delta_20261025/handshake_gui/successor_checkpoint",
+        "owner_ref": "#/operator_restart_verified_delta_20261025/handshake_gui/owner_ref",
+        "proof_root_ref": "#/operator_restart_verified_delta_20261025/handshake_gui/proof_root",
+        "native_runtime03": {
+          "source_commit": "2ddb2a72a02d0040a4317a67d3d5223a78f11bc0",
+          "proof_refs": [
+            "native-runtime-03/prelaunch.json",
+            "native-runtime-03/process.json",
+            "native-runtime-03/native.stdout.log",
+            "native-runtime-03/screenshot-main-01.json",
+            "native-runtime-03/screenshot-main-01.png",
+            "native-runtime-03/result.json"
+          ],
+          "binary_sha256": "1fececbccd7beaf64b887212d6d45ed555d7325e3bf70e3293f9dd17355a0067",
+          "pe_machine": "8664",
+          "application_architecture": "x64",
+          "actual_backend": "Vulkan",
+          "actual_adapter": "Qualcomm(R) Adreno(TM) X2-85 GPU",
+          "adapter_log_line": 255,
+          "argus_capture": {
+            "width": 2560,
+            "height": 1600,
+            "elapsed_ms": 1605.7925,
+            "duration_log_line": 295,
+            "png_sha256": "0c64c127bd89b112529edf4edeababefd78202d35bd5dfe1cc230a7113ecf439",
+            "inspected_content": "Activation/login controls and a locked workspace prompt. This is a real renderer capture, not authenticated workbench acceptance."
+          },
+          "old_palmistry": {
+            "binary_sha256": "33d4a26febe494ba0899048ce61611158be6531514b6292ec6bf0cc9bb0ee486",
+            "signed_launch": "Owned watcher signed launch association unavailable, log line281.",
+            "signed_shutdown": "Shutdown not confirmed, OS232; owned backstop kill/reap recorded, watcher exit1. Native host exit0 does not prove signed ACK/drain.",
+            "shutdown_log_lines": [
+              300,
+              301,
+              302,
+              303
+            ]
+          },
+          "limit": "Historical runtime observations only. Runtime03 used the old Palmistry binary and does not validate the later repair or full Kumihimo/Vulkan workspace acceptance."
+        },
+        "published_palmistry_repair": {
+          "commit": "3b11e35c34b9ae8f3896de07b71a7514604b86d0",
+          "tree": "797fbd2610c65e35db511eb55b470d5b7a6e21c7",
+          "published_url": "https://github.com/Nuntissura/Handshake/commit/3b11e35c34b9ae8f3896de07b71a7514604b86d0",
+          "publication_binding": {
+            "fact_class": "REUSED_MASTER_INDEPENDENT_PUBLISHED_COMMIT_TREE_AND_SOURCE_RECONCILIATION",
+            "observation": "Existing independent verification establishes this published two-file repair and its compile05 source hashes. No repeat remote verification,525-input audit or source review was performed for this handoff."
+          },
+          "changed_source_sha256": {
+            "src/frontend/palmistry/src/control.rs": "2dabeb8545be4f83e2b0d3de8e1b069e3e9a7cf849c473532c91f75814fdd69e",
+            "src/frontend/palmistry/src/main.rs": "f540cce33c4d592b1e73750c3956bc4489fce7622ec7e22f256ec2aa576a6966"
+          },
+          "compile05": {
+            "input_ref": "palmistry-control-test-compile-05-inputs.json",
+            "input_manifest_sha256": "63db8b4bf1d3ac560ba3a9d9194e2b6378f84e3defef1a5ba71217501162b7a6",
+            "result_ref": "palmistry-control-test-compile-05-result.json",
+            "exit_code": 0,
+            "held_inputs": 525,
+            "unchanged_inputs": true,
+            "changed_inputs": [],
+            "limit": "Compile-only; held-input stability is the recorded result, not a new525-input audit."
+          },
+          "component_tests05": {
+            "result_ref": "palmistry-signed-pipe-tests-05-result.json",
+            "stdout_ref": "palmistry-signed-pipe-tests-05.stdout.txt",
+            "exit_code": 0,
+            "passed": 2,
+            "failed": 0,
+            "ignored": 0,
+            "coverage": "Delayed/fragmented signed frames and shutdown; failure recovery keeps the listener available until drained shutdown. Actual stdout confirms2/2.",
+            "limit": "Component proof only; no production signed launch/recording/crash-survival/shutdown verdict."
+          },
+          "palmistry_host_build03": {
+            "command_ref": "palmistry-host-build-03.json",
+            "input_ref": "palmistry-host-build-03-inputs.json",
+            "input_manifest_sha256": "32cf7300e8a42adc03653a24077029b76ec3986892f8c524cd6121d4414fee7c",
+            "result_ref": "palmistry-host-build-03-result.json",
+            "exit_code": 0,
+            "completed_at": "2026-10-25T23:50:46.4613006Z",
+            "held_inputs": 525,
+            "unchanged_inputs": true,
+            "changed_inputs": [],
+            "source_binding": "The two changed Palmistry source hashes, source_root and profile hash match compile05. Existing published-revision binding is reused. The command builds the palmistry binary; this terminal result is not a production runtime proof.",
+            "profile_sha256": "61cf1b2ae4889684c6f8403f1d60ad9d651b36a1e77ccdeded5fd6b99e8e082e"
+          }
+        },
+        "remaining_outcomes": [
+          "Authenticated workbench matching the existing GUI reference and required mounted flows/persistence.",
+          "Centralized trusted GPU lifecycle ownership and memory accounting; runtime03 explicitly reported these unbound.",
+          "Repaired production Palmistry signed launch, recording, independent crash survival and signed shutdown/ACK/drain.",
+          "Existing independent runtime and full acceptance verdict."
+        ],
+        "next": "Existing GUI owner01a1738d-2b8e-7151-9e9e-3972429af70c continues the current source-bound production and authenticated workspace proof. Reuse verified unaffected scope; this restart record changes no custody, authority, attempt allowance or acceptance criteria."
       }
     },
     "architecture": {
