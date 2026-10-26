@@ -10,6 +10,7 @@
   "purpose": "Continue the Handshake work from the current source and proof state without repeating unchanged reviews or losing original acceptance. This requested session handoff is stored in the kernel.",
   "authority_effect": "Navigation and dated observations only. The selected v8 handoff, packet and affected original contracts retain authority. This file grants no execution, retry, cleanup, custody, permission or acceptance change.",
   "navigation": {
+    "current_master_succession_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_master_succession_20261026",
     "packet_ref": "packet.json",
     "selected_handoff_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json",
     "prior_restart_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_restart_continuation_20261025",
@@ -258,8 +259,10 @@
   },
   "actual_teams": {
     "master": {
-      "thread_id": "01a17028-cecb-7b90-9c71-bbddd44d722e",
-      "responsibility": "Steering, requested session handoff and own paperwork/reminder helpers."
+      "thread_id": "01a17815-783f-71b0-a740-3c48849c43f9",
+      "responsibility": "Steering, requested session handoff and own paperwork/reminder helpers.",
+      "succession_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_master_succession_20261026",
+      "activation_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_master_succession_20261026/transfer"
     },
     "codeleader": {
       "thread_id": "01a168a9-05b2-7630-9633-5faac88dd068",
@@ -503,6 +506,7 @@
   "continuation": {
     "current_snapshot_ref": "#/continuation/current_snapshot_20261026",
     "current_snapshot_20261026": {
+      "master_succession_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_master_succession_20261026",
       "record_id": "WP012-CONTINUATION-20261026-JOIN05-CSCE-HANDPICK04",
       "recorded_at_utc": "2026-10-26T11:38:51.514Z",
       "scope": "Dated continuation snapshot. These later observations supersede only corresponding older current-state descriptions below; prior facts/history, original scope, authority_effect, proof requirements and team rules remain unchanged.",
@@ -604,10 +608,26 @@
       },
       "coordination": {
         "codeleader": "01a168a9-05b2-7630-9633-5faac88dd068",
-        "codeleader_state": "CHAT_ARCHIVED_HUMAN_RESTORATION_OR_REPLACEMENT_CHOICE_PENDING",
-        "consequence": "No custody release or new technical allocator is inferred. Existing delegated review, Primary's scoped admission preparation and GUI work under its existing human waiver can proceed within their established authority.",
+        "codeleader_state": "RESTORED_EXISTING_ROLE_RESUMED",
+        "consequence": "The human selected restoration of the existing Codeleader chat; its existing role resumed. No new technical allocator, process/compiler release or new execution attempt is inferred. Existing custody and action-specific admission remain unchanged.",
         "unchanged": "No blanket new Master-GO requirement, no new runtime allowance, no change to the one-MT non-GUI trio, parallel GUI or separate asset ownership.",
-        "team_refresh_boundary": "Refresh teams only at an actual completed Cargo boundary; an archived/unloaded chat or interrupted turn is not resource release."
+        "team_refresh_boundary": "Refresh teams only at an actual completed Cargo boundary; an archived/unloaded chat or interrupted turn is not resource release.",
+        "restoration": {
+          "date_utc": "2026-10-26",
+          "human_instruction": "Restore the existing Codeleader chat",
+          "evidence": "Master reports successful set_thread_archived(false), delivered continuation and a fresh active-turn wait snapshot.",
+          "active_turn_id": "01a17810-a064-7b71-852e-18a63d9e8848",
+          "wait_cursor": "a94d906b-7ff8-435d-9648-4dc21c716b81:109",
+          "live_product_proof": "Owning MT records retain current Product proof and capture state."
+        },
+        "dated_history": [
+          {
+            "observed_at_utc": "2026-10-26T11:38:51.514Z",
+            "codeleader_state": "CHAT_ARCHIVED_HUMAN_RESTORATION_OR_REPLACEMENT_CHOICE_PENDING",
+            "consequence": "No custody release or new technical allocator is inferred. Existing delegated review, Primary's scoped admission preparation and GUI work under its existing human waiver can proceed within their established authority.",
+            "resolution": "Restoration choice resolved by the later human instruction; retained as prior history."
+          }
+        ]
       },
       "evidence_read": "JOIN05/external-binding/current-maintenance hashes and named owning turns were read. Primary's bounded application and successful commit/push output were inspected. No Product proof, Git operation or acceptance verdict was produced by this handoff writer."
     },

@@ -126,7 +126,7 @@
       }
     ],
     "ownership_and_order": {
-      "master": "01a17028-cecb-7b90-9c71-bbddd44d722e",
+      "master": "01a17815-783f-71b0-a740-3c48849c43f9",
       "technical_allocation": "01a168a9-05b2-7630-9633-5faac88dd068",
       "physical_product_control_common_git_manifests_locks_compiler_process": "01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
       "gui_allocation": "01a1738d-2b8e-7151-9e9e-3972429af70c",
@@ -136,7 +136,9 @@
       "gui_sequence": "Existing GUI teams remain parallel. MT-209 consumes independently verified published backend contracts; disjoint GUI preparation may proceed without claiming dependent runtime acceptance.",
       "coordination": "Use direct scoped owner/reviewer handoffs and durable existing task state. No ACK/status relay loop.",
       "new_branches_or_worktrees": false,
-      "new_attempt_allowances": false
+      "new_attempt_allowances": false,
+      "master_succession_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_master_succession_20261026",
+      "master_activation_ref": "WP-KERNEL-012-phase02-successor-handoff-v8.json#/operator_master_succession_20261026/transfer"
     },
     "preservation": {
       "original_scope": "All original WP-KERNEL-012 Phase2 and carried WP-CKC and WP-1 workflows, acceptance, source/spec/governance pins, reviews and attempt history remain intact.",
