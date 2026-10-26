@@ -12955,6 +12955,106 @@ mod tests {
 
     const BASE: &str = "http://test.local:1234";
 
+    const CKC_SELECTED_ID: &str = "01900000-0000-7000-8000-000000000033";
+    const CKC_SELECTED_VERSION: &str = "01900000-0000-7000-8000-000000000034";
+
+    fn selected_ckc_character() -> serde_json::Value {
+        serde_json::json!({"internal_id":CKC_SELECTED_ID,"public_id":"selected","display_name":"Selected",
+            "character_ref":format!("atelier://character/{CKC_SELECTED_ID}")})
+    }
+
+    fn selected_ckc_sheet(id: &str, seq: i64) -> serde_json::Value {
+        serde_json::json!({"version_id":id,"character_internal_id":CKC_SELECTED_ID,
+            "parent_version_id":null,"seq":seq,"raw_text":"sheet body","author":"operator","tool":null,
+            "character_ref":format!("atelier://character/{CKC_SELECTED_ID}"),
+            "sheet_version_ref":format!("atelier://sheet/{CKC_SELECTED_ID}/{id}")})
+    }
+
+    #[test]
+    fn selected_ckc_head_uses_actual_maximum_sequence_and_valid_empty_history() {
+        let character = parse_atelier_selected_character(CKC_SELECTED_ID, &selected_ckc_character()).unwrap();
+        let highest = "01900000-0000-7000-8000-000000000035";
+        let history = serde_json::json!([selected_ckc_sheet(highest, 9), selected_ckc_sheet(CKC_SELECTED_VERSION, 1)]);
+        let selected = parse_atelier_selected_sheet_head(character.clone(), &history).unwrap();
+        assert_eq!(selected.latest_sheet.unwrap().version_id, highest);
+        assert_eq!(parse_atelier_selected_sheet_head(character.clone(), &serde_json::json!([])).unwrap().latest_sheet, None);
+        assert!(parse_atelier_selected_sheet_head(character, &serde_json::json!({"versions":[]})).is_err());
+    }
+
+    #[test]
+    fn selected_ckc_head_rejects_wrong_or_malformed_identity_and_every_bad_history_row() {
+        let identity = selected_ckc_character();
+        assert!(parse_atelier_selected_character("../characters", &identity).is_err());
+        assert!(parse_atelier_selected_character(CKC_SELECTED_VERSION, &identity).is_err());
+        let mut bad_identity = identity.clone();
+        bad_identity["character_ref"] = serde_json::json!("atelier://character/foreign");
+        assert!(parse_atelier_selected_character(CKC_SELECTED_ID, &bad_identity).is_err());
+        let character = parse_atelier_selected_character(CKC_SELECTED_ID, &identity).unwrap();
+        let valid = selected_ckc_sheet(CKC_SELECTED_VERSION, 1);
+        let mut invalid_rows = Vec::new();
+        for key in ["version_id", "seq", "raw_text", "author", "parent_version_id", "tool"] {
+            let mut row = valid.clone(); row.as_object_mut().unwrap().remove(key); invalid_rows.push(row);
+        }
+        for (key, value) in [("seq", serde_json::json!("9")), ("seq", serde_json::json!(0)),
+            ("character_internal_id", serde_json::json!(CKC_SELECTED_VERSION)),
+            ("version_id", serde_json::json!("bad-id")), ("tool", serde_json::json!(3)),
+            ("parent_version_id", serde_json::json!("bad-id")),
+            ("sheet_version_ref", serde_json::json!("atelier://sheet/foreign"))] {
+            let mut row = valid.clone(); row[key] = value; invalid_rows.push(row);
+        }
+        for bad in invalid_rows {
+            assert!(parse_atelier_selected_sheet_head(character.clone(), &serde_json::json!([
+                selected_ckc_sheet("01900000-0000-7000-8000-000000000035",9), bad])).is_err());
+        }
+        assert!(parse_atelier_selected_sheet_head(character.clone(), &serde_json::json!([valid.clone(),valid])).is_err());
+        assert!(parse_atelier_selected_sheet_head(character, &serde_json::json!([
+            selected_ckc_sheet(CKC_SELECTED_VERSION,1),selected_ckc_sheet("01900000-0000-7000-8000-000000000035",1)])).is_err());
+    }
+
+    async fn selected_ckc_delivery(cell: AtelierCkcSelectedHeadCell) -> Result<AtelierCkcSelectedHeadRow, String> {
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                if let Some(result) = cell.lock().unwrap().take() { return result; }
+                tokio::task::yield_now().await;
+            }
+        }).await.expect("selected CKC request must retire")
+    }
+
+    #[test]
+    fn selected_ckc_public_fetch_requires_captured_active_account() {
+        let rt = rt();
+        let client = AtelierClient::new(BASE, rt.handle().clone());
+        let cell: AtelierCkcSelectedHeadCell = Arc::new(Mutex::new(None));
+        client.fetch_ckc_selected_head(CKC_SELECTED_ID, cell.clone());
+        assert!(rt.block_on(selected_ckc_delivery(cell)).unwrap_err().contains("Account login required"));
+        let context = crate::local_account::mock_account_context(BASE);
+        context.invalidate();
+        let client = client.with_authenticated_context(Some(context));
+        let cell: AtelierCkcSelectedHeadCell = Arc::new(Mutex::new(None));
+        client.fetch_ckc_selected_head(CKC_SELECTED_ID, cell.clone());
+        assert!(rt.block_on(selected_ckc_delivery(cell)).is_err());
+    }
+
+    #[test]
+    fn selected_ckc_public_fetch_uses_direct_identity_and_history_gets() {
+        let rt = tokio::runtime::Builder::new_multi_thread().worker_threads(1).enable_all().build().unwrap();
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}",listener.local_addr().unwrap());
+        let client = AtelierClient::new(base.clone(),rt.handle().clone())
+            .with_authenticated_context(Some(crate::local_account::mock_account_context(&base)));
+        let cell: AtelierCkcSelectedHeadCell = Arc::new(Mutex::new(None));
+        client.fetch_ckc_selected_head(CKC_SELECTED_ID,cell.clone());
+        let first = capture_one_request_reply(listener.try_clone().unwrap(),&selected_ckc_character().to_string());
+        let highest = "01900000-0000-7000-8000-000000000035";
+        let second = capture_one_request_reply(listener,&serde_json::json!([
+            selected_ckc_sheet(highest,9),selected_ckc_sheet(CKC_SELECTED_VERSION,1)]).to_string());
+        assert_eq!(first,format!("GET /atelier/characters/{CKC_SELECTED_ID} HTTP/1.1"));
+        assert_eq!(second,format!("GET /atelier/characters/{CKC_SELECTED_ID}/sheet-versions HTTP/1.1"));
+        let selected = rt.block_on(selected_ckc_delivery(cell)).unwrap();
+        assert_eq!(selected.character.internal_id,CKC_SELECTED_ID);
+        assert_eq!(selected.latest_sheet.unwrap().version_id,highest);
+    }
+
     #[test]
     fn atelier_items_malformed_response_fails_then_valid_response_recovers() {
         let malformed = parse_atelier_items(serde_json::json!({
@@ -17196,6 +17296,17 @@ pub type AtelierIntakeClassificationCell = Arc<Mutex<Option<AtelierIntakeClassif
 /// One-slot delivery cell for off-thread CKC character/sheet loads.
 pub type AtelierCkcCell = Arc<Mutex<Option<Result<AtelierCkcData, String>>>>;
 
+/// A directly fetched character identity and the highest sequence in its validated history.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AtelierCkcSelectedHeadRow {
+    pub character: AtelierCharacterRow,
+    pub latest_sheet: Option<AtelierSheetVersionRow>,
+}
+
+/// A request-owned cell; the GUI fences selection, refresh and account rebinding.
+pub type AtelierCkcSelectedHeadCell =
+    Arc<Mutex<Option<Result<AtelierCkcSelectedHeadRow, String>>>>;
+
 /// One-slot delivery cell for off-thread CKC character creation.
 pub type AtelierCkcCreateCell = Arc<Mutex<Option<Result<AtelierCharacterRow, String>>>>;
 
@@ -17948,6 +18059,64 @@ async fn load_atelier_ckc(
         });
     }
     Ok(AtelierCkcData { characters: rows })
+}
+
+fn parse_atelier_selected_character(
+    requested_id: &str,
+    value: &serde_json::Value,
+) -> Result<AtelierCharacterRow, AppError> {
+    let invalid = || AppError::Parse("Invalid selected CKC character identity".to_owned());
+    let requested = uuid::Uuid::parse_str(requested_id).map_err(|_| invalid())?;
+    if requested.is_nil() { return Err(invalid()); }
+    let character = parse_atelier_character_row(value).ok_or_else(invalid)?;
+    if uuid::Uuid::parse_str(&character.internal_id).ok() != Some(requested)
+        || character.character_ref != format!("atelier://character/{requested}")
+        || ["public_id", "display_name", "character_ref"].iter().any(|key|
+            value.get(*key).and_then(|field| field.as_str()).is_none_or(|field| field.trim().is_empty()))
+    {
+        return Err(invalid());
+    }
+    Ok(character)
+}
+
+fn parse_atelier_selected_sheet_head(
+    character: AtelierCharacterRow,
+    value: &serde_json::Value,
+) -> Result<AtelierCkcSelectedHeadRow, AppError> {
+    let invalid = || AppError::Parse("Invalid selected CKC sheet history".to_owned());
+    let rows = value.as_array().ok_or_else(invalid)?;
+    let target = uuid::Uuid::parse_str(&character.internal_id).map_err(|_| invalid())?;
+    let mut versions = std::collections::HashSet::new();
+    let mut sequences = std::collections::HashSet::new();
+    let mut latest: Option<AtelierSheetVersionRow> = None;
+    for value in rows {
+        let row = parse_atelier_sheet_version_row(value).ok_or_else(invalid)?;
+        let version_id = uuid::Uuid::parse_str(&row.version_id).map_err(|_| invalid())?;
+        let seq = value.get("seq").and_then(|field| field.as_i64()).ok_or_else(invalid)?;
+        if version_id.is_nil()
+            || uuid::Uuid::parse_str(&row.character_internal_id).ok() != Some(target)
+            || seq <= 0 || !versions.insert(version_id) || !sequences.insert(seq)
+            || value.get("raw_text").and_then(|field| field.as_str()).is_none()
+            || value.get("author").and_then(|field| field.as_str()).is_none_or(|field| field.trim().is_empty())
+            || row.character_ref != character.character_ref
+            || row.sheet_version_ref != format!("atelier://sheet/{target}/{version_id}")
+        {
+            return Err(invalid());
+        }
+        for key in ["parent_version_id", "tool"] {
+            match value.get(key) {
+                Some(serde_json::Value::Null) => {}
+                Some(serde_json::Value::String(text)) => {
+                    if key == "parent_version_id" && uuid::Uuid::parse_str(text).map_or(true, |id| id.is_nil()) {
+                        return Err(invalid());
+                    }
+                }
+                _ => return Err(invalid()),
+            }
+        }
+        if latest.as_ref().is_none_or(|head| row.seq > head.seq) { latest = Some(row); }
+    }
+    Ok(AtelierCkcSelectedHeadRow { character, latest_sheet: latest })
 }
 
 async fn fetch_atelier_characters(
@@ -21782,6 +21951,38 @@ impl AtelierClient {
             let result = load_atelier_ckc(&client, account.clone(), &characters_url, &base_url).await;
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(result.map_err(|e| e.to_string()));
+            }
+        });
+    }
+
+    /// Fetch a selected CKC identity and its actual head without the character-list cap.
+    /// The captured immutable account context is reused for both authenticated GETs.
+    pub fn fetch_ckc_selected_head(
+        &self,
+        character_internal_id: &str,
+        cell: AtelierCkcSelectedHeadCell,
+    ) {
+        let character_spec = self.character_request(character_internal_id);
+        let sheets_spec = self.sheet_versions_request(character_internal_id);
+        let target = character_internal_id.to_owned();
+        let client = self.client.clone();
+        let account = self.authenticated_context.clone();
+        self.runtime.spawn(async move {
+            let result = async {
+                let requested = uuid::Uuid::parse_str(&target).map_err(|_|
+                    AppError::Parse("Invalid selected CKC character identity".to_owned()))?;
+                if requested.is_nil() {
+                    return Err(AppError::Parse("Invalid selected CKC character identity".to_owned()));
+                }
+                let identity = get_json(&client, account.clone(), &character_spec.url, &character_spec.query).await?;
+                let character = parse_atelier_selected_character(&target, &identity)?;
+                let history = get_json(&client, account.clone(), &sheets_spec.url, &sheets_spec.query).await?;
+                parse_atelier_selected_sheet_head(character, &history)
+            }.await.map_err(|error| error.to_string());
+            if let Ok(mut slot) = cell.lock() {
+                *slot = Some(if result.is_ok() && !account.as_ref().is_some_and(|context| context.is_active()) {
+                    Err("Account session is no longer active".to_owned())
+                } else { result });
             }
         });
     }

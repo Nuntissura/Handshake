@@ -21,6 +21,7 @@ use crate::backend_client::{
     AtelierCkcMediaMemberRow, AtelierCkcMediaNotesCell, AtelierCkcMediaNotesTagsRow,
     AtelierCkcMoodboardSnapshotCell, AtelierCkcMoodboardSnapshotRow, AtelierCkcSafeSubsetCell,
     AtelierCkcSearchCell, AtelierCkcSearchResponse, AtelierCkcSearchResultRow,
+    AtelierCkcSelectedHeadCell, AtelierCkcSelectedHeadRow,
     AtelierCkcSheetArtifactLinkRow, AtelierCkcSheetArtifactLinksCell, AtelierCkcStoryBeatCell,
     AtelierCkcStoryBeatRow, AtelierCkcStoryCardCell, AtelierCkcStoryCardRow, AtelierCkcTagNoteCell,
     AtelierCkcTagNoteRow, AtelierCkcTemplateCell, AtelierClient, AtelierContactSheetExportCell,
@@ -476,10 +477,13 @@ pub const ATELIER_CKC_ERROR_AUTHOR_ID: &str = "atelier-ckc-error";
 pub const ATELIER_CKC_SELECTED_CHARACTER_AUTHOR_ID: &str = "atelier-ckc-selected-character";
 pub const ATELIER_CKC_CHARACTER_CREATE_NAME_AUTHOR_ID: &str = "atelier-ckc-character-create-name";
 pub const ATELIER_CKC_CHARACTER_CREATE_AUTHOR_ID: &str = "atelier-ckc-character-create";
+pub const ATELIER_CKC_CHARACTER_CREATE_STATUS_AUTHOR_ID: &str = "atelier-ckc-character-create-status";
 pub const ATELIER_CKC_CHARACTER_REF_AUTHOR_ID: &str = "atelier-ckc-character-ref";
 pub const ATELIER_CKC_SHEET_VERSION_REF_AUTHOR_ID: &str = "atelier-ckc-sheet-version-ref";
 pub const ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID: &str = "atelier-ckc-sheet-editor";
 pub const ATELIER_CKC_SHEET_SAVE_AUTHOR_ID: &str = "atelier-ckc-sheet-save-version";
+pub const ATELIER_CKC_REFRESH_AUTHOR_ID: &str = "atelier-ckc-refresh-saved-sheets";
+pub const ATELIER_CKC_REFRESH_STATUS_AUTHOR_ID: &str = "atelier-ckc-refresh-saved-sheets-status";
 // MT-037 (F1): CKC sheet-version local-fallback containment. The local "Append sheet version" branch used
 // to SILENTLY mint a backend-looking sheet_version_ref with no status and no receipt (silent data loss).
 // These surface a non-persistent status plus a persistence-mode receipt mirroring the story/moodboard node.
@@ -1440,6 +1444,10 @@ struct CkcCharacterRecord {
     parent_sheet_version_id: Option<String>,
     sheet_seq: i64,
     sheet_editor_text: String,
+    sheet_loaded_text: Option<String>,
+    sheet_status: Option<String>,
+    sheet_list_observation: CkcSheetListObservation,
+    sheet_head_observation: CkcSheetHeadObservation,
     sheet_version_ref: Option<String>,
     sheet_artifact_links: Vec<CkcSheetArtifactLinkRecord>,
     media_album_offset: i64,
@@ -1834,6 +1842,57 @@ fn ckc_search_result_matches_filters(
         && (!use_media || ckc_result_has_ref(result, filters.media_ref.as_deref()))
 }
 
+#[derive(Debug, Clone, Copy)]
+enum CkcSheetListObservation {
+    Unknown,
+    Listed(u64),
+    Unlisted(u64),
+}
+
+#[derive(Debug, Clone)]
+enum CkcSheetHeadObservation {
+    Unknown,
+    Pending(u64),
+    Observed { refresh: u64, version_id: Option<String>, seq: i64 },
+    Failed { refresh: u64, detail: String },
+}
+
+#[derive(Debug, Clone)]
+struct CkcSheetHeadRequest {
+    character_internal_id: String,
+    refresh: u64,
+}
+
+#[derive(Debug)]
+struct CkcCreateRequest {
+    selected_character_internal_id: Option<String>,
+    selected_sheet: Option<CkcSheetRequest>,
+    import_text: String,
+    dispatch_ui: Option<(egui::Context, egui::ViewportId, u64)>,
+    name_input: String,
+    last_export: Option<AtelierSheetExportRow>,
+    export_pending: bool,
+    export_status: String,
+    error: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CkcSheetRequest {
+    character_internal_id: String,
+    expected_parent_version_id: Option<String>,
+    draft_text: String,
+}
+
+impl CkcSheetRequest {
+    fn capture(character: &CkcCharacterRecord) -> Self {
+        Self {
+            character_internal_id: character.character_internal_id.clone(),
+            expected_parent_version_id: character.sheet_version_id.clone(),
+            draft_text: character.sheet_editor_text.clone(),
+        }
+    }
+}
+
 impl CkcCharacterRecord {
     fn character_ref(&self) -> String {
         if self.character_ref.is_empty() {
@@ -1926,6 +1985,10 @@ impl CkcCharacterRecord {
             sheet_version_id,
             parent_sheet_version_id,
             sheet_seq,
+            sheet_loaded_text: Some(sheet_editor_text.clone()),
+            sheet_status: None,
+            sheet_list_observation: CkcSheetListObservation::Unknown,
+            sheet_head_observation: CkcSheetHeadObservation::Unknown,
             sheet_editor_text,
             sheet_version_ref,
             sheet_artifact_links: sheet_artifact_links
@@ -1959,6 +2022,10 @@ impl CkcCharacterRecord {
                 "name: {}\nrole: reusable character/avatar\npipelines: ComfyUI, Unreal, Blender\nnotes: ",
                 character.display_name
             ),
+            sheet_loaded_text: None,
+            sheet_status: None,
+            sheet_list_observation: CkcSheetListObservation::Unknown,
+            sheet_head_observation: CkcSheetHeadObservation::Unknown,
             sheet_version_ref: None,
             sheet_artifact_links: Vec::new(),
             media_album_offset: 0,
@@ -1972,15 +2039,115 @@ impl CkcCharacterRecord {
         }
     }
 
-    fn apply_sheet_version(&mut self, sheet: AtelierSheetVersionRow) {
-        self.character_internal_id = sheet.character_internal_id;
+    fn apply_sheet_version(&mut self, sheet: AtelierSheetVersionRow, draft_at_submit: &str) -> bool {
+        if sheet.seq < self.sheet_seq
+            || (sheet.seq == self.sheet_seq
+                && self.sheet_version_id.as_deref() != Some(sheet.version_id.as_str()))
+        {
+            return false;
+        }
+        let head_changed = self.sheet_version_id.as_deref() != Some(sheet.version_id.as_str())
+            || self.sheet_seq != sheet.seq;
         self.character_ref = sheet.character_ref;
         self.parent_sheet_version_id = sheet.parent_version_id;
         self.sheet_version_id = Some(sheet.version_id);
         self.sheet_seq = sheet.seq;
-        self.sheet_editor_text = sheet.raw_text;
+        self.sheet_loaded_text = Some(sheet.raw_text.clone());
+        if self.sheet_editor_text == draft_at_submit {
+            self.sheet_editor_text = sheet.raw_text;
+        }
         self.sheet_version_ref = Some(sheet.sheet_version_ref);
-        self.sheet_artifact_links.clear();
+        if head_changed { self.sheet_artifact_links.clear(); }
+        true
+    }
+
+    fn has_current_head_observation(&self, refresh: u64) -> bool {
+        matches!(&self.sheet_head_observation,
+            CkcSheetHeadObservation::Observed { refresh: observed, version_id, seq }
+                if *observed == refresh && version_id == &self.sheet_version_id && *seq == self.sheet_seq)
+    }
+
+    fn sheet_refresh_readout(&self, refresh: u64) -> String {
+        let presence = match self.sheet_list_observation {
+            CkcSheetListObservation::Listed(observed) if observed == refresh => "listed in current projection",
+            CkcSheetListObservation::Unlisted(observed) if observed == refresh => "retained outside current list",
+            _ => "list presence not current",
+        };
+        let head = if self.has_current_head_observation(refresh) {
+            if self.sheet_version_id.is_some() {
+                format!("selected head observed in current refresh (v{}); review draft before retry", self.sheet_seq)
+            } else {
+                "empty saved history observed in current refresh; review draft before first save".to_owned()
+            }
+        } else {
+            match &self.sheet_head_observation {
+                CkcSheetHeadObservation::Pending(observed) if *observed == refresh =>
+                    "selected head read pending; withhold retry".to_owned(),
+                CkcSheetHeadObservation::Failed { refresh: observed, detail } if *observed == refresh =>
+                    format!("selected head read failed: {detail}; withhold retry"),
+                _ => "selected head not observed in current refresh; refresh before retry".to_owned(),
+            }
+        };
+        format!("{presence}; {head}")
+    }
+
+    fn observe_selected_head(&mut self, result: AtelierCkcSelectedHeadRow, refresh: u64) {
+        let failure = if result.character.internal_id != self.character_internal_id {
+            Some("Selected-character response did not match the request.".to_owned())
+        } else if let Some(sheet) = result.latest_sheet {
+            if sheet.character_internal_id != self.character_internal_id {
+                Some("Selected sheet did not match the requested character.".to_owned())
+            } else {
+                let draft = self.sheet_editor_text.clone();
+                let dirty = self.has_sheet_draft();
+                if self.apply_sheet_version(sheet, &draft) {
+                    if dirty { self.sheet_editor_text = draft; }
+                    self.sheet_head_observation = CkcSheetHeadObservation::Observed {
+                        refresh, version_id: self.sheet_version_id.clone(), seq: self.sheet_seq,
+                    };
+                    None
+                } else {
+                    Some("Saved head advanced while the read was pending; refresh again.".to_owned())
+                }
+            }
+        } else if self.sheet_version_id.is_none() && self.sheet_seq == 0 {
+            self.sheet_loaded_text = Some(String::new());
+            self.sheet_artifact_links.clear();
+            self.sheet_head_observation = CkcSheetHeadObservation::Observed {
+                refresh, version_id: None, seq: 0,
+            };
+            None
+        } else {
+            Some("Empty history does not match the current saved head; refresh again.".to_owned())
+        };
+        if let Some(detail) = failure {
+            self.sheet_head_observation = CkcSheetHeadObservation::Failed { refresh, detail };
+        }
+    }
+
+    fn has_sheet_draft(&self) -> bool {
+        self.sheet_version_id.is_none()
+            || self.sheet_loaded_text.as_deref() != Some(self.sheet_editor_text.as_str())
+    }
+
+    fn preserve_sheet_draft(&mut self, previous: &Self) {
+        let dirty = previous.has_sheet_draft();
+        if self.sheet_seq < previous.sheet_seq
+            || (self.sheet_seq == previous.sheet_seq
+                && self.sheet_version_id != previous.sheet_version_id)
+        {
+            self.parent_sheet_version_id = previous.parent_sheet_version_id.clone();
+            self.sheet_version_id = previous.sheet_version_id.clone();
+            self.sheet_seq = previous.sheet_seq;
+            self.sheet_version_ref = previous.sheet_version_ref.clone();
+            self.sheet_artifact_links = previous.sheet_artifact_links.clone();
+            self.sheet_loaded_text = previous.sheet_loaded_text.clone();
+            self.sheet_editor_text = previous.sheet_editor_text.clone();
+        } else if dirty {
+            self.sheet_editor_text = previous.sheet_editor_text.clone();
+        }
+        self.sheet_status = previous.sheet_status.clone();
+        self.sheet_head_observation = previous.sheet_head_observation.clone();
     }
 
     fn first_media_location(&self) -> Option<(usize, usize)> {
@@ -3555,8 +3722,14 @@ struct AtelierPanelState {
     ckc_backend_loaded: bool,
     ckc_load_requested: bool,
     ckc_loading: bool,
+    ckc_refresh_status: String,
+    ckc_refresh_seq: u64,
+    ckc_head_request: Option<CkcSheetHeadRequest>,
     ckc_create_pending: bool,
+    ckc_create_request: Option<CkcCreateRequest>,
+    ckc_create_status: String,
     ckc_append_pending: bool,
+    ckc_append_request: Option<CkcSheetRequest>,
     // MT-037 (F1): transient status for the sheet-version save surface (local vs backend).
     ckc_sheet_status: String,
     ckc_template_pending: bool,
@@ -3564,6 +3737,7 @@ struct AtelierPanelState {
     ckc_template_status: String,
     ckc_import_text: String,
     ckc_import_pending: bool,
+    ckc_import_request: Option<CkcSheetRequest>,
     ckc_export_pending: bool,
     ckc_export_status: String,
     ckc_last_export: Option<AtelierSheetExportRow>,
@@ -3826,6 +4000,124 @@ struct AtelierPanelState {
 }
 
 impl AtelierPanelState {
+    fn begin_ckc_create_request(&mut self) {
+        self.ckc_create_pending = true;
+        self.ckc_error = None;
+        self.ckc_create_status = "Creating character...".to_owned();
+        self.ckc_create_request = Some(CkcCreateRequest {
+            selected_character_internal_id: self.ckc_characters.get(self.ckc_selected_index)
+                .map(|row| row.character_internal_id.clone()),
+            selected_sheet: self.ckc_characters.get(self.ckc_selected_index)
+                .map(CkcSheetRequest::capture),
+            import_text: self.ckc_import_text.clone(),
+            dispatch_ui: None,
+            name_input: self.ckc_new_display_name.clone(),
+            last_export: self.ckc_last_export.clone(),
+            export_pending: self.ckc_export_pending,
+            export_status: self.ckc_export_status.clone(),
+            error: self.ckc_error.clone(),
+        });
+    }
+
+    fn note_ckc_sheet_interaction(&mut self, ctx: &egui::Context, edited_or_acted: bool, gained_focus: bool) {
+        let same_dispatch_frame = self.ckc_create_request.as_ref()
+            .and_then(|request| request.dispatch_ui.as_ref())
+            .is_some_and(|(dispatch_ctx, viewport, frame)| dispatch_ctx == ctx
+                && *viewport == ctx.viewport_id() && *frame == ctx.cumulative_frame_nr());
+        if edited_or_acted || (gained_focus && !same_dispatch_frame) {
+            self.ckc_create_request = None;
+        }
+    }
+
+    fn finish_ckc_create_request(&mut self, result: Result<AtelierCharacterRow, String>) -> bool {
+        let follow_creation = self.ckc_create_request.take().is_some_and(|request| {
+            request.selected_character_internal_id == self.ckc_characters.get(self.ckc_selected_index)
+                .map(|row| row.character_internal_id.clone())
+                && request.selected_sheet == self.ckc_characters.get(self.ckc_selected_index)
+                    .map(CkcSheetRequest::capture)
+                && request.import_text == self.ckc_import_text
+                && request.name_input == self.ckc_new_display_name
+                && request.last_export == self.ckc_last_export
+                && request.export_pending == self.ckc_export_pending
+                && request.export_status == self.ckc_export_status
+                && request.error == self.ckc_error
+        });
+        self.ckc_create_pending = false;
+        match result {
+            Ok(character) => {
+                let selected_id = character.internal_id.clone();
+                let public_id = character.public_id.clone();
+                if !self.ckc_characters.iter().any(|row| row.character_internal_id == selected_id) {
+                    self.ckc_characters.push(CkcCharacterRecord::from_created_character(character));
+                }
+                self.ckc_create_status = if follow_creation {
+                    format!("Created CKC character {public_id}.")
+                } else {
+                    format!("Created CKC character {public_id}; current selection and inputs kept.")
+                };
+                if follow_creation {
+                    self.ckc_selected_index = self.ckc_characters.iter()
+                        .position(|row| row.character_internal_id == selected_id).unwrap_or(0);
+                    self.ckc_new_display_name = "New character".to_owned();
+                    self.ckc_backend_loaded = true;
+                    self.ckc_last_export = None;
+                    self.ckc_error = None;
+                }
+                follow_creation
+            }
+            Err(error) => {
+                self.ckc_create_status = format!("Create failed: {error}. Selection and inputs kept.");
+                if follow_creation { self.ckc_error = Some(error); }
+                false
+            }
+        }
+    }
+
+    fn finish_sheet_request(
+        &mut self,
+        request: Option<CkcSheetRequest>,
+        result: Result<AtelierSheetVersionRow, String>,
+        operation: &str,
+    ) -> Option<String> {
+        let request = request?;
+        let selected = self.ckc_characters.get(self.ckc_selected_index)
+            .is_some_and(|row| row.character_internal_id == request.character_internal_id);
+        let character = self.ckc_characters.iter_mut()
+            .find(|row| row.character_internal_id == request.character_internal_id)?;
+        let (status, failed) = match result {
+            Ok(sheet) if sheet.character_internal_id == request.character_internal_id
+                && sheet.parent_version_id == request.expected_parent_version_id =>
+            {
+                let seq = sheet.seq;
+                let newer_draft = character.sheet_editor_text != request.draft_text;
+                let applied = character.apply_sheet_version(sheet, &request.draft_text);
+                let suffix = if !applied {
+                    "; newer head and draft kept"
+                } else if newer_draft {
+                    "; newer draft kept"
+                } else {
+                    ""
+                };
+                (format!("Saved {} sheet v{seq} ({operation}){suffix}.", character.public_id), false)
+            }
+            Ok(_) => (format!("{} sheet {operation} response did not match the request. Draft kept.", character.public_id), true),
+            Err(err) => (format!("{} sheet {operation} failed: {err}. Draft kept.", character.public_id), true),
+        };
+        character.sheet_status = Some(status.clone());
+        if failed {
+            character.sheet_head_observation = CkcSheetHeadObservation::Unknown;
+        }
+        if selected {
+            if failed {
+                self.ckc_error = Some(status.clone());
+            } else {
+                self.ckc_last_export = None;
+                self.ckc_error = None;
+            }
+        }
+        Some(status)
+    }
+
     fn clear_context(&mut self, previous: &Self) {
         self.active_tab = previous.active_tab;
         self.ckc_book_mode = previous.ckc_book_mode;
@@ -3903,8 +4195,14 @@ impl Default for AtelierPanelState {
             ckc_backend_loaded: false,
             ckc_load_requested: false,
             ckc_loading: false,
+            ckc_refresh_status: "No saved-sheet refresh yet.".to_owned(),
+            ckc_refresh_seq: 0,
+            ckc_head_request: None,
             ckc_create_pending: false,
+            ckc_create_request: None,
+            ckc_create_status: "No character creation requested.".to_owned(),
             ckc_append_pending: false,
+            ckc_append_request: None,
             ckc_sheet_status: "CKC sheet-version controls ready.".to_owned(),
             ckc_template_pending: false,
             ckc_safe_subset_pending: false,
@@ -3912,6 +4210,7 @@ impl Default for AtelierPanelState {
                 "Built-in CKC template: not loaded; use Load template or Safe subset.".to_owned(),
             ckc_import_text: String::new(),
             ckc_import_pending: false,
+            ckc_import_request: None,
             ckc_export_pending: false,
             ckc_export_status: "No CKC sheet export requested.".to_owned(),
             ckc_last_export: None,
@@ -5481,6 +5780,10 @@ fn seeded_ckc_characters() -> Vec<CkcCharacterRecord> {
             parent_sheet_version_id: None,
             sheet_seq: 1,
             sheet_editor_text: "CHAR-ID-001 — Character_ID: mira-demo\nCHAR-ID-002 — Name: Mira Demo\nCHAR-ID-006 — Primary_Role: reusable character/avatar\nPIPELINES\npipelines: ComfyUI, Unreal, Blender\nnotes: seed CKC sheet for Argus and model workflow proof".to_owned(),
+            sheet_loaded_text: None,
+            sheet_status: None,
+            sheet_list_observation: CkcSheetListObservation::Unknown,
+            sheet_head_observation: CkcSheetHeadObservation::Unknown,
             sheet_version_ref: Some(
                 "atelier://sheet/018f7848-1111-7000-9000-000000000001/018f7848-1111-7000-9000-000000000101".to_owned(),
             ),
@@ -5552,6 +5855,10 @@ fn seeded_ckc_characters() -> Vec<CkcCharacterRecord> {
             parent_sheet_version_id: None,
             sheet_seq: 1,
             sheet_editor_text: "CHAR-ID-001 — Character_ID: aria-demo\nCHAR-ID-002 — Name: Aria Demo\nCHAR-ID-006 — Primary_Role: production avatar reference\nPIPELINES\npipelines: CKC albums, Posekit, ComfyUI\nnotes: second selectable sheet proves CKC is a database surface".to_owned(),
+            sheet_loaded_text: None,
+            sheet_status: None,
+            sheet_list_observation: CkcSheetListObservation::Unknown,
+            sheet_head_observation: CkcSheetHeadObservation::Unknown,
             sheet_version_ref: Some(
                 "atelier://sheet/018f7848-1111-7000-9000-000000000002/018f7848-1111-7000-9000-000000000201".to_owned(),
             ),
@@ -7315,7 +7622,8 @@ struct AtelierPanelRuntime {
     /// the whole app is out of scope (MT-022); this only stops the moodboard writing to the wrong store.
     moodboard_board: Arc<Mutex<LoomCanvasBoard>>,
     ckc_client: Option<AtelierClient>,
-    ckc_cell: AtelierCkcCell,
+    ckc_cell: Mutex<AtelierCkcCell>,
+    ckc_head_cell: Mutex<AtelierCkcSelectedHeadCell>,
     ckc_create_cell: AtelierCkcCreateCell,
     ckc_append_cell: AtelierCkcAppendCell,
     ckc_template_cell: AtelierCkcTemplateCell,
@@ -7397,7 +7705,8 @@ impl AtelierPanelRuntime {
             // or persists into the shared Loom workspace/canvas block.
             moodboard_board: Arc::new(Mutex::new(moodboard_board)),
             ckc_client,
-            ckc_cell: Arc::new(Mutex::new(None)),
+            ckc_cell: Mutex::new(Arc::new(Mutex::new(None))),
+            ckc_head_cell: Mutex::new(Arc::new(Mutex::new(None))),
             ckc_create_cell: Arc::new(Mutex::new(None)),
             ckc_append_cell: Arc::new(Mutex::new(None)),
             ckc_template_cell: Arc::new(Mutex::new(None)),
@@ -8775,30 +9084,80 @@ impl AtelierPanelRuntime {
         }
     }
 
-    fn ensure_ckc_load_requested(&self) {
-        let Some(client) = self.ckc_client.as_ref() else {
-            return;
-        };
-        let should_request = {
-            let Ok(mut state) = self.state.lock() else {
-                return;
-            };
-            if state.ckc_load_requested {
-                false
-            } else {
-                state.ckc_load_requested = true;
-                state.ckc_loading = true;
-                state.ckc_error = None;
-                true
+    fn begin_ckc_refresh(&self, state: &mut AtelierPanelState) -> AtelierCkcCell {
+        let cell = Arc::new(Mutex::new(None));
+        *self.ckc_cell.lock().unwrap_or_else(|error| error.into_inner()) = cell.clone();
+        *self.ckc_head_cell.lock().unwrap_or_else(|error| error.into_inner()) =
+            Arc::new(Mutex::new(None));
+        state.ckc_refresh_seq = state.ckc_refresh_seq.wrapping_add(1).max(1);
+        state.ckc_head_request = None;
+        state.ckc_load_requested = true;
+        state.ckc_loading = true;
+        state.ckc_refresh_status = "Refreshing saved sheets; drafts kept.".to_owned();
+        state.ckc_error = None;
+        cell
+    }
+
+    fn begin_ckc_selected_head(
+        &self, state: &mut AtelierPanelState,
+    ) -> Option<(String, AtelierCkcSelectedHeadCell)> {
+        let character = state.ckc_characters.get_mut(state.ckc_selected_index)?;
+        let target = character.character_internal_id.clone();
+        character.sheet_head_observation = CkcSheetHeadObservation::Pending(state.ckc_refresh_seq);
+        state.ckc_head_request = Some(CkcSheetHeadRequest {
+            character_internal_id: target.clone(), refresh: state.ckc_refresh_seq,
+        });
+        let cell = self.ckc_head_cell.lock().unwrap_or_else(|error| error.into_inner()).clone();
+        Some((target, cell))
+    }
+
+    fn request_ckc_refresh(&self, state: &mut AtelierPanelState) -> bool {
+        let Some(client) = self.ckc_client.as_ref() else { return false; };
+        let cell = self.begin_ckc_refresh(state);
+        let selected = self.begin_ckc_selected_head(state);
+        client.fetch_ckc(cell);
+        if let Some((target, cell)) = selected {
+            client.fetch_ckc_selected_head(&target, cell);
+        }
+        true
+    }
+
+    fn drain_ckc_selected_head(&self) {
+        let result = self.ckc_head_cell.lock().ok().and_then(|cell| {
+            let result = cell.lock().ok().and_then(|mut slot| slot.take());
+            result
+        });
+        if let Some(result) = result {
+            if let Ok(mut state) = self.state.lock() {
+                let Some(request) = state.ckc_head_request.take() else { return; };
+                if request.refresh != state.ckc_refresh_seq { return; }
+                if let Some(character) = state.ckc_characters.iter_mut()
+                    .find(|row| row.character_internal_id == request.character_internal_id)
+                {
+                    match result {
+                        Ok(head) => character.observe_selected_head(head, request.refresh),
+                        Err(detail) => character.sheet_head_observation =
+                            CkcSheetHeadObservation::Failed { refresh: request.refresh, detail },
+                    }
+                }
             }
-        };
-        if should_request {
-            client.fetch_ckc(self.ckc_cell.clone());
+        }
+    }
+
+    fn ensure_ckc_load_requested(&self) {
+        if self.ckc_client.is_none() { return; }
+        if let Ok(mut state) = self.state.lock() {
+            if !state.ckc_load_requested {
+                self.request_ckc_refresh(&mut state);
+            }
         }
     }
 
     fn drain_ckc_backend(&self) {
-        let load_result = self.ckc_cell.lock().ok().and_then(|mut slot| slot.take());
+        let load_result = self.ckc_cell.lock().ok().and_then(|cell| {
+            let result = cell.lock().ok().and_then(|mut slot| slot.take());
+            result
+        });
         if let Some(result) = load_result {
             if let Ok(mut state) = self.state.lock() {
                 state.ckc_loading = false;
@@ -8808,11 +9167,43 @@ impl AtelierPanelRuntime {
                             .ckc_characters
                             .get(state.ckc_selected_index)
                             .map(|row| row.character_internal_id.clone());
-                        state.ckc_characters = data
-                            .characters
-                            .into_iter()
-                            .map(CkcCharacterRecord::from_backend)
-                            .collect();
+                        let incoming_count = data.characters.len();
+                        let mut previous = std::mem::take(&mut state.ckc_characters);
+                        let mut loaded: Vec<_> = data.characters.into_iter().map(|row| {
+                            let mut loaded = CkcCharacterRecord::from_backend(row);
+                            if let Some(index) = previous.iter().position(|row| {
+                                row.character_internal_id == loaded.character_internal_id
+                            }) {
+                                loaded.preserve_sheet_draft(&previous.swap_remove(index));
+                            }
+                            loaded.sheet_list_observation =
+                                CkcSheetListObservation::Listed(state.ckc_refresh_seq);
+                            loaded
+                        }).collect();
+                        let mut retained = 0;
+                        for mut row in previous {
+                            let in_flight = [&state.ckc_append_request, &state.ckc_import_request]
+                                .into_iter().flatten().any(|request| {
+                                    request.character_internal_id == row.character_internal_id
+                                });
+                            let head_pending = state.ckc_head_request.as_ref().is_some_and(|request| {
+                                request.character_internal_id == row.character_internal_id
+                            });
+                            let selected_target = selected_id.as_deref()
+                                == Some(row.character_internal_id.as_str());
+                            if row.has_sheet_draft() || in_flight || head_pending || selected_target
+                                || row.has_current_head_observation(state.ckc_refresh_seq)
+                            {
+                                row.sheet_list_observation =
+                                    CkcSheetListObservation::Unlisted(state.ckc_refresh_seq);
+                                loaded.push(row);
+                                retained += 1;
+                            }
+                        }
+                        state.ckc_characters = loaded;
+                        state.ckc_refresh_status = format!(
+                            "Refreshed {incoming_count} listed character(s); kept {retained} unlisted record(s)."
+                        );
                         state.ckc_selected_index = selected_id
                             .and_then(|id| {
                                 state
@@ -8832,17 +9223,19 @@ impl AtelierPanelRuntime {
                             .or(filters.character_ref.clone())
                             .unwrap_or_default();
                         state.ckc_search_status = format!(
-                            "CKC database loaded ({} character(s)); run search for live refs",
-                            state.ckc_characters.len()
+                            "CKC database refreshed ({incoming_count} listed, {retained} unlisted records retained); run search for live refs"
                         );
                     }
                     Err(err) => {
                         state.ckc_backend_loaded = false;
+                        state.ckc_refresh_status = format!("Refresh failed: {err}. Drafts kept.");
                         state.ckc_error = Some(err);
                     }
                 }
             }
         }
+
+        self.drain_ckc_selected_head();
 
         let create_result = self
             .ckc_create_cell
@@ -8852,41 +9245,13 @@ impl AtelierPanelRuntime {
         let mut refresh_after_create = false;
         if let Some(result) = create_result {
             if let Ok(mut state) = self.state.lock() {
-                state.ckc_create_pending = false;
-                match result {
-                    Ok(character) => {
-                        let record = CkcCharacterRecord::from_created_character(character);
-                        let selected_id = record.character_internal_id.clone();
-                        if let Some(existing) = state
-                            .ckc_characters
-                            .iter_mut()
-                            .find(|row| row.character_internal_id == selected_id)
-                        {
-                            *existing = record;
-                        } else {
-                            state.ckc_characters.push(record);
-                        }
-                        state.ckc_selected_index = state
-                            .ckc_characters
-                            .iter()
-                            .position(|row| row.character_internal_id == selected_id)
-                            .unwrap_or(0);
-                        state.ckc_new_display_name = "New character".to_owned();
-                        state.ckc_backend_loaded = true;
-                        state.ckc_loading = self.ckc_client.is_some();
-                        state.ckc_last_export = None;
-                        state.ckc_error = None;
-                        refresh_after_create = self.ckc_client.is_some();
-                    }
-                    Err(err) => {
-                        state.ckc_error = Some(err);
-                    }
-                }
+                refresh_after_create = state.finish_ckc_create_request(result)
+                    && self.ckc_client.is_some();
             }
         }
         if refresh_after_create {
-            if let Some(client) = self.ckc_client.as_ref() {
-                client.fetch_ckc(self.ckc_cell.clone());
+            if let Ok(mut state) = self.state.lock() {
+                self.request_ckc_refresh(&mut state);
             }
         }
 
@@ -8898,23 +9263,8 @@ impl AtelierPanelRuntime {
         if let Some(result) = append_result {
             if let Ok(mut state) = self.state.lock() {
                 state.ckc_append_pending = false;
-                match result {
-                    Ok(sheet) => {
-                        let character_internal_id = sheet.character_internal_id.clone();
-                        if let Some(row) = state
-                            .ckc_characters
-                            .iter_mut()
-                            .find(|row| row.character_internal_id == character_internal_id)
-                        {
-                            row.apply_sheet_version(sheet);
-                        }
-                        state.ckc_last_export = None;
-                        state.ckc_error = None;
-                    }
-                    Err(err) => {
-                        state.ckc_error = Some(err);
-                    }
-                }
+                let request = state.ckc_append_request.take();
+                state.finish_sheet_request(request, result, "append");
             }
         }
 
@@ -8979,25 +9329,9 @@ impl AtelierPanelRuntime {
         if let Some(result) = import_result {
             if let Ok(mut state) = self.state.lock() {
                 state.ckc_import_pending = false;
-                match result {
-                    Ok(sheet) => {
-                        let character_internal_id = sheet.character_internal_id.clone();
-                        let seq = sheet.seq;
-                        if let Some(row) = state
-                            .ckc_characters
-                            .iter_mut()
-                            .find(|row| row.character_internal_id == character_internal_id)
-                        {
-                            row.apply_sheet_version(sheet);
-                        }
-                        state.ckc_export_status =
-                            format!("Imported CKC sheet as append-only version v{seq}");
-                        state.ckc_last_export = None;
-                        state.ckc_error = None;
-                    }
-                    Err(err) => {
-                        state.ckc_export_status = format!("CKC sheet import failed: {err}");
-                    }
+                let request = state.ckc_import_request.take();
+                if let Some(status) = state.finish_sheet_request(request, result, "import") {
+                    state.ckc_export_status = status;
                 }
             }
         }
@@ -10787,7 +11121,40 @@ impl AtelierPanelRuntime {
             state.ckc_characters = seeded_ckc_characters();
             state.ckc_selected_index = 0;
         }
+        ui.horizontal_wrapped(|ui| {
+            let refresh = ui.add_enabled(
+                self.ckc_client.is_some() && !state.ckc_loading && state.ckc_head_request.is_none(),
+                egui::Button::new("Refresh saved sheets"),
+            );
+            emit_node(ui.ctx(), refresh.id, accesskit::Role::Button,
+                ATELIER_CKC_REFRESH_AUTHOR_ID, "Refresh saved CKC sheets without discarding drafts",
+                state.ckc_loading || state.ckc_head_request.is_some());
+            if refresh.clicked() {
+                state.ckc_create_request = None;
+                if self.request_ckc_refresh(&mut state) {
+                    crate::mcp::argus::acknowledge_action_effect_allow_target_transition(
+                        ui.ctx(), ATELIER_CKC_REFRESH_AUTHOR_ID,
+                    );
+                }
+            }
+            let status = if self.ckc_client.is_some() {
+                if let Some(character) = state.ckc_characters.get(state.ckc_selected_index) {
+                    format!("{} Selected {}: {}.", state.ckc_refresh_status, character.public_id,
+                        character.sheet_refresh_readout(state.ckc_refresh_seq))
+                } else {
+                    format!("{} No selected head observed; select a character and refresh before retry.",
+                        state.ckc_refresh_status)
+                }
+            } else {
+                "Backend unavailable; local preview is not persisted.".to_owned()
+            };
+            let response = ui.label(egui::RichText::new(&status).color(palette.text_subtle));
+            emit_value_node(ui.ctx(), response.id, accesskit::Role::Label,
+                ATELIER_CKC_REFRESH_STATUS_AUTHOR_ID, "Saved-sheet refresh status", &status);
+        });
+        let previous_book_mode = state.ckc_book_mode;
         self.show_ckc_mode_controls(ui, palette, &mut state.ckc_book_mode);
+        if state.ckc_book_mode != previous_book_mode { state.ckc_create_request = None; }
         let book_mode = state.ckc_book_mode;
         let selected_index = state
             .ckc_selected_index
@@ -10889,6 +11256,7 @@ impl AtelierPanelRuntime {
                             }
                         }
                         if let Some(idx) = pending_selection {
+                            state.ckc_create_request = None;
                             if state.ckc_selected_index != idx {
                                 state.ckc_selected_index = idx;
                                 state.ckc_last_export = None;
@@ -10911,6 +11279,7 @@ impl AtelierPanelRuntime {
                 ui.separator();
                 ui.horizontal(|ui| {
                     let create_name = ui.text_edit_singleline(&mut state.ckc_new_display_name);
+                    if create_name.changed() { state.ckc_create_request = None; }
                     emit_node(
                         ui.ctx(),
                         create_name.id,
@@ -10943,8 +11312,10 @@ impl AtelierPanelRuntime {
                                         &expected_thread_id,
                                     ) {
                                         Ok(model_ops) => {
-                                            state.ckc_create_pending = true;
-                                            state.ckc_error = None;
+                                            state.begin_ckc_create_request();
+                                            if let Some(request) = state.ckc_create_request.as_mut() {
+                                                request.dispatch_ui = Some((ui.ctx().clone(), ui.ctx().viewport_id(), ui.ctx().cumulative_frame_nr()));
+                                            }
                                             client.create_ckc_character(
                                                 &public_id,
                                                 &display_name,
@@ -10972,6 +11343,10 @@ impl AtelierPanelRuntime {
                                     sheet_editor_text: format!(
                                         "CHAR-ID-001 \u{2014} Character_ID: {public_id}\nCHAR-ID-002 \u{2014} Name: {display_name}\nCHAR-ID-006 \u{2014} Primary_Role: reusable character/avatar\nPIPELINES\npipelines: ComfyUI, Unreal, Blender\nnotes: "
                                     ),
+                                    sheet_loaded_text: None,
+                                    sheet_status: None,
+                                    sheet_list_observation: CkcSheetListObservation::Unknown,
+                                    sheet_head_observation: CkcSheetHeadObservation::Unknown,
                                     sheet_version_ref: None,
                                     sheet_artifact_links: Vec::new(),
                                     media_album_offset: 0,
@@ -10993,10 +11368,15 @@ impl AtelierPanelRuntime {
                                 state.ckc_error = Some(format!(
                                     "Created local CKC character {display_name}. Backend is unavailable; this is not persisted."
                                 ));
+                                state.ckc_create_status = state.ckc_error.clone().unwrap_or_default();
                             }
                         }
                     }
                 });
+                let create_status = ui.label(&state.ckc_create_status);
+                emit_value_node(ui.ctx(), create_status.id, accesskit::Role::Label,
+                    ATELIER_CKC_CHARACTER_CREATE_STATUS_AUTHOR_ID, "Character creation status",
+                    &state.ckc_create_status);
                 ui.separator();
                 let selected_index = state
                     .ckc_selected_index
@@ -11509,11 +11889,13 @@ impl AtelierPanelRuntime {
         let append_pending = state.ckc_append_pending;
         let mut pending_append_request: Option<(String, String, Option<String>)> = None;
         let mut clear_last_export = false;
+        let mut sheet_interaction = (false, false);
         // MT-037 (F1): read the current sheet status once (disjoint from the character borrow below); the
         // local save branch collects a new status into pending_sheet_status and it is applied after.
         let sheet_status = state.ckc_sheet_status.clone();
         let mut pending_sheet_status: Option<String> = None;
         if let Some(character) = state.ckc_characters.get_mut(selected_index) {
+            let sheet_status = character.sheet_status.clone().unwrap_or(sheet_status);
             let selected_response = ui
                 .vertical(|ui| {
                     ui.heading(egui::RichText::new(&character.display_name).color(palette.text));
@@ -11610,10 +11992,16 @@ impl AtelierPanelRuntime {
                 sheet_backend_mode,
             );
             ui.add_space(8.0);
-            let editor = ui.add(
-                egui::TextEdit::multiline(&mut character.sheet_editor_text)
-                    .desired_rows(15)
-                    .lock_focus(true),
+            let cursor_before = egui::TextEdit::load_state(ui.ctx(), ui.next_auto_id())
+                .and_then(|edit| edit.cursor.char_range());
+            let output = egui::TextEdit::multiline(&mut character.sheet_editor_text)
+                .desired_rows(15).lock_focus(true).show(ui);
+            let cursor_changed = output.response.has_focus() && cursor_before.is_some()
+                && cursor_before != output.cursor_range;
+            let editor = output.response;
+            sheet_interaction = (
+                editor.changed() || editor.clicked() || editor.dragged() || cursor_changed,
+                editor.gained_focus(),
             );
             emit_node(
                 ui.ctx(),
@@ -11633,6 +12021,7 @@ impl AtelierPanelRuntime {
                 append_pending,
             );
             if save.clicked() {
+                sheet_interaction.0 = true;
                 if self.ckc_client.is_some() {
                     if !append_pending {
                         pending_append_request = Some((
@@ -11666,11 +12055,15 @@ impl AtelierPanelRuntime {
         } else {
             ui.label(egui::RichText::new("No CKC characters yet").color(palette.text_subtle));
         }
+        state.note_ckc_sheet_interaction(ui.ctx(), sheet_interaction.0, sheet_interaction.1);
         if clear_last_export {
             state.ckc_last_export = None;
         }
         // MT-037 (F1): apply the local sheet-version save status after the character borrow ends.
         if let Some(status) = pending_sheet_status {
+            if let Some(character) = state.ckc_characters.get_mut(selected_index) {
+                character.sheet_status = Some(status.clone());
+            }
             state.ckc_sheet_status = status;
         }
         if let Some((character_internal_id, raw_text, expected_parent_version_id)) =
@@ -11685,6 +12078,14 @@ impl AtelierPanelRuntime {
                 ) {
                     Ok(model_ops) => {
                         state.ckc_append_pending = true;
+                        state.ckc_append_request = Some(CkcSheetRequest {
+                            character_internal_id: character_internal_id.clone(),
+                            expected_parent_version_id: expected_parent_version_id.clone(),
+                            draft_text: raw_text.clone(),
+                        });
+                        if let Some(character) = state.ckc_characters.get_mut(selected_index) {
+                            character.sheet_status = Some("Saving sheet; draft remains editable.".to_owned());
+                        }
                         state.ckc_error = None;
                         client.append_ckc_sheet_version(
                             &character_internal_id,
@@ -11695,9 +12096,16 @@ impl AtelierPanelRuntime {
                             model_ops.context,
                             self.ckc_append_cell.clone(),
                         );
+                        crate::mcp::argus::acknowledge_action_effect(
+                            ui.ctx(), ATELIER_CKC_SHEET_SAVE_AUTHOR_ID,
+                        );
                     }
                     Err(err) => {
                         state.ckc_sheet_status = format!("CKC sheet append blocked: {err}");
+                        let status = state.ckc_sheet_status.clone();
+                        if let Some(character) = state.ckc_characters.get_mut(selected_index) {
+                            character.sheet_status = Some(status);
+                        }
                         state.ckc_error = Some(state.ckc_sheet_status.clone());
                     }
                 }
@@ -11713,7 +12121,7 @@ impl AtelierPanelRuntime {
         notes_buffer: &mut String,
         notes_source_key: &mut Option<String>,
         notes_status: &mut String,
-    ) {
+    ) -> (bool, bool) {
         let source_key = ckc_sheet_notes_source_key(character);
         if notes_source_key.as_deref() != Some(source_key.as_str()) {
             *notes_buffer = extract_ckc_sheet_notes(&character.sheet_editor_text);
@@ -11727,11 +12135,15 @@ impl AtelierPanelRuntime {
             )
             .color(palette.text_subtle),
         );
-        let notes = ui.add(
-            egui::TextEdit::multiline(notes_buffer)
-                .desired_rows(8)
-                .lock_focus(true),
-        );
+        let cursor_before = egui::TextEdit::load_state(ui.ctx(), ui.next_auto_id())
+            .and_then(|edit| edit.cursor.char_range());
+        let output = egui::TextEdit::multiline(notes_buffer)
+            .desired_rows(8).lock_focus(true).show(ui);
+        let cursor_changed = output.response.has_focus() && cursor_before.is_some()
+            && cursor_before != output.cursor_range;
+        let notes = output.response;
+        let edited = notes.changed() || notes.clicked() || notes.dragged() || cursor_changed;
+        let gained_focus = notes.gained_focus();
         emit_node(
             ui.ctx(),
             notes.id,
@@ -11758,6 +12170,7 @@ impl AtelierPanelRuntime {
                     .unwrap_or_else(|| "pending sheet".to_owned())
             );
         }
+        (edited || apply.clicked(), gained_focus)
     }
 
     fn show_ckc_moodboard_canvas(&self, ui: &mut egui::Ui, palette: &HsPalette) {
@@ -11808,8 +12221,9 @@ impl AtelierPanelRuntime {
                 let mut notes_source_key =
                     std::mem::take(&mut state.ckc_character_notes_source_key);
                 let mut notes_status = std::mem::take(&mut state.ckc_character_notes_status);
+                let mut notes_interaction = (false, false);
                 if let Some(character) = state.ckc_characters.get_mut(selected_index) {
-                    self.show_ckc_character_notes_panel(
+                    notes_interaction = self.show_ckc_character_notes_panel(
                         ui,
                         palette,
                         character,
@@ -11826,6 +12240,7 @@ impl AtelierPanelRuntime {
                 state.ckc_character_notes_buffer = notes_buffer;
                 state.ckc_character_notes_source_key = notes_source_key;
                 state.ckc_character_notes_status = notes_status;
+                state.note_ckc_sheet_interaction(ui.ctx(), notes_interaction.0, notes_interaction.1);
             }
             CkcBookMode::Story | CkcBookMode::Moodboard => {
                 let mode = state.ckc_book_mode;
@@ -12767,6 +13182,7 @@ impl AtelierPanelRuntime {
                 state.ckc_template_pending,
             );
             if load_template.clicked() {
+                state.ckc_create_request = None;
                 if let Some(client) = self.ckc_client.as_ref() {
                     state.ckc_template_pending = true;
                     state.ckc_template_status = "Loading CHARACTER_SHEET__v2.00.txt".to_owned();
@@ -12791,6 +13207,7 @@ impl AtelierPanelRuntime {
                 state.ckc_safe_subset_pending,
             );
             if load_safe.clicked() {
+                state.ckc_create_request = None;
                 if let Some(client) = self.ckc_client.as_ref() {
                     state.ckc_safe_subset_pending = true;
                     state.ckc_template_status = "Loading LLM_SAFE_SUBSET__v2.00.json".to_owned();
@@ -12804,11 +13221,16 @@ impl AtelierPanelRuntime {
         });
 
         ui.label(egui::RichText::new("Import raw sheet text").color(palette.text_subtle));
-        let import_editor = ui.add(
-            egui::TextEdit::multiline(&mut state.ckc_import_text)
-                .desired_rows(3)
-                .lock_focus(true),
-        );
+        let cursor_before = egui::TextEdit::load_state(ui.ctx(), ui.next_auto_id())
+            .and_then(|edit| edit.cursor.char_range());
+        let output = egui::TextEdit::multiline(&mut state.ckc_import_text)
+            .desired_rows(3).lock_focus(true).show(ui);
+        let cursor_changed = output.response.has_focus() && cursor_before.is_some()
+            && cursor_before != output.cursor_range;
+        let import_editor = output.response;
+        state.note_ckc_sheet_interaction(ui.ctx(),
+            import_editor.changed() || import_editor.clicked() || import_editor.dragged() || cursor_changed,
+            import_editor.gained_focus());
         emit_node(
             ui.ctx(),
             import_editor.id,
@@ -12838,6 +13260,7 @@ impl AtelierPanelRuntime {
                 state.ckc_import_pending || !import_enabled,
             );
             if import.clicked() {
+                state.ckc_create_request = None;
                 if let Some((character_internal_id, expected_parent_version_id)) =
                     selected_sheet.clone()
                 {
@@ -12850,6 +13273,8 @@ impl AtelierPanelRuntime {
                             &expected_thread_id,
                         ) {
                             Ok(model_ops) => {
+                                state.ckc_import_request = state.ckc_characters
+                                    .get(selected_index).map(CkcSheetRequest::capture);
                                 state.ckc_import_pending = true;
                                 state.ckc_export_status =
                                     "Importing CKC sheet as append-only version".to_owned();
@@ -12861,6 +13286,9 @@ impl AtelierPanelRuntime {
                                     &model_ops.actor_id,
                                     model_ops.context,
                                     self.ckc_import_cell.clone(),
+                                );
+                                crate::mcp::argus::acknowledge_action_effect_allow_target_transition(
+                                    ui.ctx(), ATELIER_CKC_IMPORT_AUTHOR_ID,
                                 );
                             }
                             Err(err) => {
@@ -13065,6 +13493,7 @@ impl AtelierPanelRuntime {
                 "Selected CKC character has no sheet version to export.".to_owned();
             return;
         };
+        state.ckc_create_request = None;
         if let Some(client) = self.ckc_client.as_ref() {
             state.ckc_export_pending = true;
             state.ckc_export_status = format!("Exporting CKC sheet as {format}");
@@ -18901,4 +19330,1078 @@ fn emit_pose_slider_node(
         node.add_action(accesskit::Action::SetValue);
         node.add_action(accesskit::Action::Focus);
     });
+}
+
+#[cfg(test)]
+mod sheet_draft_tests {
+    use super::*;
+    use crate::backend_client::AtelierCkcData;
+
+    fn runtime() -> AtelierPanelRuntime {
+        AtelierPanelRuntime::with_client(
+            Arc::new(Mutex::new(AtelierSidePanel::with_client(None))), None,
+        )
+    }
+
+    fn reply(request: &CkcSheetRequest, text: &str) -> AtelierSheetVersionRow {
+        AtelierSheetVersionRow {
+            version_id: "accepted-version".to_owned(),
+            character_internal_id: request.character_internal_id.clone(),
+            parent_version_id: request.expected_parent_version_id.clone(),
+            seq: 2,
+            raw_text: text.to_owned(),
+            author: "test-actor".to_owned(),
+            tool: None,
+            character_ref: format!("atelier://character/{}", request.character_internal_id),
+            sheet_version_ref: format!("atelier://sheet/{}/accepted-version", request.character_internal_id),
+        }
+    }
+
+    fn projection(character: &CkcCharacterRecord, text: &str, seq: i64) -> AtelierCkcData {
+        let mut sheet = reply(&CkcSheetRequest::capture(character), text);
+        sheet.seq = seq;
+        AtelierCkcData { characters: vec![AtelierCkcCharacterSheetRow {
+            character: AtelierCharacterRow {
+                internal_id: character.character_internal_id.clone(),
+                public_id: character.public_id.clone(),
+                display_name: character.display_name.clone(),
+                character_ref: character.character_ref.clone(),
+            },
+            latest_sheet: Some(sheet),
+            sheet_artifact_links: Vec::new(),
+            media_album_offset: 0,
+            media_album_limit: 0,
+            media_album_member_limit: 0,
+            media_album_count: 0,
+            media_albums_next_offset: None,
+            media_albums: Vec::new(),
+            story_documents: Vec::new(),
+            moodboard_documents: Vec::new(),
+            moodboard_snapshots: Vec::new(),
+        }] }
+    }
+
+    fn selected_head_projection(character: &CkcCharacterRecord, text: &str, seq: i64) -> AtelierCkcSelectedHeadRow {
+        let mut data = projection(character, text, seq);
+        let row = data.characters.remove(0);
+        AtelierCkcSelectedHeadRow { character: row.character, latest_sheet: row.latest_sheet }
+    }
+
+    #[test]
+    fn append_reply_advances_head_but_keeps_a_newer_draft() {
+        for newer in [false, true] {
+            let runtime = runtime();
+            let request = {
+                let mut state = runtime.state.lock().unwrap();
+                state.ckc_characters[0].sheet_editor_text = "submitted".to_owned();
+                let request = CkcSheetRequest::capture(&state.ckc_characters[0]);
+                state.ckc_append_request = Some(request.clone());
+                state.ckc_append_pending = true;
+                if newer { state.ckc_characters[0].sheet_editor_text = "newer draft".to_owned(); }
+                request
+            };
+            *runtime.ckc_append_cell.lock().unwrap() = Some(Ok(reply(&request, "saved canonical text")));
+            runtime.drain_ckc_backend();
+            let state = runtime.state.lock().unwrap();
+            let character = &state.ckc_characters[0];
+            assert_eq!(character.sheet_seq, 2);
+            assert_eq!(character.sheet_version_id.as_deref(), Some("accepted-version"));
+            assert_eq!(character.sheet_loaded_text.as_deref(), Some("saved canonical text"));
+            assert_eq!(character.sheet_editor_text, if newer { "newer draft" } else { "saved canonical text" });
+            assert_eq!(character.sheet_status.as_ref().unwrap().contains("newer draft kept"), newer);
+            assert!(!state.ckc_append_pending);
+            assert!(state.ckc_append_request.is_none());
+        }
+    }
+
+    #[test]
+    fn switched_character_keeps_its_draft_and_error_when_another_save_finishes() {
+        for failed in [false, true] {
+            let runtime = runtime();
+            let (request, other_version, album_count) = {
+                let mut state = runtime.state.lock().unwrap();
+                let request = CkcSheetRequest::capture(&state.ckc_characters[0]);
+                let album_count = state.ckc_characters[0].media_albums.len();
+                state.ckc_append_request = Some(request.clone());
+                state.ckc_append_pending = true;
+                state.ckc_selected_index = 1;
+                state.ckc_characters[1].sheet_editor_text = "other character notes".to_owned();
+                state.ckc_characters[1].sheet_status = Some("other status".to_owned());
+                state.ckc_error = Some("other error".to_owned());
+                (request, state.ckc_characters[1].sheet_version_id.clone(), album_count)
+            };
+            *runtime.ckc_append_cell.lock().unwrap() = Some(if failed {
+                Err("409 conflict".to_owned())
+            } else { Ok(reply(&request, "first character saved")) });
+            runtime.drain_ckc_backend();
+            let state = runtime.state.lock().unwrap();
+            assert_eq!(state.ckc_selected_index, 1);
+            assert_eq!(state.ckc_characters[1].sheet_editor_text, "other character notes");
+            assert_eq!(state.ckc_characters[1].sheet_version_id, other_version);
+            assert_eq!(state.ckc_characters[1].sheet_status.as_deref(), Some("other status"));
+            assert_eq!(state.ckc_error.as_deref(), Some("other error"));
+            assert_eq!(state.ckc_characters[0].media_albums.len(), album_count);
+            assert!(state.ckc_characters[0].sheet_status.is_some());
+        }
+    }
+
+    #[test]
+    fn conflict_and_transport_error_keep_the_draft_and_saved_parent() {
+        for error in ["409 conflict: parent changed", "transport unavailable", "account denied"] {
+            let runtime = runtime();
+            let (version, request) = {
+                let mut state = runtime.state.lock().unwrap();
+                let request = CkcSheetRequest::capture(&state.ckc_characters[0]);
+                state.ckc_append_request = Some(request.clone());
+                state.ckc_append_pending = true;
+                state.ckc_characters[0].sheet_editor_text = "draft after submit".to_owned();
+                (state.ckc_characters[0].sheet_version_id.clone(), request)
+            };
+            *runtime.ckc_append_cell.lock().unwrap() = Some(Err(error.to_owned()));
+            runtime.drain_ckc_backend();
+            let state = runtime.state.lock().unwrap();
+            let character = &state.ckc_characters[0];
+            assert_eq!(character.character_internal_id, request.character_internal_id);
+            assert_eq!(character.sheet_editor_text, "draft after submit");
+            assert_eq!(character.sheet_version_id, version);
+            assert!(character.sheet_status.as_ref().unwrap().contains(error));
+            assert!(state.ckc_error.as_ref().unwrap().contains("Draft kept"));
+        }
+    }
+
+    #[test]
+    fn import_reply_replaces_only_the_unchanged_sheet_draft() {
+        for newer in [false, true] {
+            let runtime = runtime();
+            let request = {
+                let mut state = runtime.state.lock().unwrap();
+                let request = CkcSheetRequest::capture(&state.ckc_characters[0]);
+                state.ckc_import_request = Some(request.clone());
+                state.ckc_import_pending = true;
+                state.ckc_import_text = "newer import buffer".to_owned();
+                if newer { state.ckc_characters[0].sheet_editor_text = "newer sheet notes".to_owned(); }
+                request
+            };
+            *runtime.ckc_import_cell.lock().unwrap() = Some(Ok(reply(&request, "imported sheet")));
+            runtime.drain_ckc_backend();
+            let state = runtime.state.lock().unwrap();
+            assert_eq!(state.ckc_characters[0].sheet_editor_text, if newer { "newer sheet notes" } else { "imported sheet" });
+            assert_eq!(state.ckc_characters[0].sheet_loaded_text.as_deref(), Some("imported sheet"));
+            assert_eq!(state.ckc_import_text, "newer import buffer");
+            assert!(!state.ckc_import_pending);
+            assert!(state.ckc_import_request.is_none());
+        }
+    }
+
+    #[test]
+    fn mismatched_replies_and_an_older_accepted_reply_cannot_replace_the_head() {
+        for case in 0..3 {
+            let runtime = runtime();
+            let (request, version) = {
+                let mut state = runtime.state.lock().unwrap();
+                let request = CkcSheetRequest::capture(&state.ckc_characters[0]);
+                state.ckc_append_request = Some(request.clone());
+                state.ckc_append_pending = true;
+                state.ckc_characters[0].sheet_editor_text = "keep this draft".to_owned();
+                if case == 2 {
+                    state.ckc_characters[0].sheet_seq = 3;
+                    state.ckc_characters[0].sheet_version_id = Some("newest-version".to_owned());
+                }
+                (request, state.ckc_characters[0].sheet_version_id.clone())
+            };
+            let mut response = reply(&request, "must not replace draft");
+            if case == 0 { response.character_internal_id = "another-character".to_owned(); }
+            if case == 1 { response.parent_version_id = Some("wrong-parent".to_owned()); }
+            *runtime.ckc_append_cell.lock().unwrap() = Some(Ok(response));
+            runtime.drain_ckc_backend();
+            let state = runtime.state.lock().unwrap();
+            assert_eq!(state.ckc_characters[0].sheet_editor_text, "keep this draft");
+            assert_eq!(state.ckc_characters[0].sheet_version_id, version);
+            if case == 2 { assert_eq!(state.ckc_characters[0].sheet_seq, 3); }
+        }
+    }
+
+    #[test]
+    fn reload_adopts_clean_text_but_preserves_dirty_text_and_newer_heads() {
+        for case in 0..3 {
+            let runtime = runtime();
+            let data = {
+                let mut state = runtime.state.lock().unwrap();
+                let character = &mut state.ckc_characters[0];
+                character.sheet_loaded_text = Some(character.sheet_editor_text.clone());
+                if case > 0 { character.sheet_editor_text = "unsaved notes".to_owned(); }
+                let data = projection(character, "loaded text", 2);
+                if case == 2 {
+                    character.sheet_seq = 3;
+                    character.sheet_version_id = Some("newest-version".to_owned());
+                }
+                data
+            };
+            let load = runtime.ckc_cell.lock().unwrap().clone();
+            *load.lock().unwrap() = Some(Ok(data));
+            runtime.drain_ckc_backend();
+            let state = runtime.state.lock().unwrap();
+            let character = &state.ckc_characters[0];
+            assert_eq!(character.sheet_editor_text, if case == 0 { "loaded text" } else { "unsaved notes" });
+            assert_eq!(character.sheet_seq, if case == 2 { 3 } else { 2 });
+            if case == 2 { assert_eq!(character.sheet_version_id.as_deref(), Some("newest-version")); }
+        }
+    }
+
+    #[test]
+    fn rebind_discards_old_append_import_and_load_delivery_cells() {
+        let panel = AtelierPanel { runtime: Mutex::new(runtime()) };
+        let (append, import, load, head, response, data, head_response) = {
+            let runtime = panel.runtime();
+            let mut state = runtime.state.lock().unwrap();
+            let request = CkcSheetRequest::capture(&state.ckc_characters[0]);
+            let response = reply(&request, "old account private notes");
+            let data = projection(&state.ckc_characters[0], "old account loaded notes", 2);
+            let head_response = selected_head_projection(&state.ckc_characters[0], "old selected notes", 2);
+            state.ckc_append_pending = true;
+            state.ckc_append_request = Some(request.clone());
+            state.ckc_import_pending = true;
+            state.ckc_import_request = Some(request);
+            let load = runtime.begin_ckc_refresh(&mut state);
+            let (_, head) = runtime.begin_ckc_selected_head(&mut state).unwrap();
+            (runtime.ckc_append_cell.clone(), runtime.ckc_import_cell.clone(), load, head, response, data, head_response)
+        };
+        panel.rebind_client(None);
+        *append.lock().unwrap() = Some(Ok(response.clone()));
+        *import.lock().unwrap() = Some(Ok(response));
+        *load.lock().unwrap() = Some(Ok(data));
+        *head.lock().unwrap() = Some(Ok(head_response));
+        let runtime = panel.runtime();
+        runtime.drain_ckc_backend();
+        let state = runtime.state.lock().unwrap();
+        assert!(state.ckc_characters.is_empty());
+        assert!(!state.ckc_append_pending && !state.ckc_import_pending);
+        assert!(state.ckc_append_request.is_none() && state.ckc_import_request.is_none());
+        assert!(state.ckc_head_request.is_none());
+        assert!(state.ckc_error.is_none());
+    }
+
+    #[test]
+    fn superseded_lists_keep_created_dirty_and_inflight_sheet_records() {
+        for old_first in [false, true] {
+            for protected in 0..4 {
+                let runtime = runtime();
+                let (old, current, data, target, request) = {
+                    let mut state = runtime.state.lock().unwrap();
+                    state.ckc_characters.truncate(1);
+                    state.ckc_characters[0].sheet_loaded_text =
+                        Some(state.ckc_characters[0].sheet_editor_text.clone());
+                    let data = projection(&state.ckc_characters[0], "listed head", 2);
+                    let old = runtime.begin_ckc_refresh(&mut state);
+                    let mut target = CkcCharacterRecord::from_created_character(AtelierCharacterRow {
+                        internal_id: "created-after-old-list".to_owned(),
+                        public_id: "new-character".to_owned(),
+                        display_name: "New character".to_owned(),
+                        character_ref: "atelier://character/created-after-old-list".to_owned(),
+                    });
+                    target.sheet_editor_text = "target draft".to_owned();
+                    if protected == 1 || protected == 2 {
+                        target.sheet_version_id = Some("existing-target-version".to_owned());
+                        target.sheet_seq = 1;
+                        target.sheet_loaded_text = Some(if protected == 1 {
+                            "older text".to_owned()
+                        } else { target.sheet_editor_text.clone() });
+                    }
+                    if protected == 3 {
+                        target.sheet_editor_text.clear();
+                        target.sheet_loaded_text = Some(String::new());
+                    }
+                    let request = CkcSheetRequest::capture(&target);
+                    let target_id = target.character_internal_id.clone();
+                    state.ckc_characters.push(target);
+                    state.ckc_selected_index = 1;
+                    if protected == 2 {
+                        state.ckc_append_pending = true;
+                        state.ckc_append_request = Some(request.clone());
+                    }
+                    let current = runtime.begin_ckc_refresh(&mut state);
+                    (old, current, data, target_id, request)
+                };
+                assert!(!Arc::ptr_eq(&old, &current));
+                if old_first {
+                    *old.lock().unwrap() = Some(Ok(data.clone()));
+                    runtime.drain_ckc_backend();
+                    assert!(runtime.state.lock().unwrap().ckc_loading);
+                }
+                *current.lock().unwrap() = Some(Ok(data.clone()));
+                runtime.drain_ckc_backend();
+                if !old_first {
+                    *old.lock().unwrap() = Some(Ok(data));
+                    runtime.drain_ckc_backend();
+                }
+                {
+                    let state = runtime.state.lock().unwrap();
+                    let row = state.ckc_characters.iter().find(|row| row.character_internal_id == target).unwrap();
+                    assert_eq!(row.sheet_editor_text, if protected == 3 { "" } else { "target draft" });
+                    assert_eq!(state.ckc_characters[state.ckc_selected_index].character_internal_id, target);
+                    assert!(state.ckc_refresh_status.contains("kept 1 unlisted"));
+                    assert!(!state.ckc_loading);
+                    if protected == 2 {
+                        assert_eq!(state.ckc_append_request.as_ref().unwrap().character_internal_id, target);
+                    }
+                }
+                if protected == 2 {
+                    let saved = reply(&request, "accepted target");
+                    *runtime.ckc_append_cell.lock().unwrap() = Some(Ok(saved));
+                    runtime.drain_ckc_backend();
+                    let state = runtime.state.lock().unwrap();
+                    assert_eq!(state.ckc_characters.iter().find(|row| row.character_internal_id == target).unwrap().sheet_loaded_text.as_deref(), Some("accepted target"));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn mixed_pane_and_isolated_render_contexts_do_not_retire_account_work() {
+        use crate::pane_registry::{DirtyState, LockState, PaneAuthority, PaneRecord};
+        let panel = Arc::new(AtelierPanel { runtime: Mutex::new(runtime()) });
+        let (append, load, head) = {
+            let runtime = panel.runtime();
+            let mut state = runtime.state.lock().unwrap();
+            state.ckc_characters[0].sheet_editor_text = "keep account draft A".to_owned();
+            state.ckc_characters[1].sheet_editor_text = "keep account draft B".to_owned();
+            state.ckc_append_request = Some(CkcSheetRequest::capture(&state.ckc_characters[0]));
+            state.ckc_append_pending = true;
+            let load = runtime.begin_ckc_refresh(&mut state);
+            let (_, head) = runtime.begin_ckc_selected_head(&mut state).unwrap();
+            (runtime.ckc_append_cell.clone(), load, head)
+        };
+        let mount = AtelierPanelPaneMount {
+            panel: panel.clone(),
+            palette: Arc::new(Mutex::new(crate::theme::HsTheme::Dark.palette())),
+        };
+        let records = vec![
+            PaneRecord::new(Arc::from("sheet-pane-a"), PaneType::AtelierEditor, "project-a", None,
+                LockState::Unlocked, DirtyState::Dirty, PaneAuthority::System),
+            PaneRecord::new(Arc::from("sheet-pane-b"), PaneType::AtelierEditor, "project-b", None,
+                LockState::Unlocked, DirtyState::Dirty, PaneAuthority::System),
+        ];
+        let records: Vec<PaneRecord> = serde_json::from_value(serde_json::to_value(records).unwrap()).unwrap();
+        assert_ne!(records[0].project_id, records[1].project_id);
+        let main_context = egui::Context::default();
+        let detached_context = egui::Context::default();
+        let snapshot_context = egui::Context::default();
+        for (context, record) in [(&main_context, &records[0]), (&detached_context, &records[1]),
+            (&snapshot_context, &records[0]), (&main_context, &records[1]), (&main_context, &records[0])]
+        {
+            let _ = context.run(egui::RawInput::default(), |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    mount.render(ui, &PaneRenderContext {
+                        record, egui_id: egui::Id::new(record.pane_id.as_ref()),
+                    });
+                });
+            });
+            let runtime = panel.runtime();
+            let state = runtime.state.lock().unwrap();
+            assert_eq!(state.ckc_characters[0].sheet_editor_text, "keep account draft A");
+            assert_eq!(state.ckc_characters[1].sheet_editor_text, "keep account draft B");
+            assert!(state.ckc_append_pending && state.ckc_append_request.is_some());
+            assert!(Arc::ptr_eq(&append, &runtime.ckc_append_cell));
+            let current_load = runtime.ckc_cell.lock().unwrap().clone();
+            assert!(Arc::ptr_eq(&load, &current_load));
+            let current_head = runtime.ckc_head_cell.lock().unwrap().clone();
+            assert!(Arc::ptr_eq(&head, &current_head));
+            assert!(state.ckc_head_request.is_some());
+        }
+    }
+
+    #[test]
+    fn conflict_refresh_preserves_draft_and_retry_uses_observed_parent() {
+        let runtime = runtime();
+        let old_parent = {
+            let mut state = runtime.state.lock().unwrap();
+            state.ckc_characters[0].sheet_loaded_text =
+                Some(state.ckc_characters[0].sheet_editor_text.clone());
+            state.ckc_characters[0].sheet_editor_text = "operator draft".to_owned();
+            let request = CkcSheetRequest::capture(&state.ckc_characters[0]);
+            let parent = request.expected_parent_version_id.clone();
+            state.ckc_append_request = Some(request);
+            state.ckc_append_pending = true;
+            parent
+        };
+        *runtime.ckc_append_cell.lock().unwrap() = Some(Err("409 parent conflict".to_owned()));
+        runtime.drain_ckc_backend();
+        let (refresh, selected, authority, selected_authority) = {
+            let mut state = runtime.state.lock().unwrap();
+            assert_eq!(state.ckc_characters[0].sheet_editor_text, "operator draft");
+            assert_eq!(state.ckc_characters[0].sheet_version_id, old_parent);
+            let authority = projection(&state.ckc_characters[0], "other writer saved head", 2);
+            let selected_authority = selected_head_projection(&state.ckc_characters[0], "other writer saved head", 2);
+            let refresh = runtime.begin_ckc_refresh(&mut state);
+            let (_, selected) = runtime.begin_ckc_selected_head(&mut state).unwrap();
+            (refresh, selected, authority, selected_authority)
+        };
+        *refresh.lock().unwrap() = Some(Ok(authority));
+        runtime.drain_ckc_backend();
+        {
+            let state = runtime.state.lock().unwrap();
+            assert!(!state.ckc_characters[0].has_current_head_observation(state.ckc_refresh_seq));
+            assert!(state.ckc_characters[0].sheet_status.as_ref().unwrap().contains("409 parent conflict"));
+        }
+        *selected.lock().unwrap() = Some(Ok(selected_authority));
+        runtime.drain_ckc_backend();
+        let retry = {
+            let mut state = runtime.state.lock().unwrap();
+            let character = &state.ckc_characters[0];
+            assert_eq!(character.sheet_editor_text, "operator draft");
+            assert_eq!(character.sheet_loaded_text.as_deref(), Some("other writer saved head"));
+            assert!(character.has_current_head_observation(state.ckc_refresh_seq));
+            assert!(character.sheet_refresh_readout(state.ckc_refresh_seq).contains("head observed in current refresh"));
+            assert!(character.sheet_status.as_ref().unwrap().contains("409 parent conflict"));
+            let retry = CkcSheetRequest::capture(character);
+            assert_ne!(retry.expected_parent_version_id, old_parent);
+            assert_eq!(retry.expected_parent_version_id.as_deref(), Some("accepted-version"));
+            state.ckc_append_request = Some(retry.clone());
+            state.ckc_append_pending = true;
+            retry
+        };
+        let mut accepted = reply(&retry, "operator draft");
+        accepted.seq = 3;
+        accepted.version_id = "retry-version".to_owned();
+        accepted.sheet_version_ref = format!("atelier://sheet/{}/retry-version", retry.character_internal_id);
+        *runtime.ckc_append_cell.lock().unwrap() = Some(Ok(accepted));
+        runtime.drain_ckc_backend();
+        let state = runtime.state.lock().unwrap();
+        assert_eq!(state.ckc_characters[0].sheet_editor_text, "operator draft");
+        assert_eq!(state.ckc_characters[0].sheet_version_id.as_deref(), Some("retry-version"));
+        assert_eq!(state.ckc_characters[0].sheet_seq, 3);
+        assert!(state.ckc_characters[0].sheet_status.as_ref().unwrap().starts_with("Saved "));
+        assert!(state.ckc_error.is_none());
+    }
+
+
+
+    #[test]
+    fn refresh_edit_late_create_ack_and_refresh_preserve_the_existing_sheet() {
+        let runtime = runtime();
+        let (initial, data, created) = {
+            let mut state = runtime.state.lock().unwrap();
+            let character = state.ckc_characters[1].clone();
+            let data = projection(&character, "authoritative sheet", 2);
+            let created = AtelierCharacterRow {
+                internal_id: character.character_internal_id.clone(),
+                public_id: character.public_id.clone(),
+                display_name: character.display_name.clone(),
+                character_ref: character.character_ref.clone(),
+            };
+            state.ckc_characters.clear();
+            state.ckc_create_pending = true;
+            (runtime.begin_ckc_refresh(&mut state), data, created)
+        };
+        *initial.lock().unwrap() = Some(Ok(data.clone()));
+        runtime.drain_ckc_backend();
+        let exact = "new draft\nnotes: caf\u{00e9} / \u{96ea}\n";
+        let (version, parent, version_ref, baseline, request) = {
+            let mut state = runtime.state.lock().unwrap();
+            let character = &mut state.ckc_characters[0];
+            character.sheet_editor_text = exact.to_owned();
+            character.sheet_status = Some("prior save error history".to_owned());
+            let request = CkcSheetRequest::capture(character);
+            let snapshot = (character.sheet_version_id.clone(), character.parent_sheet_version_id.clone(),
+                character.sheet_version_ref.clone(), character.sheet_loaded_text.clone(), request.clone());
+            state.ckc_append_request = Some(request);
+            state.ckc_append_pending = true;
+            snapshot
+        };
+        *runtime.ckc_create_cell.lock().unwrap() = Some(Ok(created));
+        runtime.drain_ckc_backend();
+        {
+            let state = runtime.state.lock().unwrap();
+            let character = &state.ckc_characters[0];
+            assert_eq!(character.sheet_editor_text, exact);
+            assert_eq!(character.sheet_version_id, version);
+            assert_eq!(character.parent_sheet_version_id, parent);
+            assert_eq!(character.sheet_version_ref, version_ref);
+            assert_eq!(character.sheet_loaded_text, baseline);
+            assert_eq!(character.sheet_status.as_deref(), Some("prior save error history"));
+            assert_eq!(state.ckc_append_request.as_ref().unwrap().draft_text, request.draft_text);
+            assert_eq!(state.ckc_append_request.as_ref().unwrap().expected_parent_version_id, request.expected_parent_version_id);
+            assert!(state.ckc_append_pending);
+        }
+        let refreshed = runtime.begin_ckc_refresh(&mut runtime.state.lock().unwrap());
+        *refreshed.lock().unwrap() = Some(Ok(data));
+        runtime.drain_ckc_backend();
+        let state = runtime.state.lock().unwrap();
+        assert_eq!(state.ckc_characters[0].sheet_editor_text, exact);
+        assert_eq!(state.ckc_characters[0].sheet_version_id, version);
+        assert_eq!(state.ckc_characters[0].sheet_loaded_text, baseline);
+        assert_eq!(state.ckc_characters[0].sheet_status.as_deref(), Some("prior save error history"));
+        assert!(state.ckc_append_pending);
+    }
+
+    #[test]
+    fn aggregate_counts_and_old_or_other_target_reads_do_not_confirm_selected_head() {
+        let runtime = runtime();
+        let (bulk, old_head, capped, selected_result, target) = {
+            let mut state = runtime.state.lock().unwrap();
+            let template = projection(&state.ckc_characters[0], "listed head", 1).characters.remove(0);
+            let capped = AtelierCkcData { characters: (0..200).map(|index| {
+                let mut row = template.clone();
+                let id = format!("10000000-0000-4000-8000-{index:012}");
+                row.character.internal_id = id.clone();
+                row.character.public_id = format!("listed-{index}");
+                row.character.character_ref = format!("atelier://character/{id}");
+                let sheet = row.latest_sheet.as_mut().unwrap();
+                sheet.character_internal_id = id.clone();
+                sheet.character_ref = row.character.character_ref.clone();
+                sheet.version_id = format!("20000000-0000-4000-8000-{index:012}");
+                sheet.parent_version_id = None;
+                sheet.sheet_version_ref = format!("atelier://sheet/{id}/{}", sheet.version_id);
+                row
+            }).collect() };
+            state.ckc_selected_index = 1;
+            let character = &mut state.ckc_characters[1];
+            character.sheet_loaded_text = Some(character.sheet_editor_text.clone());
+            character.sheet_status = Some("save history stays separate".to_owned());
+            let target = character.character_internal_id.clone();
+            let mut selected_result = selected_head_projection(character, "direct selected head", 2);
+            let sheet = selected_result.latest_sheet.as_mut().unwrap();
+            sheet.version_id = "30000000-0000-4000-8000-000000000001".to_owned();
+            sheet.sheet_version_ref = format!("atelier://sheet/{target}/{}", sheet.version_id);
+            let bulk = runtime.begin_ckc_refresh(&mut state);
+            let (_, head) = runtime.begin_ckc_selected_head(&mut state).unwrap();
+            (bulk, head, capped, selected_result, target)
+        };
+        *bulk.lock().unwrap() = Some(Ok(capped.clone()));
+        runtime.drain_ckc_backend();
+        {
+            let state = runtime.state.lock().unwrap();
+            let selected = state.ckc_characters.iter().find(|row| row.character_internal_id == target).unwrap();
+            assert!(state.ckc_refresh_status.contains("Refreshed 200 listed"));
+            assert!(!selected.has_current_head_observation(state.ckc_refresh_seq));
+            assert!(selected.sheet_refresh_readout(state.ckc_refresh_seq).contains("read pending; withhold retry"));
+        }
+        *old_head.lock().unwrap() = Some(Err("selected read denied".to_owned()));
+        runtime.drain_ckc_backend();
+        let (new_bulk, new_head) = {
+            let mut state = runtime.state.lock().unwrap();
+            let selected = state.ckc_characters.iter().find(|row| row.character_internal_id == target).unwrap();
+            assert!(!selected.has_current_head_observation(state.ckc_refresh_seq));
+            assert!(selected.sheet_refresh_readout(state.ckc_refresh_seq).contains("read failed: selected read denied; withhold retry"));
+            assert_eq!(selected.sheet_status.as_deref(), Some("save history stays separate"));
+            let bulk = runtime.begin_ckc_refresh(&mut state);
+            let (_, head) = runtime.begin_ckc_selected_head(&mut state).unwrap();
+            (bulk, head)
+        };
+        *old_head.lock().unwrap() = Some(Ok(AtelierCkcSelectedHeadRow {
+            character: selected_result.character.clone(), latest_sheet: selected_result.latest_sheet.clone(),
+        }));
+        runtime.drain_ckc_backend();
+        {
+            let state = runtime.state.lock().unwrap();
+            let selected = state.ckc_characters.iter().find(|row| row.character_internal_id == target).unwrap();
+            assert!(!selected.has_current_head_observation(state.ckc_refresh_seq));
+            assert!(state.ckc_head_request.is_some());
+        }
+        *new_head.lock().unwrap() = Some(Ok(selected_result));
+        runtime.drain_ckc_backend();
+        *new_bulk.lock().unwrap() = Some(Ok(capped.clone()));
+        runtime.drain_ckc_backend();
+        {
+            let state = runtime.state.lock().unwrap();
+            let selected = state.ckc_characters.iter().find(|row| row.character_internal_id == target).unwrap();
+            assert!(selected.has_current_head_observation(state.ckc_refresh_seq));
+            assert!(selected.sheet_refresh_readout(state.ckc_refresh_seq).contains("retained outside current list"));
+            assert!(selected.sheet_refresh_readout(state.ckc_refresh_seq).contains("selected head observed in current refresh"));
+            assert_eq!(selected.sheet_status.as_deref(), Some("save history stays separate"));
+        }
+        let (other_head, other_result) = {
+            let mut state = runtime.state.lock().unwrap();
+            state.ckc_selected_index = 0;
+            runtime.begin_ckc_refresh(&mut state);
+            let (_, head) = runtime.begin_ckc_selected_head(&mut state).unwrap();
+            let result = AtelierCkcSelectedHeadRow {
+                character: capped.characters[0].character.clone(),
+                latest_sheet: capped.characters[0].latest_sheet.clone(),
+            };
+            state.ckc_selected_index = state.ckc_characters.iter().position(|row| row.character_internal_id == target).unwrap();
+            (head, result)
+        };
+        *other_head.lock().unwrap() = Some(Ok(other_result));
+        runtime.drain_ckc_backend();
+        {
+            let state = runtime.state.lock().unwrap();
+            let selected = &state.ckc_characters[state.ckc_selected_index];
+            assert_eq!(selected.character_internal_id, target);
+            assert!(!selected.has_current_head_observation(state.ckc_refresh_seq));
+            assert!(selected.sheet_refresh_readout(state.ckc_refresh_seq).contains("not observed in current refresh"));
+        }
+        let empty_read = {
+            let mut state = runtime.state.lock().unwrap();
+            let identity = AtelierCharacterRow {
+                internal_id: "40000000-0000-4000-8000-000000000001".to_owned(),
+                public_id: "empty-history".to_owned(), display_name: "Empty history".to_owned(),
+                character_ref: "atelier://character/40000000-0000-4000-8000-000000000001".to_owned(),
+            };
+            state.ckc_characters.push(CkcCharacterRecord::from_created_character(identity.clone()));
+            state.ckc_selected_index = state.ckc_characters.len() - 1;
+            runtime.begin_ckc_refresh(&mut state);
+            let (_, cell) = runtime.begin_ckc_selected_head(&mut state).unwrap();
+            (cell, AtelierCkcSelectedHeadRow { character: identity, latest_sheet: None })
+        };
+        *empty_read.0.lock().unwrap() = Some(Ok(empty_read.1));
+        runtime.drain_ckc_backend();
+        let state = runtime.state.lock().unwrap();
+        let selected = &state.ckc_characters[state.ckc_selected_index];
+        assert!(selected.has_current_head_observation(state.ckc_refresh_seq));
+        assert!(selected.sheet_refresh_readout(state.ckc_refresh_seq).contains("empty saved history observed in current refresh"));
+        assert!(selected.sheet_version_id.is_none());
+    }
+
+    #[test]
+    fn listed_again_same_head_clears_absence_without_clearing_save_history() {
+        for history in ["Saved earlier version.", "409 conflict; keep this save error history."] {
+            let runtime = runtime();
+            let (omitted, same_head, original_id) = {
+                let mut state = runtime.state.lock().unwrap();
+                state.ckc_characters.truncate(1);
+                let character = &mut state.ckc_characters[0];
+                character.sheet_loaded_text = Some(character.sheet_editor_text.clone());
+                let baseline = character.sheet_editor_text.clone();
+                let original_id = character.sheet_version_id.clone();
+                let mut same_head = projection(character, &baseline, character.sheet_seq);
+                let sheet = same_head.characters[0].latest_sheet.as_mut().unwrap();
+                sheet.version_id = character.sheet_version_id.clone().unwrap();
+                sheet.parent_version_id = character.parent_sheet_version_id.clone();
+                sheet.sheet_version_ref = character.sheet_version_ref.clone().unwrap();
+                character.sheet_editor_text = "keep dirty notes".to_owned();
+                character.sheet_status = Some(history.to_owned());
+                (runtime.begin_ckc_refresh(&mut state), same_head, original_id)
+            };
+            *omitted.lock().unwrap() = Some(Ok(AtelierCkcData { characters: Vec::new() }));
+            runtime.drain_ckc_backend();
+            {
+                let state = runtime.state.lock().unwrap();
+                let character = &state.ckc_characters[0];
+                assert!(character.sheet_refresh_readout(state.ckc_refresh_seq).contains("retained outside current list"));
+                assert_eq!(character.sheet_status.as_deref(), Some(history));
+            }
+            let listed = runtime.begin_ckc_refresh(&mut runtime.state.lock().unwrap());
+            *listed.lock().unwrap() = Some(Ok(same_head));
+            runtime.drain_ckc_backend();
+            let state = runtime.state.lock().unwrap();
+            let character = &state.ckc_characters[0];
+            assert_eq!(character.sheet_editor_text, "keep dirty notes");
+            assert_eq!(character.sheet_version_id, original_id);
+            assert_eq!(character.sheet_status.as_deref(), Some(history));
+            assert!(character.sheet_refresh_readout(state.ckc_refresh_seq).contains("listed in current projection"));
+            assert!(!character.sheet_refresh_readout(state.ckc_refresh_seq).contains("retained outside current list"));
+            assert!(!character.has_current_head_observation(state.ckc_refresh_seq));
+        }
+    }
+
+
+    #[test]
+    fn same_head_refresh_keeps_artifact_links_in_both_orders_and_advance_clears_old_links() {
+        for selected_first in [false, true] {
+            let runtime = runtime();
+            let (bulk, head, data, selected, link) = {
+                let mut state = runtime.state.lock().unwrap();
+                state.ckc_characters.truncate(1);
+                let character = &state.ckc_characters[0];
+                let mut data = projection(character, &character.sheet_editor_text, character.sheet_seq);
+                let row = &mut data.characters[0];
+                let sheet = row.latest_sheet.as_mut().unwrap();
+                sheet.version_id = character.sheet_version_id.clone().unwrap();
+                sheet.parent_version_id = character.parent_sheet_version_id.clone();
+                sheet.sheet_version_ref = character.sheet_version_ref.clone().unwrap();
+                let link = AtelierCkcSheetArtifactLinkRow {
+                    link_id: "01900000-0000-7000-8000-000000000091".to_owned(),
+                    character_internal_id: character.character_internal_id.clone(),
+                    character_ref: character.character_ref.clone(),
+                    sheet_version_id: sheet.version_id.clone(),
+                    sheet_version_ref: sheet.sheet_version_ref.clone(),
+                    typed_ref: "atelier://sheet-artifact/01900000-0000-7000-8000-000000000091".to_owned(),
+                    artifact_kind: "posekit".to_owned(), artifact_ref: "artifact://posekit/current-png".to_owned(),
+                    manifest_ref: Some("artifact://posekit/current-manifest".to_owned()),
+                    source_ref: Some("atelier://posekit/source".to_owned()), label: Some("Linked pose".to_owned()),
+                    reuse_role: Some("pose-reference".to_owned()), linked_by: "test-actor".to_owned(),
+                    metadata: serde_json::json!({"source":"saved-version"}),
+                };
+                row.sheet_artifact_links = vec![link.clone()];
+                let selected = AtelierCkcSelectedHeadRow {
+                    character: row.character.clone(), latest_sheet: row.latest_sheet.clone(),
+                };
+                let bulk = runtime.begin_ckc_refresh(&mut state);
+                let (_, head) = runtime.begin_ckc_selected_head(&mut state).unwrap();
+                (bulk, head, data, selected, link)
+            };
+            if selected_first {
+                *head.lock().unwrap() = Some(Ok(selected));
+                runtime.drain_ckc_backend();
+                *bulk.lock().unwrap() = Some(Ok(data));
+            } else {
+                *bulk.lock().unwrap() = Some(Ok(data));
+                runtime.drain_ckc_backend();
+                *head.lock().unwrap() = Some(Ok(selected));
+            }
+            runtime.drain_ckc_backend();
+            let (advance, next) = {
+                let mut state = runtime.state.lock().unwrap();
+                let character = &state.ckc_characters[0];
+                assert!(character.has_current_head_observation(state.ckc_refresh_seq));
+                assert_eq!(character.sheet_artifact_links.len(), 1);
+                let actual = &character.sheet_artifact_links[0];
+                assert_eq!(actual.link_id, link.link_id);
+                assert_eq!(actual.sheet_version_id, link.sheet_version_id);
+                assert_eq!(actual.artifact_ref, link.artifact_ref);
+                assert_eq!(actual.manifest_ref, link.manifest_ref);
+                assert_eq!(actual.metadata, link.metadata);
+                let mut next = selected_head_projection(character, "new saved head", character.sheet_seq + 1);
+                let sheet = next.latest_sheet.as_mut().unwrap();
+                sheet.version_id = "01900000-0000-7000-8000-000000000092".to_owned();
+                sheet.sheet_version_ref = format!("atelier://sheet/{}/{}", sheet.character_internal_id, sheet.version_id);
+                runtime.begin_ckc_refresh(&mut state);
+                let (_, advance) = runtime.begin_ckc_selected_head(&mut state).unwrap();
+                (advance, next)
+            };
+            *advance.lock().unwrap() = Some(Ok(next));
+            runtime.drain_ckc_backend();
+            let state = runtime.state.lock().unwrap();
+            assert!(state.ckc_characters[0].sheet_artifact_links.is_empty());
+            assert_eq!(state.ckc_characters[0].sheet_version_id.as_deref(),
+                Some("01900000-0000-7000-8000-000000000092"));
+        }
+    }
+
+    #[test]
+    fn late_create_success_or_failure_keeps_later_selection_name_export_and_error() {
+        for failed in [false, true] {
+            for already_known in [false, true] {
+                let runtime = runtime();
+                let (created, target_b, load, data) = {
+                    let mut state = runtime.state.lock().unwrap();
+                    let a = state.ckc_characters[0].clone();
+                    let b = state.ckc_characters[1].clone();
+                    let created = AtelierCharacterRow {
+                        internal_id: a.character_internal_id.clone(), public_id: a.public_id.clone(),
+                        display_name: a.display_name.clone(), character_ref: a.character_ref.clone(),
+                    };
+                    let mut data = projection(&a, &a.sheet_editor_text, a.sheet_seq);
+                    data.characters.extend(projection(&b, &b.sheet_editor_text, b.sheet_seq).characters);
+                    state.ckc_characters.retain(|row| row.character_internal_id == b.character_internal_id);
+                    state.ckc_selected_index = 0;
+                    state.ckc_new_display_name = "Submitted A".to_owned();
+                    state.begin_ckc_create_request();
+                    let load = runtime.begin_ckc_refresh(&mut state);
+                    (created, b.character_internal_id, load, data)
+                };
+                if already_known {
+                    *load.lock().unwrap() = Some(Ok(data));
+                    runtime.drain_ckc_backend();
+                    let mut state = runtime.state.lock().unwrap();
+                    state.ckc_selected_index = state.ckc_characters.iter()
+                        .position(|row| row.character_internal_id == created.internal_id).unwrap();
+                }
+                let (expected_export, seq) = {
+                    let mut state = runtime.state.lock().unwrap();
+                    state.ckc_selected_index = state.ckc_characters.iter()
+                        .position(|row| row.character_internal_id == target_b).unwrap();
+                    state.ckc_create_request = None;
+                    state.ckc_new_display_name = "Next independent name".to_owned();
+                    let selected = state.ckc_selected_index;
+                    state.ckc_characters[selected].sheet_editor_text = "B independent draft".to_owned();
+                    state.ckc_last_export = Some(local_export_ckc_sheet(
+                        &state.ckc_characters[state.ckc_selected_index], "txt"));
+                    state.ckc_export_status = "B export ready".to_owned();
+                    state.ckc_error = Some("B independent error".to_owned());
+                    (state.ckc_last_export.clone(), state.ckc_refresh_seq)
+                };
+                *runtime.ckc_create_cell.lock().unwrap() = Some(if failed {
+                    Err("create rejected".to_owned())
+                } else { Ok(created.clone()) });
+                runtime.drain_ckc_backend();
+                let state = runtime.state.lock().unwrap();
+                assert!(!state.ckc_create_pending);
+                assert_eq!(state.ckc_characters[state.ckc_selected_index].character_internal_id, target_b);
+                assert_eq!(state.ckc_new_display_name, "Next independent name");
+                assert_eq!(state.ckc_characters[state.ckc_selected_index].sheet_editor_text, "B independent draft");
+                assert_eq!(state.ckc_last_export, expected_export);
+                assert_eq!(state.ckc_export_status, "B export ready");
+                assert_eq!(state.ckc_error.as_deref(), Some("B independent error"));
+                assert_eq!(state.ckc_refresh_seq, seq);
+                assert!(state.ckc_head_request.is_none());
+                assert!(state.ckc_create_status.contains(if failed { "Create failed" } else { "Created CKC character" }));
+                if !failed {
+                    assert!(state.ckc_characters.iter().any(|row| row.character_internal_id == created.internal_id));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn unchanged_create_context_keeps_normal_completion_and_new_feedback_revokes_follow_up() {
+        for failed in [false, true] {
+            let runtime = runtime();
+            let mut state = runtime.state.lock().unwrap();
+            let original_selection = state.ckc_characters[0].character_internal_id.clone();
+            state.ckc_new_display_name = "New saved character".to_owned();
+            state.begin_ckc_create_request();
+            let created = AtelierCharacterRow {
+                internal_id: "01900000-0000-7000-8000-000000000093".to_owned(),
+                public_id: "new-saved-character".to_owned(), display_name: "New saved character".to_owned(),
+                character_ref: "atelier://character/01900000-0000-7000-8000-000000000093".to_owned(),
+            };
+            let follow = state.finish_ckc_create_request(if failed {
+                Err("create rejected".to_owned())
+            } else { Ok(created.clone()) });
+            assert_eq!(follow, !failed);
+            assert!(!state.ckc_create_pending);
+            if failed {
+                assert_eq!(state.ckc_characters[state.ckc_selected_index].character_internal_id, original_selection);
+                assert_eq!(state.ckc_new_display_name, "New saved character");
+                assert_eq!(state.ckc_error.as_deref(), Some("create rejected"));
+            } else {
+                assert_eq!(state.ckc_characters[state.ckc_selected_index].character_internal_id, created.internal_id);
+                assert_eq!(state.ckc_new_display_name, "New character");
+                assert!(state.ckc_last_export.is_none());
+                assert!(state.ckc_error.is_none());
+            }
+        }
+        for changed_feedback in [false, true] {
+            let runtime = runtime();
+            let mut state = runtime.state.lock().unwrap();
+            let selected_id = state.ckc_characters[0].character_internal_id.clone();
+            state.ckc_new_display_name = "Unchanged input".to_owned();
+            state.begin_ckc_create_request();
+            if changed_feedback {
+                state.ckc_last_export = Some(local_export_ckc_sheet(&state.ckc_characters[0], "txt"));
+                state.ckc_error = Some("new current error".to_owned());
+            } else {
+                // A live selection/name edit revokes follow-up even if values are later restored.
+                state.ckc_create_request = None;
+            }
+            let export = state.ckc_last_export.clone();
+            let error = state.ckc_error.clone();
+            assert!(!state.finish_ckc_create_request(Ok(AtelierCharacterRow {
+                internal_id: "01900000-0000-7000-8000-000000000094".to_owned(),
+                public_id: "late-created".to_owned(), display_name: "Late created".to_owned(),
+                character_ref: "atelier://character/01900000-0000-7000-8000-000000000094".to_owned(),
+            })));
+            assert_eq!(state.ckc_characters[state.ckc_selected_index].character_internal_id, selected_id);
+            assert_eq!(state.ckc_new_display_name, "Unchanged input");
+            assert_eq!(state.ckc_last_export, export);
+            assert_eq!(state.ckc_error, error);
+        }
+    }
+
+
+    #[test]
+    fn pending_create_preserves_real_sheet_editor_work_and_untouched_focus() {
+        use egui_kittest::{Harness, kittest::NodeT};
+        use std::sync::atomic::{AtomicBool, Ordering};
+        #[derive(Clone, Copy)]
+        enum Surface { Sheet, Notes, Import }
+        #[derive(Clone, Copy, PartialEq, Eq)]
+        enum Interaction { Untouched, Typed, Restored, Cursor, SameFrameFocus }
+        for (surface, author_id) in [
+            (Surface::Sheet, ATELIER_CKC_SHEET_EDITOR_AUTHOR_ID),
+            (Surface::Notes, ATELIER_CKC_CHARACTER_NOTES_EDITOR_AUTHOR_ID),
+            (Surface::Import, ATELIER_CKC_IMPORT_EDITOR_AUTHOR_ID),
+        ] {
+            for interaction in [Interaction::Untouched, Interaction::Typed, Interaction::Restored,
+                Interaction::Cursor, Interaction::SameFrameFocus]
+            {
+                let runtime = Arc::new(runtime());
+                let target_b = {
+                    let mut state = runtime.state.lock().unwrap();
+                    state.ckc_selected_index = 1;
+                    state.ckc_book_mode = CkcBookMode::Notes;
+                    state.ckc_new_display_name = "Submitted create A".to_owned();
+                    state.ckc_import_text = "prior import draft".to_owned();
+                    state.ckc_last_export = Some(local_export_ckc_sheet(&state.ckc_characters[1], "txt"));
+                    state.ckc_characters[1].character_internal_id.clone()
+                };
+                let begin = Arc::new(AtomicBool::new(false));
+                let for_ui = runtime.clone();
+                let begin_ui = begin.clone();
+                let palette = crate::theme::HsTheme::Dark.palette();
+                let mut harness = Harness::builder().with_size(egui::vec2(1000.0, 1000.0))
+                    .build_ui(move |ui| {
+                        let mut state = for_ui.state.lock().unwrap();
+                        if begin_ui.swap(false, Ordering::SeqCst) {
+                            state.begin_ckc_create_request();
+                            state.ckc_create_request.as_mut().unwrap().dispatch_ui =
+                                Some((ui.ctx().clone(), ui.ctx().viewport_id(), ui.ctx().cumulative_frame_nr()));
+                        }
+                        let selected = state.ckc_selected_index;
+                        match surface {
+                            Surface::Sheet => for_ui.show_ckc_character_sheet_panel(ui, &palette, &mut state, selected),
+                            Surface::Notes => for_ui.show_ckc_middle_work_panel(ui, &palette, &mut state, selected),
+                            Surface::Import => for_ui.show_ckc_sheet_tools(ui, &palette, &mut state, selected),
+                        }
+                    });
+                harness.run();
+                if interaction != Interaction::SameFrameFocus {
+                    harness.root().children_recursive()
+                        .find(|node| node.accesskit_node().author_id() == Some(author_id))
+                        .expect("actual selected sheet input").focus();
+                    harness.run();
+                }
+                let original_input = {
+                    let state = runtime.state.lock().unwrap();
+                    match surface {
+                        Surface::Sheet => state.ckc_characters[1].sheet_editor_text.clone(),
+                        Surface::Notes => state.ckc_character_notes_buffer.clone(),
+                        Surface::Import => state.ckc_import_text.clone(),
+                    }
+                };
+                begin.store(true, Ordering::SeqCst);
+                if interaction == Interaction::SameFrameFocus {
+                    harness.root().children_recursive()
+                        .find(|node| node.accesskit_node().author_id() == Some(author_id))
+                        .expect("actual selected sheet input").focus();
+                }
+                harness.step();
+                harness.run();
+                assert!(runtime.state.lock().unwrap().ckc_create_request.is_some(),
+                    "preexisting focus or same-dispatch-frame focus alone must keep ordinary creation");
+                let (export, error, refresh, initial_sheet) = {
+                    let state = runtime.state.lock().unwrap();
+                    (state.ckc_last_export.clone(), state.ckc_error.clone(), state.ckc_refresh_seq,
+                        state.ckc_characters[1].sheet_editor_text.clone())
+                };
+                if matches!(interaction, Interaction::Typed | Interaction::Restored) {
+                    harness.event(egui::Event::Text(" newer B edit".to_owned()));
+                    harness.run();
+                    assert!(runtime.state.lock().unwrap().ckc_create_request.is_none(),
+                        "real TextEdit input must retire create follow-up; no test clears that request");
+                    if interaction == Interaction::Restored {
+                        harness.key_press_modifiers(egui::Modifiers { ctrl: true, command: true,
+                            ..Default::default() }, egui::Key::A);
+                        harness.run();
+                        harness.event(egui::Event::Text(original_input.clone()));
+                        harness.run();
+                    }
+                } else if interaction == Interaction::Cursor {
+                    harness.key_press(egui::Key::Home);
+                    harness.run();
+                    harness.key_press(egui::Key::ArrowRight);
+                    harness.run();
+                    assert!(runtime.state.lock().unwrap().ckc_create_request.is_none(),
+                        "actual cursor work must retire follow-up without changing text");
+                }
+                let (input_after, draft_after) = {
+                    let state = runtime.state.lock().unwrap();
+                    let input = match surface {
+                        Surface::Sheet => state.ckc_characters[1].sheet_editor_text.clone(),
+                        Surface::Notes => state.ckc_character_notes_buffer.clone(),
+                        Surface::Import => state.ckc_import_text.clone(),
+                    };
+                    (input, state.ckc_characters[1].sheet_editor_text.clone())
+                };
+                if interaction == Interaction::Typed {
+                    assert!(input_after.contains(" newer B edit"), "event must reach the real editor");
+                } else {
+                    assert_eq!(input_after, original_input, "restored/cursor/untouched input stays exact");
+                }
+                if !matches!(surface, Surface::Sheet) { assert_eq!(draft_after, initial_sheet); }
+                let created = AtelierCharacterRow {
+                    internal_id: "01900000-0000-7000-8000-000000000095".to_owned(),
+                    public_id: "created-a".to_owned(), display_name: "Created A".to_owned(),
+                    character_ref: "atelier://character/01900000-0000-7000-8000-000000000095".to_owned(),
+                };
+                *runtime.ckc_create_cell.lock().unwrap() = Some(Ok(created.clone()));
+                runtime.drain_ckc_backend();
+                let state = runtime.state.lock().unwrap();
+                let keeps_b = matches!(interaction, Interaction::Typed | Interaction::Restored | Interaction::Cursor);
+                assert!(!state.ckc_create_pending);
+                assert_eq!(state.ckc_characters[1].sheet_editor_text, draft_after);
+                assert_eq!(state.ckc_refresh_seq, refresh);
+                assert!(state.ckc_head_request.is_none());
+                if keeps_b {
+                    assert_eq!(state.ckc_characters[state.ckc_selected_index].character_internal_id, target_b);
+                    assert_eq!(state.ckc_new_display_name, "Submitted create A");
+                    assert_eq!(state.ckc_last_export, export);
+                    assert_eq!(state.ckc_error, error);
+                    assert!(state.ckc_create_status.contains("current selection and inputs kept"));
+                } else {
+                    assert_eq!(state.ckc_characters[state.ckc_selected_index].character_internal_id, created.internal_id);
+                    assert_eq!(state.ckc_new_display_name, "New character");
+                    assert!(state.ckc_last_export.is_none());
+                    assert!(state.ckc_error.is_none());
+                }
+            }
+        }
+    }
+
+
+    #[test]
+    fn shared_context_equal_frame_focus_uses_actual_viewport_owner() {
+        for different_viewport in [false, true] {
+            let runtime = runtime();
+            let context = egui::Context::default();
+            let target_b = {
+                let mut state = runtime.state.lock().unwrap();
+                state.ckc_selected_index = 1;
+                state.ckc_new_display_name = "Submitted A".to_owned();
+                state.ckc_last_export = Some(local_export_ckc_sheet(&state.ckc_characters[1], "txt"));
+                state.ckc_characters[1].character_internal_id.clone()
+            };
+            let _ = context.run(egui::RawInput::default(), |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    let mut state = runtime.state.lock().unwrap();
+                    state.begin_ckc_create_request();
+                    state.ckc_create_request.as_mut().unwrap().dispatch_ui =
+                        Some((ctx.clone(), ctx.viewport_id(), ctx.cumulative_frame_nr()));
+                    let editor = ui.text_edit_singleline(&mut state.ckc_characters[1].sheet_editor_text);
+                    editor.request_focus();
+                    assert!(editor.gained_focus());
+                    assert!(!editor.changed());
+                    state.note_ckc_sheet_interaction(ctx, false, editor.gained_focus());
+                    assert!(state.ckc_create_request.is_some(), "same viewport/same dispatch frame is ordinary focus");
+                });
+            });
+            let (draft, export, error, refresh) = {
+                let state = runtime.state.lock().unwrap();
+                (state.ckc_characters[1].sheet_editor_text.clone(), state.ckc_last_export.clone(),
+                    state.ckc_error.clone(), state.ckc_refresh_seq)
+            };
+            if different_viewport {
+                let other = egui::ViewportId::from_hash_of("ckc-create-second-viewport");
+                let mut input = egui::RawInput { viewport_id: other, ..Default::default() };
+                input.viewports.insert(other, egui::ViewportInfo {
+                    parent: Some(egui::ViewportId::ROOT), ..Default::default()
+                });
+                let _ = context.run(input, |ctx| {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        let mut state = runtime.state.lock().unwrap();
+                        let dispatch = state.ckc_create_request.as_ref().unwrap().dispatch_ui.as_ref().unwrap();
+                        assert_eq!(&dispatch.0, ctx, "viewports share the exact egui Context Arc");
+                        assert_eq!(dispatch.2, ctx.cumulative_frame_nr(), "different viewports can have equal local counters");
+                        assert_ne!(dispatch.1, ctx.viewport_id());
+                        let editor = ui.text_edit_singleline(&mut state.ckc_characters[1].sheet_editor_text);
+                        editor.request_focus();
+                        assert!(editor.gained_focus(), "real focus is new in this viewport");
+                        assert!(!editor.changed());
+                        state.note_ckc_sheet_interaction(ctx, false, editor.gained_focus());
+                        assert!(state.ckc_create_request.is_none(), "other viewport is newer intent despite equal local counter");
+                    });
+                });
+            }
+            *runtime.ckc_create_cell.lock().unwrap() = Some(Ok(AtelierCharacterRow {
+                internal_id: "01900000-0000-7000-8000-000000000096".to_owned(),
+                public_id: "created-a".to_owned(), display_name: "Created A".to_owned(),
+                character_ref: "atelier://character/01900000-0000-7000-8000-000000000096".to_owned(),
+            }));
+            runtime.drain_ckc_backend();
+            let state = runtime.state.lock().unwrap();
+            assert_eq!(state.ckc_characters[1].sheet_editor_text, draft);
+            assert_eq!(state.ckc_refresh_seq, refresh);
+            if different_viewport {
+                assert_eq!(state.ckc_characters[state.ckc_selected_index].character_internal_id, target_b);
+                assert_eq!(state.ckc_new_display_name, "Submitted A");
+                assert_eq!(state.ckc_last_export, export);
+                assert_eq!(state.ckc_error, error);
+            } else {
+                assert_eq!(state.ckc_characters[state.ckc_selected_index].public_id, "created-a");
+                assert_eq!(state.ckc_new_display_name, "New character");
+            }
+        }
+    }
 }

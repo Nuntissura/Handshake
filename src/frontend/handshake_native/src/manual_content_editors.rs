@@ -674,6 +674,21 @@ atelier-character-list-blocker and atelier-moodboard-list-blocker are visible ty
 fabricated rows. A failed items request shows Items unavailable plus atelier-items-retry-*; it is never \
 reported as '(no items)'. Item, batch, and corpus AccessKit ids use injective UTF-8 hex suffixes, so copy the \
 live id from list_widgets instead of deriving a lossy slug. \
+\n\n\
+CKC sheets: open CKC (module-ckc), choose CKC (atelier-tab-ckc) > Sheet \
+(atelier-ckc-mode-sheet), then select a character. Edit atelier-ckc-sheet-editor; Append sheet version \
+(atelier-ckc-sheet-save-version) or Import sheet (atelier-ckc-import-sheet-version) submits against the \
+current parent. Saved confirms the returned version; check atelier-ckc-sheet-version-ref. Edits typed after \
+submission remain unsaved. Conflict/failure keeps the draft and current parent. Select the character, then use Refresh saved sheets \
+(atelier-ckc-refresh-saved-sheets). In atelier-ckc-refresh-saved-sheets-status, require that character's \
+'selected head observed in current refresh' or 'empty saved history observed in current refresh' report. \
+An aggregate 'Refreshed ...', status presence, retained/unlisted row or old version ref alone is insufficient. \
+If its head is unobserved, pending or failed, keep the draft and resolve/retry the authenticated refresh; \
+withhold Append/Import retry. After confirmation for the current refresh, inspect atelier-ckc-sheet-version-ref \
+when present, review the retained draft, then explicitly retry Append/Import against the observed parent. \
+Refresh is unavailable in local preview. \
+Backend Export txt/json reads the selected saved version for comparison. Local-preview export uses current \
+draft text, including unsaved edits, and is non-persistent.\n\n\
 From the mounted Code Editor, place the caret on a tree-sitter identifier or select exactly that identifier, \
 then choose the context-menu action Copy as note reference; \
 the mounted pane writes [[code:path#symbol]] to the shared InteractionBus clipboard. Activate the Rich \
