@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-212",
   "created_at_utc": "2026-10-26T12:53:14.7419363Z",
-  "updated_at_utc": "2026-10-26T15:48:41.491439+00:00",
+  "updated_at_utc": "2026-10-26T16:52:13.535979+00:00",
   "identity": {
     "mt_id": "MT-212",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -174,7 +174,9 @@
       "src/frontend/handshake_native/src/visual_debugger/mod.rs",
       "src/frontend/handshake_native/src/workspace_settings.rs",
       "src/frontend/handshake_native/tests/test_model_runtime_panel_argus.rs",
-      "src/frontend/handshake_native/tests/test_operator_chat_selection_and_transcript_argus.rs"
+      "src/frontend/handshake_native/tests/test_operator_chat_selection_and_transcript_argus.rs",
+      "src/frontend/handshake_native/tests/test_app_host_mount.rs",
+      "src/frontend/handshake_native/tests/test_settings_dialog.rs"
     ],
     "forbidden_write_paths": [
       "Original MT acceptance/status rewrites",
@@ -832,6 +834,61 @@
         ],
         "scope": "Only Console route candidate held; other GUI work continues."
       }
+    },
+    {
+      "candidate": "settings-hierarchy-04",
+      "artifact_root_relative": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/settings-hierarchy-04/binding.json",
+      "binding_sha256": "7ddb29d165928a1938c140f62487f888c6b9880f2d12386c406ac643b931c87e",
+      "pico_refs": [
+        "GUI-WP012-settings-hierarchy"
+      ],
+      "author": "/root/wp1_gui_contract_delta",
+      "state": "INDEPENDENT_AFFECTED_SOURCE_CLEAR_NOT_APPLIED_NOT_COMPILED",
+      "canonical_applied": false,
+      "tests_run": false,
+      "runtime_run": false,
+      "compiler_or_writer_grant": false,
+      "independent_codecheck": {
+        "thread_id": "01a17387-9d99-7e61-8987-42feab10e18a",
+        "verdict": "AFFECTED_SOURCE_CLEAR_ONLY",
+        "review_boundary": "Unchanged full02 correctness/auth/lifecycle reused; actual02-to04 production/test corrections and current canonical Argus helper independently reviewed. Both02 P2s resolved; no new actionable findings.",
+        "acceptance_limit": "No compile, GUI/runtime or original MT acceptance; no current Source-window or operation addition."
+      },
+      "recorded_scope_addition": {
+        "reason": "The exact existing Settings and canonical host-mount test targets supply the three independently reviewed regression sources for the recorded Appearance and pointer/model observer P2s. No new runtime API, helper or controller.",
+        "authority": "Existing operator-authorized MT212 all-applicable-GUI rollup and recorded independent remediation; no original MT scope/status/pin changed.",
+        "predecessor_release": "Backend07 actual owning postguards/drain/7626-handle release reported before this disjoint kernel-file edit; Primary14 Product/common-Git window remains undisturbed.",
+        "paths": [
+          "src/frontend/handshake_native/tests/test_app_host_mount.rs",
+          "src/frontend/handshake_native/tests/test_settings_dialog.rs"
+        ],
+        "technical_allocation_disposition": "WP012-MT212-SETTINGS04-REGRESSION-PATH-ALLOCATION-20261026-01",
+        "allocation_source_thread": "01a168a9-05b2-7630-9633-5faac88dd068",
+        "owning_product_release": {
+          "source_commit": "f0b5ca0757dbb5e0b7d1cff0c5a191e1c5ef8a6b",
+          "final_read_handles_closed_at_utc": "2026-10-26T16:43:30.109457Z",
+          "closed": 35,
+          "reported_held": "NONE",
+          "source": "Actual Primary release reported by Codeleader; separate common-Git checkpoint coordinated with Primary."
+        }
+      },
+      "predecessors": [
+        {
+          "candidate": "settings-hierarchy-01",
+          "binding_sha256": "ca1188e9d04c74e8d080efbfb5d03d43c7515ca2794dcf737e67c5d4e646609d",
+          "state": "PRESERVED_SUPERSEDED_SOURCE_PROPOSAL"
+        },
+        {
+          "candidate": "settings-hierarchy-02",
+          "binding_sha256": "739c9d4196ad2399da00b60e65b3681c055e50813c5b151c5118d1aaae70d319",
+          "state": "PRESERVED_INDEPENDENT_HOLD_TWO_P2_FINDINGS"
+        },
+        {
+          "candidate": "settings-hierarchy-03",
+          "binding_sha256": "a0c4025211dfa422192a47d25f5709ab4422bca61171023bb41e91357380cdb1",
+          "state": "PRESERVED_PRODUCTION_REPAIRS_TEST_COMPLETION_SUCCESSOR_REQUIRED"
+        }
+      ]
     }
   ],
   "picotask_plan": {
@@ -13671,7 +13728,14 @@
           ],
           "remaining": "Every existing setting is keyboard/model reachable; Persistence/error/denied/retry remains explicit; Engine Profiles stays inside Settings with stale-selection guards. Retain actual original independent runtime acceptance and unaffected proof reuse."
         },
-        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/50"
+        "dependency_matrix_ref": "#/picotask_plan/dependency_matrix/50",
+        "source_delivery_refs": [
+          {
+            "candidate_ref": "#/source_candidates/6",
+            "binding_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/settings-hierarchy-04/binding.json",
+            "state": "INDEPENDENT_SOURCE_CLEAR_ORIGINAL_COMPILE_RUNTIME_ACCEPTANCE_OPEN"
+          }
+        ]
       },
       {
         "id": "GUI-WP012-settings-profiles",
