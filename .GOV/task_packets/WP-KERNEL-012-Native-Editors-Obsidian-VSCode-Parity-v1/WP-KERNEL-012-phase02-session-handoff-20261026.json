@@ -501,6 +501,116 @@
     }
   },
   "continuation": {
+    "current_snapshot_ref": "#/continuation/current_snapshot_20261026",
+    "current_snapshot_20261026": {
+      "record_id": "WP012-CONTINUATION-20261026-JOIN05-CSCE-HANDPICK04",
+      "recorded_at_utc": "2026-10-26T11:38:51.514Z",
+      "scope": "Dated continuation snapshot. These later observations supersede only corresponding older current-state descriptions below; prior facts/history, original scope, authority_effect, proof requirements and team rules remain unchanged.",
+      "mt172": {
+        "candidate_ref": "@artifacts/WP-KERNEL-012/MT-172/coding-connected-joined-freeze-20261026-05/candidate.handoff.json",
+        "candidate_sha256": "2d2a0b43c07da513b585191a05f851d0c547a8af53c8115a58c984b870d4330e",
+        "file_count": 24,
+        "flow": {
+          "turn_id": "01a177bf-5109-7cb3-aae3-b3f2935d1e5e",
+          "state": "SOURCE_CLEAR",
+          "corroboration": "Coding completed turn01a17791-acce-7db1-abca-3107c76e46e3 and Primary's admission-preparation turn retain the exact Flow clearance."
+        },
+        "independent_codecheck": {
+          "owner": "01a17387-9d99-7e61-8987-42feab10e18a",
+          "turn_id": "01a177ed-d5b3-7a13-bec3-8218cd6cb564",
+          "state": "AFFECTED_SOURCE_CLEAR",
+          "result": "All four JOIN03 findings resolved; unchanged coverage reused. No build/runtime execution or MT172 PASS."
+        },
+        "primary": {
+          "owner": "01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
+          "turn_id": "01a177f7-a5e8-7123-87dd-e361876283dd",
+          "observed_state": "APPLIED_AND_PUBLISHED_COMPILE_BINDING_PENDING",
+          "remaining_input": "Existing parser-v2 proof covers JOIN05's shared schema inputs; metadata/filename-only control successors passed pure preflight. The affected capture binding is under Diagnostics review; actual compile remains unobserved. The earlier missing schema-provenance finding is resolved.",
+          "application_outcome": "JOIN05 applied; independent owning readback matched all 24 files and GUI edits were left untouched.",
+          "compile_outcome": "NOT_OBSERVED",
+          "publication": {
+            "commit": "f96d076e3d102089d49d0124446e2857635f31c9",
+            "tree": "1d61e9633635d5e70b98a69913daa742305a86ad",
+            "parent": "c0e3d82194906de2ddb78ef1cc1229c202524130",
+            "branch": "feat/WP-KERNEL-012",
+            "command_id": "exec-ef61eb6d-7676-4434-845b-a68dcd8bcb3e",
+            "command_exit": 0,
+            "limit": "Published source checkpoint only; no compile/runtime/MT172 PASS."
+          }
+        },
+        "remaining_acceptance": "Original runtime/independent acceptance, INFO measurement, Source276 genuine-fixture prerequisite and configured runtime inputs remain open. Later source-clear opinions do not rewrite those requirements or the frozen manifest."
+      },
+      "shared_schema_reader": {
+        "source_contract_ref": "MT-210.json",
+        "host_adoption_contract_ref": "MT-211.json",
+        "published_contract_checkpoint": "2e4232235de61dd0806eb0f30ee39cbf23df1c68",
+        "asset_maintenance": {
+          "repository": "https://github.com/Nuntissura/assets.git",
+          "path": "assets/hskernel/compiled_schema_catalog_entries/asset-contract.yaml",
+          "sha256": "8b2564aecfcf53741d153c362122f0c0f8de1de91cc86d3fb69c8f1f9b89a4f7"
+        },
+        "source_author": "01a1738a-8fd1-7ea3-abce-4da85992fe2d",
+        "coding_turn_id": "01a177f0-24db-7322-a2ed-7da15b977162",
+        "binding_ref": "@artifacts/WP-KERNEL-012/MT-210/author-b-compiled-schema-catalog-20261026-01/handover.binding.v2.json",
+        "binding_sha256": "5a2ca4e5ddcfd0f729d1374ced4f23e9265a1ac5b5722618fb256eba0a3951c5",
+        "state": "EXTERNAL_AUTHORING_ONLY_ADMITTED",
+        "scope": "Exactly four external postimages under the bound candidate root. Primary obtained actual canonical source absence/nonoverlap facts; Coding bound B's external interval.",
+        "custody": "Existing asset owner retains canonical apply/shared asset Git/publication custody until actual handover. The external admission starts no canonical writes, lock changes, Cargo/tests/compiler/Git/publication or host adoption.",
+        "publication_limit": "The checkpoint above publishes the contracts, not the new asset implementation or host adoption."
+      },
+      "gui": {
+        "owner": "01a1738d-2b8e-7151-9e9e-3972429af70c",
+        "turn_id": "01a177cc-ac18-78f2-83e6-9dd30d3f39dc",
+        "handpick_candidate_ref": "@artifacts/WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-201/handpick-native-composition-04/binding.json",
+        "source_state": "All ten Handpick04 files applied and matched exact fresh readback; Git index unchanged.",
+        "dependency_revision": "6f24d9b16f7675f2193115935ea35ae844828735",
+        "dependency_state": "Resolved offline; owning report says only the pinned Handpick package was added and existing package versions stayed unchanged.",
+        "affected_x64_check": {
+          "state": "QUALIFIED_COMPILE_STATIC_CHECK_EXIT_0",
+          "result_ref": "@artifacts/WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-201/native-check-01/result.json",
+          "result_sha256": "3ee9869227790de4529aeec93dae0539db437df6354f067d2ece0ba7bfcd5d15",
+          "started_ref": "@artifacts/WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-201/native-check-01/started.json",
+          "released_ref": "@artifacts/WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-201/native-check-01/released.json",
+          "cargo_policy_ref": "@artifacts/WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-201/native-check-01/cargo-policy.jsonl",
+          "argv": [
+            "cargo",
+            "check",
+            "--locked",
+            "--offline",
+            "--manifest-path",
+            "src/frontend/handshake_native/Cargo.toml",
+            "--tests",
+            "-j",
+            "1",
+            "--keep-going",
+            "--message-format=json"
+          ],
+          "observed_toolchain": "1.97.1-x86_64-pc-windows-msvc",
+          "input_manifest_sha256": "3333c83c25ef853f5de2e16d16c7190d64037c8de6ec594496eac92bc83cd18c",
+          "source_base_commit": "c0e3d82194906de2ddb78ef1cc1229c202524130",
+          "canonical_head_after": "f96d076e3d102089d49d0124446e2857635f31c9",
+          "unchanged_inputs": true,
+          "completed_at_utc": "2026-10-26T11:39:12.8642219Z",
+          "released_handles": 1079,
+          "released_at_utc": "2026-10-26T11:39:12.9138484Z",
+          "index_and_refs_were_never_held": true,
+          "tests_run": false,
+          "runtime_run": false,
+          "limit": "Check used the frozen c0e3 source base; f96d is the canonical head observed afterward, not a claim that this GUI check compiled JOIN05. No MT acceptance or full runtime Vulkan verdict."
+        },
+        "runtime_acceptance": "NOT_OBSERVED",
+        "reset_layout": "Candidate preserved with three actual review findings; no completion claim. Shared app.rs changes stay serialized by the actual GUI owner.",
+        "remaining_ref": "#/continuation/gui/remaining"
+      },
+      "coordination": {
+        "codeleader": "01a168a9-05b2-7630-9633-5faac88dd068",
+        "codeleader_state": "CHAT_ARCHIVED_HUMAN_RESTORATION_OR_REPLACEMENT_CHOICE_PENDING",
+        "consequence": "No custody release or new technical allocator is inferred. Existing delegated review, Primary's scoped admission preparation and GUI work under its existing human waiver can proceed within their established authority.",
+        "unchanged": "No blanket new Master-GO requirement, no new runtime allowance, no change to the one-MT non-GUI trio, parallel GUI or separate asset ownership.",
+        "team_refresh_boundary": "Refresh teams only at an actual completed Cargo boundary; an archived/unloaded chat or interrupted turn is not resource release."
+      },
+      "evidence_read": "JOIN05/external-binding/current-maintenance hashes and named owning turns were read. Primary's bounded application and successful commit/push output were inspected. No Product proof, Git operation or acceptance verdict was produced by this handoff writer."
+    },
     "mt172": {
       "source_state": "PT002/PT003/PT004 joined source is not frozen, compiled or independently runtime-validated. PT039 retains its own last Cargo101/no-runtime proof; the separate current Core build does not replace that candidate binding. PT040 combined acceptance is not established.",
       "current_decision_id": "WP012-MT172-ACK-BASE-AND-CURRENT-PROMOTION-CONSUMPTION-SOURCE-DISPOSITION-20261026-01",
