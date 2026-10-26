@@ -4661,7 +4661,8 @@
     "authored_via": "46 base via workflow wf_3d7b88d0-301 (2026-06-19); +28 expansion MT-047..MT-074 via workflow wf_01ae2073-72e (2026-06-21); +4 i18n MT-075..MT-078 (E13) authored directly by KERNEL_BUILDER 2026-06-22 (operator-ordered scope expansion, based on the existing MT template). All reviewed by KERNEL_BUILDER. ; +47 MT-079..MT-127 authored across the V2/V3/V4 remediation waves; +1 MT-128 authored 2026-08-13 by KERNEL_BUILDER-20260812-113007 (MT-043 live-child wall-clock budget, isolated while re-proving AC-120-3). Count corrected from 81 to 128 by direct file census of the contract glob, which is the authority - the stale number was never load-bearing because discovery is glob-based, but a wrong count invites a wrong completeness claim. ; +5 MT-129..MT-133 authored 2026-08-13 from root-caused MT-108 sweep failures and the MT-117 contract conflict. ; +2 MT-140..MT-141 authored 2026-08-18 by KERNEL_BUILDER-20260818-130753 under the Operator SurrealDB-only directive: MT-140 owns the frontend test-suite PostgreSQL-language purge and the broken run_fixture_sql call sites the fixture conversion left behind; MT-141 owns the backend test-suite port off sqlx (~190 files), which MT-137's notes had flagged as needing its own microtask. Count 141 by direct file census of the contract glob. ; +1 MT-142 authored 2026-08-23 by an Operator-requested governance subagent for SurrealDB-only parallel swarm concurrency/load hardening, bounded retry with jitter, coarse-lock replacement, lifecycle stress, structured metrics and two-lens adversarial validation. Count 142 by direct file census of the contract glob. ; +1 MT-142 authored 2026-08-23 (Operator-requested SurrealDB swarm concurrency/load MT). Count 142 by direct file census of the contract glob on 2026-09-02; MT-136-candidate-boundary.json is a non-contract sidecar and is excluded. ; +5 MT-153..MT-157 operator scope expansion 2026-09-23 (authority migration + security residuals): MT-153 Loom routes account-session authority (IN_PROGRESS, KERNEL_BUILDER-C3), MT-154 non-Loom routes account-session authority + residuals (create-note drain, root-written receipts, revision-158/159 predecessor checksums, workspace-delete residue), MT-155 authenticate /kernel/product_screenshot_capture/execute, MT-156 debug bundle export/download authority, MT-157 durable debugger breakpoints under account session. Authored by an Orchestrator governance subagent on Operator direction. authored_count incremented by 5 as instructed; note the direct file census of the contract glob is 157 MT-*.json contracts (MT-001..MT-157; MT-136-candidate-boundary.json excluded), so the pre-existing count (144) was already stale by 8. ; +4 MT-160..MT-163 authored 2026-09-29 on Operator-approved preservation-first MT-032 split. Exact numeric MT contract census159 before/163 after; correct stale149, exclude MT-136-candidate-boundary.json. ; +1 MT-167 authored 2026-09-30 by KERNEL_BUILDER-LANE-B-20260930 on Operator decision WP012-OPERATOR-DECISIONS-20260930-C (code-nav index cost vs spec §2.3.14.17.3; MT-164 precedent shape).",
     "reserved_draft_count": 7,
     "runtime_reliability_addition_ref": "packet.json#/operator_runtime_reliability_20261025",
-    "execution_restructure_ref": "packet.json#/operator_workflow_restructure_20261013"
+    "execution_restructure_ref": "packet.json#/operator_workflow_restructure_20261013",
+    "gui_rollup_addition_ref": "packet.json#/operator_gui_rollup_20261026"
   },
   "packet_acceptance_matrix": {
     "schema": "PACKET_ACCEPTANCE_MATRIX_V1",
@@ -7750,9 +7751,9 @@
           "src/frontend/handshake_native/src/diagnostics/recorder.rs",
           "src/frontend/handshake_native/src/diagnostics/palmistry_launch.rs",
           "src/frontend/handshake_native/src/internal_diagnostics.rs",
-          "src/backend/handshake_core/src/api/palmistry.rs"
-        ,
-          "src/backend/handshake_core/src/storage/surreal/palmistry.rs"],
+          "src/backend/handshake_core/src/api/palmistry.rs",
+          "src/backend/handshake_core/src/storage/surreal/palmistry.rs"
+        ],
         "deliverable": "Connected existing V2 ring/current-child readiness and weak adopted provenance bridge; canonical account-scoped durable receipt/adoption producer using genuine existing verification mechanics",
         "next_integration": "Coordinate exact same session/nonce/V2 recorder/current-child signed-ready interfaces with native startup/client/action/server; no raw seed or manufactured witness"
       },
@@ -8239,7 +8240,12 @@
           "before_start": "Settle exact public signature directly between owners before START.",
           "behavior": "Fresh async delivery cells; real current-auth client clear/rebind and cache/pending-model-operation invalidation; preserve presentation and generation continuity. Preserve128 IDs, Canvas/module-ingest MediaDownloader and CKC059-063/068."
         },
-        "controls": ["ONLY the exact recorded paths and explicit amendments in this child; one exclusive writer per file, fresh exact before hashes checked before writes and no peer reversion.", "Affected cheap lint/API/caller/dependency checking first, then Primary coherent normal Git checkpoint. No worker Cargo or Git.", "Original leases/history untouched. All compiler/runtime/GUI reader-dependent tests, unresolved NAV, R2 new policy, schema/native14, Assets phases, ADOPT and MT185 publication holds remain.", "Original three-WP scope/pins/HBR and independent acceptance unchanged; no copied panel/grid or policy change."],
+        "controls": [
+          "ONLY the exact recorded paths and explicit amendments in this child; one exclusive writer per file, fresh exact before hashes checked before writes and no peer reversion.",
+          "Affected cheap lint/API/caller/dependency checking first, then Primary coherent normal Git checkpoint. No worker Cargo or Git.",
+          "Original leases/history untouched. All compiler/runtime/GUI reader-dependent tests, unresolved NAV, R2 new policy, schema/native14, Assets phases, ADOPT and MT185 publication holds remain.",
+          "Original three-WP scope/pins/HBR and independent acceptance unchanged; no copied panel/grid or policy change."
+        ],
         "preparation_disposition": {
           "generic_93_check": "FAIL; supplies no compiler readiness or blanket confirmation.",
           "source_admission": "Actual source-owner/freeze/capture conditions resolved for this exact source-only child.",
@@ -8326,7 +8332,9 @@
         "operator_evidence": {
           "central_chat_id": "01a13d26-44a3-72b2-afd2-4528075ddcaa",
           "turn_id": "01a13d7b-e784-7b63-8f19-562758c4a93b",
-          "exact_phrases": ["start splitting it up while you are progressing. use you teams more effectively. the reason we are refactoring and merging  wp ckc and wp multi model orchestration is so we can split everything up. i am doing it now before i need to refactor all these wp saperately before i can merge them, hence i wanted them to merge now, then split up then make them pass all wp and mt requirements\n"],
+          "exact_phrases": [
+            "start splitting it up while you are progressing. use you teams more effectively. the reason we are refactoring and merging  wp ckc and wp multi model orchestration is so we can split everything up. i am doing it now before i need to refactor all these wp saperately before i can merge them, hence i wanted them to merge now, then split up then make them pass all wp and mt requirements\n"
+          ],
           "preceding_turn_id": "01a13d77-1831-7c93-ac3e-1ebd82a08eb1",
           "preceding_request": "Feature bundles/primitive sets in separate crates, avoiding one large crate.",
           "verification": "Root verified actual human messages in the named central turns."
@@ -14086,8 +14094,7 @@
     "core_execution_ref": "MT-188.json#/swarm_changed_source_compile_admission_20261014",
     "native_execution_ref": "MT-186.json#/swarm_changed_source_compile_admission_20261014",
     "original_scope_unchanged": true
-  }
-,
+  },
   "operator_professional_desktop_ui_20261024": {
     "decision_id": "WP012-PROFESSIONAL-DESKTOP-UI-20261024-01",
     "recorded_at_utc": "2026-10-24T16:59:01.024Z",
@@ -14482,5 +14489,25 @@
       ],
       "precedence": "Requirement024 concretely selects Kumihimo for the earlier generic canonical-capability choice in requirement006 and affected MT clauses. Earlier no-invented/no-forced-asset wording continues to prohibit additional invented frameworks or compulsory source changes; it does not make Kumihimo optional. All original acceptance/pins/proof/reviews/failures/spent outcomes/custody and actual current admission limits remain unchanged; no new execution, retry, fetch, publication or Product-write grant is created."
     }
+  },
+  "operator_gui_rollup_20261026": {
+    "decision_id": "WP012-GUI-ROLLUP-20261026",
+    "contract_ref": "MT-212.json",
+    "human_authority_ref": "MT-212.json#/operator_authority",
+    "original_gui_mts_preserved": [
+      "MT-197",
+      "MT-198",
+      "MT-199",
+      "MT-200",
+      "MT-201",
+      "MT-202",
+      "MT-203"
+    ],
+    "coverage_ref": "MT-197.json#/design_result/all_contract_coverage",
+    "picos_embedded_in": "MT-212.json#/picotask_plan/items",
+    "codecheck": "01a17387-9d99-7e61-8987-42feab10e18a",
+    "coding": "01a17387-13d3-7091-951e-c06728fb7e94",
+    "compiler_owner": "01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
+    "limits": "No original MT/status/acceptance replacement, duplicate compile, new attempt/runtime grant or source/resource release"
   }
 }
