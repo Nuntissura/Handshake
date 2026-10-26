@@ -10,7 +10,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use egui_kittest::kittest::Queryable;
+use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::Harness;
 use handshake_native::app::{HandshakeApp, HealthDisplayState, ViewMode};
 use handshake_native::backend_client::HealthInfo;
