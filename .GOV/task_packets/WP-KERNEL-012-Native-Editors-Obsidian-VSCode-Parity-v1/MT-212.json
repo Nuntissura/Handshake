@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-212",
   "created_at_utc": "2026-10-26T12:53:14.7419363Z",
-  "updated_at_utc": "2026-10-26T16:52:13.535979+00:00",
+  "updated_at_utc": "2026-10-26T17:08:42.389005+00:00",
   "identity": {
     "mt_id": "MT-212",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -776,16 +776,51 @@
       ],
       "author": "/root/handpick_independent_proof_route",
       "distinct_source_review_sha256": "199e035f30b10f34a57cde7462c662fde699af517a1e9c7bc5684908b1451f0c",
-      "state": "INDEPENDENT_CODECHECK_THREE_LENS_SOURCE_CLEAR_NOT_APPLIED_NOT_COMPILED",
+      "state": "SOURCE_PUBLISHED_UNCOMPILED_UNRUN",
       "independent_codecheck": {
         "thread_id": "01a17387-9d99-7e61-8987-42feab10e18a",
         "turn_id": "01a17875-2782-72c1-908e-42b1228d774f",
         "verdict": "SOURCE_CLEAR_ONLY",
         "observed": "All three retained reviewers cleared dispatch-gated acknowledgements, concurrent action cells, revision tracking and typed safe errors. No compile or runtime."
       },
-      "canonical_applied": false,
+      "canonical_applied": true,
       "compile_tests_runtime": "NOT_RUN",
-      "does_not_block_separate_source_batch02": true
+      "does_not_block_separate_source_batch02": true,
+      "source_publication": {
+        "commit": "f0b5ca0757dbb5e0b7d1cff0c5a191e1c5ef8a6b",
+        "tree": "e94e47c79cb89f1fe66113499be23768c5c3991a",
+        "current_product_head": "bc06385fdb596f26ba025d0fe81fb32b63861404",
+        "remote_branch_reread": "refs/heads/feat/WP-KERNEL-012",
+        "remote_head_reread": "bc06385fdb596f26ba025d0fe81fb32b63861404",
+        "verification": "Fresh canonical raw files matched frozenPOST pins; published immutable Git blobs matched after CRLF-to-LF only normalization; fresh origin branch read names the containing current commit.",
+        "files": [
+          {
+            "path": "src/frontend/handshake_native/src/operator_chat_pane.rs",
+            "raw_post_sha256": "53f05462f91106f6ac483b98a6e12186cd4099104f71e690cee4a57a840a1bd9",
+            "git_blob_oid": "5ddded9beea8e2ba9afaea7cf4c8831fbe8491c7",
+            "git_blob_sha256": "9364eccd6c7193c89afcaca7b307336bc48823e8042f94b7b750b81e207fe47e",
+            "representation": "CRLF_TO_LF_ONLY"
+          },
+          {
+            "path": "src/frontend/handshake_native/src/backend_client.rs",
+            "raw_post_sha256": "5812b988606c611f944ea8a4f5543dd811c6501302d5361cec91cea27b53ea6a",
+            "git_blob_oid": "e3fc744cbb5913b91532c6fe93131cde5b496c9e",
+            "git_blob_sha256": "d5777be7c979aceac4368cf926229b2252e93331442aa058143fd7df9583afde",
+            "representation": "CRLF_TO_LF_ONLY"
+          },
+          {
+            "path": "src/frontend/handshake_native/tests/test_operator_chat_selection_and_transcript_argus.rs",
+            "raw_post_sha256": "952d414f7408dc788b14445640bfccedc95f96c9b362a61418ed5ee746503ff1",
+            "git_blob_oid": "b1ee178a09b40ac4f6f7dc40cbd02a0f2af53b14",
+            "git_blob_sha256": "0aef6f614990a9fc272f035289ff8f47dd5c35373774bb404591716d18c2347e",
+            "representation": "CRLF_TO_LF_ONLY"
+          }
+        ],
+        "tests_run": false,
+        "runtime_run": false,
+        "current_combined_compile": "PENDING",
+        "historical_native05_limit": "Retained historical proof only; does not qualify these changed current nativePOSTs."
+      }
     },
     {
       "candidate": "worksurface-kumihimo-tree-02",
@@ -794,18 +829,46 @@
       "pico_refs": [
         "GUI-WP012-inspect-layout"
       ],
-      "state": "INDEPENDENT_CODECHECK_SOURCE_CLEAR_NOT_APPLIED_NOT_COMPILED",
+      "state": "SOURCE_PUBLISHED_UNCOMPILED_UNRUN",
       "independent_codecheck": {
         "thread_id": "01a17387-9d99-7e61-8987-42feab10e18a",
         "turn_id": "01a178a2-dff3-7780-b486-8768b0cad35f",
         "verdict": "SOURCE_CLEAR_ONLY"
       },
-      "canonical_applied": false,
+      "canonical_applied": true,
       "tests_run": false,
       "runtime_run": false,
       "compile_or_next_writer_admission": false,
       "original_contract_ref": "MT-102.json#/scope/acceptance_criteria/0",
-      "limited_change": "Preserve actual typed Kumihimo capture state through the existing layout-tree inspection and artifact-owner configuration; no genuine renderer/runtime proof."
+      "limited_change": "Preserve actual typed Kumihimo capture state through the existing layout-tree inspection and artifact-owner configuration; no genuine renderer/runtime proof.",
+      "source_publication": {
+        "commit": "f0b5ca0757dbb5e0b7d1cff0c5a191e1c5ef8a6b",
+        "tree": "e94e47c79cb89f1fe66113499be23768c5c3991a",
+        "current_product_head": "bc06385fdb596f26ba025d0fe81fb32b63861404",
+        "remote_branch_reread": "refs/heads/feat/WP-KERNEL-012",
+        "remote_head_reread": "bc06385fdb596f26ba025d0fe81fb32b63861404",
+        "verification": "Fresh canonical raw files matched frozenPOST pins; published immutable Git blobs matched after CRLF-to-LF only normalization; fresh origin branch read names the containing current commit.",
+        "files": [
+          {
+            "path": "src/frontend/handshake_native/src/visual_debugger/mod.rs",
+            "raw_post_sha256": "7f3ee745a22a403dc8d28dd39e8099f74f1f063fb9ad24c050ec91e2903914f9",
+            "git_blob_oid": "e053115d6e474dccbd0fb9dde0febc1b905fa588",
+            "git_blob_sha256": "3cba6cba85233125d057cb8a8f35b2699bb00867f3e6b0219616071b307cadb1",
+            "representation": "CRLF_TO_LF_ONLY"
+          },
+          {
+            "path": "src/frontend/handshake_native/tests/test_visual_debugger.rs",
+            "raw_post_sha256": "ce7e4db69edb780b98abb325071677d8a9817320fe52ac095ffbb711db0597b0",
+            "git_blob_oid": "48a6d4c119a057d2486c9a18c131bffed3937426",
+            "git_blob_sha256": "278666aa409c63da19efa99d184cf8db6481219657cd0945098ee8870e8d1218",
+            "representation": "CRLF_TO_LF_ONLY"
+          }
+        ],
+        "tests_run": false,
+        "runtime_run": false,
+        "current_combined_compile": "PENDING",
+        "historical_native05_limit": "Retained historical proof only; does not qualify these changed current nativePOSTs."
+      }
     },
     {
       "candidate": "wp1-console-route-02",
@@ -843,8 +906,8 @@
         "GUI-WP012-settings-hierarchy"
       ],
       "author": "/root/wp1_gui_contract_delta",
-      "state": "INDEPENDENT_AFFECTED_SOURCE_CLEAR_NOT_APPLIED_NOT_COMPILED",
-      "canonical_applied": false,
+      "state": "SOURCE_PUBLISHED_UNCOMPILED_UNRUN",
+      "canonical_applied": true,
       "tests_run": false,
       "runtime_run": false,
       "compiler_or_writer_grant": false,
@@ -888,7 +951,56 @@
           "binding_sha256": "a0c4025211dfa422192a47d25f5709ab4422bca61171023bb41e91357380cdb1",
           "state": "PRESERVED_PRODUCTION_REPAIRS_TEST_COMPLETION_SUCCESSOR_REQUIRED"
         }
-      ]
+      ],
+      "source_publication": {
+        "commit": "bc06385fdb596f26ba025d0fe81fb32b63861404",
+        "tree": "4c9b800e6f1eec27ff6e2b9dd5fbdc9c0bd59a08",
+        "current_product_head": "bc06385fdb596f26ba025d0fe81fb32b63861404",
+        "remote_branch_reread": "refs/heads/feat/WP-KERNEL-012",
+        "remote_head_reread": "bc06385fdb596f26ba025d0fe81fb32b63861404",
+        "verification": "Fresh canonical raw files matched frozenPOST pins; published immutable Git blobs matched after CRLF-to-LF only normalization; fresh origin branch read names the containing current commit.",
+        "files": [
+          {
+            "path": "src/frontend/handshake_native/src/settings_dialog.rs",
+            "raw_post_sha256": "9c21ee053948d31e577bc30b69f985828ecbb0421da15831ff5afffcc4521ca3",
+            "git_blob_oid": "38c3fea72085caf4861f74222437d1e33bbfc9ad",
+            "git_blob_sha256": "10f8dd2523489f0142efd69d8092bfb2a65a78c7aa0f85278c1fe1cecb0cd929",
+            "representation": "CRLF_TO_LF_ONLY"
+          },
+          {
+            "path": "src/frontend/handshake_native/src/app.rs",
+            "raw_post_sha256": "edd253e7f2525e90620db66ee20a77720deb8bf54f159b8e33010204c6b3692f",
+            "git_blob_oid": "067c8b6996dfdc12cc3b294dc8b581a8f128e032",
+            "git_blob_sha256": "6a6a02ba48b83c843fa51b906e7046ea25a3524a6b4b12d0a1489d37fa1ae152",
+            "representation": "CRLF_TO_LF_ONLY"
+          },
+          {
+            "path": "src/frontend/handshake_native/tests/test_settings_dialog.rs",
+            "raw_post_sha256": "0291db69f026f5ac3ec49ffaa0429a8cd4f132fe7f4a196988b3adbe3ef5f74c",
+            "git_blob_oid": "c2e93c1063f339bfd47e4ba72577a81f5ca30257",
+            "git_blob_sha256": "9671229c5f9aab9a01bec0d91c7bdc8bcf3556d4d6709021659c9e44ef89455c",
+            "representation": "CRLF_TO_LF_ONLY"
+          },
+          {
+            "path": "src/frontend/handshake_native/src/manual_content_editors.rs",
+            "raw_post_sha256": "ebd3dc5752f3ddee509d99ffb72dccde5f86015bafdad8c8905708fc5dc1c30b",
+            "git_blob_oid": "9b4be3cd720e2eb5508113f41881b58e9fc08468",
+            "git_blob_sha256": "9a47f782be746b7df2dbdc1bc2b1404735111c1cd463958e5f6d3c6dcb894cf0",
+            "representation": "CRLF_TO_LF_ONLY"
+          },
+          {
+            "path": "src/frontend/handshake_native/tests/test_app_host_mount.rs",
+            "raw_post_sha256": "5cce1d2611a4b2bf6dfac3b71f38ebc5d7c57506002f66b7804065bd32246612",
+            "git_blob_oid": "6877527ab99404cbb15f58d39f07d06a74d2a474",
+            "git_blob_sha256": "5e57a59a48909e98062dcb15f76efd416082100614dfc7bee33c3ea9ec4faaee",
+            "representation": "CRLF_TO_LF_ONLY"
+          }
+        ],
+        "tests_run": false,
+        "runtime_run": false,
+        "current_combined_compile": "PENDING",
+        "historical_native05_limit": "Retained historical proof only; does not qualify these changed current nativePOSTs."
+      }
     }
   ],
   "picotask_plan": {
