@@ -345,19 +345,21 @@ async fn scoped_enumerate_models(
 async fn scoped_execute_routing_lifecycle(
     state: State<OperatorChatState>,
     scope: RequestAccountScope,
+    headers: HeaderMap,
     request: Json<OperatorChatRoutingLifecycleRequest>,
 ) -> Result<Json<Value>, ApiError> {
     require_operator_chat_exact_scope(&state, scope.exact())?;
-    execute_routing_lifecycle(state, request).await
+    execute_routing_lifecycle(state, headers, request).await
 }
 
 async fn scoped_recover_routing_lifecycle(
     state: State<OperatorChatState>,
     scope: RequestAccountScope,
+    headers: HeaderMap,
     request: Json<OperatorChatRoutingLifecycleRequest>,
 ) -> Result<Json<Value>, ApiError> {
     require_operator_chat_exact_scope(&state, scope.exact())?;
-    recover_routing_lifecycle(state, request).await
+    recover_routing_lifecycle(state, headers, request).await
 }
 
 async fn scoped_complete_routing_authority(
@@ -373,10 +375,11 @@ async fn scoped_complete_routing_authority(
 async fn scoped_cancel_routing_lifecycle(
     state: State<OperatorChatState>,
     scope: RequestAccountScope,
+    headers: HeaderMap,
     request: Json<OperatorChatRoutingCancelRequest>,
 ) -> Result<Json<Value>, ApiError> {
     require_operator_chat_exact_scope(&state, scope.exact())?;
-    cancel_routing_lifecycle(state, request).await
+    cancel_routing_lifecycle(state, headers, request).await
 }
 
 async fn scoped_record_selection(
@@ -671,14 +674,58 @@ fn routing_service(state: &OperatorChatState) -> Result<Arc<OperatorChatLaunchSe
     ))
 }
 
+async fn with_routing_request_authority<T, F>(
+    state: &OperatorChatState, headers: &HeaderMap,
+    action: crate::storage::surreal::resource_authority::ResourceAction, operation: F,
+) -> Result<T, ApiError>
+where F: std::future::Future<Output = Result<T, crate::swarm_orchestration::operator_chat::OperatorChatError>> {
+    #[cfg(feature = "runtime-full")]
+    {
+        let bootstrap = state.account_bootstrap.as_ref().ok_or_else(|| (
+            StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error": "role_authority_authentication_unavailable"})),
+        ))?;
+        let store = operator_chat_store(state)?;
+        let exact = store.access().exact_read_scope().ok_or_else(|| (
+            StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error": "role_authority_authentication_unavailable"})),
+        ))?;
+        let denied = crate::api::authority::constant_denial;
+        if let Some(owner) = headers.get(crate::api::account_scope::OWNER_ACCOUNT_HEADER) {
+            if owner.to_str().ok().and_then(|value| uuid::Uuid::parse_str(value.trim()).ok()).map(|value| value.to_string())
+                != Some(exact.owner_account_id.as_uuid().to_string()) { return Err(denied()); }
+        }
+        if let Some(workspace) = headers.get(crate::api::account_scope::WORKSPACE_HEADER) {
+            if workspace.to_str().ok().map(str::trim) != Some(exact.workspace_id.as_str()) { return Err(denied()); }
+        }
+        let authorization = crate::api::authority::authorize_bootstrap_request(bootstrap, headers,
+            "fs.write", crate::storage::surreal::resource_authority::ResourceKind::Workspace,
+            exact.workspace_id.as_str(), action).await?;
+        if authorization.account_id != exact.owner_account_id.as_uuid().to_string()
+            || authorization.principal_id != exact.actor_principal_id.as_uuid().to_string()
+            || authorization.session_id != exact.authenticated_session_id.as_uuid().to_string()
+            || authorization.access_space_id != exact.access_space_id.as_uuid().to_string() { return Err(denied()); }
+        crate::storage::surreal::with_configured_capability_registry(bootstrap.capability_registry.clone(),
+            bootstrap.surreal.with_record_user_scope(authorization.record_user_scope,
+                crate::storage::surreal::with_model_lane_subject(crate::storage::surreal::ModelLaneOperationSubject {
+                    kind: crate::storage::surreal::resource_authority::ResourceKind::Workspace,
+                    external_id: exact.workspace_id.as_str().to_owned(),
+                }, operation))).await.map_err(launch_api_error)
+    }
+    #[cfg(not(feature = "runtime-full"))]
+    {
+        let _ = (state, headers, action, operation);
+        Err((StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error": "role_authority_authentication_unavailable"}))))
+    }
+}
+
 async fn execute_routing_lifecycle(
     State(state): State<OperatorChatState>,
+    headers: HeaderMap,
     Json(request): Json<OperatorChatRoutingLifecycleRequest>,
 ) -> Result<Json<Value>, ApiError> {
-    let batch = routing_service(&state)?
-        .execute_routing_lifecycle(request)
-        .await
-        .map_err(launch_api_error)?;
+    let service = routing_service(&state)?;
+    let batch = with_routing_request_authority(&state, &headers,
+        crate::storage::surreal::resource_authority::ResourceAction::Create,
+        service.execute_routing_lifecycle(request)).await?;
     Ok(Json(
         serde_json::to_value(batch).unwrap_or_else(|_| json!({})),
     ))
@@ -686,12 +733,13 @@ async fn execute_routing_lifecycle(
 
 async fn recover_routing_lifecycle(
     State(state): State<OperatorChatState>,
+    headers: HeaderMap,
     Json(request): Json<OperatorChatRoutingLifecycleRequest>,
 ) -> Result<Json<Value>, ApiError> {
-    let batch = routing_service(&state)?
-        .recover_routing_lifecycle(request)
-        .await
-        .map_err(launch_api_error)?;
+    let service = routing_service(&state)?;
+    let batch = with_routing_request_authority(&state, &headers,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
+        service.recover_routing_lifecycle(request)).await?;
     Ok(Json(
         serde_json::to_value(batch).unwrap_or_else(|_| json!({})),
     ))
@@ -739,12 +787,13 @@ async fn complete_routing_authority(
 
 async fn cancel_routing_lifecycle(
     State(state): State<OperatorChatState>,
+    headers: HeaderMap,
     Json(request): Json<OperatorChatRoutingCancelRequest>,
 ) -> Result<Json<Value>, ApiError> {
-    let execution = routing_service(&state)?
-        .cancel_routing_lifecycle(request)
-        .await
-        .map_err(launch_api_error)?;
+    let service = routing_service(&state)?;
+    let execution = with_routing_request_authority(&state, &headers,
+        crate::storage::surreal::resource_authority::ResourceAction::Update,
+        service.cancel_routing_lifecycle(request)).await?;
     Ok(Json(
         serde_json::to_value(execution).unwrap_or_else(|_| json!({})),
     ))
@@ -1257,6 +1306,11 @@ async fn fetch_transcript(
 
 fn launch_api_error(err: OperatorChatError) -> ApiError {
     match err {
+        OperatorChatError::AcknowledgementCommitted { event_id, operation_id, .. } => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": "routing_acknowledgement_committed_continuation_failed",
+                "committed_execution_event_id": event_id, "operation_id": operation_id})),
+        ),
         OperatorChatError::Invalid(_) => (
             StatusCode::BAD_REQUEST,
             Json(json!({"error": "bad_request"})),

@@ -63,11 +63,20 @@ impl AuthenticatedPromotionStore {
         -> ModelLaneResult<ModelLanePromotionDecisionRecord> {
         let mut authorities = self.authorities.lock().await;
         let held = authorities.get_mut(&input.run_id).expect("genuine roles acquired before input mutation");
+        if self.store.access().exact_read_scope() != Some(&held.selectors.operator.expectation.receipt_scope) {
+            return Err(handshake_core::swarm_orchestration::model_lane::ModelLaneError::AuthorityDenied(
+                "configured promotion store differs from the retained genuine owner scope".into()));
+        }
         let operation_id = *held.operations.entry(input.decision_id.clone()).or_insert_with(Uuid::now_v7);
         input.operator_authority_ref = Some(held.selectors.operator.evidence_ref.as_str().into());
         input.validator_authority_ref = Some(held.selectors.validator.evidence_ref.as_str().into());
-        self.store.record_promotion_decision(&self.bootstrap, self.authorization.clone(),
-            operation_id, held.selectors.clone(), input).await
+        match held.runtime.as_ref() {
+            Some(runtime) => self.operation(ResourceAction::Create).await?
+                .run_with_configured_registry(self.bootstrap.capability_registry.clone(),
+                    runtime.record_promotion_decision(&self.bootstrap, self.authorization.clone(), operation_id, input)).await,
+            None => self.store.retry_committed_promotion_decision(&self.bootstrap, self.authorization.clone(),
+                operation_id, held.selectors.clone(), input).await,
+        }
     }
 
     async fn record_message(&self, mut input: NewModelLaneMessage) -> ModelLaneResult<ModelLaneMessageRecord> {
@@ -81,7 +90,8 @@ impl AuthenticatedPromotionStore {
     }
 
     async fn replay_promotion_decisions(&self, run: &str) -> ModelLaneResult<Vec<ModelLanePromotionDecisionRecord>> {
-        self.operation(ResourceAction::Read).await?.run(self.store.replay_promotion_decisions(run)).await
+        self.operation(ResourceAction::Read).await?.run_with_configured_registry(
+            self.bootstrap.capability_registry.clone(), self.store.replay_promotion_decisions(run)).await
     }
     async fn replay_run(&self, run: &str) -> ModelLaneResult<ModelLaneReplay> {
         self.operation(ResourceAction::Read).await?.run(self.store.replay_run(run)).await
@@ -97,8 +107,8 @@ impl AuthenticatedPromotionStore {
     }
     async fn test_corrupt_scoped_authority(&self, kind: &str, id: &str,
         corruption: ModelLaneAuthorityTestCorruption) -> ModelLaneResult<()> {
-        self.operation(ResourceAction::Create).await?.run(
-            self.store.test_corrupt_scoped_authority(kind, id, corruption)).await
+        self.operation(ResourceAction::Create).await?.run_with_configured_registry(
+            self.bootstrap.capability_registry.clone(), self.store.test_corrupt_scoped_authority(kind, id, corruption)).await
     }
 }
 
@@ -166,6 +176,8 @@ impl Harness {
     }
 
     async fn reopen(&mut self) {
+        let capability_registry = self.fixture.bootstrap.as_ref().expect("actual original bootstrap")
+            .capability_registry.clone();
         Self::shutdown_roles(&self.authorities).await;
         drop(self.store.0.take());
         drop(self.storage.0.take());
@@ -178,7 +190,7 @@ impl Harness {
         let storage = self.fixture.isolated.storage().clone();
         let database: Arc<dyn Database> = Arc::new(SurrealDatabase::new(storage.clone()));
         self.fixture.bootstrap = Some(AccountBootstrapState::new(database, storage.clone(),
-            Arc::new(CapabilityRegistry::new())));
+            capability_registry));
         self.store.0 = Some(AuthenticatedPromotionStore {
             store: ModelLaneStore::new_scoped_with_lifecycle(storage.clone(), self.scope.clone(),
                 storage.resource_access_lifecycle()),
@@ -458,17 +470,142 @@ async fn promotion_same_scope_cross_run_input_is_a_durable_typed_denial() {
         assert_eq!(denied.denial_reason, Some(ModelLanePromotionDenialReason::InputRefMismatch));
         assert!(denied.event_ledger_seq > 0);
         assert!(!denied.event_ledger_event_id.is_empty());
+        let settled = promotion_settlement_sets(&harness.storage.test_inspector()).await;
+        for key in ["model_lane_authority/promotion_decision", "model_lane_authority/role_evidence_consumption",
+            "kernel_event_ledger/promotion_decision", "kernel_event_ledger/role_evidence_consumption"] {
+            assert!(!settled[key].as_array().expect("complete canonical family set").is_empty(),
+                "positive settled families make retry nonmutation controls nonvacuous");
+        }
+        let original_operation = {
+            let held = harness.authorities.lock().await;
+            held["run-mt004-mixed-run-a"].operations["decision-mixed-run"]
+        };
+        let original_selectors = {
+            let held = harness.authorities.lock().await;
+            held["run-mt004-mixed-run-a"].selectors.clone()
+        };
+        assert!(settled["model_lane_authority/role_evidence_consumption"].as_array().unwrap().iter().any(|row| {
+            let body: serde_json::Value = serde_json::from_str(row["values"]["record_json"].as_str()
+                .expect("actual canonical consumption JSON string")).expect("parse actual consumption body");
+            body["schema_id"] == "handshake.role-promotion-consumption@1"
+                && body["operation_id"] == original_operation.to_string()
+                && body["decision_id"] == "decision-mixed-run"
+        }), "positive canonical sets include the actual original CURRENT consumption, not only issuance lineage");
+        let unchanged_retry_input = candidate.clone();
+        let original_registry = harness.store.bootstrap.capability_registry.clone();
         assert_eq!(harness.store.record_promotion_decision(candidate.clone()).await.unwrap(), denied,
             "identical retry retains original operation and canonical denial");
+        assert_eq!(promotion_settlement_sets(&harness.storage.test_inspector()).await, settled,
+            "same live-owner committed retry cannot create another decision, consumption or ledger row");
         assert_eq!(harness.store.replay_promotion_decisions("run-mt004-mixed-run-a").await.unwrap(), vec![denied.clone()],
             "canonical replay validates the decision and EventLedger link");
         assert_eq!(harness.store.replay_run("run-mt004-mixed-run-b").await.unwrap(), before_b,
             "cross-run denial must not mutate B's canonical data");
         harness.reopen().await;
+        assert!(Arc::ptr_eq(&original_registry, &harness.store.bootstrap.capability_registry),
+            "canonical reopen retains the exact actual configured registry Arc");
+        assert_eq!(promotion_settlement_sets(&harness.storage.test_inspector()).await, settled,
+            "actual handle drain and canonical reopen retain the complete settlement sets");
+        {
+            let held = harness.authorities.lock().await;
+            assert!(held["run-mt004-mixed-run-a"].runtime.is_none(), "original actual role owner was shut down before reopen");
+            assert_eq!(held["run-mt004-mixed-run-a"].operations["decision-mixed-run"], original_operation);
+            assert_eq!(held["run-mt004-mixed-run-a"].selectors, original_selectors);
+        }
         assert_eq!(harness.store.replay_promotion_decisions("run-mt004-mixed-run-a").await.unwrap(), vec![denied.clone()]);
         assert_eq!(harness.store.record_promotion_decision(candidate).await.unwrap(), denied,
             "same original role selectors and operation survive canonical reopen");
+        assert_eq!(promotion_settlement_sets(&harness.storage.test_inspector()).await, settled,
+            "retired-owner retry returns the unchanged settled result without new decisions, consumptions or receipts");
+
         assert_eq!(harness.store.replay_run("run-mt004-mixed-run-b").await.unwrap(), before_b);
+        let mut exact_retry_input = unchanged_retry_input;
+        exact_retry_input.operator_authority_ref = Some(original_selectors.operator.evidence_ref.as_str().into());
+        exact_retry_input.validator_authority_ref = Some(original_selectors.validator.evidence_ref.as_str().into());
+        let mut changed_input = exact_retry_input.clone();
+        changed_input.diagnostic_payload = json!({"changed_committed_retry_input": true});
+        let changed = harness.store.store.retry_committed_promotion_decision(&harness.store.bootstrap,
+            harness.store.authorization.clone(), original_operation, original_selectors.clone(), changed_input).await;
+        assert!(matches!(changed, Err(handshake_core::swarm_orchestration::model_lane::ModelLaneError::IdempotencyConflict(_))),
+            "same committed operation cannot accept a changed complete input");
+        assert_eq!(promotion_settlement_sets(&harness.storage.test_inspector()).await, settled);
+        assert!(harness.store.store.retry_committed_promotion_decision(&harness.store.bootstrap,
+            harness.store.authorization.clone(), Uuid::now_v7(), original_selectors.clone(), exact_retry_input.clone()).await.is_err(),
+            "an uncommitted operation cannot borrow another operation's settlement or fall back to first consumption");
+        assert_eq!(promotion_settlement_sets(&harness.storage.test_inspector()).await, settled);
+        let mut different_selectors = original_selectors.clone();
+        different_selectors.operator.expectation.expected.aggregate_version += 1;
+        assert!(harness.store.store.retry_committed_promotion_decision(&harness.store.bootstrap,
+            harness.store.authorization.clone(), original_operation, different_selectors, exact_retry_input.clone()).await.is_err(),
+            "committed retry must preserve the full original selector expectations");
+        assert_eq!(promotion_settlement_sets(&harness.storage.test_inspector()).await, settled);
+        let mut missing = harness.store.authorization.clone();
+        missing.session_token.clear();
+        let mut invalid = harness.store.authorization.clone();
+        invalid.session_token = "0".repeat(64);
+        let mut wrong_channel = harness.store.authorization.clone();
+        wrong_channel.channel_binding_hash = Some("0".repeat(64));
+        let mut read_only = harness.store.authorization.clone();
+        read_only.action = ResourceAction::Read;
+        read_only.capability_id = "fs.read".into();
+        for authorization in [missing, invalid, wrong_channel, read_only] {
+            assert!(harness.store.store.retry_committed_promotion_decision(&harness.store.bootstrap,
+                authorization, original_operation, original_selectors.clone(), exact_retry_input.clone()).await.is_err(),
+                "retired-owner retry must independently require current native Creator and channel authority");
+            assert_eq!(promotion_settlement_sets(&harness.storage.test_inspector()).await, settled);
+        }
+        for foreign_scope in one_field_mismatches(&harness.scope) {
+            let foreign = harness.store_for(foreign_scope);
+            assert!(foreign.store.retry_committed_promotion_decision(&foreign.bootstrap,
+                foreign.authorization.clone(), original_operation, original_selectors.clone(), exact_retry_input.clone()).await.is_err(),
+                "every configured scope field is checked at the genuine production retry boundary");
+            assert_eq!(promotion_settlement_sets(&harness.storage.test_inspector()).await, settled);
+        }
+        harness.store.test_corrupt_scoped_authority("promotion_decision", &denied.decision_id,
+            ModelLaneAuthorityTestCorruption::ReceiptPayloadHash).await
+            .expect("existing owned exact-scope corruption changes only the actual committed decision receipt hash");
+        let corrupt = promotion_settlement_sets(&harness.storage.test_inspector()).await;
+        assert_ne!(corrupt, settled, "the negative genuinely changes canonical settlement evidence");
+        let corrupt_retry = harness.store.store.retry_committed_promotion_decision(&harness.store.bootstrap,
+            harness.store.authorization.clone(), original_operation, original_selectors.clone(), exact_retry_input.clone()).await;
+        assert!(matches!(corrupt_retry,
+            Err(handshake_core::swarm_orchestration::model_lane::ModelLaneError::Surreal(
+                handshake_core::storage::surreal::SurrealStorageError::InvalidModelLaneRecord { reason }))
+                if matches!(reason, "original committed promotion consumption unavailable"
+                    | "original committed promotion decision unavailable"
+                    | "model-lane authority row lacks one exact-scope EventLedger envelope"
+                    | "model-lane authority/EventLedger envelope mismatch")),
+            "corrupt committed evidence must fail canonical envelope integrity, not a native authority gate");
+        assert_eq!(promotion_settlement_sets(&harness.storage.test_inspector()).await, corrupt);
+        let mut actual_read = harness.store.authorization.clone();
+        actual_read.action = ResourceAction::Read;
+        actual_read.capability_id = "fs.read".into();
+        let read_grant = harness.storage.authorize_protected_resource(actual_read.clone()).await
+            .expect("actual current Read authority before native revocation");
+        let creator_grant = harness.storage.authorize_protected_resource(harness.store.authorization.clone()).await
+            .expect("actual current Creator authority before native revocation");
+        assert_eq!(read_grant.grant_id, creator_grant.grant_id,
+            "the existing first-owner fixture uses one shared Read/Create grant; this is not isolated Read attenuation");
+        harness.storage.revoke_grant(&read_grant.grant_id).await.expect("revoke the actual shared native grant");
+        assert!(harness.storage.authorize_protected_resource(actual_read).await.is_err());
+        assert!(harness.storage.authorize_protected_resource(harness.store.authorization.clone()).await.is_err());
+        let grant_retry = harness.store.store.retry_committed_promotion_decision(&harness.store.bootstrap,
+            harness.store.authorization.clone(), original_operation, original_selectors.clone(), exact_retry_input.clone()).await;
+        assert!(matches!(grant_retry,
+            Err(handshake_core::swarm_orchestration::model_lane::ModelLaneError::AuthorityDenied(ref reason))
+                if reason == "resource authority denied"),
+            "revoked shared Read/Create grant must fail native resource authorization, not earlier receipt corruption");
+        assert_eq!(promotion_settlement_sets(&harness.storage.test_inspector()).await, corrupt);
+        harness.fixture.revoke_owned_session_for_retry_denial().await;
+        let session_retry = harness.store.store.retry_committed_promotion_decision(&harness.store.bootstrap,
+            harness.store.authorization.clone(), original_operation, original_selectors, exact_retry_input).await;
+        assert!(matches!(session_retry,
+            Err(handshake_core::swarm_orchestration::model_lane::ModelLaneError::Surreal(
+                handshake_core::storage::surreal::SurrealStorageError::Database(ref error)))
+                if matches!(error.details(), surrealdb::types::ErrorDetails::NotFound(None))
+                    && error.message() == "No record was returned"),
+            "revoked native session must fail SIGNIN before grant lookup, not earlier grant denial or receipt corruption");
+        assert_eq!(promotion_settlement_sets(&harness.storage.test_inspector()).await, corrupt);
     }).catch_unwind().await;
     let cleanup = std::panic::AssertUnwindSafe(harness.cleanup()).catch_unwind().await;
     if result.is_err() || cleanup.is_err() {
@@ -853,6 +990,29 @@ async fn foreign_scope_run_and_lane_cannot_manufacture_message_append_authority(
 }
 
 
+async fn promotion_settlement_sets(inspector: &SurrealTestInspector) -> serde_json::Value {
+    let mut sets = serde_json::Map::new();
+    for (table_name, selector_name) in [
+        ("model_lane_authority", "record_kind"), ("kernel_event_ledger", "aggregate_type"),
+    ] {
+        let catalog = inspector.table_catalog(table_name).await.expect("actual canonical settlement catalog");
+        let table = inspector.table_selector(table_name).await.expect("actual canonical settlement table");
+        let fields = catalog.fields.iter().filter(|field| field.name != "id"
+            && field.name.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'_'))
+            .map(|field| table.field(&field.name)).collect::<Result<Vec<_>, _>>()
+            .expect("all declared direct settlement fields are catalog-selected");
+        assert!(!fields.is_empty());
+        for family in ["promotion_decision", "role_evidence_consumption"] {
+            let mut rows = inspector.project(&table, &fields, RowFilter::FieldEquals {
+                field: table.field(selector_name).expect("actual canonical family selector"),
+                value: ScalarValue::String(family.into()),
+            }).await.expect("independent canonical full settlement family set");
+            rows.sort_by_cached_key(|row| serde_json::to_string(&row.record_id).expect("canonical row identity"));
+            sets.insert(format!("{table_name}/{family}"), serde_json::to_value(rows).expect("actual projected canonical rows"));
+        }
+    }
+    serde_json::Value::Object(sets)
+}
 async fn promotion_event_count(inspector: &SurrealTestInspector) -> u64 {
     let table = inspector.table_selector("kernel_event_ledger").await.unwrap();
     let field = table.field("aggregate_type").unwrap();
@@ -1335,6 +1495,7 @@ mod authenticated_promotion_fixture {
         pub(super) bootstrap: Option<AccountBootstrapState>,
         channel: NativeChannel,
         session: Option<OwnedSession>,
+        session_revoked_for_retry: bool,
         pub(super) scope: Option<ResourceScope>,
     }
 
@@ -1352,7 +1513,7 @@ mod authenticated_promotion_fixture {
             registry.profile_by_id("Operator").expect("actual loaded Operator profile");
             let database: Arc<dyn Database> = Arc::new(SurrealDatabase::new(isolated.storage().clone()));
             let bootstrap = AccountBootstrapState::new(database, isolated.storage().clone(), registry);
-            Self { isolated, bootstrap: Some(bootstrap), channel, session: None, scope: None }
+            Self { isolated, bootstrap: Some(bootstrap), channel, session: None, session_revoked_for_retry: false, scope: None }
         }
 
         fn router(&self) -> Router {
@@ -1421,12 +1582,23 @@ mod authenticated_promotion_fixture {
                 self.isolated.storage().resource_access_lifecycle())
         }
 
+        pub(super) async fn revoke_owned_session_for_retry_denial(&mut self) {
+            let scope = self.scope.as_ref().expect("actual owned scope until cleanup");
+            let session = scope.authenticated_session.as_ref().expect("actual original session").to_string();
+            self.isolated.storage().revoke_session(&session).await.expect("native revocation of the actual original session");
+            self.session_revoked_for_retry = true;
+        }
         pub(super) async fn cleanup(&mut self) {
             if let Some(session) = self.session.as_ref() {
                 let router = self.router();
-                let (status, _) = dispatch(&router, "POST", "/authority/logout", &self.channel.token,
+                let (status, body) = dispatch(&router, "POST", "/authority/logout", &self.channel.token,
                     Some(&session.token), Value::Null).await;
-                assert_eq!(status, StatusCode::OK, "revoke actual session and remove its vault secret");
+                if self.session_revoked_for_retry {
+                    assert_eq!(status, StatusCode::FORBIDDEN, "actual retired session invokes native secret retirement cleanup");
+                    assert_eq!(body, json!({"error": "HSK-403-PROTECTED-RESOURCE"}));
+                } else {
+                    assert_eq!(status, StatusCode::OK, "revoke actual session and remove its vault secret");
+                }
                 drop(router);
                 self.session.take();
             }

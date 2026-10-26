@@ -130,7 +130,7 @@ async fn canonical_cancelled_routing_dispatch(
     claim: &super::routing_execution::ModelLaneRoutingStageClaim,
     expected_instance_id: Option<&str>,
 ) -> Result<Option<super::routing_execution::ModelLaneRoutingStageDispatch>, String> {
-    let Some(execution) = store.snapshot(&claim.execution_id).await? else {
+    let Some(execution) = store.transition_snapshot(&claim.execution_id).await? else {
         return Ok(None);
     };
     let Some(stage) = execution.stages.get(&claim.stage_id) else {
@@ -347,10 +347,21 @@ impl SessionHandle {
 
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum RoutingAuthorityCompletionError {
+    #[error("routing acknowledgement committed; execution receipt {event_id} for operation {operation_id}; continuation failed: {error}")]
+    AcknowledgementCommitted { event_id: String, operation_id: uuid::Uuid, error: SwarmError },
     #[error(transparent)]
     ModelLane(#[from] super::model_lane::ModelLaneError),
     #[error(transparent)]
     Swarm(#[from] SwarmError),
+}
+
+/// Evidence returned from the already observed ACK transaction, retained even
+/// when the subsequent service publication check fails. The receipt identifies
+/// routing execution completion, not the separate RoleEvidence ACK record.
+pub(crate) struct RoutingAuthorityCompletion {
+    pub batch: super::routing_execution::ModelLaneRoutingDispatchBatch,
+    pub committed_execution_event_id: String,
+    pub operation_id: uuid::Uuid,
 }
 
 #[derive(Clone)]
@@ -503,6 +514,10 @@ struct Inner {
         Mutex<Option<(Arc<tokio::sync::Notify>, Arc<tokio::sync::Notify>)>>,
     #[cfg(any(test, feature = "test-utils"))]
     fail_next_routing_output_persistence: AtomicBool,
+    #[cfg(any(test, feature = "test-utils"))]
+    routing_ack_continuation_failure: Mutex<Option<(String, String, String)>>,
+    #[cfg(any(test, feature = "test-utils"))]
+    routing_ack_service_validation_failure: Mutex<Option<(String, String, String)>>,
     #[cfg(any(test, feature = "test-utils"))]
     fail_next_sibling_cancellation_persistence: AtomicBool,
 }
@@ -1376,6 +1391,10 @@ impl SwarmCoordinator {
             cleanup_retry_after_snapshot_pause: Mutex::new(None),
             #[cfg(any(test, feature = "test-utils"))]
             fail_next_routing_output_persistence: AtomicBool::new(false),
+            #[cfg(any(test, feature = "test-utils"))]
+            routing_ack_continuation_failure: Mutex::new(None),
+            #[cfg(any(test, feature = "test-utils"))]
+            routing_ack_service_validation_failure: Mutex::new(None),
             #[cfg(any(test, feature = "test-utils"))]
             fail_next_sibling_cancellation_persistence: AtomicBool::new(false),
             config,
@@ -4624,7 +4643,7 @@ impl SwarmCoordinator {
             )
         })?;
         let execution = execution_store
-            .snapshot(execution_id)
+            .transition_snapshot(execution_id)
             .await
             .map_err(|err| SwarmError::LedgerFailed(format!("routing snapshot failed: {err}")))?
             .ok_or_else(|| SwarmError::LedgerFailed(format!(
@@ -4778,7 +4797,7 @@ impl SwarmCoordinator {
                     });
                 }
                 let current_execution = execution_store
-                    .snapshot(execution_id)
+                    .transition_snapshot(execution_id)
                     .await
                     .map_err(|err| SwarmError::LedgerFailed(format!("authority request snapshot failed: {err}")))?
                     .ok_or_else(|| SwarmError::LedgerFailed(format!("routing execution {execution_id} disappeared")))?;
@@ -5554,7 +5573,7 @@ impl SwarmCoordinator {
                         release.notified().await;
                     }
                     let origin_still_current = execution_store
-                        .snapshot(execution_id)
+                        .transition_snapshot(execution_id)
                         .await
                         .map_err(|snapshot_error| {
                             SwarmError::LedgerFailed(format!(
@@ -5595,7 +5614,7 @@ impl SwarmCoordinator {
             dispatched.push(dispatch);
         }
         let execution = execution_store
-            .snapshot(execution_id)
+            .transition_snapshot(execution_id)
             .await
             .map_err(|err| SwarmError::LedgerFailed(format!("routing snapshot failed: {err}")))?
             .ok_or_else(|| {
@@ -5705,7 +5724,7 @@ impl SwarmCoordinator {
             .collect();
 
         let mut errors = Vec::new();
-        let active: Vec<_> = match store.snapshot(execution_id).await {
+        let active: Vec<_> = match store.transition_snapshot(execution_id).await {
             Ok(Some(execution)) => execution
                 .stages
                 .values()
@@ -5847,16 +5866,25 @@ impl SwarmCoordinator {
         context: super::routing_execution::ModelLaneRoutingExecutionContext,
         launches: Vec<super::routing_execution::ModelLaneRoutingStageLaunch>,
     ) -> SwarmResult<super::routing_execution::ModelLaneRoutingDispatchBatch> {
+        self.begin_routing_lifecycle(execution_id, selecting_decision_id, authority, context).await?;
+        self.drive_routing_lifecycle(execution_id, launches).await
+    }
+
+    pub(crate) async fn begin_routing_lifecycle(
+        &self, execution_id: &str, selecting_decision_id: &str,
+        authority: &super::routing::ModelLaneRoutingAuthority,
+        context: super::routing_execution::ModelLaneRoutingExecutionContext,
+    ) -> SwarmResult<super::routing_execution::ModelLaneRoutingExecutionState> {
         let store = self.inner.routing_execution_store.as_ref().ok_or_else(|| {
             SwarmError::LedgerFailed(
                 "production routing requires a scoped embedded-Surreal ModelLaneStore".into(),
             )
         })?;
-        store
+        let execution = store
             .begin_execution(execution_id, selecting_decision_id, authority, context)
             .await
             .map_err(|err| SwarmError::LedgerFailed(format!("routing start failed: {err}")))?;
-        self.drive_routing_lifecycle(execution_id, launches).await
+        Ok(execution)
     }
 
     async fn drive_routing_lifecycle(
@@ -5889,6 +5917,43 @@ impl SwarmCoordinator {
         }
     }
 
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn set_routing_ack_continuation_failure_for_test(&self, execution_id: &str, stage_id: &str, message_id: &str) {
+        assert!(!execution_id.is_empty() && !stage_id.is_empty() && !message_id.is_empty());
+        *self.inner.routing_ack_continuation_failure.lock().expect("routing ACK fault state poisoned") =
+            Some((execution_id.to_owned(), stage_id.to_owned(), message_id.to_owned()));
+    }
+
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn clear_routing_ack_continuation_failure_for_test(&self) {
+        self.inner.routing_ack_continuation_failure.lock().expect("routing ACK fault state poisoned").take();
+    }
+
+    /// Inject a one-shot final service validation failure only after the real
+    /// ACK commit and coordinator resume both succeeded. No authority is changed.
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn set_routing_ack_service_validation_failure_for_test(&self, execution_id: &str, stage_id: &str, message_id: &str) {
+        assert!(!execution_id.is_empty() && !stage_id.is_empty() && !message_id.is_empty());
+        *self.inner.routing_ack_service_validation_failure.lock().expect("routing ACK service fault state poisoned") =
+            Some((execution_id.to_owned(), stage_id.to_owned(), message_id.to_owned()));
+    }
+
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn clear_routing_ack_service_validation_failure_for_test(&self) {
+        self.inner.routing_ack_service_validation_failure.lock().expect("routing ACK service fault state poisoned").take();
+    }
+
+    #[cfg(any(test, feature = "test-utils"))]
+    pub(crate) fn take_routing_ack_service_validation_failure_for_test(&self, execution_id: &str, stage_id: &str, message_id: &str) -> bool {
+        let mut fault = self.inner.routing_ack_service_validation_failure.lock().expect("routing ACK service fault state poisoned");
+        if fault.as_ref().is_some_and(|(execution, stage, message)|
+            execution == execution_id && stage == stage_id && message == message_id) {
+            fault.take();
+            return true;
+        }
+        false
+    }
+
     pub(crate) async fn complete_authority_and_resume_routing_lifecycle(
         &self,
         permit: crate::storage::surreal::resource_authority::RoleAuthorityConsumptionPermit,
@@ -5896,10 +5961,28 @@ impl SwarmCoordinator {
         stage_id: &str,
         message_id: &str,
         launches: Vec<super::routing_execution::ModelLaneRoutingStageLaunch>,
-    ) -> Result<super::routing_execution::ModelLaneRoutingDispatchBatch, RoutingAuthorityCompletionError> {
-        self.complete_authority_routing_stage(permit, execution_id, stage_id, message_id).await?;
-        self.drive_routing_lifecycle(execution_id, launches).await
-            .map_err(RoutingAuthorityCompletionError::Swarm)
+    ) -> Result<RoutingAuthorityCompletion, RoutingAuthorityCompletionError> {
+        let operation_id = permit.operation_id();
+        let acknowledged = self.complete_authority_routing_stage(permit, execution_id, stage_id, message_id).await?;
+        #[cfg(any(test, feature = "test-utils"))]
+        {
+            let mut fault = self.inner.routing_ack_continuation_failure.lock().expect("routing ACK fault state poisoned");
+            if fault.as_ref().is_some_and(|(execution, stage, message)|
+                execution == execution_id && stage == stage_id && message == message_id) {
+                fault.take();
+                return Err(RoutingAuthorityCompletionError::AcknowledgementCommitted {
+                    event_id: acknowledged.event_ledger_event_id.clone(), operation_id,
+                    error: SwarmError::LedgerFailed("injected continuation failure".into()),
+                });
+            }
+        }
+        let batch = self.drive_routing_lifecycle(execution_id, launches).await.map_err(|error|
+            RoutingAuthorityCompletionError::AcknowledgementCommitted {
+                event_id: acknowledged.event_ledger_event_id.clone(), operation_id, error,
+            })?;
+        Ok(RoutingAuthorityCompletion {
+            batch, committed_execution_event_id: acknowledged.event_ledger_event_id, operation_id,
+        })
     }
 
     pub(crate) async fn complete_authority_routing_stage(

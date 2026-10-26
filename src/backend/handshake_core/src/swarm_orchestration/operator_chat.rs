@@ -891,6 +891,8 @@ pub struct OperatorChatSingleRunCloudRevokeRequest {
 /// Errors surfaced by the operator chat/launch engine.
 #[derive(Debug, thiserror::Error)]
 pub enum OperatorChatError {
+    #[error("routing acknowledgement committed; execution receipt {event_id} for operation {operation_id}; continuation failed: {error}")]
+    AcknowledgementCommitted { event_id: String, operation_id: uuid::Uuid, error: SwarmError },
     #[error("model lane store error: {0}")]
     ModelLane(#[from] ModelLaneError),
     #[error("flight recorder error: {0}")]
@@ -2610,14 +2612,16 @@ impl OperatorChatLaunchService {
         let store = self.coordinator.model_lane_store().ok_or_else(|| {
             OperatorChatError::Invalid("operator-chat routing requires a ModelLaneStore".into())
         })?;
-        let replay = store.replay_run(&request.context.run_id).await?;
-        self.routing_launches_from_canonical_run(request, &replay.run)
+        let (run, launch_plan) = store.routing_launch_run(&request.context.run_id, &request.execution_id,
+            &request.selecting_decision_id, &request.context.initial_input_ref).await?;
+        self.routing_launches_from_canonical_run(request, &run, &launch_plan)
     }
 
     fn routing_launches_from_canonical_run(
         &self,
         request: &OperatorChatRoutingLifecycleRequest,
         run: &ModelLaneRunRecord,
+        launch_plan: &[super::routing::ModelLaneRoutingStageLaunchPlan],
     ) -> Result<Vec<ModelLaneRoutingStageLaunch>, OperatorChatError> {
         if run.trace_id != request.context.trace_id
             || run.run_span_id != request.context.run_span_id
@@ -2649,7 +2653,21 @@ impl OperatorChatLaunchService {
                             stage.stage_id
                         ))
                     })?;
-                let mut spawn = self.build_spawn_request(selection)?;
+                let mut matching = launch_plan.iter().filter(|plan| plan.stage_id == stage.stage_id);
+                let plan = matching.next().ok_or_else(|| OperatorChatError::Invalid(
+                    "routing stage has no canonical launch identity".into()))?;
+                if matching.next().is_some() || plan.lane_id.as_deref() != Some(lane_id) {
+                    return Err(OperatorChatError::Invalid("routing canonical launch identity differs".into()));
+                }
+                let planned_id = plan.model_id.as_deref().ok_or_else(|| OperatorChatError::Invalid(
+                    "routing model stage has no canonical model identity".into()))?;
+                let model_id = ModelId::from(uuid::Uuid::parse_str(planned_id)
+                    .map_err(|_| OperatorChatError::Invalid("canonical routing model identity is invalid".into()))?);
+                let mut spawn = build_spawn_request_with_identity(selection, self.next_instance(),
+                    self.catalog.as_deref(), Some(model_id))?;
+                if spawn.provider != plan.provider {
+                    return Err(OperatorChatError::Invalid("routing provider differs from canonical launch plan".into()));
+                }
                 spawn.parent_session_id = request.context.coordinator_session_id.clone();
                 spawn.owner_role = request.context.owner_session.clone();
                 spawn.owner_wp = Some(request.context.work_packet_id.clone());
@@ -2741,17 +2759,26 @@ impl OperatorChatLaunchService {
         &self,
         request: OperatorChatRoutingLifecycleRequest,
     ) -> Result<ModelLaneRoutingDispatchBatch, OperatorChatError> {
-        let launches = self.routing_launches(&request).await?;
-        super::production_factory::execute_production_routing_lifecycle(
-            &self.coordinator,
-            &request.execution_id,
-            &request.selecting_decision_id,
-            &request.authority,
-            request.context,
-            launches,
-        )
-        .await
-        .map_err(OperatorChatError::from)
+        let store = self.coordinator.model_lane_store().ok_or_else(||
+            OperatorChatError::Invalid("routing lifecycle requires its scoped ModelLaneStore".into()))?;
+        let storage = store.surreal_storage();
+        let sources = storage.capture_routing_lifecycle_sources(&store, request.context.run_id.clone(),
+            request.execution_id.clone(), request.selecting_decision_id.clone(), request.context.initial_input_ref.clone()).await
+            .map_err(ModelLaneError::from)?;
+        crate::storage::surreal::resource_authority::with_routing_original_sources(sources.clone(), async {
+            sources.revalidate().await.map_err(ModelLaneError::from)?;
+            let launches = self.routing_launches(&request).await?;
+            let initial = self.coordinator.begin_routing_lifecycle(&request.execution_id, &request.selecting_decision_id,
+                &request.authority, request.context).await?;
+            let continuation_error = |error: String| OperatorChatError::Swarm(SwarmError::LedgerFailed(format!(
+                "routing initial execution committed at {}; continuation failed: {error}", initial.event_ledger_event_id)));
+            let transition = sources.transition_sources().await.map_err(|error| continuation_error(error.to_string()))?;
+            let result = storage.with_record_user_scope(transition.original_scope(),
+                crate::storage::surreal::resource_authority::with_routing_original_sources(transition.clone(),
+                    self.coordinator.recover_routing_execution(&request.execution_id, launches))).await;
+            transition.revalidate().await.map_err(|error| continuation_error(error.to_string()))?;
+            result.map_err(|error| continuation_error(error.to_string()))
+        }).await
     }
 
     pub async fn recover_routing_lifecycle(
@@ -2793,12 +2820,14 @@ impl OperatorChatLaunchService {
                 &request.message_id,
             )
             .await?;
+        let continuation = capture.continuation_sources();
         let read = storage.read_owned_routing_authority_capture(capture).await?;
         let finalization = storage.finalize_operator_routing_authority_capture(read).await?;
         let prepared = storage.prepare_owned_routing_authority_capture(finalization)?;
         let launches = match self.routing_launches_from_canonical_run(
             &request.routing_request,
             prepared.run(),
+            prepared.launch_plan(),
         ) {
             Ok(launches) => launches,
             Err(error) => {
@@ -2806,21 +2835,44 @@ impl OperatorChatLaunchService {
                 return Err(error);
             }
         };
-        self.coordinator
-            .complete_authority_and_resume_routing_lifecycle(
+        continuation.revalidate().await.map_err(ModelLaneError::from)?;
+        let completed = storage.with_record_user_scope(continuation.original_scope(),
+            crate::storage::surreal::with_configured_capability_registry(continuation.registry(),
+                crate::storage::surreal::resource_authority::with_routing_original_sources(continuation.clone(),
+                    self.coordinator.complete_authority_and_resume_routing_lifecycle(
                 prepared.into_permit(),
                 &request.execution_id,
                 &request.stage_id,
                 &request.message_id,
                 launches,
-            )
-            .await
+            )))).await
             .map_err(|error| match error {
+                super::coordinator::RoutingAuthorityCompletionError::AcknowledgementCommitted { event_id, operation_id, error } =>
+                    OperatorChatError::AcknowledgementCommitted { event_id, operation_id, error },
                 super::coordinator::RoutingAuthorityCompletionError::ModelLane(error) =>
                     OperatorChatError::ModelLane(error),
                 super::coordinator::RoutingAuthorityCompletionError::Swarm(error) =>
                     OperatorChatError::Swarm(error),
-            })
+            })?;
+        // Revalidate the genuine continuation after resume, retaining the ACK
+        // identities from its observed transaction rather than reading revoked
+        // sources or substituting a later execution receipt.
+        let validation = continuation.revalidate().await
+            .map_err(|error| SwarmError::LedgerFailed(ModelLaneError::from(error).to_string()));
+        #[cfg(any(test, feature = "test-utils"))]
+        let validation = validation.and_then(|()| {
+            if self.coordinator.take_routing_ack_service_validation_failure_for_test(
+                &request.execution_id, &request.stage_id, &request.message_id) {
+                return Err(SwarmError::LedgerFailed("injected final service validation failure".into()));
+            }
+            Ok(())
+        });
+        validation.map_err(|error| OperatorChatError::AcknowledgementCommitted {
+            event_id: completed.committed_execution_event_id,
+            operation_id: completed.operation_id,
+            error,
+        })?;
+        Ok(completed.batch)
     }
 
     pub async fn cancel_routing_lifecycle(
@@ -3281,6 +3333,21 @@ impl OperatorChatLaunchService {
         request: GenerateRequest,
         max_output_bytes: usize,
     ) -> super::model_lane::ModelLaneResult<super::model_lane::RoleEvidenceConsumeSelector> {
+        self.review_designated_validator_with_custody(bootstrap, auth, designation_record,
+            operator_selector, request, max_output_bytes).await.map(|(selector, _custody)| selector)
+    }
+
+    #[cfg(feature = "runtime-full")]
+    pub(crate) async fn review_designated_validator_with_custody(
+        &self,
+        bootstrap: &crate::AccountBootstrapState,
+        auth: crate::storage::surreal::resource_authority::RoleAuthorityAuthInput,
+        designation_record: &super::model_lane::WorkspaceValidatorRunnerDesignationRecord,
+        operator_selector: super::model_lane::RoleEvidenceConsumeSelector,
+        request: GenerateRequest,
+        max_output_bytes: usize,
+    ) -> super::model_lane::ModelLaneResult<(super::model_lane::RoleEvidenceConsumeSelector,
+        Arc<crate::storage::surreal::resource_authority::InitialValidatorIssuance>)> {
         use futures::StreamExt;
         use handshake_role_authority::domain as role;
         let denied = |error: String| ModelLaneError::AuthorityDenied(error);
@@ -3334,7 +3401,8 @@ impl OperatorChatLaunchService {
         producer.revalidate(&bootstrap.surreal).await.map_err(|error| denied(error.to_string()))?;
         let runner_lane_id = self.coordinator.validator_producer_lane(&producer)
             .map_err(|error| denied(error.to_string()))?;
-        let replay = store.replay_run(&designation.run.run_id).await?;
+        let replay = bootstrap.surreal.read_owner_model_lane_replay(bootstrap, auth.clone(),
+            &store, &designation.run.run_id).await?;
         let operator_lane = if let Some(lane) = replay.lanes.iter().find(|lane| lane.kind == ModelLaneKind::HumanOperator
             && lane.session_id == designation.scope.authenticated_session_id.to_string()) {
             lane.clone()
@@ -3412,15 +3480,15 @@ impl OperatorChatLaunchService {
         let issuance = bootstrap.surreal.capture_initial_validator_issuance(
             bootstrap, auth, self.coordinator.clone(), producer.clone(), observed, operator_selector.clone(), verdict, operation_id,
         ).await.map_err(|error| denied(error.to_string()))?;
-        let receipt = bootstrap.surreal.consume_initial_validator_issuance(bootstrap, issuance, store).await?;
-        Ok(super::model_lane::RoleEvidenceConsumeSelector {
+        let receipt = bootstrap.surreal.consume_initial_validator_issuance(bootstrap, issuance.clone(), store).await?;
+        Ok((super::model_lane::RoleEvidenceConsumeSelector {
             evidence_ref: role::RoleEvidenceRef::parse(&format!("eventledger://role-authority/{}", receipt.event.event_id))
                 .map_err(|error| denied(error.to_string()))?,
             expectation: role::ResolutionExpectation { receipt_scope: receipt.body.scope.clone(), role: role::Role::Validator,
                 run: receipt.body.run.clone(), subject: receipt.body.subject.clone(), purpose: receipt.body.purpose.clone(),
                 expected: receipt.body.expected.clone() },
             designation_ref: receipt.body.designation.clone(), producer: Some(designation.runner.clone()),
-        })
+        }, issuance))
         })).await
     }
 
@@ -4111,6 +4179,15 @@ fn build_spawn_request_with_catalog(
     instance: u32,
     catalog: Option<&ModelCatalog>,
 ) -> Result<SpawnRequest, OperatorChatError> {
+    build_spawn_request_with_identity(selection, instance, catalog, None)
+}
+
+fn build_spawn_request_with_identity(
+    selection: &OperatorChatSelection,
+    instance: u32,
+    catalog: Option<&ModelCatalog>,
+    planned_model_id: Option<ModelId>,
+) -> Result<SpawnRequest, OperatorChatError> {
     use crate::model_runtime::registry::RuntimeBinding as RuntimeAdapterBinding;
 
     if selection.working_dir.trim().is_empty() {
@@ -4176,7 +4253,7 @@ fn build_spawn_request_with_catalog(
         None => RuntimeAdapterBinding::Candle,
     };
 
-    let instance_id = ModelInstanceId::new(ModelId::new_v7(), instance);
+    let instance_id = ModelInstanceId::new(planned_model_id.unwrap_or_else(ModelId::new_v7), instance);
     let mut request = SpawnRequest::new(
         instance_id,
         runtime_binding,

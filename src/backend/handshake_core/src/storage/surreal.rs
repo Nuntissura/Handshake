@@ -143,7 +143,7 @@ pub use process_ledger::{
 };
 pub use swarm_outbox::{
     bootstrap_swarm_outbox_schema, SurrealSwarmOutboxError, SurrealSwarmOutboxEvent,
-    SurrealSwarmOutboxStore,
+    SurrealSwarmOutboxPersistOutcome, SurrealSwarmOutboxStore,
 };
 pub use user_manual_knowledge::{
     bootstrap_user_manual_knowledge_schema, SurrealUserManualKnowledgeStore,
@@ -1139,6 +1139,7 @@ tokio::task_local! {
     static RECORD_USER_SCOPE: resource_authority::RecordUserScope;
     static PROTECTED_TRANSACTION: ProtectedTransaction;
     static MODEL_LANE_OPERATION_PURPOSE: model_lane::ContextCoordinationPurpose;
+    static CONFIGURED_CAPABILITY_REGISTRY: Option<Arc<crate::capabilities::CapabilityRegistry>>;
     static MODEL_LANE_OPERATION_SUBJECT: ModelLaneOperationSubject;
     static MODEL_LANE_FENCES: Vec<model_lane::ContextFenceProof>;
     static MODEL_LANE_CURRENT_GUARDS: Arc<StdMutex<Vec<model_lane::ContextCoordinationGuard>>>;
@@ -1263,15 +1264,37 @@ pub(crate) async fn with_model_lane_operation<T>(
 #[derive(Clone)]
 pub(crate) struct CapturedModelLaneOperation {
     account: Option<event_ledger::CapturedAccountAuthority>,
+    registry: Option<Arc<crate::capabilities::CapabilityRegistry>>,
     subject: Option<ModelLaneOperationSubject>,
     purpose: Option<model_lane::ContextCoordinationPurpose>,
+    routing: Option<Arc<resource_authority::RoutingOriginalSources>>,
+}
+
+pub(crate) async fn with_configured_capability_registry<T>(
+    registry: Arc<crate::capabilities::CapabilityRegistry>,
+    operation: impl Future<Output = T>,
+) -> T {
+    with_captured_capability_registry(Some(registry), operation).await
+}
+
+pub(crate) async fn with_captured_capability_registry<T>(
+    registry: Option<Arc<crate::capabilities::CapabilityRegistry>>,
+    operation: impl Future<Output = T>,
+) -> T {
+    CONFIGURED_CAPABILITY_REGISTRY.scope(registry, operation).await
+}
+
+pub(crate) fn configured_capability_registry() -> Option<Arc<crate::capabilities::CapabilityRegistry>> {
+    CONFIGURED_CAPABILITY_REGISTRY.try_with(Clone::clone).ok().flatten()
 }
 
 pub(crate) fn capture_model_lane_operation() -> CapturedModelLaneOperation {
     CapturedModelLaneOperation {
         account: event_ledger::capture_account_authority(),
+        registry: configured_capability_registry(),
         subject: current_model_lane_subject(),
         purpose: MODEL_LANE_OPERATION_PURPOSE.try_with(Clone::clone).ok(),
+        routing: resource_authority::current_routing_original_sources(),
     }
 }
 
@@ -1280,7 +1303,7 @@ pub(crate) async fn with_captured_model_lane_operation<T>(
     captured: CapturedModelLaneOperation,
     operation: impl Future<Output = T>,
 ) -> T {
-    let CapturedModelLaneOperation { account, subject, purpose } = captured;
+    let CapturedModelLaneOperation { account, registry, subject, purpose, routing } = captured;
     let work = async move {
         let work = async move {
             if let Some(purpose) = purpose {
@@ -1291,7 +1314,9 @@ pub(crate) async fn with_captured_model_lane_operation<T>(
             with_model_lane_subject(subject, work).await
         } else { work.await }
     };
-    event_ledger::with_captured_account_authority(storage, account, work).await
+    with_captured_capability_registry(registry,
+        event_ledger::with_captured_account_authority(storage, account,
+            resource_authority::with_captured_routing_original_sources(routing, work))).await
 }
 
 fn original_operation_bindings(mut bindings: surrealdb::types::Value) -> surrealdb::types::Value {

@@ -1081,12 +1081,15 @@ impl DiagnosticsFixture {
     }
 
     async fn account_events(&self, aggregate_type: &str, aggregate_id: &str) -> Vec<crate::kernel::KernelEvent> {
+        let operation = self.authorized_operation(ResourceAction::Read, "fs.read").await;
         let session = &self.authenticated.as_ref().expect("genuine account EventLedger reader").session_token;
         let channel = &self.native_channel.as_ref().expect("original native channel").token;
         let channel_hash = hex::encode(Sha256::digest(channel.as_bytes()));
-        self.isolated.storage().list_account_kernel_events_for_aggregate(
-            session, &channel_hash, aggregate_type, aggregate_id,
-        ).await.expect("independent authenticated account EventLedger readback")
+        operation.run_source_read_with_configured_registry(self.capabilities.clone(), async {
+            self.isolated.storage().list_account_kernel_events_for_aggregate(
+                session, &channel_hash, aggregate_type, aggregate_id,
+            ).await.map_err(|error| ModelLaneError::IntegrityViolation(error.to_string()))
+        }).await.expect("independent authenticated canonical source EventLedger readback")
     }
 
     fn diagnostics_router(&self) -> Router {
@@ -1324,9 +1327,9 @@ async fn record_and_replay_identical_inputs(
 ) {
     let operation = fixture.authorized_operation(ResourceAction::Create, "fs.write").await;
     let store = fixture.model_lane_store();
-    let run = operation.run(store.record_run(input.run.clone())).await.expect("canonical run creation");
-    let lane = operation.run(store.record_lane(input.lane.clone())).await.expect("canonical lane creation");
-    let message = operation.run(store.record_message_with_payload_binding(
+    let run = operation.run_with_configured_registry(fixture.capabilities.clone(), store.record_run(input.run.clone())).await.expect("canonical run creation");
+    let lane = operation.run_with_configured_registry(fixture.capabilities.clone(), store.record_lane(input.lane.clone())).await.expect("canonical lane creation");
+    let message = operation.run_with_configured_registry(fixture.capabilities.clone(), store.record_message_with_payload_binding(
         input.message.clone(), input.payload.clone(),
     )).await.expect("atomic canonical payload/message creation");
     assert_eq!(run.run_id, input.run.run_id);
@@ -1339,24 +1342,24 @@ async fn record_and_replay_identical_inputs(
     assert!(lane.event_ledger_seq > run.event_ledger_seq);
     assert!(message.event_ledger_seq > lane.event_ledger_seq);
     for (kind, id, event_id, sequence) in [
-        ("model_lane_run", run.run_id.as_str(), run.event_ledger_event_id.as_str(), run.event_ledger_seq),
-        ("model_lane", lane.lane_id.as_str(), lane.event_ledger_event_id.as_str(), lane.event_ledger_seq),
-        ("model_lane_message", message.message_id.as_str(), message.event_ledger_event_id.as_str(), message.event_ledger_seq),
+        ("run", run.run_id.as_str(), run.event_ledger_event_id.as_str(), run.event_ledger_seq),
+        ("lane", lane.lane_id.as_str(), lane.event_ledger_event_id.as_str(), lane.event_ledger_seq),
+        ("message", message.message_id.as_str(), message.event_ledger_event_id.as_str(), message.event_ledger_seq),
     ] {
         let events = fixture.account_events(kind, id).await;
         let matching = events.iter().filter(|event| event.event_id == event_id).collect::<Vec<_>>();
         assert_eq!(matching.len(), 1, "exact canonical event binding");
         assert_eq!(matching[0].event_sequence, sequence);
     }
-    let before = operation.run(store.test_scoped_authority_receipts(&run.run_id, RECEIPT_LIMIT))
+    let before = operation.run_with_configured_registry(fixture.capabilities.clone(), store.test_scoped_authority_receipts(&run.run_id, RECEIPT_LIMIT))
         .await.expect("scoped canonical receipt inventory");
     assert!(before.len() >= 4, "run, lane, payload binding and message all have canonical receipts");
-    assert_eq!(operation.run(store.record_run(input.run.clone())).await.expect("run retry"), run);
-    assert_eq!(operation.run(store.record_lane(input.lane.clone())).await.expect("lane retry"), lane);
-    assert_eq!(operation.run(store.record_message_with_payload_binding(
+    assert_eq!(operation.run_with_configured_registry(fixture.capabilities.clone(), store.record_run(input.run.clone())).await.expect("run retry"), run);
+    assert_eq!(operation.run_with_configured_registry(fixture.capabilities.clone(), store.record_lane(input.lane.clone())).await.expect("lane retry"), lane);
+    assert_eq!(operation.run_with_configured_registry(fixture.capabilities.clone(), store.record_message_with_payload_binding(
         input.message.clone(), input.payload.clone(),
     )).await.expect("atomic payload/message retry"), message);
-    let after = operation.run(store.test_scoped_authority_receipts(&run.run_id, RECEIPT_LIMIT))
+    let after = operation.run_with_configured_registry(fixture.capabilities.clone(), store.test_scoped_authority_receipts(&run.run_id, RECEIPT_LIMIT))
         .await.expect("scoped inventory after retry");
     assert_eq!(before.len(), after.len(), "retry adds no receipt rows");
     assert_eq!(receipt_identities(&before), receipt_identities(&after), "retry duplicates no canonical authority");
@@ -1383,7 +1386,7 @@ async fn record_diagnostic_posture_and_status(
             "task_board_id": "task-board://wp-1", "owner_session": input.run.owner_session,
             "idempotency_key": format!("{}-{tier}", input.run.run_id), "diagnostic_payload": {},
         })).expect("typed explicit deferred tier input");
-        let recorded = operation.run(store.record_diagnostic_tier_status(status.clone())).await.expect("canonical tier recording");
+        let recorded = operation.run_with_configured_registry(fixture.capabilities.clone(), store.record_diagnostic_tier_status(status.clone())).await.expect("canonical tier recording");
         assert_eq!(recorded.inner, status);
     }
     let status: NewModelLaneMtRuntimeStatus = serde_json::from_value(json!({
@@ -1395,7 +1398,7 @@ async fn record_diagnostic_posture_and_status(
         "event_ledger_stream_id": input.run.event_ledger_stream_id, "owner_session": input.run.owner_session,
         "idempotency_key": format!("{}-mt-status", input.run.run_id), "diagnostic_payload": {},
     })).expect("typed blocked MT runtime status");
-    let recorded = operation.run(store.record_mt_runtime_status(status.clone())).await.expect("canonical MT runtime status");
+    let recorded = operation.run_with_configured_registry(fixture.capabilities.clone(), store.record_mt_runtime_status(status.clone())).await.expect("canonical MT runtime status");
     assert_eq!(recorded.inner, status);
 }
 
@@ -1403,11 +1406,11 @@ async fn assert_canonical_navigation_drilldowns(
     fixture: &DiagnosticsFixture,
     input: &CanonicalDiagnosticsInputs,
 ) {
-    let operation = fixture.authorized_operation(ResourceAction::Read, "diagnostics.read").await;
+    let operation = fixture.authorized_operation(ResourceAction::Read, "model_lane.navigation.read").await;
     let store = fixture.model_lane_store();
-    let run = operation.run(store.navigation_by_run(&input.run.run_id)).await.expect("canonical run navigation");
-    let lane = operation.run(store.navigation_by_lane(&input.lane.lane_id)).await.expect("canonical lane navigation");
-    let message = operation.run(store.navigation_by_message(&input.message.message_id)).await.expect("canonical message navigation");
+    let run = operation.run_with_configured_registry(fixture.capabilities.clone(), store.navigation_by_run(&input.run.run_id)).await.expect("canonical run navigation");
+    let lane = operation.run_with_configured_registry(fixture.capabilities.clone(), store.navigation_by_lane(&input.lane.lane_id)).await.expect("canonical lane navigation");
+    let message = operation.run_with_configured_registry(fixture.capabilities.clone(), store.navigation_by_message(&input.message.message_id)).await.expect("canonical message navigation");
     for navigation in [&run, &lane, &message] {
         assert_eq!(navigation.run.as_ref().expect("canonical selected run").run_id, input.run.run_id);
         assert!(navigation.lanes.iter().all(|row| row.source.run_id == input.run.run_id));
@@ -1418,7 +1421,7 @@ async fn assert_canonical_navigation_drilldowns(
     assert_eq!(lane.lanes[0].lane_id, input.lane.lane_id);
     assert_eq!(message.messages.len(), 1);
     assert_eq!(message.messages[0].message_id, input.message.message_id);
-    let payload = operation.run(store.navigation_by_artifact_or_context(
+    let payload = operation.run_with_configured_registry(fixture.capabilities.clone(), store.navigation_by_artifact_or_context(
         Some(&input.payload.artifact_ref), None, Some(&input.run.run_id),
     )).await;
     if input.message.crdt_update_ref.is_none() {
@@ -1474,9 +1477,12 @@ async fn assert_five_independent_scope_denials(
     let original = fixture.authenticated.as_ref().expect("public session")
         .scope.as_ref().expect("public workspace");
     let operation = fixture.authorized_operation(ResourceAction::Read, "diagnostics.read").await;
+    let navigation_operation = fixture.authorized_operation(ResourceAction::Read, "model_lane.navigation.read").await;
+    let source_operation = fixture.authorized_operation(ResourceAction::Read, "fs.read").await;
     let store = fixture.model_lane_store();
-    let positive = operation.run(store.diagnostics_projection(run_id)).await.expect("same-scope positive projection");
-    let before = operation.run(store.test_scoped_authority_receipts(run_id, RECEIPT_LIMIT)).await.expect("canonical state before denial");
+    let owner_navigation = navigation_operation.run_with_configured_registry(fixture.capabilities.clone(), store.navigation_by_run(run_id)).await.expect("owner navigation is authorized before foreign controls");
+    let positive = operation.run_with_configured_registry(fixture.capabilities.clone(), store.diagnostics_projection(run_id)).await.expect("same-scope positive projection");
+    let before = source_operation.run_with_configured_registry(fixture.capabilities.clone(), store.test_scoped_authority_receipts(run_id, RECEIPT_LIMIT)).await.expect("canonical state before denial");
     let mut mismatches = std::array::from_fn::<_, 5, _>(|_| original.clone());
     mismatches[0].owner_account_id = OwnerAccountId::from_uuid(Uuid::new_v4());
     mismatches[1].actor_principal_id = ActorPrincipalId::from_uuid(Uuid::new_v4());
@@ -1488,12 +1494,13 @@ async fn assert_five_independent_scope_denials(
             fixture.isolated.storage().clone(), scope,
             fixture.isolated.storage().resource_access_lifecycle(),
         );
-        assert_scope_denial(operation.run(foreign.diagnostics_projection(run_id)).await);
-        assert_scope_denial(operation.run(foreign.latest_diagnostics_projection()).await);
-        assert_scope_denial(operation.run(foreign.navigation_by_run(run_id)).await);
+        assert_scope_denial(operation.run_with_configured_registry(fixture.capabilities.clone(), foreign.diagnostics_projection(run_id)).await);
+        assert_scope_denial(operation.run_with_configured_registry(fixture.capabilities.clone(), foreign.latest_diagnostics_projection()).await);
+        assert_scope_denial(navigation_operation.run_with_configured_registry(fixture.capabilities.clone(), foreign.navigation_by_run(run_id)).await);
     }
-    assert_eq!(operation.run(store.diagnostics_projection(run_id)).await.expect("positive after denied reads"), positive);
-    let after = operation.run(store.test_scoped_authority_receipts(run_id, RECEIPT_LIMIT)).await.expect("canonical state after denial");
+    assert_eq!(operation.run_with_configured_registry(fixture.capabilities.clone(), store.diagnostics_projection(run_id)).await.expect("positive after denied reads"), positive);
+    assert_eq!(navigation_operation.run_with_configured_registry(fixture.capabilities.clone(), store.navigation_by_run(run_id)).await.expect("owner navigation remains authorized after foreign controls"), owner_navigation);
+    let after = source_operation.run_with_configured_registry(fixture.capabilities.clone(), store.test_scoped_authority_receipts(run_id, RECEIPT_LIMIT)).await.expect("canonical state after denial");
     assert_eq!(before.len(), after.len());
     assert_eq!(receipt_identities(&before), receipt_identities(&after), "denied reads mutate no canonical authority");
 }
@@ -1505,7 +1512,7 @@ async fn assert_public_projection_matches_canonical(
 ) -> ModelLaneDiagnosticsProjection {
     let operation = fixture.authorized_operation(ResourceAction::Read, "diagnostics.read").await;
     let store = fixture.model_lane_store();
-    let canonical = operation.run(store.diagnostics_projection(run_id)).await.expect("canonical diagnostics projection");
+    let canonical = operation.run_with_configured_registry(fixture.capabilities.clone(), store.diagnostics_projection(run_id)).await.expect("canonical diagnostics projection");
     let (status, public) = fixture.public_diagnostics(router, Some(run_id)).await;
     assert_eq!(status, StatusCode::OK, "actual public diagnostics route");
     assert_public_scope_fingerprints(&public, fixture.authenticated.as_ref().expect("session")
@@ -1537,10 +1544,13 @@ async fn assert_deterministic_replay_and_missing_run(
     fixture: &DiagnosticsFixture,
     input: &CanonicalDiagnosticsInputs,
 ) {
-    let operation = fixture.authorized_operation(ResourceAction::Read, "diagnostics.read").await;
+    let operation = fixture.authorized_operation(ResourceAction::Read, "fs.read").await;
+    let diagnostics_operation = fixture.authorized_operation(ResourceAction::Read, "diagnostics.read").await;
+    let navigation_operation = fixture.authorized_operation(ResourceAction::Read, "model_lane.navigation.read").await;
     let store = fixture.model_lane_store();
-    let first = operation.run(store.replay_run(&input.run.run_id)).await.expect("canonical replay");
-    let second = operation.run(store.replay_run(&input.run.run_id)).await.expect("repeat canonical replay");
+    let owner_navigation = navigation_operation.run_with_configured_registry(fixture.capabilities.clone(), store.navigation_by_run(&input.run.run_id)).await.expect("owner navigation is authorized before missing-run control");
+    let first = operation.run_with_configured_registry(fixture.capabilities.clone(), store.replay_run(&input.run.run_id)).await.expect("canonical replay");
+    let second = operation.run_with_configured_registry(fixture.capabilities.clone(), store.replay_run(&input.run.run_id)).await.expect("repeat canonical replay");
     assert_eq!(serde_json::to_value(&first).expect("replay serialization"),
         serde_json::to_value(&second).expect("replay serialization"));
     assert_eq!(first.run.inner, input.run);
@@ -1551,11 +1561,12 @@ async fn assert_deterministic_replay_and_missing_run(
     assert_eq!(message.inner, input.message);
     assert_eq!(message.payload_sha256, input.payload.content_hash);
     let missing = format!("missing-run-{}", Uuid::new_v4());
-    let before = operation.run(store.test_scoped_authority_receipts(&input.run.run_id, RECEIPT_LIMIT)).await.expect("before missing reads");
-    assert!(matches!(operation.run(store.replay_run(&missing)).await, Err(ModelLaneError::NotFound(_))));
-    assert!(matches!(operation.run(store.diagnostics_projection(&missing)).await, Err(ModelLaneError::NotFound(_))));
-    assert_scope_denial(operation.run(store.navigation_by_run(&missing)).await);
-    let after = operation.run(store.test_scoped_authority_receipts(&input.run.run_id, RECEIPT_LIMIT)).await.expect("after missing reads");
+    let before = operation.run_with_configured_registry(fixture.capabilities.clone(), store.test_scoped_authority_receipts(&input.run.run_id, RECEIPT_LIMIT)).await.expect("before missing reads");
+    assert!(matches!(operation.run_with_configured_registry(fixture.capabilities.clone(), store.replay_run(&missing)).await, Err(ModelLaneError::NotFound(_))));
+    assert!(matches!(diagnostics_operation.run_with_configured_registry(fixture.capabilities.clone(), store.diagnostics_projection(&missing)).await, Err(ModelLaneError::NotFound(_))));
+    assert_scope_denial(navigation_operation.run_with_configured_registry(fixture.capabilities.clone(), store.navigation_by_run(&missing)).await);
+    assert_eq!(navigation_operation.run_with_configured_registry(fixture.capabilities.clone(), store.navigation_by_run(&input.run.run_id)).await.expect("owner navigation remains authorized after missing-run control"), owner_navigation);
+    let after = operation.run_with_configured_registry(fixture.capabilities.clone(), store.test_scoped_authority_receipts(&input.run.run_id, RECEIPT_LIMIT)).await.expect("after missing reads");
     assert_eq!(before.len(), after.len());
     assert_eq!(receipt_identities(&before), receipt_identities(&after));
 }
@@ -1567,19 +1578,25 @@ async fn assert_stale_and_revoked_contexts(
     let scope = fixture.authenticated.as_ref().expect("public session")
         .scope.as_ref().expect("actual workspace").clone();
     let operation = fixture.authorized_operation(ResourceAction::Read, "diagnostics.read").await;
+    let navigation_operation = fixture.authorized_operation(ResourceAction::Read, "model_lane.navigation.read").await;
+    let source_operation = fixture.authorized_operation(ResourceAction::Read, "fs.read").await;
     let store = fixture.model_lane_store();
-    let positive = operation.run(store.diagnostics_projection(run_id)).await.expect("positive before stale/revoked contexts");
-    let before = operation.run(store.test_scoped_authority_receipts(run_id, RECEIPT_LIMIT)).await.expect("before revoked reads");
+    let owner_navigation = navigation_operation.run_with_configured_registry(fixture.capabilities.clone(), store.navigation_by_run(run_id)).await.expect("owner navigation is authorized before lifecycle controls");
+    let owner_replay = source_operation.run_with_configured_registry(fixture.capabilities.clone(), store.replay_run(run_id)).await.expect("owner replay is authorized before lifecycle controls");
+    let positive = operation.run_with_configured_registry(fixture.capabilities.clone(), store.diagnostics_projection(run_id)).await.expect("positive before stale/revoked contexts");
+    let before = source_operation.run_with_configured_registry(fixture.capabilities.clone(), store.test_scoped_authority_receipts(run_id, RECEIPT_LIMIT)).await.expect("before revoked reads");
     for denied in [
         ModelLaneStore::new_test_stale_access(fixture.isolated.storage().clone(), scope.clone()),
         ModelLaneStore::new_test_revoked_access(fixture.isolated.storage().clone(), scope),
     ] {
-        assert_scope_denial(operation.run(denied.diagnostics_projection(run_id)).await);
-        assert_scope_denial(operation.run(denied.replay_run(run_id)).await);
-        assert_scope_denial(operation.run(denied.navigation_by_run(run_id)).await);
+        assert_scope_denial(operation.run_with_configured_registry(fixture.capabilities.clone(), denied.diagnostics_projection(run_id)).await);
+        assert_scope_denial(source_operation.run_with_configured_registry(fixture.capabilities.clone(), denied.replay_run(run_id)).await);
+        assert_scope_denial(navigation_operation.run_with_configured_registry(fixture.capabilities.clone(), denied.navigation_by_run(run_id)).await);
     }
-    assert_eq!(operation.run(store.diagnostics_projection(run_id)).await.expect("same-store positive after negatives"), positive);
-    let after = operation.run(store.test_scoped_authority_receipts(run_id, RECEIPT_LIMIT)).await.expect("after revoked reads");
+    assert_eq!(operation.run_with_configured_registry(fixture.capabilities.clone(), store.diagnostics_projection(run_id)).await.expect("same-store positive after negatives"), positive);
+    assert_eq!(navigation_operation.run_with_configured_registry(fixture.capabilities.clone(), store.navigation_by_run(run_id)).await.expect("owner navigation remains authorized after lifecycle controls"), owner_navigation);
+    assert_eq!(source_operation.run_with_configured_registry(fixture.capabilities.clone(), store.replay_run(run_id)).await.expect("owner replay remains authorized after lifecycle controls"), owner_replay);
+    let after = source_operation.run_with_configured_registry(fixture.capabilities.clone(), store.test_scoped_authority_receipts(run_id, RECEIPT_LIMIT)).await.expect("after revoked reads");
     assert_eq!(before.len(), after.len());
     assert_eq!(receipt_identities(&before), receipt_identities(&after));
 }
@@ -1592,14 +1609,14 @@ async fn assert_lineage_tamper_fails_without_partial_projection(
     let create = fixture.authorized_operation(ResourceAction::Create, "fs.write").await;
     let read = fixture.authorized_operation(ResourceAction::Read, "diagnostics.read").await;
     let store = fixture.model_lane_store();
-    read.run(store.diagnostics_projection(run_id)).await.expect("positive before deliberate lineage tamper");
-    create.run(store.test_corrupt_scoped_authority(
+    read.run_with_configured_registry(fixture.capabilities.clone(), store.diagnostics_projection(run_id)).await.expect("positive before deliberate lineage tamper");
+    create.run_with_configured_registry(fixture.capabilities.clone(), store.test_corrupt_scoped_authority(
         "run", run_id, ModelLaneAuthorityTestCorruption::ReceiptPayloadHash,
     )).await.expect("owned scoped lineage tamper control");
-    let before = read.run(store.test_scoped_authority_receipts(run_id, RECEIPT_LIMIT)).await.expect("post-tamper baseline");
-    assert!(matches!(read.run(store.diagnostics_projection(run_id)).await,
+    let before = read.run_with_configured_registry(fixture.capabilities.clone(), store.test_scoped_authority_receipts(run_id, RECEIPT_LIMIT)).await.expect("post-tamper baseline");
+    assert!(matches!(read.run_with_configured_registry(fixture.capabilities.clone(), store.diagnostics_projection(run_id)).await,
         Err(ModelLaneError::IntegrityViolation(_))), "tampered lineage must yield typed integrity failure");
-    let after = read.run(store.test_scoped_authority_receipts(run_id, RECEIPT_LIMIT)).await.expect("state after integrity denial");
+    let after = read.run_with_configured_registry(fixture.capabilities.clone(), store.test_scoped_authority_receipts(run_id, RECEIPT_LIMIT)).await.expect("state after integrity denial");
     assert_eq!(before.len(), after.len());
     assert_eq!(receipt_identities(&before), receipt_identities(&after));
 }
@@ -1614,14 +1631,14 @@ async fn assert_mixed_scope_concurrent_reads(fixture: &DiagnosticsFixture, run_i
         fixture.isolated.storage().clone(), wrong_scope,
         fixture.isolated.storage().resource_access_lifecycle(),
     );
-    let before = read.run(store.test_scoped_authority_receipts(run_id, RECEIPT_LIMIT)).await.expect("before concurrent reads");
+    let before = read.run_with_configured_registry(fixture.capabilities.clone(), store.test_scoped_authority_receipts(run_id, RECEIPT_LIMIT)).await.expect("before concurrent reads");
     let (positive, denied) = tokio::join!(
-        read.run(store.diagnostics_projection(run_id)),
-        read.run(foreign.diagnostics_projection(run_id)),
+        read.run_with_configured_registry(fixture.capabilities.clone(), store.diagnostics_projection(run_id)),
+        read.run_with_configured_registry(fixture.capabilities.clone(), foreign.diagnostics_projection(run_id)),
     );
     assert_eq!(positive.expect("authorized concurrent projection").run.run_id, run_id);
     assert_scope_denial(denied);
-    let after = read.run(store.test_scoped_authority_receipts(run_id, RECEIPT_LIMIT)).await.expect("after concurrent reads");
+    let after = read.run_with_configured_registry(fixture.capabilities.clone(), store.test_scoped_authority_receipts(run_id, RECEIPT_LIMIT)).await.expect("after concurrent reads");
     assert_eq!(before.len(), after.len());
     assert_eq!(receipt_identities(&before), receipt_identities(&after));
 }
@@ -1633,10 +1650,11 @@ async fn assert_same_store_reopen_preserves_projection(
 ) {
     let (before, context_before) = {
         let operation = fixture.authorized_operation(ResourceAction::Read, "diagnostics.read").await;
+        let source_operation = fixture.authorized_operation(ResourceAction::Read, "fs.read").await;
         let store = fixture.model_lane_store();
-        let projection = operation.run(store.diagnostics_projection(run_id)).await.expect("projection before durable reopen");
+        let projection = operation.run_with_configured_registry(fixture.capabilities.clone(), store.diagnostics_projection(run_id)).await.expect("projection before durable reopen");
         let context = match context_bundle_id {
-            Some(id) => operation.run(store.replay_context_bundle_handoffs(run_id, id))
+            Some(id) => source_operation.run_with_configured_registry(fixture.capabilities.clone(), store.replay_context_bundle_handoffs(run_id, id))
                 .await.expect("canonical context references before durable reopen"),
             None => Vec::new(),
         };
@@ -1644,12 +1662,13 @@ async fn assert_same_store_reopen_preserves_projection(
     };
     fixture.reopen().await;
     let operation = fixture.authorized_operation(ResourceAction::Read, "diagnostics.read").await;
+    let source_operation = fixture.authorized_operation(ResourceAction::Read, "fs.read").await;
     let store = fixture.model_lane_store();
-    let after = operation.run(store.diagnostics_projection(run_id)).await.expect("projection after durable reopen");
+    let after = operation.run_with_configured_registry(fixture.capabilities.clone(), store.diagnostics_projection(run_id)).await.expect("projection after durable reopen");
     assert_eq!(before, after, "same namespace/database/session preserves diagnostic ordering and references");
     if let Some(id) = context_bundle_id {
         assert!(!context_before.is_empty(), "restart control requires genuine persisted context handoffs");
-        let context_after = operation.run(store.replay_context_bundle_handoffs(run_id, id))
+        let context_after = source_operation.run_with_configured_registry(fixture.capabilities.clone(), store.replay_context_bundle_handoffs(run_id, id))
             .await.expect("canonical context references after SAME-store reopen");
         assert_eq!(context_before, context_after, "CRDT metadata, payload references and event joins survive reopen");
     }
@@ -1662,10 +1681,10 @@ async fn assert_unavailable_authority_is_not_recorder_fallback(
     let (before, unavailable_result) = {
         let operation = fixture.authorized_operation(ResourceAction::Read, "diagnostics.read").await;
         let store = fixture.model_lane_store();
-        let before = operation.run(store.diagnostics_projection(run_id)).await.expect("positive before authority shutdown");
+        let before = operation.run_with_configured_registry(fixture.capabilities.clone(), store.diagnostics_projection(run_id)).await.expect("positive before authority shutdown");
         let router = fixture.diagnostics_router();
         let unavailable_result = std::panic::AssertUnwindSafe(async {
-            let direct = operation.run(async {
+            let direct = operation.run_with_configured_registry(fixture.capabilities.clone(), async {
                 fixture.isolated.storage().shutdown().await.expect("close authority after genuine operation authorization");
                 store.diagnostics_projection(run_id).await
             }).await;
@@ -1692,7 +1711,7 @@ async fn assert_unavailable_authority_is_not_recorder_fallback(
     }
     let operation = fixture.authorized_operation(ResourceAction::Read, "diagnostics.read").await;
     let store = fixture.model_lane_store();
-    assert_eq!(operation.run(store.diagnostics_projection(run_id)).await.expect("same-store positive after unavailable authority"), before);
+    assert_eq!(operation.run_with_configured_registry(fixture.capabilities.clone(), store.diagnostics_projection(run_id)).await.expect("same-store positive after unavailable authority"), before);
 }
 
 async fn exercise_recorded_backend_projection(fixture: &mut DiagnosticsFixture) -> Value {
@@ -1767,11 +1786,11 @@ async fn assert_genuine_foreign_run_http_denial(
             assert_eq!(positive.1["run"]["run_id"], foreign.run.run_id);
             let read = fixture.authorized_operation(ResourceAction::Read, "diagnostics.read").await;
             let store = fixture.model_lane_store();
-            let projection = read.run(store.diagnostics_projection(&foreign.run.run_id)).await.expect("foreign positive canonical rows");
-            let receipts = read.run(store.test_scoped_authority_receipts(&foreign.run.run_id, RECEIPT_LIMIT))
+            let projection = read.run_with_configured_registry(fixture.capabilities.clone(), store.diagnostics_projection(&foreign.run.run_id)).await.expect("foreign positive canonical rows");
+            let receipts = read.run_with_configured_registry(fixture.capabilities.clone(), store.test_scoped_authority_receipts(&foreign.run.run_id, RECEIPT_LIMIT))
                 .await.expect("complete bounded foreign receipt inventory");
             assert!(receipts.len() >= 4);
-            let events = serde_json::to_value(fixture.account_events("model_lane_run", &foreign.run.run_id).await)
+            let events = serde_json::to_value(fixture.account_events("run", &foreign.run.run_id).await)
                 .expect("authenticated foreign EventLedger snapshot");
             (projection, receipt_identities(&receipts), events)
         };
@@ -1783,9 +1802,9 @@ async fn assert_genuine_foreign_run_http_denial(
             assert_eq!(positive.0, StatusCode::OK, "real original activation restores the original run positive");
             let read = fixture.authorized_operation(ResourceAction::Read, "diagnostics.read").await;
             let store = fixture.model_lane_store();
-            let before = read.run(store.test_scoped_authority_receipts(original_run_id, RECEIPT_LIMIT))
+            let before = read.run_with_configured_registry(fixture.capabilities.clone(), store.test_scoped_authority_receipts(original_run_id, RECEIPT_LIMIT))
                 .await.expect("original canonical baseline before denied HTTP reads");
-            let events_before = serde_json::to_value(fixture.account_events("model_lane_run", original_run_id).await)
+            let events_before = serde_json::to_value(fixture.account_events("run", original_run_id).await)
                 .expect("authenticated original EventLedger baseline");
             let denied = fixture.public_diagnostics(&router, Some(&foreign.run.run_id)).await;
             let missing = fixture.public_diagnostics(&router, Some(&format!("absent-{}", Uuid::now_v7()))).await;
@@ -1799,10 +1818,10 @@ async fn assert_genuine_foreign_run_http_denial(
             assert!(denied.1.get("run").is_none());
             assert!(denied.1.get("lanes").is_none());
             assert!(denied.1.get("messages").is_none());
-            let after = read.run(store.test_scoped_authority_receipts(original_run_id, RECEIPT_LIMIT))
+            let after = read.run_with_configured_registry(fixture.capabilities.clone(), store.test_scoped_authority_receipts(original_run_id, RECEIPT_LIMIT))
                 .await.expect("original canonical inventory after denied HTTP reads");
             assert_eq!(receipt_identities(&before), receipt_identities(&after));
-            assert_eq!(events_before, serde_json::to_value(fixture.account_events("model_lane_run", original_run_id).await)
+            assert_eq!(events_before, serde_json::to_value(fixture.account_events("run", original_run_id).await)
                 .expect("authenticated original EventLedger after denial"));
             assert_eq!(fixture.public_diagnostics(&router, Some(original_run_id)).await, positive,
                 "denied and absent HTTP reads preserve the authorized public projection");
@@ -1813,12 +1832,12 @@ async fn assert_genuine_foreign_run_http_denial(
         {
             let read = fixture.authorized_operation(ResourceAction::Read, "diagnostics.read").await;
             let store = fixture.model_lane_store();
-            let projection = read.run(store.diagnostics_projection(&foreign.run.run_id)).await.expect("foreign canonical rows after denial");
-            let receipts = read.run(store.test_scoped_authority_receipts(&foreign.run.run_id, RECEIPT_LIMIT))
+            let projection = read.run_with_configured_registry(fixture.capabilities.clone(), store.diagnostics_projection(&foreign.run.run_id)).await.expect("foreign canonical rows after denial");
+            let receipts = read.run_with_configured_registry(fixture.capabilities.clone(), store.test_scoped_authority_receipts(&foreign.run.run_id, RECEIPT_LIMIT))
                 .await.expect("foreign complete bounded inventory after denial");
             assert_eq!(projection, foreign_before.0);
             assert_eq!(receipt_identities(&receipts), foreign_before.1);
-            assert_eq!(serde_json::to_value(fixture.account_events("model_lane_run", &foreign.run.run_id).await)
+            assert_eq!(serde_json::to_value(fixture.account_events("run", &foreign.run.run_id).await)
                 .expect("authenticated foreign EventLedger after denial"), foreign_before.2);
         }
         (foreign.run.run_id, observed_status)
@@ -1844,7 +1863,7 @@ async fn assert_authenticated_crdt_payload_navigation(fixture: &DiagnosticsFixtu
     let workspace_id = &fixture.authenticated.as_ref().expect("genuine workspace").workspace_id;
     let create = fixture.authorized_operation(ResourceAction::Create, "fs.write").await;
     let document_update = fixture.document_update_operation(&document_id).await;
-    let read = fixture.authorized_operation(ResourceAction::Read, "diagnostics.read").await;
+    let read = fixture.authorized_operation(ResourceAction::Read, "fs.read").await;
     let store = fixture.model_lane_store();
     let label = format!("diagnostics-{}", Uuid::now_v7());
     let posture = build_surreal_admissible_crdt_posture_authenticated(
@@ -1857,7 +1876,7 @@ async fn assert_authenticated_crdt_payload_navigation(fixture: &DiagnosticsFixtu
     assert_eq!(posture.update.update_sha256, hex::encode(Sha256::digest(&posture.yjs_update_bytes)));
     assert_eq!(posture.proposal.diff_sha256, hex::encode(Sha256::digest(&posture.approved_diff_bytes)));
     assert_ne!(posture.update.update_sha256, posture.proposal.diff_sha256);
-    let replay = read.run(store.replay_run(&posture.run_id)).await.expect("canonical CRDT run and lane readback");
+    let replay = read.run_with_configured_registry(fixture.capabilities.clone(), store.replay_run(&posture.run_id)).await.expect("canonical CRDT run and lane readback");
     let run = replay.run.inner;
     let lane = replay.lanes.into_iter().find(|lane| lane.lane_id == posture.lane_id)
         .expect("canonical CRDT source lane").inner;
@@ -1881,7 +1900,7 @@ async fn assert_authenticated_crdt_payload_navigation(fixture: &DiagnosticsFixtu
         "idempotency_key": format!("diagnostics-crdt-payload-{label}"),
         "created_at_utc": chrono::Utc::now().to_rfc3339(), "diagnostic_payload": {},
     })).expect("real hashed CRDT payload binding input");
-    let recorded = create.run(store.record_message_with_payload_binding(message.clone(), payload.clone())).await
+    let recorded = create.run_with_configured_registry(fixture.capabilities.clone(), store.record_message_with_payload_binding(message.clone(), payload.clone())).await
         .expect("atomic CRDT-bound message and real payload producer");
     let binding = recorded.crdt_authority_binding.as_ref().expect("server-derived canonical CRDT authority binding");
     assert_eq!(binding.document_id, document_id);
@@ -1940,22 +1959,24 @@ async fn assert_canonical_context_handoff(
     handoff.context_bundle_id = model_lane_context_bundle_id_for_handoff(&handoff)
         .expect("derive actual context identity from the public canonical hash function");
     let create = fixture.authorized_operation(ResourceAction::Create, "fs.write").await;
-    let read = fixture.authorized_operation(ResourceAction::Read, "diagnostics.read").await;
+    let read = fixture.authorized_operation(ResourceAction::Read, "fs.read").await;
+    let navigation_operation = fixture.authorized_operation(ResourceAction::Read, "model_lane.navigation.read").await;
     let store = fixture.model_lane_store();
-    let recorded = create.run(store.record_context_bundle_handoff(handoff.clone())).await
+    navigation_operation.run_with_configured_registry(fixture.capabilities.clone(), store.navigation_by_run(&input.run.run_id)).await.expect("owner navigation is authorized before context drilldown");
+    let recorded = create.run_with_configured_registry(fixture.capabilities.clone(), store.record_context_bundle_handoff(handoff.clone())).await
         .expect("real atomic ContextBundle handoff producer validates source rows and artifact hashes");
     assert_eq!(recorded.inner, handoff);
-    let events = fixture.account_events("model_lane_context_bundle_handoff", &recorded.handoff_id).await;
+    let events = fixture.account_events("context_handoff", &recorded.handoff_id).await;
     let matching = events.iter().filter(|event| event.event_id == recorded.event_ledger_event_id).collect::<Vec<_>>();
     assert_eq!(matching.len(), 1);
     assert_eq!(matching[0].event_sequence, recorded.event_ledger_seq);
-    let before = read.run(store.test_scoped_authority_receipts(&input.run.run_id, RECEIPT_LIMIT))
+    let before = read.run_with_configured_registry(fixture.capabilities.clone(), store.test_scoped_authority_receipts(&input.run.run_id, RECEIPT_LIMIT))
         .await.expect("complete bounded receipt inventory after handoff");
-    assert_eq!(create.run(store.record_context_bundle_handoff(handoff)).await.expect("identical handoff retry"), recorded);
-    let replayed = read.run(store.replay_context_bundle_handoffs(&input.run.run_id, &recorded.context_bundle_id))
+    assert_eq!(create.run_with_configured_registry(fixture.capabilities.clone(), store.record_context_bundle_handoff(handoff)).await.expect("identical handoff retry"), recorded);
+    let replayed = read.run_with_configured_registry(fixture.capabilities.clone(), store.replay_context_bundle_handoffs(&input.run.run_id, &recorded.context_bundle_id))
         .await.expect("canonical context replay");
     assert_eq!(replayed, vec![recorded.clone()]);
-    let consumed = read.run(store.consume_context_bundle_for_downstream(
+    let consumed = read.run_with_configured_registry(fixture.capabilities.clone(), store.consume_context_bundle_for_downstream(
         &input.run.run_id, &recorded.context_bundle_id, &input.lane.lane_id,
     )).await.expect("same-scope canonical downstream context read");
     assert_eq!(consumed.records, replayed);
@@ -1964,7 +1985,7 @@ async fn assert_canonical_context_handoff(
     assert_eq!(consumed.downstream_lane_id, input.lane.lane_id);
     assert_eq!(consumed.records[0].artifact_ref, input.message.payload_ref);
     assert_eq!(consumed.records[0].artifact_sha256, input.message.payload_sha256);
-    let navigation = read.run(store.navigation_by_artifact_or_context(
+    let navigation = navigation_operation.run_with_configured_registry(fixture.capabilities.clone(), store.navigation_by_artifact_or_context(
         None, Some(&recorded.context_bundle_id), Some(&input.run.run_id),
     )).await;
     if recorded.crdt_payload.is_some() {
@@ -1979,7 +2000,7 @@ async fn assert_canonical_context_handoff(
         assert!(matches!(navigation, Err(ModelLaneError::NotFound(_))),
             "plain advisory handoff cannot acquire the CRDT source witness required by navigation");
     }
-    let after = read.run(store.test_scoped_authority_receipts(&input.run.run_id, RECEIPT_LIMIT))
+    let after = read.run_with_configured_registry(fixture.capabilities.clone(), store.test_scoped_authority_receipts(&input.run.run_id, RECEIPT_LIMIT))
         .await.expect("retry, replay, consume and navigation do not append authority");
     assert_eq!(receipt_identities(&before), receipt_identities(&after));
     recorded.context_bundle_id.clone()
@@ -1992,13 +2013,14 @@ async fn assert_incomplete_legacy_scope_is_absent(fixture: &DiagnosticsFixture) 
     record_diagnostic_posture_and_status(fixture, &input).await;
     let create = fixture.authorized_operation(ResourceAction::Create, "fs.write").await;
     let read = fixture.authorized_operation(ResourceAction::Read, "diagnostics.read").await;
+    let source_operation = fixture.authorized_operation(ResourceAction::Read, "fs.read").await;
     let store = fixture.model_lane_store();
-    read.run(store.diagnostics_projection(&input.run.run_id)).await.expect("complete-scope positive before legacy control");
-    create.run(store.test_corrupt_scoped_authority(
+    read.run_with_configured_registry(fixture.capabilities.clone(), store.diagnostics_projection(&input.run.run_id)).await.expect("complete-scope positive before legacy control");
+    create.run_with_configured_registry(fixture.capabilities.clone(), store.test_corrupt_scoped_authority(
         "run", &input.run.run_id, ModelLaneAuthorityTestCorruption::IncompleteAttribution,
     )).await.expect("owned legacy incomplete-scope control");
-    assert_scope_denial(read.run(store.diagnostics_projection(&input.run.run_id)).await);
-    assert_scope_denial(read.run(store.replay_run(&input.run.run_id)).await);
+    assert_scope_denial(read.run_with_configured_registry(fixture.capabilities.clone(), store.diagnostics_projection(&input.run.run_id)).await);
+    assert_scope_denial(source_operation.run_with_configured_registry(fixture.capabilities.clone(), store.replay_run(&input.run.run_id)).await);
     let router = fixture.diagnostics_router();
     let existing = fixture.public_diagnostics(&router, Some(&input.run.run_id)).await;
     let missing = fixture.public_diagnostics(&router, Some(&format!("absent-{}", Uuid::new_v4()))).await;
@@ -2023,7 +2045,7 @@ async fn assert_real_recorder_only_event_is_not_authority(fixture: &mut Diagnost
     assert_eq!(actual.len(), 1);
     assert_eq!(actual[0].event_id, event_id);
     assert_eq!(actual[0].payload["run_id"], absent);
-    assert!(fixture.account_events("model_lane_run", &absent).await.is_empty());
+    assert!(fixture.account_events("run", &absent).await.is_empty());
     let mut state = fixture.app_state();
     state.flight_recorder = recorder.clone();
     state.diagnostics = recorder;
@@ -2032,4 +2054,111 @@ async fn assert_real_recorder_only_event_is_not_authority(fixture: &mut Diagnost
     let response = fixture.public_diagnostics(&router, Some(&absent)).await;
     assert_eq!(response.0, StatusCode::NOT_FOUND);
     assert!(response.1.get("run").is_none(), "real recorder rows cannot supply canonical projection authority");
+}
+
+#[cfg(all(feature = "test-utils", feature = "runtime-full", feature = "duckdb-flight-recorder"))]
+pub struct CapturedRoutingRevisionObservation {
+    pub captured: crate::swarm_orchestration::routing_execution::ModelLaneRoutingExecutionState,
+    pub advanced: crate::swarm_orchestration::routing_execution::ModelLaneRoutingExecutionState,
+    pub advanced_receipts: Vec<(String, i64)>, 
+    pub consumption: crate::swarm_orchestration::model_lane::ModelLaneResult<
+        crate::swarm_orchestration::routing_execution::ModelLaneRoutingExecutionState>,
+}
+
+#[cfg(all(feature = "test-utils", feature = "runtime-full", feature = "duckdb-flight-recorder"))]
+pub async fn consume_routing_authority_after_real_revision_advance(
+    bootstrap: &crate::AccountBootstrapState,
+    coordinator: &crate::swarm_orchestration::coordinator::SwarmCoordinator,
+    authorization: crate::storage::surreal::resource_authority::AuthorizationRequest,
+    observation_read: &AuthenticatedModelLaneTestOperation,
+    registry: Arc<CapabilityRegistry>,
+    execution_id: &str,
+    stage_id: &str,
+    message_id: &str,
+) -> crate::swarm_orchestration::model_lane::ModelLaneResult<CapturedRoutingRevisionObservation> {
+    use crate::storage::surreal::resource_authority::{
+        self, ResourceAction, ResourceKind, RoleAuthorityAuthInput,
+    };
+    use crate::swarm_orchestration::model_lane::ModelLaneError;
+    use crate::swarm_orchestration::routing_execution::{ModelLaneRoutingStageClaim, ModelLaneRoutingStageStateKind};
+    if authorization.action != ResourceAction::Update || authorization.capability_id != "fs.write"
+        || authorization.resource_kind != ResourceKind::Workspace {
+        return Err(ModelLaneError::AuthorityDenied("stale capture exercise requires actual Workspace Update/fs.write".into()));
+    }
+    let store = coordinator.model_lane_store().ok_or_else(|| ModelLaneError::AuthorityDenied("actual routing store absent".into()))?;
+    let exact = store.access().exact_read_scope().ok_or_else(|| ModelLaneError::AuthorityDenied("actual routing scope absent".into()))?;
+    if authorization.external_resource_id != exact.workspace_id.as_str() {
+        return Err(ModelLaneError::AuthorityDenied("stale capture exercise differs from actual workspace".into()));
+    }
+    let captured = observation_read.run_with_configured_registry(registry.clone(),
+        store.routing_execution_snapshot(execution_id)).await?
+        .ok_or_else(|| ModelLaneError::NotFound("actual authority execution".into()))?;
+    let stage = captured.stages.get(stage_id).ok_or_else(|| ModelLaneError::NotFound("actual authority stage".into()))?.clone();
+    if stage.state != ModelLaneRoutingStageStateKind::AwaitingAuthority {
+        return Err(ModelLaneError::AuthorityDenied("stale capture exercise requires genuine authority wait".into()));
+    }
+    let claim = ModelLaneRoutingStageClaim {
+        execution_id: captured.execution_id.clone(), stage_id: stage.stage_id.clone(), attempt: stage.attempt,
+        fencing_token: stage.fencing_token.clone().ok_or_else(|| ModelLaneError::AuthorityDenied("actual fence absent".into()))?,
+        lease_owner: stage.lease_owner.clone().ok_or_else(|| ModelLaneError::AuthorityDenied("actual lease owner absent".into()))?,
+        lease_expires_at_unix_ms: stage.lease_expires_at_unix_ms.ok_or_else(|| ModelLaneError::AuthorityDenied("actual lease expiry absent".into()))?,
+        dispatch_target: stage.dispatch_target, expected_run_id: stage.expected_run_id.clone(),
+        expected_lane_id: stage.expected_lane_id.clone(), expected_model_id: stage.expected_model_id.clone(),
+        expected_provider: stage.expected_provider,
+    };
+    let routing = coordinator.routing_execution_store().ok_or_else(|| ModelLaneError::AuthorityDenied("actual routing executor absent".into()))?;
+    let authentication = RoleAuthorityAuthInput::new(authorization.session_token,
+        authorization.channel_binding_hash.ok_or_else(|| ModelLaneError::AuthorityDenied("actual channel binding absent".into()))?);
+    let storage = &bootstrap.surreal;
+    let capture = storage.capture_routing_authority_transaction(bootstrap, authentication, store.clone(),
+        execution_id, stage_id, message_id).await?;
+    let continuation = capture.continuation_sources();
+    let read = storage.read_owned_routing_authority_capture(capture).await?;
+    let finalization = storage.finalize_operator_routing_authority_capture(read).await?;
+    let prepared = storage.prepare_owned_routing_authority_capture(finalization)?;
+    let progressed = std::panic::AssertUnwindSafe(async {
+        let advanced = routing.record_stage_result(&claim, ModelLaneRoutingStageStateKind::AwaitingAuthority,
+            stage.instance_id, stage.lane_id, stage.authority_request_message_ref, stage.input_refs,
+            stage.output_ref, stage.output_message_ref, stage.output_sha256, stage.output_payload, stage.detail)
+            .await.map_err(ModelLaneError::InvalidInput)?;
+        let (advanced, history) = observation_read.run_with_configured_registry(registry.clone(), async {
+            let observed = store.routing_execution_snapshot(execution_id).await?
+                .ok_or_else(|| ModelLaneError::NotFound("actual post-advance authority execution".into()))?;
+            if observed != advanced {
+                return Err(ModelLaneError::IntegrityViolation("canonical Read differs from actual revision advance".into()));
+            }
+            let mut targets = vec![("model_lane_routing_execution", execution_id.to_owned())];
+            for stage in observed.stages.values() {
+                for attempt in 0..=stage.attempt {
+                    targets.push(("model_lane_routing_stage_attempt", format!("{execution_id}:{}:{attempt}", stage.stage_id)));
+                    targets.push(("model_lane_routing_outbox", format!("routing-command:{execution_id}:{}:{attempt}", stage.stage_id)));
+                }
+            }
+            let mut history = Vec::new();
+            for (kind, id) in targets {
+                history.extend(store.test_routing_execution_receipts(execution_id, kind, &id).await?
+                    .into_iter().map(|event| (event.event_id, event.event_sequence)));
+            }
+            history.sort();
+            Ok::<_, ModelLaneError>((observed, history))
+        }).await?;
+        continuation.revalidate().await.map_err(ModelLaneError::from)?;
+        Ok::<_, ModelLaneError>((advanced, history))
+    }).catch_unwind().await;
+    let (advanced, advanced_receipts) = match progressed {
+        Ok(Ok(observed)) => observed,
+        Ok(Err(primary)) => return match prepared.cancel() {
+            Ok(()) => Err(primary),
+            Err(cleanup) => Err(ModelLaneError::IntegrityViolation(format!("real captured revision exercise failed: {primary}; controller cancellation failed: {cleanup}"))),
+        },
+        Err(primary) => match prepared.cancel() {
+            Ok(()) => std::panic::resume_unwind(primary),
+            Err(cleanup) => std::panic::panic_any((primary, cleanup)),
+        },
+    };
+    let consumption = storage.with_record_user_scope(continuation.original_scope(),
+        crate::storage::surreal::with_configured_capability_registry(continuation.registry(),
+            resource_authority::with_routing_original_sources(continuation,
+                coordinator.complete_authority_routing_stage(prepared.into_permit(), execution_id, stage_id, message_id)))).await;
+    Ok(CapturedRoutingRevisionObservation { captured, advanced, advanced_receipts, consumption })
 }

@@ -793,8 +793,8 @@ impl Ac9Harness {
     ) -> crate::swarm_orchestration::model_lane::ModelLaneResult<crate::swarm_orchestration::model_lane::ModelLanePromotionDecisionRecord> {
         let (operation_id, authority) = self.promotion_authorities.get(&candidate.run_id)
             .expect("canonical role pair must precede promotion input mutation");
-        self.store().record_promotion_decision(
-            self.bootstrap(), self.authorization_request(), *operation_id, authority.selectors(), candidate,
+        authority.record_promotion_decision(
+            self.bootstrap(), self.authorization_request(), *operation_id, candidate,
         ).await
     }
 

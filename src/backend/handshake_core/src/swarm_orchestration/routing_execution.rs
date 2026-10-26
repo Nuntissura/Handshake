@@ -325,6 +325,13 @@ impl ModelLaneRoutingExecutionStore {
             .await
             .map_err(|e| e.to_string())
     }
+    pub(crate) async fn transition_snapshot(&self, id: &str) -> Result<Option<ModelLaneRoutingExecutionState>, String> {
+        let owner = self.clone(); let id = id.to_owned();
+        self.model_lane_store.with_routing_transition(id.clone(), false, move || async move {
+            owner.snapshot(&id).await.map_err(super::model_lane::ModelLaneError::InvalidInput)
+        }).await.map_err(|error| error.to_string())
+    }
+
     pub(crate) async fn diagnostics_for_run(
         &self,
         id: &str,
@@ -334,7 +341,14 @@ impl ModelLaneRoutingExecutionStore {
             .await
             .map_err(|e| e.to_string())
     }
-    pub(crate) async fn active_instance_ids_for_cancellation(
+    pub(crate) async fn active_instance_ids_for_cancellation(&self, id: &str) -> Result<Option<Vec<String>>, String> {
+        let owner = self.clone(); let id = id.to_owned();
+        self.model_lane_store.with_routing_transition(id.clone(), false, move || async move {
+            owner.active_instance_ids_for_cancellation_source(&id).await.map_err(super::model_lane::ModelLaneError::InvalidInput)
+        }).await.map_err(|error| error.to_string())
+    }
+
+    async fn active_instance_ids_for_cancellation_source(
         &self,
         id: &str,
     ) -> Result<Option<Vec<String>>, String> {
@@ -357,6 +371,15 @@ impl ModelLaneRoutingExecutionStore {
         ))
     }
     pub(crate) async fn begin_execution(
+        &self, id: &str, did: &str, authority: &ModelLaneRoutingAuthority, c: ModelLaneRoutingExecutionContext,
+    ) -> Result<ModelLaneRoutingExecutionState, String> {
+        let owner = self.clone(); let id = id.to_owned(); let did = did.to_owned(); let authority = authority.clone();
+        self.model_lane_store.with_routing_creation(c.run_id.clone(), id.clone(), did.clone(), c.initial_input_ref.clone(),
+            move || async move { owner.begin_execution_source(&id, &did, &authority, c).await.map_err(super::model_lane::ModelLaneError::InvalidInput) }
+        ).await.map_err(|error| error.to_string())
+    }
+
+    async fn begin_execution_source(
         &self,
         id: &str,
         did: &str,
@@ -384,12 +407,9 @@ impl ModelLaneRoutingExecutionStore {
         }
         let d = self
             .model_lane_store
-            .replay_promotion_decisions(&c.run_id)
+            .routing_selecting_decision(&c.run_id, did)
             .await
-            .map_err(|e| e.to_string())?
-            .into_iter()
-            .find(|v| v.decision_id == did)
-            .ok_or_else(|| format!("unknown selecting promotion decision {did}"))?;
+            .map_err(|e| e.to_string())?;
         if d.outcome != ModelLanePromotionOutcome::Approved
             || d.run_id != c.run_id
             || d.trace_id != c.trace_id
@@ -404,7 +424,7 @@ impl ModelLaneRoutingExecutionStore {
         }
         let r = self
             .model_lane_store
-            .replay_run(&c.run_id)
+            .routing_source_replay(&c.run_id)
             .await
             .map_err(|e| e.to_string())?;
         check_run(&r.run, &c)?;
@@ -490,7 +510,14 @@ impl ModelLaneRoutingExecutionStore {
         }
         Ok(())
     }
-    pub(crate) async fn claim_ready(
+    pub(crate) async fn claim_ready(&self, id: &str, launches: &[ModelLaneRoutingStageLaunch]) -> Result<Vec<ModelLaneRoutingStageClaim>, String> {
+        let owner = self.clone(); let id = id.to_owned(); let launches = launches.to_vec();
+        self.model_lane_store.with_routing_transition(id.clone(), false, move || async move {
+            owner.claim_ready_source(&id, &launches).await.map_err(super::model_lane::ModelLaneError::InvalidInput)
+        }).await.map_err(|error| error.to_string())
+    }
+
+    async fn claim_ready_source(
         &self,
         id: &str,
         launches: &[ModelLaneRoutingStageLaunch],
@@ -545,7 +572,14 @@ impl ModelLaneRoutingExecutionStore {
         }
         Ok(cs)
     }
-    pub(crate) async fn record_transition(
+    pub(crate) async fn record_transition(&self, c: &ModelLaneRoutingStageClaim, s: ModelLaneRoutingStageStateKind, i: Option<String>, d: Option<String>) -> Result<ModelLaneRoutingExecutionState, String> {
+        let owner = self.clone(); let c = c.clone();
+        self.model_lane_store.with_routing_transition(c.execution_id.clone(), false, move || async move {
+            owner.record_transition_source(&c, s, i, d).await.map_err(super::model_lane::ModelLaneError::InvalidInput)
+        }).await.map_err(|error| error.to_string())
+    }
+
+    async fn record_transition_source(
         &self,
         c: &ModelLaneRoutingStageClaim,
         s: ModelLaneRoutingStageStateKind,
@@ -555,7 +589,14 @@ impl ModelLaneRoutingExecutionStore {
         self.record_stage_result(c, s, i, None, None, vec![], None, None, None, None, d)
             .await
     }
-    pub(crate) async fn heartbeat_claim(
+    pub(crate) async fn heartbeat_claim(&self, c: &ModelLaneRoutingStageClaim, s: ModelLaneRoutingStageStateKind, i: Option<String>, l: Option<String>, r: Option<String>) -> Result<ModelLaneRoutingExecutionState, String> {
+        let owner = self.clone(); let c = c.clone();
+        self.model_lane_store.with_routing_transition(c.execution_id.clone(), false, move || async move {
+            owner.heartbeat_claim_source(&c, s, i, l, r).await.map_err(super::model_lane::ModelLaneError::InvalidInput)
+        }).await.map_err(|error| error.to_string())
+    }
+
+    async fn heartbeat_claim_source(
         &self,
         c: &ModelLaneRoutingStageClaim,
         s: ModelLaneRoutingStageStateKind,
@@ -585,7 +626,14 @@ impl ModelLaneRoutingExecutionStore {
         )
         .await
     }
-    pub(crate) async fn validate_active_claim(
+    pub(crate) async fn validate_active_claim(&self, c: &ModelLaneRoutingStageClaim) -> Result<(), String> {
+        let owner = self.clone(); let c = c.clone();
+        self.model_lane_store.with_routing_transition(c.execution_id.clone(), false, move || async move {
+            owner.validate_active_claim_source(&c).await.map_err(super::model_lane::ModelLaneError::InvalidInput)
+        }).await.map_err(|error| error.to_string())
+    }
+
+    async fn validate_active_claim_source(
         &self,
         c: &ModelLaneRoutingStageClaim,
     ) -> Result<(), String> {
@@ -598,7 +646,14 @@ impl ModelLaneRoutingExecutionStore {
         )
     }
     #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn record_stage_result(
+    pub(crate) async fn record_stage_result(&self, c: &ModelLaneRoutingStageClaim, s: ModelLaneRoutingStageStateKind, i: Option<String>, l: Option<String>, r: Option<String>, ins: Vec<String>, o: Option<String>, m: Option<String>, h: Option<String>, p: Option<Value>, d: Option<String>) -> Result<ModelLaneRoutingExecutionState, String> {
+        let owner = self.clone(); let c = c.clone();
+        self.model_lane_store.with_routing_transition(c.execution_id.clone(), false, move || async move {
+            owner.record_stage_result_source(&c, s, i, l, r, ins, o, m, h, p, d).await.map_err(super::model_lane::ModelLaneError::InvalidInput)
+        }).await.map_err(|error| error.to_string())
+    }
+
+    async fn record_stage_result_source(
         &self,
         c: &ModelLaneRoutingStageClaim,
         s: ModelLaneRoutingStageStateKind,
@@ -707,7 +762,14 @@ impl ModelLaneRoutingExecutionStore {
         refresh_execution_status(&mut n)?;
         Ok((n, a))
     }
-    pub(crate) async fn record_authority_request(
+    pub(crate) async fn record_authority_request(&self, c: &ModelLaneRoutingStageClaim, l: String, m: super::model_lane::NewModelLaneMessage) -> Result<(ModelLaneRoutingExecutionState, super::model_lane::ModelLaneMessageRecord), String> {
+        let owner = self.clone(); let c = c.clone();
+        self.model_lane_store.with_routing_transition(c.execution_id.clone(), true, move || async move {
+            owner.record_authority_request_source(&c, l, m).await.map_err(super::model_lane::ModelLaneError::InvalidInput)
+        }).await.map_err(|error| error.to_string())
+    }
+
+    async fn record_authority_request_source(
         &self,
         c: &ModelLaneRoutingStageClaim,
         l: String,
@@ -743,7 +805,14 @@ impl ModelLaneRoutingExecutionStore {
             .await
             .map_err(|e| e.to_string())
     }
-    pub(crate) async fn stage_input_envelope(
+    pub(crate) async fn stage_input_envelope(&self, execution_id: &str, stage_id: &str) -> Result<String, String> {
+        let owner = self.clone(); let execution_id = execution_id.to_owned(); let stage_id = stage_id.to_owned();
+        self.model_lane_store.with_routing_transition(execution_id.clone(), false, move || async move {
+            owner.stage_input_envelope_source(&execution_id, &stage_id).await.map_err(super::model_lane::ModelLaneError::InvalidInput)
+        }).await.map_err(|error| error.to_string())
+    }
+
+    async fn stage_input_envelope_source(
         &self,
         execution_id: &str,
         stage_id: &str,
@@ -850,7 +919,14 @@ impl ModelLaneRoutingExecutionStore {
         .map_err(|err| err.to_string())
     }
 
-    pub(crate) async fn record_generated_output(
+    pub(crate) async fn record_generated_output(&self, claim: &ModelLaneRoutingStageClaim, state: ModelLaneRoutingStageStateKind, instance_id: Option<String>, lane_id: Option<String>, output: String, detail: Option<String>) -> Result<ModelLaneRoutingExecutionState, String> {
+        let owner = self.clone(); let claim = claim.clone();
+        self.model_lane_store.with_routing_transition(claim.execution_id.clone(), true, move || async move {
+            owner.record_generated_output_source(&claim, state, instance_id, lane_id, output, detail).await.map_err(super::model_lane::ModelLaneError::InvalidInput)
+        }).await.map_err(|error| error.to_string())
+    }
+
+    async fn record_generated_output_source(
         &self,
         claim: &ModelLaneRoutingStageClaim,
         state: ModelLaneRoutingStageStateKind,
@@ -1252,6 +1328,13 @@ impl ModelLaneRoutingExecutionStore {
     }
 
     pub(crate) async fn recover_expired_claims(&self, id: &str) -> Result<Vec<String>, String> {
+        let owner = self.clone(); let id = id.to_owned();
+        self.model_lane_store.with_routing_transition(id.clone(), false, move || async move {
+            owner.recover_expired_claims_source(&id).await.map_err(super::model_lane::ModelLaneError::InvalidInput)
+        }).await.map_err(|error| error.to_string())
+    }
+
+    async fn recover_expired_claims_source(&self, id: &str) -> Result<Vec<String>, String> {
         let mut x = self.snapshot(id).await?.ok_or("unknown execution")?;
         let mut done = vec![];
         for sid in x.stages.keys().cloned().collect::<Vec<_>>() {
@@ -1316,7 +1399,14 @@ impl ModelLaneRoutingExecutionStore {
         }
         Ok(done)
     }
-    pub(crate) async fn expired_stage_attempts(
+    pub(crate) async fn expired_stage_attempts(&self, id: &str) -> Result<Vec<(String, u32, String)>, String> {
+        let owner = self.clone(); let id = id.to_owned();
+        self.model_lane_store.with_routing_transition(id.clone(), false, move || async move {
+            owner.expired_stage_attempts_source(&id).await.map_err(super::model_lane::ModelLaneError::InvalidInput)
+        }).await.map_err(|error| error.to_string())
+    }
+
+    async fn expired_stage_attempts_source(
         &self,
         id: &str,
     ) -> Result<Vec<(String, u32, String)>, String> {
@@ -1331,7 +1421,14 @@ impl ModelLaneRoutingExecutionStore {
             })
             .collect())
     }
-    pub(crate) async fn cancel_execution(
+    pub(crate) async fn cancel_execution(&self, id: &str, reason: impl Into<String>) -> Result<ModelLaneRoutingExecutionState, String> {
+        let owner = self.clone(); let id = id.to_owned(); let reason = reason.into();
+        self.model_lane_store.with_routing_transition(id.clone(), false, move || async move {
+            owner.cancel_execution_source(&id, reason).await.map_err(super::model_lane::ModelLaneError::InvalidInput)
+        }).await.map_err(|error| error.to_string())
+    }
+
+    async fn cancel_execution_source(
         &self,
         id: &str,
         reason: impl Into<String>,
@@ -1556,7 +1653,7 @@ fn events(
         )?,
     ])
 }
-fn validate_launch_plan(
+pub(crate) fn validate_launch_plan(
     graph: &ModelLaneRoutingGraph,
     plan: &[ModelLaneRoutingStageLaunchPlan],
 ) -> Result<(), String> {

@@ -2,6 +2,7 @@
 
 mod surreal_test_store_support;
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -11,7 +12,8 @@ use handshake_core::flight_recorder::{
     FlightRecorderEventType, RecorderError,
 };
 use handshake_core::storage::surreal::{
-    SurrealStorage, SurrealSwarmOutboxError, SurrealSwarmOutboxStore,
+    SurrealStorage, SurrealSwarmOutboxError, SurrealSwarmOutboxPersistOutcome,
+    SurrealSwarmOutboxStore,
 };
 use handshake_core::swarm_orchestration::events::DurableSwarmFrBridge;
 use handshake_core::swarm_orchestration::resource_scope::{
@@ -97,6 +99,29 @@ impl FlightRecorder for CollectingRecorder {
             .lock()
             .expect("collecting recorder lock")
             .clone())
+    }
+}
+
+struct RecoveringRecorder {
+    healthy: AtomicBool,
+    recorded: CollectingRecorder,
+}
+
+#[async_trait]
+impl FlightRecorder for RecoveringRecorder {
+    async fn record_event(&self, event: FlightRecorderEvent) -> Result<(), RecorderError> {
+        if !self.healthy.load(Ordering::Acquire) {
+            return Err(RecorderError::SinkError("recorder outage before live recovery".into()));
+        }
+        self.recorded.record_event(event).await
+    }
+
+    async fn enforce_retention(&self) -> Result<u64, RecorderError> {
+        self.recorded.enforce_retention().await
+    }
+
+    async fn list_events(&self, filter: EventFilter) -> Result<Vec<FlightRecorderEvent>, RecorderError> {
+        self.recorded.list_events(filter).await
     }
 }
 
@@ -485,14 +510,20 @@ async fn identical_retry_is_stable_conflict_and_capacity_preserve_order_and_rece
     let first_json = event_json(first_id, "stable");
     let second_json = event_json(second_id, "second");
 
-    store
-        .persist(first_id, first_json.clone(), 2)
-        .await
-        .expect("initial persist");
-    store
-        .persist(first_id, first_json.clone(), 2)
-        .await
-        .expect("identical queued retry is idempotent");
+    assert_eq!(
+        store
+            .persist(first_id, first_json.clone(), 2)
+            .await
+            .expect("initial persist"),
+        SurrealSwarmOutboxPersistOutcome::Stored
+    );
+    assert_eq!(
+        store
+            .persist(first_id, first_json.clone(), 2)
+            .await
+            .expect("identical queued retry is idempotent"),
+        SurrealSwarmOutboxPersistOutcome::AlreadyQueued
+    );
     assert!(matches!(
         store
             .persist(first_id, event_json(first_id, "conflict"), 2)
@@ -539,10 +570,13 @@ async fn identical_retry_is_stable_conflict_and_capacity_preserve_order_and_rece
         .await
         .expect("deliver second ordered event");
 
-    store
-        .persist(first_id, first_json.clone(), 2)
-        .await
-        .expect("identical committed retry is idempotent");
+    assert_eq!(
+        store
+            .persist(first_id, first_json.clone(), 2)
+            .await
+            .expect("identical committed retry is idempotent"),
+        SurrealSwarmOutboxPersistOutcome::AlreadyCommitted
+    );
     assert!(store
         .next_pending()
         .await
@@ -767,6 +801,166 @@ async fn bounded_non_terminal_capacity_reports_drop_and_preserves_accepted_order
 
     drop(bridge);
     drop(drain);
+    drop(storage);
+    cleanup(&mut test_scope).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn two_pending_terminal_events_drain_in_order_without_starving_later_event() {
+    let mut test_scope = IsolatedSurrealTestStore::create()
+        .await
+        .expect("allocate isolated Surreal scope");
+    let storage = test_scope.storage().clone();
+    let scope = exact_scope();
+    let store = SurrealSwarmOutboxStore::new_exact(storage.clone(), scope.clone());
+    let mut first = terminal_event("pending-first");
+    first.event_id = Uuid::from_u128(1);
+    let mut second = terminal_event("pending-second");
+    second.event_id = Uuid::from_u128(2);
+    for event in [&first, &second] {
+        assert_eq!(
+            store
+                .persist(
+                    &event.event_id.to_string(),
+                    serde_json::to_string(event).expect("serialize genuine terminal event"),
+                    2,
+                )
+                .await
+                .expect("commit distinct pending terminal event"),
+            SurrealSwarmOutboxPersistOutcome::Stored
+        );
+        assert!(read_outbox(&storage, &scope, &event.event_id.to_string())
+            .await
+            .is_some());
+    }
+    let first_pending = store.next_pending().await.expect("read queue head")
+        .expect("two pending rows have one ordered head");
+    assert_eq!(first_pending.event_id, first.event_id.to_string());
+    let recorder = Arc::new(CollectingRecorder::default());
+    let recorder_port: Arc<dyn FlightRecorder> = recorder.clone();
+    let (bridge, drain) =
+        DurableSwarmFrBridge::spawn_with_surreal_outbox(recorder_port, store.clone(), 2);
+    assert!(drain.drain_and_join(Duration::from_secs(5)).await);
+    assert_eq!(recorder.event_ids(), vec![first.event_id, second.event_id]);
+    assert!(!bridge.terminal_is_fenced());
+    assert!(store.next_pending().await.expect("read drained queue").is_none());
+    for event in [&first, &second] {
+        assert!(read_outbox(&storage, &scope, &event.event_id.to_string()).await.is_none());
+        let receipt = read_ledger(&storage, &scope, &event.event_id.to_string())
+            .await.expect("canonical receipt survives delivery");
+        assert_exact_ledger_scope(&scope, &receipt);
+    }
+    drop(bridge);
+    drop(drain);
+    drop(store);
+    drop(storage);
+    cleanup(&mut test_scope).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn committed_terminal_reemit_acknowledges_without_duplicate_recording_or_starvation() {
+    let mut test_scope = IsolatedSurrealTestStore::create()
+        .await
+        .expect("allocate isolated Surreal scope");
+    let storage = test_scope.storage().clone();
+    let scope = exact_scope();
+    let store = SurrealSwarmOutboxStore::new_exact(storage.clone(), scope.clone());
+    let recorder = Arc::new(CollectingRecorder::default());
+    let first = terminal_event("committed-first");
+    let later = terminal_event("later-distinct");
+    let recorder_port: Arc<dyn FlightRecorder> = recorder.clone();
+    let (bridge, drain) =
+        DurableSwarmFrBridge::spawn_with_surreal_outbox(recorder_port, store.clone(), 2);
+    bridge.emit(first.clone()).expect("initial durable ACK");
+    assert!(drain.drain_and_join(Duration::from_secs(5)).await);
+    assert_eq!(recorder.event_ids(), vec![first.event_id]);
+    let initial_receipt = read_ledger(&storage, &scope, &first.event_id.to_string())
+        .await.expect("initial canonical receipt");
+    drop(bridge);
+    drop(drain);
+
+    let recorder_port: Arc<dyn FlightRecorder> = recorder.clone();
+    let (bridge, drain) =
+        DurableSwarmFrBridge::spawn_with_surreal_outbox(recorder_port, store.clone(), 2);
+    bridge.emit(first.clone()).expect("committed identical retry receives durable ACK");
+    bridge.emit(later.clone()).expect("later distinct terminal event receives durable ACK");
+    assert!(drain.drain_and_join(Duration::from_secs(5)).await);
+    assert_eq!(recorder.event_ids(), vec![first.event_id, later.event_id]);
+    assert!(!bridge.terminal_is_fenced());
+    assert_eq!(bridge.dropped_count(), 0);
+    assert!(store.next_pending().await.expect("read drained retry queue").is_none());
+    let final_receipt = read_ledger(&storage, &scope, &first.event_id.to_string())
+        .await.expect("original canonical receipt retained");
+    assert_eq!(final_receipt.payload_hash, initial_receipt.payload_hash);
+    assert_eq!(final_receipt.idempotency_key, initial_receipt.idempotency_key);
+    assert_exact_ledger_scope(&scope, &final_receipt);
+    assert!(read_ledger(&storage, &scope, &later.event_id.to_string()).await.is_some());
+    assert!(read_outbox(&storage, &scope, &first.event_id.to_string()).await.is_none());
+    drop(bridge);
+    drop(drain);
+    drop(store);
+    drop(storage);
+    cleanup(&mut test_scope).await;
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn live_worker_periodically_retries_pending_terminal_event_after_same_recorder_recovers() {
+    let mut test_scope = IsolatedSurrealTestStore::create()
+        .await
+        .expect("allocate isolated Surreal scope");
+    let storage = test_scope.storage().clone();
+    let scope = exact_scope();
+    let store = SurrealSwarmOutboxStore::new_exact(storage.clone(), scope.clone());
+    let recorder = Arc::new(RecoveringRecorder {
+        healthy: AtomicBool::new(false),
+        recorded: CollectingRecorder::default(),
+    });
+    let recorder_port: Arc<dyn FlightRecorder> = recorder.clone();
+    let (bridge, drain) =
+        DurableSwarmFrBridge::spawn_with_surreal_outbox(recorder_port, store.clone(), 2);
+    let event = terminal_event("same-live-worker-recovery");
+    let event_id = event.event_id.to_string();
+    bridge.emit(event.clone()).expect("durable ACK while recorder is unavailable");
+
+    let pending = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            if let Some(row) = read_outbox(&storage, &scope, &event_id).await {
+                if row.attempts >= 1 {
+                    break row;
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    }).await.expect("failed delivery must leave a durable pending attempt before recovery");
+    assert_eq!(pending.event_id, event_id);
+    assert_exact_scope(&scope, &pending);
+    assert!(recorder.recorded.event_ids().is_empty());
+    let receipt_before = read_ledger(&storage, &scope, &event_id)
+        .await.expect("canonical receipt exists before recorder recovery");
+    assert_exact_ledger_scope(&scope, &receipt_before);
+
+    recorder.healthy.store(true, Ordering::Release);
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            if read_outbox(&storage, &scope, &event_id).await.is_none() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    }).await.expect("same live worker must retry and delete the pending row before shutdown");
+    assert_eq!(recorder.recorded.event_ids(), vec![event.event_id]);
+    let receipt_after = read_ledger(&storage, &scope, &event_id)
+        .await.expect("canonical receipt survives periodic retry");
+    assert_exact_ledger_scope(&scope, &receipt_after);
+    assert_eq!(receipt_after.payload_hash, receipt_before.payload_hash);
+    assert_eq!(receipt_after.idempotency_key, receipt_before.idempotency_key);
+    assert!(!bridge.terminal_is_fenced());
+    assert_eq!(bridge.dropped_count(), 0);
+
+    assert!(drain.drain_and_join(Duration::from_secs(5)).await);
+    assert_eq!(recorder.recorded.event_ids(), vec![event.event_id]);
+    drop(bridge);
+    drop(drain);
+    drop(store);
     drop(storage);
     cleanup(&mut test_scope).await;
 }

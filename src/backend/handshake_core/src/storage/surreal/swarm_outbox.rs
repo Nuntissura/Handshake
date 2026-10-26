@@ -117,6 +117,13 @@ pub enum SurrealSwarmOutboxError {
     CorruptAuthority,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SurrealSwarmOutboxPersistOutcome {
+    Stored,
+    AlreadyQueued,
+    AlreadyCommitted,
+}
+
 #[derive(Clone)]
 pub struct SurrealSwarmOutboxStore {
     storage: SurrealStorage,
@@ -283,7 +290,7 @@ impl SurrealSwarmOutboxStore {
         event_id: &str,
         event_json: String,
         capacity: usize,
-    ) -> Result<(), SurrealSwarmOutboxError> {
+    ) -> Result<SurrealSwarmOutboxPersistOutcome, SurrealSwarmOutboxError> {
         self.ensure_initialized().await?;
         if event_id.trim().is_empty()
             || event_json.trim().is_empty()
@@ -324,7 +331,9 @@ impl SurrealSwarmOutboxStore {
             .ok_or(SurrealSwarmOutboxError::CorruptAuthority)?
             .outcome;
         match outcome.as_str() {
-            "stored" | "already_queued" | "already_committed" => Ok(()),
+            "stored" => Ok(SurrealSwarmOutboxPersistOutcome::Stored),
+            "already_queued" => Ok(SurrealSwarmOutboxPersistOutcome::AlreadyQueued),
+            "already_committed" => Ok(SurrealSwarmOutboxPersistOutcome::AlreadyCommitted),
             "conflict" => Err(SurrealSwarmOutboxError::IdempotencyConflict),
             "capacity" => Err(SurrealSwarmOutboxError::CapacityExceeded { capacity }),
             _ => Err(SurrealSwarmOutboxError::CorruptAuthority),
@@ -338,13 +347,10 @@ impl SurrealSwarmOutboxStore {
         let bindings = self.scope_bindings();
         let rows = self.storage.with_data_operation(|database| Box::pin(async move {
             database.query_values::<PendingRow, _>(
-                "SELECT event_id, event_json FROM swarm_terminal_event_outbox WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND storage_authority = 'embedded_surrealdb' AND event_ledger_event_id.owner_account_id = $owner_account_id AND event_ledger_event_id.actor_principal_id = $actor_principal_id AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id AND event_ledger_event_id.access_space_id = $access_space_id AND event_ledger_event_id.workspace_id = $workspace_id AND event_ledger_event_id.source_component = 'swarm_terminal_outbox' AND event_ledger_event_id.aggregate_type = 'swarm_terminal_event' ORDER BY created_at ASC, event_id ASC LIMIT 2;",
+                "SELECT event_id, event_json FROM swarm_terminal_event_outbox WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id AND storage_authority = 'embedded_surrealdb' AND event_ledger_event_id.owner_account_id = $owner_account_id AND event_ledger_event_id.actor_principal_id = $actor_principal_id AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id AND event_ledger_event_id.access_space_id = $access_space_id AND event_ledger_event_id.workspace_id = $workspace_id AND event_ledger_event_id.source_component = 'swarm_terminal_outbox' AND event_ledger_event_id.aggregate_type = 'swarm_terminal_event' ORDER BY created_at ASC, event_id ASC LIMIT 1;",
                 bindings,
             ).await
         })).await?;
-        if rows.len() > 1 {
-            return Err(SurrealSwarmOutboxError::CorruptAuthority);
-        }
         Ok(rows.into_iter().next().map(|row| SurrealSwarmOutboxEvent {
             event_id: row.event_id,
             event_json: row.event_json,

@@ -117,8 +117,70 @@ impl Ac9RoleAuthorityRuntime {
 pub struct Ac9RoleAuthorityFixture {
     runtime: Ac9RoleAuthorityRuntime,
     selectors: crate::swarm_orchestration::model_lane::FinalPromotionAuthoritySelectors,
+    read_custody: Arc<crate::storage::surreal::resource_authority::InitialValidatorIssuance>,
 }
 
+type PreparedRoleInputs = (
+    crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    crate::storage::surreal::resource_authority::RoleAuthorityAuthInput,
+    handshake_role_authority::domain::RunBinding,
+    handshake_role_authority::domain::ArtifactSubject,
+    handshake_role_authority::domain::ExpectedBase,
+);
+
+pub struct Ac9RoleAuthorityEvidence<'runtime> {
+    runtime: &'runtime Ac9RoleAuthorityRuntime,
+    selectors: crate::swarm_orchestration::model_lane::FinalPromotionAuthoritySelectors,
+    read_custody: Arc<crate::storage::surreal::resource_authority::InitialValidatorIssuance>,
+}
+
+impl Ac9RoleAuthorityEvidence<'_> {
+    pub async fn launch_validator_destination(
+        &self,
+        request: crate::swarm_orchestration::model_lane::DexterityLaunchAdapterRequest,
+    ) -> ModelLaneResult<(
+        crate::swarm_orchestration::model_lane::ModelLaneRunRecord,
+        crate::swarm_orchestration::model_lane::ModelLaneRecord,
+    )> {
+        Ac9RoleAuthorityFixture::launch_validator_destination_with_runtime(
+            self.runtime, &self.selectors, request,
+        ).await
+    }
+    pub fn selectors(&self) -> crate::swarm_orchestration::model_lane::FinalPromotionAuthoritySelectors {
+        self.selectors.clone()
+    }
+
+    pub async fn record_promotion_decision(
+        &self,
+        bootstrap: &crate::AccountBootstrapState,
+        authorization: crate::storage::surreal::resource_authority::AuthorizationRequest,
+        operation_id: uuid::Uuid,
+        input: crate::swarm_orchestration::model_lane::NewModelLanePromotionDecision,
+    ) -> ModelLaneResult<crate::swarm_orchestration::model_lane::ModelLanePromotionDecisionRecord> {
+        let store = self.runtime.service.coordinator().model_lane_store()
+            .ok_or_else(|| prerequisite("retained actual producer store is absent"))?;
+        store.record_promotion_decision_with_read_custody(
+            bootstrap, authorization, operation_id, self.selectors.clone(), input,
+            self.read_custody.clone(),
+        ).await
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub async fn record_promotion_decision_with_wrong_current_operation_for_test(
+        &self,
+        bootstrap: &crate::AccountBootstrapState,
+        authorization: crate::storage::surreal::resource_authority::AuthorizationRequest,
+        operation_id: uuid::Uuid,
+        input: crate::swarm_orchestration::model_lane::NewModelLanePromotionDecision,
+    ) -> ModelLaneResult<crate::swarm_orchestration::model_lane::ModelLanePromotionDecisionRecord> {
+        let store = self.runtime.service.coordinator().model_lane_store()
+            .ok_or_else(|| prerequisite("retained actual producer store is absent"))?;
+        store.record_promotion_decision_with_wrong_current_operation(
+            bootstrap, authorization, operation_id, self.selectors.clone(), input,
+            self.read_custody.clone(),
+        ).await
+    }
+}
 impl Ac9RoleAuthorityFixture {
     pub async fn produce(
         bootstrap: &crate::AccountBootstrapState,
@@ -132,15 +194,51 @@ impl Ac9RoleAuthorityFixture {
         designation_retention: handshake_role_authority::domain::RetentionBinding,
         requested_task_snapshot: serde_json::Value,
     ) -> ModelLaneResult<Self> {
+        let prepared = Self::prepare_role_inputs(&store, &authorization, run, lane, artifact, candidate)?;
+        let runtime = Ac9RoleAuthorityRuntime::open(&store).await?;
+        let produced = Self::produce_with_runtime(&runtime, bootstrap, &store, authorization,
+            run, artifact, approval_retention, designation_retention, requested_task_snapshot, prepared).await;
+        match produced {
+            Ok((selectors, read_custody)) => Ok(Self { runtime, selectors, read_custody }),
+            Err(error) => {
+                match runtime.shutdown().await {
+                    Ok(()) => Err(error),
+                    Err(cleanup) => Err(prerequisite(format!("authority production failed: {error}; {cleanup}"))),
+                }
+            }
+        }
+    }
+
+    pub async fn produce_for_candidate<'runtime>(
+        &'runtime self,
+        bootstrap: &crate::AccountBootstrapState,
+        store: ModelLaneStore,
+        authorization: crate::storage::surreal::resource_authority::AuthorizationRequest,
+        run: &crate::swarm_orchestration::model_lane::ModelLaneRunRecord,
+        lane: &crate::swarm_orchestration::model_lane::ModelLaneRecord,
+        artifact: &crate::swarm_orchestration::model_lane::ModelLaneContextBundleArtifactBindingRecord,
+        candidate: &crate::swarm_orchestration::model_lane::NewModelLanePromotionDecision,
+        approval_retention: handshake_role_authority::domain::RetentionBinding,
+        designation_retention: handshake_role_authority::domain::RetentionBinding,
+        requested_task_snapshot: serde_json::Value,
+    ) -> ModelLaneResult<Ac9RoleAuthorityEvidence<'runtime>> {
+        let prepared = Self::prepare_role_inputs(&store, &authorization, run, lane, artifact, candidate)?;
+        let (selectors, read_custody) = Self::produce_with_runtime(&self.runtime, bootstrap, &store,
+            authorization, run, artifact, approval_retention, designation_retention,
+            requested_task_snapshot, prepared).await?;
+        Ok(Ac9RoleAuthorityEvidence { runtime: &self.runtime, selectors, read_custody })
+    }
+    fn prepare_role_inputs(
+        store: &ModelLaneStore,
+        authorization: &crate::storage::surreal::resource_authority::AuthorizationRequest,
+        run: &crate::swarm_orchestration::model_lane::ModelLaneRunRecord,
+        lane: &crate::swarm_orchestration::model_lane::ModelLaneRecord,
+        artifact: &crate::swarm_orchestration::model_lane::ModelLaneContextBundleArtifactBindingRecord,
+        candidate: &crate::swarm_orchestration::model_lane::NewModelLanePromotionDecision,
+    ) -> ModelLaneResult<PreparedRoleInputs> {
         use handshake_role_authority::domain as role;
-        use crate::swarm_orchestration::model_lane::{
-            ArtifactOperatorApprovalRequest, FinalPromotionAuthoritySelectors,
-            RoleEvidenceConsumeSelector,
-        };
-        use crate::swarm_orchestration::operator_chat::{OperatorChatLaneKind, OperatorChatSelection};
         use crate::storage::surreal::resource_authority::RoleAuthorityAuthInput;
         use sha2::{Digest, Sha256};
-
         if candidate.run_id != run.run_id || candidate.trace_id != run.trace_id
             || lane.run_id != run.run_id || artifact.run_id != run.run_id
             || artifact.trace_id != run.trace_id
@@ -175,7 +273,30 @@ impl Ac9RoleAuthorityFixture {
             base_ref: Some(candidate.base_snapshot_ref.clone()),
             base_vector_ref: Some(candidate.state_vector.clone()), schema_id: candidate.schema_id.clone(),
         };
-        let runtime = Ac9RoleAuthorityRuntime::open(&store).await?;
+        Ok((scope, auth, binding, subject, expected))
+    }
+
+    async fn produce_with_runtime(
+        runtime: &Ac9RoleAuthorityRuntime,
+        bootstrap: &crate::AccountBootstrapState,
+        store: &ModelLaneStore,
+        authorization: crate::storage::surreal::resource_authority::AuthorizationRequest,
+        run: &crate::swarm_orchestration::model_lane::ModelLaneRunRecord,
+        artifact: &crate::swarm_orchestration::model_lane::ModelLaneContextBundleArtifactBindingRecord,
+        approval_retention: handshake_role_authority::domain::RetentionBinding,
+        designation_retention: handshake_role_authority::domain::RetentionBinding,
+        requested_task_snapshot: serde_json::Value,
+        prepared: PreparedRoleInputs,
+    ) -> ModelLaneResult<(
+        crate::swarm_orchestration::model_lane::FinalPromotionAuthoritySelectors,
+        Arc<crate::storage::surreal::resource_authority::InitialValidatorIssuance>,
+    )> {
+        use handshake_role_authority::domain as role;
+        use crate::swarm_orchestration::model_lane::{
+            ArtifactOperatorApprovalRequest, FinalPromotionAuthoritySelectors, RoleEvidenceConsumeSelector,
+        };
+        use crate::swarm_orchestration::operator_chat::{OperatorChatLaneKind, OperatorChatSelection};
+        let (scope, auth, binding, subject, expected) = prepared;
         let produced = async {
             let action = || {
                 let id = uuid::Uuid::now_v7().to_string();
@@ -225,29 +346,103 @@ impl Ac9RoleAuthorityFixture {
                     requested_task_snapshot,
                 },
             ).await.map_err(prerequisite)?;
-            let validator = runtime.service.review_designated_validator(bootstrap, auth, &designation,
+            let (validator, read_custody) = runtime.service.review_designated_validator_with_custody(bootstrap, auth, &designation,
                 operator.clone(), crate::model_runtime::GenerateRequest {
                     id: instance.model_id, prompt: prompt.into(), sampling: Default::default(),
                     lora_overrides: vec![], steering_overrides: vec![], kv_prefix_handle: None,
                     cancel: Default::default(), max_tokens: 2048, stop_sequences: vec![],
                     speculative_mode: None, structured_decoding: None,
                 }, 256 * 1024).await?;
-            Ok::<_, ModelLaneError>(FinalPromotionAuthoritySelectors { operator, validator })
+            Ok::<_, ModelLaneError>((FinalPromotionAuthoritySelectors { operator, validator }, read_custody))
         }.await;
-        match produced {
-            Ok(selectors) => Ok(Self { runtime, selectors }),
-            Err(error) => {
-                match runtime.shutdown().await {
-                    Ok(()) => Err(error),
-                    Err(cleanup) => Err(prerequisite(format!("authority production failed: {error}; {cleanup}"))),
-                }
-            }
-        }
+        produced
     }
+
+    pub async fn record_promotion_decision(
+        &self,
+        bootstrap: &crate::AccountBootstrapState,
+        authorization: crate::storage::surreal::resource_authority::AuthorizationRequest,
+        operation_id: uuid::Uuid,
+        input: crate::swarm_orchestration::model_lane::NewModelLanePromotionDecision,
+    ) -> ModelLaneResult<crate::swarm_orchestration::model_lane::ModelLanePromotionDecisionRecord> {
+        let store = self.runtime.service.coordinator().model_lane_store()
+            .ok_or_else(|| prerequisite("retained actual producer store is absent"))?;
+        store.record_promotion_decision_with_read_custody(
+            bootstrap, authorization, operation_id, self.selectors.clone(), input,
+            self.read_custody.clone(),
+        ).await
+    }
+
 
     pub fn selectors(&self) -> crate::swarm_orchestration::model_lane::FinalPromotionAuthoritySelectors {
         self.selectors.clone()
     }
 
-    pub async fn shutdown(self) -> ModelLaneResult<()> { self.runtime.shutdown().await }
+    pub async fn launch_validator_destination(
+        &self,
+        request: crate::swarm_orchestration::model_lane::DexterityLaunchAdapterRequest,
+    ) -> ModelLaneResult<(
+        crate::swarm_orchestration::model_lane::ModelLaneRunRecord,
+        crate::swarm_orchestration::model_lane::ModelLaneRecord,
+    )> {
+        Ac9RoleAuthorityFixture::launch_validator_destination_with_runtime(
+            &self.runtime, &self.selectors, request,
+        ).await
+    }
+    async fn launch_validator_destination_with_runtime(
+        runtime: &Ac9RoleAuthorityRuntime,
+        selectors: &crate::swarm_orchestration::model_lane::FinalPromotionAuthoritySelectors,
+        request: crate::swarm_orchestration::model_lane::DexterityLaunchAdapterRequest,
+    ) -> ModelLaneResult<(
+        crate::swarm_orchestration::model_lane::ModelLaneRunRecord,
+        crate::swarm_orchestration::model_lane::ModelLaneRecord,
+    )> {
+        use crate::swarm_orchestration::model_lane::DexterityLaunchAdapterKind;
+        let store = runtime.service.coordinator().model_lane_store()
+            .ok_or_else(|| prerequisite("retained actual producer store is absent"))?;
+        let exact = store.access().exact_read_scope()
+            .ok_or_else(|| prerequisite("retained actual producer scope is incomplete"))?;
+        let original = crate::storage::surreal::current_record_user_scope()
+            .ok_or_else(|| prerequisite("Validator destination requires original authenticated Create"))?;
+        let subject = crate::storage::surreal::current_model_lane_subject()
+            .ok_or_else(|| prerequisite("Validator destination requires original workspace subject"))?;
+        if original.action != crate::storage::surreal::resource_authority::ResourceAction::Create
+            || original.capability_id != "fs.write"
+            || original.session_id != exact.authenticated_session_id.to_string()
+            || original.workspace_id.as_deref() != Some(exact.workspace_id.as_str())
+            || original.grant_id.as_deref().is_none_or(str::is_empty)
+            || subject.kind != crate::storage::surreal::resource_authority::ResourceKind::Workspace
+            || subject.external_id != exact.workspace_id.as_str()
+        {
+            return Err(prerequisite("Validator destination differs from original authenticated workspace Create"));
+        }
+        let run = &selectors.validator.expectation.run;
+        if request.adapter_kind != DexterityLaunchAdapterKind::Validator
+            || request.run_id != run.run_id || request.trace_id != run.trace_id
+            || request.coordinator_session_id != run.coordinator_session_id
+            || request.owner_session != run.owner_session
+            || request.work_packet_id.as_deref() != Some(run.work_packet_id.as_str())
+            || request.micro_task_id.as_deref() != Some(run.micro_task_id.as_str())
+            || request.task_board_id.as_deref() != Some(run.task_board_id.as_str())
+            || request.locus_binding_ref != run.locus_binding_ref
+        {
+            return Err(prerequisite("Validator destination differs from the actual reviewed run"));
+        }
+        let producer = selectors.validator.producer.as_ref()
+            .ok_or_else(|| prerequisite("retained actual Validator registration is absent"))?;
+        let (model, ordinal) = producer.producer_instance_ref.rsplit_once('#')
+            .ok_or_else(|| prerequisite("actual Validator instance reference is malformed"))?;
+        let model = uuid::Uuid::parse_str(model).map_err(prerequisite)?;
+        let ordinal = ordinal.parse::<u32>().map_err(prerequisite)?;
+        let instance = crate::swarm_orchestration::ModelInstanceId::new(model.into(), ordinal);
+        let coordinator = runtime.service.coordinator();
+        let caller = coordinator.authorize_no_os_model_lane(&request, instance)
+            .map_err(prerequisite)?;
+        coordinator.launch_no_os_model_lane(request, caller).await.map_err(prerequisite)
+    }
+    pub async fn shutdown(self) -> ModelLaneResult<()> {
+        let Self { runtime, selectors: _, read_custody } = self;
+        drop(read_custody);
+        runtime.shutdown().await
+    }
 }

@@ -48,6 +48,7 @@ pub(crate) async fn with_loom_session_receipt<T>(
 pub(crate) struct CapturedAccountAuthority {
     scope: super::resource_authority::RecordUserScope,
     receipt: Option<LoomSessionReceipt>,
+    registry: Option<std::sync::Arc<crate::capabilities::CapabilityRegistry>>,
 }
 
 /// Captures the current task's account authority, if any.
@@ -56,6 +57,7 @@ pub(crate) fn capture_account_authority() -> Option<CapturedAccountAuthority> {
     Some(CapturedAccountAuthority {
         scope,
         receipt: LOOM_SESSION_RECEIPT.try_with(Clone::clone).ok(),
+        registry: super::configured_capability_registry(),
     })
 }
 
@@ -67,17 +69,14 @@ pub(crate) async fn with_captured_account_authority<T>(
 ) -> T {
     match captured {
         None => operation.await,
-        Some(CapturedAccountAuthority {
-            scope,
-            receipt: None,
-        }) => storage.with_record_user_scope(scope, operation).await,
-        Some(CapturedAccountAuthority {
-            scope,
-            receipt: Some(receipt),
-        }) => {
-            storage
-                .with_record_user_scope(scope, LOOM_SESSION_RECEIPT.scope(receipt, operation))
-                .await
+        Some(CapturedAccountAuthority { scope, receipt, registry }) => {
+            let work = async move {
+                match receipt {
+                    Some(receipt) => storage.with_record_user_scope(scope, LOOM_SESSION_RECEIPT.scope(receipt, operation)).await,
+                    None => storage.with_record_user_scope(scope, operation).await,
+                }
+            };
+            super::with_captured_capability_registry(registry, work).await
         }
     }
 }
@@ -979,6 +978,7 @@ impl SurrealStorage {
         let channel_binding_hash = Some(channel_hash.to_owned());
         let aggregate_type = aggregate_type.to_owned();
         let aggregate_id = aggregate_id.to_owned();
+        let operation_bindings = super::original_operation_bindings(Value::Object(surrealdb::types::Object::new()));
         let rows: Vec<LedgerRow> = self
             .with_lease(move |client| {
                 Box::pin(async move {
@@ -1008,6 +1008,7 @@ impl SurrealStorage {
                         )
                         .bind(("aggregate_type", aggregate_type))
                         .bind(("aggregate_id", aggregate_id))
+                        .bind(operation_bindings)
                         .await?
                         .check()?;
                     Ok(result.take(0)?)

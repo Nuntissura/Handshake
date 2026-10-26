@@ -12,10 +12,12 @@ use handshake_core::storage::surreal::resource_authority::{
 };
 use handshake_core::storage::NewWorkspace;
 use handshake_core::swarm_orchestration::model_lane::{
-    ModelLaneAuthorityTestCorruption, ModelLaneDiagnosticTier, ModelLaneDiagnosticTierState,
+    ModelLaneAuthority, ModelLaneAuthorityTestCorruption, ModelLaneDiagnosticTier,
+    ModelLaneDiagnosticTierState, ModelLaneMessageKind,
     ModelLaneLeaseScope, ModelLaneLeaseState, ModelLaneMtRuntimeStatus, ModelLaneRecoveryEventKind,
     ModelLaneRecoveryState, ModelLaneRecoveryStatus, ModelLaneResult, ModelLaneStatus, ModelLaneStore,
-    NewModelLaneDiagnosticTierStatus, NewModelLaneLease, NewModelLaneMtRuntimeStatus,
+    NewModelLaneContextBundleArtifactBinding, NewModelLaneDiagnosticTierStatus,
+    NewModelLaneLease, NewModelLaneMessage, NewModelLaneMtRuntimeStatus,
     NewModelLaneRecoveryCheckpoint, NewModelLaneRecoveryEvent,
 };
 use handshake_core::swarm_orchestration::resource_scope::{
@@ -646,4 +648,223 @@ fn exact_scope(context: &LocalSessionContext, workspace: &str) -> ResourceScope 
         access_space: Some(AccessSpaceRef::from_uuid(parse(&context.identity.access_space_id))),
         workspace: Some(WorkspaceScopeRef::new(workspace.to_owned()).expect("canonical workspace")),
     }
+}
+#[tokio::test]
+async fn recovery_rejects_ordinary_message_without_payload_authority_even_with_empty_checkpoint_refs() {
+    let harness = Harness::create("ordinary-missing-payload").await;
+    let posture = harness.posture("ordinary-missing-payload").await;
+    let mut ordinary = posture.message.clone();
+    ordinary.message_id = "message-ordinary-without-payload-authority".into();
+    ordinary.message_span_id = "span-ordinary-without-payload-authority".into();
+    ordinary.idempotency_key = "idem-ordinary-without-payload-authority".into();
+    ordinary.replay_order_key = "ordinary-without-payload-authority".into();
+    ordinary.kind = ModelLaneMessageKind::Status;
+    ordinary.authority = ModelLaneAuthority::Advisory;
+    ordinary.payload_ref = "artifact://recovery/ordinary-without-payload-authority".into();
+    ordinary.payload_sha256 = format!("{:x}", <sha2::Sha256 as sha2::Digest>::digest(
+        b"ordinary status payload without a persisted artifact binding",
+    ));
+    ordinary.proposal_ref = None;
+    ordinary.crdt_update_ref = None;
+    ordinary.crdt_base_snapshot_ref = None;
+    ordinary.crdt_state_vector = None;
+    ordinary.crdt_proposal_ref = None;
+    ordinary.crdt_stale_base_ref = None;
+    ordinary.diagnostic_payload = json!({"case": "ordinary payload witness deliberately absent"});
+    let message = harness.create_record(harness.store.record_message(ordinary))
+        .await.expect("ordinary source message is admitted through original Create authority");
+    assert!(message.crdt_authority_binding.is_none());
+    let mut empty_refs = checkpoint(&posture, &message, "checkpoint-empty-payload-refs");
+    empty_refs.open_payload_refs.clear();
+    let stored_checkpoint = harness.create_record(harness.store.record_recovery_checkpoint(empty_refs))
+        .await.expect("persist canonical checkpoint with empty payload-ref list");
+    assert!(stored_checkpoint.open_payload_refs.is_empty());
+    let before = harness.read(harness.store.test_scoped_authority_receipts(&posture.run_id, 64))
+        .await.expect("canonical receipts before rejected recovery");
+    let error = harness.recover(harness.store.recover_run_after_restart(&posture.run_id))
+        .await.expect_err("empty refs cannot waive ordinary message payload authority");
+    assert!(error.to_string().contains("CX-MM-006"), "canonical missing-payload code: {error}");
+    assert_eq!(
+        harness.read(harness.store.test_scoped_authority_receipts(&posture.run_id, 64))
+            .await.expect("canonical receipts after rejected recovery"),
+        before,
+        "missing payload authority must fail before recovery mutations"
+    );
+    harness.cleanup().await;
+}
+
+#[tokio::test]
+async fn recovery_bounds_returned_replay_but_reconciles_current_leases_and_forward_messages() {
+    let harness = Harness::create("bounded-replay").await;
+    let posture = harness.posture("bounded-replay").await;
+    let first = harness.create_record(harness.store.record_message(posture.message.clone()))
+        .await.expect("record genuine CRDT-backed checkpoint message");
+    let checkpoint = harness.create_record(harness.store.record_recovery_checkpoint(
+        checkpoint(&posture, &first, "checkpoint-bounded-replay"),
+    )).await.expect("record checkpoint before later lane");
+    let source = harness.read(harness.store.replay_run(&posture.run_id))
+        .await.expect("read canonical source lane");
+    let mut later_lane = source.lanes.iter().find(|lane| lane.lane_id == posture.lane_id)
+        .expect("original lane is canonical").inner.clone();
+    later_lane.lane_id = "lane-after-checkpoint-without-message".into();
+    later_lane.lane_span_id = "span-lane-after-checkpoint-without-message".into();
+    let later_lane = harness.create_record(harness.store.record_lane(later_lane))
+        .await.expect("create genuine later lane under original Create authority");
+    assert!(later_lane.event_ledger_seq > checkpoint.last_event_ledger_seq);
+    let mut active = lease(&posture, "lease-later-active", "2099-01-01T00:00:00Z");
+    active.lane_id = Some(later_lane.lane_id.clone());
+    active.scope_ref = format!("model-lane://{}/{}", posture.run_id, later_lane.lane_id);
+    let active = harness.create_record(harness.store.record_lane_lease(active))
+        .await.expect("record current active lease beyond checkpoint");
+    let mut expired = lease(&posture, "lease-later-expired", "2026-09-02T00:00:00Z");
+    expired.lane_id = Some(later_lane.lane_id.clone());
+    expired.scope_ref = format!("model-lane://{}/{}", posture.run_id, later_lane.lane_id);
+    let expired = harness.create_record(harness.store.record_lane_lease(expired))
+        .await.expect("record current expired lease beyond checkpoint");
+    let now = DateTime::parse_from_rfc3339("2026-09-02T01:00:00Z")
+        .expect("deterministic recovery time").with_timezone(&Utc);
+    let bounded = harness.recover(harness.store.test_recover_run_after_restart_at(&posture.run_id, now))
+        .await.expect("recover bounded replay and current leases");
+    assert_eq!(bounded.replay.messages, vec![first.clone()]);
+    assert!(!bounded.replay.lanes.iter().any(|lane| lane.lane_id == later_lane.lane_id),
+        "a later lane without a forward message must not escape checkpoint replay bounds");
+    assert!(bounded.replay.lanes.iter().all(|lane|
+        lane.event_ledger_seq <= checkpoint.last_event_ledger_seq));
+    assert_eq!(bounded.active_leases, vec![active.clone()]);
+    assert_eq!(bounded.reclaimable_lease_ids, vec![expired.lease_id.clone()]);
+    let orphan = bounded.recovery_events.iter().find(|event|
+        event.event_kind == ModelLaneRecoveryEventKind::OrphanDetected
+            && event.lease_id.as_deref() == Some(expired.lease_id.as_str()))
+        .expect("expired current lease emits canonical orphan event");
+    assert_eq!(orphan.lane_id.as_deref(), Some(later_lane.lane_id.as_str()));
+    assert_eq!(orphan.parent_span_id.as_deref(), Some(later_lane.lane_span_id.as_str()),
+        "orphan attribution must use the current canonical lane outside returned replay bounds");
+    let after_orphan = harness.read(harness.store.test_scoped_authority_receipts(&posture.run_id, 64))
+        .await.expect("receipts after first orphan reconciliation");
+    assert_eq!(harness.recover(harness.store.test_recover_run_after_restart_at(&posture.run_id, now))
+        .await.expect("repeat bounded recovery"), bounded);
+    assert_eq!(harness.read(harness.store.test_scoped_authority_receipts(&posture.run_id, 64))
+        .await.expect("receipts after idempotent recovery"), after_orphan);
+
+    let mut forward = posture.message.clone();
+    forward.message_id = "message-forward-after-checkpoint".into();
+    forward.message_span_id = "span-message-forward-after-checkpoint".into();
+    forward.idempotency_key = "idem-message-forward-after-checkpoint".into();
+    forward.replay_order_key = "forward-after-checkpoint".into();
+    let forward = harness.create_record(harness.store.record_message(forward))
+        .await.expect("record later message with genuine canonical CRDT authority");
+    assert!(forward.event_ledger_seq > checkpoint.last_event_ledger_seq);
+    assert!(forward.crdt_authority_binding.is_some());
+    let extended = harness.recover(harness.store.test_recover_run_after_restart_at(&posture.run_id, now))
+        .await.expect("forward message legitimately extends recovery replay");
+    assert_eq!(extended.replay.messages.len(), 2);
+    assert!(extended.replay.messages.iter().any(|message| message == &first));
+    assert!(extended.replay.messages.iter().any(|message| message == &forward));
+    assert!(extended.replay.lanes.iter().any(|lane| lane == &later_lane));
+    assert_eq!(extended.active_leases, vec![active]);
+    assert_eq!(extended.reclaimable_lease_ids, vec![expired.lease_id.clone()]);
+    assert_eq!(extended.recovery_events.iter().filter(|event|
+        event.event_kind == ModelLaneRecoveryEventKind::OrphanDetected
+            && event.lease_id.as_deref() == Some(expired.lease_id.as_str())).count(), 1);
+    harness.cleanup().await;
+}
+fn ordinary_payload_case(
+    posture: &SurrealAdmissibleCrdtPosture,
+    label: &str,
+) -> (NewModelLaneMessage, NewModelLaneContextBundleArtifactBinding) {
+    let payload_json = json!({"text": format!("ordinary recovery payload {label}")});
+    let bytes = serde_json::to_vec(&payload_json).expect("serialize one-key canonical payload");
+    let hash = format!("{:x}", <sha2::Sha256 as sha2::Digest>::digest(&bytes));
+    let mut message = posture.message.clone();
+    message.message_id = format!("message-ordinary-{label}");
+    message.message_span_id = format!("span-ordinary-{label}");
+    message.idempotency_key = format!("idem-ordinary-{label}");
+    message.replay_order_key = format!("ordinary-{label}");
+    message.kind = ModelLaneMessageKind::Status;
+    message.authority = ModelLaneAuthority::Advisory;
+    message.payload_ref = format!("artifact://recovery/ordinary/{label}");
+    message.payload_sha256 = hash.clone();
+    message.proposal_ref = None;
+    message.crdt_update_ref = None;
+    message.crdt_base_snapshot_ref = None;
+    message.crdt_state_vector = None;
+    message.crdt_proposal_ref = None;
+    message.crdt_stale_base_ref = None;
+    message.diagnostic_payload = json!({"case": label});
+    let binding = NewModelLaneContextBundleArtifactBinding {
+        artifact_binding_id: format!("artifact-binding-ordinary-{label}"),
+        run_id: message.run_id.clone(),
+        trace_id: message.trace_id.clone(),
+        artifact_ref: message.payload_ref.clone(),
+        artifact_sha256: hash.clone(),
+        content_hash: hash,
+        artifact_kind: "model_lane_message_payload".into(),
+        artifact_manifest_ref: format!("artifact-manifest://recovery/ordinary/{label}"),
+        artifact_payload_ref: message.payload_ref.clone(),
+        payload_json,
+        event_ledger_stream_id: message.event_ledger_stream_id.clone(),
+        work_packet_id: message.work_packet_id.clone().expect("actual producer WP"),
+        micro_task_id: message.micro_task_id.clone().expect("actual producer MT"),
+        task_board_id: message.task_board_id.clone().expect("actual producer task board"),
+        owner_session: message.owner_session.clone(),
+        idempotency_key: format!("idem-artifact-binding-ordinary-{label}"),
+        created_at_utc: message.created_at_utc.clone(),
+        diagnostic_payload: json!({"message_id": message.message_id}),
+    };
+    (message, binding)
+}
+
+#[tokio::test]
+async fn recovery_accepts_canonical_ordinary_payload_witness_with_empty_checkpoint_refs() {
+    let harness = Harness::create("ordinary-payload-positive").await;
+    let posture = harness.posture("ordinary-payload-positive").await;
+    let (message, binding) = ordinary_payload_case(&posture, "positive");
+    let binding = harness.create_record(harness.store.record_context_bundle_artifact_binding(binding))
+        .await.expect("persist real payload bytes through canonical artifact producer");
+    let message = harness.create_record(harness.store.record_message(message))
+        .await.expect("persist ordinary message after canonical payload witness");
+    assert!(message.crdt_authority_binding.is_none());
+    assert!(binding.event_ledger_seq < message.event_ledger_seq);
+    let mut checkpoint = checkpoint(&posture, &message, "checkpoint-ordinary-positive");
+    checkpoint.open_payload_refs.clear();
+    harness.create_record(harness.store.record_recovery_checkpoint(checkpoint))
+        .await.expect("canonical empty-ref checkpoint");
+    let recovered = harness.recover(harness.store.recover_run_after_restart(&posture.run_id))
+        .await.expect("ordinary message with exact bounded payload witness recovers");
+    assert_eq!(recovered.replay.messages, vec![message]);
+    harness.cleanup().await;
+}
+
+#[tokio::test]
+async fn recovery_rejects_late_payload_repair_until_new_checkpoint_covers_actual_witness() {
+    let harness = Harness::create("ordinary-late-payload").await;
+    let posture = harness.posture("ordinary-late-payload").await;
+    let (message, binding) = ordinary_payload_case(&posture, "late");
+    let message = harness.create_record(harness.store.record_message(message))
+        .await.expect("ordinary source without payload witness is admitted");
+    let mut original_checkpoint = checkpoint(&posture, &message, "checkpoint-before-payload");
+    original_checkpoint.open_payload_refs.clear();
+    harness.create_record(harness.store.record_recovery_checkpoint(original_checkpoint))
+        .await.expect("persist checkpoint before payload witness");
+    let binding = harness.create_record(harness.store.record_context_bundle_artifact_binding(binding))
+        .await.expect("persist genuine payload witness after original checkpoint");
+    assert!(binding.event_ledger_seq > message.event_ledger_seq);
+    let receipts = harness.read(harness.store.test_scoped_authority_receipts(&posture.run_id, 64))
+        .await.expect("canonical receipts before late-repair denial");
+    let error = harness.recover(harness.store.recover_run_after_restart(&posture.run_id))
+        .await.expect_err("late payload witness cannot retroactively satisfy checkpoint authority");
+    assert!(error.to_string().contains("CX-MM-006"), "late witness code: {error}");
+    assert_eq!(harness.read(harness.store.test_scoped_authority_receipts(&posture.run_id, 64))
+        .await.expect("receipts after late-repair denial"), receipts);
+
+    let mut repaired_checkpoint = checkpoint(&posture, &message, "checkpoint-after-payload");
+    repaired_checkpoint.open_payload_refs.clear();
+    repaired_checkpoint.last_event_ledger_seq = binding.event_ledger_seq;
+    harness.create_record(harness.store.record_recovery_checkpoint(repaired_checkpoint))
+        .await.expect("new checkpoint explicitly covers actual canonical payload witness");
+    let recovered = harness.recover(harness.store.recover_run_after_restart(&posture.run_id))
+        .await.expect("new checkpoint admits matching ordinary payload witness");
+    assert_eq!(recovered.checkpoint.checkpoint_id, "checkpoint-after-payload");
+    assert_eq!(recovered.replay.messages, vec![message]);
+    harness.cleanup().await;
 }

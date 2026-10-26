@@ -24,6 +24,16 @@ use crate::storage::surreal::resource_authority::{
 };
 use crate::{AccountBootstrapState, AppState};
 
+pub(crate) async fn configured_registry_context(
+    State(state): State<AppState>,
+    request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    crate::storage::surreal::with_configured_capability_registry(
+        state.capability_registry.clone(), next.run(request),
+    ).await
+}
+
 const HSK_HEADER_SESSION_TOKEN: &str = "x-hsk-session-token";
 const LOCAL_SESSION_TTL_HOURS: i64 = 12;
 #[cfg(feature = "os-keychain")]
@@ -2390,6 +2400,31 @@ pub(crate) async fn authorize_request(
     external_resource_id: &str,
     action: ResourceAction,
 ) -> Result<AuthorizedResourceContext, (StatusCode, Json<Value>)> {
+    authorize_resource_request(&state.surreal, &state.capability_registry, headers,
+        capability_id, resource_kind, external_resource_id, action).await
+}
+
+pub(crate) async fn authorize_bootstrap_request(
+    state: &AccountBootstrapState,
+    headers: &HeaderMap,
+    capability_id: &'static str,
+    resource_kind: ResourceKind,
+    external_resource_id: &str,
+    action: ResourceAction,
+) -> Result<AuthorizedResourceContext, (StatusCode, Json<Value>)> {
+    authorize_resource_request(&state.surreal, &state.capability_registry, headers,
+        capability_id, resource_kind, external_resource_id, action).await
+}
+
+async fn authorize_resource_request(
+    storage: &crate::storage::surreal::SurrealStorage,
+    registry: &crate::capabilities::CapabilityRegistry,
+    headers: &HeaderMap,
+    capability_id: &'static str,
+    resource_kind: ResourceKind,
+    external_resource_id: &str,
+    action: ResourceAction,
+) -> Result<AuthorizedResourceContext, (StatusCode, Json<Value>)> {
     let session_token = headers
         .get(HSK_HEADER_SESSION_TOKEN)
         .and_then(|value| value.to_str().ok())
@@ -2400,8 +2435,7 @@ pub(crate) async fn authorize_request(
     let channel =
         crate::api::stage::capture_channel_binding(headers).map_err(|_| constant_denial())?;
     let channel_binding_hash = channel.binding_hash;
-    let decision = state
-        .surreal
+    let decision = storage
         .authorize_protected_resource(AuthorizationRequest {
             session_token: session_token.clone(),
             channel_binding_hash: Some(channel_binding_hash.clone()),
@@ -2421,8 +2455,7 @@ pub(crate) async fn authorize_request(
             constant_denial()
         })?;
 
-    if !state
-        .capability_registry
+    if !registry
         .profile_can(&decision.capability_profile_id, capability_id)
         .unwrap_or(false)
     {

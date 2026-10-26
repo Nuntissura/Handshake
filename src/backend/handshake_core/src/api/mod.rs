@@ -110,7 +110,8 @@ pub fn routes_with_process_reclaim_runtime(
             .merge(model_access::authenticated_routes(model_access_state, state.clone()))
             .merge(palmistry::receipt_routes(palmistry_state))
             .layer(axum::Extension(product_scope))
-            .layer(axum::Extension(state.surreal.resource_access_lifecycle())),
+            .layer(axum::Extension(state.surreal.resource_access_lifecycle()))
+            .layer(axum::middleware::from_fn_with_state(state.clone(), authority::configured_registry_context)),
         runtime: ApiRouteRuntime {
             shared_process_runtime: Some(process_runtime),
             operator_chat_process_ledger: None,
@@ -137,7 +138,8 @@ pub fn routes_with_scoped_operator_chat(
         .with_account_bootstrap(crate::AccountBootstrapState::from(&state));
     let operator_routes = operator_chat::scoped_routes(operator_chat_state)
         .layer(axum::Extension(product_scope.clone()))
-        .layer(axum::Extension(state.surreal.resource_access_lifecycle()));
+        .layer(axum::Extension(state.surreal.resource_access_lifecycle()))
+        .layer(axum::middleware::from_fn_with_state(state.clone(), authority::configured_registry_context));
     let mut routes = routes_with_process_reclaim_runtime(
         state, process_runtime, product_scope, model_access_state,
     );
@@ -271,6 +273,7 @@ pub fn routes(state: AppState) -> Router {
         .merge(source_control_routes)
         .merge(stage_routes)
         .merge(debug_adapter_routes)
+        .layer(axum::middleware::from_fn_with_state(state, authority::configured_registry_context))
 }
 
 #[cfg(any(test, feature = "test-utils"))]

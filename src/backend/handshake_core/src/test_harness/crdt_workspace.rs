@@ -100,6 +100,31 @@ impl AuthenticatedModelLaneTestOperation {
         Ok(decision)
     }
 
+    pub async fn run_with_configured_registry<T, F>(
+        &self,
+        registry: std::sync::Arc<crate::capabilities::CapabilityRegistry>,
+        operation: F,
+    ) -> crate::swarm_orchestration::model_lane::ModelLaneResult<T>
+    where F: std::future::Future<Output = crate::swarm_orchestration::model_lane::ModelLaneResult<T>> {
+        crate::storage::surreal::with_configured_capability_registry(registry, self.run(operation)).await
+    }
+
+    pub async fn run_source_read_with_configured_registry<T, F>(
+        &self, registry: std::sync::Arc<crate::capabilities::CapabilityRegistry>, operation: F,
+    ) -> crate::swarm_orchestration::model_lane::ModelLaneResult<T>
+    where F: std::future::Future<Output = crate::swarm_orchestration::model_lane::ModelLaneResult<T>> {
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+        let decision = self.decision().await?;
+        if self.request.resource_kind != ResourceKind::Workspace || self.request.action != ResourceAction::Read
+            || self.request.capability_id != "fs.read"
+            || !registry.profile_can(&decision.capability_profile_id, "fs.read").unwrap_or(false) {
+            return Err(crate::swarm_orchestration::model_lane::ModelLaneError::AuthorityDenied(
+                "source receipt read requires original Workspace Read/fs.read and configured profile".into()));
+        }
+        self.run_with_configured_registry(registry, crate::storage::surreal::with_model_lane_operation(
+            crate::storage::surreal::ContextCoordinationPurpose::SourceRead, operation)).await
+    }
+
     pub async fn run<T, F>(&self, operation: F) -> crate::swarm_orchestration::model_lane::ModelLaneResult<T>
     where F: std::future::Future<Output = crate::swarm_orchestration::model_lane::ModelLaneResult<T>> {
         // Reauthorize each invocation so revocation cannot reuse the fixture's first decision.

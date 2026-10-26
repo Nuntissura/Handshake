@@ -302,6 +302,211 @@ struct ProducerSourceFactsCapture {
     fence: std::sync::Arc<tokio::sync::OwnedRwLockReadGuard<()>>,
 }
 
+#[derive(Clone, SurrealValue)]
+struct RoutingOriginalBinding {
+    operation_id: String,
+    run_id: String,
+    execution_id: String,
+    selecting_decision_id: Option<String>,
+    input_ref: Option<String>,
+    action: String,
+    capability_id: String,
+    original: RegistryPublicationAuthority,
+    source_create: Option<RegistryPublicationAuthority>,
+    source_read: Option<RegistryPublicationAuthority>,
+    source_update: Option<RegistryPublicationAuthority>,
+}
+
+#[derive(Clone)]
+pub(crate) struct RoutingOriginalSources {
+    capture: std::sync::Arc<ProducerSourceFactsCapture>,
+    storage: SurrealStorage,
+    registry: std::sync::Arc<crate::capabilities::CapabilityRegistry>,
+    original: RecordUserScope,
+    run_id: String,
+    execution_id: String,
+    selecting_decision_id: Option<String>,
+    input_ref: Option<String>,
+    create_index: Option<usize>,
+    additional_create: std::sync::Arc<tokio::sync::OnceCell<std::sync::Arc<ProducerSourceFactsCapture>>>,
+}
+
+tokio::task_local! {
+    static ROUTING_ORIGINAL_SOURCES: Option<std::sync::Arc<RoutingOriginalSources>>;
+}
+
+pub(crate) fn current_routing_original_sources() -> Option<std::sync::Arc<RoutingOriginalSources>> {
+    ROUTING_ORIGINAL_SOURCES.try_with(Clone::clone).ok().flatten()
+}
+
+pub(crate) async fn with_routing_original_sources<T>(
+    sources: std::sync::Arc<RoutingOriginalSources>, operation: impl std::future::Future<Output = T>,
+) -> T {
+    with_captured_routing_original_sources(Some(sources), operation).await
+}
+
+pub(crate) async fn with_captured_routing_original_sources<T>(
+    sources: Option<std::sync::Arc<RoutingOriginalSources>>, operation: impl std::future::Future<Output = T>,
+) -> T {
+    ROUTING_ORIGINAL_SOURCES.scope(sources, operation).await
+}
+
+async fn with_role_routing_context<T>(
+    sources: Option<std::sync::Arc<RoutingOriginalSources>>, operation: impl std::future::Future<Output = T>,
+) -> T {
+    if let Some(sources) = sources {
+        super::with_configured_capability_registry(sources.registry(),
+            with_routing_original_sources(sources,
+                super::with_model_lane_operation(super::ContextCoordinationPurpose::RoutingTransition, operation))).await
+    } else { operation.await }
+}
+
+impl RoutingOriginalSources {
+    pub(crate) fn operation_id(&self) -> Uuid { self.capture.operation_id }
+    pub(crate) fn run_id(&self) -> &str { &self.run_id }
+    pub(crate) fn execution_id(&self) -> &str { &self.execution_id }
+    pub(crate) fn selecting_decision_id(&self) -> Option<&str> { self.selecting_decision_id.as_deref() }
+    pub(crate) fn action(&self) -> ResourceAction { self.original.action }
+    pub(crate) fn registry(&self) -> std::sync::Arc<crate::capabilities::CapabilityRegistry> {
+        self.registry.clone()
+    }
+    pub(crate) async fn revalidate(&self) -> Result<(), ResourceAuthorityError> {
+        let storage = &self.storage;
+        storage.revalidate_producer_source_facts(&self.capture).await?;
+        if self.capture.sources.iter().any(|source| !self.registry.profile_can(
+            &source.decision.capability_profile_id, &source.request.capability_id,
+        ).unwrap_or(false)) {
+            return Err(ResourceAuthorityError::InvalidInput("routing configured profile changed"));
+        }
+        if let Some(create) = self.additional_create.get() {
+            storage.revalidate_producer_source_facts(create).await?;
+            if create.sources.iter().any(|source| !self.registry.profile_can(
+                &source.decision.capability_profile_id, &source.request.capability_id,
+            ).unwrap_or(false)) { return Err(ResourceAuthorityError::InvalidInput("routing Create profile changed")); }
+        }
+        let source = &self.capture.sources[0];
+        if source.decision.grant_id.as_str() != self.original.grant_id.as_deref().unwrap_or("")
+            || source.decision.resource_id != self.original.resource_id
+            || source.decision.session_id != self.original.session_id
+            || self.capture.lifecycle != storage.resource_access_lifecycle()
+        { return Err(ResourceAuthorityError::InvalidInput("routing original authority changed")); }
+        Ok(())
+    }
+    pub(crate) fn with_selected_run(&self, run_id: String) -> Result<std::sync::Arc<Self>, ResourceAuthorityError> {
+        if run_id.trim().is_empty() || (!self.run_id.is_empty() && self.run_id != run_id) {
+            return Err(ResourceAuthorityError::InvalidInput("routing selected run changed"));
+        }
+        let mut selected = self.clone(); selected.run_id = run_id;
+        Ok(std::sync::Arc::new(selected))
+    }
+    pub(crate) fn with_execution_origin(
+        &self, run_id: String, decision_id: String, input_ref: Option<String>,
+    ) -> Result<std::sync::Arc<Self>, ResourceAuthorityError> {
+        if decision_id.trim().is_empty()
+            || self.selecting_decision_id.as_ref().is_some_and(|prior| prior != &decision_id)
+            || self.input_ref.as_ref().is_some_and(|prior| input_ref.as_ref() != Some(prior)) {
+            return Err(ResourceAuthorityError::InvalidInput("routing canonical origin changed"));
+        }
+        let mut selected = self.with_selected_run(run_id)?.as_ref().clone();
+        selected.selecting_decision_id = Some(decision_id); selected.input_ref = input_ref;
+        Ok(std::sync::Arc::new(selected))
+    }
+    pub(crate) async fn authorize_source_creation(&self) -> Result<(), ResourceAuthorityError> {
+        self.revalidate().await?;
+        if self.create_index.is_some() { return Ok(()); }
+        self.additional_create.get_or_try_init(|| async {
+            let mut request = self.capture.sources[0].request.clone();
+            request.action = ResourceAction::Create;
+            let source = self.storage.read_producer_source_facts(request, &self.capture.session, &self.registry).await?;
+            let original = &self.capture.sources[0].decision;
+            if source.decision.account_id != original.account_id || source.decision.principal_id != original.principal_id
+                || source.decision.session_id != original.session_id || source.decision.access_space_id != original.access_space_id
+                || source.decision.resource_id != original.resource_id {
+                return Err(ResourceAuthorityError::InvalidInput("routing Create source differs from original tuple"));
+            }
+            let capture = std::sync::Arc::new(ProducerSourceFactsCapture {
+                operation_id: self.operation_id(), credentials: self.capture.credentials.clone(),
+                session: self.capture.session.clone(), registry: self.registry.as_ref().clone(),
+                lifecycle: self.capture.lifecycle.clone(), sources: vec![source], fence: self.capture.fence.clone(),
+            });
+            self.storage.revalidate_producer_source_facts(&capture).await?;
+            Ok::<_, ResourceAuthorityError>(capture)
+        }).await?;
+        Ok(())
+    }
+    pub(crate) fn for_owned_operation(&self) -> std::sync::Arc<Self> {
+        let mut sources = self.clone();
+        sources.capture = std::sync::Arc::new(ProducerSourceFactsCapture {
+            operation_id: Uuid::now_v7(), credentials: self.capture.credentials.clone(), session: self.capture.session.clone(),
+            registry: self.capture.registry.clone(), lifecycle: self.capture.lifecycle.clone(), fence: self.capture.fence.clone(),
+            sources: self.capture.sources.iter().map(|source| ProducerSourceFacts {
+                request: source.request.clone(), decision: source.decision.clone(), authority: source.authority.clone(),
+            }).collect(),
+        });
+        std::sync::Arc::new(sources)
+    }
+
+    pub(crate) async fn transition_sources(&self) -> Result<std::sync::Arc<Self>, ResourceAuthorityError> {
+        self.revalidate().await?;
+        if self.original.action != ResourceAction::Create || self.execution_id.is_empty() {
+            return Err(ResourceAuthorityError::InvalidInput("combined lifecycle original Create or execution absent"));
+        }
+        let update = self.capture.sources.iter().find(|source| source.request.action == ResourceAction::Update
+            && source.request.capability_id == "fs.write")
+            .ok_or(ResourceAuthorityError::InvalidInput("separate lifecycle Update authority absent"))?;
+        let mut selected = self.clone();
+        let mut facts = vec![ProducerSourceFacts {
+            request: update.request.clone(), decision: update.decision.clone(), authority: update.authority.clone(),
+        }];
+        facts.extend(self.capture.sources.iter().filter(|source| source.request.action != ResourceAction::Update)
+            .map(|source| ProducerSourceFacts { request: source.request.clone(), decision: source.decision.clone(), authority: source.authority.clone() }));
+        selected.capture = std::sync::Arc::new(ProducerSourceFactsCapture {
+            operation_id: Uuid::now_v7(), credentials: self.capture.credentials.clone(), session: self.capture.session.clone(),
+            registry: self.capture.registry.clone(), lifecycle: self.capture.lifecycle.clone(), fence: self.capture.fence.clone(), sources: facts,
+        });
+        selected.original = RecordUserScope {
+            grant_id: Some(update.decision.grant_id.clone()), workspace_id: Some(update.request.external_resource_id.clone()),
+            session_token: update.request.session_token.clone(), channel_binding_hash: update.request.channel_binding_hash.clone(),
+            resource_id: update.decision.resource_id.clone(), session_id: update.decision.session_id.clone(),
+            capability_id: update.request.capability_id.clone(), action: update.request.action,
+        };
+        selected.create_index = selected.capture.sources.iter().position(|source| source.request.action == ResourceAction::Create);
+        let selected = std::sync::Arc::new(selected); selected.revalidate().await?; Ok(selected)
+    }
+
+    pub(crate) fn original_scope(&self) -> RecordUserScope { self.original.clone() }
+
+    pub(crate) fn create_scope(&self) -> Result<RecordUserScope, ResourceAuthorityError> {
+        let source = self.create_index.and_then(|index| self.capture.sources.get(index))
+            .or_else(|| self.additional_create.get().and_then(|capture| capture.sources.first()))
+            .ok_or(ResourceAuthorityError::InvalidInput("routing source creation authority absent"))?;
+        if source.request.action != ResourceAction::Create || source.request.capability_id != "fs.write" {
+            return Err(ResourceAuthorityError::InvalidInput("routing source creation authority differs"));
+        }
+        Ok(RecordUserScope {
+            grant_id: Some(source.decision.grant_id.clone()), workspace_id: Some(source.request.external_resource_id.clone()),
+            session_token: source.request.session_token.clone(), channel_binding_hash: source.request.channel_binding_hash.clone(),
+            resource_id: source.decision.resource_id.clone(), session_id: source.decision.session_id.clone(),
+            capability_id: source.request.capability_id.clone(), action: source.request.action,
+        })
+    }
+    fn binding(&self) -> RoutingOriginalBinding {
+        RoutingOriginalBinding {
+            operation_id: self.operation_id().to_string(), run_id: self.run_id.clone(), execution_id: self.execution_id.clone(),
+            selecting_decision_id: self.selecting_decision_id.clone(), input_ref: self.input_ref.clone(),
+            action: self.original.action.as_str().to_owned(), capability_id: self.original.capability_id.clone(),
+            original: self.capture.sources[0].authority.clone(),
+            source_create: self.create_index.map(|index| self.capture.sources[index].authority.clone())
+                .or_else(|| self.additional_create.get().and_then(|capture| capture.sources.first()).map(|source| source.authority.clone())),
+            source_read: self.capture.sources.iter().find(|source| source.request.action == ResourceAction::Read
+                && source.request.capability_id == "fs.read").map(|source| source.authority.clone()),
+            source_update: self.capture.sources.iter().find(|source| source.request.action == ResourceAction::Update
+                && source.request.capability_id == "fs.write").map(|source| source.authority.clone()),
+        }
+    }
+}
+
+
 const PALMISTRY_WATCHER_ADOPT_CAPABILITY: &str = "diagnostics.watcher.adopt_existing";
 
 /// Current adoption authority only. Original watcher custody is verified by its registration owner.
@@ -1398,6 +1603,147 @@ impl SurrealStorage {
         Ok(())
     }
 
+    pub(crate) async fn capture_routing_original_sources(
+        &self, store: &crate::swarm_orchestration::model_lane::ModelLaneStore,
+        action: ResourceAction, capability: &str, run_id: String, execution_id: String,
+        selecting_decision_id: Option<String>, input_ref: Option<String>, source_create: bool,
+    ) -> Result<std::sync::Arc<RoutingOriginalSources>, ResourceAuthorityError> {
+        let original = super::current_record_user_scope()
+            .ok_or(ResourceAuthorityError::InvalidInput("routing original authority absent"))?;
+        let subject = super::current_model_lane_subject()
+            .ok_or(ResourceAuthorityError::InvalidInput("routing original subject absent"))?;
+        let registry = super::configured_capability_registry()
+            .ok_or(ResourceAuthorityError::InvalidInput("routing configured registry absent"))?;
+        if !matches!((action, capability), (ResourceAction::Read, "fs.read" | "diagnostics.read")
+                | (ResourceAction::Create | ResourceAction::Update, "fs.write"))
+            || original.action != action || original.capability_id != capability || original.grant_id.is_none()
+            || subject.kind != ResourceKind::Workspace
+            || original.workspace_id.as_deref() != Some(subject.external_id.as_str())
+            || (run_id.trim().is_empty() && execution_id.trim().is_empty())
+            || (action == ResourceAction::Create && (run_id.trim().is_empty() || execution_id.trim().is_empty()))
+        { return Err(ResourceAuthorityError::InvalidInput("routing original operation differs")); }
+        let channel = original.channel_binding_hash.clone()
+            .filter(|value| !value.is_empty()).ok_or(ResourceAuthorityError::InvalidInput("routing channel absent"))?;
+        let credentials = RoleAuthorityAuthInput::new(original.session_token.clone(), channel);
+        let request = AuthorizationRequest {
+            session_token: original.session_token.clone(), channel_binding_hash: original.channel_binding_hash.clone(),
+            capability_id: capability.to_owned(), resource_kind: ResourceKind::Workspace,
+            external_resource_id: subject.external_id, action,
+        };
+        let mut requests = vec![request.clone()];
+        let create_index = if action == ResourceAction::Create { Some(0) }
+            else if source_create { let mut create = request; create.action = ResourceAction::Create;
+                requests.push(create); Some(1) } else { None };
+        let capture = std::sync::Arc::new(self.capture_producer_source_facts(
+            Uuid::now_v7(), &registry, credentials, requests,
+        ).await?);
+        if capture.sources.iter().any(|source| source.authority.resource_id != capture.sources[0].authority.resource_id) {
+            return Err(ResourceAuthorityError::InvalidInput("captured workspace operations differ in canonical resource"));
+        }
+        self.producer_source_run_authority(&capture, 0, store, action).await
+            .map_err(|_| ResourceAuthorityError::InvalidInput("routing captured scope differs"))?;
+        let sources = std::sync::Arc::new(RoutingOriginalSources {
+            capture, storage: self.clone(), registry, original, run_id, execution_id, selecting_decision_id, input_ref, create_index, additional_create: Default::default(),
+        });
+        sources.revalidate().await?;
+        Ok(sources)
+    }
+
+    /// Capture two independent live native requests for an already committed
+    /// operation. This creates no role permit, evidence, receipt or new grant.
+    pub(crate) async fn capture_committed_promotion_retry_sources(
+        &self, bootstrap: &crate::AccountBootstrapState,
+        store: &crate::swarm_orchestration::model_lane::ModelLaneStore,
+        request: AuthorizationRequest, operation_id: Uuid, run_id: String,
+    ) -> Result<std::sync::Arc<RoutingOriginalSources>, ResourceAuthorityError> {
+        if self.resource_access_lifecycle() != bootstrap.surreal.resource_access_lifecycle()
+            || request.action != ResourceAction::Create || request.capability_id != "fs.write"
+            || request.resource_kind != ResourceKind::Workspace || operation_id.is_nil() || run_id.trim().is_empty() {
+            return Err(ResourceAuthorityError::InvalidInput("committed promotion retry requires original native Workspace Create"));
+        }
+        let channel = request.channel_binding_hash.clone().filter(|value| !value.is_empty())
+            .ok_or(ResourceAuthorityError::InvalidInput("committed promotion retry requires authenticated channel"))?;
+        let credentials = RoleAuthorityAuthInput::new(request.session_token.clone(), channel);
+        let mut read = request.clone(); read.action = ResourceAction::Read; read.capability_id = "fs.read".into();
+        let capture = std::sync::Arc::new(self.capture_producer_source_facts(operation_id,
+            &bootstrap.capability_registry, credentials, vec![read, request]).await?);
+        if capture.sources.len() != 2 || capture.sources[0].authority.resource_id != capture.sources[1].authority.resource_id {
+            return Err(ResourceAuthorityError::InvalidInput("committed promotion retry Creator and Read resources differ"));
+        }
+        self.producer_source_run_authority(&capture, 0, store, ResourceAction::Read).await
+            .map_err(|_| ResourceAuthorityError::InvalidInput("committed promotion retry exact scope differs"))?;
+        self.producer_source_run_authority(&capture, 1, store, ResourceAction::Create).await
+            .map_err(|_| ResourceAuthorityError::InvalidInput("committed promotion retry Creator scope differs"))?;
+        let read = &capture.sources[0];
+        let original = RecordUserScope {
+            grant_id: Some(read.decision.grant_id.clone()), workspace_id: Some(read.request.external_resource_id.clone()),
+            session_token: read.request.session_token.clone(), channel_binding_hash: read.request.channel_binding_hash.clone(),
+            resource_id: read.decision.resource_id.clone(), session_id: read.decision.session_id.clone(),
+            capability_id: "fs.read".into(), action: ResourceAction::Read,
+        };
+        let sources = std::sync::Arc::new(RoutingOriginalSources {
+            capture, storage: self.clone(), registry: bootstrap.capability_registry.clone(), original,
+            run_id, execution_id: String::new(), selecting_decision_id: None, input_ref: None,
+            create_index: Some(1), additional_create: Default::default(),
+        });
+        sources.revalidate().await?;
+        Ok(sources)
+    }
+
+    pub(crate) async fn capture_run_attachment_sources(
+        &self, store: &crate::swarm_orchestration::model_lane::ModelLaneStore, run_id: String,
+    ) -> Result<std::sync::Arc<RoutingOriginalSources>, ResourceAuthorityError> {
+        self.capture_create_update_sources(store, run_id, String::new(), None, None).await
+    }
+
+    pub(crate) async fn capture_routing_lifecycle_sources(
+        &self, store: &crate::swarm_orchestration::model_lane::ModelLaneStore,
+        run_id: String, execution_id: String, decision_id: String, input_ref: String,
+    ) -> Result<std::sync::Arc<RoutingOriginalSources>, ResourceAuthorityError> {
+        if execution_id.trim().is_empty() || decision_id.trim().is_empty() || input_ref.trim().is_empty() {
+            return Err(ResourceAuthorityError::InvalidInput("routing lifecycle canonical selectors absent"));
+        }
+        self.capture_create_update_sources(store, run_id, execution_id, Some(decision_id), Some(input_ref)).await
+    }
+
+    async fn capture_create_update_sources(
+        &self, store: &crate::swarm_orchestration::model_lane::ModelLaneStore,
+        run_id: String, execution_id: String, selecting_decision_id: Option<String>, input_ref: Option<String>,
+    ) -> Result<std::sync::Arc<RoutingOriginalSources>, ResourceAuthorityError> {
+        let original = super::current_record_user_scope()
+            .ok_or(ResourceAuthorityError::InvalidInput("run attachment original Create absent"))?;
+        let subject = super::current_model_lane_subject()
+            .ok_or(ResourceAuthorityError::InvalidInput("run attachment workspace absent"))?;
+        let registry = super::configured_capability_registry()
+            .ok_or(ResourceAuthorityError::InvalidInput("run attachment configured registry absent"))?;
+        if original.action != ResourceAction::Create || original.capability_id != "fs.write"
+            || original.grant_id.is_none() || subject.kind != ResourceKind::Workspace || run_id.trim().is_empty()
+            || original.workspace_id.as_deref() != Some(subject.external_id.as_str()) {
+            return Err(ResourceAuthorityError::InvalidInput("run attachment original operation differs"));
+        }
+        let channel = original.channel_binding_hash.clone().filter(|value| !value.is_empty())
+            .ok_or(ResourceAuthorityError::InvalidInput("run attachment channel absent"))?;
+        let request = AuthorizationRequest {
+            session_token: original.session_token.clone(), channel_binding_hash: Some(channel.clone()),
+            capability_id: "fs.write".to_owned(), resource_kind: ResourceKind::Workspace,
+            external_resource_id: subject.external_id, action: ResourceAction::Create,
+        };
+        let mut update = request.clone(); update.action = ResourceAction::Update;
+        let capture = std::sync::Arc::new(self.capture_producer_source_facts(Uuid::now_v7(), &registry,
+            RoleAuthorityAuthInput::new(original.session_token.clone(), channel), vec![request, update]).await?);
+        if capture.sources.iter().any(|source| source.authority.resource_id != capture.sources[0].authority.resource_id) {
+            return Err(ResourceAuthorityError::InvalidInput("captured workspace operations differ in canonical resource"));
+        }
+        self.producer_source_run_authority(&capture, 0, store, ResourceAction::Create).await
+            .map_err(|_| ResourceAuthorityError::InvalidInput("run attachment exact scope differs"))?;
+        let sources = std::sync::Arc::new(RoutingOriginalSources {
+            capture, storage: self.clone(), registry, original, run_id, execution_id,
+            selecting_decision_id, input_ref, create_index: Some(0), additional_create: Default::default(),
+        });
+        sources.revalidate().await?;
+        Ok(sources)
+    }
+
     async fn capture_producer_source_facts(
         &self,
         operation_id: Uuid,
@@ -2168,16 +2514,61 @@ struct ProtectedRoleCreationBinding {
     record_kind: String, record_id: String, event_id: String, record_sha256: String,
     operation_id: String, issuer_scope: ProtectedRoleScopeBinding, expected_child_read: Option<RegistryPublicationAuthority>, expected_owner_read: Option<RegistryPublicationAuthority>,
 }
+#[derive(Clone, SurrealValue)]
+struct RoutingPriorReadBinding {
+    operation_id: String, execution_id: String, stage_id: String, run_id: String, event_id: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct RoutingAckBinding {
+    operation_id: String, acknowledgement_event_id: String, prior_event_id: String,
+    execution_id: String, stage_id: String, message_id: String, attempt: i64,
+    lease_owner: String, fencing_token: String, lease_expires_at_unix_ms: i64,
+    observed_revision: i64, observed_execution_event_id: String, observed_attempt_event_id: String,
+}
+
+#[derive(Clone, SurrealValue)]
+struct FinalPromotionBinding {
+    operation_id: String, decision_id: String, run_id: String,
+    input_json: String, selectors_json: String,
+    protected_binding_event_id: String, initial_consumer_operation_id: String,
+    initial_validator_event_id: String, initial_validator_receipt_json: String,
+    creator: RegistryPublicationAuthority, owner_read: RegistryPublicationAuthority,
+    child_read: RegistryPublicationAuthority,
+    prepared_record_json: Option<String>, operator_receipt_json: Option<String>,
+    validator_receipt_json: Option<String>,
+    current_consumption_event_id: Option<String>, current_consumption_body_json: Option<String>,
+}
+
 tokio::task_local! {
+    static FINAL_PROMOTION_BINDING: FinalPromotionBinding;
+    static ROUTING_ACK_BINDING: RoutingAckBinding;
+    static ROUTING_PRIOR_READ_BINDING: RoutingPriorReadBinding;
+    static PROMOTION_READ_CUSTODY: std::sync::Arc<InitialValidatorIssuance>;
     static PROTECTED_ROLE_CONSUMPTION_BINDING: ProtectedRoleConsumptionBinding;
     static PROTECTED_ROLE_CREATION_BINDING: ProtectedRoleCreationBinding;
     static PROTECTED_ROLE_CAPTURE_BINDING: ProtectedRoleCaptureBinding;
 }
+#[cfg(feature = "test-utils")]
+tokio::task_local! { static TEST_PROMOTION_WRONG_CURRENT_OPERATION: bool; }
+#[cfg(feature = "test-utils")]
+pub(crate) async fn with_wrong_current_promotion_operation<T>(operation: impl std::future::Future<Output = T>) -> T {
+    TEST_PROMOTION_WRONG_CURRENT_OPERATION.scope(true, operation).await
+}
+
+pub(crate) async fn with_promotion_read_custody<T>(
+    custody: std::sync::Arc<InitialValidatorIssuance>, operation: impl std::future::Future<Output = T>,
+) -> T { PROMOTION_READ_CUSTODY.scope(custody, operation).await }
+
 pub(super) fn append_protected_role_bindings(bindings: &mut surrealdb::types::Value) {
     if !matches!(bindings, surrealdb::types::Value::Object(_)) {
         *bindings = surrealdb::types::Value::Object(surrealdb::types::Object::new());
     }
     if let surrealdb::types::Value::Object(object) = bindings {
+        object.insert("wp012_routing_original", current_routing_original_sources().map(|sources| sources.binding()));
+        object.insert("wp012_promotion_original", FINAL_PROMOTION_BINDING.try_with(Clone::clone).ok());
+        object.insert("wp012_routing_ack", ROUTING_ACK_BINDING.try_with(Clone::clone).ok());
+        object.insert("wp012_routing_prior", ROUTING_PRIOR_READ_BINDING.try_with(Clone::clone).ok());
         object.insert("wp012_role_evidence_consume", PROTECTED_ROLE_CONSUMPTION_BINDING.try_with(Clone::clone).ok());
         object.insert("wp012_role_evidence_create", PROTECTED_ROLE_CREATION_BINDING.try_with(Clone::clone).ok());
         object.insert("wp012_role_evidence_capture", PROTECTED_ROLE_CAPTURE_BINDING.try_with(Clone::clone).ok());
@@ -2239,7 +2630,36 @@ pub(crate) struct ProtectedRoleEvidenceConsumptionBody {
     pub(crate) purpose: handshake_role_authority::domain::Purpose,
     pub(crate) targets: Vec<ProtectedRoleEvidenceTarget>,
 }
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct CurrentPromotionConsumptionBody {
+    pub(crate) schema_id: String,
+    pub(crate) operation_id: Uuid,
+    pub(crate) exact_consumer_scope: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    pub(crate) decision_id: String,
+    pub(crate) input_json: String,
+    pub(crate) selectors_json: String,
+    pub(crate) creator: ProtectedRoleReadAuthority,
+    pub(crate) owner_read: ProtectedRoleReadAuthority,
+    pub(crate) child_read: ProtectedRoleReadAuthority,
+    pub(crate) owner_read_scope: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    pub(crate) child_read_scope: crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    pub(crate) lineage_binding_event_id: String,
+    pub(crate) initial_consumer_operation_id: Uuid,
+    pub(crate) producer: crate::swarm_orchestration::model_lane::ValidatorRunnerRegistrationBinding,
+    pub(crate) designation_ref: handshake_role_authority::domain::DesignationRef,
+    pub(crate) run: handshake_role_authority::domain::RunBinding,
+    pub(crate) subject: handshake_role_authority::domain::ArtifactSubject,
+    pub(crate) targets: Vec<ProtectedRoleEvidenceTarget>,
+}
+
+struct CurrentPromotionConsumption {
+    body: CurrentPromotionConsumptionBody,
+    event_id: String,
+}
+
 pub(crate) struct InitialValidatorIssuance {
+    storage: SurrealStorage,
+    issued_receipt: std::sync::OnceLock<handshake_role_authority::domain::RoleReceipt>,
     protected_publication_operation_id: Uuid,
     protected_consumption: std::sync::OnceLock<PublishedProtectedRoleConsumption>,
     owner_read: OwnedCanonicalAuthSnapshot,
@@ -2288,6 +2708,35 @@ impl InitialValidatorIssuance {
 }
 
 impl SurrealStorage {
+    pub(crate) async fn read_owner_model_lane_replay(
+        &self, bootstrap: &crate::AccountBootstrapState, credentials: RoleAuthorityAuthInput,
+        store: &crate::swarm_orchestration::model_lane::ModelLaneStore, run_id: &str,
+    ) -> crate::swarm_orchestration::model_lane::ModelLaneResult<crate::swarm_orchestration::model_lane::ModelLaneReplay> {
+        let exact = store.access().exact_read_scope().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let mut request = credentials.workspace_creation_request(exact.workspace_id.as_str());
+        request.action = ResourceAction::Read; request.capability_id = "fs.read".to_owned();
+        let read = std::sync::Arc::new(capture_owned_canonical_role_auth(
+            self, &bootstrap.capability_registry, credentials, request).await?);
+        if &read.exact != exact { return Err(SurrealStorageError::TransactionAuthorityRequired.into()); }
+        let _fence = self.authority_publication_read().await?;
+        read.revalidate_for_publication(self, &bootstrap.capability_registry).await?;
+        let worker_read = read.clone(); let worker_registry = bootstrap.capability_registry.clone();
+        let worker_store = store.clone(); let selected = run_id.to_owned();
+        let result = self.with_record_user_scope(read.record_user_scope(),
+            super::with_model_lane_subject(super::ModelLaneOperationSubject {
+                kind: ResourceKind::Workspace, external_id: exact.workspace_id.to_string(),
+            }, super::with_configured_capability_registry(bootstrap.capability_registry.clone(),
+                super::with_model_lane_operation(super::ContextCoordinationPurpose::SourceRead,
+                    self.with_authenticated_transaction(Uuid::now_v7(), move |transaction| Box::pin(async move {
+                        worker_read.revalidate_in_transaction(&transaction, &worker_registry).await?;
+                        let result = worker_store.replay_run(&selected).await?;
+                        worker_read.revalidate_in_transaction(&transaction, &worker_registry).await?;
+                        Ok::<_, crate::swarm_orchestration::model_lane::ModelLaneError>(result)
+                    })))))).await?;
+        read.revalidate_for_publication(self, &bootstrap.capability_registry).await?;
+        Ok(result)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn capture_initial_validator_issuance(
         &self, bootstrap: &crate::AccountBootstrapState,
@@ -2335,6 +2784,8 @@ impl SurrealStorage {
             return Err(ResourceAuthorityError::InvalidInput("protected role READ authority differs from registered Owner or child"));
         }
         let issuance = std::sync::Arc::new(InitialValidatorIssuance {
+            storage: self.clone(),
+            issued_receipt: std::sync::OnceLock::new(),
             protected_publication_operation_id: Uuid::now_v7(),
             protected_consumption: std::sync::OnceLock::new(),
             owner_read, child_read, coordinator, producer, observed, operator, verdict, operation_id,
@@ -2424,7 +2875,13 @@ impl SurrealStorage {
         };
         let permit = self.capture_role_authority_consumption(bootstrap, credentials, request, command).await?;
         match self.execute_role_consumption(permit, store).await? {
-            RoleConsumptionResult::ReviewCompletion(receipt) => Ok(receipt),
+            RoleConsumptionResult::ReviewCompletion(receipt) => {
+                if issuance.issued_receipt.get().is_some_and(|prior| prior != &receipt) {
+                    return Err(ModelLaneError::IntegrityViolation("initial Validator issuance receipt changed".into()));
+                }
+                let _ = issuance.issued_receipt.set(receipt.clone());
+                Ok(receipt)
+            },
             _ => Err(ModelLaneError::IntegrityViolation("initial Validator issuance returned another result".into())),
         }
     }
@@ -2453,12 +2910,17 @@ impl RoleConsumptionCapture {
 }
 
 struct OwnedRoleConsumption {
+    promotion_read: Option<std::sync::Arc<InitialValidatorIssuance>>,
+    promotion_consumption: std::sync::OnceLock<CurrentPromotionConsumption>,
+    #[cfg(feature = "test-utils")]
+    test_wrong_current_operation: bool,
     auth: OwnedCanonicalAuthSnapshot,
     registry: std::sync::Arc<crate::capabilities::CapabilityRegistry>,
     command: crate::swarm_orchestration::model_lane::RoleConsumptionCommand,
 }
 
 impl RoleAuthorityConsumptionPermit {
+    pub(crate) fn operation_id(&self) -> Uuid { self.capture.command().operation_id() }
     pub(crate) fn current_scope(&self) -> &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution {
         &self.capture.auth().exact
     }
@@ -2511,12 +2973,124 @@ struct RoutingCaptureRequest {
 struct OwnedRoutingCapture {
     operation_id: Uuid,
     auth: OwnedCanonicalAuthSnapshot,
+    source_create: OwnedCanonicalAuthSnapshot,
+    owner_read: OwnedCanonicalAuthSnapshot,
+    sources: std::sync::Arc<RoutingOriginalSources>,
+    storage: SurrealStorage,
     registry: std::sync::Arc<crate::capabilities::CapabilityRegistry>,
     request: RoutingCaptureRequest,
+    execution_fence: std::sync::OnceLock<crate::swarm_orchestration::routing_execution::ModelLaneRoutingExecutionState>,
     command: std::sync::OnceLock<crate::swarm_orchestration::model_lane::RoleConsumptionCommand>,
 }
 
+async fn with_routing_prior_read<T, F>(
+    capture: &OwnedRoutingCapture, run_id: &str, stage_id: &str, event_id: &str, operation: F,
+) -> Result<T, SurrealStorageError>
+where F: std::future::Future<Output = Result<T, SurrealStorageError>> {
+    let sources = capture.sources.with_selected_run(run_id.to_owned())
+        .map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+    capture.owner_read.revalidate_for_publication(&capture.storage, &capture.registry).await
+        .map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+    let binding = RoutingPriorReadBinding {
+        operation_id: capture.operation_id.to_string(), execution_id: capture.request.execution_id.clone(),
+        stage_id: stage_id.to_owned(), run_id: run_id.to_owned(), event_id: event_id.to_owned(),
+    };
+    let result = capture.storage.with_record_user_scope(capture.owner_read.record_user_scope(),
+        with_routing_original_sources(sources,
+            super::with_model_lane_operation(super::ContextCoordinationPurpose::SourceRead,
+                ROUTING_PRIOR_READ_BINDING.scope(binding, operation)))).await?;
+    capture.owner_read.revalidate_for_publication(&capture.storage, &capture.registry).await
+        .map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+    Ok(result)
+}
+
 impl OwnedRoleTransaction {
+    async fn revalidate_in_transaction(
+        &self, transaction: &super::SurrealTransactionContext<'_>, registry: &crate::capabilities::CapabilityRegistry,
+    ) -> Result<(), ResourceAuthorityError> {
+        self.auth().revalidate_in_transaction(transaction, registry).await?;
+        if let Self::Consumer(capture) = self {
+            if let Some(read) = &capture.promotion_read {
+                read.require_current_registry()?;
+                read.owner_read.require_unexpired()?;
+                read.child_read.require_unexpired()?;
+                if !registry.profile_can(&read.child_read.authority.capability_profile_id, "fs.read").unwrap_or(false) {
+                    return Err(ResourceAuthorityError::InvalidInput("protected promotion Child Read profile changed"));
+                }
+                read.storage.with_record_user_scope(read.owner_read.record_user_scope(),
+                    read.owner_read.revalidate_in_transaction(transaction, registry)).await?;
+            }
+        }
+        if let Self::RoutingCapture(capture) = self {
+            capture.storage.with_record_user_scope(capture.source_create.record_user_scope(),
+                capture.source_create.revalidate_in_transaction(transaction, registry)).await?;
+            capture.storage.with_record_user_scope(capture.owner_read.record_user_scope(),
+                capture.owner_read.revalidate_in_transaction(transaction, registry)).await?;
+        }
+        Ok(())
+    }
+    async fn revalidate_for_publication(
+        &self, storage: &SurrealStorage, registry: &crate::capabilities::CapabilityRegistry,
+    ) -> Result<(), ResourceAuthorityError> {
+        self.auth().revalidate_for_publication(storage, registry).await?;
+        if let Self::Consumer(capture) = self {
+            if let Some(read) = &capture.promotion_read {
+                read.revalidate(storage).await?;
+                read.owner_read.revalidate_for_publication(storage, registry).await?;
+                read.child_read.revalidate_for_publication(storage, registry).await?;
+            }
+        }
+        if let Self::RoutingCapture(capture) = self {
+            capture.source_create.revalidate_for_publication(storage, registry).await?;
+            capture.owner_read.revalidate_for_publication(storage, registry).await?;
+        }
+        Ok(())
+    }
+    fn promotion_read(&self) -> Option<&std::sync::Arc<InitialValidatorIssuance>> {
+        let Self::Consumer(capture) = self else { return None; };
+        capture.promotion_read.as_ref()
+    }
+    fn current_promotion_consumption(&self) -> Option<&CurrentPromotionConsumption> {
+        let Self::Consumer(capture) = self else { return None; };
+        capture.promotion_consumption.get()
+    }
+    fn promotion_binding(&self, prepared: Option<String>, operator: Option<String>, validator: Option<String>)
+        -> Result<FinalPromotionBinding, SurrealStorageError> {
+        let crate::swarm_orchestration::model_lane::RoleConsumptionCommand::ResolvePromotion { selectors, input, .. } =
+            self.consumer_command().ok_or(SurrealStorageError::TransactionAuthorityRequired)? else {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        };
+        let custody = self.promotion_read().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let published = custody.protected_consumption.get().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let receipt = custody.issued_receipt.get().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        Ok(FinalPromotionBinding {
+            operation_id: self.operation_id().to_string(), decision_id: input.decision_id.clone(), run_id: input.run_id.clone(),
+            input_json: serde_json::to_string(input).map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?,
+            selectors_json: serde_json::to_string(&serde_json::json!({
+                "operator": { "evidence_ref": selectors.operator.evidence_ref, "expectation": selectors.operator.expectation,
+                    "designation_ref": selectors.operator.designation_ref, "producer": selectors.operator.producer },
+                "validator": { "evidence_ref": selectors.validator.evidence_ref, "expectation": selectors.validator.expectation,
+                    "designation_ref": selectors.validator.designation_ref, "producer": selectors.validator.producer },
+            })).map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?,
+            protected_binding_event_id: published.event_id.clone(), initial_consumer_operation_id: custody.operation_id.to_string(),
+            initial_validator_event_id: receipt.event.event_id.clone(), initial_validator_receipt_json: serde_json::to_string(receipt).map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?,
+            creator: self.auth().authority.clone(), owner_read: custody.owner_read.authority.clone(), child_read: custody.child_read.authority.clone(),
+            prepared_record_json: prepared, operator_receipt_json: operator, validator_receipt_json: validator,
+            current_consumption_event_id: self.current_promotion_consumption().map(|current| current.event_id.clone()),
+            current_consumption_body_json: self.current_promotion_consumption().map(|current|
+                serde_json::to_string(&current.body).map_err(|_| SurrealStorageError::TransactionAuthorityRequired)).transpose()?,
+        })
+    }
+    fn routing_prior_capture(&self, selector: &crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector)
+        -> Option<&OwnedRoutingCapture> {
+        let Self::RoutingCapture(capture) = self else { return None; };
+        let Some(crate::swarm_orchestration::model_lane::RoleConsumptionCommand::AcknowledgeRoutingStage {
+            selector: expected, .. }) = capture.command.get() else { return None; };
+        if expected.evidence_ref != selector.evidence_ref || expected.expectation != selector.expectation
+            || selector.expectation.receipt_scope != capture.owner_read.exact { return None; }
+        Some(capture)
+    }
+
     fn protected_owner_read_authority(&self) -> Option<RegistryPublicationAuthority> {
         match self {
             Self::ProtectedRoleConsumption(capture) => Some(capture.issuance.owner_read.authority.clone()),
@@ -2715,9 +3289,14 @@ pub(crate) struct PreparedRoutingAuthorityConsumption {
     storage: SurrealStorage,
     retention: RoleAuthorityTransactionRetention,
     run: crate::swarm_orchestration::model_lane::ModelLaneRunRecord,
+    launch_plan: Vec<crate::swarm_orchestration::routing::ModelLaneRoutingStageLaunchPlan>,
 }
 
 impl PreparedRoutingAuthorityConsumption {
+    pub(crate) fn launch_plan(&self) -> &[crate::swarm_orchestration::routing::ModelLaneRoutingStageLaunchPlan] {
+        &self.launch_plan
+    }
+
     pub(crate) fn run(&self) -> &crate::swarm_orchestration::model_lane::ModelLaneRunRecord {
         &self.run
     }
@@ -2782,6 +3361,22 @@ pub(crate) struct RoutingAuthorityCaptureFinalization {
 }
 
 impl RoutingAuthorityCaptureTransaction {
+    pub(crate) fn continuation_sources(&self) -> std::sync::Arc<RoutingOriginalSources> {
+        let OwnedRoleTransaction::RoutingCapture(capture) = self.retention.owner.as_ref() else {
+            unreachable!("routing capture retains its original owner");
+        };
+        let mut sources = capture.sources.for_owned_operation().as_ref().clone();
+        let retained = sources.capture.as_ref();
+        let facts = retained.sources.iter().filter(|source| source.request.action != ResourceAction::Read)
+            .map(|source| ProducerSourceFacts { request: source.request.clone(), decision: source.decision.clone(), authority: source.authority.clone() }).collect::<Vec<_>>();
+        sources.capture = std::sync::Arc::new(ProducerSourceFactsCapture {
+            operation_id: retained.operation_id, credentials: retained.credentials.clone(), session: retained.session.clone(),
+            registry: retained.registry.clone(), lifecycle: retained.lifecycle.clone(), fence: retained.fence.clone(), sources: facts,
+        });
+        sources.create_index = sources.capture.sources.iter().position(|source| source.request.action == ResourceAction::Create);
+        std::sync::Arc::new(sources)
+    }
+
     pub(super) fn operation_id(&self) -> Uuid { self.retention.operation_id() }
     pub(super) fn retention(&self) -> &RoleAuthorityTransactionRetention { &self.retention }
     pub(super) fn belongs_to(&self, storage: &SurrealStorage) -> bool {
@@ -2799,7 +3394,7 @@ impl RoutingAuthorityCaptureTransaction {
         let OwnedRoleTransaction::RoutingCapture(capture) = self.retention.owner.as_ref() else {
             return Err(ModelLaneError::IntegrityViolation("routing read requires original capture custody".into()));
         };
-        capture.auth.revalidate_in_transaction(transaction, &capture.registry).await?;
+        self.retention.owner.revalidate_in_transaction(transaction, &capture.registry).await?;
         let inputs = self.read_current_inputs_in_transaction(transaction).await?;
         let stage = inputs.stage_ack_key()?;
         let expected_role = match &inputs.execution().stages.get(&capture.request.stage_id)
@@ -2810,18 +3405,27 @@ impl RoutingAuthorityCaptureTransaction {
             _ => return Err(ModelLaneError::AuthorityDenied("routing stage has no role acknowledgement".into())),
         };
         let seal = RoutingAuthorityCaptureReadSeal {
+            stage_id: &capture.request.stage_id,
             auth: &capture.auth, transaction, _fence: &self.retention.fence,
         };
-        let (receipt, issuance_operation_id) = self.provider.read_routing_prior_in_transaction(
-            transaction, &seal, &stage.prior_receipt_ref,
-        ).await?;
+        let selected = capture.sources.with_execution_origin(inputs.execution().run_id.clone(),
+            inputs.execution().selecting_decision_id.clone(), inputs.execution().initial_input_ref.clone())?;
+        let prior_event_id = stage.prior_receipt_ref.as_str().strip_prefix("eventledger://role-authority/")
+            .ok_or_else(|| ModelLaneError::AuthorityDenied("canonical prior reference malformed".into()))?;
+        let (receipt, issuance_operation_id) = with_routing_original_sources(selected,
+            with_routing_prior_read(capture, &inputs.execution().run_id, &capture.request.stage_id, prior_event_id,
+                self.provider.read_routing_prior_in_transaction(transaction, &seal, &stage.prior_receipt_ref))).await?;
+        if receipt.body.scope != capture.owner_read.exact {
+            return Err(ModelLaneError::AuthorityDenied(
+                "routing prior issuer requires separate protected Read/delegation authority".into()));
+        }
         if receipt.body.role != expected_role || receipt.body.subject != inputs.subject()? {
             return Err(ModelLaneError::IntegrityViolation("canonical routing prior role or subject differs from stage".into()));
         }
         let prior = RoutingPriorEvidenceReadback { receipt, issuance_operation_id };
         let run = inputs.run().clone();
         validate_routing_capture_basis(&self.retention, &inputs, &run, &prior)?;
-        capture.auth.revalidate_in_transaction(transaction, &capture.registry).await?;
+        self.retention.owner.revalidate_in_transaction(transaction, &capture.registry).await?;
         Ok(RoutingAuthorityCapturePayload { inputs, run, prior })
     }
 
@@ -2833,11 +3437,14 @@ impl RoutingAuthorityCaptureTransaction {
             return Err(crate::swarm_orchestration::model_lane::ModelLaneError::IntegrityViolation(
                 "routing read requires original capture custody".into()));
         };
-        self.storage.read_routing_capture_inputs_in_transaction(
-            transaction, &capture.auth, &capture.registry, &self.retention.fence,
-            &self.store, &self.provider, &capture.request.execution_id, &capture.request.stage_id,
-            &capture.request.response_message_id,
-        ).await
+        super::with_configured_capability_registry(capture.registry.clone(),
+            with_routing_original_sources(capture.sources.clone(),
+                super::with_model_lane_operation(super::ContextCoordinationPurpose::RoutingTransition,
+                    self.storage.read_routing_capture_inputs_in_transaction(
+                        transaction, &capture.auth, &capture.registry, &self.retention.fence,
+                        &self.store, &self.provider, &capture.request.execution_id, &capture.request.stage_id,
+                        &capture.request.response_message_id,
+                    )))).await
     }
 
     pub(super) fn into_observed_read(self, payload: RoutingAuthorityCapturePayload)
@@ -2909,13 +3516,16 @@ impl RoutingAuthorityCaptureFinalization {
                 handshake_role_authority::canonical::prepare_validator_ack(intent),
         }.map_err(|error| ModelLaneError::IntegrityViolation(error.to_string()))?;
         if prepared.run() != &prior.run || prepared.subject() != &self.inputs.subject()?
-            || prepared.expected() != &self.inputs.expected_base() || prepared.retention() != &prior.retention
+            || prepared.expected() != &prior.expected || prepared.retention() != &prior.retention
         {
             return Err(ModelLaneError::IntegrityViolation("routing acknowledgement canonical basis changed".into()));
         }
+        capture.execution_fence.set(self.inputs.execution().clone())
+            .map_err(|_| ModelLaneError::IntegrityViolation("routing execution fence was already captured".into()))?;
         capture.command.set(self.command)
             .map_err(|_| ModelLaneError::IntegrityViolation("routing capture command was already initialized".into()))?;
-        Ok(PreparedRoutingAuthorityConsumption { storage: self.storage, retention: self.retention, run: self.run })
+        Ok(PreparedRoutingAuthorityConsumption { storage: self.storage, retention: self.retention, run: self.run,
+            launch_plan: self.inputs.execution().canonical_launch_plan.clone() })
     }
 }
 
@@ -2965,6 +3575,38 @@ pub(crate) struct RolePublicationGuard<'a> {
 }
 
 impl RolePublicationGuard<'_> {
+    pub(crate) fn current_promotion_consumption(&self) -> Result<(&CurrentPromotionConsumptionBody, &str), SurrealStorageError> {
+        let current = self.owner.current_promotion_consumption().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        Ok((&current.body, current.event_id.as_str()))
+    }
+    pub(crate) fn is_final_promotion(&self) -> bool { self.owner.promotion_read().is_some() }
+    pub(crate) async fn with_promotion_read<T, F>(
+        &self, expected: &crate::swarm_orchestration::model_lane::ModelLanePromotionDecisionRecord, operation: F,
+    ) -> crate::swarm_orchestration::model_lane::ModelLaneResult<T>
+    where F: std::future::Future<Output = crate::swarm_orchestration::model_lane::ModelLaneResult<T>> {
+        let custody = self.owner.promotion_read().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        custody.revalidate(&custody.storage).await?;
+        let binding = self.owner.promotion_binding(Some(serde_json::to_string(expected)
+            .map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?), None, None)?;
+        let result = custody.storage.with_record_user_scope(custody.owner_read.record_user_scope(),
+            super::with_model_lane_operation(super::ContextCoordinationPurpose::FinalPromotionRead,
+                FINAL_PROMOTION_BINDING.scope(binding, operation))).await?;
+        custody.revalidate(&custody.storage).await?;
+        Ok(result)
+    }
+    pub(crate) fn is_routing_prior(&self, selector: &crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector) -> bool {
+        self.owner.routing_prior_capture(selector).is_some()
+    }
+    pub(crate) async fn with_routing_prior<T, F>(
+        &self, selector: &crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector, operation: F,
+    ) -> Result<T, SurrealStorageError>
+    where F: std::future::Future<Output = Result<T, SurrealStorageError>> {
+        let capture = self.owner.routing_prior_capture(selector).ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let event_id = selector.evidence_ref.as_str().strip_prefix("eventledger://role-authority/")
+            .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        with_routing_prior_read(capture, &selector.expectation.run.run_id, &capture.request.stage_id, event_id, operation).await
+    }
+
     pub(crate) fn has_protected_role_evidence_target(&self, event_id: &str) -> bool {
         let Some(crate::swarm_orchestration::model_lane::RoleConsumptionCommand::IssueInitialValidatorVerdict { issuance, .. }) = self.owner.consumer_command() else { return false; };
         issuance.protected_consumption.get().is_some_and(|published|
@@ -2986,7 +3628,15 @@ impl RolePublicationGuard<'_> {
         if !self.owner.auth().created_role_rows.lock().map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?.contains(&binding) {
             return Err(SurrealStorageError::TransactionAuthorityRequired);
         }
-        PROTECTED_ROLE_CREATION_BINDING.scope(binding, future).await
+        let work = PROTECTED_ROLE_CREATION_BINDING.scope(binding, future);
+        if let OwnedRoleTransaction::RoutingCapture(capture) = self.owner {
+            capture.source_create.revalidate_for_publication(&capture.storage, &capture.registry).await
+                .map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+            let result = capture.storage.with_record_user_scope(capture.source_create.record_user_scope(), work).await?;
+            capture.source_create.revalidate_for_publication(&capture.storage, &capture.registry).await
+                .map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+            Ok(result)
+        } else { work.await }
     }
     pub(crate) async fn with_protected_role_evidence_consumption<T, F>(
         &self, evidence_event_id: &str, future: F,
@@ -3012,7 +3662,12 @@ impl RolePublicationGuard<'_> {
     }
 
     pub(crate) fn require_unexpired(&self) -> Result<(), ResourceAuthorityError> {
-        self.owner.auth().require_unexpired()
+        self.owner.auth().require_unexpired()?;
+        if let OwnedRoleTransaction::RoutingCapture(capture) = self.owner {
+            capture.source_create.require_unexpired()?;
+            capture.owner_read.require_unexpired()?;
+        }
+        Ok(())
     }
 }
 
@@ -3046,12 +3701,14 @@ impl OwnerIssuanceSeal<'_> {
 }
 
 pub(crate) struct RoutingAuthorityCaptureReadSeal<'tx> {
+    stage_id: &'tx str,
     auth: &'tx OwnedCanonicalAuthSnapshot,
     transaction: &'tx super::SurrealTransactionContext<'tx>,
     _fence: &'tx tokio::sync::OwnedRwLockReadGuard<()>,
 }
 
 impl RoutingAuthorityCaptureReadSeal<'_> {
+    pub(crate) fn stage_id(&self) -> &str { self.stage_id }
     pub(crate) fn current_scope(&self) -> &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution {
         &self.auth.exact
     }
@@ -3067,6 +3724,217 @@ pub(crate) struct CurrentConsumerSeal<'tx> {
 }
 
 impl CurrentConsumerSeal<'_> {
+    pub(crate) fn current_promotion_consumption_body(
+        &self, operator: &super::model_lane::TxCheckedRoleEvidence<'_>, validator: &super::model_lane::TxCheckedRoleEvidence<'_>,
+    ) -> Result<CurrentPromotionConsumptionBody, SurrealStorageError> {
+        let crate::swarm_orchestration::model_lane::RoleConsumptionCommand::ResolvePromotion { selectors, input, .. } = self.command() else {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        };
+        operator.require_matches(self.transaction, self.operation_id(), &selectors.operator)
+            .map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        validator.require_matches(self.transaction, self.operation_id(), &selectors.validator)
+            .map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        operator.require_promotion_input(input).map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        validator.require_promotion_input(input).map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        let custody = self.owner.promotion_read().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let lineage = custody.protected_consumption.get().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let binding = self.owner.promotion_binding(None, None, None)?;
+        let authority = |auth: &OwnedCanonicalAuthSnapshot| ProtectedRoleReadAuthority {
+            grant_id: auth.decision.grant_id.clone(), grant_version: auth.authority.grant_version,
+            resource_id: auth.decision.resource_id.clone(), session_id: auth.decision.session_id.clone(),
+            capability_id: auth.capability_id.clone(), action: auth.action.as_str().to_owned(),
+        };
+        Ok(CurrentPromotionConsumptionBody {
+            schema_id: "handshake.role-promotion-consumption@1".into(), operation_id: self.operation_id(),
+            exact_consumer_scope: self.current_scope().clone(), decision_id: input.decision_id.clone(),
+            input_json: binding.input_json, selectors_json: binding.selectors_json,
+            creator: authority(self.owner.auth()), owner_read: authority(&custody.owner_read), child_read: authority(&custody.child_read),
+            owner_read_scope: custody.owner_read.exact.clone(), child_read_scope: custody.child_read.exact.clone(),
+            lineage_binding_event_id: lineage.event_id.clone(), initial_consumer_operation_id: custody.operation_id,
+            producer: custody.producer_binding(), designation_ref: custody.verdict.designation_ref.clone(),
+            run: operator.receipt().body.run.clone(), subject: operator.receipt().body.subject.clone(),
+            targets: vec![operator.protected_consumption_target()?, validator.protected_consumption_target()?],
+        })
+    }
+    pub(crate) async fn with_current_promotion_consumption_creation<T, F>(
+        &self, body: &CurrentPromotionConsumptionBody, event_id: &str,
+        operator: &super::model_lane::TxCheckedRoleEvidence<'_>, validator: &super::model_lane::TxCheckedRoleEvidence<'_>, operation: F,
+    ) -> Result<T, SurrealStorageError>
+    where F: std::future::Future<Output = Result<T, SurrealStorageError>> {
+        let actual = self.current_promotion_consumption_body(operator, validator)?;
+        let actual_json = serde_json::to_string(&actual).map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        if serde_json::to_string(body).map_err(|_| SurrealStorageError::TransactionAuthorityRequired)? != actual_json {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let mut binding = self.owner.promotion_binding(None,
+            Some(serde_json::to_string(operator.receipt()).map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?),
+            Some(serde_json::to_string(validator.receipt()).map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?))?;
+        binding.current_consumption_event_id = Some(event_id.to_owned());
+        binding.current_consumption_body_json = Some(actual_json);
+        let custody = self.owner.promotion_read().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let registry = self.owner.consumer_registry().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        custody.storage.with_record_user_scope(self.owner.auth().record_user_scope(),
+            super::with_model_lane_operation(super::ContextCoordinationPurpose::FinalPromotionRecord,
+                FINAL_PROMOTION_BINDING.scope(binding, async {
+                    self.owner.auth().revalidate_in_transaction(self.transaction, registry).await
+                        .map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+                    let result = operation.await?;
+                    self.owner.auth().revalidate_in_transaction(self.transaction, registry).await
+                        .map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+                    Ok(result)
+                }))).await
+    }
+    pub(crate) fn observe_current_promotion_consumption(&self, body: CurrentPromotionConsumptionBody, event_id: String)
+        -> Result<(), SurrealStorageError> {
+        let OwnedRoleTransaction::Consumer(capture) = self.owner else { return Err(SurrealStorageError::TransactionAuthorityRequired); };
+        if let Some(current) = capture.promotion_consumption.get() {
+            if current.event_id != event_id || serde_json::to_string(&current.body).ok() != serde_json::to_string(&body).ok() {
+                return Err(SurrealStorageError::TransactionAuthorityRequired);
+            }
+            return Ok(());
+        }
+        capture.promotion_consumption.set(CurrentPromotionConsumption { body, event_id })
+            .map_err(|_| SurrealStorageError::TransactionAuthorityRequired)
+    }
+    pub(crate) async fn with_promotion_read<T, F>(&self, operation: F)
+        -> crate::swarm_orchestration::model_lane::ModelLaneResult<T>
+    where F: std::future::Future<Output = crate::swarm_orchestration::model_lane::ModelLaneResult<T>> {
+        let custody = self.owner.promotion_read().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        custody.require_current_registry()?;
+        custody.owner_read.require_unexpired()?;
+        custody.child_read.require_unexpired()?;
+        let binding = self.owner.promotion_binding(None, None, None)?;
+        custody.storage.with_record_user_scope(custody.owner_read.record_user_scope(),
+            super::with_model_lane_operation(super::ContextCoordinationPurpose::FinalPromotionRead,
+                FINAL_PROMOTION_BINDING.scope(binding, async {
+                    custody.owner_read.revalidate_in_transaction(self.transaction,
+                        self.owner.consumer_registry().ok_or(SurrealStorageError::TransactionAuthorityRequired)?).await?;
+                    let value = operation.await?;
+                    custody.owner_read.revalidate_in_transaction(self.transaction,
+                        self.owner.consumer_registry().ok_or(SurrealStorageError::TransactionAuthorityRequired)?).await?;
+                    custody.require_current_registry()?;
+                    custody.owner_read.require_unexpired()?;
+                    custody.child_read.require_unexpired()?;
+                    Ok(value)
+                }))).await
+    }
+    pub(crate) fn current_promotion_consumption_reference(&self) -> Result<(&str, Uuid), SurrealStorageError> {
+        let current = self.owner.current_promotion_consumption().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        if current.body.operation_id != self.operation_id() { return Err(SurrealStorageError::TransactionAuthorityRequired); }
+        Ok((current.event_id.as_str(), current.body.operation_id))
+    }
+    pub(crate) async fn with_promotion_creation<T, F>(
+        &self, prepared: &crate::swarm_orchestration::model_lane::ModelLanePromotionDecisionRecord,
+        operator: &super::model_lane::TxCheckedRoleEvidence<'_>, validator: &super::model_lane::TxCheckedRoleEvidence<'_>, operation: F,
+    ) -> crate::swarm_orchestration::model_lane::ModelLaneResult<T>
+    where F: std::future::Future<Output = crate::swarm_orchestration::model_lane::ModelLaneResult<T>> {
+        let crate::swarm_orchestration::model_lane::RoleConsumptionCommand::ResolvePromotion { selectors, .. } = self.command() else {
+            return Err(SurrealStorageError::TransactionAuthorityRequired.into());
+        };
+        operator.require_matches(self.transaction, self.operation_id(), &selectors.operator)?;
+        validator.require_matches(self.transaction, self.operation_id(), &selectors.validator)?;
+        self.owner.current_promotion_consumption().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        #[allow(unused_mut)]
+        let mut binding = self.owner.promotion_binding(
+            Some(serde_json::to_string(prepared).map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?),
+            Some(serde_json::to_string(operator.receipt()).map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?),
+            Some(serde_json::to_string(validator.receipt()).map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?))?;
+        #[cfg(feature = "test-utils")]
+        let _test_authority = if matches!(self.owner, OwnedRoleTransaction::Consumer(capture) if capture.test_wrong_current_operation) {
+            let custody = self.owner.promotion_read().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+            let original = self.owner.auth();
+            let registry = self.owner.consumer_registry().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+            let fresh = custody.storage.with_record_user_scope(original.record_user_scope(), capture_owned_canonical_role_auth(
+                &custody.storage, registry, original.credentials.clone(),
+                original.credentials.workspace_creation_request(&original.workspace_id))).await?;
+            if fresh.exact != original.exact || fresh.authority != original.authority {
+                return Err(SurrealStorageError::TransactionAuthorityRequired.into());
+            }
+            let other = Uuid::now_v7();
+            if other == self.operation_id() { return Err(SurrealStorageError::TransactionAuthorityRequired.into()); }
+            binding.operation_id = other.to_string();
+            Some(fresh)
+        } else { None };
+        self.owner.promotion_read().ok_or(SurrealStorageError::TransactionAuthorityRequired)?.storage.with_record_user_scope(self.owner.auth().record_user_scope(),
+            super::with_model_lane_operation(super::ContextCoordinationPurpose::FinalPromotionRecord,
+                FINAL_PROMOTION_BINDING.scope(binding, async {
+                    let registry = self.owner.consumer_registry().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+                    self.owner.auth().revalidate_in_transaction(self.transaction, registry).await?;
+                    let value = operation.await?;
+                    self.owner.auth().revalidate_in_transaction(self.transaction, registry).await?;
+                    Ok(value)
+                }))).await
+    }
+    pub(crate) fn is_routing_prior(&self, selector: &crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector) -> bool {
+        self.owner.routing_prior_capture(selector).is_some()
+    }
+    pub(crate) async fn with_routing_prior<T, F>(
+        &self, selector: &crate::swarm_orchestration::model_lane::RoleEvidenceConsumeSelector, operation: F,
+    ) -> Result<T, SurrealStorageError>
+    where F: std::future::Future<Output = Result<T, SurrealStorageError>> {
+        let capture = self.owner.routing_prior_capture(selector).ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let event_id = selector.evidence_ref.as_str().strip_prefix("eventledger://role-authority/")
+            .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        with_routing_prior_read(capture, &selector.expectation.run.run_id, &capture.request.stage_id, event_id, operation).await
+    }
+
+    pub(crate) fn require_routing_execution_fence(
+        &self, execution: &crate::swarm_orchestration::routing_execution::ModelLaneRoutingExecutionState,
+        stage_id: &str, message_id: &str,
+    ) -> crate::swarm_orchestration::model_lane::ModelLaneResult<()> {
+        let OwnedRoleTransaction::RoutingCapture(capture) = self.owner else {
+            return Err(SurrealStorageError::TransactionAuthorityRequired.into());
+        };
+        let original = capture.execution_fence.get().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        if original != execution || execution.execution_id != capture.request.execution_id
+            || stage_id != capture.request.stage_id || message_id != capture.request.response_message_id {
+            return Err(crate::swarm_orchestration::model_lane::ModelLaneError::AuthorityDenied(
+                "routing acknowledgement captured execution fence is stale or differs".into()));
+        }
+        Ok(())
+    }
+
+    pub(crate) async fn with_routing_ack<T, F>(
+        &self, prior: &super::model_lane::TxCheckedRoleEvidence<'_>,
+        acknowledgement: &super::model_lane::TxCheckedRoleEvidence<'_>,
+        claim: &crate::swarm_orchestration::routing_execution::ModelLaneRoutingStageClaim,
+        revision: u64, message_id: &str, observed_execution_event_id: &str,
+        observed_attempt_event_id: &str, operation: F,
+    ) -> crate::swarm_orchestration::model_lane::ModelLaneResult<T>
+    where F: std::future::Future<Output = crate::swarm_orchestration::model_lane::ModelLaneResult<T>> {
+        use crate::swarm_orchestration::model_lane::{ModelLaneError, RoleConsumptionCommand};
+        let RoleConsumptionCommand::AcknowledgeRoutingStage { selector, execution_id, stage_id,
+            message_id: selected_message, acknowledgement: intent, .. } = self.command() else {
+            return Err(ModelLaneError::AuthorityDenied("routing ACK command absent".into()));
+        };
+        if execution_id != &claim.execution_id || stage_id != &claim.stage_id || selected_message != message_id {
+            return Err(ModelLaneError::AuthorityDenied("routing ACK selected claim differs".into()));
+        }
+        let OwnedRoleTransaction::RoutingCapture(capture) = self.owner else {
+            return Err(SurrealStorageError::TransactionAuthorityRequired.into());
+        };
+        let original = capture.execution_fence.get().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let attempt = original.stages.get(stage_id).ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        if original.revision != revision || original.event_ledger_event_id != observed_execution_event_id
+            || attempt.event_ledger_event_id != observed_attempt_event_id || attempt.attempt != claim.attempt
+            || attempt.lease_owner.as_deref() != Some(claim.lease_owner.as_str())
+            || attempt.fencing_token.as_deref() != Some(claim.fencing_token.as_str())
+            || attempt.lease_expires_at_unix_ms != Some(claim.lease_expires_at_unix_ms) {
+            return Err(ModelLaneError::AuthorityDenied("routing acknowledgement original claim or receipt differs".into()));
+        }
+        prior.require_matches(self.transaction, self.operation_id(), selector)?;
+        acknowledgement.require_stage_ack(self.transaction, self.operation_id(), selector, intent)?;
+        let integer = |value| i64::try_from(value).map_err(|_| ModelLaneError::InvalidInput("routing ACK durable integer overflow".into()));
+        ROUTING_ACK_BINDING.scope(RoutingAckBinding {
+            operation_id: self.operation_id().to_string(), acknowledgement_event_id: acknowledgement.receipt().event.event_id.clone(),
+            prior_event_id: prior.receipt().event.event_id.clone(), execution_id: execution_id.clone(), stage_id: stage_id.clone(),
+            message_id: message_id.to_owned(), attempt: i64::from(claim.attempt), lease_owner: claim.lease_owner.clone(),
+            fencing_token: claim.fencing_token.clone(), lease_expires_at_unix_ms: integer(claim.lease_expires_at_unix_ms)?,
+            observed_revision: integer(revision)?, observed_execution_event_id: observed_execution_event_id.to_owned(),
+            observed_attempt_event_id: observed_attempt_event_id.to_owned(),
+        }, operation).await
+    }
+
     pub(crate) async fn with_protected_role_authority_creation<T, F>(
         &self, record_kind: &str, record_id: &str, event_id: &str, record_sha256: &str, future: F,
     ) -> Result<T, SurrealStorageError>
@@ -3076,7 +3944,19 @@ impl CurrentConsumerSeal<'_> {
             | RoleConsumptionCommand::RecordReviewCompletion { .. } | RoleConsumptionCommand::AcknowledgeRoutingStage { .. }) {
             return Err(SurrealStorageError::TransactionAuthorityRequired);
         }
-        with_sealed_role_creation(record_kind, record_id, event_id, record_sha256, self.operation_id(), self.current_scope(), self.owner.protected_child_read_authority(), self.owner.protected_owner_read_authority(), &self.owner.auth().created_role_rows, future).await
+        let work = with_sealed_role_creation(record_kind, record_id, event_id, record_sha256,
+            self.operation_id(), self.current_scope(), self.owner.protected_child_read_authority(),
+            self.owner.protected_owner_read_authority(), &self.owner.auth().created_role_rows, future);
+        if let OwnedRoleTransaction::RoutingCapture(capture) = self.owner {
+            capture.storage.with_record_user_scope(capture.source_create.record_user_scope(), async {
+                capture.source_create.revalidate_in_transaction(self.transaction, &capture.registry).await
+                    .map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+                let result = work.await?;
+                capture.source_create.revalidate_in_transaction(self.transaction, &capture.registry).await
+                    .map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+                Ok(result)
+            }).await
+        } else { work.await }
     }
     pub(crate) fn protected_consumption_body(&self) -> Option<&ProtectedRoleEvidenceConsumptionBody> {
         match self.command() {
@@ -3142,14 +4022,18 @@ impl SurrealStorage {
         let worker_retention = retention.clone();
         let worker_provider = provider.clone();
         let worker_store = store.clone();
-        let committed = self.with_record_user_scope(scope,
+        let routing_sources = match retention.owner.as_ref() {
+            OwnedRoleTransaction::RoutingCapture(capture) => Some(capture.sources.clone()), _ => None,
+        };
+        let committed = with_role_routing_context(routing_sources.clone(),
+                self.with_record_user_scope(scope,
             self.with_owned_role_authenticated_transaction(
                 operation_id, super::ContextOperationCancellation::new(), retention.clone(),
                 move |transaction| Box::pin(async move {
                     let owner = worker_retention.owner.as_ref();
                     let registry = owner.consumer_registry().ok_or_else(||
                         ModelLaneError::IntegrityViolation("Operator consumer registry is unavailable".into()))?;
-                    owner.auth().revalidate_in_transaction(&transaction, registry).await?;
+                    owner.revalidate_in_transaction(&transaction, registry).await?;
                     let seal = CurrentConsumerSeal { owner, transaction: &transaction };
                     let command = owner.consumer_command().ok_or_else(||
                         ModelLaneError::IntegrityViolation("Operator consumer command is unavailable".into()))?;
@@ -3205,29 +4089,32 @@ impl SurrealStorage {
                             OperatorConsumptionReadback::Completion(completed.into_readback())
                         },
                         RoleConsumptionCommand::ResolvePromotion { selectors, input, .. } => {
+                            seal.with_promotion_read(async {
                             let operator = worker_provider.resolve_role_evidence(&transaction, &seal, &selectors.operator).await?;
                             let validator = worker_provider.resolve_role_evidence(&transaction, &seal, &selectors.validator).await?;
                             let decision = worker_store.record_promotion_decision_in_transaction(
                                 &transaction, &seal, &operator, &validator, input.clone(),
                             ).await?;
-                            OperatorConsumptionReadback::Promotion {
+                            Ok(OperatorConsumptionReadback::Promotion {
                                 operator: operator.into_readback(), validator: validator.into_readback(), decision,
-                            }
+                            })
+                            }).await?
                         },
                     };
-                    owner.auth().revalidate_in_transaction(&transaction, registry).await?;
+                    owner.revalidate_in_transaction(&transaction, registry).await?;
                     Ok::<_, ModelLaneError>(readback)
                 }),
             ),
-        ).await?;
+        )).await?;
         let registry = retention.owner.consumer_registry().ok_or_else(||
             ModelLaneError::IntegrityViolation("Operator publication registry is unavailable".into()))?;
-        retention.owner.auth().revalidate_for_publication(self, registry).await?;
+        retention.owner.revalidate_for_publication(self, registry).await?;
         if let Some(crate::swarm_orchestration::model_lane::RoleConsumptionCommand::IssueInitialValidatorVerdict { issuance, .. }) = retention.owner.consumer_command() {
             issuance.revalidate(self).await?;
         }
         let guard = RolePublicationGuard { owner: &retention.owner, _fence: &retention.fence };
-        let result = self.with_record_user_scope(retention.owner.auth().record_user_scope(), async {
+        let result = with_role_routing_context(routing_sources,
+            self.with_record_user_scope(retention.owner.auth().record_user_scope(), async {
             match &committed {
                 OperatorConsumptionReadback::Review(expected) => {
                     let published = provider.readback_role_evidence(&guard, expected).await?;
@@ -3238,10 +4125,13 @@ impl SurrealStorage {
                     Ok(RoleConsumptionResult::ReviewCompletion(published.receipt().clone()))
                 },
                 OperatorConsumptionReadback::Promotion { operator, validator, decision } => {
+                    guard.with_promotion_read(decision, async {
+                    provider.readback_current_promotion_consumption(&guard).await?;
                     provider.readback_role_evidence(&guard, operator).await?;
                     provider.readback_role_evidence(&guard, validator).await?;
                     let decision = store.readback_promotion_decision(&guard, operation_id, decision).await?;
                     Ok(RoleConsumptionResult::Promotion(decision))
+                    }).await
                 },
                 OperatorConsumptionReadback::Routing { prior, acknowledgement, routing } => {
                     provider.readback_role_evidence(&guard, prior).await?;
@@ -3250,8 +4140,8 @@ impl SurrealStorage {
                     Ok(RoleConsumptionResult::RoutingStageAcknowledgement(execution))
                 },
             }
-        }).await?;
-        retention.owner.auth().revalidate_for_publication(self, registry).await?;
+        })).await?;
+        retention.owner.revalidate_for_publication(self, registry).await?;
         if let Some(crate::swarm_orchestration::model_lane::RoleConsumptionCommand::IssueInitialValidatorVerdict { issuance, .. }) = retention.owner.consumer_command() {
             issuance.revalidate(self).await?;
         }
@@ -3280,7 +4170,7 @@ impl SurrealStorage {
         {
             return Err(ModelLaneError::AuthorityDenied("Operator finalization requires its canonical prior approval".into()));
         }
-        capture.auth.revalidate_for_publication(self, &capture.registry).await?;
+        read.retention.owner.revalidate_for_publication(self, &capture.registry).await?;
         let stage = read.inputs.stage_ack_key()?;
         let selector = RoleEvidenceConsumeSelector {
             evidence_ref: stage.prior_receipt_ref.clone(),
@@ -3297,7 +4187,7 @@ impl SurrealStorage {
                 idempotency_key: operation_key,
             },
             scope: capture.auth.exact.clone(), run: prior.run.clone(), subject: read.inputs.subject()?,
-            stage, expected: read.inputs.expected_base(), retention: prior.retention.clone(),
+            stage, expected: prior.expected.clone(), retention: prior.retention.clone(),
         };
         handshake_role_authority::canonical::prepare_operator_ack(&acknowledgement)
             .map_err(|error| ModelLaneError::IntegrityViolation(error.to_string()))?;
@@ -3333,7 +4223,7 @@ impl SurrealStorage {
             return Err(ModelLaneError::AuthorityDenied("routing capture store differs from authenticated owner".into()));
         }
         auth.revalidate_in_transaction(transaction, registry).await?;
-        let seal = RoutingAuthorityCaptureReadSeal { auth, transaction, _fence: fence };
+        let seal = RoutingAuthorityCaptureReadSeal { stage_id, auth, transaction, _fence: fence };
         let inputs = store.read_routing_authority_capture_inputs_in_transaction(
             provider, transaction, &seal, execution_id, stage_id, response_message_id,
         ).await?;
@@ -3358,7 +4248,7 @@ impl SurrealStorage {
             session_token: credentials.session_token.clone(),
             channel_binding_hash: Some(credentials.channel_binding_hash.clone()),
             capability_id: "fs.write".into(), resource_kind: ResourceKind::Workspace,
-            external_resource_id: workspace_id, action: ResourceAction::Create,
+            external_resource_id: workspace_id, action: ResourceAction::Update,
         };
         self.capture_routing_authority_transaction_with_request(
             bootstrap, credentials, request, store, execution_id.to_owned(), stage_id.to_owned(),
@@ -3382,9 +4272,27 @@ impl SurrealStorage {
         {
             return Err(ModelLaneError::AuthorityDenied("routing capture identity or bootstrap differs".into()));
         }
-        let auth = capture_owned_canonical_role_auth(
-            self, &bootstrap.capability_registry, credentials, request,
+        if request.action != ResourceAction::Update || request.capability_id != "fs.write" {
+            return Err(ModelLaneError::AuthorityDenied("routing ACK requires original Update authority".into()));
+        }
+        let mut create_request = request.clone();
+        create_request.action = ResourceAction::Create;
+        let mut read_request = request.clone();
+        read_request.action = ResourceAction::Read;
+        read_request.capability_id = "fs.read".to_owned();
+        let owner_read = capture_owned_canonical_role_auth(
+            self, &bootstrap.capability_registry, credentials.clone(), read_request,
         ).await?;
+        let auth = capture_owned_canonical_role_auth(
+            self, &bootstrap.capability_registry, credentials.clone(), request,
+        ).await?;
+        let source_create = capture_owned_canonical_role_auth(
+            self, &bootstrap.capability_registry, credentials, create_request,
+        ).await?;
+        if source_create.exact != auth.exact || source_create.authority.resource_id != auth.authority.resource_id
+            || owner_read.exact != auth.exact || owner_read.authority.resource_id != auth.authority.resource_id {
+            return Err(ModelLaneError::AuthorityDenied("routing ACK Create authority differs from original subject".into()));
+        }
         if store.access().exact_read_scope() != Some(&auth.exact)
             || store.surreal_storage().resource_access_lifecycle() != self.resource_access_lifecycle()
         {
@@ -3392,11 +4300,34 @@ impl SurrealStorage {
         }
         let fence = std::sync::Arc::new(self.authority_publication_read().await?);
         auth.revalidate_for_publication(self, &bootstrap.capability_registry).await?;
+        source_create.revalidate_for_publication(self, &bootstrap.capability_registry).await?;
+        owner_read.revalidate_for_publication(self, &bootstrap.capability_registry).await?;
         let provider = super::model_lane::SurrealModelLaneStore::initialize(self.clone()).await?;
+        let operation_id = Uuid::now_v7();
+        let source_fact = |snapshot: &OwnedCanonicalAuthSnapshot| ProducerSourceFacts {
+            request: AuthorizationRequest {
+                session_token: snapshot.credentials.session_token.clone(),
+                channel_binding_hash: Some(snapshot.credentials.channel_binding_hash.clone()),
+                capability_id: snapshot.capability_id.clone(), resource_kind: ResourceKind::Workspace,
+                external_resource_id: snapshot.workspace_id.clone(), action: snapshot.action,
+            },
+            decision: snapshot.decision.clone(), authority: snapshot.authority.clone(),
+        };
+        let sources = std::sync::Arc::new(RoutingOriginalSources {
+            capture: std::sync::Arc::new(ProducerSourceFactsCapture {
+                operation_id, credentials: auth.credentials.clone(), session: auth.session.clone(),
+                registry: bootstrap.capability_registry.as_ref().clone(), lifecycle: self.resource_access_lifecycle(),
+                sources: vec![source_fact(&auth), source_fact(&source_create), source_fact(&owner_read)], fence: fence.clone(),
+            }),
+            storage: self.clone(), registry: bootstrap.capability_registry.clone(), original: auth.record_user_scope(),
+            run_id: String::new(), execution_id: execution_id.clone(), selecting_decision_id: None, input_ref: None,
+            create_index: Some(1), additional_create: std::sync::Arc::new(tokio::sync::OnceCell::new()),
+        });
         let retention = RoleAuthorityTransactionRetention {
             owner: std::sync::Arc::new(OwnedRoleTransaction::RoutingCapture(OwnedRoutingCapture {
-                operation_id: Uuid::now_v7(), auth, registry: bootstrap.capability_registry.clone(),
+                operation_id, auth, source_create, owner_read, sources, storage: self.clone(), registry: bootstrap.capability_registry.clone(),
                 request: RoutingCaptureRequest { execution_id, stage_id, response_message_id },
+                execution_fence: std::sync::OnceLock::new(),
                 command: std::sync::OnceLock::new(),
             })), fence,
         };
@@ -3596,6 +4527,34 @@ impl SurrealStorage {
         let auth = capture_owned_canonical_role_auth(
             self, &bootstrap.capability_registry, credentials, request,
         ).await?;
+        let promotion_read = if let crate::swarm_orchestration::model_lane::RoleConsumptionCommand::ResolvePromotion { selectors, .. } = &command {
+            let custody = PROMOTION_READ_CUSTODY.try_with(Clone::clone).ok()
+                .ok_or(ResourceAuthorityError::InvalidInput("final promotion requires genuine protected Owner and Validator Read custody"))?;
+            custody.revalidate(self).await?;
+            let issued = custody.issued_receipt.get()
+                .ok_or(ResourceAuthorityError::InvalidInput("final promotion requires observed initial Validator publication"))?;
+            let expected_validator = format!("eventledger://role-authority/{}", issued.event.event_id);
+            if command.operation_id() == custody.operation_id || command.operation_id() == custody.protected_publication_operation_id
+                || auth.action != ResourceAction::Create || auth.capability_id != "fs.write"
+                || auth.exact != custody.owner_read.exact
+                || auth.authority.resource_id != custody.owner_read.authority.resource_id
+                || auth.authority.resource_id != custody.child_read.authority.resource_id
+                || selectors.operator.evidence_ref != custody.operator.evidence_ref
+                || selectors.operator.expectation != custody.operator.expectation
+                || selectors.validator.evidence_ref.as_str() != expected_validator
+                || selectors.validator.expectation.receipt_scope != issued.body.scope
+                || selectors.validator.expectation.run != issued.body.run
+                || selectors.validator.expectation.subject != issued.body.subject
+                || selectors.validator.expectation.expected != issued.body.expected
+                || selectors.validator.expectation.purpose != issued.body.purpose
+                || selectors.validator.designation_ref != issued.body.designation
+                || selectors.validator.producer.as_ref() != Some(&custody.producer_binding())
+                || !bootstrap.capability_registry.profile_can(&custody.owner_read.authority.capability_profile_id, "fs.read").unwrap_or(false)
+                || !bootstrap.capability_registry.profile_can(&custody.child_read.authority.capability_profile_id, "fs.read").unwrap_or(false) {
+                return Err(ResourceAuthorityError::InvalidInput("protected final promotion read custody differs from canonical evidence or current creator"));
+            }
+            Some(custody)
+        } else { None };
         if let crate::swarm_orchestration::model_lane::RoleConsumptionCommand::IssueInitialValidatorVerdict { operation_id, operator, issuance } = &command {
             if *operation_id != issuance.operation_id || operator.expectation != issuance.operator.expectation
                 || operator.evidence_ref != issuance.operator.evidence_ref
@@ -3625,7 +4584,10 @@ impl SurrealStorage {
         }
         Ok(RoleAuthorityConsumptionPermit {
             capture: RoleConsumptionCapture::Consumer(std::sync::Arc::new(OwnedRoleConsumption {
-                auth, registry: bootstrap.capability_registry.clone(), command,
+                auth, promotion_read, promotion_consumption: std::sync::OnceLock::new(),
+                #[cfg(feature = "test-utils")]
+                test_wrong_current_operation: TEST_PROMOTION_WRONG_CURRENT_OPERATION.try_with(|value| *value).unwrap_or(false),
+                registry: bootstrap.capability_registry.clone(), command,
             })), preparation: None,
         })
     }

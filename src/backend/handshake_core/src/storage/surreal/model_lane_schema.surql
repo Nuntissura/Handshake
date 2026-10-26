@@ -180,10 +180,14 @@ DEFINE FUNCTION OVERWRITE fn::wp012_context_coordination_key($row: object) {
         $row.domain_kind, $row.domain_id]));
 };
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_operation_matrix($kind: string, $purpose: string, $action: string) {
-    RETURN ($kind = 'workspace' AND $purpose IN ['consume', 'source_read', 'navigation_read'] AND $action = 'read')
+    RETURN ($kind = 'workspace' AND $purpose IN ['consume', 'source_read', 'navigation_read', 'final_promotion_read', 'promotion_decision_read'] AND $action = 'read')
         OR ($kind = 'workspace' AND $purpose IN ['artifact_binding', 'handoff', 'guarded_message', 'run_create', 'lane_create', 'profile_admission_create', 'profile_admission_transition', 'profile_admission_finalization', 'workspace_claim', 'index_run_claim', 'cloud_projection_plan', 'cloud_consent_receipt', 'cloud_run', 'cloud_lane', 'cloud_consent_denial', 'diagnostic_record', 'recovery_checkpoint_record'] AND $action = 'create')
         OR ($kind = 'workspace' AND $purpose = 'profile_session_write' AND $action IN ['create', 'update'])
         OR ($kind = 'workspace' AND $purpose = 'recovery_execute' AND $action = 'update')
+        OR ($kind = 'workspace' AND $purpose IN ['routing_create', 'run_attachment'] AND $action = 'create')
+        OR ($kind = 'workspace' AND $purpose = 'routing_transition' AND $action = 'update')
+        OR ($kind = 'workspace' AND $purpose = 'routing_diagnostics_read' AND $action = 'read')
+        OR ($kind = 'workspace' AND $purpose = 'final_promotion_record' AND $action = 'create')
         OR ($kind = 'rich_document' AND $purpose IN ['crdt_update', 'crdt_snapshot', 'document_claim', 'proposal_record', 'proposal_decide', 'proposal_apply'] AND $action = 'update')
         OR ($kind IN ['workspace', 'rich_document'] AND $purpose IN ['lease_renew', 'lease_release', 'lease_expiry'] AND $action = 'update');
 };
@@ -422,6 +426,10 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_original_operation($row: object) 
         AND fn::wp012_model_lane_operation_matrix($kind, $wp012_original_purpose, $wp012_original_action)
         AND ($wp012_original_purpose != 'navigation_read' OR $wp012_original_capability = 'model_lane.navigation.read')
         AND ($wp012_original_purpose != 'recovery_execute' OR $wp012_original_capability = 'model_lane.recovery.execute')
+        AND ($wp012_original_purpose NOT IN ['routing_create', 'routing_transition', 'run_attachment'] OR $wp012_original_capability = 'fs.write')
+        AND ($wp012_original_purpose != 'routing_diagnostics_read' OR $wp012_original_capability = 'diagnostics.read')
+        AND ($wp012_original_purpose NOT IN ['final_promotion_read', 'promotion_decision_read'] OR $wp012_original_capability = 'fs.read')
+        AND ($wp012_original_purpose != 'final_promotion_record' OR $wp012_original_capability = 'fs.write')
         AND ($wp012_original_purpose NOT IN ['proposal_record', 'proposal_decide', 'proposal_apply'] OR $wp012_original_capability = 'fs.write')
         AND ($kind != 'workspace' OR fn::mt109_has_workspace_access($row.workspace_id, $wp012_original_action, $wp012_original_capability));
 };
@@ -495,6 +503,9 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_crdt_admission($row: object) {
 -- Navigation exposes scalar columns only. These identities remain bound to
 -- the immutable source row and its canonical receipt, not caller provenance.
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_canonical_record_identity($row: object) {
+    IF $row.record_kind = 'run' AND $row.event_ledger_event_id.event_type = 'MODEL_LANE_AUTHORITY_REPLACED' {
+        RETURN fn::wp012_run_attachment_identity($row);
+    };
     IF $row.record_kind NOT IN ['run', 'lane', 'message', 'context_artifact', 'context_handoff',
             'recovery_checkpoint', 'recovery_event', 'lease', 'diagnostic_tier', 'mt_runtime_status',
             'launch_admission', 'launch_admission_transition']
@@ -1572,7 +1583,8 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_read_authority_snapshot($exp
         statuses: [$grant.status, $grant.resource_id.lifecycle_state, $grant.account_id.status,
             $grant.principal_id.status, $grant.access_space_id.status],
         resource_kind: $grant.resource_id.resource_kind, grant_expires_at: $grant.expires_at,
-        session_expires_at: $session.expires_at
+        session_expires_at: $session.expires_at,
+        administration_lifetime: $grant.resource_id.account_administration_lifetime
     };
     RETURN $current = $expected;
 };
@@ -1830,6 +1842,16 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_ledger_create($row: object) 
 };
 
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_source_access($row: object, $write: bool) {
+    IF $wp012_original_purpose IN ['final_promotion_read', 'final_promotion_record'] { RETURN fn::wp012_promotion_source_access($row, $write); };
+    IF $wp012_original_purpose = 'run_attachment' { RETURN fn::wp012_run_attachment_authority($row, $write); };
+    IF $row.record_kind = 'role_evidence' AND ($wp012_routing_prior != NONE OR $wp012_routing_ack != NONE) {
+        RETURN !$write AND fn::wp012_routing_role_source_access($row);
+    };
+    IF $wp012_original_purpose IN ['routing_create', 'routing_transition', 'routing_diagnostics_read']
+        OR ($wp012_original_purpose = 'source_read' AND $wp012_routing_original.action = 'read'
+            AND $wp012_routing_original.execution_id != '' AND fn::wp012_routing_original($row)) {
+        RETURN fn::wp012_routing_source_access($row, $write);
+    };
     IF $wp012_original_purpose = 'profile_session_write' {
         RETURN !$write AND $row.record_kind IN ['run', 'lane', 'launch_admission']
             AND $wp012_original_subject_kind = 'workspace' AND $wp012_original_action IN ['create', 'update']
@@ -1917,6 +1939,17 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_source_access($row: object, $writ
     RETURN false;
 };
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_source_identity($row: object) {
+    IF $row.record_kind = 'run' AND $row.event_ledger_event_id.event_type = 'MODEL_LANE_AUTHORITY_REPLACED' {
+        RETURN fn::wp012_run_attachment_identity($row);
+    };
+    IF $row.record_kind = 'role_evidence' AND ($wp012_routing_prior != NONE OR $wp012_routing_ack != NONE) {
+        RETURN fn::wp012_model_lane_role_record_identity($row, { owner_account_id: $row.owner_account_id, actor_principal_id: $row.actor_principal_id, authenticated_session_id: $row.authenticated_session_id, access_space_id: $row.access_space_id, workspace_id: $row.workspace_id });
+    };
+    IF $wp012_original_purpose IN ['routing_create', 'routing_transition', 'routing_diagnostics_read']
+        OR ($wp012_original_purpose = 'source_read' AND $wp012_routing_original.action = 'read'
+            AND $wp012_routing_original.execution_id != '' AND fn::wp012_routing_original($row)) {
+        RETURN fn::wp012_routing_source_identity($row);
+    };
     IF $wp012_original_purpose = 'recovery_execute' {
         RETURN fn::wp012_model_lane_canonical_record_identity($row);
     };
@@ -2121,7 +2154,15 @@ DEFINE FUNCTION OVERWRITE fn::wp012_validator_association_record($row: object, $
 };
 
 DEFINE TABLE OVERWRITE model_lane_authority SCHEMAFULL
-    PERMISSIONS FOR select WHERE IF record_kind = 'producer_association' {
+    PERMISSIONS FOR select WHERE IF record_kind = 'role_evidence' AND $wp012_original_purpose = 'source_read' AND $wp012_routing_original.action = 'read' AND $wp012_routing_original.execution_id != '' {
+        fn::wp012_routing_ack_read_source($this, $execution_id, $stage_id)
+            AND fn::wp012_model_lane_role_record_identity($this, { owner_account_id: owner_account_id, actor_principal_id: actor_principal_id,
+                authenticated_session_id: authenticated_session_id, access_space_id: access_space_id, workspace_id: workspace_id })
+    } ELSE IF $wp012_original_purpose = 'promotion_decision_read' {
+        fn::wp012_promotion_public_record($this) AND fn::wp012_promotion_identity($this)
+    } ELSE IF $wp012_original_purpose IN ['final_promotion_read', 'final_promotion_record'] {
+        fn::wp012_promotion_source_access($this, false) AND fn::wp012_promotion_identity($this)
+    } ELSE IF record_kind = 'producer_association' {
         fn::wp012_validator_association_record($this, false)
     } ELSE IF $wp012_role_evidence_capture != NONE {
         fn::wp012_model_lane_role_target_capture($this)
@@ -2132,19 +2173,57 @@ DEFINE TABLE OVERWRITE model_lane_authority SCHEMAFULL
     } ELSE {
         fn::wp012_model_lane_source_access($this, false) AND (IF $wp012_original_purpose = 'navigation_read' { fn::wp012_model_lane_navigation_identity($this) } ELSE { fn::wp012_model_lane_source_identity($this) })
     }
-    FOR create WHERE IF record_kind = 'producer_association' {
+    FOR create WHERE IF $wp012_original_purpose = 'final_promotion_record' {
+        fn::wp012_promotion_source_access($this, true) AND fn::wp012_promotion_identity($this)
+    } ELSE IF record_kind = 'producer_association' {
         fn::wp012_validator_association_record($this, true)
     } ELSE IF record_kind IN ['role_evidence', 'validator_designation', 'role_evidence_consumption'] {
         fn::wp012_model_lane_role_create($this)
     } ELSE {
         ($wp012_original_action = 'create'
-            OR ($wp012_original_purpose = 'recovery_execute' AND $wp012_original_action = 'update'))
+            OR ($wp012_original_purpose = 'recovery_execute' AND $wp012_original_action = 'update')
+            OR ($wp012_original_purpose = 'routing_transition' AND $wp012_original_action = 'update' AND record_kind IN ['message', 'context_artifact']))
         AND fn::wp012_model_lane_source_access($this, true) AND fn::wp012_model_lane_source_identity($this)
     }
-    FOR update, delete NONE;
+    FOR update WHERE record_kind = 'run' AND fn::wp012_run_attachment_authority($this, true)
+    FOR delete NONE;
 
 -- This producer branch preserves the original Document Update grant; it is not general content Read.
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_crdt_dependency_access($row: object) {
+    IF $wp012_original_purpose = 'final_promotion_read' {
+        IF !fn::wp012_promotion_frame($row.workspace_id, false)
+            OR !fn::mt120_document_access($row.document_id, $row.workspace_id, 'read', 'fs.read') { RETURN false; };
+        LET $input = encoding::json::decode($wp012_promotion_original.input_json);
+        LET $sources = SELECT * FROM model_lane_authority WHERE record_kind = 'message' AND run_id = $input.run_id
+            AND aggregate_id IN $input.input_refs AND owner_account_id = $row.owner_account_id
+            AND actor_principal_id = $row.actor_principal_id AND authenticated_session_id = $row.authenticated_session_id
+            AND access_space_id = $row.access_space_id AND workspace_id = $row.workspace_id LIMIT 4097;
+        IF array::len($sources) > 4096 { RETURN false; };
+        RETURN array::len(array::filter($sources, |$source| {
+            LET $binding = encoding::json::decode($source.record_json).crdt_authority_binding;
+            RETURN $binding != NONE AND $binding != NULL AND $binding.document_id = $row.document_id
+                AND $binding.crdt_document_id = $row.crdt_document_id
+                AND fn::wp012_promotion_source_access($source, false) AND fn::wp012_promotion_identity($source);
+        })) > 0;
+    };
+    IF $wp012_original_purpose IN ['routing_create', 'routing_transition', 'routing_diagnostics_read'] {
+        LET $origin = $wp012_routing_original;
+        IF $origin.run_id = '' OR !fn::wp012_routing_original(object::extend($row, {
+                run_id: $origin.run_id, execution_id: $origin.execution_id }))
+            OR !fn::mt120_document_access($row.document_id, $row.workspace_id, 'read', 'fs.read') { RETURN false; };
+        LET $sources = SELECT * FROM model_lane_authority WHERE record_kind = 'message' AND run_id = $origin.run_id
+            AND owner_account_id = $row.owner_account_id AND actor_principal_id = $row.actor_principal_id
+            AND authenticated_session_id = $row.authenticated_session_id AND access_space_id = $row.access_space_id
+            AND workspace_id = $row.workspace_id LIMIT 4097;
+        IF array::len($sources) > 4096 { RETURN false; };
+        RETURN array::len(array::filter($sources, |$source| {
+            LET $binding = encoding::json::decode($source.record_json).crdt_authority_binding;
+            RETURN $binding != NONE AND $binding != NULL AND $binding.document_id = $row.document_id
+                AND $binding.crdt_document_id = $row.crdt_document_id
+                AND fn::wp012_routing_source_access($source, false)
+                AND fn::wp012_routing_source_identity($source);
+        })) > 0;
+    };
     IF !fn::wp012_model_lane_original_operation($row) OR $wp012_original_subject_kind != 'workspace'
         OR !($wp012_original_purpose IN ['handoff', 'consume', 'guarded_message', 'source_read', 'recovery_execute']) { RETURN false; };
     IF $wp012_original_purpose = 'guarded_message' {
@@ -2804,4 +2883,1108 @@ DEFINE FUNCTION OVERWRITE fn::wp012_profile_checkpoint_runtime($row: object) {
         AND $lane.no_os_process_reason_ref = NONE
         AND $transition.attached_lane_event_id = $lanes[0].event_id
         AND $lane.locus_binding.model_session_id = $run.locus_binding.model_session_id;
+};
+
+-- A captured routing operation remains bound to the live canonical grant/session.
+DEFINE FUNCTION OVERWRITE fn::wp012_routing_authority_snapshot($expected: object, $scope: object, $action: string, $capability: string) {
+    IF $expected.session_id != $auth.id OR $expected.account_id != $auth.account_id
+        OR $expected.principal_id != $auth.principal_id OR $expected.access_space_id != $auth.access_space_id
+        OR $scope.owner_account_id != record::id($auth.account_id)
+        OR $scope.actor_principal_id != record::id($auth.principal_id)
+        OR $scope.authenticated_session_id != record::id($auth.id)
+        OR $scope.access_space_id != record::id($auth.access_space_id)
+        OR fn::wp012_model_lane_resource_domain($expected.resource_id, $scope.workspace_id, 'workspace', $scope.workspace_id) = NONE
+        OR !fn::wp012_model_lane_original_grant($expected.resource_id, $expected.grant_id, $capability, $action) { RETURN false; };
+    LET $grant = $expected.grant_id;
+    LET $session = $expected.session_id;
+    LET $current = {
+        grant_id: $grant, resource_id: $grant.resource_id, account_id: $grant.account_id,
+        principal_id: $grant.principal_id, actor_kind: $grant.principal_id.actor_kind,
+        actor_id: $grant.principal_id.actor_id, session_id: $session, access_space_id: $grant.access_space_id,
+        grant_version: $grant.grant_version,
+        policy_versions: [$grant.policy_version, $grant.resource_id.policy_version, $grant.account_id.policy_version,
+            $grant.principal_id.policy_version, $grant.access_space_id.policy_version, $session.policy_version],
+        revocation_epochs: [$grant.account_id.revocation_epoch, $grant.principal_id.revocation_epoch,
+            $grant.access_space_id.revocation_epoch, $session.account_revocation_epoch,
+            $session.principal_revocation_epoch, $session.space_revocation_epoch],
+        actions: $grant.actions, capability_ids: $grant.capability_ids, delegation_chain: $grant.delegation_chain,
+        session_capabilities: $session.delegated_capabilities,
+        principal_capabilities: $grant.principal_id.delegated_capabilities,
+        capability_profile_id: $grant.principal_id.capability_profile_id,
+        statuses: [$grant.status, $grant.resource_id.lifecycle_state, $grant.account_id.status,
+            $grant.principal_id.status, $grant.access_space_id.status],
+        resource_kind: $grant.resource_id.resource_kind, grant_expires_at: $grant.expires_at,
+        session_expires_at: $session.expires_at,
+        administration_lifetime: $grant.resource_id.account_administration_lifetime
+    };
+    RETURN $current = $expected;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_routing_original($row: object) {
+    LET $binding = $wp012_routing_original;
+    IF !type::is_object($binding) OR !type::is_object($binding.original)
+        OR !type::is_string($binding.operation_id) OR string::trim($binding.operation_id) = '' { RETURN false; };
+    LET $prior = $wp012_routing_prior;
+    LET $prior_read = $wp012_original_purpose = 'source_read' AND type::is_object($prior)
+        AND $prior.operation_id = $binding.operation_id AND $prior.execution_id = $binding.execution_id
+        AND $prior.run_id = $binding.run_id AND $binding.action = 'update' AND $binding.capability_id = 'fs.write';
+    LET $effective = IF $prior_read { $binding.source_read } ELSE { $binding.original };
+    IF !type::is_object($effective)
+        OR $effective.grant_id != type::record('resource_grants', $wp012_original_grant)
+        OR $effective.resource_id != type::record('protected_resources', $wp012_original_resource)
+        OR !fn::wp012_model_lane_original_operation($row) { RETURN false; };
+    IF $prior_read {
+        RETURN $wp012_original_action = 'read' AND $wp012_original_capability = 'fs.read'
+            AND fn::wp012_routing_authority_snapshot($binding.source_read, $row, 'read', 'fs.read')
+            AND fn::wp012_routing_authority_snapshot($binding.original, $row, 'update', 'fs.write');
+    };
+    IF $binding.action != $wp012_original_action OR $binding.capability_id != $wp012_original_capability
+        OR !fn::wp012_routing_authority_snapshot($binding.original, $row, $binding.action, $binding.capability_id) { RETURN false; };
+    RETURN ($wp012_original_purpose IN ['routing_create', 'run_attachment'] AND $binding.action = 'create' AND $binding.capability_id = 'fs.write')
+        OR ($wp012_original_purpose = 'routing_transition' AND $binding.action = 'update' AND $binding.capability_id = 'fs.write')
+        OR ($wp012_original_purpose = 'routing_diagnostics_read' AND $binding.action = 'read' AND $binding.capability_id = 'diagnostics.read')
+        OR ($wp012_original_purpose IN ['source_read', 'promotion_decision_read'] AND $binding.action = 'read' AND $binding.capability_id = 'fs.read');
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_routing_selected($row: object) {
+    LET $binding = $wp012_routing_original;
+    IF !fn::wp012_routing_original($row)
+        OR !type::is_string($binding.run_id) OR !type::is_string($binding.execution_id)
+        OR ($binding.run_id = '' AND $binding.execution_id = '') { RETURN false; };
+    RETURN ($binding.run_id = '' OR $binding.run_id = $row.run_id)
+        AND ($binding.execution_id = '' OR $binding.execution_id = $row.execution_id);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_routing_write_fence($row: object) {
+    RETURN fn::wp012_routing_selected($row)
+        AND $wp012_routing_original.run_id = $row.run_id
+        AND $wp012_routing_original.execution_id = $row.execution_id
+        AND $wp012_original_purpose IN ['routing_create', 'routing_transition']
+        AND (fn::wp012_context_coordination_fence($row, 'run', $row.run_id) OR fn::wp012_routing_ack_fence($row));
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_routing_receipt($row: object, $write: bool) {
+    IF $row.aggregate_type NOT IN ['model_lane_routing_execution', 'model_lane_routing_stage_attempt', 'model_lane_routing_outbox'] {
+        RETURN fn::wp012_routing_extra_receipt($row, $write);
+    };
+    LET $scope = object::extend($row, { run_id: $row.kernel_task_run_id, execution_id: $row.session_run_id });
+    IF !fn::wp012_routing_selected($scope) OR $row.source_component != 'model_lane_routing_executor'
+        OR $row.aggregate_type NOT IN ['model_lane_routing_execution', 'model_lane_routing_stage_attempt', 'model_lane_routing_outbox']
+        OR $row.event_id != record::id($row.id) OR $row.event_version != 'kernel_event_v1'
+        OR $row.event_type NOT IN ['MODEL_ADAPTER_INVOKED', 'MODEL_RESPONSE_RECORDED', 'SESSION_FAILED']
+        OR !string::starts_with($row.event_id, 'routing-event-')
+        OR !string::starts_with($row.idempotency_key, 'routing-idempotency-')
+        OR $row.authority_session_id != $auth.id OR $row.wsids != [$row.workspace_id]
+        OR !type::is_string($row.actor_kind) OR string::trim($row.actor_kind) = ''
+        OR !type::is_string($row.actor_id) OR string::trim($row.actor_id) = ''
+        OR crypto::sha256(encoding::json::encode($row.payload)) != $row.payload_hash { RETURN false; };
+    LET $schema = IF $row.aggregate_type = 'model_lane_routing_execution' { 'hsk.model_lane_routing_execution@5' }
+        ELSE IF $row.aggregate_type = 'model_lane_routing_stage_attempt' { 'hsk.model_lane_routing_stage_attempt@4' }
+        ELSE { 'hsk.model_lane_routing_outbox@4' };
+    IF $row.payload.schema_id != $schema { RETURN false; };
+    IF !$write { RETURN true; };
+    IF !fn::wp012_routing_write_fence($scope)
+        OR $row.authority_resource_id != type::record('protected_resources', $wp012_original_resource)
+        OR $row.authority_grant_id != type::record('resource_grants', $wp012_original_grant)
+        OR $row.authority_action != $wp012_original_action OR $row.authority_capability_id != $wp012_original_capability
+        OR $execution.execution_id != $scope.execution_id OR $execution.run_id != $scope.run_id
+        OR $execution.record_json.execution_id != $scope.execution_id OR $execution.record_json.run_id != $scope.run_id
+        OR ($wp012_original_purpose = 'routing_create' AND $execution.revision != 1) { RETURN false; };
+    RETURN IF $row.aggregate_type = 'model_lane_routing_execution' {
+        $row.aggregate_id = $execution.execution_id AND fn::wp012_routing_execution_projection($row.payload.record) = $execution.record_json
+    } ELSE IF $row.aggregate_type = 'model_lane_routing_stage_attempt' {
+        $row.aggregate_id = $attempt.attempt_id AND object::extend($row.payload.record, { event_ledger_event_id: '', event_ledger_seq: 0 }) = $attempt.record_json
+            AND $attempt.execution_id = $scope.execution_id AND $attempt.run_id = $scope.run_id
+    } ELSE {
+        $row.aggregate_id = $outbox.command_id AND $row.payload.status = $outbox.status
+            AND $outbox.execution_id = $scope.execution_id AND $outbox.run_id = $scope.run_id
+    };
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_routing_record_access($row: object, $write: bool, $aggregate: string) {
+    IF !fn::wp012_routing_selected($row) { RETURN false; };
+    LET $ledger = (SELECT * FROM ONLY $row.event_ledger_event_id);
+    IF $ledger = NONE OR $ledger.event_sequence != $row.event_ledger_seq
+        OR $ledger.aggregate_type != $aggregate OR $ledger.kernel_task_run_id != $row.run_id
+        OR $ledger.session_run_id != $row.execution_id
+        OR $ledger.owner_account_id != $row.owner_account_id OR $ledger.actor_principal_id != $row.actor_principal_id
+        OR $ledger.authenticated_session_id != $row.authenticated_session_id
+        OR $ledger.access_space_id != $row.access_space_id OR $ledger.workspace_id != $row.workspace_id
+        OR !fn::wp012_routing_receipt($ledger, false) { RETURN false; };
+    IF $write AND (!fn::wp012_routing_write_fence($row) OR !fn::wp012_routing_receipt($ledger, true)) { RETURN false; };
+    RETURN IF $aggregate = 'model_lane_routing_execution' {
+        $ledger.aggregate_id = $row.execution_id AND $row.record_json = fn::wp012_routing_execution_projection($ledger.payload.record)
+            AND $row.revision = $row.record_json.revision AND (IF $write { $row.context_hash = $execution.context_hash } ELSE { string::len($row.context_hash) = 64 })
+    } ELSE IF $aggregate = 'model_lane_routing_stage_attempt' {
+        $ledger.aggregate_id = $row.attempt_id AND $row.record_json = object::extend($ledger.payload.record, { event_ledger_event_id: '', event_ledger_seq: 0 })
+            AND $row.stage_id = $row.record_json.stage_id AND $row.attempt = $row.record_json.attempt
+            AND $row.state = $row.record_json.state AND ($row.lease_owner = $row.record_json.lease_owner OR ($row.lease_owner = NONE AND $row.record_json.lease_owner = NULL))
+            AND ($row.fencing_token = $row.record_json.fencing_token OR ($row.fencing_token = NONE AND $row.record_json.fencing_token = NULL))
+            AND ($row.lease_expires_at_unix_ms = $row.record_json.lease_expires_at_unix_ms OR ($row.lease_expires_at_unix_ms = NONE AND $row.record_json.lease_expires_at_unix_ms = NULL))
+    } ELSE {
+        $ledger.aggregate_id = $row.command_id AND $row.status = $ledger.payload.status
+            AND (IF $write {
+                $row.stage_id = $outbox.stage_id AND $row.attempt = $outbox.attempt
+                    AND $row.lease_owner = $outbox.lease_owner AND $row.fencing_token = $outbox.fencing_token
+                    AND $row.lease_expires_at_unix_ms = $outbox.lease_expires_at_unix_ms
+            } ELSE { true })
+    };
+};
+DEFINE TABLE OVERWRITE model_lane_routing_execution SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::wp012_routing_record_access($this, false, 'model_lane_routing_execution')
+    FOR create WHERE fn::wp012_routing_record_access($this, true, 'model_lane_routing_execution') AND $wp012_original_purpose = 'routing_create'
+    FOR update WHERE fn::wp012_routing_record_access($this, true, 'model_lane_routing_execution') AND $wp012_original_purpose = 'routing_transition'
+    FOR delete NONE;
+DEFINE TABLE OVERWRITE model_lane_routing_stage_attempt SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::wp012_routing_record_access($this, false, 'model_lane_routing_stage_attempt')
+    FOR create WHERE fn::wp012_routing_record_access($this, true, 'model_lane_routing_stage_attempt')
+    FOR update WHERE fn::wp012_routing_record_access($this, true, 'model_lane_routing_stage_attempt') AND $wp012_original_purpose = 'routing_transition'
+    FOR delete NONE;
+DEFINE TABLE OVERWRITE model_lane_routing_outbox SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::wp012_routing_record_access($this, false, 'model_lane_routing_outbox')
+    FOR create WHERE fn::wp012_routing_record_access($this, true, 'model_lane_routing_outbox')
+    FOR update WHERE fn::wp012_routing_record_access($this, true, 'model_lane_routing_outbox') AND $wp012_original_purpose = 'routing_transition'
+    FOR delete NONE;
+DEFINE FUNCTION OVERWRITE fn::wp012_routing_source_access($row: object, $write: bool) {
+    LET $origin = $wp012_routing_original;
+    LET $scope = object::extend($row, { execution_id: $origin.execution_id });
+    IF !fn::wp012_routing_original($scope) OR $origin.run_id = '' OR $origin.run_id != $row.run_id { RETURN false; };
+    LET $record = encoding::json::decode($row.record_json);
+    LET $body = IF $row.record_kind = 'message' { $record.inner } ELSE { $record };
+    IF type::is_string($body.document_id)
+        AND !fn::mt120_document_access($body.document_id, $row.workspace_id, 'read', 'fs.read') { RETURN false; };
+    LET $crdt = $record.crdt_authority_binding;
+    IF $crdt != NONE AND $crdt != NULL
+        AND ($crdt.workspace_id != $row.workspace_id
+            OR !fn::mt120_document_access($crdt.document_id, $row.workspace_id, 'read', 'fs.read')) { RETURN false; };
+    IF !$write AND $wp012_original_purpose = 'routing_diagnostics_read' {
+        RETURN $row.record_kind IN ['run', 'lane', 'message', 'context_artifact', 'context_handoff',
+            'recovery_checkpoint', 'recovery_event', 'lease', 'diagnostic_tier', 'mt_runtime_status',
+            'launch_admission', 'launch_admission_transition'];
+    };
+    IF $wp012_original_purpose NOT IN ['routing_create', 'routing_transition', 'source_read'] { RETURN false; };
+    IF !$write AND $row.record_kind IN ['run', 'lane'] { RETURN true; };
+    IF !$write AND $row.record_kind = 'promotion_decision' {
+        RETURN $origin.selecting_decision_id != NONE AND $row.aggregate_id = $origin.selecting_decision_id;
+    };
+    IF $write {
+        IF $wp012_original_purpose != 'routing_transition' OR $row.record_kind NOT IN ['message', 'context_artifact']
+            OR !type::is_object($origin.source_create)
+            OR !fn::wp012_routing_authority_snapshot($origin.source_create, $row, 'create', 'fs.write')
+            OR !fn::wp012_routing_write_fence($scope)
+            OR $execution.execution_id != $origin.execution_id OR $execution.run_id != $origin.run_id
+            OR $attempt.execution_id != $origin.execution_id OR $attempt.run_id != $origin.run_id { RETURN false; };
+        LET $stages = array::filter(object::entries($execution.record_json.stages), |$entry| { $entry[0] = $attempt.stage_id });
+        IF array::len($stages) != 1 OR $stages[0][1] != $attempt.record_json { RETURN false; };
+        LET $stage = $stages[0][1];
+        RETURN IF $row.record_kind = 'message' {
+            $body.message_id = $row.aggregate_id AND $body.run_id = $row.run_id
+                AND ($body.message_id = $stage.output_message_ref OR $body.message_id = $stage.authority_request_message_ref)
+                AND ($body.message_id != $stage.output_message_ref
+                    OR ($body.payload_ref = $stage.output_ref AND $body.payload_sha256 = $stage.output_sha256))
+        } ELSE {
+            $body.artifact_binding_id = $row.aggregate_id AND $body.run_id = $row.run_id
+                AND $body.artifact_ref = $stage.output_ref AND $body.artifact_sha256 = $stage.output_sha256
+                AND $body.content_hash = $stage.output_sha256
+        };
+    };
+    IF $row.record_kind = 'message' AND $origin.input_ref = 'model-lane-message://' + $row.aggregate_id { RETURN true; };
+    LET $executions = SELECT record_json FROM model_lane_routing_execution
+        WHERE execution_id = $origin.execution_id AND run_id = $row.run_id
+        AND owner_account_id = $row.owner_account_id AND actor_principal_id = $row.actor_principal_id
+        AND authenticated_session_id = $row.authenticated_session_id AND access_space_id = $row.access_space_id
+        AND workspace_id = $row.workspace_id LIMIT 2;
+    IF array::len($executions) > 1 { RETURN false; };
+    LET $stages = IF array::len($executions) = 1 { array::map(object::entries($executions[0].record_json.stages), |$entry| { $entry[1] }) } ELSE { [] };
+    IF $row.record_kind = 'message' {
+        RETURN array::len(array::filter($stages, |$stage| {
+            $row.aggregate_id = $stage.output_message_ref OR $row.aggregate_id = $stage.authority_request_message_ref
+                OR (array::len($executions) = 1 AND fn::wp012_routing_response_message($body, $stage, $executions[0].record_json))
+        })) > 0;
+    };
+    IF $row.record_kind != 'context_artifact' { RETURN false; };
+    IF array::len(array::filter($stages, |$stage| {
+        $body.artifact_ref = $stage.output_ref AND $body.artifact_sha256 = $stage.output_sha256
+    })) > 0 { RETURN true; };
+    LET $inputs = SELECT record_json FROM model_lane_authority
+        WHERE record_kind = 'message' AND run_id = $row.run_id
+        AND encoding::json::decode(record_json).inner.payload_ref = $body.artifact_ref
+        AND encoding::json::decode(record_json).inner.payload_sha256 = $body.artifact_sha256
+        AND fn::wp012_routing_artifact_message(encoding::json::decode(record_json).inner, $origin.input_ref,
+            $stages, IF array::len($executions) = 1 { $executions[0].record_json } ELSE { {} }) AND owner_account_id = $row.owner_account_id AND actor_principal_id = $row.actor_principal_id
+        AND authenticated_session_id = $row.authenticated_session_id AND access_space_id = $row.access_space_id
+        AND workspace_id = $row.workspace_id LIMIT 2;
+    RETURN array::len(array::filter($inputs, |$input| {
+        LET $message = encoding::json::decode($input.record_json).inner;
+        RETURN $message.payload_ref = $body.artifact_ref AND $message.payload_sha256 = $body.artifact_sha256
+            AND ($origin.input_ref = 'model-lane-message://' + $message.message_id
+                OR (array::len($executions) = 1 AND array::len(array::filter($stages, |$stage| {
+                    fn::wp012_routing_response_message($message, $stage, $executions[0].record_json)
+                })) > 0));
+    })) > 0;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_routing_execution_projection($record: object) {
+    RETURN object::extend($record, { event_ledger_event_id: '', event_ledger_seq: 0,
+        stages: object::from_entries(array::map(object::entries($record.stages), |$entry| {
+            [$entry[0], object::extend($entry[1], { event_ledger_event_id: '', event_ledger_seq: 0 })]
+        })) });
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_routing_extra_link_access($row: object, $write: bool) {
+    IF !fn::wp012_routing_selected($row) { RETURN false; };
+    LET $event = (SELECT * FROM ONLY $row.event_ledger_event_id);
+    IF $event = NONE OR $row.event_ledger_seq != $event.event_sequence
+        OR $row.idempotency_key != $event.idempotency_key OR $event.event_id != record::id($event.id)
+        OR $event.event_version != 'kernel_event_v1' OR $event.kernel_task_run_id != $row.run_id
+        OR $event.session_run_id != $row.execution_id OR $event.owner_account_id != $row.owner_account_id
+        OR $event.actor_principal_id != $row.actor_principal_id
+        OR $event.authenticated_session_id != $row.authenticated_session_id
+        OR $event.access_space_id != $row.access_space_id OR $event.workspace_id != $row.workspace_id
+        OR $event.authority_session_id != $auth.id OR !fn::wp012_routing_extra_receipt($event, false) { RETURN false; };
+    IF !$write { RETURN true; };
+    RETURN fn::wp012_routing_write_fence($row) AND fn::wp012_routing_extra_receipt($event, true)
+        AND $row.execution_id = $execution.execution_id AND $row.run_id = $execution.run_id
+        AND $row.revision = $execution.revision;
+};
+DEFINE TABLE OVERWRITE model_lane_routing_extra_event_link SCHEMAFULL
+    PERMISSIONS FOR select WHERE fn::wp012_routing_extra_link_access($this, false)
+    FOR create WHERE fn::wp012_routing_extra_link_access($this, true)
+    FOR update, delete NONE;
+DEFINE FUNCTION OVERWRITE fn::wp012_routing_model_lane_receipt($row: object, $write: bool) {
+    IF $row.source_component != 'model_lane' OR $row.event_id != record::id($row.id)
+        OR $row.event_version != 'kernel_event_v1' OR $row.idempotency_key != $row.event_id
+        OR $row.actor_kind != 'principal' OR $row.actor_id != $row.actor_principal_id
+        OR $row.authority_session_id != $auth.id OR $row.wsids != [$row.workspace_id]
+        OR $row.payload.record_kind != $row.aggregate_type OR $row.payload.run_id != $row.kernel_task_run_id
+        OR $row.payload.event_stream_version != 1
+        OR crypto::sha256($row.payload.event_payload_json) != $row.payload_hash { RETURN false; };
+    LET $payload = encoding::json::decode($row.payload.event_payload_json);
+    LET $record = $payload.record;
+    LET $body = IF $row.aggregate_type = 'message' { $record.inner } ELSE { $record };
+    LET $candidate = object::extend($row, { record_kind: $row.aggregate_type, run_id: $row.kernel_task_run_id,
+        execution_id: $wp012_routing_original.execution_id, record_json: encoding::json::encode($record) });
+    IF $payload.dexterity_kernel != 'Dexterity' OR $payload.owner_account_id != $row.owner_account_id
+        OR $payload.actor_principal_id != $row.actor_principal_id OR $payload.authenticated_session_id != $row.authenticated_session_id
+        OR $payload.access_space_id != $row.access_space_id OR $payload.workspace_id != $row.workspace_id
+        OR $body.run_id != $row.kernel_task_run_id OR $row.session_run_id != $body.event_ledger_stream_id
+        OR !fn::wp012_routing_source_access($candidate, $write) { RETURN false; };
+    IF $write {
+        LET $create = $wp012_routing_original.source_create;
+        RETURN $row.aggregate_type IN ['message', 'context_artifact']
+            AND $row.authority_action = 'create' AND $row.authority_capability_id = 'fs.write'
+            AND $row.authority_resource_id = $create.resource_id AND $row.authority_grant_id = $create.grant_id
+            AND fn::wp012_routing_authority_snapshot($create, $candidate, 'create', 'fs.write')
+            AND $payload.schema_id = (IF $row.aggregate_type = 'message' { 'hsk.model_lane_message@1' } ELSE { 'hsk.model_lane_context_bundle_artifact@1' })
+            AND $row.event_type = (IF $row.aggregate_type = 'message' { 'MODEL_LANE_MESSAGE_RECORDED' } ELSE { 'MODEL_LANE_AUTHORITY_RECORDED' });
+    };
+    RETURN $row.event_type IN ['MODEL_LANE_AUTHORITY_RECORDED', 'MODEL_LANE_MESSAGE_RECORDED',
+        'MODEL_LANE_RECOVERY_CHECKPOINT_RECORDED', 'MODEL_LANE_RECOVERY_EVENT_RECORDED'];
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_routing_source_identity($row: object) {
+    IF $row.record_kind != 'promotion_decision' { RETURN fn::wp012_model_lane_canonical_record_identity($row); };
+    LET $event = (SELECT * FROM ONLY $row.event_ledger_event_id);
+    LET $record = encoding::json::decode($row.record_json);
+    RETURN record::id($row.id) = crypto::sha256(string::join([
+        'handshake.model-lane.authority.v1', $row.record_kind, $row.aggregate_id,
+        $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id,
+        $row.access_space_id, $row.workspace_id], '\u0000'))
+        AND $row.aggregate_id = $record.decision_id AND $row.run_id = $record.run_id
+        AND $row.event_id = record::id($event.id) AND $event.event_id = $row.event_id
+        AND $row.event_seq = $event.event_sequence AND $row.transaction_seq = $row.event_seq
+        AND $row.event_stream_version = 1 AND $event.aggregate_type = 'promotion_decision'
+        AND $event.aggregate_id = $row.aggregate_id AND $event.kernel_task_run_id = $row.run_id
+        AND $event.owner_account_id = $row.owner_account_id AND $event.actor_principal_id = $row.actor_principal_id
+        AND $event.authenticated_session_id = $row.authenticated_session_id
+        AND $event.access_space_id = $row.access_space_id AND $event.workspace_id = $row.workspace_id
+        AND encoding::json::decode($event.payload.event_payload_json).schema_id = 'hsk.model_lane_promotion_decision@1'
+        AND encoding::json::decode($event.payload.event_payload_json).record = $record
+        AND fn::wp012_routing_model_lane_receipt($event, false);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_routing_role_source_access($row: object) {
+    LET $origin = $wp012_routing_original;
+    IF $row.record_kind != 'role_evidence' OR !fn::wp012_routing_original($row)
+        OR $origin.action != 'update' OR $origin.capability_id != 'fs.write'
+        OR $origin.run_id != $row.run_id OR $origin.execution_id = ''
+        OR !type::is_object($origin.source_read)
+        OR !fn::wp012_routing_authority_snapshot($origin.source_read, $row, 'read', 'fs.read') { RETURN false; };
+    LET $prior = $wp012_routing_prior;
+    LET $ack = $wp012_routing_ack;
+    LET $ack_mode = $wp012_original_purpose = 'routing_transition' AND type::is_object($ack)
+        AND $ack.operation_id = $origin.operation_id AND $ack.execution_id = $origin.execution_id;
+    IF !$ack_mode AND !($wp012_original_purpose = 'source_read' AND type::is_object($prior)
+        AND $prior.operation_id = $origin.operation_id AND $prior.run_id = $origin.run_id
+        AND $prior.execution_id = $origin.execution_id AND $row.event_id = $prior.event_id) { RETURN false; };
+    LET $execution = IF $ack_mode {
+        LET $events = SELECT * FROM ONLY type::record('kernel_event_ledger', $ack.observed_execution_event_id);
+        IF $events = NONE OR !fn::wp012_routing_receipt($events, false)
+            OR $events.aggregate_type != 'model_lane_routing_execution' { NONE } ELSE { $events.payload.record }
+    } ELSE {
+        LET $rows = SELECT record_json FROM model_lane_routing_execution
+            WHERE execution_id = $origin.execution_id AND run_id = $row.run_id
+            AND owner_account_id = $row.owner_account_id AND actor_principal_id = $row.actor_principal_id
+            AND authenticated_session_id = $row.authenticated_session_id AND access_space_id = $row.access_space_id
+            AND workspace_id = $row.workspace_id LIMIT 2;
+        IF array::len($rows) != 1 { NONE } ELSE { $rows[0].record_json }
+    };
+    IF !type::is_object($execution) { RETURN false; };
+    LET $stage_id = IF $ack_mode { $ack.stage_id } ELSE { $prior.stage_id };
+    LET $stages = array::filter(object::entries($execution.stages), |$entry| { $entry[0] = $stage_id });
+    IF array::len($stages) != 1 OR $execution.execution_id != $origin.execution_id OR $execution.run_id != $row.run_id { RETURN false; };
+    LET $stage = $stages[0][1];
+    LET $prior_event = IF $ack_mode { $ack.prior_event_id } ELSE { $prior.event_id };
+    IF $stage.authority_ref != 'eventledger://role-authority/' + $prior_event { RETURN false; };
+    LET $record = encoding::json::decode($row.record_json);
+    LET $body = $record.body;
+    LET $scope = { owner_account_id: $row.owner_account_id, actor_principal_id: $row.actor_principal_id,
+        authenticated_session_id: $row.authenticated_session_id, access_space_id: $row.access_space_id, workspace_id: $row.workspace_id };
+    IF $body.scope != $scope OR $body.run.run_id != $execution.run_id
+        OR $body.run.trace_id != $execution.trace_id OR $body.run.coordinator_session_id != $execution.coordinator_session_id
+        OR $body.run.owner_session != $execution.owner_session OR $body.run.work_packet_id != $execution.work_packet_id
+        OR $body.run.micro_task_id != $execution.micro_task_id OR $body.run.task_board_id != $execution.task_board_id
+        OR $body.run.locus_binding_ref != $execution.locus_ref { RETURN false; };
+    IF $row.event_id = $prior_event { RETURN true; };
+    IF !$ack_mode OR $row.event_id != $ack.acknowledgement_event_id { RETURN false; };
+    LET $priors = SELECT * FROM model_lane_authority WHERE record_kind = 'role_evidence' AND event_id = $prior_event
+        AND run_id = $row.run_id AND owner_account_id = $row.owner_account_id
+        AND actor_principal_id = $row.actor_principal_id AND authenticated_session_id = $row.authenticated_session_id
+        AND access_space_id = $row.access_space_id AND workspace_id = $row.workspace_id LIMIT 2;
+    IF array::len($priors) != 1 OR !fn::wp012_model_lane_role_record_identity($priors[0], $scope) { RETURN false; };
+    LET $prior_body = encoding::json::decode($priors[0].record_json).body;
+    IF $prior_body.purpose != 'prior_selection' OR $body.role != $prior_body.role
+        OR $body.issuer != $prior_body.issuer OR $body.subject != $prior_body.subject OR $body.run != $prior_body.run
+        OR $body.designation != $prior_body.designation OR $body.validator_execution != $prior_body.validator_execution
+        OR $body.expected.aggregate_id != $prior_body.expected.aggregate_id
+        OR $body.expected.base_ref != $prior_body.expected.base_ref
+        OR $body.expected.base_vector_ref != $prior_body.expected.base_vector_ref
+        OR $body.expected.schema_id != $prior_body.expected.schema_id { RETURN false; };
+    LET $key = $body.purpose.stage_acknowledgement;
+    RETURN type::is_object($key) AND $key.execution_id = $origin.execution_id AND $key.stage_id = $stage_id
+        AND $key.prior_receipt_ref = 'eventledger://role-authority/' + $prior_event
+        AND $key.authority_request_message_ref = $stage.authority_request_message_ref
+        AND $key.lane_id = $stage.expected_lane_id AND $key.selecting_decision_id = $execution.selecting_decision_id;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_routing_role_receipt($row: object, $write: bool) {
+    IF $write OR $row.source_component != 'model_lane' OR $row.aggregate_type != 'role_evidence'
+        OR $row.event_type != 'MODEL_LANE_AUTHORITY_RECORDED' OR $row.event_version != 'kernel_event_v1'
+        OR $row.event_id != record::id($row.id) OR $row.idempotency_key != $row.event_id
+        OR $row.actor_kind != 'principal' OR $row.actor_id != $row.actor_principal_id
+        OR $row.authority_session_id != $auth.id OR $row.wsids != [$row.workspace_id]
+        OR $row.payload.record_kind != 'role_evidence' OR $row.payload.run_id != $row.kernel_task_run_id
+        OR $row.payload.event_stream_version != 1 OR crypto::sha256($row.payload.event_payload_json) != $row.payload_hash { RETURN false; };
+    LET $record = encoding::json::decode($row.payload.event_payload_json);
+    LET $body = $record.body;
+    LET $candidate = object::extend($row, { record_kind: 'role_evidence', run_id: $row.kernel_task_run_id,
+        record_json: encoding::json::encode($record) });
+    IF !fn::wp012_routing_role_source_access($candidate) OR $row.aggregate_id != $body.action.action_id
+        OR $record.event.event_id != $row.event_id OR $record.event.event_seq != $row.event_sequence
+        OR $record.event.transaction_seq != $row.event_sequence OR $record.event.stream_id != $row.session_run_id
+        OR $row.session_run_id != 'role-authority:' + $body.run.run_id { RETURN false; };
+    LET $ack = $wp012_routing_ack;
+    IF type::is_object($ack) AND $row.event_id = $ack.acknowledgement_event_id {
+        LET $create = $wp012_routing_original.source_create;
+        RETURN $row.payload.issuance_operation_id = $ack.operation_id
+            AND $ack.operation_id = $wp012_routing_original.operation_id
+            AND type::is_object($create) AND fn::wp012_routing_authority_snapshot($create, $candidate, 'create', 'fs.write')
+            AND $row.authority_resource_id = $create.resource_id AND $row.authority_grant_id = $create.grant_id
+            AND $row.authority_action = 'create' AND $row.authority_capability_id = 'fs.write';
+    };
+    RETURN true;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_routing_response_message($message: object, $stage: object, $execution: object) {
+    RETURN $message.run_id = $execution.run_id AND $message.trace_id = $execution.trace_id
+        AND $message.coordinator_session_id = $execution.coordinator_session_id
+        AND $message.work_packet_id = $execution.work_packet_id AND $message.micro_task_id = $execution.micro_task_id
+        AND $message.task_board_id = $execution.task_board_id AND $message.owner_session = $execution.owner_session
+        AND $message.from_lane_id = $stage.lane_id AND $message.from_lane_id = $stage.expected_lane_id
+        AND $message.routing.ack_for = $stage.authority_request_message_ref
+        AND type::is_string($stage.authority_request_message_ref) AND string::trim($stage.authority_request_message_ref) != ''
+        AND $message.diagnostic_payload.execution_id = $execution.execution_id
+        AND $message.diagnostic_payload.stage_id = $stage.stage_id
+        AND (($stage.dispatch_target = 'operator' AND $message.authority = 'operator_decision'
+                AND $message.operator_decision_ref = $stage.authority_ref)
+            OR ($stage.dispatch_target = 'validator' AND $message.authority = 'validator_verdict'
+                AND $message.validator_verdict_ref = $stage.authority_ref));
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_routing_ack_fence($row: object) {
+    LET $ack = $wp012_routing_ack;
+    LET $origin = $wp012_routing_original;
+    IF !fn::wp012_routing_selected($row) OR $wp012_original_purpose != 'routing_transition'
+        OR !type::is_object($ack) OR $ack.operation_id != $origin.operation_id
+        OR $ack.execution_id != $row.execution_id OR $origin.run_id != $row.run_id
+        OR !type::is_object($origin.source_read) OR !type::is_object($origin.source_create)
+        OR !fn::wp012_routing_authority_snapshot($origin.source_read, $row, 'read', 'fs.read')
+        OR !fn::wp012_routing_authority_snapshot($origin.source_create, $row, 'create', 'fs.write')
+        OR $expected_revision != $ack.observed_revision OR !$has_expected_claim
+        OR $expected_claim.stage_id != $ack.stage_id OR $expected_claim.attempt != $ack.attempt
+        OR $expected_claim.lease_owner != $ack.lease_owner OR $expected_claim.fencing_token != $ack.fencing_token
+        OR $expected_claim.observed_at_unix_ms >= $ack.lease_expires_at_unix_ms
+        OR $execution.execution_id != $row.execution_id OR $execution.run_id != $row.run_id
+        OR $execution.revision != $ack.observed_revision + 1 OR $attempt.stage_id != $ack.stage_id
+        OR $attempt.attempt != $ack.attempt OR $outbox.status != 'acked' { RETURN false; };
+    LET $old_event = SELECT * FROM ONLY type::record('kernel_event_ledger', $ack.observed_execution_event_id);
+    LET $attempt_event = SELECT * FROM ONLY type::record('kernel_event_ledger', $ack.observed_attempt_event_id);
+    IF $old_event = NONE OR $attempt_event = NONE
+        OR !fn::wp012_routing_receipt($old_event, false) OR !fn::wp012_routing_receipt($attempt_event, false)
+        OR $old_event.aggregate_type != 'model_lane_routing_execution' OR $old_event.aggregate_id != $row.execution_id
+        OR $attempt_event.aggregate_type != 'model_lane_routing_stage_attempt'
+        OR $attempt_event.aggregate_id != $row.execution_id + ':' + $ack.stage_id + ':' + <string>$ack.attempt { RETURN false; };
+    LET $old = $old_event.payload.record;
+    LET $stage = $attempt_event.payload.record;
+    IF $old.revision != $ack.observed_revision OR $old.run_id != $row.run_id
+        OR $stage.stage_id != $ack.stage_id OR $stage.state != 'awaiting_authority' OR $stage.attempt != $ack.attempt
+        OR $stage.lease_owner != $ack.lease_owner OR $stage.fencing_token != $ack.fencing_token
+        OR $stage.lease_expires_at_unix_ms != $ack.lease_expires_at_unix_ms { RETURN false; };
+    LET $mutable = ['status', 'failure_reason', 'cancel_reason', 'revision', 'stages', 'event_ledger_event_id', 'event_ledger_seq'];
+    IF object::from_entries(array::filter(object::entries($old), |$entry| { $entry[0] NOT IN $mutable }))
+        != object::from_entries(array::filter(object::entries($execution.record_json), |$entry| { $entry[0] NOT IN $mutable }))
+        OR object::from_entries(array::filter(object::entries(fn::wp012_routing_execution_projection($old).stages), |$entry| { $entry[0] != $ack.stage_id }))
+        != object::from_entries(array::filter(object::entries($execution.record_json.stages), |$entry| { $entry[0] != $ack.stage_id })) { RETURN false; };
+    LET $current = SELECT record_json FROM model_lane_routing_execution
+        WHERE execution_id = $row.execution_id AND run_id = $row.run_id
+        AND owner_account_id = $row.owner_account_id AND actor_principal_id = $row.actor_principal_id
+        AND authenticated_session_id = $row.authenticated_session_id AND access_space_id = $row.access_space_id
+        AND workspace_id = $row.workspace_id LIMIT 2;
+    IF array::len($current) != 1 OR !($current[0].record_json = fn::wp012_routing_execution_projection($old)
+        OR $current[0].record_json = $execution.record_json) { RETURN false; };
+    LET $messages = SELECT record_json FROM model_lane_authority WHERE record_kind = 'message'
+        AND aggregate_id = $ack.message_id AND run_id = $row.run_id
+        AND owner_account_id = $row.owner_account_id AND actor_principal_id = $row.actor_principal_id
+        AND authenticated_session_id = $row.authenticated_session_id AND access_space_id = $row.access_space_id
+        AND workspace_id = $row.workspace_id LIMIT 2;
+    IF array::len($messages) != 1 { RETURN false; };
+    LET $message = encoding::json::decode($messages[0].record_json).inner;
+    IF !fn::wp012_routing_response_message($message, $stage, $old) { RETURN false; };
+    LET $artifacts = SELECT record_json FROM model_lane_authority WHERE record_kind = 'context_artifact'
+        AND run_id = $row.run_id AND encoding::json::decode(record_json).artifact_ref = $message.payload_ref
+        AND owner_account_id = $row.owner_account_id AND actor_principal_id = $row.actor_principal_id
+        AND authenticated_session_id = $row.authenticated_session_id AND access_space_id = $row.access_space_id
+        AND workspace_id = $row.workspace_id LIMIT 2;
+    IF array::len($artifacts) != 1 { RETURN false; };
+    LET $artifact = encoding::json::decode($artifacts[0].record_json);
+    LET $hash = crypto::sha256(encoding::json::encode($artifact.payload_json));
+    LET $ack_event = SELECT * FROM ONLY type::record('kernel_event_ledger', $ack.acknowledgement_event_id);
+    LET $prior_event = SELECT * FROM ONLY type::record('kernel_event_ledger', $ack.prior_event_id);
+    IF $ack_event = NONE OR $prior_event = NONE OR !fn::wp012_routing_role_receipt($prior_event, false)
+        OR !fn::wp012_routing_role_receipt($ack_event, false)
+        OR $artifact.artifact_sha256 != $hash OR $artifact.content_hash != $hash OR $message.payload_sha256 != $hash { RETURN false; };
+    LET $body = encoding::json::decode($ack_event.payload.event_payload_json).body;
+    IF $body.subject.artifact_ref != $artifact.artifact_ref OR $body.subject.manifest_ref != $artifact.artifact_manifest_ref
+        OR $body.subject.sha256 != $hash OR $body.subject.version != $artifact.payload_json.artifact_version
+        { RETURN false; };
+    LET $next_stages = array::filter(object::entries($execution.record_json.stages), |$entry| { $entry[0] = $ack.stage_id });
+    IF array::len($next_stages) != 1 OR $next_stages[0][1] != $attempt.record_json { RETURN false; };
+    LET $next = $next_stages[0][1];
+    LET $verdict = IF $artifact.payload_json.diagnostic_payload.verdict != NONE { $artifact.payload_json.diagnostic_payload.verdict }
+        ELSE IF $artifact.payload_json.verdict != NONE { $artifact.payload_json.verdict } ELSE { NULL };
+    RETURN $next = object::extend($stage, { state: 'succeeded', output_ref: $message.payload_ref,
+        output_message_ref: $message.message_id, output_sha256: $hash,
+        output_payload: { schema_id: 'hsk.model_lane_routing_output_pointer@1', artifact_ref: $message.payload_ref,
+            message_ref: $message.message_id, artifact_sha256: $hash,
+            typed_output: { schema_id: 'hsk.model_lane_routing_authority_response_metadata@1', verdict: $verdict } },
+        lease_owner: NULL, fencing_token: NULL, lease_expires_at_unix_ms: NULL, detail: NULL,
+        event_ledger_event_id: '', event_ledger_seq: 0, updated_at_unix_ms: $next.updated_at_unix_ms });
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_run_attachment_merge($before: object, $input: object, $lane: object, $after: object) {
+    LET $stable = ['run_id', 'trace_id', 'run_span_id', 'coordinator_session_id', 'routing_policy', 'context_bundle_id',
+        'event_ledger_stream_id', 'artifact_namespace', 'work_packet_id', 'micro_task_id', 'task_board_id', 'owner_session',
+        'memory_pack_ref', 'memory_pack_hash', 'determinism_mode', 'budget_summary_ref'];
+    IF $lane.run_id != $before.run_id OR !type::is_string($lane.lane_id) OR string::trim($lane.lane_id) = ''
+        OR $before.lane_ids CONTAINS $lane.lane_id
+        OR object::from_entries(array::filter(object::entries($before), |$entry| { $entry[0] IN $stable }))
+            != object::from_entries(array::filter(object::entries($input), |$entry| { $entry[0] IN $stable })) { RETURN false; };
+    IF (($before.projection_plan_ref != NONE AND $before.projection_plan_ref != NULL)
+            AND ($input.projection_plan_ref != NONE AND $input.projection_plan_ref != NULL)
+            AND $before.projection_plan_ref != $input.projection_plan_ref)
+        OR (($before.consent_receipt_ref != NONE AND $before.consent_receipt_ref != NULL)
+            AND ($input.consent_receipt_ref != NONE AND $input.consent_receipt_ref != NULL)
+            AND $before.consent_receipt_ref != $input.consent_receipt_ref) { RETURN false; };
+    LET $models = array::concat(array::concat($before.candidate_model_ids, $input.candidate_model_ids), array::concat(
+        IF $input.selected_model_id = NONE OR $input.selected_model_id = NULL { [] } ELSE { [$input.selected_model_id] },
+        IF $lane.model_id = NONE OR $lane.model_id = NULL { [] } ELSE { [$lane.model_id] }));
+    RETURN $after = object::extend($before, {
+        lane_ids: array::sort(array::distinct(array::concat(array::concat($before.lane_ids, $input.lane_ids), [$lane.lane_id]))),
+        candidate_model_ids: array::sort(array::distinct($models)),
+        projection_plan_ref: IF $before.projection_plan_ref != NONE AND $before.projection_plan_ref != NULL { $before.projection_plan_ref }
+            ELSE IF $input.projection_plan_ref != NONE { $input.projection_plan_ref } ELSE { NULL },
+        consent_receipt_ref: IF $before.consent_receipt_ref != NONE AND $before.consent_receipt_ref != NULL { $before.consent_receipt_ref }
+            ELSE IF $input.consent_receipt_ref != NONE { $input.consent_receipt_ref } ELSE { NULL }
+    });
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_run_attachment_authority($row: object, $write: bool) {
+    LET $origin = $wp012_routing_original;
+    IF $wp012_original_purpose != 'run_attachment' OR $wp012_original_action != 'create'
+        OR $wp012_original_capability != 'fs.write' OR !fn::wp012_routing_original($row)
+        OR $origin.run_id != $row.run_id OR $row.record_kind NOT IN ['run', 'lane'] { RETURN false; };
+    IF !$write { RETURN true; };
+    LET $selection = $run_attachment;
+    RETURN $row.record_kind = 'run' AND type::is_object($selection)
+        AND $selection.run_id = $row.run_id AND $selection.run_id = $origin.run_id
+        AND type::is_object($origin.source_update)
+        AND fn::wp012_routing_authority_snapshot($origin.source_update, $row, 'update', 'fs.write')
+        AND fn::wp012_context_coordination_fence($row, 'run', $row.run_id);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_run_attachment_receipt($row: object, $write: bool) {
+    IF $row.source_component != 'model_lane' OR $row.aggregate_type != 'run'
+        OR $row.event_type NOT IN ['MODEL_LANE_AUTHORITY_RECORDED', 'MODEL_LANE_AUTHORITY_REPLACED']
+        OR $row.event_id != record::id($row.id) OR $row.event_version != 'kernel_event_v1'
+        OR $row.idempotency_key != $row.event_id OR $row.actor_kind != 'principal'
+        OR $row.actor_id != $row.actor_principal_id OR $row.authority_session_id != $auth.id
+        OR $row.wsids != [$row.workspace_id] OR $row.payload.record_kind != 'run'
+        OR $row.payload.run_id != $row.kernel_task_run_id
+        OR crypto::sha256($row.payload.event_payload_json) != $row.payload_hash { RETURN false; };
+    LET $payload = encoding::json::decode($row.payload.event_payload_json);
+    LET $candidate = object::extend($row, { record_kind: 'run', run_id: $row.kernel_task_run_id,
+        record_json: encoding::json::encode($payload.record) });
+    IF $payload.dexterity_kernel != 'Dexterity' OR $payload.owner_account_id != $row.owner_account_id
+        OR $payload.actor_principal_id != $row.actor_principal_id OR $payload.authenticated_session_id != $row.authenticated_session_id
+        OR $payload.access_space_id != $row.access_space_id OR $payload.workspace_id != $row.workspace_id
+        OR $payload.record.run_id != $row.kernel_task_run_id OR $payload.record.event_ledger_stream_id != $row.session_run_id
+        OR !fn::wp012_model_lane_source_access($candidate, false) { RETURN false; };
+    IF $row.event_type = 'MODEL_LANE_AUTHORITY_RECORDED' {
+        RETURN !$write AND $row.payload.event_stream_version = 1
+            AND $payload.schema_id IN ['hsk.model_lane_run@1', 'hsk.model_lane_run_extension@1'];
+    };
+    IF $payload.schema_id != 'hsk.model_lane_run_extension@1' OR $row.payload.event_stream_version <= 1
+        OR $row.authority_action != 'update' OR $row.authority_capability_id != 'fs.write'
+        OR $payload.predecessor_event_stream_version != $row.payload.event_stream_version - 1
+        OR !type::is_string($row.causation_id) OR string::trim($row.causation_id) = '' OR $row.causation_id = $row.event_id
+        OR !type::is_object($payload.run_attachment_run) OR !type::is_object($payload.run_attachment_lane)
+        OR $payload.run_attachment_run.run_id != $row.kernel_task_run_id
+        OR $payload.run_attachment_lane.run_id != $row.kernel_task_run_id { RETURN false; };
+    IF !$write { RETURN true; };
+    LET $selection = $run_attachment;
+    LET $update = $wp012_routing_original.source_update;
+    IF !fn::wp012_run_attachment_authority($candidate, true)
+        OR $row.authority_action != 'update' OR $row.authority_capability_id != 'fs.write'
+        OR $row.authority_resource_id != $update.resource_id OR $row.authority_grant_id != $update.grant_id
+        OR $payload.record != encoding::json::decode($selection.next_record_json)
+        OR $payload.run_attachment_run != encoding::json::decode($selection.input_run_record_json)
+        OR $payload.run_attachment_lane != encoding::json::decode($selection.lane_record_json)
+        OR $payload.run_attachment_lane.lane_id != $selection.lane_id { RETURN false; };
+    LET $current = SELECT * FROM model_lane_authority WHERE record_kind = 'run' AND aggregate_id = $row.kernel_task_run_id
+        AND run_id = $row.kernel_task_run_id AND owner_account_id = $row.owner_account_id AND actor_principal_id = $row.actor_principal_id
+        AND authenticated_session_id = $row.authenticated_session_id AND access_space_id = $row.access_space_id
+        AND workspace_id = $row.workspace_id LIMIT 2;
+    RETURN array::len($current) = 1 AND $current[0].record_json = $selection.expected_record_json
+        AND $current[0].event_stream_version = $selection.expected_event_stream_version
+        AND $current[0].event_stream_version = $payload.predecessor_event_stream_version
+        AND $current[0].event_id = $row.causation_id
+        AND fn::wp012_run_attachment_merge(encoding::json::decode($current[0].record_json),
+            $payload.run_attachment_run, $payload.run_attachment_lane, $payload.record);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_run_attachment_identity($row: object) {
+    LET $event = SELECT * FROM ONLY $row.event_ledger_event_id;
+    IF $row.record_kind != 'run' OR $event = NONE OR $event.event_type != 'MODEL_LANE_AUTHORITY_REPLACED'
+        OR !fn::wp012_run_attachment_receipt($event, false) OR $row.event_id != $event.event_id
+        OR $row.event_seq != $event.event_sequence OR $row.transaction_seq != $row.event_seq
+        OR $row.event_stream_version != $event.payload.event_stream_version
+        OR $row.aggregate_id != $row.run_id OR $event.aggregate_id != $row.aggregate_id
+        OR $event.owner_account_id != $row.owner_account_id OR $event.actor_principal_id != $row.actor_principal_id
+        OR $event.authenticated_session_id != $row.authenticated_session_id
+        OR $event.access_space_id != $row.access_space_id OR $event.workspace_id != $row.workspace_id
+        OR record::id($row.id) != crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'run', $row.aggregate_id,
+            $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id, $row.access_space_id, $row.workspace_id], '\u0000')) { RETURN false; };
+    LET $payload = encoding::json::decode($event.payload.event_payload_json);
+    LET $previous = SELECT * FROM ONLY type::record('kernel_event_ledger', $event.causation_id);
+    IF $previous = NONE OR !fn::wp012_run_attachment_receipt($previous, false)
+        OR $previous.event_id != $event.causation_id OR $previous.aggregate_id != $row.aggregate_id
+        OR $previous.kernel_task_run_id != $row.run_id OR $previous.session_run_id != $event.session_run_id
+        OR $previous.owner_account_id != $row.owner_account_id OR $previous.actor_principal_id != $row.actor_principal_id
+        OR $previous.authenticated_session_id != $row.authenticated_session_id
+        OR $previous.access_space_id != $row.access_space_id OR $previous.workspace_id != $row.workspace_id
+        OR $previous.payload.event_stream_version != $payload.predecessor_event_stream_version { RETURN false; };
+    LET $before = encoding::json::decode($previous.payload.event_payload_json).record;
+    LET $after = encoding::json::decode($row.record_json);
+    RETURN $payload.record = $after AND $row.idempotency_key = $before.idempotency_key
+        AND fn::wp012_run_attachment_merge($before, $payload.run_attachment_run, $payload.run_attachment_lane, $after);
+};
+DEFINE EVENT OVERWRITE wp012_run_attachment_update ON TABLE model_lane_authority
+    WHEN $event = 'UPDATE' AND ($before.record_kind = 'run' OR $after.record_kind = 'run') THEN {
+        LET $mutable = ['record_json', 'search_terms', 'event_id', 'event_ledger_event_id', 'event_seq', 'event_stream_version', 'transaction_seq'];
+        IF !fn::wp012_run_attachment_authority($before, true)
+            OR $before.record_json != $run_attachment.expected_record_json
+            OR $before.event_stream_version != $run_attachment.expected_event_stream_version
+            OR $after.record_json != $run_attachment.next_record_json OR $after.search_terms != $search_terms
+            OR $after.event_stream_version != $before.event_stream_version + 1
+            OR object::from_entries(array::filter(object::entries($before), |$entry| { $entry[0] NOT IN $mutable }))
+                != object::from_entries(array::filter(object::entries($after), |$entry| { $entry[0] NOT IN $mutable }))
+            OR !fn::wp012_run_attachment_identity($after) {
+            THROW 'HSK-403-RUN-ATTACHMENT';
+        };
+    };
+DEFINE FUNCTION OVERWRITE fn::wp012_routing_artifact_message($message: object, $input_ref: option<string>, $stages: array<object>, $execution: object) {
+    RETURN $input_ref = 'model-lane-message://' + $message.message_id
+        OR (type::is_string($execution.execution_id) AND array::len(array::filter($stages, |$stage| {
+            fn::wp012_routing_response_message($message, $stage, $execution)
+        })) > 0);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_routing_extra_receipt($row: object, $write: bool) {
+    LET $scope = object::extend($row, { run_id: $row.kernel_task_run_id, execution_id: $row.session_run_id });
+    IF !fn::wp012_routing_selected($scope) OR $row.source_component != 'model_lane_routing_executor'
+        OR $row.aggregate_type IN ['model_lane_routing_execution', 'model_lane_routing_stage_attempt', 'model_lane_routing_outbox']
+        OR !type::is_string($row.aggregate_type) OR string::trim($row.aggregate_type) = ''
+        OR !type::is_string($row.aggregate_id) OR string::trim($row.aggregate_id) = ''
+        OR $row.event_id != record::id($row.id) OR $row.event_version != 'kernel_event_v1'
+        OR !string::starts_with($row.event_id, 'routing-event-') OR !string::starts_with($row.idempotency_key, 'routing-idempotency-')
+        OR $row.actor_kind != 'model_adapter' OR $row.actor_id != 'DexterityRoutingExecutor'
+        OR $row.event_type NOT IN ['MODEL_ADAPTER_INVOKED', 'MODEL_RESPONSE_RECORDED', 'SESSION_FAILED']
+        OR $row.authority_session_id != $auth.id OR $row.wsids != [$row.workspace_id]
+        OR crypto::sha256(encoding::json::encode($row.payload)) != $row.payload_hash { RETURN false; };
+    IF !$write { RETURN true; };
+    IF !fn::wp012_routing_write_fence($scope) OR !type::is_array($extra_events) OR array::len($extra_events) > 4093
+        OR $row.authority_resource_id != type::record('protected_resources', $wp012_original_resource)
+        OR $row.authority_grant_id != type::record('resource_grants', $wp012_original_grant)
+        OR $row.authority_action != $wp012_original_action OR $row.authority_capability_id != $wp012_original_capability { RETURN false; };
+    RETURN array::len(array::filter($extra_events, |$expected| {
+        $expected.event_id = $row.event_id AND $expected.event_version = $row.event_version
+            AND $expected.kernel_task_run_id = $row.kernel_task_run_id AND $expected.session_run_id = $row.session_run_id
+            AND $expected.aggregate_type = $row.aggregate_type AND $expected.aggregate_id = $row.aggregate_id
+            AND $expected.idempotency_key = $row.idempotency_key AND $expected.event_type = $row.event_type
+            AND $expected.actor_kind = $row.actor_kind AND $expected.actor_id = $row.actor_id
+            AND $expected.causation_id = $row.causation_id AND $expected.correlation_id = $row.correlation_id
+            AND $expected.source_component = $row.source_component AND $expected.payload_hash = $row.payload_hash
+            AND $expected.payload = $row.payload
+    })) = 1;
+};
+
+-- Final promotion keeps native Owner Read, delegated child Read and Creator separate.
+DEFINE FUNCTION OVERWRITE fn::wp012_promotion_scope($snapshot: object, $workspace: string) {
+    RETURN { owner_account_id: <string>record::id($snapshot.account_id),
+        actor_principal_id: <string>record::id($snapshot.principal_id),
+        authenticated_session_id: <string>record::id($snapshot.session_id),
+        access_space_id: <string>record::id($snapshot.access_space_id), workspace_id: $workspace };
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_promotion_scope_matches($row: object, $scope: object) {
+    RETURN $row.owner_account_id = $scope.owner_account_id AND $row.actor_principal_id = $scope.actor_principal_id
+        AND $row.authenticated_session_id = $scope.authenticated_session_id
+        AND $row.access_space_id = $scope.access_space_id AND $row.workspace_id = $scope.workspace_id;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_promotion_read_basis($snapshot: object) {
+    RETURN { grant_id: <string>record::id($snapshot.grant_id), grant_version: $snapshot.grant_version,
+        resource_id: <string>record::id($snapshot.resource_id), session_id: <string>record::id($snapshot.session_id),
+        capability_id: 'fs.read', action: 'read' };
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_promotion_frame($workspace: string, $write: bool) {
+    LET $frame = $wp012_promotion_original;
+    IF !type::is_object($frame) OR !type::is_string($frame.operation_id) OR !string::is_uuid($frame.operation_id)
+        OR $frame.operation_id = '00000000-0000-0000-0000-000000000000'
+        OR $frame.operation_id = $frame.initial_consumer_operation_id
+        OR $wp012_original_subject_kind != 'workspace'
+        OR $wp012_original_purpose NOT IN ['final_promotion_read', 'final_promotion_record'] { RETURN false; };
+    LET $input = encoding::json::decode($frame.input_json);
+    LET $scope = fn::wp012_promotion_scope($frame.creator, $workspace);
+    IF $input.run_id != $frame.run_id OR $input.decision_id != $frame.decision_id
+        OR !fn::wp012_model_lane_original_operation($scope)
+        OR !fn::wp012_routing_authority_snapshot($frame.creator, $scope, 'create', 'fs.write')
+        OR !fn::wp012_model_lane_role_creation_read_snapshots({
+            issuer_scope: fn::wp012_promotion_scope($frame.child_read, $workspace),
+            expected_owner_read: $frame.owner_read, expected_child_read: $frame.child_read })
+        OR fn::wp012_promotion_scope($frame.owner_read, $workspace) != $scope
+        OR $frame.creator.resource_id != $frame.owner_read.resource_id { RETURN false; };
+    LET $active = IF $wp012_original_purpose = 'final_promotion_record' { $frame.creator } ELSE { $frame.owner_read };
+    RETURN (!$write OR $wp012_original_purpose = 'final_promotion_record')
+        AND $active.grant_id = type::record('resource_grants', $wp012_original_grant)
+        AND $active.resource_id = type::record('protected_resources', $wp012_original_resource)
+        AND $wp012_original_action = (IF $wp012_original_purpose = 'final_promotion_record' { 'create' } ELSE { 'read' })
+        AND $wp012_original_capability = (IF $wp012_original_purpose = 'final_promotion_record' { 'fs.write' } ELSE { 'fs.read' });
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_promotion_role_selection($row: object, $selection: object) {
+    LET $receipt = encoding::json::decode($row.record_json);
+    LET $body = $receipt.body;
+    LET $expected = $selection.expectation;
+    RETURN $row.record_kind = 'role_evidence'
+        AND $selection.evidence_ref = 'eventledger://role-authority/' + $row.event_id
+        AND fn::wp012_promotion_scope_matches($row, $expected.receipt_scope)
+        AND $body.scope = $expected.receipt_scope AND $body.role = $expected.role
+        AND $body.run = $expected.run AND $body.subject = $expected.subject
+        AND $body.expected = $expected.expected AND $body.purpose = $expected.purpose
+        AND $body.designation = $selection.designation_ref;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_promotion_source_access($row: object, $write: bool) {
+    LET $frame = $wp012_promotion_original;
+    IF !fn::wp012_promotion_frame($row.workspace_id, $write) { RETURN false; };
+    LET $input = encoding::json::decode($frame.input_json);
+    LET $selectors = encoding::json::decode($frame.selectors_json);
+    LET $owner = fn::wp012_promotion_scope($frame.creator, $row.workspace_id);
+    LET $record = encoding::json::decode($row.record_json);
+    IF $row.record_kind = 'role_evidence_consumption' {
+        IF $row.event_id = $frame.protected_binding_event_id {
+            RETURN !$write AND fn::wp012_promotion_scope_matches($row, $owner)
+                AND $record.schema_id = 'handshake.role-evidence-consumption@1'
+                AND $record.consumer_operation_id = $frame.initial_consumer_operation_id
+                AND $record.issuer_scope = $owner
+                AND $record.exact_consumer_scope = fn::wp012_promotion_scope($frame.child_read, $row.workspace_id);
+        };
+        RETURN $row.event_id = $frame.current_consumption_event_id
+            AND fn::wp012_promotion_scope_matches($row, $owner)
+            AND $row.record_json = $frame.current_consumption_body_json
+            AND $record.schema_id = 'handshake.role-promotion-consumption@1'
+            AND <string>$record.operation_id = $frame.operation_id AND $row.aggregate_id = $frame.operation_id
+            AND fn::wp012_promotion_current_body($record, $write);
+    };
+    IF $write AND $row.record_kind != 'promotion_decision' { RETURN false; };
+    IF $row.record_kind = 'validator_designation' {
+        RETURN !$write AND fn::wp012_promotion_scope_matches($row, $owner)
+            AND $selectors.validator.designation_ref = 'eventledger://validator-designation/' + $row.event_id;
+    };
+    IF $row.record_kind = 'role_evidence' {
+        IF $write { RETURN false; };
+        LET $lineage = fn::wp012_promotion_lineage($row.workspace_id);
+        IF $lineage = NONE { RETURN false; };
+        RETURN (fn::wp012_promotion_role_selection($row, $selectors.operator)
+                AND array::len(array::filter($lineage.targets, |$target| {
+                    $target.record_kind = 'role_evidence' AND $target.record_id = <string>record::id($row.id)
+                    AND $target.event_id = $row.event_id AND $target.record_sha256 = crypto::sha256($row.record_json)
+                    AND $target.issuer_scope = $selectors.operator.expectation.receipt_scope })) = 1)
+            OR (fn::wp012_promotion_role_selection($row, $selectors.validator)
+                AND $row.event_id = $frame.initial_validator_event_id
+                AND $record = encoding::json::decode($frame.initial_validator_receipt_json));
+    };
+    IF !fn::wp012_promotion_scope_matches($row, $owner) { RETURN false; };
+    IF $row.record_kind = 'promotion_decision' {
+        IF !$write { RETURN $row.aggregate_id = $frame.decision_id OR $row.idempotency_key = $input.idempotency_key; };
+        IF $row.aggregate_id != $frame.decision_id OR $row.run_id != $frame.run_id
+            OR $row.idempotency_key != $input.idempotency_key OR !type::is_string($frame.prepared_record_json)
+            OR !fn::wp012_promotion_current($row.workspace_id) { RETURN false; };
+        LET $prepared = encoding::json::decode($frame.prepared_record_json);
+        RETURN $record = object::extend($prepared, { event_ledger_event_id: '', event_ledger_seq: 0,
+            event_stream_version: 0, transaction_seq: 0 })
+            AND ($record.outcome != 'approved' OR ($record.operator_authority_ref = $selectors.operator.evidence_ref
+                AND $record.validator_authority_ref = $selectors.validator.evidence_ref));
+    };
+    IF $write OR $row.run_id != $frame.run_id { RETURN false; };
+    IF $row.record_kind IN ['run', 'lane'] { RETURN true; };
+    IF $row.record_kind = 'message' {
+        RETURN $input.input_refs CONTAINS $row.aggregate_id
+            AND ($record.crdt_authority_binding = NONE OR $record.crdt_authority_binding = NULL
+                OR ($record.crdt_authority_binding.workspace_id = $row.workspace_id
+                    AND fn::mt120_document_access($record.crdt_authority_binding.document_id, $row.workspace_id, 'read', 'fs.read')));
+    };
+    IF $row.record_kind = 'context_artifact' {
+        RETURN $record.artifact_ref = $input.promoted_artifact_ref
+            OR $record.artifact_ref = $selectors.operator.expectation.subject.artifact_ref;
+    };
+    RETURN false;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_promotion_lineage($workspace: string) {
+    LET $frame = $wp012_promotion_original;
+    IF !fn::wp012_promotion_frame($workspace, false) { RETURN NONE; };
+    LET $owner = fn::wp012_promotion_scope($frame.owner_read, $workspace);
+    LET $rows = SELECT * FROM model_lane_authority WHERE record_kind = 'role_evidence_consumption'
+        AND event_id = $frame.protected_binding_event_id
+        AND owner_account_id = $owner.owner_account_id AND actor_principal_id = $owner.actor_principal_id
+        AND authenticated_session_id = $owner.authenticated_session_id AND access_space_id = $owner.access_space_id
+        AND workspace_id = $workspace LIMIT 2;
+    IF array::len($rows) != 1 OR !fn::wp012_model_lane_role_consumption_identity($rows[0]) { RETURN NONE; };
+    LET $body = encoding::json::decode($rows[0].record_json);
+    LET $selectors = encoding::json::decode($frame.selectors_json);
+    IF $body.consumer_operation_id != $frame.initial_consumer_operation_id
+        OR $body.issuer_scope != $owner OR $body.run != $selectors.operator.expectation.run
+        OR $body.subject != $selectors.operator.expectation.subject
+        OR $body.exact_consumer_scope != fn::wp012_promotion_scope($frame.child_read, $workspace)
+        OR !fn::wp012_model_lane_role_consumption_authority($body)
+        OR !fn::wp012_model_lane_role_read_authority_snapshot($frame.owner_read, $body.owner_read, $owner)
+        OR !fn::wp012_model_lane_role_read_authority_snapshot($frame.child_read, $body.child_read, $body.exact_consumer_scope)
+        OR $body.designation_ref != $selectors.validator.designation_ref
+        OR $body.producer != $selectors.validator.producer { RETURN NONE; };
+    RETURN $body;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_promotion_current_body($body: object, $write: bool) {
+    LET $frame = $wp012_promotion_original;
+    LET $workspace = $body.exact_consumer_scope.workspace_id;
+    IF !fn::wp012_promotion_frame($workspace, $write)
+        OR $body.schema_id != 'handshake.role-promotion-consumption@1'
+        OR <string>$body.operation_id != $frame.operation_id OR $body.decision_id != $frame.decision_id
+        OR $body.input_json != $frame.input_json OR $body.selectors_json != $frame.selectors_json
+        OR $body.exact_consumer_scope != fn::wp012_promotion_scope($frame.creator, $workspace)
+        OR $body.owner_read_scope != fn::wp012_promotion_scope($frame.owner_read, $workspace)
+        OR $body.child_read_scope != fn::wp012_promotion_scope($frame.child_read, $workspace)
+        OR $body.lineage_binding_event_id != $frame.protected_binding_event_id
+        OR <string>$body.initial_consumer_operation_id != $frame.initial_consumer_operation_id
+        OR $body.creator != { grant_id: <string>record::id($frame.creator.grant_id), grant_version: $frame.creator.grant_version,
+            resource_id: <string>record::id($frame.creator.resource_id), session_id: <string>record::id($frame.creator.session_id),
+            capability_id: 'fs.write', action: 'create' }
+        OR $body.owner_read != fn::wp012_promotion_read_basis($frame.owner_read)
+        OR $body.child_read != fn::wp012_promotion_read_basis($frame.child_read)
+        OR array::len($body.targets) != 2 { RETURN false; };
+    LET $lineage = fn::wp012_promotion_lineage($workspace);
+    LET $input = encoding::json::decode($frame.input_json);
+    LET $selectors = encoding::json::decode($frame.selectors_json);
+    IF $lineage = NONE OR $body.producer != $lineage.producer OR $body.designation_ref != $lineage.designation_ref
+        OR $body.run != $lineage.run OR $body.subject != $lineage.subject
+        OR $input.trace_id != $body.run.trace_id OR $input.coordinator_session_id != $body.run.coordinator_session_id
+        OR $input.owner_session != $body.run.owner_session OR $input.work_packet_id != $body.run.work_packet_id
+        OR $input.micro_task_id != $body.run.micro_task_id OR $input.task_board_id != $body.run.task_board_id { RETURN false; };
+    LET $operator = SELECT * FROM model_lane_authority WHERE record_kind = 'role_evidence'
+        AND event_id = string::replace($selectors.operator.evidence_ref, 'eventledger://role-authority/', '') LIMIT 2;
+    LET $validator = SELECT * FROM model_lane_authority WHERE record_kind = 'role_evidence'
+        AND event_id = $frame.initial_validator_event_id LIMIT 2;
+    IF array::len($operator) != 1 OR array::len($validator) != 1
+        OR !fn::wp012_promotion_role_selection($operator[0], $selectors.operator)
+        OR !fn::wp012_promotion_role_selection($validator[0], $selectors.validator)
+        OR !fn::wp012_model_lane_role_record_identity($operator[0], $selectors.operator.expectation.receipt_scope)
+        OR !fn::wp012_model_lane_role_record_identity($validator[0], $selectors.validator.expectation.receipt_scope)
+        OR encoding::json::decode($validator[0].record_json) != encoding::json::decode($frame.initial_validator_receipt_json) { RETURN false; };
+    LET $expected_targets = array::map([$operator[0], $validator[0]], |$target| {
+        { record_kind: 'role_evidence', record_id: <string>record::id($target.id), event_id: $target.event_id,
+            record_sha256: crypto::sha256($target.record_json), issuer_scope: {
+                owner_account_id: $target.owner_account_id, actor_principal_id: $target.actor_principal_id,
+                authenticated_session_id: $target.authenticated_session_id, access_space_id: $target.access_space_id,
+                workspace_id: $target.workspace_id } }
+    });
+    IF $body.targets != $expected_targets OR array::len(array::filter($lineage.targets, |$target| {
+        $target = $expected_targets[0] })) != 1 { RETURN false; };
+    IF $write AND (!type::is_string($frame.operator_receipt_json) OR !type::is_string($frame.validator_receipt_json)) { RETURN false; };
+    RETURN !$write OR (encoding::json::decode($frame.operator_receipt_json) = encoding::json::decode($operator[0].record_json)
+        AND encoding::json::decode($frame.validator_receipt_json) = encoding::json::decode($validator[0].record_json));
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_promotion_current($workspace: string) {
+    LET $frame = $wp012_promotion_original;
+    IF !type::is_string($frame.current_consumption_event_id) OR !type::is_string($frame.current_consumption_body_json) { RETURN false; };
+    LET $scope = fn::wp012_promotion_scope($frame.creator, $workspace);
+    LET $rows = SELECT * FROM model_lane_authority WHERE record_kind = 'role_evidence_consumption'
+        AND event_id = $frame.current_consumption_event_id AND aggregate_id = $frame.operation_id
+        AND owner_account_id = $scope.owner_account_id AND actor_principal_id = $scope.actor_principal_id
+        AND authenticated_session_id = $scope.authenticated_session_id AND access_space_id = $scope.access_space_id
+        AND workspace_id = $workspace LIMIT 2;
+    RETURN array::len($rows) = 1 AND $rows[0].record_json = $frame.current_consumption_body_json
+        AND fn::wp012_promotion_identity($rows[0])
+        AND fn::wp012_promotion_current_body(encoding::json::decode($rows[0].record_json), false);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_promotion_identity($row: object) {
+    LET $scope = { owner_account_id: $row.owner_account_id, actor_principal_id: $row.actor_principal_id,
+        authenticated_session_id: $row.authenticated_session_id, access_space_id: $row.access_space_id, workspace_id: $row.workspace_id };
+    IF $row.record_kind IN ['role_evidence', 'validator_designation'] { RETURN fn::wp012_model_lane_role_record_identity($row, $scope); };
+    LET $record = encoding::json::decode($row.record_json);
+    IF $row.record_kind = 'role_evidence_consumption' AND $record.schema_id = 'handshake.role-evidence-consumption@1' {
+        RETURN fn::wp012_model_lane_role_consumption_identity($row);
+    };
+    IF $row.record_kind NOT IN ['role_evidence_consumption', 'promotion_decision'] { RETURN fn::wp012_model_lane_canonical_record_identity($row); };
+    LET $event = SELECT * FROM ONLY $row.event_ledger_event_id;
+    LET $key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', $row.record_kind, $row.aggregate_id,
+        $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id, $row.access_space_id, $row.workspace_id], '\u0000'));
+    IF record::id($row.id) != $key OR $row.event_id != record::id($event.id) OR $row.event_seq != $event.event_sequence
+        OR $row.event_stream_version != 1 OR $row.transaction_seq != $row.event_seq
+        OR $event.aggregate_type != $row.record_kind OR $event.aggregate_id != $row.aggregate_id
+        OR $event.kernel_task_run_id != $row.run_id OR !fn::wp012_promotion_ledger_identity($event)
+        OR !fn::wp012_promotion_scope_matches($event, $scope) { RETURN false; };
+    RETURN IF $row.record_kind = 'role_evidence_consumption' {
+        $row.event_id = 'evt-' + $key AND $row.aggregate_id = <string>$record.operation_id
+            AND $row.idempotency_key = $row.aggregate_id AND $record.exact_consumer_scope = $scope
+            AND $event.payload.event_payload_json = $row.record_json AND $record.run.run_id = $row.run_id
+            AND $event.session_run_id = $record.run.run_id
+            AND $event.authority_resource_id = type::record('protected_resources', $record.creator.resource_id)
+            AND $event.authority_grant_id = type::record('resource_grants', $record.creator.grant_id)
+    } ELSE {
+        $row.aggregate_id = $record.decision_id AND $row.idempotency_key = $record.idempotency_key
+            AND $record.run_id = $row.run_id AND $event.session_run_id = $record.event_ledger_stream_id
+            AND encoding::json::decode($event.payload.event_payload_json).schema_id = 'hsk.model_lane_promotion_decision@1'
+            AND encoding::json::decode($event.payload.event_payload_json).record = $record
+            AND encoding::json::decode($event.payload.event_payload_json).dexterity_kernel = 'Dexterity'
+            AND fn::wp012_promotion_scope_matches(encoding::json::decode($event.payload.event_payload_json), $scope)
+    };
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_promotion_ledger_identity($row: object) {
+    RETURN $row.source_component = 'model_lane' AND ($row.event_type = 'MODEL_LANE_AUTHORITY_RECORDED' OR ($row.aggregate_type = 'message' AND $row.event_type = 'MODEL_LANE_MESSAGE_RECORDED'))
+        AND $row.event_version = 'kernel_event_v1' AND $row.event_id = record::id($row.id)
+        AND $row.idempotency_key = $row.event_id AND $row.event_sequence > 0
+        AND $row.actor_kind = 'principal' AND $row.actor_id = $row.actor_principal_id
+        AND $row.authority_session_id = type::record('authenticated_sessions', $row.authenticated_session_id)
+        AND $row.authority_action = 'create' AND $row.authority_capability_id = 'fs.write'
+        AND $row.wsids = [$row.workspace_id] AND $row.payload.record_kind = $row.aggregate_type
+        AND $row.payload.run_id = $row.kernel_task_run_id AND $row.payload.event_stream_version = 1
+        AND crypto::sha256($row.payload.event_payload_json) = $row.payload_hash;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_promotion_receipt($row: object, $write: bool) {
+    IF !$write AND $row.aggregate_type = 'run' AND $row.event_type = 'MODEL_LANE_AUTHORITY_REPLACED' { RETURN fn::wp012_run_attachment_receipt($row, false); };
+    IF !fn::wp012_promotion_ledger_identity($row) { RETURN false; };
+    LET $decoded = encoding::json::decode($row.payload.event_payload_json);
+    LET $raw = IF $row.aggregate_type IN ['role_evidence', 'validator_designation', 'role_evidence_consumption'] {
+        $row.payload.event_payload_json } ELSE { encoding::json::encode($decoded.record) };
+    IF $row.aggregate_type NOT IN ['role_evidence', 'validator_designation', 'role_evidence_consumption']
+        AND ($decoded.dexterity_kernel != 'Dexterity' OR $decoded.owner_account_id != $row.owner_account_id
+            OR $decoded.actor_principal_id != $row.actor_principal_id
+            OR $decoded.authenticated_session_id != $row.authenticated_session_id
+            OR $decoded.access_space_id != $row.access_space_id OR $decoded.workspace_id != $row.workspace_id) { RETURN false; };
+    LET $candidate = object::extend($row, { record_kind: $row.aggregate_type, aggregate_id: $row.aggregate_id,
+        run_id: $row.kernel_task_run_id, record_json: $raw, event_id: $row.event_id,
+        idempotency_key: IF $row.aggregate_type = 'promotion_decision' { $decoded.record.idempotency_key } ELSE IF $row.aggregate_type = 'role_evidence_consumption' { <string>$decoded.operation_id } ELSE { $row.idempotency_key } });
+    IF !fn::wp012_promotion_source_access($candidate, $write) { RETURN false; };
+    IF !$write { RETURN true; };
+    RETURN $row.authority_resource_id = $wp012_promotion_original.creator.resource_id
+        AND $row.authority_grant_id = $wp012_promotion_original.creator.grant_id
+        AND $row.authority_session_id = $wp012_promotion_original.creator.session_id
+        AND IF $row.aggregate_type = 'role_evidence_consumption' {
+            $row.event_id = $wp012_promotion_original.current_consumption_event_id
+                AND $row.payload.event_payload_json = $wp012_promotion_original.current_consumption_body_json
+                AND $row.aggregate_id = $wp012_promotion_original.operation_id
+                AND $row.session_run_id = $decoded.run.run_id
+        } ELSE { $row.aggregate_type = 'promotion_decision'
+            AND $decoded.promotion_consumption_event_id = $wp012_promotion_original.current_consumption_event_id
+            AND $decoded.promotion_consumption_operation_id = $wp012_promotion_original.operation_id };
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_promotion_durable_body($row: object) {
+    LET $body = encoding::json::decode($row.record_json);
+    LET $input = encoding::json::decode($body.input_json);
+    LET $selectors = encoding::json::decode($body.selectors_json);
+    RETURN $row.record_kind = 'role_evidence_consumption'
+        AND $body.schema_id = 'handshake.role-promotion-consumption@1'
+        AND type::is_string($body.operation_id) AND string::is_uuid($body.operation_id)
+        AND $body.operation_id != '00000000-0000-0000-0000-000000000000'
+        AND $body.operation_id != $body.initial_consumer_operation_id
+        AND $row.aggregate_id = <string>$body.operation_id AND $row.idempotency_key = $row.aggregate_id
+        AND fn::wp012_promotion_scope_matches($row, $body.exact_consumer_scope)
+        AND $body.owner_read_scope = $body.exact_consumer_scope
+        AND $body.creator.session_id = $row.authenticated_session_id AND $body.creator.action = 'create' AND $body.creator.capability_id = 'fs.write'
+        AND $body.owner_read.session_id = $row.authenticated_session_id AND $body.owner_read.action = 'read' AND $body.owner_read.capability_id = 'fs.read'
+        AND $body.child_read.session_id = $body.child_read_scope.authenticated_session_id
+        AND $body.child_read.action = 'read' AND $body.child_read.capability_id = 'fs.read'
+        AND $body.creator.resource_id = $body.owner_read.resource_id AND $body.child_read.resource_id = $body.owner_read.resource_id
+        AND $body.child_read_scope.owner_account_id = $row.owner_account_id
+        AND $body.child_read_scope.access_space_id = $row.access_space_id AND $body.child_read_scope.workspace_id = $row.workspace_id
+        AND $body.run.run_id = $row.run_id AND $input.run_id = $row.run_id AND $input.decision_id = $body.decision_id
+        AND $input.trace_id = $body.run.trace_id AND $input.coordinator_session_id = $body.run.coordinator_session_id
+        AND $input.owner_session = $body.run.owner_session AND $input.work_packet_id = $body.run.work_packet_id
+        AND $input.micro_task_id = $body.run.micro_task_id AND $input.task_board_id = $body.run.task_board_id
+        AND $selectors.operator.expectation.run = $body.run AND $selectors.validator.expectation.run = $body.run
+        AND $selectors.operator.expectation.subject = $body.subject AND $selectors.validator.expectation.subject = $body.subject
+        AND array::len($body.targets) = 2 AND $body.targets[0].record_kind = 'role_evidence'
+        AND $body.targets[1].record_kind = 'role_evidence'
+        AND $selectors.operator.evidence_ref = 'eventledger://role-authority/' + $body.targets[0].event_id
+        AND $selectors.validator.evidence_ref = 'eventledger://role-authority/' + $body.targets[1].event_id
+        AND $body.targets[0].issuer_scope = $selectors.operator.expectation.receipt_scope
+        AND $body.targets[1].issuer_scope = $selectors.validator.expectation.receipt_scope
+        AND string::len($body.targets[0].record_sha256) = 64 AND string::len($body.targets[1].record_sha256) = 64;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_promotion_selected_read($row: object) {
+    LET $origin = $wp012_routing_original;
+    RETURN $wp012_original_purpose = 'promotion_decision_read' AND $wp012_original_action = 'read'
+        AND $wp012_original_capability = 'fs.read' AND $origin.action = 'read' AND $origin.capability_id = 'fs.read'
+        AND $origin.execution_id = '' AND $origin.run_id != '' AND $origin.run_id = $row.run_id
+        AND fn::wp012_routing_original($row);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_promotion_durable_decision($row: object, $payload: object, $decision_event: object) {
+    LET $record = encoding::json::decode($row.record_json);
+    LET $operation = $payload.promotion_consumption_operation_id;
+    LET $event = $payload.promotion_consumption_event_id;
+    IF !type::is_string($operation) OR !string::is_uuid($operation) OR !type::is_string($event) { RETURN false; };
+    LET $key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'role_evidence_consumption', $operation,
+        $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id, $row.access_space_id, $row.workspace_id], '\u0000'));
+    IF $event != 'evt-' + $key { RETURN false; };
+    LET $rows = SELECT * FROM type::record('model_lane_authority', $key);
+    IF array::len($rows) != 1 OR $rows[0].event_id != $event
+        OR !fn::wp012_promotion_durable_body($rows[0]) OR !fn::wp012_promotion_identity($rows[0]) { RETURN false; };
+    LET $body = encoding::json::decode($rows[0].record_json);
+    LET $input = encoding::json::decode($body.input_json);
+    RETURN $rows[0].run_id = $row.run_id AND $body.decision_id = $row.aggregate_id
+        AND $rows[0].event_seq < $decision_event.event_sequence
+        AND $decision_event.authority_resource_id = type::record('protected_resources', $body.creator.resource_id)
+        AND $decision_event.authority_grant_id = type::record('resource_grants', $body.creator.grant_id)
+        AND fn::wp012_promotion_scope_matches($row, $body.exact_consumer_scope)
+        AND $input.idempotency_key = $row.idempotency_key AND $record.run_id = $body.run.run_id
+        AND $record.operator_authority_ref = $input.operator_authority_ref
+        AND $record.validator_authority_ref = $input.validator_authority_ref; 
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_promotion_public_record($row: object) {
+    IF !fn::wp012_promotion_selected_read($row) { RETURN false; };
+    IF $row.record_kind = 'role_evidence_consumption' { RETURN fn::wp012_promotion_durable_body($row); };
+    IF $row.record_kind != 'promotion_decision' { RETURN false; };
+    LET $event = SELECT * FROM ONLY $row.event_ledger_event_id;
+    RETURN fn::wp012_promotion_durable_decision($row, encoding::json::decode($event.payload.event_payload_json), $event);
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_promotion_public_receipt($row: object) {
+    IF !fn::wp012_promotion_ledger_identity($row) { RETURN false; };
+    LET $payload = encoding::json::decode($row.payload.event_payload_json);
+    LET $body = IF $row.aggregate_type = 'role_evidence_consumption' { $payload } ELSE { $payload.record };
+    LET $candidate = object::extend($row, { record_kind: $row.aggregate_type, run_id: $row.kernel_task_run_id,
+        record_json: encoding::json::encode($body), idempotency_key: IF $row.aggregate_type = 'role_evidence_consumption' {
+            <string>$body.operation_id } ELSE { $body.idempotency_key } });
+    IF !fn::wp012_promotion_selected_read($candidate) { RETURN false; };
+    RETURN IF $row.aggregate_type = 'role_evidence_consumption' {
+        fn::wp012_promotion_durable_body($candidate)
+    } ELSE { $row.aggregate_type = 'promotion_decision' AND fn::wp012_promotion_durable_decision($candidate, $payload, $row) };
+};
+-- Read only the canonical selected Operator ACK and its prior dependency.
+DEFINE FUNCTION OVERWRITE fn::wp012_routing_ack_read_source($row: object, $selected_execution: string, $selected_stage: string) {
+    LET $origin = $wp012_routing_original;
+    IF $wp012_original_purpose != 'source_read' OR $wp012_original_action != 'read'
+        OR $wp012_original_capability != 'fs.read' OR $origin.action != 'read' OR $origin.capability_id != 'fs.read'
+        OR $origin.execution_id = '' OR $origin.execution_id != $selected_execution
+        OR !fn::wp012_routing_original($row) OR $row.record_kind != 'role_evidence' { RETURN false; };
+    LET $rows = SELECT record_json FROM model_lane_routing_execution WHERE execution_id = $selected_execution
+        AND run_id = $row.run_id AND owner_account_id = $row.owner_account_id AND actor_principal_id = $row.actor_principal_id
+        AND authenticated_session_id = $row.authenticated_session_id AND access_space_id = $row.access_space_id
+        AND workspace_id = $row.workspace_id LIMIT 2;
+    IF array::len($rows) != 1 { RETURN false; };
+    LET $execution = $rows[0].record_json;
+    LET $stages = array::filter(object::entries($execution.stages), |$entry| { $entry[0] = $selected_stage });
+    IF array::len($stages) != 1 { RETURN false; };
+    LET $stage = $stages[0][1];
+    LET $body = encoding::json::decode($row.record_json).body;
+    LET $scope = { owner_account_id: $row.owner_account_id, actor_principal_id: $row.actor_principal_id,
+        authenticated_session_id: $row.authenticated_session_id, access_space_id: $row.access_space_id, workspace_id: $row.workspace_id };
+    IF $stage.state != 'succeeded' OR $stage.dispatch_target != 'operator'
+        OR $body.role != 'operator' OR $body.scope != $scope OR $body.issuer != $row.actor_principal_id
+        OR $body.run.run_id != $execution.run_id OR $body.run.trace_id != $execution.trace_id
+        OR $body.run.coordinator_session_id != $execution.coordinator_session_id
+        OR $body.run.work_packet_id != $execution.work_packet_id OR $body.run.micro_task_id != $execution.micro_task_id
+        OR $body.run.task_board_id != $execution.task_board_id OR $body.run.owner_session != $execution.owner_session
+        OR $body.run.locus_binding_ref != $execution.locus_ref { RETURN false; };
+    IF $body.purpose = 'prior_selection' {
+        RETURN $stage.authority_ref = 'eventledger://role-authority/' + $row.event_id;
+    };
+    LET $key = $body.purpose.stage_acknowledgement;
+    IF !type::is_object($key) OR $key.execution_id != $selected_execution OR $key.stage_id != $selected_stage
+        OR $key.prior_receipt_ref != $stage.authority_ref OR $key.lane_id != $stage.expected_lane_id
+        OR $key.authority_request_message_ref != $stage.authority_request_message_ref
+        OR $key.selecting_decision_id != $execution.selecting_decision_id { RETURN false; };
+    LET $messages = SELECT record_json FROM model_lane_authority WHERE record_kind = 'message'
+        AND aggregate_id = $stage.output_message_ref AND run_id = $row.run_id
+        AND owner_account_id = $row.owner_account_id AND actor_principal_id = $row.actor_principal_id
+        AND authenticated_session_id = $row.authenticated_session_id AND access_space_id = $row.access_space_id
+        AND workspace_id = $row.workspace_id LIMIT 2;
+    IF array::len($messages) != 1 { RETURN false; };
+    LET $message = encoding::json::decode($messages[0].record_json).inner;
+    IF !fn::wp012_routing_response_message($message, $stage, $execution)
+        OR $message.payload_ref != $stage.output_ref OR $message.payload_sha256 != $stage.output_sha256 { RETURN false; };
+    LET $artifacts = SELECT record_json FROM model_lane_authority WHERE record_kind = 'context_artifact' AND run_id = $row.run_id
+        AND encoding::json::decode(record_json).artifact_ref = $message.payload_ref
+        AND owner_account_id = $row.owner_account_id AND actor_principal_id = $row.actor_principal_id
+        AND authenticated_session_id = $row.authenticated_session_id AND access_space_id = $row.access_space_id
+        AND workspace_id = $row.workspace_id LIMIT 2;
+    IF array::len($artifacts) != 1 { RETURN false; };
+    LET $artifact = encoding::json::decode($artifacts[0].record_json);
+    LET $hash = crypto::sha256(encoding::json::encode($artifact.payload_json));
+    RETURN $artifact.artifact_sha256 = $hash AND $artifact.content_hash = $hash AND $message.payload_sha256 = $hash
+        AND $body.subject.artifact_ref = $artifact.artifact_ref AND $body.subject.manifest_ref = $artifact.artifact_manifest_ref
+        AND $body.subject.sha256 = $hash AND $body.subject.version = $artifact.payload_json.artifact_version;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_routing_ack_receipt_read($row: object, $selected_execution: string, $selected_stage: string) {
+    IF !fn::wp012_routing_ack_read_source($row, $selected_execution, $selected_stage) { RETURN false; };
+    LET $body = encoding::json::decode($row.record_json).body;
+    LET $key = $body.purpose.stage_acknowledgement;
+    IF !type::is_object($key) { RETURN false; };
+    LET $prior_event = string::replace($key.prior_receipt_ref, 'eventledger://role-authority/', '');
+    LET $priors = SELECT * FROM model_lane_authority WHERE record_kind = 'role_evidence' AND event_id = $prior_event
+        AND run_id = $row.run_id AND owner_account_id = $row.owner_account_id AND actor_principal_id = $row.actor_principal_id
+        AND authenticated_session_id = $row.authenticated_session_id AND access_space_id = $row.access_space_id
+        AND workspace_id = $row.workspace_id LIMIT 2;
+    IF array::len($priors) != 1 { RETURN false; };
+    LET $prior = encoding::json::decode($priors[0].record_json).body;
+    RETURN $prior.purpose = 'prior_selection' AND $body.role = $prior.role AND $body.issuer = $prior.issuer
+        AND $body.run = $prior.run AND $body.subject = $prior.subject AND $body.designation = $prior.designation
+        AND $body.validator_execution = $prior.validator_execution
+        AND $body.expected.aggregate_id = $prior.expected.aggregate_id AND $body.expected.base_ref = $prior.expected.base_ref
+        AND $body.expected.base_vector_ref = $prior.expected.base_vector_ref AND $body.expected.schema_id = $prior.expected.schema_id;
+};
+DEFINE FUNCTION OVERWRITE fn::wp012_routing_ack_read_receipt($row: object) {
+    IF $row.source_component != 'model_lane' OR $row.aggregate_type != 'role_evidence'
+        OR $row.event_type != 'MODEL_LANE_AUTHORITY_RECORDED' OR $row.event_version != 'kernel_event_v1'
+        OR $row.event_id != record::id($row.id) OR $row.idempotency_key != $row.event_id
+        OR $row.event_sequence <= 0 OR $row.actor_kind != 'principal' OR $row.actor_id != $row.actor_principal_id
+        OR $row.authority_session_id != $auth.id OR $row.wsids != [$row.workspace_id]
+        OR $row.payload.record_kind != 'role_evidence' OR $row.payload.run_id != $row.kernel_task_run_id
+        OR $row.payload.event_stream_version != 1 OR crypto::sha256($row.payload.event_payload_json) != $row.payload_hash
+        OR !type::is_string($row.payload.issuance_operation_id) OR !string::is_uuid($row.payload.issuance_operation_id) { RETURN false; };
+    LET $record = encoding::json::decode($row.payload.event_payload_json);
+    LET $candidate = object::extend($row, { record_kind: 'role_evidence', run_id: $row.kernel_task_run_id,
+        record_json: $row.payload.event_payload_json });
+    RETURN fn::wp012_routing_ack_read_source($candidate, $execution_id, $stage_id)
+        AND $row.aggregate_id = $record.body.action.action_id AND $record.event.event_id = $row.event_id
+        AND $record.event.event_seq = $row.event_sequence AND $record.event.transaction_seq = $row.event_sequence
+        AND $record.event.stream_id = $row.session_run_id AND $row.session_run_id = 'role-authority:' + $record.body.run.run_id;
 };

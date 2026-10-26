@@ -31,7 +31,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::flight_recorder::{FlightRecorderActor, FlightRecorderEvent, FlightRecorderEventType};
-use crate::storage::surreal::SurrealSwarmOutboxStore;
+use crate::storage::surreal::{SurrealSwarmOutboxPersistOutcome, SurrealSwarmOutboxStore};
 use uuid::Uuid;
 
 use super::ids::ModelInstanceId;
@@ -779,8 +779,11 @@ async fn persist_and_attempt_terminal(
     let DurableTerminalCommand { event, ack } = command;
     if let Some(outbox) = outbox {
         match persist_terminal_outbox(outbox, &event, capacity).await {
-            Ok(()) => {
+            Ok(outcome) => {
                 let _ = ack.send(Ok(()));
+                if outcome == SurrealSwarmOutboxPersistOutcome::AlreadyCommitted {
+                    return;
+                }
                 if let Err(error) = deliver_terminal_outbox_event(outbox, recorder, &event).await {
                     retry_count.fetch_add(1, Ordering::Relaxed);
                     tracing::warn!(
@@ -815,7 +818,7 @@ async fn persist_terminal_outbox(
     outbox: &SurrealSwarmOutboxStore,
     event: &FlightRecorderEvent,
     capacity: usize,
-) -> Result<(), String> {
+) -> Result<SurrealSwarmOutboxPersistOutcome, String> {
     let event_json = serde_json::to_string(event).map_err(|error| error.to_string())?;
     outbox
         .persist(&event.event_id.to_string(), event_json, capacity)

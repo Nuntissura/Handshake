@@ -18,7 +18,17 @@ use super::{
 };
 
 pub const SCHEMA_VERSION: &str = "wp-kernel-012-surreal-v1";
-pub const SCHEMA_REVISION: i64 = 166;
+pub const SCHEMA_REVISION: i64 = 167;
+
+// A successor INFO pin requires actual independent measurement; revision166 pins stay immutable.
+const ROUTING_SUCCESSOR_PRODUCTION_INFO: Option<(&str, usize, usize)> = None;
+const ROUTING_SUCCESSOR_BASE_INFO: Option<&str> = None;
+const PRE_ROUTING_REVISION: i64 = 166;
+const PRE_ROUTING_BASE_GENERATED: &str = "c6ead3a5410f93d9fbed16999c0653887560394579ffc0e67b06d2e17eb35ff4";
+const PRE_ROUTING_BASE_CATALOG: &str = "98a95b84422fe742f13b76c4900ce6c0edb4cbadfa2bce22cad9bc7e3c78d067";
+const PRE_ROUTING_PRODUCTION_GENERATED: &str = "502f43c6c647d5200c84cc2409e9196d747d6a11beefb42795bcf05478a54eb2";
+const PRE_ROUTING_PRODUCTION_SOURCE: &str = "f3e4b988af8c5e5b36b0f99b221d04f002a28a66b80abab2fb3d9f3d05a7f2a0";
+const PRE_ROUTING_PRODUCTION_CATALOG: &str = "2c1e44ec5441aad17ed529b0f65ce203f90bfb0c041a08cc667d8cec3686ca7c";
 
 // Exact revision-165 predecessor. Source/catalog provenance reconciles with the
 // independently measured BASE and FINAL catalogs in schema-measure-current-10.log.
@@ -2082,6 +2092,7 @@ fn mt120_record_user_update_stage_correction_statements() -> String {
 
 #[cfg(test)]
 fn restore_pre_mt120_record_user_update_guards(mut source: String) -> String {
+    source = restore_pre_routing_shared_schema(source);
     for (table, current, previous) in MT120_RECORD_USER_UPDATE_GUARD_RESTORATIONS {
         let (start, end) = schema_table_definition_bounds(&source, table);
         let definition = &source[start..end];
@@ -2097,6 +2108,7 @@ fn restore_pre_mt120_record_user_update_guards(mut source: String) -> String {
 
 #[cfg(test)]
 fn restore_pre_account_authority_nonce_guards(mut source: String) -> String {
+    source = restore_pre_routing_shared_schema(source);
     for (table, fields) in AUTHORITY_NONCE_IMMUTABLE_FIELDS {
         let declaration = format!("DEFINE TABLE OVERWRITE {table} ");
         let start = source
@@ -2214,6 +2226,7 @@ fn mt120_loom_bundle_table_statements() -> String {
 
 #[cfg(test)]
 fn restore_pre_mt120_loom_bundle(mut source: String) -> String {
+    source = restore_pre_routing_shared_schema(source);
     source = source.replace(MT120_LOOM_CREATED_SESSION_FIELD, "");
     source = source.replace(
         "        IF $event = 'UPDATE' AND $after.created_in_session_id != $before.created_in_session_id {\n            THROW 'HSK-MT109-LOOM-CREATOR-SESSION-IMMUTABLE';\n        };\n",
@@ -2377,6 +2390,7 @@ const STANDALONE_LOOM_UPDATE_SCHEMA_DELTAS: [(&str, &str); 2] = [
 ];
 #[cfg(test)]
 fn restore_pre_standalone_loom_update_schema(mut source: String) -> String {
+    source = restore_pre_routing_shared_schema(source);
     for (current, previous) in MT109_C3_SCHEMA_DELTAS {
         source = source.replace(current, previous);
     }
@@ -2877,6 +2891,7 @@ const MT153_LOOM_EDGE_DELETE_ORDER_DELTAS: [(&str, &str); 1] = [(
 /// its revision-161 link-traversal text.
 #[cfg(test)]
 fn restore_pre_indexed_grant_schema(mut source: String) -> String {
+    source = restore_pre_routing_shared_schema(source);
     // The revision-163 identity pins are newer than the revision-162 MT-170 widening.
     source = restore_pre_mt170_identity_schema(source);
     // MT-153: the loom_edges delete OR reorder and the view_def workspace-delete widening are newer
@@ -2960,6 +2975,7 @@ fn restore_pre_indexed_grant_schema(mut source: String) -> String {
 
 #[cfg(test)]
 fn restore_pre_document_grant_schema(source: String) -> String {
+    let source = restore_pre_routing_shared_schema(source);
     let (_, revision_161_document_access) = PRE_INDEXED_GRANT_FUNCTION_TEXTS
         .into_iter()
         .find(|(name, _)| *name == "mt120_document_access")
@@ -3068,6 +3084,7 @@ const ARGUS_RECEIPT_SCHEMA_DELTAS: [(&str, &str); 2] = [
 
 #[cfg(test)]
 fn restore_pre_argus_receipt_schema(mut source: String) -> String {
+    source = restore_pre_routing_shared_schema(source);
     for (current, previous) in ARGUS_RECEIPT_SCHEMA_DELTAS {
         assert_eq!(source.matches(current).count(), 1, "Argus delta must occur exactly once");
         source = source.replacen(current, previous, 1);
@@ -3373,6 +3390,7 @@ fn pre_argus_current_upgrade_statements(production: bool) -> String {
     }
     assert_eq!(count, if production { 239 } else { 89 });
     result.push_str(&member_enrollment_upgrade_statements());
+    result.push_str(&routing_receipt_upgrade_statements());
     result
 }
 
@@ -3477,23 +3495,6 @@ DEFINE FIELD OVERWRITE credential_revision ON TABLE local_accounts TYPE int DEFA
     PERMISSIONS FOR select WHERE fn::mt109_live_session() AND id = $auth.account_id
     FOR create WHERE $value = 0 FOR update NONE;
 "###;
-
-fn member_revision166_model_lane_upgrade_statements() -> String {
-    let source = include_str!("model_lane_schema.surql");
-    let spans = canonical_upgrade_spans(source, &[
-        "DEFINE FUNCTION OVERWRITE fn::wp012_validator_association_snapshot(",
-        "DEFINE FUNCTION OVERWRITE fn::wp012_validator_association_authority(",
-        "DEFINE FUNCTION OVERWRITE fn::wp012_validator_association_ledger(",
-        "DEFINE FUNCTION OVERWRITE fn::wp012_validator_association_record(",
-        "DEFINE TABLE OVERWRITE model_lane_authority ",
-    ]);
-    let mut statements = String::new();
-    for (start, end) in spans {
-        statements.push_str(&source[start..end]);
-        statements.push('\n');
-    }
-    statements
-}
 
 fn member_enrollment_upgrade_statements() -> String {
     let spans = canonical_upgrade_spans(SCHEMA, &[
@@ -4041,6 +4042,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_receipt($row: object, $write: boo
 // fresh/post-module reopen lineage remain independently unmeasured.
 #[cfg(test)]
 fn restore_pre_navigation_provider_schema(mut source: String) -> String {
+    source = restore_pre_routing_shared_schema(source);
     // Reverse only the new registry witness branch before exact historical
     // function-body restoration; no predecessor pin or assertion changes.
     let registry_start = SCHEMA.find("    IF $event = 'FLIGHT_RECORDER_MIRROR_RECORDED' AND $source = 'capability_registry_workflow' AND $aggregate = 'capability_registry_publication' {")
@@ -4246,6 +4248,7 @@ DEFINE FIELD OVERWRITE owner_account_id ON TABLE kernel_event_ledger TYPE option
 // Test-only: current revision/INFO upgrade proof remains pending.
 #[cfg(test)]
 fn restore_pre_mt173_import_schema(mut source: String) -> String {
+    source = restore_pre_routing_shared_schema(source);
     source = restore_pre_argus_receipt_schema(source);
     source = restore_pre_navigation_provider_schema(source);
     source = restore_round08_context_schema(source);
@@ -4493,6 +4496,7 @@ DEFINE FIELD OVERWRITE lease_claim_id ON TABLE atelier_action_receipt TYPE optio
 
 #[cfg(test)]
 fn restore_pre_mt168_lookup_schema(mut source: String) -> String {
+    source = restore_pre_routing_shared_schema(source);
     source = restore_pre_mt173_import_schema(source);
     for (current, previous) in MT168_LOOKUP_REPAIR_DELTAS {
         assert_eq!(
@@ -4512,6 +4516,7 @@ fn restore_pre_mt168_lookup_schema(mut source: String) -> String {
 
 #[cfg(test)]
 fn restore_pre_mt170_identity_schema(mut source: String) -> String {
+    source = restore_pre_routing_shared_schema(source);
     source = restore_pre_mt168_lookup_schema(source);
     let identity_pin =
         " AND string::starts_with(edge_id, 'KDLNK-') AND edit_event_id = '00000000-0000-0000-0000-000000000000'";
@@ -4526,6 +4531,7 @@ fn restore_pre_mt170_identity_schema(mut source: String) -> String {
 
 #[cfg(test)]
 fn restore_pre_mt154_schema(mut source: String) -> String {
+    source = restore_pre_routing_shared_schema(source);
     source = restore_pre_document_grant_schema(source);
     if let Some(start) = source.find(MT154_AUTHORITY_BLOCK_BEGIN) {
         let end = source[start..]
@@ -4757,7 +4763,7 @@ const PREDECESSOR_KNOWLEDGE_REGISTRY_SHA256: &str =
 // MT-174 engine-profile declarations: exact source/catalog pins include five functions,
 // one authored field and one event. Live INFO and compatible reopen remain unmeasured.
 pub const GENERATED_SURREALQL_SHA256: &str =
-    "8ec47c535bae2883d35d1bbfb2f6c1dce77a0f2c92ad422dd869ac0a5c5c4b7c";
+    "967b56e2f18a1f4a5b7a60383f3449b12cdab48a8890f73c9ab17099eacbd02b";
 // MT-142 re-pin: catalog identities gained the knowledge_rich_document_title_anchors objects.
 // MT-151 re-pin: catalog identities gained the journal_key field/index and the
 // storage_graph_anchors objects.
@@ -6417,6 +6423,18 @@ struct PredecessorUpgradeBindings {
 }
 
 impl SchemaState {
+    fn is_exact_pre_routing(&self, production: bool, config: &SurrealStorageConfig) -> bool {
+        self.version == SCHEMA_VERSION && self.revision == PRE_ROUTING_REVISION
+            && self.target_revision == PRE_ROUTING_REVISION
+            && self.namespace == config.namespace() && self.database == config.database()
+            && self.apply_state == "complete"
+            && self.source_manifest_sha256 == if production { PRE_ROUTING_PRODUCTION_SOURCE } else { SCHEMA_LINEAGE_SHA256 }
+            && self.generated_surql_sha256 == if production { PRE_ROUTING_PRODUCTION_GENERATED } else { PRE_ROUTING_BASE_GENERATED }
+            && if production {
+                EXPECTED_PRODUCTION_SCHEMA_PIN.is_some_and(|pin| self.info_fingerprint_sha256 == pin.0)
+            } else { self.info_fingerprint_sha256 == EXPECTED_SCHEMA_INFO_SHA256 }
+    }
+
     fn is_exact_pre_member_enrollment(&self, production: bool, config: &SurrealStorageConfig) -> bool {
         self.version == SCHEMA_VERSION
             && self.revision == PRE_MEMBER_ENROLLMENT_REVISION
@@ -6471,7 +6489,7 @@ impl SchemaState {
         self.has_stable_v1_identity(config)
             && self.generated_surql_sha256 == GENERATED_SURREALQL_SHA256
             && self.apply_state == "complete"
-            && self.info_fingerprint_sha256 == EXPECTED_SCHEMA_INFO_SHA256
+            && ROUTING_SUCCESSOR_BASE_INFO.is_some_and(|expected| self.info_fingerprint_sha256 == expected)
     }
 
     fn is_exact_pre_mt168_lookup_revision(&self, config: &SurrealStorageConfig) -> bool {
@@ -7056,11 +7074,147 @@ fn production_source_sha256() -> String {
 // Extend the owning declaration inventory with the same token identities. Later
 // OVERWRITE replaces an identity; IF NOT EXISTS preserves it. The whole INFO pin
 // still verifies definitions, implicit engine fields and every catalog category.
+const ROUTING_SHARED_RECEIPT_DELTA: &str = r####"
+    IF !$write AND $row.aggregate_type = 'role_evidence' AND $wp012_original_purpose = 'source_read' AND $wp012_routing_original.action = 'read' AND $wp012_routing_original.execution_id != '' {
+        RETURN fn::wp012_routing_ack_read_receipt($row);
+    };
+    IF !$write AND $wp012_original_purpose = 'promotion_decision_read' AND $row.source_component = 'model_lane' {
+        RETURN fn::wp012_promotion_public_receipt($row);
+    };
+    IF $wp012_original_purpose IN ['final_promotion_read', 'final_promotion_record'] AND $row.source_component = 'model_lane' {
+        RETURN fn::wp012_promotion_receipt($row, $write);
+    };
+    IF $row.aggregate_type = 'run' AND ($row.event_type = 'MODEL_LANE_AUTHORITY_REPLACED' OR $wp012_original_purpose = 'run_attachment') {
+        RETURN fn::wp012_run_attachment_receipt($row, $write);
+    };
+    IF !$write AND $row.aggregate_type = 'role_evidence' AND ($wp012_routing_prior != NONE OR $wp012_routing_ack != NONE) {
+        RETURN fn::wp012_routing_role_receipt($row, false);
+    };
+    IF $row.source_component = 'model_lane_routing_executor' {
+        RETURN fn::wp012_routing_receipt($row, $write);
+    };
+    IF ($wp012_original_purpose IN ['routing_create', 'routing_transition', 'routing_diagnostics_read']
+        OR ($wp012_original_purpose = 'source_read' AND $wp012_routing_original.action = 'read' AND $wp012_routing_original.execution_id != ''))
+        AND $row.source_component = 'model_lane' {
+        RETURN fn::wp012_routing_model_lane_receipt($row, $write);
+    };
+"####;
+
+fn restore_pre_routing_shared_schema(source: String) -> String {
+    assert!(source.matches(ROUTING_SHARED_RECEIPT_DELTA).count() <= 1,
+        "routing shared receipt delta must not be duplicated");
+    source.replacen(ROUTING_SHARED_RECEIPT_DELTA, "\n", 1)
+        .replacen("DEFINE FIELD OVERWRITE engine_profile_binding ON TABLE model_sessions TYPE option<object> FLEXIBLE;",
+            "DEFINE FIELD OVERWRITE engine_profile_binding ON TABLE model_sessions FLEXIBLE TYPE option<object>;", 1)
+}
+
+fn routing_receipt_upgrade_statements() -> String {
+    format!("{}\n", schema_function_definition("wp012_model_lane_receipt"))
+}
+const ROUTING_CATALOG_ADDITIONS: &[&str] = &[
+    "event:model_lane_authority:wp012_run_attachment_update",
+    "function:fn::wp012_promotion_current",
+    "function:fn::wp012_promotion_current_body",
+    "function:fn::wp012_promotion_durable_body",
+    "function:fn::wp012_promotion_durable_decision",
+    "function:fn::wp012_promotion_frame",
+    "function:fn::wp012_promotion_identity",
+    "function:fn::wp012_promotion_ledger_identity",
+    "function:fn::wp012_promotion_lineage",
+    "function:fn::wp012_promotion_public_receipt",
+    "function:fn::wp012_promotion_public_record",
+    "function:fn::wp012_promotion_read_basis",
+    "function:fn::wp012_promotion_receipt",
+    "function:fn::wp012_promotion_role_selection",
+    "function:fn::wp012_promotion_scope",
+    "function:fn::wp012_promotion_scope_matches",
+    "function:fn::wp012_promotion_selected_read",
+    "function:fn::wp012_promotion_source_access",
+    "function:fn::wp012_routing_ack_fence",
+    "function:fn::wp012_routing_ack_read_receipt",
+    "function:fn::wp012_routing_ack_read_source",
+    "function:fn::wp012_routing_ack_receipt_read",
+    "function:fn::wp012_routing_artifact_message",
+    "function:fn::wp012_routing_authority_snapshot",
+    "function:fn::wp012_routing_execution_projection",
+    "function:fn::wp012_routing_extra_link_access",
+    "function:fn::wp012_routing_extra_receipt",
+    "function:fn::wp012_routing_model_lane_receipt",
+    "function:fn::wp012_routing_original",
+    "function:fn::wp012_routing_receipt",
+    "function:fn::wp012_routing_record_access",
+    "function:fn::wp012_routing_response_message",
+    "function:fn::wp012_routing_role_receipt",
+    "function:fn::wp012_routing_role_source_access",
+    "function:fn::wp012_routing_selected",
+    "function:fn::wp012_routing_source_access",
+    "function:fn::wp012_routing_source_identity",
+    "function:fn::wp012_routing_write_fence",
+    "function:fn::wp012_run_attachment_authority",
+    "function:fn::wp012_run_attachment_identity",
+    "function:fn::wp012_run_attachment_merge",
+    "function:fn::wp012_run_attachment_receipt",
+];
+
+fn routing_predecessor_catalog_sha256(production: bool) -> Result<String, SurrealStorageError> {
+    if !production {
+        return compute_declarative_schema_catalog_sha256().map_err(SurrealStorageError::TransactionWorker);
+    }
+    let mut entries = production_catalog_entries().map_err(SurrealStorageError::TransactionWorker)?
+        .into_iter().collect::<BTreeSet<_>>();
+    for identity in ROUTING_CATALOG_ADDITIONS {
+        if !entries.remove(*identity) {
+            return Err(SurrealStorageError::TransactionWorker(format!("routing catalog delta identity missing: {identity}")));
+        }
+    }
+    Ok(compute_catalog_hash(&entries.into_iter().collect::<Vec<_>>()))
+}
+fn production_declaration_headers(source: &str) -> Result<Vec<String>, String> {
+    let mut declarations = Vec::new();
+    let source = source.replace(";DEFINE", ";\nDEFINE");
+    let mut lines = source.lines();
+    while let Some(raw) = lines.next() {
+        let mut declaration = raw.trim().to_owned();
+        if declaration.split_whitespace().next() != Some("DEFINE") { continue; }
+        loop {
+            let header = declaration.split_whitespace().collect::<Vec<_>>();
+            if header.first() != Some(&"DEFINE") || !matches!(header.get(1).copied(), Some("FIELD" | "INDEX" | "EVENT")) { break; }
+            let mut rest = &header[2..];
+            if rest.starts_with(&["OVERWRITE"]) { rest = &rest[1..]; }
+            else if rest.starts_with(&["IF", "NOT", "EXISTS"]) { rest = &rest[3..]; }
+            if rest.is_empty() { return Err(format!("missing declaration name: {declaration}")); }
+            if rest.len() > 1 && rest[1] != "ON" { return Err(format!("invalid declaration header: {declaration}")); }
+            let table_index = if rest.get(2) == Some(&"TABLE") { 3 } else { 2 };
+            if let Some(table) = rest.get(table_index) {
+                let table = table.trim_end_matches(';');
+                if table.is_empty() || matches!(table, "TABLE" | "ON" | "TYPE" | "WHEN" | "THEN" | "PERMISSIONS" | "DEFINE") {
+                    return Err(format!("missing declaration table: {declaration}"));
+                }
+                break;
+            }
+            let needs_on = rest.len() == 1;
+            let continuation = loop {
+                let next = lines.next().ok_or_else(|| format!("incomplete declaration: {declaration}"))?.trim();
+                if !next.is_empty() && !next.starts_with("--") { break next; }
+            };
+            let first = continuation.split_whitespace().next().unwrap_or("");
+            if first == "DEFINE" || (needs_on && first != "ON")
+                || (!needs_on && matches!(first, "TYPE" | "WHEN" | "THEN" | "PERMISSIONS" | "ASSERT" | "VALUE" | "DEFAULT")) {
+                return Err(format!("invalid declaration continuation: {declaration} / {continuation}"));
+            }
+            declaration.push(' ');
+            declaration.push_str(continuation);
+        }
+        declarations.push(declaration);
+    }
+    Ok(declarations)
+}
+
 fn production_catalog_entries() -> Result<Vec<String>, String> {
     let mut entries = compiled_schema_catalog_entries()?.into_iter().collect::<BTreeSet<_>>();
     for (_, source) in production_schema_sources().into_iter().skip(1) {
-        for raw in source.replace(";DEFINE", ";\nDEFINE").lines() {
-            let tokens = raw.trim().split_whitespace().collect::<Vec<_>>();
+        for declaration in production_declaration_headers(source)? {
+            let tokens = declaration.split_whitespace().collect::<Vec<_>>();
             if tokens.first() != Some(&"DEFINE") { continue; }
             let kind = tokens.get(1).ok_or("missing DEFINE kind")?;
             let mut rest = &tokens[2..];
@@ -7070,14 +7224,14 @@ fn production_catalog_entries() -> Result<Vec<String>, String> {
             let identity = match *kind {
                 "TABLE" => format!("table:{name}"),
                 "FIELD" | "INDEX" | "EVENT" => {
-                    if rest.get(1) != Some(&"ON") { return Err(format!("invalid catalog declaration: {raw}")); }
+                    if rest.get(1) != Some(&"ON") { return Err(format!("invalid catalog declaration: {declaration}")); }
                     let table = if rest.get(2) == Some(&"TABLE") { rest.get(3) } else { rest.get(2) }
                         .ok_or("missing declaration table")?.trim_end_matches(';');
                     format!("{}:{table}:{name}", kind.to_ascii_lowercase())
                 }
                 "FUNCTION" => format!("function:{}", declarative_function_name(name)?),
                 "SEQUENCE" | "ACCESS" | "ANALYZER" | "PARAM" => format!("{}:{name}", kind.to_ascii_lowercase()),
-                _ => return Err(format!("unsupported production catalog declaration: {raw}")),
+                _ => return Err(format!("unsupported production catalog declaration: {declaration}")),
             };
             entries.insert(identity);
         }
@@ -7108,7 +7262,7 @@ async fn inspect_production_schema(database: &SurrealAdminContext<'_>) -> Result
     if observed.table_names != expected_tables {
         return fail_closed(database, format!("HANDSHAKE_SURREAL_PRODUCTION_TABLE_SET_MISMATCH: expected={expected_tables:?}; observed={:?}", observed.table_names)).await;
     }
-    let Some((expected_info, expected_fields, expected_indexes)) = EXPECTED_PRODUCTION_SCHEMA_PIN else {
+    let Some((expected_info, expected_fields, expected_indexes)) = ROUTING_SUCCESSOR_PRODUCTION_INFO else {
         return fail_closed(database, format!("HANDSHAKE_SURREAL_PRODUCTION_INFO_UNMEASURED: observed={}; fields={}; indexes={}; source={}; inventory={}", observed.info_fingerprint_sha256, observed.fields_defined, observed.indexes_defined, production_source_sha256(), production_catalog_sha256()?)).await;
     };
     if observed.info_fingerprint_sha256 != expected_info || observed.fields_defined != expected_fields || observed.indexes_defined != expected_indexes {
@@ -7119,6 +7273,10 @@ async fn inspect_production_schema(database: &SurrealAdminContext<'_>) -> Result
 
 async fn verify_production_module_receipts(database: &SurrealAdminContext<'_>) -> Result<(), SurrealStorageError> {
     super::model_lane::verify_schema_receipt(database).await?;
+    verify_other_production_module_receipts(database).await
+}
+
+async fn verify_other_production_module_receipts(database: &SurrealAdminContext<'_>) -> Result<(), SurrealStorageError> {
     super::cloud_model_lane::verify_schema_receipt(database).await?;
     super::palmistry::verify_schema_receipt(database).await?;
     super::swarm_outbox::verify_schema_receipt(database).await?;
@@ -7135,6 +7293,14 @@ async fn production_reopen_report(storage: &SurrealStorage) -> Result<Option<Sch
         let mut response = database.query(format!("SELECT * FROM ONLY {BOOTSTRAP_STATE_ID};")).await?;
         let state: Option<SchemaState> = response.take(0)?;
         let Some(mut state) = state else { return Ok(None); };
+        if state.is_exact_pre_routing(true, &database.config) {
+            verify_compiled_manifest(&database).await?;
+            let observed = upgrade_pre_routing(&database, &state, true).await?;
+            let complete = read_context_and_state(&database).await?
+                .ok_or_else(|| SurrealStorageError::TransactionWorker("Routing production successor receipt missing".to_owned()))?;
+            return Ok(Some(build_schema_report(complete, observed,
+                SchemaBootstrapOutcome::UpgradedSupportedPredecessor, 10)));
+        }
         if state.is_exact_pre_member_enrollment(true, &database.config) {
             verify_compiled_manifest(&database).await?;
             let observed = upgrade_pre_member_enrollment(&database, &state, true).await?;
@@ -7177,6 +7343,9 @@ async fn production_reopen_report(storage: &SurrealStorage) -> Result<Option<Sch
 
 pub(super) async fn begin_production_schema(storage: &SurrealStorage) -> Result<(), SurrealStorageError> {
     storage.with_admin_operation(|database| Box::pin(async move {
+        if ROUTING_SUCCESSOR_PRODUCTION_INFO.is_none() {
+            return fail_closed(&database, "HANDSHAKE_SURREAL_ROUTING_SUCCESSOR_PRODUCTION_INFO_UNMEASURED".to_owned()).await;
+        }
         let state = read_context_and_state(&database).await?;
         if !state.as_ref().is_some_and(|state| state.is_exact_current(&database.config)) {
             return fail_closed(&database, "HANDSHAKE_SURREAL_PRODUCTION_BASE_RECEIPT_MISMATCH".to_owned()).await;
@@ -7198,7 +7367,7 @@ COMMIT TRANSACTION;
             schema_version: SCHEMA_VERSION.to_owned(), schema_revision: SCHEMA_REVISION,
             namespace: database.config.namespace().to_owned(), database: database.config.database().to_owned(),
             base_source: SCHEMA_LINEAGE_SHA256.to_owned(), base_generated: GENERATED_SURREALQL_SHA256.to_owned(),
-            base_info: EXPECTED_SCHEMA_INFO_SHA256.to_owned(), source: production_source_sha256(),
+            base_info: ROUTING_SUCCESSOR_BASE_INFO.ok_or_else(|| SurrealStorageError::TransactionWorker("routing successor base INFO unmeasured".to_owned()))?.to_owned(), source: production_source_sha256(),
             catalog: production_generated_sha256(), pending: PENDING_SCHEMA_INFO_SHA256.to_owned(),
         }).await?;
         Ok(())
@@ -7378,6 +7547,10 @@ async fn bootstrap_schema_unbounded(
                     Some(state) if state.is_exact_current(&database.config) => {
                         ensure_knowledge_schema_registry(&database).await?;
                         SchemaBootstrapOutcome::ReusedExactCurrent
+                    }
+                    Some(state) if state.is_exact_pre_routing(false, &database.config) => {
+                        verified_observed = Some(upgrade_pre_routing(&database, &state, false).await?);
+                        SchemaBootstrapOutcome::UpgradedSupportedPredecessor
                     }
                     Some(state) if state.is_exact_pre_member_enrollment(false, &database.config) => {
                         verified_observed = Some(upgrade_pre_member_enrollment(&database, &state, false).await?);
@@ -7782,6 +7955,9 @@ fn generated_collection_subtype_field_count(schema: &str) -> usize {
 async fn verify_compiled_manifest(
     database: &SurrealAdminContext<'_>,
 ) -> Result<(), SurrealStorageError> {
+    if ROUTING_SUCCESSOR_BASE_INFO.is_none() {
+        return fail_closed(database, "HANDSHAKE_SURREAL_ROUTING_SUCCESSOR_BASE_INFO_UNMEASURED".to_owned()).await;
+    }
     let catalog = match compute_declarative_schema_catalog_sha256() {
         Ok(catalog) => catalog,
         Err(reason) => {
@@ -8777,11 +8953,105 @@ COMMIT TRANSACTION;\n"
 
 
 #[derive(SurrealValue)]
-struct ArgusSuccessorBindings {
+struct RoutingSuccessorBindings {
     version: String, previous_revision: i64, revision: i64,
     namespace: String, database: String,
     previous_source: String, previous_generated: String, previous_info: String,
     source: String, generated: String, pending_info: String,
+}
+
+async fn upgrade_pre_routing(
+    database: &SurrealAdminContext<'_>,
+    previous_state: &SchemaState,
+    production: bool,
+) -> Result<ObservedSchema, SurrealStorageError> {
+    if !previous_state.is_exact_pre_routing(production, &database.config) {
+        return fail_closed(database, "HANDSHAKE_SURREAL_PRE_ROUTING_PRECONDITION_FAILED".to_owned()).await;
+    }
+    let predecessor = read_schema_catalog(database).await?;
+    let expected_catalog = if production { PRE_ROUTING_PRODUCTION_CATALOG } else { PRE_ROUTING_BASE_CATALOG };
+    if routing_predecessor_catalog_sha256(production)? != expected_catalog {
+        return fail_closed(database, "HANDSHAKE_SURREAL_PRE_ROUTING_SOURCE_CATALOG_MISMATCH".to_owned()).await;
+    }
+    let old_production = EXPECTED_PRODUCTION_SCHEMA_PIN;
+    if predecessor.info_fingerprint_sha256 != previous_state.info_fingerprint_sha256
+        || (production && !old_production.is_some_and(|pin|
+            predecessor.info_fingerprint_sha256 == pin.0 && predecessor.fields_defined == pin.1
+                && predecessor.indexes_defined == pin.2)) {
+        return fail_closed(database, format!(
+            "HANDSHAKE_SURREAL_PRE_ROUTING_CATALOG_MISMATCH: observed={}; fields={}; indexes={}",
+            predecessor.info_fingerprint_sha256, predecessor.fields_defined, predecessor.indexes_defined)).await;
+    }
+    let model_lane_upgrade = if production {
+        verify_other_production_module_receipts(database).await?;
+        Some(super::model_lane::prepare_routing_model_lane_schema_upgrade(database).await?)
+    } else { None };
+    if ROUTING_SUCCESSOR_BASE_INFO.is_none()
+        || (production && ROUTING_SUCCESSOR_PRODUCTION_INFO.is_none()) {
+        return fail_closed(database, "HANDSHAKE_SURREAL_ROUTING_SUCCESSOR_INFO_UNMEASURED".to_owned()).await;
+    }
+    let source = if production { production_source_sha256() } else { SCHEMA_LINEAGE_SHA256.to_owned() };
+    let generated = if production { production_generated_sha256() } else { GENERATED_SURREALQL_SHA256.to_owned() };
+    let upgrade = format!(r#"
+BEGIN TRANSACTION;
+LET $current = SELECT * FROM ONLY handshake_schema_state:primary;
+IF $current = NONE OR $current.version != $version
+ OR $current.revision != $previous_revision OR $current.target_revision != $previous_revision
+ OR $current.namespace != $namespace OR $current.database != $database
+ OR $current.source_manifest_sha256 != $previous_source
+ OR $current.generated_surql_sha256 != $previous_generated
+ OR $current.info_fingerprint_sha256 != $previous_info OR $current.apply_state != 'complete'
+{{ THROW 'HANDSHAKE_SURREAL_PRE_ROUTING_STATE_CHANGED'; }};
+{}
+{}
+UPDATE ONLY handshake_schema_state:primary SET revision = $revision, target_revision = $revision,
+ source_manifest_sha256 = $source, generated_surql_sha256 = $generated,
+ info_fingerprint_sha256 = $pending_info, apply_state = 'schema_applied', updated_at = time::now();
+COMMIT TRANSACTION;
+"#, routing_receipt_upgrade_statements(),
+        model_lane_upgrade.as_ref().map(|prepared| prepared.routing_sql_fragment()).unwrap_or_default());
+    let SurrealValueData::Object(mut bindings) = SurrealValue::into_value(RoutingSuccessorBindings {
+        version: SCHEMA_VERSION.to_owned(), previous_revision: PRE_ROUTING_REVISION,
+        revision: SCHEMA_REVISION, namespace: database.config.namespace().to_owned(), database: database.config.database().to_owned(),
+        previous_source: previous_state.source_manifest_sha256.clone(),
+        previous_generated: previous_state.generated_surql_sha256.clone(), previous_info: previous_state.info_fingerprint_sha256.clone(),
+        source: source.clone(), generated: generated.clone(), pending_info: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+    }) else {
+        return Err(SurrealStorageError::TransactionWorker("Routing successor bindings must be an object".to_owned()));
+    };
+    if let Some(prepared) = model_lane_upgrade { prepared.append_native_bindings(&mut bindings); }
+    database.query_bound(upgrade, bindings).await?;
+    let pending = read_context_and_state(database).await?
+        .ok_or_else(|| SurrealStorageError::TransactionWorker("Routing successor pending receipt missing".to_owned()))?;
+    let pending_identity = if production { has_production_identity(&pending, &database.config) } else { pending.has_stable_v1_identity(&database.config) };
+    if !pending_identity || pending.generated_surql_sha256 != generated
+        || pending.apply_state != "schema_applied" || pending.info_fingerprint_sha256 != PENDING_SCHEMA_INFO_SHA256 {
+        return fail_closed(database, "HANDSHAKE_SURREAL_ROUTING_SUCCESSOR_PENDING_MISMATCH".to_owned()).await;
+    }
+    let observed = if production {
+        verify_production_module_receipts(database).await?;
+        inspect_production_schema(database).await?
+    } else {
+        ensure_knowledge_schema_registry(database).await?;
+        let observed = inspect_schema(database).await?;
+        verify_expected_info_fingerprint(database, &observed).await?;
+        observed
+    };
+    finalize_schema_state_bound(database, FinalizeBindings {
+        schema_version: SCHEMA_VERSION.to_owned(), schema_revision: SCHEMA_REVISION,
+        namespace: database.config.namespace().to_owned(), database: database.config.database().to_owned(),
+        source_manifest_sha256: source, generated_surql_sha256: generated.clone(),
+        pending_info_fingerprint_sha256: PENDING_SCHEMA_INFO_SHA256.to_owned(),
+        info_fingerprint_sha256: observed.info_fingerprint_sha256.clone(),
+    }).await?;
+    let complete = read_context_and_state(database).await?
+        .ok_or_else(|| SurrealStorageError::TransactionWorker("Routing successor complete receipt missing".to_owned()))?;
+    let complete_identity = if production { has_production_identity(&complete, &database.config) } else { complete.has_stable_v1_identity(&database.config) };
+    if !complete_identity || complete.generated_surql_sha256 != generated
+        || complete.apply_state != "complete" || complete.info_fingerprint_sha256 != observed.info_fingerprint_sha256 {
+        return fail_closed(database, "HANDSHAKE_SURREAL_ROUTING_SUCCESSOR_COMPLETE_MISMATCH".to_owned()).await;
+    }
+    Ok(observed)
 }
 
 async fn upgrade_pre_member_enrollment(
@@ -8800,11 +9070,12 @@ async fn upgrade_pre_member_enrollment(
             "HANDSHAKE_SURREAL_PRE_MEMBER_CATALOG_MISMATCH: observed={}; fields={}; indexes={}",
             predecessor.info_fingerprint_sha256, predecessor.fields_defined, predecessor.indexes_defined)).await;
     }
-    if production {
-        verify_production_module_receipts(database).await?;
-    }
-    if EXPECTED_SCHEMA_INFO_SHA256.is_empty()
-        || (production && EXPECTED_PRODUCTION_SCHEMA_PIN.is_none()) {
+    let model_lane_upgrade = if production {
+        verify_other_production_module_receipts(database).await?;
+        Some(super::model_lane::prepare_model_lane_schema_upgrade(database).await?)
+    } else { None };
+    if ROUTING_SUCCESSOR_BASE_INFO.is_none()
+        || (production && ROUTING_SUCCESSOR_PRODUCTION_INFO.is_none()) {
         return fail_closed(database, "HANDSHAKE_SURREAL_MEMBER_SUCCESSOR_INFO_UNMEASURED".to_owned()).await;
     }
     let source = if production { production_source_sha256() } else { SCHEMA_LINEAGE_SHA256.to_owned() };
@@ -8825,9 +9096,9 @@ UPDATE ONLY handshake_schema_state:primary SET revision = $revision, target_revi
  source_manifest_sha256 = $source, generated_surql_sha256 = $generated,
  info_fingerprint_sha256 = $pending_info, apply_state = 'schema_applied', updated_at = time::now();
 COMMIT TRANSACTION;
-"#, member_enrollment_upgrade_statements(),
-        if production { member_revision166_model_lane_upgrade_statements() } else { String::new() });
-    let SurrealValueData::Object(bindings) = SurrealValue::into_value(ArgusSuccessorBindings {
+"#, format!("{}\n{}", member_enrollment_upgrade_statements(), routing_receipt_upgrade_statements()),
+        model_lane_upgrade.as_ref().map(|prepared| prepared.routing_sql_fragment()).unwrap_or_default());
+    let SurrealValueData::Object(mut bindings) = SurrealValue::into_value(RoutingSuccessorBindings {
         version: SCHEMA_VERSION.to_owned(), previous_revision: PRE_MEMBER_ENROLLMENT_REVISION,
         revision: SCHEMA_REVISION, namespace: database.config.namespace().to_owned(), database: database.config.database().to_owned(),
         previous_source: previous_state.source_manifest_sha256.clone(),
@@ -8836,6 +9107,7 @@ COMMIT TRANSACTION;
     }) else {
         return Err(SurrealStorageError::TransactionWorker("Member successor bindings must be an object".to_owned()));
     };
+    if let Some(prepared) = model_lane_upgrade { prepared.append_native_bindings(&mut bindings); }
     database.query_bound(upgrade, bindings).await?;
     let pending = read_context_and_state(database).await?
         .ok_or_else(|| SurrealStorageError::TransactionWorker("Member successor pending receipt missing".to_owned()))?;
@@ -8895,8 +9167,8 @@ async fn upgrade_pre_argus_receipt(
     } else {
         None
     };
-    if EXPECTED_SCHEMA_INFO_SHA256.is_empty()
-        || (production && EXPECTED_PRODUCTION_SCHEMA_PIN.is_none()) {
+    if ROUTING_SUCCESSOR_BASE_INFO.is_none()
+        || (production && ROUTING_SUCCESSOR_PRODUCTION_INFO.is_none()) {
         return fail_closed(database, "HANDSHAKE_SURREAL_ARGUS_SUCCESSOR_INFO_UNMEASURED".to_owned()).await;
     }
     let source = if production { production_source_sha256() } else { SCHEMA_LINEAGE_SHA256.to_owned() };
@@ -8918,10 +9190,8 @@ UPDATE ONLY handshake_schema_state:primary SET revision = $revision, target_revi
  info_fingerprint_sha256 = $pending_info, apply_state = 'schema_applied', updated_at = time::now();
 COMMIT TRANSACTION;
 "#, pre_argus_current_upgrade_statements(production),
-        format!("{}\n{}",
-            model_lane_upgrade.as_ref().map(|prepared| prepared.sql_fragment()).unwrap_or(""),
-            if production { member_revision166_model_lane_upgrade_statements() } else { String::new() }));
-    let SurrealValueData::Object(mut bindings) = SurrealValue::into_value(ArgusSuccessorBindings {
+        model_lane_upgrade.as_ref().map(|prepared| prepared.routing_sql_fragment()).unwrap_or_default());
+    let SurrealValueData::Object(mut bindings) = SurrealValue::into_value(RoutingSuccessorBindings {
         version: SCHEMA_VERSION.to_owned(), previous_revision: PRE_ARGUS_RECEIPT_REVISION,
         revision: SCHEMA_REVISION, namespace: database.config.namespace().to_owned(), database: database.config.database().to_owned(),
         previous_source: previous_state.source_manifest_sha256.clone(),
@@ -9954,7 +10224,10 @@ async fn verify_expected_info_fingerprint(
     database: &SurrealAdminContext<'_>,
     observed: &ObservedSchema,
 ) -> Result<(), SurrealStorageError> {
-    if EXPECTED_SCHEMA_INFO_SHA256.bytes().all(|byte| byte == b'0') {
+    let Some(expected_info) = ROUTING_SUCCESSOR_BASE_INFO else {
+        return fail_closed(database, "HANDSHAKE_SURREAL_ROUTING_SUCCESSOR_BASE_INFO_UNMEASURED".to_owned()).await;
+    };
+    if expected_info.bytes().all(|byte| byte == b'0') {
         return fail_closed(
             database,
             format!(
@@ -9964,11 +10237,11 @@ async fn verify_expected_info_fingerprint(
         )
         .await;
     }
-    if observed.info_fingerprint_sha256 != EXPECTED_SCHEMA_INFO_SHA256 {
+    if observed.info_fingerprint_sha256 != expected_info {
         return fail_closed(
             database,
             format!(
-                "HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_MISMATCH: expected={EXPECTED_SCHEMA_INFO_SHA256}; observed={}",
+                "HANDSHAKE_SURREAL_SCHEMA_INFO_FINGERPRINT_MISMATCH: expected={expected_info}; observed={}",
                 observed.info_fingerprint_sha256
             ),
         )
@@ -11173,7 +11446,7 @@ mod tests {
                 let upgraded = open_test_storage(directory_ref).await?;
                 let upgrade = bootstrap_schema(&upgraded).await?;
                 assert_eq!(upgrade.outcome, SchemaBootstrapOutcome::UpgradedSupportedPredecessor);
-                assert_eq!(upgrade.info_fingerprint_sha256, EXPECTED_SCHEMA_INFO_SHA256);
+                assert_eq!(upgrade.info_fingerprint_sha256, ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required"));
                 assert_eq!(mt109_schema_rows(&upgraded, with_authority).await?, before);
                 upgraded.shutdown().await?;
                 drop(upgraded);
@@ -11456,7 +11729,7 @@ mod tests {
             "MT109_PREDECESSOR_AUTHORITY_INFO_SHA256={}",
             predecessor_pins[0]
         );
-        assert_eq!(current_pins[0], EXPECTED_SCHEMA_INFO_SHA256);
+        assert_eq!(current_pins[0], ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required"));
         assert_eq!(predecessor_pins[0], PRE_MT109_AUTHORITY_INFO_SHA256);
     }
 
@@ -11897,7 +12170,7 @@ mod tests {
             PRE_MT152_GENERATED_SURREALQL_SHA256,
             GENERATED_SURREALQL_SHA256
         );
-        assert_ne!(PRE_MT152_SCHEMA_INFO_SHA256, EXPECTED_SCHEMA_INFO_SHA256);
+        assert_ne!(PRE_MT152_SCHEMA_INFO_SHA256, ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required"));
         // The MT-152 predecessor is the MT-151 current pin, so the two hops chain.
         assert_ne!(
             PRE_MT152_GENERATED_SURREALQL_SHA256,
@@ -12027,7 +12300,7 @@ mod tests {
         );
         assert_eq!(
             upgraded.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
         reopened
             .with_admin_operation(|database| {
@@ -12157,7 +12430,7 @@ mod tests {
             PRE_MT151_GENERATED_SURREALQL_SHA256,
             GENERATED_SURREALQL_SHA256
         );
-        assert_ne!(PRE_MT151_SCHEMA_INFO_SHA256, EXPECTED_SCHEMA_INFO_SHA256);
+        assert_ne!(PRE_MT151_SCHEMA_INFO_SHA256, ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required"));
     }
 
     #[test]
@@ -12501,7 +12774,7 @@ mod tests {
                 .await
                 .expect("compose the actual production schemas");
             let (expected_info, expected_fields, expected_indexes) =
-                EXPECTED_PRODUCTION_SCHEMA_PIN.expect("measured production catalog pin");
+                ROUTING_SUCCESSOR_PRODUCTION_INFO.expect("measured production catalog pin");
             assert_eq!(production.info_fingerprint_sha256, expected_info);
             assert_eq!(production.fields_defined, expected_fields);
             assert_eq!(production.indexes_defined, expected_indexes);
@@ -12660,7 +12933,7 @@ mod tests {
         assert_eq!(upgraded.generated_surql_sha256, GENERATED_SURREALQL_SHA256);
         assert_eq!(
             upgraded.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
         reopened
             .with_admin_operation(|database| {
@@ -12832,7 +13105,7 @@ mod tests {
         assert_eq!(upgraded.generated_surql_sha256, GENERATED_SURREALQL_SHA256);
         assert_eq!(
             upgraded.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
         reopened
             .with_admin_operation(|database| {
@@ -13059,7 +13332,7 @@ mod tests {
             .expect("upgrade exact revision-158 receipt predecessor");
         assert_eq!(
             upgraded.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
         storage
             .shutdown()
@@ -13073,7 +13346,7 @@ mod tests {
             .expect("reuse current Canvas receipt schema after restart");
         assert_eq!(
             restarted.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
         reopened
             .shutdown()
@@ -13535,7 +13808,7 @@ mod tests {
             .expect("upgrade exact revision-161 grant predecessor");
         assert_eq!(
             upgraded.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
         assert_eq!(
             upgraded.outcome,
@@ -13573,7 +13846,7 @@ mod tests {
             .expect("reuse current indexed grant schema after restart");
         assert_eq!(
             restarted.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
         assert_eq!(
             restarted.outcome,
@@ -13647,7 +13920,7 @@ mod tests {
             .expect("upgrade exact revision-162 MT-170 predecessor");
         assert_eq!(
             upgraded.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
         assert_eq!(
             upgraded.outcome,
@@ -13683,7 +13956,7 @@ mod tests {
             .expect("reuse current revision-163 schema after restart");
         assert_eq!(
             restarted.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
         assert_eq!(
             restarted.outcome,
@@ -13858,7 +14131,7 @@ mod tests {
             .expect("upgrade exact revision-163 lookup predecessor");
         assert_eq!(
             upgraded.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
         assert_eq!(
             upgraded.outcome,
@@ -13896,7 +14169,7 @@ mod tests {
             .expect("reuse current MT-168 lookup schema after restart");
         assert_eq!(
             restarted.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
         assert_eq!(
             restarted.outcome,
@@ -14081,7 +14354,7 @@ mod tests {
             .expect("upgrade exact revision-160 receipt predecessor");
         assert_eq!(
             upgraded.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
         assert_eq!(
             upgraded.outcome,
@@ -14119,7 +14392,7 @@ mod tests {
             .expect("reuse current document grant schema after restart");
         assert_eq!(
             restarted.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
         assert_eq!(
             restarted.outcome,
@@ -14291,7 +14564,7 @@ mod tests {
             .expect("upgrade exact revision-159 receipt predecessor");
         assert_eq!(
             upgraded.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
         assert_eq!(
             upgraded.outcome,
@@ -14329,7 +14602,7 @@ mod tests {
             .expect("reuse current standalone Loom schema after restart");
         assert_eq!(
             restarted.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
         assert_eq!(
             restarted.outcome,
@@ -14443,7 +14716,7 @@ mod tests {
             .expect("upgrade exact predecessor");
         assert_eq!(
             upgraded.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
         storage.with_admin_operation(|database| Box::pin(async move {
             let mut result = database.query("SELECT account_key, account_role, password_verifier FROM local_accounts; SELECT * FROM local_account_setup;").await?;
@@ -14550,7 +14823,7 @@ mod tests {
         let report = bootstrap_schema(&reopened)
             .await
             .expect("reuse current after restart");
-        assert_eq!(report.info_fingerprint_sha256, EXPECTED_SCHEMA_INFO_SHA256);
+        assert_eq!(report.info_fingerprint_sha256, ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required"));
         reopened.shutdown().await.expect("close current store");
     }
 
@@ -14608,7 +14881,7 @@ mod tests {
             PRE_MT141_GENERATED_SURREALQL_SHA256,
             GENERATED_SURREALQL_SHA256
         );
-        assert_ne!(PRE_MT141_SCHEMA_INFO_SHA256, EXPECTED_SCHEMA_INFO_SHA256);
+        assert_ne!(PRE_MT141_SCHEMA_INFO_SHA256, ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required"));
         // The MT-141 predecessor is the MT-150 current pin, so the hops chain.
         assert_ne!(
             PRE_MT141_GENERATED_SURREALQL_SHA256,
@@ -14698,7 +14971,7 @@ mod tests {
         assert_eq!(upgraded.generated_surql_sha256, GENERATED_SURREALQL_SHA256);
         assert_eq!(
             upgraded.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
         reopened
             .with_admin_operation(|database| {
@@ -14829,7 +15102,7 @@ mod tests {
             PRE_MT150_GENERATED_SURREALQL_SHA256,
             GENERATED_SURREALQL_SHA256
         );
-        assert_ne!(PRE_MT150_SCHEMA_INFO_SHA256, EXPECTED_SCHEMA_INFO_SHA256);
+        assert_ne!(PRE_MT150_SCHEMA_INFO_SHA256, ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required"));
         // The MT-150 predecessor is the MT-109 current pin, so the hops chain.
         assert_ne!(
             PRE_MT150_GENERATED_SURREALQL_SHA256,
@@ -14921,7 +15194,7 @@ mod tests {
         assert_eq!(upgraded.generated_surql_sha256, GENERATED_SURREALQL_SHA256);
         assert_eq!(
             upgraded.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
         reopened
             .with_admin_operation(|database| {
@@ -15055,7 +15328,7 @@ mod tests {
         assert_eq!(upgraded.generated_surql_sha256, GENERATED_SURREALQL_SHA256);
         assert_eq!(
             upgraded.info_fingerprint_sha256,
-            EXPECTED_SCHEMA_INFO_SHA256
+            ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required")
         );
         reopened
             .with_admin_operation(|database| {
@@ -15145,7 +15418,7 @@ mod tests {
             .await
             .expect("resume exact-current schema_applied state");
         assert!(resumed.reused_existing_schema);
-        assert_eq!(resumed.info_fingerprint_sha256, EXPECTED_SCHEMA_INFO_SHA256);
+        assert_eq!(resumed.info_fingerprint_sha256, ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required"));
         storage
             .with_admin_operation(|database| {
                 Box::pin(async move {
@@ -15407,7 +15680,7 @@ mod tests {
                 })).await?;
                 let report = if production { super::super::bootstrap_production_schemas(&reopened).await? } else { bootstrap_schema(&reopened).await? };
                 assert_eq!(report.outcome, SchemaBootstrapOutcome::UpgradedSupportedPredecessor);
-                let expected_info = if production { EXPECTED_PRODUCTION_SCHEMA_PIN.expect("independently measured successor").0 } else { EXPECTED_SCHEMA_INFO_SHA256 };
+                let expected_info = if production { ROUTING_SUCCESSOR_PRODUCTION_INFO.expect("independently measured successor").0 } else { ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required") };
                 assert_eq!(report.info_fingerprint_sha256, expected_info);
                 reopened.with_admin_operation(move |database| Box::pin(async move {
                     let state = read_context_and_state(&database).await?.expect("upgraded current state");
@@ -15416,7 +15689,7 @@ mod tests {
                     assert_eq!(state.database, DEFAULT_DATABASE);
                     assert_eq!(state.source_manifest_sha256, if production { production_source_sha256() } else { SCHEMA_LINEAGE_SHA256.to_owned() });
                     assert_eq!(state.generated_surql_sha256, if production { production_generated_sha256() } else { GENERATED_SURREALQL_SHA256.to_owned() });
-                    assert_eq!(state.info_fingerprint_sha256, if production { EXPECTED_PRODUCTION_SCHEMA_PIN.expect("measured successor").0 } else { EXPECTED_SCHEMA_INFO_SHA256 });
+                    assert_eq!(state.info_fingerprint_sha256, if production { ROUTING_SUCCESSOR_PRODUCTION_INFO.expect("measured successor").0 } else { ROUTING_SUCCESSOR_BASE_INFO.expect("independently qualified successor INFO required") });
                     assert_eq!(state.revision, SCHEMA_REVISION);
                     assert_eq!(state.target_revision, SCHEMA_REVISION);
                     assert_eq!(state.apply_state, "complete");
@@ -16052,5 +16325,34 @@ mod tests {
             assert!(result.is_err(), "{label} must be rejected");
         }
         storage.shutdown().await.expect("close store");
+    }
+}
+
+#[cfg(test)]
+mod routing_catalog_header_tests {
+    use super::production_declaration_headers;
+
+    #[test]
+    fn routing_successor_catalog_keeps_multiline_field_index_event_identities() {
+        let headers = production_declaration_headers(
+            "DEFINE FIELD OVERWRITE value\nON TABLE items TYPE string;\n\
+             DEFINE INDEX OVERWRITE by_value\nON items FIELDS value;\n\
+             DEFINE EVENT OVERWRITE changed\nON TABLE items WHEN $event = 'UPDATE' THEN {};",
+        ).expect("valid continuation headers");
+        assert_eq!(headers.len(), 3);
+        assert!(headers[0].starts_with("DEFINE FIELD OVERWRITE value ON TABLE items "));
+        assert!(headers[1].starts_with("DEFINE INDEX OVERWRITE by_value ON items "));
+        assert!(headers[2].starts_with("DEFINE EVENT OVERWRITE changed ON TABLE items "));
+        assert!(production_declaration_headers("DEFINE EVENT OVERWRITE broken\nDEFINE TABLE OVERWRITE items SCHEMAFULL;").is_err());
+        assert!(production_declaration_headers("DEFINE FIELD OVERWRITE value ON TABLE").is_err());
+        assert!(production_declaration_headers(include_str!("model_registry_schema.surql"))
+            .expect("actual model registry declarations")
+            .iter().any(|header| header.starts_with("DEFINE EVENT OVERWRITE engine_profile_registry_transition_guard ON TABLE ")));
+    }
+    #[test]
+    fn routing_successor_preserves_exact_revision166_shared_source() {
+        let predecessor = super::restore_pre_routing_shared_schema(super::SCHEMA.to_owned());
+        assert_eq!(super::sha256_hex(predecessor.as_bytes()), super::PRE_ROUTING_BASE_GENERATED);
+        assert_eq!(super::compute_declarative_schema_catalog_sha256().expect("same shared identities"), super::PRE_ROUTING_BASE_CATALOG);
     }
 }

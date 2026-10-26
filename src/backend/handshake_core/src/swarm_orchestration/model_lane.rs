@@ -414,13 +414,6 @@ impl RoutingAuthorityCaptureInputs {
         })
     }
 
-    pub(crate) fn expected_base(&self) -> handshake_role_authority::domain::ExpectedBase {
-        handshake_role_authority::domain::ExpectedBase {
-            aggregate_id: self.execution.execution_id.clone(), aggregate_version: self.execution.revision,
-            base_ref: None, base_vector_ref: None, schema_id: self.execution.schema_id.clone(),
-        }
-    }
-
     pub(crate) fn subject(&self) -> ModelLaneResult<handshake_role_authority::domain::ArtifactSubject> {
         let version = self.artifact.payload_json.get("artifact_version").and_then(Value::as_str)
             .filter(|value| !value.is_empty())
@@ -918,11 +911,224 @@ impl ModelLaneStore {
         self.access.write_scope()
     }
 
+    async fn with_routing_read_operation<T, F, Fut>(
+        &self, capability: &'static str, purpose: crate::storage::surreal::ContextCoordinationPurpose,
+        run_id: String, execution_id: String, operation: F,
+    ) -> ModelLaneResult<T>
+    where T: Send + 'static, F: FnOnce() -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = ModelLaneResult<T>> + Send + 'static,
+    {
+        use crate::storage::surreal::resource_authority::{ResourceAction, with_routing_original_sources};
+        self.surreal_read_scope("routing selected read")?;
+        let sources = self.storage.capture_routing_original_sources(
+            self, ResourceAction::Read, capability, run_id, execution_id, None, None, false,
+        ).await?;
+        let worker = sources.clone();
+        let read = self.storage.with_authenticated_transaction(sources.operation_id(), move |_| Box::pin(async move {
+            let sources = worker.clone();
+            let work = async move {
+                worker.revalidate().await?;
+                let value = operation().await?;
+                worker.revalidate().await?;
+                Ok::<_, ModelLaneError>((value, worker))
+            };
+            crate::storage::surreal::with_configured_capability_registry(sources.registry(),
+                with_routing_original_sources(sources, work)).await
+        }));
+        let (value, owner) = crate::storage::surreal::with_model_lane_operation(purpose, read).await?;
+        owner.revalidate().await?;
+        Ok(value)
+    }
+
+    async fn with_routing_write_operation<T, F, Fut>(
+        &self, action: crate::storage::surreal::resource_authority::ResourceAction,
+        run_id: String, execution_id: String, decision_id: Option<String>, input_ref: Option<String>,
+        create_source: bool, operation: F,
+    ) -> ModelLaneResult<T>
+    where T: Send + 'static, F: FnOnce() -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = ModelLaneResult<T>> + Send + 'static,
+    {
+        use crate::storage::surreal::resource_authority::{ResourceAction, current_routing_original_sources, with_routing_original_sources};
+        let scope = self.surreal_write_scope("routing original write")?;
+        let provider = self.provider().await?.clone();
+        let sources = match current_routing_original_sources() {
+            Some(sources) if sources.action() == action && sources.run_id() == run_id
+                && sources.execution_id() == execution_id => sources,
+            _ => self.storage.capture_routing_original_sources(
+                self, action, "fs.write", run_id.clone(), execution_id, decision_id, input_ref, create_source,
+            ).await?,
+        };
+        sources.revalidate().await?;
+        if create_source { sources.authorize_source_creation().await?; }
+        if provider.routing_operation_is_guarded(&sources) {
+            return operation().await;
+        }
+        let purpose = match action {
+            ResourceAction::Create => crate::storage::surreal::ContextCoordinationPurpose::RoutingCreate,
+            ResourceAction::Update => crate::storage::surreal::ContextCoordinationPurpose::RoutingTransition,
+            _ => return Err(ModelLaneError::AuthorityDenied("routing write action is not admitted".into())),
+        };
+        let sources = sources.for_owned_operation();
+        let worker = sources.clone();
+        with_routing_original_sources(sources, provider.with_context_bundle_transaction(
+            purpose, run_id, Vec::new(), scope, move || async move {
+                worker.revalidate().await?;
+                let value = operation().await?;
+                worker.revalidate().await?;
+                Ok::<_, ModelLaneError>(value)
+            },
+        )).await
+    }
+
+    pub(crate) async fn with_routing_creation<T, F, Fut>(
+        &self, run_id: String, execution_id: String, decision_id: String, input_ref: String, operation: F,
+    ) -> ModelLaneResult<T>
+    where T: Send + 'static, F: FnOnce() -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = ModelLaneResult<T>> + Send + 'static,
+    {
+        self.with_routing_write_operation(crate::storage::surreal::resource_authority::ResourceAction::Create,
+            run_id, execution_id, Some(decision_id), Some(input_ref), false, operation).await
+    }
+
+    pub(crate) async fn with_routing_transition<T, F, Fut>(
+        &self, execution_id: String, create_source: bool, operation: F,
+    ) -> ModelLaneResult<T>
+    where T: Send + 'static, F: FnOnce() -> Fut + Send + 'static,
+        Fut: std::future::Future<Output = ModelLaneResult<T>> + Send + 'static,
+    {
+        use crate::storage::surreal::resource_authority::{ResourceAction, current_routing_original_sources, with_routing_original_sources};
+        let scope = self.surreal_write_scope("routing transition discovery")?;
+        let provider = self.provider().await?.clone();
+        if let Some(sources) = current_routing_original_sources() {
+            if sources.action() == ResourceAction::Update && sources.execution_id() == execution_id
+                && provider.routing_operation_is_guarded(&sources) {
+                if create_source { sources.authorize_source_creation().await?; }
+                return operation().await;
+            }
+        }
+        let sources = match current_routing_original_sources() {
+            Some(sources) if sources.action() == ResourceAction::Update && sources.execution_id() == execution_id => {
+                sources.revalidate().await?;
+                if create_source { sources.authorize_source_creation().await?; }
+                sources
+            },
+            _ => self.storage.capture_routing_original_sources(
+                self, ResourceAction::Update, "fs.write", String::new(), execution_id.clone(), None, None, create_source,
+            ).await?,
+        };
+        let worker = sources.clone();
+        let lookup = self.storage.with_authenticated_transaction(uuid::Uuid::now_v7(), move |transaction| Box::pin(async move {
+            let owner = worker.clone();
+            let work = async move {
+                worker.revalidate().await?;
+                let row = provider.routing_execution_snapshot_in_transaction(&transaction, &execution_id, &scope).await?
+                    .ok_or_else(|| ModelLaneError::NotFound("routing transition execution".into()))?;
+                let decision = row.record_json.get("selecting_decision_id").and_then(Value::as_str)
+                    .ok_or_else(|| ModelLaneError::IntegrityViolation("routing canonical decision is missing".into()))?.to_owned();
+                let input = row.record_json.get("initial_input_ref").and_then(Value::as_str).map(str::to_owned);
+                worker.revalidate().await?;
+                let selected = worker.with_execution_origin(row.run_id, decision, input)?;
+                Ok::<_, ModelLaneError>((selected, worker))
+            };
+            crate::storage::surreal::with_configured_capability_registry(owner.registry(),
+                with_routing_original_sources(owner, work)).await
+        }));
+        let (selected, _lookup_owner) = crate::storage::surreal::with_model_lane_operation(
+            crate::storage::surreal::ContextCoordinationPurpose::RoutingTransition, lookup,
+        ).await?;
+        let run_id = selected.run_id().to_owned(); let execution_id = selected.execution_id().to_owned();
+        with_routing_original_sources(selected, self.with_routing_write_operation(
+            ResourceAction::Update, run_id, execution_id, None, None, create_source, operation,
+        )).await
+    }
+
     pub async fn routing_execution_snapshot(
         &self,
         execution_id: &str,
     ) -> ModelLaneResult<Option<super::routing_execution::ModelLaneRoutingExecutionState>> {
-        self.routing_execution_snapshot_with_transaction(execution_id, None).await
+        use crate::storage::surreal::resource_authority::current_routing_original_sources;
+        if let Some(sources) = current_routing_original_sources() {
+            if sources.execution_id() == execution_id && self.provider().await?.routing_operation_is_guarded(&sources) {
+                return self.routing_execution_snapshot_with_transaction(execution_id, None).await;
+            }
+        }
+        let store = self.clone(); let execution_id = execution_id.to_owned();
+        self.with_routing_read_operation("fs.read", crate::storage::surreal::ContextCoordinationPurpose::SourceRead,
+            String::new(), execution_id.clone(), move || async move {
+                store.routing_execution_snapshot_with_transaction(&execution_id, None).await
+            }).await
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub async fn test_routing_execution_receipts(&self, execution_id: &str, aggregate_type: &str, aggregate_id: &str)
+        -> ModelLaneResult<Vec<crate::kernel::KernelEvent>> {
+        if !matches!(aggregate_type, "model_lane_routing_execution" | "model_lane_routing_stage_attempt" | "model_lane_routing_outbox") {
+            return Err(ModelLaneError::InvalidInput("routing receipt aggregate kind differs".into()));
+        }
+        let kind = aggregate_type.to_owned(); let aggregate = aggregate_id.to_owned();
+        let caller = crate::storage::surreal::current_record_user_scope()
+            .ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?;
+        let storage = self.storage.clone(); let selected = execution_id.to_owned();
+        self.with_routing_read_operation("fs.read", crate::storage::surreal::ContextCoordinationPurpose::SourceRead,
+            String::new(), selected.clone(), move || async move {
+                Ok(storage.list_account_kernel_events_for_aggregate(&caller.session_token,
+                    caller.channel_binding_hash.as_deref().ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?,
+                    &kind, &aggregate).await?)
+            }).await
+    }
+
+    #[cfg(feature = "test-utils")]
+    pub async fn test_routing_authority_ack_receipt(&self, execution_id: &str, stage_id: &str)
+        -> ModelLaneResult<(handshake_role_authority::domain::RoleReceipt, Uuid)> {
+        let store = self.clone(); let selected = execution_id.to_owned(); let selected_stage = stage_id.to_owned();
+        self.with_routing_read_operation("fs.read", crate::storage::surreal::ContextCoordinationPurpose::SourceRead,
+            String::new(), selected.clone(), move || async move {
+                let execution = store.routing_execution_snapshot_with_transaction(&selected, None).await?
+                    .ok_or_else(|| ModelLaneError::NotFound("routing ACK execution".into()))?;
+                let stage = execution.stages.get(&selected_stage).ok_or_else(|| ModelLaneError::NotFound("routing ACK stage".into()))?;
+                if stage.state != super::routing_execution::ModelLaneRoutingStageStateKind::Succeeded
+                    || stage.dispatch_target != super::routing::ModelLaneRoutingDispatchTarget::Operator {
+                    return Err(ModelLaneError::AuthorityDenied("selected Operator stage has no canonical observed ACK".into()));
+                }
+                let sources = crate::storage::surreal::resource_authority::current_routing_original_sources()
+                    .ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?;
+                let origin = sources.with_execution_origin(execution.run_id.clone(), execution.selecting_decision_id.clone(), execution.initial_input_ref.clone())?;
+                crate::storage::surreal::resource_authority::with_routing_original_sources(origin, async {
+                    let scope = store.surreal_read_scope("selected routing ACK receipt")?;
+                    let provider = store.provider().await?;
+                    let (receipt, operation) = provider.routing_ack_receipt(&selected, &selected_stage, &scope).await?;
+                    let handshake_role_authority::domain::Purpose::StageAcknowledgement(key) = &receipt.body.purpose else {
+                        return Err(ModelLaneError::IntegrityViolation("selected routing ACK purpose differs".into()));
+                    };
+                    let message_id = stage.output_message_ref.as_deref().ok_or_else(|| ModelLaneError::IntegrityViolation("ACK stage response pointer absent".into()))?;
+                    let message = provider.get(SurrealRecordKind::Message, message_id, &scope).await?
+                        .ok_or_else(|| ModelLaneError::NotFound("canonical ACK response".into()))?;
+                    provider.validate_event_link(SurrealRecordKind::Message, &message, &scope).await?;
+                    let message = surreal_message_record(message)?;
+                    let artifact = store.context_bundle_artifact_by_ref_surreal(provider, &scope, &execution.run_id, &message.payload_ref).await?
+                        .ok_or_else(|| ModelLaneError::NotFound("canonical ACK response artifact".into()))?;
+                    if receipt.body.role != handshake_role_authority::domain::Role::Operator
+                        || key.lane_id != stage.lane_id.clone().unwrap_or_default()
+                        || Some(key.authority_request_message_ref.as_str()) != stage.authority_request_message_ref.as_deref()
+                        || Some(key.prior_receipt_ref.as_str()) != stage.authority_ref.as_deref()
+                        || key.selecting_decision_id.as_deref() != Some(execution.selecting_decision_id.as_str())
+                        || receipt.body.run.run_id != execution.run_id || receipt.body.run.trace_id != execution.trace_id
+                        || receipt.body.run.coordinator_session_id != execution.coordinator_session_id
+                        || receipt.body.run.owner_session != execution.owner_session
+                        || receipt.body.run.work_packet_id != execution.work_packet_id
+                        || execution.micro_task_id.as_deref() != Some(receipt.body.run.micro_task_id.as_str())
+                        || receipt.body.run.task_board_id != execution.task_board_id
+                        || message.routing.as_ref().and_then(|routing| routing.ack_for.as_deref()) != stage.authority_request_message_ref.as_deref()
+                        || receipt.body.subject.artifact_ref != artifact.artifact_ref
+                        || receipt.body.subject.manifest_ref != artifact.artifact_manifest_ref
+                        || receipt.body.subject.sha256.to_hex() != artifact.artifact_sha256
+                        || artifact.artifact_sha256 != message.payload_sha256
+                        || artifact.payload_json.get("artifact_version").and_then(Value::as_str) != Some(receipt.body.subject.version.as_str()) {
+                        return Err(ModelLaneError::IntegrityViolation("canonical routing ACK receipt differs from selected stage/response/run/artifact".into()));
+                    }
+                    Ok((receipt, operation))
+                }).await
+            }).await
     }
 
     async fn routing_execution_snapshot_with_transaction(
@@ -941,12 +1147,79 @@ impl ModelLaneStore {
             .await?;
         let outbox = promotion_query!(transaction, provider, routing_outbox_for_execution, routing_outbox_for_execution_in_transaction, execution_id, &scope)
             .await?;
-        routing_execution_from_surreal(row, attempts, &outbox).map(Some)
+        let execution = routing_execution_from_surreal(row, attempts, &outbox)?;
+        self.validate_routing_execution_origin(provider, transaction, &execution, &scope).await?;
+        Ok(Some(execution))
+    }
+
+    async fn validate_routing_execution_origin(
+        &self, provider: &SurrealModelLaneStore,
+        transaction: Option<&crate::storage::surreal::SurrealTransactionContext<'_>>,
+        execution: &super::routing_execution::ModelLaneRoutingExecutionState, scope: &SurrealModelLaneScope,
+    ) -> ModelLaneResult<()> {
+        use crate::storage::surreal::resource_authority::{current_routing_original_sources, with_routing_original_sources};
+        let sources = current_routing_original_sources()
+            .ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?;
+        let selected = sources.with_execution_origin(execution.run_id.clone(), execution.selecting_decision_id.clone(),
+            execution.initial_input_ref.clone())?;
+        with_routing_original_sources(selected, async {
+            let row = promotion_query!(transaction, provider, get, get_in_transaction,
+                SurrealRecordKind::PromotionDecision, &execution.selecting_decision_id, scope).await?
+                .ok_or_else(|| ModelLaneError::AuthorityDenied("routing selecting decision is unavailable".into()))?;
+            if let Some(transaction) = transaction {
+                provider.validate_event_link_in_transaction(transaction, SurrealRecordKind::PromotionDecision, &row, scope).await?;
+            } else { provider.validate_event_link(SurrealRecordKind::PromotionDecision, &row, scope).await?; }
+            let decision = surreal_promotion_record(row)?;
+            let exact = self.access.exact_read_scope()
+                .ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?;
+            validate_surreal_promotion_record_authority(&decision, exact)?;
+            let graph = super::routing::ModelLaneRoutingGraph::for_policy(decision.routing_policy);
+            let graph_json = serde_json::to_value(&graph)?;
+            super::routing_execution::validate_launch_plan(&graph, &decision.routing_launch_plan)
+                .map_err(ModelLaneError::InvalidInput)?;
+            if decision.outcome != ModelLanePromotionOutcome::Approved
+                || decision.run_id != execution.run_id || decision.trace_id != execution.trace_id
+                || decision.coordinator_session_id != execution.coordinator_session_id
+                || decision.owner_session != execution.owner_session
+                || decision.work_packet_id.as_deref() != Some(execution.work_packet_id.as_str())
+                || decision.micro_task_id != execution.micro_task_id
+                || decision.task_board_id.as_deref() != Some(execution.task_board_id.as_str())
+                || decision.event_ledger_event_id != execution.selecting_decision_event_id
+                || decision.event_ledger_seq != execution.selecting_decision_event_seq
+                || decision.diagnostic_payload.get("routing_graph") != Some(&graph_json)
+                || execution.canonical_graph != graph_json
+                || decision.routing_launch_plan != execution.canonical_launch_plan
+                || execution.initial_input_ref.as_ref().is_none_or(|input| !decision.selected_input_refs.contains(input))
+            { return Err(ModelLaneError::AuthorityDenied("routing canonical selecting authority differs".into())); }
+            Ok(())
+        }).await
     }
 
     pub async fn routing_execution_diagnostics_for_run(
-        &self,
-        run_id: &str,
+        &self, run_id: &str,
+    ) -> ModelLaneResult<Vec<super::routing_execution::ModelLaneRoutingExecutionDiagnostics>> {
+        let store = self.clone(); let run_id = run_id.to_owned();
+        self.with_routing_read_operation("fs.read", crate::storage::surreal::ContextCoordinationPurpose::SourceRead,
+            run_id.clone(), String::new(), move || async move {
+                store.routing_execution_diagnostics_source(&run_id).await
+            }).await
+    }
+
+    async fn routing_diagnostics_for_projection(
+        &self, run_id: &str,
+    ) -> ModelLaneResult<Vec<super::routing_execution::ModelLaneRoutingExecutionDiagnostics>> {
+        let original = crate::storage::surreal::current_record_user_scope()
+            .ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?;
+        if original.capability_id == "fs.read" { return self.routing_execution_diagnostics_for_run(run_id).await; }
+        let store = self.clone(); let run_id = run_id.to_owned();
+        self.with_routing_read_operation("diagnostics.read", crate::storage::surreal::ContextCoordinationPurpose::RoutingDiagnosticsRead,
+            run_id.clone(), String::new(), move || async move {
+                store.routing_execution_diagnostics_source(&run_id).await
+            }).await
+    }
+
+    async fn routing_execution_diagnostics_source(
+        &self, run_id: &str,
     ) -> ModelLaneResult<Vec<super::routing_execution::ModelLaneRoutingExecutionDiagnostics>> {
         let scope = self.surreal_read_scope("routing execution diagnostics")?;
         let provider = self.provider().await?;
@@ -966,6 +1239,7 @@ impl ModelLaneStore {
                 .routing_outbox_for_execution(&execution_id, &scope)
                 .await?;
             let execution = routing_execution_from_surreal(row, attempts, &outbox)?;
+            self.validate_routing_execution_origin(provider, None, &execution, &scope).await?;
             if execution.run_id != run_id {
                 return Err(ModelLaneError::IntegrityViolation(
                     "routing diagnostics escaped the requested run scope".into(),
@@ -1177,10 +1451,26 @@ impl ModelLaneStore {
         Option<ModelLaneMessageRecord>,
         Option<ModelLaneContextBundleArtifactBindingRecord>,
     )> {
-        let (execution, message, binding, _) = self.commit_routing_atomic_with_transaction(
-            expected_revision, expected_claim, next_execution, changed_attempt, outbox_status,
-            message, binding, events, None).await?;
-        Ok((execution, message, binding))
+        let store = self.clone();
+        let claim = expected_claim.cloned();
+        let outbox_status = outbox_status.to_owned();
+        let run_id = next_execution.run_id.clone();
+        let execution_id = next_execution.execution_id.clone();
+        let decision_id = next_execution.selecting_decision_id.clone();
+        let input_ref = next_execution.initial_input_ref.clone();
+        let creates_source = message.is_some() || binding.is_some();
+        let operation = move || async move {
+            let (execution, message, binding, _) = store.commit_routing_atomic_with_transaction(
+                expected_revision, claim.as_ref(), next_execution, changed_attempt, &outbox_status,
+                message, binding, events, None).await?;
+            Ok((execution, message, binding))
+        };
+        if expected_revision == 0 {
+            self.with_routing_creation(run_id, execution_id, decision_id,
+                input_ref.ok_or_else(|| ModelLaneError::AuthorityDenied("routing initial input authority absent".into()))?, operation).await
+        } else {
+            self.with_routing_transition(execution_id, creates_source, operation).await
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -2729,6 +3019,34 @@ impl ModelLaneStore {
         validate_run(&records.0)?;
         validate_lane(&records.1)?;
         validate_prepared_launch_pair(&records.0, &records.1)?;
+        let scope = self.surreal_write_scope("prepared runtime launch")?;
+        let provider = self.provider().await?.clone();
+        let existing = crate::storage::surreal::with_model_lane_operation(
+            crate::storage::surreal::ContextCoordinationPurpose::RunCreate,
+            provider.get(SurrealRecordKind::Run, &records.0.run_id, &scope)).await?;
+        let requires_attachment = if let Some(existing) = existing {
+            let existing = surreal_run_record(existing)?;
+            merge_run_for_lane(&existing, records.0.clone(), &records.1)?.is_some()
+        } else { false };
+        if !requires_attachment { return self.record_prepared_launch_source(records).await; }
+        let sources = self.storage.capture_run_attachment_sources(self, records.0.run_id.clone()).await?;
+        let worker = sources.clone(); let run_id = records.0.run_id.clone(); let store = self.clone();
+        crate::storage::surreal::resource_authority::with_routing_original_sources(sources,
+            provider.with_context_bundle_transaction(crate::storage::surreal::ContextCoordinationPurpose::RunAttachment,
+                run_id, Vec::new(), scope, move || async move {
+                    worker.revalidate().await?;
+                    let result = store.record_prepared_launch_source(records).await?;
+                    worker.revalidate().await?;
+                    Ok::<_, ModelLaneError>(result)
+                })).await
+    }
+
+    async fn record_prepared_launch_source(
+        &self, records: (NewModelLaneRun, NewModelLane),
+    ) -> ModelLaneResult<(ModelLaneRunRecord, ModelLaneRecord)> {
+        validate_run(&records.0)?;
+        validate_lane(&records.1)?;
+        validate_prepared_launch_pair(&records.0, &records.1)?;
         let cloud_check = is_cloud_lane(&records.1)
             .then(|| cloud_launch_check_from_records(&records.0, &records.1));
         let is_cloud = cloud_check.is_some();
@@ -2768,10 +3086,42 @@ impl ModelLaneStore {
     pub(crate) async fn record_existing_run_launch(
         &self, expected: &ModelLaneRunRecord, records: (NewModelLaneRun, NewModelLane),
     ) -> ModelLaneResult<(ModelLaneRunRecord, ModelLaneRecord)> {
+        use crate::storage::surreal::resource_authority::{ResourceAction, with_routing_original_sources};
+        let original = crate::storage::surreal::current_record_user_scope()
+            .ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?;
+        if original.action == ResourceAction::Create {
+            return self.record_existing_run_launch_source(expected, records).await;
+        }
+        let sources = self.storage.capture_routing_original_sources(self, ResourceAction::Update,
+            "fs.write", expected.run_id.clone(), String::new(), None, None, true).await?;
+        let create = sources.create_scope()?;
+        let scope = self.surreal_write_scope("routing runtime enrollment")?;
+        let provider = self.provider().await?.clone();
+        let store = self.clone(); let expected = expected.clone(); let run_id = expected.run_id.clone();
+        let worker = sources.clone();
+        self.storage.with_record_user_scope(create, with_routing_original_sources(sources,
+            provider.with_context_bundle_transaction(crate::storage::surreal::ContextCoordinationPurpose::LaneCreate,
+                run_id, Vec::new(), scope, move || async move {
+                    worker.revalidate().await?;
+                    let result = store.record_existing_run_launch_source(&expected, records).await?;
+                    worker.revalidate().await?;
+                    Ok::<_, ModelLaneError>(result)
+                }))).await
+    }
+
+    async fn record_existing_run_launch_source(
+        &self, expected: &ModelLaneRunRecord, records: (NewModelLaneRun, NewModelLane),
+    ) -> ModelLaneResult<(ModelLaneRunRecord, ModelLaneRecord)> {
         validate_run(&records.0)?;
         validate_lane(&records.1)?;
         validate_prepared_launch_pair(&records.0, &records.1)?;
-        let current = self.replay_run(&expected.run_id).await?.run;
+        let scope = self.surreal_read_scope("runtime enrollment canonical run")?;
+        let provider = self.provider().await?;
+        let row = crate::storage::surreal::with_model_lane_operation(
+            crate::storage::surreal::ContextCoordinationPurpose::LaneCreate,
+            provider.get(SurrealRecordKind::Run, &expected.run_id, &scope)).await?
+            .ok_or_else(|| ModelLaneError::NotFound("runtime enrollment canonical run".into()))?;
+        let current = surreal_run_record(row)?;
         if current != *expected || records.0.run_id != current.run_id
             || records.0.engine_profile != current.engine_profile
             || records.1.engine_profile != current.engine_profile
@@ -2952,6 +3302,12 @@ impl ModelLaneStore {
         let attempts = provider.routing_attempts_for_execution_in_transaction(transaction, execution_id, &scope).await?;
         let outbox = provider.routing_outbox_for_execution_in_transaction(transaction, execution_id, &scope).await?;
         let execution = routing_execution_from_surreal(row, attempts, &outbox)?;
+        let sources = crate::storage::surreal::resource_authority::current_routing_original_sources()
+            .ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?;
+        let selected = sources.with_execution_origin(execution.run_id.clone(),
+            execution.selecting_decision_id.clone(), execution.initial_input_ref.clone())?;
+        crate::storage::surreal::resource_authority::with_routing_original_sources(selected, async {
+
         let run = provider.get_in_transaction(transaction, SurrealRecordKind::Run, &execution.run_id, &scope).await?
             .ok_or_else(|| ModelLaneError::NotFound("canonical routing capture run".into()))?;
         provider.validate_event_link_in_transaction(transaction, SurrealRecordKind::Run, &run, &scope).await?;
@@ -3011,6 +3367,7 @@ impl ModelLaneStore {
             return Err(ModelLaneError::IntegrityViolation("routing capture artifact differs from its canonical response".into()));
         }
         Ok(RoutingAuthorityCaptureInputs { execution, run, stage_id: stage_id.to_owned(), request, response, artifact })
+        }).await
     }
 
     pub(crate) async fn complete_routing_authority_in_transaction(
@@ -3040,6 +3397,12 @@ impl ModelLaneStore {
         let provider = self.promotion_provider(Some(transaction)).await?;
         let execution = self.routing_execution_snapshot_with_transaction(execution_id, Some(transaction)).await?
             .ok_or_else(|| ModelLaneError::NotFound("canonical routing execution".into()))?;
+        let sources = crate::storage::surreal::resource_authority::current_routing_original_sources()
+            .ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?;
+        let selected = sources.with_execution_origin(execution.run_id.clone(),
+            execution.selecting_decision_id.clone(), execution.initial_input_ref.clone())?;
+        crate::storage::surreal::resource_authority::with_routing_original_sources(selected, async {
+
         let stored_message = provider.get_in_transaction(transaction, SurrealRecordKind::Message, message_id, &scope).await?
             .ok_or_else(|| ModelLaneError::NotFound("canonical routing authority message".into()))?;
         provider.validate_event_link_in_transaction(transaction, SurrealRecordKind::Message, &stored_message, &scope).await?;
@@ -3074,10 +3437,10 @@ impl ModelLaneStore {
             || body.run.work_packet_id != execution.work_packet_id
             || execution.micro_task_id.as_deref() != Some(body.run.micro_task_id.as_str())
             || body.run.task_board_id != execution.task_board_id
-            || body.expected.aggregate_id != execution.execution_id
-            || body.expected.aggregate_version != execution.revision
-            || body.expected.schema_id != execution.schema_id
-            || body.expected.base_ref.is_some() || body.expected.base_vector_ref.is_some()
+            || body.expected.aggregate_id != prior.receipt().body.expected.aggregate_id
+            || body.expected.schema_id != prior.receipt().body.expected.schema_id
+            || body.expected.base_ref != prior.receipt().body.expected.base_ref
+            || body.expected.base_vector_ref != prior.receipt().body.expected.base_vector_ref
             || body.subject.artifact_ref != artifact.artifact_ref
             || body.subject.manifest_ref != artifact.artifact_manifest_ref
             || body.subject.sha256.to_hex() != artifact.artifact_sha256
@@ -3086,17 +3449,22 @@ impl ModelLaneStore {
         {
             return Err(ModelLaneError::AuthorityDenied("routing acknowledgement evidence differs from its canonical stage, run or subject".into()));
         }
+        seal.require_routing_execution_fence(&execution, stage_id, message_id)?;
         let projection = super::routing_execution::ModelLaneRoutingExecutionStore::project_authority_completion(
             &execution, stage_id, message_id, &message, &artifact)?;
-        let (_, _, _, committed) = self.commit_routing_atomic_with_transaction(
-            projection.expected_revision, Some(&projection.claim), projection.next_execution,
-            projection.changed_attempt, "acked", None, None, projection.events, Some(transaction)).await?;
+        let (_, _, _, committed) = seal.with_routing_ack(prior, acknowledgement,
+            &projection.claim, projection.expected_revision, message_id,
+            &execution.event_ledger_event_id, &stage.event_ledger_event_id,
+            self.commit_routing_atomic_with_transaction(
+                projection.expected_revision, Some(&projection.claim), projection.next_execution,
+                projection.changed_attempt, "acked", None, None, projection.events, Some(transaction))).await?;
         let attempts = provider.routing_attempts_for_execution_in_transaction(transaction, execution_id, &scope).await?;
         let outbox = provider.routing_outbox_for_execution_in_transaction(transaction, execution_id, &scope).await?;
         Ok(RoutingAuthorityCommitReadback {
             operation_id: seal.operation_id(), current_scope: seal.current_scope().clone(),
             scope, execution: committed, attempts, outbox,
         })
+        }).await
     }
 
     pub(crate) async fn readback_routing_authority_commit(
@@ -3297,6 +3665,25 @@ impl ModelLaneStore {
         input: NewModelLaneRun,
         lane: &NewModelLane,
     ) -> ModelLaneResult<ModelLaneRunRecord> {
+        let original = crate::storage::surreal::current_record_user_scope()
+            .ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?;
+        if original.action != crate::storage::surreal::resource_authority::ResourceAction::Create
+            || original.capability_id != "fs.write" {
+            return Err(ModelLaneError::AuthorityDenied("runtime run attachment requires original Create".into()));
+        }
+        if let Some(sources) = crate::storage::surreal::resource_authority::current_routing_original_sources() {
+            if sources.run_id() == input.run_id && self.provider().await?.run_attachment_is_guarded(&sources) {
+                return self.record_or_extend_run_source(input, lane).await;
+            }
+        }
+        crate::storage::surreal::with_model_lane_operation(
+            crate::storage::surreal::ContextCoordinationPurpose::RunCreate,
+            self.record_or_extend_run_source(input, lane)).await
+    }
+
+    async fn record_or_extend_run_source(
+        &self, input: NewModelLaneRun, lane: &NewModelLane,
+    ) -> ModelLaneResult<ModelLaneRunRecord> {
         let scope = self.surreal_write_scope("ModelLaneRun lane attachment")?;
         let provider = self.provider().await?;
         let Some(existing) = provider
@@ -3305,20 +3692,28 @@ impl ModelLaneStore {
         else {
             return self.record_run(input).await;
         };
+        let existing_version = existing.event_stream_version;
         let existing = surreal_run_record(existing)?;
+        let input_run_record_json = serde_json::to_string(&input)?;
         let Some(merged) = merge_run_for_lane(&existing, input, lane)? else {
             return Ok(existing);
         };
-        let event_payload_json =
-            scoped_surreal_event_payload("hsk.model_lane_run_extension@1", &merged, &scope)?;
+        let mut extension_payload: Value = serde_json::from_str(
+            &scoped_surreal_event_payload("hsk.model_lane_run_extension@1", &merged, &scope)?)?;
+        extension_payload["run_attachment_lane"] = serde_json::to_value(lane)?;
+        extension_payload["run_attachment_run"] = serde_json::from_str(&input_run_record_json)?;
+        extension_payload["predecessor_event_stream_version"] = Value::from(existing_version);
+        let event_payload_json = serde_json::to_string(&extension_payload)?;
+        let sources = crate::storage::surreal::resource_authority::current_routing_original_sources()
+            .ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?;
+        if sources.run_id() != merged.run_id || !provider.run_attachment_is_guarded(&sources) {
+            return Err(ModelLaneError::AuthorityDenied("run extension requires independent Update and owned attachment controller".into()));
+        }
         let stored = provider
-            .replace(
-                SurrealRecordKind::Run,
-                &merged.run_id,
-                serde_json::to_string(&merged)?,
-                run_search_terms(&merged),
-                event_payload_json,
-                &scope,
+            .replace_run_for_attachment(
+                &merged.run_id, &lane.lane_id, serde_json::to_string(&existing.inner)?,
+                existing_version, serde_json::to_string(&merged)?, input_run_record_json, serde_json::to_string(lane)?,
+                run_search_terms(&merged), event_payload_json, &scope,
             )
             .await?
             .ok_or_else(|| {
@@ -4667,6 +5062,127 @@ impl ModelLaneStore {
                 == Some(artifact_version))
     }
 
+    #[cfg(feature = "test-utils")]
+    pub(crate) async fn record_promotion_decision_with_wrong_current_operation(
+        &self, bootstrap: &crate::AccountBootstrapState,
+        authorization: crate::storage::surreal::resource_authority::AuthorizationRequest,
+        operation_id: Uuid, selectors: FinalPromotionAuthoritySelectors, input: NewModelLanePromotionDecision,
+        custody: std::sync::Arc<crate::storage::surreal::resource_authority::InitialValidatorIssuance>,
+    ) -> ModelLaneResult<ModelLanePromotionDecisionRecord> {
+        crate::storage::surreal::resource_authority::with_wrong_current_promotion_operation(
+            self.record_promotion_decision_with_read_custody(bootstrap, authorization, operation_id, selectors, input, custody)).await
+    }
+
+    pub(crate) async fn record_promotion_decision_with_read_custody(
+        &self, bootstrap: &crate::AccountBootstrapState,
+        authorization: crate::storage::surreal::resource_authority::AuthorizationRequest,
+        operation_id: Uuid, selectors: FinalPromotionAuthoritySelectors, input: NewModelLanePromotionDecision,
+        custody: std::sync::Arc<crate::storage::surreal::resource_authority::InitialValidatorIssuance>,
+    ) -> ModelLaneResult<ModelLanePromotionDecisionRecord> {
+        crate::storage::surreal::resource_authority::with_promotion_read_custody(custody,
+            self.record_promotion_decision(bootstrap, authorization, operation_id, selectors, input)).await
+    }
+
+    /// Retry only an already committed original command after its live producer
+    /// has retired. Absence/conflict/corruption never falls back to consumption.
+    pub async fn retry_committed_promotion_decision(
+        &self, bootstrap: &crate::AccountBootstrapState,
+        authorization: crate::storage::surreal::resource_authority::AuthorizationRequest,
+        operation_id: Uuid, selectors: FinalPromotionAuthoritySelectors, input: NewModelLanePromotionDecision,
+    ) -> ModelLaneResult<ModelLanePromotionDecisionRecord> {
+        use crate::storage::surreal::resource_authority::with_routing_original_sources;
+        validate_final_promotion_authority_selectors(&selectors, &input)?;
+        if self.storage.resource_access_lifecycle() != bootstrap.surreal.resource_access_lifecycle() {
+            return Err(ModelLaneError::AuthorityDenied("committed promotion retry storage owner differs".into()));
+        }
+        let sources = self.storage.capture_committed_promotion_retry_sources(
+            bootstrap, self, authorization, operation_id, input.run_id.clone()).await?;
+        let original_read = sources.original_scope();
+        let registry = sources.registry();
+        let store = self.clone(); let worker = sources.clone();
+        let read = self.storage.with_authenticated_transaction(operation_id, move |_| Box::pin(async move {
+            let owner = worker.clone();
+            let work = async move {
+                worker.revalidate().await?;
+                let scope = store.surreal_read_scope("exact committed promotion retry")?;
+                let exact = store.access.exact_read_scope().ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?;
+                let provider = store.provider().await?;
+                let before = provider.committed_promotion_retry_records(operation_id, &input.decision_id, &scope).await?;
+                let (decision, current, payload) = &before;
+                let body: Value = serde_json::from_str(&current.record_json)?;
+                let event: Value = serde_json::from_str(payload)?;
+                let selectors_json = json!({
+                    "operator": { "evidence_ref": selectors.operator.evidence_ref, "expectation": selectors.operator.expectation,
+                        "designation_ref": selectors.operator.designation_ref, "producer": selectors.operator.producer },
+                    "validator": { "evidence_ref": selectors.validator.evidence_ref, "expectation": selectors.validator.expectation,
+                        "designation_ref": selectors.validator.designation_ref, "producer": selectors.validator.producer },
+                });
+                let stored_input: Value = serde_json::from_str(body.get("input_json").and_then(Value::as_str)
+                    .ok_or_else(|| ModelLaneError::IntegrityViolation("committed promotion input unavailable".into()))?)?;
+                let stored_selectors: Value = serde_json::from_str(body.get("selectors_json").and_then(Value::as_str)
+                    .ok_or_else(|| ModelLaneError::IntegrityViolation("committed promotion selectors unavailable".into()))?)?;
+                if stored_input != serde_json::to_value(&input)? || stored_selectors != selectors_json {
+                    return Err(ModelLaneError::IdempotencyConflict("original committed promotion command differs".into()));
+                }
+                if body["schema_id"] != "handshake.role-promotion-consumption@1"
+                    || body["operation_id"] != operation_id.to_string() || body["decision_id"] != input.decision_id
+                    || body["exact_consumer_scope"] != serde_json::to_value(exact)?
+                    || body["owner_read_scope"] != serde_json::to_value(exact)?
+                    || body["creator"]["session_id"] != exact.authenticated_session_id.to_string()
+                    || body["creator"]["resource_id"] != worker.original_scope().resource_id
+                    || body["creator"]["capability_id"] != "fs.write" || body["creator"]["action"] != "create"
+                    || current.run_id != input.run_id || decision.run_id != input.run_id
+                    || decision.aggregate_id != input.decision_id || decision.idempotency_key != input.idempotency_key
+                    || current.event_seq >= decision.event_seq
+                    || event["promotion_consumption_event_id"] != current.event_id
+                    || event["promotion_consumption_operation_id"] != operation_id.to_string() {
+                    return Err(ModelLaneError::IntegrityViolation("committed promotion operation/settlement binding differs".into()));
+                }
+                if event["record"] != serde_json::from_str::<Value>(&decision.record_json)?
+                    || body["run"] != serde_json::to_value(&selectors.operator.expectation.run)?
+                    || body["run"] != serde_json::to_value(&selectors.validator.expectation.run)?
+                    || body["subject"] != serde_json::to_value(&selectors.operator.expectation.subject)?
+                    || body["subject"] != serde_json::to_value(&selectors.validator.expectation.subject)?
+                    || body["targets"].as_array().map(Vec::len) != Some(2) {
+                    return Err(ModelLaneError::IntegrityViolation("committed promotion immutable payload or role bindings differ".into()));
+                }
+                for (index, selector) in [&selectors.operator, &selectors.validator].into_iter().enumerate() {
+                    let target = &body["targets"][index];
+                    let digest = target["record_sha256"].as_str().ok_or_else(|| ModelLaneError::IntegrityViolation("committed role digest unavailable".into()))?;
+                    if target["record_kind"] != "role_evidence"
+                        || target["issuer_scope"] != serde_json::to_value(&selector.expectation.receipt_scope)?
+                        || selector.evidence_ref.as_str() != format!("eventledger://role-authority/{}", target["event_id"].as_str().unwrap_or(""))
+                        || target["record_id"].as_str().is_none_or(str::is_empty)
+                        || digest.len() != 64 || hex::decode(digest).map_or(true, |bytes| bytes.len() != 32) {
+                        return Err(ModelLaneError::IntegrityViolation("committed promotion immutable target differs".into()));
+                    }
+                }
+                let record = surreal_promotion_record(decision.clone())?;
+                validate_surreal_promotion_record_authority(&record, exact)?;
+                if record.run_id != input.run_id || record.decision_id != input.decision_id
+                    || record.idempotency_key != input.idempotency_key {
+                    return Err(ModelLaneError::IntegrityViolation("committed promotion record identity differs".into()));
+                }
+                let after = provider.committed_promotion_retry_records(operation_id, &input.decision_id, &scope).await?;
+                if after != before { return Err(ModelLaneError::IntegrityViolation("committed promotion changed during retry".into())); }
+                worker.revalidate().await?;
+                Ok::<_, ModelLaneError>((record, worker))
+            };
+            crate::storage::surreal::with_configured_capability_registry(owner.registry(),
+                with_routing_original_sources(owner, work)).await
+        }));
+        let subject = crate::storage::surreal::ModelLaneOperationSubject {
+            kind: crate::storage::surreal::resource_authority::ResourceKind::Workspace,
+            external_id: original_read.workspace_id.clone().ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?,
+        };
+        let (record, owner) = self.storage.with_record_user_scope(original_read,
+            crate::storage::surreal::with_configured_capability_registry(registry,
+                crate::storage::surreal::with_model_lane_subject(subject,
+                    crate::storage::surreal::with_model_lane_operation(crate::storage::surreal::ContextCoordinationPurpose::PromotionDecisionRead, read)))).await?;
+        owner.revalidate().await?;
+        Ok(record)
+    }
+
     pub async fn record_promotion_decision(
         &self,
         bootstrap: &crate::AccountBootstrapState,
@@ -4706,7 +5222,9 @@ impl ModelLaneStore {
         validator.require_matches(transaction, seal.operation_id(), &selectors.validator)?;
         operator.require_promotion_input(&input)?;
         validator.require_promotion_input(&input)?;
-        self.record_promotion_decision_in_authorized_transaction(input, transaction, selectors).await
+        self.promotion_provider(Some(transaction)).await?
+            .put_current_promotion_consumption(transaction, seal, operator, validator).await?;
+        self.record_promotion_decision_in_authorized_transaction(input, transaction, selectors, seal, operator, validator).await
     }
 
     pub(crate) async fn readback_promotion_decision(
@@ -4744,9 +5262,12 @@ impl ModelLaneStore {
         input: NewModelLanePromotionDecision,
         transaction: &crate::storage::surreal::SurrealTransactionContext<'_>,
         selectors: &FinalPromotionAuthoritySelectors,
+        seal: &crate::storage::surreal::resource_authority::CurrentConsumerSeal<'_>,
+        operator: &crate::storage::surreal::TxCheckedRoleEvidence<'_>,
+        validator: &crate::storage::surreal::TxCheckedRoleEvidence<'_>,
     ) -> ModelLaneResult<ModelLanePromotionDecisionRecord> {
         let transaction = Some(transaction);
-        let scope = self.surreal_write_scope("PromotionGate decision write")?;
+        let scope = self.surreal_read_scope("PromotionGate protected decision preparation")?;
         let exact_scope = self.access.exact_read_scope().ok_or_else(|| {
             ModelLaneError::AuthorityDenied(
                 "PromotionGate requires complete account/principal/session/AccessSpace/workspace authority"
@@ -4823,10 +5344,16 @@ impl ModelLaneStore {
         if !positive_bindings_match {
             return Err(ModelLaneError::AuthorityDenied("approved final promotion differs from its canonical role bindings".into()));
         }
-        let event_payload_json =
-            scoped_surreal_event_payload("hsk.model_lane_promotion_decision@1", &prepared, &scope)?;
+        let mut event_payload: Value = serde_json::from_str(&scoped_surreal_event_payload(
+            "hsk.model_lane_promotion_decision@1", &prepared, &scope)?)?;
+        let (consumption_event_id, consumption_operation_id) = seal.current_promotion_consumption_reference()?;
+        let payload = event_payload.as_object_mut().ok_or_else(|| ModelLaneError::IntegrityViolation("promotion scoped event payload is not an object".into()))?;
+        payload.insert("promotion_consumption_event_id".into(), json!(consumption_event_id));
+        payload.insert("promotion_consumption_operation_id".into(), json!(consumption_operation_id));
+        let event_payload_json = serde_json::to_string(&event_payload)?;
         let record_json = serde_json::to_string(&prepared)?;
-        let stored = promotion_query!(transaction, provider, put_immutable, put_immutable_in_transaction,
+        let stored = seal.with_promotion_creation(&prepared, operator, validator, async {
+            Ok(promotion_query!(transaction, provider, put_immutable, put_immutable_in_transaction,
                 SurrealRecordKind::PromotionDecision,
                 &prepared.decision_id,
                 &prepared.run_id,
@@ -4835,36 +5362,53 @@ impl ModelLaneStore {
                 promotion_search_terms(&prepared),
                 event_payload_json,
                 &scope,
-            )
-            .await?;
+            ).await?)
+        }).await?;
         let record = surreal_promotion_record(stored)?;
         validate_surreal_promotion_record_authority(&record, exact_scope)?;
         Ok(record)
     }
 
+    #[cfg(feature = "test-utils")]
+    pub async fn test_promotion_receipts(&self, run_id: &str, aggregate_type: &str, aggregate_id: &str)
+        -> ModelLaneResult<Vec<crate::kernel::KernelEvent>> {
+        require_token("run_id", run_id)?; require_token("aggregate_id", aggregate_id)?;
+        if !matches!(aggregate_type, "promotion_decision" | "role_evidence_consumption") {
+            return Err(ModelLaneError::InvalidInput("promotion receipt aggregate kind differs".into()));
+        }
+        let caller = crate::storage::surreal::current_record_user_scope()
+            .ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?;
+        let storage = self.storage.clone(); let selected_run = run_id.to_owned();
+        let kind = aggregate_type.to_owned(); let aggregate = aggregate_id.to_owned();
+        self.with_routing_read_operation("fs.read", crate::storage::surreal::ContextCoordinationPurpose::PromotionDecisionRead,
+            selected_run, String::new(), move || async move {
+                Ok(storage.list_account_kernel_events_for_aggregate(&caller.session_token,
+                    caller.channel_binding_hash.as_deref().ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?,
+                    &kind, &aggregate).await?)
+            }).await
+    }
+
     pub async fn replay_promotion_decisions(
-        &self,
-        run_id: &str,
+        &self, run_id: &str,
     ) -> ModelLaneResult<Vec<ModelLanePromotionDecisionRecord>> {
         require_token("run_id", run_id)?;
-        let scope = self.surreal_read_scope("PromotionGate replay")?;
-        let exact_scope = self.access.exact_read_scope().ok_or_else(|| {
-            ModelLaneError::AuthorityDenied(
-                "PromotionGate replay requires complete five-field resource scope".into(),
-            )
-        })?;
-        let records = self
-            .provider()
-            .await?
-            .list_run(SurrealRecordKind::PromotionDecision, run_id, &scope)
-            .await?
-            .into_iter()
-            .map(surreal_promotion_record)
-            .collect::<ModelLaneResult<Vec<_>>>()?;
-        for record in &records {
-            validate_surreal_promotion_record_authority(record, exact_scope)?;
-        }
-        Ok(records)
+        let store = self.clone(); let selected_run = run_id.to_owned();
+        self.with_routing_read_operation("fs.read", crate::storage::surreal::ContextCoordinationPurpose::PromotionDecisionRead,
+            selected_run.clone(), String::new(), move || async move {
+                let scope = store.surreal_read_scope("selected canonical PromotionGate replay")?;
+                let exact = store.access.exact_read_scope().ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?;
+                let provider = store.provider().await?;
+                let rows = provider.list_run(SurrealRecordKind::PromotionDecision, &selected_run, &scope).await?;
+                let mut records = Vec::with_capacity(rows.len());
+                for row in rows {
+                    provider.validate_event_link(SurrealRecordKind::PromotionDecision, &row, &scope).await?;
+                    let record = surreal_promotion_record(row)?;
+                    validate_surreal_promotion_record_authority(&record, exact)?;
+                    if record.run_id != selected_run { return Err(ModelLaneError::IntegrityViolation("selected promotion run differs".into())); }
+                    records.push(record);
+                }
+                Ok(records)
+            }).await
     }
 
     pub async fn record_context_bundle_artifact_binding(
@@ -5531,15 +6075,19 @@ impl ModelLaneStore {
         Ok(())
     }
 
-    fn require_routing_source_read(&self) -> ModelLaneResult<SurrealModelLaneScope> {
+    fn require_routing_source_read(&self, run_id: &str) -> ModelLaneResult<SurrealModelLaneScope> {
         use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
         let scope = self.surreal_read_scope("routing canonical source read")?;
         let original = crate::storage::surreal::current_record_user_scope()
             .ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?;
         let subject = crate::storage::surreal::current_model_lane_subject()
             .ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?;
+        let selected_write = crate::storage::surreal::resource_authority::current_routing_original_sources()
+            .is_some_and(|sources| sources.run_id() == run_id && sources.action() == original.action
+                && matches!(original.action, ResourceAction::Create | ResourceAction::Update)
+                && original.capability_id == "fs.write");
         if !((original.action == ResourceAction::Read && original.capability_id == "fs.read")
-            || (original.action == ResourceAction::Create && original.capability_id == "fs.write"))
+            || selected_write)
             || original.grant_id.is_none() || original.session_id != scope.authenticated_session_id
             || original.workspace_id.as_deref() != Some(scope.workspace_id.as_str())
             || subject.kind != ResourceKind::Workspace || subject.external_id != scope.workspace_id {
@@ -5548,15 +6096,82 @@ impl ModelLaneStore {
         Ok(scope)
     }
 
+    pub(crate) async fn routing_selecting_decision(
+        &self, run_id: &str, decision_id: &str,
+    ) -> ModelLaneResult<ModelLanePromotionDecisionRecord> {
+        let scope = self.require_routing_source_read(run_id)?;
+        let sources = crate::storage::surreal::resource_authority::current_routing_original_sources()
+            .ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?;
+        if sources.run_id() != run_id || sources.selecting_decision_id() != Some(decision_id)
+            || !self.provider().await?.routing_operation_is_guarded(&sources) {
+            return Err(ModelLaneError::AuthorityDenied("routing selecting decision is outside owned closure".into()));
+        }
+        let provider = self.provider().await?;
+        let row = provider.get(SurrealRecordKind::PromotionDecision, decision_id, &scope).await?
+            .ok_or_else(|| ModelLaneError::NotFound("routing selecting decision".into()))?;
+        provider.validate_event_link(SurrealRecordKind::PromotionDecision, &row, &scope).await?;
+        let record = surreal_promotion_record(row)?;
+        if record.run_id != run_id {
+            return Err(ModelLaneError::AuthorityDenied("routing selecting decision run differs".into()));
+        }
+        validate_surreal_promotion_record_authority(&record, self.access.exact_read_scope()
+            .ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?)?;
+        Ok(record)
+    }
+
+    pub(crate) async fn routing_launch_run(
+        &self, run_id: &str, execution_id: &str, decision_id: &str, input_ref: &str,
+    ) -> ModelLaneResult<(ModelLaneRunRecord, Vec<super::routing::ModelLaneRoutingStageLaunchPlan>)> {
+        use crate::storage::surreal::resource_authority::{ResourceAction, current_routing_original_sources};
+        let action = crate::storage::surreal::current_record_user_scope()
+            .ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?.action;
+        let store = self.clone(); let selected_run = run_id.to_owned(); let selected_decision = decision_id.to_owned();
+        let read = move || async move {
+            let scope = store.require_routing_source_read(&selected_run)?;
+            let sources = current_routing_original_sources()
+                .ok_or(crate::storage::surreal::SurrealStorageError::TransactionAuthorityRequired)?;
+            let provider = store.provider().await?;
+            if !provider.routing_operation_is_guarded(&sources) {
+                return Err(ModelLaneError::AuthorityDenied("routing launch preflight requires owned selected run".into()));
+            }
+            let row = provider.get(SurrealRecordKind::Run, &selected_run, &scope).await?
+                .ok_or_else(|| ModelLaneError::NotFound("routing launch canonical run".into()))?;
+            provider.validate_event_link(SurrealRecordKind::Run, &row, &scope).await?;
+            let run = surreal_run_record(row)?;
+            let decision = store.routing_selecting_decision(&selected_run, &selected_decision).await?;
+            let graph = super::routing::ModelLaneRoutingGraph::for_policy(decision.routing_policy);
+            super::routing_execution::validate_launch_plan(&graph, &decision.routing_launch_plan)
+                .map_err(ModelLaneError::InvalidInput)?;
+            if decision.outcome != ModelLanePromotionOutcome::Approved
+                || decision.trace_id != run.trace_id
+                || decision.coordinator_session_id != run.coordinator_session_id
+                || decision.owner_session != run.owner_session {
+                return Err(ModelLaneError::AuthorityDenied("routing launch decision differs from canonical run".into()));
+            }
+            Ok((run, decision.routing_launch_plan.clone()))
+        };
+        match action {
+            ResourceAction::Create => self.with_routing_creation(run_id.to_owned(), execution_id.to_owned(),
+                decision_id.to_owned(), input_ref.to_owned(), read).await,
+            ResourceAction::Update => self.with_routing_transition(execution_id.to_owned(), false, read).await,
+            _ => Err(ModelLaneError::AuthorityDenied("routing launch preflight requires original Create or Update".into())),
+        }
+    }
+
     pub(crate) async fn routing_source_replay(&self, run_id: &str) -> ModelLaneResult<ModelLaneReplay> {
         require_token("run_id", run_id)?;
-        self.require_routing_source_read()?;
+        self.require_routing_source_read(&run_id)?;
+        if let Some(sources) = crate::storage::surreal::resource_authority::current_routing_original_sources() {
+            if sources.run_id() == run_id && self.provider().await?.routing_operation_is_guarded(&sources) {
+                return self.replay_run_source(run_id).await;
+            }
+        }
         let store = self.clone();
         let run_id = run_id.to_owned();
         let read = self.storage.with_authenticated_transaction(uuid::Uuid::now_v7(), move |_| Box::pin(async move {
-            store.require_routing_source_read()?;
+            store.require_routing_source_read(&run_id)?;
             let replay = store.replay_run_source(&run_id).await?;
-            store.require_routing_source_read()?;
+            store.require_routing_source_read(&run_id)?;
             Ok(replay)
         }));
         if crate::storage::surreal::current_record_user_scope()
@@ -5574,16 +6189,21 @@ impl ModelLaneStore {
     ) -> ModelLaneResult<Option<ModelLaneContextBundleArtifactBindingRecord>> {
         require_token("run_id", run_id)?;
         require_token("artifact_ref", artifact_ref)?;
-        let scope = self.require_routing_source_read()?;
+        let scope = self.require_routing_source_read(&run_id)?;
         let provider = self.provider().await?.clone();
+        if let Some(sources) = crate::storage::surreal::resource_authority::current_routing_original_sources() {
+            if sources.run_id() == run_id && provider.routing_operation_is_guarded(&sources) {
+                return self.context_bundle_artifact_by_ref_surreal(&provider, &scope, run_id, artifact_ref).await;
+            }
+        }
         let store = self.clone();
         let run_id = run_id.to_owned();
         let artifact_ref = artifact_ref.to_owned();
         let read = self.storage.with_authenticated_transaction(uuid::Uuid::now_v7(), move |_| Box::pin(async move {
-            store.require_routing_source_read()?;
+            store.require_routing_source_read(&run_id)?;
             let artifact = store.context_bundle_artifact_by_ref_surreal(
                 &provider, &scope, &run_id, &artifact_ref).await?;
-            store.require_routing_source_read()?;
+            store.require_routing_source_read(&run_id)?;
             Ok(artifact)
         }));
         if crate::storage::surreal::current_record_user_scope()
@@ -5988,18 +6608,7 @@ impl ModelLaneStore {
             .iter()
             .map(|lease| lease.lease_id.clone())
             .collect::<Vec<_>>();
-        let mut routing_executions = Vec::new();
-        for stored in provider
-            .list_run(SurrealRecordKind::RoutingExecution, run_id, &scope)
-            .await?
-        {
-            provider
-                .validate_event_link(SurrealRecordKind::RoutingExecution, &stored, &scope)
-                .await?;
-            routing_executions.push(serde_json::from_str::<
-                super::routing_execution::ModelLaneRoutingExecutionDiagnostics,
-            >(&stored.record_json)?);
-        }
+        let routing_executions = self.routing_diagnostics_for_projection(run_id).await?;
         let messages_by_lane = replay.messages.iter().fold(
             BTreeMap::<String, Vec<&ModelLaneMessageRecord>>::new(),
             |mut acc, msg| {
@@ -7387,7 +7996,7 @@ impl ModelLaneStore {
         let cloud_consent_denials = self.validate_checkpoint_cloud_membership(
             &checkpoint, cloud_membership.as_ref(), &scope,
         ).await?;
-        let replay = self.replay_run(run_id).await?;
+        let mut replay = self.replay_run(run_id).await?;
         for message in &replay.messages {
             self.validate_surreal_stored_crdt_binding(message, &scope)
                 .await?;
@@ -7409,6 +8018,8 @@ impl ModelLaneStore {
         } else {
             checkpoint_bound_event_ledger_seq
         };
+        replay.lanes.retain(|lane| lane.event_ledger_seq <= forward_bound_event_ledger_seq);
+        replay.messages.retain(|message| message.event_ledger_seq <= forward_bound_event_ledger_seq);
         let recovery_rows = provider
             .list_run(SurrealRecordKind::RecoveryEvent, run_id, &scope)
             .await?;
@@ -7442,8 +8053,9 @@ impl ModelLaneStore {
             }
         }
         validate_contiguous_recovery_order(run_id, &recovery_events)?;
-        validate_recovery_payload_refs_surreal(provider, &scope, &checkpoint, &replay.messages)
-            .await?;
+        validate_recovery_payload_refs_surreal(
+            provider, &scope, &checkpoint, forward_bound_event_ledger_seq, &replay.messages,
+        ).await?;
         validate_recovery_crdt_posture_surreal(
             provider,
             &scope,
@@ -9263,6 +9875,7 @@ async fn validate_recovery_payload_refs_surreal(
     provider: &SurrealModelLaneStore,
     scope: &SurrealModelLaneScope,
     checkpoint: &ModelLaneRecoveryCheckpointRecord,
+    forward_bound_event_ledger_seq: i64,
     messages: &[ModelLaneMessageRecord],
 ) -> ModelLaneResult<()> {
     if checkpoint.last_event_ledger_seq <= 0 {
@@ -9273,6 +9886,45 @@ async fn validate_recovery_payload_refs_surreal(
             failure.as_str(),
             checkpoint.checkpoint_id
         )));
+    }
+    for message in messages {
+        if message.authority == ModelLaneAuthority::Promoted
+            || model_lane_message_has_crdt_authority(&message.inner)
+            || message.crdt_authority_binding.is_some()
+        {
+            continue;
+        }
+        let payload_bound = if message.event_ledger_seq <= checkpoint.last_event_ledger_seq {
+            checkpoint.last_event_ledger_seq
+        } else {
+            forward_bound_event_ledger_seq
+        };
+        let rows = provider.find_by_term(
+            SurrealRecordKind::ContextArtifact,
+            &format!("artifact_ref={}", message.payload_ref),
+            scope,
+        ).await?;
+        let mut payload_authorized = false;
+        for row in rows {
+            provider.validate_event_link(SurrealRecordKind::ContextArtifact, &row, scope).await?;
+            if row.run_id != checkpoint.run_id || row.event_seq > payload_bound {
+                continue;
+            }
+            let artifact = surreal_context_bundle_artifact_record(row)?;
+            payload_authorized |= artifact.run_id == message.run_id
+                && artifact.event_ledger_stream_id == message.event_ledger_stream_id
+                && artifact.artifact_ref == message.payload_ref
+                && artifact.artifact_payload_ref == message.payload_ref
+                && artifact.artifact_sha256 == message.payload_sha256
+                && artifact.content_hash == message.payload_sha256;
+        }
+        if !payload_authorized {
+            let failure = ModelLaneRecoveryFailureKind::MissingPayloadAuthority;
+            return Err(ModelLaneError::IntegrityViolation(format!(
+                "{} {} message {} has no recovery-bounded exact-scope payload authority",
+                failure.code(), failure.as_str(), message.message_id,
+            )));
+        }
     }
     for payload_ref in &checkpoint.open_payload_refs {
         let message_match = messages.iter().any(|message| {

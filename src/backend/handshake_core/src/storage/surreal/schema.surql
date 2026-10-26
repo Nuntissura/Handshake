@@ -10039,6 +10039,29 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_ledger_read($row: object) {
 };
 
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_receipt($row: object, $write: bool) {
+    IF !$write AND $row.aggregate_type = 'role_evidence' AND $wp012_original_purpose = 'source_read' AND $wp012_routing_original.action = 'read' AND $wp012_routing_original.execution_id != '' {
+        RETURN fn::wp012_routing_ack_read_receipt($row);
+    };
+    IF !$write AND $wp012_original_purpose = 'promotion_decision_read' AND $row.source_component = 'model_lane' {
+        RETURN fn::wp012_promotion_public_receipt($row);
+    };
+    IF $wp012_original_purpose IN ['final_promotion_read', 'final_promotion_record'] AND $row.source_component = 'model_lane' {
+        RETURN fn::wp012_promotion_receipt($row, $write);
+    };
+    IF $row.aggregate_type = 'run' AND ($row.event_type = 'MODEL_LANE_AUTHORITY_REPLACED' OR $wp012_original_purpose = 'run_attachment') {
+        RETURN fn::wp012_run_attachment_receipt($row, $write);
+    };
+    IF !$write AND $row.aggregate_type = 'role_evidence' AND ($wp012_routing_prior != NONE OR $wp012_routing_ack != NONE) {
+        RETURN fn::wp012_routing_role_receipt($row, false);
+    };
+    IF $row.source_component = 'model_lane_routing_executor' {
+        RETURN fn::wp012_routing_receipt($row, $write);
+    };
+    IF ($wp012_original_purpose IN ['routing_create', 'routing_transition', 'routing_diagnostics_read']
+        OR ($wp012_original_purpose = 'source_read' AND $wp012_routing_original.action = 'read' AND $wp012_routing_original.execution_id != ''))
+        AND $row.source_component = 'model_lane' {
+        RETURN fn::wp012_routing_model_lane_receipt($row, $write);
+    };
     IF $row.source_component = 'model_lane_crdt'
         OR ($row.source_component = 'knowledge_crdt_ai_edit_proposal' AND $row.aggregate_type = 'knowledge_ai_edit_promotion') { RETURN fn::wp012_model_lane_crdt_receipt($row, $write); };
     -- Read-only navigation resolves the immutable source/receipt identity before
