@@ -1,0 +1,348 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-210",
+  "created_at_utc": "2026-10-26T10:27:50.887Z",
+  "identity": {
+    "mt_id": "MT-210",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Standalone shared schema declaration inventory",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "operator_authority": {
+    "decision": "Master-bound remediation under existing full-control delegation; Codeleader supplied exact retained actors, API and source/host file allocation.",
+    "delegation_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016",
+    "source_placement": "Direct human GLOBAL-ASSETS-012 governs this new assets/ placement. Do not relocate existing assets.",
+    "original_failure_ref": "MT-174.json#/remediation_record/gui_fresh_core_startup_schema_order_20261026",
+    "no_new_grants": "No INFO enrollment, retry/attempt reset, compiler release, process control or execution allowance."
+  },
+  "context_capsule": {
+    "original_mt_refs": [
+      "MT-174.json",
+      "MT-139.json"
+    ],
+    "module_maintenance_refs": [
+      "MT-210.json#/execution/module_maintenance"
+    ],
+    "pin_policy": "No source or host revision is inferred from a branch name; the final published immutable source and proof are required."
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Two distinct declaration inventories and source/adoption boundaries; retained assigned teams only.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "new_execution_allowance": 0,
+    "inherit_existing_attempt_history": true,
+    "reset_counters": false,
+    "authority_ref": "MT-174.json#/remediation_record/gui_fresh_core_startup_schema_order_20261026",
+    "rule": "Proof methods specify required evidence; they do not admit a run or change original targets, budgets or stops."
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-210.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+    "template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json",
+    "build_rules": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md"
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "active": false,
+    "claimed_by": null,
+    "validator_verdict": "PENDING",
+    "blocked_on": "Actual author/API ACK and final asset maintenance reference binding are recorded; exact source/publication custody/action admission remain pending.",
+    "blocks": [
+      "MT-211"
+    ]
+  },
+  "preservation": {
+    "original_scope": "All original WP012, carried CKC and WP1 source conservation, requirements, independent proof and acceptance remain.",
+    "pins": "Preserve schema166 lineage, historical source/INFO pins, expected catalog identities/counts, raw source/hash inputs, original MT139 measurement/fresh/reopen obligations, existing targets, budgets and attempt history.",
+    "independent_work": "MT172's current four-fix/retry24-file review and independent GUI work continue; this dependency applies only to the shared schema declaration-reader repair.",
+    "excluded": [
+      "Candle/GGUF, including any copied Candle workspace",
+      "model files or engine selection",
+      "schema permission/content expansion or SQL flattening",
+      "new branches/worktrees or relocation of existing assets"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "not_applicable_reason": "Pure declaration inventory and caller adaptation add no UI surface. Existing affected GUI startup and original native acceptance remain with their owners."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "target_entries": [
+      "assets/hskernel/compiled_schema_catalog_entries/README.md"
+    ],
+    "scope": "Document reusable APIs and their two policies in the asset README; no new operator workflow or host manual feature is invented."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": false,
+    "not_applicable_reason": "Pure in-memory schema declaration inventory has no account/resource access, database execution or network/filesystem I/O. Host authority and privacy remain unchanged."
+  },
+  "hbr_obligations": [
+    "HBR-MODULE-LIFECYCLE-004",
+    "HBR-MODULE-LIFECYCLE-007",
+    "HBR-MODULE-LIFECYCLE-008"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "scope": "Owning source proof and affected host schema observation",
+      "rule": "Preserve existing Flight Recorder/internal_diagnostics failure evidence and original Palmistry/native acceptance. The pure library owns no recorder/process and does not weaken host diagnostic obligations."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "reports_to": "Codeleader; Master owns this bounded contract amendment."
+  },
+  "closure_unit": {
+    "outcome": "Publish one reviewed, independently verified reusable declaration inventory supporting the strict base and ordered production-overlay consumers.",
+    "requirement_refs": [
+      "MT-174.json#/remediation_record/gui_fresh_core_startup_schema_order_20261026",
+      "MT-210.json#/execution/module_maintenance"
+    ],
+    "acceptance_refs": [
+      "MT-210.json#/scope/acceptance_criteria"
+    ]
+  },
+  "scope": {
+    "summary": "Resolve the recorded multiline DEFINE EVENT failure in the canonical shared source, preserving both original consumer policies.",
+    "allowed_paths": [
+      "assets/hskernel/compiled_schema_catalog_entries/Cargo.toml",
+      "assets/hskernel/compiled_schema_catalog_entries/src/lib.rs",
+      "assets/hskernel/compiled_schema_catalog_entries/tests/declaration_inventory.rs",
+      "assets/hskernel/compiled_schema_catalog_entries/README.md"
+    ],
+    "conditional_paths": {
+      "owning_cargo_lock": {
+        "paths": [],
+        "state": "PRIMARY_MUST_RESOLVE_ACTUAL_OWNING_LOCK_IF_REQUIRED_BEFORE_WRITES",
+        "no_guessed_path": true
+      }
+    },
+    "forbidden_paths": [
+      "Handshake Product source before MT211 adoption",
+      "Sibling assets and global skills/policies",
+      "Model files, Candle and GGUF work"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "MT210-AC1",
+        "text": "Preserve the original three public signatures and compatible behavior. Add production_catalog_entries(base_entries: &[String], ordered_sources: &[(&str, &str)]) -> Result<Vec<String>, String>; both consumers use the same shared declaration recognition."
+      },
+      {
+        "id": "MT210-AC2",
+        "text": "Strict compiled/base inventory retains the expected table set, sorted identities, duplicate rejection and exact eight-count semantics for tables, fields, indexes, events, views, sequences, accesses and functions, including existing ACCESS/FUNCTION rejection behavior."
+      },
+      {
+        "id": "MT210-AC3",
+        "text": "Ordered production overlays retain host source order, plain/OVERWRITE/IF NOT EXISTS forms, optional TABLE after ON, TABLE/FIELD/INDEX/EVENT/FUNCTION/SEQUENCE/ACCESS/ANALYZER/PARAM kinds, unknown-kind errors and identity-set deduplication. Do not impose strict-base counts/duplicate rejection or invent body-replacement semantics."
+      },
+      {
+        "id": "MT210-AC4",
+        "text": "The actual multiline engine_profile_registry_transition_guard header and equivalent one-line form yield the same exact identity through both public modes. Quoted/commented text, truncated headers and unsupported kinds do not silently invent top-level declarations."
+      },
+      {
+        "id": "MT210-AC5",
+        "text": "Keep this library std-only and independent of host constants, source ordering, raw-source/catalog hashing, database execution and filesystem/network I/O. Preserve exact identifier and error semantics; this is not a replacement SurrealQL engine."
+      },
+      {
+        "id": "MT210-AC6",
+        "text": "Owning public-API Cargo tests execute nonzero meaningful cases, actual nonauthor and independent Codecheck review the candidate, normal scoped publication lands it, and an independent canonical remote reread binds immutable source/tree/file pins and source proof before MT211 host writes."
+      }
+    ],
+    "proof_targets": [
+      "MT-210.json#/proof/checks"
+    ]
+  },
+  "execution": {
+    "lane": "PRODUCT_CODE_BACKEND",
+    "foreground_or_interactive_tools_forbidden": true,
+    "module_change_stage": "standalone_source",
+    "depends_on": [],
+    "allowed_write_paths": [
+      "assets/hskernel/compiled_schema_catalog_entries/Cargo.toml",
+      "assets/hskernel/compiled_schema_catalog_entries/src/lib.rs",
+      "assets/hskernel/compiled_schema_catalog_entries/tests/declaration_inventory.rs",
+      "assets/hskernel/compiled_schema_catalog_entries/README.md"
+    ],
+    "forbidden_write_paths": [
+      "Handshake Product source before MT211 adoption",
+      "Sibling assets and global skills/policies",
+      "Model files, Candle and GGUF work"
+    ],
+    "product_worktree": "Operator-configured canonical Nuntissura/assets checkout; verify actual root before admission.",
+    "source_repository": "https://github.com/Nuntissura/assets.git",
+    "declared_existing_branch": "codex/handpick",
+    "module_maintenance": {
+      "module_id": "compiled_schema_catalog_entries",
+      "asset_id": "HANDSHAKE-COMPILED-SCHEMA-CATALOG-ENTRIES-ASSET-001",
+      "canonical_repository": "https://github.com/Nuntissura/assets.git",
+      "canonical_path": "assets/hskernel/compiled_schema_catalog_entries",
+      "asset_contract": {
+        "repository": "https://github.com/Nuntissura/assets.git",
+        "branch": "codex/handpick",
+        "path": "assets/hskernel/compiled_schema_catalog_entries/asset-contract.yaml",
+        "contract_id": "CSCE-SOURCE-CONTRACT-v1",
+        "asset_id": "HANDSHAKE-COMPILED-SCHEMA-CATALOG-ENTRIES-ASSET-001",
+        "binding_state": "MAINTENANCE_REFS_API_AND_AUTHOR_ACK_BOUND_EXECUTION_HELD",
+        "digest": "8b2564aecfcf53741d153c362122f0c0f8de1de91cc86d3fb69c8f1f9b89a4f7",
+        "digest_policy": "SHA256 of the actual owner-updated maintenance contract, independently reread after exact APIs, MT references and author ACK were bound; this is not source publication or execution admission."
+      },
+      "public_api": [
+        "compiled_schema_catalog_entries(schema: &str, expected_table_names: &[&str], expected_counts: (usize, usize, usize, usize, usize, usize, usize, usize)) -> Result<Vec<String>, String>",
+        "declarative_function_name(value: &str) -> Result<&str, String>",
+        "insert_catalog_identity(identities: &mut BTreeSet<String>, identity: String) -> Result<(), String>",
+        "production_catalog_entries(base_entries: &[String], ordered_sources: &[(&str, &str)]) -> Result<Vec<String>, String>"
+      ],
+      "signature_policy": "Argument names of the three preserved APIs are descriptive only; preserve their original function/type signatures and public behavior. Actual B caller-fit ACK is recorded in execution.ownership.source_author_ack_record.",
+      "lineage": {
+        "repository": "https://github.com/Nuntissura/Handshake.git",
+        "revision": "b5273d82666354a0fc2b8d2e5715f12d79777786",
+        "path": "src/backend/handshake_storage_support/src/compiled_schema_catalog_entries.rs",
+        "sha256": "0529d603a0c242903a7072d8ded14468633682408370a9f5ae210a9d418cd02a",
+        "original_assignment_ref": "packet.json#/swarm_production_20261014/coordination/schema_catalog_crate_extraction_20261015",
+        "limit": "Historical extraction lineage, not proof of new canonical publication."
+      },
+      "consumers": [
+        {
+          "path": "src/backend/handshake_storage_support/src/compiled_schema_catalog_entries.rs",
+          "mode": "strict compiled/base inventory"
+        },
+        {
+          "path": "src/backend/handshake_core/src/storage/surreal/schema.rs",
+          "anchor": "Inspected production_catalog_entries at lines7059–7085, including private recognizer at7062/7073",
+          "mode": "ordered production-overlay inventory"
+        }
+      ],
+      "dependency_direction": "Asset knows no Handshake schema constants or database owner; host supplies validated base entries, expected counts/table names and ordered sources.",
+      "recovery": "Preserve original host source until separately admitted exact pinned adoption; no rollback/reset or deletion authority."
+    },
+    "ownership": {
+      "codeleader": "01a168a9-05b2-7630-9633-5faac88dd068",
+      "coding_parent": "01a17387-13d3-7091-951e-c06728fb7e94",
+      "assigned_source_author": "01a1738a-8fd1-7ea3-abce-4da85992fe2d",
+      "source_author_ack": "ACK_RECEIVED",
+      "source_author_caller_fit": "ACK_RECEIVED",
+      "pre_handoff_nonauthor": "01a1738c-5c70-7c93-b1c2-6dfc4d0edfb0",
+      "independent_codecheck": "01a17387-9d99-7e61-8987-42feab10e18a",
+      "retained_lenses": [
+        "correctness/callers/dependencies",
+        "authority/privacy/lineage",
+        "lifecycle/runtime/proof"
+      ],
+      "asset_maintenance_preparer": "01a17374-1d96-7e02-9aea-77b0f62f20dc",
+      "physical_applier_publisher_compiler": "01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
+      "primary_role_fit": {
+        "state": "ACCEPTED_ROLE_FIT_ONLY",
+        "turn_id": "01a177ad-f79b-7250-8a94-a441cde8aeb9",
+        "resource_reservation": false,
+        "action_admission": false
+      },
+      "asset_git_custody": "Existing asset owner retains shared asset Git until actual handover; its maintenance write interval ended. No release is inferred from that maintenance completion.",
+      "author_output_root": null,
+      "author_output_root_state": "Coding/Primary bind actual external candidate output and nonoverlap before source authoring.",
+      "allocation_limit": "Actual assignments, not claimed ACKs, active work, review verdicts or a new team.",
+      "source_author_ack_record": {
+        "state": "ACTUAL_AVAILABILITY_NONOVERLAP_AND_API_FIT_ACK_RECEIVED",
+        "author": "01a1738a-8fd1-7ea3-abce-4da85992fe2d",
+        "turn_id": "01a177b4-3516-7f53-b614-f4dd10f5aded",
+        "quoted_ack": "Availability and nonoverlap remain valid.",
+        "api_fit": "Exact additive production_catalog_entries(base_entries: &[String], ordered_sources: &[(&str, &str)]) -> Result<Vec<String>, String>; validated base plus original sources[1..], original three APIs and distinct strict/overlay rules accepted.",
+        "source_writes": false,
+        "action_admission": false,
+        "resource_release": false
+      }
+    },
+    "source_write_authorized": false,
+    "tests_or_compiler_authorized": false,
+    "git_execution_authorized": false,
+    "start": {
+      "state": "HELD_PENDING_SOURCE_PUBLICATION_HANDOVER_AND_ADMISSION",
+      "requirements": [
+        "Preserve the bound maintenance reference/digest; changed relevant source, API or ownership inputs require their affected binding to be reconciled before action.",
+        "Coding/Primary bind the external candidate output, exact source preimages and actual owning lock if required.",
+        "Actual asset-Git/source/compiler interval handover and separate action admission to Primary; role fit is insufficient."
+      ],
+      "fulfilled_requirement_refs": [
+        "MT-210.json#/execution/ownership/source_author_ack_record",
+        "MT-210.json#/execution/module_maintenance/asset_contract"
+      ]
+    },
+    "stop_conditions": [
+      "Changed source preimages or an actual changed nonoverlap/custody condition.",
+      "A required additional path/API/semantic change is not allocated.",
+      "An attempted host-local parser, SQL flattening or substitution for source publication."
+    ],
+    "publication": {
+      "state": "NOT_STARTED",
+      "physical_owner": "01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
+      "source_revision": null,
+      "source_tree": null,
+      "standalone_proof_refs": [],
+      "independent_source_review_ref": null,
+      "independent_remote_verification_ref": null,
+      "method": "Existing normal scoped asset publication helper, including isolated candidate proof, only inside Primary's actually handed-over asset-Git/compiler interval. Preserve unrelated index/work; no source proof or remote verification is claimed here."
+    }
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-174.json#/remediation_record/gui_fresh_core_startup_schema_order_20261026"
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "checks": [
+      {
+        "check_id": "MT210-P1",
+        "claim_refs": [
+          "MT210-AC1",
+          "MT210-AC2",
+          "MT210-AC3",
+          "MT210-AC4",
+          "MT210-AC5"
+        ],
+        "command_or_method": "cargo test --locked --manifest-path assets/hskernel/compiled_schema_catalog_entries/Cargo.toml -j 1",
+        "working_directory": "Verified canonical asset repository root",
+        "expected": "Owning public-API declaration_inventory tests execute nonzero cases covering all five source criteria; exact source/lock/features/profile bound; no Core/database runtime required.",
+        "admission": "Primary only after actual source/compiler interval, owning lock resolution and existing required preparation; no run admitted by this contract.",
+        "evidence_required": [
+          "Exact source inputs and dependency/lock binding",
+          "Numeric exit and nonzero test names/results",
+          "Actual terminal and owned-resource handback"
+        ]
+      },
+      {
+        "check_id": "MT210-P2",
+        "claim_refs": [
+          "MT210-AC6"
+        ],
+        "command_or_method": "Actual Flow nonauthor review, retained independent Codecheck and scoped publication with independent canonical remote/tree/file reread.",
+        "expected": "Review and publication bind the tested immutable candidate; source milestone remains distinct from host acceptance.",
+        "evidence_required": [
+          "Actual nonauthor/independent opinions",
+          "Canonical published revision/tree and file pins",
+          "Independent reread and source-proof references"
+        ]
+      }
+    ],
+    "state": "NOT_RUN_NOT_ACCEPTED"
+  },
+  "research_basis": {
+    "kind": "RECORDED_REMEDIATION",
+    "failure_ref": "MT-174.json#/remediation_record/gui_fresh_core_startup_schema_order_20261026",
+    "asset_discovery_ref": "MT-210.json#/execution/module_maintenance/asset_contract",
+    "reuse": "Preserve original std-only parser lineage and generalize the actual second production recognizer through one public capability; no duplicate private host parser.",
+    "limits": "Existing bounded asset discovery and current caller inspection are reused; no new broad research or execution claimed."
+  }
+}

@@ -1,0 +1,316 @@
+{
+  "schema_id": "hsk.microtask_contract@1",
+  "schema_version": "microtask_contract_v1",
+  "contract_authority": "PRIMARY_MACHINE_READABLE",
+  "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+  "mt_id": "MT-211",
+  "created_at_utc": "2026-10-26T10:27:50.888Z",
+  "identity": {
+    "mt_id": "MT-211",
+    "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
+    "title": "Pinned host adoption of shared schema declaration inventory",
+    "version": 1,
+    "contract_revision": 1
+  },
+  "operator_authority": {
+    "decision": "Master-bound remediation under existing full-control delegation; Codeleader supplied exact retained actors, API and source/host file allocation.",
+    "delegation_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016",
+    "source_placement": "Direct human GLOBAL-ASSETS-012 governs this new assets/ placement. Do not relocate existing assets.",
+    "original_failure_ref": "MT-174.json#/remediation_record/gui_fresh_core_startup_schema_order_20261026",
+    "no_new_grants": "No INFO enrollment, retry/attempt reset, compiler release, process control or execution allowance."
+  },
+  "context_capsule": {
+    "original_mt_refs": [
+      "MT-174.json",
+      "MT-139.json"
+    ],
+    "module_maintenance_refs": [
+      "MT-210.json#/execution/module_maintenance"
+    ],
+    "pin_policy": "No source or host revision is inferred from a branch name; the final published immutable source and proof are required."
+  },
+  "model_routing": {
+    "model_tier": "strong",
+    "tier_reason": "Two distinct declaration inventories and source/adoption boundaries; retained assigned teams only.",
+    "sized_for_declared_tier": true,
+    "escalate_to_tier_on_blocker": "strong"
+  },
+  "attempt_budget": {
+    "new_execution_allowance": 0,
+    "inherit_existing_attempt_history": true,
+    "reset_counters": false,
+    "authority_ref": "MT-174.json#/remediation_record/gui_fresh_core_startup_schema_order_20261026",
+    "rule": "Proof methods specify required evidence; they do not admit a run or change original targets, budgets or stops."
+  },
+  "authority_files": {
+    "microtask_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/MT-211.json",
+    "packet_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/packet.json",
+    "refinement_contract": ".GOV/task_packets/WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1/refinement.json",
+    "template": ".GOV/templates/MICRO_TASK_CONTRACT_TEMPLATE.json",
+    "build_rules": ".GOV/roles_shared/records/HANDSHAKE_BUILD_RULES.json",
+    "codex": ".GOV/codex/Handshake_Codex_v1.4.md"
+  },
+  "lifecycle": {
+    "status": "BLOCKED",
+    "active": false,
+    "claimed_by": null,
+    "validator_verdict": "PENDING",
+    "blocked_on": "MT210 reviewed/proven/published source and exact host admission are pending.",
+    "depends_on": [
+      "MT-210"
+    ]
+  },
+  "preservation": {
+    "original_scope": "All original WP012, carried CKC and WP1 source conservation, requirements, independent proof and acceptance remain.",
+    "pins": "Preserve schema166 lineage, historical source/INFO pins, expected catalog identities/counts, raw source/hash inputs, original MT139 measurement/fresh/reopen obligations, existing targets, budgets and attempt history.",
+    "independent_work": "MT172's current four-fix/retry24-file review and independent GUI work continue; this dependency applies only to the shared schema declaration-reader repair.",
+    "excluded": [
+      "Candle/GGUF, including any copied Candle workspace",
+      "model files or engine selection",
+      "schema permission/content expansion or SQL flattening",
+      "new branches/worktrees or relocation of existing assets"
+    ]
+  },
+  "gui_obligation": {
+    "operator_surface_required": false,
+    "gui_creation_required": false,
+    "argus_required": false,
+    "not_applicable_reason": "Pure declaration inventory and caller adaptation add no UI surface. Existing affected GUI startup and original native acceptance remain with their owners."
+  },
+  "user_manual_obligation": {
+    "required": true,
+    "target_entries": [
+      "assets/hskernel/compiled_schema_catalog_entries/README.md"
+    ],
+    "scope": "Document reusable APIs and their two policies in the asset README; no new operator workflow or host manual feature is invented."
+  },
+  "resource_privacy_obligation": {
+    "required": true,
+    "applicable": false,
+    "not_applicable_reason": "Pure in-memory schema declaration inventory has no account/resource access, database execution or network/filesystem I/O. Host authority and privacy remain unchanged."
+  },
+  "hbr_obligations": [
+    "HBR-MODULE-LIFECYCLE-004",
+    "HBR-MODULE-LIFECYCLE-007",
+    "HBR-MODULE-LIFECYCLE-008"
+  ],
+  "hbr_int_009_tier_obligations": [
+    {
+      "scope": "Owning source proof and affected host schema observation",
+      "rule": "Preserve existing Flight Recorder/internal_diagnostics failure evidence and original Palmistry/native acceptance. The pure library owns no recorder/process and does not weaken host diagnostic obligations."
+    }
+  ],
+  "handoff": {
+    "coder_session": null,
+    "wp_validator_session": null,
+    "worker_final_status": "ready_for_validation_or_blocked",
+    "reports_to": "Codeleader; Master owns this bounded contract amendment."
+  },
+  "closure_unit": {
+    "outcome": "Both Handshake inventory callers consume the same independently verified published asset revision and satisfy their existing owning schema proof.",
+    "requirement_refs": [
+      "MT-210.json#/scope/acceptance_criteria",
+      "MT-174.json#/remediation_record/gui_fresh_core_startup_schema_order_20261026"
+    ],
+    "acceptance_refs": [
+      "MT-211.json#/scope/acceptance_criteria"
+    ]
+  },
+  "scope": {
+    "summary": "Replace both local recognizers through a pinned dependency and thin wrappers, preserving strict/base and ordered-overlay semantics.",
+    "allowed_paths": [
+      "src/backend/handshake_storage_support/Cargo.toml",
+      "src/backend/handshake_storage_support/src/compiled_schema_catalog_entries.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs"
+    ],
+    "conditional_paths": {
+      "support_lib_rs": {
+        "path": "src/backend/handshake_storage_support/src/lib.rs",
+        "state": "ONLY_IF_PRIMARY_RESOLVES_AS_REQUIRED_BEFORE_WRITE"
+      },
+      "owning_cargo_locks": {
+        "paths": [],
+        "state": "PRIMARY_RESOLVES_ACTUAL_OWNING_LOCKS_BEFORE_WRITE",
+        "no_guessed_path": true
+      }
+    },
+    "forbidden_paths": [
+      "Canonical asset source modifications in the host",
+      "Schema SQL rewritten to fit a recognizer",
+      "Candle/GGUF/model paths",
+      "Unallocated files and existing INFO/historical pins"
+    ],
+    "acceptance_criteria": [
+      {
+        "id": "MT211-AC1",
+        "text": "Before affected host writes, MT210 has its actual independent source review, nonzero owning public-API proof and independently reread canonical publication; bind an explicit immutable source revision/tree, source files, dependency/lock and maintenance references."
+      },
+      {
+        "id": "MT211-AC2",
+        "text": "Support Cargo declares the exact pinned published dependency; its compiled_schema_catalog_entries module re-exports the shared API. Core schema.rs uses that shared API for BOTH strict compiled/base and ordered production-overlay wrappers, removing the private per-line recognizer without a second parser or host-only workaround."
+      },
+      {
+        "id": "MT211-AC3",
+        "text": "Host-owned expected names/counts, original source ordering, declaration identities, raw-source/catalog hash inputs and schema166 lineage remain intact. Preserve distinct duplicate/modifier/count policies and original INFO/historical pins; no invented body-replacement semantics or SQL flattening."
+      },
+      {
+        "id": "MT211-AC4",
+        "text": "The existing owning MT139 schema observation plus fresh/reopen integration proof passes on the changed pinned host inputs under its real admission and independent owner. Preserve all original runtime/GUI/three-WP acceptance; compilation or source publication alone does not complete it."
+      }
+    ],
+    "proof_targets": [
+      "MT-139.json",
+      "MT-174.json#/remediation_record/gui_fresh_core_startup_schema_order_20261026/owning_test_ref"
+    ]
+  },
+  "execution": {
+    "lane": "PRODUCT_CODE_BACKEND",
+    "foreground_or_interactive_tools_forbidden": true,
+    "module_change_stage": "host_adoption",
+    "depends_on": [
+      "MT-210"
+    ],
+    "dependency_semantics": "Hard predecessor to this asset's affected host adoption only; no global MT172, other Product or GUI stop.",
+    "product_worktree": "../wtc-WP-KERNEL-012",
+    "product_branch": "feat/WP-KERNEL-012",
+    "allowed_write_paths": [
+      "src/backend/handshake_storage_support/Cargo.toml",
+      "src/backend/handshake_storage_support/src/compiled_schema_catalog_entries.rs",
+      "src/backend/handshake_core/src/storage/surreal/schema.rs"
+    ],
+    "forbidden_write_paths": [
+      "Canonical asset source modifications in the host",
+      "Schema SQL rewritten to fit a recognizer",
+      "Candle/GGUF/model paths",
+      "Unallocated files and existing INFO/historical pins"
+    ],
+    "ownership": {
+      "physical_host_adopter": "01a16f0c-3f8d-7fa2-8769-3e275ddf6005",
+      "primary_role_fit": {
+        "state": "ACCEPTED_ROLE_FIT_ONLY",
+        "turn_id": "01a177ad-f79b-7250-8a94-a441cde8aeb9",
+        "resource_reservation": false,
+        "action_admission": false
+      },
+      "coding_parent": "01a17387-13d3-7091-951e-c06728fb7e94",
+      "assigned_source_author": "01a1738a-8fd1-7ea3-abce-4da85992fe2d",
+      "source_author_ack": "ACK_RECEIVED",
+      "caller_fit": "ACK_RECEIVED",
+      "pre_handoff_nonauthor": "01a1738c-5c70-7c93-b1c2-6dfc4d0edfb0",
+      "independent_codecheck": "01a17387-9d99-7e61-8987-42feab10e18a",
+      "retained_lenses": [
+        "correctness/callers/dependencies",
+        "authority/privacy/lineage",
+        "lifecycle/runtime/proof"
+      ],
+      "limits": "Primary retains physical Product/control/common-Git/manifests/locks/compiler/process ownership. No active source window or action admission is claimed.",
+      "source_author_ack_record": {
+        "state": "ACTUAL_AVAILABILITY_NONOVERLAP_AND_API_FIT_ACK_RECEIVED",
+        "author": "01a1738a-8fd1-7ea3-abce-4da85992fe2d",
+        "turn_id": "01a177b4-3516-7f53-b614-f4dd10f5aded",
+        "quoted_ack": "Availability and nonoverlap remain valid.",
+        "api_fit": "Exact additive production_catalog_entries(base_entries: &[String], ordered_sources: &[(&str, &str)]) -> Result<Vec<String>, String>; validated base plus original sources[1..], original three APIs and distinct strict/overlay rules accepted.",
+        "source_writes": false,
+        "action_admission": false,
+        "resource_release": false
+      }
+    },
+    "module_maintenance": {
+      "source_contract_ref": "MT-210.json#/execution/module_maintenance",
+      "host_adapter_paths": [
+        "src/backend/handshake_storage_support/Cargo.toml",
+        "src/backend/handshake_storage_support/src/compiled_schema_catalog_entries.rs",
+        "src/backend/handshake_core/src/storage/surreal/schema.rs"
+      ]
+    },
+    "source_adoption": {
+      "source_mt_refs": [
+        "MT-210.json"
+      ],
+      "canonical_repository_url": "https://github.com/Nuntissura/assets.git",
+      "source_subdirectory": "assets/hskernel/compiled_schema_catalog_entries",
+      "source_revision": null,
+      "source_tree": null,
+      "state": "PENDING_INDEPENDENT_SOURCE_PROOF_AND_IMMUTABLE_PUBLICATION",
+      "release_artifact_refs": [],
+      "dependency_lock_ref": null,
+      "remote_verification_ref": null,
+      "standalone_proof_refs": [],
+      "maintenance_ref": "MT-210.json#/execution/module_maintenance/asset_contract",
+      "embedding_adapter": {
+        "support_manifest": "src/backend/handshake_storage_support/Cargo.toml",
+        "support_reexport": "src/backend/handshake_storage_support/src/compiled_schema_catalog_entries.rs",
+        "core_wrappers": "src/backend/handshake_core/src/storage/surreal/schema.rs",
+        "strict_api": "compiled_schema_catalog_entries",
+        "overlay_api": "production_catalog_entries",
+        "conditional_paths_ref": "MT-211.json#/scope/conditional_paths",
+        "caller_fit": "ACK_RECEIVED",
+        "ordered_sources_binding": "Host supplies validated base entries and its original sources[1..] in their existing order; the asset contains no host constants."
+      },
+      "compatibility_proof_refs": [
+        "MT-139.json",
+        "MT-174.json#/remediation_record/gui_fresh_core_startup_schema_order_20261026"
+      ],
+      "rollback": "Preserve the prior source/pin and exact change provenance. Any rollback is separately owned/admitted; this contract grants no reset or deletion."
+    },
+    "source_write_authorized": false,
+    "tests_or_compiler_authorized": false,
+    "git_execution_authorized": false,
+    "start": {
+      "state": "HELD",
+      "requirements": [
+        "Actual MT210 source milestone and independent immutable remote reread.",
+        "Actual B caller-fit and maintenance/API binding are recorded; independent source proof and immutable publication bindings remain required.",
+        "Primary resolves exact dependency/owning locks and optional support lib.rs need before those writes.",
+        "Fresh host preimages/nonoverlap, actual shared resource handover and separately admitted source/proof actions."
+      ],
+      "fulfilled_requirement_refs": [
+        "MT-210.json#/execution/ownership/source_author_ack_record"
+      ]
+    },
+    "stop_conditions": [
+      "Missing source milestone, changed immutable source/pin or changed caller-fit inputs.",
+      "No actual source/compiler/Git resource interval or unresolved competing owner.",
+      "Required broader schema/INFO/permission/attempt changes beyond this bounded adoption."
+    ]
+  },
+  "proof": {
+    "parent_proof_refs": [
+      "MT-139.json",
+      "MT-174.json#/remediation_record/gui_fresh_core_startup_schema_order_20261026"
+    ],
+    "independent_review_required": true,
+    "duplicate_parent_proof_forbidden": true,
+    "checks": [
+      {
+        "check_id": "MT211-P1",
+        "claim_refs": [
+          "MT211-AC1",
+          "MT211-AC2",
+          "MT211-AC3"
+        ],
+        "command_or_method": "Existing actual nonauthor and independent Codecheck inspect both complete caller paths, exact pinned dependency/re-export and unchanged schema/hash inputs.",
+        "expected": "Both recognizers are replaced by the one canonical public capability; conditional paths are resolved before writes.",
+        "evidence_required": [
+          "Exact immutable source/publication and host input bindings",
+          "Actual whole affected-flow review and final diff"
+        ]
+      },
+      {
+        "check_id": "MT211-P2",
+        "claim_refs": [
+          "MT211-AC4"
+        ],
+        "command_or_method": "Reuse MT139's exact owning schema observation and fresh/reopen integration targets/configuration on changed admitted inputs; preserve the current MT174 failed attempt and its original proof owners.",
+        "expected": "Existing required measured/integration evidence passes without weakening INFO/historical pins or asserting a new run allowance.",
+        "admission": "Primary sequences only actually admitted proof in the existing slot/targets; no INFO enrollment, retry/reset or new execution authority here.",
+        "evidence_required": [
+          "Existing owning test/capture references",
+          "Exact source/configuration and actual process/terminal binding",
+          "Independent owning verdict"
+        ]
+      }
+    ],
+    "state": "NOT_RUN_NOT_ACCEPTED"
+  }
+}

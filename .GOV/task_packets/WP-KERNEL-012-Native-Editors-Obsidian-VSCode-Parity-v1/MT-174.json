@@ -10069,7 +10069,8 @@
       "shared_owner_boundary": {
         "actual_source": "src/backend/handshake_storage_support/src/compiled_schema_catalog_entries.rs",
         "existing_assignment_ref": "packet.json#/swarm_production_20261014/coordination/schema_catalog_crate_extraction_20261015",
-        "scope_note": "Current syntax-only scope does not authorize the new shared helper boundary. Bind exact source-owner repair and HBR-MODULE-LIFECYCLE-007/008 source/publication/pinned adoption before canonical writes. No SQL flattening or private host recognizer."
+        "scope_note": "Current syntax-only scope does not authorize the new shared helper boundary. Bind exact source-owner repair and HBR-MODULE-LIFECYCLE-007/008 source/publication/pinned adoption before canonical writes. No SQL flattening or private host recognizer.",
+        "source_lifecycle_repair_ref": "packet.json#/shared_schema_declaration_reader_20261026"
       }
     },
 

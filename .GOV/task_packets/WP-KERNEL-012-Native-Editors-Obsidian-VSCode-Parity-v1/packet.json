@@ -1,4 +1,51 @@
 {
+  "architecture_binding": {
+    "module_lifecycle_refs": [
+      "MT-210.json",
+      "MT-211.json#/execution/source_adoption"
+    ]
+  },
+  "shared_schema_declaration_reader_20261026": {
+    "decision_id": "WP012-SHARED-SCHEMA-DECLARATION-READER-20261026",
+    "authority_ref": "packet.json#/operator_adaptive_delivery_delegation_20261014/operator_absence_full_control_20261016",
+    "diagnostic_ref": "MT-174.json#/remediation_record/gui_fresh_core_startup_schema_order_20261026",
+    "contracts": [
+      {
+        "mt_id": "MT-210",
+        "stage": "standalone_source",
+        "contract_ref": "MT-210.json"
+      },
+      {
+        "mt_id": "MT-211",
+        "stage": "host_adoption",
+        "contract_ref": "MT-211.json"
+      }
+    ],
+    "module_id": "compiled_schema_catalog_entries",
+    "maintenance_ref": "MT-210.json#/execution/module_maintenance",
+    "source_repository": "https://github.com/Nuntissura/assets.git",
+    "existing_branch": "codex/handpick",
+    "source_path": "assets/hskernel/compiled_schema_catalog_entries",
+    "placement": "Current direct human assets/ parent instruction governs this new source; no existing asset relocation.",
+    "source_and_host_order": "MT210 independent source proof/review and canonical publication, then independent immutable reread and MT211 exact pinned host adoption.",
+    "actual_allocation_ref": "MT-210.json#/execution/ownership",
+    "state": "CONTRACTS_AUTHORED_EXECUTION_HELD",
+    "author_ack_ref": "MT-210.json#/execution/ownership/source_author_ack_record",
+    "pending": "Exact source/publication handover and each action's admission. Final asset maintenance refs and actual B availability/nonoverlap/API fit ACK are recorded; they grant no source action or resource release.",
+    "proof_preservation": {
+      "original_scope": "All original WP012, carried CKC and WP1 source conservation, requirements, independent proof and acceptance remain.",
+      "pins": "Preserve schema166 lineage, historical source/INFO pins, expected catalog identities/counts, raw source/hash inputs, original MT139 measurement/fresh/reopen obligations, existing targets, budgets and attempt history.",
+      "independent_work": "MT172's current four-fix/retry24-file review and independent GUI work continue; this dependency applies only to the shared schema declaration-reader repair.",
+      "excluded": [
+        "Candle/GGUF, including any copied Candle workspace",
+        "model files or engine selection",
+        "schema permission/content expansion or SQL flattening",
+        "new branches/worktrees or relocation of existing assets"
+      ]
+    },
+    "scope_limit": "Only the recorded shared declaration-reader repair. No INFO enrollment/attempt reset/compiler release; Candle remains separate.",
+    "recorded_at_utc": "2026-10-26T10:28:52.555Z"
+  },
   "operator_runtime_reliability_20261025": {
     "decision_id": "WP012-RUNTIME-RELIABILITY-20261025",
     "recorded_at_utc": "2026-10-25T16:16:50.870Z",
