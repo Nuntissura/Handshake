@@ -2908,7 +2908,8 @@
       "src/backend/handshake_core/tests/worktree_model_lane_live_surreal_tests.rs",
       "src/backend/handshake_core/tests/worktree_vm_registry_surreal_tests.rs",
       "src/backend/handshake_core/tests/wp1_console_stream_scope_surreal_tests.rs",
-      "src/backend/handshake_core/tests/wp1_console_stream_sse_tests.rs"
+      "src/backend/handshake_core/tests/wp1_console_stream_sse_tests.rs",
+      "src/backend/handshake_core/src/storage/surreal/model_lane.rs"
     ],
     "forbidden_paths": [
       ".GOV/**",
