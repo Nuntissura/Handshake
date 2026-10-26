@@ -303,7 +303,7 @@ DEFINE FIELD OVERWRITE parent_session_id ON TABLE model_sessions TYPE option<rec
 DEFINE FIELD OVERWRITE spawn_depth ON TABLE model_sessions TYPE int ASSERT $value >= 0;
 DEFINE FIELD OVERWRITE state ON TABLE model_sessions TYPE 'CREATED' | 'ACTIVE' | 'PAUSED' | 'BLOCKED' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 DEFINE FIELD OVERWRITE model_id ON TABLE model_sessions TYPE string;
-DEFINE FIELD OVERWRITE engine_profile_binding ON TABLE model_sessions FLEXIBLE TYPE option<object>;
+DEFINE FIELD OVERWRITE engine_profile_binding ON TABLE model_sessions TYPE option<object> FLEXIBLE;
 DEFINE FIELD OVERWRITE backend ON TABLE model_sessions TYPE string;
 DEFINE EVENT OVERWRITE engine_profile_session_origin_guard ON TABLE model_sessions
     WHEN $event IN ['CREATE', 'UPDATE'] AND ($after.engine_profile_binding != NONE OR $before.engine_profile_binding != NONE) THEN {
