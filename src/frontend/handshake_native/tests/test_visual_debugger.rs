@@ -30,15 +30,27 @@ fn ok_app() -> HandshakeApp {
 }
 
 fn artifact_dir(name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("..")
-        .join("..")
-        .join("..")
-        .join("Handshake_Artifacts")
-        .join("handshake-test")
-        .join("wp-kernel-012-mt-102")
-        .join(name)
+    let root = std::env::var_os("HANDSHAKE_ARTIFACTS_ROOT")
+        .map(PathBuf::from)
+        .expect("HANDSHAKE_ARTIFACTS_ROOT must name the verified artifact root");
+    let owner = std::env::var_os("HANDSHAKE_TEST_ARTIFACTS_ROOT")
+        .map(PathBuf::from)
+        .expect("HANDSHAKE_TEST_ARTIFACTS_ROOT must name the assigned artifact owner");
+    assert!(
+        root.is_absolute() && owner.is_absolute(),
+        "runner artifact-root and owner bindings must be absolute"
+    );
+    let root = root.canonicalize().expect("verified artifact root exists");
+    let owner = owner.canonicalize().expect("assigned artifact owner exists");
+    assert!(root.is_dir() && owner.is_dir());
+    let relative_owner = owner
+        .strip_prefix(&root)
+        .expect("artifact owner must be inside the verified root");
+    assert!(
+        relative_owner.components().count() >= 3,
+        "artifact owner must retain WP/MT/owner isolation"
+    );
+    owner.join("wp-kernel-012-mt-102").join(name)
 }
 
 fn assert_under(path: &Path, root: &Path) {
@@ -59,6 +71,29 @@ fn assert_under(path: &Path, root: &Path) {
 #[test]
 fn visual_debugger_live_dump_contains_panes_widgets_layout() {
     let mut app = ok_app();
+    let mut layout = app.capture_layout_snapshot();
+    let panes: Vec<_> = layout.panes.keys().cloned().collect();
+    let area = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1200.0, 800.0));
+    let mut owner = handshake_native::kumihimo::NativeHost::new().expect("canonical layout owner");
+    owner
+        .project(egui::ViewportId::ROOT, &panes, area, layout.split_weights)
+        .expect("project actual canonical frames");
+    let bars: std::collections::HashMap<_, _> = layout
+        .tab_bars
+        .iter()
+        .map(|(id, bar)| (id.clone(), bar.clone()))
+        .collect();
+    owner
+        .reconcile_tabs(egui::ViewportId::ROOT, &bars)
+        .expect("bind actual native tabs");
+    owner
+        .dock(egui::ViewportId::ROOT, &panes[0], &panes[1], kumihimo_core::Edge::Bottom)
+        .expect("change canonical docking beyond the seed arrangement");
+    layout.kumihimo = Some(handshake_layout_snapshot::KumihimoLayoutState::Captured {
+        layout: owner.capture().expect("capture canonical layout").expect("mounted frames"),
+    });
+    app.apply_layout_snapshot(layout, area)
+        .expect("restore actual canonical layout into the app");
     let root = artifact_dir("live-dump");
     fs::create_dir_all(&root).expect("create MT-102 artifact dir");
 
@@ -152,6 +187,55 @@ fn visual_debugger_live_dump_contains_panes_widgets_layout() {
 
     let value: serde_json::Value =
         serde_json::from_str(&json).expect("snapshot parses as generic JSON");
+    let canonical = app.capture_layout_snapshot().kumihimo.expect("live canonical capture");
+    let handshake_layout_snapshot::KumihimoLayoutState::Captured { layout } = &canonical else {
+        panic!("canonical layout unexpectedly failed to capture");
+    };
+    layout.restore_core().expect("captured tree and host bindings remain valid");
+    assert_eq!(layout.windows.len(), 1);
+    assert_eq!(layout.windows[0].frames.len(), 3);
+    assert!(!layout.views.is_empty(), "canonical tab bindings are retained");
+    assert_eq!(
+        value.pointer("/layout_tree/kumihimo"),
+        Some(&serde_json::to_value(&canonical).expect("canonical state serializes")),
+        "written inspector JSON retains the exact current canonical tree and bindings"
+    );
+
+    let mut old_json = value.clone();
+    old_json["layout_tree"].as_object_mut().expect("layout object").remove("kumihimo");
+    let old: WorksurfaceSnapshot = serde_json::from_value(old_json)
+        .expect("pre-Kumihimo inspector JSON remains readable");
+    assert!(old.layout_tree.kumihimo.is_none());
+
+    for state in [
+        None,
+        Some(handshake_layout_snapshot::KumihimoLayoutState::CaptureFailed {
+            reason: "Kumihimo changed during layout capture".to_owned(),
+        }),
+    ] {
+        let mut layout = app.capture_layout_snapshot();
+        layout.kumihimo = state.clone();
+        let dump = WorksurfaceInspector::capture(
+            WorksurfaceInspector::new_capture_id(),
+            layout,
+            Default::default(),
+            app.capture_mcp_snapshot_for_navigation(),
+            ScreenshotEvidence::deferred_headless_gpu(),
+        );
+        let encoded = serde_json::to_value(&dump).expect("inspector state serializes");
+        assert_eq!(
+            encoded.pointer("/layout_tree/kumihimo"),
+            Some(&serde_json::to_value(&state).expect("capture state serializes")),
+            "absent capture is explicit null; failed capture retains its tagged reason"
+        );
+        let decoded: WorksurfaceSnapshot = serde_json::from_value(encoded)
+            .expect("inspector capture state remains readable");
+        assert_eq!(
+            serde_json::to_value(decoded.layout_tree.kumihimo).expect("decoded state serializes"),
+            serde_json::to_value(state).expect("original state serializes")
+        );
+    }
+
     assert!(
         value.pointer("/layout_tree/snapshot").is_none(),
         "inspector JSON must not embed the internal LayoutSnapshot serde shape"

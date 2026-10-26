@@ -14,6 +14,7 @@ use sha2::{Digest, Sha256};
 use super::tokenizer::tokenizer_json_path_for_artifact;
 use crate::model_runtime::{
     LoadSpec, ModelArtifactComponentIntegrity, ModelArtifactIntegrityReceipt, ModelRuntimeError,
+    CandleGgufArtifactIntegrityReceipt, RuntimeArtifactIntegrityReceipt,
 };
 
 const CONFIG_COMPONENT_NAME: &str = "config.json";
@@ -23,11 +24,30 @@ const MAX_CANDLE_TOKENIZER_BYTES: u64 = 256 * 1024 * 1024;
 /// One immutable, path-independent snapshot of every behavior-bearing input to
 /// a Candle load. The weights map is backed by an unnamed temporary file; no
 /// downstream loader can reopen or observe replacement of the source path.
-pub(super) struct CapturedCandleArtifact {
+pub(super) struct CapturedCandleSafetensors {
     pub(super) weights: Mmap,
     pub(super) config: Value,
     pub(super) tokenizer: Option<Arc<tokenizers::Tokenizer>>,
     pub(super) receipt: ModelArtifactIntegrityReceipt,
+}
+
+pub(super) enum CapturedCandleArtifact {
+    Safetensors(CapturedCandleSafetensors),
+    Qwen3Gguf {
+        weights: Mmap,
+        content: candle_core::quantized::gguf_file::Content,
+        tokenizer: super::tokenizer::Qwen3GgufTokenizer,
+        receipt: CandleGgufArtifactIntegrityReceipt,
+    },
+}
+
+impl CapturedCandleArtifact {
+    pub(super) fn receipt(&self) -> RuntimeArtifactIntegrityReceipt {
+        match self {
+            Self::Safetensors(captured) => captured.receipt.clone().into(),
+            Self::Qwen3Gguf { receipt, .. } => receipt.clone().into(),
+        }
+    }
 }
 
 pub(super) fn capture_candle_artifact(
@@ -43,6 +63,21 @@ pub(super) fn capture_candle_artifact(
             "candle artifact sha256 mismatch: expected {}, got {}",
             spec.sha256_expected, weights_integrity.sha256
         )));
+    }
+
+    if weights.starts_with(b"GGUF") {
+        let mut reader = std::io::Cursor::new(weights.as_ref());
+        let content = candle_core::quantized::gguf_file::Content::read(&mut reader)
+            .map_err(|e| ModelRuntimeError::LoadError(format!("invalid captured Candle GGUF: {e}")))?;
+        if content.metadata.keys().any(|key| key.starts_with("split.")) {
+            return Err(ModelRuntimeError::LoadError("split GGUF is not supported by the single-file Candle receipt".into()));
+        }
+        let tokenizer = super::tokenizer::tokenizer_from_qwen3_gguf_metadata(&content.metadata)?;
+        let receipt = CandleGgufArtifactIntegrityReceipt::from_gguf_component(weights_integrity)?;
+        return Ok(CapturedCandleArtifact::Qwen3Gguf { weights, content, tokenizer, receipt });
+    }
+    if spec.artifact_path.extension().and_then(|v| v.to_str()).is_some_and(|v| v.eq_ignore_ascii_case("gguf")) {
+        return Err(ModelRuntimeError::LoadError("Candle GGUF magic is missing".into()));
     }
 
     let config_path = config_json_path_for_artifact(&spec.artifact_path);
@@ -81,12 +116,12 @@ pub(super) fn capture_candle_artifact(
         tokenizer_integrity,
     )?;
 
-    Ok(CapturedCandleArtifact {
+    Ok(CapturedCandleArtifact::Safetensors(CapturedCandleSafetensors {
         weights,
         config,
         tokenizer,
         receipt,
-    })
+    }))
 }
 
 fn capture_weights(path: &Path) -> Result<Mmap, ModelRuntimeError> {
@@ -131,7 +166,7 @@ fn capture_weights(path: &Path) -> Result<Mmap, ModelRuntimeError> {
     // SAFETY: `staging` is an unnamed private file. No write occurs after this
     // map is created, and the sole writable handle is dropped before the map is
     // returned. The returned mapping is read-only and is the exact slice later
-    // passed to Candle's `VarBuilder::from_slice_safetensors`.
+    // consumed by the selected Candle safetensors or GGUF loader.
     let mapped = unsafe { MmapOptions::new().map(&staging) }.map_err(|error| {
         ModelRuntimeError::LoadError(format!(
             "failed to map captured Candle artifact bytes: {error}"

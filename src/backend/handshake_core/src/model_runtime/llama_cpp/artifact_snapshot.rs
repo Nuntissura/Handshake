@@ -68,7 +68,8 @@ impl CapturedGgufArtifact {
         let (component, tokenizer) = inspect_staged_gguf(&self.stage.load_path)?;
         let expected = match &self.receipt {
             RuntimeArtifactIntegrityReceipt::LlamaCpp(receipt) => &receipt.gguf,
-            RuntimeArtifactIntegrityReceipt::Candle(_) => {
+            RuntimeArtifactIntegrityReceipt::Candle(_)
+            | RuntimeArtifactIntegrityReceipt::CandleGguf(_) => {
                 return Err(ModelRuntimeError::LoadError(
                     "llama.cpp staged artifact carried a non-GGUF integrity receipt".to_string(),
                 ))

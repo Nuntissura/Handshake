@@ -683,7 +683,7 @@ impl OperatorChatBackend for DeferredLaunchBackend {
         *cell.lock().expect("transcript cell") = Some(Ok(Vec::new()));
     }
     fn routing_action(&self, _: OperatorChatRoutingAction, _: String, cell: RoutingCell) {
-        *cell.lock().expect("routing cell") = Some(Err("unused component route".to_owned()));
+        *cell.lock().expect("routing cell") = Some(Err(handshake_native::backend_client::OperatorChatRoutingFailure::TransportUncertain));
     }
 }
 

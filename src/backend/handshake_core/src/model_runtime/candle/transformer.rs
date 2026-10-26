@@ -345,3 +345,88 @@ pub(super) fn decode_llama_config_value(
     let eos_token_ids = eos_token_ids(&llama_config);
     Ok((llama_config.into_config(false), eos_token_ids))
 }
+
+/// Host adapter only. Quantized attention/MLP/cache math stays in pinned Candle.
+pub(super) struct CandleQwen3GgufModel {
+    model: candle_transformers::models::quantized_qwen3::ModelWeights,
+    layers: u32,
+    hidden: u32,
+    vocab: u32,
+    context: usize,
+    eos: Vec<u32>,
+    offset: usize,
+    device: Device,
+}
+
+impl CandleQwen3GgufModel {
+    pub(super) fn from_captured_gguf(
+        content: candle_core::quantized::gguf_file::Content, bytes: &[u8],
+        vocab: u32, eos: Vec<u32>, device: &Device,
+    ) -> Result<Self, ModelRuntimeError> {
+        let get = |key: &str| -> Result<u32, ModelRuntimeError> {
+            content.metadata.get(key).ok_or_else(|| ModelRuntimeError::LoadError(format!("Qwen3 GGUF missing {key}")))?
+                .to_u32().map_err(|e| ModelRuntimeError::LoadError(format!("Qwen3 GGUF {key}: {e}")))
+        };
+        let layers = get("qwen3.block_count")?;
+        let hidden = get("qwen3.embedding_length")?;
+        let context = get("qwen3.context_length")? as usize;
+        let heads = get("qwen3.attention.head_count")?;
+        let kv_heads = get("qwen3.attention.head_count_kv")?;
+        let key = get("qwen3.attention.key_length")?;
+        if layers == 0 || layers > 1024 || hidden == 0 || hidden > 65536 || context == 0 || context > 1_048_576
+            || heads == 0 || kv_heads == 0 || heads % kv_heads != 0 || heads > 1024 || key == 0 || key > 1024 || key % 2 != 0 {
+            return Err(ModelRuntimeError::LoadError("Qwen3 GGUF invalid architecture dimensions".into()));
+        }
+        if let Some(value) = content.metadata.get("qwen3.attention.value_length") {
+            if value.to_u32().map_err(|e| ModelRuntimeError::LoadError(e.to_string()))? != key {
+                return Err(ModelRuntimeError::LoadError("Qwen3 GGUF distinct key/value head dimensions unsupported".into()));
+            }
+        }
+        if let Some(value) = content.metadata.get("general.dtype") {
+            if !matches!(value, candle_core::quantized::gguf_file::Value::U32(0 | 1)) {
+                return Err(ModelRuntimeError::LoadError("Qwen3 GGUF dtype metadata unsupported".into()));
+            }
+        }
+        for name in ["qwen3.attention.layer_norm_rms_epsilon", "qwen3.rope.freq_base"] {
+            let value = content.metadata.get(name).ok_or_else(|| ModelRuntimeError::LoadError(format!("Qwen3 GGUF missing {name}")))?
+                .to_f32().map_err(|e| ModelRuntimeError::LoadError(e.to_string()))?;
+            if !value.is_finite() || value <= 0.0 { return Err(ModelRuntimeError::LoadError(format!("Qwen3 GGUF invalid {name}"))); }
+        }
+        let embed = content.tensor_infos.get("token_embd.weight").ok_or_else(|| ModelRuntimeError::LoadError("Qwen3 GGUF missing embedding".into()))?;
+        if embed.shape.dims() != [vocab as usize, hidden as usize] {
+            return Err(ModelRuntimeError::LoadError("Qwen3 GGUF tokenizer/embedding dimensions differ".into()));
+        }
+        let model = candle_transformers::models::quantized_qwen3::ModelWeights::from_gguf(content, &mut std::io::Cursor::new(bytes), device)
+            .map_err(|e| ModelRuntimeError::LoadError(format!("captured Qwen3 GGUF kernel load failed: {e}")))?;
+        Ok(Self { model, layers, hidden, vocab, context, eos, offset: 0, device: device.clone() })
+    }
+}
+
+impl TransformerModel for CandleQwen3GgufModel {
+    fn forward(&mut self, input_ids: &Tensor, hooks: &CandleSteeringHooks,
+        steering: &[SteeringVectorId], lora: &[LoraId]) -> Result<Tensor, ModelRuntimeError> {
+        self.validate_lora_overrides(lora)?;
+        if !steering.is_empty() || !hooks.snapshot_vectors_for_request(&[])?.is_empty() {
+            return Err(ModelRuntimeError::CapabilityNotSupported { capability: "activation_steering".into(), adapter: "candle_qwen3_gguf".into() });
+        }
+        let (_, len) = input_ids.dims2().map_err(|e| ModelRuntimeError::GenerateError(e.to_string()))?;
+        let next = self.offset.checked_add(len).filter(|next| *next <= self.context)
+            .ok_or_else(|| ModelRuntimeError::GenerateError("Qwen3 GGUF context exhausted".into()))?;
+        if len == 0 { return Err(ModelRuntimeError::GenerateError("Qwen3 GGUF empty forward input".into())); }
+        let logits = self.model.forward(input_ids, self.offset).map_err(|e| ModelRuntimeError::GenerateError(e.to_string()))?;
+        self.offset = next;
+        Ok(logits)
+    }
+    fn n_layers(&self) -> u32 { self.layers }
+    fn hidden_dim(&self) -> u32 { self.hidden }
+    fn vocab_size(&self) -> u32 { self.vocab }
+    fn eos_token_ids(&self) -> &[u32] { &self.eos }
+    fn device(&self) -> Device { self.device.clone() }
+    fn reset_generation_state(&mut self) -> Result<(), ModelRuntimeError> {
+        self.model.clear_kv_cache(); self.offset = 0; Ok(())
+    }
+    fn validate_lora_overrides(&self, ids: &[LoraId]) -> Result<(), ModelRuntimeError> {
+        if !ids.is_empty() { return Err(ModelRuntimeError::CapabilityNotSupported { capability: "lora".into(), adapter: "candle_qwen3_gguf".into() }); }
+        Ok(())
+    }
+}

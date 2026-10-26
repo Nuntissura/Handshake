@@ -26,16 +26,25 @@ pub trait CandleGenerationCodec: Send + Sync {
 
 pub struct TokenizerGenerationCodec {
     tokenizer: Arc<tokenizers::Tokenizer>,
+    decode_state: Mutex<TokenizerDecodeState>,
+}
+
+#[derive(Default)]
+struct TokenizerDecodeState {
+    ids: Vec<u32>,
+    prefix: String,
+    prefix_index: usize,
 }
 
 impl TokenizerGenerationCodec {
     pub fn new(tokenizer: Arc<tokenizers::Tokenizer>) -> Self {
-        Self { tokenizer }
+        Self { tokenizer, decode_state: Mutex::new(TokenizerDecodeState::default()) }
     }
 }
 
 impl CandleGenerationCodec for TokenizerGenerationCodec {
     fn encode_prompt(&self, prompt: &str) -> Result<Vec<u32>, ModelRuntimeError> {
+        *self.decode_state.lock().map_err(|_| ModelRuntimeError::GenerateError("Candle decoder lock poisoned".into()))? = TokenizerDecodeState::default();
         let encoding = self.tokenizer.encode(prompt, true).map_err(|error| {
             ModelRuntimeError::GenerateError(format!("Candle tokenizer encode failed: {error}"))
         })?;
@@ -43,9 +52,11 @@ impl CandleGenerationCodec for TokenizerGenerationCodec {
     }
 
     fn decode_token(&self, token_id: u32) -> Result<String, ModelRuntimeError> {
-        self.tokenizer.decode(&[token_id], true).map_err(|error| {
-            ModelRuntimeError::GenerateError(format!("Candle tokenizer decode failed: {error}"))
-        })
+        let mut state = self.decode_state.lock().map_err(|_| ModelRuntimeError::GenerateError("Candle decoder lock poisoned".into()))?;
+        let TokenizerDecodeState { ids, prefix, prefix_index } = &mut *state;
+        tokenizers::tokenizer::step_decode_stream(&*self.tokenizer, vec![token_id], true, ids, prefix, prefix_index)
+            .map(|piece| piece.unwrap_or_default())
+            .map_err(|error| ModelRuntimeError::GenerateError(format!("Candle tokenizer decode failed: {error}")))
     }
 }
 

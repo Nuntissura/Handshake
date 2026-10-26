@@ -16,7 +16,7 @@ use std::sync::{Arc, Mutex};
 use egui::accesskit;
 use serde::{Deserialize, Serialize};
 
-use crate::backend_client::{OperatorChatClient, EngineProfileSnapshotV1, EngineProfileIdentityV1};
+use crate::backend_client::{OperatorChatClient, OperatorChatRoutingFailure, EngineProfileSnapshotV1, EngineProfileIdentityV1};
 use crate::pane_registry::{PaneFactory, PaneRenderContext, PaneType};
 
 pub const SURFACE_CONTRACT_ID: &str = "native_operator_chat_launch";
@@ -289,7 +289,7 @@ pub trait OperatorChatBackend: Send + Sync {
     );
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum OperatorChatRoutingAction {
     Lifecycle,
     Recover,
@@ -297,7 +297,96 @@ pub enum OperatorChatRoutingAction {
     Authority,
 }
 
-pub type RoutingCell = Arc<Mutex<Option<Result<serde_json::Value, String>>>>;
+impl OperatorChatRoutingAction {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Lifecycle => "Execute lifecycle",
+            Self::Recover => "Recover lifecycle",
+            Self::Cancel => "Cancel execution",
+            Self::Authority => "Complete authority",
+        }
+    }
+}
+
+pub type RoutingCell = Arc<Mutex<Option<Result<serde_json::Value, OperatorChatRoutingFailure>>>>;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum RoutingExecutionStatus {
+    Running, AwaitingAuthority, Succeeded, Failed, Cancelled,
+}
+
+impl RoutingExecutionStatus {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Running => "running",
+            Self::AwaitingAuthority => "awaiting authority",
+            Self::Succeeded => "succeeded",
+            Self::Failed => "failed",
+            Self::Cancelled => "cancelled",
+        }
+    }
+}
+
+// Project only mechanical state and canonical references; never retain graph, output or reasons.
+#[derive(Clone, PartialEq, Eq, Deserialize)]
+struct RoutingExecutionProjection {
+    schema_id: String,
+    execution_id: String,
+    run_id: String,
+    status: RoutingExecutionStatus,
+    revision: u64,
+    event_ledger_event_id: String,
+    event_ledger_seq: i64,
+}
+
+#[derive(Deserialize)]
+struct RoutingBatchProjection {
+    execution: RoutingExecutionProjection,
+}
+
+struct PendingRouting {
+    action: OperatorChatRoutingAction,
+    workspace_id: String,
+    request_json: String,
+    execution_id: String,
+    run_id: Option<String>,
+    cell: RoutingCell,
+}
+
+impl PendingRouting {
+    fn from_request(action: OperatorChatRoutingAction, workspace_id: String, request_json: String) -> Option<Self> {
+        let request: serde_json::Value = serde_json::from_str(&request_json).ok()?;
+        let execution_id = request.get("execution_id")?.as_str()?.to_owned();
+        if execution_id.trim().is_empty() { return None; }
+        let run_id = match action {
+            OperatorChatRoutingAction::Cancel => None,
+            OperatorChatRoutingAction::Authority => {
+                let routing = request.get("routing_request")?;
+                if routing.get("execution_id")?.as_str()? != execution_id { return None; }
+                Some(routing.get("context")?.get("run_id")?.as_str()?.to_owned())
+            }
+            _ => Some(request.get("context")?.get("run_id")?.as_str()?.to_owned()),
+        };
+        if run_id.as_ref().is_some_and(|id| id.trim().is_empty()) { return None; }
+        Some(Self { action, workspace_id, request_json, execution_id, run_id,
+            cell: Arc::new(Mutex::new(None)) })
+    }
+
+    fn outcome(&self, value: serde_json::Value) -> Option<RoutingExecutionProjection> {
+        let execution = match self.action {
+            OperatorChatRoutingAction::Cancel => serde_json::from_value(value).ok()?,
+            _ => serde_json::from_value::<RoutingBatchProjection>(value).ok()?.execution,
+        };
+        if execution.schema_id != "hsk.model_lane_routing_execution@5"
+            || execution.execution_id != self.execution_id
+            || execution.run_id.trim().is_empty()
+            || self.run_id.as_ref().is_some_and(|run| run != &execution.run_id)
+            || execution.event_ledger_event_id.trim().is_empty()
+        { return None; }
+        Some(execution)
+    }
+}
 
 struct PendingLaunch {
     selection: OperatorChatLaunchSelection,
@@ -324,7 +413,6 @@ struct OperatorChatUiState {
     workspace_id: String,
     models_cell: ModelsCell,
     transcript_cell: TranscriptCell,
-    routing_cell: RoutingCell,
     inventory: OperatorChatModelInventory,
     selected_model: String,
     selected: Option<OperatorChatLaunchSelection>,
@@ -341,11 +429,23 @@ struct OperatorChatUiState {
     local_candidate: Option<(OperatorChatLaunchSelection, String)>,
     pending_transcript: bool,
     routing_request_json: String,
-    routing_status: Option<String>,
-    pending_routing: bool,
+    routing_results: std::collections::BTreeMap<OperatorChatRoutingAction, RoutingExecutionProjection>,
+    routing_errors: std::collections::BTreeMap<OperatorChatRoutingAction, String>,
+    routing_observed: std::collections::BTreeMap<(String, String), RoutingExecutionProjection>,
+    pending_routing: Vec<PendingRouting>,
 }
 
 impl OperatorChatUiState {
+    fn prune_routing_observations(&mut self) {
+        let pending = &self.pending_routing;
+        let visible = &self.routing_results;
+        self.routing_observed.retain(|(execution_id, run_id), _| {
+            pending.iter().any(|request| &request.execution_id == execution_id
+                && request.run_id.as_ref().is_none_or(|run| run == run_id))
+                || visible.values().any(|result| &result.execution_id == execution_id && &result.run_id == run_id)
+        });
+    }
+
     fn owner_session_is_canonical_and_available(&self) -> bool {
         self.selected_owner_session_id
             .as_deref()
@@ -571,11 +671,12 @@ impl OperatorChatLaunchPaneFactory {
     }
 
     fn drain_cells(&self) {
-        let (models_cell, launch_cell, transcript_cell, routing_cell) = {
+        let (models_cell, launch_cell, transcript_cell, routing_cells) = {
             let Ok(state) = self.state.lock() else { return; };
             (state.models_cell.clone(),
              state.pending_launch_request.as_ref().map(|pending| pending.cell.clone()),
-             state.transcript_cell.clone(), state.routing_cell.clone())
+             state.transcript_cell.clone(),
+             state.pending_routing.iter().map(|pending| pending.cell.clone()).collect::<Vec<_>>())
         };
         self.drain_detached_launches(launch_cell.as_ref());
         if let Ok(mut slot) = models_cell.lock() {
@@ -720,22 +821,47 @@ impl OperatorChatLaunchPaneFactory {
                 }
             }
         }
-        if let Ok(mut slot) = routing_cell.lock() {
-            if let Some(result) = slot.take() {
+        for cell in routing_cells {
+            let result = cell.lock().ok().and_then(|mut slot| slot.take());
+            if let Some(result) = result {
                 if let Ok(mut state) = self.state.lock() {
-                    state.pending_routing = false;
+                    let Some(index) = state.pending_routing.iter().position(|pending| Arc::ptr_eq(&pending.cell, &cell)) else { continue; };
+                    let pending = state.pending_routing.remove(index);
+                    let current = pending.workspace_id == state.workspace_id && self.recovery_scope_is_active();
+                    let result = if current { result } else { Err(OperatorChatRoutingFailure::SessionChanged) };
                     match result {
-                        Ok(_) => {
-                            state.routing_status = Some("Routing action completed.".to_owned());
-                            state.error = None;
-                        }
-                        Err(_) => {
-                            state.error = Some("Routing action failed in the backend.".to_owned())
+                        Ok(value) => match pending.outcome(value) {
+                            Some(execution) => {
+                                let identity = (execution.execution_id.clone(), execution.run_id.clone());
+                                let conflict = state.routing_observed.keys().any(|(id, run)|
+                                    id == &execution.execution_id && run != &execution.run_id);
+                                let previous = state.routing_observed.get(&identity);
+                                if conflict || previous.is_some_and(|previous|
+                                    previous.revision == execution.revision && previous != &execution)
+                                {
+                                    state.routing_errors.insert(pending.action, "Conflicting execution readback; inspect the canonical execution before retrying.".to_owned());
+                                } else if previous.is_some_and(|previous| previous.revision > execution.revision) {
+                                    state.routing_errors.insert(pending.action, "Older execution readback ignored; the newer observed revision remains retained for this view.".to_owned());
+                                } else {
+                                    state.routing_observed.insert(identity, execution.clone());
+                                    state.routing_results.retain(|_, previous| previous.execution_id != execution.execution_id);
+                                    state.routing_results.insert(pending.action, execution);
+                                    state.routing_errors.remove(&pending.action);
+                                }
+                            }
+                            None => {
+                                state.routing_errors.insert(pending.action, OperatorChatRoutingFailure::ResponseInvalid.safe_message());
+                            }
+                        },
+                        Err(failure) => {
+                            state.routing_errors.insert(pending.action, failure.safe_message());
                         }
                     }
+                    // At most four pending requests plus four visible per-action readbacks retain observations.
+                    state.prune_routing_observations();
                 }
             }
-        };
+        }
     }
 
     /// Record the operator's model selection as an auditable decision (F6). Wires
@@ -829,37 +955,28 @@ impl OperatorChatLaunchPaneFactory {
         }
     }
 
-    fn routing_action(&self, action: OperatorChatRoutingAction) {
-        let request_json = self
-            .state
-            .lock()
-            .ok()
-            .map(|state| state.routing_request_json.clone())
-            .unwrap_or_default();
-        if request_json.trim().is_empty() {
+    fn routing_action(&self, action: OperatorChatRoutingAction) -> bool {
+        let Some(client) = self.client.as_ref().filter(|_| self.recovery_scope_is_active()) else {
             if let Ok(mut state) = self.state.lock() {
-                state.error = Some("routing request JSON is empty".into());
+                state.routing_errors.insert(action, OperatorChatRoutingFailure::AuthenticationRequired.safe_message());
             }
-            return;
-        }
-        match &self.client {
-            Some(client) => {
-                if let Ok(mut state) = self.state.lock() {
-                    state.pending_routing = true;
-                    state.routing_status = None;
-                    state.error = None;
-                }
-                let cell = self.state.lock().ok().map(|state| state.routing_cell.clone());
-                if let Some(cell) = cell {
-                    client.routing_action(action, request_json, cell);
-                }
-            }
-            None => {
-                if let Ok(mut state) = self.state.lock() {
-                    state.error = Some("backend not wired (offline pane)".into());
-                }
-            }
-        }
+            return false;
+        };
+        let request = {
+            let Ok(mut state) = self.state.lock() else { return false; };
+            if state.pending_routing.iter().any(|pending| pending.action == action) { return false; }
+            let Some(pending) = PendingRouting::from_request(action,
+                state.workspace_id.clone(), state.routing_request_json.clone()) else {
+                state.routing_errors.insert(action, OperatorChatRoutingFailure::RequestInvalid.safe_message());
+                return false;
+            };
+            let request = (pending.request_json.clone(), pending.cell.clone());
+            state.pending_routing.push(pending);
+            state.routing_errors.remove(&action);
+            request
+        };
+        client.routing_action(action, request.0, request.1);
+        true
     }
 }
 
@@ -1196,41 +1313,44 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
                 true,
                 480.0,
             );
+            let scope_active = self.recovery_scope_is_active();
             ui.horizontal(|ui| {
-                if labelled_button(ui, ROUTING_LIFECYCLE_AUTHOR_ID, "Execute lifecycle") {
-                    crate::mcp::argus::acknowledge_action_effect(
-                        ui.ctx(),
-                        ROUTING_LIFECYCLE_AUTHOR_ID,
-                    );
-                    routing_action = Some(OperatorChatRoutingAction::Lifecycle);
-                }
-                if labelled_button(ui, ROUTING_RECOVER_AUTHOR_ID, "Recover lifecycle") {
-                    crate::mcp::argus::acknowledge_action_effect(
-                        ui.ctx(),
-                        ROUTING_RECOVER_AUTHOR_ID,
-                    );
-                    routing_action = Some(OperatorChatRoutingAction::Recover);
-                }
-                if labelled_button(ui, ROUTING_CANCEL_AUTHOR_ID, "Cancel execution") {
-                    crate::mcp::argus::acknowledge_action_effect(
-                        ui.ctx(),
-                        ROUTING_CANCEL_AUTHOR_ID,
-                    );
-                    routing_action = Some(OperatorChatRoutingAction::Cancel);
-                }
-                if labelled_button(ui, ROUTING_AUTHORITY_AUTHOR_ID, "Complete authority") {
-                    crate::mcp::argus::acknowledge_action_effect(
-                        ui.ctx(),
-                        ROUTING_AUTHORITY_AUTHOR_ID,
-                    );
-                    routing_action = Some(OperatorChatRoutingAction::Authority);
+                for (action, author) in [
+                    (OperatorChatRoutingAction::Lifecycle, ROUTING_LIFECYCLE_AUTHOR_ID),
+                    (OperatorChatRoutingAction::Recover, ROUTING_RECOVER_AUTHOR_ID),
+                    (OperatorChatRoutingAction::Cancel, ROUTING_CANCEL_AUTHOR_ID),
+                    (OperatorChatRoutingAction::Authority, ROUTING_AUTHORITY_AUTHOR_ID),
+                ] {
+                    if scope_active && !state.pending_routing.iter().any(|pending| pending.action == action) {
+                        if labelled_button(ui, author, action.label()) {
+                            routing_action = Some((action, author));
+                        }
+                    } else {
+                        labelled_disabled_button(ui, author, action.label());
+                    }
                 }
             });
-            if state.pending_routing {
-                ui.label("Routing action in progress...");
+            let mut observations = Vec::new();
+            if !scope_active {
+                observations.push("Routing unavailable: active authenticated backend required.".to_owned());
             }
-            if let Some(status) = state.routing_status.clone() {
-                let response = ui.label(status.clone());
+            for pending in &state.pending_routing {
+                observations.push(format!("{} pending for execution {}; outcome unconfirmed.",
+                    pending.action.label(), pending.execution_id));
+            }
+            for (action, execution) in &state.routing_results {
+                observations.push(format!(
+                    "{} last readback: {} for execution {} / run {}, revision {}. EventLedger {} (sequence {}).",
+                    action.label(), execution.status.label(), execution.execution_id, execution.run_id,
+                    execution.revision, execution.event_ledger_event_id, execution.event_ledger_seq));
+            }
+            for (action, error) in &state.routing_errors {
+                observations.push(format!("{}: {error}", action.label()));
+            }
+            if !observations.is_empty() {
+                observations.push("Execution readback does not establish process shutdown or drain.".to_owned());
+                let status = observations.join("\n");
+                let response = ui.label(&status);
                 ui.ctx().accesskit_node_builder(response.id, |node| {
                     node.set_author_id(ROUTING_STATUS_AUTHOR_ID.to_owned());
                     node.set_label(status);
@@ -1298,8 +1418,10 @@ impl PaneFactory for OperatorChatLaunchPaneFactory {
         if do_launch {
             self.launch();
         }
-        if let Some(action) = routing_action {
-            self.routing_action(action);
+        if let Some((action, author)) = routing_action {
+            if self.routing_action(action) {
+                crate::mcp::argus::acknowledge_action_effect_allow_target_transition(ui.ctx(), author);
+            }
         }
     }
 

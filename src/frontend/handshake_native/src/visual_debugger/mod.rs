@@ -136,6 +136,9 @@ pub struct LayoutTreeInspection {
     pub tab_bars: Vec<TabBarInspection>,
     pub pop_outs: Vec<PopOutInspection>,
     pub drawers: DrawersInspection,
+    /// Canonical logical capture; older inspector dumps deserialize as absent.
+    #[serde(default)]
+    pub kumihimo: Option<handshake_layout_snapshot::KumihimoLayoutState>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -469,6 +472,7 @@ impl LayoutTreeInspection {
                 project: snapshot.drawers.project,
                 bottom: snapshot.drawers.bottom,
             },
+            kumihimo: snapshot.kumihimo,
         }
     }
 }

@@ -16112,6 +16112,34 @@ fn sanitize_operator_chat_inventory(
     Ok(inventory)
 }
 
+/// Mechanical routing failure categories; backend bodies and provider details never enter GUI errors.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OperatorChatRoutingFailure {
+    AuthenticationRequired,
+    AuthenticationRejected,
+    PermissionDenied,
+    RequestInvalid,
+    TransportUncertain,
+    ResponseInvalid,
+    SessionChanged,
+    HttpFailure(u16),
+}
+
+impl OperatorChatRoutingFailure {
+    pub(crate) fn safe_message(self) -> String {
+        match self {
+            Self::AuthenticationRequired => "An active authenticated backend is required; no request was sent.".to_owned(),
+            Self::AuthenticationRejected => "Backend rejected authentication (HTTP 401). Restore the authenticated session before another action.".to_owned(),
+            Self::PermissionDenied => "Backend denied the routing request (HTTP 403). Check its original scoped authority before another action.".to_owned(),
+            Self::RequestInvalid => "Invalid routing request; nothing was dispatched.".to_owned(),
+            Self::TransportUncertain => "Routing transport failed; execution outcome is unconfirmed. Inspect the original execution before retrying.".to_owned(),
+            Self::ResponseInvalid => "Routing response is invalid or does not match the requested execution; outcome is unconfirmed. Inspect the original execution before retrying.".to_owned(),
+            Self::SessionChanged => "Account session changed; the prior execution outcome is unconfirmed. Restore its original authenticated context before reconciliation.".to_owned(),
+            Self::HttpFailure(status) => format!("Backend returned HTTP {status}; execution outcome remains unconfirmed. Inspect the original execution before retrying."),
+        }
+    }
+}
+
 impl crate::operator_chat_pane::OperatorChatBackend for OperatorChatClient {
     fn launch_recovery_scope_is_active(&self) -> bool {
         self.authenticated_context.as_ref().is_some_and(|context| context.is_active())
@@ -16285,9 +16313,9 @@ impl crate::operator_chat_pane::OperatorChatBackend for OperatorChatClient {
     ) {
         let body = match serde_json::from_str::<serde_json::Value>(&request_json) {
             Ok(body) => body,
-            Err(error) => {
+            Err(_) => {
                 if let Ok(mut slot) = cell.lock() {
-                    *slot = Some(Err(format!("routing request JSON is invalid: {error}")));
+                    *slot = Some(Err(OperatorChatRoutingFailure::RequestInvalid));
                 }
                 return;
             }
@@ -16297,14 +16325,35 @@ impl crate::operator_chat_pane::OperatorChatBackend for OperatorChatClient {
         let account = self.authenticated_context.clone();
         let body = spec.body.unwrap_or_default();
         self.runtime.spawn(async move {
-            let result = post_operator_chat_json(&client, account.clone(), &spec.url, &body)
-                .await
-                .map_err(|error| error.to_string());
+            let result = post_operator_chat_routing_json(&client, account, &spec.url, &body).await;
             if let Ok(mut slot) = cell.lock() {
                 *slot = Some(result);
             }
         });
     }
+}
+
+async fn post_operator_chat_routing_json(
+    client: &reqwest::Client,
+    account: AccountContext,
+    url: &str,
+    body: &serde_json::Value,
+) -> Result<serde_json::Value, OperatorChatRoutingFailure> {
+    use OperatorChatRoutingFailure as Failure;
+    let context = account.filter(|context| context.is_active()).ok_or(Failure::AuthenticationRequired)?;
+    let response = send_canvas_request(client, Some(context.clone()),
+        client.post(url).timeout(Duration::from_secs(15)).json(body)).await
+        .map_err(|_| if context.is_active() { Failure::TransportUncertain } else { Failure::SessionChanged })?;
+    if !context.is_active() { return Err(Failure::SessionChanged); }
+    match response.status().as_u16() {
+        401 => return Err(Failure::AuthenticationRejected),
+        403 => return Err(Failure::PermissionDenied),
+        status if !response.status().is_success() => return Err(Failure::HttpFailure(status)),
+        _ => {}
+    }
+    let value = response.json().await.map_err(|_| Failure::ResponseInvalid)?;
+    if !context.is_active() { return Err(Failure::SessionChanged); }
+    Ok(value)
 }
 
 /// POST an operator-chat request without exposing response bodies in native

@@ -143,6 +143,40 @@ pub struct LlamaCppArtifactIntegrityReceipt {
     pub gguf: ModelArtifactComponentIntegrity,
 }
 
+/// Exact single-file GGUF bytes consumed by Candle's native Qwen3 kernel.
+/// The architecture field distinguishes this from the existing llama.cpp JSON
+/// shape; embedded metadata is covered by the GGUF digest, not fake sidecars.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CandleGgufArtifactIntegrityReceipt {
+    pub schema_id: String,
+    pub bundle_sha256: String,
+    pub gguf: ModelArtifactComponentIntegrity,
+    pub architecture: String,
+}
+
+pub const CANDLE_GGUF_ARTIFACT_INTEGRITY_SCHEMA_ID: &str =
+    "handshake.model_artifact_integrity.candle_gguf.v1";
+
+impl CandleGgufArtifactIntegrityReceipt {
+    pub(crate) fn from_gguf_component(gguf: ModelArtifactComponentIntegrity) -> Result<Self, ModelRuntimeError> {
+        let bundle_sha256 = canonical_single_component_bundle_sha256("model.gguf", &gguf, "Candle GGUF")?;
+        Ok(Self { schema_id: CANDLE_GGUF_ARTIFACT_INTEGRITY_SCHEMA_ID.into(), bundle_sha256,
+            gguf, architecture: "qwen3".into() })
+    }
+
+    fn validate_for_expected_gguf(&self, expected: [u8; 32]) -> Result<(), ModelRuntimeError> {
+        if self.schema_id != CANDLE_GGUF_ARTIFACT_INTEGRITY_SCHEMA_ID || self.architecture != "qwen3" {
+            return Err(ModelRuntimeError::LoadError("invalid Candle GGUF receipt schema or architecture".into()));
+        }
+        let digest = validate_integrity_component("gguf", &self.gguf)?;
+        let canonical = canonical_single_component_bundle_sha256("model.gguf", &self.gguf, "Candle GGUF")?;
+        if self.bundle_sha256 != canonical || digest != expected {
+            return Err(ModelRuntimeError::LoadError("Candle GGUF receipt bundle or configured digest mismatch".into()));
+        }
+        Ok(())
+    }
+}
+
 /// Format-discriminated receipt returned by model runtimes. The enum is
 /// deliberately untagged: serializing the Candle variant produces the exact
 /// pre-existing Candle JSON object, while each variant's mandatory component
@@ -151,6 +185,7 @@ pub struct LlamaCppArtifactIntegrityReceipt {
 #[serde(untagged)]
 pub enum RuntimeArtifactIntegrityReceipt {
     Candle(ModelArtifactIntegrityReceipt),
+    CandleGguf(CandleGgufArtifactIntegrityReceipt),
     LlamaCpp(LlamaCppArtifactIntegrityReceipt),
 }
 
@@ -275,6 +310,9 @@ impl RuntimeArtifactIntegrityReceipt {
             (RuntimeKind::Candle, Self::Candle(receipt)) => {
                 receipt.validate_for_expected_weights(expected_sha256)
             }
+            (RuntimeKind::Candle, Self::CandleGguf(receipt)) => {
+                receipt.validate_for_expected_gguf(expected_sha256)
+            }
             (RuntimeKind::LlamaCpp, Self::LlamaCpp(receipt)) => {
                 receipt.validate_for_expected_gguf(expected_sha256)
             }
@@ -288,6 +326,7 @@ impl RuntimeArtifactIntegrityReceipt {
     pub fn schema_id(&self) -> &str {
         match self {
             Self::Candle(receipt) => &receipt.schema_id,
+            Self::CandleGguf(receipt) => &receipt.schema_id,
             Self::LlamaCpp(receipt) => &receipt.schema_id,
         }
     }
@@ -296,6 +335,7 @@ impl RuntimeArtifactIntegrityReceipt {
     pub fn primary_artifact_sha256(&self) -> &str {
         match self {
             Self::Candle(receipt) => &receipt.weights.sha256,
+            Self::CandleGguf(receipt) => &receipt.gguf.sha256,
             Self::LlamaCpp(receipt) => &receipt.gguf.sha256,
         }
     }
@@ -305,6 +345,10 @@ impl From<ModelArtifactIntegrityReceipt> for RuntimeArtifactIntegrityReceipt {
     fn from(receipt: ModelArtifactIntegrityReceipt) -> Self {
         Self::Candle(receipt)
     }
+}
+
+impl From<CandleGgufArtifactIntegrityReceipt> for RuntimeArtifactIntegrityReceipt {
+    fn from(receipt: CandleGgufArtifactIntegrityReceipt) -> Self { Self::CandleGguf(receipt) }
 }
 
 impl From<LlamaCppArtifactIntegrityReceipt> for RuntimeArtifactIntegrityReceipt {
