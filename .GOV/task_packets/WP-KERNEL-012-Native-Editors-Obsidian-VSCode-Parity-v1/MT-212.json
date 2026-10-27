@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-212",
   "created_at_utc": "2026-10-26T12:53:14.7419363Z",
-  "updated_at_utc": "2026-10-27T01:18:30.226604+00:00",
+  "updated_at_utc": "2026-10-27T02:57:36.8199744Z",
   "identity": {
     "mt_id": "MT-212",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -1274,6 +1274,413 @@
         },
         "limit": "Cargo exit0 cannot satisfy executable acquisition because natural drain exceeded selected30-second bound. No artifact manifest, accepted executable, test-body/runtime/MT verdict, retry grant or captured-input reservation follows. Final job empty and checked handles released; historical member identities/cause remain unproven."
       }
+    },
+    {
+      "candidate": "native-libtest-codegen-20261027-03",
+      "state": "QUALIFIED_CODEGEN_ONLY_TWO_REUSED_TEST_EXECUTABLES",
+      "recorded_at_utc": "2026-10-27T02:57:36.8199744Z",
+      "source_commit": "362a2b923fdf648795853fa0dbf14ca8c79a21e0",
+      "source_tree": "e59732a0ee1d49c453304fb64e05a0133e84f65b",
+      "pico_refs": [
+        "GUI-CKC-MT-009-sheet",
+        "GUI-WP012-code-find",
+        "GUI-WP012-172-MODELS"
+      ],
+      "actual_cargo_argv": [
+        "C:\\Users\\iljas\\.rustup\\toolchains\\1.97.1-x86_64-pc-windows-msvc\\bin\\cargo.exe",
+        "test",
+        "--locked",
+        "--offline",
+        "--manifest-path",
+        "src/frontend/handshake_native/Cargo.toml",
+        "--lib",
+        "--test",
+        "test_model_runtime_panel_argus",
+        "--no-run",
+        "-j",
+        "1",
+        "--message-format=json"
+      ],
+      "cargo_exit": 0,
+      "qualified": true,
+      "tests_run": false,
+      "runtime_run": false,
+      "newly_built_claim": false,
+      "compiler_or_writer_grant": false,
+      "selected_units": [
+        {
+          "unit_key": "library",
+          "compatibility": "REUSED_AT_CURRENT_INPUTS",
+          "fresh": true,
+          "target": "handshake_native",
+          "executable_sha256": "fae991c7e1bfef4f4c91b5368b0418e50ab31f3d78b4f8bd38d2e952da254659",
+          "executable_bytes": 119948800,
+          "newly_built_claim": false,
+          "executable_launched": false,
+          "test_bodies_run": false
+        },
+        {
+          "unit_key": "integration_model_runtime_panel_argus",
+          "compatibility": "REUSED_AT_CURRENT_INPUTS",
+          "fresh": true,
+          "target": "test_model_runtime_panel_argus",
+          "executable_sha256": "82b35f5380f6b810bb4adfa095bbc56e10db518511717d516000db6f13bc21d3",
+          "executable_bytes": 23817728,
+          "newly_built_claim": false,
+          "executable_launched": false,
+          "test_bodies_run": false
+        }
+      ],
+      "natural_drain": {
+        "accounting_after": {
+          "active": 0,
+          "terminated": 0,
+          "total": 5
+        },
+        "accounting_before": {
+          "active": 0,
+          "terminated": 0,
+          "total": 5
+        },
+        "budget_expired": false,
+        "budget_seconds": 30,
+        "elapsed_seconds": 0.0,
+        "members": {
+          "assigned": 0,
+          "complete": true,
+          "pids": []
+        },
+        "observation_record_attempts": 3,
+        "observation_records_persisted": 3,
+        "root_wait": {
+          "api": "WaitForSingleObject",
+          "error": 0,
+          "result": 0,
+          "terminal_observed": true,
+          "timeout_ms": 0
+        },
+        "scope": "actual current Cargo private job only",
+        "suppressed_state_changes": 0,
+        "termination_invoked": false,
+        "utc": "2026-10-27T01:43:22.272199+00:00"
+      },
+      "checked_release": {
+        "all_handle_closes_succeeded": true,
+        "capture_errors": [],
+        "file_handle_close": {
+          "attempted": 1098,
+          "failed": [],
+          "succeeded": 1098
+        },
+        "native_handle_close": {
+          "attempted": 3,
+          "failed": [],
+          "succeeded": 3
+        },
+        "normalizer_present": false,
+        "private_job_closure_observed": true,
+        "utc": "2026-10-27T01:43:23.536433+00:00"
+      },
+      "final_job": {
+        "accounting": {
+          "active": 0,
+          "terminated": 0,
+          "total": 5
+        },
+        "drain_budget_expired": false,
+        "members": {
+          "assigned": 0,
+          "complete": true,
+          "pids": []
+        },
+        "utc": "2026-10-27T01:43:22.272199+00:00"
+      },
+      "artifacts": [
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-libtest-codegen-20261027-03/result.json",
+          "sha256": "9e13d4135fcb745c92eff83fc00ee99d30ba5e45fc61a6561c87ae4ddd0450a5",
+          "bytes": 1830
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-libtest-codegen-20261027-03/codegen-artifact.json",
+          "sha256": "8903a04d79caf53f4ba9acedf96236d92acdb27f60a69277c33f92293a62e52c",
+          "bytes": 18516
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-libtest-codegen-20261027-03/released.json",
+          "sha256": "807d1938750417cbfad5a460cf5ee1ea8e18dc181d0ea739ddab09d229aa7982",
+          "bytes": 364
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-libtest-codegen-20261027-03/private-job-final.json",
+          "sha256": "3fb912f2625e83979c1737a7a39ec1c69c211d5e1a1e88264eaab7155f64ef06",
+          "bytes": 233
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-libtest-codegen-20261027-03/cargo.stdout.jsonl",
+          "sha256": "80b0a373242b6ca11cade6ea0bd3c8e1008507429e297fb79c38aedeb83688f0",
+          "bytes": 588938
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-libtest-codegen-20261027-03/cargo.stderr.txt",
+          "sha256": "dfcc53f6a2da3f12e4dca9c09c0180058050c8ddeee9dab63b906cdca1d08530",
+          "bytes": 73
+        }
+      ],
+      "input_manifest": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-compile-preparation-20261026-01/native-inputs-06.json",
+        "sha256": "69948aa4dfc4c2e85f446ce9d2c51dd383ad3c4afbff8fa57c318ce229bdac18",
+        "bytes": 168698
+      },
+      "preservation": "Earlier acquisition02 remains consumed and unqualified. This later qualified acquisition does not retroactively change it.",
+      "limit": "Historical Source362a only. Both fresh:true units were reused at current bound inputs, not newly built. No bodies, actual Native/Vulkan/Kumihimo/account acceptance, original MT verdict, retry grant or current later-source proof follows."
+    },
+    {
+      "candidate": "ckc22-library-execution-20261027-01",
+      "state": "QUALIFIED_22_SELECTED_COMPONENT_CASES_PASSED_ORIGINAL_RUNTIME_ACCEPTANCE_OPEN",
+      "recorded_at_utc": "2026-10-27T02:57:36.8199744Z",
+      "source_commit": "362a2b923fdf648795853fa0dbf14ca8c79a21e0",
+      "source_tree": "e59732a0ee1d49c453304fb64e05a0133e84f65b",
+      "pico_refs": [
+        "GUI-CKC-MT-009-sheet"
+      ],
+      "actual_test_argv": [
+        "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\deps\\handshake_native-2d7f063779499db4.exe",
+        "atelier_panel::sheet_draft_tests::append_reply_advances_head_but_keeps_a_newer_draft",
+        "atelier_panel::sheet_draft_tests::switched_character_keeps_its_draft_and_error_when_another_save_finishes",
+        "atelier_panel::sheet_draft_tests::conflict_and_transport_error_keep_the_draft_and_saved_parent",
+        "atelier_panel::sheet_draft_tests::import_reply_replaces_only_the_unchanged_sheet_draft",
+        "atelier_panel::sheet_draft_tests::mismatched_replies_and_an_older_accepted_reply_cannot_replace_the_head",
+        "atelier_panel::sheet_draft_tests::reload_adopts_clean_text_but_preserves_dirty_text_and_newer_heads",
+        "atelier_panel::sheet_draft_tests::rebind_discards_old_append_import_and_load_delivery_cells",
+        "atelier_panel::sheet_draft_tests::superseded_lists_keep_created_dirty_and_inflight_sheet_records",
+        "atelier_panel::sheet_draft_tests::mixed_pane_and_isolated_render_contexts_do_not_retire_account_work",
+        "atelier_panel::sheet_draft_tests::conflict_refresh_preserves_draft_and_retry_uses_observed_parent",
+        "atelier_panel::sheet_draft_tests::refresh_edit_late_create_ack_and_refresh_preserve_the_existing_sheet",
+        "atelier_panel::sheet_draft_tests::aggregate_counts_and_old_or_other_target_reads_do_not_confirm_selected_head",
+        "atelier_panel::sheet_draft_tests::listed_again_same_head_clears_absence_without_clearing_save_history",
+        "atelier_panel::sheet_draft_tests::same_head_refresh_keeps_artifact_links_in_both_orders_and_advance_clears_old_links",
+        "atelier_panel::sheet_draft_tests::late_create_success_or_failure_keeps_later_selection_name_export_and_error",
+        "atelier_panel::sheet_draft_tests::unchanged_create_context_keeps_normal_completion_and_new_feedback_revokes_follow_up",
+        "atelier_panel::sheet_draft_tests::pending_create_preserves_real_sheet_editor_work_and_untouched_focus",
+        "atelier_panel::sheet_draft_tests::shared_context_equal_frame_focus_uses_actual_viewport_owner",
+        "backend_client::tests::selected_ckc_head_uses_actual_maximum_sequence_and_valid_empty_history",
+        "backend_client::tests::selected_ckc_head_rejects_wrong_or_malformed_identity_and_every_bad_history_row",
+        "backend_client::tests::selected_ckc_public_fetch_requires_captured_active_account",
+        "backend_client::tests::selected_ckc_public_fetch_uses_direct_identity_and_history_gets",
+        "--exact",
+        "--test-threads=1",
+        "--format=pretty",
+        "--color=never"
+      ],
+      "actual_test_process": {
+        "argv": [
+          "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\deps\\handshake_native-2d7f063779499db4.exe",
+          "atelier_panel::sheet_draft_tests::append_reply_advances_head_but_keeps_a_newer_draft",
+          "atelier_panel::sheet_draft_tests::switched_character_keeps_its_draft_and_error_when_another_save_finishes",
+          "atelier_panel::sheet_draft_tests::conflict_and_transport_error_keep_the_draft_and_saved_parent",
+          "atelier_panel::sheet_draft_tests::import_reply_replaces_only_the_unchanged_sheet_draft",
+          "atelier_panel::sheet_draft_tests::mismatched_replies_and_an_older_accepted_reply_cannot_replace_the_head",
+          "atelier_panel::sheet_draft_tests::reload_adopts_clean_text_but_preserves_dirty_text_and_newer_heads",
+          "atelier_panel::sheet_draft_tests::rebind_discards_old_append_import_and_load_delivery_cells",
+          "atelier_panel::sheet_draft_tests::superseded_lists_keep_created_dirty_and_inflight_sheet_records",
+          "atelier_panel::sheet_draft_tests::mixed_pane_and_isolated_render_contexts_do_not_retire_account_work",
+          "atelier_panel::sheet_draft_tests::conflict_refresh_preserves_draft_and_retry_uses_observed_parent",
+          "atelier_panel::sheet_draft_tests::refresh_edit_late_create_ack_and_refresh_preserve_the_existing_sheet",
+          "atelier_panel::sheet_draft_tests::aggregate_counts_and_old_or_other_target_reads_do_not_confirm_selected_head",
+          "atelier_panel::sheet_draft_tests::listed_again_same_head_clears_absence_without_clearing_save_history",
+          "atelier_panel::sheet_draft_tests::same_head_refresh_keeps_artifact_links_in_both_orders_and_advance_clears_old_links",
+          "atelier_panel::sheet_draft_tests::late_create_success_or_failure_keeps_later_selection_name_export_and_error",
+          "atelier_panel::sheet_draft_tests::unchanged_create_context_keeps_normal_completion_and_new_feedback_revokes_follow_up",
+          "atelier_panel::sheet_draft_tests::pending_create_preserves_real_sheet_editor_work_and_untouched_focus",
+          "atelier_panel::sheet_draft_tests::shared_context_equal_frame_focus_uses_actual_viewport_owner",
+          "backend_client::tests::selected_ckc_head_uses_actual_maximum_sequence_and_valid_empty_history",
+          "backend_client::tests::selected_ckc_head_rejects_wrong_or_malformed_identity_and_every_bad_history_row",
+          "backend_client::tests::selected_ckc_public_fetch_requires_captured_active_account",
+          "backend_client::tests::selected_ckc_public_fetch_uses_direct_identity_and_history_gets",
+          "--exact",
+          "--test-threads=1",
+          "--format=pretty",
+          "--color=never"
+        ],
+        "birth_filetime": 134375407237198661,
+        "cwd": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\gui-lead-product-current-source\\src\\frontend\\handshake_native",
+        "image": "C:\\Projects\\LLM Projects\\handshake-desktop\\Handshake_Artifacts\\WP-KERNEL-012\\MT-174\\kb-phase02\\target\\debug\\deps\\handshake_native-2d7f063779499db4.exe",
+        "parent_pid": 25904,
+        "pid": 8000
+      },
+      "qualified": true,
+      "test_exit": 0,
+      "tests_run": true,
+      "native_runtime_run": false,
+      "scope": {
+        "gui_sheet_component_cases": 18,
+        "selected_head_client_component_cases": 4,
+        "passed": 22,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 1826,
+        "codefind8_selected": false,
+        "integration_bodies_selected": false,
+        "native_private_acceptance": "NOT_ISSUED"
+      },
+      "exact_selected_terminals_verified": true,
+      "missing_selectors": [],
+      "duplicate_selectors": [],
+      "extra_test_records": [],
+      "format_errors": [],
+      "natural_drain": {
+        "accounting_after": {
+          "active": 0,
+          "terminated": 0,
+          "total": 2
+        },
+        "accounting_before": {
+          "active": 0,
+          "terminated": 0,
+          "total": 2
+        },
+        "budget_expired": false,
+        "budget_seconds": 30,
+        "elapsed_seconds": 0.0,
+        "members": {
+          "assigned": 0,
+          "complete": true,
+          "pids": []
+        },
+        "natural_drain_qualified": true,
+        "observation_record_attempts": 7,
+        "observation_records_persisted": 7,
+        "root_wait": {
+          "api": "WaitForSingleObject",
+          "error": 0,
+          "result": 0,
+          "terminal_observed": true,
+          "timeout_ms": 0
+        },
+        "scope": "actual selected CKC22 library process private job only",
+        "settlement_kind": "NATURAL_DRAIN",
+        "suppressed_state_changes": 0,
+        "termination_invoked": false,
+        "timeout": null,
+        "utc": "2026-10-27T02:12:04.645045+00:00"
+      },
+      "whole_owned_job_watchdog": {
+        "actual_timeout": null,
+        "expired": false,
+        "seconds": 120,
+        "timeout_action": "PROVEN_EXCLUSIVE_TEST_JOB_ONLY_FORCED_TIMEOUT_SETTLEMENT_OTHERWISE_UNKNOWN_RETAIN"
+      },
+      "checked_release": {
+        "all_handle_closes_succeeded": true,
+        "capture_errors": [],
+        "file_handle_close": {
+          "attempted": 1096,
+          "failed": [],
+          "succeeded": 1096
+        },
+        "native_handle_close": {
+          "attempted": 3,
+          "failed": [],
+          "succeeded": 3
+        },
+        "normalizer_present": false,
+        "private_job_closure_observed": true,
+        "utc": "2026-10-27T02:12:05.357731+00:00"
+      },
+      "final_job": {
+        "accounting": {
+          "active": 0,
+          "terminated": 0,
+          "total": 2
+        },
+        "drain_budget_expired": false,
+        "members": {
+          "assigned": 0,
+          "complete": true,
+          "pids": []
+        },
+        "utc": "2026-10-27T02:12:04.645045+00:00"
+      },
+      "artifacts": [
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/ckc22-library-execution-20261027-01/result.json",
+          "sha256": "49779cb6d6ed384f74b338ace936197e61d22ff27f6f236171ed72c8c08cfacc",
+          "bytes": 4706
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/ckc22-library-execution-20261027-01/case-observations.json",
+          "sha256": "835c9d744cf1d07b369c39d701152e070824d2e20372401b67ef4fc546fea003",
+          "bytes": 18254
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/ckc22-library-execution-20261027-01/released.json",
+          "sha256": "a7b53648960c4a3cfc8b61f3160648ff813d391b68dc09bb9a8ec5ad62c856f5",
+          "bytes": 364
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/ckc22-library-execution-20261027-01/private-job-final.json",
+          "sha256": "c61779dfffbcecd29e5cb380da0f6ae185fb740b70cf349afbcbe4fd0d44fb95",
+          "bytes": 233
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/ckc22-library-execution-20261027-01/test.stdout.raw",
+          "sha256": "a3e3f4c23f37767d934c5837cfb11fc902765b7a8f804b6875bfdf13e5d106a6",
+          "bytes": 2569
+        },
+        {
+          "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/ckc22-library-execution-20261027-01/test.stderr.raw",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        }
+      ],
+      "harness_binding": {
+        "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/ckc-component-harness-binding-04.json",
+        "sha256": "d4c8ad539f02839f398e1df03491bf4301b3b58a556b11405987b81880ba37b7",
+        "bytes": 92382
+      },
+      "compiler_or_writer_grant": false,
+      "original_acceptance": "OPEN",
+      "limit": "Only the18 sheet-draft and4 selected-head client library component cases passed. No genuine account, private Native GUI, Vulkan/Kumihimo, integration-body, CodeFind8 or original MT/WP acceptance is issued. Reuse only while relevant asserted inputs stay unchanged."
+    },
+    {
+      "candidate": "rich-find-freshness-01",
+      "artifact_root_relative": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/rich-find-freshness-01/binding.json",
+      "binding_sha256": "6b1bf94d3ad0466960060b42d5c65ba5a668425ba2041b7a91041422a6e11ec7",
+      "recorded_at_utc": "2026-10-27T02:57:36.8199744Z",
+      "author": "/root/code_find_refresh",
+      "pico_refs": [
+        "GUI-WP012-rich-find"
+      ],
+      "state": "SOURCE_PUBLISHED_UNCOMPILED_UNRUN",
+      "canonical_applied": true,
+      "tests_run": false,
+      "runtime_run": false,
+      "compiler_or_writer_grant": false,
+      "source_publication": {
+        "commit": "0df74ed0a89fa85b0e9aba726009fbf13f234d99",
+        "tree": "269b463f7fbde55ab9629a1ccb1c72199c04ed13",
+        "parent": "362a2b923fdf648795853fa0dbf14ca8c79a21e0",
+        "changed_path": "src/frontend/handshake_native/src/rich_editor/renderer/rich_editor_widget.rs",
+        "raw_post_sha256": "8d95fca2c0eeef8aa970654c867166fe3257ed7c78ba7c9b2d09eab5d29ddbef",
+        "raw_post_bytes": 416109,
+        "remote_branch_reread": "refs/heads/feat/WP-KERNEL-012",
+        "remote_head_reread": "035ea8f60acb458d1a94149f7ae84d8c0efd273f",
+        "published_commit_is_ancestor_of_reread_head": true,
+        "verification": "External record author inspected immutable commit/tree/parent/exact one-path stat, current local HEAD, fresh ls-remote and ancestry. Published raw representation provenance remains the existing owning source handoff and Root reread.",
+        "original_acceptance": "OPEN"
+      },
+      "cases": [
+        {
+          "selector": "rich_editor::renderer::rich_editor_widget::tests::rich_find_external_edits_refresh_with_find_input_focus",
+          "status": "AUTHORED_UNRUN"
+        },
+        {
+          "selector": "rich_editor::renderer::rich_editor_widget::tests::rich_find_dispatch_replaces_from_its_current_owner_candidate",
+          "status": "AUTHORED_UNRUN"
+        }
+      ],
+      "limit": "Historical publication boundary only. Earlier Source362a/input06 codegen and CKC22 do not qualify this changed widget or its two new cases. Original MT018 runtime/visual/keyboard/Argus and atomic-replacement acceptance remain open. No later-current compile/runtime assertion is made."
     }
   ],
   "picotask_plan": {
