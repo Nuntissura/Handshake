@@ -20,7 +20,7 @@
   "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
   "mt_id": "MT-212",
   "created_at_utc": "2026-10-26T12:53:14.7419363Z",
-  "updated_at_utc": "2026-10-26T17:08:42.389005+00:00",
+  "updated_at_utc": "2026-10-27T01:18:30.226604+00:00",
   "identity": {
     "mt_id": "MT-212",
     "wp_id": "WP-KERNEL-012-Native-Editors-Obsidian-VSCode-Parity-v1",
@@ -1000,6 +1000,279 @@
         "runtime_run": false,
         "current_combined_compile": "PENDING",
         "historical_native05_limit": "Retained historical proof only; does not qualify these changed current nativePOSTs."
+      }
+    },
+    {
+      "candidate": "ckc-sheet-save-06",
+      "artifact_root_relative": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/ckc-sheet-save-06/binding-02.json",
+      "binding_sha256": "86234aaa4352889ffc8c383b6d2d158097765ce8277c5371ff97e64e2835f99d",
+      "pico_refs": [
+        "GUI-CKC-MT-009-sheet"
+      ],
+      "author": "/root/ckc_gui_contract_delta",
+      "state": "SOURCE_PUBLISHED_NATIVE04_CHECK_QUALIFIED_ORIGINAL_RUNTIME_ACCEPTANCE_OPEN",
+      "canonical_applied": true,
+      "tests_run": false,
+      "runtime_run": false,
+      "compiler_or_writer_grant": false,
+      "independent_codecheck": {
+        "thread_id": "01a17387-9d99-7e61-8987-42feab10e18a",
+        "turn_id": "01a17a5f-db4e-7820-803c-a4019ff9e560",
+        "verdict": "SOURCE_CLEAR_ONLY",
+        "scope": "Joined sheet, selected-head client and manual unit; earlier01-05 findings and original authorship retained."
+      },
+      "source_publication": {
+        "commit": "82262211fadd4b23ac3d9efb59b9544789802ab8",
+        "tree": "18ab9ff37f7a048d46b82a4515cdd3125a8adca7",
+        "parent": "a1fbab8184e6d8d807589dde5f5d4174885a9e0a",
+        "path_count": 3,
+        "independent_gui_reread": true,
+        "original_acceptance": "OPEN"
+      },
+      "native_static_proof": {
+        "result_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-check-20261026-04/result.json",
+        "result_sha256": "82c96d79caf75553d396f0abe414e97d3794cc32ef9db8e819a7badd54150007",
+        "cargo_exit": 0,
+        "qualified": true,
+        "tests_run": false,
+        "runtime_run": false,
+        "actual_scope": "cargo check --locked --offline --manifest-path src/frontend/handshake_native/Cargo.toml --tests -j 1 --keep-going --message-format=json",
+        "limit": "Historical exact Source82262211 compile-only check; action consumed and handles released. No executable, body-run, Vulkan/Kumihimo runtime or current changed Source362a2b92 credit."
+      }
+    },
+    {
+      "candidate": "code-find-03",
+      "artifact_root_relative": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/code-find-03/binding.json",
+      "binding_sha256": "c698c41eb5417997c239fb972124e4a7208ed70bfafa19597d0ec757543cab42",
+      "pico_refs": [
+        "GUI-WP012-code-find"
+      ],
+      "author": "/root/code_find_refresh",
+      "original_author": "/root/wp1_gui_contract_delta",
+      "state": "SOURCE_PUBLISHED_CARGO_EXIT0_ACQUISITION_FAILED_DRAIN_TESTS_UNRUN",
+      "canonical_applied": true,
+      "tests_run": false,
+      "runtime_run": false,
+      "compiler_or_writer_grant": false,
+      "independent_codecheck": {
+        "thread_id": "01a17387-9d99-7e61-8987-42feab10e18a",
+        "verdict": "SOURCE_CLEAR_ONLY",
+        "finding": "CODE-FIND-CORRECTNESS-001 CLOSED AT SOURCE",
+        "preservation": "01/02 HOLD history, prior full review and original MT004 acceptance retained. Eight authored cases remain NOT_RUN."
+      },
+      "source_publication": {
+        "commit": "362a2b923fdf648795853fa0dbf14ca8c79a21e0",
+        "tree": "e59732a0ee1d49c453304fb64e05a0133e84f65b",
+        "parent": "82262211fadd4b23ac3d9efb59b9544789802ab8",
+        "remote_branch_reread": "refs/heads/feat/WP-KERNEL-012",
+        "remote_head_reread": "362a2b923fdf648795853fa0dbf14ca8c79a21e0",
+        "verification": "Primary published; GUI Root independently reread canonical raw POSTs, exact seven changed paths, immutable Git blobs (exact or CRLF-to-LF only), stable HEAD and fresh matching origin branch. No writer or process custody follows.",
+        "compile_tests_runtime": "CARGO_EXIT0_ACQUISITION_UNQUALIFIED_TEST_BODIES_AND_RUNTIME_NOT_RUN",
+        "original_acceptance": "OPEN"
+      },
+      "native_codegen_attempt": {
+        "attempt_state": "CONSUMED_FAILED_DRAIN",
+        "actual_cargo_argv": [
+          "C:\\Users\\iljas\\.rustup\\toolchains\\1.97.1-x86_64-pc-windows-msvc\\bin\\cargo.exe",
+          "test",
+          "--locked",
+          "--offline",
+          "--manifest-path",
+          "src/frontend/handshake_native/Cargo.toml",
+          "--lib",
+          "--test",
+          "test_model_runtime_panel_argus",
+          "--no-run",
+          "-j",
+          "1",
+          "--message-format=json"
+        ],
+        "source_commit": "362a2b923fdf648795853fa0dbf14ca8c79a21e0",
+        "cargo_exit": 0,
+        "qualified": false,
+        "codegen_artifact_manifest": null,
+        "tests_run": false,
+        "runtime_run": false,
+        "changed_inputs": [],
+        "natural_drain": {
+          "accounting_after": {
+            "active": 0,
+            "terminated": 0,
+            "total": 30
+          },
+          "accounting_before": {
+            "active": 0,
+            "terminated": 0,
+            "total": 30
+          },
+          "budget_expired": true,
+          "budget_seconds": 30,
+          "elapsed_seconds": 900.109999999986,
+          "members": {
+            "assigned": 0,
+            "complete": true,
+            "pids": []
+          },
+          "scope": "actual current Cargo private job only",
+          "termination_invoked": false,
+          "utc": "2026-10-27T01:01:10.124433+00:00"
+        },
+        "checked_release": {
+          "file_handle_close": {
+            "attempted": 1096,
+            "failed": [],
+            "succeeded": 1096
+          },
+          "native_handle_close": {
+            "attempted": 3,
+            "failed": [],
+            "succeeded": 3
+          },
+          "all_handle_closes_succeeded": true,
+          "private_job_closure_observed": true,
+          "utc": "2026-10-27T01:01:10.703048+00:00"
+        },
+        "artifacts": {
+          "result.json": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-libtest-codegen-20261027-02/result.json",
+            "sha256": "5be6023c559c5a27c740fb867a372d605cee114c416c9a8e8a6f511432cd1bda",
+            "bytes": 1639
+          },
+          "released.json": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-libtest-codegen-20261027-02/released.json",
+            "sha256": "353f210b28314c31b89c8700724ca4cbcb5f5f5015484ad745761f9586fcedc6",
+            "bytes": 445
+          },
+          "private-job-final.json": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-libtest-codegen-20261027-02/private-job-final.json",
+            "sha256": "4a4486125d571c0b2a8b7ba5ae387a14a8f5a328c0ba3830f960432919c88416",
+            "bytes": 233
+          },
+          "postguards.json": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-libtest-codegen-20261027-02/postguards.json",
+            "sha256": "4455151b3b2f63309e36f173905b9aef6018311024a24afccd1dc9445b853a9b",
+            "bytes": 191
+          }
+        },
+        "limit": "Cargo exit0 cannot satisfy executable acquisition because natural drain exceeded selected30-second bound. No artifact manifest, accepted executable, test-body/runtime/MT verdict, retry grant or captured-input reservation follows. Final job empty and checked handles released; historical member identities/cause remain unproven."
+      }
+    },
+    {
+      "candidate": "model-runtime-selection-intent-02",
+      "artifact_root_relative": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/model-runtime-selection-intent-02/joined-binding.json",
+      "binding_sha256": "0bf93cce6ed14080971075375fb7a6e60559ec43fb70c5074603df7b8abfeaac",
+      "pico_refs": [
+        "GUI-WP012-172-MODELS"
+      ],
+      "author": "/root/model_selection_refresh",
+      "state": "SOURCE_PUBLISHED_CARGO_EXIT0_ACQUISITION_FAILED_DRAIN_TESTS_UNRUN",
+      "canonical_applied": true,
+      "tests_run": false,
+      "runtime_run": false,
+      "compiler_or_writer_grant": false,
+      "independent_codecheck": {
+        "thread_id": "01a17387-9d99-7e61-8987-42feab10e18a",
+        "verdict": "SOURCE_CLEAR_ONLY",
+        "scope": "Five-path joined GUI/client/ACK repair/native manual/Core version companion; both prior P2 findings closed at source. Genuine authenticated fixture, canonical selection attribution, audit nonmutation and current-role drift acceptance remain OPEN.",
+        "distinct_nonauthor_report_ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/model-runtime-selection-nonauthor-02.json",
+        "distinct_nonauthor_report_sha256": "5923923e6e3fd8b8389e778687e28026925218031d0593fd552dcac32abdad30"
+      },
+      "source_publication": {
+        "commit": "362a2b923fdf648795853fa0dbf14ca8c79a21e0",
+        "tree": "e59732a0ee1d49c453304fb64e05a0133e84f65b",
+        "parent": "82262211fadd4b23ac3d9efb59b9544789802ab8",
+        "remote_branch_reread": "refs/heads/feat/WP-KERNEL-012",
+        "remote_head_reread": "362a2b923fdf648795853fa0dbf14ca8c79a21e0",
+        "verification": "Primary published; GUI Root independently reread canonical raw POSTs, exact seven changed paths, immutable Git blobs (exact or CRLF-to-LF only), stable HEAD and fresh matching origin branch. No writer or process custody follows.",
+        "compile_tests_runtime": "CARGO_EXIT0_ACQUISITION_UNQUALIFIED_TEST_BODIES_AND_RUNTIME_NOT_RUN",
+        "original_acceptance": "OPEN"
+      },
+      "recorded_scope_addition": "NONE. Native paths already allowed by MT212; Core USER_MANUAL_VERSION companion already allowed by MT172. No contract, gate or acceptance change.",
+      "native_codegen_attempt": {
+        "attempt_state": "CONSUMED_FAILED_DRAIN",
+        "actual_cargo_argv": [
+          "C:\\Users\\iljas\\.rustup\\toolchains\\1.97.1-x86_64-pc-windows-msvc\\bin\\cargo.exe",
+          "test",
+          "--locked",
+          "--offline",
+          "--manifest-path",
+          "src/frontend/handshake_native/Cargo.toml",
+          "--lib",
+          "--test",
+          "test_model_runtime_panel_argus",
+          "--no-run",
+          "-j",
+          "1",
+          "--message-format=json"
+        ],
+        "source_commit": "362a2b923fdf648795853fa0dbf14ca8c79a21e0",
+        "cargo_exit": 0,
+        "qualified": false,
+        "codegen_artifact_manifest": null,
+        "tests_run": false,
+        "runtime_run": false,
+        "changed_inputs": [],
+        "natural_drain": {
+          "accounting_after": {
+            "active": 0,
+            "terminated": 0,
+            "total": 30
+          },
+          "accounting_before": {
+            "active": 0,
+            "terminated": 0,
+            "total": 30
+          },
+          "budget_expired": true,
+          "budget_seconds": 30,
+          "elapsed_seconds": 900.109999999986,
+          "members": {
+            "assigned": 0,
+            "complete": true,
+            "pids": []
+          },
+          "scope": "actual current Cargo private job only",
+          "termination_invoked": false,
+          "utc": "2026-10-27T01:01:10.124433+00:00"
+        },
+        "checked_release": {
+          "file_handle_close": {
+            "attempted": 1096,
+            "failed": [],
+            "succeeded": 1096
+          },
+          "native_handle_close": {
+            "attempted": 3,
+            "failed": [],
+            "succeeded": 3
+          },
+          "all_handle_closes_succeeded": true,
+          "private_job_closure_observed": true,
+          "utc": "2026-10-27T01:01:10.703048+00:00"
+        },
+        "artifacts": {
+          "result.json": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-libtest-codegen-20261027-02/result.json",
+            "sha256": "5be6023c559c5a27c740fb867a372d605cee114c416c9a8e8a6f511432cd1bda",
+            "bytes": 1639
+          },
+          "released.json": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-libtest-codegen-20261027-02/released.json",
+            "sha256": "353f210b28314c31b89c8700724ca4cbcb5f5f5015484ad745761f9586fcedc6",
+            "bytes": 445
+          },
+          "private-job-final.json": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-libtest-codegen-20261027-02/private-job-final.json",
+            "sha256": "4a4486125d571c0b2a8b7ba5ae387a14a8f5a328c0ba3830f960432919c88416",
+            "bytes": 233
+          },
+          "postguards.json": {
+            "ref": "WP-KERNEL-012/per-mt-teams-20261024-01/WP012/MT-212/native-libtest-codegen-20261027-02/postguards.json",
+            "sha256": "4455151b3b2f63309e36f173905b9aef6018311024a24afccd1dc9445b853a9b",
+            "bytes": 191
+          }
+        },
+        "limit": "Cargo exit0 cannot satisfy executable acquisition because natural drain exceeded selected30-second bound. No artifact manifest, accepted executable, test-body/runtime/MT verdict, retry grant or captured-input reservation follows. Final job empty and checked handles released; historical member identities/cause remain unproven."
       }
     }
   ],
