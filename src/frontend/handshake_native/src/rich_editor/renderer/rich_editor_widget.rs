@@ -2329,17 +2329,6 @@ impl RichEditorWidget {
             state.tag_autocomplete = None;
         }
 
-        // MT-018: the find/replace panel recomputes its scan on every document change while open
-        // (the React "recompute on every document change"). Any typing/delete/undo this frame may
-        // have mutated the doc, so the scan + the active-index clamp are refreshed here. This is a
-        // synchronous in-memory walk (no spinner, no async); the panel renders only when open.
-        let document = state.document_snapshot().expect("live rich document");
-                let doc = &document;
-                let RichEditorState { find_replace, .. } = state;
-        if let Some(panel) = find_replace.as_mut() {
-            panel.rescan(doc);
-        }
-
         // MT-020: any edit decoded above (text/structural action, IME commit, undo/redo, find-replace
         // replacement) may have mutated the doc. Mark the save manager dirty + start the draft
         // debounce window so the 5s auto-draft persists in-progress edits (crash recovery). The dirty
@@ -2939,12 +2928,16 @@ impl RichEditorWidget {
                 }
             }
             RichDispatch::FindNext => {
+                let document = state.document_snapshot().expect("live rich document");
                 if let Some(f) = state.find_replace.as_mut() {
+                    f.rescan(&document);
                     f.select_next();
                 }
             }
             RichDispatch::FindPrev => {
+                let document = state.document_snapshot().expect("live rich document");
                 if let Some(f) = state.find_replace.as_mut() {
+                    f.rescan(&document);
                     f.select_prev();
                 }
             }
@@ -2955,6 +2948,7 @@ impl RichEditorWidget {
                     ..
                 } = state;
                 if let Some(f) = find_replace.as_mut() {
+                    f.rescan(doc);
                     if let Some(active) = f.active.and_then(|i| f.scan.matches.get(i).cloned()) {
                         let repl = f.replacement.clone();
                         find_replace::replace_one(doc, undo, selection, &active, &repl);
@@ -2969,6 +2963,7 @@ impl RichEditorWidget {
                     ..
                 } = state;
                 if let Some(f) = find_replace.as_mut() {
+                    f.rescan(doc);
                     let matches = f.scan.matches.clone();
                     let repl = f.replacement.clone();
                     find_replace::replace_all(doc, undo, selection, &matches, &repl);
@@ -5061,40 +5056,39 @@ impl RichEditorWidget {
                 state.find_replace = Some(panel);
             }
             PanelOutcome::ReplaceOne => {
-                // Replace the CURRENT match (default to the first match when none is active yet),
-                // then re-scan and advance to the next match (the React "keep going" behavior).
-                let index = panel.active.unwrap_or(0);
                 let panel_before_replace = panel.clone();
-                if let Some(m) = panel.scan.matches.get(index).cloned() { let committed = state.edit_with_state(|doc, undo, state| {
-                    let RichEditorState {
-                        selection,
-                        ..
-                    } = state;
-                    let replaced = replace_one(doc, undo, selection, &m, &panel.replacement);
-                    if replaced {
-                        panel.rescan(doc);
-                        // After the replacement, the match set shrank; keep the index pointing at the
-                        // NEXT match (clamped) so repeated Replace walks forward through the document.
-                        panel.active = if panel.scan.is_empty() {
-                            None
-                        } else {
-                            Some(index.min(panel.scan.len() - 1))
-                        };
+                let committed = state.edit_with_state(|doc, undo, state| {
+                    // The prepared owner candidate is the document this effect can commit.
+                    panel.rescan(doc);
+                    let index = panel.active.unwrap_or(0);
+                    if let Some(m) = panel.scan.matches.get(index).cloned() {
+                        let replaced = replace_one(doc, undo, &mut state.selection, &m, &panel.replacement);
+                        if replaced {
+                            panel.rescan(doc);
+                            panel.active = if panel.scan.is_empty() {
+                                None
+                            } else {
+                                Some(index.min(panel.scan.len() - 1))
+                            };
+                        }
                     }
                 });
-                if committed.is_none() { panel = panel_before_replace; }
+                if committed.is_none() {
+                    panel = panel_before_replace;
                 }
                 state.find_replace = Some(panel);
             }
             PanelOutcome::ReplaceAll => {
-                let matches = panel.scan.matches.clone();
+                let panel_before_replace = panel.clone();
                 let committed = state.edit_with_state(|doc, undo, state| {
-                    let RichEditorState { selection, .. } = state;
-                    replace_all(doc, undo, selection, &matches, &panel.replacement)
-                });
-                if committed.is_some() {
-                    panel.rescan(&state.document_snapshot().expect("live rich document"));
+                    panel.rescan(doc);
+                    let matches = panel.scan.matches.clone();
+                    replace_all(doc, undo, &mut state.selection, &matches, &panel.replacement);
+                    panel.rescan(doc);
                     panel.active = None;
+                });
+                if committed.is_none() {
+                    panel = panel_before_replace;
                 }
                 state.find_replace = Some(panel);
             }
@@ -5318,9 +5312,14 @@ impl RichEditorWidget {
                 // The suffix itself uses the stable document path, not this count or screen geometry, so
                 // resizing/reflow does not change an occurrence's AccessKit identity.
                 let mut locus_chip_occurrences = std::collections::HashMap::<String, usize>::new();
-                for idx in 0..state.document_snapshot().expect("live rich document").children.len() {
-                    let document = state.document_snapshot().expect("live rich document");
-                    let Some(block) = document.children[idx].as_block() else { continue };
+                // Counts and highlights use the same canonical snapshot as this paint pass,
+                // including when focus belongs to the find input rather than the editor surface.
+                let document = state.document_snapshot().expect("live rich document");
+                if let Some(panel) = state.find_replace.as_mut() {
+                    panel.rescan(&document);
+                }
+                for (idx, child) in document.children.iter().enumerate() {
+                    let Some(block) = child.as_block() else { continue };
 
                     // Virtualize the common large-document case before invoking the expensive
                     // text shaper. Plain text paragraphs have a deterministic single-line extent;
@@ -5638,8 +5637,6 @@ impl RichEditorWidget {
                     // AFTER the content so the wash sits on top. Computed into an owned vec so the doc
                     // borrow ends before painting (the panel/scan live on `state`).
                     if let Some(panel) = state.find_replace.as_ref() {
-                        let document = state.document_snapshot().expect("live rich document");
-                        let block = document.children[idx].as_block().expect("checked above");
                         let current = panel.active.and_then(|i| panel.scan.matches.get(i));
                         let rects = crate::rich_editor::find_replace::highlight_layer::match_highlight_rects(
                             block,
@@ -6754,6 +6751,140 @@ mod tests {
             ),
             in_flight_lease: None,
             launch_runtime: None,
+        }
+    }
+
+    #[test]
+    fn rich_find_external_edits_refresh_with_find_input_focus() {
+        use egui_kittest::kittest::NodeT;
+        use crate::rich_editor::find_replace::scanner::FindQuery;
+
+        for direct_owner in [false, true] {
+            let state = Arc::new(Mutex::new(RichEditorState::new(BlockNode::doc(vec![
+                BlockNode::paragraph("foo"),
+            ]))));
+            {
+                let mut state = state.lock().unwrap();
+                state.open_find_replace_for_host(true);
+                let document = state.document_snapshot().unwrap();
+                let panel = state.find_replace.as_mut().unwrap();
+                panel.query = FindQuery::literal("foo");
+                panel.replacement = "X".to_owned();
+                panel.rescan(&document);
+            }
+            let find_focused = Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let ui_state = Arc::clone(&state);
+            let ui_focus = Arc::clone(&find_focused);
+            let mut harness = egui_kittest::Harness::builder()
+                .with_size(egui::vec2(640.0, 400.0))
+                .build_ui(move |ui| {
+                    RichEditorWidget::new(Arc::clone(&ui_state)).show(ui);
+                    ui_focus.store(
+                        ui.ctx().memory(|memory| {
+                            memory.focused() == Some(egui::Id::new("find-input-field"))
+                        }),
+                        std::sync::atomic::Ordering::Relaxed,
+                    );
+                });
+            harness.step();
+            assert!(find_focused.load(std::sync::atomic::Ordering::Relaxed));
+
+            if direct_owner {
+                let owner = state.lock().unwrap().document_owner();
+                let expected = owner.current_context().unwrap();
+                owner.edit(expected, |document, _| {
+                    *document = BlockNode::doc(vec![BlockNode::paragraph("prefix foo foo")]);
+                    Ok::<_, ()>(())
+                }).unwrap();
+            } else {
+                state.lock().unwrap().edit_document(|document, _| {
+                    *document = BlockNode::doc(vec![BlockNode::paragraph("prefix foo foo")]);
+                    Ok::<_, ()>(())
+                }).unwrap();
+            }
+            harness.step();
+            assert!(find_focused.load(std::sync::atomic::Ordering::Relaxed));
+            {
+                let state = state.lock().unwrap();
+                let panel = state.find_replace.as_ref().unwrap();
+                assert_eq!(panel.count_label(), "2 matches");
+                assert_eq!(
+                    panel.scan.matches.iter().map(|m| (m.char_start, m.char_end)).collect::<Vec<_>>(),
+                    vec![(7, 10), (11, 14)],
+                );
+            }
+            assert!(harness.root().children_recursive().any(|node| {
+                let node = node.accesskit_node();
+                node.author_id() == Some("find-count") && node.value() == Some("2 matches")
+            }));
+            let click = |harness: &mut egui_kittest::Harness<'_, ()>, author_id: &str| {
+                let node_id = harness.root().children_recursive().find_map(|node| {
+                    let node = node.accesskit_node();
+                    (node.author_id() == Some(author_id)).then(|| node.id())
+                }).expect("actual find panel control");
+                harness.event(egui::Event::AccessKitActionRequest(egui::accesskit::ActionRequest {
+                    action: egui::accesskit::Action::Click,
+                    target: node_id,
+                    data: None,
+                }));
+                harness.step();
+                harness.step();
+            };
+            click(&mut harness, "find-next");
+            assert_eq!(state.lock().unwrap().find_replace.as_ref().unwrap().active, Some(0));
+            assert!(harness.root().children_recursive().any(|node| {
+                let node = node.accesskit_node();
+                node.author_id() == Some("find-count") && node.value() == Some("1 of 2")
+            }));
+            click(&mut harness, "replace-one");
+            let mut state = state.lock().unwrap();
+            assert_eq!(state.block_plain_text(0).as_deref(), Some("prefix X foo"));
+            assert!(state.edit_document(|doc, history| history.undo(doc)).unwrap().output);
+            assert_eq!(state.block_plain_text(0).as_deref(), Some("prefix foo foo"));
+            assert!(!state.history_snapshot().unwrap().can_undo());
+        }
+    }
+
+    #[test]
+    fn rich_find_dispatch_replaces_from_its_current_owner_candidate() {
+        use crate::rich_editor::find_replace::scanner::FindQuery;
+
+        for replace_all in [false, true] {
+            let mut state = RichEditorState::new(BlockNode::doc(vec![BlockNode::paragraph("foo")]));
+            state.open_find_replace_for_host(true);
+            let document = state.document_snapshot().unwrap();
+            let panel = state.find_replace.as_mut().unwrap();
+            panel.query = FindQuery::literal("foo");
+            panel.replacement = "X".to_owned();
+            panel.rescan(&document);
+            let owner = state.document_owner();
+            owner.edit(owner.current_context().unwrap(), |document, _| {
+                *document = BlockNode::doc(vec![BlockNode::paragraph("prefix foo foo")]);
+                Ok::<_, ()>(())
+            }).unwrap();
+            let context = egui::Context::default();
+            RichEditorWidget::run_rich_dispatch(
+                &mut state, &RichDispatch::FindNext, "find-next", None, &context,
+            );
+            let panel = state.find_replace.as_ref().unwrap();
+            assert_eq!(panel.count_label(), "1 of 2");
+            assert_eq!(panel.scan.matches[0].char_start, 7);
+
+            owner.edit(owner.current_context().unwrap(), |document, _| {
+                *document = BlockNode::doc(vec![BlockNode::paragraph("long prefix foo foo")]);
+                Ok::<_, ()>(())
+            }).unwrap();
+            let (target, action_id) = if replace_all {
+                (RichDispatch::ReplaceAll, "replace-all")
+            } else {
+                (RichDispatch::ReplaceOne, "replace-one")
+            };
+            RichEditorWidget::run_rich_dispatch(&mut state, &target, action_id, None, &context);
+            let expected = if replace_all { "long prefix X X" } else { "long prefix X foo" };
+            assert_eq!(state.block_plain_text(0).as_deref(), Some(expected));
+            assert!(state.edit_document(|doc, history| history.undo(doc)).unwrap().output);
+            assert_eq!(state.block_plain_text(0).as_deref(), Some("long prefix foo foo"));
+            assert!(!state.history_snapshot().unwrap().can_undo());
         }
     }
 
