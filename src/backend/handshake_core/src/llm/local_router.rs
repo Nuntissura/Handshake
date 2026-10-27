@@ -2227,3 +2227,21 @@ mod runtime_control_receipt_tests {
             .is_some_and(|reason| reason.contains("runtime/boot reconciliation")));
     }
 }
+
+#[cfg(feature = "test-utils")]
+impl LocalModelRuntimeLlmClient {
+    /// The same serial held by production swap and runtime control. No replacement lock.
+    pub(crate) async fn lock_genuine_fixture_selection(&self) -> tokio::sync::MutexGuard<'_, ()> {
+        self.model_swap_serial.lock().await
+    }
+
+    pub(crate) fn genuine_fixture_selection_revision(&self) -> Result<u64, String> {
+        self.active_application_selection_revision.lock()
+            .map_err(|_| "actual application selection revision is poisoned")?
+            .ok_or("actual application selection revision is unavailable".into())
+    }
+
+    pub(crate) fn genuine_fixture_runtime_owner(&self) -> Option<crate::process_ledger::ProcessRuntimeOwner> {
+        self.runtime_instance.as_ref().map(|instance| instance.process_runtime_owner())
+    }
+}

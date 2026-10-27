@@ -495,3 +495,43 @@ mod tests {
         );
     }
 }
+
+/// Read-only verification of the real configured loader's scoped, acknowledged ownership row.
+/// The caller must install a fresh issued Read scope; a lease descriptor is compared with the
+/// actual ProcessReclaimRuntime owner, never used to fabricate a lifecycle record.
+#[cfg(feature = "test-utils")]
+pub async fn verify_genuine_fixture_ownership(
+    storage: &crate::storage::surreal::SurrealStorage,
+    scope: &ExactResourceScopeAttribution,
+    model_id: ModelId,
+    artifact_sha256: [u8; 32],
+    binding: RuntimeBinding,
+    expected_owner: &crate::process_ledger::ProcessRuntimeOwner,
+) -> Result<crate::storage::surreal::ProcessOwnershipInspection, String> {
+    use crate::storage::surreal::resource_authority::ResourceAction;
+    let current = crate::storage::surreal::current_record_user_scope()
+        .ok_or("genuine ownership observation requires issued record-user Read")?;
+    if current.capability_id != "fs.read" || current.action != ResourceAction::Read
+        || current.session_id != scope.authenticated_session_id.as_uuid().to_string()
+        || current.workspace_id.as_deref() != Some(scope.workspace_id.as_str())
+    {
+        return Err("genuine ownership observation Read attribution mismatch".into());
+    }
+    let exact = crate::process_ledger::ReclaimResourceScope::from_exact(scope).map_err(|error| error.to_string())?;
+    let row = crate::storage::surreal::SurrealProcessLedgerStore::new(storage.clone())
+        .inspect_ownership_by_process_uuid(&exact, model_id.as_uuid()).await
+        .map_err(|error| error.to_string())?.ok_or("actual loaded model has no visible canonical ownership row")?;
+    let engine = match binding {
+        RuntimeBinding::Candle => ProcessEngineKind::Candle,
+        RuntimeBinding::LlamaCpp => ProcessEngineKind::LlamaCpp,
+        RuntimeBinding::GenieX => ProcessEngineKind::GenieX,
+    };
+    if row.process_uuid != model_id.as_uuid() || row.resource_scope != exact
+        || row.runtime_owner.as_ref() != Some(expected_owner)
+        || row.model_artifact_sha256.as_deref() != Some(hex::encode(artifact_sha256).as_str())
+        || row.engine_kind != engine || row.os_pid.is_some() || row.stopped_at.is_some()
+    {
+        return Err("actual model ownership row disagrees with loaded runtime/artifact/lease".into());
+    }
+    Ok(row)
+}

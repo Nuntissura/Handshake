@@ -213,12 +213,26 @@ async fn run_activated_http_recovery_case(
     if *cancelled.borrow() {
         return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "activated recovery consumer cancelled; settlement requires its owner").into());
     }
+    let store = ModelLaneStore::new_scoped_with_lifecycle(
+        storage.clone(), scope.resource_scope(), storage.resource_access_lifecycle(),
+    );
+    let checkpoint_producer = AuthenticatedModelLaneTestOperation::authorize(storage.clone(), AuthorizationRequest {
+        session_token: session_token.to_owned(), channel_binding_hash: Some(channel_hash.clone()),
+        capability_id: "fs.write".to_owned(), resource_kind: ResourceKind::Workspace,
+        external_resource_id: workspace_id.clone(), action: ResourceAction::Create,
+    }, exact.clone()).await?;
+    let checkpoint_head = checkpoint_producer.run_with_configured_registry(
+        state.capability_registry.clone(), store.test_recovery_run_high_watermark(&launched.run_id),
+    ).await?;
+    if checkpoint_head < message.event_ledger_seq {
+        return Err(std::io::Error::other("canonical run head precedes actual checkpoint message").into());
+    }
     let checkpoint = NewModelLaneRecoveryCheckpoint {
         checkpoint_id: checkpoint_id.to_owned(), run_id: replay.run.run_id.clone(),
         lane_id: Some(lane.lane_id.clone()), session_id: lane.session_id.clone(),
         model_session_id: lane.model_session_id.clone(), lane_status: lane.status.clone(),
         checkpoint_status: ModelLaneRecoveryStatus::Checkpointed,
-        last_event_ledger_seq: message.event_ledger_seq,
+        last_event_ledger_seq: checkpoint_head,
         last_message_id: Some(message.message_id.clone()),
         open_payload_refs: vec![message.payload_ref.clone()], lease_id: None,
         idempotency_scope: format!("recovery:{}", replay.run.run_id),
@@ -238,19 +252,22 @@ async fn run_activated_http_recovery_case(
         capability_id: "fs.write".to_owned(), resource_kind: ResourceKind::Workspace,
         external_resource_id: workspace_id, action: ResourceAction::Create,
     }, exact.clone()).await?;
-    let store = ModelLaneStore::new_scoped_with_lifecycle(
-        storage.clone(), scope.resource_scope(), storage.resource_access_lifecycle(),
-    );
     if *cancelled.borrow() {
         return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "activated recovery consumer cancelled; settlement requires its owner").into());
     }
-    let recorded = create.run(store.record_recovery_checkpoint(checkpoint)).await?;
+    let recorded = create.run_with_configured_registry(
+        state.capability_registry.clone(), store.record_recovery_checkpoint(checkpoint),
+    ).await?;
     if *cancelled.borrow() {
         return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "activated recovery consumer cancelled; settlement requires its owner").into());
     }
     let recovered = execute_http_authenticated_recovery(
         storage, exact, &session_token, &channel_hash, &launched.run_id,
     ).await?;
+    if !recovered.replay.messages.iter().any(|source| source.message_id == message.message_id
+        && source.payload_ref == message.payload_ref && source.payload_sha256 == message.payload_sha256) {
+        return Err(std::io::Error::other("actual launched checkpoint message missing from recovered replay").into());
+    }
     if recovered.checkpoint != recorded {
         return Err(std::io::Error::other("recovery differs from recorded checkpoint").into());
     }
@@ -480,6 +497,7 @@ struct Harness {
     session_token: String,
     channel_hash: String,
     document_id: String,
+    capabilities: std::sync::Arc<CapabilityRegistry>,
     store: ModelLaneStore,
 }
 
@@ -493,7 +511,8 @@ impl Harness {
         let verifier_password = password.clone();
         let verifier = tokio::task::spawn_blocking(move || password_verifier(&verifier_password))
             .await.expect("password worker").expect("production password verifier");
-        let capabilities = CapabilityRegistry::new().profile_by_id("Operator")
+        let registry = std::sync::Arc::new(CapabilityRegistry::new());
+        let capabilities = registry.profile_by_id("Operator")
             .expect("production Operator profile").allowed.clone();
         let account_name = format!("recovery-{label}");
         let identity = storage.setup_local_owner(&account_name, verifier, capabilities)
@@ -533,7 +552,7 @@ impl Harness {
                 external_resource_id: workspace.id.clone(), action: ResourceAction::Create,
             }, exact,
         ).await.expect("authorize original workspace Create");
-        let document = workspace_create.run(async {
+        let document = workspace_create.run_with_configured_registry(registry.clone(), async {
             Ok(SurrealDatabase::new(storage.clone()).create_knowledge_rich_document(
                 NewKnowledgeRichDocument {
                     workspace_id: workspace.id.clone(), document_id: None,
@@ -547,7 +566,7 @@ impl Harness {
             ).await.expect("canonical rich document and creator grant"))
         }).await.expect("create document under original authority");
         Self { isolated, storage, scope, lifecycle, session_token: session.token,
-            channel_hash, document_id: document.rich_document_id, store }
+            channel_hash, document_id: document.rich_document_id, capabilities: registry, store }
     }
 
     async fn operation(&self, capability: &str, kind: ResourceKind, external: &str,
@@ -564,21 +583,21 @@ impl Harness {
         -> ModelLaneResult<T> {
         self.operation("fs.write", ResourceKind::Workspace,
             self.scope.workspace.as_ref().expect("workspace").as_str(), ResourceAction::Create)
-            .await?.run(future).await
+            .await?.run_with_configured_registry(self.capabilities.clone(), future).await
     }
 
     async fn read<T>(&self, future: impl std::future::Future<Output = ModelLaneResult<T>>)
         -> ModelLaneResult<T> {
         self.operation("fs.read", ResourceKind::Workspace,
             self.scope.workspace.as_ref().expect("workspace").as_str(), ResourceAction::Read)
-            .await?.run(future).await
+            .await?.run_with_configured_registry(self.capabilities.clone(), future).await
     }
 
     async fn recover<T>(&self, future: impl std::future::Future<Output = ModelLaneResult<T>>)
         -> ModelLaneResult<T> {
         self.operation("model_lane.recovery.execute", ResourceKind::Workspace,
             self.scope.workspace.as_ref().expect("workspace").as_str(), ResourceAction::Update)
-            .await?.run(future).await
+            .await?.run_with_configured_registry(self.capabilities.clone(), future).await
     }
 
     async fn posture(&self, label: &str) -> SurrealAdmissibleCrdtPosture {
@@ -619,6 +638,8 @@ async fn recovery_denies_each_scope_mismatch_stale_revoked_and_incomplete_contex
         .test_scoped_authority_receipts(&posture.run_id, 64))
         .await
         .expect("baseline receipts");
+    assert!(harness.read(owner.recover_restartable_runs_at_boot()).await.is_err(),
+        "Workspace Read cannot become boot recovery execution or successful empty discovery");
 
     for foreign_scope in one_field_mismatches(&scope) {
         let foreign_lifecycle = active_lifecycle(&foreign_scope);
@@ -631,11 +652,10 @@ async fn recovery_denies_each_scope_mismatch_stale_revoked_and_incomplete_contex
             .recover_run_after_restart(&posture.run_id))
             .await
             .is_err());
-        assert!(harness.read(foreign
+        assert!(harness.recover(foreign
             .recover_restartable_runs_at_boot())
             .await
-            .expect("foreign boot scan is non-leaking")
-            .is_empty());
+            .is_err());
         assert!(harness.read(foreign
             .test_scoped_authority_receipts(&posture.run_id, 64))
             .await

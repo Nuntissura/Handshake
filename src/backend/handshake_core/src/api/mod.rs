@@ -203,7 +203,7 @@ pub fn routes(state: AppState) -> Router {
         model_runtime_registry::ModelRuntimeRegistryApiState::new(
             state.surreal.clone(),
             state.llm_client.clone(),
-        ),
+        ).with_account_bootstrap(crate::AccountBootstrapState::from(&state)),
     );
     let engine_profile_routes = model_runtime_registry::engine_profile_routes(state.clone());
     let workspace_routes = workspaces::routes(state.clone());

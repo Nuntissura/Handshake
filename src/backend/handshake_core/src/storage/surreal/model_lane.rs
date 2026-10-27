@@ -15,8 +15,10 @@ DEFINE FIELD IF NOT EXISTS schema_version ON model_lane_schema_state TYPE string
 DEFINE FIELD IF NOT EXISTS schema_revision ON model_lane_schema_state TYPE int;\
 DEFINE FIELD IF NOT EXISTS apply_state ON model_lane_schema_state TYPE string;";
 const SCHEMA_STATE_ID: &str = "model_lane_schema_state:primary";
-const SCHEMA_VERSION: &str = "mt003-model-lane-authority-v10";
-const SCHEMA_REVISION: i64 = 10;
+const SCHEMA_VERSION: &str = "mt003-model-lane-authority-v11";
+const SCHEMA_REVISION: i64 = 11;
+const RECOVERY_PREVIOUS_SCHEMA_VERSION: &str = "mt003-model-lane-authority-v10";
+const RECOVERY_PREVIOUS_SCHEMA_REVISION: i64 = 10;
 const ROUTING_PREVIOUS_SCHEMA_VERSION: &str = "mt003-model-lane-authority-v9";
 const ROUTING_PREVIOUS_SCHEMA_REVISION: i64 = 9;
 const RUN_MEMORY_PREVIOUS_SCHEMA_VERSION: &str = "mt003-model-lane-authority-v8";
@@ -238,6 +240,371 @@ IF $corruption = 'projection_event_sequence' {
 };
 COMMIT TRANSACTION;
 "#;
+#[cfg(feature = "surreal-test-support")]
+const RECOVERY_AUTHORITY_TEST_CORRUPTION_QUERY: &str = r#"
+BEGIN TRANSACTION;
+LET $rows = SELECT * FROM type::record('model_lane_authority', $record_id)
+    WHERE record_kind = $record_kind AND aggregate_id = $aggregate_id AND run_id = $run_id
+      AND record_json = $expected_record_json AND event_id = $event_id
+      AND event_seq = $expected_event_seq AND event_stream_version = $expected_event_stream_version
+      AND transaction_seq = $expected_transaction_seq
+      AND event_ledger_event_id = type::record('kernel_event_ledger', $event_id)
+      AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id
+      AND authenticated_session_id = $authenticated_session_id
+      AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 2;
+IF array::len($rows) != 1 { THROW 'recovery corruption target changed or is unavailable in exact scope'; };
+LET $events = SELECT * FROM kernel_event_ledger
+    WHERE id = $rows[0].event_ledger_event_id AND event_id = $event_id
+      AND source_component = 'model_lane' AND aggregate_type = $record_kind
+      AND aggregate_id = $aggregate_id AND kernel_task_run_id = $run_id
+      AND payload.record_kind = $record_kind AND payload.run_id = $run_id
+      AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id
+      AND authenticated_session_id = $authenticated_session_id
+      AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 2;
+IF array::len($events) != 1 { THROW 'recovery corruption requires one actual exact-scope canonical receipt'; };
+LET $row = $rows[0];
+LET $event = $events[0];
+LET $record = encoding::json::decode($row.record_json);
+LET $payload = encoding::json::decode($event.payload.event_payload_json);
+IF $record.run_id != $run_id OR $payload.record.run_id != $run_id
+    OR $event.event_version != 'kernel_event_v1' OR $event.actor_kind != 'principal'
+    OR $event.idempotency_key != $event_id
+    OR record::id($event.authority_session_id) != $authenticated_session_id
+    OR array::len($event.wsids) != 1 OR $event.wsids[0] != $workspace_id
+    OR ($record_kind = 'recovery_checkpoint' AND $event.event_type != 'MODEL_LANE_RECOVERY_CHECKPOINT_RECORDED')
+    OR ($record_kind = 'recovery_event' AND $event.event_type NOT IN ['MODEL_LANE_AUTHORITY_RECORDED', 'MODEL_LANE_RECOVERY_EVENT_RECORDED'])
+    OR $event.actor_id != $actor_principal_id
+    OR $event.payload_hash != crypto::sha256($event.payload.event_payload_json)
+    OR $event.payload.event_stream_version != $row.event_stream_version
+    OR $event.event_sequence != $row.transaction_seq
+    OR $event.session_run_id != $record.event_ledger_stream_id
+    OR $payload.record.event_ledger_stream_id != $record.event_ledger_stream_id
+    OR $payload.owner_account_id != $owner_account_id
+    OR $payload.actor_principal_id != $actor_principal_id
+    OR $payload.authenticated_session_id != $authenticated_session_id
+    OR $payload.access_space_id != $access_space_id OR $payload.workspace_id != $workspace_id {
+    THROW 'recovery corruption canonical receipt precondition is invalid';
+};
+IF $corruption != 'recovery_checkpoint_receipt_identity' AND $event.event_sequence != $row.event_seq {
+    THROW 'recovery corruption requires an admitted unchanged projection';
+};
+IF $corruption = 'recovery_replay_order_gap' {
+    IF $record_kind != 'recovery_event' OR $record.recovery_event_id != $aggregate_id
+        OR $payload.schema_id != 'hsk.model_lane_recovery_event@2'
+        OR $payload.record.recovery_event_id != $aggregate_id
+        OR $record.replay_order_seq != 2 OR $payload.record.replay_order_seq != 2 {
+        THROW 'recovery gap requires the actual second admitted recovery event';
+    };
+    LET $record_json = encoding::json::encode(object::extend($record, { replay_order_seq: 3 }));
+    LET $payload_json = encoding::json::encode(object::extend($payload, {
+        record: object::extend($payload.record, { replay_order_seq: 3 })
+    }));
+    LET $changed_row = UPDATE $row.id SET record_json = $record_json RETURN AFTER;
+    LET $changed_event = UPDATE $event.id SET
+        payload = object::extend($event.payload, { event_payload_json: $payload_json }),
+        payload_hash = crypto::sha256($payload_json) RETURN AFTER;
+    IF array::len($changed_row) != 1 OR array::len($changed_event) != 1 {
+        THROW 'recovery gap did not change exactly one projection and receipt';
+    };
+} ELSE IF $corruption = 'recovery_checkpoint_projection_drift' {
+    IF $record_kind != 'recovery_checkpoint' OR $record.checkpoint_id != $aggregate_id
+        OR $payload.schema_id != 'hsk.model_lane_recovery_checkpoint@1'
+        OR $payload.record.checkpoint_id != $aggregate_id {
+        THROW 'checkpoint drift requires the actual admitted checkpoint';
+    };
+    LET $changed = UPDATE $row.id SET
+        record_json = encoding::json::encode(object::extend($record, {
+            checkpoint_id: 'checkpoint-row-drift-mutated'
+        })), event_seq = 999999 RETURN AFTER;
+    IF array::len($changed) != 1 { THROW 'checkpoint drift did not change exactly one projection'; };
+} ELSE IF $corruption = 'recovery_checkpoint_receipt_identity' {
+    IF $record_kind != 'recovery_checkpoint'
+        OR $record.checkpoint_id != 'checkpoint-row-drift-mutated' OR $row.event_seq != 999999
+        OR $payload.schema_id != 'hsk.model_lane_recovery_checkpoint@1'
+        OR $payload.record.checkpoint_id != $aggregate_id {
+        THROW 'checkpoint receipt corruption requires the prior exact projection-only drift';
+    };
+    LET $payload_json = encoding::json::encode(object::extend($payload, {
+        record: object::extend($payload.record, { checkpoint_id: 'checkpoint-row-drift-mutated-ledger' })
+    }));
+    LET $changed = UPDATE $event.id SET
+        payload = object::extend($event.payload, { event_payload_json: $payload_json }) RETURN AFTER;
+    IF array::len($changed) != 1 { THROW 'checkpoint identity corruption did not change exactly one receipt'; };
+} ELSE IF $corruption = 'recovery_checkpoint_stream' {
+    IF $record_kind != 'recovery_checkpoint' OR $record.checkpoint_id != $aggregate_id
+        OR $payload.schema_id != 'hsk.model_lane_recovery_checkpoint@1'
+        OR $payload.record.checkpoint_id != $aggregate_id {
+        THROW 'checkpoint stream corruption requires the actual admitted checkpoint';
+    };
+    LET $foreign_stream = string::concat('mlane-stream-foreign-', $run_id);
+    LET $payload_json = encoding::json::encode(object::extend($payload, {
+        record: object::extend($payload.record, { event_ledger_stream_id: $foreign_stream })
+    }));
+    LET $changed = UPDATE $event.id SET session_run_id = $foreign_stream,
+        payload = object::extend($event.payload, { event_payload_json: $payload_json }),
+        payload_hash = crypto::sha256($payload_json) RETURN AFTER;
+    IF array::len($changed) != 1 { THROW 'checkpoint stream corruption did not change exactly one receipt'; };
+} ELSE {
+    THROW 'unsupported finite recovery corruption';
+};
+COMMIT TRANSACTION;
+"#;
+
+#[cfg(all(feature = "surreal-test-support", feature = "test-utils"))]
+#[derive(Clone, Copy)]
+enum RecoveryDiscoveryReadProofQuery { Star, AliasExpressionWrap, RawPointers, VirtualIds }
+
+#[cfg(all(feature = "surreal-test-support", feature = "test-utils"))]
+impl RecoveryDiscoveryReadProofQuery {
+    fn name(self) -> &'static str { match self { Self::Star => "star_denied", Self::AliasExpressionWrap => "alias_expression_wrap_denied", Self::RawPointers => "pointers_denied", Self::VirtualIds => "virtual_ids_denied" } }
+    fn statement(self) -> &'static str { match self {
+        Self::Star => r####"BEGIN TRANSACTION;
+LET $discovery_scope = { owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
+IF $wp012_original_purpose != 'recovery_execute' OR $wp012_original_subject_kind != 'workspace'
+    OR $wp012_original_subject_id != $workspace_id OR $wp012_original_action != 'update'
+    OR $wp012_original_capability != 'model_lane.recovery.execute'
+    OR !fn::wp012_model_lane_original_operation($discovery_scope) { THROW 'model-lane recovery discovery proof denied'; } ELSE {
+    LET $wp012_recovery_discovery_only = true;
+    LET $control_a = SELECT record_kind, run_id, event_id FROM model_lane_authority WHERE record_kind = 'run' AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;
+    LET $control_b = SELECT aggregate_type, aggregate_id, event_id FROM kernel_event_ledger WHERE source_component = 'model_lane' AND aggregate_type = 'run' AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;
+    LET $observed_a = SELECT * FROM model_lane_authority WHERE record_kind = 'run' AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;
+    LET $observed_b = SELECT * FROM kernel_event_ledger WHERE source_component = 'model_lane' AND aggregate_type = 'run' AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;
+    IF array::len(array::filter($control_a, |$row| $row.record_kind != 'run' OR !type::is_string($row.run_id) OR string::trim($row.run_id) = '' OR !type::is_string($row.event_id) OR string::trim($row.event_id) = '')) != 0
+        OR array::len(array::filter($control_b, |$row| $row.aggregate_type != 'run' OR !type::is_string($row.aggregate_id) OR string::trim($row.aggregate_id) = '' OR !type::is_string($row.event_id) OR string::trim($row.event_id) = '')) != 0 { THROW 'model-lane recovery discovery proof scalar control unavailable'; };
+    IF array::len($control_a) = 0 OR array::len($control_b) = 0
+        OR array::len($observed_a) != array::len($control_a) OR array::len($observed_b) != array::len($control_b)
+        OR !fn::wp012_model_lane_original_operation($discovery_scope) { THROW 'model-lane recovery discovery proof is vacuous or unavailable'; };
+    LET $proof = { projection_control_count: array::len($control_a), receipt_control_count: array::len($control_b),
+        fields_denied: array::len(array::filter($observed_a, |$row| array::len(array::filter(object::keys($row), |$key| $key NOT IN ['id', 'record_kind', 'aggregate_id', 'run_id', 'event_id', 'event_seq', 'event_stream_version', 'transaction_seq', 'owner_account_id', 'actor_principal_id', 'authenticated_session_id', 'access_space_id', 'workspace_id'])) != 0)) = 0
+            AND array::len(array::filter($observed_b, |$row| array::len(array::filter(object::keys($row), |$key| $key NOT IN ['id', 'event_id', 'event_version', 'aggregate_type', 'aggregate_id', 'kernel_task_run_id', 'event_type', 'source_component', 'causation_id', 'event_sequence', 'actor_kind', 'actor_id', 'wsids', 'owner_account_id', 'actor_principal_id', 'authenticated_session_id', 'access_space_id', 'workspace_id'])) != 0)) = 0 };
+    LET $wp012_recovery_discovery_only = false;
+    RETURN $proof;
+};
+COMMIT TRANSACTION;
+"####,
+        Self::AliasExpressionWrap => r####"BEGIN TRANSACTION;
+LET $discovery_scope = { owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
+IF $wp012_original_purpose != 'recovery_execute' OR $wp012_original_subject_kind != 'workspace'
+    OR $wp012_original_subject_id != $workspace_id OR $wp012_original_action != 'update'
+    OR $wp012_original_capability != 'model_lane.recovery.execute'
+    OR !fn::wp012_model_lane_original_operation($discovery_scope) { THROW 'model-lane recovery discovery proof denied'; } ELSE {
+    LET $wp012_recovery_discovery_only = true;
+    LET $control_a = SELECT record_kind, run_id, event_id FROM model_lane_authority WHERE record_kind = 'run' AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;
+    LET $control_b = SELECT aggregate_type, aggregate_id, event_id FROM kernel_event_ledger WHERE source_component = 'model_lane' AND aggregate_type = 'run' AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;
+    LET $observed_a = SELECT record_json AS aliased_body, IF record_json = NONE { NONE } ELSE { 'body-observed' } AS expression_body, { nested: record_json } AS wrapped_body, search_terms AS aliased_search, navigation_source_input AS aliased_navigation FROM model_lane_authority WHERE record_kind = 'run' AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;
+    LET $observed_b = SELECT payload AS aliased_body, payload_hash AS aliased_hash, IF payload_hash = NONE { NONE } ELSE { 'hash-observed' } AS expression_hash, { nested: payload } AS wrapped_body, idempotency_key AS aliased_idempotency, navigation_semantic_input AS aliased_navigation FROM kernel_event_ledger WHERE source_component = 'model_lane' AND aggregate_type = 'run' AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;
+    IF array::len(array::filter($control_a, |$row| $row.record_kind != 'run' OR !type::is_string($row.run_id) OR string::trim($row.run_id) = '' OR !type::is_string($row.event_id) OR string::trim($row.event_id) = '')) != 0
+        OR array::len(array::filter($control_b, |$row| $row.aggregate_type != 'run' OR !type::is_string($row.aggregate_id) OR string::trim($row.aggregate_id) = '' OR !type::is_string($row.event_id) OR string::trim($row.event_id) = '')) != 0 { THROW 'model-lane recovery discovery proof scalar control unavailable'; };
+    IF array::len($control_a) = 0 OR array::len($control_b) = 0
+        OR array::len($observed_a) != array::len($control_a) OR array::len($observed_b) != array::len($control_b)
+        OR !fn::wp012_model_lane_original_operation($discovery_scope) { THROW 'model-lane recovery discovery proof is vacuous or unavailable'; };
+    LET $proof = { projection_control_count: array::len($control_a), receipt_control_count: array::len($control_b),
+        fields_denied: array::len(array::filter($observed_a, |$row| $row.aliased_body != NONE OR $row.expression_body != NONE OR $row.wrapped_body.nested != NONE OR $row.aliased_search != NONE OR $row.aliased_navigation != NONE)) = 0
+            AND array::len(array::filter($observed_b, |$row| $row.aliased_body != NONE OR $row.aliased_hash != NONE OR $row.expression_hash != NONE OR $row.wrapped_body.nested != NONE OR $row.aliased_idempotency != NONE OR $row.aliased_navigation != NONE)) = 0 };
+    LET $wp012_recovery_discovery_only = false;
+    RETURN $proof;
+};
+COMMIT TRANSACTION;
+"####,
+        Self::RawPointers => r####"BEGIN TRANSACTION;
+LET $discovery_scope = { owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
+IF $wp012_original_purpose != 'recovery_execute' OR $wp012_original_subject_kind != 'workspace'
+    OR $wp012_original_subject_id != $workspace_id OR $wp012_original_action != 'update'
+    OR $wp012_original_capability != 'model_lane.recovery.execute'
+    OR !fn::wp012_model_lane_original_operation($discovery_scope) { THROW 'model-lane recovery discovery proof denied'; } ELSE {
+    LET $wp012_recovery_discovery_only = true;
+    LET $control_a = SELECT record_kind, run_id, event_id FROM model_lane_authority WHERE record_kind = 'run' AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;
+    LET $control_b = SELECT aggregate_type, aggregate_id, event_id FROM kernel_event_ledger WHERE source_component = 'model_lane' AND aggregate_type = 'run' AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;
+    LET $observed_a = SELECT event_ledger_event_id AS raw_pointer, IF event_ledger_event_id = NONE { NONE } ELSE { record::id(event_ledger_event_id) } AS computed_pointer, event_ledger_event_id.payload AS dereferenced_body FROM model_lane_authority WHERE record_kind = 'run' AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;
+    LET $observed_b = SELECT authority_session_id AS raw_pointer, IF authority_session_id = NONE { NONE } ELSE { record::id(authority_session_id) } AS computed_pointer, authority_session_id.token_hash AS dereferenced_secret, authority_resource_id AS resource_pointer, authority_grant_id AS grant_pointer, authority_parent_resource_id AS parent_pointer FROM kernel_event_ledger WHERE source_component = 'model_lane' AND aggregate_type = 'run' AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;
+    IF array::len(array::filter($control_a, |$row| $row.record_kind != 'run' OR !type::is_string($row.run_id) OR string::trim($row.run_id) = '' OR !type::is_string($row.event_id) OR string::trim($row.event_id) = '')) != 0
+        OR array::len(array::filter($control_b, |$row| $row.aggregate_type != 'run' OR !type::is_string($row.aggregate_id) OR string::trim($row.aggregate_id) = '' OR !type::is_string($row.event_id) OR string::trim($row.event_id) = '')) != 0 { THROW 'model-lane recovery discovery proof scalar control unavailable'; };
+    IF array::len($control_a) = 0 OR array::len($control_b) = 0
+        OR array::len($observed_a) != array::len($control_a) OR array::len($observed_b) != array::len($control_b)
+        OR !fn::wp012_model_lane_original_operation($discovery_scope) { THROW 'model-lane recovery discovery proof is vacuous or unavailable'; };
+    LET $proof = { projection_control_count: array::len($control_a), receipt_control_count: array::len($control_b),
+        fields_denied: array::len(array::filter($observed_a, |$row| $row.raw_pointer != NONE OR $row.computed_pointer != NONE OR $row.dereferenced_body != NONE)) = 0
+            AND array::len(array::filter($observed_b, |$row| $row.raw_pointer != NONE OR $row.computed_pointer != NONE OR $row.dereferenced_secret != NONE OR $row.resource_pointer != NONE OR $row.grant_pointer != NONE OR $row.parent_pointer != NONE)) = 0 };
+    LET $wp012_recovery_discovery_only = false;
+    RETURN $proof;
+};
+COMMIT TRANSACTION;
+"####,
+        Self::VirtualIds => r####"BEGIN TRANSACTION;
+LET $discovery_scope = { owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
+IF $wp012_original_purpose != 'recovery_execute' OR $wp012_original_subject_kind != 'workspace'
+    OR $wp012_original_subject_id != $workspace_id OR $wp012_original_action != 'update'
+    OR $wp012_original_capability != 'model_lane.recovery.execute'
+    OR !fn::wp012_model_lane_original_operation($discovery_scope) { THROW 'model-lane recovery discovery proof denied'; } ELSE {
+    LET $wp012_recovery_discovery_only = true;
+    LET $control_a = SELECT record_kind, run_id, event_id FROM model_lane_authority WHERE record_kind = 'run' AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;
+    LET $control_b = SELECT aggregate_type, aggregate_id, event_id FROM kernel_event_ledger WHERE source_component = 'model_lane' AND aggregate_type = 'run' AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;
+    LET $observed_a = SELECT id.record_json AS local_id_body, id.event_ledger_event_id.payload AS local_id_receipt_body, type::record('model_lane_authority', record::id(id)).record_json AS constructed_id_body FROM model_lane_authority WHERE record_kind = 'run' AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;
+    LET $observed_b = SELECT id.payload AS local_id_body, id.payload_hash AS local_id_hash, id.authority_session_id.token_hash AS local_id_session_secret, type::record('kernel_event_ledger', record::id(id)).payload AS constructed_id_body FROM kernel_event_ledger WHERE source_component = 'model_lane' AND aggregate_type = 'run' AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;
+    IF array::len(array::filter($control_a, |$row| $row.record_kind != 'run' OR !type::is_string($row.run_id) OR string::trim($row.run_id) = '' OR !type::is_string($row.event_id) OR string::trim($row.event_id) = '')) != 0
+        OR array::len(array::filter($control_b, |$row| $row.aggregate_type != 'run' OR !type::is_string($row.aggregate_id) OR string::trim($row.aggregate_id) = '' OR !type::is_string($row.event_id) OR string::trim($row.event_id) = '')) != 0 { THROW 'model-lane recovery discovery proof scalar control unavailable'; };
+    IF array::len($control_a) = 0 OR array::len($control_b) = 0
+        OR array::len($observed_a) != array::len($control_a) OR array::len($observed_b) != array::len($control_b)
+        OR !fn::wp012_model_lane_original_operation($discovery_scope) { THROW 'model-lane recovery discovery proof is vacuous or unavailable'; };
+    LET $proof = { projection_control_count: array::len($control_a), receipt_control_count: array::len($control_b),
+        fields_denied: array::len(array::filter($observed_a, |$row| $row.local_id_body != NONE OR $row.local_id_receipt_body != NONE OR $row.constructed_id_body != NONE)) = 0
+            AND array::len(array::filter($observed_b, |$row| $row.local_id_body != NONE OR $row.local_id_hash != NONE OR $row.local_id_session_secret != NONE OR $row.constructed_id_body != NONE)) = 0 };
+    LET $wp012_recovery_discovery_only = false;
+    RETURN $proof;
+};
+COMMIT TRANSACTION;
+"####,
+    } }
+}
+
+#[cfg(all(feature = "surreal-test-support", feature = "test-utils"))]
+#[derive(SurrealValue)]
+struct RecoveryDiscoveryNativeReadProof {
+    projection_control_count: i64,
+    receipt_control_count: i64,
+    fields_denied: bool,
+}
+
+const RECOVERY_MESSAGE_MEMBERSHIP_QUERY: &str = r####"IF true {
+    LET $head_scope = { run_id: $run_id, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
+    IF $wp012_original_purpose != 'recovery_execute'
+        OR !fn::wp012_model_lane_original_operation($head_scope)
+        OR !fn::wp012_context_coordination_fence($head_scope, 'run', $run_id)
+        OR !fn::wp012_profile_checkpoint_runtime($head_scope) { THROW 'model-lane recovery membership authority denied'; };
+    LET $wp012_recovery_head_only = true;
+    LET $expected = SELECT record::id(id) AS physical_id, event_id, aggregate_id, kernel_task_run_id, session_run_id, event_sequence, event_version, event_type, source_component, aggregate_type, actor_kind, actor_id, wsids FROM kernel_event_ledger WHERE source_component = 'model_lane'
+        AND aggregate_type = 'message' AND kernel_task_run_id = $run_id AND session_run_id = $event_ledger_stream_id
+        AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;
+    LET $wp012_recovery_head_only = false;
+    IF array::len(array::distinct(array::map($expected, |$event| $event.event_id))) != array::len($expected)
+        OR array::len(array::distinct(array::map($expected, |$event| $event.aggregate_id))) != array::len($expected) { THROW 'model-lane recovery membership denied'; };
+    FOR $event IN $expected {
+        IF !type::is_string($event.physical_id) OR !type::is_string($event.event_id)
+            OR string::trim($event.event_id) = '' OR $event.physical_id != $event.event_id
+            OR !type::is_string($event.aggregate_id) OR string::trim($event.aggregate_id) = ''
+            OR $event.kernel_task_run_id != $run_id OR $event.session_run_id != $event_ledger_stream_id
+            OR !type::is_int($event.event_sequence) OR $event.event_sequence < 1 OR $event.event_version != 'kernel_event_v1'
+            OR $event.event_type NOT IN ['MODEL_LANE_AUTHORITY_RECORDED', 'MODEL_LANE_MESSAGE_RECORDED'] OR $event.source_component != 'model_lane' OR $event.aggregate_type != 'message'
+            OR $event.actor_kind != 'principal' OR $event.actor_id != $actor_principal_id OR $event.wsids != [$workspace_id] { THROW 'model-lane recovery membership denied'; };
+    };
+    LET $readable = SELECT record::id(id) AS physical_id, aggregate_id, run_id, event_id, event_seq,
+        event_stream_version, transaction_seq FROM model_lane_authority WHERE record_kind = 'message' AND run_id = $run_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;
+    IF array::len($readable) != array::len($expected)
+        OR array::len(array::distinct(array::map($readable, |$row| $row.event_id))) != array::len($readable)
+        OR array::len(array::distinct(array::map($readable, |$row| $row.aggregate_id))) != array::len($readable) { THROW 'model-lane recovery required message membership denied'; };
+    FOR $event IN $expected {
+        LET $key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'message', $event.aggregate_id,
+            $owner_account_id, $actor_principal_id, $authenticated_session_id, $access_space_id, $workspace_id], '\u0000'));
+        LET $rows = array::filter($readable, |$row| $row.physical_id = $key AND $row.aggregate_id = $event.aggregate_id
+            AND $row.run_id = $run_id AND $row.event_id = $event.event_id AND $row.event_seq = $event.event_sequence
+            AND $row.transaction_seq = $event.event_sequence AND $row.event_stream_version = 1);
+        IF array::len($rows) != 1 { THROW 'model-lane recovery required message membership denied'; };
+    };
+    RETURN true;
+};
+"####;
+
+const RECOVERY_CHECKPOINT_MEMBERSHIP_QUERY: &str = r####"IF true {
+    LET $head_scope = { run_id: $run_id, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
+    IF $wp012_original_purpose != 'recovery_execute'
+        OR !fn::wp012_model_lane_original_operation($head_scope)
+        OR !fn::wp012_context_coordination_fence($head_scope, 'run', $run_id)
+        OR !fn::wp012_profile_checkpoint_runtime($head_scope) { THROW 'model-lane recovery membership authority denied'; };
+    LET $wp012_recovery_head_only = true;
+    LET $expected = SELECT record::id(id) AS physical_id, event_id, aggregate_id, kernel_task_run_id, session_run_id, event_sequence, event_version, event_type, source_component, aggregate_type, actor_kind, actor_id, wsids FROM kernel_event_ledger WHERE source_component = 'model_lane'
+        AND aggregate_type = 'recovery_checkpoint' AND kernel_task_run_id = $run_id AND session_run_id = $event_ledger_stream_id
+        AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;
+    LET $wp012_recovery_head_only = false;
+    IF array::len(array::distinct(array::map($expected, |$event| $event.event_id))) != array::len($expected)
+        OR array::len(array::distinct(array::map($expected, |$event| $event.aggregate_id))) != array::len($expected) { THROW 'model-lane recovery membership denied'; };
+    FOR $event IN $expected {
+        IF !type::is_string($event.physical_id) OR !type::is_string($event.event_id)
+            OR string::trim($event.event_id) = '' OR $event.physical_id != $event.event_id
+            OR !type::is_string($event.aggregate_id) OR string::trim($event.aggregate_id) = ''
+            OR $event.kernel_task_run_id != $run_id OR $event.session_run_id != $event_ledger_stream_id
+            OR !type::is_int($event.event_sequence) OR $event.event_sequence < 1 OR $event.event_version != 'kernel_event_v1'
+            OR $event.event_type NOT IN ['MODEL_LANE_RECOVERY_CHECKPOINT_RECORDED'] OR $event.source_component != 'model_lane' OR $event.aggregate_type != 'recovery_checkpoint'
+            OR $event.actor_kind != 'principal' OR $event.actor_id != $actor_principal_id OR $event.wsids != [$workspace_id] { THROW 'model-lane recovery membership denied'; };
+    };
+    RETURN SELECT physical_id, event_id, aggregate_id, event_sequence FROM $expected;
+};
+"####;
+
+#[derive(SurrealValue)]
+struct RecoveryCheckpointReceiptMembership {
+    physical_id: String,
+    event_id: String,
+    aggregate_id: String,
+    event_sequence: i64,
+}
+
+const RECOVERY_RUN_IDENTITY_DISCOVERY_QUERY: &str = r####"BEGIN TRANSACTION;
+LET $discovery_scope = { owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
+IF $wp012_original_purpose != 'recovery_execute' OR $wp012_original_subject_kind != 'workspace'
+    OR $wp012_original_subject_id != $workspace_id OR $wp012_original_action != 'update'
+    OR $wp012_original_capability != 'model_lane.recovery.execute'
+    OR !fn::wp012_model_lane_original_operation($discovery_scope) { THROW 'model-lane recovery discovery denied'; } ELSE {
+    LET $wp012_recovery_discovery_only = true;
+    LET $projections = SELECT record::id(id) AS physical_id, record_kind, aggregate_id, run_id, event_id, event_seq, event_stream_version, transaction_seq, owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id FROM model_lane_authority WHERE record_kind = 'run' AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id ORDER BY physical_id ASC;
+    LET $receipts = SELECT record::id(id) AS physical_id, event_id, event_version, aggregate_type, aggregate_id, kernel_task_run_id, event_type, source_component, causation_id, event_sequence, actor_kind, actor_id, wsids, owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id FROM kernel_event_ledger WHERE source_component = 'model_lane' AND aggregate_type = 'run' AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id ORDER BY physical_id ASC;
+    IF array::len(array::distinct(array::map($projections, |$row| $row.physical_id))) != array::len($projections)
+        OR array::len(array::distinct(array::map($receipts, |$row| $row.physical_id))) != array::len($receipts)
+        OR array::len(array::distinct(array::map($receipts, |$row| $row.event_id))) != array::len($receipts) {
+        THROW 'model-lane recovery discovery denied';
+    };
+    FOR $row IN $projections {
+        IF !type::is_string($row.physical_id) OR string::trim($row.physical_id) = ''
+            OR !type::is_string($row.run_id) OR string::trim($row.run_id) = '' OR $row.aggregate_id != $row.run_id
+            OR !type::is_string($row.event_id) OR string::trim($row.event_id) = ''
+            OR !type::is_int($row.event_seq) OR !type::is_int($row.event_stream_version) OR !type::is_int($row.transaction_seq)
+            OR $row.event_seq < 1 OR $row.event_stream_version < 1 OR $row.transaction_seq != $row.event_seq {
+            THROW 'model-lane recovery discovery denied';
+        };
+    };
+    FOR $event IN $receipts {
+        IF !type::is_string($event.physical_id) OR $event.physical_id != $event.event_id
+            OR !type::is_string($event.aggregate_id) OR string::trim($event.aggregate_id) = ''
+            OR $event.kernel_task_run_id != $event.aggregate_id OR $event.event_version != 'kernel_event_v1'
+            OR !type::is_int($event.event_sequence) OR $event.event_sequence < 1 OR $event.event_type NOT IN ['MODEL_LANE_AUTHORITY_RECORDED', 'MODEL_LANE_AUTHORITY_REPLACED']
+            OR $event.actor_kind != 'principal' OR $event.actor_id != $actor_principal_id OR $event.wsids != [$workspace_id] {
+            THROW 'model-lane recovery discovery denied';
+        };
+    };
+    LET $candidates = array::distinct(array::concat(array::map($projections, |$row| $row.run_id), array::map($receipts, |$row| $row.aggregate_id)));
+    FOR $candidate IN $candidates {
+        LET $key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'run', $candidate,
+            $owner_account_id, $actor_principal_id, $authenticated_session_id, $access_space_id, $workspace_id], '\u0000'));
+        LET $rows = array::filter($projections, |$row| $row.physical_id = $key AND $row.record_kind = 'run' AND $row.aggregate_id = $candidate AND $row.run_id = $candidate);
+        LET $events = array::filter($receipts, |$event| $event.aggregate_id = $candidate AND $event.kernel_task_run_id = $candidate);
+        LET $all_rows = array::filter($projections, |$row| $row.run_id = $candidate OR $row.aggregate_id = $candidate);
+        IF array::len($rows) != 1 OR array::len($all_rows) != 1 OR array::len($events) = 0 { THROW 'model-lane recovery discovery denied'; };
+        LET $row = $rows[0];
+        LET $roots = array::filter($events, |$event| $event.event_type = 'MODEL_LANE_AUTHORITY_RECORDED');
+        LET $tip = array::filter($events, |$event| $event.event_id = $row.event_id);
+        IF array::len($roots) != 1 OR array::len($tip) != 1
+            OR $row.event_seq != $tip[0].event_sequence OR $row.transaction_seq != $tip[0].event_sequence
+            OR $row.event_stream_version != array::len($events) { THROW 'model-lane recovery discovery denied'; };
+        FOR $event IN $events {
+            LET $children = array::filter($events, |$next| $next.causation_id = $event.event_id);
+            IF array::len($children) > 1 OR ($event.event_id = $row.event_id AND array::len($children) != 0)
+                OR ($event.event_id != $row.event_id AND array::len($children) != 1) { THROW 'model-lane recovery discovery denied'; };
+            IF $event.event_type = 'MODEL_LANE_AUTHORITY_RECORDED' {
+                IF $event.causation_id != NONE { THROW 'model-lane recovery discovery denied'; };
+            } ELSE {
+                IF !type::is_string($event.causation_id) OR string::trim($event.causation_id) = ''
+                    OR $event.causation_id = $event.event_id { THROW 'model-lane recovery discovery denied'; };
+                LET $previous = array::filter($events, |$prior| $prior.event_id = $event.causation_id);
+                IF array::len($previous) != 1 OR $previous[0].event_sequence >= $event.event_sequence { THROW 'model-lane recovery discovery denied'; };
+            };
+        };
+    };
+    IF !fn::wp012_model_lane_original_operation($discovery_scope) { THROW 'model-lane recovery discovery denied'; };
+    LET $wp012_recovery_discovery_only = false;
+    RETURN array::sort($candidates);
+};
+COMMIT TRANSACTION;
+"####;
+
 const RECORD_RECOVERY_CHECKPOINT_QUERY: &str = r#"
 BEGIN TRANSACTION;
     LET $existing = (SELECT aggregate_id, run_id, idempotency_key, record_json, event_id, event_seq, event_stream_version, transaction_seq FROM type::record('model_lane_authority', $record_id) WHERE owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id);
@@ -247,7 +614,11 @@ IF array::len($existing) = 1 {
         IF array::len($existing) != 0 { THROW 'model-lane recovery checkpoint identity is ambiguous'; };
         LET $run = (SELECT VALUE id FROM type::record('model_lane_authority', $run_record_id) WHERE record_kind = 'run' AND aggregate_id = $run_id AND run_id = $run_id AND encoding::json::decode(record_json).event_ledger_stream_id = $event_ledger_stream_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 2);
         LET $lane = IF $has_lane { (SELECT VALUE id FROM type::record('model_lane_authority', $lane_record_id) WHERE record_kind = 'lane' AND aggregate_id = $lane_id AND run_id = $run_id AND encoding::json::decode(record_json).event_ledger_stream_id = $event_ledger_stream_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 2) } ELSE { [true] };
-        LET $head = (SELECT event_sequence AS event_seq FROM kernel_event_ledger WHERE source_component = 'model_lane' AND kernel_task_run_id = $run_id AND session_run_id = $event_ledger_stream_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id ORDER BY event_sequence DESC LIMIT 1);
+        LET $head_scope = { run_id: $run_id, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id };
+        IF !fn::wp012_model_lane_original_operation($head_scope) OR !fn::wp012_context_coordination_fence($head_scope, 'run', $run_id) OR !fn::wp012_profile_checkpoint_runtime($head_scope) { THROW 'model-lane recovery head authority or profile is not current'; };
+        LET $wp012_recovery_head_only = true;
+        LET $head = (SELECT event_sequence AS event_seq FROM kernel_event_ledger WHERE kernel_task_run_id = $run_id AND session_run_id = $event_ledger_stream_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id ORDER BY event_sequence DESC LIMIT 1);
+        LET $wp012_recovery_head_only = false;
         IF array::len($run) != 1 OR array::len($lane) != 1 OR array::len($head) != 1 OR $head[0].event_seq != $expected_last_event_seq { THROW 'model-lane recovery checkpoint authority or high watermark changed'; };
         LET $membership = fn::wp012_cloud_checkpoint_denial_membership($run_id, $event_ledger_stream_id, $expected_last_event_seq, $aggregate_id, $owner_account_id, $actor_principal_id, $authenticated_session_id, $access_space_id, $workspace_id);
         LET $checkpoint_record = object::extend(encoding::json::decode($record_json), { cloud_consent_denial_membership: $membership });
@@ -1531,7 +1902,11 @@ impl ContextCoordinationGuard {
             || (self.purpose == ContextCoordinationPurpose::RecoveryExecute
                 && (self.subject.kind != super::resource_authority::ResourceKind::Workspace
                     || current.action != super::resource_authority::ResourceAction::Update
-                    || current.capability_id != "model_lane.recovery.execute")) {
+                    || current.capability_id != "model_lane.recovery.execute"))
+            || (self.purpose == ContextCoordinationPurpose::RecoveryCheckpointRecord
+                && (self.subject.kind != super::resource_authority::ResourceKind::Workspace
+                    || current.action != super::resource_authority::ResourceAction::Create
+                    || current.capability_id != "fs.write")) {
             return Err(SurrealStorageError::TransactionAuthorityRequired);
         }
         Ok(())
@@ -1810,6 +2185,71 @@ struct CrdtProposalTestCorruptionBindings {
     update_id: String,
     corruption: String,
     tampered_sha256: String,
+    owner_account_id: String,
+    actor_principal_id: String,
+    authenticated_session_id: String,
+    access_space_id: String,
+    workspace_id: String,
+}
+
+#[cfg(feature = "surreal-test-support")]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, SurrealValue)]
+pub(crate) struct SurrealModelLaneRecoveryAuthoritySnapshot {
+    pub record_json: String,
+    pub event_id: String,
+    pub event_seq: i64,
+    pub event_stream_version: i64,
+    pub transaction_seq: i64,
+    pub receipt_event_id: String,
+    pub receipt_event_seq: i64,
+    pub receipt_event_stream_version: i64,
+    pub receipt_session_run_id: String,
+    pub receipt_payload_json: String,
+    pub receipt_payload_hash: String,
+}
+
+#[cfg(feature = "surreal-test-support")]
+#[derive(Clone, Copy)]
+enum RecoveryAuthorityTestCorruption {
+    ReplayOrderGap,
+    CheckpointProjectionDrift,
+    CheckpointReceiptIdentity,
+    CheckpointStream,
+}
+
+#[cfg(feature = "surreal-test-support")]
+impl RecoveryAuthorityTestCorruption {
+    fn parse(selector: &str) -> Option<Self> {
+        match selector {
+            "recovery_replay_order_gap" => Some(Self::ReplayOrderGap),
+            "recovery_checkpoint_projection_drift" => Some(Self::CheckpointProjectionDrift),
+            "recovery_checkpoint_receipt_identity" => Some(Self::CheckpointReceiptIdentity),
+            "recovery_checkpoint_stream" => Some(Self::CheckpointStream),
+            _ => None,
+        }
+    }
+
+    fn kind(self) -> ModelLaneRecordKind {
+        match self {
+            Self::ReplayOrderGap => ModelLaneRecordKind::RecoveryEvent,
+            _ => ModelLaneRecordKind::RecoveryCheckpoint,
+        }
+    }
+}
+
+#[cfg(feature = "surreal-test-support")]
+#[derive(Debug, SurrealValue)]
+struct RecoveryAuthorityTestCorruptionBindings {
+    record_id: String,
+    record_kind: String,
+    aggregate_id: String,
+    run_id: String,
+    event_id: String,
+    expected_record_json: String,
+    expected_event_seq: i64,
+    expected_event_stream_version: i64,
+    expected_transaction_seq: i64,
+    corruption: String,
     owner_account_id: String,
     actor_principal_id: String,
     authenticated_session_id: String,
@@ -2857,6 +3297,43 @@ struct StoredSchemaWrite {
 }
 
 #[derive(Debug, SurrealValue)]
+struct RecoveryCheckpointEnvelope {
+    physical_id: String,
+    record_kind: String,
+    aggregate_id: String,
+    run_id: String,
+    idempotency_key: String,
+    event_id: String,
+    receipt_pointer_table: String,
+    receipt_pointer_id: String,
+    receipt_event_id: Option<String>,
+    receipt_event_seq: Option<i64>,
+    receipt_event_stream_version: Option<i64>,
+    receipt_aggregate_id: Option<String>,
+    receipt_run_id: Option<String>,
+    receipt_session_run_id: Option<String>,
+    receipt_kernel_task_run_id: Option<String>,
+    receipt_payload_hash: Option<String>,
+    receipt_event_payload_json: Option<String>,
+    receipt_event_version: Option<String>,
+    receipt_event_type: Option<String>,
+    receipt_source_component: Option<String>,
+    receipt_record_kind: Option<String>,
+    receipt_aggregate_type: Option<String>,
+    receipt_idempotency_key: Option<String>,
+    receipt_actor_kind: Option<String>,
+    receipt_actor_id: Option<String>,
+    receipt_owner_account_id: Option<String>,
+    receipt_actor_principal_id: Option<String>,
+    receipt_authenticated_session_id: Option<String>,
+    receipt_access_space_id: Option<String>,
+    receipt_workspace_id: Option<String>,
+    receipt_authority_session_id: Option<String>,
+    receipt_workspace_count: Option<i64>,
+    receipt_workspace: Option<String>,
+}
+
+#[derive(Debug, SurrealValue)]
 struct EventLinkBindings {
     event_id: String,
     record_kind: String,
@@ -3242,7 +3719,9 @@ pub(crate) async fn bootstrap_model_lane_schema(
                         false
                     }
                     Some(state)
-                        if ((state.schema_version == ROUTING_PREVIOUS_SCHEMA_VERSION
+                        if ((state.schema_version == RECOVERY_PREVIOUS_SCHEMA_VERSION
+                            && state.schema_revision == RECOVERY_PREVIOUS_SCHEMA_REVISION)
+                            || (state.schema_version == ROUTING_PREVIOUS_SCHEMA_VERSION
                             && state.schema_revision == ROUTING_PREVIOUS_SCHEMA_REVISION)
                             || (state.schema_version == RUN_MEMORY_PREVIOUS_SCHEMA_VERSION
                             && state.schema_revision == RUN_MEMORY_PREVIOUS_SCHEMA_REVISION)
@@ -3608,6 +4087,11 @@ impl SurrealModelLaneStore {
     ) -> Result<(), SurrealStorageError> {
         validate_scope(scope)?;
         validate_identity(aggregate_id, aggregate_id)?;
+        if RecoveryAuthorityTestCorruption::parse(corruption).is_some() {
+            return Err(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "finite recovery corruption requires the isolated store owner",
+            });
+        }
         if !matches!(
             corruption,
             "projection_event_sequence"
@@ -3648,6 +4132,163 @@ impl SurrealModelLaneStore {
                 })
             })
             .await
+    }
+
+    #[cfg(all(feature = "surreal-test-support", feature = "runtime-full"))]
+    fn require_recovery_test_owner(
+        &self,
+        owner: &crate::test_harness::surreal_test_store_support::IsolatedSurrealTestStore,
+    ) -> Result<(), SurrealStorageError> {
+        let config = self.storage.config();
+        if super::current_record_user_scope().is_some()
+            || !self.storage.is_accepting_operations()
+            || config.path() != owner.store_path()
+            || config.namespace() != owner.namespace()
+            || config.database() != owner.database()
+        {
+            return Err(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "finite recovery test access requires its live isolated store owner",
+            });
+        }
+        if !std::sync::Arc::ptr_eq(&self.storage.inner, &owner.storage().inner) {
+            return Err(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "finite recovery test access has a foreign storage owner",
+            });
+        }
+        Ok(())
+    }
+
+    #[cfg(all(feature = "surreal-test-support", feature = "runtime-full"))]
+    pub(crate) async fn test_corrupt_owned_recovery_authority(
+        &self,
+        owner: &crate::test_harness::surreal_test_store_support::IsolatedSurrealTestStore,
+        kind: ModelLaneRecordKind,
+        aggregate_id: &str,
+        selector: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<(), SurrealStorageError> {
+        self.require_recovery_test_owner(owner)?;
+        validate_scope(scope)?;
+        validate_identity(aggregate_id, aggregate_id)?;
+        let mode = RecoveryAuthorityTestCorruption::parse(selector).ok_or(
+            SurrealStorageError::InvalidModelLaneRecord {
+                reason: "finite recovery corruption selector is invalid",
+            },
+        )?;
+        self.test_corrupt_recovery_authority(kind, aggregate_id, selector, mode, scope).await
+    }
+
+    #[cfg(all(feature = "surreal-test-support", feature = "runtime-full"))]
+    pub(crate) async fn test_recovery_authority_snapshot(
+        &self,
+        owner: &crate::test_harness::surreal_test_store_support::IsolatedSurrealTestStore,
+        kind: ModelLaneRecordKind,
+        run_id: &str,
+        aggregate_id: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<SurrealModelLaneRecoveryAuthoritySnapshot, SurrealStorageError> {
+        self.require_recovery_test_owner(owner)?;
+        validate_scope(scope)?;
+        validate_identity(run_id, run_id)?;
+        validate_identity(aggregate_id, aggregate_id)?;
+        if !matches!(kind, ModelLaneRecordKind::RecoveryCheckpoint | ModelLaneRecordKind::RecoveryEvent) {
+            return Err(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "finite recovery observation has the wrong record kind",
+            });
+        }
+        let bindings = scoped_bindings(kind, aggregate_id, run_id, "", scope);
+        let mut rows = self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_values::<SurrealModelLaneRecoveryAuthoritySnapshot, _>(
+                "SELECT record_json, event_id, event_seq, event_stream_version, transaction_seq, \
+                 event_ledger_event_id.event_id AS receipt_event_id, \
+                 event_ledger_event_id.event_sequence AS receipt_event_seq, \
+                 event_ledger_event_id.payload.event_stream_version AS receipt_event_stream_version, \
+                 event_ledger_event_id.session_run_id AS receipt_session_run_id, \
+                 event_ledger_event_id.payload.event_payload_json AS receipt_payload_json, \
+                 event_ledger_event_id.payload_hash AS receipt_payload_hash \
+                 FROM model_lane_authority WHERE record_kind = $record_kind \
+                 AND aggregate_id = $aggregate_id AND run_id = $run_id \
+                 AND id = type::record('model_lane_authority', crypto::sha256(string::join(['handshake.model-lane.authority.v1', $record_kind, $aggregate_id, $owner_account_id, $actor_principal_id, $authenticated_session_id, $access_space_id, $workspace_id], '\\u0000'))) \
+                 AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id \
+                 AND authenticated_session_id = $authenticated_session_id \
+                 AND access_space_id = $access_space_id AND workspace_id = $workspace_id \
+                 AND event_ledger_event_id = type::record('kernel_event_ledger', event_id) \
+                 AND event_ledger_event_id.event_id = event_id \
+                 AND event_ledger_event_id.source_component = 'model_lane' \
+                 AND event_ledger_event_id.aggregate_type = $record_kind \
+                 AND event_ledger_event_id.aggregate_id = $aggregate_id \
+                 AND event_ledger_event_id.kernel_task_run_id = $run_id \
+                 AND event_ledger_event_id.payload.run_id = $run_id \
+                 AND event_ledger_event_id.owner_account_id = $owner_account_id \
+                 AND event_ledger_event_id.actor_principal_id = $actor_principal_id \
+                 AND event_ledger_event_id.authenticated_session_id = $authenticated_session_id \
+                 AND event_ledger_event_id.access_space_id = $access_space_id \
+                 AND event_ledger_event_id.workspace_id = $workspace_id LIMIT 2;",
+                bindings,
+            ).await
+        })).await?;
+        if rows.len() != 1 {
+            return Err(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "finite recovery observation requires one exact projection and linked receipt",
+            });
+        }
+        let snapshot = rows.remove(0);
+        if snapshot.event_id != snapshot.receipt_event_id {
+            return Err(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "finite recovery observation receipt identity differs",
+            });
+        }
+        Ok(snapshot)
+    }
+
+    #[cfg(feature = "surreal-test-support")]
+    async fn test_corrupt_recovery_authority(
+        &self,
+        kind: ModelLaneRecordKind,
+        aggregate_id: &str,
+        selector: &str,
+        mode: RecoveryAuthorityTestCorruption,
+        scope: &ModelLaneScope,
+    ) -> Result<(), SurrealStorageError> {
+        if kind != mode.kind() {
+            return Err(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "finite recovery corruption has the wrong record kind",
+            });
+        }
+        let row = self.get(kind, aggregate_id, scope).await?.ok_or(
+            SurrealStorageError::InvalidModelLaneRecord {
+                reason: "finite recovery corruption target is unavailable in exact scope",
+            },
+        )?;
+        validate_identity(&row.run_id, &row.run_id)?;
+        validate_identity(&row.event_id, &row.event_id)?;
+        let run = self.get(ModelLaneRecordKind::Run, &row.run_id, scope).await?.ok_or(
+            SurrealStorageError::InvalidModelLaneRecord {
+                reason: "finite recovery corruption requires its actual admitted run",
+            },
+        )?;
+        self.validate_event_link(ModelLaneRecordKind::Run, &run, scope).await?;
+        let bindings = RecoveryAuthorityTestCorruptionBindings {
+            record_id: stable_record_id(kind.as_str(), aggregate_id, scope),
+            record_kind: kind.as_str().to_owned(),
+            aggregate_id: aggregate_id.to_owned(),
+            run_id: row.run_id,
+            event_id: row.event_id,
+            expected_record_json: row.record_json,
+            expected_event_seq: row.event_seq,
+            expected_event_stream_version: row.event_stream_version,
+            expected_transaction_seq: row.transaction_seq,
+            corruption: selector.to_owned(),
+            owner_account_id: scope.owner_account_id.clone(),
+            actor_principal_id: scope.actor_principal_id.clone(),
+            authenticated_session_id: scope.authenticated_session_id.clone(),
+            access_space_id: scope.access_space_id.clone(),
+            workspace_id: scope.workspace_id.clone(),
+        };
+        self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_bound(RECOVERY_AUTHORITY_TEST_CORRUPTION_QUERY, bindings)
+                .await.map(|_| ())
+        })).await
     }
 
     #[cfg(feature = "surreal-test-support")]
@@ -4962,6 +5603,8 @@ impl SurrealModelLaneStore {
         if (purpose == ContextCoordinationPurpose::RecoveryExecute
                 && (authority.capability_id != "model_lane.recovery.execute"
                     || subject.external_id != scope.workspace_id))
+            || (purpose == ContextCoordinationPurpose::RecoveryCheckpointRecord
+                && (authority.capability_id != "fs.write" || subject.external_id != scope.workspace_id))
             || !purpose.accepts_original(subject.kind, authority.action)
             || subject.external_id.trim().is_empty()
             || authority.workspace_id.as_deref() != Some(scope.workspace_id.as_str())
@@ -5221,6 +5864,9 @@ impl SurrealModelLaneStore {
         scope: &ModelLaneScope,
     ) -> Result<SurrealModelLaneRecord, SurrealStorageError> {
         validate_scope(scope)?;
+        if self.require_recovery_head_authority()? != ContextCoordinationPurpose::RecoveryCheckpointRecord {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
         if write.kind != ModelLaneRecordKind::RecoveryCheckpoint {
             return Err(SurrealStorageError::InvalidModelLaneRecord {
                 reason: "recovery checkpoint writer requires checkpoint record kind",
@@ -7771,6 +8417,101 @@ COMMIT TRANSACTION;
             ).await
     }
 
+    pub(crate) async fn require_recovery_message_membership(
+        &self,
+        run_id: &str,
+        event_ledger_stream_id: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<(), SurrealStorageError> {
+        validate_scope(scope)?;
+        validate_identity(run_id, run_id)?;
+        validate_identity(event_ledger_stream_id, event_ledger_stream_id)?;
+        if self.require_recovery_head_authority()? != ContextCoordinationPurpose::RecoveryExecute {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let run = self.get(ModelLaneRecordKind::Run, run_id, scope).await?
+            .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        self.validate_event_link(ModelLaneRecordKind::Run, &run, scope).await?;
+        if declared_event_stream(ModelLaneRecordKind::Run, &run.record_json)?.as_deref() != Some(event_ledger_stream_id) {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let bindings = run_event_bindings(run_id, Some(event_ledger_stream_id), 0, scope);
+        let complete = self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_first::<bool, _>(RECOVERY_MESSAGE_MEMBERSHIP_QUERY, bindings).await
+        })).await?;
+        if complete != Some(true) {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "model-lane recovery required message membership denied" });
+        }
+        Ok(())
+    }
+
+    pub(crate) async fn recovery_checkpoints_from_ledger(
+        &self,
+        run_id: &str,
+        event_ledger_stream_id: &str,
+        scope: &ModelLaneScope,
+    ) -> Result<Vec<SurrealModelLaneRecord>, SurrealStorageError> {
+        validate_scope(scope)?;
+        validate_identity(run_id, run_id)?;
+        validate_identity(event_ledger_stream_id, event_ledger_stream_id)?;
+        if !super::PROTECTED_TRANSACTION.try_with(|transaction| {
+            std::sync::Arc::ptr_eq(&transaction.storage.inner, &self.storage.inner)
+        }).unwrap_or(false) || !super::MODEL_LANE_OPERATION_PURPOSE.try_with(|purpose| {
+            purpose.as_str() == ContextCoordinationPurpose::RecoveryExecute.as_str()
+        }).unwrap_or(false) {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        super::MODEL_LANE_CURRENT_GUARDS.try_with(|guards| {
+            let guards = guards.lock().map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+            if guards.is_empty() { return Err(SurrealStorageError::TransactionAuthorityRequired); }
+            for guard in guards.iter() { guard.require_original_envelope()?; }
+            Ok(())
+        }).map_err(|_| SurrealStorageError::TransactionAuthorityRequired)??;
+        let run = self.get(ModelLaneRecordKind::Run, run_id, scope).await?.ok_or(
+            SurrealStorageError::InvalidModelLaneRecord { reason: "checkpoint reconstruction requires its admitted run" },
+        )?;
+        self.validate_event_link(ModelLaneRecordKind::Run, &run, scope).await?;
+        if declared_event_stream(ModelLaneRecordKind::Run, &run.record_json)?.as_deref()
+            != Some(event_ledger_stream_id) {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "checkpoint reconstruction stream differs from its canonical run" });
+        }
+        let receipt_bindings = run_event_bindings(run_id, Some(event_ledger_stream_id), 0, scope);
+        let expected = self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_values::<RecoveryCheckpointReceiptMembership, _>(RECOVERY_CHECKPOINT_MEMBERSHIP_QUERY, receipt_bindings).await
+        })).await?;
+        let bindings = scoped_bindings(ModelLaneRecordKind::RecoveryCheckpoint, "", run_id, "", scope);
+        let envelopes = self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_values::<RecoveryCheckpointEnvelope, _>("SELECT record::id(id) AS physical_id, record_kind, aggregate_id, run_id, idempotency_key, event_id, record::tb(event_ledger_event_id) AS receipt_pointer_table, record::id(event_ledger_event_id) AS receipt_pointer_id, event_ledger_event_id.event_id AS receipt_event_id, event_ledger_event_id.event_sequence AS receipt_event_seq, event_ledger_event_id.payload.event_stream_version AS receipt_event_stream_version, event_ledger_event_id.aggregate_id AS receipt_aggregate_id, event_ledger_event_id.payload.run_id AS receipt_run_id, event_ledger_event_id.session_run_id AS receipt_session_run_id, event_ledger_event_id.kernel_task_run_id AS receipt_kernel_task_run_id, event_ledger_event_id.payload_hash AS receipt_payload_hash, event_ledger_event_id.payload.event_payload_json AS receipt_event_payload_json, event_ledger_event_id.event_version AS receipt_event_version, event_ledger_event_id.event_type AS receipt_event_type, event_ledger_event_id.source_component AS receipt_source_component, event_ledger_event_id.payload.record_kind AS receipt_record_kind, event_ledger_event_id.aggregate_type AS receipt_aggregate_type, event_ledger_event_id.idempotency_key AS receipt_idempotency_key, event_ledger_event_id.actor_kind AS receipt_actor_kind, event_ledger_event_id.actor_id AS receipt_actor_id, event_ledger_event_id.owner_account_id AS receipt_owner_account_id, event_ledger_event_id.actor_principal_id AS receipt_actor_principal_id, event_ledger_event_id.authenticated_session_id AS receipt_authenticated_session_id, event_ledger_event_id.access_space_id AS receipt_access_space_id, event_ledger_event_id.workspace_id AS receipt_workspace_id, record::id(event_ledger_event_id.authority_session_id) AS receipt_authority_session_id, array::len(event_ledger_event_id.wsids) AS receipt_workspace_count, event_ledger_event_id.wsids[0] AS receipt_workspace FROM model_lane_authority WHERE record_kind = $record_kind AND run_id = $run_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id;", bindings).await
+        })).await?;
+        let mut records = Vec::with_capacity(envelopes.len());
+        for envelope in envelopes {
+            records.push(reconstruct_recovery_checkpoint(envelope, run_id, scope)?);
+        }
+        let mut remaining = std::collections::BTreeMap::new();
+        for receipt in expected {
+            if receipt.physical_id != receipt.event_id || remaining.insert(receipt.event_id.clone(), receipt).is_some() {
+                return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "model-lane recovery checkpoint membership denied" });
+            }
+        }
+        for record in &records {
+            // Foreign envelopes still undergo the unchanged reconstruction above.
+            // Only the admitted canonical stream participates in this membership join.
+            if declared_event_stream(ModelLaneRecordKind::RecoveryCheckpoint, &record.record_json)?.as_deref() != Some(event_ledger_stream_id) {
+                continue;
+            }
+            let receipt = remaining.remove(&record.event_id).ok_or(SurrealStorageError::InvalidModelLaneRecord {
+                reason: "model-lane recovery checkpoint membership denied",
+            })?;
+            if receipt.aggregate_id != record.aggregate_id || receipt.event_sequence != record.event_seq {
+                return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "model-lane recovery checkpoint membership denied" });
+            }
+        }
+        if !remaining.is_empty() {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "model-lane recovery checkpoint membership denied" });
+        }
+        Ok(records)
+    }
+
     pub(crate) async fn validate_event_link(
         &self, kind: ModelLaneRecordKind, record: &SurrealModelLaneRecord, scope: &ModelLaneScope,
     ) -> Result<(), SurrealStorageError> {
@@ -7841,6 +8582,106 @@ COMMIT TRANSACTION;
         validate_stored_event_link(kind, record, scope, &rows)
     }
 
+    async fn revalidate_recovery_discovery_authority(&self, scope: &ModelLaneScope) -> Result<(), SurrealStorageError> {
+        validate_scope(scope)?;
+        let original = super::current_record_user_scope().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let subject = super::current_model_lane_subject().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        let registry = super::configured_capability_registry().ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        if super::PROTECTED_TRANSACTION.try_with(|_| ()).is_ok()
+            || !super::MODEL_LANE_OPERATION_PURPOSE.try_with(|purpose| *purpose == ContextCoordinationPurpose::RecoveryExecute).unwrap_or(false)
+            || subject.kind != super::resource_authority::ResourceKind::Workspace || subject.external_id != scope.workspace_id
+            || original.action != super::resource_authority::ResourceAction::Update
+            || original.capability_id != "model_lane.recovery.execute"
+            || original.workspace_id.as_deref() != Some(scope.workspace_id.as_str())
+            || original.session_id != scope.authenticated_session_id {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let decision = self.storage.authorize_protected_resource(super::resource_authority::AuthorizationRequest {
+            session_token: original.session_token.clone(), channel_binding_hash: original.channel_binding_hash.clone(),
+            capability_id: original.capability_id.clone(), resource_kind: subject.kind,
+            external_resource_id: subject.external_id, action: original.action,
+        }).await.map_err(SurrealStorageError::from)?;
+        if original.grant_id.as_deref() != Some(decision.grant_id.as_str())
+            || decision.resource_id != original.resource_id || decision.account_id != scope.owner_account_id
+            || decision.principal_id != scope.actor_principal_id || decision.session_id != scope.authenticated_session_id
+            || decision.access_space_id != scope.access_space_id
+            || !registry.profile_can(&decision.capability_profile_id, "model_lane.recovery.execute")
+                .map_err(|_| SurrealStorageError::TransactionAuthorityRequired)? {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        Ok(())
+    }
+
+    // These IDs are internal candidates, never authorization or recovery results.
+    // Pointer/session reference integrity and all business data stay behind each run fence.
+    pub(crate) async fn discover_recovery_run_identity_candidates(&self, scope: &ModelLaneScope) -> Result<Vec<String>, SurrealStorageError> {
+        self.revalidate_recovery_discovery_authority(scope).await?;
+        let bindings = scoped_bindings(ModelLaneRecordKind::Run, "", "", "", scope);
+        let candidates = self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_values_at::<String, _>(RECOVERY_RUN_IDENTITY_DISCOVERY_QUERY, bindings, 2).await
+        })).await?;
+        self.revalidate_recovery_discovery_authority(scope).await?;
+        if candidates.windows(2).any(|pair| pair[0] >= pair[1]) || candidates.iter().any(|id| id.trim().is_empty()) {
+            return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "model-lane recovery discovery denied" });
+        }
+        Ok(candidates)
+    }
+
+    #[cfg(all(feature = "surreal-test-support", feature = "test-utils"))]
+    pub(crate) async fn recovery_discovery_read_proof_for_test(&self, scope: &ModelLaneScope) -> Result<Value, SurrealStorageError> {
+        let candidates = self.discover_recovery_run_identity_candidates(scope).await?;
+        let mut result = serde_json::Map::new();
+        result.insert("candidate_count".to_owned(), serde_json::json!(candidates.len()));
+        let mut controls = None;
+        for probe in [RecoveryDiscoveryReadProofQuery::Star, RecoveryDiscoveryReadProofQuery::AliasExpressionWrap,
+            RecoveryDiscoveryReadProofQuery::RawPointers, RecoveryDiscoveryReadProofQuery::VirtualIds] {
+            self.revalidate_recovery_discovery_authority(scope).await?;
+            let bindings = scoped_bindings(ModelLaneRecordKind::Run, "", "", "", scope);
+            let rows = self.storage.with_data_operation(|database| Box::pin(async move {
+                database.query_values_at::<RecoveryDiscoveryNativeReadProof, _>(probe.statement(), bindings, 2).await
+            })).await?;
+            self.revalidate_recovery_discovery_authority(scope).await?;
+            if rows.len() != 1 { return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "model-lane recovery discovery proof unavailable" }); }
+            let row = rows.into_iter().next().ok_or(SurrealStorageError::InvalidModelLaneRecord { reason: "model-lane recovery discovery proof unavailable" })?;
+            if row.projection_control_count < 1 || row.receipt_control_count < 1 {
+                return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "model-lane recovery discovery proof is vacuous" });
+            }
+            let current = (row.projection_control_count, row.receipt_control_count);
+            if usize::try_from(current.0).ok() != Some(candidates.len()) {
+                return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "model-lane recovery discovery proof census changed" });
+            }
+            if controls.is_some_and(|previous| previous != current) {
+                return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "model-lane recovery discovery proof controls changed" });
+            }
+            controls = Some(current);
+            result.insert(probe.name().to_owned(), Value::Bool(row.fields_denied));
+        }
+        let (projections, receipts) = controls.ok_or(SurrealStorageError::InvalidModelLaneRecord { reason: "model-lane recovery discovery proof unavailable" })?;
+        result.insert("projection_control_count".to_owned(), serde_json::json!(projections));
+        result.insert("receipt_control_count".to_owned(), serde_json::json!(receipts));
+        Ok(Value::Object(result))
+    }
+
+    fn require_recovery_head_authority(&self) -> Result<ContextCoordinationPurpose, SurrealStorageError> {
+        let purpose = super::MODEL_LANE_OPERATION_PURPOSE.try_with(|purpose| *purpose)
+            .map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+        if !matches!(purpose, ContextCoordinationPurpose::RecoveryCheckpointRecord | ContextCoordinationPurpose::RecoveryExecute)
+            || !super::PROTECTED_TRANSACTION.try_with(|transaction| {
+                std::sync::Arc::ptr_eq(&transaction.storage.inner, &self.storage.inner)
+            }).unwrap_or(false) {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        super::MODEL_LANE_CURRENT_GUARDS.try_with(|guards| {
+            let guards = guards.lock().map_err(|_| SurrealStorageError::TransactionAuthorityRequired)?;
+            if guards.is_empty() || guards.iter().any(|guard| guard.purpose != purpose) {
+                return Err(SurrealStorageError::TransactionAuthorityRequired);
+            }
+            for guard in guards.iter() { guard.require_original_envelope()?; }
+            Ok(())
+        }).map_err(|_| SurrealStorageError::TransactionAuthorityRequired)??;
+        Ok(purpose)
+    }
+
     pub(crate) async fn run_event_high_watermark(
         &self,
         run_id: &str,
@@ -7848,21 +8689,23 @@ COMMIT TRANSACTION;
         scope: &ModelLaneScope,
     ) -> Result<Option<i64>, SurrealStorageError> {
         validate_scope(scope)?;
+        validate_identity(run_id, run_id)?;
+        validate_identity(event_ledger_stream_id, event_ledger_stream_id)?;
+        self.require_recovery_head_authority()?;
+        let run = self.get(ModelLaneRecordKind::Run, run_id, scope).await?
+            .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        self.validate_event_link(ModelLaneRecordKind::Run, &run, scope).await?;
+        if declared_event_stream(ModelLaneRecordKind::Run, &run.record_json)?.as_deref() != Some(event_ledger_stream_id) {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
         let bindings = run_event_bindings(run_id, Some(event_ledger_stream_id), 0, scope);
-        let row = self
-            .storage
-            .with_data_operation(|database| {
-                Box::pin(async move {
-                    database
-                        .query_first::<StoredEventSequence, _>(
-                            "SELECT event_sequence AS event_seq FROM kernel_event_ledger WHERE source_component = 'model_lane' AND kernel_task_run_id = $run_id AND session_run_id = $event_ledger_stream_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id ORDER BY event_sequence DESC LIMIT 1;",
-                            bindings,
-                        )
-                        .await
-                })
-            })
-            .await?;
-        Ok(row.map(|row| row.event_seq))
+        let mut rows = self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_values_at::<StoredEventSequence, _>(
+                "LET $head_scope = { run_id: $run_id, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }; IF !fn::wp012_model_lane_original_operation($head_scope) OR !fn::wp012_context_coordination_fence($head_scope, 'run', $run_id) OR !fn::wp012_profile_checkpoint_runtime($head_scope) { THROW 'model-lane recovery head authority or profile is not current'; }; LET $wp012_recovery_head_only = true; SELECT event_sequence AS event_seq FROM kernel_event_ledger WHERE kernel_task_run_id = $run_id AND session_run_id = $event_ledger_stream_id AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id ORDER BY event_sequence DESC LIMIT 1;", bindings, 3,
+            ).await
+        })).await?;
+        if rows.len() > 1 { return Err(SurrealStorageError::InvalidModelLaneRecord { reason: "recovery stream head is ambiguous" }); }
+        Ok(rows.pop().map(|row| row.event_seq))
     }
 
     pub(crate) async fn run_contains_event_sequence(
@@ -7873,20 +8716,23 @@ COMMIT TRANSACTION;
         scope: &ModelLaneScope,
     ) -> Result<bool, SurrealStorageError> {
         validate_scope(scope)?;
+        validate_identity(run_id, run_id)?;
+        validate_identity(event_ledger_stream_id, event_ledger_stream_id)?;
+        if self.require_recovery_head_authority()? != ContextCoordinationPurpose::RecoveryExecute {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
+        let run = self.get(ModelLaneRecordKind::Run, run_id, scope).await?
+            .ok_or(SurrealStorageError::TransactionAuthorityRequired)?;
+        self.validate_event_link(ModelLaneRecordKind::Run, &run, scope).await?;
+        if declared_event_stream(ModelLaneRecordKind::Run, &run.record_json)?.as_deref() != Some(event_ledger_stream_id) {
+            return Err(SurrealStorageError::TransactionAuthorityRequired);
+        }
         let bindings = run_event_bindings(run_id, Some(event_ledger_stream_id), event_seq, scope);
-        let rows = self
-            .storage
-            .with_data_operation(|database| {
-                Box::pin(async move {
-                    database
-                        .query_values::<StoredEventSequence, _>(
-                            "SELECT event_sequence AS event_seq FROM kernel_event_ledger WHERE source_component = 'model_lane' AND kernel_task_run_id = $run_id AND session_run_id = $event_ledger_stream_id AND event_sequence = $event_seq AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 2;",
-                            bindings,
-                        )
-                        .await
-                })
-            })
-            .await?;
+        let rows = self.storage.with_data_operation(|database| Box::pin(async move {
+            database.query_values_at::<StoredEventSequence, _>(
+                "LET $head_scope = { run_id: $run_id, owner_account_id: $owner_account_id, actor_principal_id: $actor_principal_id, authenticated_session_id: $authenticated_session_id, access_space_id: $access_space_id, workspace_id: $workspace_id }; IF !fn::wp012_model_lane_original_operation($head_scope) OR !fn::wp012_context_coordination_fence($head_scope, 'run', $run_id) OR !fn::wp012_profile_checkpoint_runtime($head_scope) { THROW 'model-lane recovery membership authority or profile is not current'; }; LET $wp012_recovery_head_only = true; SELECT event_sequence AS event_seq FROM kernel_event_ledger WHERE kernel_task_run_id = $run_id AND session_run_id = $event_ledger_stream_id AND event_sequence = $event_seq AND owner_account_id = $owner_account_id AND actor_principal_id = $actor_principal_id AND authenticated_session_id = $authenticated_session_id AND access_space_id = $access_space_id AND workspace_id = $workspace_id LIMIT 2;", bindings, 3,
+            ).await
+        })).await?;
         Ok(rows.len() == 1)
     }
 
@@ -8067,6 +8913,80 @@ fn role_selectors_match(
 ) -> bool {
     left.evidence_ref == right.evidence_ref && left.expectation == right.expectation
         && left.designation_ref == right.designation_ref && left.producer == right.producer
+}
+
+fn reconstruct_recovery_checkpoint(
+    row: RecoveryCheckpointEnvelope,
+    run_id: &str,
+    scope: &ModelLaneScope,
+) -> Result<SurrealModelLaneRecord, SurrealStorageError> {
+    let invalid = || SurrealStorageError::InvalidModelLaneRecord {
+        reason: "canonical recovery checkpoint envelope is incomplete or inconsistent",
+    };
+    let event = StoredEventLink {
+        event_id: row.receipt_event_id.ok_or_else(invalid)?,
+        event_seq: row.receipt_event_seq.ok_or_else(invalid)?,
+        event_stream_version: row.receipt_event_stream_version.ok_or_else(invalid)?,
+        transaction_seq: 0,
+        aggregate_id: row.receipt_aggregate_id.ok_or_else(invalid)?,
+        run_id: row.receipt_run_id.ok_or_else(invalid)?,
+        session_run_id: row.receipt_session_run_id.ok_or_else(invalid)?,
+        kernel_task_run_id: row.receipt_kernel_task_run_id.ok_or_else(invalid)?,
+        payload_hash: row.receipt_payload_hash.ok_or_else(invalid)?,
+        event_payload_json: row.receipt_event_payload_json.ok_or_else(invalid)?,
+    };
+    let event = StoredEventLink { transaction_seq: event.event_seq, ..event };
+    if row.record_kind != "recovery_checkpoint" || row.run_id != run_id
+        || row.physical_id != stable_record_id("recovery_checkpoint", &row.aggregate_id, scope)
+        || row.receipt_pointer_table != "kernel_event_ledger"
+        || row.receipt_pointer_id != row.event_id || event.event_id != row.event_id
+        || row.receipt_event_version.as_deref() != Some("kernel_event_v1")
+        || row.receipt_event_type.as_deref() != Some("MODEL_LANE_RECOVERY_CHECKPOINT_RECORDED")
+        || row.receipt_source_component.as_deref() != Some("model_lane")
+        || row.receipt_record_kind.as_deref() != Some("recovery_checkpoint")
+        || row.receipt_aggregate_type.as_deref() != Some("recovery_checkpoint")
+        || row.receipt_idempotency_key.as_deref() != Some(row.event_id.as_str())
+        || row.receipt_actor_kind.as_deref() != Some("principal")
+        || row.receipt_actor_id.as_deref() != Some(scope.actor_principal_id.as_str())
+        || row.receipt_authority_session_id.as_deref() != Some(scope.authenticated_session_id.as_str())
+        || row.receipt_workspace_count != Some(1)
+        || row.receipt_workspace.as_deref() != Some(scope.workspace_id.as_str())
+        || event.event_seq <= 0 || event.event_stream_version != 1
+        || event.payload_hash != sha256_hex(event.event_payload_json.as_bytes()) {
+        return Err(invalid());
+    }
+    let payload: Value = serde_json::from_str(&event.event_payload_json).map_err(|_| invalid())?;
+    if payload.get("schema_id").and_then(Value::as_str) != Some("hsk.model_lane_recovery_checkpoint@1")
+        || payload.get("dexterity_kernel").and_then(Value::as_str) != Some("Dexterity") {
+        return Err(invalid());
+    }
+    for (field, expected, receipt) in [
+        ("owner_account_id", scope.owner_account_id.as_str(), row.receipt_owner_account_id),
+        ("actor_principal_id", scope.actor_principal_id.as_str(), row.receipt_actor_principal_id),
+        ("authenticated_session_id", scope.authenticated_session_id.as_str(), row.receipt_authenticated_session_id),
+        ("access_space_id", scope.access_space_id.as_str(), row.receipt_access_space_id),
+        ("workspace_id", scope.workspace_id.as_str(), row.receipt_workspace_id),
+    ] {
+        if receipt.as_deref() != Some(expected) || payload.get(field).and_then(Value::as_str) != Some(expected) {
+            return Err(invalid());
+        }
+    }
+    let body = payload.get("record").filter(|record| record.is_object()).ok_or_else(invalid)?;
+    if body.get("checkpoint_id").and_then(Value::as_str) != Some(row.aggregate_id.as_str())
+        || body.get("run_id").and_then(Value::as_str) != Some(run_id)
+        || body.get("idempotency_key").and_then(Value::as_str) != Some(row.idempotency_key.as_str())
+        || body.get("event_ledger_stream_id").and_then(Value::as_str) != Some(event.session_run_id.as_str())
+        || event.session_run_id.trim().is_empty() {
+        return Err(invalid());
+    }
+    let record = SurrealModelLaneRecord {
+        aggregate_id: row.aggregate_id, run_id: row.run_id, idempotency_key: row.idempotency_key,
+        record_json: serde_json::to_string(body).map_err(|_| invalid())?,
+        event_id: row.event_id, event_seq: event.event_seq,
+        event_stream_version: event.event_stream_version, transaction_seq: event.transaction_seq,
+    };
+    validate_stored_event_link(ModelLaneRecordKind::RecoveryCheckpoint, &record, scope, &[event])?;
+    Ok(record)
 }
 
 fn validate_stored_event_link(

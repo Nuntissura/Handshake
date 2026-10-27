@@ -17,21 +17,21 @@ DEFINE TABLE IF NOT EXISTS model_lane_authority SCHEMAFULL;
 DEFINE FIELD IF NOT EXISTS record_kind ON model_lane_authority TYPE string;
 DEFINE FIELD IF NOT EXISTS aggregate_id ON model_lane_authority TYPE string;
 DEFINE FIELD IF NOT EXISTS run_id ON model_lane_authority TYPE string;
-DEFINE FIELD IF NOT EXISTS idempotency_key ON model_lane_authority TYPE string;
-DEFINE FIELD IF NOT EXISTS record_json ON model_lane_authority TYPE string;
-DEFINE FIELD IF NOT EXISTS search_terms ON model_lane_authority TYPE array<string> DEFAULT [];
+DEFINE FIELD OVERWRITE idempotency_key ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE record_json ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE search_terms ON model_lane_authority TYPE array<string> DEFAULT [] PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
 DEFINE FIELD IF NOT EXISTS event_id ON model_lane_authority TYPE string;
-DEFINE FIELD IF NOT EXISTS event_ledger_event_id ON model_lane_authority TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT;
+DEFINE FIELD OVERWRITE event_ledger_event_id ON model_lane_authority TYPE record<kernel_event_ledger> ASSERT record::exists($value) REFERENCE ON DELETE REJECT PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
 DEFINE FIELD IF NOT EXISTS event_seq ON model_lane_authority TYPE int;
 DEFINE FIELD IF NOT EXISTS event_stream_version ON model_lane_authority TYPE int;
 DEFINE FIELD IF NOT EXISTS transaction_seq ON model_lane_authority TYPE int;
-DEFINE FIELD IF NOT EXISTS ordering_seq ON model_lane_authority TYPE option<int>;
+DEFINE FIELD OVERWRITE ordering_seq ON model_lane_authority TYPE option<int> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
 DEFINE FIELD OVERWRITE owner_account_id ON model_lane_authority TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE actor_principal_id ON model_lane_authority TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE authenticated_session_id ON model_lane_authority TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE access_space_id ON model_lane_authority TYPE string ASSERT string::trim($value) != '';
 DEFINE FIELD OVERWRITE workspace_id ON model_lane_authority TYPE string ASSERT string::trim($value) != '';
-DEFINE FIELD IF NOT EXISTS created_at ON model_lane_authority TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE created_at ON model_lane_authority TYPE datetime DEFAULT time::now() PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
 DEFINE INDEX IF NOT EXISTS model_lane_authority_aggregate ON model_lane_authority FIELDS record_kind, aggregate_id, owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id UNIQUE;
 DEFINE INDEX IF NOT EXISTS model_lane_authority_run ON model_lane_authority FIELDS record_kind, run_id, owner_account_id, workspace_id, event_seq;
 DEFINE INDEX IF NOT EXISTS model_lane_authority_idempotency ON model_lane_authority FIELDS record_kind, idempotency_key, owner_account_id, actor_principal_id, authenticated_session_id, access_space_id, workspace_id UNIQUE;
@@ -426,13 +426,20 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_original_operation($row: object) 
         AND fn::wp012_model_lane_operation_matrix($kind, $wp012_original_purpose, $wp012_original_action)
         AND ($wp012_original_purpose != 'navigation_read' OR $wp012_original_capability = 'model_lane.navigation.read')
         AND ($wp012_original_purpose != 'recovery_execute' OR $wp012_original_capability = 'model_lane.recovery.execute')
-        AND ($wp012_original_purpose NOT IN ['routing_create', 'routing_transition', 'run_attachment'] OR $wp012_original_capability = 'fs.write')
+        AND ($wp012_original_purpose NOT IN ['routing_create', 'routing_transition', 'run_attachment', 'recovery_checkpoint_record'] OR $wp012_original_capability = 'fs.write')
         AND ($wp012_original_purpose != 'routing_diagnostics_read' OR $wp012_original_capability = 'diagnostics.read')
         AND ($wp012_original_purpose NOT IN ['final_promotion_read', 'promotion_decision_read'] OR $wp012_original_capability = 'fs.read')
         AND ($wp012_original_purpose != 'final_promotion_record' OR $wp012_original_capability = 'fs.write')
         AND ($wp012_original_purpose NOT IN ['proposal_record', 'proposal_decide', 'proposal_apply'] OR $wp012_original_capability = 'fs.write')
         AND ($kind != 'workspace' OR fn::mt109_has_workspace_access($row.workspace_id, $wp012_original_action, $wp012_original_capability));
 };
+DEFINE FUNCTION OVERWRITE fn::wp012_recovery_discovery_access($row: object) {
+    RETURN $wp012_recovery_discovery_only = true AND $wp012_original_purpose = 'recovery_execute'
+        AND $wp012_original_subject_kind = 'workspace' AND $wp012_original_subject_id = $row.workspace_id
+        AND $wp012_original_action = 'update' AND $wp012_original_capability = 'model_lane.recovery.execute'
+        AND fn::wp012_model_lane_original_operation($row);
+};
+
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_catalog_read($row: object) {
     IF !fn::wp012_model_lane_original_operation($row)
         OR $row.record_kind != 'model_lane' OR $row.table_name != 'model_lane_authority'
@@ -870,6 +877,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_context_message($row: 
     RETURN $messages[0];
 };
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_source_input($row: object) {
+    IF $wp012_recovery_discovery_only = true { RETURN NONE; };
     IF $row.record_kind = 'run' {
         LET $body = encoding::json::decode($row.record_json);
         RETURN { source_kind: 'run', run_id: $body.run_id, kind: 'run',
@@ -940,96 +948,96 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_navigation_source_input_access($r
 DEFINE FIELD OVERWRITE navigation_source_input ON model_lane_authority TYPE option<object>
     VALUE fn::wp012_model_lane_navigation_source_input($this)
     ASSERT $value = fn::wp012_model_lane_navigation_source_input($this)
-    PERMISSIONS FOR select WHERE $wp012_original_purpose = 'navigation_read'
-        AND fn::wp012_model_lane_navigation_source_input_access($this);
-DEFINE FIELD OVERWRITE navigation_source_input.source_kind ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.run_id ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.kind ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.failstate_code ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.error_code ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.source_event_id ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.source_event_seq ON model_lane_authority TYPE option<int>;
-DEFINE FIELD OVERWRITE navigation_source_input.mt_status_id ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.micro_task_id ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.memory_pack_ref ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.memory_pack_hash ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.message_id ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.from_lane_id ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.to_lane ON model_lane_authority TYPE option<object>;
-DEFINE FIELD OVERWRITE navigation_source_input.to_lane.target_kind ON model_lane_authority TYPE 'lane' | 'broadcast' | 'coordinator';
-DEFINE FIELD OVERWRITE navigation_source_input.to_lane.target_id ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.source_lane ON model_lane_authority TYPE option<object>;
-DEFINE FIELD OVERWRITE navigation_source_input.source_lane.event_id ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.source_lane.event_seq ON model_lane_authority TYPE int;
-DEFINE FIELD OVERWRITE navigation_source_input.source_lane.ordering_seq ON model_lane_authority TYPE option<int>;
-DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane ON model_lane_authority TYPE object;
-DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.source_kind ON model_lane_authority TYPE 'lane';
-DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.lane_id ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.run_id ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.session_id ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.model_session_id ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.trace_id ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.kind ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.lane_id ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.session_id ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.model_session_id ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.trace_id ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.crdt_update_ref ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.crdt_base_snapshot_ref ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.crdt_state_vector ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.crdt_proposal_ref ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.crdt_stale_base_ref ON model_lane_authority TYPE option<string>;
+    PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true AND ($wp012_original_purpose = 'navigation_read'
+        AND fn::wp012_model_lane_navigation_source_input_access($this));
+DEFINE FIELD OVERWRITE navigation_source_input.source_kind ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.run_id ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.kind ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.failstate_code ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.error_code ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.source_event_id ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.source_event_seq ON model_lane_authority TYPE option<int> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.mt_status_id ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.micro_task_id ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.memory_pack_ref ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.memory_pack_hash ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.message_id ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.from_lane_id ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.to_lane ON model_lane_authority TYPE option<object> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.to_lane.target_kind ON model_lane_authority TYPE 'lane' | 'broadcast' | 'coordinator' PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.to_lane.target_id ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane ON model_lane_authority TYPE option<object> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.event_id ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.event_seq ON model_lane_authority TYPE int PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.ordering_seq ON model_lane_authority TYPE option<int> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane ON model_lane_authority TYPE object PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.source_kind ON model_lane_authority TYPE 'lane' PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.lane_id ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.run_id ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.session_id ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.model_session_id ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.trace_id ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.source_lane.lane.kind ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.lane_id ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.session_id ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.model_session_id ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.trace_id ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.crdt_update_ref ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.crdt_base_snapshot_ref ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.crdt_state_vector ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.crdt_proposal_ref ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.crdt_stale_base_ref ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
 -- Only the existing complete canonical binding is carried; its owning strict
 -- serde decoder is reused under a bounded internal reader, not duplicated here.
-DEFINE FIELD OVERWRITE navigation_source_input.binding ON model_lane_authority TYPE option<object> FLEXIBLE;
-DEFINE FIELD OVERWRITE navigation_source_input.artifact ON model_lane_authority TYPE option<object>;
-DEFINE FIELD OVERWRITE navigation_source_input.artifact.source_kind ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.artifact.run_id ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.artifact.artifact_binding_id ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.artifact.source_event_id ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.artifact.artifact_ref ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.artifact.artifact_manifest_ref ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.artifact.artifact_payload_ref ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.artifact.artifact_sha256 ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.artifact.content_hash ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.artifact.payload_json ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.artifact.source_event_seq ON model_lane_authority TYPE int;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs ON model_lane_authority TYPE option<array<object>>;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.context_event_id ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.context_event_seq ON model_lane_authority TYPE int;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input ON model_lane_authority TYPE option<object>;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_kind ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.run_id ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.kind ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_event_id ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_event_seq ON model_lane_authority TYPE option<int>;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.message_id ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.from_lane_id ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.to_lane ON model_lane_authority TYPE option<object>;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.to_lane.target_kind ON model_lane_authority TYPE 'lane' | 'broadcast' | 'coordinator';
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.to_lane.target_id ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane ON model_lane_authority TYPE option<object>;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.event_id ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.event_seq ON model_lane_authority TYPE int;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.ordering_seq ON model_lane_authority TYPE option<int>;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane ON model_lane_authority TYPE object;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.source_kind ON model_lane_authority TYPE 'lane';
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.lane_id ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.run_id ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.session_id ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.model_session_id ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.trace_id ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.kind ON model_lane_authority TYPE string;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.lane_id ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.session_id ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.model_session_id ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.trace_id ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.crdt_update_ref ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.crdt_base_snapshot_ref ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.crdt_state_vector ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.crdt_proposal_ref ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.crdt_stale_base_ref ON model_lane_authority TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.binding ON model_lane_authority TYPE option<object> FLEXIBLE;
+DEFINE FIELD OVERWRITE navigation_source_input.binding ON model_lane_authority TYPE option<object> FLEXIBLE PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact ON model_lane_authority TYPE option<object> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.source_kind ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.run_id ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.artifact_binding_id ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.source_event_id ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.artifact_ref ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.artifact_manifest_ref ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.artifact_payload_ref ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.artifact_sha256 ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.content_hash ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.payload_json ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.artifact.source_event_seq ON model_lane_authority TYPE int PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs ON model_lane_authority TYPE option<array<object>> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.context_event_id ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.context_event_seq ON model_lane_authority TYPE int PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input ON model_lane_authority TYPE option<object> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_kind ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.run_id ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.kind ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_event_id ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_event_seq ON model_lane_authority TYPE option<int> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.message_id ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.from_lane_id ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.to_lane ON model_lane_authority TYPE option<object> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.to_lane.target_kind ON model_lane_authority TYPE 'lane' | 'broadcast' | 'coordinator' PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.to_lane.target_id ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane ON model_lane_authority TYPE option<object> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.event_id ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.event_seq ON model_lane_authority TYPE int PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.ordering_seq ON model_lane_authority TYPE option<int> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane ON model_lane_authority TYPE object PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.source_kind ON model_lane_authority TYPE 'lane' PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.lane_id ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.run_id ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.session_id ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.model_session_id ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.trace_id ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.source_lane.lane.kind ON model_lane_authority TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.lane_id ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.session_id ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.model_session_id ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.trace_id ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.crdt_update_ref ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.crdt_base_snapshot_ref ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.crdt_state_vector ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.crdt_proposal_ref ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.crdt_stale_base_ref ON model_lane_authority TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_source_input.inputs.*.input.binding ON model_lane_authority TYPE option<object> FLEXIBLE PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
 
 -- Canonical selected messages determine the dependency set; query-local IDs
 -- never supply provenance or expand the original workspace navigation envelope.
@@ -1410,17 +1418,17 @@ DEFINE FIELD OVERWRITE grant_version ON TABLE resource_grants TYPE int ASSERT $v
 -- Field restrictions run on the original row before output reduction. No raw
 -- child bytes or hash evidence are projected under the workspace navigation grant.
 DEFINE FIELD OVERWRITE record_json ON model_lane_authority TYPE string
-    PERMISSIONS FOR select WHERE $wp012_original_purpose != 'navigation_read';
+    PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true AND ($wp012_original_purpose != 'navigation_read');
 DEFINE FIELD OVERWRITE search_terms ON model_lane_authority TYPE array<string> DEFAULT []
-    PERMISSIONS FOR select WHERE $wp012_original_purpose != 'navigation_read';
+    PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true AND ($wp012_original_purpose != 'navigation_read');
 DEFINE FIELD OVERWRITE idempotency_key ON model_lane_authority TYPE string
-    PERMISSIONS FOR select WHERE $wp012_original_purpose != 'navigation_read';
+    PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true AND ($wp012_original_purpose != 'navigation_read');
 DEFINE FIELD OVERWRITE payload_hash ON kernel_event_ledger TYPE string
-    PERMISSIONS FOR select WHERE ($wp012_original_purpose != 'navigation_read' AND ($wp012_original_purpose != 'recovery_checkpoint_record' OR $this.aggregate_type IN ['run', 'lane', 'recovery_checkpoint']));
+    PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true AND ($wp012_recovery_head_only != true AND ($wp012_original_purpose != 'navigation_read' AND ($wp012_original_purpose != 'recovery_checkpoint_record' OR $this.aggregate_type IN ['run', 'lane', 'recovery_checkpoint'])));
 DEFINE FIELD OVERWRITE payload ON kernel_event_ledger TYPE object FLEXIBLE
-    PERMISSIONS FOR select WHERE ($wp012_original_purpose != 'navigation_read' AND ($wp012_original_purpose != 'recovery_checkpoint_record' OR $this.aggregate_type IN ['run', 'lane', 'recovery_checkpoint']));
+    PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true AND ($wp012_recovery_head_only != true AND ($wp012_original_purpose != 'navigation_read' AND ($wp012_original_purpose != 'recovery_checkpoint_record' OR $this.aggregate_type IN ['run', 'lane', 'recovery_checkpoint'])));
 DEFINE FIELD OVERWRITE payload.* ON kernel_event_ledger TYPE any
-    PERMISSIONS FOR select WHERE ($wp012_original_purpose != 'navigation_read' AND ($wp012_original_purpose != 'recovery_checkpoint_record' OR $this.aggregate_type IN ['run', 'lane', 'recovery_checkpoint']));
+    PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true AND ($wp012_recovery_head_only != true AND ($wp012_original_purpose != 'navigation_read' AND ($wp012_original_purpose != 'recovery_checkpoint_record' OR $this.aggregate_type IN ['run', 'lane', 'recovery_checkpoint'])));
 
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_record_identity($row: object, $issuer: object) {
     IF $row.record_kind NOT IN ['role_evidence', 'validator_designation']
@@ -1951,6 +1959,16 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_source_identity($row: object) {
         RETURN fn::wp012_routing_source_identity($row);
     };
     IF $wp012_original_purpose = 'recovery_execute' {
+        IF $row.record_kind = 'recovery_checkpoint' {
+            IF $row.run_id != $run_id OR !fn::wp012_model_lane_source_access($row, false) { RETURN false; };
+            LET $key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'recovery_checkpoint',
+                $row.aggregate_id, $row.owner_account_id, $row.actor_principal_id,
+                $row.authenticated_session_id, $row.access_space_id, $row.workspace_id], '\u0000'));
+            RETURN record::tb($row.id) = 'model_lane_authority' AND record::id($row.id) = $key
+                AND type::is_string($row.aggregate_id) AND string::trim($row.aggregate_id) != ''
+                AND type::is_string($row.idempotency_key) AND string::trim($row.idempotency_key) != ''
+                AND type::is_string($row.event_id) AND string::trim($row.event_id) != '';
+        };
         RETURN fn::wp012_model_lane_canonical_record_identity($row);
     };
     IF $wp012_original_purpose IN ['diagnostic_record', 'recovery_checkpoint_record'] {
@@ -2154,7 +2172,9 @@ DEFINE FUNCTION OVERWRITE fn::wp012_validator_association_record($row: object, $
 };
 
 DEFINE TABLE OVERWRITE model_lane_authority SCHEMAFULL
-    PERMISSIONS FOR select WHERE IF record_kind = 'role_evidence' AND $wp012_original_purpose = 'source_read' AND $wp012_routing_original.action = 'read' AND $wp012_routing_original.execution_id != '' {
+    PERMISSIONS FOR select WHERE IF $wp012_recovery_discovery_only = true {
+        fn::wp012_recovery_discovery_access($this)
+    } ELSE IF record_kind = 'role_evidence' AND $wp012_original_purpose = 'source_read' AND $wp012_routing_original.action = 'read' AND $wp012_routing_original.execution_id != '' {
         fn::wp012_routing_ack_read_source($this, $execution_id, $stage_id)
             AND fn::wp012_model_lane_role_record_identity($this, { owner_account_id: owner_account_id, actor_principal_id: actor_principal_id,
                 authenticated_session_id: authenticated_session_id, access_space_id: access_space_id, workspace_id: workspace_id })

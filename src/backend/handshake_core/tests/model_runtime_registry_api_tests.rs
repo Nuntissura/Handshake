@@ -19,12 +19,12 @@ use handshake_core::{
     api::{
         account_scope::ProductLocalResourceScope,
         model_runtime_registry::{
-            self, ModelRuntimeProcessOwnershipRecord, ModelRuntimeRegistryApiState,
+            self, ModelRuntimeRegistryApiState,
             ModelRuntimeRegistryProjection, ModelRuntimeRegistryRowState,
             MODEL_RUNTIME_CONTROL_INVALID_CODE, MODEL_RUNTIME_CONTROL_REJECTED_CODE,
-            MODEL_RUNTIME_REGISTRY_INTEGRITY_ERROR_CODE,
-            MODEL_RUNTIME_REGISTRY_PROJECTION_SCHEMA_ID, MODEL_RUNTIME_REGISTRY_SCOPE_DENIED_CODE,
-            MODEL_RUNTIME_REGISTRY_UNAVAILABLE_CODE, MODEL_RUNTIME_SELECTION_REJECTED_CODE,
+            MODEL_RUNTIME_REGISTRY_UNAVAILABLE_CODE,
+            MODEL_RUNTIME_REGISTRY_PROJECTION_SCHEMA_ID,
+            MODEL_RUNTIME_SELECTION_REJECTED_CODE,
         },
     },
     kernel::KernelActor,
@@ -54,6 +54,7 @@ use handshake_core::{
     workflows::ModelSwapRequestV0_4,
 };
 use serde_json::{json, Value};
+use sha2::Digest;
 use surrealdb::types::RecordId;
 use uuid::Uuid;
 
@@ -278,10 +279,18 @@ struct ApiFixture {
     catalog: Arc<ModelCatalog>,
     client: Arc<AuthorityClient>,
     models: ModelSet,
+    account: engine_profile_account_session_support::OwnerSession,
+    _binding: engine_profile_account_session_support::NativeBindingEnv,
+    _binding_guard: tokio::sync::MutexGuard<'static, ()>,
 }
 
 impl ApiFixture {
-    async fn open() -> Self {
+    async fn open() -> Self { Self::open_with_system_principal(false).await }
+
+    async fn open_with_system_principal(non_operator: bool) -> Self {
+        use engine_profile_account_session_support::{NativeBindingEnv, OwnerSession, NATIVE_BINDING_ENV_LOCK};
+        let binding_guard = NATIVE_BINDING_ENV_LOCK.lock().await;
+        let binding = NativeBindingEnv::install();
         let mut allocator = IsolatedSurrealTestStore::create()
             .await
             .expect("allocate isolated embedded store");
@@ -290,13 +299,48 @@ impl ApiFixture {
             .await
             .expect("bootstrap model registry schema");
 
-        let exact_scope = exact_scope("WS-MODEL-RUNTIME-API");
+        let account = OwnerSession::provision(&storage, binding.token()).await;
+        let workspace = account.create_workspace(&engine_profile_durable_boundary::state(storage.clone())).await;
+        let account = if non_operator {
+            use handshake_core::storage::surreal::resource_authority::{
+                ProvisionedIdentity, ResourceAction, ResourceGrantSpec,
+            };
+            let key = format!("registry-system-{}", Uuid::now_v7());
+            let capabilities = vec!["fs.read".to_owned(), "fs.write".to_owned()];
+            let principal = storage.provision_principal(
+                &account.actor_id, &key, "service_identity", &key, "Operator", &capabilities,
+                &account.actor_id, Some(&hex::encode(sha2::Sha256::digest(binding.token().as_bytes()))),
+                std::time::Duration::from_secs(3600),
+            ).await.expect("issue genuine system principal and channel-bound session");
+            assert_eq!(principal.identity.account_id, account.account_id);
+            assert_eq!(principal.identity.access_space_id, account.access_space_id);
+            let resource = storage.register_workspace_resource(&ProvisionedIdentity {
+                account_id: account.account_id.clone(), principal_id: account.principal_id.clone(),
+                access_space_id: account.access_space_id.clone(),
+            }, &workspace).await.expect("canonical existing workspace resource");
+            storage.grant_resource(&account.account_id, &account.access_space_id, ResourceGrantSpec {
+                principal_id: principal.identity.principal_id.clone(), resource_id: resource.resource_id,
+                actions: vec![ResourceAction::Read, ResourceAction::Create, ResourceAction::Update], capability_ids: capabilities,
+                expires_at: None, delegation_chain: Vec::new(),
+            }).await.expect("actual fs.write Update grant for non-operator");
+            OwnerSession {
+                session_token: principal.session.token, channel_binding_token: binding.token().to_owned(),
+                account_id: principal.identity.account_id, principal_id: principal.identity.principal_id,
+                access_space_id: principal.identity.access_space_id, session_id: principal.session.session_id,
+                actor_id: key,
+            }
+        } else { account };
+        let parse = |s: &str| Uuid::parse_str(s).expect("issued UUID");
+        let exact_scope = ExactResourceScopeAttribution {
+            owner_account_id: OwnerAccountId::from_uuid(parse(&account.account_id)),
+            actor_principal_id: ActorPrincipalId::from_uuid(parse(&account.principal_id)),
+            authenticated_session_id: AuthenticatedSessionRef::from_uuid(parse(&account.session_id)),
+            access_space_id: AccessSpaceRef::from_uuid(parse(&account.access_space_id)),
+            workspace_id: WorkspaceScopeRef::new(workspace).expect("issued workspace"),
+        };
         let process_scope = process_scope(&exact_scope);
         let registry_store = SurrealModelRegistryStore::new(storage.clone());
-        registry_store
-            .ensure_workspace_for_tests(&exact_scope)
-            .await
-            .expect("create exact workspace predecessor");
+
 
         let models = ModelSet {
             current_id: ModelId::new_v7(),
@@ -327,30 +371,37 @@ impl ApiFixture {
             ModelRuntimeRole::Embedding,
             "embedding-only",
         );
-        registry_store
-            .persist_role_bound_boot_set_and_read_back(
-                &exact_scope,
-                &[current.clone(), target.clone(), embedding.clone()],
-            )
-            .await
-            .expect("persist exact-scope registry boot set");
-        registry_store
-            .ensure_active_defaults(
-                &exact_scope,
-                &[
-                    (
-                        ModelRuntimeSelectionPurpose::ApplicationDefault,
-                        models.current_sha,
-                    ),
-                    (
-                        ModelRuntimeSelectionPurpose::EmbeddingsDefault,
-                        models.embedding_sha,
-                    ),
-                ],
-            )
-            .await
-            .expect("persist exact-scope active defaults");
+        let bootstrap = handshake_core::AccountBootstrapState::from(
+            &engine_profile_durable_boundary::state(storage.clone()),
+        );
+        handshake_core::test_harness::model_runtime_selection::with_issued_registry_initializer(
+            &bootstrap, &account.headers(), &exact_scope, async {
+                registry_store
+                    .persist_role_bound_boot_set_and_read_back(
+                        &exact_scope,
+                        &[current.clone(), target.clone(), embedding.clone()],
+                    )
+                    .await
+                    .expect("persist exact-scope registry boot set");
+                registry_store
+                    .ensure_active_defaults(
+                        &exact_scope,
+                        &[
+                            (
+                                ModelRuntimeSelectionPurpose::ApplicationDefault,
+                                models.current_sha,
+                            ),
+                            (
+                                ModelRuntimeSelectionPurpose::EmbeddingsDefault,
+                                models.embedding_sha,
+                            ),
+                        ],
+                    )
+                    .await
+                    .expect("persist exact-scope active defaults");
 
+            },
+        ).await.expect("genuine issued registry Create authority for fixture setup");
         let mut registry = ModelRegistry::default();
         for role_bound in [&current, &target, &embedding] {
             registry
@@ -373,30 +424,27 @@ impl ApiFixture {
             .expect("open ProcessLedger on the same storage clone");
         ledger_store
             .write_batch(vec![
-                LedgerEvent::Start(process_start(
+                LedgerEvent::Start(unowned_negative_process_start(
                     &process_scope,
                     models.current_id,
                     models.current_sha,
                     ProcessEngineKind::Candle,
-                    "current-adapter",
                 )),
-                LedgerEvent::Start(process_start(
+                LedgerEvent::Start(unowned_negative_process_start(
                     &process_scope,
                     models.target_id,
                     models.target_sha,
                     ProcessEngineKind::LlamaCpp,
-                    "target-adapter",
                 )),
-                LedgerEvent::Start(process_start(
+                LedgerEvent::Start(unowned_negative_process_start(
                     &process_scope,
                     models.embedding_id,
                     models.embedding_sha,
                     ProcessEngineKind::Candle,
-                    "embedding-adapter",
                 )),
             ])
             .await
-            .expect("atomically persist model process ownership");
+            .expect("persist unowned rows for fail-closed ownership denial only");
 
         let authority =
             ScopedModelRegistryAuthority::new(registry_store.clone(), exact_scope.clone());
@@ -415,11 +463,15 @@ impl ApiFixture {
             catalog,
             client,
             models,
+            account, _binding: binding, _binding_guard: binding_guard,
         }
     }
 
     fn api_state(&self) -> ModelRuntimeRegistryApiState {
         ModelRuntimeRegistryApiState::new(self.storage.clone(), self.client.clone())
+            .with_account_bootstrap(handshake_core::AccountBootstrapState::from(
+                &engine_profile_durable_boundary::state(self.storage.clone()),
+            ))
     }
 
     fn client_for_storage(
@@ -507,22 +559,18 @@ fn registration(
     }
 }
 
-fn process_start(
+fn unowned_negative_process_start(
     scope: &ReclaimResourceScope,
     model_id: ModelId,
     sha256: [u8; 32],
     engine_kind: ProcessEngineKind,
-    sandbox_adapter_id: &str,
 ) -> ProcessStart {
     ProcessStart::new(
         engine_kind,
-        "MODEL_RUNTIME_OWNER",
-        Some("WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1".to_owned()),
+        "UNOWNED_NEGATIVE_FIXTURE",
+        None,
     )
     .with_process_uuid(model_id.as_uuid())
-    .with_os_pid(7_001)
-    .with_parent_session_id("model-runtime-api-session")
-    .with_sandbox_adapter_id(sandbox_adapter_id)
     .with_model_artifact_sha256(hex::encode(sha256))
     .with_metadata_jsonb(scope_metadata(scope))
 }
@@ -547,12 +595,16 @@ fn one_field_mismatches(
 async fn start_server(
     state: ModelRuntimeRegistryApiState,
     scope: Option<ExactResourceScopeAttribution>,
+    storage: SurrealStorage,
 ) -> (String, tokio::task::JoinHandle<()>) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind registry API test server");
     let address = listener.local_addr().expect("read registry server address");
-    let routes = model_runtime_registry::routes(state);
+    let lifecycle = storage.resource_access_lifecycle();
+    let routes = model_runtime_registry::routes(state)
+        .merge(handshake_core::api::kernel::routes(engine_profile_durable_boundary::state(storage)))
+        .layer(Extension(lifecycle));
     let routes = match scope {
         Some(scope) => routes.layer(Extension(
             ProductLocalResourceScope::from_exact(scope).expect("valid product-local scope"),
@@ -607,11 +659,11 @@ async fn error_body(response: reqwest::Response) -> (reqwest::StatusCode, String
 }
 
 #[tokio::test]
-async fn registry_and_detail_join_exact_process_identity_and_survive_reopen() {
+async fn registry_projection_excludes_unowned_process_rows_and_survives_reopen() {
     let mut fixture = ApiFixture::open().await;
     let (base_url, server) =
-        start_server(fixture.api_state(), Some(fixture.exact_scope.clone())).await;
-    let http = reqwest::Client::new();
+        start_server(fixture.api_state(), Some(fixture.exact_scope.clone()), fixture.storage.clone()).await;
+    let http = fixture.account.client();
 
     let response = http
         .get(format!("{base_url}/model-runtime/registry"))
@@ -643,12 +695,11 @@ async fn registry_and_detail_join_exact_process_identity_and_survive_reopen() {
         current.live_model_id.as_deref(),
         Some(fixture.models.current_id.to_string().as_str())
     );
+    // Component catalog rows do not establish an actual loaded runtime or ownership.
     assert!(matches!(
         &current.process_ownership_ledger_link,
-        handshake_core::llm::ModelRuntimeValue::Available { value }
-            if value.ends_with(&fixture.models.current_id.to_string())
+        handshake_core::llm::ModelRuntimeValue::Unavailable { .. }
     ));
-
     let embedding = projection
         .rows
         .iter()
@@ -665,28 +716,12 @@ async fn registry_and_detail_join_exact_process_identity_and_survive_reopen() {
         ))
         .send()
         .await
-        .expect("GET exact process ownership detail");
-    assert_eq!(detail_response.status(), reqwest::StatusCode::OK);
-    let detail: ModelRuntimeProcessOwnershipRecord = detail_response
-        .json()
-        .await
-        .expect("deserialize process ownership detail");
-    assert_eq!(detail.process_uuid, fixture.models.current_id.as_uuid());
-    assert_eq!(detail.engine_kind, ProcessEngineKind::Candle.as_str());
-    assert_eq!(detail.owner_role, "MODEL_RUNTIME_OWNER");
-    assert_eq!(
-        detail.owner_wp.as_deref(),
-        Some("WP-1-Multi-Model-Orchestration-Lifecycle-Telemetry-v1")
-    );
-    assert_eq!(
-        detail.sandbox_adapter_id.as_deref(),
-        Some("current-adapter")
-    );
-    assert_eq!(
-        detail.model_artifact_sha256.as_deref(),
-        Some(current_hash.as_str())
-    );
-
+        .expect("GET unowned negative-fixture process detail");
+    assert_eq!(detail_response.status(), reqwest::StatusCode::NOT_FOUND);
+    let (_, code, detail) = error_body(detail_response).await;
+    assert_eq!(code, MODEL_RUNTIME_REGISTRY_UNAVAILABLE_CODE);
+    assert!(!detail.contains(&fixture.models.current_id.to_string()));
+    assert!(!detail.contains(&current_hash));
     server.abort();
     let _ = server.await;
 fixture
@@ -696,9 +731,12 @@ fixture
         .expect("reopen exact store");
     let reopened = fixture.allocator.storage().clone();
     let reopened_client = fixture.client_for_storage(reopened.clone(), fixture.models.current_id);
-    let reopened_state = ModelRuntimeRegistryApiState::new(reopened.clone(), reopened_client);
+    let reopened_state = ModelRuntimeRegistryApiState::new(reopened.clone(), reopened_client)
+        .with_account_bootstrap(handshake_core::AccountBootstrapState::from(
+            &engine_profile_durable_boundary::state(reopened.clone()),
+        ));
     fixture.storage = reopened;
-    let (base_url, server) = start_server(reopened_state, Some(fixture.exact_scope.clone())).await;
+    let (base_url, server) = start_server(reopened_state, Some(fixture.exact_scope.clone()), fixture.storage.clone()).await;
     let recovered: ModelRuntimeRegistryProjection = http
         .get(format!("{base_url}/model-runtime/registry"))
         .send()
@@ -723,8 +761,8 @@ fixture
 async fn selection_cas_preserves_stable_identity_and_lost_response_retry() {
     let mut fixture = ApiFixture::open().await;
     let (base_url, server) =
-        start_server(fixture.api_state(), Some(fixture.exact_scope.clone())).await;
-    let http = reqwest::Client::new();
+        start_server(fixture.api_state(), Some(fixture.exact_scope.clone()), fixture.storage.clone()).await;
+    let http = fixture.account.client();
     let request_id = Uuid::now_v7();
     let request = selection_request(request_id, 1, fixture.models.target_id);
 
@@ -831,8 +869,8 @@ async fn selection_cas_preserves_stable_identity_and_lost_response_retry() {
 async fn control_is_exact_scope_idempotent_and_rejects_changed_or_nil_identity() {
     let mut fixture = ApiFixture::open().await;
     let (base_url, server) =
-        start_server(fixture.api_state(), Some(fixture.exact_scope.clone())).await;
-    let http = reqwest::Client::new();
+        start_server(fixture.api_state(), Some(fixture.exact_scope.clone()), fixture.storage.clone()).await;
+    let http = fixture.account.client();
     let request_id = Uuid::now_v7();
     let request = control_request(request_id, fixture.models.current_id);
 
@@ -887,11 +925,19 @@ async fn control_is_exact_scope_idempotent_and_rejects_changed_or_nil_identity()
 #[tokio::test]
 async fn all_five_authority_mismatches_and_incomplete_or_mixed_scope_deny_without_mutation() {
     let mut fixture = ApiFixture::open().await;
-    let http = reqwest::Client::new();
+    let http = fixture.account.client();
 
     for mismatched_scope in one_field_mismatches(&fixture.exact_scope) {
-        let (base_url, server) = start_server(fixture.api_state(), Some(mismatched_scope)).await;
-        let selection = http
+        let (base_url, server) = start_server(fixture.api_state(), Some(mismatched_scope), fixture.storage.clone()).await;
+        for route in [
+            format!("{base_url}/model-runtime/registry"),
+            format!("{base_url}/model-runtime/process-ownership/{}", fixture.models.current_id),
+        ] {
+            let response = http.get(route).send().await.expect("mismatched read authority");
+            assert_eq!(response.status(), reqwest::StatusCode::FORBIDDEN);
+            assert_eq!(response.json::<Value>().await.expect("constant read denial"),
+                json!({"error": "HSK-403-PROTECTED-RESOURCE"}));
+        }        let selection = http
             .post(format!("{base_url}/model-runtime/selection"))
             .json(&selection_request(
                 Uuid::now_v7(),
@@ -903,7 +949,7 @@ async fn all_five_authority_mismatches_and_incomplete_or_mixed_scope_deny_withou
             .expect("POST selection with one mismatched authority field");
         let (status, code, detail) = error_body(selection).await;
         assert_eq!(status, reqwest::StatusCode::FORBIDDEN);
-        assert_eq!(code, MODEL_RUNTIME_REGISTRY_SCOPE_DENIED_CODE);
+        assert_eq!(code, "HSK-403-PROTECTED-RESOURCE");
         assert!(!detail.contains(&fixture.models.target_id.to_string()));
 
         let control = http
@@ -914,14 +960,14 @@ async fn all_five_authority_mismatches_and_incomplete_or_mixed_scope_deny_withou
             .expect("POST control with one mismatched authority field");
         let (status, code, detail) = error_body(control).await;
         assert_eq!(status, reqwest::StatusCode::FORBIDDEN);
-        assert_eq!(code, MODEL_RUNTIME_REGISTRY_SCOPE_DENIED_CODE);
+        assert_eq!(code, "HSK-403-PROTECTED-RESOURCE");
         assert!(!detail.contains(&fixture.models.current_id.to_string()));
         server.abort();
         let _ = server.await;
     }
 
     let absent_scope_state = fixture.api_state();
-    let (base_url, server) = start_server(absent_scope_state, None).await;
+    let (base_url, server) = start_server(absent_scope_state, None, fixture.storage.clone()).await;
     let absent = http
         .post(format!("{base_url}/model-runtime/control"))
         .json(&control_request(Uuid::now_v7(), fixture.models.current_id))
@@ -929,7 +975,7 @@ async fn all_five_authority_mismatches_and_incomplete_or_mixed_scope_deny_withou
         .await
         .expect("POST without server-owned scope");
     let (status, code, detail) = error_body(absent).await;
-    assert_eq!(status, reqwest::StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(status, reqwest::StatusCode::FORBIDDEN);
     assert_eq!(code, "RESOURCE_SCOPE_AUTHORITY_UNAVAILABLE");
     assert!(!detail.contains(&fixture.models.current_id.to_string()));
     server.abort();
@@ -944,7 +990,7 @@ async fn all_five_authority_mismatches_and_incomplete_or_mixed_scope_deny_withou
         access_space_id: foreign_b.access_space_id,
         workspace_id: foreign_a.workspace_id,
     };
-    let (base_url, server) = start_server(fixture.api_state(), Some(mixed)).await;
+    let (base_url, server) = start_server(fixture.api_state(), Some(mixed), fixture.storage.clone()).await;
     let mixed = http
         .post(format!("{base_url}/model-runtime/selection"))
         .json(&selection_request(
@@ -957,7 +1003,7 @@ async fn all_five_authority_mismatches_and_incomplete_or_mixed_scope_deny_withou
         .expect("POST with mixed exact-scope identity");
     let (status, code, detail) = error_body(mixed).await;
     assert_eq!(status, reqwest::StatusCode::FORBIDDEN);
-    assert_eq!(code, MODEL_RUNTIME_REGISTRY_SCOPE_DENIED_CODE);
+    assert_eq!(code, "HSK-403-PROTECTED-RESOURCE");
     assert!(!detail.contains(&fixture.models.target_id.to_string()));
     server.abort();
     let _ = server.await;
@@ -978,7 +1024,7 @@ async fn all_five_authority_mismatches_and_incomplete_or_mixed_scope_deny_withou
 }
 
 #[tokio::test]
-async fn missing_foreign_and_tampered_process_receipts_fail_closed_without_leakage() {
+async fn unowned_rows_with_missing_foreign_or_tampered_receipts_remain_unavailable_without_leakage() {
     let mut fixture = ApiFixture::open().await;
     let missing_id = ModelId::new_v7();
     let foreign_id = ModelId::new_v7();
@@ -989,26 +1035,23 @@ async fn missing_foreign_and_tampered_process_receipts_fail_closed_without_leaka
     fixture
         .ledger_store
         .write_batch(vec![
-            LedgerEvent::Start(process_start(
+            LedgerEvent::Start(unowned_negative_process_start(
                 &fixture.process_scope,
                 missing_id,
                 missing_sha,
                 ProcessEngineKind::Candle,
-                "missing-receipt-adapter",
             )),
-            LedgerEvent::Start(process_start(
+            LedgerEvent::Start(unowned_negative_process_start(
                 &fixture.process_scope,
                 foreign_id,
                 foreign_sha,
                 ProcessEngineKind::Candle,
-                "foreign-receipt-adapter",
             )),
-            LedgerEvent::Start(process_start(
+            LedgerEvent::Start(unowned_negative_process_start(
                 &fixture.process_scope,
                 tampered_id,
                 tampered_sha,
                 ProcessEngineKind::Candle,
-                "tampered-receipt-adapter",
             )),
         ])
         .await
@@ -1047,8 +1090,8 @@ async fn missing_foreign_and_tampered_process_receipts_fail_closed_without_leaka
         .expect("tamper lifecycle receipt link");
 
     let (base_url, server) =
-        start_server(fixture.api_state(), Some(fixture.exact_scope.clone())).await;
-    let http = reqwest::Client::new();
+        start_server(fixture.api_state(), Some(fixture.exact_scope.clone()), fixture.storage.clone()).await;
+    let http = fixture.account.client();
     for (process_id, artifact_sha) in [
         (missing_id, missing_sha),
         (foreign_id, foreign_sha),
@@ -1062,8 +1105,8 @@ async fn missing_foreign_and_tampered_process_receipts_fail_closed_without_leaka
             .await
             .expect("GET process with invalid receipt linkage");
         let (status, code, detail) = error_body(response).await;
-        assert_eq!(status, reqwest::StatusCode::INTERNAL_SERVER_ERROR);
-        assert_eq!(code, MODEL_RUNTIME_REGISTRY_INTEGRITY_ERROR_CODE);
+        assert_eq!(status, reqwest::StatusCode::NOT_FOUND);
+        assert_eq!(code, MODEL_RUNTIME_REGISTRY_UNAVAILABLE_CODE);
         assert!(!detail.contains(&process_id.to_string()));
         assert!(!detail.contains(&hex::encode(artifact_sha)));
         assert!(!detail.contains("tampered-process-receipt-link"));
@@ -1078,8 +1121,8 @@ async fn provider_and_closed_storage_errors_are_redacted() {
     let mut fixture = ApiFixture::open().await;
     fixture.client.fail_provider_calls();
     let (base_url, server) =
-        start_server(fixture.api_state(), Some(fixture.exact_scope.clone())).await;
-    let http = reqwest::Client::new();
+        start_server(fixture.api_state(), Some(fixture.exact_scope.clone()), fixture.storage.clone()).await;
+    let http = fixture.account.client();
 
     let control = http
         .post(format!("{base_url}/model-runtime/control"))
@@ -1117,15 +1160,15 @@ async fn provider_and_closed_storage_errors_are_redacted() {
         .await
         .expect("close injected storage");
     let (base_url, server) =
-        start_server(fixture.api_state(), Some(fixture.exact_scope.clone())).await;
+        start_server(fixture.api_state(), Some(fixture.exact_scope.clone()), fixture.storage.clone()).await;
     let closed = http
         .get(format!("{base_url}/model-runtime/registry"))
         .send()
         .await
         .expect("GET registry against closed storage");
     let (status, code, detail) = error_body(closed).await;
-    assert_eq!(status, reqwest::StatusCode::SERVICE_UNAVAILABLE);
-    assert_eq!(code, MODEL_RUNTIME_REGISTRY_UNAVAILABLE_CODE);
+    assert_eq!(status, reqwest::StatusCode::FORBIDDEN);
+    assert_eq!(code, "HSK-403-PROTECTED-RESOURCE");
     assert!(!detail.contains(&namespace));
     assert!(!detail.contains(&database));
     assert!(!detail.contains("provider-secret"));
@@ -1134,6 +1177,273 @@ async fn provider_and_closed_storage_errors_are_redacted() {
     fixture.close().await;
 }
 
+#[tokio::test]
+async fn registry_initializer_requires_current_original_create_and_never_promotes_read_or_update() {
+    use handshake_core::test_harness::model_runtime_selection::with_issued_registry_initializer;
+    use handshake_core::storage::surreal::resource_authority::{
+        AuthorizationRequest, ProvisionedIdentity, ResourceAction, ResourceGrantSpec, ResourceKind,
+    };
+    use engine_profile_account_session_support::OwnerSession;
+    let mut fixture = ApiFixture::open().await;
+    let bootstrap = handshake_core::AccountBootstrapState::from(
+        &engine_profile_durable_boundary::state(fixture.storage.clone()),
+    );
+    let before = fixture.registry_store.list_active_selections(&fixture.exact_scope)
+        .await.expect("canonical initialized defaults");
+    // This is an actual issued request, not an attribution-to-authority constructor.
+    let positive = with_issued_registry_initializer(
+        &bootstrap, &fixture.account.headers(), &fixture.exact_scope, async { "issued-create" },
+    ).await.expect("existing current fs.write Create grant");
+    assert_eq!(positive, "issued-create");
+    let key = format!("registry-no-create-{}", Uuid::now_v7());
+    let capabilities = vec!["fs.read".to_owned(), "fs.write".to_owned()];
+    let issued = fixture.storage.provision_principal(
+        &fixture.account.actor_id, &key, "service_identity", &key, "Operator", &capabilities,
+        &fixture.account.actor_id,
+        Some(&hex::encode(sha2::Sha256::digest(fixture.account.channel_binding_token.as_bytes()))),
+        std::time::Duration::from_secs(3600),
+    ).await.expect("issue current same-account no-Create principal");
+    assert_eq!(issued.identity.account_id, fixture.account.account_id);
+    assert_eq!(issued.identity.access_space_id, fixture.account.access_space_id);
+    let resource = fixture.storage.register_workspace_resource(&ProvisionedIdentity {
+        account_id: fixture.account.account_id.clone(), principal_id: fixture.account.principal_id.clone(),
+        access_space_id: fixture.account.access_space_id.clone(),
+    }, fixture.exact_scope.workspace_id.as_str()).await.expect("canonical workspace resource");
+    fixture.storage.grant_resource(&fixture.account.account_id, &fixture.account.access_space_id, ResourceGrantSpec {
+        principal_id: issued.identity.principal_id.clone(), resource_id: resource.resource_id,
+        actions: vec![ResourceAction::Read, ResourceAction::Update], capability_ids: capabilities,
+        expires_at: None, delegation_chain: Vec::new(),
+    }).await.expect("explicit genuine Read/Update-only grant");
+    let no_create = OwnerSession {
+        session_token: issued.session.token, channel_binding_token: fixture.account.channel_binding_token.clone(),
+        account_id: issued.identity.account_id, principal_id: issued.identity.principal_id,
+        access_space_id: issued.identity.access_space_id, session_id: issued.session.session_id, actor_id: key,
+    };
+    let mut no_create_scope = fixture.exact_scope.clone();
+    no_create_scope.actor_principal_id = ActorPrincipalId::from_uuid(Uuid::parse_str(&no_create.principal_id).unwrap());
+    no_create_scope.authenticated_session_id = AuthenticatedSessionRef::from_uuid(Uuid::parse_str(&no_create.session_id).unwrap());
+    fixture.storage.authorize_protected_resource(AuthorizationRequest {
+        session_token: no_create.session_token.clone(),
+        channel_binding_hash: Some(hex::encode(sha2::Sha256::digest(no_create.channel_binding_token.as_bytes()))),
+        capability_id: "fs.write".into(), resource_kind: ResourceKind::Workspace,
+        external_resource_id: fixture.exact_scope.workspace_id.as_str().to_owned(), action: ResourceAction::Update,
+    }).await.expect("Update is genuinely granted but cannot authorize Create");
+    let polled = AtomicBool::new(false);
+    let denied = with_issued_registry_initializer(
+        &bootstrap, &no_create.headers(), &no_create_scope,
+        async { polled.store(true, Ordering::SeqCst); },
+    ).await.expect_err("Update cannot authorize initialization");
+    assert_eq!(denied.0, axum::http::StatusCode::FORBIDDEN);
+    assert_eq!(denied.1.0, json!({"error": "HSK-403-PROTECTED-RESOURCE"}));
+    assert!(!polled.load(Ordering::SeqCst));
+    for foreign in one_field_mismatches(&fixture.exact_scope) {
+        assert!(with_issued_registry_initializer(
+            &bootstrap, &fixture.account.headers(), &foreign,
+            async { polled.store(true, Ordering::SeqCst); },
+        ).await.is_err());
+    }
+    assert!(!polled.load(Ordering::SeqCst));
+    fixture.storage.revoke_session(&fixture.account.session_id).await.expect("revoke actual issued session");
+    assert!(with_issued_registry_initializer(
+        &bootstrap, &fixture.account.headers(), &fixture.exact_scope,
+        async { polled.store(true, Ordering::SeqCst); },
+    ).await.is_err());
+    assert!(!polled.load(Ordering::SeqCst));
+    assert_eq!(fixture.registry_store.list_active_selections(&fixture.exact_scope)
+        .await.expect("no canonical default mutation after denied initializer"), before);
+    fixture.close().await;
+}
+#[tokio::test]
+async fn issued_non_operator_with_current_update_grant_cannot_select_or_rebind() {
+    use handshake_core::storage::surreal::resource_authority::{AuthorizationRequest, ResourceAction, ResourceKind};
+    let mut fixture = ApiFixture::open_with_system_principal(true).await;
+    let granted = fixture.storage.authorize_protected_resource(AuthorizationRequest {
+        session_token: fixture.account.session_token.clone(),
+        channel_binding_hash: Some(hex::encode(sha2::Sha256::digest(
+            fixture.account.channel_binding_token.as_bytes(),
+        ))),
+        capability_id: "fs.write".to_owned(), resource_kind: ResourceKind::Workspace,
+        external_resource_id: fixture.exact_scope.workspace_id.as_str().to_owned(),
+        action: ResourceAction::Update,
+    }).await.expect("current real system principal has exact workspace Update grant");
+    assert_eq!(granted.actor_kind, "system");
+    let before = fixture.registry_store.list_active_selections(&fixture.exact_scope)
+        .await.expect("canonical selections before non-operator denial");
+    let (base, server) = start_server(fixture.api_state(), Some(fixture.exact_scope.clone()), fixture.storage.clone()).await;
+    let http = fixture.account.client();
+    let mut rebind = control_request(Uuid::now_v7(), fixture.models.current_id);
+    rebind.action = ModelRuntimeControlAction::SwapCompatibleAdapter { target_adapter: "llama_cpp".into() };
+    rebind.expected_selection_revision = Some(1);
+    for request in [
+        http.post(format!("{base}/model-runtime/selection"))
+            .json(&selection_request(Uuid::now_v7(), 1, fixture.models.target_id)),
+        http.post(format!("{base}/model-runtime/control")).json(&rebind),
+    ] {
+        let response = request.send().await.expect("actual non-operator mutation denial");
+        assert_eq!(response.status(), reqwest::StatusCode::FORBIDDEN);
+        assert_eq!(response.json::<Value>().await.expect("constant operator admission denial"),
+            json!({"error": "HSK-403-PROTECTED-RESOURCE"}));
+    }
+    assert_eq!(fixture.client.swap_call_count(), 0);
+    assert_eq!(fixture.client.control_call_count(), 0);
+    assert_eq!(fixture.client.selected_model_id(), fixture.models.current_id.to_string());
+    assert_eq!(fixture.registry_store.list_active_selections(&fixture.exact_scope)
+        .await.expect("canonical selection after denial"), before);
+    server.abort();
+    let _ = server.await;
+    fixture.close().await;
+}
+#[tokio::test]
+async fn every_registry_leaf_denies_missing_forged_or_wrong_channel_credentials_before_provider_access() {
+    let mut fixture = ApiFixture::open().await;
+    let before = fixture.registry_store.list_active_selections(&fixture.exact_scope)
+        .await.expect("canonical defaults before credential denials");
+    let (base, server) = start_server(fixture.api_state(), Some(fixture.exact_scope.clone()), fixture.storage.clone()).await;
+    for http in [
+        reqwest::Client::new(),
+        reqwest::Client::builder().default_headers({
+            let mut headers = fixture.account.headers();
+            headers.insert("x-hsk-session-token", "f".repeat(64).parse().unwrap());
+            headers
+        }).build().unwrap(),
+        reqwest::Client::builder().default_headers({
+            let mut headers = fixture.account.headers();
+            headers.insert("x-hsk-channel-binding-token", "f".repeat(64).parse().unwrap());
+            headers
+        }).build().unwrap(),
+    ] {
+        let requests = [
+            http.get(format!("{base}/model-runtime/registry")),
+            http.get(format!("{base}/model-runtime/process-ownership/{}", fixture.models.current_id)),
+            http.get(format!("{base}/model-runtime/process-ownership/{}", Uuid::now_v7())),
+            http.post(format!("{base}/model-runtime/selection"))
+                .json(&selection_request(Uuid::now_v7(), 1, fixture.models.target_id)),
+            http.post(format!("{base}/model-runtime/control"))
+                .json(&control_request(Uuid::now_v7(), fixture.models.current_id)),
+        ];
+        for request in requests {
+            let response = request.send().await.expect("unauthorized registry leaf");
+            assert_eq!(response.status(), reqwest::StatusCode::FORBIDDEN);
+            assert_eq!(response.json::<Value>().await.expect("constant denial"),
+                json!({"error": "HSK-403-PROTECTED-RESOURCE"}));
+        }
+    }
+    assert_eq!(fixture.client.swap_call_count(), 0);
+    assert_eq!(fixture.client.control_call_count(), 0);
+    assert_eq!(fixture.registry_store.list_active_selections(&fixture.exact_scope)
+        .await.expect("canonical defaults after credential denials"), before);
+    server.abort();
+    let _ = server.await;
+    fixture.close().await;
+}
+#[tokio::test]
+async fn selection_http_observer_reads_actual_kernel_receipt_with_issued_exact_read_and_denies_others() {
+    let mut fixture = ApiFixture::open().await;
+    let (base, server) = start_server(fixture.api_state(), Some(fixture.exact_scope.clone()), fixture.storage.clone()).await;
+    let request_id = Uuid::now_v7();
+    let http = fixture.account.client();
+    let selected = http.post(format!("{base}/model-runtime/selection"))
+        .json(&selection_request(request_id, 1, fixture.models.target_id)).send().await.expect("selection HTTP");
+    assert_eq!(selected.status(), reqwest::StatusCode::OK);
+    let projection: ModelRuntimeRegistryProjection = selected.json().await.expect("selection projection");
+    let event_id = projection.selection_receipt_ref.as_deref().expect("selection receipt locator")
+        .strip_prefix("eventledger://kernel/").expect("canonical kernel receipt locator");
+    let observer = format!("{base}/kernel/events/aggregates/model_runtime_active_selection/application%2Fdefault");
+    let observed = http.get(&observer).send().await.expect("canonical kernel observer HTTP");
+    assert_eq!(observed.status(), reqwest::StatusCode::OK);
+    let events: Vec<Value> = observed.json().await.expect("canonical kernel event rows");
+    let event = events.iter().find(|event| event["event_id"] == event_id)
+        .expect("receipt locator resolved to an actual canonical event row");
+    assert_eq!(event["aggregate_type"], "model_runtime_active_selection");
+    assert_eq!(event["aggregate_id"], "application/default");
+    assert_eq!(event["actor"]["kind"], "operator");
+    assert_eq!(event["actor"]["id"], fixture.account.actor_id);
+    assert_eq!(event["session_run_id"], fixture.account.session_id);
+    assert_eq!(event["payload"]["authenticated_session_id"], fixture.account.session_id);
+    assert_eq!(event["payload"]["workspace_id"], fixture.exact_scope.workspace_id.as_str());
+    assert_eq!(event["payload"]["target_artifact_sha256"], hex::encode(fixture.models.target_sha));
+    assert!(event["payload"]["reason"].as_str().expect("selection request reason")
+        .starts_with(&format!("selection_request_id={request_id}; ")));
+    let before = fixture.registry_store.list_active_selections(&fixture.exact_scope).await.expect("canonical state before denied observer");
+    for request in [
+        reqwest::Client::new().get(&observer),
+        http.get(&observer).header("x-hsk-session-token", "f".repeat(64)),
+        http.get(&observer).header("x-hsk-channel-binding-token", "f".repeat(64)),
+    ] {
+        let denied = request.send().await.expect("denied canonical observer HTTP");
+        assert_eq!(denied.status(), reqwest::StatusCode::FORBIDDEN);
+        assert_eq!(denied.json::<Value>().await.expect("constant observer denial"), json!({
+            "code": "HSK-403-PROTECTED-RESOURCE", "message": "authenticated account session required",
+        }));
+    }
+    assert_eq!(fixture.registry_store.list_active_selections(&fixture.exact_scope).await.expect("canonical state after denied observer"), before);
+    server.abort();
+    let _ = server.await;
+    fixture.close().await;
+}
+// Component boundary only: the selected model below is AuthorityClient state, not a real adapter.
+// This assertion must never be cited as actual runtime/default restoration proof.
+#[tokio::test]
+async fn canonical_selection_audit_fault_is_finite_atomic_and_request_specific() {
+    use handshake_core::test_harness::model_runtime_selection::fail_next_selection_audit_append;
+    #[derive(Debug, PartialEq, surrealdb::types::SurrealValue)]
+    struct AuditRow {
+        id: RecordId, payload: Value, payload_hash: String,
+        actor_kind: String, actor_id: String, wsids: Vec<String>,
+        authority_resource_id: Option<RecordId>, authority_session_id: Option<RecordId>,
+        authority_capability_id: Option<String>, authority_action: Option<String>,
+    }
+    async fn audits(storage: &SurrealStorage) -> Vec<AuditRow> {
+        storage.with_data_operation(|db| Box::pin(async move {
+            db.query_values::<AuditRow, _>(
+                "SELECT id, payload, payload_hash, actor_kind, actor_id, wsids, authority_resource_id, authority_session_id, authority_capability_id, authority_action FROM kernel_event_ledger WHERE aggregate_type = 'model_runtime_active_selection' ORDER BY id;", (),
+            ).await
+        })).await.expect("canonical selection audit read")
+    }
+    let mut fixture = ApiFixture::open().await;
+    let before_selection = fixture.registry_store.list_active_selections(&fixture.exact_scope)
+        .await.expect("canonical selection before failure");
+    let before_audit = audits(&fixture.storage).await;
+    let request_id = Uuid::now_v7();
+    let request = selection_request(request_id, 1, fixture.models.target_id);
+    let reason = request["reason"].as_str().expect("selection reason");
+    fail_next_selection_audit_append(
+        &fixture.registry_store, &fixture.exact_scope,
+        ModelRuntimeSelectionPurpose::ApplicationDefault, fixture.models.target_sha, 1,
+        &KernelActor::Operator(fixture.account.actor_id.clone()),
+        &format!("selection_request_id={request_id}; {reason}"),
+    ).expect("arm one canonical audit append fault");
+    // A read does not consume this exact mutation fault.
+    assert_eq!(fixture.registry_store.list_active_selections(&fixture.exact_scope)
+        .await.expect("read while armed"), before_selection);
+    let (base, server) = start_server(fixture.api_state(), Some(fixture.exact_scope.clone()), fixture.storage.clone()).await;
+    let response = fixture.account.client().post(format!("{base}/model-runtime/selection"))
+        .json(&request).send().await.expect("faulted selection");
+    assert_eq!(response.status(), reqwest::StatusCode::CONFLICT);
+    assert_eq!(fixture.registry_store.list_active_selections(&fixture.exact_scope)
+        .await.expect("canonical selection after failure"), before_selection);
+    assert_eq!(audits(&fixture.storage).await, before_audit);
+    assert_eq!(fixture.client.selected_model_id(), fixture.models.current_id.to_string());
+    let retry = fixture.account.client().post(format!("{base}/model-runtime/selection"))
+        .json(&request).send().await.expect("same request after finite fault");
+    assert_eq!(retry.status(), reqwest::StatusCode::OK);
+    let after_audit = audits(&fixture.storage).await;
+    assert_eq!(after_audit.len(), before_audit.len() + 1);
+    let committed = after_audit.iter().find(|row| !before_audit.iter().any(|old| old.id == row.id))
+        .expect("new independently read canonical receipt");
+    assert_eq!(committed.actor_kind, KernelActor::Operator(String::new()).actor_kind());
+    assert_eq!(committed.actor_id, fixture.account.actor_id);
+    assert_eq!(committed.wsids, vec![fixture.exact_scope.workspace_id.as_str().to_owned()]);
+    assert!(committed.authority_resource_id.is_some());
+    assert_eq!(committed.authority_session_id, Some(RecordId::new(
+        "authenticated_sessions", fixture.account.session_id.clone(),
+    )));
+    assert_eq!(committed.authority_capability_id.as_deref(), Some("fs.write"));
+    assert_eq!(committed.authority_action.as_deref(), Some("update"));
+    server.abort();
+    let _ = server.await;
+    fixture.close().await;
+}
 #[path = "account_session_support/mod.rs"]
 mod engine_profile_account_session_support;
 
@@ -1180,7 +1490,7 @@ mod engine_profile_durable_boundary {
         async fn list_diagnostics(&self, _: DiagFilter) -> Result<Vec<Diagnostic>, handshake_core::storage::StorageError> { Ok(Vec::new()) }
     }
 
-    fn state(storage: SurrealStorage) -> AppState {
+    pub(super) fn state(storage: SurrealStorage) -> AppState {
         let services = Arc::new(BoundaryServices { profile: ModelProfile::new("no-inference".into(), 2048) });
         AppState {
             storage: Arc::new(SurrealDatabase::new(storage.clone())), surreal: storage,
@@ -1403,4 +1713,223 @@ mod engine_profile_durable_boundary {
         assert_eq!(receipt_rows(fixture.allocator.storage()).await, receipts);
         fixture.close().await;
     }
+}
+
+/// Actual configured Candle producer/owner boundary. This is not the component AuthorityClient
+/// fixture, and missing/incompatible operator input is an error rather than a skipped proof.
+#[cfg(feature = "app-runtime")]
+#[tokio::test]
+async fn configured_real_candle_load_has_scoped_owned_registry_and_http_process_detail() {
+    use engine_profile_account_session_support::AccountFixture;
+    use handshake_core::{
+        llm::registry::{ProviderRegistry, RuntimeRole},
+        process_ledger::{ProcessReclaimRuntime, production_process_sandbox_registry_async, resolve_embedded_runtime_host_scope},
+        test_harness::model_runtime_selection::{GenuineModelSelectionFixture, GenuineCompatibleCompletionInput},
+    };
+    let resolved = ProviderRegistry::from_env().expect("explicit configured provider input")
+        .resolve(RuntimeRole::Orchestrator).expect("configured current model resolution");
+    let local = resolved.local_model.as_ref().expect("selected Candle GGUF4B must be explicitly configured");
+    assert_eq!(local.runtime_binding, RuntimeBinding::Candle);
+    assert_eq!(hex::encode(local.sha256), "83df045fb0254aeb17feba1c693bd2d51bfc4f610e213d9414623d26673beafa");
+    let compatible_target = GenuineCompatibleCompletionInput::read_explicit_input().expect("independently bound compatible Completion input is required; missing input fails closed");
+    let mut allocator = IsolatedSurrealTestStore::create().await.expect("isolated actual-model store");
+    let storage = allocator.storage().clone();
+    bootstrap_model_registry_schema(&storage).await.expect("actual model registry schema");
+    let account = AccountFixture::install(&storage).await;
+    let workspace = account.create_workspace(&engine_profile_durable_boundary::state(storage.clone())).await;
+    let parse = |value: &str| Uuid::parse_str(value).expect("issued UUID");
+    let exact = ExactResourceScopeAttribution {
+        owner_account_id: OwnerAccountId::from_uuid(parse(&account.account_id)),
+        actor_principal_id: ActorPrincipalId::from_uuid(parse(&account.principal_id)),
+        authenticated_session_id: AuthenticatedSessionRef::from_uuid(parse(&account.session_id)),
+        access_space_id: AccessSpaceRef::from_uuid(parse(&account.access_space_id)),
+        workspace_id: WorkspaceScopeRef::new(workspace).expect("issued workspace"),
+    };
+    let bootstrap = handshake_core::AccountBootstrapState::from(&engine_profile_durable_boundary::state(storage.clone()));
+    let recorder_root = tempfile::TempDir::new().expect("fixture recorder root");
+    let recorder = Arc::new(handshake_core::flight_recorder::duckdb::DuckDbFlightRecorder::new_on_path(
+        &recorder_root.path().join("genuine-registry-fixture.duckdb"), 7,
+    ).expect("actual fixture flight recorder"));
+    // Process ownership is composed outside the narrow registry Create context, as in production.
+    let runtime = ProcessReclaimRuntime::production(
+        storage.clone(), ReclaimResourceScope::from_exact(&exact).expect("real exact runtime scope"), None,
+        production_process_sandbox_registry_async().await.expect("actual sandbox registry"),
+        resolve_embedded_runtime_host_scope().expect("actual runtime host scope"), std::time::Duration::from_secs(30),
+    ).await.expect("actual process runtime and OS lease");
+    let fixture = match GenuineModelSelectionFixture::load_current(
+        &resolved, &compatible_target, runtime, bootstrap.clone(), account.headers(), exact.clone(), recorder,
+    ).await {
+        Ok(fixture) => fixture,
+        Err(failure) => {
+            let settlement = tokio::time::timeout(std::time::Duration::from_secs(35),
+                failure.retained.shutdown(std::time::Duration::from_secs(30))).await;
+            let reason = failure.reason.clone();
+            if !matches!(&settlement, Ok(Ok(()))) {
+                let _retained = Box::leak(Box::new((failure, allocator, recorder_root, storage)));
+            }
+            panic!("actual configured load failed: {reason}; bounded owned settlement: {settlement:?}");
+        }
+    };
+    use futures::FutureExt;
+    let mut server_task = None;
+    let mut role_guard = None;
+    let mut integrity_restore = None;
+    let mut selection_restore = None;
+    let outcome = std::panic::AssertUnwindSafe(async {
+        let actual = fixture.client().expect("actual loaded client");
+        let current_id = fixture.current_model_id().expect("actual verified current model");
+        let before = fixture.snapshot_default().await.expect("canonical actual-runtime/default snapshot");
+        let (base, server) = start_server(
+            ModelRuntimeRegistryApiState::new(storage.clone(), actual).with_account_bootstrap(bootstrap),
+            Some(exact), storage.clone(),
+        ).await;
+        server_task = Some(server);
+        let response = account.client().get(format!("{base}/model-runtime/process-ownership/{current_id}"))
+            .send().await.expect("actual owned process detail HTTP");
+        assert_eq!(response.status(), reqwest::StatusCode::OK);
+        let detail: handshake_core::api::model_runtime_registry::ModelRuntimeProcessOwnershipRecord = response.json().await.expect("real ownership detail");
+        assert_eq!(detail.process_uuid, current_id.as_uuid());
+        assert!(detail.os_pid.is_none());
+        assert_eq!(detail.engine_kind, ProcessEngineKind::Candle.as_str());
+        assert_eq!(detail.model_artifact_sha256.as_deref(), Some(hex::encode(local.sha256).as_str()));
+        assert_eq!(fixture.snapshot_default().await.expect("actual default after observation"), before);
+        let catalog = fixture.client().expect("real client").model_catalog().expect("real shared catalog");
+        let original_entry = catalog.entry(&current_id.to_string()).expect("genuinely loaded Completion entry");
+        let catalog_revision = catalog.runtime_availability_revision();
+        role_guard = Some(fixture.project_current_catalog_role().await.expect("actual selected owner role projection"));
+        let projected = catalog.entry(&current_id.to_string()).expect("actual projected catalog entry");
+        let mut expected_projected = original_entry.clone();
+        expected_projected.runtime_role = ModelRuntimeRole::Embedding;
+        expected_projected.default_selectable = false;
+        assert_eq!(projected, expected_projected);
+        assert_eq!(catalog.runtime_availability_revision(), catalog_revision);
+        assert!(fixture.project_current_catalog_role().await.is_err(), "concurrent role projection must be rejected");
+        let role_drift_response = account.client().get(format!("{base}/model-runtime/registry"))
+            .send().await;
+        let during_role_drift = fixture.snapshot_default().await;
+        // Restore and verify before evaluating responses so assertion failures do not strand the role.
+        fixture.restore_current_catalog_role(role_guard.as_mut().expect("active catalog role guard")).await.expect("verified actual Completion restoration");
+        assert_eq!(catalog.entry(&current_id.to_string()).as_ref(), Some(&original_entry));
+        assert!(fixture.restore_current_catalog_role(role_guard.as_mut().expect("active catalog role guard")).await.is_err(), "already-restored guard is stale");
+        assert_eq!(during_role_drift.expect("canonical snapshot during catalog-only drift"), before);
+        let role_drift_response = role_drift_response.expect("actual role drift HTTP observation");
+        assert_eq!(role_drift_response.status(), reqwest::StatusCode::INTERNAL_SERVER_ERROR);
+        let (_, role_drift_code, _) = error_body(role_drift_response).await;
+        assert_eq!(role_drift_code, handshake_core::api::model_runtime_registry::MODEL_RUNTIME_REGISTRY_INTEGRITY_ERROR_CODE);
+        let restored_response = account.client().get(format!("{base}/model-runtime/registry"))
+            .send().await.expect("actual registry after role restoration");
+        assert_eq!(restored_response.status(), reqwest::StatusCode::OK);
+        let fallback_guard = fixture.project_current_catalog_role().await.expect("second finite role projection");
+        drop(fallback_guard);
+        assert_eq!(catalog.entry(&current_id.to_string()).as_ref(), Some(&original_entry));
+        assert_eq!(catalog.runtime_availability_revision(), catalog_revision);
+        assert_eq!(fixture.snapshot_default().await.expect("canonical default after role checks"), before);
+        // Actual supported distinct Completion A -> B makes the prior A observation stale.
+        let stale_revision = fixture.current_selection_revision().expect("actual pre-swap revision");
+        let target_id = fixture.target_model_id().expect("actual compatible target loaded and owned");
+        selection_restore = Some((base.clone(), current_id));
+        let transition = account.client().post(format!("{base}/model-runtime/selection"))
+            .json(&selection_request(Uuid::now_v7(), stale_revision, target_id))
+            .send().await.expect("actual distinct-model selection CAS");
+        assert_eq!(transition.status(), reqwest::StatusCode::OK);
+        let after_transition = fixture.snapshot_default().await.expect("canonical selection after A to B");
+        assert_eq!(after_transition.runtime_model_id, target_id.to_string());
+        assert_eq!(after_transition.selection.selection_revision, stale_revision + 1);
+        assert!(fixture.project_current_catalog_role_at_revision(stale_revision).await.is_err(),
+            "stale selected A observation must not arm after genuine A to B");
+        assert_eq!(catalog.entry(&current_id.to_string()).as_ref(), Some(&original_entry));
+        assert_eq!(fixture.snapshot_default().await.expect("canonical selection after stale denial"), after_transition);
+        let restore_selection = account.client().post(format!("{base}/model-runtime/selection"))
+            .json(&selection_request(Uuid::now_v7(), after_transition.selection.selection_revision, current_id))
+            .send().await.expect("genuine B to A restoration");
+        assert_eq!(restore_selection.status(), reqwest::StatusCode::OK);
+        let before = fixture.snapshot_default().await.expect("canonical selection after B to A restoration");
+        assert_eq!(before.runtime_model_id, current_id.to_string());
+        assert_eq!(before.selection.artifact_sha256, local.sha256);
+        assert_eq!(before.selection.selection_revision, stale_revision + 2);
+        selection_restore = None;
+        let original_owner = fixture.observe_ownership(current_id, local.sha256, RuntimeBinding::Candle)
+            .await.expect("canonical real-owned START before integrity fault");
+        let ledger = SurrealProcessLedgerStore::new(storage.clone());
+        let exact_process = original_owner.resource_scope.clone();
+        integrity_restore = Some((exact_process.clone(), current_id.as_uuid(), original_owner.event_ledger_event_id.clone()));
+        ledger.test_set_inspection_event_link(&exact_process, current_id.as_uuid(), Some(RecordId::new(
+            "kernel_event_ledger", format!("fixture-unresolved-process-event-{}", Uuid::now_v7()),
+        ))).await.expect("owned integrity fixture changes only the ledger reference");
+        let corrupted = account.client().get(format!("{base}/model-runtime/process-ownership/{current_id}"))
+            .send().await;
+        // Restore the exact original reference before assertions or shutdown; the canonical START
+        // event is never deleted/rewritten and no new ownership record is manufactured.
+        ledger.test_set_inspection_event_link(&exact_process, current_id.as_uuid(), Some(original_owner.event_ledger_event_id.clone()))
+            .await.expect("restore actual owned START reference");
+        integrity_restore = None;
+        let restored = fixture.observe_ownership(current_id, local.sha256, RuntimeBinding::Candle)
+            .await.expect("canonical real-owned START after exact restoration");
+        assert_eq!(restored, original_owner);
+        let corrupted = corrupted.expect("real-owned corrupted-link HTTP request");
+        assert_eq!(corrupted.status(), reqwest::StatusCode::INTERNAL_SERVER_ERROR);
+        let (_, code, detail) = error_body(corrupted).await;
+        assert_eq!(code, handshake_core::api::model_runtime_registry::MODEL_RUNTIME_REGISTRY_INTEGRITY_ERROR_CODE);
+        assert!(!detail.contains(&current_id.to_string()));
+        assert!(!detail.contains(&hex::encode(local.sha256)));
+        assert_eq!(fixture.snapshot_default().await.expect("actual default unchanged after integrity fault"), before);
+    }).catch_unwind().await;
+    // Cleanup runs after assertion unwinds as well as successful observations.
+    let mut cleanup_errors = Vec::new();
+    if let Some((base, original_id)) = selection_restore.take() {
+        let settlement = tokio::time::timeout(std::time::Duration::from_secs(15), async {
+            let observed = fixture.snapshot_default().await?;
+            if observed.runtime_model_id != original_id.to_string() || observed.selection.artifact_sha256 != local.sha256 {
+                let response = account.client().post(format!("{base}/model-runtime/selection"))
+                    .json(&selection_request(Uuid::now_v7(), observed.selection.selection_revision, original_id))
+                    .send().await.map_err(|error| error.to_string())?;
+                if response.status() != reqwest::StatusCode::OK { return Err("actual default restoration request was rejected".to_owned()); }
+            }
+            let restored = fixture.snapshot_default().await?;
+            if restored.runtime_model_id != original_id.to_string() || restored.selection.artifact_sha256 != local.sha256 {
+                return Err("actual A default restoration was not verified".to_owned());
+            }
+            Ok::<_, String>(())
+        }).await;
+        if !matches!(&settlement, Ok(Ok(()))) {
+            cleanup_errors.push(format!("genuine A default restoration not established: {settlement:?}"));
+        }
+    }
+    if let Some(guard) = role_guard.as_mut() {
+        // Only an explicit serialized restore qualifies. Drop below is a best-effort fallback.
+        match tokio::time::timeout(std::time::Duration::from_secs(10), fixture.settle_current_catalog_role(guard)).await {
+            Ok(Ok(())) => {},
+            result => cleanup_errors.push(format!("serialized catalog role restoration not established: {result:?}")),
+        }
+    }
+    drop(role_guard.take());
+    if let Some((scope, process_id, event_id)) = integrity_restore.take() {
+        let ledger = SurrealProcessLedgerStore::new(storage.clone());
+        match tokio::time::timeout(std::time::Duration::from_secs(10),
+            ledger.test_set_inspection_event_link(&scope, process_id, Some(event_id))).await {
+            Ok(Ok(())) => {},
+            result => cleanup_errors.push(format!("original START link restoration not established: {result:?}")),
+        }
+    }
+    if let Some(server) = server_task.as_mut() {
+        server.abort();
+        match tokio::time::timeout(std::time::Duration::from_secs(5), server).await {
+            Ok(Ok(())) => { server_task = None; },
+            Ok(Err(error)) if error.is_cancelled() => { server_task = None; },
+            result => cleanup_errors.push(format!("server join not established: {result:?}")),
+        }
+    }
+    match tokio::time::timeout(std::time::Duration::from_secs(35),
+        fixture.shutdown(std::time::Duration::from_secs(30))).await {
+        Ok(Ok(())) => {},
+        result => cleanup_errors.push(format!("real-model shutdown/drain not established: {result:?}")),
+    }
+    if !cleanup_errors.is_empty() {
+        // Preserve the actual runtime owner, lease, store and recorder until settlement is known.
+        let _retained = Box::leak(Box::new((fixture, allocator, recorder_root, storage, server_task)));
+        panic!("actual-model cleanup failed; original test panic={}; retained actual owners: {cleanup_errors:?}", outcome.is_err());
+    }
+    if let Err(panic) = outcome { std::panic::resume_unwind(panic); }
+    let cleanup = allocator.cleanup().await.expect("actual-model isolated-store cleanup");
+    assert!(cleanup.database_absent && cleanup.namespace_absent_after_reopen);
 }

@@ -8,7 +8,7 @@ use surrealdb::types::{RecordId, SurrealValue};
 use crate::{
     kernel::{
         context_bundle::{canonical_json_bytes, sha256_hex},
-        KernelActor, KernelEvent, KernelEventType, NewKernelEvent,
+        KernelActor, KernelEventType, NewKernelEvent,
     },
     model_runtime::{
         artifact_locator_for_sha256, ensure_runtime_binding_matches, ensure_selection_matches,
@@ -36,8 +36,23 @@ pub struct SurrealModelRegistryStore {
     storage: SurrealStorage,
     #[cfg(feature = "test-utils")]
     precommit_failure_for_tests: bool,
+    #[cfg(feature = "test-utils")]
+    active_selection_audit_fault: std::sync::Arc<std::sync::Mutex<Option<String>>>,
+    #[cfg(feature = "test-utils")]
+    lifecycle_fixture_identity: std::sync::Arc<()>,
+    #[cfg(feature = "test-utils")]
+    lifecycle_counterfactuals: std::sync::Arc<std::sync::Mutex<Vec<RegistrationLifecycleCounterfactual>>>,
 }
 
+#[cfg(feature = "test-utils")]
+#[derive(Clone)]
+struct RegistrationLifecycleCounterfactual {
+    owner: std::sync::Arc<()>,
+    scope: ExactResourceScopeAttribution,
+    artifact_sha256: [u8; 32],
+    selected: PersistedModelRegistration,
+    state: ModelRegistryLifecycleState,
+}
 #[derive(Debug, SurrealValue)]
 struct ExactScopeBindings {
     owner_account_id: String,
@@ -253,14 +268,6 @@ struct ActiveSelectBindings {
 struct TestArtifactBindings {
     scope: ExactScopeBindings,
     artifact_sha256: String,
-}
-
-#[cfg(feature = "test-utils")]
-#[derive(Debug, SurrealValue)]
-struct TestLifecycleBindings {
-    scope: ExactScopeBindings,
-    artifact_sha256: String,
-    lifecycle_state: String,
 }
 
 #[cfg(feature = "test-utils")]
@@ -898,7 +905,17 @@ COMMIT TRANSACTION;
 
 impl SurrealModelRegistryStore {
     pub fn new(storage: SurrealStorage) -> Self {
-        Self { storage, #[cfg(feature = "test-utils")] precommit_failure_for_tests: false }
+        Self {
+            storage,
+            #[cfg(feature = "test-utils")]
+            precommit_failure_for_tests: false,
+            #[cfg(feature = "test-utils")]
+            active_selection_audit_fault: Default::default(),
+            #[cfg(feature = "test-utils")]
+            lifecycle_fixture_identity: Default::default(),
+            #[cfg(feature = "test-utils")]
+            lifecycle_counterfactuals: Default::default(),
+        }
     }
 
     #[cfg(feature = "test-utils")]
@@ -907,6 +924,74 @@ impl SurrealModelRegistryStore {
         self
     }
 
+    #[cfg(feature = "test-utils")]
+    pub(crate) fn arm_active_selection_audit_fault(
+        &self,
+        scope: &ExactResourceScopeAttribution,
+        purpose: ModelRuntimeSelectionPurpose,
+        target: [u8; 32],
+        expected_revision: u64,
+        actor: &KernelActor,
+        reason: &str,
+    ) -> Result<(), ModelRegistryPersistenceError> {
+        let fingerprint = active_selection_request_fingerprint(
+            scope, purpose, &target, expected_revision, actor, reason,
+        )?;
+        let mut pending = self.active_selection_audit_fault.lock().map_err(|_| {
+            ModelRegistryPersistenceError::AuthorityUnavailable("fixture audit fault lock".into())
+        })?;
+        if pending.is_some() {
+            return Err(ModelRegistryPersistenceError::AuthorityUnavailable(
+                "fixture audit fault is already armed".into(),
+            ));
+        }
+        *pending = Some(fingerprint);
+        Ok(())
+    }
+    #[cfg(feature = "test-utils")]
+    fn require_fixture_registration_active(
+        &self, scope: &ExactResourceScopeAttribution, row: &PersistedModelRegistration,
+    ) -> Result<(), ModelRegistryPersistenceError> {
+        let entries = self.lifecycle_counterfactuals.lock().map_err(|_| {
+            ModelRegistryPersistenceError::AuthorityUnavailable("lifecycle fixture lock poisoned".into())
+        })?;
+        if let Some(entry) = entries.iter().find(|entry| entry.scope == *scope && entry.artifact_sha256 == row.artifact_sha256) {
+            let current = super::current_record_user_scope().ok_or_else(|| {
+                ModelRegistryPersistenceError::AuthorityUnavailable("lifecycle consumption requires original issued scope".into())
+            })?;
+            use super::resource_authority::ResourceAction;
+            if current.grant_id.is_none()
+                || current.session_id != scope.authenticated_session_id.as_uuid().to_string()
+                || current.workspace_id.as_deref() != Some(scope.workspace_id.as_str())
+                || !((current.capability_id == "fs.read" && current.action == ResourceAction::Read)
+                    || (current.capability_id == "fs.write" && matches!(current.action, ResourceAction::Create | ResourceAction::Update)))
+            {
+                return Err(ModelRegistryPersistenceError::AuthorityUnavailable("lifecycle consumption original scope mismatch".into()));
+            }
+            if !std::sync::Arc::ptr_eq(&entry.owner, &self.lifecycle_fixture_identity) || entry.selected != *row {
+                return Err(ModelRegistryPersistenceError::AuthorityUnavailable("lifecycle counterfactual canonical snapshot changed".into()));
+            }
+            return Err(ModelRegistryPersistenceError::SelectionInactive {
+                artifact_sha256: hex::encode(row.artifact_sha256), state: entry.state.as_str().into(),
+            });
+        }
+        Ok(())
+    }
+
+    #[cfg(feature = "test-utils")]
+    async fn check_fixture_lifecycle_before_mutation(
+        &self, scope: &ExactResourceScopeAttribution, artifact_sha256: &[u8; 32],
+    ) -> Result<(), ModelRegistryPersistenceError> {
+        let present = self.lifecycle_counterfactuals.lock().map_err(|_| {
+            ModelRegistryPersistenceError::AuthorityUnavailable("lifecycle fixture lock poisoned".into())
+        })?.iter().any(|entry| entry.scope == *scope && entry.artifact_sha256 == *artifact_sha256);
+        if present {
+            let row = self.load_by_artifact_sha256(scope, artifact_sha256).await?
+                .ok_or_else(|| ModelRegistryPersistenceError::AuthorityUnavailable("lifecycle counterfactual canonical row absent".into()))?;
+            self.require_fixture_registration_active(scope, &row)?;
+        }
+        Ok(())
+    }
     pub fn storage(&self) -> &SurrealStorage {
         &self.storage
     }
@@ -938,6 +1023,8 @@ impl SurrealModelRegistryStore {
             .map(|selection| {
                 let row = by_hash.get(&selection.artifact_sha256).cloned();
                 if let Some(row) = &row {
+                    #[cfg(feature = "test-utils")]
+                    self.require_fixture_registration_active(scope, row)?;
                     ensure_selection_matches(row, selection)?;
                 }
                 Ok(row)
@@ -965,6 +1052,8 @@ impl SurrealModelRegistryStore {
             .map(|selection| {
                 let row = by_hash.get(&selection.artifact_sha256).cloned();
                 if let Some(row) = &row {
+                    #[cfg(feature = "test-utils")]
+                    self.require_fixture_registration_active(scope, row)?;
                     ensure_runtime_binding_matches(row, selection)?;
                 }
                 Ok(row)
@@ -1023,6 +1112,10 @@ impl SurrealModelRegistryStore {
         if registrations.is_empty() {
             return Ok(Vec::new());
         }
+        #[cfg(feature = "test-utils")]
+        for selection in &selections {
+            self.check_fixture_lifecycle_before_mutation(scope, &selection.artifact_sha256).await?;
+        }
         let mut rows = Vec::with_capacity(registrations.len());
         let mut hashes = Vec::with_capacity(registrations.len());
         for (role_bound, selection) in registrations.iter().zip(&selections) {
@@ -1034,7 +1127,7 @@ impl SurrealModelRegistryStore {
                 role_bound,
                 &selection_fingerprint,
             )?;
-            let receipt = if initial_only { scoped_receipt_write(event, scope)? } else { receipt_write(event, scope) };
+            let receipt = scoped_receipt_write(event, scope)?;
             let event_record = RecordId::new("kernel_event_ledger", receipt.event_id.clone());
             let (embedding_space_id, embedding_dimension) = embedding_identity(selection)?;
             let now = receipt.created_at.to_owned();
@@ -1155,6 +1248,10 @@ impl SurrealModelRegistryStore {
         scope: &ExactResourceScopeAttribution,
         candidates: &[(ModelRuntimeSelectionPurpose, [u8; 32])],
     ) -> Result<Vec<PersistedActiveModelSelection>, ModelRegistryPersistenceError> {
+        #[cfg(feature = "test-utils")]
+        for (_, artifact_sha256) in candidates {
+            self.check_fixture_lifecycle_before_mutation(scope, artifact_sha256).await?;
+        }
         let mut seen = BTreeMap::new();
         for (purpose, artifact_sha256) in candidates {
             if seen.insert(*purpose, *artifact_sha256).is_some() {
@@ -1183,7 +1280,7 @@ impl SurrealModelRegistryStore {
                 KernelActor::System("model-runtime-registry".to_owned()),
                 "initial active default selected during boot",
             )?;
-            let receipt = receipt_write(event, scope);
+            let receipt = scoped_receipt_write(event, scope)?;
             let event_record = RecordId::new("kernel_event_ledger", receipt.event_id.clone());
             let now = receipt.created_at.to_owned();
             purposes.push(purpose.as_str().to_owned());
@@ -1278,6 +1375,8 @@ impl SurrealModelRegistryStore {
         actor: KernelActor,
         reason: &str,
     ) -> Result<PersistedActiveModelSelection, ModelRegistryPersistenceError> {
+        #[cfg(feature = "test-utils")]
+        self.check_fixture_lifecycle_before_mutation(scope, &target_artifact_sha256).await?;
         validate_operator_mutation(&actor, reason, expected_revision)?;
         let current = self
             .list_active_selections(scope)
@@ -1327,14 +1426,31 @@ impl SurrealModelRegistryStore {
         let purpose_token = purpose.as_str().to_owned();
         let runtime_role_token = purpose.runtime_role().as_str().to_owned();
         let target_artifact_sha256_hex = hex::encode(target_artifact_sha256);
-        let event_write = receipt_write(event, scope);
+        let event_write = scoped_receipt_write(event, scope)?;
+        let query = SELECT_ACTIVE_MODEL_QUERY.to_owned();
+        #[cfg(feature = "test-utils")]
+        let query = {
+            let mut pending = self.active_selection_audit_fault.lock().map_err(|_| {
+                ModelRegistryPersistenceError::AuthorityUnavailable("fixture audit fault lock".into())
+            })?;
+            if pending.as_deref() == Some(request_fingerprint.as_str()) {
+                pending.take();
+                query.replacen(
+                    "CREATE type::record('kernel_event_ledger', $event.event_id) CONTENT $event;",
+                    "THROW 'MODEL_SELECTION_FIXTURE_AUDIT_APPEND_FAILURE';",
+                    1,
+                )
+            } else {
+                query
+            }
+        };
         let rows = self
             .storage
             .with_data_operation(|database| {
                 Box::pin(async move {
                     database
                         .query_values_at::<StoredActiveSelection, _>(
-                            SELECT_ACTIVE_MODEL_QUERY,
+                            &query,
                             ActiveSelectBindings {
                                 scope: scope_bindings,
                                 purpose: purpose_token,
@@ -1383,6 +1499,8 @@ impl SurrealModelRegistryStore {
                     target.artifact_sha256,
                 ))
             })?;
+        #[cfg(feature = "test-utils")]
+        self.require_fixture_registration_active(scope, &existing)?;
         require_active_registration(&existing)?;
         if existing.runtime_role != target.runtime_role {
             return Err(ModelRegistryPersistenceError::InvalidRebind(
@@ -1435,7 +1553,7 @@ impl SurrealModelRegistryStore {
         let runtime_binding_value = runtime_binding_token(target.runtime_binding).to_owned();
         let runtime_role_value = target.runtime_role.as_str().to_owned();
         let provider_value = provider_token(target.provider).to_owned();
-        let event_write = receipt_write(event, scope);
+        let event_write = scoped_receipt_write(event, scope)?;
         let rows = self
             .storage
             .with_data_operation(|database| {
@@ -1533,10 +1651,10 @@ impl SurrealModelRegistryStore {
             .expect("single validated registration preserves cardinality");
         let mutation_fingerprint = selection_fingerprint(scope, &selection)?;
         let row_id = registry_row_id(scope, &selection)?;
-        let event = receipt_write(
+        let event = scoped_receipt_write(
             initial_registration_event(scope, &row_id, registration, &mutation_fingerprint)?,
             scope,
-        );
+        )?;
         let event_id = event.event_id.clone();
         let rows = self
             .storage
@@ -1560,42 +1678,46 @@ impl SurrealModelRegistryStore {
         Ok(event_id)
     }
 
-    /// Changes only lifecycle state for stale/revoked denial proofs.
+    /// Component counterfactual only: replaces the retired unreceipted lifecycle UPDATE.
+    /// The canonical row and ledger remain unchanged; only this store instance's actual
+    /// lifecycle-consuming boundaries observe Stale/Revoked after fresh canonical validation.
     #[cfg(feature = "test-utils")]
     pub async fn set_registration_lifecycle_for_tests(
-        &self,
-        scope: &ExactResourceScopeAttribution,
-        artifact_sha256: &[u8; 32],
-        lifecycle_state: ModelRegistryLifecycleState,
+        &self, scope: &ExactResourceScopeAttribution, artifact_sha256: &[u8; 32],
+        state: ModelRegistryLifecycleState,
     ) -> Result<(), ModelRegistryPersistenceError> {
-        let bindings = TestLifecycleBindings {
-            scope: exact_scope_bindings(scope),
-            artifact_sha256: hex::encode(artifact_sha256),
-            lifecycle_state: lifecycle_state.as_str().to_owned(),
+        use super::resource_authority::ResourceAction;
+        if !matches!(state, ModelRegistryLifecycleState::Stale | ModelRegistryLifecycleState::Revoked) {
+            return Err(ModelRegistryPersistenceError::InvalidRegistration("lifecycle counterfactual only permits Stale or Revoked".into()));
+        }
+        let authority = super::current_record_user_scope().ok_or_else(|| {
+            ModelRegistryPersistenceError::AuthorityUnavailable("lifecycle fixture requires original issued Read".into())
+        })?;
+        if authority.action != ResourceAction::Read || authority.capability_id != "fs.read"
+            || authority.grant_id.is_none()
+            || authority.session_id != scope.authenticated_session_id.as_uuid().to_string()
+            || authority.workspace_id.as_deref() != Some(scope.workspace_id.as_str())
+        {
+            return Err(ModelRegistryPersistenceError::AuthorityUnavailable("lifecycle fixture original Read mismatch".into()));
+        }
+        let selected = self.load_by_artifact_sha256(scope, artifact_sha256).await?
+            .ok_or_else(|| ModelRegistryPersistenceError::SelectionNotFound(hex::encode(artifact_sha256)))?;
+        require_active_registration(&selected)?;
+        let mut entries = self.lifecycle_counterfactuals.lock().map_err(|_| {
+            ModelRegistryPersistenceError::AuthorityUnavailable("lifecycle fixture lock poisoned".into())
+        })?;
+        let entry = RegistrationLifecycleCounterfactual {
+            owner: self.lifecycle_fixture_identity.clone(), scope: scope.clone(), artifact_sha256: *artifact_sha256,
+            selected, state,
         };
-        let rows = self
-            .storage
-            .with_data_operation(|database| {
-                Box::pin(async move {
-                    database
-                        .query_values::<surrealdb::types::Value, _>(
-                            "UPDATE model_runtime_registry SET lifecycle_state = $lifecycle_state \
-                             WHERE owner_account_id = $scope.owner_account_id \
-                               AND actor_principal_id = $scope.actor_principal_id \
-                               AND authenticated_session_id = $scope.authenticated_session_id \
-                               AND access_space_id = $scope.access_space_id \
-                               AND workspace_id = $scope.workspace_id \
-                               AND artifact_sha256 = $artifact_sha256 RETURN AFTER;",
-                            bindings,
-                        )
-                        .await
-                })
-            })
-            .await
-            .map_err(storage_error)?;
-        require_single_test_mutation(rows, "lifecycle")
+        if let Some(old) = entries.iter_mut().find(|old| old.scope == *scope && old.artifact_sha256 == *artifact_sha256) {
+            if !std::sync::Arc::ptr_eq(&old.owner, &self.lifecycle_fixture_identity) || old.selected != entry.selected {
+                return Err(ModelRegistryPersistenceError::AuthorityUnavailable("lifecycle fixture selected row changed".into()));
+            }
+            *old = entry;
+        } else { entries.push(entry); }
+        Ok(())
     }
-
     /// Corrupts the latest canonical receipt while preserving its referenced
     /// record, proving readers validate receipt semantics rather than presence.
     #[cfg(feature = "test-utils")]
@@ -2063,41 +2185,6 @@ fn active_selection_event(
     builder
         .build()
         .map_err(|error| ModelRegistryPersistenceError::Audit(error.to_string()))
-}
-
-fn receipt_write(
-    event: NewKernelEvent,
-    scope: &ExactResourceScopeAttribution,
-) -> KernelReceiptWrite {
-    let event = KernelEvent::from_new(event);
-    KernelReceiptWrite {
-        event_id: event.event_id,
-        event_version: event.event_version,
-        kernel_task_run_id: event.kernel_task_run_id,
-        session_run_id: event.session_run_id,
-        aggregate_type: event.aggregate_type,
-        aggregate_id: event.aggregate_id,
-        idempotency_key: event.idempotency_key,
-        event_type: event.event_type.as_str().to_owned(),
-        actor_kind: event.actor.actor_kind().to_owned(),
-        actor_id: event.actor.actor_id().to_owned(),
-        causation_id: event.causation_id,
-        correlation_id: event.correlation_id,
-        payload_hash: event.payload_hash,
-        source_component: event.source_component,
-        payload: event.payload,
-        owner_account_id: scope.owner_account_id.to_string(),
-        actor_principal_id: scope.actor_principal_id.to_string(),
-        authenticated_session_id: scope.authenticated_session_id.to_string(),
-        access_space_id: scope.access_space_id.to_string(),
-        workspace_id: scope.workspace_id.as_str().to_owned(),
-        created_at: event.created_at,
-        wsids: Vec::new(),
-        authority_resource_id: None,
-        authority_session_id: None,
-        authority_capability_id: None,
-        authority_action: None,
-    }
 }
 
 fn scoped_receipt_write(

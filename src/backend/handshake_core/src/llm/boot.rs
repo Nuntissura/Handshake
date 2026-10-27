@@ -243,6 +243,23 @@ pub async fn build_default_local_client(
     model_registry_authority: Option<ScopedModelRegistryAuthority>,
     runtime_instance: Option<EmbeddedRuntimeInstanceDescriptor>,
 ) -> Arc<dyn LlmClient> {
+    build_default_local_client_impl(
+        resolved, flight_recorder, ledger, model_registry_authority, runtime_instance,
+        #[cfg(feature = "test-utils")]
+        None,
+        #[cfg(feature = "test-utils")]
+        None,
+    ).await
+}
+async fn build_default_local_client_impl(
+    resolved: &ResolvedProvider,
+    flight_recorder: Arc<dyn FlightRecorder>,
+    ledger: Option<LedgerBatcher>,
+    model_registry_authority: Option<ScopedModelRegistryAuthority>,
+    runtime_instance: Option<EmbeddedRuntimeInstanceDescriptor>,
+    #[cfg(feature = "test-utils")] fixture_owner: Option<&mut Option<Arc<LocalModelRuntimeLlmClient>>>, 
+    #[cfg(feature = "test-utils")] fixture_target: Option<&super::registry::LocalModelConfig>,
+) -> Arc<dyn LlmClient> {
     let Some(local) = resolved.local_model.as_ref() else {
         let reason =
             "HSK-LOCAL-DISABLED: no local model configured (set HANDSHAKE_LOCAL_MODEL_PATH); \
@@ -322,6 +339,24 @@ pub async fn build_default_local_client(
             flight_recorder,
         ));
     };
+    // The production initializer must be admitted from the original issued request,
+    // independently of navigation or mount attribution. No artifact/load/START may precede it.
+    use crate::storage::surreal::resource_authority::ResourceAction;
+    let initializer_authorized = crate::storage::surreal::current_record_user_scope()
+        .is_some_and(|authority| {
+            authority.capability_id == "fs.write"
+                && authority.action == ResourceAction::Create
+                && authority.grant_id.is_some()
+                && authority.workspace_id.as_deref() == Some(model_registry_authority.scope().workspace_id.as_str())
+                && authority.session_id == model_registry_authority.scope().authenticated_session_id.as_uuid().to_string()
+        });
+    if !initializer_authorized {
+        return Arc::new(DisabledLlmClient::new_recorded(
+            resolved.model_id.clone(),
+            "HSK-LOCAL-DISABLED: original issued registry Create authority is unavailable".to_owned(),
+            flight_recorder,
+        ));
+    }
     let embedded_resource_scope = Some(model_registry_authority.scope().clone());
     let mut configured_selections = vec![ModelRuntimeSelection {
         artifact_sha256: local.sha256,
@@ -339,6 +374,15 @@ pub async fn build_default_local_client(
             runtime_binding: embedding_model.runtime_binding,
             runtime_role: ModelRuntimeRole::Embedding,
             declared_capabilities: capabilities.clone(),
+            provider: RuntimeProviderKind::Local,
+        });
+    }
+    #[cfg(feature = "test-utils")]
+    if let Some(target) = fixture_target {
+        configured_selections.push(ModelRuntimeSelection {
+            artifact_sha256: target.sha256, runtime_binding: target.runtime_binding,
+            runtime_role: ModelRuntimeRole::Completion,
+            declared_capabilities: default_local_load_capabilities(target.runtime_binding),
             provider: RuntimeProviderKind::Local,
         });
     }
@@ -409,6 +453,14 @@ pub async fn build_default_local_client(
     } else {
         None
     };
+    #[cfg(feature = "test-utils")]
+    let target_lifecycle = if fixture_target.is_some() {
+        match lifecycle_reservations.pop_front() {
+            Some(reservation) => Some(reservation),
+            None => return Arc::new(DisabledLlmClient::new_recorded(
+                resolved.model_id.clone(), "fixture target lifecycle reservation is missing".into(), flight_recorder)),
+        }
+    } else { None };
     if !lifecycle_reservations.is_empty() {
         return Arc::new(DisabledLlmClient::new_recorded(
             resolved.model_id.clone(),
@@ -706,7 +758,11 @@ pub async fn build_default_local_client(
                     ));
                 }
             };
+        #[cfg(feature = "test-utils")]
+        let embedding_ack_started = Instant::now();
         let embedding_ack_result = embedding_start_ack.wait(start_durability_budget).await;
+        #[cfg(feature = "test-utils")]
+        { start_durability_budget = start_durability_budget.saturating_sub(embedding_ack_started.elapsed()); }
         if let Err(err) = embedding_ack_result {
             let _ = unload_loaded_model(
                 &mut llama_runtime,
@@ -779,6 +835,25 @@ pub async fn build_default_local_client(
         additional_registrations.push(embedding_registration);
     }
 
+    #[cfg(feature = "test-utils")]
+    let fixture_target_registration = if let Some(target) = fixture_target {
+        match load_genuine_compatible_completion(
+            target, target_lifecycle.expect("target reservation assigned before artifact access"),
+            &runtime_instance, model_registry_authority.scope(), &mut llama_runtime,
+            &mut candle_runtime, &mut ready_registry, &mut start_durability_budget,
+        ).await {
+            Ok((registration, process)) => { embedded_processes.push(process); Some(registration) },
+            Err(reason) => {
+                let prior = std::iter::once(&registration).chain(additional_registrations.iter()).collect::<Vec<_>>();
+                for (registration, process) in prior.into_iter().zip(embedded_processes.iter()).rev() {
+                    rollback_loaded_embedded_model(&mut llama_runtime, &mut candle_runtime,
+                        registration.runtime_binding, registration.model_id, Some(process),
+                        "fixture-target-load-rollback").await;
+                }
+                return Arc::new(DisabledLlmClient::new_recorded(resolved.model_id.clone(), reason, flight_recorder));
+            }
+        }
+    } else { None };
     // Fail-closed fallback: an embedded local model has no external fallback
     // provider, so a non-UUIDv7 model_id (which should never reach here for the
     // default lane) degrades to a typed DisabledLlmClient error rather than a
@@ -799,6 +874,10 @@ pub async fn build_default_local_client(
             .map(RoleBoundModelRegistration::embedding),
     );
 
+    #[cfg(feature = "test-utils")]
+    if let Some(target) = fixture_target_registration {
+        durable_registrations.push(RoleBoundModelRegistration::completion(target));
+    }
     // Keep both runtimes mutable until the last fallible authority transition is
     // complete. If persistence fails, concrete unload results gate each STOP;
     // no Arc client or READY model can escape this branch.
@@ -955,7 +1034,10 @@ pub async fn build_default_local_client(
         client = client.with_embedded_process(embedded_process);
     }
 
-    Arc::new(client)
+    let client = Arc::new(client);
+    #[cfg(feature = "test-utils")]
+    if let Some(owner) = fixture_owner { *owner = Some(client.clone()); }
+    client
 }
 
 /// Roll back one loaded in-process model without ever publishing a false STOP.
@@ -1390,4 +1472,105 @@ fn ensure_loaded_capabilities_satisfy(
         }
     }
     Ok(())
+}
+
+/// Test-only admission into the actual configured production loader. No registry or READY
+/// marker is manufactured; the production path verifies artifact integrity and START ACK.
+#[cfg(feature = "test-utils")]
+pub async fn load_genuine_configured_fixture(
+    resolved: &ResolvedProvider,
+    flight_recorder: Arc<dyn FlightRecorder>,
+    runtime: &crate::process_ledger::ProcessReclaimRuntime,
+    authority: ScopedModelRegistryAuthority,
+    account: &crate::AccountBootstrapState,
+    headers: &axum::http::HeaderMap,
+    target: Option<&super::registry::LocalModelConfig>,
+) -> Result<(Arc<dyn LlmClient>, Option<Arc<LocalModelRuntimeLlmClient>>), LlmError> {
+    if !resolved_provider_requires_embedded_runtime(resolved) {
+        return Err(LlmError::ProviderError("genuine fixture requires an explicit configured local model".into()));
+    }
+    if let Some(target) = target {
+        let current = resolved.local_model.as_ref().ok_or_else(|| LlmError::ProviderError("current model config is absent".into()))?;
+        if target.sha256 == [0; 32] || target.sha256 == current.sha256
+            || target.runtime_binding == current.runtime_binding || target.embedding_dimension.is_some()
+            || target.artifact_path.as_os_str().is_empty() || target.display_name.trim().is_empty()
+            || !matches!(target.runtime_binding, RuntimeBinding::Candle | RuntimeBinding::LlamaCpp) {
+            return Err(LlmError::ProviderError("explicit distinct compatible Completion target is invalid".into()));
+        }
+    }
+    let mut owner = None;
+    let client = crate::api::authority::with_registry_initializer_authority(
+        account, headers, authority.scope(),
+        build_default_local_client_impl(
+            resolved, flight_recorder, Some(runtime.ledger().ledger()), Some(authority.clone()),
+            Some(runtime.runtime_instance().clone()), Some(&mut owner), target,
+        ),
+    ).await.map_err(|_| LlmError::ProviderError("original issued model initializer Create denied".into()))?;
+    Ok((client, owner))
+}
+/// Loads only the explicitly supplied compatible fixture Completion into the same mutable
+/// production runtimes. Original issued initialization authority surrounds this entire caller.
+#[cfg(feature = "test-utils")]
+async fn load_genuine_compatible_completion(
+    target: &super::registry::LocalModelConfig,
+    reservation: crate::process_ledger::ReservedProcessLifecycle,
+    instance: &EmbeddedRuntimeInstanceDescriptor,
+    scope: &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    llama: &mut LlamaCppRuntime,
+    candle: &mut CandleRuntime,
+    registry: &mut ModelRegistry,
+    ack_budget: &mut Duration,
+) -> Result<(ModelRegistration, EmbeddedModelProcess), String> {
+    let required = default_local_required_capabilities();
+    let spec = LoadSpec {
+        artifact_path: target.artifact_path.clone(), sha256_expected: hex::encode(target.sha256),
+        runtime_kind: target.runtime_binding.runtime_kind(), sampling_defaults: SamplingParams::default(),
+        kv_cache_policy: KvCachePolicy::default(),
+        declared_capabilities: default_local_load_capabilities(target.runtime_binding),
+        provider: RuntimeProviderKind::Local,
+        engine_origin: Some(target.runtime_binding.adapter_id().to_owned()), external_engine_import: None,
+    };
+    let loaded = match target.runtime_binding {
+        RuntimeBinding::Candle => candle.load_attested(spec, &required).await.map(|attested| AttestedEmbeddedLoad {
+            model_id: attested.model_id, artifact_integrity: attested.artifact_integrity.into(), capabilities: attested.capabilities,
+        }),
+        RuntimeBinding::LlamaCpp => llama.load_attested(spec, &required).await.map(|attested| AttestedEmbeddedLoad {
+            model_id: attested.model_id, artifact_integrity: attested.artifact_integrity, capabilities: attested.capabilities,
+        }),
+        RuntimeBinding::GenieX => return Err("fixture compatible Completion cannot use the owned GenieX worker route".into()),
+    }.map_err(|error| error.to_string())?;
+    // START is the first fallible transition after actual attested load.
+    let started = EmbeddedModelProcess::record_reserved_load_with_durable_ack_scoped(
+        reservation, target.runtime_binding, loaded.model_id, &target.display_name,
+        &loaded.artifact_integrity, Some(instance), Some(scope),
+    );
+    let (process, ack) = match started {
+        Ok(started) => started,
+        Err(error) => {
+            let _ = unload_loaded_model(llama, candle, target.runtime_binding, loaded.model_id,
+                "fixture-target-start-failed").await;
+            return Err(error.to_string());
+        }
+    };
+    let ack_started = Instant::now();
+    let ack_result = ack.wait(*ack_budget).await;
+    *ack_budget = ack_budget.saturating_sub(ack_started.elapsed());
+    if let Err(error) = ack_result {
+        let _ = unload_loaded_model(llama, candle, target.runtime_binding, loaded.model_id,
+            "fixture-target-ack-unknown").await;
+        process.leave_open_for_reconciliation();
+        return Err(error.to_string());
+    }
+    let registration = ModelRegistration {
+        model_id: loaded.model_id, artifact_path: target.artifact_path.clone(), sha256: target.sha256,
+        runtime_binding: target.runtime_binding, declared_capabilities: loaded.capabilities,
+        base_model_tag: BaseModelTag::new(target.display_name.clone()), registered_at_utc: Utc::now(),
+        registered_by: OperatorId::new("handshake-embedded-fixture-target"), provider: RuntimeProviderKind::Local,
+    };
+    if let Err(error) = register_ready_registration(registry, &registration) {
+        rollback_loaded_embedded_model(llama, candle, target.runtime_binding, loaded.model_id,
+            Some(&process), "fixture-target-registry-failed").await;
+        return Err(error.to_string());
+    }
+    Ok((registration, process))
 }

@@ -286,6 +286,17 @@ impl WorkspaceActivationRequest {
         lifecycle.authorize_association(&self.association).map_err(|_| constant_denial())
     }
 
+    /// The request privately carries its original issued credentials across the activation
+    /// channel. Navigation and publication authority do not authorize registry creation.
+    pub(crate) async fn run_registry_initializer<T>(
+        &self,
+        operation: impl std::future::Future<Output = T>,
+    ) -> Result<T, (StatusCode, Json<Value>)> {
+        self.authorize_for_publication().await?;
+        with_registry_initializer_authority(
+            &self.state, &self.headers, self.scope.exact(), operation,
+        ).await
+    }
     pub async fn acknowledge_with<R, F>(self, runtime: &R, publication: F) -> Result<(), (StatusCode, Json<Value>)>
     where
         R: serde::Serialize + Sync,
@@ -326,6 +337,69 @@ impl WorkspaceActivationRequest {
     }
 }
 
+/// Independently admits the original request as a registry producer. This is not a
+/// constructor from attribution: every call rechecks the signed channel, issued session,
+/// canonical workspace and current Create grant before polling the producer future.
+pub(crate) async fn with_registry_initializer_authority<T>(
+    state: &AccountBootstrapState,
+    headers: &HeaderMap,
+    expected: &crate::swarm_orchestration::resource_scope::ExactResourceScopeAttribution,
+    operation: impl std::future::Future<Output = T>,
+) -> Result<T, (StatusCode, Json<Value>)> {
+    use crate::swarm_orchestration::resource_scope::{
+        ResourceAccessLifecycleDecision, ResourceAccessLifecycleState,
+    };
+    match state.surreal.resource_access_lifecycle().decision(expected) {
+        Ok(ResourceAccessLifecycleDecision::Unknown)
+        | Ok(ResourceAccessLifecycleDecision::Known { state: ResourceAccessLifecycleState::Active, .. }) => {},
+        _ => return Err(constant_denial()),
+    }
+    let session = authenticated_session_credentials_bootstrap(state, headers).await?;
+    if session.context.identity.account_id != expected.owner_account_id.as_uuid().to_string()
+        || session.context.identity.principal_id != expected.actor_principal_id.as_uuid().to_string()
+        || session.context.session_id != expected.authenticated_session_id.as_uuid().to_string()
+        || session.context.identity.access_space_id != expected.access_space_id.as_uuid().to_string()
+    {
+        return Err(constant_denial());
+    }
+    let resource = state.surreal.canonical_resource_locator(
+        ResourceKind::Workspace, expected.workspace_id.as_str(),
+    ).await.map_err(|_| constant_denial())?.ok_or_else(constant_denial)?;
+    if resource.owner_account_id != surrealdb::types::RecordId::new(
+        "local_accounts", session.context.identity.account_id,
+    ) || resource.access_space_id != surrealdb::types::RecordId::new(
+        "access_spaces", session.context.identity.access_space_id,
+    ) || resource.external_resource_id != expected.workspace_id.as_str() {
+        return Err(constant_denial());
+    }
+    let admission = authorize_bootstrap_request(
+        state, headers, "fs.write", ResourceKind::Workspace,
+        expected.workspace_id.as_str(), ResourceAction::Create,
+    ).await?;
+    if admission.account_id != expected.owner_account_id.as_uuid().to_string()
+        || admission.principal_id != expected.actor_principal_id.as_uuid().to_string()
+        || admission.session_id != expected.authenticated_session_id.as_uuid().to_string()
+        || admission.access_space_id != expected.access_space_id.as_uuid().to_string()
+    {
+        return Err(constant_denial());
+    }
+    let actor = match admission.actor_kind.as_str() {
+        "operator" => KernelActor::Operator(admission.actor_id),
+        "system" => KernelActor::System(admission.actor_id),
+        "session_broker" => KernelActor::SessionBroker(admission.actor_id),
+        "model_adapter" => KernelActor::ModelAdapter(admission.actor_id),
+        "toolgate" => KernelActor::ToolGate(admission.actor_id),
+        "validation_runner" => KernelActor::ValidationRunner(admission.actor_id),
+        "promotion_gate" => KernelActor::PromotionGate(admission.actor_id),
+        _ => return Err(constant_denial()),
+    };
+    Ok(state.surreal.with_record_user_scope(
+        admission.record_user_scope,
+        crate::storage::surreal::event_ledger::with_loom_session_receipt(
+            actor, expected.workspace_id.as_str().to_owned(), operation,
+        ),
+    ).await)
+}
 fn activation_unavailable() -> (StatusCode, Json<Value>) {
     (
         StatusCode::SERVICE_UNAVAILABLE,

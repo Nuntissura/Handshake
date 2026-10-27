@@ -990,7 +990,7 @@ DEFINE SEQUENCE IF NOT EXISTS kernel_event_sequence BATCH 1 START 1;
 
 -- MT109_AUTHORITY_BEGIN
 DEFINE TABLE OVERWRITE kernel_event_ledger SCHEMAFULL
-    PERMISSIONS FOR select WHERE IF aggregate_type = 'producer_association' { fn::wp012_validator_association_ledger($this, false) } ELSE { (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids) AND (aggregate_type != 'argus_action' OR (aggregate_id = payload.action_id AND correlation_id = payload.action_id AND kernel_task_run_id = 'argus:' + payload.connection_id AND session_run_id = 'argus:' + payload.connection_id AND idempotency_key = 'argus-action-receipt:' + payload.diagnostics_session_id + ':' + payload.action_id AND authority_action = 'create' AND authority_resource_id.resource_kind = 'flight_recorder' AND owner_account_id = payload.owner_account_id AND actor_principal_id = payload.actor_principal_id AND authenticated_session_id = payload.authenticated_session_id AND access_space_id = payload.access_space_id AND workspace_id = payload.workspace_id AND authenticated_session_id = record::id(authority_session_id) AND owner_account_id = record::id(authority_session_id.account_id) AND actor_principal_id = record::id(authority_session_id.principal_id) AND access_space_id = record::id(authority_session_id.access_space_id) AND actor_kind IN ['operator', 'toolgate'] AND actor_kind = authority_session_id.principal_id.actor_kind AND actor_id = authority_session_id.principal_id.actor_id))) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_model_lane_receipt($this, false) OR fn::wp012_palmistry_watcher_receipt($this, false) OR fn::wp012_palmistry_watcher_read_receipt($this) OR fn::wp012_member_revoke_receipt($this, false) OR fn::wp012_model_lane_role_ledger_read($this) OR fn::wp012_engine_profile_ledger_read($this) }
+    PERMISSIONS FOR select WHERE IF $wp012_recovery_discovery_only = true { fn::wp012_recovery_discovery_access($this) } ELSE IF aggregate_type = 'producer_association' { fn::wp012_validator_association_ledger($this, false) } ELSE { (fn::mt109_ledger_receipt(authority_capability_id, event_type, source_component, aggregate_type, payload, wsids) AND fn::mt109_ledger_reader(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids) AND (aggregate_type != 'argus_action' OR (aggregate_id = payload.action_id AND correlation_id = payload.action_id AND kernel_task_run_id = 'argus:' + payload.connection_id AND session_run_id = 'argus:' + payload.connection_id AND idempotency_key = 'argus-action-receipt:' + payload.diagnostics_session_id + ':' + payload.action_id AND authority_action = 'create' AND authority_resource_id.resource_kind = 'flight_recorder' AND owner_account_id = payload.owner_account_id AND actor_principal_id = payload.actor_principal_id AND authenticated_session_id = payload.authenticated_session_id AND access_space_id = payload.access_space_id AND workspace_id = payload.workspace_id AND authenticated_session_id = record::id(authority_session_id) AND owner_account_id = record::id(authority_session_id.account_id) AND actor_principal_id = record::id(authority_session_id.principal_id) AND access_space_id = record::id(authority_session_id.access_space_id) AND actor_kind IN ['operator', 'toolgate'] AND actor_kind = authority_session_id.principal_id.actor_kind AND actor_id = authority_session_id.principal_id.actor_id))) OR fn::mt120_document_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_workspace_state_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt120_nav_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_nav_quiet_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_index_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, session_run_id, false) OR fn::mt120_loom_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_workspace_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt154_account_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::mt157_breakpoint_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_api_receipt(authority_resource_id, authority_session_id, authority_capability_id, authority_action, wsids, event_type, source_component, aggregate_type, aggregate_id, payload, actor_kind, actor_id, false) OR fn::wp012_model_lane_receipt($this, false) OR fn::wp012_palmistry_watcher_receipt($this, false) OR fn::wp012_palmistry_watcher_read_receipt($this) OR fn::wp012_model_registry_process_receipt_read($this) OR fn::wp012_member_revoke_receipt($this, false) OR fn::wp012_model_lane_role_ledger_read($this) OR fn::wp012_engine_profile_ledger_read($this) }
                 FOR create WHERE IF aggregate_type = 'producer_association' {
                     fn::wp012_validator_association_ledger($this, true)
                 } ELSE IF aggregate_type IN ['role_evidence', 'validator_designation', 'role_evidence_consumption'] {
@@ -1004,22 +1004,23 @@ DEFINE FIELD OVERWRITE event_id ON TABLE kernel_event_ledger TYPE string ASSERT 
 DEFINE FIELD OVERWRITE event_sequence ON TABLE kernel_event_ledger TYPE int DEFAULT sequence::nextval('kernel_event_sequence') ASSERT $value > 0;
 DEFINE FIELD OVERWRITE event_version ON TABLE kernel_event_ledger TYPE string;
 DEFINE FIELD OVERWRITE kernel_task_run_id ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE session_run_id ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE session_run_id ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
 DEFINE FIELD OVERWRITE aggregate_type ON TABLE kernel_event_ledger TYPE string;
 DEFINE FIELD OVERWRITE aggregate_id ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE idempotency_key ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE idempotency_key ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
 DEFINE FIELD OVERWRITE event_type ON TABLE kernel_event_ledger TYPE string;
 DEFINE FIELD OVERWRITE actor_kind ON TABLE kernel_event_ledger TYPE string;
 DEFINE FIELD OVERWRITE actor_id ON TABLE kernel_event_ledger TYPE string;
 DEFINE FIELD OVERWRITE causation_id ON TABLE kernel_event_ledger TYPE option<string>;
-DEFINE FIELD OVERWRITE correlation_id ON TABLE kernel_event_ledger TYPE option<string>;
-DEFINE FIELD OVERWRITE payload_hash ON TABLE kernel_event_ledger TYPE string;
+DEFINE FIELD OVERWRITE correlation_id ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE payload_hash ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true AND ($wp012_recovery_head_only != true);
 DEFINE FIELD OVERWRITE source_component ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE payload ON TABLE kernel_event_ledger TYPE object FLEXIBLE;
-DEFINE FIELD OVERWRITE payload.* ON TABLE kernel_event_ledger TYPE any;
+DEFINE FIELD OVERWRITE payload ON TABLE kernel_event_ledger TYPE object FLEXIBLE PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true AND ($wp012_recovery_head_only != true);
+DEFINE FIELD OVERWRITE payload.* ON TABLE kernel_event_ledger TYPE any PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true AND ($wp012_recovery_head_only != true);
 -- MT173_NAVIGATION_RECEIPT_INPUT_BEGIN
 -- A distinct closed semantic input, never a redacted payload or a replacement hash.
 DEFINE FUNCTION OVERWRITE fn::wp012_navigation_receipt_semantics($row: object) {
+    IF $wp012_recovery_discovery_only = true { RETURN NONE; };
     IF $row.aggregate_type NOT IN ['knowledge_crdt_ai_edit_proposal', 'knowledge_ai_edit_promotion']
         OR $row.event_type NOT IN ['AI_EDIT_PROPOSAL_RECORDED', 'AI_EDIT_PROPOSAL_DECIDED', 'PROMOTION_REQUESTED', 'PROMOTION_ACCEPTED']
         OR ($row.aggregate_type = 'knowledge_crdt_ai_edit_proposal' AND ($row.source_component != 'model_lane_crdt' OR $row.event_type NOT IN ['AI_EDIT_PROPOSAL_RECORDED', 'AI_EDIT_PROPOSAL_DECIDED']))
@@ -1087,57 +1088,57 @@ DEFINE FUNCTION OVERWRITE fn::wp012_navigation_receipt_semantics($row: object) {
 DEFINE FIELD OVERWRITE navigation_semantic_input ON TABLE kernel_event_ledger TYPE option<object>
     VALUE fn::wp012_navigation_receipt_semantics($this)
     ASSERT $value = fn::wp012_navigation_receipt_semantics($this)
-    PERMISSIONS FOR select WHERE $wp012_original_purpose = 'navigation_read'
-        AND fn::wp012_model_lane_navigation_receipt_input_access($this);
-DEFINE FIELD OVERWRITE navigation_semantic_input.schema_id ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE navigation_semantic_input.proposal_id ON TABLE kernel_event_ledger TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_semantic_input.diff_sha256 ON TABLE kernel_event_ledger TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_semantic_input.document_id ON TABLE kernel_event_ledger TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_semantic_input.crdt_document_id ON TABLE kernel_event_ledger TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_semantic_input.recorded_event_id ON TABLE kernel_event_ledger TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_semantic_input.reviewer_principal_id ON TABLE kernel_event_ledger TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_semantic_input.reviewer_authenticated_session_id ON TABLE kernel_event_ledger TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_semantic_input.reviewer_action ON TABLE kernel_event_ledger TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_semantic_input.reviewer_capability_id ON TABLE kernel_event_ledger TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_semantic_input.reviewer_resource_id ON TABLE kernel_event_ledger TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_semantic_input.reviewer_grant_id ON TABLE kernel_event_ledger TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_semantic_input.review_state ON TABLE kernel_event_ledger TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_semantic_input.applied_update_id ON TABLE kernel_event_ledger TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_semantic_input.applied_update_sha256 ON TABLE kernel_event_ledger TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_semantic_input.approved_diff_sha256 ON TABLE kernel_event_ledger TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_semantic_input.base_state_vector ON TABLE kernel_event_ledger TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_semantic_input.decided_by ON TABLE kernel_event_ledger TYPE option<string>;
-DEFINE FIELD OVERWRITE navigation_semantic_input.base_update_seq ON TABLE kernel_event_ledger TYPE option<int>;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence ON TABLE kernel_event_ledger TYPE option<object>;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.schema_id ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.operation ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.proposal_id ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.document_id ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.crdt_document_id ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.recorded_event_id ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.approval_event_id ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.base_update_id ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.base_snapshot_id ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.base_snapshot_event_id ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.base_update_event_id ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.update_id ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.update_event_id ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.approved_diff_sha256 ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.yjs_update_sha256 ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.canonical_base_materialization_sha256 ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.canonical_post_materialization_sha256 ON TABLE kernel_event_ledger TYPE string;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.base_update_seq ON TABLE kernel_event_ledger TYPE int;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.update_seq ON TABLE kernel_event_ledger TYPE int;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.approval_event_sequence ON TABLE kernel_event_ledger TYPE int;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.update_event_sequence ON TABLE kernel_event_ledger TYPE int;
-DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.path ON TABLE kernel_event_ledger TYPE array<string>;
+    PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true AND ($wp012_original_purpose = 'navigation_read'
+        AND fn::wp012_model_lane_navigation_receipt_input_access($this));
+DEFINE FIELD OVERWRITE navigation_semantic_input.schema_id ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.proposal_id ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.diff_sha256 ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.document_id ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.crdt_document_id ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.recorded_event_id ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.reviewer_principal_id ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.reviewer_authenticated_session_id ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.reviewer_action ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.reviewer_capability_id ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.reviewer_resource_id ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.reviewer_grant_id ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.review_state ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.applied_update_id ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.applied_update_sha256 ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.approved_diff_sha256 ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.base_state_vector ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.decided_by ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.base_update_seq ON TABLE kernel_event_ledger TYPE option<int> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence ON TABLE kernel_event_ledger TYPE option<object> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.schema_id ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.operation ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.proposal_id ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.document_id ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.crdt_document_id ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.recorded_event_id ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.approval_event_id ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.base_update_id ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.base_snapshot_id ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.base_snapshot_event_id ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.base_update_event_id ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.update_id ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.update_event_id ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.approved_diff_sha256 ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.yjs_update_sha256 ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.canonical_base_materialization_sha256 ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.canonical_post_materialization_sha256 ON TABLE kernel_event_ledger TYPE string PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.base_update_seq ON TABLE kernel_event_ledger TYPE int PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.update_seq ON TABLE kernel_event_ledger TYPE int PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.approval_event_sequence ON TABLE kernel_event_ledger TYPE int PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.update_event_sequence ON TABLE kernel_event_ledger TYPE int PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
+DEFINE FIELD OVERWRITE navigation_semantic_input.application_evidence.path ON TABLE kernel_event_ledger TYPE array<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
 -- MT173_NAVIGATION_RECEIPT_INPUT_END
 DEFINE FIELD OVERWRITE owner_account_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
 DEFINE FIELD OVERWRITE actor_principal_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
 DEFINE FIELD OVERWRITE authenticated_session_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
 DEFINE FIELD OVERWRITE access_space_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
 DEFINE FIELD OVERWRITE workspace_id ON TABLE kernel_event_ledger TYPE option<string> ASSERT $value = NONE OR string::trim($value) != '';
-DEFINE FIELD OVERWRITE created_at ON TABLE kernel_event_ledger TYPE datetime DEFAULT time::now();
+DEFINE FIELD OVERWRITE created_at ON TABLE kernel_event_ledger TYPE datetime DEFAULT time::now() PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
 DEFINE INDEX OVERWRITE pk_kernel_event_ledger ON TABLE kernel_event_ledger FIELDS event_id UNIQUE;
 DEFINE INDEX OVERWRITE idx_kernel_event_ledger_sequence ON TABLE kernel_event_ledger FIELDS event_sequence UNIQUE;
 DEFINE INDEX OVERWRITE idx_kernel_event_ledger_idempotency ON TABLE kernel_event_ledger FIELDS idempotency_key UNIQUE;
@@ -1222,7 +1223,7 @@ DEFINE INDEX OVERWRITE idx_kernel_crdt_snapshots_latest ON TABLE kernel_crdt_sna
 DEFINE INDEX OVERWRITE idx_kernel_crdt_snapshots_state_vector ON TABLE kernel_crdt_snapshots FIELDS state_vector;
 
 -- 0021_kernel_process_lifecycle
-DEFINE TABLE OVERWRITE kernel_process_lifecycle SCHEMAFULL PERMISSIONS FOR select WHERE fn::wp012_palmistry_watcher_start($this, false) FOR create WHERE fn::wp012_palmistry_watcher_start($this, true) FOR update, delete NONE;
+DEFINE TABLE OVERWRITE kernel_process_lifecycle SCHEMAFULL PERMISSIONS FOR select WHERE (fn::wp012_palmistry_watcher_start($this, false) OR fn::wp012_model_registry_process_read($this)) FOR create WHERE fn::wp012_palmistry_watcher_start($this, true) FOR update, delete NONE;
 DEFINE FIELD OVERWRITE process_uuid ON TABLE kernel_process_lifecycle TYPE uuid;
 DEFINE FIELD OVERWRITE process_id ON TABLE kernel_process_lifecycle TYPE uuid VALUE $this.process_uuid;
 DEFINE FIELD OVERWRITE os_pid ON TABLE kernel_process_lifecycle TYPE option<int> ASSERT $value = NONE OR $value >= 0;
@@ -1231,7 +1232,7 @@ DEFINE FIELD OVERWRITE parent_process_id ON TABLE kernel_process_lifecycle TYPE 
 DEFINE FIELD OVERWRITE sandbox_adapter_id ON TABLE kernel_process_lifecycle TYPE option<string>;
 DEFINE FIELD OVERWRITE adapter_id ON TABLE kernel_process_lifecycle TYPE option<string> VALUE $this.sandbox_adapter_id;
 DEFINE FIELD OVERWRITE sandbox_internal_id ON TABLE kernel_process_lifecycle TYPE option<string>;
-DEFINE FIELD OVERWRITE engine_kind ON TABLE kernel_process_lifecycle TYPE 'llamacpp' | 'llama_cpp' | 'candle' | 'abliteration_tool' | 'sandbox_container' | 'mechanical_job' | 'asr_worker' | 'comfyui_worker' | 'plugin_process' | 'helper_subprocess' | 'external_compat' | 'webview2_cdp' | 'official_cli_bridge';
+DEFINE FIELD OVERWRITE engine_kind ON TABLE kernel_process_lifecycle TYPE 'llamacpp' | 'llama_cpp' | 'candle' | 'genie_x' | 'abliteration_tool' | 'sandbox_container' | 'mechanical_job' | 'asr_worker' | 'comfyui_worker' | 'plugin_process' | 'helper_subprocess' | 'external_compat' | 'webview2_cdp' | 'official_cli_bridge';
 DEFINE FIELD OVERWRITE started_at ON TABLE kernel_process_lifecycle TYPE datetime;
 DEFINE FIELD OVERWRITE spawned_at_utc ON TABLE kernel_process_lifecycle TYPE datetime VALUE $this.started_at;
 DEFINE FIELD OVERWRITE stopped_at ON TABLE kernel_process_lifecycle TYPE option<datetime>;
@@ -6842,13 +6843,31 @@ DEFINE FUNCTION OVERWRITE fn::wp012_api_receipt($resource: option<record<protect
         RETURN fn::mt109_ledger_access($resource, $session, $capability, $action)
             AND fn::mt109_has_workspace_access($wsids[0], 'update', 'fs.write');
     };
+    IF $source = 'model_runtime_registry' AND $aggregate = 'model_runtime_active_selection'
+        AND $event IN ['MODEL_RUNTIME_SELECTION_RECORDED', 'MODEL_RUNTIME_SELECTION_REBOUND'] {
+        RETURN $aggregate_id = $payload.purpose AND $capability = 'fs.write' AND $action IN ['create', 'update']
+            AND fn::wp012_model_registry_request($payload, $write)
+            AND fn::wp012_model_registry_active_payload($payload, $event, $write)
+            AND ($event != 'MODEL_RUNTIME_SELECTION_REBOUND' OR ($action = 'update' AND $actor_kind = 'operator'))
+            AND (!$write OR ($wp012_original_resource = record::id($resource)
+                AND $wp012_original_action = $action AND $wp012_original_capability = $capability));
+    };
+    IF $source = 'model_runtime_registry' AND $aggregate = 'model_runtime_registry'
+        AND $event = 'MODEL_RUNTIME_SELECTION_REBOUND' {
+        RETURN $capability = 'fs.write' AND $action = 'update' AND $actor_kind = 'operator'
+            AND fn::wp012_model_registry_rebind_payload($payload)
+            AND fn::wp012_model_registry_request($payload, $write)
+            AND (!$write OR ($wp012_original_resource = record::id($resource)
+                AND $wp012_original_action = 'update' AND $wp012_original_capability = 'fs.write'
+                AND $auth.principal_id.actor_kind = 'operator'));
+    };
     IF $event = 'MODEL_RUNTIME_SELECTION_RECORDED' AND $source = 'model_runtime_registry' AND $aggregate = 'model_runtime_registry'
         AND $aggregate_id = $payload.registry_row_id AND $payload.selection_revision = 1
         AND $payload.action = 'model_runtime_selection_recorded' AND string::len($payload.artifact_sha256) = 64
         AND string::len($payload.mutation_fingerprint) = 64 {
         RETURN $capability = 'fs.write' AND $action = 'create'
             AND IF $write { fn::mt109_ledger_access($resource, $session, $capability, $action) AND fn::mt109_has_workspace_access($wsids[0], 'create', 'fs.write') }
-                ELSE { fn::mt109_has_workspace_access($wsids[0], 'read', 'fs.read') };
+                ELSE { fn::mt109_has_workspace_access($wsids[0], 'read', 'fs.read') OR ($wp012_original_action IN ['create', 'update'] AND $wp012_original_capability = 'fs.write' AND fn::wp012_model_registry_request($payload, true)) };
     };
     RETURN $event = 'KNOWLEDGE_RETRIEVAL_TRACE_RECORDED' AND $source = 'loom_search::surreal_search' AND $aggregate = 'loom_search_result_set'
         AND $payload.action = 'loom_search_result_set_recorded' AND $payload.result_set_id = $aggregate_id
@@ -7336,15 +7355,15 @@ DEFINE FUNCTION OVERWRITE fn::mt109_ledger_reader($resource: option<record<prote
                               AND fn::mt109_has_grant('reconciliation_queue', 'mt109-protected-reconciliation:' + $wsids[0], 'reconcile', 'memory.commit'))))));
 };
 
-DEFINE FIELD OVERWRITE authority_resource_id ON TABLE kernel_event_ledger TYPE option<record<protected_resources>> PERMISSIONS FULL;
+DEFINE FIELD OVERWRITE authority_resource_id ON TABLE kernel_event_ledger TYPE option<record<protected_resources>> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
 
-DEFINE FIELD OVERWRITE authority_grant_id ON TABLE kernel_event_ledger TYPE option<record<resource_grants>> PERMISSIONS FULL;
+DEFINE FIELD OVERWRITE authority_grant_id ON TABLE kernel_event_ledger TYPE option<record<resource_grants>> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
 
-DEFINE FIELD OVERWRITE authority_session_id ON TABLE kernel_event_ledger TYPE option<record<authenticated_sessions>> PERMISSIONS FULL;
+DEFINE FIELD OVERWRITE authority_session_id ON TABLE kernel_event_ledger TYPE option<record<authenticated_sessions>> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
 
-DEFINE FIELD OVERWRITE authority_capability_id ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD OVERWRITE authority_capability_id ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
 
-DEFINE FIELD OVERWRITE authority_action ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FULL;
+DEFINE FIELD OVERWRITE authority_action ON TABLE kernel_event_ledger TYPE option<string> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
 
 DEFINE FIELD OVERWRITE wsids ON TABLE kernel_event_ledger TYPE array<string> PERMISSIONS FULL;
 -- MT109_AUTHORITY_END
@@ -10039,6 +10058,47 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_role_ledger_read($row: object) {
 };
 
 DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_receipt($row: object, $write: bool) {
+    IF !$write AND $wp012_recovery_head_only = true {
+        -- Only fixed head/membership queries install this lexical flag. Nested canonical
+        -- run/profile checks retain their original receipt and field permissions.
+        LET $wp012_recovery_head_only = false;
+        IF $wp012_original_subject_kind != 'workspace'
+            OR $wp012_original_subject_id != $row.workspace_id
+            OR !(($wp012_original_purpose = 'recovery_checkpoint_record'
+                    AND $wp012_original_action = 'create' AND $wp012_original_capability = 'fs.write')
+                OR ($wp012_original_purpose = 'recovery_execute'
+                    AND $wp012_original_action = 'update' AND $wp012_original_capability = 'model_lane.recovery.execute'))
+            OR $row.kernel_task_run_id != $run_id OR $row.session_run_id != $event_ledger_stream_id
+            OR !fn::wp012_model_lane_original_operation($row)
+            OR !fn::wp012_context_coordination_fence($row, 'run', $run_id) { RETURN false; };
+        LET $run_key = crypto::sha256(string::join(['handshake.model-lane.authority.v1', 'run', $run_id,
+            $row.owner_account_id, $row.actor_principal_id, $row.authenticated_session_id,
+            $row.access_space_id, $row.workspace_id], '\u0000'));
+        LET $runs = SELECT * FROM type::record('model_lane_authority', $run_key);
+        RETURN array::len($runs) = 1
+            AND encoding::json::decode($runs[0].record_json).event_ledger_stream_id = $event_ledger_stream_id
+            AND fn::wp012_profile_checkpoint_runtime(object::extend($row, { run_id: $run_id }));
+    };
+    IF !$write AND $wp012_original_purpose = 'recovery_execute'
+        AND $row.aggregate_type = 'recovery_checkpoint' {
+        IF $row.source_component != 'model_lane' OR $row.event_id != record::id($row.id)
+            OR $row.kernel_task_run_id != $run_id
+            OR $row.owner_account_id != record::id($auth.account_id)
+            OR $row.actor_principal_id != record::id($auth.principal_id)
+            OR $row.authenticated_session_id != record::id($auth.id)
+            OR $row.access_space_id != record::id($auth.access_space_id)
+            OR $row.authority_session_id != $auth.id
+            OR array::len($row.wsids) != 1 OR $row.wsids[0] != $row.workspace_id { RETURN false; };
+        LET $sources = SELECT * FROM model_lane_authority
+            WHERE record_kind = 'recovery_checkpoint' AND run_id = $run_id
+            AND aggregate_id = $row.aggregate_id AND event_id = $row.event_id
+            AND event_ledger_event_id = $row.id
+            AND owner_account_id = $row.owner_account_id AND actor_principal_id = $row.actor_principal_id
+            AND authenticated_session_id = $row.authenticated_session_id
+            AND access_space_id = $row.access_space_id AND workspace_id = $row.workspace_id;
+        RETURN array::len($sources) = 1 AND fn::wp012_model_lane_source_access($sources[0], false)
+            AND fn::wp012_model_lane_source_identity($sources[0]);
+    };
     IF !$write AND $row.aggregate_type = 'role_evidence' AND $wp012_original_purpose = 'source_read' AND $wp012_routing_original.action = 'read' AND $wp012_routing_original.execution_id != '' {
         RETURN fn::wp012_routing_ack_read_receipt($row);
     };
@@ -10139,7 +10199,7 @@ DEFINE FUNCTION OVERWRITE fn::wp012_model_lane_receipt($row: object, $write: boo
         AND $record.event_ledger_stream_id = $row.session_run_id;
 };
 
-DEFINE FIELD OVERWRITE authority_parent_resource_id ON TABLE kernel_event_ledger TYPE option<record<protected_resources>> PERMISSIONS FULL;
+DEFINE FIELD OVERWRITE authority_parent_resource_id ON TABLE kernel_event_ledger TYPE option<record<protected_resources>> PERMISSIONS FOR select WHERE $wp012_recovery_discovery_only != true FOR create, update FULL;
 
 DEFINE FUNCTION OVERWRITE fn::wp012_artifact_workspace_create($parent: record<protected_resources>) {
     LET $wp012_navigation_memory_metadata_only = true;

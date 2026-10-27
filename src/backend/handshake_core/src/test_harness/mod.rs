@@ -28,3 +28,6 @@ pub mod surreal_test_store_support;
 
 #[cfg(feature = "surreal-test-support")]
 pub mod swarm_lane_diagnostics;
+
+#[cfg(feature = "test-utils")]
+pub mod model_runtime_selection;

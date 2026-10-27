@@ -807,8 +807,17 @@ fn session_runtime_state(state: &ModelSessionState) -> SessionRuntimeState {
 async fn list_kernel_events_for_aggregate(
     State(state): State<AppState>,
     Path((aggregate_type, aggregate_id)): Path<(String, String)>,
-    headers: axum::http::HeaderMap,
+    request: axum::extract::Request,
 ) -> Result<Json<Vec<KernelEvent>>, (StatusCode, Json<ErrorResponse>)> {
+    let (mut parts, _) = request.into_parts();
+    let headers = parts.headers.clone();
+    let registry_denial = || (
+        StatusCode::FORBIDDEN,
+        Json(ErrorResponse {
+            code: "HSK-403-PROTECTED-RESOURCE",
+            message: "authenticated account session required".to_owned(),
+        }),
+    );
     // MT-109 C2: deny by default; the read runs as the authenticated record user so it returns only
     // receipts the caller's account may read (Master Spec 02-system-architecture:2773/:2776).
     let session = crate::api::authority::authenticated_session_credentials(&state, &headers)
@@ -831,15 +840,33 @@ async fn list_kernel_events_for_aggregate(
             }),
         ));
     }
-    let events = state
-        .surreal
-        .list_account_kernel_events_for_aggregate(
-            &session.session_token,
-            &session.channel_binding_hash,
-            &aggregate_type,
-            &aggregate_id,
-        )
-        .await
+    let events = if aggregate_type == "model_runtime_active_selection" {
+        use axum::extract::FromRequestParts;
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+        let scope = crate::api::account_scope::RequestAccountScope::from_request_parts(&mut parts, &state)
+            .await.map_err(|_| registry_denial())?;
+        let admitted = crate::api::authority::authorize_request(
+            &state, &headers, "fs.read", ResourceKind::Workspace,
+            scope.exact().workspace_id.as_str(), ResourceAction::Read,
+        ).await.map_err(|_| registry_denial())?;
+        if admitted.account_id != scope.exact().owner_account_id.as_uuid().to_string()
+            || admitted.principal_id != scope.exact().actor_principal_id.as_uuid().to_string()
+            || admitted.session_id != scope.exact().authenticated_session_id.as_uuid().to_string()
+            || admitted.access_space_id != scope.exact().access_space_id.as_uuid().to_string()
+        {
+            return Err(registry_denial());
+        }
+        state.surreal.with_record_user_scope(
+            admitted.record_user_scope,
+            state.surreal.list_account_kernel_events_for_aggregate(
+                &session.session_token, &session.channel_binding_hash, &aggregate_type, &aggregate_id,
+            ),
+        ).await
+    } else {
+        state.surreal.list_account_kernel_events_for_aggregate(
+            &session.session_token, &session.channel_binding_hash, &aggregate_type, &aggregate_id,
+        ).await
+    }
         .map_err(|error| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,

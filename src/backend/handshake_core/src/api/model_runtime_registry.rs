@@ -9,7 +9,7 @@ use std::{collections::BTreeMap, path::Path, sync::Arc};
 
 use axum::{
     extract::{Path as AxumPath, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
@@ -68,6 +68,7 @@ pub const MODEL_RUNTIME_REGISTRY_SCOPE_DENIED_CODE: &str = "MODEL_RUNTIME_REGIST
 pub struct ModelRuntimeRegistryApiState {
     surreal_storage: SurrealStorage,
     llm_client: Arc<dyn LlmClient>,
+    request_authority: Option<crate::AccountBootstrapState>,
 }
 
 impl ModelRuntimeRegistryApiState {
@@ -75,10 +76,98 @@ impl ModelRuntimeRegistryApiState {
         Self {
             surreal_storage,
             llm_client,
+            request_authority: None,
         }
     }
 
-    fn model_catalog(&self) -> Option<Arc<crate::model_runtime::ModelCatalog>> {
+    /// Unbound states deny every HTTP request. Production composition supplies the real account
+    /// authority and the same storage clone used by its issued sessions.
+    pub fn with_account_bootstrap(mut self, authority: crate::AccountBootstrapState) -> Self {
+        self.surreal_storage = authority.surreal.clone();
+        self.request_authority = Some(authority);
+        self
+    }
+
+    async fn authorize(
+        &self,
+        headers: &HeaderMap,
+        scope: &RequestAccountScope,
+        write: bool,
+    ) -> Result<crate::api::authority::AuthorizedResourceContext, ModelRuntimeRegistryApiError> {
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+        let deny = || ModelRuntimeRegistryApiError {
+            status: StatusCode::FORBIDDEN,
+            code: "HSK-403-PROTECTED-RESOURCE",
+            detail: String::new(),
+        };
+        let state = self.request_authority.as_ref().ok_or_else(deny)?;
+        let session = crate::api::authority::authenticated_session_credentials_bootstrap(state, headers)
+            .await.map_err(|_| deny())?;
+        let expected = scope.exact();
+        if session.context.identity.account_id != expected.owner_account_id.as_uuid().to_string()
+            || session.context.identity.principal_id != expected.actor_principal_id.as_uuid().to_string()
+            || session.context.session_id != expected.authenticated_session_id.as_uuid().to_string()
+            || session.context.identity.access_space_id != expected.access_space_id.as_uuid().to_string()
+        {
+            return Err(deny());
+        }
+        let runtime_authority = self.llm_client.scoped_model_registry_authority().ok_or_else(deny)?;
+        if runtime_authority.scope() != expected {
+            return Err(deny());
+        }
+        let resource = state.surreal.canonical_resource_locator(
+            ResourceKind::Workspace, expected.workspace_id.as_str(),
+        ).await.map_err(|_| deny())?.ok_or_else(deny)?;
+        if resource.owner_account_id != surrealdb::types::RecordId::new(
+            "local_accounts", session.context.identity.account_id.clone(),
+        ) || resource.access_space_id != surrealdb::types::RecordId::new(
+            "access_spaces", session.context.identity.access_space_id.clone(),
+        ) || resource.external_resource_id != expected.workspace_id.as_str() {
+            return Err(deny());
+        }
+        let authority = crate::api::authority::authorize_bootstrap_request(
+            state, headers, if write { "fs.write" } else { "fs.read" },
+            ResourceKind::Workspace, expected.workspace_id.as_str(),
+            if write { ResourceAction::Update } else { ResourceAction::Read },
+        ).await.map_err(|_| deny())?;
+        if authority.account_id != expected.owner_account_id.as_uuid().to_string()
+            || authority.principal_id != expected.actor_principal_id.as_uuid().to_string()
+            || authority.session_id != expected.authenticated_session_id.as_uuid().to_string()
+            || authority.access_space_id != expected.access_space_id.as_uuid().to_string()
+        {
+            return Err(deny());
+        }
+        Ok(authority)
+    }
+
+    async fn run_authorized<T>(
+        &self,
+        authority: &crate::api::authority::AuthorizedResourceContext,
+        scope: &RequestAccountScope,
+        operation: impl std::future::Future<Output = Result<T, ModelRuntimeRegistryApiError>>,
+    ) -> Result<T, ModelRuntimeRegistryApiError> {
+        use crate::kernel::KernelActor;
+        let actor = match authority.actor_kind.as_str() {
+            "operator" => KernelActor::Operator(authority.actor_id.clone()),
+            "system" => KernelActor::System(authority.actor_id.clone()),
+            "session_broker" => KernelActor::SessionBroker(authority.actor_id.clone()),
+            "model_adapter" => KernelActor::ModelAdapter(authority.actor_id.clone()),
+            "toolgate" => KernelActor::ToolGate(authority.actor_id.clone()),
+            "validation_runner" => KernelActor::ValidationRunner(authority.actor_id.clone()),
+            "promotion_gate" => KernelActor::PromotionGate(authority.actor_id.clone()),
+            _ => return Err(ModelRuntimeRegistryApiError {
+                status: StatusCode::FORBIDDEN,
+                code: "HSK-403-PROTECTED-RESOURCE",
+                detail: String::new(),
+            }),
+        };
+        self.surreal_storage.with_record_user_scope(
+            authority.record_user_scope.clone(),
+            crate::storage::surreal::event_ledger::with_loom_session_receipt(
+                actor, scope.exact().workspace_id.as_str().to_owned(), operation,
+            ),
+        ).await
+    }    fn model_catalog(&self) -> Option<Arc<crate::model_runtime::ModelCatalog>> {
         self.llm_client.model_catalog()
     }
 }
@@ -282,6 +371,9 @@ impl From<ModelRegistryPersistenceError> for ModelRuntimeRegistryApiError {
 
 impl IntoResponse for ModelRuntimeRegistryApiError {
     fn into_response(self) -> Response {
+        if self.code == "HSK-403-PROTECTED-RESOURCE" {
+            return crate::api::authority::constant_denial().into_response();
+        }
         (
             self.status,
             Json(ModelRuntimeRegistryErrorBody {
@@ -295,12 +387,70 @@ impl IntoResponse for ModelRuntimeRegistryApiError {
 
 async fn list_registry(
     State(state): State<ModelRuntimeRegistryApiState>,
+    headers: HeaderMap,
+    scope: RequestAccountScope,
+) -> Result<Json<ModelRuntimeRegistryProjection>, ModelRuntimeRegistryApiError> {
+    let authority = state.authorize(&headers, &scope, false).await?;
+    state.run_authorized(&authority, &scope,
+        list_registry_authorized(State(state.clone()), scope.clone())).await
+}
+
+async fn get_process_ownership_record(
+    State(state): State<ModelRuntimeRegistryApiState>,
+    headers: HeaderMap,
+    scope: RequestAccountScope,
+    path: AxumPath<Uuid>,
+) -> Result<Json<ModelRuntimeProcessOwnershipRecord>, ModelRuntimeRegistryApiError> {
+    let authority = state.authorize(&headers, &scope, false).await?;
+    state.run_authorized(&authority, &scope,
+        get_process_ownership_record_authorized(State(state.clone()), scope.clone(), path)).await
+}
+
+async fn control_model_runtime(
+    State(state): State<ModelRuntimeRegistryApiState>,
+    headers: HeaderMap,
+    scope: RequestAccountScope,
+    request: Json<ModelRuntimeControlRequest>,
+) -> Result<Json<ModelRuntimeControlReceipt>, ModelRuntimeRegistryApiError> {
+    let authority = state.authorize(&headers, &scope, true).await?;    if matches!(&request.0.action, ModelRuntimeControlAction::SwapCompatibleAdapter { .. })
+        && authority.actor_kind != "operator"
+    {
+        return Err(ModelRuntimeRegistryApiError {
+            status: StatusCode::FORBIDDEN,
+            code: "HSK-403-PROTECTED-RESOURCE",
+            detail: String::new(),
+        });
+    }
+    state.run_authorized(&authority, &scope,
+        control_model_runtime_authorized(State(state.clone()), scope.clone(), request)).await
+}
+
+async fn select_ready_model(
+    State(state): State<ModelRuntimeRegistryApiState>,
+    headers: HeaderMap,
+    scope: RequestAccountScope,
+    Json(mut request): Json<SelectReadyModelRequest>,
+) -> Result<Json<ModelRuntimeRegistryProjection>, ModelRuntimeRegistryApiError> {
+    let authority = state.authorize(&headers, &scope, true).await?;
+    if authority.actor_kind != "operator" {
+        return Err(ModelRuntimeRegistryApiError {
+            status: StatusCode::FORBIDDEN,
+            code: "HSK-403-PROTECTED-RESOURCE",
+            detail: String::new(),
+        });
+    }
+    request.actor = authority.actor_id.clone();
+    state.run_authorized(&authority, &scope,
+        select_ready_model_authorized(State(state.clone()), scope.clone(), Json(request))).await
+}
+async fn list_registry_authorized(
+    State(state): State<ModelRuntimeRegistryApiState>,
     scope: RequestAccountScope,
 ) -> Result<Json<ModelRuntimeRegistryProjection>, ModelRuntimeRegistryApiError> {
     Ok(Json(build_registry_projection(&state, &scope).await?))
 }
 
-async fn get_process_ownership_record(
+async fn get_process_ownership_record_authorized(
     State(state): State<ModelRuntimeRegistryApiState>,
     scope: RequestAccountScope,
     AxumPath(process_uuid): AxumPath<Uuid>,
@@ -736,7 +886,7 @@ async fn build_registry_projection(
     })
 }
 
-async fn control_model_runtime(
+async fn control_model_runtime_authorized(
     State(state): State<ModelRuntimeRegistryApiState>,
     scope: RequestAccountScope,
     Json(request): Json<ModelRuntimeControlRequest>,
@@ -819,7 +969,7 @@ fn last_call_age(value: &ModelRuntimeValue<String>, now: &DateTime<Utc>) -> Mode
     }
 }
 
-async fn select_ready_model(
+async fn select_ready_model_authorized(
     State(state): State<ModelRuntimeRegistryApiState>,
     scope: RequestAccountScope,
     Json(request): Json<SelectReadyModelRequest>,

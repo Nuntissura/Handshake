@@ -571,6 +571,22 @@ pub enum ModelLaneCrdtTestCorruption {
 }
 
 #[cfg(feature = "surreal-test-support")]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ModelLaneRecoveryAuthorityTestSnapshot {
+    pub record_json: String,
+    pub event_id: String,
+    pub event_seq: i64,
+    pub event_stream_version: i64,
+    pub transaction_seq: i64,
+    pub receipt_event_id: String,
+    pub receipt_event_seq: i64,
+    pub receipt_event_stream_version: i64,
+    pub receipt_session_run_id: String,
+    pub receipt_payload_json: String,
+    pub receipt_payload_hash: String,
+}
+
+#[cfg(feature = "surreal-test-support")]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ModelLaneAuthorityTestCorruption {
     ProjectionEventSequence,
@@ -585,6 +601,10 @@ pub enum ModelLaneAuthorityTestCorruption {
     /// Attempts to blank a scope field; the SCHEMAFULL authority table must
     /// refuse it, so the seam is expected to fail without mutating the row.
     BlankAttribution,
+    RecoveryReplayOrderGap,
+    RecoveryCheckpointProjectionDrift,
+    RecoveryCheckpointReceiptIdentity,
+    RecoveryCheckpointStream,
 }
 
 #[cfg(feature = "surreal-test-support")]
@@ -597,6 +617,10 @@ impl ModelLaneAuthorityTestCorruption {
             Self::ReceiptScope => "receipt_scope",
             Self::IncompleteAttribution => "incomplete_attribution",
             Self::BlankAttribution => "blank_attribution",
+            Self::RecoveryReplayOrderGap => "recovery_replay_order_gap",
+            Self::RecoveryCheckpointProjectionDrift => "recovery_checkpoint_projection_drift",
+            Self::RecoveryCheckpointReceiptIdentity => "recovery_checkpoint_receipt_identity",
+            Self::RecoveryCheckpointStream => "recovery_checkpoint_stream",
         }
     }
 }
@@ -2779,6 +2803,117 @@ impl ModelLaneStore {
     }
 
     #[cfg(feature = "surreal-test-support")]
+    pub async fn test_recovery_run_high_watermark(&self, run_id: &str) -> ModelLaneResult<i64> {
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+        let scope = self.surreal_write_scope("inspect checkpoint producer run high watermark")?;
+        let original = crate::storage::surreal::current_record_user_scope()
+            .ok_or_else(|| ModelLaneError::AuthorityDenied(
+                "checkpoint watermark inspection requires original Workspace/Create fs.write authority".into(),
+            ))?;
+        if original.action != ResourceAction::Create || original.capability_id != "fs.write"
+            || original.workspace_id.as_deref() != Some(scope.workspace_id.as_str())
+            || original.session_id != scope.authenticated_session_id
+            || !matches!(crate::storage::surreal::current_model_lane_subject(), Some(subject)
+                if subject.kind == ResourceKind::Workspace && subject.external_id == scope.workspace_id)
+        {
+            return Err(ModelLaneError::AuthorityDenied(
+                "checkpoint watermark inspection requires exact original Workspace/Create fs.write authority".into(),
+            ));
+        }
+        require_token("run_id", run_id)?;
+        let provider = self.provider().await?.clone();
+        let store = self.clone();
+        let run_id = run_id.to_owned();
+        crate::storage::surreal::with_model_lane_operation(
+            crate::storage::surreal::ContextCoordinationPurpose::RecoveryCheckpointRecord,
+            provider.clone().with_context_bundle_transaction(
+                crate::storage::surreal::ContextCoordinationPurpose::RecoveryCheckpointRecord,
+                run_id.clone(), Vec::new(), scope.clone(),
+                move || async move {
+                    let run_id = run_id.as_str();
+                    let row = provider.get(SurrealRecordKind::Run, run_id, &scope).await?
+                        .ok_or_else(|| ModelLaneError::NotFound(format!("run_id {run_id}")))?;
+                    provider.validate_event_link(SurrealRecordKind::Run, &row, &scope).await?;
+                    let run = surreal_run_record(row)?;
+                    let head = provider.run_event_high_watermark(run_id, &run.event_ledger_stream_id, &scope)
+                        .await?.ok_or_else(|| ModelLaneError::IntegrityViolation(
+                            "recovery run has no exact-scope EventLedger high watermark".into(),
+                        ))?;
+                    store.surreal_write_scope("finish checkpoint producer run high watermark inspection")?;
+                    Ok(head)
+                    },
+            ),
+        ).await
+    }
+
+    #[cfg(all(feature = "surreal-test-support", feature = "test-utils"))]
+    pub async fn test_recovery_discovery_read_proof(&self) -> ModelLaneResult<serde_json::Value> {
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+        let scope = self.surreal_write_scope("prove fixed recovery discovery field restrictions")?;
+        let original = crate::storage::surreal::current_record_user_scope()
+            .ok_or_else(|| ModelLaneError::AuthorityDenied(
+                "recovery discovery proof requires original Workspace/Update authority".into(),
+            ))?;
+        if original.action != ResourceAction::Update
+            || original.capability_id != "model_lane.recovery.execute"
+            || original.workspace_id.as_deref() != Some(scope.workspace_id.as_str())
+            || original.session_id != scope.authenticated_session_id
+            || !matches!(crate::storage::surreal::current_model_lane_subject(), Some(subject)
+                if subject.kind == ResourceKind::Workspace && subject.external_id == scope.workspace_id)
+        {
+            return Err(ModelLaneError::AuthorityDenied(
+                "recovery discovery proof requires exact original Workspace/Update authority".into(),
+            ));
+        }
+        let result = crate::storage::surreal::with_model_lane_operation(
+            crate::storage::surreal::ContextCoordinationPurpose::RecoveryExecute,
+            self.provider().await?.recovery_discovery_read_proof_for_test(&scope),
+        ).await?;
+        self.surreal_write_scope("finish fixed recovery discovery field proof")?;
+        Ok(result)
+    }
+
+    /// Fixture-owned observation; native access is tested separately.
+    #[cfg(all(feature = "surreal-test-support", feature = "runtime-full"))]
+    pub async fn test_recovery_authority_snapshot(
+        &self,
+        owner: &crate::test_harness::surreal_test_store_support::IsolatedSurrealTestStore,
+        record_kind: &str,
+        run_id: &str,
+        aggregate_id: &str,
+    ) -> ModelLaneResult<ModelLaneRecoveryAuthorityTestSnapshot> {
+        let kind = match record_kind {
+            "recovery_checkpoint" => SurrealRecordKind::RecoveryCheckpoint,
+            "recovery_event" => SurrealRecordKind::RecoveryEvent,
+            _ => return Err(ModelLaneError::InvalidInput(
+                "finite recovery observation requires checkpoint or recovery-event kind".into(),
+            )),
+        };
+        let scope = self.surreal_write_scope("observe finite recovery authority fixture")?;
+        if crate::storage::surreal::current_record_user_scope().is_some() {
+            return Err(ModelLaneError::AuthorityDenied(
+                "finite recovery observation requires the original fixture-owned context".into(),
+            ));
+        }
+        let row = self.provider().await?
+            .test_recovery_authority_snapshot(owner, kind, run_id, aggregate_id, &scope).await?;
+        self.surreal_write_scope("finish finite recovery authority fixture observation")?;
+        Ok(ModelLaneRecoveryAuthorityTestSnapshot {
+            record_json: row.record_json,
+            event_id: row.event_id,
+            event_seq: row.event_seq,
+            event_stream_version: row.event_stream_version,
+            transaction_seq: row.transaction_seq,
+            receipt_event_id: row.receipt_event_id,
+            receipt_event_seq: row.receipt_event_seq,
+            receipt_event_stream_version: row.receipt_event_stream_version,
+            receipt_session_run_id: row.receipt_session_run_id,
+            receipt_payload_json: row.receipt_payload_json,
+            receipt_payload_hash: row.receipt_payload_hash,
+        })
+    }
+
+    #[cfg(feature = "surreal-test-support")]
     pub async fn test_scoped_authority_receipts(
         &self,
         run_id: &str,
@@ -2816,6 +2951,16 @@ impl ModelLaneStore {
         aggregate_id: &str,
         corruption: ModelLaneAuthorityTestCorruption,
     ) -> ModelLaneResult<()> {
+        if matches!(corruption,
+            ModelLaneAuthorityTestCorruption::RecoveryReplayOrderGap
+                | ModelLaneAuthorityTestCorruption::RecoveryCheckpointProjectionDrift
+                | ModelLaneAuthorityTestCorruption::RecoveryCheckpointReceiptIdentity
+                | ModelLaneAuthorityTestCorruption::RecoveryCheckpointStream)
+        {
+            return Err(ModelLaneError::InvalidInput(
+                "finite recovery corruption requires its isolated test-store owner".into(),
+            ));
+        }
         let kind = surreal_record_kind(record_kind).ok_or_else(|| {
             ModelLaneError::InvalidInput(format!(
                 "unsupported ModelLane authority record kind {record_kind}"
@@ -2825,6 +2970,32 @@ impl ModelLaneStore {
         self.provider()
             .await?
             .test_corrupt_scoped_authority(kind, aggregate_id, corruption.as_str(), &scope)
+            .await?;
+        Ok(())
+    }
+
+    #[cfg(all(feature = "surreal-test-support", feature = "runtime-full"))]
+    pub async fn test_corrupt_owned_recovery_authority(
+        &self,
+        owner: &crate::test_harness::surreal_test_store_support::IsolatedSurrealTestStore,
+        record_kind: &str,
+        aggregate_id: &str,
+        corruption: ModelLaneAuthorityTestCorruption,
+    ) -> ModelLaneResult<()> {
+        let kind = match (record_kind, corruption) {
+            ("recovery_event", ModelLaneAuthorityTestCorruption::RecoveryReplayOrderGap) =>
+                SurrealRecordKind::RecoveryEvent,
+            ("recovery_checkpoint", ModelLaneAuthorityTestCorruption::RecoveryCheckpointProjectionDrift
+                | ModelLaneAuthorityTestCorruption::RecoveryCheckpointReceiptIdentity
+                | ModelLaneAuthorityTestCorruption::RecoveryCheckpointStream) =>
+                SurrealRecordKind::RecoveryCheckpoint,
+            _ => return Err(ModelLaneError::InvalidInput(
+                "finite recovery corruption selector and record kind differ".into(),
+            )),
+        };
+        let scope = self.surreal_write_scope("corrupt owned recovery fixture for proof")?;
+        self.provider().await?
+            .test_corrupt_owned_recovery_authority(owner, kind, aggregate_id, corruption.as_str(), &scope)
             .await?;
         Ok(())
     }
@@ -7295,6 +7466,19 @@ impl ModelLaneStore {
                 &lane.run_id,
             )?;
         }
+        let high_watermark = provider
+            .run_event_high_watermark(&input.run_id, &run.event_ledger_stream_id, &scope)
+            .await?
+            .ok_or_else(|| ModelLaneError::IntegrityViolation(
+                "checkpoint run has no exact-scope EventLedger high watermark".into(),
+            ))?;
+        if input.last_event_ledger_seq != high_watermark {
+            let failure = ModelLaneRecoveryFailureKind::CorruptCheckpoint;
+            return Err(ModelLaneError::InvalidInput(format!(
+                "{} {} checkpoint {} must use the exact pre-write stream high-watermark",
+                failure.code(), failure.as_str(), input.checkpoint_id,
+            )));
+        }
         let prepared = ModelLaneRecoveryCheckpointRecord {
             inner: input,
             event_ledger_event_id: String::new(),
@@ -7845,22 +8029,68 @@ impl ModelLaneStore {
     pub async fn recover_restartable_runs_at_boot(
         &self,
     ) -> ModelLaneResult<Vec<ModelLaneRecoveredRun>> {
-        let scope = self.surreal_read_scope("recover restartable ModelLane runs at boot")?;
+        use crate::storage::surreal::resource_authority::{ResourceAction, ResourceKind};
+        let scope = self.surreal_write_scope("recover restartable ModelLane runs at boot")?;
+        let original = crate::storage::surreal::current_record_user_scope()
+            .ok_or_else(|| ModelLaneError::AuthorityDenied(
+                "boot recovery requires original authenticated Workspace/Update authority".into(),
+            ))?;
+        if original.action != ResourceAction::Update
+            || original.capability_id != "model_lane.recovery.execute"
+            || original.workspace_id.as_deref() != Some(scope.workspace_id.as_str())
+            || original.session_id != scope.authenticated_session_id
+            || !matches!(crate::storage::surreal::current_model_lane_subject(), Some(subject)
+                if subject.kind == ResourceKind::Workspace && subject.external_id == scope.workspace_id)
+        {
+            return Err(ModelLaneError::AuthorityDenied(
+                "boot recovery requires exact original Workspace/Update model_lane.recovery.execute authority".into(),
+            ));
+        }
         let provider = self.provider().await?;
-        let rows = provider
-            .list_kind(SurrealRecordKind::RecoveryCheckpoint, &scope)
-            .await?;
+        let discovered_runs = crate::storage::surreal::with_model_lane_operation(
+            crate::storage::surreal::ContextCoordinationPurpose::RecoveryExecute,
+            provider.discover_recovery_run_identity_candidates(&scope),
+        ).await?;
         let mut latest = BTreeMap::<String, ModelLaneRecoveryCheckpointRecord>::new();
-        for row in rows {
-            provider
-                .validate_event_link(SurrealRecordKind::RecoveryCheckpoint, &row, &scope)
-                .await?;
-            let checkpoint = surreal_recovery_checkpoint_record(row)?;
-            let replace = latest.get(&checkpoint.run_id).map_or(true, |current| {
-                current.event_ledger_seq < checkpoint.event_ledger_seq
-            });
-            if replace {
-                latest.insert(checkpoint.run_id.clone(), checkpoint);
+        for run_id in discovered_runs {
+            let checkpoint_scope = self.surreal_write_scope("select canonical boot recovery checkpoint")?;
+            let reader = provider.clone();
+            let selected_run = run_id.clone();
+            let checkpoints = provider.with_context_bundle_transaction(
+                crate::storage::surreal::ContextCoordinationPurpose::RecoveryExecute,
+                run_id, Vec::new(), checkpoint_scope.clone(),
+                move || async move {
+                    let row = reader.get(SurrealRecordKind::Run, &selected_run, &checkpoint_scope)
+                        .await?.ok_or_else(|| ModelLaneError::AuthorityDenied(
+                            "boot recovery authority is unavailable".into(),
+                        ))?;
+                    reader.validate_event_link(SurrealRecordKind::Run, &row, &checkpoint_scope).await?;
+                    let run = surreal_run_record(row)?;
+                    reader.run_event_high_watermark(&selected_run, &run.event_ledger_stream_id, &checkpoint_scope)
+                        .await?.ok_or_else(|| ModelLaneError::IntegrityViolation(
+                            "boot recovery run has no exact-scope EventLedger high watermark".into(),
+                        ))?;
+                    reader.require_recovery_message_membership(
+                        &selected_run, &run.event_ledger_stream_id, &checkpoint_scope).await?;
+                    let rows = reader.recovery_checkpoints_from_ledger(
+                        &selected_run, &run.event_ledger_stream_id, &checkpoint_scope).await?;
+                    let mut checkpoints = Vec::with_capacity(rows.len());
+                    for row in rows {
+                        let checkpoint = surreal_recovery_checkpoint_record(row)?;
+                        if checkpoint.event_ledger_stream_id == run.event_ledger_stream_id {
+                            checkpoints.push(checkpoint);
+                        }
+                    }
+                    Ok(checkpoints)
+                },
+            ).await?;
+            for checkpoint in checkpoints {
+                let replace = latest.get(&checkpoint.run_id).map_or(true, |current| {
+                    current.event_ledger_seq < checkpoint.event_ledger_seq
+                });
+                if replace {
+                    latest.insert(checkpoint.run_id.clone(), checkpoint);
+                }
             }
         }
         let run_ids: Vec<String> = latest
@@ -7957,14 +8187,13 @@ impl ModelLaneStore {
             .validate_event_link(SurrealRecordKind::Run, &run_row, &scope)
             .await?;
         let canonical_run = surreal_run_record(run_row)?;
+        provider.require_recovery_message_membership(
+            run_id, &canonical_run.event_ledger_stream_id, &scope).await?;
         let checkpoint_rows = provider
-            .list_run(SurrealRecordKind::RecoveryCheckpoint, run_id, &scope)
+            .recovery_checkpoints_from_ledger(run_id, &canonical_run.event_ledger_stream_id, &scope)
             .await?;
         let mut checkpoints = Vec::with_capacity(checkpoint_rows.len());
         for row in checkpoint_rows {
-            provider
-                .validate_event_link(SurrealRecordKind::RecoveryCheckpoint, &row, &scope)
-                .await?;
             let membership: RecoveryCheckpointCloudEnvelope = serde_json::from_str(&row.record_json)?;
             checkpoints.push((surreal_recovery_checkpoint_record(row)?, membership.cloud_consent_denial_membership));
         }
@@ -7975,7 +8204,11 @@ impl ModelLaneStore {
             })
             .max_by_key(|(checkpoint, _)| checkpoint.event_ledger_seq)
             .ok_or_else(|| {
-                ModelLaneError::NotFound(format!("recovery checkpoint for run_id {run_id}"))
+                let failure = ModelLaneRecoveryFailureKind::MissingCheckpoint;
+                ModelLaneError::NotFound(format!(
+                    "{} {} recovery checkpoint for run_id {run_id}",
+                    failure.code(), failure.as_str(),
+                ))
             })?;
         require_equal(
             "recovery_checkpoint.event_ledger_stream_id",
@@ -7988,9 +8221,10 @@ impl ModelLaneStore {
             .run_contains_event_sequence(run_id, &canonical_run.event_ledger_stream_id, checkpoint_bound_event_ledger_seq, &scope)
             .await?
         {
+            let failure = ModelLaneRecoveryFailureKind::CorruptCheckpoint;
             return Err(ModelLaneError::IntegrityViolation(format!(
-                "checkpoint {} references an event outside its exact scoped run stream",
-                checkpoint.checkpoint_id
+                "{} {} checkpoint {} references an event outside its exact scoped run stream",
+                failure.code(), failure.as_str(), checkpoint.checkpoint_id,
             )));
         }
         let cloud_consent_denials = self.validate_checkpoint_cloud_membership(
@@ -8023,7 +8257,7 @@ impl ModelLaneStore {
         let recovery_rows = provider
             .list_run(SurrealRecordKind::RecoveryEvent, run_id, &scope)
             .await?;
-        let mut recovery_events = Vec::with_capacity(recovery_rows.len());
+        let mut canonical_recovery_events = Vec::with_capacity(recovery_rows.len());
         for row in recovery_rows {
             provider
                 .validate_event_link(SurrealRecordKind::RecoveryEvent, &row, &scope)
@@ -8046,13 +8280,14 @@ impl ModelLaneStore {
                     )));
                 }
             }
-            if event.event_ledger_seq <= forward_bound_event_ledger_seq
-                || event.event_kind == ModelLaneRecoveryEventKind::OrphanDetected
-            {
-                recovery_events.push(event);
-            }
+            canonical_recovery_events.push(event);
         }
-        validate_contiguous_recovery_order(run_id, &recovery_events)?;
+        validate_contiguous_recovery_order(run_id, &canonical_recovery_events)?;
+        let mut recovery_events: Vec<_> = canonical_recovery_events.iter()
+            .filter(|event| event.event_ledger_seq <= forward_bound_event_ledger_seq
+                || event.event_kind == ModelLaneRecoveryEventKind::OrphanDetected)
+            .cloned()
+            .collect();
         validate_recovery_payload_refs_surreal(
             provider, &scope, &checkpoint, forward_bound_event_ledger_seq, &replay.messages,
         ).await?;
@@ -8097,7 +8332,7 @@ impl ModelLaneStore {
                 } else {
                     None
                 };
-                if !recovery_events.iter().any(|event| {
+                if !canonical_recovery_events.iter().any(|event| {
                     event.event_kind == ModelLaneRecoveryEventKind::OrphanDetected
                         && event.lease_id.as_deref() == Some(lease.lease_id.as_str())
                 }) {
@@ -8108,12 +8343,13 @@ impl ModelLaneStore {
                             authoritative_lane.as_ref(),
                         )
                         .await?;
+                    canonical_recovery_events.push(orphan_event.clone());
                     recovery_events.push(orphan_event);
                 }
                 reclaimable_lease_ids.push(lease.lease_id.clone());
             }
         }
-        validate_contiguous_recovery_order(run_id, &recovery_events)?;
+        validate_contiguous_recovery_order(run_id, &canonical_recovery_events)?;
         let mt_rows = provider
             .list_run(SurrealRecordKind::MtRuntimeStatus, run_id, &scope)
             .await?;
@@ -9947,9 +10183,10 @@ async fn validate_recovery_payload_refs_surreal(
                 && row.event_seq <= checkpoint.last_event_ledger_seq;
         }
         if !message_match && !artifact_match {
+            let failure = ModelLaneRecoveryFailureKind::MissingPayloadAuthority;
             return Err(ModelLaneError::IntegrityViolation(format!(
-                "checkpoint {} open payload ref {} has no recovery-bounded exact-scope authority",
-                checkpoint.checkpoint_id, payload_ref
+                "{} {} checkpoint {} open payload ref {} has no recovery-bounded exact-scope authority",
+                failure.code(), failure.as_str(), checkpoint.checkpoint_id, payload_ref,
             )));
         }
     }
@@ -15346,9 +15583,11 @@ fn validate_recovery_checkpoint(input: &NewModelLaneRecoveryCheckpoint) -> Model
     require_token("session_id", &input.session_id)?;
     require_token("model_session_id", &input.model_session_id)?;
     if input.last_event_ledger_seq <= 0 {
-        return Err(ModelLaneError::InvalidInput(
-            "recovery checkpoint last_event_ledger_seq must be positive".into(),
-        ));
+        let failure = ModelLaneRecoveryFailureKind::CorruptCheckpoint;
+        return Err(ModelLaneError::InvalidInput(format!(
+            "{} {} recovery checkpoint last_event_ledger_seq must be positive",
+            failure.code(), failure.as_str(),
+        )));
     }
     if let Some(last_message_id) = input.last_message_id.as_deref() {
         require_token("last_message_id", last_message_id)?;

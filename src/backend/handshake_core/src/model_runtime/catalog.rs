@@ -120,6 +120,8 @@ impl ModelCatalogEntry {
 #[derive(Clone)]
 pub struct ModelCatalog {
     registry: Arc<ModelRegistry>,
+    #[cfg(feature = "test-utils")]
+    role_projection: Arc<std::sync::Mutex<Option<CatalogRoleProjection>>>,
     runtime_roles: HashMap<ModelId, ModelRuntimeRole>,
     active_embedding_model_id: Option<ModelId>,
     runtime_availability: Arc<std::sync::RwLock<Arc<ModelRuntimeAvailability>>>,
@@ -136,6 +138,8 @@ impl ModelCatalog {
         Arc::new(Self {
             registry,
             runtime_roles,
+            #[cfg(feature = "test-utils")]
+            role_projection: Arc::new(std::sync::Mutex::new(None)),
             active_embedding_model_id: None,
             runtime_availability: Arc::new(std::sync::RwLock::new(Arc::new(
                 ModelRuntimeAvailability::default(),
@@ -152,6 +156,8 @@ impl ModelCatalog {
         Arc::new(Self {
             registry,
             runtime_roles,
+            #[cfg(feature = "test-utils")]
+            role_projection: Arc::new(std::sync::Mutex::new(None)),
             active_embedding_model_id: None,
             runtime_availability: Arc::new(std::sync::RwLock::new(Arc::new(
                 ModelRuntimeAvailability::default(),
@@ -169,6 +175,8 @@ impl ModelCatalog {
         Arc::new(Self {
             registry,
             runtime_roles,
+            #[cfg(feature = "test-utils")]
+            role_projection: Arc::new(std::sync::Mutex::new(None)),
             active_embedding_model_id,
             runtime_availability: Arc::new(std::sync::RwLock::new(Arc::new(
                 ModelRuntimeAvailability::default(),
@@ -182,6 +190,8 @@ impl ModelCatalog {
         Arc::new(Self {
             registry: Arc::new(ModelRegistry::default()),
             runtime_roles: HashMap::new(),
+            #[cfg(feature = "test-utils")]
+            role_projection: Arc::new(std::sync::Mutex::new(None)),
             active_embedding_model_id: None,
             runtime_availability: Arc::new(std::sync::RwLock::new(Arc::new(
                 ModelRuntimeAvailability::default(),
@@ -422,7 +432,7 @@ impl ModelCatalog {
         let runtime_role = replacement_role
             .or_else(|| self.runtime_roles.get(&reg.model_id).copied())
             .unwrap_or(ModelRuntimeRole::Embedding);
-        ModelCatalogEntry {
+        let entry = ModelCatalogEntry {
             model_id: reg.model_id.to_string(),
             display_name: tag.clone(),
             base_model_tag: tag,
@@ -439,6 +449,113 @@ impl ModelCatalog {
                     .read()
                     .unwrap_or_else(|poisoned| poisoned.into_inner())
                     .is_available(reg.model_id),
+        };
+        #[cfg(feature = "test-utils")]
+        let mut entry = entry;
+        #[cfg(feature = "test-utils")]
+        if let Some(projection) = self.role_projection.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).as_ref() {
+            if entry == projection.original && self.runtime_availability_revision() == projection.availability_revision {
+                entry.runtime_role = ModelRuntimeRole::Embedding;
+                entry.default_selectable = false;
+            }
+        }
+        entry
+    }
+}
+
+#[cfg(feature = "test-utils")]
+struct CatalogRoleProjection {
+    token: Uuid,
+    owner: crate::process_ledger::ProcessRuntimeOwner,
+    original: ModelCatalogEntry,
+    availability_revision: u64,
+}
+
+/// Finite projection of an already loaded catalog entry. No registry, readiness or runtime write.
+#[cfg(feature = "test-utils")]
+pub struct CatalogRoleProjectionGuard {
+    catalog: Arc<ModelCatalog>,
+    token: Uuid,
+    original: ModelCatalogEntry,
+    owner: crate::process_ledger::ProcessRuntimeOwner,
+    restored: bool,
+    selection_revision: u64,
+}
+
+#[cfg(feature = "test-utils")]
+impl ModelCatalog {
+    pub(crate) fn project_selected_completion_as_embedding(
+        self: &Arc<Self>,
+        selected_model_id: ModelId,
+        owner: crate::process_ledger::ProcessRuntimeOwner,
+        selection_revision: u64,
+    ) -> Result<CatalogRoleProjectionGuard, String> {
+        let original = self.entry(&selected_model_id.to_string()).ok_or("selected catalog model is absent")?;
+        if !original.ready || original.runtime_role != ModelRuntimeRole::Completion || !original.default_selectable {
+            return Err("selected catalog model is not loaded Completion".into());
+        }
+        let revision = self.runtime_availability_revision();
+        let mut slot = self.role_projection.lock().map_err(|_| "catalog role projection is poisoned")?;
+        if slot.is_some() { return Err("catalog already has an active role projection".into()); }
+        let token = Uuid::now_v7();
+        *slot = Some(CatalogRoleProjection { token, owner: owner.clone(), original: original.clone(), availability_revision: revision });
+        drop(slot);
+        let guard = CatalogRoleProjectionGuard { catalog: self.clone(), token, original, owner, restored: false, selection_revision };
+        let mut expected = guard.original.clone();
+        expected.runtime_role = ModelRuntimeRole::Embedding;
+        expected.default_selectable = false;
+        if self.entry(&selected_model_id.to_string()).as_ref() != Some(&expected)
+            || self.runtime_availability_revision() != revision {
+            return Err("catalog changed while arming role projection".into());
+        }
+        Ok(guard)
+    }
+}
+
+#[cfg(feature = "test-utils")]
+impl CatalogRoleProjectionGuard {
+    pub(crate) fn was_restored(&self) -> bool { self.restored }
+
+    pub(crate) fn restore(
+        &mut self,
+        catalog: &Arc<ModelCatalog>,
+        owner: &crate::process_ledger::ProcessRuntimeOwner,
+        selected_model_id: ModelId,
+        selection_revision: u64,
+    ) -> Result<(), String> {
+        if self.restored || self.selection_revision != selection_revision || !Arc::ptr_eq(catalog, &self.catalog) || owner != &self.owner
+            || selected_model_id.to_string() != self.original.model_id {
+            return Err("role projection owner, catalog or selected model mismatch".into());
+        }
+        let mut expected = self.original.clone();
+        expected.runtime_role = ModelRuntimeRole::Embedding;
+        expected.default_selectable = false;
+        if catalog.entry(&self.original.model_id).as_ref() != Some(&expected) {
+            return Err("catalog role projection is stale".into());
+        }
+        let mut slot = catalog.role_projection.lock().map_err(|_| "catalog role projection is poisoned")?;
+        let active = slot.as_ref().ok_or("catalog role projection is absent")?;
+        if active.token != self.token || active.owner != *owner || active.original != self.original
+            || active.availability_revision != catalog.runtime_availability_revision() {
+            return Err("catalog role projection is stale or replaced".into());
+        }
+        *slot = None;
+        drop(slot);
+        if catalog.entry(&self.original.model_id).as_ref() != Some(&self.original) {
+            return Err("catalog Completion restoration was not verified".into());
+        }
+        self.restored = true;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "test-utils")]
+impl Drop for CatalogRoleProjectionGuard {
+    fn drop(&mut self) {
+        if self.restored { return; }
+        let mut slot = self.catalog.role_projection.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if slot.as_ref().is_some_and(|active| active.token == self.token && active.owner == self.owner) {
+            *slot = None;
         }
     }
 }

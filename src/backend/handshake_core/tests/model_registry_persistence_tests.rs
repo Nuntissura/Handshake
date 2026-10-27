@@ -4,7 +4,16 @@
 //! `kernel_event_ledger` receipts. It tests behavior rather than mechanisms
 //! belonging to another database engine.
 
-use std::path::PathBuf;
+#[path = "account_session_support/mod.rs"]
+mod account_session_support;
+
+use std::{path::PathBuf, sync::{Arc, Mutex}};
+use account_session_support::{NativeBindingEnv, OwnerSession, NATIVE_BINDING_ENV_LOCK};
+use handshake_core::{AccountBootstrapState, capabilities::CapabilityRegistry};
+use handshake_core::storage::surreal::SurrealDatabase;
+use handshake_core::test_harness::model_runtime_selection::{
+    with_issued_registry_initializer, with_issued_registry_selection_update, with_issued_registry_lifecycle_counterfactual,
+};
 
 use chrono::Utc;
 use handshake_core::{
@@ -94,26 +103,173 @@ fn selection(registration: &RoleBoundModelRegistration) -> ModelRuntimeSelection
     }
 }
 
-async fn open_store(config: SurrealStorageConfig) -> (SurrealStorage, ModelRegistryStore) {
-    let storage = SurrealStorage::open(config)
-        .await
-        .expect("open embedded SurrealDB registry authority");
-    bootstrap_schema(&storage)
-        .await
-        .expect("bootstrap canonical product schema");
-    bootstrap_model_registry_schema(&storage)
-        .await
-        .expect("bootstrap canonical model registry schema");
-    (storage.clone(), ModelRegistryStore::new(storage))
+#[derive(Clone)]
+struct PreparedAuthority {
+    template: ExactResourceScopeAttribution,
+    exact: ExactResourceScopeAttribution,
+    account: OwnerSession,
 }
 
-async fn prepare_scope(store: &ModelRegistryStore, scope: &ExactResourceScopeAttribution) {
-    store
-        .ensure_workspace_for_tests(scope)
-        .await
-        .expect("create exact workspace predecessor");
+struct IssuedAuthoritySet {
+    prepared: Mutex<Vec<PreparedAuthority>>,
+    binding: NativeBindingEnv,
+    _binding_guard: tokio::sync::MutexGuard<'static, ()>,
 }
 
+#[derive(Clone)]
+struct IssuedRegistryStore {
+    inner: ModelRegistryStore,
+    bootstrap: AccountBootstrapState,
+    authority: Arc<IssuedAuthoritySet>,
+}
+
+impl std::ops::Deref for IssuedRegistryStore {
+    type Target = ModelRegistryStore;
+    fn deref(&self) -> &Self::Target { &self.inner }
+}
+
+impl IssuedRegistryStore {
+    fn account(&self, scope: &ExactResourceScopeAttribution) -> OwnerSession {
+        self.authority.prepared.lock().expect("prepared authority lock").iter()
+            .find(|prepared| &prepared.exact == scope)
+            .expect("scope must come from issued prepare_scope").account.clone()
+    }
+
+    async fn persist_role_bound_boot_set_and_read_back(
+        &self, scope: &ExactResourceScopeAttribution, rows: &[RoleBoundModelRegistration],
+    ) -> Result<Vec<handshake_core::model_runtime::PersistedModelRegistration>, ModelRegistryPersistenceError> {
+        let account = self.account(scope);
+        with_issued_registry_initializer(&self.bootstrap, &account.headers(), scope,
+            self.inner.persist_role_bound_boot_set_and_read_back(scope, rows),
+        ).await.map_err(|_| ModelRegistryPersistenceError::Audit("issued registry Create denied".into()))?
+    }
+
+    async fn ensure_active_defaults(
+        &self, scope: &ExactResourceScopeAttribution,
+        candidates: &[(ModelRuntimeSelectionPurpose, [u8; 32])],
+    ) -> Result<Vec<handshake_core::model_runtime::PersistedActiveModelSelection>, ModelRegistryPersistenceError> {
+        let account = self.account(scope);
+        with_issued_registry_initializer(&self.bootstrap, &account.headers(), scope,
+            self.inner.ensure_active_defaults(scope, candidates),
+        ).await.map_err(|_| ModelRegistryPersistenceError::Audit("issued registry default Create denied".into()))?
+    }
+
+    async fn select_active_model(
+        &self, scope: &ExactResourceScopeAttribution, purpose: ModelRuntimeSelectionPurpose,
+        target: [u8; 32], revision: u64, actor: KernelActor, reason: &str,
+    ) -> Result<handshake_core::model_runtime::PersistedActiveModelSelection, ModelRegistryPersistenceError> {
+        let account = self.account(scope);
+        with_issued_registry_selection_update(&self.bootstrap, &account.headers(), scope,
+            self.inner.select_active_model(scope, purpose, target, revision, actor, reason),
+        ).await.map_err(|_| ModelRegistryPersistenceError::Audit("issued registry CAS Update denied".into()))?
+    }
+
+    async fn rebind_selection_for_tests(
+        &self, scope: &ExactResourceScopeAttribution, target: &ModelRuntimeSelection,
+        request: ExplicitModelRuntimeRebind,
+    ) -> Result<handshake_core::model_runtime::PersistedModelRegistration, ModelRegistryPersistenceError> {
+        let account = self.account(scope);
+        with_issued_registry_selection_update(&self.bootstrap, &account.headers(), scope,
+            self.inner.rebind_selection_for_tests(scope, target, request),
+        ).await.map_err(|_| ModelRegistryPersistenceError::Audit("issued registry rebind Update denied".into()))?
+    }
+
+    async fn recover_configured_selection(
+        &self, scope: &ExactResourceScopeAttribution, configured: &ModelRuntimeSelection,
+    ) -> Result<Option<handshake_core::model_runtime::PersistedModelRegistration>, ModelRegistryPersistenceError> {
+        let account = self.account(scope);
+        with_issued_registry_lifecycle_counterfactual(&self.bootstrap, &account.headers(), scope,
+            self.inner.recover_configured_selection(scope, configured),
+        ).await.map_err(|_| ModelRegistryPersistenceError::Audit("issued registry recovery Read denied".into()))?
+    }
+
+    async fn recover_configured_runtime_binding_set(
+        &self, scope: &ExactResourceScopeAttribution, configured: &[ModelRuntimeSelection],
+    ) -> Result<Vec<Option<handshake_core::model_runtime::PersistedModelRegistration>>, ModelRegistryPersistenceError> {
+        let account = self.account(scope);
+        with_issued_registry_lifecycle_counterfactual(&self.bootstrap, &account.headers(), scope,
+            self.inner.recover_configured_runtime_binding_set(scope, configured),
+        ).await.map_err(|_| ModelRegistryPersistenceError::Audit("issued registry binding recovery Read denied".into()))?
+    }
+    async fn set_registration_lifecycle_for_tests(
+        &self, scope: &ExactResourceScopeAttribution, artifact_sha256: &[u8; 32],
+        state: ModelRegistryLifecycleState,
+    ) -> Result<(), ModelRegistryPersistenceError> {
+        let account = self.account(scope);
+        with_issued_registry_lifecycle_counterfactual(&self.bootstrap, &account.headers(), scope,
+            self.inner.set_registration_lifecycle_for_tests(scope, artifact_sha256, state),
+        ).await.map_err(|_| ModelRegistryPersistenceError::Audit("issued lifecycle counterfactual Read denied".into()))?
+    }
+    async fn inject_orphan_initial_receipt_for_tests(
+        &self, scope: &ExactResourceScopeAttribution, row: &RoleBoundModelRegistration,
+    ) -> Result<String, ModelRegistryPersistenceError> {
+        let account = self.account(scope);
+        with_issued_registry_initializer(&self.bootstrap, &account.headers(), scope,
+            self.inner.inject_orphan_initial_receipt_for_tests(scope, row),
+        ).await.map_err(|_| ModelRegistryPersistenceError::Audit("issued orphan receipt Create denied".into()))?
+    }
+}
+
+async fn open_store(config: SurrealStorageConfig) -> (SurrealStorage, IssuedRegistryStore) {
+    let guard = NATIVE_BINDING_ENV_LOCK.lock().await;
+    let authority = Arc::new(IssuedAuthoritySet {
+        prepared: Mutex::new(Vec::new()), binding: NativeBindingEnv::install(), _binding_guard: guard,
+    });
+    open_store_with_authority(config, authority).await
+}
+
+async fn open_store_with_authority(
+    config: SurrealStorageConfig, authority: Arc<IssuedAuthoritySet>,
+) -> (SurrealStorage, IssuedRegistryStore) {
+    let storage = SurrealStorage::open(config).await.expect("open embedded SurrealDB registry authority");
+    bootstrap_schema(&storage).await.expect("bootstrap canonical product schema");
+    bootstrap_model_registry_schema(&storage).await.expect("bootstrap canonical model registry schema");
+    let bootstrap = AccountBootstrapState::new(
+        Arc::new(SurrealDatabase::new(storage.clone())), storage.clone(), Arc::new(CapabilityRegistry::new()),
+    );
+    (storage.clone(), IssuedRegistryStore { inner: ModelRegistryStore::new(storage), bootstrap, authority })
+}
+
+// Template IDs only retain the original test's identity/workspace grouping. They are never
+// request authority: every product scope below comes from an issued session and owned workspace.
+async fn prepare_scope(
+    store: &IssuedRegistryStore, template: &ExactResourceScopeAttribution,
+) -> ExactResourceScopeAttribution {
+    let existing = store.authority.prepared.lock().expect("prepared authority lock").iter()
+        .find(|prepared| prepared.template.owner_account_id == template.owner_account_id
+            && prepared.template.actor_principal_id == template.actor_principal_id
+            && prepared.template.authenticated_session_id == template.authenticated_session_id
+            && prepared.template.access_space_id == template.access_space_id)
+        .map(|prepared| prepared.account.clone());
+    let account = match existing {
+        Some(account) => account,
+        None => OwnerSession::provision(store.storage(), store.authority.binding.token()).await,
+    };
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("workspace fixture listener");
+    let base = format!("http://{}", listener.local_addr().expect("workspace fixture address"));
+    let router = handshake_core::api::workspaces::bootstrap_routes(store.bootstrap.clone());
+    let server = tokio::spawn(async move { axum::serve(listener, router).await.expect("workspace fixture server"); });
+    let response = account.client().post(format!("{base}/workspaces"))
+        .json(&serde_json::json!({"name": template.workspace_id.as_str()}))
+        .send().await.expect("issued workspace creation");
+    let status = response.status();
+    let body: serde_json::Value = response.json().await.expect("workspace creation body");
+    server.abort();
+    let _ = server.await;
+    assert_eq!(status, reqwest::StatusCode::CREATED, "{body}");
+    let parse = |value: &str| uuid::Uuid::parse_str(value).expect("issued identifier UUID");
+    let exact = ExactResourceScopeAttribution {
+        owner_account_id: OwnerAccountId::from_uuid(parse(&account.account_id)),
+        actor_principal_id: ActorPrincipalId::from_uuid(parse(&account.principal_id)),
+        authenticated_session_id: AuthenticatedSessionRef::from_uuid(parse(&account.session_id)),
+        access_space_id: AccessSpaceRef::from_uuid(parse(&account.access_space_id)),
+        workspace_id: WorkspaceScopeRef::new(body["id"].as_str().expect("issued workspace id")).expect("valid issued workspace"),
+    };
+    store.authority.prepared.lock().expect("prepared authority lock").push(PreparedAuthority {
+        template: template.clone(), exact: exact.clone(), account,
+    });
+    exact
+}
 #[test]
 fn loom_schema_does_not_redefine_canonical_model_registry_authority() {
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -147,7 +303,7 @@ async fn registry_schema_survives_loom_bootstrap_after_canonical_registry() {
         .await
         .expect("bootstrap Loom-owned extensions after canonical registry");
     let scope = exact_scope("WS-MODEL-REGISTRY-SCHEMA");
-    prepare_scope(&store, &scope).await;
+    let scope = prepare_scope(&store, &scope).await;
     let rows = store
         .persist_role_bound_boot_set_and_read_back(
             &scope,
@@ -191,7 +347,7 @@ async fn registry_restart_recovers_configured_set_defaults_and_stable_receipts()
     .expect("config");
     let scope = exact_scope("WS-MODEL-REGISTRY-RESTART");
     let (storage, store) = open_store(config.clone()).await;
-    prepare_scope(&store, &scope).await;
+    let scope = prepare_scope(&store, &scope).await;
     let completion = registration(
         0x20,
         ModelRuntimeRole::Completion,
@@ -231,8 +387,9 @@ async fn registry_restart_recovers_configured_set_defaults_and_stable_receipts()
         .collect::<Vec<_>>();
 
     storage.shutdown().await.expect("close embedded store");
+    let issued_authority = store.authority.clone();
     drop(store);
-    let (_reopened, reopened_store) = open_store(config).await;
+    let (_reopened, reopened_store) = open_store_with_authority(config, issued_authority).await;
     let recovered = reopened_store
         .recover_configured_runtime_binding_set(&scope, &configured)
         .await
@@ -271,8 +428,8 @@ async fn exact_scope_and_runtime_role_never_widen() {
     let (_storage, store) = open_store(config).await;
     let owner_scope = exact_scope("WS-MODEL-REGISTRY-OWNER");
     let foreign_scope = with_workspace(&owner_scope, "WS-MODEL-REGISTRY-FOREIGN");
-    prepare_scope(&store, &owner_scope).await;
-    prepare_scope(&store, &foreign_scope).await;
+    let owner_scope = prepare_scope(&store, &owner_scope).await;
+    let foreign_scope = prepare_scope(&store, &foreign_scope).await;
     let completion = registration(
         0x30,
         ModelRuntimeRole::Completion,
@@ -339,7 +496,7 @@ async fn active_selection_cas_has_one_winner_stable_retry_and_no_failed_mutation
     .expect("config");
     let (_storage, store) = open_store(config).await;
     let scope = exact_scope("WS-MODEL-REGISTRY-CAS");
-    prepare_scope(&store, &scope).await;
+    let scope = prepare_scope(&store, &scope).await;
     let initial = registration(
         0x40,
         ModelRuntimeRole::Completion,
@@ -468,7 +625,7 @@ async fn verified_unload_rebind_increments_once_and_identical_retry_is_stable() 
     .expect("config");
     let (_storage, store) = open_store(config).await;
     let scope = exact_scope("WS-MODEL-REGISTRY-REBIND");
-    prepare_scope(&store, &scope).await;
+    let scope = prepare_scope(&store, &scope).await;
     let original = registration(
         0x50,
         ModelRuntimeRole::Completion,
@@ -527,7 +684,7 @@ async fn boot_set_conflict_rolls_back_every_earlier_row_in_the_transaction() {
     .expect("config");
     let (_storage, store) = open_store(config).await;
     let scope = exact_scope("WS-MODEL-REGISTRY-ATOMIC");
-    prepare_scope(&store, &scope).await;
+    let scope = prepare_scope(&store, &scope).await;
     let existing = registration(
         0x60,
         ModelRuntimeRole::Completion,
@@ -583,8 +740,8 @@ async fn receipt_and_projection_tampering_fail_closed() {
     let (_storage, store) = open_store(config).await;
     let receipt_scope = exact_scope("WS-MODEL-REGISTRY-RECEIPT-TAMPER");
     let projection_scope = exact_scope("WS-MODEL-REGISTRY-PROJECTION-TAMPER");
-    prepare_scope(&store, &receipt_scope).await;
-    prepare_scope(&store, &projection_scope).await;
+    let receipt_scope = prepare_scope(&store, &receipt_scope).await;
+    let projection_scope = prepare_scope(&store, &projection_scope).await;
     let receipt_row = registration(
         0x70,
         ModelRuntimeRole::Completion,
@@ -641,8 +798,8 @@ async fn orphan_receipt_stale_and_revoked_authority_are_rejected() {
     let (_storage, store) = open_store(config).await;
     let orphan_scope = exact_scope("WS-MODEL-REGISTRY-ORPHAN");
     let lifecycle_scope = exact_scope("WS-MODEL-REGISTRY-LIFECYCLE");
-    prepare_scope(&store, &orphan_scope).await;
-    prepare_scope(&store, &lifecycle_scope).await;
+    let orphan_scope = prepare_scope(&store, &orphan_scope).await;
+    let lifecycle_scope = prepare_scope(&store, &lifecycle_scope).await;
     let orphan = registration(
         0x80,
         ModelRuntimeRole::Completion,
@@ -707,4 +864,59 @@ async fn orphan_receipt_stale_and_revoked_authority_are_rejected() {
         .persist_role_bound_boot_set_and_read_back(&lifecycle_scope, &[lifecycle])
         .await
         .is_err());
+}
+
+#[tokio::test]
+async fn lifecycle_counterfactual_is_component_only_and_unreceipted_engine_update_is_rejected() {
+    #[derive(surrealdb::types::SurrealValue)]
+    struct Attempt { target: surrealdb::types::RecordId }
+    async fn canonical_state(storage: &SurrealStorage) -> (Vec<surrealdb::types::Value>, Vec<surrealdb::types::Value>) {
+        let rows = storage.with_data_operation(|db| Box::pin(async move {
+            db.query_values::<surrealdb::types::Value, _>("SELECT * FROM model_runtime_registry ORDER BY id;", ()).await
+        })).await.expect("independent canonical registration rows");
+        let receipts = storage.with_data_operation(|db| Box::pin(async move {
+            db.query_values::<surrealdb::types::Value, _>("SELECT * FROM kernel_event_ledger WHERE source_component = 'model_runtime_registry' ORDER BY event_sequence;", ()).await
+        })).await.expect("independent canonical registry ledger");
+        (rows, receipts)
+    }
+    let temp = TempDir::new().expect("tempdir");
+    let config = SurrealStorageConfig::for_test_scope(
+        temp.path().join("store"), &format!("hs_test_ns_{}", uuid::Uuid::now_v7().simple()),
+        &format!("hs_test_db_{}", uuid::Uuid::now_v7().simple()), DEFAULT_SHUTDOWN_WAIT,
+    ).expect("config");
+    let (storage, store) = open_store(config).await;
+    let scope = prepare_scope(&store, &exact_scope("WS-MODEL-REGISTRY-LIFECYCLE-COMPONENT")).await;
+    let row = registration(0x82, ModelRuntimeRole::Completion, RuntimeBinding::Candle, "lifecycle-component");
+    let configured = selection(&row);
+    let selected = store.persist_role_bound_boot_set_and_read_back(&scope, &[row.clone()])
+        .await.expect("genuine issued fixture seed").remove(0);
+    let before = canonical_state(&storage).await;
+    let account = store.account(&scope);
+    let target = surrealdb::types::RecordId::new("model_runtime_registry", selected.registry_row_id.clone());
+    let attempted = with_issued_registry_selection_update(&store.bootstrap, &account.headers(), &scope,
+        storage.with_data_operation(|db| Box::pin(async move {
+            db.query_values::<surrealdb::types::Value, _>(
+                "UPDATE $target SET lifecycle_state = 'stale' RETURN AFTER;", Attempt { target },
+            ).await
+        })),
+    ).await.expect("real current Update grant");
+    assert!(attempted.as_ref().map_or(true, |rows| rows.is_empty()),
+        "unreceipted lifecycle UPDATE must be rejected by actual engine permissions/transition guard");
+    assert_eq!(canonical_state(&storage).await, before);
+    store.set_registration_lifecycle_for_tests(&scope, &row.registration.sha256, ModelRegistryLifecycleState::Stale)
+        .await.expect("arm owned finite component Stale counterfactual");
+    assert!(matches!(store.recover_configured_selection(&scope, &configured).await,
+        Err(ModelRegistryPersistenceError::SelectionInactive { state, .. }) if state == "stale"));
+    assert!(store.persist_role_bound_boot_set_and_read_back(&scope, &[row.clone()]).await.is_err());
+    assert_eq!(canonical_state(&storage).await, before);
+    store.set_registration_lifecycle_for_tests(&scope, &row.registration.sha256, ModelRegistryLifecycleState::Revoked)
+        .await.expect("replace with owned finite component Revoked counterfactual");
+    assert!(matches!(store.recover_configured_runtime_binding_set(&scope, &[configured.clone()]).await,
+        Err(ModelRegistryPersistenceError::SelectionInactive { state, .. }) if state == "revoked"));
+    assert_eq!(canonical_state(&storage).await, before);
+    let independent_store = ModelRegistryStore::new(storage.clone());
+    let actual = independent_store.recover_configured_selection(&scope, &configured).await
+        .expect("independent canonical store unaffected").expect("actual row exists");
+    assert_eq!(actual, selected);
+    assert_eq!(actual.lifecycle_state, ModelRegistryLifecycleState::Active);
 }
