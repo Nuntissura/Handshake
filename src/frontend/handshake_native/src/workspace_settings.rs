@@ -617,6 +617,7 @@ pub struct EditorKeybinding {
 pub struct WorkspaceSettingsState {
     /// Workspace-scoped shell theme (wired: drives `HsTheme`).
     pub theme: WorkspaceTheme,
+    pub reduce_motion: bool,
     /// Per-action keybinding chords, in `APP_KEYBINDING_ACTIONS` order.
     pub keybindings: Vec<Keybinding>,
     /// Content-presentation mode (wired).
@@ -731,6 +732,7 @@ impl WorkspaceSettingsState {
             "keybindings": Value::Object(keybindings),
             "settings": {
                 "view_mode": self.view_mode.as_str(),
+                "reduce_motion": self.reduce_motion,
                 "swarm_board_default_open": self.swarm_board_default_open,
                 "swarm_model_sessions_max_concurrent": self.swarm_model_sessions_max_concurrent,
                 "calendar_view_tzid": self.calendar_view_tzid,
@@ -751,6 +753,7 @@ impl WorkspaceSettingsState {
 pub fn default_workspace_settings_state() -> WorkspaceSettingsState {
     WorkspaceSettingsState {
         theme: WorkspaceTheme::Dark,
+        reduce_motion: false,
         keybindings: APP_KEYBINDING_ACTIONS
             .iter()
             .map(|action| Keybinding {
@@ -978,6 +981,10 @@ pub fn normalize_workspace_settings_state(
         .unwrap_or(fallback.theme);
 
     let raw_settings = obj.get("settings").and_then(Value::as_object);
+    let reduce_motion = raw_settings
+        .and_then(|m| m.get("reduce_motion"))
+        .and_then(Value::as_bool)
+        .unwrap_or(fallback.reduce_motion);
     let view_mode = raw_settings
         .and_then(|m| m.get("view_mode"))
         .and_then(Value::as_str)
@@ -1025,6 +1032,7 @@ pub fn normalize_workspace_settings_state(
 
     WorkspaceSettingsState {
         theme,
+        reduce_motion,
         keybindings,
         view_mode,
         swarm_board_default_open,
@@ -1772,5 +1780,40 @@ mod tests {
             None,
             "cleared => back to default"
         );
+    }
+}
+
+#[cfg(test)]
+mod motion_preference_tests {
+    use super::*;
+
+    #[test]
+    fn reduce_motion_round_trips_and_retains_local_edits_during_load() {
+        let baseline = default_workspace_settings_state();
+        assert!(!baseline.reduce_motion);
+        let mut local = baseline.clone();
+        local.reduce_motion = true;
+        let stored = local.to_settings_state();
+        assert!(normalize_workspace_settings_state(&stored, &baseline).reduce_motion);
+        let mut remote = baseline.clone();
+        remote.theme = WorkspaceTheme::Light;
+        let merged = merge_loaded_settings_preserving_local_changes(
+            &remote.to_settings_state(), &baseline, &local,
+        );
+        assert!(merged.reduce_motion);
+        assert_eq!(merged.theme, WorkspaceTheme::Light);
+    }
+
+    #[test]
+    fn reduce_motion_missing_or_invalid_uses_fallback_but_false_is_valid() {
+        let mut fallback = default_workspace_settings_state();
+        fallback.reduce_motion = true;
+        let mut stored = fallback.to_settings_state();
+        stored["settings"].as_object_mut().unwrap().remove("reduce_motion");
+        assert!(normalize_workspace_settings_state(&stored, &fallback).reduce_motion);
+        stored["settings"]["reduce_motion"] = serde_json::json!("false");
+        assert!(normalize_workspace_settings_state(&stored, &fallback).reduce_motion);
+        stored["settings"]["reduce_motion"] = serde_json::json!(false);
+        assert!(!normalize_workspace_settings_state(&stored, &fallback).reduce_motion);
     }
 }

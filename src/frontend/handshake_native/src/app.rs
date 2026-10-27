@@ -23124,7 +23124,8 @@ impl HandshakeApp {
         use crate::settings_dialog::SettingsOutcome as O;
         let local_edit = matches!(
             &outcome,
-            O::ThemeChanged(_) | O::ViewModeChanged(_) | O::CalendarTimezoneChanged(_)
+            O::ThemeChanged(_) | O::ReduceMotionChanged(_)
+                | O::ViewModeChanged(_) | O::CalendarTimezoneChanged(_)
                 | O::KeybindingChanged { .. } | O::KeybindingReset { .. }
                 | O::SwarmBoardDefaultOpenChanged(_) | O::SwarmModelSessionsMaxConcurrentChanged(_)
                 | O::ResetLayout
@@ -23221,6 +23222,22 @@ impl HandshakeApp {
             }
             O::Close => {
                 self.close_settings();
+                true
+            }
+            O::ReduceMotionChanged(reduce_motion) => {
+                if self.workspace_settings.reduce_motion == reduce_motion {
+                    return false;
+                }
+                self.workspace_settings.reduce_motion = reduce_motion;
+                for ctx in [
+                    self.frame_ctx.as_ref(),
+                    self.settings_detached_context.as_ref(),
+                    self.settings_effect_context.as_ref(),
+                ].into_iter().flatten() {
+                    theme::egui_apply::apply_motion_preference(ctx, reduce_motion);
+                    ctx.request_repaint();
+                }
+                self.schedule_settings_save();
                 true
             }
             O::ThemeChanged(theme) => {
@@ -23977,6 +23994,7 @@ impl HandshakeApp {
     }
 
     fn render_settings_surface(&mut self, ctx: &egui::Context, detached: bool) {
+        theme::egui_apply::apply_motion_preference(ctx, self.workspace_settings.reduce_motion);
         if detached && !self.capturing_snapshot {
             self.settings_detached_context=Some(ctx.clone());
             if self.kumihimo_host.is_none() {self.prepare_kumihimo(ctx);}
@@ -37610,6 +37628,7 @@ impl HandshakeApp {
     /// Apply the active theme's palette to egui, but only when the theme changed since the
     /// last applied frame (CONTROL-1). Returns whether `apply_to_ctx` actually ran.
     fn apply_theme_if_changed(&mut self, ctx: &egui::Context) -> bool {
+        theme::egui_apply::apply_motion_preference(ctx, self.workspace_settings.reduce_motion);
         if self.last_applied_theme == Some(self.current_theme) {
             return false;
         }
@@ -37647,8 +37666,16 @@ impl HandshakeApp {
 
         if ui.is_rect_visible(rect) {
             let visuals = ui.style().interact(&response);
+            let hover = ui.ctx().animate_bool_responsive(id.with("hover-fill"), response.hovered());
+            let fill = if !ui.is_enabled() || response.is_pointer_button_down_on() || response.has_focus() {
+                visuals.bg_fill
+            } else {
+                ui.visuals().widgets.inactive.bg_fill.lerp_to_gamma(
+                    ui.visuals().widgets.hovered.bg_fill, hover,
+                )
+            };
             ui.painter()
-                .rect_filled(rect, visuals.corner_radius, visuals.bg_fill);
+                .rect_filled(rect, visuals.corner_radius, fill);
             let text_pos = rect.center() - galley.size() * 0.5;
             ui.painter().galley(text_pos, galley, visuals.text_color());
         }
@@ -38186,6 +38213,14 @@ impl HandshakeApp {
         }
         if let Ok(mut channel) = fresh.mcp_action_channel.lock() {
             channel.reject_queued_for_operator_input();
+        }
+        for motion_ctx in [
+            Some(ctx),
+            self.frame_ctx.as_ref(),
+            self.settings_detached_context.as_ref(),
+            self.settings_effect_context.as_ref(),
+        ].into_iter().flatten() {
+            theme::egui_apply::apply_motion_preference(motion_ctx, false);
         }
         ctx.data_mut(|data| data.clear());
         let base = self.rich_doc_base_url.clone();

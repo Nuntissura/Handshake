@@ -671,6 +671,7 @@ pub enum SettingsOutcome {
     Redock,
     /// The Theme / appearance ComboBox selected a (different) theme. WIRED.
     ThemeChanged(WorkspaceTheme),
+    ReduceMotionChanged(bool),
     /// The View Mode ComboBox selected a (different) mode. WIRED.
     ViewModeChanged(SettingsViewMode),
     /// A valid IANA timezone was selected for Calendar local-date projection.
@@ -834,6 +835,7 @@ impl DialogState {
             .collect();
         WorkspaceSettingsState {
             theme: live.theme,
+            reduce_motion: live.reduce_motion,
             keybindings,
             view_mode: live.view_mode,
             swarm_board_default_open: live.swarm_board_default_open,
@@ -1462,6 +1464,9 @@ fn render_sections(
         query,
         &[
             "appearance",
+            "reduce motion",
+            "motion",
+            "animation",
             "theme",
             "light",
             "dark",
@@ -1475,6 +1480,7 @@ fn render_sections(
         ],
     );
     let show_theme_row = setting_matches_query(query, &["appearance", "theme", "light", "dark"]);
+    let show_motion_row = setting_matches_query(query, &["appearance", "reduce motion", "animation"]);
     let show_view_mode_row =
         setting_matches_query(query, &["appearance", "view", "mode", "sfw", "nsfw"]);
     let show_calendar_timezone_row = setting_matches_query(
@@ -1533,6 +1539,15 @@ fn render_sections(
                             outcome = SettingsOutcome::ThemeChanged(selected);
                         }
                     });
+                }
+                if show_motion_row {
+                    let mut reduce_motion = settings.reduce_motion;
+                    let response = ui.checkbox(&mut reduce_motion, "Reduce motion")
+                        .on_hover_text("Show interface transitions immediately. Playback and task progress continue.");
+                    set_author_id(ui, response.id, "settings.appearance.reduce-motion");
+                    if response.changed() && outcome == SettingsOutcome::None {
+                        outcome = SettingsOutcome::ReduceMotionChanged(reduce_motion);
+                    }
                 }
                 if show_calendar_timezone_row {
                     ui.horizontal(|ui| {

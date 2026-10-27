@@ -2173,7 +2173,12 @@ manual-pane; and menu.operator.settings opens settings.dialog."
 }
 
 fn editor_settings_body() -> String {
-    "Settings keeps General and Engine Profiles as shared destinations and exposes the current MAIN, \
+    "General > Appearance > Reduce motion shows interface transitions immediately while playback and \
+task progress continue. The workspace setting persists through the existing authenticated settings \
+save; a persistence failure stays visible and can be retried. Find it with Search settings or target \
+settings.appearance.reduce-motion through argus.inspect / argus.click. Root and detached windows use \
+the same preference. Turning it off restores each context's normal transition timing.\n\n\
+Settings keeps General and Engine Profiles as shared destinations and exposes the current MAIN, \
 CKC, INGEST, STAGE, LAB and STUDIO module tabs. Module routes use settings.module.{module-data-id}; feature \
 leaves use settings.feature.{module-data-id}.{pane-tab-id}. Select a feature to read its configuration \
 disposition. Shared section links use settings.feature.section.{section-key}; original section headers \
