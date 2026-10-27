@@ -1258,7 +1258,8 @@
       "src/backend/handshake_core/src/storage/surreal/model_lane.rs",
       "src/backend/handshake_core/src/storage/surreal/model_lane_schema.surql",
       "src/backend/handshake_core/src/storage/surreal/schema.rs",
-      "src/backend/handshake_core/src/storage/surreal/schema.surql"
+      "src/backend/handshake_core/src/storage/surreal/schema.surql",
+      "src/backend/handshake_core/src/storage/surreal.rs"
     ],
     "forbidden_write_paths": [
       ".GOV/**",
@@ -2924,7 +2925,8 @@
       "src/backend/handshake_core/src/storage/surreal/model_registry.rs",
       "src/backend/handshake_core/src/storage/surreal/model_registry_schema.surql",
       "src/backend/handshake_core/src/backend_runtime/mod.rs",
-      "src/backend/handshake_core/src/api/authority.rs"
+      "src/backend/handshake_core/src/api/authority.rs",
+      "src/backend/handshake_core/src/storage/surreal.rs"
     ],
     "forbidden_paths": [
       ".GOV/**",
