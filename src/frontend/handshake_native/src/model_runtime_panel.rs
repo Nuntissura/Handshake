@@ -107,6 +107,13 @@ pub enum ModelRuntimeControlAction {
     SwapCompatibleAdapter { target_adapter: String },
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ModelRuntimeSelectionIntent {
+    pub request_id: uuid::Uuid,
+    pub expected_selection_revision: u64,
+    pub target_model_id: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModelRuntimeControlReceipt {
     pub schema_version: u16,
@@ -197,8 +204,8 @@ pub trait ModelRuntimeRegistryTransport: Send + Sync {
         }
     }
 
-    fn select_model(&self, target_model_id: String, cell: ModelRuntimeRegistryCell) {
-        let _ = target_model_id;
+    fn select_model(&self, intent: ModelRuntimeSelectionIntent, cell: ModelRuntimeRegistryCell) {
+        let _ = intent;
         if let Ok(mut slot) = cell.lock() {
             *slot = Some(Err(
                 "ModelRuntime selection transport is not connected.".to_owned()
@@ -234,6 +241,7 @@ struct ModelRuntimePanelState {
     projection_is_stale: bool,
     pending_fetch: bool,
     pending_selection_model_id: Option<String>,
+    selection_intent: Option<ModelRuntimeSelectionIntent>,
     pending_control_model_id: Option<String>,
     pending_control_action: Option<ModelRuntimeControlAction>,
     initial_fetch_started: bool,
@@ -288,6 +296,7 @@ impl ModelRuntimePaneFactory {
                 projection_is_stale: false,
                 pending_fetch: false,
                 pending_selection_model_id: None,
+                selection_intent: None,
                 pending_control_model_id: None,
                 pending_control_action: None,
                 initial_fetch_started: true,
@@ -375,19 +384,86 @@ impl ModelRuntimePaneFactory {
             if let Ok(mut state) = self.state.lock() {
                 state.error = Some("ModelRuntime selection backend is not connected.".to_owned());
             }
-            return true;
+            return false;
         };
-        if let Ok(mut state) = self.state.lock() {
-            if state.pending_fetch
-                || state.pending_selection_model_id.is_some()
-                || state.pending_control_model_id.is_some()
-            {
-                return false;
-            }
-            state.pending_selection_model_id = Some(target_model_id.clone());
-            state.error = None;
+        let Ok(mut state) = self.state.lock() else {
+            return false;
+        };
+        if state.pending_fetch
+            || state.pending_selection_model_id.is_some()
+            || state.pending_control_model_id.is_some()
+            || state.selection_intent.is_some()
+            || state.projection_is_stale
+        {
+            return false;
         }
-        transport.select_model(target_model_id, self.delivery.clone());
+        let Some(projection) = state.projection.as_ref() else {
+            return false;
+        };
+        let Some(expected_selection_revision) = displayed_selection_revision(projection) else {
+            return false;
+        };
+        if !projection.rows.iter().any(|row| {
+            row.live_model_id.as_deref() == Some(target_model_id.as_str())
+                && row.runtime_state == ModelRuntimeRegistryRowState::Live
+                && row.default_selectable
+                && !row.selected
+        }) {
+            return false;
+        }
+        let intent = ModelRuntimeSelectionIntent {
+            request_id: uuid::Uuid::now_v7(),
+            expected_selection_revision,
+            target_model_id,
+        };
+        state.pending_selection_model_id = Some(intent.target_model_id.clone());
+        state.selection_intent = Some(intent.clone());
+        state.error = None;
+        state.notice = None;
+        drop(state);
+        transport.select_model(intent, self.delivery.clone());
+        true
+    }
+
+    fn retry_selection(&self) -> bool {
+        let Some(transport) = self.transport.as_ref() else {
+            return false;
+        };
+        let Ok(mut state) = self.state.lock() else {
+            return false;
+        };
+        if state.pending_fetch
+            || state.pending_selection_model_id.is_some()
+            || state.pending_control_model_id.is_some()
+        {
+            return false;
+        }
+        let Some(intent) = state.selection_intent.clone() else {
+            return false;
+        };
+        state.pending_selection_model_id = Some(intent.target_model_id.clone());
+        state.error = None;
+        drop(state);
+        transport.select_model(intent, self.delivery.clone());
+        true
+    }
+
+    fn discard_selection_retry(&self) -> bool {
+        let Ok(mut state) = self.state.lock() else {
+            return false;
+        };
+        if state.pending_fetch
+            || state.pending_selection_model_id.is_some()
+            || state.pending_control_model_id.is_some()
+            || state.selection_intent.take().is_none()
+        {
+            return false;
+        }
+        state.projection_is_stale = state.projection.is_some();
+        state.error = None;
+        state.notice = Some(
+            "Selection retry discarded locally. This does not cancel or revert a backend request. Refresh before starting another selection.".to_owned(),
+        );
         true
     }
 
@@ -408,6 +484,7 @@ impl ModelRuntimePaneFactory {
             if state.pending_fetch
                 || state.pending_selection_model_id.is_some()
                 || state.pending_control_model_id.is_some()
+                || state.selection_intent.is_some()
             {
                 return false;
             }
@@ -496,10 +573,23 @@ impl ModelRuntimePaneFactory {
         };
         if let Ok(mut state) = self.state.lock() {
             state.pending_fetch = false;
-            state.pending_selection_model_id = None;
+            let selecting = state.pending_selection_model_id.take().is_some();
             match result {
                 Ok(projection) => match validate_projection_for_native_surface(&projection) {
+                    Ok(()) if selecting && !state.selection_intent.as_ref().is_some_and(|intent| {
+                        projection.rows.iter().any(|row| {
+                            row.selected
+                                && row.live_model_id.as_deref() == Some(intent.target_model_id.as_str())
+                                && row.active_selection_revision == intent.expected_selection_revision.checked_add(1)
+                        })
+                    }) => {
+                        state.projection_is_stale = state.projection.is_some();
+                        state.error = Some("ModelRuntime selection response does not match the retained intent; outcome remains unconfirmed.".to_owned());
+                    }
                     Ok(()) => {
+                        if selecting {
+                            state.selection_intent = None;
+                        }
                         state.projection = Some(projection);
                         state.projection_is_stale = false;
                         state.error = None;
@@ -551,6 +641,8 @@ impl PaneFactory for ModelRuntimePaneFactory {
 
         let mut refresh_requested = false;
         let mut switch_requested = None;
+        let mut retry_selection_requested = false;
+        let mut discard_selection_requested = false;
         let mut control_requested = None;
         let mut inspect_internals_requested = None;
         let mut process_ownership_requested = None;
@@ -659,9 +751,35 @@ impl PaneFactory for ModelRuntimePaneFactory {
                 });
             }
 
+            if let Some(intent) = state.selection_intent.as_ref()
+                .filter(|_| state.pending_selection_model_id.is_none())
+            {
+                ui.label(format!(
+                    "Selection outcome unconfirmed for {} (request {}, revision {}). Retry sends the same intent.",
+                    intent.target_model_id, intent.request_id, intent.expected_selection_revision,
+                ));
+                ui.horizontal(|ui| {
+                    let enabled = !state.pending_fetch && state.pending_control_model_id.is_none();
+                    let retry = ui.add_enabled(enabled, egui::Button::new("Retry selection"));
+                    ui.ctx().accesskit_node_builder(retry.id, |node| {
+                        node.set_author_id(selection_retry_author_id(pane_id));
+                        node.set_label("Retry the same model selection".to_owned());
+                    });
+                    retry_selection_requested = retry.clicked();
+                    let discard = ui.add_enabled(enabled, egui::Button::new("Discard selection retry"));
+                    ui.ctx().accesskit_node_builder(discard.id, |node| {
+                        node.set_author_id(selection_discard_author_id(pane_id));
+                        node.set_label("Discard local model selection retry".to_owned());
+                    });
+                    discard_selection_requested = discard.clicked();
+                });
+            }
             let Some(projection) = state.projection.as_ref() else {
                 return;
             };
+            if displayed_selection_revision(projection).is_none() {
+                ui.label("Model selection unavailable: the displayed application/default revision is absent.");
+            }
             if let Some(receipt_ref) = projection.selection_receipt_ref.as_deref() {
                 tagged_monospace_label(
                     ui,
@@ -730,6 +848,8 @@ impl PaneFactory for ModelRuntimePaneFactory {
                             !state.pending_fetch
                                 && state.pending_selection_model_id.is_none()
                                 && state.pending_control_model_id.is_none(),
+                            state.selection_intent.is_none(),
+                            displayed_selection_revision(projection).is_some(),
                             state
                                 .expanded_engine_internals
                                 .contains(&row.artifact_sha256),
@@ -866,6 +986,12 @@ impl PaneFactory for ModelRuntimePaneFactory {
         if refresh_requested && self.start_fetch() {
             crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &refresh_author_id(pane_id));
         }
+        if retry_selection_requested && self.retry_selection() {
+            crate::mcp::argus::acknowledge_action_effect_allow_target_transition(ui.ctx(), &selection_retry_author_id(pane_id));
+        }
+        if discard_selection_requested && self.discard_selection_retry() {
+            crate::mcp::argus::acknowledge_action_effect_allow_target_transition(ui.ctx(), &selection_discard_author_id(pane_id));
+        }
         if let Some((target_model_id, author_id)) = switch_requested {
             if self.start_selection(target_model_id) {
                 crate::mcp::argus::acknowledge_action_effect(ui.ctx(), &author_id);
@@ -906,6 +1032,8 @@ fn render_registry_row(
     row: &ModelRuntimeRegistryRow,
     projection_is_stale: bool,
     actions_enabled: bool,
+    selection_settled: bool,
+    selection_revision_available: bool,
     force_engine_internals_open: bool,
 ) -> RowActionRequests {
     let pane_id = ctx.record.pane_id.as_ref();
@@ -1204,13 +1332,13 @@ fn render_registry_row(
         {
             let label = format!("Switch to {}", row.display_label);
             let response = ui.add_enabled(
-                actions_enabled && !projection_is_stale,
+                actions_enabled && selection_settled && selection_revision_available && !projection_is_stale,
                 egui::Button::new(&label),
             );
             response.widget_info(|| {
                 egui::WidgetInfo::labeled(
                     egui::WidgetType::Button,
-                    actions_enabled && !projection_is_stale,
+                    actions_enabled && selection_settled && selection_revision_available && !projection_is_stale,
                     label.clone(),
                 )
             });
@@ -1236,7 +1364,7 @@ fn render_registry_row(
             "Quiesce model",
             "quiesce",
             &row.quiesce_action,
-            actions_enabled && !projection_is_stale,
+            actions_enabled && selection_settled && !projection_is_stale,
         );
         unload_requested = render_runtime_action(
             ui,
@@ -1245,7 +1373,7 @@ fn render_registry_row(
             "Unload model",
             "unload",
             &row.unload_action,
-            actions_enabled && !projection_is_stale,
+            actions_enabled && selection_settled && !projection_is_stale,
         );
         let swap_target = compatible_target_adapter(&row.selected_adapter);
         let swap_label = swap_target
@@ -1264,7 +1392,7 @@ fn render_registry_row(
             &swap_label,
             "adapter-swap",
             &swap_availability,
-            actions_enabled && !projection_is_stale,
+            actions_enabled && selection_settled && !projection_is_stale,
         );
         inspect_internals_requested = render_runtime_action(
             ui,
@@ -1467,6 +1595,14 @@ pub fn surface_author_id(pane_id: &str) -> String {
     pane_author_id(pane_id, "surface")
 }
 
+pub fn selection_retry_author_id(pane_id: &str) -> String {
+    format!("{AUTHOR_ID_PREFIX}.{pane_id}.selection-retry")
+}
+
+pub fn selection_discard_author_id(pane_id: &str) -> String {
+    format!("{AUTHOR_ID_PREFIX}.{pane_id}.selection-discard")
+}
+
 pub fn refresh_author_id(pane_id: &str) -> String {
     pane_author_id(pane_id, "action.refresh")
 }
@@ -1613,6 +1749,13 @@ pub fn row_active_purposes_author_id(pane_id: &str, artifact_sha256: &str) -> St
 
 pub fn row_switch_author_id(pane_id: &str, artifact_sha256: &str) -> String {
     format!("{}.action.switch", row_author_id(pane_id, artifact_sha256))
+}
+
+fn displayed_selection_revision(projection: &ModelRuntimeRegistryProjection) -> Option<u64> {
+    projection.rows.iter().find(|row| {
+        row.selected
+            && row.active_purposes.contains(&ModelRuntimeSelectionPurpose::ApplicationDefault)
+    }).and_then(|row| row.active_selection_revision)
 }
 
 pub fn validate_projection_for_native_surface(
@@ -1889,4 +2032,90 @@ fn is_lower_hex_sha256(value: &str) -> bool {
         && value
             .bytes()
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+
+#[cfg(test)]
+mod selection_transition_receipts {
+    use super::*;
+    use crate::{
+        accessibility::{collect_ui_tree_snapshot, UiTreeSnapshot},
+        mcp::{ActionChannel, ActionReceiptStatus, UiAction},
+        pane_registry::{DirtyState, LockState, PaneAuthority, PaneRecord},
+    };
+
+    #[derive(Default)]
+    struct Transport(Mutex<Vec<ModelRuntimeSelectionIntent>>);
+
+    impl ModelRuntimeRegistryTransport for Transport {
+        fn fetch_registry(&self, _cell: ModelRuntimeRegistryCell) {}
+
+        fn select_model(&self, intent: ModelRuntimeSelectionIntent, _cell: ModelRuntimeRegistryCell) {
+            self.0.lock().unwrap().push(intent);
+        }
+    }
+
+    fn render(panel: &ModelRuntimePaneFactory, ctx: &egui::Context) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            let record = PaneRecord::new(
+                Arc::from("selection-transition"), PaneType::ModelRuntime, "component-workspace",
+                None, LockState::Unlocked, DirtyState::Clean, PaneAuthority::Human,
+            );
+            panel.render(ui, &PaneRenderContext {
+                record: &record, egui_id: egui::Id::new("selection-transition"),
+            });
+        });
+    }
+
+    fn snapshot(panel: &ModelRuntimePaneFactory, ctx: &egui::Context) -> UiTreeSnapshot {
+        ctx.enable_accesskit();
+        let output = ctx.run(egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1200.0, 800.0))),
+            ..Default::default()
+        }, |ctx| render(panel, ctx));
+        collect_ui_tree_snapshot(output.platform_output.accesskit_update.as_ref().unwrap())
+    }
+
+    #[test]
+    fn retry_and_discard_complete_channel_receipts_after_isolated_target_removal() {
+        for retry in [true, false] {
+            let transport = Arc::new(Transport::default());
+            let panel = ModelRuntimePaneFactory::with_transport(transport.clone());
+            let intent = ModelRuntimeSelectionIntent {
+                request_id: uuid::Uuid::now_v7(), expected_selection_revision: 7,
+                target_model_id: "component-target".to_owned(),
+            };
+            {
+                let mut state = panel.state.lock().unwrap();
+                state.initial_fetch_started = true;
+                state.selection_intent = Some(intent.clone());
+            }
+            let live = egui::Context::default();
+            let before = snapshot(&panel, &live);
+            let author = if retry { selection_retry_author_id("selection-transition") }
+                else { selection_discard_author_id("selection-transition") };
+            assert!(before.find_unique_by_author_id(&author).is_some());
+            let mut channel = ActionChannel::new();
+            let receipt = channel.enqueue(&before, &author, UiAction::Click).unwrap();
+            let events = channel.drain_revalidated_into_live_events(&before, &live, egui::ViewportId::ROOT);
+            assert_eq!(events.len(), 1);
+            let _ = live.run(egui::RawInput { events, ..Default::default() }, |ctx| render(&panel, ctx));
+            // Production collects a new post-effect tree in an isolated context.
+            let after = snapshot(&panel, &egui::Context::default());
+            assert!(after.find_unique_by_author_id(&author).is_none());
+            let _ = live.run(egui::RawInput::default(), |ctx| {
+                render(&panel, ctx);
+                channel.acknowledge_after_live_render(&after, Some(ctx));
+            });
+            let completed = channel.receipts().into_iter()
+                .find(|row| row.receipt_id == receipt.receipt_id).unwrap();
+            assert_eq!(completed.status, ActionReceiptStatus::Applied, "retry={retry}");
+            if retry {
+                assert_eq!(*transport.0.lock().unwrap(), vec![intent]);
+            } else {
+                assert!(transport.0.lock().unwrap().is_empty());
+                assert!(panel.state.lock().unwrap().selection_intent.is_none());
+            }
+        }
+    }
 }

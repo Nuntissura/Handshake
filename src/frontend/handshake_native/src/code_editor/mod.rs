@@ -604,6 +604,9 @@ pub mod interop_adapter {
         after: crate::code_editor::TextBuffer,
         description: impl Into<String>,
     ) {
+        // A prior frame may still own staged typing or Replace entries after bus contention.
+        // Publish those first under this same lock, including both Cut/Paste dispatch paths.
+        panel.drain_text_edit_undo_to_bus(bus, pane_id.clone());
         bus.push_undo_local(
             pane_id,
             code_edit_undo_action(panel, before, after, description),

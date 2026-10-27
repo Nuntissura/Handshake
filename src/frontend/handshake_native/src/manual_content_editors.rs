@@ -2192,6 +2192,17 @@ defaults retain account authority, buffers and save/reset handlers. Facial revie
 operation. Model Runtime registry actions remain inline and distinct from Engine Profiles; immutable \
 profile revisions and full-profile dispatch remain inside settings.tab.engine-profiles. Unavailable \
 Settings configuration does not imply that configuration elsewhere is absent.\n\n\
+In the inline Model Runtime registry, a selection error or invalid/mismatched response leaves the outcome \
+unconfirmed. Retry selection (model-runtime.registry.{pane-id}.selection-retry, labelled 'Retry the same \
+model selection') resends the retained request UUID, expected revision and target unchanged. Refresh \
+(model-runtime.registry.{pane-id}.action.refresh) neither confirms nor rebases that intent. A changed \
+registry revision can make the unchanged retry conflict. Discard selection retry \
+(model-runtime.registry.{pane-id}.selection-discard, labelled 'Discard local model selection retry') only \
+forgets the local retry; it cannot cancel or revert backend work. After discarding, Refresh and wait for a \
+fresh canonical registry read before starting a new selection. A matching successful selection response \
+confirms the result; a request acknowledgement does not. Obtain the live pane-id with argus.inspect. Use any \
+returned selection receipt with Flight Recorder, and the existing internal_diagnostics and Palmistry \
+guidance when investigating an unconfirmed outcome.\n\n\
 Editor preferences live in the Settings dialog (open from HELP > Open Settings, the command settings.open, \
 or the settings chrome; filter with settings.search). The Editor section exposes settings-editor-font-size, \
 settings-editor-tab-size, settings-editor-insert-spaces (tabs vs spaces), settings-editor-word-wrap (Off / On / \

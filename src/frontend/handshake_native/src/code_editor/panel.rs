@@ -1327,10 +1327,10 @@ pub struct CodeEditorPanel {
     /// (the MT-035/050 wrap-not-fork pattern; no parallel undo stack). Only the latest is kept (a second
     /// transform before the drain supersedes; the host applies them in order so the newest pair is correct).
     pending_line_op_undo: Mutex<Option<(&'static str, String, String)>>,
-    /// MT-035 the queued live text-edit undo snapshot `(before, after)` for Event::Text / IME commit /
-    /// newline / Backspace / Delete. The panel stages rope snapshots here and the factory render drains
-    /// them into the shared `InteractionBus`, preserving the single unified undo authority.
-    pending_text_edit_undo: Mutex<Option<PendingCodeTextUndo>>,
+    /// Pending text-edit undo deliveries in command order. Typing continuations merge only with their
+    /// undrained burst; discrete replacements remain separate. The mounted factory drains this queue
+    /// into the existing shared `InteractionBus` undo authority.
+    pending_text_edit_undo: Mutex<VecDeque<PendingCodeTextUndo>>,
     /// MT-036/MT-069 code-edit producer receipt. Every successful product mutation adds its exact line
     /// delta here; the mounted factory drains the accumulated delta into the existing two-second
     /// trailing-edge Flight Recorder batch. A zero delta is meaningful (an in-line edit still emits), while
@@ -1951,12 +1951,11 @@ struct ReplaceAllPlan {
 pub struct FindState {
     /// The active query (pattern + case/whole-word/regex toggles).
     pub query: FindQuery,
-    /// Every match of `query` in the buffer, ascending by byte offset. Recomputed when `query` changes
-    /// or after a replace (RISK-003).
+    /// Every match of `query` in the buffer, ascending by byte offset. Refreshed after query changes
+    /// or when a state read, find action or paint observes a newer buffer version.
     pub matches: Vec<Match>,
-    /// Buffer version from which `matches` was computed. Ordinary editor mutations do not eagerly
-    /// re-run the find engine, so Replace All checks this value at click time and refreshes before it
-    /// builds a new bounded continuation plan.
+    /// Buffer version from which `matches` was computed. State readers and find actions refresh this
+    /// cache after ordinary editor mutations before using its counts or byte ranges.
     matches_buffer_version: u64,
     /// The index into `matches` of the CURRENT match (the one highlighted orange + scrolled to). Always
     /// `< matches.len()` when `matches` is non-empty; clamped on every recompute.
@@ -2356,7 +2355,7 @@ impl CodeEditorPanel {
                 super::file_meta::IndentKind::Spaces
             )),
             // MT-035 live text-edit undo: empty until a real typing/deletion/IME/newline path mutates.
-            pending_text_edit_undo: Mutex::new(None),
+            pending_text_edit_undo: Mutex::new(VecDeque::new()),
             pending_code_edit_receipts: Mutex::new(VecDeque::new()),
             text_edit_undo_batcher: Mutex::new(CodeTextUndoBatcher::default()),
             // MT-071 file-metadata: seed EOL from the buffer (LF default — MC-007); language override
@@ -2850,6 +2849,7 @@ impl CodeEditorPanel {
     /// A snapshot clone of the current find state (for tests + the overlay). `None` when the bar is
     /// closed.
     pub fn find_state(&self) -> Option<FindState> {
+        self.refresh_stale_find_matches();
         self.find_state
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -2869,6 +2869,7 @@ impl CodeEditorPanel {
     }
 
     fn step_match(&self, forward: bool) {
+        self.refresh_stale_find_matches();
         let target = {
             let mut guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
             let Some(state) = guard.as_mut() else { return };
@@ -2967,6 +2968,7 @@ impl CodeEditorPanel {
     /// Returns `true` when a replacement was applied. The current-match index is preserved (clamped to
     /// the new, smaller match count) so repeated Replace walks through the occurrences.
     pub fn replace_current(&self) -> bool {
+        self.refresh_stale_find_matches();
         let (target, replacement) = {
             let guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
             let Some(state) = guard.as_ref() else {
@@ -2994,7 +2996,7 @@ impl CodeEditorPanel {
                 state.replace_all_remaining = 0;
                 state.replace_all_plan = None;
             }
-            self.record_code_edit_mutation(&before, &self.buffer());
+            self.record_discrete_text_edit_undo(before, self.buffer(), "Replace");
         }
         applied
     }
@@ -3003,28 +3005,8 @@ impl CodeEditorPanel {
     /// highlights. The private continuation plan is independent of that refreshed list, so replacement
     /// text that equals or contains the query cannot make the next click restart at the top.
     pub fn replace_all(&self) -> usize {
-        let mut live_version = self.buffer_version.load(Ordering::Acquire);
-        let matches_are_stale = self
-            .find_state
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .as_ref()
-            .is_some_and(|state| state.matches_buffer_version != live_version);
-        if matches_are_stale {
-            // An ordinary edit invalidates every cached byte range. Refresh outside the find-state
-            // lock (refresh_find_matches takes buffer -> find_state) before constructing a fresh plan.
-            self.refresh_find_matches();
-            live_version = self.buffer_version.load(Ordering::Acquire);
-            if let Some(state) = self
-                .find_state
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .as_mut()
-            {
-                state.replace_all_plan = None;
-                state.replace_all_remaining = 0;
-            }
-        }
+        self.refresh_stale_find_matches();
+        let live_version = self.buffer_version.load(Ordering::Acquire);
         let (batch, replacement, batch_delta, total_matches, next_match) = {
             let mut guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
             let Some(state) = guard.as_mut() else {
@@ -3087,10 +3069,7 @@ impl CodeEditorPanel {
         if applied == batch.len() && applied > 0 {
             self.refresh();
             self.refresh_find_matches();
-            // Replace All is a discrete operator command. Reset only coalescer timing so this batch
-            // receives one fresh unified-undo entry without dropping an undrained earlier snapshot.
-            self.reset_text_edit_undo_batch_timing();
-            self.record_text_edit_undo(before, self.buffer(), "Replace All");
+            self.record_discrete_text_edit_undo(before, self.buffer(), "Replace All");
         }
         {
             let mut guard = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
@@ -3113,10 +3092,34 @@ impl CodeEditorPanel {
         applied
     }
 
+    fn refresh_stale_find_matches(&self) {
+        let live_version = self.buffer_version.load(Ordering::Acquire);
+        let matches_are_stale = self
+            .find_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .is_some_and(|state| state.matches_buffer_version != live_version);
+        if matches_are_stale {
+            // An ordinary edit invalidates every cached byte range. Refresh outside the find-state
+            // lock (refresh_find_matches takes buffer -> find_state) before constructing a fresh plan.
+            self.refresh_find_matches();
+            if let Some(state) = self
+                .find_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .as_mut()
+            {
+                state.replace_all_plan = None;
+                state.replace_all_remaining = 0;
+            }
+        }
+    }
+
     /// Re-run [`FindEngine::search`] for the current query over the current buffer and store the result
     /// in `find_state`, clamping `current_match` into range and recording the regex compile error
-    /// (AC-003). The single place matches are recomputed; called when the query/toggles change and
-    /// after any replace (RISK-003). A no-op when the bar is closed.
+    /// (AC-003). The single place matches are recomputed after query/toggle changes, replacement, or a
+    /// stale-buffer check. A no-op when the bar is closed.
     fn refresh_find_matches(&self) {
         let buffer = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
         let buffer_version = self.buffer_version.load(Ordering::Acquire);
@@ -6304,11 +6307,32 @@ impl CodeEditorPanel {
             .take()
     }
 
+    fn record_discrete_text_edit_undo(
+        &self,
+        before: TextBuffer,
+        after: TextBuffer,
+        description: &'static str,
+    ) {
+        self.reset_text_edit_undo_batch_timing();
+        self.record_text_edit_undo(before, after, description);
+        self.reset_text_edit_undo_batch_timing();
+    }
+
     fn record_text_edit_undo(
         &self,
         before: TextBuffer,
         after: TextBuffer,
         description: &'static str,
+    ) {
+        self.record_text_edit_undo_at(before, after, description, Instant::now());
+    }
+
+    fn record_text_edit_undo_at(
+        &self,
+        before: TextBuffer,
+        after: TextBuffer,
+        description: &'static str,
+        now: Instant,
     ) {
         if !self.record_code_edit_mutation(&before, &after) {
             return;
@@ -6317,11 +6341,19 @@ impl CodeEditorPanel {
             .text_edit_undo_batcher
             .lock()
             .unwrap_or_else(|e| e.into_inner())
-            .observe_edit(before, Instant::now());
-        *self
+            .observe_edit(before, now);
+        let mut pending = self
             .pending_text_edit_undo
             .lock()
-            .unwrap_or_else(|e| e.into_inner()) = Some(PendingCodeTextUndo {
+            .unwrap_or_else(|e| e.into_inner());
+        if replace_tail {
+            if let Some(tail) = pending.back_mut() {
+                tail.after = after;
+                tail.description = description;
+                return;
+            }
+        }
+        pending.push_back(PendingCodeTextUndo {
             before: batch_before,
             after,
             description,
@@ -6410,17 +6442,42 @@ impl CodeEditorPanel {
     }
 
     fn has_pending_text_edit_undo(&self) -> bool {
-        self.pending_text_edit_undo
+        !self.pending_text_edit_undo
             .lock()
             .unwrap_or_else(|e| e.into_inner())
-            .is_some()
+            .is_empty()
     }
 
     fn take_pending_text_edit_undo(&self) -> Option<PendingCodeTextUndo> {
         self.pending_text_edit_undo
             .lock()
             .unwrap_or_else(|e| e.into_inner())
-            .take()
+            .pop_front()
+    }
+
+    /// Drain only while the caller holds the shared bus, before a later edit publishes its undo.
+    pub(super) fn drain_text_edit_undo_to_bus(
+        self: &Arc<Self>,
+        bus: &mut InteractionBus,
+        pane_id: PaneId,
+    ) -> bool {
+        let mut drained = false;
+        while let Some(pending) = self.take_pending_text_edit_undo() {
+            if !drained {
+                bus.set_focus_owner(pane_id.clone());
+            }
+            super::interop_adapter::push_or_coalesce_code_edit_undo(
+                bus,
+                pane_id.clone(),
+                self,
+                pending.before,
+                pending.after,
+                pending.description,
+                pending.replace_tail,
+            );
+            drained = true;
+        }
+        drained
     }
 
     pub fn reset_text_edit_undo_batch(&self) {
@@ -6428,10 +6485,10 @@ impl CodeEditorPanel {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .reset();
-        *self
-            .pending_text_edit_undo
+        self.pending_text_edit_undo
             .lock()
-            .unwrap_or_else(|e| e.into_inner()) = None;
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
     }
 
     /// WP-KERNEL-012 MT-035 FIX A (undo-history corruption): clear ONLY the typing-coalescer timing so the
@@ -12300,6 +12357,7 @@ impl CodeEditorPanel {
         painted_lines: &[usize],
         wrap_rows: Option<&[VisualRow]>,
     ) {
+        self.refresh_stale_find_matches();
         let state = self.find_state.lock().unwrap_or_else(|e| e.into_inner());
         let Some(state) = state.as_ref() else {
             return; // bar closed -> no highlights (AC-006)
@@ -15160,6 +15218,17 @@ impl CodeEditorPaneFactory {
         Arc::clone(&self.panel)
     }
 
+    fn drain_text_edit_undo(
+        &self,
+        bus: &Arc<Mutex<crate::interop::interaction_bus::InteractionBus>>,
+        pane_id: PaneId,
+    ) -> bool {
+        crate::interop::interaction_bus::InteractionBus::with_try_lock(bus, |b| {
+            self.panel.drain_text_edit_undo_to_bus(b, pane_id)
+        })
+        .unwrap_or(false)
+    }
+
     fn stage_code_edit_event_at(
         &self,
         pane_id: &str,
@@ -15336,29 +15405,10 @@ impl PaneFactory for CodeEditorPaneFactory {
         // MT-035: live typing / IME / delete / newline record their undo snapshots through the SAME bus
         // boundary as format and line transforms. Do not take the staged snapshot until the bus lock is
         // acquired; if the bus is contended this frame, request a repaint and preserve the pending entry.
-        if self.panel.has_pending_text_edit_undo() {
-            let pane_id_text: PaneId = Arc::from(ctx.record.pane_id.as_ref());
-            let drained =
-                crate::interop::interaction_bus::InteractionBus::with_try_lock(&bus, |b| {
-                    let Some(pending) = self.panel.take_pending_text_edit_undo() else {
-                        return false;
-                    };
-                    b.set_focus_owner(pane_id_text.clone());
-                    super::interop_adapter::push_or_coalesce_code_edit_undo(
-                        b,
-                        pane_id_text.clone(),
-                        &self.panel,
-                        pending.before,
-                        pending.after,
-                        pending.description,
-                        pending.replace_tail,
-                    );
-                    true
-                })
-                .unwrap_or(false);
-            if !drained {
-                ui.ctx().request_repaint();
-            }
+        if self.panel.has_pending_text_edit_undo()
+            && !self.drain_text_edit_undo(&bus, Arc::from(ctx.record.pane_id.as_ref()))
+        {
+            ui.ctx().request_repaint();
         }
 
         // MT-050 (AC-001): record the SINGLE undo entry for a just-applied format at the SAME bus boundary
@@ -15884,6 +15934,263 @@ mod tests {
         );
         // A non-overridden scope in Custom mode falls back to a concrete color (never missing/panics).
         let _ = panel.resolve_highlight_color(HighlightScope::Comment, &dark);
+    }
+
+    #[test]
+    fn find_retained_replace_then_mounted_paste_preserves_shared_undo_order() {
+        use crate::interop::interaction_bus::{ClipboardCommand, ClipboardPayload, InteractionBus};
+        use crate::pane_registry::{DirtyState, LockState, PaneAuthority, PaneRecord};
+        use crate::rich_editor::properties::metadata_client::EguiClipboard;
+
+        let panel = Arc::new(CodeEditorPanel::new("x", "txt"));
+        let factory = CodeEditorPaneFactory::from_arc(Arc::clone(&panel));
+        let egui_ctx = egui::Context::default();
+        let bus = InteractionBus::get_or_init(&egui_ctx);
+        let pane_id: PaneId = Arc::from("find-retained-replace-paste");
+        let record = PaneRecord::new(
+            pane_id.clone(),
+            PaneType::CodeSymbol,
+            "find-undo-workspace",
+            None,
+            LockState::Unlocked,
+            DirtyState::Clean,
+            PaneAuthority::System,
+        );
+        panel.open_find(true);
+        panel.set_find_query("x");
+        panel.set_replace_text("y");
+        assert!(panel.replace_current());
+        let held = bus.lock().unwrap();
+        assert!(!factory.drain_text_edit_undo(&bus, pane_id.clone()));
+        assert!(panel.has_pending_text_edit_undo());
+        assert_eq!(panel.buffer().to_string(), "y");
+        drop(held);
+        panel.close_find();
+        panel.set_single_cursor(panel.buffer().len_bytes());
+        {
+            let mut shared = bus.lock().unwrap();
+            shared.set_focus_owner(pane_id.clone());
+            shared.clipboard_write(
+                ClipboardPayload::PlainText("!".to_owned()),
+                &EguiClipboard::new(egui_ctx.clone()),
+            );
+            assert!(shared.request_clipboard_command(ClipboardCommand::Paste));
+        }
+
+        let _ = egui_ctx.run(egui::RawInput::default(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                ui.push_id("find-retained-replace-paste", |ui| {
+                    let render_ctx = PaneRenderContext {
+                        record: &record,
+                        egui_id: ui.id(),
+                    };
+                    ui.memory_mut(|memory| memory.request_focus(render_ctx.egui_id));
+                    factory.render(ui, &render_ctx);
+                });
+            });
+        });
+        assert_eq!(panel.buffer().to_string(), "y!");
+        assert!(!panel.has_pending_text_edit_undo());
+        let mut shared = bus.lock().unwrap();
+        assert_eq!(shared.local_undo_count(&pane_id), 2);
+        assert!(shared.undo(&pane_id).expect("mounted Paste undo").ok);
+        assert_eq!(panel.buffer().to_string(), "y");
+        assert!(shared.undo(&pane_id).expect("retained Replace undo").ok);
+        assert_eq!(panel.buffer().to_string(), "x");
+        assert!(shared.redo(&pane_id).expect("retained Replace redo").ok);
+        assert_eq!(panel.buffer().to_string(), "y");
+        assert!(shared.redo(&pane_id).expect("mounted Paste redo").ok);
+        assert_eq!(panel.buffer().to_string(), "y!");
+    }
+
+    #[test]
+    fn find_replace_then_typing_keeps_distinct_shared_undo_steps() {
+        use crate::interop::interaction_bus::InteractionBus;
+
+        let panel = Arc::new(CodeEditorPanel::new("x", "txt"));
+        let factory = CodeEditorPaneFactory::from_arc(Arc::clone(&panel));
+        let bus = Arc::new(Mutex::new(InteractionBus::new()));
+        let pane_id: PaneId = Arc::from("find-replace-typing");
+        let before = panel.buffer();
+        panel.set_single_cursor(before.len_bytes());
+        assert_eq!(panel.insert_text(" x"), 1);
+        panel.record_text_edit_undo_at(before, panel.buffer(), "code: typing", Instant::now());
+        assert!(factory.drain_text_edit_undo(&bus, pane_id.clone()));
+        panel.open_find(true);
+        panel.set_find_query("x");
+        panel.set_replace_text("y");
+        assert!(panel.replace_current());
+        assert!(factory.drain_text_edit_undo(&bus, pane_id.clone()));
+        panel.close_find();
+        let typing_at = panel.text_edit_undo_batcher.lock().unwrap().last_edit_at
+            .unwrap_or_else(Instant::now) + Duration::from_millis(100);
+
+        let before = panel.buffer();
+        panel.set_single_cursor(before.len_bytes());
+        assert_eq!(panel.insert_text("!"), 1);
+        panel.record_text_edit_undo_at(before, panel.buffer(), "code: typing", typing_at);
+        let before = panel.buffer();
+        panel.set_single_cursor(before.len_bytes());
+        assert_eq!(panel.insert_text("?"), 1);
+        panel.record_text_edit_undo_at(
+            before, panel.buffer(), "code: ime commit", typing_at + Duration::from_millis(100),
+        );
+        assert!(factory.drain_text_edit_undo(&bus, pane_id.clone()));
+        assert_eq!(panel.buffer().to_string(), "y x!?");
+
+        let mut shared = bus.lock().unwrap();
+        assert!(shared.undo(&pane_id).expect("typing undo").ok);
+        assert_eq!(panel.buffer().to_string(), "y x", "typing must not absorb Replace");
+        assert!(shared.undo(&pane_id).expect("replacement undo").ok);
+        assert_eq!(panel.buffer().to_string(), "x x");
+        assert!(shared.undo(&pane_id).expect("typing before replacement undo").ok);
+        assert_eq!(panel.buffer().to_string(), "x");
+        assert!(shared.redo(&pane_id).expect("typing before replacement redo").ok);
+        assert_eq!(panel.buffer().to_string(), "x x");
+        assert!(shared.redo(&pane_id).expect("replacement redo").ok);
+        assert_eq!(panel.buffer().to_string(), "y x");
+        assert!(shared.redo(&pane_id).expect("typing redo").ok);
+        assert_eq!(panel.buffer().to_string(), "y x!?");
+    }
+
+    #[test]
+    fn find_two_replacements_before_shared_drain_keep_both_undo_redo_steps() {
+        use crate::interop::interaction_bus::InteractionBus;
+
+        let panel = Arc::new(CodeEditorPanel::new("x x", "txt"));
+        let factory = CodeEditorPaneFactory::from_arc(Arc::clone(&panel));
+        let bus = Arc::new(Mutex::new(InteractionBus::new()));
+        let pane_id: PaneId = Arc::from("find-two-replacements");
+        panel.open_find(true);
+        panel.set_find_query("x");
+        panel.set_replace_text("y");
+        assert!(panel.replace_current());
+        assert!(panel.replace_current());
+        assert_eq!(panel.buffer().to_string(), "y y");
+        assert!(factory.drain_text_edit_undo(&bus, pane_id.clone()));
+
+        let mut shared = bus.lock().unwrap();
+        assert!(shared.undo(&pane_id).expect("second replacement undo").ok);
+        assert_eq!(panel.buffer().to_string(), "y x");
+        assert!(shared.undo(&pane_id).expect("first replacement undo").ok);
+        assert_eq!(panel.buffer().to_string(), "x x");
+        assert!(shared.redo(&pane_id).expect("first replacement redo").ok);
+        assert_eq!(panel.buffer().to_string(), "y x");
+        assert!(shared.redo(&pane_id).expect("second replacement redo").ok);
+        assert_eq!(panel.buffer().to_string(), "y y");
+    }
+
+    #[test]
+    fn find_pending_replacements_survive_busy_shared_bus() {
+        use crate::interop::interaction_bus::InteractionBus;
+
+        let panel = Arc::new(CodeEditorPanel::new("x x", "txt"));
+        let factory = CodeEditorPaneFactory::from_arc(Arc::clone(&panel));
+        let bus = Arc::new(Mutex::new(InteractionBus::new()));
+        let pane_id: PaneId = Arc::from("find-busy-bus");
+        panel.open_find(true);
+        panel.set_find_query("x");
+        panel.set_replace_text("y");
+        assert!(panel.replace_current());
+        assert!(panel.replace_current());
+        let held = bus.lock().unwrap();
+        assert!(!factory.drain_text_edit_undo(&bus, pane_id.clone()));
+        assert!(panel.has_pending_text_edit_undo());
+        drop(held);
+        assert!(factory.drain_text_edit_undo(&bus, pane_id.clone()));
+
+        let mut shared = bus.lock().unwrap();
+        assert!(shared.undo(&pane_id).expect("second retained replacement").ok);
+        assert_eq!(panel.buffer().to_string(), "y x");
+        assert!(shared.undo(&pane_id).expect("first retained replacement").ok);
+        assert_eq!(panel.buffer().to_string(), "x x");
+        assert!(shared.redo(&pane_id).expect("first retained redo").ok);
+        assert!(shared.redo(&pane_id).expect("second retained redo").ok);
+        assert_eq!(panel.buffer().to_string(), "y y");
+    }
+
+    #[test]
+    fn find_live_buffer_refreshes_counts_and_keeps_query_options() {
+        let panel = CodeEditorPanel::new("needle needle", "txt");
+        panel.open_find(true);
+        panel.set_find_query("needle");
+        panel.set_find_toggles(true, true, false);
+        panel.set_replace_text("replacement draft");
+
+        panel.set_text("prefix needle");
+        let state = panel.find_state().expect("find remains open");
+        assert_eq!(state.counter_label(), "1 of 1", "count must follow the live buffer");
+        assert_eq!(state.matches[0].byte_range, 7..13);
+        assert!(state.query.case_sensitive && state.query.whole_word && !state.query.is_regex);
+        assert!(state.show_replace);
+        assert_eq!(state.replace_text, "replacement draft");
+
+        panel.set_text("no match");
+        let state = panel.find_state().expect("find remains open");
+        assert!(state.matches.is_empty());
+        assert_eq!(state.counter_label(), "0 of 0");
+    }
+
+    #[test]
+    fn find_navigation_reveals_live_match_after_an_ordinary_edit() {
+        let panel = CodeEditorPanel::new("needle needle", "txt");
+        panel.open_find(false);
+        panel.set_find_query("needle");
+        *panel.line_height_px.lock().unwrap() = Some(15.0);
+        panel.set_text(&format!("{}needle", "\n".repeat(50)));
+
+        panel.next_match();
+        let offset = panel.pending_scroll_offset.lock().unwrap()
+            .expect("next match must reveal the live target");
+        assert!(offset > 500.0, "line 50 must be revealed instead of stale line zero: {offset}");
+        let state = panel.find_state().expect("find remains open");
+        assert_eq!(state.matches.len(), 1);
+        assert_eq!(state.matches[0].line, 50);
+        assert_eq!(state.current_match, 0);
+    }
+
+    #[test]
+    fn find_replace_current_refreshes_live_range_and_stages_one_undo() {
+        let panel = CodeEditorPanel::new("needle", "txt");
+        panel.open_find(true);
+        panel.set_find_query("needle");
+        panel.set_replace_text("target");
+        panel.set_text("prefix needle");
+
+        assert!(panel.replace_current());
+        assert_eq!(panel.buffer().to_string(), "prefix target");
+        let undo = panel.take_pending_text_edit_undo().expect("Replace must be undoable");
+        assert_eq!(undo.before.to_string(), "prefix needle");
+        assert_eq!(undo.after.to_string(), "prefix target");
+        assert!(!undo.replace_tail, "a replacement is a discrete undo command");
+        assert!(panel.take_pending_text_edit_undo().is_none(), "one replacement queues one undo unit");
+    }
+
+    #[test]
+    fn find_invalid_regex_stays_empty_across_live_edits_and_recovers() {
+        let panel = CodeEditorPanel::new("needle needle", "txt");
+        panel.open_find(true);
+        panel.set_find_query("needle");
+        panel.set_replace_text("replacement draft");
+        panel.set_find_toggles(false, false, true);
+        panel.set_find_query("(");
+        panel.set_text("needle needle needle");
+
+        let state = panel.find_state().expect("invalid query must keep find open");
+        assert!(state.matches.is_empty());
+        assert_eq!(state.counter_label(), "0 of 0");
+        assert!(!state.error.is_empty());
+        assert!(!panel.replace_current());
+        assert_eq!(panel.replace_all(), 0);
+        assert_eq!(panel.buffer().to_string(), "needle needle needle");
+        assert!(panel.take_pending_text_edit_undo().is_none());
+
+        panel.set_find_query("needle");
+        let state = panel.find_state().expect("corrected query remains open");
+        assert_eq!(state.matches.len(), 3);
+        assert!(state.error.is_empty());
+        assert!(state.query.is_regex);
+        assert_eq!(state.replace_text, "replacement draft");
     }
 
     /// MT-108 (MT-004 residual, RISK-004): stepping to a match deep in the document scrolls it to just

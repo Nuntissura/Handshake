@@ -528,12 +528,17 @@ impl ModelRuntimeRegistryClient {
         }
     }
 
-    pub fn selection_request(&self, target_model_id: &str) -> RequestSpec {
+    pub fn selection_request(
+        &self,
+        intent: &crate::model_runtime_panel::ModelRuntimeSelectionIntent,
+    ) -> RequestSpec {
         RequestSpec {
             method: HttpMethod::Post,
             url: format!("{}/model-runtime/selection", self.base_url),
             body: Some(serde_json::json!({
-                "target_model_id": target_model_id,
+                "request_id": intent.request_id,
+                "expected_selection_revision": intent.expected_selection_revision,
+                "target_model_id": intent.target_model_id,
                 "actor": "native-model-runtime-panel",
                 "reason": "operator selected a READY model from ModelRuntime Control Panel"
             })),
@@ -630,10 +635,10 @@ impl crate::model_runtime_panel::ModelRuntimeRegistryTransport for ModelRuntimeR
 
     fn select_model(
         &self,
-        target_model_id: String,
+        intent: crate::model_runtime_panel::ModelRuntimeSelectionIntent,
         cell: crate::model_runtime_panel::ModelRuntimeRegistryCell,
     ) {
-        let spec = self.selection_request(&target_model_id);
+        let spec = self.selection_request(&intent);
         let client = self.client.clone();
         let account = self.authenticated_context.clone();
         let body = spec.body.unwrap_or_default();
@@ -12954,6 +12959,33 @@ mod tests {
     }
 
     const BASE: &str = "http://test.local:1234";
+
+    #[test]
+    fn model_selection_request_preserves_supplied_intent_and_revision_on_retry() {
+        let runtime = rt();
+        let client = ModelRuntimeRegistryClient::new(BASE, runtime.handle().clone());
+        let request_id = uuid::Uuid::parse_str("01900000-0000-7000-8000-000000000041").unwrap();
+        let target_model_id = "01900000-0000-7000-8000-000000000042";
+        for expected_selection_revision in [0, 7, u64::MAX] {
+            let intent = crate::model_runtime_panel::ModelRuntimeSelectionIntent {
+                request_id,
+                expected_selection_revision,
+                target_model_id: target_model_id.to_owned(),
+            };
+            let request = client.selection_request(&intent);
+            assert_eq!(request.method, HttpMethod::Post);
+            assert_eq!(request.url, format!("{BASE}/model-runtime/selection"));
+            assert_eq!(request.body, Some(serde_json::json!({
+                "request_id": request_id,
+                "expected_selection_revision": expected_selection_revision,
+                "target_model_id": target_model_id,
+                "actor": "native-model-runtime-panel",
+                "reason": "operator selected a READY model from ModelRuntime Control Panel"
+            })));
+            assert_eq!(client.selection_request(&intent), request,
+                "retry must preserve the entire supplied selection intent");
+        }
+    }
 
     const CKC_SELECTED_ID: &str = "01900000-0000-7000-8000-000000000033";
     const CKC_SELECTED_VERSION: &str = "01900000-0000-7000-8000-000000000034";
